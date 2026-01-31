@@ -2,6 +2,9 @@ import { CalendarDays, Clock, MessageSquare, Share2, User } from "lucide-react";
 
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
+import DiscordInviteCard from "@/components/DiscordInviteCard";
+import LatestEpisodeCard from "@/components/LatestEpisodeCard";
+import WorkStatusCard from "@/components/WorkStatusCard";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -12,7 +15,7 @@ import { Textarea } from "@/components/ui/textarea";
 const post = {
   title: "Sono Bisque Doll wa Koi wo Suru — Season 2 #02",
   cover: "/placeholder.svg",
-  date: "2024-02-12",
+  dateTime: "2024-02-12T19:45:00",
   author: "Equipe Rainbow",
   readTime: "6 min de leitura",
   tags: ["Anime", "Lançamento", "Romance"],
@@ -36,73 +39,74 @@ const Post = () => {
     <div className="min-h-screen bg-background">
       <Header />
 
-      <main className="px-6 pb-20 pt-10 md:px-12">
+      <main className="px-6 pb-20 pt-14 md:px-12">
         <div className="mx-auto flex max-w-6xl flex-col gap-10">
           <section className="space-y-6">
-            <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
-              <Badge variant="secondary" className="uppercase tracking-wide">
-                Postagem
-              </Badge>
-              <span className="inline-flex items-center gap-2">
-                <CalendarDays className="h-4 w-4 text-primary/70" aria-hidden="true" />
-                {new Date(post.date).toLocaleDateString("pt-BR")}
-              </span>
-              <span className="inline-flex items-center gap-2">
-                <User className="h-4 w-4 text-primary/70" aria-hidden="true" />
-                {post.author}
-              </span>
-              <span className="inline-flex items-center gap-2">
-                <Clock className="h-4 w-4 text-primary/70" aria-hidden="true" />
-                {post.readTime}
-              </span>
-            </div>
-
-            <div className="space-y-4">
+            <div className="space-y-3">
               <h1 className="text-3xl font-bold text-foreground md:text-4xl">
                 {post.title}
               </h1>
-              <p className="max-w-3xl text-base text-muted-foreground md:text-lg">
-                {post.excerpt}
-              </p>
-              <div className="flex flex-wrap gap-2">
-                {post.tags.map((tag) => (
-                  <Badge key={tag} variant="outline" className="text-xs uppercase tracking-wide">
-                    {tag}
-                  </Badge>
-                ))}
+              <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-muted-foreground">
+                <div className="flex flex-wrap items-center gap-3">
+                  <span className="inline-flex items-center gap-2">
+                    <User className="h-4 w-4 text-primary/70" aria-hidden="true" />
+                    {post.author}
+                  </span>
+                  <span className="inline-flex items-center gap-2">
+                    <CalendarDays className="h-4 w-4 text-primary/70" aria-hidden="true" />
+                    {new Date(post.dateTime).toLocaleString("pt-BR", {
+                      dateStyle: "short",
+                      timeStyle: "short",
+                    })}
+                  </span>
+                  <span className="inline-flex items-center gap-2">
+                    <Clock className="h-4 w-4 text-primary/70" aria-hidden="true" />
+                    {post.readTime}
+                  </span>
+                </div>
+                <div className="flex flex-wrap justify-end gap-2">
+                  {post.tags.map((tag) => (
+                    <Badge key={tag} variant="outline" className="text-xs uppercase tracking-wide">
+                      {tag}
+                    </Badge>
+                  ))}
+                </div>
               </div>
             </div>
 
-            <div className="relative overflow-hidden rounded-2xl border border-border bg-card">
+            <div className="relative overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
               <img
                 src={post.cover}
                 alt={`Capa do post: ${post.title}`}
-                className="h-[320px] w-full object-cover md:h-[420px]"
+                className="aspect-[3/2] w-full object-cover"
               />
-              <div className="absolute inset-0 bg-gradient-to-t from-background/90 via-background/20 to-transparent" />
-              <div className="absolute bottom-6 left-6 flex flex-wrap items-center gap-3">
-                <Badge className="bg-primary text-primary-foreground">Destaque</Badge>
-                <Badge variant="secondary" className="bg-background/70 text-foreground">
-                  {post.readTime}
-                </Badge>
-              </div>
             </div>
           </section>
 
           <section className="grid gap-8 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
             <article className="space-y-8">
-              <Card className="border-border bg-card">
-                <CardHeader>
-                  <CardTitle className="text-lg">Editor (Markdown + HTML)</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-6 text-sm leading-relaxed text-muted-foreground">
+              <Card className="border-border bg-card shadow-sm">
+                <CardContent className="space-y-7 p-6 text-sm leading-relaxed text-muted-foreground">
                   <div className="space-y-3">
-                    <h2 className="text-xl font-semibold text-foreground">
-                      1. Visão geral do episódio
-                    </h2>
+                    <p className="text-base text-muted-foreground">{post.excerpt}</p>
                     <p>
-                      O texto da postagem pode ser escrito em Markdown ou HTML. É possível manter títulos, listas e trechos destacados
-                      sem perder a identidade visual do site.
+                      O segundo episódio traz um ritmo mais acelerado e organiza os novos personagens em torno do festival de verão.
+                      Analisamos como a direção enfatiza a evolução da Marin, sem deixar de lado o cuidado com figurinos e detalhes de
+                      produção.
+                    </p>
+                  </div>
+
+                  <div className="space-y-3">
+                    <h2 className="text-xl font-semibold text-foreground">1. O arco do verão e os desafios de cosplay</h2>
+                    <p>
+                      A narrativa alterna entre humor e emoção, enquanto Gojo trabalha nas novas peças. A equipe de legendagem
+                      precisou ajustar escolhas de tradução para preservar o tom leve e as referências culturais do episódio.
+                    </p>
+                    <div className="overflow-hidden rounded-xl border border-border">
+                      <img src="/placeholder.svg" alt="Cena do episódio" className="aspect-[3/2] w-full object-cover" />
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Captura central do episódio mostrando os detalhes da produção.
                     </p>
                   </div>
 
@@ -110,15 +114,13 @@ const Post = () => {
                     <h3 className="text-lg font-semibold text-foreground">Checklist do conteúdo</h3>
                     <ul className="list-disc space-y-2 pl-5">
                       <li>Notas de tradução e termos especiais.</li>
-                      <li>Imagens do episódio ou bastidores.</li>
+                      <li>Imagens do episódio ou bastidores no fluxo do texto.</li>
                       <li>Links para downloads, streaming ou extras.</li>
                     </ul>
                   </div>
 
                   <div className="space-y-3 rounded-xl border border-border bg-background/60 p-4">
-                    <span className="text-xs font-semibold uppercase tracking-wide text-primary">
-                      Bloco em Markdown
-                    </span>
+                    <span className="text-xs font-semibold uppercase tracking-wide text-primary">Bloco em Markdown</span>
                     <p className="text-foreground">
                       <strong>Exemplo:</strong> O episódio introduz o arco de verão e aprofunda a relação entre Marin e Gojo.
                     </p>
@@ -132,38 +134,38 @@ const Post = () => {
                     </div>
                   </div>
 
-                  <div className="space-y-4">
-                    <span className="text-xs font-semibold uppercase tracking-wide text-primary">
-                      Imagens incorporadas
-                    </span>
-                    <div className="grid gap-4 md:grid-cols-2">
-                      <div className="overflow-hidden rounded-xl border border-border">
-                        <img src="/placeholder.svg" alt="Cena do episódio" className="h-40 w-full object-cover" />
-                      </div>
-                      <div className="overflow-hidden rounded-xl border border-border">
-                        <img src="/placeholder.svg" alt="Storyboard" className="h-40 w-full object-cover" />
-                      </div>
+                  <div className="space-y-3">
+                    <p>
+                      Entre as sequências de bastidores, a fotografia do episódio destaca texturas de tecido e expressões faciais mais
+                      sutis. Esse cuidado impacta diretamente o ritmo da legenda, que precisa respeitar respirações e pausas.
+                    </p>
+                    <div className="overflow-hidden rounded-xl border border-border">
+                      <img src="/placeholder.svg" alt="Storyboard" className="aspect-[16/9] w-full object-cover" />
                     </div>
                     <p className="text-xs text-muted-foreground">
-                      Use legendas curtas para contextualizar as imagens ou destacar curiosidades.
+                      Storyboard exibido no meio do texto para contextualizar a discussão.
                     </p>
                   </div>
                 </CardContent>
               </Card>
 
-              <Card className="border-border bg-card">
-                <CardHeader>
-                  <CardTitle className="text-lg">Embed do projeto</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex flex-col gap-4 sm:flex-row">
-                    <div className="h-40 w-full overflow-hidden rounded-xl border border-border sm:h-44 sm:w-40">
-                      <img src={projectEmbed.image} alt={projectEmbed.title} className="h-full w-full object-cover" />
+              <Card className="border-border bg-card shadow-sm">
+                <CardContent className="space-y-4 p-4">
+                  <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
+                    <div className="w-full overflow-hidden rounded-xl border border-border sm:w-24">
+                      <img
+                        src={projectEmbed.image}
+                        alt={projectEmbed.title}
+                        className="aspect-[2/3] w-full object-cover"
+                      />
                     </div>
-                    <div className="flex flex-1 flex-col gap-3">
-                      <div>
-                        <h3 className="text-lg font-semibold text-foreground">{projectEmbed.title}</h3>
-                        <p className="text-sm text-muted-foreground">{projectEmbed.synopsis}</p>
+                    <div className="flex flex-1 flex-col gap-2.5">
+                      <div className="flex flex-wrap items-start justify-between gap-2">
+                        <div className="space-y-1">
+                          <h3 className="text-lg font-semibold text-foreground">{projectEmbed.title}</h3>
+                          <p className="text-sm text-muted-foreground">{projectEmbed.synopsis}</p>
+                        </div>
+                        <Button size="sm">Ir para a página do projeto</Button>
                       </div>
                       <div className="flex flex-wrap gap-2 text-xs">
                         <Badge variant="secondary">{projectEmbed.format}</Badge>
@@ -171,13 +173,49 @@ const Post = () => {
                         <Badge variant="outline">{projectEmbed.studio}</Badge>
                         <Badge variant="outline">{projectEmbed.episodes}</Badge>
                       </div>
-                      <div className="flex flex-wrap gap-2">
-                        <Button size="sm">Ver projeto</Button>
-                        <Button size="sm" variant="ghost">
-                          Abrir ficha técnica
-                        </Button>
+                      <Separator />
+                      <div className="grid gap-2.5 text-xs text-muted-foreground sm:grid-cols-2">
+                        <div>
+                          <span className="block text-[10px] font-semibold uppercase tracking-wide text-foreground">Formato</span>
+                          {projectEmbed.format}
+                        </div>
+                        <div>
+                          <span className="block text-[10px] font-semibold uppercase tracking-wide text-foreground">Status</span>
+                          {projectEmbed.status}
+                        </div>
+                        <div>
+                          <span className="block text-[10px] font-semibold uppercase tracking-wide text-foreground">Estúdio</span>
+                          {projectEmbed.studio}
+                        </div>
+                        <div>
+                          <span className="block text-[10px] font-semibold uppercase tracking-wide text-foreground">Episódios</span>
+                          {projectEmbed.episodes}
+                        </div>
                       </div>
                     </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="border-border bg-card">
+                <CardHeader>
+                  <CardTitle className="text-lg">Compartilhar</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Share2 className="h-4 w-4 text-primary/70" aria-hidden="true" />
+                    Envie este post nas redes sociais.
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <Button size="sm" variant="secondary">
+                      Copiar link
+                    </Button>
+                    <Button size="sm" variant="outline">
+                      Compartilhar no X
+                    </Button>
+                    <Button size="sm" variant="outline">
+                      Compartilhar no Discord
+                    </Button>
                   </div>
                 </CardContent>
               </Card>
@@ -223,48 +261,9 @@ const Post = () => {
             </article>
 
             <aside className="space-y-6">
-              <Card className="border-border bg-card">
-                <CardHeader>
-                  <CardTitle className="text-base">Compartilhar</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <Share2 className="h-4 w-4 text-primary/70" aria-hidden="true" />
-                    Envie este post nas redes sociais.
-                  </div>
-                  <div className="flex flex-col gap-2">
-                    <Button size="sm" variant="secondary">
-                      Copiar link
-                    </Button>
-                    <Button size="sm" variant="outline">
-                      Compartilhar no X
-                    </Button>
-                    <Button size="sm" variant="outline">
-                      Compartilhar no Discord
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="border-border bg-card">
-                <CardHeader>
-                  <CardTitle className="text-base">Informações rápidas</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3 text-sm text-muted-foreground">
-                  <div>
-                    <span className="text-xs font-semibold uppercase tracking-wide text-foreground">Formato</span>
-                    <p>Postagem com editor híbrido (Markdown/HTML).</p>
-                  </div>
-                  <div>
-                    <span className="text-xs font-semibold uppercase tracking-wide text-foreground">Embed</span>
-                    <p>Selecionável entre anime/mangá do catálogo.</p>
-                  </div>
-                  <div>
-                    <span className="text-xs font-semibold uppercase tracking-wide text-foreground">Comentários</span>
-                    <p>Moderação com filtros e respostas em thread.</p>
-                  </div>
-                </CardContent>
-              </Card>
+              <LatestEpisodeCard />
+              <WorkStatusCard />
+              <DiscordInviteCard />
             </aside>
           </section>
         </div>
