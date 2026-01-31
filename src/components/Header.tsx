@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 const Header = () => {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [query, setQuery] = useState("");
+  const [isScrolled, setIsScrolled] = useState(false);
   const searchRef = useRef<HTMLDivElement | null>(null);
 
   const projectItems = [
@@ -76,8 +77,27 @@ const Header = () => {
     };
   }, [isSearchOpen]);
 
+  useEffect(() => {
+    const handleScroll = () => {
+      setIsScrolled(window.scrollY > 12);
+    };
+
+    handleScroll();
+    window.addEventListener("scroll", handleScroll, { passive: true });
+
+    return () => {
+      window.removeEventListener("scroll", handleScroll);
+    };
+  }, []);
+
   return (
-    <header className="fixed top-0 left-0 right-0 z-50 px-6 py-4 md:px-12">
+    <header
+      className={`fixed top-0 left-0 right-0 z-50 px-6 py-4 transition-all duration-300 md:px-12 ${
+        isScrolled
+          ? "bg-background/70 shadow-lg shadow-black/10 backdrop-blur-xl"
+          : "bg-transparent"
+      }`}
+    >
       <nav className="flex items-center justify-between">
         <Link to="/" className="text-2xl md:text-3xl font-black tracking-wider text-foreground">
           NEKOMATA
