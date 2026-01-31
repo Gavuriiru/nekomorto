@@ -1,5 +1,6 @@
 import * as React from "react";
 import heroImage from "@/assets/hero-illya.jpg";
+import { Globe, Play } from "lucide-react";
 import {
   Carousel,
   CarouselContent,
@@ -153,10 +154,12 @@ const HeroSection = () => {
                       className="mt-8 flex flex-wrap gap-4 animate-slide-up opacity-0"
                       style={{ animationDelay: "0.4s" }}
                     >
-                      <button className="px-6 py-3 font-semibold rounded-lg transition-all hover:scale-105 hover:brightness-110 bg-[color:var(--hero-accent,hsl(var(--primary)))] text-[color:var(--hero-accent-foreground,hsl(var(--primary-foreground)))]">
+                      <button className="inline-flex items-center gap-2 px-6 py-3 font-semibold rounded-lg transition-all hover:scale-105 hover:brightness-110 bg-[color:var(--hero-accent,hsl(var(--primary)))] text-[color:var(--hero-accent-foreground,hsl(var(--primary-foreground)))]">
+                        <Globe className="h-4 w-4" />
                         Acessar Página
                       </button>
-                      <button className="px-6 py-3 font-semibold rounded-lg transition-all hover:scale-105 border border-border/40 bg-background/70 text-foreground hover:bg-background/90">
+                      <button className="inline-flex items-center gap-2 px-6 py-3 font-semibold rounded-lg transition-all hover:scale-105 border border-border/40 bg-background/70 text-foreground hover:bg-background/90">
+                        <Play className="h-4 w-4" />
                         Assistir Trailer
                       </button>
                     </div>
