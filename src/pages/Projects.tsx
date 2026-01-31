@@ -259,99 +259,80 @@ const Projects = () => {
     <div className="min-h-screen bg-background text-foreground">
       <Header />
       <main className="pt-28">
-        <section className="relative overflow-hidden pb-16">
-          <div className="absolute inset-0 bg-gradient-to-b from-primary/20 via-background to-background" />
-          <div className="relative mx-auto flex w-full max-w-6xl flex-col gap-6 px-6 py-10 md:px-10">
-            <div className="flex flex-col gap-4">
-              <span className="w-fit rounded-full border border-primary/40 bg-primary/10 px-4 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-primary">
-                Biblioteca de projetos
+        <section className="mx-auto w-full max-w-6xl px-6 pb-20 md:px-10">
+          <div className="grid gap-4 rounded-2xl border border-border/60 bg-card/60 p-6 shadow-lg backdrop-blur md:grid-cols-[repeat(3,minmax(0,1fr))]">
+            <div className="flex flex-col gap-2">
+              <span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+                A-Z
               </span>
-              <h1 className="text-4xl font-black md:text-5xl lg:text-6xl">
-                Projetos que levam nossa identidade para novas histórias.
-              </h1>
-              <p className="max-w-2xl text-base text-muted-foreground md:text-lg">
-                Explore animes, filmes, especiais, OVAs, ONAs e mangás. Filtre por tags, ordem
-                alfabética ou formato para encontrar o que mais combina com você.
-              </p>
+              <Select value={selectedLetter} onValueChange={setSelectedLetter}>
+                <SelectTrigger className="bg-background/60">
+                  <SelectValue placeholder="Todas as letras" />
+                </SelectTrigger>
+                <SelectContent>
+                  {alphabetOptions.map((letter) => (
+                    <SelectItem key={letter} value={letter}>
+                      {letter}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
-            <div className="grid gap-4 rounded-2xl border border-border/60 bg-card/60 p-6 shadow-lg backdrop-blur md:grid-cols-[repeat(3,minmax(0,1fr))]">
-              <div className="flex flex-col gap-2">
-                <span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-                  A-Z
-                </span>
-                <Select value={selectedLetter} onValueChange={setSelectedLetter}>
-                  <SelectTrigger className="bg-background/60">
-                    <SelectValue placeholder="Todas as letras" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {alphabetOptions.map((letter) => (
-                      <SelectItem key={letter} value={letter}>
-                        {letter}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+            <div className="flex flex-col gap-2">
+              <span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+                Tags
+              </span>
+              <Select value={selectedTag} onValueChange={setSelectedTag}>
+                <SelectTrigger className="bg-background/60">
+                  <SelectValue placeholder="Todas as tags" />
+                </SelectTrigger>
+                <SelectContent>
+                  {tagOptions.map((tag) => (
+                    <SelectItem key={tag} value={tag}>
+                      {tag}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
 
-              <div className="flex flex-col gap-2">
-                <span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-                  Tags
-                </span>
-                <Select value={selectedTag} onValueChange={setSelectedTag}>
-                  <SelectTrigger className="bg-background/60">
-                    <SelectValue placeholder="Todas as tags" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {tagOptions.map((tag) => (
-                      <SelectItem key={tag} value={tag}>
-                        {tag}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+            <div className="flex flex-col gap-2">
+              <span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+                Formato
+              </span>
+              <Select value={selectedType} onValueChange={setSelectedType}>
+                <SelectTrigger className="bg-background/60">
+                  <SelectValue placeholder="Todos os formatos" />
+                </SelectTrigger>
+                <SelectContent>
+                  {typeOptions.map((type) => (
+                    <SelectItem key={type} value={type}>
+                      {type}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
 
-              <div className="flex flex-col gap-2">
-                <span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-                  Formato
-                </span>
-                <Select value={selectedType} onValueChange={setSelectedType}>
-                  <SelectTrigger className="bg-background/60">
-                    <SelectValue placeholder="Todos os formatos" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {typeOptions.map((type) => (
-                      <SelectItem key={type} value={type}>
-                        {type}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+            <div className="md:col-span-3 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border/40 bg-background/40 px-4 py-3 text-sm text-muted-foreground">
+              <div className="flex flex-wrap gap-2">
+                <span className="font-semibold text-foreground">{filteredProjects.length}</span>
+                <span>projetos encontrados</span>
+                <span className="hidden text-muted-foreground md:inline">•</span>
+                <span className="hidden md:inline">Atualizado semanalmente</span>
               </div>
-
-              <div className="md:col-span-3 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border/40 bg-background/40 px-4 py-3 text-sm text-muted-foreground">
-                <div className="flex flex-wrap gap-2">
-                  <span className="font-semibold text-foreground">{filteredProjects.length}</span>
-                  <span>projetos encontrados</span>
-                  <span className="hidden text-muted-foreground md:inline">•</span>
-                  <span className="hidden md:inline">Atualizado semanalmente</span>
-                </div>
-                <Button variant="ghost" onClick={resetFilters} className="text-xs uppercase">
-                  Limpar filtros
-                </Button>
-              </div>
+              <Button variant="ghost" onClick={resetFilters} className="text-xs uppercase">
+                Limpar filtros
+              </Button>
             </div>
           </div>
-        </section>
-
-        <section className="mx-auto w-full max-w-6xl px-6 pb-20 md:px-10">
           {paginatedProjects.length === 0 ? (
-            <div className="rounded-2xl border border-dashed border-border/60 bg-card/40 px-6 py-12 text-center text-sm text-muted-foreground">
+            <div className="mt-10 rounded-2xl border border-dashed border-border/60 bg-card/40 px-6 py-12 text-center text-sm text-muted-foreground">
               Nenhum projeto encontrado para os filtros selecionados.
             </div>
           ) : (
-            <div className="grid gap-6 md:grid-cols-2">
+            <div className="mt-10 grid gap-6 md:grid-cols-2">
               {paginatedProjects.map((project, index) => {
                 const isLastSingle =
                   paginatedProjects.length % 2 === 1 && index === paginatedProjects.length - 1;
