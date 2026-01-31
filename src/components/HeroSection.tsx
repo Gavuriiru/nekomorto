@@ -138,12 +138,12 @@ const HeroSection = () => {
                       </span>
                     ) : null}
 
-                    <h1 className="text-4xl md:text-6xl lg:text-7xl font-black mb-6 animate-slide-up text-foreground leading-tight">
+                    <h1 className="text-4xl md:text-6xl lg:text-7xl xl:text-8xl 2xl:text-9xl font-black mb-6 animate-slide-up text-foreground leading-tight">
                       {slide.title}
                     </h1>
 
                     <p
-                      className="text-base md:text-lg text-muted-foreground leading-relaxed max-w-2xl animate-slide-up opacity-0"
+                      className="text-base md:text-lg xl:text-xl 2xl:text-2xl text-muted-foreground leading-relaxed max-w-2xl animate-slide-up opacity-0"
                       style={{ animationDelay: "0.2s" }}
                     >
                       {slide.description}
@@ -155,6 +155,9 @@ const HeroSection = () => {
                     >
                       <button className="px-6 py-3 font-semibold rounded-lg transition-all hover:scale-105 hover:brightness-110 bg-[color:var(--hero-accent,hsl(var(--primary)))] text-[color:var(--hero-accent-foreground,hsl(var(--primary-foreground)))]">
                         Acessar Página
+                      </button>
+                      <button className="px-6 py-3 font-semibold rounded-lg transition-all hover:scale-105 border border-border/40 bg-background/70 text-foreground hover:bg-background/90">
+                        Assistir Trailer
                       </button>
                     </div>
                   </div>
