@@ -31,6 +31,20 @@ const heroSlides = [
       "Yuji Itadori se envolve com maldições perigosas e encontra novos aliados na Escola Jujutsu. Cada episódio é uma luta intensa, cheia de energia e emoção.",
     image: heroImage,
   },
+  {
+    id: "frieren",
+    title: "Frieren",
+    description:
+      "Após a derrota do Rei Demônio, Frieren parte em uma jornada que combina nostalgia e descobertas sobre a vida humana. Um roteiro sensível e contemplativo a cada episódio.",
+    image: heroImage,
+  },
+  {
+    id: "oshi-no-ko",
+    title: "Oshi no Ko",
+    description:
+      "Nos bastidores do entretenimento, a história mistura idol, fama e mistérios. Cada episódio revela mais sobre o brilho e as sombras do estrelato.",
+    image: heroImage,
+  },
 ];
 
 const HeroSection = () => {
