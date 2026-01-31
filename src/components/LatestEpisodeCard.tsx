@@ -47,6 +47,9 @@ const LatestEpisodeCard = () => {
           <Sparkles className="w-4 h-4 text-primary" />
           Atualizações Recentes
         </CardTitle>
+        <p className="text-xs text-muted-foreground">
+          Episódios que receberam ajustes ou revisões recentemente.
+        </p>
       </CardHeader>
       <CardContent className="space-y-3 px-4 pb-4 pt-0">
         {recentUpdates.map((update) => (
