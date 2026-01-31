@@ -15,6 +15,7 @@ const heroSlides = [
     title: "Fate/Kaleid Liner Prisma Illya",
     description:
       "Illya (Illyasviel von Einzbern) é uma típica estudante do Instituto Homurabara que tem uma quedinha por seu cunhado. Certa noite, uma varinha de condão chamada Cajado Rubi cai do céu em sua banheira e a faz assinar um contrato...",
+    updatedAt: "2024-01-28T12:00:00Z",
     image: heroImage,
   },
   {
@@ -22,6 +23,7 @@ const heroSlides = [
     title: "Spy x Family",
     description:
       "Loid precisa montar uma família falsa para cumprir a missão mais delicada de sua carreira. Entre uma espiã e uma telepata, tudo pode dar errado — e ficar ainda mais divertido.",
+    updatedAt: "2024-01-25T12:00:00Z",
     image: heroImage,
   },
   {
@@ -29,6 +31,7 @@ const heroSlides = [
     title: "Jujutsu Kaisen",
     description:
       "Yuji Itadori se envolve com maldições perigosas e encontra novos aliados na Escola Jujutsu. Cada episódio é uma luta intensa, cheia de energia e emoção.",
+    updatedAt: "2024-01-22T12:00:00Z",
     image: heroImage,
   },
   {
@@ -36,6 +39,7 @@ const heroSlides = [
     title: "Frieren",
     description:
       "Após a derrota do Rei Demônio, Frieren parte em uma jornada que combina nostalgia e descobertas sobre a vida humana. Um roteiro sensível e contemplativo a cada episódio.",
+    updatedAt: "2024-01-20T12:00:00Z",
     image: heroImage,
   },
   {
@@ -43,6 +47,7 @@ const heroSlides = [
     title: "Oshi no Ko",
     description:
       "Nos bastidores do entretenimento, a história mistura idol, fama e mistérios. Cada episódio revela mais sobre o brilho e as sombras do estrelato.",
+    updatedAt: "2024-01-18T12:00:00Z",
     image: heroImage,
   },
 ];
@@ -51,6 +56,16 @@ const HeroSection = () => {
   const [api, setApi] = React.useState<CarouselApi | null>(null);
   const autoplayRef = React.useRef<number | null>(null);
   const resumeTimeoutRef = React.useRef<number | null>(null);
+  const latestSlideId = React.useMemo(() => {
+    return heroSlides.reduce((latest, current) => {
+      if (!latest) {
+        return current;
+      }
+      return new Date(current.updatedAt).getTime() > new Date(latest.updatedAt).getTime()
+        ? current
+        : latest;
+    }, heroSlides[0])?.id;
+  }, []);
 
   const stopAutoplay = React.useCallback(() => {
     if (autoplayRef.current !== null) {
@@ -117,9 +132,11 @@ const HeroSection = () => {
                 <div className="relative z-10 w-full px-6 md:px-12 pb-16 md:pb-24">
                   <div className="max-w-3xl">
                     {/* Badge for latest release */}
-                    <span className="inline-block px-3 py-1 mb-4 text-xs font-semibold uppercase tracking-wider rounded-full animate-fade-in border bg-[color:var(--hero-badge-bg,hsl(var(--primary)/0.2))] text-[color:var(--hero-badge-text,hsl(var(--primary)))] border-[color:var(--hero-badge-border,hsl(var(--primary)/0.3)))]">
-                      Último Lançamento
-                    </span>
+                    {slide.id === latestSlideId ? (
+                      <span className="inline-block px-3 py-1 mb-4 text-xs font-semibold uppercase tracking-wider rounded-full animate-fade-in border bg-[color:var(--hero-badge-bg,hsl(var(--primary)/0.2))] text-[color:var(--hero-badge-text,hsl(var(--primary)))] border-[color:var(--hero-badge-border,hsl(var(--primary)/0.3)))]">
+                        Último Lançamento
+                      </span>
+                    ) : null}
 
                     <h1 className="text-4xl md:text-6xl lg:text-7xl font-black mb-6 animate-slide-up text-foreground leading-tight">
                       {slide.title}
