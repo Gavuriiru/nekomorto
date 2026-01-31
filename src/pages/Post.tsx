@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
+import { projectData } from "@/data/projects";
 
 const post = {
   title: "Sono Bisque Doll wa Koi wo Suru — Season 2 #02",
@@ -23,16 +24,7 @@ const post = {
     "O segundo episódio já mostra o ritmo acelerado da temporada. Neste post comentamos escolhas de tradução, detalhes de produção e bastidores do projeto.",
 };
 
-const projectEmbed = {
-  title: "Sono Bisque Doll wa Koi wo Suru",
-  format: "Anime",
-  status: "Em andamento",
-  studio: "CloverWorks",
-  episodes: "12 eps",
-  image: "/placeholder.svg",
-  synopsis:
-    "Marin e Gojo continuam explorando o universo do cosplay enquanto encaram novos desafios na escola.",
-};
+const projectEmbed = projectData.find((project) => project.id === "aurora-no-horizonte") ?? projectData[0];
 
 const Post = () => {
   return (
@@ -153,11 +145,11 @@ const Post = () => {
                 <CardContent className="space-y-4 p-4">
                   <div className="flex flex-col gap-4 sm:flex-row sm:items-stretch">
                     <a
-                      href="/projeto/sono-bisque-doll"
+                      href={`/projeto/${projectEmbed.id}`}
                       className="w-full overflow-hidden rounded-xl border border-border transition sm:w-36 sm:self-stretch hover:border-primary/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
                     >
                       <img
-                        src={projectEmbed.image}
+                        src={projectEmbed.cover}
                         alt={projectEmbed.title}
                         className="h-full w-full object-cover"
                       />
@@ -166,7 +158,7 @@ const Post = () => {
                       <div className="flex flex-wrap items-start justify-between gap-2">
                         <div className="space-y-1">
                           <a
-                            href="/projeto/sono-bisque-doll"
+                            href={`/projeto/${projectEmbed.id}`}
                             className="text-lg font-semibold text-foreground transition hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
                           >
                             {projectEmbed.title}
@@ -175,7 +167,7 @@ const Post = () => {
                         </div>
                       </div>
                       <div className="flex flex-wrap items-center gap-2 text-xs sm:flex-nowrap">
-                        <Badge variant="secondary">{projectEmbed.format}</Badge>
+                        <Badge variant="secondary">{projectEmbed.type}</Badge>
                         <Badge variant="outline">{projectEmbed.status}</Badge>
                         <Badge variant="outline">{projectEmbed.studio}</Badge>
                         <Badge variant="outline">{projectEmbed.episodes}</Badge>
@@ -184,7 +176,7 @@ const Post = () => {
                       <div className="grid gap-2.5 text-xs text-muted-foreground sm:grid-cols-2">
                         <div>
                           <span className="block text-[10px] font-semibold uppercase tracking-wide text-foreground">Formato</span>
-                          {projectEmbed.format}
+                          {projectEmbed.type}
                         </div>
                         <div>
                           <span className="block text-[10px] font-semibold uppercase tracking-wide text-foreground">Status</span>
