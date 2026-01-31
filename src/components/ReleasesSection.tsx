@@ -1,3 +1,4 @@
+import { useMemo, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -106,6 +107,15 @@ const recentReleases = [
 ];
 
 const ReleasesSection = () => {
+  const pageSize = 8;
+  const [currentPage, setCurrentPage] = useState(1);
+  const totalPages = Math.ceil(recentReleases.length / pageSize);
+  const pagedReleases = useMemo(() => {
+    const startIndex = (currentPage - 1) * pageSize;
+    return recentReleases.slice(startIndex, startIndex + pageSize);
+  }, [currentPage]);
+  const showPagination = totalPages > 1;
+
   return (
     <section className="py-16 px-6 md:px-12 bg-background">
       <div className="max-w-7xl mx-auto">
@@ -117,7 +127,7 @@ const ReleasesSection = () => {
           {/* Left side - Release cards (blog posts) */}
           <div className="lg:col-span-2">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
-              {recentReleases.map((release, index) => (
+              {pagedReleases.map((release, index) => (
                 <Card
                   key={release.id}
                   className="bg-card border-border hover:border-primary/50 transition-all cursor-pointer group animate-fade-in"
@@ -172,31 +182,57 @@ const ReleasesSection = () => {
                 </Card>
               ))}
             </div>
-            <Pagination className="justify-start pt-4">
-              <PaginationContent>
-                <PaginationItem>
-                  <PaginationPrevious href="#" className="text-xs" />
-                </PaginationItem>
-                <PaginationItem>
-                  <PaginationLink href="#" size="default" isActive className="text-xs">
-                    1
-                  </PaginationLink>
-                </PaginationItem>
-                <PaginationItem>
-                  <PaginationLink href="#" size="default" className="text-xs">
-                    2
-                  </PaginationLink>
-                </PaginationItem>
-                <PaginationItem>
-                  <PaginationLink href="#" size="default" className="text-xs">
-                    3
-                  </PaginationLink>
-                </PaginationItem>
-                <PaginationItem>
-                  <PaginationNext href="#" className="text-xs" />
-                </PaginationItem>
-              </PaginationContent>
-            </Pagination>
+            {showPagination ? (
+              <Pagination className="justify-start pt-4">
+                <PaginationContent>
+                  <PaginationItem>
+                    <PaginationPrevious
+                      href="#"
+                      className="text-xs"
+                      aria-disabled={currentPage === 1}
+                      onClick={(event) => {
+                        event.preventDefault();
+                        if (currentPage > 1) {
+                          setCurrentPage((page) => page - 1);
+                        }
+                      }}
+                    />
+                  </PaginationItem>
+                  {Array.from({ length: totalPages }, (_, index) => {
+                    const page = index + 1;
+                    return (
+                      <PaginationItem key={page}>
+                        <PaginationLink
+                          href="#"
+                          size="default"
+                          isActive={page === currentPage}
+                          className="text-xs"
+                          onClick={(event) => {
+                            event.preventDefault();
+                            setCurrentPage(page);
+                          }}
+                        >
+                          {page}
+                        </PaginationLink>
+                      </PaginationItem>
+                    );
+                  })}
+                  <PaginationItem>
+                    <PaginationNext
+                      href="#"
+                      className="text-xs"
+                      aria-disabled={currentPage === totalPages}
+                      onClick={(event) => {
+                        event.preventDefault();
+                        if (currentPage < totalPages) {
+                          setCurrentPage((page) => page + 1);
+                        }
+                      }}
+                    />
+                  </PaginationItem>
+                </PaginationContent>
+              </Pagination>
+            ) : null}
           </div>
           
           {/* Right side - Sidebar */}
