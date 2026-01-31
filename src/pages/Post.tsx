@@ -152,7 +152,7 @@ const Post = () => {
               <Card className="border-border bg-card shadow-sm">
                 <CardContent className="space-y-4 p-4">
                   <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
-                    <div className="w-full overflow-hidden rounded-xl border border-border sm:w-24">
+                    <div className="mb-4 w-full overflow-hidden rounded-xl border border-border sm:w-32">
                       <img
                         src={projectEmbed.image}
                         alt={projectEmbed.title}
@@ -165,13 +165,15 @@ const Post = () => {
                           <h3 className="text-lg font-semibold text-foreground">{projectEmbed.title}</h3>
                           <p className="text-sm text-muted-foreground">{projectEmbed.synopsis}</p>
                         </div>
-                        <Button size="sm">Ir para a página do projeto</Button>
                       </div>
-                      <div className="flex flex-wrap gap-2 text-xs">
+                      <div className="flex flex-wrap items-center gap-2 text-xs">
                         <Badge variant="secondary">{projectEmbed.format}</Badge>
                         <Badge variant="outline">{projectEmbed.status}</Badge>
                         <Badge variant="outline">{projectEmbed.studio}</Badge>
                         <Badge variant="outline">{projectEmbed.episodes}</Badge>
+                        <Button size="sm" className="ml-auto">
+                          Página do projeto
+                        </Button>
                       </div>
                       <Separator />
                       <div className="grid gap-2.5 text-xs text-muted-foreground sm:grid-cols-2">
