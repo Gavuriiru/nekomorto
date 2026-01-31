@@ -10,6 +10,7 @@ const LatestEpisodeCard = () => {
       anime: "Gabriel Dropout",
       episode: 7,
       season: 1,
+      kind: "Atualização",
       reason: "Correção de timing e revisão de script",
       updatedAt: "2024-01-29",
       image: "/placeholder.svg",
@@ -20,6 +21,7 @@ const LatestEpisodeCard = () => {
       anime: "Jujutsu Kaisen",
       episode: 15,
       season: 2,
+      kind: "Atualização",
       reason: "Ajuste de karaoke e notas de tradução",
       updatedAt: "2024-01-28",
       image: "/placeholder.svg",
@@ -27,33 +29,14 @@ const LatestEpisodeCard = () => {
     },
     {
       id: 3,
-      anime: "Frieren",
-      episode: 20,
+      anime: "Fate/Kaleid Liner Prisma Illya",
+      episode: 12,
       season: 1,
-      reason: "Revisão de contexto cultural e tips",
-      updatedAt: "2024-01-27",
+      kind: "Lançamento",
+      reason: "Episódio novo disponível na plataforma",
+      updatedAt: "2024-01-28",
       image: "/placeholder.svg",
-      slug: "frieren",
-    },
-    {
-      id: 4,
-      anime: "Spy x Family",
-      episode: 8,
-      season: 2,
-      reason: "Correções finas de legendagem",
-      updatedAt: "2024-01-26",
-      image: "/placeholder.svg",
-      slug: "spy-x-family",
-    },
-    {
-      id: 5,
-      anime: "Oshi no Ko",
-      episode: 6,
-      season: 1,
-      reason: "Sincronização com novo encode",
-      updatedAt: "2024-01-24",
-      image: "/placeholder.svg",
-      slug: "oshi-no-ko",
+      slug: "fate-kaleid-liner-prisma-illya",
     },
   ];
 
@@ -75,7 +58,7 @@ const LatestEpisodeCard = () => {
             to={`/anime/${update.slug}`}
             className="group flex items-start gap-4 rounded-xl border border-border/60 bg-background/40 p-4 transition hover:border-primary/40 hover:bg-primary/5"
           >
-            <div className="w-20 flex-shrink-0 overflow-hidden rounded-lg bg-secondary aspect-[2/3]">
+            <div className="w-24 flex-shrink-0 overflow-hidden rounded-lg bg-secondary aspect-[2/3]">
               <img
                 src={update.image}
                 alt={update.anime}
@@ -86,6 +69,9 @@ const LatestEpisodeCard = () => {
               <div className="flex flex-wrap items-center gap-2">
                 <Badge variant="secondary" className="text-[10px] uppercase tracking-wide">
                   EP {update.episode}
+                </Badge>
+                <Badge variant="outline" className="text-[10px] uppercase tracking-wide">
+                  {update.kind}
                 </Badge>
                 <span className="text-[10px] uppercase tracking-wide text-muted-foreground">
                   Temporada {update.season}
