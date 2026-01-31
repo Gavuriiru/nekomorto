@@ -1,14 +1,34 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
+import { Badge } from "@/components/ui/badge";
 
 const Header = () => {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [query, setQuery] = useState("");
+  const searchRef = useRef<HTMLDivElement | null>(null);
 
   const projectItems = [
-    { label: "Projeto Aurora", href: "/projetos/aurora" },
-    { label: "Projeto Nekomata", href: "/projetos/nekomata" },
-    { label: "Projeto Rainbow", href: "/projetos/rainbow" },
+    {
+      label: "Aurora no Horizonte",
+      href: "/projetos/aurora-no-horizonte",
+      image: "/placeholder.svg",
+      synopsis: "Uma jornada sci-fi sobre amizade, esperança e o renascimento de uma nave perdida.",
+      tags: ["Anime", "Sci-fi", "Drama"],
+    },
+    {
+      label: "Nekomata: Eclipse",
+      href: "/projetos/nekomata-eclipse",
+      image: "/placeholder.svg",
+      synopsis: "Mangá sobrenatural que acompanha um clã felino e seus pactos com o submundo.",
+      tags: ["Mangá", "Sobrenatural", "Ação"],
+    },
+    {
+      label: "Rainbow Pulse",
+      href: "/projetos/rainbow-pulse",
+      image: "/placeholder.svg",
+      synopsis: "Equipe de idols futuristas luta para manter a música viva em uma metrópole distópica.",
+      tags: ["Anime", "Música", "Ficção"],
+    },
   ];
 
   const postItems = [
@@ -22,7 +42,10 @@ const Header = () => {
       return [];
     }
     const lowerQuery = query.toLowerCase();
-    return projectItems.filter((item) => item.label.toLowerCase().includes(lowerQuery));
+    return projectItems.filter((item) => {
+      const searchableText = [item.label, item.synopsis, item.tags.join(" ")].join(" ").toLowerCase();
+      return searchableText.includes(lowerQuery);
+    });
   }, [projectItems, query]);
 
   const filteredPosts = useMemo(() => {
@@ -35,6 +58,23 @@ const Header = () => {
 
   const showResults = isSearchOpen && query.trim().length > 0;
   const hasResults = filteredProjects.length > 0 || filteredPosts.length > 0;
+
+  useEffect(() => {
+    const handleOutsideClick = (event: MouseEvent) => {
+      if (searchRef.current && !searchRef.current.contains(event.target as Node)) {
+        setIsSearchOpen(false);
+        setQuery("");
+      }
+    };
+
+    if (isSearchOpen) {
+      document.addEventListener("mousedown", handleOutsideClick);
+    }
+
+    return () => {
+      document.removeEventListener("mousedown", handleOutsideClick);
+    };
+  }, [isSearchOpen]);
 
   return (
     <header className="fixed top-0 left-0 right-0 z-50 px-6 py-4 md:px-12">
@@ -60,7 +100,7 @@ const Header = () => {
               target="_blank"
               rel="noreferrer"
             >
-              Convite Discord
+              Discord
             </a>
             <a
               href="https://discord.gg/nekogroup"
@@ -75,7 +115,7 @@ const Header = () => {
             </Link>
           </div>
 
-          <div className="relative flex items-center">
+          <div className="relative flex items-center" ref={searchRef}>
             <div
               className={`flex items-center gap-2 rounded-full border border-transparent bg-secondary/30 px-3 py-2 transition-all duration-300 ${
                 isSearchOpen ? "w-60 md:w-72 border-border bg-secondary/70" : "w-11"
@@ -112,20 +152,41 @@ const Header = () => {
             </div>
 
             {showResults && (
-              <div className="absolute right-0 top-12 w-72 rounded-xl border border-border/60 bg-background/95 p-4 shadow-lg backdrop-blur">
+              <div className="absolute right-0 top-12 w-80 rounded-xl border border-border/60 bg-background/95 p-4 shadow-lg backdrop-blur">
                 {filteredProjects.length > 0 && (
                   <div className="mb-4">
                     <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                       Projetos
                     </p>
-                    <ul className="mt-2 space-y-2">
+                    <ul className="mt-3 space-y-3">
                       {filteredProjects.map((item) => (
                         <li key={item.href}>
                           <Link
                             to={item.href}
-                            className="text-sm text-foreground transition-colors hover:text-primary"
+                            className="group flex gap-3 rounded-lg border border-border/60 bg-background/40 p-3 transition hover:border-primary/40 hover:bg-primary/5"
                           >
-                            {item.label}
+                            <div className="w-16 flex-shrink-0 overflow-hidden rounded-md bg-secondary aspect-[2/3]">
+                              <img
+                                src={item.image}
+                                alt={item.label}
+                                className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                              />
+                            </div>
+                            <div className="min-w-0">
+                              <p className="text-sm font-semibold text-foreground group-hover:text-primary">
+                                {item.label}
+                              </p>
+                              <p className="mt-1 text-xs text-muted-foreground line-clamp-2">
+                                {item.synopsis}
+                              </p>
+                              <div className="mt-2 flex flex-wrap gap-1.5">
+                                {item.tags.map((tag) => (
+                                  <Badge key={tag} variant="secondary" className="text-[9px] uppercase">
+                                    {tag}
+                                  </Badge>
+                                ))}
+                              </div>
+                            </div>
                           </Link>
                         </li>
                       ))}
