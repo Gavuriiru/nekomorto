@@ -151,29 +151,34 @@ const Post = () => {
 
               <Card className="border-border bg-card shadow-sm">
                 <CardContent className="space-y-4 p-4">
-                  <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
-                    <div className="mb-4 w-full overflow-hidden rounded-xl border border-border sm:w-32">
+                  <div className="flex flex-col gap-4 sm:flex-row sm:items-stretch">
+                    <a
+                      href="/projeto/sono-bisque-doll"
+                      className="w-full overflow-hidden rounded-xl border border-border transition sm:w-36 sm:self-stretch hover:border-primary/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                    >
                       <img
                         src={projectEmbed.image}
                         alt={projectEmbed.title}
-                        className="aspect-[2/3] w-full object-cover"
+                        className="h-full w-full object-cover"
                       />
-                    </div>
+                    </a>
                     <div className="flex flex-1 flex-col gap-2.5">
                       <div className="flex flex-wrap items-start justify-between gap-2">
                         <div className="space-y-1">
-                          <h3 className="text-lg font-semibold text-foreground">{projectEmbed.title}</h3>
+                          <a
+                            href="/projeto/sono-bisque-doll"
+                            className="text-lg font-semibold text-foreground transition hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                          >
+                            {projectEmbed.title}
+                          </a>
                           <p className="text-sm text-muted-foreground">{projectEmbed.synopsis}</p>
                         </div>
                       </div>
-                      <div className="flex flex-wrap items-center gap-2 text-xs">
+                      <div className="flex flex-wrap items-center gap-2 text-xs sm:flex-nowrap">
                         <Badge variant="secondary">{projectEmbed.format}</Badge>
                         <Badge variant="outline">{projectEmbed.status}</Badge>
                         <Badge variant="outline">{projectEmbed.studio}</Badge>
                         <Badge variant="outline">{projectEmbed.episodes}</Badge>
-                        <Button size="sm" className="ml-auto">
-                          Página do projeto
-                        </Button>
                       </div>
                       <Separator />
                       <div className="grid gap-2.5 text-xs text-muted-foreground sm:grid-cols-2">
