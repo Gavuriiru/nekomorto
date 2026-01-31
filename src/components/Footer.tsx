@@ -61,7 +61,7 @@ const Footer = () => {
   return (
     <footer className="mt-16 border-t border-border/60 bg-card/60">
       <div className="mx-auto max-w-7xl px-6 md:px-12 py-14">
-        <div className="grid gap-10 lg:grid-cols-[1.2fr_1fr_1fr_1.1fr]">
+        <div className="grid gap-10 lg:grid-cols-[1.2fr_1fr_1fr_1fr_1.1fr]">
           <div className="space-y-4">
             <p className="text-3xl font-black tracking-widest text-gradient-rainbow">NEKOMATA</p>
             <p className="text-sm text-muted-foreground leading-relaxed">
