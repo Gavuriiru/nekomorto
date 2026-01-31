@@ -18,6 +18,11 @@ const HeroSection = () => {
       {/* Content */}
       <div className="relative z-10 w-full px-6 md:px-12 pb-16 md:pb-24">
         <div className="max-w-3xl">
+          {/* Badge for latest release */}
+          <span className="inline-block px-3 py-1 mb-4 text-xs font-semibold uppercase tracking-wider bg-primary/20 text-primary border border-primary/30 rounded-full animate-fade-in">
+            Último Lançamento
+          </span>
+          
           <h1 className="text-4xl md:text-6xl lg:text-7xl font-black mb-6 animate-slide-up text-foreground leading-tight">
             Fate/Kaleid Liner Prisma Illya
           </h1>
