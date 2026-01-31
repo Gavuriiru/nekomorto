@@ -115,15 +115,15 @@ const ReleasesSection = () => {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Left side - Release cards (blog posts) */}
           <div className="lg:col-span-2">
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
               {recentReleases.map((release, index) => (
                 <Card
                   key={release.id}
                   className="bg-card border-border hover:border-primary/50 transition-all cursor-pointer group animate-fade-in"
                   style={{ animationDelay: `${index * 0.1}s` }}
                 >
-                  <CardContent className="p-4 flex flex-col h-full gap-4">
-                    <div className="relative w-full h-44 sm:h-40 rounded-lg overflow-hidden bg-secondary">
+                  <CardContent className="p-5 flex flex-col h-full gap-4">
+                    <div className="relative w-full aspect-video rounded-lg overflow-hidden bg-secondary">
                       <img
                         src={release.image}
                         alt={release.anime}
