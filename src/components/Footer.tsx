@@ -24,6 +24,7 @@ const footerColumns = [
       { label: "FAQ", href: "/faq" },
       { label: "Política de privacidade", href: "/privacidade" },
       { label: "Reportar erros", href: "/suporte" },
+      { label: "Info Anime", href: "https://infoanime.com.br" },
     ],
   },
 ];
@@ -56,12 +57,6 @@ const socialLinks = [
   },
 ];
 
-const partnerLinks = [
-  { label: "AniDB", href: "https://anidb.net" },
-  { label: "MyAnimeList", href: "https://myanimelist.net" },
-  { label: "Info Anime", href: "https://infoanime.com.br" },
-];
-
 const Footer = () => {
   return (
     <footer className="mt-16 border-t border-border/60 bg-card/60">
@@ -73,9 +68,6 @@ const Footer = () => {
               Fansub dedicada a trazer histórias inesquecíveis com o carinho que a comunidade merece.
               Traduzimos por paixão, respeitando autores e apoiando o consumo legal das obras.
             </p>
-            <div className="inline-flex items-center gap-2 rounded-full border border-primary/30 bg-secondary/60 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-primary">
-              CC BY-NC-SA 4.0 • Uso não comercial
-            </div>
           </div>
 
           {footerColumns.map((column) => (
@@ -98,47 +90,28 @@ const Footer = () => {
             </div>
           ))}
 
-          <div className="space-y-5">
-            <div>
-              <p className="text-sm font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-                Siga-nos
-              </p>
-              <div className="mt-4 space-y-2">
-                {socialLinks.map((link) => {
-                  const Icon = link.icon;
-                  return (
-                    <a
-                      key={link.label}
-                      href={link.href}
-                      className="group flex items-center gap-3 text-sm text-foreground/80 transition-colors hover:text-primary"
-                      target="_blank"
-                      rel="noreferrer"
-                    >
-                      <span className="flex h-8 w-8 items-center justify-center rounded-full border border-border/60 bg-secondary/70 text-primary/80 transition group-hover:border-primary/40 group-hover:text-primary">
-                        <Icon className="h-4 w-4" aria-hidden="true" />
-                      </span>
-                      {link.label}
-                    </a>
-                  );
-                })}
-              </div>
-            </div>
-
-            <div>
-              <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Parceiros</p>
-              <div className="mt-3 flex flex-wrap gap-2">
-                {partnerLinks.map((partner) => (
+          <div className="space-y-4">
+            <p className="text-sm font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+              Siga-nos
+            </p>
+            <div className="space-y-2">
+              {socialLinks.map((link) => {
+                const Icon = link.icon;
+                return (
                   <a
-                    key={partner.label}
-                    href={partner.href}
-                    className="rounded-full border border-border/60 bg-secondary/60 px-3 py-1 text-xs font-medium text-foreground/80 transition-colors hover:border-primary/40 hover:text-primary"
+                    key={link.label}
+                    href={link.href}
+                    className="group flex items-center gap-3 text-sm text-foreground/80 transition-colors hover:text-primary"
                     target="_blank"
                     rel="noreferrer"
                   >
-                    {partner.label}
+                    <span className="flex h-8 w-8 items-center justify-center rounded-full border border-border/60 bg-secondary/70 text-primary/80 transition group-hover:border-primary/40 group-hover:text-primary">
+                      <Icon className="h-4 w-4" aria-hidden="true" />
+                    </span>
+                    {link.label}
                   </a>
-                ))}
-              </div>
+                );
+              })}
             </div>
           </div>
         </div>
