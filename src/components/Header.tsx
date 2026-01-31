@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
+import { projectData } from "@/data/projects";
 
 const Header = () => {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
@@ -8,29 +9,13 @@ const Header = () => {
   const [isScrolled, setIsScrolled] = useState(false);
   const searchRef = useRef<HTMLDivElement | null>(null);
 
-  const projectItems = [
-    {
-      label: "Aurora no Horizonte",
-      href: "/projetos/aurora-no-horizonte",
-      image: "/placeholder.svg",
-      synopsis: "Uma jornada sci-fi sobre amizade, esperança e o renascimento de uma nave perdida.",
-      tags: ["Anime", "Sci-fi", "Drama"],
-    },
-    {
-      label: "Nekomata: Eclipse",
-      href: "/projetos/nekomata-eclipse",
-      image: "/placeholder.svg",
-      synopsis: "Mangá sobrenatural que acompanha um clã felino e seus pactos com o submundo.",
-      tags: ["Mangá", "Sobrenatural", "Ação"],
-    },
-    {
-      label: "Rainbow Pulse",
-      href: "/projetos/rainbow-pulse",
-      image: "/placeholder.svg",
-      synopsis: "Equipe de idols futuristas luta para manter a música viva em uma metrópole distópica.",
-      tags: ["Anime", "Música", "Ficção"],
-    },
-  ];
+  const projectItems = projectData.slice(0, 3).map((project) => ({
+    label: project.title,
+    href: `/projeto/${project.id}`,
+    image: project.cover,
+    synopsis: project.synopsis,
+    tags: project.tags,
+  }));
 
   const postItems = [
     { label: "Atualização de comunidade", href: "/posts/comunidade" },
