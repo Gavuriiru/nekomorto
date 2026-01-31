@@ -84,7 +84,7 @@ const ReleasesSection = () => {
                 style={{ animationDelay: `${index * 0.1}s` }}
               >
                 <CardContent className="p-4 md:p-5 flex flex-col sm:flex-row gap-4">
-                  <div className="w-full sm:w-32 sm:h-40 h-44 rounded-md overflow-hidden flex-shrink-0 bg-secondary">
+                  <div className="w-full sm:w-56 sm:h-32 h-52 rounded-md overflow-hidden flex-shrink-0 bg-secondary">
                     <img
                       src={release.image}
                       alt={release.anime}
