@@ -6,6 +6,7 @@ export type DownloadSource = {
 export type ProjectEpisode = {
   number: number;
   title: string;
+  synopsis: string;
   releaseDate: string;
   duration: string;
   sources: DownloadSource[];
@@ -83,6 +84,8 @@ const buildEpisodeDownloads = ({
     return {
       number: index + 1,
       title: `${titlePrefix} ${index + 1}`,
+      synopsis:
+        "Nesta parte, os personagens encaram um novo desafio e revelam detalhes importantes para a trama.",
       releaseDate: releaseDate.toISOString().split("T")[0],
       duration,
       sources: defaultSources,

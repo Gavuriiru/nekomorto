@@ -40,16 +40,17 @@ const Project = () => {
     <div className="min-h-screen bg-background text-foreground">
       <Header />
 
-      <main className="pt-24">
+      <main>
         <section className="relative overflow-hidden border-b border-border/60">
           <div
             className="absolute inset-0 bg-cover bg-center"
             style={{ backgroundImage: `url(${project.banner})` }}
           />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
+          <div className="absolute inset-0 bg-black/20 backdrop-blur-[2px]" />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent" />
 
-          <div className="relative mx-auto flex min-h-[420px] w-full max-w-6xl flex-col items-start gap-8 px-6 pb-16 pt-20 md:flex-row md:items-center md:px-10 lg:min-h-[520px]">
-            <div className="w-52 flex-shrink-0 overflow-hidden rounded-2xl border border-border/60 bg-secondary shadow-2xl md:w-64">
+          <div className="relative mx-auto flex min-h-[420px] w-full max-w-6xl flex-col items-start gap-8 px-6 pb-16 pt-24 md:flex-row md:items-start md:px-10 lg:min-h-[520px]">
+            <div className="w-52 flex-shrink-0 overflow-hidden rounded-2xl bg-secondary shadow-2xl md:w-64">
               <img
                 src={project.cover}
                 alt={project.title}
@@ -209,7 +210,7 @@ const Project = () => {
                     key={episode.number}
                     className="border-border/60 bg-card/80 shadow-lg transition hover:border-primary/40"
                   >
-                    <CardContent className="grid gap-6 p-6 md:grid-cols-[240px_1fr]">
+                    <CardContent className="grid gap-6 p-6 md:grid-cols-[240px_1fr_auto] md:items-center">
                       <div className="overflow-hidden rounded-xl border border-border/50 bg-background/50 shadow-sm">
                         <img
                           src={project.banner}
@@ -218,7 +219,7 @@ const Project = () => {
                         />
                       </div>
                       <div className="flex h-full flex-col justify-between gap-4">
-                        <div className="space-y-2">
+                        <div className="space-y-3">
                           <div className="flex flex-wrap items-center gap-3">
                             <Badge variant="secondary" className="text-xs uppercase">
                               {project.type === "Mangá" || project.type === "Webtoon"
@@ -233,17 +234,65 @@ const Project = () => {
                               {new Date(episode.releaseDate).toLocaleDateString("pt-BR")}
                             </span>
                           </div>
-                          <p className="text-base font-semibold text-foreground">{episode.title}</p>
+                          <div className="space-y-2">
+                            <p className="text-lg font-semibold text-foreground">{episode.title}</p>
+                            <p className="text-sm text-muted-foreground">{episode.synopsis}</p>
+                          </div>
                         </div>
-                        <div className="flex flex-wrap gap-2">
-                          {episode.sources.map((source) => (
+                      </div>
+                      <div className="flex flex-wrap gap-2 md:justify-end">
+                        {episode.sources.map((source) => {
+                          const icon =
+                            source.label === "Google Drive" ? (
+                              <svg
+                                viewBox="0 0 24 24"
+                                aria-hidden="true"
+                                className="h-4 w-4 text-[#34A853]"
+                              >
+                                <path
+                                  fill="currentColor"
+                                  d="M7.5 3h9l4.5 8-4.5 8h-9L3 11z"
+                                />
+                              </svg>
+                            ) : source.label === "MEGA" ? (
+                              <svg
+                                viewBox="0 0 24 24"
+                                aria-hidden="true"
+                                className="h-4 w-4 text-[#D9272E]"
+                              >
+                                <circle cx="12" cy="12" r="10" fill="currentColor" />
+                                <path
+                                  fill="#fff"
+                                  d="M7.2 16.4V7.6h1.6l3.2 4.2 3.2-4.2h1.6v8.8h-1.6V10l-3.2 4.1L8.8 10v6.4z"
+                                />
+                              </svg>
+                            ) : (
+                              <svg
+                                viewBox="0 0 24 24"
+                                aria-hidden="true"
+                                className="h-4 w-4 text-[#7C3AED]"
+                              >
+                                <path
+                                  fill="currentColor"
+                                  d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2Zm1 5.5 3.5 3.5H13Zm-2 0v3.5H7.5Zm-3.5 6.5 3.5-3.5V14Z"
+                                />
+                              </svg>
+                            );
+
+                          return (
                             <Button key={source.label} asChild variant="outline" size="sm">
-                              <a href={source.url} target="_blank" rel="noreferrer">
+                              <a
+                                href={source.url}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="inline-flex items-center gap-2"
+                              >
+                                {icon}
                                 {source.label}
                               </a>
                             </Button>
-                          ))}
-                        </div>
+                          );
+                        })}
                       </div>
                     </CardContent>
                   </Card>
