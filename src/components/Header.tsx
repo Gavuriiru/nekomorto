@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { projectData } from "@/data/projects";
 
@@ -8,6 +8,7 @@ const Header = () => {
   const [query, setQuery] = useState("");
   const [isScrolled, setIsScrolled] = useState(false);
   const searchRef = useRef<HTMLDivElement | null>(null);
+  const location = useLocation();
 
   const projectItems = projectData.slice(0, 3).map((project) => ({
     label: project.title,
@@ -77,10 +78,10 @@ const Header = () => {
 
   return (
     <header
-      className={`fixed top-0 left-0 right-0 z-50 px-6 py-4 transition-all duration-300 md:px-12 ${
+      className={`fixed top-0 left-0 right-0 z-50 px-6 py-4 transition-all duration-300 md:px-12 after:pointer-events-none after:absolute after:inset-x-0 after:bottom-0 after:h-10 after:bg-gradient-to-b after:from-black/20 after:to-transparent ${
         isScrolled
           ? "bg-background/70 shadow-lg shadow-black/10 backdrop-blur-xl"
-          : "bg-transparent"
+          : "bg-background/20 backdrop-blur-sm"
       }`}
     >
       <nav className="flex items-center justify-between">
@@ -90,13 +91,34 @@ const Header = () => {
         
         <div className="flex items-center gap-3 md:gap-6">
           <div className="hidden md:flex items-center gap-6 text-sm font-medium text-muted-foreground">
-            <Link to="/" className="hover:text-foreground transition-colors">
+            <Link
+              to="/"
+              className={`transition-colors ${
+                location.pathname === "/"
+                  ? "text-foreground font-semibold"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
               Início
             </Link>
-            <Link to="/projetos" className="hover:text-foreground transition-colors">
+            <Link
+              to="/projetos"
+              className={`transition-colors ${
+                location.pathname.startsWith("/projetos")
+                  ? "text-foreground font-semibold"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
               Projetos
             </Link>
-            <Link to="/equipe" className="hover:text-foreground transition-colors">
+            <Link
+              to="/equipe"
+              className={`transition-colors ${
+                location.pathname.startsWith("/equipe")
+                  ? "text-foreground font-semibold"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
               Equipe
             </Link>
             <a
@@ -115,7 +137,14 @@ const Header = () => {
             >
               Recrutamento
             </a>
-            <Link to="/sobre" className="hover:text-foreground transition-colors">
+            <Link
+              to="/sobre"
+              className={`transition-colors ${
+                location.pathname.startsWith("/sobre")
+                  ? "text-foreground font-semibold"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
               Sobre
             </Link>
           </div>

@@ -49,7 +49,7 @@ const Project = () => {
           <div className="absolute inset-0 bg-black/20 backdrop-blur-[2px]" />
           <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent" />
 
-          <div className="relative mx-auto flex min-h-[420px] w-full max-w-6xl flex-col items-start gap-8 px-6 pb-16 pt-24 md:flex-row md:items-start md:px-10 lg:min-h-[520px]">
+          <div className="relative mx-auto flex min-h-[420px] w-full max-w-6xl flex-col items-start gap-8 px-6 pb-16 pt-24 md:flex-row md:items-center md:px-10 lg:min-h-[520px]">
             <div className="w-52 flex-shrink-0 overflow-hidden rounded-2xl bg-secondary shadow-2xl md:w-64">
               <img
                 src={project.cover}
@@ -278,9 +278,21 @@ const Project = () => {
                                 />
                               </svg>
                             );
+                          const buttonClassName =
+                            source.label === "Google Drive"
+                              ? "border-[#34A853]/50 text-[#34A853] hover:bg-[#34A853]/10"
+                              : source.label === "MEGA"
+                              ? "border-[#D9272E]/50 text-[#D9272E] hover:bg-[#D9272E]/10"
+                              : "border-[#7C3AED]/50 text-[#7C3AED] hover:bg-[#7C3AED]/10";
 
                           return (
-                            <Button key={source.label} asChild variant="outline" size="sm">
+                            <Button
+                              key={source.label}
+                              asChild
+                              variant="outline"
+                              size="sm"
+                              className={`bg-white/70 hover:bg-white/90 ${buttonClassName}`}
+                            >
                               <a
                                 href={source.url}
                                 target="_blank"
