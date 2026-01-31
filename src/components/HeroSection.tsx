@@ -49,18 +49,50 @@ const heroSlides = [
 
 const HeroSection = () => {
   const [api, setApi] = React.useState<CarouselApi | null>(null);
+  const autoplayRef = React.useRef<number | null>(null);
+  const resumeTimeoutRef = React.useRef<number | null>(null);
+
+  const stopAutoplay = React.useCallback(() => {
+    if (autoplayRef.current !== null) {
+      window.clearInterval(autoplayRef.current);
+      autoplayRef.current = null;
+    }
+  }, []);
+
+  const startAutoplay = React.useCallback(() => {
+    if (!api) {
+      return;
+    }
+    stopAutoplay();
+    autoplayRef.current = window.setInterval(() => {
+      api.scrollNext();
+    }, 6000);
+  }, [api, stopAutoplay]);
+
+  const scheduleAutoplayResume = React.useCallback(() => {
+    stopAutoplay();
+    if (resumeTimeoutRef.current !== null) {
+      window.clearTimeout(resumeTimeoutRef.current);
+    }
+    resumeTimeoutRef.current = window.setTimeout(() => {
+      startAutoplay();
+    }, 5000);
+  }, [startAutoplay, stopAutoplay]);
 
   React.useEffect(() => {
     if (!api) {
       return;
     }
 
-    const interval = window.setInterval(() => {
-      api.scrollNext();
-    }, 6000);
+    startAutoplay();
 
-    return () => window.clearInterval(interval);
-  }, [api]);
+    return () => {
+      stopAutoplay();
+      if (resumeTimeoutRef.current !== null) {
+        window.clearTimeout(resumeTimeoutRef.current);
+      }
+    };
+  }, [api, startAutoplay, stopAutoplay]);
 
   return (
     <section className="relative min-h-screen overflow-hidden">
@@ -114,8 +146,14 @@ const HeroSection = () => {
             </CarouselItem>
           ))}
         </CarouselContent>
-        <CarouselPrevious className="hidden md:flex left-auto right-20 bottom-8 top-auto h-9 w-9 translate-y-0 bg-background/50 hover:bg-background/70 border border-border/30 text-muted-foreground" />
-        <CarouselNext className="hidden md:flex right-8 bottom-8 top-auto h-9 w-9 translate-y-0 bg-background/50 hover:bg-background/70 border border-border/30 text-muted-foreground" />
+        <CarouselPrevious
+          className="hidden md:flex left-auto right-20 bottom-8 top-auto h-9 w-9 translate-y-0 bg-background/50 hover:bg-background/70 border border-border/30 text-muted-foreground"
+          onClick={scheduleAutoplayResume}
+        />
+        <CarouselNext
+          className="hidden md:flex right-8 bottom-8 top-auto h-9 w-9 translate-y-0 bg-background/50 hover:bg-background/70 border border-border/30 text-muted-foreground"
+          onClick={scheduleAutoplayResume}
+        />
       </Carousel>
     </section>
   );
