@@ -123,7 +123,7 @@ const ReleasesSection = () => {
                   style={{ animationDelay: `${index * 0.1}s` }}
                 >
                   <CardContent className="p-5 flex flex-col h-full gap-4">
-                    <div className="relative w-full aspect-video rounded-lg overflow-hidden bg-secondary">
+                    <div className="relative w-full aspect-[3/2] rounded-lg overflow-hidden bg-secondary">
                       <img
                         src={release.image}
                         alt={release.anime}
