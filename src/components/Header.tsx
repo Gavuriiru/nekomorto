@@ -78,7 +78,7 @@ const Header = () => {
 
   return (
     <header
-      className={`fixed top-0 left-0 right-0 z-50 px-6 py-4 transition-all duration-300 md:px-12 after:pointer-events-none after:absolute after:inset-x-0 after:bottom-0 after:h-10 after:bg-gradient-to-b after:from-black/20 after:to-transparent ${
+      className={`fixed top-0 left-0 right-0 z-50 px-6 py-4 transition-all duration-300 md:px-12 after:pointer-events-none after:absolute after:inset-0 after:bg-gradient-to-b after:from-black/25 after:via-black/10 after:to-transparent ${
         isScrolled
           ? "bg-background/70 shadow-lg shadow-black/10 backdrop-blur-xl"
           : "bg-background/20 backdrop-blur-sm"
