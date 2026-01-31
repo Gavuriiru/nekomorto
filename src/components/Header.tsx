@@ -8,18 +8,24 @@ const Header = () => {
           NEKOMATA
         </Link>
         
-        <div className="flex items-center gap-6 md:gap-8">
+        <div className="flex items-center gap-4 md:gap-8">
           <Link 
             to="/" 
-            className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+            className="hidden md:block text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
           >
             Início
           </Link>
           <Link 
             to="/animes" 
-            className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+            className="hidden md:block text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
           >
             Animes
+          </Link>
+          <Link 
+            to="/lancamentos" 
+            className="hidden md:block text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+          >
+            Lançamentos
           </Link>
           <Link 
             to="/login" 
