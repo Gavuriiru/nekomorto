@@ -42,7 +42,7 @@ const LatestEpisodeCard = () => {
 
   return (
     <Card className="bg-card border-border overflow-hidden">
-      <CardHeader className="pb-3">
+      <CardHeader className="px-4 pb-3 pt-4">
         <CardTitle className="text-lg font-semibold text-foreground flex items-center gap-2">
           <Sparkles className="w-4 h-4 text-primary" />
           Atualizações Recentes
@@ -51,7 +51,7 @@ const LatestEpisodeCard = () => {
           Episódios que receberam ajustes ou revisões recentemente.
         </p>
       </CardHeader>
-      <CardContent className="space-y-3">
+      <CardContent className="space-y-3 px-4 pb-4 pt-0">
         {recentUpdates.map((update) => (
           <Link
             key={update.id}
