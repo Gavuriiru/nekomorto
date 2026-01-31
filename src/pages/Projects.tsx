@@ -256,7 +256,7 @@ const Projects = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
+    <div className="min-h-screen bg-gradient-to-b from-background via-[hsl(var(--primary)/0.12)] to-background text-foreground">
       <Header />
       <main className="pt-28">
         <section className="mx-auto w-full max-w-6xl px-6 pb-20 md:px-10">
