@@ -18,11 +18,11 @@ const DiscordInviteCard = () => {
         <div className="space-y-2 rounded-xl border border-border/60 bg-background/40 p-3">
           <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
             <Users className="h-4 w-4 text-primary/80" aria-hidden="true" />
-            Comunidade Rainbow Fansub
+            Comunidade do Zuraaa!
           </div>
           <p className="text-xs text-muted-foreground leading-relaxed">
-            Receba alertas de lançamentos, participe de eventos e ajude a decidir
-            os próximos projetos.
+            Receba alertas de lançamentos, participe de eventos e fale
+            sobre os nossos projetos.
           </p>
         </div>
         <Button asChild className="w-full">
