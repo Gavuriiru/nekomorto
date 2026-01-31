@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/pagination";
 import LatestEpisodeCard from "./LatestEpisodeCard";
 import WorkStatusCard from "./WorkStatusCard";
+import DiscordInviteCard from "./DiscordInviteCard";
 import { CalendarDays, User } from "lucide-react";
 
 // Mock data for recent releases (blog posts about episodes)
@@ -199,9 +200,10 @@ const ReleasesSection = () => {
           </div>
           
           {/* Right side - Sidebar */}
-          <div className="space-y-6">
+          <div className="flex h-full flex-col gap-6">
             <LatestEpisodeCard />
             <WorkStatusCard />
+            <DiscordInviteCard />
           </div>
         </div>
       </div>
