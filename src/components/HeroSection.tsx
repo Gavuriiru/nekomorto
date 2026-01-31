@@ -1,6 +1,7 @@
 import * as React from "react";
 import heroImage from "@/assets/hero-illya.jpg";
 import { Globe, Play } from "lucide-react";
+import { Link } from "react-router-dom";
 import {
   Carousel,
   CarouselContent,
@@ -18,6 +19,7 @@ const heroSlides = [
       "Illya (Illyasviel von Einzbern) é uma típica estudante do Instituto Homurabara que tem uma quedinha por seu cunhado. Certa noite, uma varinha de condão chamada Cajado Rubi cai do céu em sua banheira e a faz assinar um contrato...",
     updatedAt: "2024-01-28T12:00:00Z",
     image: heroImage,
+    projectId: "aurora-no-horizonte",
   },
   {
     id: "spy-family",
@@ -26,6 +28,7 @@ const heroSlides = [
       "Loid precisa montar uma família falsa para cumprir a missão mais delicada de sua carreira. Entre uma espiã e uma telepata, tudo pode dar errado — e ficar ainda mais divertido.",
     updatedAt: "2024-01-25T12:00:00Z",
     image: heroImage,
+    projectId: "rainbow-pulse",
   },
   {
     id: "jujutsu-kaisen",
@@ -34,6 +37,7 @@ const heroSlides = [
       "Yuji Itadori se envolve com maldições perigosas e encontra novos aliados na Escola Jujutsu. Cada episódio é uma luta intensa, cheia de energia e emoção.",
     updatedAt: "2024-01-22T12:00:00Z",
     image: heroImage,
+    projectId: "iris-black",
   },
   {
     id: "frieren",
@@ -42,6 +46,7 @@ const heroSlides = [
       "Após a derrota do Rei Demônio, Frieren parte em uma jornada que combina nostalgia e descobertas sobre a vida humana. Um roteiro sensível e contemplativo a cada episódio.",
     updatedAt: "2024-01-20T12:00:00Z",
     image: heroImage,
+    projectId: "jardim-das-marés",
   },
   {
     id: "oshi-no-ko",
@@ -50,6 +55,7 @@ const heroSlides = [
       "Nos bastidores do entretenimento, a história mistura idol, fama e mistérios. Cada episódio revela mais sobre o brilho e as sombras do estrelato.",
     updatedAt: "2024-01-18T12:00:00Z",
     image: heroImage,
+    projectId: "nova-primavera",
   },
 ];
 
@@ -154,10 +160,13 @@ const HeroSection = () => {
                       className="mt-8 flex flex-wrap gap-4 animate-slide-up opacity-0"
                       style={{ animationDelay: "0.4s" }}
                     >
-                      <button className="inline-flex items-center gap-2 px-6 py-3 font-semibold rounded-lg transition-all hover:scale-105 hover:brightness-110 bg-[color:var(--hero-accent,hsl(var(--primary)))] text-[color:var(--hero-accent-foreground,hsl(var(--primary-foreground)))]">
+                      <Link
+                        to={`/projeto/${slide.projectId}`}
+                        className="inline-flex items-center gap-2 px-6 py-3 font-semibold rounded-lg transition-all hover:scale-105 hover:brightness-110 bg-[color:var(--hero-accent,hsl(var(--primary)))] text-[color:var(--hero-accent-foreground,hsl(var(--primary-foreground)))]"
+                      >
                         <Globe className="h-4 w-4" />
                         Acessar Página
-                      </button>
+                      </Link>
                       <button className="inline-flex items-center gap-2 px-6 py-3 font-semibold rounded-lg transition-all hover:scale-105 border border-border/40 bg-background/70 text-foreground hover:bg-background/90">
                         <Play className="h-4 w-4" />
                         Assistir Trailer
