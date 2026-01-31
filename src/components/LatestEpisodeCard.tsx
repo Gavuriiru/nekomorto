@@ -3,6 +3,16 @@ import { Badge } from "@/components/ui/badge";
 import { Clock, Sparkles } from "lucide-react";
 import { Link } from "react-router-dom";
 
+const formatLocalDate = (dateString: string) => {
+  const [year, month, day] = dateString.split("-").map(Number);
+
+  if (!year || !month || !day) {
+    return dateString;
+  }
+
+  return new Date(year, month - 1, day).toLocaleDateString("pt-BR");
+};
+
 const LatestEpisodeCard = () => {
   const recentUpdates = [
     {
@@ -85,7 +95,7 @@ const LatestEpisodeCard = () => {
               </p>
               <span className="inline-flex items-center gap-1.5 text-[10px] text-muted-foreground">
                 <Clock className="h-3 w-3 text-primary/70" aria-hidden="true" />
-                {new Date(update.updatedAt).toLocaleDateString("pt-BR")}
+                {formatLocalDate(update.updatedAt)}
               </span>
             </div>
           </Link>
