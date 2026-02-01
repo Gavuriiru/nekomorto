@@ -1,4 +1,4 @@
-import { Facebook, Instagram, Twitter, Youtube, MessageCircle } from "lucide-react";
+import { Facebook, Instagram, Twitter, MessageCircle } from "lucide-react";
 
 const footerColumns = [
   {
@@ -6,15 +6,13 @@ const footerColumns = [
     links: [
       { label: "Sobre", href: "/sobre" },
       { label: "Equipe", href: "/equipe" },
-      { label: "Contato", href: "/contato" },
     ],
   },
   {
     title: "Ajude nossa equipe",
     links: [
-      { label: "Recrutamento", href: "/recrutamento" },
+      { label: "Recrutamento", href: "https://discord.com/invite/BAHKhdX2ju" },
       { label: "Doações", href: "/doacoes" },
-      { label: "Vantagens de apoiador", href: "/apoiadores" },
     ],
   },
   {
@@ -22,8 +20,7 @@ const footerColumns = [
     links: [
       { label: "Projetos", href: "/projetos" },
       { label: "FAQ", href: "/faq" },
-      { label: "Política de privacidade", href: "/privacidade" },
-      { label: "Reportar erros", href: "/suporte" },
+      { label: "Reportar erros", href: "https://discord.com/invite/BAHKhdX2ju" },
       { label: "Info Anime", href: "https://infoanime.com.br" },
     ],
   },
@@ -46,13 +43,8 @@ const socialLinks = [
     icon: Twitter,
   },
   {
-    label: "YouTube",
-    href: "https://youtube.com",
-    icon: Youtube,
-  },
-  {
     label: "Discord",
-    href: "https://discord.gg/nekogroup",
+    href: "https://discord.com/invite/BAHKhdX2ju",
     icon: MessageCircle,
   },
 ];
@@ -128,10 +120,10 @@ const Footer = () => {
             </p>
           </div>
           <div className="flex flex-col gap-3 rounded-2xl border border-primary/20 bg-gradient-card p-5 text-sm text-foreground">
-            <p className="font-semibold text-primary">Atribuição • Não Comercial • Compartilhe Igual</p>
+            <p className="font-semibold text-primary">Atribuição • Não Comercial</p>
             <p className="text-muted-foreground">
-              Este site segue a licença Creative Commons BY-NC-SA. Você pode compartilhar com créditos, sem
-              fins comerciais e mantendo a mesma licença.
+              Este site segue a licença Creative Commons BY-NC. Você pode compartilhar com créditos, sem
+              fins comerciais.
             </p>
           </div>
         </div>
@@ -140,14 +132,6 @@ const Footer = () => {
       <div className="border-t border-border/60 bg-background/40">
         <div className="mx-auto flex max-w-7xl flex-col gap-2 px-6 py-6 text-xs text-muted-foreground md:flex-row md:items-center md:justify-between md:px-12">
           <p>© 2014 - 2026 Nekomata Fansub. Feito por fãs para fãs.</p>
-          <div className="flex flex-wrap gap-4">
-            <a href="/termos" className="transition-colors hover:text-primary">
-              Termos de uso
-            </a>
-            <a href="/privacidade" className="transition-colors hover:text-primary">
-              Política de privacidade
-            </a>
-          </div>
         </div>
       </div>
     </footer>

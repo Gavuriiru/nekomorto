@@ -9,6 +9,7 @@ export type ProjectEpisode = {
   synopsis: string;
   releaseDate: string;
   duration: string;
+  sourceType: "TV" | "Web" | "Blu-ray";
   sources: DownloadSource[];
 };
 
@@ -65,11 +66,13 @@ const buildEpisodeDownloads = ({
   startDate,
   titlePrefix,
   duration = "24 min",
+  sourceType = "TV",
 }: {
   count: number;
   startDate: string;
   titlePrefix: string;
   duration?: string;
+  sourceType?: "TV" | "Web" | "Blu-ray";
 }): ProjectEpisode[] => {
   if (count <= 0) {
     return [];
@@ -88,6 +91,7 @@ const buildEpisodeDownloads = ({
         "Nesta parte, os personagens encaram um novo desafio e revelam detalhes importantes para a trama.",
       releaseDate: releaseDate.toISOString().split("T")[0],
       duration,
+      sourceType,
       sources: defaultSources,
     };
   });
@@ -115,6 +119,7 @@ export const projectData: Project[] = [
       count: 6,
       startDate: "2024-01-13",
       titlePrefix: "O despertar da aurora",
+      sourceType: "TV",
     }),
     staff: defaultStaff,
     trailerUrl: "#",
@@ -157,6 +162,7 @@ export const projectData: Project[] = [
       startDate: "2023-05-01",
       titlePrefix: "Capítulo",
       duration: "Leitura",
+      sourceType: "Web",
     }),
     staff: defaultStaff,
     trailerUrl: "#",
@@ -182,6 +188,7 @@ export const projectData: Project[] = [
       count: 8,
       startDate: "2024-01-03",
       titlePrefix: "Pulso",
+      sourceType: "TV",
     }),
     staff: defaultStaff,
     trailerUrl: "#",
@@ -208,6 +215,7 @@ export const projectData: Project[] = [
       startDate: "2022-12-20",
       titlePrefix: "Noite Boreal",
       duration: "48 min",
+      sourceType: "Blu-ray",
     }),
     staff: defaultStaff,
     trailerUrl: "#",
@@ -234,6 +242,7 @@ export const projectData: Project[] = [
       startDate: "2023-08-10",
       titlePrefix: "Filme completo",
       duration: "1h 45m",
+      sourceType: "Blu-ray",
     }),
     staff: defaultStaff,
     trailerUrl: "#",
@@ -260,6 +269,7 @@ export const projectData: Project[] = [
       startDate: "2021-02-12",
       titlePrefix: "Fragmento",
       duration: "32 min",
+      sourceType: "Blu-ray",
     }),
     staff: defaultStaff,
     trailerUrl: "#",
@@ -285,6 +295,7 @@ export const projectData: Project[] = [
       count: 4,
       startDate: "2024-01-07",
       titlePrefix: "Salto",
+      sourceType: "Web",
     }),
     staff: defaultStaff,
     trailerUrl: "#",
@@ -311,6 +322,7 @@ export const projectData: Project[] = [
       startDate: "2024-01-04",
       titlePrefix: "Capítulo",
       duration: "Leitura",
+      sourceType: "Web",
     }),
     staff: defaultStaff,
     trailerUrl: "#",
@@ -358,6 +370,7 @@ export const projectData: Project[] = [
       startDate: "2022-03-10",
       titlePrefix: "Capítulo",
       duration: "Leitura",
+      sourceType: "Web",
     }),
     staff: defaultStaff,
     trailerUrl: "#",
@@ -384,6 +397,7 @@ export const projectData: Project[] = [
       startDate: "2020-09-14",
       titlePrefix: "Especial",
       duration: "52 min",
+      sourceType: "Blu-ray",
     }),
     staff: defaultStaff,
     trailerUrl: "#",
@@ -410,6 +424,7 @@ export const projectData: Project[] = [
       startDate: "2021-11-02",
       titlePrefix: "Filme completo",
       duration: "2h 02m",
+      sourceType: "Blu-ray",
     }),
     staff: defaultStaff,
     trailerUrl: "#",
@@ -436,6 +451,7 @@ export const projectData: Project[] = [
       startDate: "2022-04-18",
       titlePrefix: "Primavera",
       duration: "28 min",
+      sourceType: "Blu-ray",
     }),
     staff: defaultStaff,
     trailerUrl: "#",
@@ -461,6 +477,7 @@ export const projectData: Project[] = [
       count: 5,
       startDate: "2023-09-04",
       titlePrefix: "Crônica",
+      sourceType: "Web",
     }),
     staff: defaultStaff,
     trailerUrl: "#",

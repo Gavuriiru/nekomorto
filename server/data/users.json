@@ -1,0 +1,49 @@
+[
+  {
+    "id": "380305493391966208",
+    "name": "José Gabriel",
+    "phrase": "Faço muita merda e ao mesmo tempo merda nenhuma.",
+    "bio": "Em busca de conquistar as virtudes cardeais e pedindo as teologais, dessa forma não tá dando.",
+    "avatarUrl": "https://i.imgur.com/WB5rmok.png",
+    "coverImageUrl": "https://i.imgur.com/pivKQhs.png",
+    "socials": [
+      {
+        "label": "x",
+        "href": "https://x.com/jgrp_"
+      }
+    ],
+    "status": "active",
+    "permissions": [
+      "*"
+    ],
+    "roles": [
+      "Dono",
+      "Tradutor",
+      "Revisor",
+      "Typesetter",
+      "Qualidade",
+      "Encoder"
+    ],
+    "order": 0
+  },
+  {
+    "id": "368280970102833153",
+    "name": "Pitas",
+    "phrase": "",
+    "bio": "",
+    "avatarUrl": null,
+    "coverImageUrl": null,
+    "socials": [],
+    "status": "retired",
+    "permissions": [
+      "posts",
+      "configuracoes",
+      "projetos",
+      "comentarios",
+      "usuarios",
+      "paginas"
+    ],
+    "roles": [],
+    "order": 1
+  }
+]

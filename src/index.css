@@ -76,6 +76,10 @@
     font-family: 'Inter', sans-serif;
   }
 
+  html {
+    scroll-behavior: smooth;
+  }
+
   h1, h2, h3, h4, h5, h6 {
     @apply font-bold tracking-tight;
   }
@@ -111,6 +115,10 @@
     animation: slideUp 0.8s ease-out forwards;
   }
 
+  .animate-spin-slow {
+    animation: spinSlow 14s linear infinite;
+  }
+
   @keyframes fadeIn {
     from {
       opacity: 0;
@@ -128,6 +136,15 @@
     to {
       opacity: 1;
       transform: translateY(0);
+    }
+  }
+
+  @keyframes spinSlow {
+    from {
+      transform: rotate(0deg);
+    }
+    to {
+      transform: rotate(360deg);
     }
   }
 }

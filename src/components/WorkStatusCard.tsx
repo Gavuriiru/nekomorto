@@ -2,6 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Clock } from "lucide-react";
+import { Link } from "react-router-dom";
 
 type WorkKind = "anime" | "manga";
 
@@ -12,6 +13,7 @@ interface WorkItem {
   kind: WorkKind;
   currentStage: string;
   completedStages: string[];
+  projectId: string;
 }
 
 const animeStages = [
@@ -42,6 +44,7 @@ const workItems: WorkItem[] = [
     kind: "anime",
     currentStage: "traducao",
     completedStages: ["aguardando-raw"],
+    projectId: "aurora-no-horizonte",
   },
   {
     id: 2,
@@ -50,6 +53,7 @@ const workItems: WorkItem[] = [
     kind: "anime",
     currentStage: "timing",
     completedStages: ["aguardando-raw", "traducao", "revisao"],
+    projectId: "rainbow-pulse",
   },
   {
     id: 3,
@@ -58,6 +62,7 @@ const workItems: WorkItem[] = [
     kind: "anime",
     currentStage: "quality-check",
     completedStages: ["aguardando-raw", "traducao", "revisao", "timing", "typesetting"],
+    projectId: "jardim-das-marÃ©s",
   },
   {
     id: 4,
@@ -66,6 +71,7 @@ const workItems: WorkItem[] = [
     kind: "anime",
     currentStage: "typesetting",
     completedStages: ["aguardando-raw", "traducao"],
+    projectId: "nova-primavera",
   },
   {
     id: 5,
@@ -74,6 +80,7 @@ const workItems: WorkItem[] = [
     kind: "anime",
     currentStage: "revisao",
     completedStages: ["aguardando-raw", "traducao", "timing"],
+    projectId: "galaxia-ona",
   },
   {
     id: 6,
@@ -82,6 +89,7 @@ const workItems: WorkItem[] = [
     kind: "manga",
     currentStage: "limpeza",
     completedStages: ["aguardando-raw"],
+    projectId: "nekomata-eclipse",
   },
   {
     id: 7,
@@ -90,6 +98,7 @@ const workItems: WorkItem[] = [
     kind: "manga",
     currentStage: "typesetting",
     completedStages: ["aguardando-raw", "traducao", "limpeza", "redrawing", "revisao"],
+    projectId: "jardim-das-marÃ©s",
   },
   {
     id: 8,
@@ -98,6 +107,7 @@ const workItems: WorkItem[] = [
     kind: "manga",
     currentStage: "revisao",
     completedStages: ["aguardando-raw", "limpeza"],
+    projectId: "harmonia-sakura",
   },
 ];
 
@@ -126,9 +136,10 @@ const WorkStatusCard = () => {
           const currentStage = stages.find((stage) => stage.id === item.currentStage) ?? stages[0];
 
           return (
-            <div 
+            <Link
               key={item.id}
-              className="rounded-md bg-secondary/50 p-3 hover:bg-secondary transition-colors"
+              to={`/projeto/${item.projectId}`}
+              className="block rounded-md bg-secondary/50 p-3 hover:bg-secondary transition-colors"
             >
               <div className="flex items-start justify-between gap-3">
                 <div className="flex-1 min-w-0">
@@ -153,7 +164,7 @@ const WorkStatusCard = () => {
                   indicatorClassName={currentStage.color}
                 />
               </div>
-            </div>
+            </Link>
           );
         })}
       </CardContent>

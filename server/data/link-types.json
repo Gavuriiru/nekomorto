@@ -1,0 +1,7 @@
+[
+  { "id": "instagram", "label": "Instagram", "icon": "instagram" },
+  { "id": "x", "label": "X", "icon": "x" },
+  { "id": "youtube", "label": "YouTube", "icon": "youtube" },
+  { "id": "discord", "label": "Discord", "icon": "message-circle" },
+  { "id": "site", "label": "Site", "icon": "globe" }
+]

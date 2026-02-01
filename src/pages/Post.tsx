@@ -1,3 +1,5 @@
+﻿import { useEffect, useMemo, useState } from "react";
+import { useParams } from "react-router-dom";
 import { CalendarDays, Clock, MessageSquare, Share2, User } from "lucide-react";
 
 import Header from "@/components/Header";
@@ -5,266 +7,264 @@ import Footer from "@/components/Footer";
 import DiscordInviteCard from "@/components/DiscordInviteCard";
 import LatestEpisodeCard from "@/components/LatestEpisodeCard";
 import WorkStatusCard from "@/components/WorkStatusCard";
+import ProjectEmbedCard from "@/components/ProjectEmbedCard";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
-import { projectData } from "@/data/projects";
-
-const post = {
-  title: "Sono Bisque Doll wa Koi wo Suru — Season 2 #02",
-  cover: "/placeholder.svg",
-  dateTime: "2024-02-12T19:45:00",
-  author: "Equipe Rainbow",
-  readTime: "6 min de leitura",
-  tags: ["Anime", "Lançamento", "Romance"],
-  excerpt:
-    "O segundo episódio já mostra o ritmo acelerado da temporada. Neste post comentamos escolhas de tradução, detalhes de produção e bastidores do projeto.",
-};
-
-const projectEmbed = projectData.find((project) => project.id === "aurora-no-horizonte") ?? projectData[0];
+import { estimateReadTime, renderPostContent } from "@/lib/post-content";
 
 const Post = () => {
+  const { slug } = useParams();
+  const apiBase = import.meta.env.VITE_API_BASE || "http://127.0.0.1:8080";
+  const [post, setPost] = useState<{
+    id: string;
+    title: string;
+    slug: string;
+    coverImageUrl?: string | null;
+    coverAlt?: string | null;
+    excerpt: string;
+    content: string;
+    contentFormat: "markdown" | "html";
+    author: string;
+    publishedAt: string;
+    views: number;
+    commentsCount: number;
+    seoTitle?: string | null;
+    seoDescription?: string | null;
+    projectId?: string | null;
+  } | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
+
+  useEffect(() => {
+    let isActive = true;
+    const load = async () => {
+      try {
+        setIsLoading(true);
+        const response = await fetch(`${apiBase}/api/public/posts/${slug}`);
+        if (!response.ok) {
+          if (isActive) {
+            setLoadError(true);
+            setPost(null);
+          }
+          return;
+        }
+        const data = await response.json();
+        if (isActive) {
+          setPost(data.post);
+          setLoadError(false);
+        }
+      } catch {
+        if (isActive) {
+          setLoadError(true);
+          setPost(null);
+        }
+      } finally {
+        if (isActive) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    if (slug) {
+      load();
+    }
+
+    return () => {
+      isActive = false;
+    };
+  }, [apiBase, slug]);
+
+  useEffect(() => {
+    if (!post) {
+      return;
+    }
+    const title = post.seoTitle || post.title;
+    document.title = `${title} | Nekomata`;
+    const description = post.seoDescription || post.excerpt || "";
+    let meta = document.querySelector("meta[name=description]") as HTMLMetaElement | null;
+    if (!meta) {
+      meta = document.createElement("meta");
+      meta.name = "description";
+      document.head.appendChild(meta);
+    }
+    meta.content = description;
+  }, [post]);
+
+  const formattedDate = useMemo(() => {
+    if (!post?.publishedAt) {
+      return "";
+    }
+    return new Date(post.publishedAt).toLocaleString("pt-BR", {
+      dateStyle: "short",
+      timeStyle: "short",
+    });
+  }, [post?.publishedAt]);
+
+  const readTime = useMemo(() => {
+    if (!post) {
+      return "";
+    }
+    return estimateReadTime(post.content || post.excerpt, post.contentFormat || "markdown");
+  }, [post]);
+
+  const htmlContent = useMemo(() => {
+    if (!post) {
+      return "";
+    }
+    return renderPostContent(post.content || post.excerpt, post.contentFormat || "markdown");
+  }, [post]);
+
+  const handleCopyLink = async () => {
+    if (!post) {
+      return;
+    }
+    const url = `${window.location.origin}/postagem/${post.slug}`;
+    await navigator.clipboard.writeText(url);
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <Header />
 
       <main className="px-6 pb-20 pt-14 md:px-12">
         <div className="mx-auto flex max-w-6xl flex-col gap-10">
-          <section className="space-y-6">
-            <div className="space-y-3">
-              <h1 className="text-3xl font-bold text-foreground md:text-4xl">
-                {post.title}
-              </h1>
-              <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-muted-foreground">
-                <div className="flex flex-wrap items-center gap-3">
-                  <span className="inline-flex items-center gap-2">
-                    <User className="h-4 w-4 text-primary/70" aria-hidden="true" />
-                    {post.author}
-                  </span>
-                  <span className="inline-flex items-center gap-2">
-                    <CalendarDays className="h-4 w-4 text-primary/70" aria-hidden="true" />
-                    {new Date(post.dateTime).toLocaleString("pt-BR", {
-                      dateStyle: "short",
-                      timeStyle: "short",
-                    })}
-                  </span>
-                  <span className="inline-flex items-center gap-2">
-                    <Clock className="h-4 w-4 text-primary/70" aria-hidden="true" />
-                    {post.readTime}
-                  </span>
-                </div>
-                <div className="flex flex-wrap justify-end gap-2">
-                  {post.tags.map((tag) => (
-                    <Badge key={tag} variant="outline" className="text-xs uppercase tracking-wide">
-                      {tag}
-                    </Badge>
-                  ))}
-                </div>
-              </div>
+          {isLoading ? (
+            <div className="rounded-2xl border border-white/10 bg-white/5 px-6 py-10 text-sm text-muted-foreground">
+              Carregando postagem...
             </div>
-
-            <div className="relative overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
-              <img
-                src={post.cover}
-                alt={`Capa do post: ${post.title}`}
-                className="aspect-[3/2] w-full object-cover"
-              />
+          ) : loadError || !post ? (
+            <div className="rounded-2xl border border-dashed border-white/10 bg-white/5 px-6 py-10 text-sm text-muted-foreground">
+              Postagem nÃ£o encontrada.
             </div>
-          </section>
-
-          <section className="grid gap-8 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
-            <article className="space-y-8">
-              <Card className="border-border bg-card shadow-sm">
-                <CardContent className="space-y-7 p-6 text-sm leading-relaxed text-muted-foreground">
-                  <div className="space-y-3">
-                    <p className="text-base text-muted-foreground">{post.excerpt}</p>
-                    <p>
-                      O segundo episódio traz um ritmo mais acelerado e organiza os novos personagens em torno do festival de verão.
-                      Analisamos como a direção enfatiza a evolução da Marin, sem deixar de lado o cuidado com figurinos e detalhes de
-                      produção.
-                    </p>
-                  </div>
-
-                  <div className="space-y-3">
-                    <h2 className="text-xl font-semibold text-foreground">1. O arco do verão e os desafios de cosplay</h2>
-                    <p>
-                      A narrativa alterna entre humor e emoção, enquanto Gojo trabalha nas novas peças. A equipe de legendagem
-                      precisou ajustar escolhas de tradução para preservar o tom leve e as referências culturais do episódio.
-                    </p>
-                    <div className="overflow-hidden rounded-xl border border-border">
-                      <img src="/placeholder.svg" alt="Cena do episódio" className="aspect-[3/2] w-full object-cover" />
+          ) : (
+            <>
+              <section className="space-y-6">
+                <div className="space-y-3">
+                  <h1 className="text-3xl font-bold text-foreground md:text-4xl">{post.title}</h1>
+                  <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-muted-foreground">
+                    <div className="flex flex-wrap items-center gap-3">
+                      <span className="inline-flex items-center gap-2">
+                        <User className="h-4 w-4 text-primary/70" aria-hidden="true" />
+                        {post.author || "Autor"}
+                      </span>
+                      <span className="inline-flex items-center gap-2">
+                        <CalendarDays className="h-4 w-4 text-primary/70" aria-hidden="true" />
+                        {formattedDate}
+                      </span>
+                      <span className="inline-flex items-center gap-2">
+                        <Clock className="h-4 w-4 text-primary/70" aria-hidden="true" />
+                        {readTime}
+                      </span>
                     </div>
-                    <p className="text-xs text-muted-foreground">
-                      Captura central do episódio mostrando os detalhes da produção.
-                    </p>
-                  </div>
-
-                  <div className="space-y-3">
-                    <h3 className="text-lg font-semibold text-foreground">Checklist do conteúdo</h3>
-                    <ul className="list-disc space-y-2 pl-5">
-                      <li>Notas de tradução e termos especiais.</li>
-                      <li>Imagens do episódio ou bastidores no fluxo do texto.</li>
-                      <li>Links para downloads, streaming ou extras.</li>
-                    </ul>
-                  </div>
-
-                  <div className="space-y-3 rounded-xl border border-border bg-background/60 p-4">
-                    <span className="text-xs font-semibold uppercase tracking-wide text-primary">Bloco em Markdown</span>
-                    <p className="text-foreground">
-                      <strong>Exemplo:</strong> O episódio introduz o arco de verão e aprofunda a relação entre Marin e Gojo.
-                    </p>
-                    <div className="flex flex-wrap gap-3">
-                      <Button size="sm" className="bg-primary text-primary-foreground">
-                        Assistir agora
-                      </Button>
-                      <Button size="sm" variant="secondary">
-                        Baixar legendas
-                      </Button>
+                    <div className="flex flex-wrap justify-end gap-2">
+                      <Badge variant="outline" className="text-xs uppercase tracking-wide">
+                        Postagem
+                      </Badge>
                     </div>
                   </div>
+                </div>
 
-                  <div className="space-y-3">
-                    <p>
-                      Entre as sequências de bastidores, a fotografia do episódio destaca texturas de tecido e expressões faciais mais
-                      sutis. Esse cuidado impacta diretamente o ritmo da legenda, que precisa respeitar respirações e pausas.
-                    </p>
-                    <div className="overflow-hidden rounded-xl border border-border">
-                      <img src="/placeholder.svg" alt="Storyboard" className="aspect-[16/9] w-full object-cover" />
-                    </div>
-                    <p className="text-xs text-muted-foreground">
-                      Storyboard exibido no meio do texto para contextualizar a discussão.
-                    </p>
-                  </div>
-                </CardContent>
-              </Card>
+                <div className="relative overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
+                  <img
+                    src={post.coverImageUrl || "/placeholder.svg"}
+                    alt={post.coverAlt || `Capa do post: ${post.title}`}
+                    className="aspect-[3/2] w-full object-cover"
+                    loading="lazy"
+                  />
+                </div>
+              </section>
 
-              <Card className="border-border bg-card shadow-sm">
-                <CardContent className="space-y-4 p-4">
-                  <div className="flex flex-col gap-4 sm:flex-row sm:items-stretch">
-                    <a
-                      href={`/projeto/${projectEmbed.id}`}
-                      className="w-full overflow-hidden rounded-xl border border-border transition sm:w-36 sm:self-stretch hover:border-primary/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-                    >
-                      <img
-                        src={projectEmbed.cover}
-                        alt={projectEmbed.title}
-                        className="h-full w-full object-cover"
+              <section className="grid gap-8 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+                <article className="space-y-8">
+                  <Card className="border-border bg-card shadow-sm">
+                    <CardContent className="space-y-7 p-6 text-sm leading-relaxed text-muted-foreground">
+                      {post.excerpt ? (
+                        <p className="text-base text-muted-foreground">{post.excerpt}</p>
+                      ) : null}
+                      <div
+                        className="post-content space-y-4 text-muted-foreground"
+                        dangerouslySetInnerHTML={{ __html: htmlContent }}
                       />
-                    </a>
-                    <div className="flex flex-1 flex-col gap-2.5">
-                      <div className="flex flex-wrap items-start justify-between gap-2">
-                        <div className="space-y-1">
-                          <a
-                            href={`/projeto/${projectEmbed.id}`}
-                            className="text-lg font-semibold text-foreground transition hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-                          >
-                            {projectEmbed.title}
-                          </a>
-                          <p className="text-sm text-muted-foreground">{projectEmbed.synopsis}</p>
-                        </div>
-                      </div>
-                      <div className="flex flex-wrap items-center gap-2 text-xs sm:flex-nowrap">
-                        <Badge variant="secondary">{projectEmbed.type}</Badge>
-                        <Badge variant="outline">{projectEmbed.status}</Badge>
-                        <Badge variant="outline">{projectEmbed.studio}</Badge>
-                        <Badge variant="outline">{projectEmbed.episodes}</Badge>
-                      </div>
-                      <Separator />
-                      <div className="grid gap-2.5 text-xs text-muted-foreground sm:grid-cols-2">
-                        <div>
-                          <span className="block text-[10px] font-semibold uppercase tracking-wide text-foreground">Formato</span>
-                          {projectEmbed.type}
-                        </div>
-                        <div>
-                          <span className="block text-[10px] font-semibold uppercase tracking-wide text-foreground">Status</span>
-                          {projectEmbed.status}
-                        </div>
-                        <div>
-                          <span className="block text-[10px] font-semibold uppercase tracking-wide text-foreground">Estúdio</span>
-                          {projectEmbed.studio}
-                        </div>
-                        <div>
-                          <span className="block text-[10px] font-semibold uppercase tracking-wide text-foreground">Episódios</span>
-                          {projectEmbed.episodes}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+                    </CardContent>
+                  </Card>
 
-              <Card className="border-border bg-card">
-                <CardHeader>
-                  <CardTitle className="text-lg">Compartilhar</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <Share2 className="h-4 w-4 text-primary/70" aria-hidden="true" />
-                    Envie este post nas redes sociais.
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    <Button size="sm" variant="secondary">
-                      Copiar link
-                    </Button>
-                    <Button size="sm" variant="outline">
-                      Compartilhar no X
-                    </Button>
-                    <Button size="sm" variant="outline">
-                      Compartilhar no Discord
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
+                  {post.projectId ? <ProjectEmbedCard projectId={post.projectId} /> : null}
 
-              <Card className="border-border bg-card">
-                <CardHeader>
-                  <CardTitle className="text-lg">Comentários</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                  <div className="flex flex-wrap items-center justify-between gap-3">
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <MessageSquare className="h-4 w-4 text-primary/70" aria-hidden="true" />
-                      Seção integrada ou via Disqus.
-                    </div>
-                    <Button size="sm" variant="outline">
-                      Conectar Disqus
-                    </Button>
-                  </div>
-                  <Separator />
-                  <div className="flex gap-3">
-                    <Avatar className="h-10 w-10">
-                      <AvatarImage src="/placeholder.svg" alt="Avatar do usuário" />
-                      <AvatarFallback>RA</AvatarFallback>
-                    </Avatar>
-                    <div className="flex-1 space-y-3">
-                      <Textarea
-                        placeholder="Escreva um comentário ou feedback sobre o episódio..."
-                        className="min-h-[120px]"
-                      />
-                      <div className="flex flex-wrap items-center gap-3">
-                        <Button>Publicar comentário</Button>
-                        <Button variant="ghost" size="sm">
-                          Ver regras da comunidade
+                  <Card className="border-border bg-card">
+                    <CardHeader>
+                      <CardTitle className="text-lg">Compartilhar</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <Share2 className="h-4 w-4 text-primary/70" aria-hidden="true" />
+                        Envie este post nas redes sociais.
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        <Button size="sm" variant="secondary" onClick={handleCopyLink}>
+                          Copiar link
+                        </Button>
+                        <Button size="sm" variant="outline">
+                          Compartilhar no X
+                        </Button>
+                        <Button size="sm" variant="outline">
+                          Compartilhar no Discord
                         </Button>
                       </div>
-                    </div>
-                  </div>
-                  <div className="rounded-xl border border-border bg-background/60 p-4 text-sm text-muted-foreground">
-                    Aqui aparecerá a thread de comentários com paginação, reações e moderação.
-                  </div>
-                </CardContent>
-              </Card>
-            </article>
+                    </CardContent>
+                  </Card>
 
-            <aside className="space-y-6">
-              <LatestEpisodeCard />
-              <WorkStatusCard />
-              <DiscordInviteCard />
-            </aside>
-          </section>
+                  <Card className="border-border bg-card">
+                    <CardHeader>
+                      <CardTitle className="text-lg">ComentÃ¡rios</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-6">
+                      <div className="flex flex-wrap items-center justify-between gap-3">
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                          <MessageSquare className="h-4 w-4 text-primary/70" aria-hidden="true" />
+                          SeÃ§Ã£o integrada ou via Disqus.
+                        </div>
+                        <Button size="sm" variant="outline">
+                          Conectar Disqus
+                        </Button>
+                      </div>
+                      <Separator />
+                      <div className="flex gap-3">
+                        <Avatar className="h-10 w-10">
+                          <AvatarImage src="/placeholder.svg" alt="Avatar do usuÃ¡rio" />
+                          <AvatarFallback>RA</AvatarFallback>
+                        </Avatar>
+                        <div className="flex-1 space-y-3">
+                          <Textarea
+                            placeholder="Escreva um comentÃ¡rio ou feedback sobre o episÃ³dio..."
+                            className="min-h-[120px]"
+                          />
+                          <div className="flex flex-wrap items-center gap-3">
+                            <Button>Publicar comentÃ¡rio</Button>
+                            <Button variant="ghost" size="sm">
+                              Ver regras da comunidade
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="rounded-xl border border-border bg-background/60 p-4 text-sm text-muted-foreground">
+                        Aqui aparecerÃ¡ a thread de comentÃ¡rios com paginaÃ§Ã£o, reaÃ§Ãµes e moderaÃ§Ã£o.
+                      </div>
+                    </CardContent>
+                  </Card>
+                </article>
+
+                <aside className="space-y-6">
+                  <LatestEpisodeCard />
+                  <WorkStatusCard />
+                  <DiscordInviteCard />
+                </aside>
+              </section>
+            </>
+          )}
         </div>
       </main>
 
@@ -274,3 +274,4 @@ const Post = () => {
 };
 
 export default Post;
+

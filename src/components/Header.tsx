@@ -1,14 +1,37 @@
+import type { ReactNode } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { projectData } from "@/data/projects";
+import { cn } from "@/lib/utils";
 
-const Header = () => {
+type HeaderProps = {
+  variant?: "fixed" | "static";
+  leading?: ReactNode;
+  className?: string;
+};
+
+const Header = ({ variant = "fixed", leading, className }: HeaderProps) => {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [isScrolled, setIsScrolled] = useState(false);
+  const [currentUser, setCurrentUser] = useState<{
+    id: string;
+    name: string;
+    username: string;
+    avatarUrl?: string | null;
+  } | null>(null);
   const searchRef = useRef<HTMLDivElement | null>(null);
   const location = useLocation();
+  const apiBase = import.meta.env.VITE_API_BASE || "http://127.0.0.1:8080";
 
   const projectItems = projectData.slice(0, 3).map((project) => ({
     label: project.title,
@@ -76,27 +99,49 @@ const Header = () => {
     };
   }, []);
 
+  useEffect(() => {
+    const loadUser = async () => {
+      try {
+        const response = await fetch(`${apiBase}/api/me`, { credentials: "include" });
+        if (!response.ok) {
+          setCurrentUser(null);
+          return;
+        }
+        const data = await response.json();
+        setCurrentUser(data);
+      } catch {
+        setCurrentUser(null);
+      }
+    };
+
+    loadUser();
+  }, [apiBase]);
+
   return (
     <header
-      className={`fixed top-0 left-0 right-0 z-50 px-6 py-4 transition-all duration-300 md:px-12 after:pointer-events-none after:absolute after:inset-0 after:bg-gradient-to-b after:from-black/25 after:via-black/10 after:to-transparent ${
-        isScrolled
-          ? "bg-background/70 shadow-lg shadow-black/10 backdrop-blur-xl"
-          : "bg-background/20 backdrop-blur-sm"
-      }`}
+      className={cn(
+        "left-0 right-0 z-50 px-6 py-4 text-white transition-all duration-300 md:px-12 after:pointer-events-none after:absolute after:inset-0 after:bg-gradient-to-b after:from-black/25 after:via-black/10 after:to-transparent",
+        variant === "fixed" ? "fixed top-0" : "relative",
+        isScrolled && variant === "fixed" ? "bg-background/70 backdrop-blur-xl" : "bg-transparent",
+        className,
+      )}
     >
       <nav className="flex items-center justify-between">
-        <Link to="/" className="text-2xl md:text-3xl font-black tracking-wider text-foreground">
-          NEKOMATA
-        </Link>
+        <div className="flex items-center gap-3">
+          {leading}
+          <Link to="/" className="text-2xl md:text-3xl font-black tracking-wider text-white">
+            NEKOMATA
+          </Link>
+        </div>
         
         <div className="flex items-center gap-3 md:gap-6">
-          <div className="hidden md:flex items-center gap-6 text-sm font-medium text-muted-foreground">
+          <div className="hidden md:flex items-center gap-6 text-sm font-medium text-white/80">
             <Link
               to="/"
               className={`transition-colors ${
                 location.pathname === "/"
-                  ? "text-foreground font-semibold"
-                  : "text-muted-foreground hover:text-foreground"
+                  ? "text-white font-semibold"
+                  : "text-white/80 hover:text-white"
               }`}
             >
               Início
@@ -105,8 +150,8 @@ const Header = () => {
               to="/projetos"
               className={`transition-colors ${
                 location.pathname.startsWith("/projetos")
-                  ? "text-foreground font-semibold"
-                  : "text-muted-foreground hover:text-foreground"
+                  ? "text-white font-semibold"
+                  : "text-white/80 hover:text-white"
               }`}
             >
               Projetos
@@ -115,23 +160,15 @@ const Header = () => {
               to="/equipe"
               className={`transition-colors ${
                 location.pathname.startsWith("/equipe")
-                  ? "text-foreground font-semibold"
-                  : "text-muted-foreground hover:text-foreground"
+                  ? "text-white font-semibold"
+                  : "text-white/80 hover:text-white"
               }`}
             >
               Equipe
             </Link>
             <a
-              href="https://discord.gg/nekogroup"
-              className="hover:text-foreground transition-colors"
-              target="_blank"
-              rel="noreferrer"
-            >
-              Discord
-            </a>
-            <a
-              href="https://discord.gg/nekogroup"
-              className="hover:text-foreground transition-colors"
+              href="https://discord.com/invite/BAHKhdX2ju"
+              className="text-white/80 hover:text-white transition-colors"
               target="_blank"
               rel="noreferrer"
             >
@@ -141,15 +178,15 @@ const Header = () => {
               to="/sobre"
               className={`transition-colors ${
                 location.pathname.startsWith("/sobre")
-                  ? "text-foreground font-semibold"
-                  : "text-muted-foreground hover:text-foreground"
+                  ? "text-white font-semibold"
+                  : "text-white/80 hover:text-white"
               }`}
             >
               Sobre
             </Link>
           </div>
 
-          <div className="relative flex items-center" ref={searchRef}>
+          <div className="relative flex items-center gap-3" ref={searchRef}>
             <div
               className={`flex items-center gap-2 rounded-full border border-transparent bg-secondary/30 px-3 py-2 transition-all duration-300 ${
                 isSearchOpen ? "w-60 md:w-72 border-border bg-secondary/70" : "w-11"
@@ -159,7 +196,7 @@ const Header = () => {
                 type="button"
                 aria-label="Abrir pesquisa"
                 onClick={() => setIsSearchOpen((prev) => !prev)}
-                className="text-foreground transition-colors hover:text-primary"
+                className="text-white transition-colors hover:text-primary"
               >
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
@@ -180,7 +217,7 @@ const Header = () => {
                   value={query}
                   onChange={(event) => setQuery(event.target.value)}
                   placeholder="Pesquisar projetos e posts"
-                  className="w-full bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground"
+                  className="w-full bg-transparent text-sm text-white outline-none placeholder:text-white/60"
                 />
               )}
             </div>
@@ -256,6 +293,42 @@ const Header = () => {
               </div>
             )}
           </div>
+
+          {currentUser && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" className="h-11 gap-2 rounded-full px-2">
+                  <Avatar className="h-8 w-8 border border-border/60">
+                    {currentUser.avatarUrl ? (
+                      <AvatarImage src={currentUser.avatarUrl} alt={currentUser.name} />
+                    ) : null}
+                    <AvatarFallback className="bg-secondary text-xs text-foreground">
+                      {currentUser.name.slice(0, 2).toUpperCase()}
+                    </AvatarFallback>
+                  </Avatar>
+                  <span className="hidden text-sm font-medium text-white md:inline">
+                    {currentUser.name}
+                  </span>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-44">
+                <DropdownMenuItem asChild>
+                  <Link to="/dashboard">Dashboard</Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={async () => {
+                    await fetch(`${apiBase}/api/logout`, {
+                      method: "POST",
+                      credentials: "include",
+                    });
+                    window.location.href = "/";
+                  }}
+                >
+                  Sair
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
         </div>
       </nav>
     </header>

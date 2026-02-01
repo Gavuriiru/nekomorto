@@ -212,7 +212,10 @@ const Project = () => {
                     key={episode.number}
                     className="border-border/60 bg-card/80 shadow-lg transition hover:border-primary/40"
                   >
-                    <CardContent className="grid gap-6 p-6 md:grid-cols-[240px_1fr_auto] md:items-center">
+                    <CardContent className="relative grid gap-6 p-6 md:grid-cols-[240px_minmax(0,1fr)]">
+                      <Badge className="absolute right-6 top-6 text-[10px] uppercase">
+                        RAW {episode.sourceType}
+                      </Badge>
                       <div className="overflow-hidden rounded-xl border border-border/50 bg-background/50 shadow-sm">
                         <img
                           src={project.banner}
@@ -220,7 +223,7 @@ const Project = () => {
                           className="aspect-[16/9] w-full object-cover"
                         />
                       </div>
-                      <div className="flex h-full flex-col justify-between gap-4">
+                      <div className="flex h-full flex-col gap-4 md:min-h-[135px]">
                         <div className="space-y-3">
                           <div className="flex flex-wrap items-center gap-3">
                             <Badge variant="secondary" className="text-xs uppercase">
@@ -228,86 +231,84 @@ const Project = () => {
                                 ? `Cap ${episode.number}`
                                 : `EP ${episode.number}`}
                             </Badge>
-                            <span className="text-xs text-muted-foreground">
-                              {episode.duration}
-                            </span>
-                            <span className="text-xs text-muted-foreground">
+                            <p className="text-lg font-semibold text-foreground">{episode.title}</p>
+                          </div>
+                          <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+                            <span>{episode.duration}</span>
+                            <span>
                               <CalendarDays className="mr-1 inline h-3 w-3 text-primary/70" />
                               {new Date(episode.releaseDate).toLocaleDateString("pt-BR")}
                             </span>
                           </div>
-                          <div className="space-y-2">
-                            <p className="text-lg font-semibold text-foreground">{episode.title}</p>
-                            <p className="text-sm text-muted-foreground">{episode.synopsis}</p>
-                          </div>
+                          <p className="text-sm text-muted-foreground">{episode.synopsis}</p>
                         </div>
-                      </div>
-                      <div className="flex flex-wrap gap-2 md:justify-end">
-                        {episode.sources.map((source) => {
-                          const icon =
-                            source.label === "Google Drive" ? (
-                              <svg
-                                viewBox="0 0 24 24"
-                                aria-hidden="true"
-                                className="h-4 w-4 text-[#34A853]"
-                              >
-                                <path
-                                  fill="currentColor"
-                                  d="M7.5 3h9l4.5 8-4.5 8h-9L3 11z"
-                                />
-                              </svg>
-                            ) : source.label === "MEGA" ? (
-                              <svg
-                                viewBox="0 0 24 24"
-                                aria-hidden="true"
-                                className="h-4 w-4 text-[#D9272E]"
-                              >
-                                <circle cx="12" cy="12" r="10" fill="currentColor" />
-                                <path
-                                  fill="#fff"
-                                  d="M7.2 16.4V7.6h1.6l3.2 4.2 3.2-4.2h1.6v8.8h-1.6V10l-3.2 4.1L8.8 10v6.4z"
-                                />
-                              </svg>
-                            ) : (
-                              <svg
-                                viewBox="0 0 24 24"
-                                aria-hidden="true"
-                                className="h-4 w-4 text-[#7C3AED]"
-                              >
-                                <path
-                                  fill="currentColor"
-                                  d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2Zm1 5.5 3.5 3.5H13Zm-2 0v3.5H7.5Zm-3.5 6.5 3.5-3.5V14Z"
-                                />
-                              </svg>
-                            );
-                          const buttonClassName =
-                            source.label === "Google Drive"
-                              ? "border-[#34A853]/50 text-[#34A853] hover:bg-[#34A853]/10"
-                              : source.label === "MEGA"
-                              ? "border-[#D9272E]/50 text-[#D9272E] hover:bg-[#D9272E]/10"
-                              : "border-[#7C3AED]/50 text-[#7C3AED] hover:bg-[#7C3AED]/10";
+                        <div className="mt-auto flex flex-wrap gap-2 md:justify-end md:self-end">
+                          {episode.sources.map((source) => {
+                            const icon =
+                              source.label === "Google Drive" ? (
+                                <svg
+                                  viewBox="0 0 24 24"
+                                  aria-hidden="true"
+                                  className="h-4 w-4 text-[#34A853]"
+                                >
+                                  <path
+                                    fill="currentColor"
+                                    d="M7.5 3h9l4.5 8-4.5 8h-9L3 11z"
+                                  />
+                                </svg>
+                              ) : source.label === "MEGA" ? (
+                                <svg
+                                  viewBox="0 0 24 24"
+                                  aria-hidden="true"
+                                  className="h-4 w-4 text-[#D9272E]"
+                                >
+                                  <circle cx="12" cy="12" r="10" fill="currentColor" />
+                                  <path
+                                    fill="#fff"
+                                    d="M7.2 16.4V7.6h1.6l3.2 4.2 3.2-4.2h1.6v8.8h-1.6V10l-3.2 4.1L8.8 10v6.4z"
+                                  />
+                                </svg>
+                              ) : (
+                                <svg
+                                  viewBox="0 0 24 24"
+                                  aria-hidden="true"
+                                  className="h-4 w-4 text-[#7C3AED]"
+                                >
+                                  <path
+                                    fill="currentColor"
+                                    d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2Zm1 5.5 3.5 3.5H13Zm-2 0v3.5H7.5Zm-3.5 6.5 3.5-3.5V14Z"
+                                  />
+                                </svg>
+                              );
+                            const buttonClassName =
+                              source.label === "Google Drive"
+                                ? "border-[#34A853]/60 text-[#34A853] hover:bg-[#34A853]/15"
+                                : source.label === "MEGA"
+                                ? "border-[#D9272E]/60 text-[#D9272E] hover:bg-[#D9272E]/15"
+                                : "border-[#7C3AED]/60 text-[#7C3AED] hover:bg-[#7C3AED]/15";
 
-                          return (
-                            <Button
-                              key={source.label}
-                              asChild
-                              variant="outline"
-                              size="sm"
-                              className={`bg-white/70 hover:bg-white/90 ${buttonClassName}`}
-                            >
-                              <a
-                                href={source.url}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="inline-flex items-center gap-2"
+                            return (
+                              <Button
+                                key={source.label}
+                                asChild
+                                variant="outline"
+                                size="sm"
+                                className={`bg-black/35 ${buttonClassName}`}
                               >
-                                {icon}
-                                {source.label}
-                              </a>
-                            </Button>
-                          );
-                        })}
+                                <a
+                                  href={source.url}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="inline-flex items-center gap-2"
+                                >
+                                  {icon}
+                                  {source.label}
+                                </a>
+                              </Button>
+                            );
+                          })}
                       </div>
+                    </div>
                     </CardContent>
                   </Card>
                 ))}

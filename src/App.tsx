@@ -8,6 +8,15 @@ import NotFound from "./pages/NotFound";
 import Post from "./pages/Post";
 import Project from "./pages/Project";
 import Projects from "./pages/Projects";
+import Team from "./pages/Team";
+import About from "./pages/About";
+import Donations from "./pages/Donations";
+import FAQ from "./pages/FAQ";
+import Dashboard from "./pages/Dashboard";
+import Login from "./pages/Login";
+import RequireAuth from "./components/RequireAuth";
+import DashboardUsers from "./pages/DashboardUsers";
+import DashboardPosts from "./pages/DashboardPosts";
 
 const queryClient = new QueryClient();
 
@@ -20,9 +29,38 @@ const App = () => (
         <Routes>
           <Route path="/" element={<Index />} />
           <Route path="/postagem/:slug" element={<Post />} />
+          <Route path="/equipe" element={<Team />} />
+          <Route path="/sobre" element={<About />} />
+          <Route path="/doacoes" element={<Donations />} />
+          <Route path="/faq" element={<FAQ />} />
           <Route path="/projetos" element={<Projects />} />
           <Route path="/projeto/:slug" element={<Project />} />
           <Route path="/projetos/:slug" element={<Project />} />
+          <Route
+            path="/dashboard"
+            element={
+              <RequireAuth>
+                <Dashboard />
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/dashboard/usuarios"
+            element={
+              <RequireAuth>
+                <DashboardUsers />
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/dashboard/posts"
+            element={
+              <RequireAuth>
+                <DashboardPosts />
+              </RequireAuth>
+            }
+          />
+          <Route path="/login" element={<Login />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
