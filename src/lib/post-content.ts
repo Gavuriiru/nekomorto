@@ -139,6 +139,57 @@ export const renderPostContent = (content: string, format: "markdown" | "html") 
   return markdownToHtml(content || "");
 };
 
+const htmlToMarkdown = (html: string) => {
+  let output = html;
+  output = output.replace(/<h1[^>]*>([\s\S]*?)<\/h1>/gi, "# $1\n");
+  output = output.replace(/<h2[^>]*>([\s\S]*?)<\/h2>/gi, "## $1\n");
+  output = output.replace(/<h3[^>]*>([\s\S]*?)<\/h3>/gi, "### $1\n");
+  output = output.replace(/<strong[^>]*>([\s\S]*?)<\/strong>/gi, "**$1**");
+  output = output.replace(/<b[^>]*>([\s\S]*?)<\/b>/gi, "**$1**");
+  output = output.replace(/<em[^>]*>([\s\S]*?)<\/em>/gi, "*$1*");
+  output = output.replace(/<i[^>]*>([\s\S]*?)<\/i>/gi, "*$1*");
+  output = output.replace(/<u[^>]*>([\s\S]*?)<\/u>/gi, "<u>$1</u>");
+  output = output.replace(/<del[^>]*>([\s\S]*?)<\/del>/gi, "~~$1~~");
+  output = output.replace(/<img[^>]*src=["']([^"']+)["'][^>]*alt=["']([^"']*)["'][^>]*>/gi, (_m, src, alt) => {
+    const safeAlt = String(alt || "");
+    const safeSrc = String(src || "");
+    return `![${safeAlt}](${safeSrc})`;
+  });
+  output = output.replace(/<img[^>]*src=["']([^"']+)["'][^>]*>/gi, (_m, src) => {
+    const safeSrc = String(src || "");
+    return `![](${safeSrc})`;
+  });
+  output = output.replace(/<a[^>]*href=["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi, (_m, href, text) => {
+    const safeHref = String(href || "");
+    const safeText = String(text || "");
+    return `[${safeText}](${safeHref})`;
+  });
+  output = output.replace(/<ul[^>]*>([\s\S]*?)<\/ul>/gi, (_m, inner) => {
+    const items = inner.replace(/<li[^>]*>([\s\S]*?)<\/li>/gi, "- $1\n");
+    return `\n${items}\n`;
+  });
+  output = output.replace(/<ol[^>]*>([\s\S]*?)<\/ol>/gi, (_m, inner) => {
+    let idx = 1;
+    const items = inner.replace(/<li[^>]*>([\s\S]*?)<\/li>/gi, (_li, text) => `${idx++}. ${text}\n`);
+    return `\n${items}\n`;
+  });
+  output = output.replace(/<br\s*\/?>/gi, "\n");
+  output = output.replace(/<p[^>]*>([\s\S]*?)<\/p>/gi, "$1\n\n");
+  output = output.replace(/<blockquote[^>]*>([\s\S]*?)<\/blockquote>/gi, "> $1\n");
+  output = output.replace(/<[^>]+>/g, "");
+  return output.replace(/\n{3,}/g, "\n\n").trim();
+};
+
+export const convertPostContent = (content: string, from: "markdown" | "html", to: "markdown" | "html") => {
+  if (from === to) {
+    return content;
+  }
+  if (from === "markdown") {
+    return renderPostContent(content, "markdown");
+  }
+  return htmlToMarkdown(content);
+};
+
 export const stripHtml = (value: string) => value.replace(/<[^>]*>/g, " ");
 
 export const estimateReadTime = (content: string, format: "markdown" | "html") => {

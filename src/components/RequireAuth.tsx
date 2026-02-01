@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
+import { getApiBase } from "@/lib/api-base";
 
 type RequireAuthProps = {
   children: React.ReactNode;
@@ -9,7 +10,7 @@ const RequireAuth = ({ children }: RequireAuthProps) => {
   const navigate = useNavigate();
   const location = useLocation();
   const [isChecking, setIsChecking] = useState(true);
-  const apiBase = import.meta.env.VITE_API_BASE || "http://127.0.0.1:8080";
+  const apiBase = getApiBase();
 
   useEffect(() => {
     const checkAuth = async () => {

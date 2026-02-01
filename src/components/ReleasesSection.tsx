@@ -14,9 +14,11 @@ import WorkStatusCard from "./WorkStatusCard";
 import DiscordInviteCard from "./DiscordInviteCard";
 import { CalendarDays, User } from "lucide-react";
 import { Link } from "react-router-dom";
+import { getApiBase } from "@/lib/api-base";
+import { projectData } from "@/data/projects";
 
 const ReleasesSection = () => {
-  const apiBase = import.meta.env.VITE_API_BASE || "http://127.0.0.1:8080";
+  const apiBase = getApiBase();
   const pageSize = 8;
   const [currentPage, setCurrentPage] = useState(1);
   const [posts, setPosts] = useState<
@@ -28,6 +30,8 @@ const ReleasesSection = () => {
       author: string;
       publishedAt: string;
       coverImageUrl?: string | null;
+      projectId?: string;
+      tags?: string[];
     }>
   >([]);
 
@@ -67,7 +71,7 @@ const ReleasesSection = () => {
     <section className="py-16 px-6 md:px-12 bg-background">
       <div className="max-w-7xl mx-auto">
         <h2 className="text-2xl md:text-3xl font-bold mb-8 text-foreground">
-          LanÃ§amentos Recentes
+          Lançamentos Recentes
         </h2>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -79,53 +83,61 @@ const ReleasesSection = () => {
               </div>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
-                {pagedReleases.map((release, index) => (
-                  <Link
-                    key={release.id}
-                    to={`/postagem/${release.slug}`}
-                    className="group animate-fade-in"
-                    style={{ animationDelay: `${index * 0.1}s` }}
-                  >
-                    <Card className="bg-card border-border hover:border-primary/50 transition-all h-full">
-                      <CardContent className="p-5 flex flex-col h-full gap-4">
-                        <div className="relative w-full aspect-[3/2] rounded-lg overflow-hidden bg-secondary">
-                          <img
-                            src={release.coverImageUrl || "/placeholder.svg"}
-                            alt={release.title}
-                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                            loading="lazy"
-                          />
-                          <div className="absolute left-3 top-3 flex flex-wrap gap-2 opacity-0 translate-y-1 group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-300">
-                            <Badge
-                              variant="secondary"
-                              className="text-[10px] uppercase tracking-wide bg-background/80 text-foreground"
-                            >
-                              Postagem
-                            </Badge>
+                {pagedReleases.map((release, index) => {
+                  const projectTag = release.projectId
+                    ? projectData.find((project) => project.id === release.projectId)?.tags?.[0] || ""
+                    : "";
+                  const mainTag = Array.isArray(release.tags) && release.tags.length > 0 ? release.tags[0] : projectTag;
+                  return (
+                    <Link
+                      key={release.id}
+                      to={`/postagem/${release.slug}`}
+                      className="group animate-fade-in"
+                      style={{ animationDelay: `${index * 0.1}s` }}
+                    >
+                      <Card className="bg-card border-border hover:border-primary/50 transition-all h-full">
+                        <CardContent className="p-5 flex flex-col h-full gap-4">
+                          <div className="relative w-full aspect-[3/2] rounded-lg overflow-hidden bg-secondary">
+                            <img
+                              src={release.coverImageUrl || "/placeholder.svg"}
+                              alt={release.title}
+                              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                              loading="lazy"
+                            />
+                            {mainTag ? (
+                              <div className="absolute right-3 top-3 flex flex-wrap gap-2">
+                                <Badge
+                                  variant="secondary"
+                                  className="text-[10px] uppercase tracking-wide bg-background/85 text-foreground shadow-sm"
+                                >
+                                  {mainTag}
+                                </Badge>
+                              </div>
+                            ) : null}
                           </div>
-                        </div>
-                        <div className="space-y-2">
-                          <h3 className="text-base font-semibold text-foreground group-hover:text-primary transition-colors">
-                            {release.title}
-                          </h3>
-                          <p className="text-sm text-muted-foreground line-clamp-3">
-                            {release.excerpt || "Sem prÃ©via cadastrada."}
-                          </p>
-                        </div>
-                        <div className="mt-auto flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
-                          <span className="inline-flex items-center gap-1.5">
-                            <User className="h-4 w-4 text-primary/70" aria-hidden="true" />
-                            {release.author || "Equipe"}
-                          </span>
-                          <span className="inline-flex items-center gap-1.5">
-                            <CalendarDays className="h-4 w-4 text-primary/70" aria-hidden="true" />
-                            {new Date(release.publishedAt).toLocaleDateString("pt-BR")}
-                          </span>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </Link>
-                ))}
+                          <div className="space-y-2">
+                            <h3 className="text-lg font-semibold text-foreground group-hover:text-primary transition-colors">
+                              {release.title}
+                            </h3>
+                            <p className="text-sm text-muted-foreground line-clamp-3">
+                              {release.excerpt || "Sem prévia cadastrada."}
+                            </p>
+                          </div>
+                          <div className="mt-auto flex items-center justify-between gap-3 text-xs text-muted-foreground">
+                            <span className="inline-flex items-center gap-1.5">
+                              <User className="h-4 w-4 text-primary/70" aria-hidden="true" />
+                              {release.author || "Equipe"}
+                            </span>
+                            <span className="inline-flex items-center gap-1.5">
+                              <CalendarDays className="h-4 w-4 text-primary/70" aria-hidden="true" />
+                              {new Date(release.publishedAt).toLocaleDateString("pt-BR")}
+                            </span>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    </Link>
+                  );
+                })}
               </div>
             )}
             {showPagination ? (

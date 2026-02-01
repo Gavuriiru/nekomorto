@@ -15,10 +15,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
 import { estimateReadTime, renderPostContent } from "@/lib/post-content";
+import { getApiBase } from "@/lib/api-base";
 
 const Post = () => {
   const { slug } = useParams();
-  const apiBase = import.meta.env.VITE_API_BASE || "http://127.0.0.1:8080";
+  const apiBase = getApiBase();
   const [post, setPost] = useState<{
     id: string;
     title: string;
@@ -138,7 +139,7 @@ const Post = () => {
             </div>
           ) : loadError || !post ? (
             <div className="rounded-2xl border border-dashed border-white/10 bg-white/5 px-6 py-10 text-sm text-muted-foreground">
-              Postagem nÃ£o encontrada.
+              Postagem não encontrada.
             </div>
           ) : (
             <>
@@ -219,13 +220,13 @@ const Post = () => {
 
                   <Card className="border-border bg-card">
                     <CardHeader>
-                      <CardTitle className="text-lg">ComentÃ¡rios</CardTitle>
+                      <CardTitle className="text-lg">Comentários</CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-6">
                       <div className="flex flex-wrap items-center justify-between gap-3">
                         <div className="flex items-center gap-2 text-sm text-muted-foreground">
                           <MessageSquare className="h-4 w-4 text-primary/70" aria-hidden="true" />
-                          SeÃ§Ã£o integrada ou via Disqus.
+                          Seção integrada ou via Disqus.
                         </div>
                         <Button size="sm" variant="outline">
                           Conectar Disqus
@@ -234,16 +235,16 @@ const Post = () => {
                       <Separator />
                       <div className="flex gap-3">
                         <Avatar className="h-10 w-10">
-                          <AvatarImage src="/placeholder.svg" alt="Avatar do usuÃ¡rio" />
+                          <AvatarImage src="/placeholder.svg" alt="Avatar do usuário" />
                           <AvatarFallback>RA</AvatarFallback>
                         </Avatar>
                         <div className="flex-1 space-y-3">
                           <Textarea
-                            placeholder="Escreva um comentÃ¡rio ou feedback sobre o episÃ³dio..."
+                            placeholder="Escreva um comentário ou feedback sobre o episódio..."
                             className="min-h-[120px]"
                           />
                           <div className="flex flex-wrap items-center gap-3">
-                            <Button>Publicar comentÃ¡rio</Button>
+                            <Button>Publicar comentário</Button>
                             <Button variant="ghost" size="sm">
                               Ver regras da comunidade
                             </Button>
@@ -251,7 +252,7 @@ const Post = () => {
                         </div>
                       </div>
                       <div className="rounded-xl border border-border bg-background/60 p-4 text-sm text-muted-foreground">
-                        Aqui aparecerÃ¡ a thread de comentÃ¡rios com paginaÃ§Ã£o, reaÃ§Ãµes e moderaÃ§Ã£o.
+                        Aqui aparecerá a thread de comentários com paginação, reações e moderação.
                       </div>
                     </CardContent>
                   </Card>
@@ -274,4 +275,5 @@ const Post = () => {
 };
 
 export default Post;
+
 

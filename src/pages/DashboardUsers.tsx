@@ -54,6 +54,7 @@ import {
   Youtube,
   MessageCircle,
 } from "lucide-react";
+import { getApiBase } from "@/lib/api-base";
 
 type UserRecord = {
   id: string;
@@ -118,7 +119,7 @@ const socialIconMap: Record<string, typeof Globe> = {
 
 const DashboardUsers = () => {
   const location = useLocation();
-  const apiBase = import.meta.env.VITE_API_BASE || "http://127.0.0.1:8080";
+  const apiBase = getApiBase();
   const [users, setUsers] = useState<UserRecord[]>([]);
   const [ownerIds, setOwnerIds] = useState<string[]>([]);
   const [currentUser, setCurrentUser] = useState<{
@@ -146,8 +147,8 @@ const DashboardUsers = () => {
 
   const menuItems = [
     { label: "Início", href: "/dashboard", icon: LayoutGrid, enabled: true },
-    { label: "Post", href: "/dashboard/posts", icon: FileText, enabled: true },
-    { label: "Projetos", href: "/dashboard/projetos", icon: FolderCog, enabled: false },
+    { label: "Postagens", href: "/dashboard/posts", icon: FileText, enabled: true },
+    { label: "Projetos", href: "/dashboard/projetos", icon: FolderCog, enabled: true },
     { label: "Comentários", href: "/dashboard/comentarios", icon: MessageSquare, enabled: false },
     { label: "Usuários", href: "/dashboard/usuarios", icon: UserRound, enabled: true },
     { label: "Páginas", href: "/dashboard/paginas", icon: Shield, enabled: false },

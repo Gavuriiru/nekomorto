@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+﻿import { useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
 import { CalendarDays, Download, Film, MessageSquare, PlayCircle, Share2, Users } from "lucide-react";
 
@@ -10,21 +10,56 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
-import { projectData } from "@/data/projects";
+import { getApiBase } from "@/lib/api-base";
 import NotFound from "./NotFound";
+import type { Project } from "@/data/projects";
 
-const Project = () => {
+const ProjectPage = () => {
   const { slug } = useParams<{ slug: string }>();
+  const apiBase = getApiBase();
+  const [project, setProject] = useState<Project | null>(null);
+  const [hasLoaded, setHasLoaded] = useState(false);
 
-  const project = useMemo(() => {
+  useEffect(() => {
     if (!slug) {
-      return undefined;
+      return;
     }
-    return projectData.find((item) => item.id === slug);
-  }, [slug]);
+    let isActive = true;
+    const load = async () => {
+      try {
+        const response = await fetch(`${apiBase}/api/public/projects/${slug}`);
+        if (!response.ok) {
+          if (isActive) {
+            setProject(null);
+          }
+          return;
+        }
+        const data = await response.json();
+        if (isActive) {
+          setProject(data.project || null);
+        }
+      } catch {
+        if (isActive) {
+          setProject(null);
+        }
+      } finally {
+        if (isActive) {
+          setHasLoaded(true);
+        }
+      }
+    };
+    load();
+    return () => {
+      isActive = false;
+    };
+  }, [apiBase, slug]);
+
+  if (!slug || (!project && hasLoaded)) {
+    return <NotFound />;
+  }
 
   if (!project) {
-    return <NotFound />;
+    return null;
   }
 
   const projectDetails = [
@@ -37,6 +72,11 @@ const Project = () => {
     { label: "Classificação", value: project.rating },
     { label: "Agenda", value: project.schedule },
   ];
+
+  const downloadableEpisodes = useMemo(
+    () => (project.episodeDownloads || []).filter((episode) => (episode.sources || []).length > 0),
+    [project.episodeDownloads],
+  );
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -196,18 +236,18 @@ const Project = () => {
                 </p>
               </div>
               <Badge variant="secondary" className="text-xs uppercase">
-                {project.episodeDownloads.length} disponíveis
+                {downloadableEpisodes.length} disponíveis
               </Badge>
             </div>
 
-            {project.episodeDownloads.length === 0 ? (
+            {downloadableEpisodes.length === 0 ? (
               <div className="rounded-2xl border border-dashed border-border/60 bg-card/40 p-8 text-center text-sm text-muted-foreground">
                 Este projeto ainda está em produção. Assim que os episódios forem lançados, os
                 downloads aparecerão aqui.
               </div>
             ) : (
               <div className="grid gap-6">
-                {project.episodeDownloads.map((episode) => (
+                {downloadableEpisodes.map((episode) => (
                   <Card
                     key={episode.number}
                     className="border-border/60 bg-card/80 shadow-lg transition hover:border-primary/40"
@@ -307,8 +347,8 @@ const Project = () => {
                               </Button>
                             );
                           })}
+                        </div>
                       </div>
-                    </div>
                     </CardContent>
                   </Card>
                 ))}
@@ -389,4 +429,4 @@ const Project = () => {
   );
 };
 
-export default Project;
+export default ProjectPage;

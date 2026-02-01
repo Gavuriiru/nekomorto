@@ -32,6 +32,11 @@ const {
   PORT = 8080,
 } = process.env;
 
+const APP_ORIGINS = APP_ORIGIN.split(",")
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+const PRIMARY_APP_ORIGIN = APP_ORIGINS[0] || "http://127.0.0.1:5173";
+
 if (!DISCORD_CLIENT_ID || !DISCORD_CLIENT_SECRET || !SESSION_SECRET) {
   // eslint-disable-next-line no-console
   console.warn("Missing DISCORD_CLIENT_ID, DISCORD_CLIENT_SECRET, or SESSION_SECRET in env.");
@@ -41,7 +46,13 @@ app.use(express.json({ limit: "10mb" }));
 app.use(cookieParser());
 app.use(
   cors({
-    origin: APP_ORIGIN,
+    origin: (origin, callback) => {
+      if (!origin || APP_ORIGINS.includes(origin)) {
+        callback(null, true);
+        return;
+      }
+      callback(new Error("Not allowed by CORS"));
+    },
     credentials: true,
   }),
 );
@@ -65,7 +76,7 @@ app.use(
     cookie: {
       httpOnly: true,
       sameSite: "lax",
-      secure: APP_ORIGIN.startsWith("https://"),
+      secure: PRIMARY_APP_ORIGIN.startsWith("https://"),
       maxAge: 1000 * 60 * 60 * 24 * 7,
     },
   }),
@@ -171,12 +182,26 @@ const normalizePosts = (posts) => {
       seoTitle: post.seoTitle || "",
       seoDescription: post.seoDescription || "",
       projectId: post.projectId || "",
+      tags: Array.isArray(post.tags) ? post.tags.filter(Boolean) : [],
       views: Number.isFinite(post.views) ? post.views : 0,
       commentsCount: Number.isFinite(post.commentsCount) ? post.commentsCount : 0,
       createdAt: post.createdAt || new Date().toISOString(),
       updatedAt: post.updatedAt || post.createdAt || new Date().toISOString(),
     };
   });
+};
+
+const normalizeTags = (value) => {
+  if (Array.isArray(value)) {
+    return value.filter(Boolean);
+  }
+  if (typeof value === "string") {
+    return value
+      .split(",")
+      .map((tag) => tag.trim())
+      .filter(Boolean);
+  }
+  return [];
 };
 
 const createDiscordAvatarUrl = (user) => {
@@ -214,11 +239,11 @@ app.get("/login", async (req, res) => {
   const { code, state } = req.query;
 
   if (!code || typeof code !== "string") {
-    return res.redirect(`${APP_ORIGIN}/login?error=missing_code`);
+    return res.redirect(`${PRIMARY_APP_ORIGIN}/login?error=missing_code`);
   }
 
   if (!state || typeof state !== "string" || state !== req.session?.oauthState) {
-    return res.redirect(`${APP_ORIGIN}/login?error=state_mismatch`);
+    return res.redirect(`${PRIMARY_APP_ORIGIN}/login?error=state_mismatch`);
   }
 
   if (req.session) {
@@ -242,7 +267,7 @@ app.get("/login", async (req, res) => {
     });
 
     if (!tokenResponse.ok) {
-      return res.redirect(`${APP_ORIGIN}/login?error=token_exchange_failed`);
+      return res.redirect(`${PRIMARY_APP_ORIGIN}/login?error=token_exchange_failed`);
     }
 
     const tokenData = await tokenResponse.json();
@@ -254,7 +279,7 @@ app.get("/login", async (req, res) => {
     });
 
     if (!userResponse.ok) {
-      return res.redirect(`${APP_ORIGIN}/login?error=user_fetch_failed`);
+      return res.redirect(`${PRIMARY_APP_ORIGIN}/login?error=user_fetch_failed`);
     }
 
     const discordUser = await userResponse.json();
@@ -265,7 +290,7 @@ app.get("/login", async (req, res) => {
       if (req.session) {
         req.session.destroy(() => undefined);
       }
-      return res.redirect(`${APP_ORIGIN}/login?error=unauthorized`);
+      return res.redirect(`${PRIMARY_APP_ORIGIN}/login?error=unauthorized`);
     }
 
     req.session.user = {
@@ -281,9 +306,9 @@ app.get("/login", async (req, res) => {
     if (req.session) {
       req.session.loginNext = null;
     }
-    return res.redirect(next ? `${APP_ORIGIN}${next}` : `${APP_ORIGIN}/dashboard`);
+    return res.redirect(next ? `${PRIMARY_APP_ORIGIN}${next}` : `${PRIMARY_APP_ORIGIN}/dashboard`);
   } catch {
-    return res.redirect(`${APP_ORIGIN}/login?error=server_error`);
+    return res.redirect(`${PRIMARY_APP_ORIGIN}/login?error=server_error`);
   }
 });
 
@@ -494,6 +519,7 @@ app.get("/api/public/posts", (req, res) => {
       views: post.views,
       commentsCount: post.commentsCount,
       projectId: post.projectId || "",
+      tags: Array.isArray(post.tags) ? post.tags : [],
     }));
 
   res.json({ posts });
@@ -528,6 +554,7 @@ app.get("/api/public/posts/:slug", (req, res) => {
       seoTitle: post.seoTitle,
       seoDescription: post.seoDescription,
       projectId: post.projectId || "",
+      tags: Array.isArray(post.tags) ? post.tags : [],
     },
   });
 });
@@ -553,6 +580,7 @@ app.post("/api/posts", requireAuth, (req, res) => {
     seoTitle,
     seoDescription,
     projectId,
+    tags,
   } = req.body || {};
   if (!title || !slug) {
     return res.status(400).json({ error: "title_and_slug_required" });
@@ -588,6 +616,7 @@ app.post("/api/posts", requireAuth, (req, res) => {
     seoTitle: seoTitle || "",
     seoDescription: seoDescription || "",
     projectId: projectId || "",
+    tags: normalizeTags(tags),
     views: 0,
     commentsCount: 0,
     createdAt: now,
@@ -621,6 +650,7 @@ app.put("/api/posts/:id", requireAuth, (req, res) => {
     seoTitle,
     seoDescription,
     projectId,
+    tags,
   } = req.body || {};
   let posts = normalizePosts(loadPosts());
   const index = posts.findIndex((post) => post.id === String(id));
@@ -651,6 +681,7 @@ app.put("/api/posts/:id", requireAuth, (req, res) => {
     seoTitle: typeof seoTitle === "string" ? seoTitle : existing.seoTitle,
     seoDescription: typeof seoDescription === "string" ? seoDescription : existing.seoDescription,
     projectId: typeof projectId === "string" ? projectId : existing.projectId,
+    tags: normalizeTags(tags).length ? normalizeTags(tags) : existing.tags,
     updatedAt: new Date().toISOString(),
   };
 
@@ -705,9 +736,25 @@ app.post("/api/uploads/image", requireAuth, (req, res) => {
   fs.writeFileSync(filePath, buffer);
 
   return res.json({
-    url: `${APP_ORIGIN}/uploads/${fileName}`,
+    url: `${PRIMARY_APP_ORIGIN}/uploads/${fileName}`,
     fileName,
   });
+});
+
+app.get("/api/uploads/list", requireAuth, (req, res) => {
+  const uploadsDir = path.join(__dirname, "..", "public", "uploads");
+  try {
+    const items = fs.existsSync(uploadsDir) ? fs.readdirSync(uploadsDir) : [];
+    const files = items
+      .filter((item) => /\.(png|jpe?g|gif|webp|svg)$/i.test(item))
+      .map((item) => ({
+        name: item,
+        url: `${PRIMARY_APP_ORIGIN}/uploads/${item}`,
+      }));
+    return res.json({ files });
+  } catch {
+    return res.json({ files: [] });
+  }
 });
 
 app.post("/api/users", requireOwner, (req, res) => {

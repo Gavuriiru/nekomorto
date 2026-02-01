@@ -4,13 +4,14 @@ import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { getApiBase } from "@/lib/api-base";
 
 const Login = () => {
   const location = useLocation();
   const params = useMemo(() => new URLSearchParams(location.search), [location.search]);
   const error = params.get("error");
   const next = params.get("next");
-  const apiBase = import.meta.env.VITE_API_BASE || "http://127.0.0.1:8080";
+  const apiBase = getApiBase();
 
   const errorMessage = (() => {
     switch (error) {

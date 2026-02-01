@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { projectData } from "@/data/projects";
 import { cn } from "@/lib/utils";
+import { getApiBase } from "@/lib/api-base";
 
 type HeaderProps = {
   variant?: "fixed" | "static";
@@ -31,7 +32,7 @@ const Header = ({ variant = "fixed", leading, className }: HeaderProps) => {
   } | null>(null);
   const searchRef = useRef<HTMLDivElement | null>(null);
   const location = useLocation();
-  const apiBase = import.meta.env.VITE_API_BASE || "http://127.0.0.1:8080";
+  const apiBase = getApiBase();
 
   const projectItems = projectData.slice(0, 3).map((project) => ({
     label: project.title,

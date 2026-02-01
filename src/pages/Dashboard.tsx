@@ -27,6 +27,7 @@ import {
   Shield,
   UserRound,
 } from "lucide-react";
+import { getApiBase } from "@/lib/api-base";
 
 type ProjectView = {
   projectId: string;
@@ -54,8 +55,8 @@ const Dashboard = () => {
   const location = useLocation();
   const menuItems = [
     { label: "Início", href: "/dashboard", icon: LayoutGrid, enabled: true },
-    { label: "Post", href: "/dashboard/posts", icon: FileText, enabled: true },
-    { label: "Projetos", href: "/dashboard/projetos", icon: FolderCog, enabled: false },
+    { label: "Postagens", href: "/dashboard/posts", icon: FileText, enabled: true },
+    { label: "Projetos", href: "/dashboard/projetos", icon: FolderCog, enabled: true },
     { label: "Comentários", href: "/dashboard/comentarios", icon: MessageSquare, enabled: false },
     { label: "Usuários", href: "/dashboard/usuarios", icon: UserRound, enabled: true },
     { label: "Páginas", href: "/dashboard/paginas", icon: Shield, enabled: false },
@@ -69,7 +70,7 @@ const Dashboard = () => {
     avatarUrl?: string | null;
   } | null>(null);
   const [isLoadingUser, setIsLoadingUser] = useState(true);
-  const apiBase = import.meta.env.VITE_API_BASE || "http://127.0.0.1:8080";
+  const apiBase = getApiBase();
 
   useEffect(() => {
     const loadUser = async () => {

@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect } from "react";
+﻿import { useMemo, useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
@@ -19,7 +19,8 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from "@/components/ui/pagination";
-import { projectData } from "@/data/projects";
+import { getApiBase } from "@/lib/api-base";
+import type { Project } from "@/data/projects";
 
 const typeOptions = [
   "Todos",
@@ -36,19 +37,46 @@ const typeOptions = [
 const alphabetOptions = ["Todas", ..."ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("")];
 
 const Projects = () => {
+  const apiBase = getApiBase();
+  const [projects, setProjects] = useState<Project[]>([]);
   const [selectedTag, setSelectedTag] = useState("Todas");
   const [selectedLetter, setSelectedLetter] = useState("Todas");
   const [selectedType, setSelectedType] = useState("Todos");
   const [currentPage, setCurrentPage] = useState(1);
   const projectsPerPage = 16;
 
+  useEffect(() => {
+    let isActive = true;
+    const load = async () => {
+      try {
+        const response = await fetch(`${apiBase}/api/public/projects`);
+        if (!response.ok) {
+          return;
+        }
+        const data = await response.json();
+        if (isActive) {
+          setProjects(Array.isArray(data.projects) ? data.projects : []);
+        }
+      } catch {
+        if (isActive) {
+          setProjects([]);
+        }
+      }
+    };
+
+    load();
+    return () => {
+      isActive = false;
+    };
+  }, [apiBase]);
+
   const tagOptions = useMemo(() => {
-    const tags = projectData.flatMap((project) => project.tags);
+    const tags = projects.flatMap((project) => project.tags);
     return ["Todas", ...Array.from(new Set(tags)).sort()];
-  }, []);
+  }, [projects]);
 
   const filteredProjects = useMemo(() => {
-    return projectData
+    return projects
       .filter((project) => {
         const matchesTag = selectedTag === "Todas" || project.tags.includes(selectedTag);
         const matchesType = selectedType === "Todos" || project.type === selectedType;
@@ -57,7 +85,7 @@ const Projects = () => {
         return matchesTag && matchesType && matchesLetter;
       })
       .sort((a, b) => a.title.localeCompare(b.title, "pt-BR"));
-  }, [selectedLetter, selectedTag, selectedType]);
+  }, [projects, selectedLetter, selectedTag, selectedType]);
 
   useEffect(() => {
     setCurrentPage(1);

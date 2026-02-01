@@ -10,6 +10,7 @@ import {
   MessageCircle,
   Globe,
 } from "lucide-react";
+import { getApiBase } from "@/lib/api-base";
 
 type PublicUser = {
   id: string;
@@ -25,7 +26,7 @@ type PublicUser = {
 };
 
 const Team = () => {
-  const apiBase = import.meta.env.VITE_API_BASE || "http://127.0.0.1:8080";
+  const apiBase = getApiBase();
   const [members, setMembers] = useState<PublicUser[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [cacheBust, setCacheBust] = useState(Date.now());

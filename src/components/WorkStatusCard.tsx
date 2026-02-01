@@ -1,13 +1,16 @@
+﻿import { useEffect, useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Clock } from "lucide-react";
 import { Link } from "react-router-dom";
+import { getApiBase } from "@/lib/api-base";
+import type { Project } from "@/data/projects";
 
 type WorkKind = "anime" | "manga";
 
 interface WorkItem {
-  id: number;
+  id: string;
   title: string;
   entry: string;
   kind: WorkKind;
@@ -36,82 +39,60 @@ const mangaStages = [
   { id: "quality-check", label: "Quality Check", color: "bg-orange-500", badge: "bg-orange-500/20 text-orange-400 border-orange-500/30" },
 ];
 
-const workItems: WorkItem[] = [
-  {
-    id: 1,
-    title: "Spy x Family",
-    entry: "Episódio 9",
-    kind: "anime",
-    currentStage: "traducao",
-    completedStages: ["aguardando-raw"],
-    projectId: "aurora-no-horizonte",
-  },
-  {
-    id: 2,
-    title: "Jujutsu Kaisen",
-    entry: "Episódio 16",
-    kind: "anime",
-    currentStage: "timing",
-    completedStages: ["aguardando-raw", "traducao", "revisao"],
-    projectId: "rainbow-pulse",
-  },
-  {
-    id: 3,
-    title: "Frieren",
-    entry: "Episódio 21",
-    kind: "anime",
-    currentStage: "quality-check",
-    completedStages: ["aguardando-raw", "traducao", "revisao", "timing", "typesetting"],
-    projectId: "jardim-das-marÃ©s",
-  },
-  {
-    id: 4,
-    title: "Oshi no Ko",
-    entry: "Episódio 7",
-    kind: "anime",
-    currentStage: "typesetting",
-    completedStages: ["aguardando-raw", "traducao"],
-    projectId: "nova-primavera",
-  },
-  {
-    id: 5,
-    title: "Bocchi the Rock!",
-    entry: "Episódio 3",
-    kind: "anime",
-    currentStage: "revisao",
-    completedStages: ["aguardando-raw", "traducao", "timing"],
-    projectId: "galaxia-ona",
-  },
-  {
-    id: 6,
-    title: "Kagurabachi",
-    entry: "Capítulo 32",
-    kind: "manga",
-    currentStage: "limpeza",
-    completedStages: ["aguardando-raw"],
-    projectId: "nekomata-eclipse",
-  },
-  {
-    id: 7,
-    title: "Sousou no Frieren",
-    entry: "Capítulo 128",
-    kind: "manga",
-    currentStage: "typesetting",
-    completedStages: ["aguardando-raw", "traducao", "limpeza", "redrawing", "revisao"],
-    projectId: "jardim-das-marÃ©s",
-  },
-  {
-    id: 8,
-    title: "Chainsaw Man",
-    entry: "Capítulo 161",
-    kind: "manga",
-    currentStage: "revisao",
-    completedStages: ["aguardando-raw", "limpeza"],
-    projectId: "harmonia-sakura",
-  },
-];
-
 const WorkStatusCard = () => {
+  const apiBase = getApiBase();
+  const [projects, setProjects] = useState<Project[]>([]);
+
+  useEffect(() => {
+    let isActive = true;
+    const load = async () => {
+      try {
+        const response = await fetch(`${apiBase}/api/public/projects`);
+        if (!response.ok) {
+          return;
+        }
+        const data = await response.json();
+        if (isActive) {
+          setProjects(Array.isArray(data.projects) ? data.projects : []);
+        }
+      } catch {
+        if (isActive) {
+          setProjects([]);
+        }
+      }
+    };
+
+    load();
+    return () => {
+      isActive = false;
+    };
+  }, [apiBase]);
+
+  const workItems = useMemo<WorkItem[]>(() => {
+    const items: WorkItem[] = [];
+    projects.forEach((project) => {
+      const isManga = project.type === "Mangá" || project.type === "Webtoon";
+      const kind: WorkKind = isManga ? "manga" : "anime";
+      (project.episodeDownloads || []).forEach((episode) => {
+        const sources = Array.isArray(episode.sources) ? episode.sources : [];
+        if (sources.length > 0) {
+          return;
+        }
+        const entryLabel = isManga ? `Capítulo ${episode.number}` : `Episódio ${episode.number}`;
+        items.push({
+          id: `${project.id}-${episode.number}`,
+          title: project.title,
+          entry: entryLabel,
+          kind,
+          currentStage: episode.progressStage || "aguardando-raw",
+          completedStages: episode.completedStages || [],
+          projectId: project.id,
+        });
+      });
+    });
+    return items;
+  }, [projects]);
+
   const itemsInProgress = workItems.filter((item) => {
     const stages = item.kind === "anime" ? animeStages : mangaStages;
     const completedSet = new Set([...item.completedStages, item.currentStage]);
@@ -128,45 +109,51 @@ const WorkStatusCard = () => {
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-3 px-4 pb-4 pt-0">
-        {itemsInProgress.map((item) => {
-          const stages = item.kind === "anime" ? animeStages : mangaStages;
-          const completedSet = new Set([...item.completedStages, item.currentStage]);
-          const completedCount = stages.filter((stage) => completedSet.has(stage.id)).length;
-          const progress = Math.round((completedCount / stages.length) * 100);
-          const currentStage = stages.find((stage) => stage.id === item.currentStage) ?? stages[0];
+        {itemsInProgress.length === 0 ? (
+          <div className="rounded-xl border border-dashed border-border/60 bg-background/50 p-4 text-xs text-muted-foreground">
+            Nenhum episódio em progresso no momento.
+          </div>
+        ) : (
+          itemsInProgress.map((item) => {
+            const stages = item.kind === "anime" ? animeStages : mangaStages;
+            const completedSet = new Set([...item.completedStages, item.currentStage]);
+            const completedCount = stages.filter((stage) => completedSet.has(stage.id)).length;
+            const progress = Math.round((completedCount / stages.length) * 100);
+            const currentStage = stages.find((stage) => stage.id === item.currentStage) ?? stages[0];
 
-          return (
-            <Link
-              key={item.id}
-              to={`/projeto/${item.projectId}`}
-              className="block rounded-md bg-secondary/50 p-3 hover:bg-secondary transition-colors"
-            >
-              <div className="flex items-start justify-between gap-3">
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-foreground truncate">
-                    {item.title}
-                  </p>
-                  <span className="text-xs text-muted-foreground">
-                    {item.entry}
-                  </span>
+            return (
+              <Link
+                key={item.id}
+                to={`/projeto/${item.projectId}`}
+                className="block rounded-md bg-secondary/50 p-3 hover:bg-secondary transition-colors"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-foreground truncate">
+                      {item.title}
+                    </p>
+                    <span className="text-xs text-muted-foreground">
+                      {item.entry}
+                    </span>
+                  </div>
+                  <Badge
+                    variant="outline"
+                    className={`flex-shrink-0 flex items-center gap-1 ${currentStage.badge}`}
+                  >
+                    {currentStage.label}
+                  </Badge>
                 </div>
-                <Badge 
-                  variant="outline" 
-                  className={`flex-shrink-0 flex items-center gap-1 ${currentStage.badge}`}
-                >
-                  {currentStage.label}
-                </Badge>
-              </div>
-              <div className="mt-3">
-                <Progress
-                  value={progress}
-                  className="h-2"
-                  indicatorClassName={currentStage.color}
-                />
-              </div>
-            </Link>
-          );
-        })}
+                <div className="mt-3">
+                  <Progress
+                    value={progress}
+                    className="h-2"
+                    indicatorClassName={currentStage.color}
+                  />
+                </div>
+              </Link>
+            );
+          })
+        )}
       </CardContent>
     </Card>
   );

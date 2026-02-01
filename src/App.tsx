@@ -17,6 +17,7 @@ import Login from "./pages/Login";
 import RequireAuth from "./components/RequireAuth";
 import DashboardUsers from "./pages/DashboardUsers";
 import DashboardPosts from "./pages/DashboardPosts";
+import DashboardProjects from "./pages/DashboardProjects";
 
 const queryClient = new QueryClient();
 
@@ -25,7 +26,7 @@ const App = () => (
     <TooltipProvider>
       <Toaster />
       <Sonner />
-      <BrowserRouter>
+      <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
         <Routes>
           <Route path="/" element={<Index />} />
           <Route path="/postagem/:slug" element={<Post />} />
@@ -57,6 +58,14 @@ const App = () => (
             element={
               <RequireAuth>
                 <DashboardPosts />
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/dashboard/projetos"
+            element={
+              <RequireAuth>
+                <DashboardProjects />
               </RequireAuth>
             }
           />
