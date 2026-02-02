@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -119,6 +119,8 @@ const socialIconMap: Record<string, typeof Globe> = {
 
 const DashboardUsers = () => {
   const location = useLocation();
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const apiBase = getApiBase();
   const [users, setUsers] = useState<UserRecord[]>([]);
   const [ownerIds, setOwnerIds] = useState<string[]>([]);
@@ -130,6 +132,7 @@ const DashboardUsers = () => {
   } | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [dragId, setDragId] = useState<string | null>(null);
+  const [dragGroup, setDragGroup] = useState<"active" | "retired" | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<UserRecord | null>(null);
   const [formState, setFormState] = useState(emptyForm);
@@ -149,9 +152,9 @@ const DashboardUsers = () => {
     { label: "Início", href: "/dashboard", icon: LayoutGrid, enabled: true },
     { label: "Postagens", href: "/dashboard/posts", icon: FileText, enabled: true },
     { label: "Projetos", href: "/dashboard/projetos", icon: FolderCog, enabled: true },
-    { label: "Comentários", href: "/dashboard/comentarios", icon: MessageSquare, enabled: false },
+    { label: "Comentários", href: "/dashboard/comentarios", icon: MessageSquare, enabled: true },
     { label: "Usuários", href: "/dashboard/usuarios", icon: UserRound, enabled: true },
-    { label: "Páginas", href: "/dashboard/paginas", icon: Shield, enabled: false },
+    { label: "Páginas", href: "/dashboard/paginas", icon: Shield, enabled: true },
     { label: "Configurações", href: "/dashboard/configuracoes", icon: Settings, enabled: false },
   ];
 
@@ -209,6 +212,17 @@ const DashboardUsers = () => {
     load();
   }, [apiBase]);
 
+  useEffect(() => {
+    if (searchParams.get("edit") !== "me") {
+      return;
+    }
+    if (!currentUserRecord || isDialogOpen) {
+      return;
+    }
+    openEditDialog(currentUserRecord);
+    navigate("/dashboard/usuarios", { replace: true });
+  }, [currentUserRecord, isDialogOpen, navigate, searchParams]);
+
   const openNewDialog = () => {
     setEditingUser(null);
     setFormState(emptyForm);
@@ -230,6 +244,16 @@ const DashboardUsers = () => {
       roles: user.roles ? [...user.roles] : [],
     });
     setIsDialogOpen(true);
+  };
+
+  const canOpenEdit = (user: UserRecord) =>
+    Boolean(canManageBadges || canManageUsers || currentUser?.id === user.id);
+
+  const handleUserCardClick = (user: UserRecord) => {
+    if (!canOpenEdit(user)) {
+      return;
+    }
+    openEditDialog(user);
   };
 
   const handleSave = async () => {
@@ -325,61 +349,97 @@ const DashboardUsers = () => {
     });
   };
 
-  const reorderActive = (orderedIds: string[]) => {
+  const reorderUsers = (orderedActiveIds: string[], orderedRetiredIds: string[]) => {
     setUsers((prev) => {
       const activeMap = new Map(prev.filter((u) => u.status === "active").map((u) => [u.id, u]));
-      const retired = prev.filter((u) => u.status === "retired");
-      const reorderedActive = orderedIds
+      const retiredMap = new Map(prev.filter((u) => u.status === "retired").map((u) => [u.id, u]));
+      const reorderedActive = orderedActiveIds
         .map((id, index) => {
           const user = activeMap.get(id);
           return user ? { ...user, order: index } : null;
         })
         .filter(Boolean) as UserRecord[];
-      const retiredWithOrder = retired.map((user, index) => ({
-        ...user,
-        order: orderedIds.length + index,
-      }));
-      return [...reorderedActive, ...retiredWithOrder];
+      const reorderedRetired = orderedRetiredIds
+        .map((id, index) => {
+          const user = retiredMap.get(id);
+          return user ? { ...user, order: orderedActiveIds.length + index } : null;
+        })
+        .filter(Boolean) as UserRecord[];
+      return [...reorderedActive, ...reorderedRetired];
     });
   };
 
-  const handleDragOver = (event: React.DragEvent<HTMLDivElement>, overId: string) => {
-    if (!canManageUsers || !dragId || dragId === overId) {
+  const handleDragOverActive = (event: React.DragEvent<HTMLDivElement>, overId: string) => {
+    if (!canManageUsers || !dragId || dragGroup !== "active" || dragId === overId) {
       return;
     }
     event.preventDefault();
-    const ids = activeUsers.map((user) => user.id);
-    const fromIndex = ids.indexOf(dragId);
-    const toIndex = ids.indexOf(overId);
+    const activeIds = activeUsers.map((user) => user.id);
+    const retiredIds = retiredUsers.map((user) => user.id);
+    const fromIndex = activeIds.indexOf(dragId);
+    const toIndex = activeIds.indexOf(overId);
     if (fromIndex === -1 || toIndex === -1) {
       return;
     }
-    const nextIds = [...ids];
-    nextIds.splice(fromIndex, 1);
-    nextIds.splice(toIndex, 0, dragId);
-    reorderActive(nextIds);
+    const nextActiveIds = [...activeIds];
+    nextActiveIds.splice(fromIndex, 1);
+    nextActiveIds.splice(toIndex, 0, dragId);
+    reorderUsers(nextActiveIds, retiredIds);
+  };
+
+  const handleDragOverRetired = (event: React.DragEvent<HTMLDivElement>, overId: string) => {
+    if (!canManageUsers || !dragId || dragGroup !== "retired" || dragId === overId) {
+      return;
+    }
+    event.preventDefault();
+    const activeIds = activeUsers.map((user) => user.id);
+    const retiredIds = retiredUsers.map((user) => user.id);
+    const fromIndex = retiredIds.indexOf(dragId);
+    const toIndex = retiredIds.indexOf(overId);
+    if (fromIndex === -1 || toIndex === -1) {
+      return;
+    }
+    const nextRetiredIds = [...retiredIds];
+    nextRetiredIds.splice(fromIndex, 1);
+    nextRetiredIds.splice(toIndex, 0, dragId);
+    reorderUsers(activeIds, nextRetiredIds);
   };
 
   const handleDragEnd = async () => {
     if (!canManageUsers) {
       setDragId(null);
+      setDragGroup(null);
       return;
     }
     const orderedIds = activeUsers.map((user) => user.id);
+    const retiredIds = retiredUsers.map((user) => user.id);
     await fetch(`${apiBase}/api/users/reorder`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       credentials: "include",
-      body: JSON.stringify({ orderedIds }),
+      body: JSON.stringify({ orderedIds, retiredIds }),
     });
     setDragId(null);
+    setDragGroup(null);
   };
 
   return (
     <SidebarProvider defaultOpen>
       <Sidebar variant="inset" collapsible="icon">
         <SidebarHeader className="gap-4 group-data-[collapsible=icon]:gap-2 group-data-[collapsible=icon]:items-center">
-          <div className="flex items-center gap-3 rounded-xl border border-sidebar-border bg-sidebar-accent/30 p-3 group-data-[collapsible=icon]:hidden">
+          <div
+            className="flex items-center gap-3 rounded-xl border border-sidebar-border bg-sidebar-accent/30 p-3 transition hover:border-primary/40 hover:bg-sidebar-accent/50 cursor-pointer group-data-[collapsible=icon]:hidden"
+            role="button"
+            tabIndex={0}
+            onClick={() => currentUserRecord && handleUserCardClick(currentUserRecord)}
+            onKeyDown={(event) => {
+              if (!currentUserRecord) return;
+              if (event.key === "Enter" || event.key === " ") {
+                event.preventDefault();
+                handleUserCardClick(currentUserRecord);
+              }
+            }}
+          >
             <Avatar className="h-11 w-11 border border-sidebar-border">
               {currentUser?.avatarUrl ? (
                 <AvatarImage src={currentUser.avatarUrl} alt={currentUser.name} />
@@ -397,7 +457,19 @@ const DashboardUsers = () => {
               </span>
             </div>
           </div>
-          <div className="hidden items-center justify-center rounded-xl border border-sidebar-border bg-sidebar-accent/30 p-2 group-data-[collapsible=icon]:flex">
+          <div
+            className="hidden items-center justify-center rounded-xl border border-sidebar-border bg-sidebar-accent/30 p-2 transition hover:border-primary/40 hover:bg-sidebar-accent/50 cursor-pointer group-data-[collapsible=icon]:flex"
+            role="button"
+            tabIndex={0}
+            onClick={() => currentUserRecord && handleUserCardClick(currentUserRecord)}
+            onKeyDown={(event) => {
+              if (!currentUserRecord) return;
+              if (event.key === "Enter" || event.key === " ") {
+                event.preventDefault();
+                handleUserCardClick(currentUserRecord);
+              }
+            }}
+          >
             <Avatar className="h-8 w-8 border border-sidebar-border shadow-sm">
               {currentUser?.avatarUrl ? (
                 <AvatarImage src={currentUser.avatarUrl} alt={currentUser.name} />
@@ -437,8 +509,8 @@ const DashboardUsers = () => {
       </Sidebar>
 
       <SidebarInset className="bg-gradient-to-b from-background via-[hsl(var(--primary)/0.12)] to-background text-foreground">
-        <Header variant="static" leading={<SidebarTrigger className="text-white/80 hover:text-white" />} />
-        <main className="pt-6">
+        <Header variant="fixed" leading={<SidebarTrigger className="text-white/80 hover:text-white" />} />
+        <main className="pt-24">
           <section className="mx-auto w-full max-w-6xl px-6 pb-20 md:px-10">
             <header className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
               <div>
@@ -480,9 +552,21 @@ const DashboardUsers = () => {
                       key={user.id}
                       className="relative rounded-2xl border border-white/10 bg-white/5 p-5 transition hover:border-primary/40 hover:bg-primary/5"
                       draggable={canManageUsers}
-                      onDragStart={() => setDragId(user.id)}
-                      onDragOver={(event) => handleDragOver(event, user.id)}
+                      onDragStart={() => {
+                        setDragId(user.id);
+                        setDragGroup("active");
+                      }}
+                      onDragOver={(event) => handleDragOverActive(event, user.id)}
                       onDragEnd={handleDragEnd}
+                      onClick={() => handleUserCardClick(user)}
+                      role="button"
+                      tabIndex={0}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter" || event.key === " ") {
+                          event.preventDefault();
+                          handleUserCardClick(user);
+                        }
+                      }}
                     >
                       <div className="flex items-start justify-between gap-4">
                         <div className="flex gap-4">
@@ -519,13 +603,12 @@ const DashboardUsers = () => {
                         {(canManageBadges || canManageUsers || currentUser?.id === user.id) && (
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
-                              <Button size="icon" variant="ghost">
+                              <Button size="icon" variant="ghost" onClick={(event) => event.stopPropagation()}>
                                 <span className="sr-only">Ações</span>
                                 <span className="text-xl leading-none">⋯</span>
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
-                              <DropdownMenuItem onClick={() => openEditDialog(user)}>Editar</DropdownMenuItem>
                               {canManageUsers && !ownerIds.includes(user.id) && (
                                 <DropdownMenuItem onClick={() => handleStatusToggle(user)}>
                                   Aposentar
@@ -551,7 +634,26 @@ const DashboardUsers = () => {
                 </div>
                 <div className="mt-6 grid gap-4 md:grid-cols-2">
                   {retiredUsers.map((user) => (
-                    <div key={user.id} className="rounded-2xl border border-white/10 bg-white/5 p-5">
+                    <div
+                      key={user.id}
+                      className="rounded-2xl border border-white/10 bg-white/5 p-5"
+                      draggable={canManageUsers}
+                      onDragStart={() => {
+                        setDragId(user.id);
+                        setDragGroup("retired");
+                      }}
+                      onDragOver={(event) => handleDragOverRetired(event, user.id)}
+                      onDragEnd={handleDragEnd}
+                      onClick={() => handleUserCardClick(user)}
+                      role="button"
+                      tabIndex={0}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter" || event.key === " ") {
+                          event.preventDefault();
+                          handleUserCardClick(user);
+                        }
+                      }}
+                    >
                       <div className="flex items-start justify-between gap-4">
                         <div className="flex gap-4">
                           <Avatar className="h-14 w-14 border border-white/10">
@@ -585,14 +687,12 @@ const DashboardUsers = () => {
                         {(canManageBadges || canManageUsers || currentUser?.id === user.id) && (
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
-                              <Button size="icon" variant="ghost">
+                              <Button size="icon" variant="ghost" onClick={(event) => event.stopPropagation()}>
                                 <span className="sr-only">Ações</span>
                                 <span className="text-xl leading-none">⋯</span>
                               </Button>
                             </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuItem onClick={() => openEditDialog(user)}>Editar</DropdownMenuItem>
-                              {canManageUsers && (
+                            <DropdownMenuContent align="end">                              {canManageUsers && (
                                 <DropdownMenuItem onClick={() => handleStatusToggle(user)}>
                                   Reativar
                                 </DropdownMenuItem>
@@ -887,3 +987,4 @@ const DashboardUsers = () => {
 };
 
 export default DashboardUsers;
+

@@ -1,0 +1,282 @@
+[
+  {
+    "id": "63179a04-9990-4220-b53d-b0b200bbf85a",
+    "projectId": "86864",
+    "projectTitle": "Gabriel Dropout",
+    "episodeNumber": 65,
+    "kind": "Lançamento",
+    "reason": "Episódio 65 disponível",
+    "updatedAt": "2026-02-02T02:28:34.520Z",
+    "image": "https://s4.anilist.co/file/anilistcdn/media/manga/cover/large/nx86864-riAt0WdBL2Hm.jpg"
+  },
+  {
+    "id": "29176169-2212-44de-b957-45391dc2415f",
+    "projectId": "86864",
+    "projectTitle": "Gabriel Dropout",
+    "episodeNumber": 2,
+    "kind": "Lançamento",
+    "reason": "Episódio 2 disponível",
+    "updatedAt": "2026-02-02T02:28:34.520Z",
+    "image": "https://s4.anilist.co/file/anilistcdn/media/manga/cover/large/nx86864-riAt0WdBL2Hm.jpg"
+  },
+  {
+    "id": "e97aa56e-5604-481e-aa8d-a239f9ea3f81",
+    "projectId": "86864",
+    "projectTitle": "Gabriel Dropout",
+    "episodeNumber": 2,
+    "kind": "Atualização",
+    "reason": "Links atualizados no episódio 2",
+    "updatedAt": "2026-02-02T03:05:25.009Z",
+    "image": "https://s4.anilist.co/file/anilistcdn/media/manga/cover/large/nx86864-riAt0WdBL2Hm.jpg"
+  },
+  {
+    "id": "bd78d0f2-7f7a-471b-ac1f-b5d9fc289a13",
+    "projectId": "21878",
+    "projectTitle": "Gabriel Dropout",
+    "episodeNumber": 5,
+    "kind": "Lançamento",
+    "reason": "Episódio 5 disponível",
+    "updatedAt": "2026-02-02T03:09:23.574Z",
+    "image": "https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx21878-rfzDjP2gjxGR.jpg"
+  },
+  {
+    "id": "12a082eb-e1a7-4c37-b346-af2700f4df73",
+    "projectId": "21878",
+    "projectTitle": "Gabriel Dropout",
+    "episodeNumber": 6,
+    "kind": "Lançamento",
+    "reason": "Episódio 6 disponível",
+    "updatedAt": "2026-02-02T03:09:23.574Z",
+    "image": "https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx21878-rfzDjP2gjxGR.jpg"
+  },
+  {
+    "id": "4d5730c4-abdc-4410-ad8a-f9a87a10aee9",
+    "projectId": "21878",
+    "projectTitle": "Gabriel Dropout",
+    "episodeNumber": 6,
+    "kind": "Ajuste",
+    "reason": "Links ajustados no episódio 6",
+    "updatedAt": "2026-02-02T03:09:30.211Z",
+    "image": "https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx21878-rfzDjP2gjxGR.jpg"
+  },
+  {
+    "id": "75f157fa-59dd-4b53-add2-9b26eba94fc1",
+    "projectId": "21878",
+    "projectTitle": "Gabriel Dropout",
+    "episodeNumber": 7,
+    "kind": "Lançamento",
+    "reason": "Episódio 7 disponível",
+    "unit": "Episódio",
+    "updatedAt": "2026-02-02T03:37:56.793Z",
+    "image": "https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx21878-rfzDjP2gjxGR.jpg"
+  },
+  {
+    "id": "eb0a029e-d12f-4584-a324-2e735c27cb8b",
+    "projectId": "86864",
+    "projectTitle": "Gabriel Dropout",
+    "episodeNumber": 4,
+    "kind": "Lançamento",
+    "reason": "Capítulo 4 disponível",
+    "unit": "Capítulo",
+    "updatedAt": "2026-02-02T03:40:24.374Z",
+    "image": "https://s4.anilist.co/file/anilistcdn/media/manga/cover/large/nx86864-riAt0WdBL2Hm.jpg"
+  },
+  {
+    "id": "a5d773d2-e187-46f6-8f1a-4b7494b11a70",
+    "projectId": "21878",
+    "projectTitle": "Gabriel Dropout",
+    "episodeNumber": 8,
+    "kind": "Lançamento",
+    "reason": "Episódio 8 disponível",
+    "unit": "Episódio",
+    "updatedAt": "2026-02-02T03:40:34.182Z",
+    "image": "https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx21878-rfzDjP2gjxGR.jpg"
+  },
+  {
+    "id": "2bbacce4-a6ac-4835-9ac3-838472fcb1b7",
+    "projectId": "78399",
+    "projectTitle": "No Game No Life",
+    "episodeNumber": 7,
+    "kind": "Lançamento",
+    "reason": "Capítulo 7 disponível",
+    "unit": "Capítulo",
+    "updatedAt": "2026-02-02T03:40:52.833Z",
+    "image": "https://s4.anilist.co/file/anilistcdn/media/manga/cover/large/bx78399-ohUhCDKw0CJs.jpg"
+  },
+  {
+    "id": "2eb281c0-3920-41e5-806f-759d8c413eb7",
+    "projectId": "78399",
+    "projectTitle": "No Game No Life",
+    "episodeNumber": 6,
+    "kind": "Lançamento",
+    "reason": "Capítulo 6 disponível",
+    "unit": "Capítulo",
+    "updatedAt": "2026-02-02T03:40:51.833Z",
+    "image": "https://s4.anilist.co/file/anilistcdn/media/manga/cover/large/bx78399-ohUhCDKw0CJs.jpg"
+  },
+  {
+    "id": "31b9d028-5917-42e6-a897-887467f80d8a",
+    "projectId": "78399",
+    "projectTitle": "No Game No Life",
+    "episodeNumber": 5,
+    "kind": "Lançamento",
+    "reason": "Capítulo 5 disponível",
+    "unit": "Capítulo",
+    "updatedAt": "2026-02-02T03:40:50.833Z",
+    "image": "https://s4.anilist.co/file/anilistcdn/media/manga/cover/large/bx78399-ohUhCDKw0CJs.jpg"
+  },
+  {
+    "id": "97f0c139-0613-4971-b392-d31c6dc655d5",
+    "projectId": "78399",
+    "projectTitle": "No Game No Life",
+    "episodeNumber": 4,
+    "kind": "Lançamento",
+    "reason": "Capítulo 4 disponível",
+    "unit": "Capítulo",
+    "updatedAt": "2026-02-02T03:40:49.833Z",
+    "image": "https://s4.anilist.co/file/anilistcdn/media/manga/cover/large/bx78399-ohUhCDKw0CJs.jpg"
+  },
+  {
+    "id": "15dd5174-3886-4551-855f-ed82571f4a7d",
+    "projectId": "78399",
+    "projectTitle": "No Game No Life",
+    "episodeNumber": 3,
+    "kind": "Lançamento",
+    "reason": "Capítulo 3 disponível",
+    "unit": "Capítulo",
+    "updatedAt": "2026-02-02T03:40:48.833Z",
+    "image": "https://s4.anilist.co/file/anilistcdn/media/manga/cover/large/bx78399-ohUhCDKw0CJs.jpg"
+  },
+  {
+    "id": "74d7f126-74f4-46ef-963b-cbe902be67c3",
+    "projectId": "78399",
+    "projectTitle": "No Game No Life",
+    "episodeNumber": 2,
+    "kind": "Lançamento",
+    "reason": "Capítulo 2 disponível",
+    "unit": "Capítulo",
+    "updatedAt": "2026-02-02T03:40:47.833Z",
+    "image": "https://s4.anilist.co/file/anilistcdn/media/manga/cover/large/bx78399-ohUhCDKw0CJs.jpg"
+  },
+  {
+    "id": "f1b85140-82d2-40dc-a69d-815db03d3a88",
+    "projectId": "78399",
+    "projectTitle": "No Game No Life",
+    "episodeNumber": 1,
+    "kind": "Lançamento",
+    "reason": "Capítulo 1 disponível",
+    "unit": "Capítulo",
+    "updatedAt": "2026-02-02T03:40:46.833Z",
+    "image": "https://s4.anilist.co/file/anilistcdn/media/manga/cover/large/bx78399-ohUhCDKw0CJs.jpg"
+  },
+  {
+    "id": "3cb66ba2-3925-4dc9-8f06-62fd6f0b5d6a",
+    "projectId": "21878",
+    "projectTitle": "Gabriel Dropout",
+    "episodeNumber": 9,
+    "kind": "Lançamento",
+    "reason": "Episódio 9 disponível",
+    "unit": "Episódio",
+    "updatedAt": "2026-02-02T03:45:22.697Z",
+    "image": "https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx21878-rfzDjP2gjxGR.jpg"
+  },
+  {
+    "id": "7adc356a-46ae-40df-bdc0-09131d76a48b",
+    "projectId": "86864",
+    "projectTitle": "Gabriel Dropout",
+    "episodeNumber": 5,
+    "kind": "Lançamento",
+    "reason": "Capítulo 5 disponível",
+    "unit": "Capítulo",
+    "updatedAt": "2026-02-02T03:45:31.936Z",
+    "image": "https://s4.anilist.co/file/anilistcdn/media/manga/cover/large/nx86864-riAt0WdBL2Hm.jpg"
+  },
+  {
+    "id": "915d0f5c-0fbf-49a7-96ac-8d3871c4e1ff",
+    "projectId": "78399",
+    "projectTitle": "No Game No Life",
+    "episodeNumber": 8,
+    "kind": "Lançamento",
+    "reason": "Capítulo 8 disponível",
+    "unit": "Capítulo",
+    "updatedAt": "2026-02-02T03:45:41.065Z",
+    "image": "https://s4.anilist.co/file/anilistcdn/media/manga/cover/large/bx78399-ohUhCDKw0CJs.jpg"
+  },
+  {
+    "id": "91681d4d-41fd-4a6b-95c9-7650d8cb9850",
+    "projectId": "21878",
+    "projectTitle": "Gabriel Dropout",
+    "episodeNumber": 1,
+    "kind": "Lançamento",
+    "reason": "Episódio 1 disponível",
+    "unit": "Episódio",
+    "updatedAt": "2026-02-02T13:47:47.180Z",
+    "image": "https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx21878-rfzDjP2gjxGR.jpg"
+  },
+  {
+    "id": "31996504-c1dd-4d05-8533-d07b03fcfe30",
+    "projectId": "21878",
+    "projectTitle": "Gabriel Dropout",
+    "episodeNumber": 2,
+    "kind": "Lançamento",
+    "reason": "Episódio 2 disponível",
+    "unit": "Episódio",
+    "updatedAt": "2026-02-02T13:47:47.180Z",
+    "image": "https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx21878-rfzDjP2gjxGR.jpg"
+  },
+  {
+    "id": "70e97790-c4a2-49bf-9465-a040bb008b70",
+    "projectId": "21878",
+    "projectTitle": "Gabriel Dropout",
+    "episodeNumber": 3,
+    "kind": "Lançamento",
+    "reason": "Episódio 3 disponível",
+    "unit": "Episódio",
+    "updatedAt": "2026-02-02T13:47:47.180Z",
+    "image": "https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx21878-rfzDjP2gjxGR.jpg"
+  },
+  {
+    "id": "8430b422-adbc-4922-813f-a7e014737213",
+    "projectId": "21878",
+    "projectTitle": "Gabriel Dropout",
+    "episodeNumber": 4,
+    "kind": "Lançamento",
+    "reason": "Episódio 4 disponível",
+    "unit": "Episódio",
+    "updatedAt": "2026-02-02T13:47:47.180Z",
+    "image": "https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx21878-rfzDjP2gjxGR.jpg"
+  },
+  {
+    "id": "fd9275e0-a6e0-4e39-9251-521fc6a624e5",
+    "projectId": "21878",
+    "projectTitle": "Gabriel Dropout",
+    "episodeNumber": 10,
+    "kind": "Lançamento",
+    "reason": "Episódio 10 disponível",
+    "unit": "Episódio",
+    "updatedAt": "2026-02-02T13:47:47.180Z",
+    "image": "https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx21878-rfzDjP2gjxGR.jpg"
+  },
+  {
+    "id": "193e179f-56ca-4435-a6c3-26d1e6028a05",
+    "projectId": "21878",
+    "projectTitle": "Gabriel Dropout",
+    "episodeNumber": 11,
+    "kind": "Lançamento",
+    "reason": "Episódio 11 disponível",
+    "unit": "Episódio",
+    "updatedAt": "2026-02-02T13:47:47.180Z",
+    "image": "https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx21878-rfzDjP2gjxGR.jpg"
+  },
+  {
+    "id": "950717e9-27b0-42f7-b442-f00473a9b65e",
+    "projectId": "21878",
+    "projectTitle": "Gabriel Dropout",
+    "episodeNumber": 12,
+    "kind": "Lançamento",
+    "reason": "Episódio 12 disponível",
+    "unit": "Episódio",
+    "updatedAt": "2026-02-02T13:47:47.180Z",
+    "image": "https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx21878-rfzDjP2gjxGR.jpg"
+  }
+]

@@ -1,4 +1,4 @@
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useEffect, useMemo, useState } from "react";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
@@ -17,7 +17,7 @@ import {
   SidebarSeparator,
   SidebarTrigger,
 } from "@/components/ui/sidebar";
-import { projectData } from "@/data/projects";
+import type { Project } from "@/data/projects";
 import {
   FileText,
   FolderCog,
@@ -53,13 +53,14 @@ const recentPosts: Array<{
 
 const Dashboard = () => {
   const location = useLocation();
+  const navigate = useNavigate();
   const menuItems = [
     { label: "Início", href: "/dashboard", icon: LayoutGrid, enabled: true },
     { label: "Postagens", href: "/dashboard/posts", icon: FileText, enabled: true },
     { label: "Projetos", href: "/dashboard/projetos", icon: FolderCog, enabled: true },
-    { label: "Comentários", href: "/dashboard/comentarios", icon: MessageSquare, enabled: false },
+    { label: "Comentários", href: "/dashboard/comentarios", icon: MessageSquare, enabled: true },
     { label: "Usuários", href: "/dashboard/usuarios", icon: UserRound, enabled: true },
-    { label: "Páginas", href: "/dashboard/paginas", icon: Shield, enabled: false },
+    { label: "Páginas", href: "/dashboard/paginas", icon: Shield, enabled: true },
     { label: "Configurações", href: "/dashboard/configuracoes", icon: Settings, enabled: false },
   ];
   const [currentUser, setCurrentUser] = useState<{
@@ -70,6 +71,7 @@ const Dashboard = () => {
     avatarUrl?: string | null;
   } | null>(null);
   const [isLoadingUser, setIsLoadingUser] = useState(true);
+  const [projects, setProjects] = useState<Project[]>([]);
   const apiBase = getApiBase();
 
   useEffect(() => {
@@ -92,6 +94,24 @@ const Dashboard = () => {
     loadUser();
   }, [apiBase]);
 
+  useEffect(() => {
+    const loadProjects = async () => {
+      try {
+        const response = await fetch(`${apiBase}/api/projects`, { credentials: "include" });
+        if (!response.ok) {
+          setProjects([]);
+          return;
+        }
+        const data = await response.json();
+        setProjects(Array.isArray(data.projects) ? data.projects : []);
+      } catch {
+        setProjects([]);
+      }
+    };
+
+    loadProjects();
+  }, [apiBase]);
+
   const userLabel = useMemo(() => {
     if (isLoadingUser) {
       return "Carregando usuário...";
@@ -106,19 +126,19 @@ const Dashboard = () => {
     return currentUser ? `@${currentUser.username}` : "OAuth Discord pendente";
   }, [currentUser, isLoadingUser]);
 
-  const totalProjects = projectData.length;
-  const totalEpisodes = projectData.reduce((sum, project) => sum + project.episodeDownloads.length, 0);
-  const activeProjects = projectData.filter((project) => {
+  const totalProjects = projects.length;
+  const totalEpisodes = projects.reduce((sum, project) => sum + (project.episodeDownloads?.length || 0), 0);
+  const activeProjects = projects.filter((project) => {
     const status = project.status.toLowerCase();
     return status.includes("andamento") || status.includes("produ");
   }).length;
-  const finishedProjects = projectData.filter((project) => {
+  const finishedProjects = projects.filter((project) => {
     const status = project.status.toLowerCase();
     return status.includes("complet") || status.includes("lan");
   }).length;
 
   const projectViewsById = new Map(projectPageViews.map((item) => [item.projectId, item.views]));
-  const rankedProjects = projectData
+  const rankedProjects = projects
     .filter((project) => projectViewsById.has(project.id))
     .map((project) => ({
       ...project,
@@ -146,7 +166,18 @@ const Dashboard = () => {
     <SidebarProvider defaultOpen>
       <Sidebar variant="inset" collapsible="icon">
         <SidebarHeader className="gap-4 transition-all duration-200 ease-linear group-data-[collapsible=icon]:gap-2 group-data-[collapsible=icon]:items-center">
-          <div className="flex items-center gap-3 rounded-xl border border-sidebar-border bg-sidebar-accent/30 p-3 transition-all duration-300 ease-out group-data-[collapsible=icon]:pointer-events-none group-data-[collapsible=icon]:opacity-0 group-data-[collapsible=icon]:-translate-x-1 group-data-[collapsible=icon]:hidden">
+          <div
+            className="flex items-center gap-3 rounded-xl border border-sidebar-border bg-sidebar-accent/30 p-3 transition-all duration-300 ease-out hover:border-primary/40 hover:bg-sidebar-accent/50 cursor-pointer group-data-[collapsible=icon]:pointer-events-none group-data-[collapsible=icon]:opacity-0 group-data-[collapsible=icon]:-translate-x-1 group-data-[collapsible=icon]:hidden"
+            role="button"
+            tabIndex={0}
+            onClick={() => navigate("/dashboard/usuarios?edit=me")}
+            onKeyDown={(event) => {
+              if (event.key === "Enter" || event.key === " ") {
+                event.preventDefault();
+                navigate("/dashboard/usuarios?edit=me");
+              }
+            }}
+          >
             <Avatar className="h-11 w-11 border border-sidebar-border">
               {currentUser?.avatarUrl ? (
                 <AvatarImage src={currentUser.avatarUrl} alt={currentUser.name} />
@@ -160,7 +191,18 @@ const Dashboard = () => {
               <span className="text-xs text-sidebar-foreground/70">{userSubLabel}</span>
             </div>
           </div>
-          <div className="hidden items-center justify-center rounded-xl border border-sidebar-border bg-sidebar-accent/30 p-2 transition-all duration-300 ease-out group-data-[collapsible=icon]:flex group-data-[collapsible=icon]:opacity-100 group-data-[collapsible=icon]:translate-x-0">
+          <div
+            className="hidden items-center justify-center rounded-xl border border-sidebar-border bg-sidebar-accent/30 p-2 transition-all duration-300 ease-out hover:border-primary/40 hover:bg-sidebar-accent/50 cursor-pointer group-data-[collapsible=icon]:flex group-data-[collapsible=icon]:opacity-100 group-data-[collapsible=icon]:translate-x-0"
+            role="button"
+            tabIndex={0}
+            onClick={() => navigate("/dashboard/usuarios?edit=me")}
+            onKeyDown={(event) => {
+              if (event.key === "Enter" || event.key === " ") {
+                event.preventDefault();
+                navigate("/dashboard/usuarios?edit=me");
+              }
+            }}
+          >
             <Avatar className="h-8 w-8 border border-sidebar-border shadow-sm">
               {currentUser?.avatarUrl ? (
                 <AvatarImage src={currentUser.avatarUrl} alt={currentUser.name} />
@@ -206,10 +248,10 @@ const Dashboard = () => {
 
       <SidebarInset className="bg-gradient-to-b from-background via-[hsl(var(--primary)/0.12)] to-background text-foreground">
         <Header
-          variant="static"
+          variant="fixed"
           leading={<SidebarTrigger className="text-white/80 hover:text-white" />}
         />
-        <main className="pt-6">
+        <main className="pt-24">
           <section className="mx-auto w-full max-w-6xl px-6 pb-20 md:px-10">
             <header className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
               <div className="space-y-3">
@@ -436,7 +478,7 @@ const Dashboard = () => {
                 <h2 className="text-lg font-semibold">Projetos cadastrados</h2>
                 <p className="text-sm text-muted-foreground">Acesso rápido ao catálogo.</p>
                 <div className="mt-5 space-y-3">
-                  {projectData.slice(0, 6).map((project) => (
+                  {projects.slice(0, 6).map((project) => (
                     <Link
                       key={project.id}
                       to={`/projeto/${project.id}`}
@@ -446,7 +488,7 @@ const Dashboard = () => {
                       <Badge className="bg-white/10 text-muted-foreground">{project.status}</Badge>
                     </Link>
                   ))}
-                  {projectData.length > 6 && (
+                  {projects.length > 6 && (
                     <Link
                       to="/projetos"
                       className="rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-center text-sm text-muted-foreground transition hover:border-primary/40 hover:bg-primary/5 hover:text-foreground"

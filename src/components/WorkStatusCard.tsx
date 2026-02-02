@@ -71,21 +71,40 @@ const WorkStatusCard = () => {
   const workItems = useMemo<WorkItem[]>(() => {
     const items: WorkItem[] = [];
     projects.forEach((project) => {
-      const isManga = project.type === "Mangá" || project.type === "Webtoon";
+      const typeLabel = (project.type || "").toLowerCase();
+      const isLightNovel = typeLabel.includes("light") || typeLabel.includes("novel");
+      const isManga =
+        typeLabel === "mangá" ||
+        typeLabel === "manga" ||
+        typeLabel === "webtoon";
+      if (isLightNovel) {
+        return;
+      }
       const kind: WorkKind = isManga ? "manga" : "anime";
       (project.episodeDownloads || []).forEach((episode) => {
-        const sources = Array.isArray(episode.sources) ? episode.sources : [];
+        const sources = Array.isArray(episode.sources)
+          ? episode.sources.filter((source) => source.url)
+          : [];
         if (sources.length > 0) {
           return;
         }
-        const entryLabel = isManga ? `Capítulo ${episode.number}` : `Episódio ${episode.number}`;
+        const entryLabel = isManga
+          ? `Capítulo ${episode.number}${episode.volume ? ` • Vol. ${episode.volume}` : ""}`
+          : `Episódio ${episode.number}`;
+        const completedStages = episode.completedStages || [];
+        const stages = kind === "anime" ? animeStages : mangaStages;
+        const completedSet = new Set(completedStages);
+        const currentStage =
+          stages.find((stage) => !completedSet.has(stage.id))?.id ||
+          stages[stages.length - 1]?.id ||
+          "aguardando-raw";
         items.push({
           id: `${project.id}-${episode.number}`,
           title: project.title,
           entry: entryLabel,
           kind,
-          currentStage: episode.progressStage || "aguardando-raw",
-          completedStages: episode.completedStages || [],
+          currentStage,
+          completedStages,
           projectId: project.id,
         });
       });
@@ -93,12 +112,7 @@ const WorkStatusCard = () => {
     return items;
   }, [projects]);
 
-  const itemsInProgress = workItems.filter((item) => {
-    const stages = item.kind === "anime" ? animeStages : mangaStages;
-    const completedSet = new Set([...item.completedStages, item.currentStage]);
-    const finalStage = stages[stages.length - 1]?.id;
-    return finalStage ? !completedSet.has(finalStage) : true;
-  });
+  const itemsInProgress = workItems;
 
   return (
     <Card className="bg-card border-border">
@@ -116,7 +130,7 @@ const WorkStatusCard = () => {
         ) : (
           itemsInProgress.map((item) => {
             const stages = item.kind === "anime" ? animeStages : mangaStages;
-            const completedSet = new Set([...item.completedStages, item.currentStage]);
+            const completedSet = new Set(item.completedStages);
             const completedCount = stages.filter((stage) => completedSet.has(stage.id)).length;
             const progress = Math.round((completedCount / stages.length) * 100);
             const currentStage = stages.find((stage) => stage.id === item.currentStage) ?? stages[0];

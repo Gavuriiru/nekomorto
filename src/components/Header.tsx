@@ -10,7 +10,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { projectData } from "@/data/projects";
+import type { Project } from "@/data/projects";
 import { cn } from "@/lib/utils";
 import { getApiBase } from "@/lib/api-base";
 
@@ -30,23 +30,36 @@ const Header = ({ variant = "fixed", leading, className }: HeaderProps) => {
     username: string;
     avatarUrl?: string | null;
   } | null>(null);
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [posts, setPosts] = useState<
+    Array<{
+      title: string;
+      slug: string;
+      excerpt?: string | null;
+    }>
+  >([]);
+  const [tagTranslations, setTagTranslations] = useState<Record<string, string>>({});
   const searchRef = useRef<HTMLDivElement | null>(null);
   const location = useLocation();
   const apiBase = getApiBase();
 
-  const projectItems = projectData.slice(0, 3).map((project) => ({
+  const projectItems = projects.map((project) => ({
     label: project.title,
     href: `/projeto/${project.id}`,
     image: project.cover,
     synopsis: project.synopsis,
-    tags: project.tags,
+    tags: project.tags.map((tag) => tagTranslations[tag] || tag),
   }));
 
-  const postItems = [
-    { label: "Atualização de comunidade", href: "/posts/comunidade" },
-    { label: "Diário de desenvolvimento", href: "/posts/devlog" },
-    { label: "Guia para novos membros", href: "/posts/guia-novos-membros" },
-  ];
+  const postItems = useMemo(
+    () =>
+      posts.map((post) => ({
+        label: post.title,
+        href: `/postagem/${post.slug}`,
+        excerpt: post.excerpt || "",
+      })),
+    [posts],
+  );
 
   const filteredProjects = useMemo(() => {
     if (!query.trim()) {
@@ -64,7 +77,9 @@ const Header = ({ variant = "fixed", leading, className }: HeaderProps) => {
       return [];
     }
     const lowerQuery = query.toLowerCase();
-    return postItems.filter((item) => item.label.toLowerCase().includes(lowerQuery));
+    return postItems.filter((item) =>
+      [item.label, item.excerpt].join(" ").toLowerCase().includes(lowerQuery),
+    );
   }, [postItems, query]);
 
   const showResults = isSearchOpen && query.trim().length > 0;
@@ -99,6 +114,56 @@ const Header = ({ variant = "fixed", leading, className }: HeaderProps) => {
       window.removeEventListener("scroll", handleScroll);
     };
   }, []);
+
+  useEffect(() => {
+    const loadProjects = async () => {
+      try {
+        const response = await fetch(`${apiBase}/api/public/projects`);
+        if (!response.ok) {
+          return;
+        }
+        const data = await response.json();
+        setProjects(Array.isArray(data.projects) ? data.projects : []);
+      } catch {
+        setProjects([]);
+      }
+    };
+
+    loadProjects();
+  }, [apiBase]);
+
+  useEffect(() => {
+    const loadPosts = async () => {
+      try {
+        const response = await fetch(`${apiBase}/api/public/posts`);
+        if (!response.ok) {
+          return;
+        }
+        const data = await response.json();
+        setPosts(Array.isArray(data.posts) ? data.posts : []);
+      } catch {
+        setPosts([]);
+      }
+    };
+
+    loadPosts();
+  }, [apiBase]);
+
+  useEffect(() => {
+    const loadTranslations = async () => {
+      try {
+        const response = await fetch(`${apiBase}/api/public/tag-translations`);
+        if (!response.ok) {
+          return;
+        }
+        const data = await response.json();
+        setTagTranslations(data.tags || {});
+      } catch {
+        setTagTranslations({});
+      }
+    };
+    loadTranslations();
+  }, [apiBase]);
 
   useEffect(() => {
     const loadUser = async () => {
@@ -235,9 +300,12 @@ const Header = ({ variant = "fixed", leading, className }: HeaderProps) => {
                         <li key={item.href}>
                           <Link
                             to={item.href}
-                            className="group flex gap-3 rounded-lg border border-border/60 bg-background/40 p-3 transition hover:border-primary/40 hover:bg-primary/5"
+                            className="group flex h-[9rem] items-start gap-4 overflow-hidden rounded-xl border border-border/60 bg-gradient-card p-4 transition hover:border-primary/40 hover:bg-primary/5"
                           >
-                            <div className="w-16 flex-shrink-0 overflow-hidden rounded-md bg-secondary aspect-[2/3]">
+                            <div
+                              className="w-20 flex-shrink-0 self-start overflow-hidden rounded-lg bg-secondary"
+                              style={{ aspectRatio: "23 / 32" }}
+                            >
                               <img
                                 src={item.image}
                                 alt={item.label}
@@ -248,16 +316,18 @@ const Header = ({ variant = "fixed", leading, className }: HeaderProps) => {
                               <p className="text-sm font-semibold text-foreground group-hover:text-primary">
                                 {item.label}
                               </p>
-                              <p className="mt-1 text-xs text-muted-foreground line-clamp-2">
+                              <p className="mt-1 text-xs text-muted-foreground line-clamp-1">
                                 {item.synopsis}
                               </p>
-                              <div className="mt-2 flex flex-wrap gap-1.5">
-                                {item.tags.map((tag) => (
-                                  <Badge key={tag} variant="secondary" className="text-[9px] uppercase">
-                                    {tag}
-                                  </Badge>
-                                ))}
-                              </div>
+                              {item.tags.length > 0 && (
+                                <div className="mt-2 flex flex-wrap gap-1.5 overflow-hidden">
+                                  {item.tags.slice(0, 3).map((tag) => (
+                                    <Badge key={tag} variant="secondary" className="text-[9px] uppercase">
+                                      {tag}
+                                    </Badge>
+                                  ))}
+                                </div>
+                              )}
                             </div>
                           </Link>
                         </li>
@@ -296,7 +366,7 @@ const Header = ({ variant = "fixed", leading, className }: HeaderProps) => {
           </div>
 
           {currentUser && (
-            <DropdownMenu>
+            <DropdownMenu modal={false}>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="h-11 gap-2 rounded-full px-2">
                   <Avatar className="h-8 w-8 border border-border/60">
@@ -337,3 +407,8 @@ const Header = ({ variant = "fixed", leading, className }: HeaderProps) => {
 };
 
 export default Header;
+
+
+
+
+

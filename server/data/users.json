@@ -27,6 +27,32 @@
     "order": 0
   },
   {
+    "id": "355750436424384524",
+    "name": "furro",
+    "phrase": "",
+    "bio": "",
+    "avatarUrl": null,
+    "coverImageUrl": null,
+    "socials": [],
+    "status": "active",
+    "permissions": [],
+    "roles": [],
+    "order": 1
+  },
+  {
+    "id": "1211471079592304701",
+    "name": "vulcao",
+    "phrase": "",
+    "bio": "",
+    "avatarUrl": null,
+    "coverImageUrl": null,
+    "socials": [],
+    "status": "retired",
+    "permissions": [],
+    "roles": [],
+    "order": 2
+  },
+  {
     "id": "368280970102833153",
     "name": "Pitas",
     "phrase": "",
@@ -44,6 +70,6 @@
       "paginas"
     ],
     "roles": [],
-    "order": 1
+    "order": 3
   }
 ]

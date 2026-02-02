@@ -15,7 +15,7 @@ import DiscordInviteCard from "./DiscordInviteCard";
 import { CalendarDays, User } from "lucide-react";
 import { Link } from "react-router-dom";
 import { getApiBase } from "@/lib/api-base";
-import { projectData } from "@/data/projects";
+import type { Project } from "@/data/projects";
 
 const ReleasesSection = () => {
   const apiBase = getApiBase();
@@ -34,6 +34,8 @@ const ReleasesSection = () => {
       tags?: string[];
     }>
   >([]);
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [tagTranslations, setTagTranslations] = useState<Record<string, string>>({});
 
   useEffect(() => {
     let isActive = true;
@@ -55,6 +57,54 @@ const ReleasesSection = () => {
     };
 
     load();
+    return () => {
+      isActive = false;
+    };
+  }, [apiBase]);
+
+  useEffect(() => {
+    let isActive = true;
+    const loadProjects = async () => {
+      try {
+        const response = await fetch(`${apiBase}/api/public/projects`);
+        if (!response.ok) {
+          return;
+        }
+        const data = await response.json();
+        if (isActive) {
+          setProjects(Array.isArray(data.projects) ? data.projects : []);
+        }
+      } catch {
+        if (isActive) {
+          setProjects([]);
+        }
+      }
+    };
+    loadProjects();
+    return () => {
+      isActive = false;
+    };
+  }, [apiBase]);
+
+  useEffect(() => {
+    let isActive = true;
+    const loadTranslations = async () => {
+      try {
+        const response = await fetch(`${apiBase}/api/public/tag-translations`);
+        if (!response.ok) {
+          return;
+        }
+        const data = await response.json();
+        if (isActive) {
+          setTagTranslations(data.tags || {});
+        }
+      } catch {
+        if (isActive) {
+          setTagTranslations({});
+        }
+      }
+    };
+    loadTranslations();
     return () => {
       isActive = false;
     };
@@ -85,9 +135,10 @@ const ReleasesSection = () => {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
                 {pagedReleases.map((release, index) => {
                   const projectTag = release.projectId
-                    ? projectData.find((project) => project.id === release.projectId)?.tags?.[0] || ""
+                    ? projects.find((project) => project.id === release.projectId)?.tags?.[0] || ""
                     : "";
                   const mainTag = Array.isArray(release.tags) && release.tags.length > 0 ? release.tags[0] : projectTag;
+                  const displayTag = mainTag ? tagTranslations[mainTag] || mainTag : "";
                   return (
                     <Link
                       key={release.id}
@@ -104,13 +155,13 @@ const ReleasesSection = () => {
                               className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                               loading="lazy"
                             />
-                            {mainTag ? (
+                            {displayTag ? (
                               <div className="absolute right-3 top-3 flex flex-wrap gap-2">
                                 <Badge
                                   variant="secondary"
                                   className="text-[10px] uppercase tracking-wide bg-background/85 text-foreground shadow-sm"
                                 >
-                                  {mainTag}
+                                  {displayTag}
                                 </Badge>
                               </div>
                             ) : null}

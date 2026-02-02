@@ -1,5 +1,5 @@
 ﻿import { useMemo, useState, useEffect } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { Badge } from "@/components/ui/badge";
@@ -22,18 +22,6 @@ import {
 import { getApiBase } from "@/lib/api-base";
 import type { Project } from "@/data/projects";
 
-const typeOptions = [
-  "Todos",
-  "Anime",
-  "Especial",
-  "Filme",
-  "OVA",
-  "ONA",
-  "Mangá",
-  "Webtoon",
-  "Spin-off",
-];
-
 const alphabetOptions = ["Todas", ..."ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("")];
 
 const Projects = () => {
@@ -42,7 +30,11 @@ const Projects = () => {
   const [selectedTag, setSelectedTag] = useState("Todas");
   const [selectedLetter, setSelectedLetter] = useState("Todas");
   const [selectedType, setSelectedType] = useState("Todos");
+  const [selectedGenre, setSelectedGenre] = useState("Todos");
   const [currentPage, setCurrentPage] = useState(1);
+  const [searchParams] = useSearchParams();
+  const [tagTranslations, setTagTranslations] = useState<Record<string, string>>({});
+  const [genreTranslations, setGenreTranslations] = useState<Record<string, string>>({});
   const projectsPerPage = 16;
 
   useEffect(() => {
@@ -70,9 +62,66 @@ const Projects = () => {
     };
   }, [apiBase]);
 
+  useEffect(() => {
+    let isActive = true;
+    const loadTranslations = async () => {
+      try {
+        const response = await fetch(`${apiBase}/api/public/tag-translations`);
+        if (!response.ok) {
+          return;
+        }
+        const data = await response.json();
+        if (isActive) {
+          setTagTranslations(data.tags || {});
+          setGenreTranslations(data.genres || {});
+        }
+      } catch {
+        if (isActive) {
+          setTagTranslations({});
+          setGenreTranslations({});
+        }
+      }
+    };
+    loadTranslations();
+    return () => {
+      isActive = false;
+    };
+  }, [apiBase]);
+
+  useEffect(() => {
+    const tag = searchParams.get("tag");
+    const genre = searchParams.get("genero") || searchParams.get("genre");
+    if (tag) {
+      setSelectedTag(tag);
+    }
+    if (genre) {
+      setSelectedGenre(genre);
+    }
+  }, [searchParams]);
+
   const tagOptions = useMemo(() => {
     const tags = projects.flatMap((project) => project.tags);
-    return ["Todas", ...Array.from(new Set(tags)).sort()];
+    const unique = Array.from(new Set(tags)).filter(Boolean);
+    const sorted = unique.sort((a, b) =>
+      (tagTranslations[a] || a).localeCompare(tagTranslations[b] || b, "pt-BR"),
+    );
+    return ["Todas", ...sorted];
+  }, [projects, tagTranslations]);
+
+  const genreOptions = useMemo(() => {
+    const genres = projects.flatMap((project) => project.genres || []);
+    const unique = Array.from(new Set(genres)).filter(Boolean);
+    const sorted = unique.sort((a, b) =>
+      (genreTranslations[a] || a).localeCompare(genreTranslations[b] || b, "pt-BR"),
+    );
+    return ["Todos", ...sorted];
+  }, [projects, genreTranslations]);
+
+  const typeOptions = useMemo(() => {
+    const types = projects.map((project) => project.type).filter(Boolean);
+    const unique = Array.from(new Set(types));
+    const sorted = unique.sort((a, b) => a.localeCompare(b, "pt-BR"));
+    return ["Todos", ...sorted];
   }, [projects]);
 
   const filteredProjects = useMemo(() => {
@@ -82,14 +131,16 @@ const Projects = () => {
         const matchesType = selectedType === "Todos" || project.type === selectedType;
         const matchesLetter =
           selectedLetter === "Todas" || project.title.toUpperCase().startsWith(selectedLetter);
-        return matchesTag && matchesType && matchesLetter;
+        const matchesGenre =
+          selectedGenre === "Todos" || (project.genres || []).includes(selectedGenre);
+        return matchesTag && matchesType && matchesLetter && matchesGenre;
       })
       .sort((a, b) => a.title.localeCompare(b.title, "pt-BR"));
-  }, [projects, selectedLetter, selectedTag, selectedType]);
+  }, [projects, selectedLetter, selectedTag, selectedType, selectedGenre]);
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [selectedLetter, selectedTag, selectedType]);
+  }, [selectedLetter, selectedTag, selectedType, selectedGenre]);
 
   const totalPages = Math.max(1, Math.ceil(filteredProjects.length / projectsPerPage));
   const pageStart = (currentPage - 1) * projectsPerPage;
@@ -99,6 +150,7 @@ const Projects = () => {
     setSelectedTag("Todas");
     setSelectedLetter("Todas");
     setSelectedType("Todos");
+    setSelectedGenre("Todos");
   };
 
   return (
@@ -106,7 +158,7 @@ const Projects = () => {
       <Header />
       <main className="pt-28">
         <section className="mx-auto w-full max-w-6xl px-6 pb-20 md:px-10">
-          <div className="grid gap-4 rounded-2xl border border-border/60 bg-card/60 p-6 shadow-lg backdrop-blur md:grid-cols-[repeat(3,minmax(0,1fr))]">
+          <div className="grid gap-4 rounded-2xl border border-border/60 bg-card/60 p-6 shadow-lg backdrop-blur md:grid-cols-[repeat(4,minmax(0,1fr))]">
             <div className="flex flex-col gap-2">
               <span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
                 A-Z
@@ -136,7 +188,25 @@ const Projects = () => {
                 <SelectContent>
                   {tagOptions.map((tag) => (
                     <SelectItem key={tag} value={tag}>
-                      {tag}
+                      {tagTranslations[tag] || tag}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="flex flex-col gap-2">
+              <span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+                Gêneros
+              </span>
+              <Select value={selectedGenre} onValueChange={setSelectedGenre}>
+                <SelectTrigger className="bg-background/60">
+                  <SelectValue placeholder="Todos os gêneros" />
+                </SelectTrigger>
+                <SelectContent>
+                  {genreOptions.map((genre) => (
+                    <SelectItem key={genre} value={genre}>
+                      {genreTranslations[genre] || genre}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -161,7 +231,7 @@ const Projects = () => {
               </Select>
             </div>
 
-            <div className="md:col-span-3 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border/40 bg-background/40 px-4 py-3 text-sm text-muted-foreground">
+            <div className="md:col-span-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border/40 bg-background/40 px-4 py-3 text-sm text-muted-foreground">
               <div className="flex flex-wrap gap-2">
                 <span className="font-semibold text-foreground">{filteredProjects.length}</span>
                 <span>projetos encontrados</span>
@@ -178,7 +248,7 @@ const Projects = () => {
               Nenhum projeto encontrado para os filtros selecionados.
             </div>
           ) : (
-            <div className="mt-10 grid gap-6 md:grid-cols-2">
+            <div className="mt-10 grid gap-6 md:grid-cols-2 md:auto-rows-fr">
               {paginatedProjects.map((project, index) => {
                 const isLastSingle =
                   paginatedProjects.length % 2 === 1 && index === paginatedProjects.length - 1;
@@ -187,46 +257,86 @@ const Projects = () => {
                   <Link
                     key={project.id}
                     to={`/projeto/${project.id}`}
-                    className="group flex w-full max-w-xl gap-5 rounded-2xl border border-border/60 bg-gradient-card p-5 transition hover:border-primary/50 hover:shadow-lg"
+                    className="group flex h-[12.5rem] w-full items-start gap-5 rounded-2xl border border-border/60 bg-gradient-card p-5 transition hover:border-primary/50 hover:shadow-lg md:h-[15rem]"
                   >
-                    <div className="w-28 flex-shrink-0 overflow-hidden rounded-xl bg-secondary shadow-inner aspect-[2/3] md:w-36">
+                    <div className="h-[9.75rem] w-28 flex-shrink-0 overflow-hidden rounded-xl bg-secondary shadow-inner md:h-[12.5rem] md:w-36">
                       <img
                         src={project.cover}
                         alt={project.title}
                         className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
                       />
                     </div>
-                    <div className="flex flex-1 flex-col gap-3">
+                    <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden">
                       <div>
-                        <p className="text-xs uppercase tracking-[0.2em] text-primary/80">
-                          {project.type}
-                        </p>
-                        <h2 className="text-xl font-semibold text-foreground md:text-2xl">
-                          {project.title}
-                        </h2>
-                        <p className="mt-2 text-sm text-muted-foreground line-clamp-2">
-                          {project.synopsis}
-                        </p>
+                        <p className="text-xs uppercase tracking-[0.2em] text-primary/80">{project.type}</p>
+                        <h2 className="text-xl font-semibold text-foreground md:text-2xl">{project.title}</h2>
+                        <p className="mt-2 text-sm text-muted-foreground line-clamp-2">{project.synopsis}</p>
                       </div>
 
-                      <div className="flex flex-wrap gap-2">
-                        {project.tags.map((tag) => (
-                          <Badge key={tag} variant="secondary" className="text-[10px] uppercase">
-                            {tag}
-                          </Badge>
-                        ))}
-                      </div>
+                      {project.tags.length > 0 || project.genres?.length || project.producers?.length ? (
+                        <div className="flex max-h-[2.75rem] flex-wrap gap-1 overflow-hidden">
+                          {[
+                            ...project.tags.filter(Boolean).map((tag) => ({
+                              key: `tag-${tag}`,
+                              label: tagTranslations[tag] || tag,
+                              variant: "outline" as const,
+                              href: `/projetos?tag=${encodeURIComponent(tag)}`,
+                            })),
+                            ...(project.genres || []).filter(Boolean).map((genre) => ({
+                              key: `genre-${genre}`,
+                              label: genreTranslations[genre] || genre,
+                              variant: "outline" as const,
+                              href: `/projetos?genero=${encodeURIComponent(genre)}`,
+                            })),
+                            ...(project.producers || []).filter(Boolean).map((producer) => ({
+                              key: `producer-${producer}`,
+                              label: producer,
+                              variant: "outline" as const,
+                            })),
+                          ]
+                            .filter((item) => item.label && item.label.length <= 18)
+                            .slice(0, 6)
+                            .map((item) =>
+                              item.href ? (
+                                <Badge
+                                  key={item.key}
+                                  variant={item.variant}
+                                  className="h-5 whitespace-nowrap text-[9px] uppercase leading-none px-2"
+                                  title={item.label}
+                                  asChild
+                                >
+                                  <Link to={item.href}>{item.label}</Link>
+                                </Badge>
+                              ) : (
+                                <Badge
+                                  key={item.key}
+                                  variant={item.variant}
+                                  className="h-5 whitespace-nowrap text-[9px] uppercase leading-none px-2"
+                                  title={item.label}
+                                >
+                                  {item.label}
+                                </Badge>
+                              ),
+                            )}
+                        </div>
+                      ) : null}
 
                       <div className="mt-auto flex flex-wrap gap-3 text-xs text-muted-foreground">
-                        <span className="rounded-full border border-border/60 bg-background/50 px-3 py-1">
-                          {project.status}
-                        </span>
-                        <span className="rounded-full border border-border/60 bg-background/50 px-3 py-1">
-                          {project.studio}
-                        </span>
-                        <span className="rounded-full border border-border/60 bg-background/50 px-3 py-1">
-                          {project.episodes}
-                        </span>
+                        {project.status ? (
+                          <span className="rounded-full border border-border/60 bg-background/50 px-3 py-1">
+                            {project.status}
+                          </span>
+                        ) : null}
+                        {project.studio ? (
+                          <span className="rounded-full border border-border/60 bg-background/50 px-3 py-1">
+                            {project.studio}
+                          </span>
+                        ) : null}
+                        {project.episodes ? (
+                          <span className="rounded-full border border-border/60 bg-background/50 px-3 py-1">
+                            {project.episodes}
+                          </span>
+                        ) : null}
                       </div>
                     </div>
                   </Link>
@@ -238,7 +348,7 @@ const Projects = () => {
 
                 return (
                   <div key={project.id} className="md:col-span-2 flex justify-center">
-                    {card}
+                    <div className="w-full md:w-[calc(50%-0.75rem)]">{card}</div>
                   </div>
                 );
               })}

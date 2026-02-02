@@ -58,7 +58,7 @@ import {
   UserRound,
 } from "lucide-react";
 import { convertPostContent, createSlug, renderPostContent, stripHtml } from "@/lib/post-content";
-import { projectData } from "@/data/projects";
+import type { Project } from "@/data/projects";
 import ProjectEmbedCard from "@/components/ProjectEmbedCard";
 import { getApiBase } from "@/lib/api-base";
 
@@ -66,9 +66,9 @@ const menuItems = [
   { label: "Início", href: "/dashboard", icon: LayoutGrid, enabled: true },
   { label: "Postagens", href: "/dashboard/posts", icon: FileText, enabled: true },
   { label: "Projetos", href: "/dashboard/projetos", icon: FolderCog, enabled: true },
-  { label: "Comentários", href: "/dashboard/comentarios", icon: MessageSquare, enabled: false },
+  { label: "Comentários", href: "/dashboard/comentarios", icon: MessageSquare, enabled: true },
   { label: "Usuários", href: "/dashboard/usuarios", icon: UserRound, enabled: true },
-  { label: "Páginas", href: "/dashboard/paginas", icon: Shield, enabled: false },
+  { label: "Páginas", href: "/dashboard/paginas", icon: Shield, enabled: true },
   { label: "Configurações", href: "/dashboard/configuracoes", icon: Settings, enabled: false },
 ];
 
@@ -119,6 +119,7 @@ const DashboardPosts = () => {
   const navigate = useNavigate();
   const apiBase = getApiBase();
   const [posts, setPosts] = useState<PostRecord[]>([]);
+  const [projects, setProjects] = useState<Project[]>([]);
   const [postOrder, setPostOrder] = useState<string[]>([]);
   const [users, setUsers] = useState<UserRecord[]>([]);
   const [ownerIds, setOwnerIds] = useState<string[]>([]);
@@ -248,10 +249,11 @@ const DashboardPosts = () => {
     let isActive = true;
     const load = async () => {
       try {
-        const [postsRes, usersRes, meRes] = await Promise.all([
+        const [postsRes, usersRes, meRes, projectsRes] = await Promise.all([
           fetch(`${apiBase}/api/posts`, { credentials: "include" }),
           fetch(`${apiBase}/api/users`, { credentials: "include" }),
           fetch(`${apiBase}/api/me`, { credentials: "include" }),
+          fetch(`${apiBase}/api/projects`, { credentials: "include" }),
         ]);
 
         if (postsRes.ok) {
@@ -275,6 +277,13 @@ const DashboardPosts = () => {
           const data = await meRes.json();
           if (isActive) {
             setCurrentUser(data);
+          }
+        }
+
+        if (projectsRes.ok) {
+          const data = await projectsRes.json();
+          if (isActive) {
+            setProjects(Array.isArray(data.projects) ? data.projects : []);
           }
         }
       } catch {
@@ -450,8 +459,8 @@ const DashboardPosts = () => {
   };
 
   const projectMap = useMemo(
-    () => new Map(projectData.map((project) => [project.id, project])),
-    [],
+    () => new Map(projects.map((project) => [project.id, project])),
+    [projects],
   );
   const projectTags = useMemo(() => {
     if (!formState.projectId) {
@@ -482,7 +491,7 @@ const DashboardPosts = () => {
   }, [projectTags, formState.tags]);
   const availableTags = useMemo(() => {
     const collected = new Set<string>();
-    projectData.forEach((project) => {
+    projects.forEach((project) => {
       (project.tags || []).forEach((tag) => {
         if (tag) {
           collected.add(tag);
@@ -497,7 +506,7 @@ const DashboardPosts = () => {
       });
     });
     return Array.from(collected).sort((a, b) => a.localeCompare(b, "pt-BR"));
-  }, [posts]);
+  }, [posts, projects]);
   const mergedTags = useMemo(() => {
     if (tagOrder.length) {
       return tagOrder;
@@ -1430,7 +1439,18 @@ const DashboardPosts = () => {
       <SidebarProvider defaultOpen>
         <Sidebar variant="inset" collapsible="icon">
           <SidebarHeader className="gap-4 group-data-[collapsible=icon]:gap-2 group-data-[collapsible=icon]:items-center">
-            <div className="flex items-center gap-3 rounded-xl border border-sidebar-border bg-sidebar-accent/30 p-3 group-data-[collapsible=icon]:hidden">
+            <div
+              className="flex items-center gap-3 rounded-xl border border-sidebar-border bg-sidebar-accent/30 p-3 transition hover:border-primary/40 hover:bg-sidebar-accent/50 cursor-pointer group-data-[collapsible=icon]:hidden"
+              role="button"
+              tabIndex={0}
+              onClick={() => navigate("/dashboard/usuarios?edit=me")}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" || event.key === " ") {
+                  event.preventDefault();
+                  navigate("/dashboard/usuarios?edit=me");
+                }
+              }}
+            >
               <Avatar className="h-11 w-11 border border-sidebar-border">
                 {currentUser?.avatarUrl ? (
                   <AvatarImage src={currentUser.avatarUrl} alt={currentUser.name} />
@@ -1448,7 +1468,18 @@ const DashboardPosts = () => {
                 </span>
               </div>
             </div>
-            <div className="hidden items-center justify-center rounded-xl border border-sidebar-border bg-sidebar-accent/30 p-2 group-data-[collapsible=icon]:flex">
+            <div
+              className="hidden items-center justify-center rounded-xl border border-sidebar-border bg-sidebar-accent/30 p-2 transition hover:border-primary/40 hover:bg-sidebar-accent/50 cursor-pointer group-data-[collapsible=icon]:flex"
+              role="button"
+              tabIndex={0}
+              onClick={() => navigate("/dashboard/usuarios?edit=me")}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" || event.key === " ") {
+                  event.preventDefault();
+                  navigate("/dashboard/usuarios?edit=me");
+                }
+              }}
+            >
               <Avatar className="h-8 w-8 border border-sidebar-border shadow-sm">
                 {currentUser?.avatarUrl ? (
                   <AvatarImage src={currentUser.avatarUrl} alt={currentUser.name} />
@@ -1493,8 +1524,8 @@ const DashboardPosts = () => {
         </Sidebar>
 
         <SidebarInset className="bg-gradient-to-b from-background via-[hsl(var(--primary)/0.12)] to-background text-foreground">
-          <Header variant="static" leading={<SidebarTrigger className="text-white/80 hover:text-white" />} />
-          <main className="pt-6 px-6 pb-20 md:px-10">
+          <Header variant="fixed" leading={<SidebarTrigger className="text-white/80 hover:text-white" />} />
+          <main className="pt-24 px-6 pb-20 md:px-10">
             <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
               <div>
                 <Badge variant="secondary" className="text-xs uppercase tracking-widest">
@@ -1759,7 +1790,7 @@ const DashboardPosts = () => {
                             </SelectTrigger>
                             <SelectContent>
                               <SelectItem value="none">Nenhum</SelectItem>
-                              {projectData.map((project) => (
+                              {projects.map((project) => (
                                 <SelectItem key={project.id} value={project.id}>
                                   {project.title}
                                 </SelectItem>
@@ -1888,7 +1919,7 @@ const DashboardPosts = () => {
                           />
                         </div>
                         <SelectItem value="all">Todos os projetos</SelectItem>
-                        {projectData
+                        {projects
                           .filter((project) =>
                             project.title.toLowerCase().includes(projectFilterQuery.toLowerCase()),
                           )
@@ -2182,7 +2213,7 @@ const DashboardPosts = () => {
             <div>
               <h3 className="text-sm font-semibold text-foreground">Projetos</h3>
               <div className="mt-3 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
-                {projectData
+                {projects
                   .flatMap((project) => [
                     { key: `${project.id}-cover`, label: `${project.title} (Capa)`, url: project.cover },
                     { key: `${project.id}-banner`, label: `${project.title} (Banner)`, url: project.banner },

@@ -5,12 +5,18 @@ export type DownloadSource = {
 
 export type ProjectEpisode = {
   number: number;
+  volume?: number;
   title: string;
   synopsis: string;
   releaseDate: string;
   duration: string;
   sourceType: "TV" | "Web" | "Blu-ray";
   sources: DownloadSource[];
+  progressStage?: string;
+  completedStages?: string[];
+  content?: string;
+  contentFormat?: "markdown" | "html";
+  chapterUpdatedAt?: string;
 };
 
 export type ProjectStaff = {
@@ -24,11 +30,16 @@ export type ProjectRelation = {
   format: string;
   status: string;
   image: string;
+  anilistId?: number;
+  projectId?: string;
 };
 
 export type Project = {
   id: string;
+  anilistId?: number | null;
   title: string;
+  titleOriginal?: string;
+  titleEnglish?: string;
   synopsis: string;
   description: string;
   type: string;
@@ -37,15 +48,27 @@ export type Project = {
   studio: string;
   episodes: string;
   tags: string[];
+  genres?: string[];
   cover: string;
   banner: string;
   season: string;
   schedule: string;
   rating: string;
+  country?: string;
+  source?: string;
+  producers?: string[];
+  score?: number | null;
+  startDate?: string;
+  endDate?: string;
+  views?: number;
+  commentsCount?: number;
   episodeDownloads: ProjectEpisode[];
   staff: ProjectStaff[];
+  animeStaff?: ProjectStaff[];
   relations?: ProjectRelation[];
   trailerUrl?: string;
+  forceHero?: boolean;
+  heroImageUrl?: string;
 };
 
 const defaultSources: DownloadSource[] = [

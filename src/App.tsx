@@ -7,6 +7,7 @@ import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import Post from "./pages/Post";
 import Project from "./pages/Project";
+import ProjectReading from "./pages/ProjectReading";
 import Projects from "./pages/Projects";
 import Team from "./pages/Team";
 import About from "./pages/About";
@@ -17,7 +18,9 @@ import Login from "./pages/Login";
 import RequireAuth from "./components/RequireAuth";
 import DashboardUsers from "./pages/DashboardUsers";
 import DashboardPosts from "./pages/DashboardPosts";
-import DashboardProjects from "./pages/DashboardProjects";
+import DashboardProjectsEditor from "./pages/DashboardProjectsEditor";
+import DashboardComments from "./pages/DashboardComments";
+import DashboardPages from "./pages/DashboardPages";
 
 const queryClient = new QueryClient();
 
@@ -36,7 +39,9 @@ const App = () => (
           <Route path="/faq" element={<FAQ />} />
           <Route path="/projetos" element={<Projects />} />
           <Route path="/projeto/:slug" element={<Project />} />
+          <Route path="/projeto/:slug/leitura/:chapter" element={<ProjectReading />} />
           <Route path="/projetos/:slug" element={<Project />} />
+          <Route path="/projetos/:slug/leitura/:chapter" element={<ProjectReading />} />
           <Route
             path="/dashboard"
             element={
@@ -65,7 +70,23 @@ const App = () => (
             path="/dashboard/projetos"
             element={
               <RequireAuth>
-                <DashboardProjects />
+                <DashboardProjectsEditor />
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/dashboard/comentarios"
+            element={
+              <RequireAuth>
+                <DashboardComments />
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/dashboard/paginas"
+            element={
+              <RequireAuth>
+                <DashboardPages />
               </RequireAuth>
             }
           />

@@ -1,1852 +1,725 @@
 [
   {
-    "id": "aurora-no-horizonte",
-    "title": "Aurora no Horizonte",
-    "synopsis": "Uma jornada sci-fi sobre amizade, esperança e o renascimento de uma nave perdida.",
-    "description": "Após um acidente misterioso, uma tripulação desperta em uma nave desgovernada. Entre mistérios cósmicos e laços de amizade, a missão agora é encontrar um novo horizonte para todos.",
+    "id": "21878",
+    "anilistId": 21878,
+    "title": "Gabriel Dropout",
+    "titleOriginal": "ガヴリールドロップアウト",
+    "titleEnglish": "Gabriel DropOut",
+    "synopsis": "An angel at the top of an angel school has descended to the human world! However, she has already acclimated to the life of the human world so much that she ends up leading a self-indulgent life, skipping school all the time and being absorbed in online games. Gabriel soon forgets about her original goal to make human beings happy and has turned into a lazy and hopeless angel, or a “sloppy angel” in short. Amazingly, she swears to continue to fully enjoy the pleasure of various entertainments of the human world.\n\n(Source: Crunchyroll)",
+    "description": "An angel at the top of an angel school has descended to the human world! However, she has already acclimated to the life of the human world so much that she ends up leading a self-indulgent life, skipping school all the time and being absorbed in online games. Gabriel soon forgets about her original goal to make human beings happy and has turned into a lazy and hopeless angel, or a “sloppy angel” in short. Amazingly, she swears to continue to fully enjoy the pleasure of various entertainments of the human world.\n\n(Source: Crunchyroll)",
     "type": "Anime",
-    "status": "Em andamento",
-    "year": "2024",
-    "studio": "Studio Polaris",
-    "episodes": "12 episódios",
+    "status": "Finalizado",
+    "year": "2017",
+    "studio": "Kadokawa Media House",
+    "episodes": "12",
     "tags": [
-      "Sci-fi",
-      "Drama",
-      "Aventura"
+      "Angels",
+      "Female Protagonist",
+      "Urban Fantasy",
+      "Demons",
+      "Primarily Female Cast",
+      "Cute Girls Doing Cute Things",
+      "Primarily Teen Cast",
+      "Surreal Comedy"
     ],
-    "cover": "/placeholder.svg",
-    "banner": "/placeholder.svg",
-    "season": "Temporada 1",
-    "schedule": "Sábados, 18h",
-    "rating": "Livre",
-    "episodeDownloads": [
-      {
-        "number": 1,
-        "title": "O despertar da aurora 1",
-        "synopsis": "Nesta parte, os personagens encaram um novo desafio e revelam detalhes importantes para a trama.",
-        "releaseDate": "2024-01-13",
-        "duration": "24 min",
-        "sourceType": "TV",
-        "sources": [
-          {
-            "label": "Google Drive",
-            "url": "#"
-          },
-          {
-            "label": "MEGA",
-            "url": "#"
-          },
-          {
-            "label": "Torrent",
-            "url": "#"
-          }
-        ]
-      },
-      {
-        "number": 2,
-        "title": "O despertar da aurora 2",
-        "synopsis": "Nesta parte, os personagens encaram um novo desafio e revelam detalhes importantes para a trama.",
-        "releaseDate": "2024-01-20",
-        "duration": "24 min",
-        "sourceType": "TV",
-        "sources": [
-          {
-            "label": "Google Drive",
-            "url": "#"
-          },
-          {
-            "label": "MEGA",
-            "url": "#"
-          },
-          {
-            "label": "Torrent",
-            "url": "#"
-          }
-        ]
-      },
-      {
-        "number": 3,
-        "title": "O despertar da aurora 3",
-        "synopsis": "Nesta parte, os personagens encaram um novo desafio e revelam detalhes importantes para a trama.",
-        "releaseDate": "2024-01-27",
-        "duration": "24 min",
-        "sourceType": "TV",
-        "sources": [
-          {
-            "label": "Google Drive",
-            "url": "#"
-          },
-          {
-            "label": "MEGA",
-            "url": "#"
-          },
-          {
-            "label": "Torrent",
-            "url": "#"
-          }
-        ]
-      },
-      {
-        "number": 4,
-        "title": "O despertar da aurora 4",
-        "synopsis": "Nesta parte, os personagens encaram um novo desafio e revelam detalhes importantes para a trama.",
-        "releaseDate": "2024-02-03",
-        "duration": "24 min",
-        "sourceType": "TV",
-        "sources": [
-          {
-            "label": "Google Drive",
-            "url": "#"
-          },
-          {
-            "label": "MEGA",
-            "url": "#"
-          },
-          {
-            "label": "Torrent",
-            "url": "#"
-          }
-        ]
-      },
-      {
-        "number": 5,
-        "title": "O despertar da aurora 5",
-        "synopsis": "Nesta parte, os personagens encaram um novo desafio e revelam detalhes importantes para a trama.",
-        "releaseDate": "2024-02-10",
-        "duration": "24 min",
-        "sourceType": "TV",
-        "sources": [
-          {
-            "label": "Google Drive",
-            "url": "#"
-          },
-          {
-            "label": "MEGA",
-            "url": "#"
-          },
-          {
-            "label": "Torrent",
-            "url": "#"
-          }
-        ]
-      },
-      {
-        "number": 6,
-        "title": "O despertar da aurora 6",
-        "synopsis": "Nesta parte, os personagens encaram um novo desafio e revelam detalhes importantes para a trama.",
-        "releaseDate": "2024-02-17",
-        "duration": "24 min",
-        "sourceType": "TV",
-        "sources": [
-          {
-            "label": "Google Drive",
-            "url": "#"
-          },
-          {
-            "label": "MEGA",
-            "url": "#"
-          },
-          {
-            "label": "Torrent",
-            "url": "#"
-          }
-        ]
-      }
+    "genres": [
+      "Comedy",
+      "Slice of Life",
+      "Supernatural"
     ],
-    "staff": [
-      {
-        "role": "Tradução",
-        "members": [
-          "Hana Morita",
-          "Lucas Sato"
-        ]
-      },
-      {
-        "role": "Timing",
-        "members": [
-          "Kai Nakamura"
-        ]
-      },
-      {
-        "role": "Revisão",
-        "members": [
-          "Maya Fujimoto",
-          "Renata Aoki"
-        ]
-      },
-      {
-        "role": "Encode",
-        "members": [
-          "Studio Rainbow"
-        ]
-      }
+    "cover": "https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx21878-rfzDjP2gjxGR.jpg",
+    "banner": "https://s4.anilist.co/file/anilistcdn/media/anime/banner/21878-QVYm5dI7QOmy.jpg",
+    "season": "Inverno 2017",
+    "schedule": "",
+    "rating": "",
+    "country": "JP",
+    "source": "MANGA",
+    "producers": [
+      "Kadokawa Media House",
+      "AT-X",
+      "Sony Music Communications",
+      "KADOKAWA"
     ],
-    "trailerUrl": "#",
+    "score": null,
+    "startDate": "2017-01-09",
+    "endDate": "2017-03-27",
     "relations": [
       {
-        "relation": "Prequela",
-        "title": "Aurora no Horizonte: Origem",
+        "relation": "Adaptação",
+        "title": "Gabriel Dropout",
+        "format": "Mangá",
+        "status": "Em andamento",
+        "image": "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/nx86864-riAt0WdBL2Hm.jpg",
+        "anilistId": 86864
+      },
+      {
+        "relation": "Side story",
+        "title": "Gabriel Dropout OVA",
         "format": "OVA",
         "status": "Finalizado",
-        "image": "/placeholder.svg"
-      },
-      {
-        "relation": "Sequência",
-        "title": "Aurora no Horizonte: Reencontro",
-        "format": "Anime",
-        "status": "Em produção",
-        "image": "/placeholder.svg"
-      }
-    ]
-  },
-  {
-    "id": "nekomata-eclipse",
-    "title": "Nekomata: Eclipse",
-    "synopsis": "Mangá sobrenatural que acompanha um clã felino e seus pactos com o submundo.",
-    "description": "Em uma cidade onde espíritos se misturam ao cotidiano, um clã felino protege acordos antigos. Cada capítulo revela os segredos do eclipse que ameaça quebrar o pacto.",
-    "type": "Mangá",
-    "status": "Completo",
-    "year": "2023",
-    "studio": "Kitsune Press",
-    "episodes": "38 capítulos",
-    "tags": [
-      "Sobrenatural",
-      "Ação",
-      "Mistério"
-    ],
-    "cover": "/placeholder.svg",
-    "banner": "/placeholder.svg",
-    "season": "Volume único",
-    "schedule": "Completo",
-    "rating": "14 anos",
-    "episodeDownloads": [
-      {
-        "number": 1,
-        "title": "Capítulo 1",
-        "synopsis": "Nesta parte, os personagens encaram um novo desafio e revelam detalhes importantes para a trama.",
-        "releaseDate": "2023-05-01",
-        "duration": "Leitura",
-        "sourceType": "Web",
-        "sources": [
-          {
-            "label": "Google Drive",
-            "url": "#"
-          },
-          {
-            "label": "MEGA",
-            "url": "#"
-          },
-          {
-            "label": "Torrent",
-            "url": "#"
-          }
-        ]
-      },
-      {
-        "number": 2,
-        "title": "Capítulo 2",
-        "synopsis": "Nesta parte, os personagens encaram um novo desafio e revelam detalhes importantes para a trama.",
-        "releaseDate": "2023-05-08",
-        "duration": "Leitura",
-        "sourceType": "Web",
-        "sources": [
-          {
-            "label": "Google Drive",
-            "url": "#"
-          },
-          {
-            "label": "MEGA",
-            "url": "#"
-          },
-          {
-            "label": "Torrent",
-            "url": "#"
-          }
-        ]
-      },
-      {
-        "number": 3,
-        "title": "Capítulo 3",
-        "synopsis": "Nesta parte, os personagens encaram um novo desafio e revelam detalhes importantes para a trama.",
-        "releaseDate": "2023-05-15",
-        "duration": "Leitura",
-        "sourceType": "Web",
-        "sources": [
-          {
-            "label": "Google Drive",
-            "url": "#"
-          },
-          {
-            "label": "MEGA",
-            "url": "#"
-          },
-          {
-            "label": "Torrent",
-            "url": "#"
-          }
-        ]
-      },
-      {
-        "number": 4,
-        "title": "Capítulo 4",
-        "synopsis": "Nesta parte, os personagens encaram um novo desafio e revelam detalhes importantes para a trama.",
-        "releaseDate": "2023-05-22",
-        "duration": "Leitura",
-        "sourceType": "Web",
-        "sources": [
-          {
-            "label": "Google Drive",
-            "url": "#"
-          },
-          {
-            "label": "MEGA",
-            "url": "#"
-          },
-          {
-            "label": "Torrent",
-            "url": "#"
-          }
-        ]
-      },
-      {
-        "number": 5,
-        "title": "Capítulo 5",
-        "synopsis": "Nesta parte, os personagens encaram um novo desafio e revelam detalhes importantes para a trama.",
-        "releaseDate": "2023-05-29",
-        "duration": "Leitura",
-        "sourceType": "Web",
-        "sources": [
-          {
-            "label": "Google Drive",
-            "url": "#"
-          },
-          {
-            "label": "MEGA",
-            "url": "#"
-          },
-          {
-            "label": "Torrent",
-            "url": "#"
-          }
-        ]
+        "image": "https://s4.anilist.co/file/anilistcdn/media/anime/cover/medium/bx98524-cuUdbvhvPkcP.jpg",
+        "anilistId": 98524
       }
     ],
     "staff": [
       {
         "role": "Tradução",
         "members": [
-          "Hana Morita",
-          "Lucas Sato"
-        ]
-      },
-      {
-        "role": "Timing",
-        "members": [
-          "Kai Nakamura"
-        ]
-      },
-      {
-        "role": "Revisão",
-        "members": [
-          "Maya Fujimoto",
-          "Renata Aoki"
-        ]
-      },
-      {
-        "role": "Encode",
-        "members": [
-          "Studio Rainbow"
+          "José Gabriel"
         ]
       }
     ],
-    "trailerUrl": "#"
-  },
-  {
-    "id": "rainbow-pulse",
-    "title": "Rainbow Pulse",
-    "synopsis": "Idols futuristas lutam para manter a música viva em uma metrópole distópica.",
-    "description": "Em uma cidade dominada por corporações, um grupo de idols usa a música para inspirar resistência. Cada episódio vibra com performances intensas e narrativas emocionantes.",
-    "type": "Anime",
-    "status": "Em andamento",
-    "year": "2024",
-    "studio": "Sakura Wave",
-    "episodes": "24 episódios",
-    "tags": [
-      "Música",
-      "Ficção",
-      "Ação"
-    ],
-    "cover": "/placeholder.svg",
-    "banner": "/placeholder.svg",
-    "season": "Temporada 2",
-    "schedule": "Quartas, 20h",
-    "rating": "12 anos",
+    "animeStaff": [],
+    "trailerUrl": "https://www.youtube.com/watch?v=4eADGP3b9j0",
     "episodeDownloads": [
       {
         "number": 1,
-        "title": "Pulso 1",
-        "synopsis": "Nesta parte, os personagens encaram um novo desafio e revelam detalhes importantes para a trama.",
-        "releaseDate": "2024-01-03",
-        "duration": "24 min",
+        "title": "",
+        "synopsis": "",
+        "releaseDate": "",
+        "duration": "",
         "sourceType": "TV",
         "sources": [
           {
-            "label": "Google Drive",
-            "url": "#"
-          },
-          {
             "label": "MEGA",
-            "url": "#"
+            "url": "a"
           },
           {
-            "label": "Torrent",
-            "url": "#"
+            "label": "",
+            "url": "d"
           }
-        ]
+        ],
+        "progressStage": "traducao",
+        "completedStages": [
+          "aguardando-raw"
+        ],
+        "chapterUpdatedAt": ""
       },
       {
         "number": 2,
-        "title": "Pulso 2",
-        "synopsis": "Nesta parte, os personagens encaram um novo desafio e revelam detalhes importantes para a trama.",
-        "releaseDate": "2024-01-10",
-        "duration": "24 min",
+        "title": "",
+        "synopsis": "",
+        "releaseDate": "",
+        "duration": "",
         "sourceType": "TV",
         "sources": [
           {
-            "label": "Google Drive",
-            "url": "#"
-          },
-          {
             "label": "MEGA",
-            "url": "#"
-          },
-          {
-            "label": "Torrent",
-            "url": "#"
+            "url": "d"
           }
-        ]
+        ],
+        "progressStage": "quality-check",
+        "completedStages": [
+          "typesetting",
+          "aguardando-raw",
+          "traducao",
+          "revisao",
+          "timing"
+        ],
+        "chapterUpdatedAt": ""
       },
       {
         "number": 3,
-        "title": "Pulso 3",
-        "synopsis": "Nesta parte, os personagens encaram um novo desafio e revelam detalhes importantes para a trama.",
-        "releaseDate": "2024-01-17",
-        "duration": "24 min",
+        "title": "",
+        "synopsis": "",
+        "releaseDate": "",
+        "duration": "",
         "sourceType": "TV",
         "sources": [
           {
-            "label": "Google Drive",
-            "url": "#"
-          },
-          {
             "label": "MEGA",
-            "url": "#"
-          },
-          {
-            "label": "Torrent",
-            "url": "#"
+            "url": "a"
           }
-        ]
+        ],
+        "progressStage": "quality-check",
+        "completedStages": [
+          "typesetting",
+          "timing",
+          "revisao",
+          "aguardando-raw",
+          "traducao",
+          "encode"
+        ],
+        "chapterUpdatedAt": ""
       },
       {
         "number": 4,
-        "title": "Pulso 4",
-        "synopsis": "Nesta parte, os personagens encaram um novo desafio e revelam detalhes importantes para a trama.",
-        "releaseDate": "2024-01-24",
-        "duration": "24 min",
+        "title": "",
+        "synopsis": "",
+        "releaseDate": "",
+        "duration": "",
         "sourceType": "TV",
         "sources": [
           {
-            "label": "Google Drive",
-            "url": "#"
-          },
-          {
             "label": "MEGA",
-            "url": "#"
-          },
-          {
-            "label": "Torrent",
-            "url": "#"
+            "url": "a"
           }
-        ]
+        ],
+        "progressStage": "encode",
+        "completedStages": [
+          "aguardando-raw",
+          "traducao",
+          "revisao",
+          "timing",
+          "typesetting",
+          "quality-check"
+        ],
+        "chapterUpdatedAt": ""
       },
       {
         "number": 5,
-        "title": "Pulso 5",
-        "synopsis": "Nesta parte, os personagens encaram um novo desafio e revelam detalhes importantes para a trama.",
-        "releaseDate": "2024-01-31",
-        "duration": "24 min",
+        "title": "",
+        "synopsis": "",
+        "releaseDate": "",
+        "duration": "",
         "sourceType": "TV",
         "sources": [
           {
             "label": "Google Drive",
-            "url": "#"
-          },
-          {
-            "label": "MEGA",
-            "url": "#"
-          },
-          {
-            "label": "Torrent",
-            "url": "#"
+            "url": "a"
           }
-        ]
+        ],
+        "progressStage": "aguardando-raw",
+        "completedStages": [],
+        "content": "",
+        "contentFormat": "markdown",
+        "chapterUpdatedAt": ""
       },
       {
         "number": 6,
-        "title": "Pulso 6",
-        "synopsis": "Nesta parte, os personagens encaram um novo desafio e revelam detalhes importantes para a trama.",
-        "releaseDate": "2024-02-07",
-        "duration": "24 min",
+        "title": "",
+        "synopsis": "",
+        "releaseDate": "",
+        "duration": "",
         "sourceType": "TV",
         "sources": [
           {
-            "label": "Google Drive",
-            "url": "#"
-          },
-          {
-            "label": "MEGA",
-            "url": "#"
-          },
-          {
             "label": "Torrent",
-            "url": "#"
+            "url": "bc"
           }
-        ]
+        ],
+        "progressStage": "aguardando-raw",
+        "completedStages": [],
+        "content": "",
+        "contentFormat": "markdown",
+        "chapterUpdatedAt": ""
       },
       {
         "number": 7,
-        "title": "Pulso 7",
-        "synopsis": "Nesta parte, os personagens encaram um novo desafio e revelam detalhes importantes para a trama.",
-        "releaseDate": "2024-02-14",
-        "duration": "24 min",
+        "title": "",
+        "synopsis": "ff",
+        "releaseDate": "",
+        "duration": "",
         "sourceType": "TV",
         "sources": [
           {
-            "label": "Google Drive",
-            "url": "#"
-          },
-          {
-            "label": "MEGA",
-            "url": "#"
-          },
-          {
-            "label": "Torrent",
-            "url": "#"
+            "label": "Outro",
+            "url": "dd"
           }
-        ]
+        ],
+        "progressStage": "aguardando-raw",
+        "completedStages": [],
+        "content": "",
+        "contentFormat": "markdown",
+        "chapterUpdatedAt": ""
       },
       {
         "number": 8,
-        "title": "Pulso 8",
-        "synopsis": "Nesta parte, os personagens encaram um novo desafio e revelam detalhes importantes para a trama.",
-        "releaseDate": "2024-02-21",
-        "duration": "24 min",
+        "title": "AA",
+        "synopsis": "AA",
+        "releaseDate": "",
+        "duration": "",
+        "sourceType": "TV",
+        "sources": [
+          {
+            "label": "Outro",
+            "url": "AA"
+          }
+        ],
+        "progressStage": "aguardando-raw",
+        "completedStages": [],
+        "content": "",
+        "contentFormat": "markdown",
+        "chapterUpdatedAt": ""
+      },
+      {
+        "number": 9,
+        "title": "sfs",
+        "synopsis": "s",
+        "releaseDate": "",
+        "duration": "",
+        "sourceType": "TV",
+        "sources": [
+          {
+            "label": "Outro",
+            "url": "fa"
+          }
+        ],
+        "progressStage": "aguardando-raw",
+        "completedStages": [],
+        "content": "",
+        "contentFormat": "markdown",
+        "chapterUpdatedAt": ""
+      },
+      {
+        "number": 10,
+        "title": "",
+        "synopsis": "",
+        "releaseDate": "",
+        "duration": "",
+        "sourceType": "TV",
+        "sources": [
+          {
+            "label": "MEGA",
+            "url": "a"
+          }
+        ],
+        "progressStage": "aguardando-raw",
+        "completedStages": [],
+        "content": "",
+        "contentFormat": "markdown",
+        "chapterUpdatedAt": ""
+      },
+      {
+        "number": 11,
+        "title": "",
+        "synopsis": "",
+        "releaseDate": "",
+        "duration": "",
         "sourceType": "TV",
         "sources": [
           {
             "label": "Google Drive",
-            "url": "#"
-          },
+            "url": "a"
+          }
+        ],
+        "progressStage": "aguardando-raw",
+        "completedStages": [],
+        "content": "",
+        "contentFormat": "markdown",
+        "chapterUpdatedAt": ""
+      },
+      {
+        "number": 12,
+        "title": "",
+        "synopsis": "",
+        "releaseDate": "",
+        "duration": "",
+        "sourceType": "TV",
+        "sources": [
           {
             "label": "MEGA",
-            "url": "#"
-          },
-          {
-            "label": "Torrent",
-            "url": "#"
+            "url": "a"
           }
-        ]
+        ],
+        "progressStage": "aguardando-raw",
+        "completedStages": [],
+        "content": "",
+        "contentFormat": "markdown",
+        "chapterUpdatedAt": ""
       }
     ],
-    "staff": [
-      {
-        "role": "Tradução",
-        "members": [
-          "Hana Morita",
-          "Lucas Sato"
-        ]
-      },
-      {
-        "role": "Timing",
-        "members": [
-          "Kai Nakamura"
-        ]
-      },
-      {
-        "role": "Revisão",
-        "members": [
-          "Maya Fujimoto",
-          "Renata Aoki"
-        ]
-      },
-      {
-        "role": "Encode",
-        "members": [
-          "Studio Rainbow"
-        ]
-      }
-    ],
-    "trailerUrl": "#"
+    "views": 0,
+    "commentsCount": 0,
+    "order": 13,
+    "createdAt": "2026-02-02T02:08:59.658Z",
+    "updatedAt": "2026-02-02T13:47:47.180Z"
   },
   {
-    "id": "boreal-nocturne",
-    "title": "Boreal Nocturne",
-    "synopsis": "Um especial musical sobre um festival mágico de inverno e seus mistérios.",
-    "description": "Um especial de inverno que acompanha uma noite mágica sob as luzes boreais. Entre música e encantos, um segredo ancestral vem à tona.",
-    "type": "Especial",
-    "status": "Lançado",
-    "year": "2022",
-    "studio": "Lumière",
-    "episodes": "1 especial",
-    "tags": [
-      "Fantasia",
-      "Música",
-      "Slice of Life"
-    ],
-    "cover": "/placeholder.svg",
-    "banner": "/placeholder.svg",
-    "season": "Especial único",
-    "schedule": "Disponível",
-    "rating": "Livre",
-    "episodeDownloads": [
-      {
-        "number": 1,
-        "title": "Noite Boreal 1",
-        "synopsis": "Nesta parte, os personagens encaram um novo desafio e revelam detalhes importantes para a trama.",
-        "releaseDate": "2022-12-20",
-        "duration": "48 min",
-        "sourceType": "Blu-ray",
-        "sources": [
-          {
-            "label": "Google Drive",
-            "url": "#"
-          },
-          {
-            "label": "MEGA",
-            "url": "#"
-          },
-          {
-            "label": "Torrent",
-            "url": "#"
-          }
-        ]
-      }
-    ],
-    "staff": [
-      {
-        "role": "Tradução",
-        "members": [
-          "Hana Morita",
-          "Lucas Sato"
-        ]
-      },
-      {
-        "role": "Timing",
-        "members": [
-          "Kai Nakamura"
-        ]
-      },
-      {
-        "role": "Revisão",
-        "members": [
-          "Maya Fujimoto",
-          "Renata Aoki"
-        ]
-      },
-      {
-        "role": "Encode",
-        "members": [
-          "Studio Rainbow"
-        ]
-      }
-    ],
-    "trailerUrl": "#"
-  },
-  {
-    "id": "estacoes-em-orbita",
-    "title": "Estações em Órbita",
-    "synopsis": "Filme romântico que acompanha encontros improváveis em uma estação espacial.",
-    "description": "Em uma estação espacial, duas vidas se cruzam em meio a rotinas silenciosas. O filme mistura contemplação e romance em um cenário futurista.",
-    "type": "Filme",
-    "status": "Lançado",
-    "year": "2023",
-    "studio": "Orbit Works",
-    "episodes": "1 filme",
-    "tags": [
-      "Romance",
-      "Sci-fi",
-      "Drama"
-    ],
-    "cover": "/placeholder.svg",
-    "banner": "/placeholder.svg",
-    "season": "Filme",
-    "schedule": "Disponível",
-    "rating": "12 anos",
-    "episodeDownloads": [
-      {
-        "number": 1,
-        "title": "Filme completo 1",
-        "synopsis": "Nesta parte, os personagens encaram um novo desafio e revelam detalhes importantes para a trama.",
-        "releaseDate": "2023-08-10",
-        "duration": "1h 45m",
-        "sourceType": "Blu-ray",
-        "sources": [
-          {
-            "label": "Google Drive",
-            "url": "#"
-          },
-          {
-            "label": "MEGA",
-            "url": "#"
-          },
-          {
-            "label": "Torrent",
-            "url": "#"
-          }
-        ]
-      }
-    ],
-    "staff": [
-      {
-        "role": "Tradução",
-        "members": [
-          "Hana Morita",
-          "Lucas Sato"
-        ]
-      },
-      {
-        "role": "Timing",
-        "members": [
-          "Kai Nakamura"
-        ]
-      },
-      {
-        "role": "Revisão",
-        "members": [
-          "Maya Fujimoto",
-          "Renata Aoki"
-        ]
-      },
-      {
-        "role": "Encode",
-        "members": [
-          "Studio Rainbow"
-        ]
-      }
-    ],
-    "trailerUrl": "#"
-  },
-  {
-    "id": "fragmentos-de-verao",
-    "title": "Fragmentos de Verão",
-    "synopsis": "OVA delicado sobre amizades e segredos em uma cidade litorânea.",
-    "description": "Em uma pequena cidade à beira-mar, memórias de verão se misturam a segredos guardados por amigos de infância. Um OVA sensível e nostálgico.",
-    "type": "OVA",
-    "status": "Lançado",
-    "year": "2021",
-    "studio": "Blue Tide",
-    "episodes": "2 OVAs",
-    "tags": [
-      "Drama",
-      "Slice of Life",
-      "Romance"
-    ],
-    "cover": "/placeholder.svg",
-    "banner": "/placeholder.svg",
-    "season": "OVA",
-    "schedule": "Disponível",
-    "rating": "12 anos",
-    "episodeDownloads": [
-      {
-        "number": 1,
-        "title": "Fragmento 1",
-        "synopsis": "Nesta parte, os personagens encaram um novo desafio e revelam detalhes importantes para a trama.",
-        "releaseDate": "2021-02-12",
-        "duration": "32 min",
-        "sourceType": "Blu-ray",
-        "sources": [
-          {
-            "label": "Google Drive",
-            "url": "#"
-          },
-          {
-            "label": "MEGA",
-            "url": "#"
-          },
-          {
-            "label": "Torrent",
-            "url": "#"
-          }
-        ]
-      },
-      {
-        "number": 2,
-        "title": "Fragmento 2",
-        "synopsis": "Nesta parte, os personagens encaram um novo desafio e revelam detalhes importantes para a trama.",
-        "releaseDate": "2021-02-19",
-        "duration": "32 min",
-        "sourceType": "Blu-ray",
-        "sources": [
-          {
-            "label": "Google Drive",
-            "url": "#"
-          },
-          {
-            "label": "MEGA",
-            "url": "#"
-          },
-          {
-            "label": "Torrent",
-            "url": "#"
-          }
-        ]
-      }
-    ],
-    "staff": [
-      {
-        "role": "Tradução",
-        "members": [
-          "Hana Morita",
-          "Lucas Sato"
-        ]
-      },
-      {
-        "role": "Timing",
-        "members": [
-          "Kai Nakamura"
-        ]
-      },
-      {
-        "role": "Revisão",
-        "members": [
-          "Maya Fujimoto",
-          "Renata Aoki"
-        ]
-      },
-      {
-        "role": "Encode",
-        "members": [
-          "Studio Rainbow"
-        ]
-      }
-    ],
-    "trailerUrl": "#"
-  },
-  {
-    "id": "galaxia-ona",
-    "title": "Galáxia ONA",
-    "synopsis": "ONA de aventura espacial com humor e uma tripulação inesperada.",
-    "description": "Uma tripulação improvável explora planetas inóspitos em missões cheias de humor. A série equilibra aventura e carisma.",
-    "type": "ONA",
-    "status": "Em andamento",
-    "year": "2024",
-    "studio": "Nebula Lab",
-    "episodes": "8 episódios",
-    "tags": [
-      "Aventura",
-      "Comédia",
-      "Sci-fi"
-    ],
-    "cover": "/placeholder.svg",
-    "banner": "/placeholder.svg",
-    "season": "Temporada 1",
-    "schedule": "Domingos, 21h",
-    "rating": "10 anos",
-    "episodeDownloads": [
-      {
-        "number": 1,
-        "title": "Salto 1",
-        "synopsis": "Nesta parte, os personagens encaram um novo desafio e revelam detalhes importantes para a trama.",
-        "releaseDate": "2024-01-07",
-        "duration": "24 min",
-        "sourceType": "Web",
-        "sources": [
-          {
-            "label": "Google Drive",
-            "url": "#"
-          },
-          {
-            "label": "MEGA",
-            "url": "#"
-          },
-          {
-            "label": "Torrent",
-            "url": "#"
-          }
-        ]
-      },
-      {
-        "number": 2,
-        "title": "Salto 2",
-        "synopsis": "Nesta parte, os personagens encaram um novo desafio e revelam detalhes importantes para a trama.",
-        "releaseDate": "2024-01-14",
-        "duration": "24 min",
-        "sourceType": "Web",
-        "sources": [
-          {
-            "label": "Google Drive",
-            "url": "#"
-          },
-          {
-            "label": "MEGA",
-            "url": "#"
-          },
-          {
-            "label": "Torrent",
-            "url": "#"
-          }
-        ]
-      },
-      {
-        "number": 3,
-        "title": "Salto 3",
-        "synopsis": "Nesta parte, os personagens encaram um novo desafio e revelam detalhes importantes para a trama.",
-        "releaseDate": "2024-01-21",
-        "duration": "24 min",
-        "sourceType": "Web",
-        "sources": [
-          {
-            "label": "Google Drive",
-            "url": "#"
-          },
-          {
-            "label": "MEGA",
-            "url": "#"
-          },
-          {
-            "label": "Torrent",
-            "url": "#"
-          }
-        ]
-      },
-      {
-        "number": 4,
-        "title": "Salto 4",
-        "synopsis": "Nesta parte, os personagens encaram um novo desafio e revelam detalhes importantes para a trama.",
-        "releaseDate": "2024-01-28",
-        "duration": "24 min",
-        "sourceType": "Web",
-        "sources": [
-          {
-            "label": "Google Drive",
-            "url": "#"
-          },
-          {
-            "label": "MEGA",
-            "url": "#"
-          },
-          {
-            "label": "Torrent",
-            "url": "#"
-          }
-        ]
-      }
-    ],
-    "staff": [
-      {
-        "role": "Tradução",
-        "members": [
-          "Hana Morita",
-          "Lucas Sato"
-        ]
-      },
-      {
-        "role": "Timing",
-        "members": [
-          "Kai Nakamura"
-        ]
-      },
-      {
-        "role": "Revisão",
-        "members": [
-          "Maya Fujimoto",
-          "Renata Aoki"
-        ]
-      },
-      {
-        "role": "Encode",
-        "members": [
-          "Studio Rainbow"
-        ]
-      }
-    ],
-    "trailerUrl": "#"
-  },
-  {
-    "id": "harmonia-sakura",
-    "title": "Harmonia Sakura",
-    "synopsis": "Webtoon sobre uma academia de artes onde rivalidade vira amizade.",
-    "description": "Entre ensaios e apresentações, rivalidades se transformam em parcerias criativas. Um webtoon colorido sobre amizade e música.",
-    "type": "Webtoon",
-    "status": "Em andamento",
-    "year": "2024",
-    "studio": "Hanami Studio",
-    "episodes": "45 capítulos",
-    "tags": [
-      "Escolar",
-      "Drama",
-      "Música"
-    ],
-    "cover": "/placeholder.svg",
-    "banner": "/placeholder.svg",
-    "season": "Temporada 1",
-    "schedule": "Quintas, 19h",
-    "rating": "Livre",
-    "episodeDownloads": [
-      {
-        "number": 1,
-        "title": "Capítulo 1",
-        "synopsis": "Nesta parte, os personagens encaram um novo desafio e revelam detalhes importantes para a trama.",
-        "releaseDate": "2024-01-04",
-        "duration": "Leitura",
-        "sourceType": "Web",
-        "sources": [
-          {
-            "label": "Google Drive",
-            "url": "#"
-          },
-          {
-            "label": "MEGA",
-            "url": "#"
-          },
-          {
-            "label": "Torrent",
-            "url": "#"
-          }
-        ]
-      },
-      {
-        "number": 2,
-        "title": "Capítulo 2",
-        "synopsis": "Nesta parte, os personagens encaram um novo desafio e revelam detalhes importantes para a trama.",
-        "releaseDate": "2024-01-11",
-        "duration": "Leitura",
-        "sourceType": "Web",
-        "sources": [
-          {
-            "label": "Google Drive",
-            "url": "#"
-          },
-          {
-            "label": "MEGA",
-            "url": "#"
-          },
-          {
-            "label": "Torrent",
-            "url": "#"
-          }
-        ]
-      },
-      {
-        "number": 3,
-        "title": "Capítulo 3",
-        "synopsis": "Nesta parte, os personagens encaram um novo desafio e revelam detalhes importantes para a trama.",
-        "releaseDate": "2024-01-18",
-        "duration": "Leitura",
-        "sourceType": "Web",
-        "sources": [
-          {
-            "label": "Google Drive",
-            "url": "#"
-          },
-          {
-            "label": "MEGA",
-            "url": "#"
-          },
-          {
-            "label": "Torrent",
-            "url": "#"
-          }
-        ]
-      },
-      {
-        "number": 4,
-        "title": "Capítulo 4",
-        "synopsis": "Nesta parte, os personagens encaram um novo desafio e revelam detalhes importantes para a trama.",
-        "releaseDate": "2024-01-25",
-        "duration": "Leitura",
-        "sourceType": "Web",
-        "sources": [
-          {
-            "label": "Google Drive",
-            "url": "#"
-          },
-          {
-            "label": "MEGA",
-            "url": "#"
-          },
-          {
-            "label": "Torrent",
-            "url": "#"
-          }
-        ]
-      },
-      {
-        "number": 5,
-        "title": "Capítulo 5",
-        "synopsis": "Nesta parte, os personagens encaram um novo desafio e revelam detalhes importantes para a trama.",
-        "releaseDate": "2024-02-01",
-        "duration": "Leitura",
-        "sourceType": "Web",
-        "sources": [
-          {
-            "label": "Google Drive",
-            "url": "#"
-          },
-          {
-            "label": "MEGA",
-            "url": "#"
-          },
-          {
-            "label": "Torrent",
-            "url": "#"
-          }
-        ]
-      }
-    ],
-    "staff": [
-      {
-        "role": "Tradução",
-        "members": [
-          "Hana Morita",
-          "Lucas Sato"
-        ]
-      },
-      {
-        "role": "Timing",
-        "members": [
-          "Kai Nakamura"
-        ]
-      },
-      {
-        "role": "Revisão",
-        "members": [
-          "Maya Fujimoto",
-          "Renata Aoki"
-        ]
-      },
-      {
-        "role": "Encode",
-        "members": [
-          "Studio Rainbow"
-        ]
-      }
-    ],
-    "trailerUrl": "#"
-  },
-  {
-    "id": "iris-black",
-    "title": "Iris Black",
-    "synopsis": "Thriller urbano com detetives psíquicos em uma cidade neon.",
-    "description": "Dois detetives psíquicos investigam crimes impossíveis em uma cidade neon. A série mistura suspense, ação e uma estética cyberpunk marcante.",
-    "type": "Anime",
-    "status": "Em produção",
-    "year": "2025",
-    "studio": "Noir Edge",
-    "episodes": "Anunciado",
-    "tags": [
-      "Suspense",
-      "Ação",
-      "Cyberpunk"
-    ],
-    "cover": "/placeholder.svg",
-    "banner": "/placeholder.svg",
-    "season": "Temporada 1",
-    "schedule": "Em breve",
-    "rating": "16 anos",
-    "episodeDownloads": [],
-    "staff": [
-      {
-        "role": "Tradução",
-        "members": [
-          "Hana Morita",
-          "Lucas Sato"
-        ]
-      },
-      {
-        "role": "Timing",
-        "members": [
-          "Kai Nakamura"
-        ]
-      },
-      {
-        "role": "Revisão",
-        "members": [
-          "Maya Fujimoto",
-          "Renata Aoki"
-        ]
-      },
-      {
-        "role": "Encode",
-        "members": [
-          "Studio Rainbow"
-        ]
-      }
-    ],
-    "trailerUrl": "#"
-  },
-  {
-    "id": "jardim-das-marés",
-    "title": "Jardim das Marés",
-    "synopsis": "Mangá poético sobre guardiões que protegem aldeias costeiras.",
-    "description": "Guardians ancestrais cuidam do equilíbrio entre mar e terra. Um mangá poético com foco em vínculos familiares e espiritualidade.",
+    "id": "86864",
+    "anilistId": 86864,
+    "title": "Gabriel Dropout",
+    "titleOriginal": "ガヴリールドロップアウト",
+    "titleEnglish": "Gabriel Dropout",
+    "synopsis": "A fallen angel with falling grades! Gabriel White Tenma has descended from heaven to attend high school and guide humanity, but a newly found video game addiction might say otherwise.\n\n(Source: Yen Press)",
+    "description": "A fallen angel with falling grades! Gabriel White Tenma has descended from heaven to attend high school and guide humanity, but a newly found video game addiction might say otherwise.\n\n(Source: Yen Press)",
     "type": "Mangá",
     "status": "Em andamento",
-    "year": "2022",
-    "studio": "Horizon Ink",
-    "episodes": "27 capítulos",
+    "year": "",
+    "studio": "",
+    "episodes": "",
     "tags": [
-      "Fantasia",
-      "Aventura",
-      "Drama"
+      "Angels",
+      "School",
+      "Cute Girls Doing Cute Things",
+      "Demons",
+      "Urban",
+      "Afterlife",
+      "Kemonomimi",
+      "Nekomimi"
     ],
-    "cover": "/placeholder.svg",
-    "banner": "/placeholder.svg",
-    "season": "Volume 2",
-    "schedule": "Mensal",
-    "rating": "Livre",
+    "genres": [
+      "Comedy",
+      "Slice of Life",
+      "Supernatural"
+    ],
+    "cover": "https://s4.anilist.co/file/anilistcdn/media/manga/cover/large/nx86864-riAt0WdBL2Hm.jpg",
+    "banner": "https://s4.anilist.co/file/anilistcdn/media/manga/banner/86864-YLkYVxyB4ozq.jpg",
+    "season": "",
+    "schedule": "",
+    "rating": "",
+    "country": "JP",
+    "source": "ORIGINAL",
+    "producers": [],
+    "score": null,
+    "startDate": "2013-12-27",
+    "endDate": "",
+    "relations": [
+      {
+        "relation": "Adaptação",
+        "title": "Gabriel Dropout",
+        "format": "Anime",
+        "status": "Finalizado",
+        "image": "https://s4.anilist.co/file/anilistcdn/media/anime/cover/medium/bx21878-rfzDjP2gjxGR.jpg",
+        "anilistId": 21878
+      },
+      {
+        "relation": "Spin-off",
+        "title": "Tapris Sugar Step",
+        "format": "Mangá",
+        "status": "Finalizado",
+        "image": "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx116395-AfC8axvK5FuB.jpg",
+        "anilistId": 116395
+      },
+      {
+        "relation": "Spin-off",
+        "title": "Vignette Dropout",
+        "format": "Mangá",
+        "status": "Finalizado",
+        "image": "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx122472-3pkJuNzr8VWr.jpg",
+        "anilistId": 122472
+      }
+    ],
+    "staff": [],
+    "animeStaff": [],
+    "trailerUrl": "",
     "episodeDownloads": [
       {
-        "number": 1,
-        "title": "Capítulo 1",
-        "synopsis": "Nesta parte, os personagens encaram um novo desafio e revelam detalhes importantes para a trama.",
-        "releaseDate": "2022-03-10",
-        "duration": "Leitura",
-        "sourceType": "Web",
-        "sources": [
-          {
-            "label": "Google Drive",
-            "url": "#"
-          },
-          {
-            "label": "MEGA",
-            "url": "#"
-          },
-          {
-            "label": "Torrent",
-            "url": "#"
-          }
-        ]
-      },
-      {
         "number": 2,
-        "title": "Capítulo 2",
-        "synopsis": "Nesta parte, os personagens encaram um novo desafio e revelam detalhes importantes para a trama.",
-        "releaseDate": "2022-03-17",
-        "duration": "Leitura",
+        "volume": 1,
+        "title": "",
+        "synopsis": "",
+        "releaseDate": "",
+        "duration": "",
         "sourceType": "Web",
         "sources": [
           {
-            "label": "Google Drive",
-            "url": "#"
-          },
-          {
-            "label": "MEGA",
-            "url": "#"
-          },
-          {
-            "label": "Torrent",
-            "url": "#"
+            "label": "Telegram",
+            "url": "ab"
           }
-        ]
-      },
-      {
-        "number": 3,
-        "title": "Capítulo 3",
-        "synopsis": "Nesta parte, os personagens encaram um novo desafio e revelam detalhes importantes para a trama.",
-        "releaseDate": "2022-03-24",
-        "duration": "Leitura",
-        "sourceType": "Web",
-        "sources": [
-          {
-            "label": "Google Drive",
-            "url": "#"
-          },
-          {
-            "label": "MEGA",
-            "url": "#"
-          },
-          {
-            "label": "Torrent",
-            "url": "#"
-          }
-        ]
+        ],
+        "progressStage": "aguardando-raw",
+        "completedStages": [],
+        "content": "",
+        "contentFormat": "markdown",
+        "chapterUpdatedAt": ""
       },
       {
         "number": 4,
-        "title": "Capítulo 4",
-        "synopsis": "Nesta parte, os personagens encaram um novo desafio e revelam detalhes importantes para a trama.",
-        "releaseDate": "2022-03-31",
-        "duration": "Leitura",
-        "sourceType": "Web",
+        "volume": 1,
+        "title": "",
+        "synopsis": "aa",
+        "releaseDate": "",
+        "duration": "",
+        "sourceType": "TV",
         "sources": [
           {
-            "label": "Google Drive",
-            "url": "#"
-          },
-          {
             "label": "MEGA",
-            "url": "#"
-          },
-          {
-            "label": "Torrent",
-            "url": "#"
+            "url": "aa"
           }
-        ]
+        ],
+        "progressStage": "aguardando-raw",
+        "completedStages": [],
+        "content": "",
+        "contentFormat": "markdown",
+        "chapterUpdatedAt": ""
       },
       {
         "number": 5,
-        "title": "Capítulo 5",
-        "synopsis": "Nesta parte, os personagens encaram um novo desafio e revelam detalhes importantes para a trama.",
-        "releaseDate": "2022-04-07",
-        "duration": "Leitura",
+        "volume": 1,
+        "title": "",
+        "synopsis": "",
+        "releaseDate": "",
+        "duration": "",
+        "sourceType": "TV",
+        "sources": [],
+        "progressStage": "revisao",
+        "completedStages": [
+          "aguardando-raw",
+          "traducao",
+          "limpeza",
+          "redrawing"
+        ],
+        "content": "",
+        "contentFormat": "markdown",
+        "chapterUpdatedAt": ""
+      },
+      {
+        "number": 5,
+        "volume": 1,
+        "title": "",
+        "synopsis": "fa",
+        "releaseDate": "",
+        "duration": "",
+        "sourceType": "TV",
+        "sources": [
+          {
+            "label": "MEGA",
+            "url": "affa"
+          }
+        ],
+        "progressStage": "aguardando-raw",
+        "completedStages": [],
+        "content": "",
+        "contentFormat": "markdown",
+        "chapterUpdatedAt": ""
+      },
+      {
+        "number": 65,
+        "volume": 7,
+        "title": "",
+        "synopsis": "",
+        "releaseDate": "",
+        "duration": "",
         "sourceType": "Web",
         "sources": [
           {
-            "label": "Google Drive",
-            "url": "#"
+            "label": "MEGA",
+            "url": "aa"
           },
           {
             "label": "MEGA",
-            "url": "#"
-          },
-          {
-            "label": "Torrent",
-            "url": "#"
+            "url": "dd"
           }
-        ]
+        ],
+        "progressStage": "redrawing",
+        "completedStages": [
+          "aguardando-raw",
+          "traducao",
+          "limpeza"
+        ],
+        "content": "",
+        "contentFormat": "markdown",
+        "chapterUpdatedAt": ""
+      }
+    ],
+    "views": 0,
+    "commentsCount": 0,
+    "order": 14,
+    "createdAt": "2026-02-02T02:23:30.645Z",
+    "updatedAt": "2026-02-02T03:45:31.936Z"
+  },
+  {
+    "id": "78399",
+    "anilistId": 78399,
+    "title": "No Game No Life",
+    "titleOriginal": "ノーゲーム・ノーライフ",
+    "titleEnglish": "",
+    "synopsis": "In this fantasy world, everything's a game--and these gamer siblings play to win! Meet Sora and Shiro, a brother and sister who are loser shut-ins by normal standards. But these siblings don't play by the rules of the \"crappy game\" that is average society. In the world of gaming, this genius pair reigns supreme, their invincible avatar so famous that it's the stuff of urban legend. So when a young boy calling himself God summons the siblings to a fantastic alternate world where war is forbidden and all conflicts--even those involving national borders--are decided by the outcome of games, Sora and Shiro have pretty much hit the jackpot. But they soon learn that in this world, humanity, cornered and outnumbered by other species, survives within the confines of one city. Will Sora and Shiro, two failures at life, turn out to be the saviors of mankind? Let the games begin...!\n\n(Source: Yen Press)",
+    "description": "In this fantasy world, everything's a game--and these gamer siblings play to win! Meet Sora and Shiro, a brother and sister who are loser shut-ins by normal standards. But these siblings don't play by the rules of the \"crappy game\" that is average society. In the world of gaming, this genius pair reigns supreme, their invincible avatar so famous that it's the stuff of urban legend. So when a young boy calling himself God summons the siblings to a fantastic alternate world where war is forbidden and all conflicts--even those involving national borders--are decided by the outcome of games, Sora and Shiro have pretty much hit the jackpot. But they soon learn that in this world, humanity, cornered and outnumbered by other species, survives within the confines of one city. Will Sora and Shiro, two failures at life, turn out to be the saviors of mankind? Let the games begin...!\n\n(Source: Yen Press)",
+    "type": "Light Novel",
+    "status": "Em andamento",
+    "year": "",
+    "studio": "",
+    "episodes": "",
+    "tags": [
+      "Gambling",
+      "Isekai",
+      "Kemonomimi",
+      "Video Games",
+      "Hikikomori",
+      "Gods",
+      "Magic",
+      "Kingdom Management"
+    ],
+    "genres": [
+      "Adventure",
+      "Comedy",
+      "Ecchi",
+      "Fantasy"
+    ],
+    "cover": "https://s4.anilist.co/file/anilistcdn/media/manga/cover/large/bx78399-ohUhCDKw0CJs.jpg",
+    "banner": "https://s4.anilist.co/file/anilistcdn/media/manga/banner/78399-A7xT4bvgf6TR.jpg",
+    "season": "",
+    "schedule": "",
+    "rating": "",
+    "country": "JP",
+    "source": "ORIGINAL",
+    "producers": [],
+    "score": null,
+    "startDate": "2012-04-25",
+    "endDate": "",
+    "relations": [
+      {
+        "relation": "Adaptação",
+        "title": "No Game No Life",
+        "format": "Mangá",
+        "status": "Cancelado",
+        "image": "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx78397-e5JAq8YfNc3I.jpg",
+        "anilistId": 78397
+      },
+      {
+        "relation": "Adaptação",
+        "title": "No Game No Life",
+        "format": "Anime",
+        "status": "Finalizado",
+        "image": "https://s4.anilist.co/file/anilistcdn/media/anime/cover/medium/b19815-sEOQ9yQaPKlk.jpg",
+        "anilistId": 19815
+      },
+      {
+        "relation": "Adaptação",
+        "title": "No Game No Life Zero",
+        "format": "Filme",
+        "status": "Finalizado",
+        "image": "https://s4.anilist.co/file/anilistcdn/media/anime/cover/medium/nx21875-ybSgx75MgRMM.png",
+        "anilistId": 21875
+      },
+      {
+        "relation": "Spin-off",
+        "title": "No Game No Life, desu!",
+        "format": "Mangá",
+        "status": "Finalizado",
+        "image": "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx95159-UHHinykjmKRd.jpg",
+        "anilistId": 95159
+      },
+      {
+        "relation": "Side story",
+        "title": "No Game No Life Gaiden: Practical War Game",
+        "format": "Light Novel",
+        "status": "Finalizado",
+        "image": "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx101851-Tq97WImqNH0s.jpg",
+        "anilistId": 101851
+      },
+      {
+        "relation": "Adaptação",
+        "title": "No Game No Life: Dai-2 Shou - Toubu Rengou-hen",
+        "format": "Mangá",
+        "status": "Em andamento",
+        "image": "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx142204-fYw9lczU4krH.png",
+        "anilistId": 142204
+      }
+    ],
+    "staff": [],
+    "animeStaff": [],
+    "trailerUrl": "",
+    "episodeDownloads": [
+      {
+        "number": 1,
+        "title": "ashs",
+        "synopsis": "asdfhasdh",
+        "releaseDate": "",
+        "duration": "",
+        "sourceType": "TV",
+        "sources": [],
+        "progressStage": "aguardando-raw",
+        "completedStages": [],
+        "content": "ashdasgdasgdsZGsdgsg",
+        "contentFormat": "markdown",
+        "chapterUpdatedAt": ""
+      },
+      {
+        "number": 2,
+        "title": "fjhf",
+        "synopsis": "ggvjnf",
+        "releaseDate": "40012005",
+        "duration": "",
+        "sourceType": "TV",
+        "sources": [],
+        "progressStage": "aguardando-raw",
+        "completedStages": [],
+        "content": "fhfdvcjhdcxvj",
+        "contentFormat": "markdown",
+        "chapterUpdatedAt": ""
+      },
+      {
+        "number": 3,
+        "title": "sdah",
+        "synopsis": "dsahgdsa",
+        "releaseDate": "sadh",
+        "duration": "",
+        "sourceType": "TV",
+        "sources": [],
+        "progressStage": "aguardando-raw",
+        "completedStages": [],
+        "content": "sdgdsagasd",
+        "contentFormat": "markdown",
+        "chapterUpdatedAt": ""
+      },
+      {
+        "number": 4,
+        "title": "ddag",
+        "synopsis": "asdhadshads",
+        "releaseDate": "",
+        "duration": "",
+        "sourceType": "TV",
+        "sources": [],
+        "progressStage": "aguardando-raw",
+        "completedStages": [],
+        "content": "dsahgadshgs",
+        "contentFormat": "markdown",
+        "chapterUpdatedAt": ""
+      },
+      {
+        "number": 5,
+        "title": "dd",
+        "synopsis": "dd",
+        "releaseDate": "",
+        "duration": "",
+        "sourceType": "TV",
+        "sources": [],
+        "progressStage": "aguardando-raw",
+        "completedStages": [],
+        "content": "ddddd",
+        "contentFormat": "markdown",
+        "chapterUpdatedAt": ""
       },
       {
         "number": 6,
-        "title": "Capítulo 6",
-        "synopsis": "Nesta parte, os personagens encaram um novo desafio e revelam detalhes importantes para a trama.",
-        "releaseDate": "2022-04-14",
-        "duration": "Leitura",
-        "sourceType": "Web",
-        "sources": [
-          {
-            "label": "Google Drive",
-            "url": "#"
-          },
-          {
-            "label": "MEGA",
-            "url": "#"
-          },
-          {
-            "label": "Torrent",
-            "url": "#"
-          }
-        ]
+        "title": "cc",
+        "synopsis": "cc",
+        "releaseDate": "",
+        "duration": "",
+        "sourceType": "TV",
+        "sources": [],
+        "progressStage": "aguardando-raw",
+        "completedStages": [],
+        "content": "cc",
+        "contentFormat": "markdown",
+        "chapterUpdatedAt": ""
+      },
+      {
+        "number": 7,
+        "title": "AA",
+        "synopsis": "AA",
+        "releaseDate": "",
+        "duration": "",
+        "sourceType": "TV",
+        "sources": [],
+        "progressStage": "aguardando-raw",
+        "completedStages": [],
+        "content": "VV",
+        "contentFormat": "markdown",
+        "chapterUpdatedAt": ""
+      },
+      {
+        "number": 8,
+        "title": "af",
+        "synopsis": "afda",
+        "releaseDate": "faf",
+        "duration": "",
+        "sourceType": "TV",
+        "sources": [],
+        "progressStage": "aguardando-raw",
+        "completedStages": [],
+        "content": "dada",
+        "contentFormat": "markdown",
+        "chapterUpdatedAt": "2026-02-02T03:45:41.065Z"
       }
     ],
-    "staff": [
-      {
-        "role": "Tradução",
-        "members": [
-          "Hana Morita",
-          "Lucas Sato"
-        ]
-      },
-      {
-        "role": "Timing",
-        "members": [
-          "Kai Nakamura"
-        ]
-      },
-      {
-        "role": "Revisão",
-        "members": [
-          "Maya Fujimoto",
-          "Renata Aoki"
-        ]
-      },
-      {
-        "role": "Encode",
-        "members": [
-          "Studio Rainbow"
-        ]
-      }
-    ],
-    "trailerUrl": "#"
-  },
-  {
-    "id": "lumina-kizuna",
-    "title": "Lumina Kizuna",
-    "synopsis": "Especial animado sobre uma ligação luminosa entre duas irmãs mágicas.",
-    "description": "Duas irmãs mágicas descobrem uma conexão brilhante que muda seus destinos. Um especial emotivo sobre família e coragem.",
-    "type": "Especial",
-    "status": "Lançado",
-    "year": "2020",
-    "studio": "Aurora Bloom",
-    "episodes": "1 especial",
-    "tags": [
-      "Fantasia",
-      "Família",
-      "Slice of Life"
-    ],
-    "cover": "/placeholder.svg",
-    "banner": "/placeholder.svg",
-    "season": "Especial único",
-    "schedule": "Disponível",
-    "rating": "Livre",
-    "episodeDownloads": [
-      {
-        "number": 1,
-        "title": "Especial 1",
-        "synopsis": "Nesta parte, os personagens encaram um novo desafio e revelam detalhes importantes para a trama.",
-        "releaseDate": "2020-09-14",
-        "duration": "52 min",
-        "sourceType": "Blu-ray",
-        "sources": [
-          {
-            "label": "Google Drive",
-            "url": "#"
-          },
-          {
-            "label": "MEGA",
-            "url": "#"
-          },
-          {
-            "label": "Torrent",
-            "url": "#"
-          }
-        ]
-      }
-    ],
-    "staff": [
-      {
-        "role": "Tradução",
-        "members": [
-          "Hana Morita",
-          "Lucas Sato"
-        ]
-      },
-      {
-        "role": "Timing",
-        "members": [
-          "Kai Nakamura"
-        ]
-      },
-      {
-        "role": "Revisão",
-        "members": [
-          "Maya Fujimoto",
-          "Renata Aoki"
-        ]
-      },
-      {
-        "role": "Encode",
-        "members": [
-          "Studio Rainbow"
-        ]
-      }
-    ],
-    "trailerUrl": "#"
-  },
-  {
-    "id": "memento-arc",
-    "title": "Memento Arc",
-    "synopsis": "Filme de fantasia sobre memórias perdidas e viagens temporais.",
-    "description": "Uma jornada de fantasia que explora memórias perdidas e escolhas que mudam o tempo. Um filme repleto de emoção e mistério.",
-    "type": "Filme",
-    "status": "Lançado",
-    "year": "2021",
-    "studio": "Chronos Lab",
-    "episodes": "1 filme",
-    "tags": [
-      "Fantasia",
-      "Drama",
-      "Mistério"
-    ],
-    "cover": "/placeholder.svg",
-    "banner": "/placeholder.svg",
-    "season": "Filme",
-    "schedule": "Disponível",
-    "rating": "12 anos",
-    "episodeDownloads": [
-      {
-        "number": 1,
-        "title": "Filme completo 1",
-        "synopsis": "Nesta parte, os personagens encaram um novo desafio e revelam detalhes importantes para a trama.",
-        "releaseDate": "2021-11-02",
-        "duration": "2h 02m",
-        "sourceType": "Blu-ray",
-        "sources": [
-          {
-            "label": "Google Drive",
-            "url": "#"
-          },
-          {
-            "label": "MEGA",
-            "url": "#"
-          },
-          {
-            "label": "Torrent",
-            "url": "#"
-          }
-        ]
-      }
-    ],
-    "staff": [
-      {
-        "role": "Tradução",
-        "members": [
-          "Hana Morita",
-          "Lucas Sato"
-        ]
-      },
-      {
-        "role": "Timing",
-        "members": [
-          "Kai Nakamura"
-        ]
-      },
-      {
-        "role": "Revisão",
-        "members": [
-          "Maya Fujimoto",
-          "Renata Aoki"
-        ]
-      },
-      {
-        "role": "Encode",
-        "members": [
-          "Studio Rainbow"
-        ]
-      }
-    ],
-    "trailerUrl": "#"
-  },
-  {
-    "id": "nova-primavera",
-    "title": "Nova Primavera",
-    "synopsis": "Ova musical que celebra uma nova geração de idols.",
-    "description": "Um OVA vibrante que acompanha a estreia de novas idols em um show decisivo. Música e emoção em doses perfeitas.",
-    "type": "OVA",
-    "status": "Lançado",
-    "year": "2022",
-    "studio": "Idol Forge",
-    "episodes": "3 OVAs",
-    "tags": [
-      "Música",
-      "Slice of Life",
-      "Comédia"
-    ],
-    "cover": "/placeholder.svg",
-    "banner": "/placeholder.svg",
-    "season": "OVA",
-    "schedule": "Disponível",
-    "rating": "Livre",
-    "episodeDownloads": [
-      {
-        "number": 1,
-        "title": "Primavera 1",
-        "synopsis": "Nesta parte, os personagens encaram um novo desafio e revelam detalhes importantes para a trama.",
-        "releaseDate": "2022-04-18",
-        "duration": "28 min",
-        "sourceType": "Blu-ray",
-        "sources": [
-          {
-            "label": "Google Drive",
-            "url": "#"
-          },
-          {
-            "label": "MEGA",
-            "url": "#"
-          },
-          {
-            "label": "Torrent",
-            "url": "#"
-          }
-        ]
-      },
-      {
-        "number": 2,
-        "title": "Primavera 2",
-        "synopsis": "Nesta parte, os personagens encaram um novo desafio e revelam detalhes importantes para a trama.",
-        "releaseDate": "2022-04-25",
-        "duration": "28 min",
-        "sourceType": "Blu-ray",
-        "sources": [
-          {
-            "label": "Google Drive",
-            "url": "#"
-          },
-          {
-            "label": "MEGA",
-            "url": "#"
-          },
-          {
-            "label": "Torrent",
-            "url": "#"
-          }
-        ]
-      },
-      {
-        "number": 3,
-        "title": "Primavera 3",
-        "synopsis": "Nesta parte, os personagens encaram um novo desafio e revelam detalhes importantes para a trama.",
-        "releaseDate": "2022-05-02",
-        "duration": "28 min",
-        "sourceType": "Blu-ray",
-        "sources": [
-          {
-            "label": "Google Drive",
-            "url": "#"
-          },
-          {
-            "label": "MEGA",
-            "url": "#"
-          },
-          {
-            "label": "Torrent",
-            "url": "#"
-          }
-        ]
-      }
-    ],
-    "staff": [
-      {
-        "role": "Tradução",
-        "members": [
-          "Hana Morita",
-          "Lucas Sato"
-        ]
-      },
-      {
-        "role": "Timing",
-        "members": [
-          "Kai Nakamura"
-        ]
-      },
-      {
-        "role": "Revisão",
-        "members": [
-          "Maya Fujimoto",
-          "Renata Aoki"
-        ]
-      },
-      {
-        "role": "Encode",
-        "members": [
-          "Studio Rainbow"
-        ]
-      }
-    ],
-    "trailerUrl": "#"
-  },
-  {
-    "id": "oraculo-de-cristal",
-    "title": "Oráculo de Cristal",
-    "synopsis": "ONA de fantasia com guerreiros que usam cristais para salvar reinos.",
-    "description": "Guerreiros despertam cristais ancestrais para proteger seus reinos. Uma ONA cheia de ação e magia.",
-    "type": "ONA",
-    "status": "Em andamento",
-    "year": "2023",
-    "studio": "Crystal Spine",
-    "episodes": "10 episódios",
-    "tags": [
-      "Fantasia",
-      "Ação",
-      "Aventura"
-    ],
-    "cover": "/placeholder.svg",
-    "banner": "/placeholder.svg",
-    "season": "Temporada 1",
-    "schedule": "Segundas, 20h",
-    "rating": "12 anos",
-    "episodeDownloads": [
-      {
-        "number": 1,
-        "title": "Crônica 1",
-        "synopsis": "Nesta parte, os personagens encaram um novo desafio e revelam detalhes importantes para a trama.",
-        "releaseDate": "2023-09-04",
-        "duration": "24 min",
-        "sourceType": "Web",
-        "sources": [
-          {
-            "label": "Google Drive",
-            "url": "#"
-          },
-          {
-            "label": "MEGA",
-            "url": "#"
-          },
-          {
-            "label": "Torrent",
-            "url": "#"
-          }
-        ]
-      },
-      {
-        "number": 2,
-        "title": "Crônica 2",
-        "synopsis": "Nesta parte, os personagens encaram um novo desafio e revelam detalhes importantes para a trama.",
-        "releaseDate": "2023-09-11",
-        "duration": "24 min",
-        "sourceType": "Web",
-        "sources": [
-          {
-            "label": "Google Drive",
-            "url": "#"
-          },
-          {
-            "label": "MEGA",
-            "url": "#"
-          },
-          {
-            "label": "Torrent",
-            "url": "#"
-          }
-        ]
-      },
-      {
-        "number": 3,
-        "title": "Crônica 3",
-        "synopsis": "Nesta parte, os personagens encaram um novo desafio e revelam detalhes importantes para a trama.",
-        "releaseDate": "2023-09-18",
-        "duration": "24 min",
-        "sourceType": "Web",
-        "sources": [
-          {
-            "label": "Google Drive",
-            "url": "#"
-          },
-          {
-            "label": "MEGA",
-            "url": "#"
-          },
-          {
-            "label": "Torrent",
-            "url": "#"
-          }
-        ]
-      },
-      {
-        "number": 4,
-        "title": "Crônica 4",
-        "synopsis": "Nesta parte, os personagens encaram um novo desafio e revelam detalhes importantes para a trama.",
-        "releaseDate": "2023-09-25",
-        "duration": "24 min",
-        "sourceType": "Web",
-        "sources": [
-          {
-            "label": "Google Drive",
-            "url": "#"
-          },
-          {
-            "label": "MEGA",
-            "url": "#"
-          },
-          {
-            "label": "Torrent",
-            "url": "#"
-          }
-        ]
-      },
-      {
-        "number": 5,
-        "title": "Crônica 5",
-        "synopsis": "Nesta parte, os personagens encaram um novo desafio e revelam detalhes importantes para a trama.",
-        "releaseDate": "2023-10-02",
-        "duration": "24 min",
-        "sourceType": "Web",
-        "sources": [
-          {
-            "label": "Google Drive",
-            "url": "#"
-          },
-          {
-            "label": "MEGA",
-            "url": "#"
-          },
-          {
-            "label": "Torrent",
-            "url": "#"
-          }
-        ]
-      }
-    ],
-    "staff": [
-      {
-        "role": "Tradução",
-        "members": [
-          "Hana Morita",
-          "Lucas Sato"
-        ]
-      },
-      {
-        "role": "Timing",
-        "members": [
-          "Kai Nakamura"
-        ]
-      },
-      {
-        "role": "Revisão",
-        "members": [
-          "Maya Fujimoto",
-          "Renata Aoki"
-        ]
-      },
-      {
-        "role": "Encode",
-        "members": [
-          "Studio Rainbow"
-        ]
-      }
-    ],
-    "trailerUrl": "#"
-  },
-  {
-    "id": "prisma-ryu",
-    "title": "Prisma Ryu",
-    "synopsis": "Spin-off que acompanha uma nova heroína em um universo mágico.",
-    "description": "Uma nova heroína assume o protagonismo em um spin-off cheio de magia e lutas coreografadas. O projeto está em pré-produção.",
-    "type": "Spin-off",
-    "status": "Em produção",
-    "year": "2025",
-    "studio": "Rainbow Works",
-    "episodes": "Anunciado",
-    "tags": [
-      "Fantasia",
-      "Ação",
-      "Shojo"
-    ],
-    "cover": "/placeholder.svg",
-    "banner": "/placeholder.svg",
-    "season": "Spin-off",
-    "schedule": "Em breve",
-    "rating": "12 anos",
-    "episodeDownloads": [],
-    "staff": [
-      {
-        "role": "Tradução",
-        "members": [
-          "Hana Morita",
-          "Lucas Sato"
-        ]
-      },
-      {
-        "role": "Timing",
-        "members": [
-          "Kai Nakamura"
-        ]
-      },
-      {
-        "role": "Revisão",
-        "members": [
-          "Maya Fujimoto",
-          "Renata Aoki"
-        ]
-      },
-      {
-        "role": "Encode",
-        "members": [
-          "Studio Rainbow"
-        ]
-      }
-    ],
-    "trailerUrl": "#"
+    "views": 0,
+    "commentsCount": 0,
+    "order": 15,
+    "createdAt": "2026-02-02T02:36:26.744Z",
+    "updatedAt": "2026-02-02T03:45:41.069Z"
   }
 ]

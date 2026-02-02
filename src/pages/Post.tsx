@@ -1,6 +1,6 @@
 ﻿import { useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
-import { CalendarDays, Clock, MessageSquare, Share2, User } from "lucide-react";
+import { CalendarDays, Clock, User } from "lucide-react";
 
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
@@ -8,12 +8,9 @@ import DiscordInviteCard from "@/components/DiscordInviteCard";
 import LatestEpisodeCard from "@/components/LatestEpisodeCard";
 import WorkStatusCard from "@/components/WorkStatusCard";
 import ProjectEmbedCard from "@/components/ProjectEmbedCard";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import CommentsSection from "@/components/CommentsSection";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
-import { Textarea } from "@/components/ui/textarea";
+import { Card, CardContent } from "@/components/ui/card";
 import { estimateReadTime, renderPostContent } from "@/lib/post-content";
 import { getApiBase } from "@/lib/api-base";
 
@@ -119,14 +116,6 @@ const Post = () => {
     return renderPostContent(post.content || post.excerpt, post.contentFormat || "markdown");
   }, [post]);
 
-  const handleCopyLink = async () => {
-    if (!post) {
-      return;
-    }
-    const url = `${window.location.origin}/postagem/${post.slug}`;
-    await navigator.clipboard.writeText(url);
-  };
-
   return (
     <div className="min-h-screen bg-background">
       <Header />
@@ -195,67 +184,7 @@ const Post = () => {
 
                   {post.projectId ? <ProjectEmbedCard projectId={post.projectId} /> : null}
 
-                  <Card className="border-border bg-card">
-                    <CardHeader>
-                      <CardTitle className="text-lg">Compartilhar</CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <Share2 className="h-4 w-4 text-primary/70" aria-hidden="true" />
-                        Envie este post nas redes sociais.
-                      </div>
-                      <div className="flex flex-wrap gap-2">
-                        <Button size="sm" variant="secondary" onClick={handleCopyLink}>
-                          Copiar link
-                        </Button>
-                        <Button size="sm" variant="outline">
-                          Compartilhar no X
-                        </Button>
-                        <Button size="sm" variant="outline">
-                          Compartilhar no Discord
-                        </Button>
-                      </div>
-                    </CardContent>
-                  </Card>
-
-                  <Card className="border-border bg-card">
-                    <CardHeader>
-                      <CardTitle className="text-lg">Comentários</CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-6">
-                      <div className="flex flex-wrap items-center justify-between gap-3">
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                          <MessageSquare className="h-4 w-4 text-primary/70" aria-hidden="true" />
-                          Seção integrada ou via Disqus.
-                        </div>
-                        <Button size="sm" variant="outline">
-                          Conectar Disqus
-                        </Button>
-                      </div>
-                      <Separator />
-                      <div className="flex gap-3">
-                        <Avatar className="h-10 w-10">
-                          <AvatarImage src="/placeholder.svg" alt="Avatar do usuário" />
-                          <AvatarFallback>RA</AvatarFallback>
-                        </Avatar>
-                        <div className="flex-1 space-y-3">
-                          <Textarea
-                            placeholder="Escreva um comentário ou feedback sobre o episódio..."
-                            className="min-h-[120px]"
-                          />
-                          <div className="flex flex-wrap items-center gap-3">
-                            <Button>Publicar comentário</Button>
-                            <Button variant="ghost" size="sm">
-                              Ver regras da comunidade
-                            </Button>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="rounded-xl border border-border bg-background/60 p-4 text-sm text-muted-foreground">
-                        Aqui aparecerá a thread de comentários com paginação, reações e moderação.
-                      </div>
-                    </CardContent>
-                  </Card>
+                  <CommentsSection targetType="post" targetId={post.slug} />
                 </article>
 
                 <aside className="space-y-6">

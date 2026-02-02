@@ -10,8 +10,22 @@ import {
   CarouselPrevious,
   type CarouselApi,
 } from "@/components/ui/carousel";
+import { getApiBase } from "@/lib/api-base";
+import type { Project } from "@/data/projects";
 
-const heroSlides = [
+type HeroSlide = {
+  id: string;
+  title: string;
+  description: string;
+  updatedAt: string;
+  image: string;
+  projectId: string;
+  trailerUrl?: string;
+  format?: string;
+  status?: string;
+};
+
+const heroSlidesSeed = [
   {
     id: "prisma-illya",
     title: "Fate/Kaleid Liner Prisma Illya",
@@ -20,6 +34,7 @@ const heroSlides = [
     updatedAt: "2024-01-28T12:00:00Z",
     image: heroImage,
     projectId: "aurora-no-horizonte",
+    trailerUrl: "",
   },
   {
     id: "spy-family",
@@ -29,6 +44,7 @@ const heroSlides = [
     updatedAt: "2024-01-25T12:00:00Z",
     image: heroImage,
     projectId: "rainbow-pulse",
+    trailerUrl: "",
   },
   {
     id: "jujutsu-kaisen",
@@ -38,6 +54,7 @@ const heroSlides = [
     updatedAt: "2024-01-22T12:00:00Z",
     image: heroImage,
     projectId: "iris-black",
+    trailerUrl: "",
   },
   {
     id: "frieren",
@@ -47,6 +64,7 @@ const heroSlides = [
     updatedAt: "2024-01-20T12:00:00Z",
     image: heroImage,
     projectId: "jardim-das-marés",
+    trailerUrl: "",
   },
   {
     id: "oshi-no-ko",
@@ -56,6 +74,7 @@ const heroSlides = [
     updatedAt: "2024-01-18T12:00:00Z",
     image: heroImage,
     projectId: "nova-primavera",
+    trailerUrl: "",
   },
 ];
 
@@ -63,7 +82,12 @@ const HeroSection = () => {
   const [api, setApi] = React.useState<CarouselApi | null>(null);
   const autoplayRef = React.useRef<number | null>(null);
   const resumeTimeoutRef = React.useRef<number | null>(null);
+  const [heroSlides, setHeroSlides] = React.useState<HeroSlide[]>(heroSlidesSeed);
+  const apiBase = getApiBase();
   const latestSlideId = React.useMemo(() => {
+    if (!heroSlides.length) {
+      return "";
+    }
     return heroSlides.reduce((latest, current) => {
       if (!latest) {
         return current;
@@ -72,7 +96,7 @@ const HeroSection = () => {
         ? current
         : latest;
     }, heroSlides[0])?.id;
-  }, []);
+  }, [heroSlides]);
 
   const stopAutoplay = React.useCallback(() => {
     if (autoplayRef.current !== null) {
@@ -98,7 +122,7 @@ const HeroSection = () => {
     }
     resumeTimeoutRef.current = window.setTimeout(() => {
       startAutoplay();
-    }, 5000);
+    }, 3000);
   }, [startAutoplay, stopAutoplay]);
 
   React.useEffect(() => {
@@ -107,14 +131,128 @@ const HeroSection = () => {
     }
 
     startAutoplay();
+    api.on("pointerDown", scheduleAutoplayResume);
 
     return () => {
+      api.off("pointerDown", scheduleAutoplayResume);
       stopAutoplay();
       if (resumeTimeoutRef.current !== null) {
         window.clearTimeout(resumeTimeoutRef.current);
       }
     };
-  }, [api, startAutoplay, stopAutoplay]);
+  }, [api, scheduleAutoplayResume, startAutoplay, stopAutoplay]);
+
+  React.useEffect(() => {
+    let isActive = true;
+    const load = async () => {
+      try {
+        const [projectsRes, updatesRes] = await Promise.all([
+          fetch(`${apiBase}/api/public/projects`),
+          fetch(`${apiBase}/api/public/updates`),
+        ]);
+        if (!projectsRes.ok) {
+          return;
+        }
+        const projectData = await projectsRes.json();
+        const projects: Project[] = Array.isArray(projectData.projects) ? projectData.projects : [];
+        const updates = updatesRes.ok ? (await updatesRes.json()).updates || [] : [];
+        const launchUpdates = (Array.isArray(updates) ? updates : [])
+          .filter((update: { kind?: string }) => {
+            const kind = String(update.kind || "").toLowerCase();
+            return kind === "lançamento" || kind === "lancamento";
+          })
+          .sort(
+            (a: { updatedAt?: string }, b: { updatedAt?: string }) =>
+              new Date(b.updatedAt || 0).getTime() - new Date(a.updatedAt || 0).getTime(),
+          );
+        const latestLaunchByProject = new Map<string, string>();
+        launchUpdates.forEach((update: { projectId?: string; updatedAt?: string }) => {
+          const projectId = String(update.projectId || "");
+          if (!projectId || latestLaunchByProject.has(projectId)) {
+            return;
+          }
+          latestLaunchByProject.set(projectId, update.updatedAt || "");
+        });
+
+        const projectsById = new Map(projects.map((project) => [project.id, project]));
+        const forced = projects.filter((project) => project.forceHero);
+        const forcedSorted = [...forced].sort((a, b) => {
+          const aTime = new Date(latestLaunchByProject.get(a.id) || 0).getTime();
+          const bTime = new Date(latestLaunchByProject.get(b.id) || 0).getTime();
+          return bTime - aTime;
+        });
+
+        const resultIds = new Set<string>();
+        const slides: HeroSlide[] = [];
+        const pushSlide = (project: Project, updatedAt?: string) => {
+          if (slides.length >= 5 || resultIds.has(project.id)) {
+            return;
+          }
+          resultIds.add(project.id);
+          const image = project.heroImageUrl || project.banner || project.cover || "";
+          if (!image) {
+            return;
+          }
+          slides.push({
+            id: project.id,
+            title: project.title,
+            description: project.synopsis || project.description || "",
+            updatedAt: updatedAt || new Date().toISOString(),
+            image,
+            projectId: project.id,
+            trailerUrl: project.trailerUrl || "",
+            format: project.type || "",
+            status: project.status || "",
+          });
+        };
+
+        forcedSorted.forEach((project) => {
+          pushSlide(project, latestLaunchByProject.get(project.id));
+        });
+
+        latestLaunchByProject.forEach((updatedAt, projectId) => {
+          const project = projectsById.get(projectId);
+          if (!project) {
+            return;
+          }
+          pushSlide(project, updatedAt);
+        });
+
+        if (!slides.length) {
+          projects.slice(0, 5).forEach((project) => pushSlide(project));
+        }
+
+        if (isActive) {
+          setHeroSlides(slides);
+        }
+      } catch {
+        if (isActive) {
+          setHeroSlides(heroSlidesSeed);
+        }
+      }
+    };
+
+    void load();
+    return () => {
+      isActive = false;
+    };
+  }, [apiBase]);
+
+  const clampSynopsis = React.useCallback((text: string, limit = 100) => {
+    const cleaned = String(text || "").replace(/\s+/g, " ").trim();
+    if (cleaned.length <= limit) {
+      return cleaned;
+    }
+    const nextSpace = cleaned.indexOf(" ", limit);
+    const upperBound = limit + 12;
+    if (nextSpace > -1 && nextSpace <= upperBound) {
+      return `${cleaned.slice(0, nextSpace)}...`;
+    }
+    const slice = cleaned.slice(0, limit);
+    const lastSpace = slice.lastIndexOf(" ");
+    const trimmed = lastSpace > 0 ? slice.slice(0, lastSpace) : slice;
+    return `${trimmed}...`;
+  }, []);
 
   return (
     <section className="relative min-h-screen overflow-hidden">
@@ -138,14 +276,18 @@ const HeroSection = () => {
                 {/* Content */}
                 <div className="relative z-10 w-full px-6 md:px-12 pb-16 md:pb-24">
                   <div className="max-w-3xl">
-                    {/* Badge for latest release */}
-                    {slide.id === latestSlideId ? (
-                      <span className="inline-block px-3 py-1 mb-4 text-xs font-semibold uppercase tracking-wider rounded-full animate-fade-in border bg-[color:var(--hero-badge-bg,hsl(var(--primary)/0.2))] text-[color:var(--hero-badge-text,hsl(var(--primary)))] border-[color:var(--hero-badge-border,hsl(var(--primary)/0.3)))]">
-                        Último Lançamento
-                      </span>
-                    ) : null}
+                    <div className="mb-3 flex flex-wrap items-center gap-3 text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                      {slide.id === latestSlideId ? (
+                        <span className="inline-block px-3 py-1 rounded-full animate-fade-in border bg-[color:var(--hero-badge-bg,hsl(var(--primary)/0.2))] text-[color:var(--hero-badge-text,hsl(var(--primary)))] border-[color:var(--hero-badge-border,hsl(var(--primary)/0.3)))]">
+                          Último Lançamento
+                        </span>
+                      ) : null}
+                      {slide.format ? <span>{slide.format}</span> : null}
+                      {slide.format && slide.status ? <span className="opacity-50">•</span> : null}
+                      {slide.status ? <span>{slide.status}</span> : null}
+                    </div>
 
-                    <h1 className="text-3xl md:text-5xl lg:text-6xl xl:text-7xl 2xl:text-8xl font-black mb-6 animate-slide-up text-foreground leading-tight">
+                    <h1 className="text-2xl md:text-4xl lg:text-5xl xl:text-6xl 2xl:text-7xl font-black mb-6 animate-slide-up text-foreground leading-tight">
                       {slide.title}
                     </h1>
 
@@ -153,7 +295,7 @@ const HeroSection = () => {
                       className="text-base md:text-lg xl:text-xl 2xl:text-2xl text-muted-foreground leading-relaxed max-w-2xl animate-slide-up opacity-0"
                       style={{ animationDelay: "0.2s" }}
                     >
-                      {slide.description}
+                      {clampSynopsis(slide.description)}
                     </p>
 
                     <div
@@ -167,10 +309,17 @@ const HeroSection = () => {
                         <Globe className="h-4 w-4" />
                         Acessar Página
                       </Link>
-                      <button className="inline-flex items-center gap-2 px-6 py-3 font-semibold rounded-lg transition-all hover:scale-105 border border-border/40 bg-background/70 text-foreground hover:bg-background/90">
-                        <Play className="h-4 w-4" />
-                        Assistir Trailer
-                      </button>
+                      {slide.trailerUrl ? (
+                        <a
+                          href={slide.trailerUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex items-center gap-2 px-6 py-3 font-semibold rounded-lg transition-all hover:scale-105 border border-border/40 bg-background/70 text-foreground hover:bg-background/90"
+                        >
+                          <Play className="h-4 w-4" />
+                          Assistir Trailer
+                        </a>
+                      ) : null}
                     </div>
                   </div>
                 </div>
