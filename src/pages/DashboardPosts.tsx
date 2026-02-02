@@ -61,6 +61,7 @@ import { convertPostContent, createSlug, renderPostContent, stripHtml } from "@/
 import type { Project } from "@/data/projects";
 import ProjectEmbedCard from "@/components/ProjectEmbedCard";
 import { getApiBase } from "@/lib/api-base";
+import { normalizeAssetUrl } from "@/lib/asset-url";
 
 const menuItems = [
   { label: "Início", href: "/dashboard", icon: LayoutGrid, enabled: true },
@@ -1974,7 +1975,7 @@ const DashboardPosts = () => {
                             <div className="relative h-44 w-full md:h-full">
                               {post.coverImageUrl ? (
                                 <img
-                                  src={post.coverImageUrl}
+                                  src={normalizeAssetUrl(post.coverImageUrl)}
                                   alt={post.coverAlt || post.title}
                                   className="h-full w-full object-cover"
                                   loading="lazy"

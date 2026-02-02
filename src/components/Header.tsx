@@ -187,9 +187,11 @@ const Header = ({ variant = "fixed", leading, className }: HeaderProps) => {
   return (
     <header
       className={cn(
-        "left-0 right-0 z-50 px-6 py-4 text-white transition-all duration-300 md:px-12 after:pointer-events-none after:absolute after:inset-0 after:bg-gradient-to-b after:from-black/25 after:via-black/10 after:to-transparent",
+        "left-0 right-0 px-6 py-4 text-white transition-all duration-300 md:px-12 after:pointer-events-none after:absolute after:inset-0 after:bg-gradient-to-b after:from-black/25 after:via-black/10 after:to-transparent",
         variant === "fixed" ? "fixed top-0" : "relative",
         isScrolled && variant === "fixed" ? "bg-background/70 backdrop-blur-xl" : "bg-transparent",
+        leading ? "z-0" : "z-50",
+        leading ? "md:pl-[var(--sidebar-offset)]" : "",
         className,
       )}
     >

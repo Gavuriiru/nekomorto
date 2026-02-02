@@ -271,7 +271,9 @@ const Projects = () => {
                       <div>
                         <p className="text-xs uppercase tracking-[0.2em] text-primary/80">{project.type}</p>
                         <h2 className="text-xl font-semibold text-foreground md:text-2xl">{project.title}</h2>
-                        <p className="mt-2 text-sm text-muted-foreground line-clamp-2">{project.synopsis}</p>
+                        <p className="mt-2 text-sm text-muted-foreground line-clamp-2 md:line-clamp-1 lg:line-clamp-2">
+                          {project.synopsis}
+                        </p>
                       </div>
 
                       {project.tags.length > 0 || project.genres?.length || project.producers?.length ? (
@@ -347,7 +349,7 @@ const Projects = () => {
                         ) : null}
                         {project.studio ? (
                           <span
-                            className="hidden shrink-0 max-w-[7rem] rounded-full border border-border/60 bg-background/50 px-3 py-1 truncate sm:inline-flex sm:max-w-[9rem] md:max-w-[10rem] lg:max-w-[12rem]"
+                            className="hidden shrink-0 max-w-[9rem] rounded-full border border-border/60 bg-background/50 px-3 py-1 truncate lg:inline-flex lg:max-w-[12rem]"
                             title={project.studio}
                           >
                             {project.studio}

@@ -22,6 +22,7 @@ import {
   Undo2,
   Video,
 } from "lucide-react";
+import { normalizeAssetUrl } from "@/lib/asset-url";
 
 type PostContentEditorProps = {
   format: "markdown" | "html";
@@ -226,7 +227,7 @@ const PostContentEditor = ({
           {excerpt ? <p className="text-sm text-muted-foreground">{excerpt}</p> : null}
           <div className="overflow-hidden rounded-2xl border border-border">
             <img
-              src={coverImageUrl || "/placeholder.svg"}
+              src={normalizeAssetUrl(coverImageUrl) || "/placeholder.svg"}
               alt={coverAlt || title || "Capa"}
               className="aspect-[3/2] w-full object-cover"
             />

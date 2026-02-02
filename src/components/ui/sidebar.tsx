@@ -113,6 +113,16 @@ const SidebarProvider = React.forwardRef<
             {
               "--sidebar-width": SIDEBAR_WIDTH,
               "--sidebar-width-icon": SIDEBAR_WIDTH_ICON,
+              "--sidebar-width-current": isMobile
+                ? "0px"
+                : open
+                  ? SIDEBAR_WIDTH
+                  : SIDEBAR_WIDTH_ICON,
+              "--sidebar-offset": isMobile
+                ? "0px"
+                : open
+                  ? `calc(${SIDEBAR_WIDTH} + 0.5rem)`
+                  : `calc(${SIDEBAR_WIDTH_ICON} + 1.8125rem)`,
               ...style,
             } as React.CSSProperties
           }
