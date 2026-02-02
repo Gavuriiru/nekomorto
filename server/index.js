@@ -37,6 +37,33 @@ const APP_ORIGINS = APP_ORIGIN.split(",")
   .map((origin) => origin.trim())
   .filter(Boolean);
 const PRIMARY_APP_ORIGIN = APP_ORIGINS[0] || "http://127.0.0.1:5173";
+const isAllowedOrigin = (origin) => {
+  if (!origin) {
+    return true;
+  }
+  if (APP_ORIGINS.includes(origin)) {
+    return true;
+  }
+  try {
+    const { hostname } = new URL(origin);
+    if (!hostname) {
+      return false;
+    }
+    if (hostname === "localhost" || hostname === "127.0.0.1") {
+      return true;
+    }
+    if (
+      /^10\.\d+\.\d+\.\d+$/.test(hostname) ||
+      /^192\.168\.\d+\.\d+$/.test(hostname) ||
+      /^172\.(1[6-9]|2\d|3[0-1])\.\d+\.\d+$/.test(hostname)
+    ) {
+      return true;
+    }
+  } catch {
+    return false;
+  }
+  return false;
+};
 
 if (!DISCORD_CLIENT_ID || !DISCORD_CLIENT_SECRET || !SESSION_SECRET) {
   // eslint-disable-next-line no-console
@@ -48,7 +75,7 @@ app.use(cookieParser());
 app.use(
   cors({
     origin: (origin, callback) => {
-      if (!origin || APP_ORIGINS.includes(origin)) {
+      if (isAllowedOrigin(origin)) {
         callback(null, true);
         return;
       }

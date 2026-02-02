@@ -16,6 +16,7 @@ import { CalendarDays, User } from "lucide-react";
 import { Link } from "react-router-dom";
 import { getApiBase } from "@/lib/api-base";
 import type { Project } from "@/data/projects";
+import { normalizeAssetUrl } from "@/lib/asset-url";
 
 const ReleasesSection = () => {
   const apiBase = getApiBase();
@@ -150,7 +151,7 @@ const ReleasesSection = () => {
                         <CardContent className="p-5 flex flex-col h-full gap-4">
                           <div className="relative w-full aspect-[3/2] rounded-lg overflow-hidden bg-secondary">
                             <img
-                              src={release.coverImageUrl || "/placeholder.svg"}
+                              src={normalizeAssetUrl(release.coverImageUrl) || "/placeholder.svg"}
                               alt={release.title}
                               className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                               loading="lazy"

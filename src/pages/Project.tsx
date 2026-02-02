@@ -291,11 +291,11 @@ const ProjectPage = () => {
               {project.tags?.length ? (
                 <div className="flex flex-wrap gap-2">
                   {project.tags.map((tag) => (
-                    <Badge key={tag} variant="secondary" className="text-[10px] uppercase" asChild>
-                      <Link to={`/projetos?tag=${encodeURIComponent(tag)}`}>
+                    <Link key={tag} to={`/projetos?tag=${encodeURIComponent(tag)}`} className="inline-flex">
+                      <Badge variant="secondary" className="text-[10px] uppercase">
                         {tagTranslations[tag] || tag}
-                      </Link>
-                    </Badge>
+                      </Badge>
+                    </Link>
                   ))}
                 </div>
               ) : null}
@@ -338,11 +338,11 @@ const ProjectPage = () => {
                   {project.genres?.length ? (
                     <div className="flex flex-wrap gap-2">
                       {project.genres.map((genre) => (
-                        <Badge key={genre} variant="outline" className="text-[10px] uppercase" asChild>
-                          <Link to={`/projetos?genero=${encodeURIComponent(genre)}`}>
+                        <Link key={genre} to={`/projetos?genero=${encodeURIComponent(genre)}`} className="inline-flex">
+                          <Badge variant="outline" className="text-[10px] uppercase">
                             {genreTranslations[genre] || genre}
-                          </Link>
-                        </Badge>
+                          </Badge>
+                        </Link>
                       ))}
                     </div>
                   ) : null}

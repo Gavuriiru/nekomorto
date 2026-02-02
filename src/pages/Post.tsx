@@ -12,6 +12,7 @@ import CommentsSection from "@/components/CommentsSection";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { estimateReadTime, renderPostContent } from "@/lib/post-content";
+import { normalizeAssetUrl } from "@/lib/asset-url";
 import { getApiBase } from "@/lib/api-base";
 
 const Post = () => {
@@ -115,6 +116,7 @@ const Post = () => {
     }
     return renderPostContent(post.content || post.excerpt, post.contentFormat || "markdown");
   }, [post]);
+  const coverUrl = useMemo(() => normalizeAssetUrl(post?.coverImageUrl), [post?.coverImageUrl]);
 
   return (
     <div className="min-h-screen bg-background">
@@ -160,7 +162,7 @@ const Post = () => {
 
                 <div className="relative overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
                   <img
-                    src={post.coverImageUrl || "/placeholder.svg"}
+                    src={coverUrl || "/placeholder.svg"}
                     alt={post.coverAlt || `Capa do post: ${post.title}`}
                     className="aspect-[3/2] w-full object-cover"
                     loading="lazy"

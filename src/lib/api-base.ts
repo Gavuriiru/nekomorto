@@ -5,8 +5,14 @@ export const getApiBase = () => {
   if (typeof envBase === "string" && envBase.trim()) {
     return envBase;
   }
-  if (import.meta.env.PROD && typeof window !== "undefined") {
-    return window.location.origin;
+  if (typeof window !== "undefined") {
+    if (import.meta.env.PROD) {
+      return window.location.origin;
+    }
+    const { protocol, hostname } = window.location;
+    if (hostname && hostname !== "localhost" && hostname !== "127.0.0.1") {
+      return `${protocol}//${hostname}:8080`;
+    }
   }
   return LOCAL_API_BASE;
 };

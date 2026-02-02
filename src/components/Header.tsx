@@ -10,6 +10,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Menu } from "lucide-react";
 import type { Project } from "@/data/projects";
 import { cn } from "@/lib/utils";
 import { getApiBase } from "@/lib/api-base";
@@ -364,6 +365,38 @@ const Header = ({ variant = "fixed", leading, className }: HeaderProps) => {
               </div>
             )}
           </div>
+
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="md:hidden h-10 w-10 rounded-full border border-white/10 bg-white/5 text-white/80 hover:text-white"
+                aria-label="Abrir menu"
+              >
+                <Menu className="h-5 w-5" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-48">
+              <DropdownMenuItem asChild>
+                <Link to="/">Início</Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link to="/projetos">Projetos</Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link to="/equipe">Equipe</Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <a href="https://discord.com/invite/BAHKhdX2ju" target="_blank" rel="noreferrer">
+                  Recrutamento
+                </a>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link to="/sobre">Sobre</Link>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
 
           {currentUser && (
             <DropdownMenu modal={false}>

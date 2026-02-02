@@ -12,6 +12,28 @@ export const createSlug = (value: string) =>
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "");
 
+const normalizeLocalUrl = (rawUrl: string) => {
+  if (!rawUrl) {
+    return rawUrl;
+  }
+  if (typeof window === "undefined") {
+    return rawUrl;
+  }
+  const trimmed = rawUrl.trim();
+  if (trimmed.startsWith("/")) {
+    return `${window.location.origin}${trimmed}`;
+  }
+  if (/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?\//i.test(trimmed)) {
+    try {
+      const parsed = new URL(trimmed);
+      return `${window.location.origin}${parsed.pathname}${parsed.search}${parsed.hash}`;
+    } catch {
+      return trimmed;
+    }
+  }
+  return trimmed;
+};
+
 const applyInlineFormatting = (value: string) => {
   let html = value;
   html = html.replace(/`([^`]+)`/g, "<code>$1</code>");
@@ -22,13 +44,13 @@ const applyInlineFormatting = (value: string) => {
   html = html.replace(/~~([^~]+)~~/g, "<del>$1</del>");
   html = html.replace(/!\[([^\]]*)\]\(([^)\s]+)(?:\s+\"([^\"]+)\")?\)/g, (_match, alt, url, title) => {
     const safeAlt = escapeHtml(String(alt || ""));
-    const safeUrl = escapeHtml(String(url || ""));
+    const safeUrl = escapeHtml(normalizeLocalUrl(String(url || "")));
     const titleAttr = title ? ` title="${escapeHtml(String(title))}"` : "";
     return `<img src="${safeUrl}" alt="${safeAlt}" loading="lazy"${titleAttr} />`;
   });
   html = html.replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, (_match, text, url) => {
     const safeText = escapeHtml(String(text || ""));
-    const safeUrl = escapeHtml(String(url || ""));
+    const safeUrl = escapeHtml(normalizeLocalUrl(String(url || "")));
     return `<a href="${safeUrl}" target="_blank" rel="noreferrer">${safeText}</a>`;
   });
   return html;
@@ -132,9 +154,19 @@ const markdownToHtml = (markdown: string) => {
   return output.join("\n");
 };
 
+const normalizeLocalHtml = (value: string) => {
+  if (!value || typeof window === "undefined") {
+    return value;
+  }
+  return value.replace(
+    /(https?:\/\/)(localhost|127\.0\.0\.1)(:\d+)?(\/[^\s"'<>)]*)/gi,
+    (_match, proto, _host, _port, path) => `${window.location.origin}${path || ""}`,
+  );
+};
+
 export const renderPostContent = (content: string, format: "markdown" | "html") => {
   if (format === "html") {
-    return content || "";
+    return normalizeLocalHtml(content || "");
   }
   return markdownToHtml(content || "");
 };
@@ -152,15 +184,15 @@ const htmlToMarkdown = (html: string) => {
   output = output.replace(/<del[^>]*>([\s\S]*?)<\/del>/gi, "~~$1~~");
   output = output.replace(/<img[^>]*src=["']([^"']+)["'][^>]*alt=["']([^"']*)["'][^>]*>/gi, (_m, src, alt) => {
     const safeAlt = String(alt || "");
-    const safeSrc = String(src || "");
+    const safeSrc = normalizeLocalUrl(String(src || ""));
     return `![${safeAlt}](${safeSrc})`;
   });
   output = output.replace(/<img[^>]*src=["']([^"']+)["'][^>]*>/gi, (_m, src) => {
-    const safeSrc = String(src || "");
+    const safeSrc = normalizeLocalUrl(String(src || ""));
     return `![](${safeSrc})`;
   });
   output = output.replace(/<a[^>]*href=["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi, (_m, href, text) => {
-    const safeHref = String(href || "");
+    const safeHref = normalizeLocalUrl(String(href || ""));
     const safeText = String(text || "");
     return `[${safeText}](${safeHref})`;
   });

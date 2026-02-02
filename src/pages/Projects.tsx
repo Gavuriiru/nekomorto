@@ -1,5 +1,5 @@
 ﻿import { useMemo, useState, useEffect } from "react";
-import { Link, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { Badge } from "@/components/ui/badge";
@@ -33,6 +33,7 @@ const Projects = () => {
   const [selectedGenre, setSelectedGenre] = useState("Todos");
   const [currentPage, setCurrentPage] = useState(1);
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
   const [tagTranslations, setTagTranslations] = useState<Record<string, string>>({});
   const [genreTranslations, setGenreTranslations] = useState<Record<string, string>>({});
   const projectsPerPage = 16;
@@ -257,7 +258,7 @@ const Projects = () => {
                   <Link
                     key={project.id}
                     to={`/projeto/${project.id}`}
-                    className="group flex h-[12.5rem] w-full items-start gap-5 rounded-2xl border border-border/60 bg-gradient-card p-5 transition hover:border-primary/50 hover:shadow-lg md:h-[15rem]"
+                    className="group flex min-h-[12.5rem] w-full items-start gap-5 rounded-2xl border border-border/60 bg-gradient-card p-5 transition hover:border-primary/50 hover:shadow-lg md:h-[15rem]"
                   >
                     <div className="h-[9.75rem] w-28 flex-shrink-0 overflow-hidden rounded-xl bg-secondary shadow-inner md:h-[12.5rem] md:w-36">
                       <img
@@ -274,7 +275,7 @@ const Projects = () => {
                       </div>
 
                       {project.tags.length > 0 || project.genres?.length || project.producers?.length ? (
-                        <div className="flex max-h-[2.75rem] flex-wrap gap-1 overflow-hidden">
+                        <div className="flex flex-wrap gap-1 overflow-hidden">
                           {[
                             ...project.tags.filter(Boolean).map((tag) => ({
                               key: `tag-${tag}`,
@@ -296,22 +297,39 @@ const Projects = () => {
                           ]
                             .filter((item) => item.label && item.label.length <= 18)
                             .slice(0, 6)
-                            .map((item) =>
+                            .map((item, itemIndex) =>
                               item.href ? (
-                                <Badge
+                                <button
                                   key={item.key}
-                                  variant={item.variant}
-                                  className="h-5 whitespace-nowrap text-[9px] uppercase leading-none px-2"
+                                  type="button"
+                                  className={
+                                    itemIndex >= 2
+                                      ? "hidden sm:inline-flex"
+                                      : "inline-flex"
+                                  }
                                   title={item.label}
-                                  asChild
+                                  onClick={(event) => {
+                                    event.preventDefault();
+                                    event.stopPropagation();
+                                    navigate(item.href);
+                                  }}
                                 >
-                                  <Link to={item.href}>{item.label}</Link>
-                                </Badge>
+                                  <Badge
+                                    variant={item.variant}
+                                    className="h-5 whitespace-nowrap text-[9px] uppercase leading-none px-2"
+                                  >
+                                    {item.label}
+                                  </Badge>
+                                </button>
                               ) : (
                                 <Badge
                                   key={item.key}
                                   variant={item.variant}
-                                  className="h-5 whitespace-nowrap text-[9px] uppercase leading-none px-2"
+                                  className={`h-5 whitespace-nowrap text-[9px] uppercase leading-none px-2 ${
+                                    itemIndex >= 2
+                                      ? "hidden sm:inline-flex"
+                                      : "inline-flex"
+                                  }`}
                                   title={item.label}
                                 >
                                   {item.label}
@@ -321,19 +339,22 @@ const Projects = () => {
                         </div>
                       ) : null}
 
-                      <div className="mt-auto flex flex-wrap gap-3 text-xs text-muted-foreground">
+                      <div className="mt-auto flex flex-wrap gap-2 text-xs text-muted-foreground">
                         {project.status ? (
-                          <span className="rounded-full border border-border/60 bg-background/50 px-3 py-1">
+                          <span className="shrink-0 rounded-full border border-border/60 bg-background/50 px-3 py-1 truncate">
                             {project.status}
                           </span>
                         ) : null}
                         {project.studio ? (
-                          <span className="rounded-full border border-border/60 bg-background/50 px-3 py-1">
+                          <span
+                            className="hidden shrink-0 max-w-[7rem] rounded-full border border-border/60 bg-background/50 px-3 py-1 truncate sm:inline-flex sm:max-w-[9rem] md:max-w-[10rem] lg:max-w-[12rem]"
+                            title={project.studio}
+                          >
                             {project.studio}
                           </span>
                         ) : null}
                         {project.episodes ? (
-                          <span className="rounded-full border border-border/60 bg-background/50 px-3 py-1">
+                          <span className="hidden shrink-0 rounded-full border border-border/60 bg-background/50 px-3 py-1 truncate xl:inline-flex">
                             {project.episodes}
                           </span>
                         ) : null}
