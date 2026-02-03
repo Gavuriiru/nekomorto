@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+﻿import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import DashboardShell from "@/components/DashboardShell";
 import ImageLibraryDialog from "@/components/ImageLibraryDialog";
@@ -43,6 +43,8 @@ import { convertPostContent, createSlug, renderPostContent, stripHtml } from "@/
 import type { Project } from "@/data/projects";
 import ProjectEmbedCard from "@/components/ProjectEmbedCard";
 import { getApiBase } from "@/lib/api-base";
+import { apiFetch } from "@/lib/api-client";
+import { formatDateTimeShort } from "@/lib/date";
 import { usePageMeta } from "@/hooks/use-page-meta";
 import { normalizeAssetUrl } from "@/lib/asset-url";
 
@@ -200,7 +202,7 @@ const DashboardPosts = () => {
   }, [formState.title, isSlugCustom]);
 
   const loadPosts = async () => {
-    const response = await fetch(`${apiBase}/api/posts`, { credentials: "include" });
+    const response = await apiFetch(apiBase, "/api/posts", { auth: true });
     if (!response.ok) {
       throw new Error("posts_load_failed");
     }
@@ -215,10 +217,10 @@ const DashboardPosts = () => {
     const load = async () => {
       try {
         const [postsRes, usersRes, meRes, projectsRes] = await Promise.all([
-          fetch(`${apiBase}/api/posts`, { credentials: "include" }),
-          fetch(`${apiBase}/api/users`, { credentials: "include" }),
-          fetch(`${apiBase}/api/me`, { credentials: "include" }),
-          fetch(`${apiBase}/api/projects`, { credentials: "include" }),
+          apiFetch(apiBase, "/api/posts", { auth: true }),
+          apiFetch(apiBase, "/api/users", { auth: true }),
+          apiFetch(apiBase, "/api/me", { auth: true }),
+          apiFetch(apiBase, "/api/projects", { auth: true }),
         ]);
 
         if (postsRes.ok) {
@@ -755,10 +757,10 @@ const DashboardPosts = () => {
 
   const uploadImage = async (file: File) => {
     const dataUrl = await fileToDataUrl(file);
-    const response = await fetch(`${apiBase}/api/uploads/image`, {
+    const response = await apiFetch(apiBase, "/api/uploads/image", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      credentials: "include",
+      auth: true,
       body: JSON.stringify({ dataUrl, filename: file.name }),
     });
     if (!response.ok) {
@@ -952,12 +954,13 @@ const DashboardPosts = () => {
       return;
     }
 
-    const response = await fetch(
-      `${apiBase}/api/posts${editingPost ? `/${editingPost.id}` : ""}`,
+    const response = await apiFetch(
+      apiBase,
+      `/api/posts${editingPost ? `/${editingPost.id}` : ""}`,
       {
         method: editingPost ? "PUT" : "POST",
         headers: { "Content-Type": "application/json" },
-        credentials: "include",
+        auth: true,
         body: JSON.stringify(payload),
       },
     );
@@ -996,9 +999,9 @@ const DashboardPosts = () => {
     if (!editingPost) {
       return;
     }
-    const response = await fetch(`${apiBase}/api/posts/${editingPost.id}`, {
+    const response = await apiFetch(apiBase, `/api/posts/${editingPost.id}`, {
       method: "DELETE",
-      credentials: "include",
+      auth: true,
     });
     if (!response.ok) {
       toast({ title: "Não foi possível excluir a postagem" });
@@ -1076,9 +1079,9 @@ const DashboardPosts = () => {
     if (!deleteTarget) {
       return;
     }
-    const response = await fetch(`${apiBase}/api/posts/${deleteTarget.id}`, {
+    const response = await apiFetch(apiBase, `/api/posts/${deleteTarget.id}`, {
       method: "DELETE",
-      credentials: "include",
+      auth: true,
     });
     if (!response.ok) {
       toast({ title: "Não foi possível excluir a postagem" });
@@ -1455,7 +1458,7 @@ const DashboardPosts = () => {
                         </span>
                         <span className="inline-flex items-center gap-2">
                           <Calendar className="h-4 w-4" />
-                          {formState.publishAt ? new Date(formState.publishAt).toLocaleString("pt-BR") : ""}
+                          {formState.publishAt ? formatDateTimeShort(formState.publishAt) : ""}
                         </span>
                       </div>
                     }
@@ -1741,11 +1744,7 @@ const DashboardPosts = () => {
               ) : (
                 <div className="grid gap-6">
                   {sortedPosts.map((post) => {
-                    const formattedDate = post.publishedAt
-                      ? new Intl.DateTimeFormat("pt-BR", { dateStyle: "medium" }).format(
-                          new Date(post.publishedAt),
-                        )
-                      : "Sem data";
+                    const formattedDate = post.publishedAt ? formatDateTimeShort(post.publishedAt) : "Sem data";
                     const project = post.projectId ? projectMap.get(post.projectId) : null;
                     const tags = Array.from(
                       new Set([
@@ -2124,3 +2123,10 @@ const DashboardPosts = () => {
 };
 
 export default DashboardPosts;
+
+
+
+
+
+
+

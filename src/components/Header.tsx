@@ -14,6 +14,7 @@ import { Menu } from "lucide-react";
 import type { Project } from "@/data/projects";
 import { cn } from "@/lib/utils";
 import { getApiBase } from "@/lib/api-base";
+import { apiFetch } from "@/lib/api-client";
 import { useSiteSettings } from "@/hooks/use-site-settings";
 
 type HeaderProps = {
@@ -126,7 +127,7 @@ const Header = ({ variant = "fixed", leading, className }: HeaderProps) => {
   useEffect(() => {
     const loadProjects = async () => {
       try {
-        const response = await fetch(`${apiBase}/api/public/projects`);
+        const response = await apiFetch(apiBase, "/api/public/projects");
         if (!response.ok) {
           return;
         }
@@ -143,7 +144,7 @@ const Header = ({ variant = "fixed", leading, className }: HeaderProps) => {
   useEffect(() => {
     const loadPosts = async () => {
       try {
-        const response = await fetch(`${apiBase}/api/public/posts`);
+        const response = await apiFetch(apiBase, "/api/public/posts");
         if (!response.ok) {
           return;
         }
@@ -160,7 +161,7 @@ const Header = ({ variant = "fixed", leading, className }: HeaderProps) => {
   useEffect(() => {
     const loadTranslations = async () => {
       try {
-        const response = await fetch(`${apiBase}/api/public/tag-translations`, { cache: "no-store" });
+        const response = await apiFetch(apiBase, "/api/public/tag-translations", { cache: "no-store" });
         if (!response.ok) {
           return;
         }
@@ -176,7 +177,7 @@ const Header = ({ variant = "fixed", leading, className }: HeaderProps) => {
   useEffect(() => {
     const loadUser = async () => {
       try {
-        const response = await fetch(`${apiBase}/api/public/me`, { credentials: "include" });
+        const response = await apiFetch(apiBase, "/api/public/me", { auth: true });
         if (!response.ok) {
           setCurrentUser(null);
           return;
@@ -433,9 +434,9 @@ const Header = ({ variant = "fixed", leading, className }: HeaderProps) => {
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   onClick={async () => {
-                    await fetch(`${apiBase}/api/logout`, {
+                    await apiFetch(apiBase, "/api/logout", {
                       method: "POST",
-                      credentials: "include",
+                      auth: true,
                     });
                     window.location.href = "/";
                   }}

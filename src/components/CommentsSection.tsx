@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+﻿import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { MessageSquare, Reply } from "lucide-react";
+import { useLocation } from "react-router-dom";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -8,6 +9,8 @@ import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
 import { getApiBase } from "@/lib/api-base";
+import { apiFetch } from "@/lib/api-client";
+import { formatDateTime } from "@/lib/date";
 
 type CommentTargetType = "post" | "project" | "chapter";
 
@@ -28,9 +31,6 @@ type CommentsSectionProps = {
   chapterNumber?: number;
   volume?: number;
 };
-
-const formatDateTime = (value: string) =>
-  new Date(value).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" });
 
 const buildCommentTree = (comments: PublicComment[]) => {
   const map = new Map<string, CommentNode>();
@@ -75,6 +75,8 @@ const CommentsSection = ({ targetType, targetId, chapterNumber, volume }: Commen
   const [canModerate, setCanModerate] = useState(false);
 
   const commentTree = useMemo(() => buildCommentTree(comments), [comments]);
+  const location = useLocation();
+  const lastScrolledRef = useRef<string | null>(null);
 
   const fetchComments = useCallback(async () => {
     try {
@@ -89,7 +91,7 @@ const CommentsSection = ({ targetType, targetId, chapterNumber, volume }: Commen
           params.set("volume", String(volume));
         }
       }
-      const response = await fetch(`${apiBase}/api/public/comments?${params.toString()}`);
+      const response = await apiFetch(apiBase, `/api/public/comments?${params.toString()}`);
       if (!response.ok) {
         setComments([]);
         return;
@@ -108,10 +110,27 @@ const CommentsSection = ({ targetType, targetId, chapterNumber, volume }: Commen
   }, [fetchComments]);
 
   useEffect(() => {
+    const hash = location.hash || "";
+    if (!hash.startsWith("#comment-")) {
+      return;
+    }
+    if (lastScrolledRef.current === hash) {
+      return;
+    }
+    const id = hash.slice(1);
+    const element = document.getElementById(id);
+    if (!element) {
+      return;
+    }
+    element.scrollIntoView({ behavior: "smooth", block: "center" });
+    lastScrolledRef.current = hash;
+  }, [comments, location.hash]);
+
+  useEffect(() => {
     let isActive = true;
     const loadMe = async () => {
       try {
-        const response = await fetch(`${apiBase}/api/public/me`, { credentials: "include" });
+        const response = await apiFetch(apiBase, "/api/public/me", { auth: true });
         if (!response.ok) {
           return;
         }
@@ -175,10 +194,10 @@ const CommentsSection = ({ targetType, targetId, chapterNumber, volume }: Commen
           payload.volume = Number(volume);
         }
       }
-      const response = await fetch(`${apiBase}/api/public/comments`, {
+      const response = await apiFetch(apiBase, "/api/public/comments", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        credentials: "include",
+        auth: true,
         body: JSON.stringify(payload),
       });
       if (!response.ok) {
@@ -196,9 +215,9 @@ const CommentsSection = ({ targetType, targetId, chapterNumber, volume }: Commen
   };
 
   const handleDelete = async (id: string) => {
-    const response = await fetch(`${apiBase}/api/comments/${id}`, {
+    const response = await apiFetch(apiBase, `/api/comments/${id}`, {
       method: "DELETE",
-      credentials: "include",
+      auth: true,
     });
     if (response.ok) {
       setComments((prev) => prev.filter((comment) => comment.id !== id));
@@ -206,7 +225,11 @@ const CommentsSection = ({ targetType, targetId, chapterNumber, volume }: Commen
   };
 
   const renderComment = (comment: CommentNode, depth = 0) => (
-    <div key={comment.id} className={depth > 0 ? "pl-6 border-l border-border/40" : ""}>
+    <div
+      key={comment.id}
+      id={`comment-${comment.id}`}
+      className={depth > 0 ? "pl-6 border-l border-border/40" : ""}
+    >
       <div className="flex gap-3">
         <Avatar className="h-10 w-10">
           {comment.avatarUrl ? <AvatarImage src={comment.avatarUrl} alt={comment.name} /> : null}
@@ -329,7 +352,7 @@ const CommentsSection = ({ targetType, targetId, chapterNumber, volume }: Commen
             Ainda não há comentários aprovados.
           </div>
         ) : (
-          <div className="space-y-6">{commentTree.map((comment) => renderComment(comment))}</div>
+        <div className="space-y-6">{commentTree.map((comment) => renderComment(comment))}</div>
         )}
       </CardContent>
     </Card>
@@ -337,3 +360,5 @@ const CommentsSection = ({ targetType, targetId, chapterNumber, volume }: Commen
 };
 
 export default CommentsSection;
+
+

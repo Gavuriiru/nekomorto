@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import type { SiteSettings } from "@/types/site-settings";
 import { getApiBase } from "@/lib/api-base";
+import { apiFetch } from "@/lib/api-client";
 import { defaultSettings, mergeSettings, SiteSettingsContext } from "@/hooks/site-settings-context";
 
 const ensureMeta = (selector: string, attrs: Record<string, string>) => {
@@ -69,7 +70,7 @@ export const SiteSettingsProvider = ({ children }: { children: ReactNode }) => {
   const refresh = useCallback(async () => {
     setIsLoading(true);
     try {
-      const response = await fetch(`${apiBase}/api/public/settings`);
+      const response = await apiFetch(apiBase, "/api/public/settings");
       if (!response.ok) {
         return;
       }

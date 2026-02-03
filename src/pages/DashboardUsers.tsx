@@ -42,6 +42,7 @@ import {
   MessageCircle,
 } from "lucide-react";
 import { getApiBase } from "@/lib/api-base";
+import { apiFetch } from "@/lib/api-client";
 import { usePageMeta } from "@/hooks/use-page-meta";
 import { useSiteSettings } from "@/hooks/use-site-settings";
 
@@ -205,9 +206,9 @@ const DashboardUsers = () => {
     const load = async () => {
       try {
         const [usersRes, meRes, linkTypesRes] = await Promise.all([
-          fetch(`${apiBase}/api/users`, { credentials: "include" }),
-          fetch(`${apiBase}/api/me`, { credentials: "include" }),
-          fetch(`${apiBase}/api/link-types`),
+          apiFetch(apiBase, "/api/users", { auth: true }),
+          apiFetch(apiBase, "/api/me", { auth: true }),
+          apiFetch(apiBase, "/api/link-types"),
         ]);
 
         if (usersRes.ok) {
@@ -300,17 +301,16 @@ const DashboardUsers = () => {
     }
 
     const method = editingUser ? "PUT" : "POST";
-    const url = editingUser
+    const path = editingUser
       ? canManageUsers
-        ? `${apiBase}/api/users/${editingUser.id}`
-        : `${apiBase}/api/users/self`
-      : `${apiBase}/api/users`;
+        ? `/api/users/${editingUser.id}`
+        : "/api/users/self"
+      : "/api/users";
 
-    const response = await fetch(url, {
+    const response = await apiFetch(apiBase, path, {
       method,
-      headers: { "Content-Type": "application/json" },
-      credentials: "include",
-      body: JSON.stringify(payload),
+      auth: true,
+      json: payload,
     });
 
     if (response.ok) {
@@ -329,10 +329,10 @@ const DashboardUsers = () => {
       return;
     }
     const nextStatus = user.status === "active" ? "retired" : "active";
-    const response = await fetch(`${apiBase}/api/users/${user.id}`, {
+    const response = await apiFetch(apiBase, `/api/users/${user.id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      credentials: "include",
+      auth: true,
       body: JSON.stringify({ status: nextStatus }),
     });
 
@@ -434,10 +434,10 @@ const DashboardUsers = () => {
     }
     const orderedIds = activeUsers.map((user) => user.id);
     const retiredIds = retiredUsers.map((user) => user.id);
-    await fetch(`${apiBase}/api/users/reorder`, {
+    await apiFetch(apiBase, "/api/users/reorder", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      credentials: "include",
+      auth: true,
       body: JSON.stringify({ orderedIds, retiredIds }),
     });
     setDragId(null);
@@ -905,4 +905,5 @@ const DashboardUsers = () => {
 };
 
 export default DashboardUsers;
+
 

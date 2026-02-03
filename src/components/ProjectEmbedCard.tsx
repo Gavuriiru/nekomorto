@@ -2,6 +2,7 @@
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { getApiBase } from "@/lib/api-base";
+import { apiFetch } from "@/lib/api-client";
 import type { Project } from "@/data/projects";
 
 type ProjectEmbedCardProps = {
@@ -21,7 +22,7 @@ const ProjectEmbedCard = ({ projectId }: ProjectEmbedCardProps) => {
     let isActive = true;
     const load = async () => {
       try {
-        const response = await fetch(`${apiBase}/api/public/projects/${projectId}`);
+        const response = await apiFetch(apiBase, `/api/public/projects/${projectId}`);
         if (!response.ok) {
           if (isActive) {
             setProject(null);
@@ -52,7 +53,7 @@ const ProjectEmbedCard = ({ projectId }: ProjectEmbedCardProps) => {
     let isActive = true;
     const loadTranslations = async () => {
       try {
-        const response = await fetch(`${apiBase}/api/public/tag-translations`, { cache: "no-store" });
+        const response = await apiFetch(apiBase, "/api/public/tag-translations", { cache: "no-store" });
         if (!response.ok) {
           return;
         }
@@ -130,3 +131,5 @@ const ProjectEmbedCard = ({ projectId }: ProjectEmbedCardProps) => {
 };
 
 export default ProjectEmbedCard;
+
+

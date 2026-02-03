@@ -1,4 +1,4 @@
-import "dotenv/config";
+﻿import "dotenv/config";
 import crypto from "crypto";
 import express from "express";
 import session from "express-session";
@@ -15,14 +15,76 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const FileStore = fileStoreFactory(session);
 
+const ownerIdsFilePath = path.join(__dirname, "data", "owner-ids.json");
+const auditLogFilePath = path.join(__dirname, "data", "audit-log.json");
+const loadOwnerIds = () => {
+  try {
+    if (!fs.existsSync(ownerIdsFilePath)) {
+      return [...OWNER_IDS];
+    }
+    const raw = fs.readFileSync(ownerIdsFilePath, "utf-8");
+    const parsed = JSON.parse(raw);
+    const fileIds = Array.isArray(parsed) ? parsed : [];
+    return Array.from(new Set([...OWNER_IDS, ...fileIds.map((id) => String(id))]));
+  } catch {
+    return [...OWNER_IDS];
+  }
+};
+const writeOwnerIds = (ids) => {
+  fs.mkdirSync(path.dirname(ownerIdsFilePath), { recursive: true });
+  const unique = Array.from(new Set(ids.map((id) => String(id).trim()).filter(Boolean)));
+  fs.writeFileSync(ownerIdsFilePath, JSON.stringify(unique, null, 2));
+};
+const isOwner = (id) => loadOwnerIds().includes(String(id));
+
+const loadAuditLog = () => {
+  try {
+    if (!fs.existsSync(auditLogFilePath)) {
+      return [];
+    }
+    const raw = fs.readFileSync(auditLogFilePath, "utf-8");
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+};
+
+const writeAuditLog = (entries) => {
+  fs.mkdirSync(path.dirname(auditLogFilePath), { recursive: true });
+  fs.writeFileSync(auditLogFilePath, JSON.stringify(entries, null, 2));
+};
+
+const appendAuditLog = (req, action, resource, meta = {}) => {
+  try {
+    const now = new Date();
+    const cutoff = now.getTime() - 30 * 24 * 60 * 60 * 1000;
+    const ip = req.headers["x-forwarded-for"]?.split(",")[0]?.trim() || req.ip;
+    const sessionUser = req.session?.user || null;
+    const entry = {
+      id: crypto.randomUUID(),
+      ts: now.toISOString(),
+      actorId: sessionUser?.id || "anonymous",
+      actorName: sessionUser?.name || "anonymous",
+      ip: String(ip || ""),
+      action,
+      resource,
+      meta,
+    };
+    const existing = loadAuditLog().filter((item) => {
+      const ts = new Date(item?.ts || 0).getTime();
+      return Number.isFinite(ts) && ts >= cutoff;
+    });
+    existing.push(entry);
+    writeAuditLog(existing);
+  } catch {
+    // ignore audit errors
+  }
+};
+
 const DISCORD_API = "https://discord.com/api/v10";
 const ANILIST_API = "https://graphql.anilist.co";
 const SCOPES = ["identify", "email"];
-const OWNER_IDS = (process.env.OWNER_IDS || "380305493391966208")
-  .split(",")
-  .map((id) => id.trim())
-  .filter(Boolean);
-const isOwner = (id) => OWNER_IDS.includes(String(id));
 
 const {
   DISCORD_CLIENT_ID,
@@ -31,18 +93,58 @@ const {
   APP_ORIGIN = "http://127.0.0.1:5173",
   SESSION_SECRET,
   PORT = 8080,
+  OWNER_IDS: OWNER_IDS_ENV = "",
+  BOOTSTRAP_TOKEN,
 } = process.env;
 
+const isProduction = process.env.NODE_ENV === "production";
+const OWNER_IDS = (OWNER_IDS_ENV || (isProduction ? "" : "380305493391966208"))
+  .split(",")
+  .map((id) => id.trim())
+  .filter(Boolean);
 const APP_ORIGINS = APP_ORIGIN.split(",")
   .map((origin) => origin.trim())
   .filter(Boolean);
 const PRIMARY_APP_ORIGIN = APP_ORIGINS[0] || "http://127.0.0.1:5173";
+const MAX_SVG_SIZE_BYTES = 256 * 1024;
+const resolveRequestOrigin = (req) => {
+  const originHeader = String(req.headers.origin || "");
+  if (originHeader) {
+    return originHeader;
+  }
+  const refererHeader = String(req.headers.referer || "");
+  if (refererHeader) {
+    try {
+      return new URL(refererHeader).origin;
+    } catch {
+      return "";
+    }
+  }
+  if (req.headers.host) {
+    const proto = req.protocol || "http";
+    return `${proto}://${req.headers.host}`;
+  }
+  return "";
+};
+const resolveDiscordRedirectUri = (req) => {
+  if (DISCORD_REDIRECT_URI && DISCORD_REDIRECT_URI !== "auto") {
+    return DISCORD_REDIRECT_URI;
+  }
+  const candidate = resolveRequestOrigin(req);
+  if (candidate && isAllowedOrigin(candidate)) {
+    return `${candidate}/login`;
+  }
+  return `${PRIMARY_APP_ORIGIN}/login`;
+};
 const isAllowedOrigin = (origin) => {
   if (!origin) {
-    return true;
+    return !isProduction;
   }
   if (APP_ORIGINS.includes(origin)) {
     return true;
+  }
+  if (isProduction) {
+    return false;
   }
   try {
     const { hostname } = new URL(origin);
@@ -66,8 +168,27 @@ const isAllowedOrigin = (origin) => {
 };
 
 if (!DISCORD_CLIENT_ID || !DISCORD_CLIENT_SECRET || !SESSION_SECRET) {
-  console.warn("Missing DISCORD_CLIENT_ID, DISCORD_CLIENT_SECRET, or SESSION_SECRET in env.");
+  if (process.env.NODE_ENV === "production") {
+    throw new Error("Missing DISCORD_CLIENT_ID, DISCORD_CLIENT_SECRET, or SESSION_SECRET in env.");
+  }
 }
+if (isProduction && !OWNER_IDS.length && !BOOTSTRAP_TOKEN) {
+  throw new Error("Missing OWNER_IDS or BOOTSTRAP_TOKEN in env.");
+}
+
+app.use((req, res, next) => {
+  if (!isProduction) {
+    return next();
+  }
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  res.setHeader("X-Frame-Options", "DENY");
+  res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
+  res.setHeader(
+    "Permissions-Policy",
+    "camera=(), microphone=(), geolocation=(), payment=(), usb=(), interest-cohort=()",
+  );
+  return next();
+});
 
 app.use(express.json({ limit: "10mb" }));
 app.use(cookieParser());
@@ -85,6 +206,32 @@ app.use(
 );
 
 app.set("trust proxy", 1);
+
+const requireSameOrigin = (req, res, next) => {
+  if (!isProduction) {
+    return next();
+  }
+  const method = req.method.toUpperCase();
+  if (method === "GET" || method === "HEAD" || method === "OPTIONS") {
+    return next();
+  }
+  const originHeader = String(req.headers.origin || "");
+  const refererHeader = String(req.headers.referer || "");
+  let origin = originHeader;
+  if (!origin && refererHeader) {
+    try {
+      origin = new URL(refererHeader).origin;
+    } catch {
+      origin = "";
+    }
+  }
+  if (!origin || !isAllowedOrigin(origin)) {
+    return res.status(403).json({ error: "csrf" });
+  }
+  return next();
+};
+app.use("/api", requireSameOrigin);
+
 const sessionPath = path.join(__dirname, "data", "sessions");
 if (!fs.existsSync(sessionPath)) {
   fs.mkdirSync(sessionPath, { recursive: true });
@@ -186,7 +333,7 @@ const defaultSiteSettings = {
     logoUrl: "",
     faviconUrl: "",
     description:
-      "Fansub dedicada a trazer histórias inesquecíveis com o carinho que a comunidade merece.",
+      "Fansub dedicada a trazer histÃ³rias inesquecÃ­veis com o carinho que a comunidade merece.",
     defaultShareImage: "/placeholder.svg",
     titleSeparator: " | ",
   },
@@ -223,7 +370,7 @@ const defaultSiteSettings = {
     brandName: "NEKOMATA",
     brandLogoUrl: "",
     brandDescription:
-      "Fansub dedicada a trazer histórias inesquecíveis com o carinho que a comunidade merece. Traduzimos por paixão, respeitando autores e apoiando o consumo legal das obras.",
+      "Fansub dedicada a trazer histÃ³rias inesquecÃ­veis com o carinho que a comunidade merece. Traduzimos por paixÃ£o, respeitando autores e apoiando o consumo legal das obras.",
     columns: [
       {
         title: "Nekomata",
@@ -236,11 +383,11 @@ const defaultSiteSettings = {
         title: "Ajude nossa equipe",
         links: [
           { label: "Recrutamento", href: "https://discord.com/invite/BAHKhdX2ju" },
-          { label: "Doações", href: "/doacoes" },
+          { label: "DoaÃ§Ãµes", href: "/doacoes" },
         ],
       },
       {
-        title: "Links úteis",
+        title: "Links Ãºteis",
         links: [
           { label: "Projetos", href: "/projetos" },
           { label: "FAQ", href: "/faq" },
@@ -256,13 +403,13 @@ const defaultSiteSettings = {
       { label: "Discord", href: "https://discord.com/invite/BAHKhdX2ju", icon: "discord" },
     ],
     disclaimer: [
-      "Todo o conteúdo divulgado aqui pertence a seus respectivos autores e editoras. As traduções são realizadas por fãs, sem fins lucrativos, com o objetivo de divulgar as obras no Brasil.",
-      "Caso goste de alguma obra, apoie a versão oficial. A venda de materiais legendados pela equipe é proibida.",
+      "Todo o conteÃºdo divulgado aqui pertence a seus respectivos autores e editoras. As traduÃ§Ãµes sÃ£o realizadas por fÃ£s, sem fins lucrativos, com o objetivo de divulgar as obras no Brasil.",
+      "Caso goste de alguma obra, apoie a versÃ£o oficial. A venda de materiais legendados pela equipe Ã© proibida.",
     ],
-    highlightTitle: "Atribuição • Não Comercial",
+    highlightTitle: "AtribuiÃ§Ã£o â€¢ NÃ£o Comercial",
     highlightDescription:
-      "Este site segue a licença Creative Commons BY-NC. Você pode compartilhar com créditos, sem fins comerciais.",
-    copyright: "© 2014 - 2026 Nekomata Fansub. Feito por fãs para fãs.",
+      "Este site segue a licenÃ§a Creative Commons BY-NC. VocÃª pode compartilhar com crÃ©ditos, sem fins comerciais.",
+    copyright: "Â© 2014 - 2026 Nekomata Fansub. Feito por fÃ£s para fÃ£s.",
   },
 };
 
@@ -464,6 +611,97 @@ const canSubmitComment = (ip) => {
   commentRateLimit.set(ip, entry);
   return entry.count <= maxPerWindow;
 };
+
+const authRateLimit = new Map();
+const canAttemptAuth = (ip) => {
+  if (!ip) {
+    return true;
+  }
+  const now = Date.now();
+  const windowMs = 60 * 1000;
+  const maxPerWindow = isProduction ? 20 : 120;
+  const entry = authRateLimit.get(ip) || { count: 0, resetAt: now + windowMs };
+  if (now > entry.resetAt) {
+    entry.count = 0;
+    entry.resetAt = now + windowMs;
+  }
+  entry.count += 1;
+  authRateLimit.set(ip, entry);
+  return entry.count <= maxPerWindow;
+};
+
+const uploadRateLimit = new Map();
+const canUploadImage = (ip) => {
+  if (!ip) {
+    return true;
+  }
+  const now = Date.now();
+  const windowMs = 60 * 1000;
+  const maxPerWindow = isProduction ? 20 : 120;
+  const entry = uploadRateLimit.get(ip) || { count: 0, resetAt: now + windowMs };
+  if (now > entry.resetAt) {
+    entry.count = 0;
+    entry.resetAt = now + windowMs;
+  }
+  entry.count += 1;
+  uploadRateLimit.set(ip, entry);
+  return entry.count <= maxPerWindow;
+};
+
+const bootstrapRateLimit = new Map();
+const canBootstrap = (ip) => {
+  if (!ip) {
+    return true;
+  }
+  const now = Date.now();
+  const windowMs = 60 * 1000;
+  const maxPerWindow = isProduction ? 5 : 60;
+  const entry = bootstrapRateLimit.get(ip) || { count: 0, resetAt: now + windowMs };
+  if (now > entry.resetAt) {
+    entry.count = 0;
+    entry.resetAt = now + windowMs;
+  }
+  entry.count += 1;
+  bootstrapRateLimit.set(ip, entry);
+  return entry.count <= maxPerWindow;
+};
+
+const sanitizeSvg = (value) => {
+  if (!value) return "";
+  let output = value;
+  output = output.replace(/<\s*script[^>]*>[\s\S]*?<\s*\/\s*script\s*>/gi, "");
+  output = output.replace(/<\s*foreignObject[^>]*>[\s\S]*?<\s*\/\s*foreignObject\s*>/gi, "");
+  output = output.replace(/<\s*(iframe|object|embed)[^>]*>[\s\S]*?<\s*\/\s*\1\s*>/gi, "");
+  output = output.replace(/\son\w+\s*=\s*(["']).*?\1/gi, "");
+  output = output.replace(/javascript:/gi, "");
+  output = output.replace(/data:(?!image\/(png|jpe?g|gif|webp);base64)/gi, "");
+  output = output.replace(/(href|xlink:href|src)\s*=\s*(["'])(.*?)\2/gi, (_m, attr, quote, url) => {
+    const safe = String(url || "");
+    if (safe.startsWith("#") || safe.startsWith("/")) {
+      return `${attr}=${quote}${safe}${quote}`;
+    }
+    return "";
+  });
+  return output;
+};
+
+const viewRateLimit = new Map();
+const canRegisterView = (ip) => {
+  if (!ip) {
+    return true;
+  }
+  const now = Date.now();
+  const windowMs = 60 * 1000;
+  const maxPerWindow = isProduction ? 60 : 300;
+  const entry = viewRateLimit.get(ip) || { count: 0, resetAt: now + windowMs };
+  if (now > entry.resetAt) {
+    entry.count = 0;
+    entry.resetAt = now + windowMs;
+  }
+  entry.count += 1;
+  viewRateLimit.set(ip, entry);
+  return entry.count <= maxPerWindow;
+};
 const createSlug = (value) =>
   String(value || "")
     .toLowerCase()
@@ -474,7 +712,7 @@ const normalizePosts = (posts) => {
   const now = Date.now();
   return posts.map((post, index) => {
     const id = String(post.id || `${Date.now()}-${index}`);
-    const title = String(post.title || "Sem título");
+    const title = String(post.title || "Sem tÃ­tulo");
     const slug = String(post.slug || createSlug(title) || id);
     const publishedAt = post.publishedAt || post.createdAt || new Date().toISOString();
     const scheduledAt = post.scheduledAt || null;
@@ -514,7 +752,7 @@ const normalizeProjects = (projects) =>
   projects.map((project, index) => ({
     id: String(project.id || `project-${Date.now()}-${index}`),
     anilistId: project.anilistId ? Number(project.anilistId) : null,
-    title: String(project.title || "Sem título"),
+    title: String(project.title || "Sem tÃ­tulo"),
     titleOriginal: String(project.titleOriginal || ""),
     titleEnglish: String(project.titleEnglish || ""),
     synopsis: String(project.synopsis || ""),
@@ -656,7 +894,7 @@ const collectEpisodeUpdates = (prevProject, nextProject) => {
     typeLabel.includes("webtoon") ||
     typeLabel.includes("light") ||
     typeLabel.includes("novel");
-  const unitLabel = isChapterBased ? "Capítulo" : "Episódio";
+  const unitLabel = isChapterBased ? "CapÃ­tulo" : "EpisÃ³dio";
   const isLightNovel =
     typeLabel.includes("light") || typeLabel.includes("novel");
   nextEpisodes.forEach((ep) => {
@@ -690,8 +928,8 @@ const collectEpisodeUpdates = (prevProject, nextProject) => {
           return;
         }
         updates.push({
-          kind: "Lançamento",
-          reason: `${unitLabel} ${number} disponível`,
+          kind: "LanÃ§amento",
+          reason: `${unitLabel} ${number} disponÃ­vel`,
           episodeNumber: number,
           unit: unitLabel,
           updatedAt: chapterUpdatedAt,
@@ -701,7 +939,7 @@ const collectEpisodeUpdates = (prevProject, nextProject) => {
       if (nextSignature !== prevSignature) {
         updates.push({
           kind: "Ajuste",
-          reason: `Conteúdo ajustado no ${unitLabel.toLowerCase()} ${number}`,
+          reason: `ConteÃºdo ajustado no ${unitLabel.toLowerCase()} ${number}`,
           episodeNumber: number,
           unit: unitLabel,
           updatedAt: chapterUpdatedAt || new Date().toISOString(),
@@ -711,8 +949,8 @@ const collectEpisodeUpdates = (prevProject, nextProject) => {
     }
     if (!prev || prevSources.length === 0) {
       updates.push({
-        kind: "Lançamento",
-        reason: `${unitLabel} ${number} disponível`,
+        kind: "LanÃ§amento",
+        reason: `${unitLabel} ${number} disponÃ­vel`,
         episodeNumber: number,
         unit: unitLabel,
       });
@@ -755,6 +993,11 @@ const createDiscordAvatarUrl = (user) => {
 };
 
 app.get("/auth/discord", (req, res) => {
+  const ip = req.headers["x-forwarded-for"]?.split(",")[0]?.trim() || req.ip;
+  if (!canAttemptAuth(ip)) {
+    appendAuditLog(req, "auth.discord.rate_limited", "auth", {});
+    return res.status(429).json({ error: "rate_limited" });
+  }
   const state = crypto.randomBytes(16).toString("hex");
   if (req.session) {
     req.session.oauthState = state;
@@ -766,10 +1009,15 @@ app.get("/auth/discord", (req, res) => {
     }
   }
 
+  const redirectUri = resolveDiscordRedirectUri(req);
+  if (req.session) {
+    req.session.discordRedirectUri = redirectUri;
+  }
+
   const params = new URLSearchParams({
     client_id: DISCORD_CLIENT_ID || "",
     response_type: "code",
-    redirect_uri: DISCORD_REDIRECT_URI,
+    redirect_uri: redirectUri,
     scope: SCOPES.join(" "),
     state,
     prompt: "consent",
@@ -779,13 +1027,20 @@ app.get("/auth/discord", (req, res) => {
 });
 
 app.get("/login", async (req, res) => {
+  const ip = req.headers["x-forwarded-for"]?.split(",")[0]?.trim() || req.ip;
+  if (!canAttemptAuth(ip)) {
+    appendAuditLog(req, "auth.login.rate_limited", "auth", {});
+    return res.redirect(`${PRIMARY_APP_ORIGIN}/login?error=rate_limited`);
+  }
   const { code, state } = req.query;
 
   if (!code || typeof code !== "string") {
+    appendAuditLog(req, "auth.login.failed", "auth", { error: "missing_code" });
     return res.redirect(`${PRIMARY_APP_ORIGIN}/login?error=missing_code`);
   }
 
   if (!state || typeof state !== "string" || state !== req.session?.oauthState) {
+    appendAuditLog(req, "auth.login.failed", "auth", { error: "state_mismatch" });
     return res.redirect(`${PRIMARY_APP_ORIGIN}/login?error=state_mismatch`);
   }
 
@@ -794,22 +1049,28 @@ app.get("/login", async (req, res) => {
   }
 
   try {
-    const tokenResponse = await fetch(`${DISCORD_API}/oauth2/token`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/x-www-form-urlencoded",
-      },
-      body: new URLSearchParams({
-        client_id: DISCORD_CLIENT_ID || "",
-        client_secret: DISCORD_CLIENT_SECRET || "",
-        grant_type: "authorization_code",
-        code,
-        redirect_uri: DISCORD_REDIRECT_URI,
-        scope: SCOPES.join(" "),
-      }),
-    });
+  const redirectUri = req.session?.discordRedirectUri || DISCORD_REDIRECT_URI || resolveDiscordRedirectUri(req);
+  if (req.session) {
+    req.session.discordRedirectUri = null;
+  }
+
+  const tokenResponse = await fetch(`${DISCORD_API}/oauth2/token`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded",
+    },
+    body: new URLSearchParams({
+      client_id: DISCORD_CLIENT_ID || "",
+      client_secret: DISCORD_CLIENT_SECRET || "",
+      grant_type: "authorization_code",
+      code,
+      redirect_uri: redirectUri,
+      scope: SCOPES.join(" "),
+    }),
+  });
 
     if (!tokenResponse.ok) {
+      appendAuditLog(req, "auth.login.failed", "auth", { error: "token_exchange_failed" });
       return res.redirect(`${PRIMARY_APP_ORIGIN}/login?error=token_exchange_failed`);
     }
 
@@ -822,6 +1083,7 @@ app.get("/login", async (req, res) => {
     });
 
     if (!userResponse.ok) {
+      appendAuditLog(req, "auth.login.failed", "auth", { error: "user_fetch_failed" });
       return res.redirect(`${PRIMARY_APP_ORIGIN}/login?error=user_fetch_failed`);
     }
 
@@ -833,6 +1095,7 @@ app.get("/login", async (req, res) => {
       if (req.session) {
         req.session.destroy(() => undefined);
       }
+      appendAuditLog(req, "auth.login.failed", "auth", { error: "unauthorized" });
       return res.redirect(`${PRIMARY_APP_ORIGIN}/login?error=unauthorized`);
     }
 
@@ -844,6 +1107,7 @@ app.get("/login", async (req, res) => {
       avatarUrl: createDiscordAvatarUrl(discordUser),
     };
     ensureOwnerUser(req.session.user);
+    appendAuditLog(req, "auth.login.success", "auth", { userId: discordUser.id });
 
     const next = req.session?.loginNext;
     if (req.session) {
@@ -851,6 +1115,7 @@ app.get("/login", async (req, res) => {
     }
     return res.redirect(next ? `${PRIMARY_APP_ORIGIN}${next}` : `${PRIMARY_APP_ORIGIN}/dashboard`);
   } catch {
+    appendAuditLog(req, "auth.login.failed", "auth", { error: "server_error" });
     return res.redirect(`${PRIMARY_APP_ORIGIN}/login?error=server_error`);
   }
 });
@@ -999,9 +1264,25 @@ const canManageSettings = (userId) => {
   return permissions.includes("*") || permissions.includes("configuracoes");
 };
 
+const canManageUploads = (userId) => {
+  if (!userId) {
+    return false;
+  }
+  if (isOwner(userId)) {
+    return true;
+  }
+  const user = normalizeUsers(loadUsers()).find((item) => item.id === String(userId));
+  const permissions = Array.isArray(user?.permissions) ? user.permissions : [];
+  return (
+    permissions.includes("*") ||
+    permissions.includes("posts") ||
+    permissions.includes("projetos") ||
+    permissions.includes("configuracoes")
+  );
+};
 const syncAllowedUsers = (users) => {
   const activeIds = users.filter((user) => user.status === "active").map((user) => user.id);
-  const unique = Array.from(new Set([...OWNER_IDS, ...activeIds]));
+  const unique = Array.from(new Set([...loadOwnerIds(), ...activeIds]));
   writeAllowedUsers(unique);
 };
 
@@ -1064,7 +1345,56 @@ app.get("/api/users", requireAuth, (req, res) => {
   users.sort((a, b) => a.order - b.order);
   writeUsers(users);
   syncAllowedUsers(users);
-  res.json({ users: users.map(applyOwnerRole), ownerIds: OWNER_IDS });
+  appendAuditLog(req, "users.read", "users", {});
+  res.json({ users: users.map(applyOwnerRole), ownerIds: loadOwnerIds() });
+});
+
+app.get("/api/owners", requireOwner, (req, res) => {
+  appendAuditLog(req, "owners.read", "owners", {});
+  return res.json({ ownerIds: loadOwnerIds() });
+});
+
+app.put("/api/owners", requireOwner, (req, res) => {
+  const ownerIds = req.body?.ownerIds;
+  if (!Array.isArray(ownerIds)) {
+    return res.status(400).json({ error: "owner_ids_required" });
+  }
+  writeOwnerIds(ownerIds);
+  syncAllowedUsers(normalizeUsers(loadUsers()));
+  appendAuditLog(req, "owners.update", "owners", { count: ownerIds.length });
+  return res.json({ ownerIds: loadOwnerIds() });
+});
+
+app.post("/api/bootstrap-owner", requireAuth, (req, res) => {
+  const ip = req.headers["x-forwarded-for"]?.split(",")[0]?.trim() || req.ip;
+  if (!canBootstrap(ip)) {
+    appendAuditLog(req, "auth.bootstrap.rate_limited", "owners", {});
+    return res.status(429).json({ error: "rate_limited" });
+  }
+  if (!BOOTSTRAP_TOKEN) {
+    appendAuditLog(req, "auth.bootstrap.disabled", "owners", {});
+    return res.status(403).json({ error: "bootstrap_disabled" });
+  }
+  const currentOwners = loadOwnerIds();
+  if (currentOwners.length) {
+    appendAuditLog(req, "auth.bootstrap.denied", "owners", { error: "owner_exists" });
+    return res.status(409).json({ error: "owner_exists" });
+  }
+  const token = String(req.body?.token || req.headers["x-bootstrap-token"] || "");
+  if (!token || token !== BOOTSTRAP_TOKEN) {
+    appendAuditLog(req, "auth.bootstrap.denied", "owners", { error: "invalid_token" });
+    return res.status(403).json({ error: "invalid_token" });
+  }
+  const sessionUser = req.session?.user;
+  if (!sessionUser?.id) {
+    appendAuditLog(req, "auth.bootstrap.denied", "owners", { error: "unauthorized" });
+    return res.status(401).json({ error: "unauthorized" });
+  }
+  writeOwnerIds([sessionUser.id]);
+  ensureOwnerUser(sessionUser);
+  syncAllowedUsers(normalizeUsers(loadUsers()));
+  appendAuditLog(req, "auth.bootstrap.success", "owners", { ownerId: sessionUser.id });
+  return res.json({ ok: true, ownerIds: loadOwnerIds() });
 });
 
 app.get("/api/public/users", (req, res) => {
@@ -1174,6 +1504,10 @@ app.get("/api/public/posts/:slug", (req, res) => {
 });
 
 app.post("/api/public/posts/:slug/view", (req, res) => {
+  const ip = req.headers["x-forwarded-for"]?.split(",")[0]?.trim() || req.ip;
+  if (!canRegisterView(ip)) {
+    return res.status(429).json({ error: "rate_limited" });
+  }
   const now = Date.now();
   const slug = String(req.params.slug || "");
   const posts = normalizePosts(loadPosts());
@@ -1329,14 +1663,14 @@ const buildCommentTargetInfo = (comment, posts, projects) => {
     if (!post) {
       return { label: "Postagem", url: PRIMARY_APP_ORIGIN };
     }
-    return { label: post.title, url: `${PRIMARY_APP_ORIGIN}/postagem/${post.slug}` };
+    return { label: post.title, url: `${PRIMARY_APP_ORIGIN}/postagem/${post.slug}#comment-${comment.id}` };
   }
   if (comment.targetType === "project") {
     const project = projects.find((item) => item.id === comment.targetId);
     if (!project) {
       return { label: "Projeto", url: PRIMARY_APP_ORIGIN };
     }
-    return { label: project.title, url: `${PRIMARY_APP_ORIGIN}/projeto/${project.id}` };
+    return { label: project.title, url: `${PRIMARY_APP_ORIGIN}/projeto/${project.id}#comment-${comment.id}` };
   }
   if (comment.targetType === "chapter") {
     const project = projects.find((item) => item.id === comment.targetId);
@@ -1346,7 +1680,7 @@ const buildCommentTargetInfo = (comment, posts, projects) => {
     const projectLabel = project?.title ? `${project.title} • ${chapterLabel}` : chapterLabel;
     const volumeQuery = Number.isFinite(volume) ? `?volume=${volume}` : "";
     const url = project
-      ? `${PRIMARY_APP_ORIGIN}/projeto/${project.id}/leitura/${chapterNumber}${volumeQuery}`
+      ? `${PRIMARY_APP_ORIGIN}/projeto/${project.id}/leitura/${chapterNumber}${volumeQuery}#comment-${comment.id}`
       : PRIMARY_APP_ORIGIN;
     return { label: projectLabel, url };
   }
@@ -1550,6 +1884,7 @@ app.post("/api/posts", requireAuth, (req, res) => {
 
   posts.push(newPost);
   writePosts(posts);
+  appendAuditLog(req, "posts.create", "posts", { id: newPost.id, slug: newPost.slug });
   return res.json({ post: newPost });
 });
 
@@ -1612,6 +1947,7 @@ app.put("/api/posts/:id", requireAuth, (req, res) => {
 
   posts[index] = updated;
   writePosts(posts);
+  appendAuditLog(req, "posts.update", "posts", { id: updated.id, slug: updated.slug });
   return res.json({ post: updated });
 });
 
@@ -1628,6 +1964,7 @@ app.delete("/api/posts/:id", requireAuth, (req, res) => {
     return res.status(404).json({ error: "not_found" });
   }
   writePosts(next);
+  appendAuditLog(req, "posts.delete", "posts", { id });
   return res.json({ ok: true });
 });
 
@@ -1672,6 +2009,7 @@ app.post("/api/projects", requireAuth, (req, res) => {
 
   projects.push(nextProject);
   writeProjects(projects);
+  appendAuditLog(req, "projects.create", "projects", { id: nextProject.id });
 
   const updates = loadUpdates();
   const episodeUpdates = collectEpisodeUpdates(null, nextProject);
@@ -1708,9 +2046,9 @@ app.post("/api/projects", requireAuth, (req, res) => {
         projectId: nextProject.id,
         projectTitle: nextProject.title,
         episodeNumber: episode.number,
-        kind: "Lançamento",
-        reason: `Capítulo ${episode.number} disponível`,
-        unit: "Capítulo",
+        kind: "LanÃ§amento",
+        reason: `CapÃ­tulo ${episode.number} disponÃ­vel`,
+        unit: "CapÃ­tulo",
         updatedAt: new Date(Date.now() - fallbackSource.indexOf(episode) * 1000).toISOString(),
         image: nextProject.cover || "",
       }));
@@ -1749,6 +2087,7 @@ app.put("/api/projects/:id", requireAuth, (req, res) => {
 
   projects[index] = merged;
   writeProjects(projects);
+  appendAuditLog(req, "projects.update", "projects", { id: merged.id });
 
   const updates = loadUpdates();
   const episodeUpdates = collectEpisodeUpdates(existing, merged);
@@ -1787,9 +2126,9 @@ app.put("/api/projects/:id", requireAuth, (req, res) => {
         projectId: merged.id,
         projectTitle: merged.title,
         episodeNumber: episode.number,
-        kind: "Lançamento",
-        reason: `Capítulo ${episode.number} disponível`,
-        unit: "Capítulo",
+        kind: "LanÃ§amento",
+        reason: `CapÃ­tulo ${episode.number} disponÃ­vel`,
+        unit: "CapÃ­tulo",
         updatedAt: new Date(Date.now() - fallbackSource.indexOf(episode) * 1000).toISOString(),
         image: merged.cover || "",
       }));
@@ -1813,6 +2152,7 @@ app.delete("/api/projects/:id", requireAuth, (req, res) => {
     return res.status(404).json({ error: "not_found" });
   }
   writeProjects(next);
+  appendAuditLog(req, "projects.delete", "projects", { id });
   return res.json({ ok: true });
 });
 
@@ -1831,6 +2171,7 @@ app.put("/api/projects/reorder", requireAuth, (req, res) => {
     orderMap.has(project.id) ? { ...project, order: orderMap.get(project.id) } : project,
   );
   writeProjects(next);
+  appendAuditLog(req, "projects.reorder", "projects", { count: next.length });
   return res.json({ ok: true });
 });
 
@@ -1861,6 +2202,7 @@ app.post("/api/projects/:id/rebuild-updates", requireAuth, (req, res) => {
     .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
   const rebuilt = [...updates, ...episodeUpdates];
   writeUpdates(rebuilt);
+  appendAuditLog(req, "projects.rebuild_updates", "projects", { id });
   return res.json({ ok: true, updates: episodeUpdates.length });
 });
 
@@ -1927,6 +2269,10 @@ app.get("/api/public/projects/:id", (req, res) => {
 });
 
 app.post("/api/public/projects/:id/view", (req, res) => {
+  const ip = req.headers["x-forwarded-for"]?.split(",")[0]?.trim() || req.ip;
+  if (!canRegisterView(ip)) {
+    return res.status(429).json({ error: "rate_limited" });
+  }
   const id = String(req.params.id || "");
   const projects = normalizeProjects(loadProjects());
   const project = projects.find((item) => item.id === id);
@@ -2056,7 +2402,7 @@ app.get("/api/public/pages", (req, res) => {
 app.get("/api/settings", requireAuth, (req, res) => {
   const userId = req.session?.user?.id;
   if (!canManageSettings(userId)) {
-    return res.status(403).json({ error: "Sem permissão para gerenciar configurações." });
+    return res.status(403).json({ error: "Sem permissÃ£o para gerenciar configuraÃ§Ãµes." });
   }
   return res.json({ settings: loadSiteSettings() });
 });
@@ -2064,21 +2410,22 @@ app.get("/api/settings", requireAuth, (req, res) => {
 app.put("/api/settings", requireAuth, (req, res) => {
   const userId = req.session?.user?.id;
   if (!canManageSettings(userId)) {
-    return res.status(403).json({ error: "Sem permissão para gerenciar configurações." });
+    return res.status(403).json({ error: "Sem permissÃ£o para gerenciar configuraÃ§Ãµes." });
   }
   const settings = req.body?.settings;
   if (!settings || typeof settings !== "object") {
-    return res.status(400).json({ error: "Payload inválido." });
+    return res.status(400).json({ error: "Payload invÃ¡lido." });
   }
   const normalized = normalizeSiteSettings(settings);
   writeSiteSettings(normalized);
+  appendAuditLog(req, "settings.update", "settings", {});
   return res.json({ settings: normalized });
 });
 
 app.get("/api/pages", requireAuth, (req, res) => {
   const userId = req.session?.user?.id;
   if (!canManagePages(userId)) {
-    return res.status(403).json({ error: "Sem permissão para gerenciar páginas." });
+    return res.status(403).json({ error: "Sem permissÃ£o para gerenciar pÃ¡ginas." });
   }
   return res.json({ pages: loadPages() });
 });
@@ -2086,13 +2433,14 @@ app.get("/api/pages", requireAuth, (req, res) => {
 app.put("/api/pages", requireAuth, (req, res) => {
   const userId = req.session?.user?.id;
   if (!canManagePages(userId)) {
-    return res.status(403).json({ error: "Sem permissão para gerenciar páginas." });
+    return res.status(403).json({ error: "Sem permissÃ£o para gerenciar pÃ¡ginas." });
   }
   const pages = req.body?.pages;
   if (!pages || typeof pages !== "object") {
-    return res.status(400).json({ error: "Payload inválido." });
+    return res.status(400).json({ error: "Payload invÃ¡lido." });
   }
   writePages(pages);
+  appendAuditLog(req, "pages.update", "pages", {});
   return res.json({ pages });
 });
 
@@ -2233,8 +2581,12 @@ app.get("/api/anilist/:id", requireAuth, async (req, res) => {
 
 app.post("/api/uploads/image", requireAuth, (req, res) => {
   const sessionUser = req.session.user;
-  if (!canManagePosts(sessionUser?.id)) {
+  if (!canManageUploads(sessionUser?.id)) {
     return res.status(403).json({ error: "forbidden" });
+  }
+  const ip = req.headers["x-forwarded-for"]?.split(",")[0]?.trim() || req.ip;
+  if (!canUploadImage(ip)) {
+    return res.status(429).json({ error: "rate_limited" });
   }
 
   const { dataUrl, filename, folder } = req.body || {};
@@ -2248,8 +2600,14 @@ app.post("/api/uploads/image", requireAuth, (req, res) => {
   }
 
   const mime = match[1];
+  if (!/^(image\/(png|jpe?g|gif|webp|svg\+xml))$/i.test(mime)) {
+    return res.status(400).json({ error: "unsupported_image_type" });
+  }
   const buffer = Buffer.from(match[2], "base64");
   const ext = mime.split("/")[1] || "png";
+  if (mime.toLowerCase() === "image/svg+xml" && buffer.length > MAX_SVG_SIZE_BYTES) {
+    return res.status(400).json({ error: "svg_too_large" });
+  }
   const safeName = String(filename || "upload")
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
@@ -2266,8 +2624,15 @@ app.post("/api/uploads/image", requireAuth, (req, res) => {
   const targetDir = safeFolder ? path.join(uploadsDir, safeFolder) : uploadsDir;
   fs.mkdirSync(targetDir, { recursive: true });
   const filePath = path.join(targetDir, fileName);
-  fs.writeFileSync(filePath, buffer);
+  if (mime.toLowerCase() === "image/svg+xml") {
+    const svgText = buffer.toString("utf-8");
+    const sanitized = sanitizeSvg(svgText);
+    fs.writeFileSync(filePath, sanitized);
+  } else {
+    fs.writeFileSync(filePath, buffer);
+  }
 
+  appendAuditLog(req, "uploads.image", "uploads", { fileName, folder: safeFolder || "" });
   return res.json({
     url: `${PRIMARY_APP_ORIGIN}/uploads/${safeFolder ? `${safeFolder}/` : ""}${fileName}`,
     fileName,
@@ -2275,6 +2640,10 @@ app.post("/api/uploads/image", requireAuth, (req, res) => {
 });
 
 app.get("/api/uploads/list", requireAuth, (req, res) => {
+  const sessionUser = req.session.user;
+  if (!canManageUploads(sessionUser?.id)) {
+    return res.status(403).json({ error: "forbidden" });
+  }
   const uploadsDir = path.join(__dirname, "..", "public", "uploads");
   const folder = typeof req.query.folder === "string" ? req.query.folder.trim() : "";
   const listAll = folder === "__all__";
@@ -2361,7 +2730,7 @@ const getUsedUploadUrls = () => {
 
 app.delete("/api/uploads/delete", requireAuth, (req, res) => {
   const sessionUser = req.session.user;
-  if (!canManagePosts(sessionUser?.id)) {
+  if (!canManageUploads(sessionUser?.id)) {
     return res.status(403).json({ error: "forbidden" });
   }
 
@@ -2392,6 +2761,7 @@ app.delete("/api/uploads/delete", requireAuth, (req, res) => {
     if (fs.existsSync(resolved)) {
       fs.unlinkSync(resolved);
     }
+    appendAuditLog(req, "uploads.delete", "uploads", { url: normalized });
     return res.json({ ok: true });
   } catch {
     return res.status(500).json({ error: "delete_failed" });
@@ -2431,6 +2801,7 @@ app.post("/api/users", requireOwner, (req, res) => {
   );
   writeUsers(users);
   syncAllowedUsers(users);
+  appendAuditLog(req, "users.create", "users", { id: newUser.id });
   return res.status(201).json({ user: newUser });
 });
 
@@ -2472,6 +2843,7 @@ app.put("/api/users/reorder", requireAuth, (req, res) => {
   users.sort((a, b) => a.order - b.order);
   writeUsers(users);
   syncAllowedUsers(users);
+  appendAuditLog(req, "users.reorder", "users", {});
   return res.json({ ok: true });
 });
 
@@ -2526,6 +2898,7 @@ app.put("/api/users/:id", (req, res) => {
   );
   writeUsers(users);
   syncAllowedUsers(users);
+  appendAuditLog(req, "users.update", "users", { id: targetId });
   return res.json({ user: applyOwnerRole(updated) });
 });
 
@@ -2557,15 +2930,24 @@ app.put("/api/users/self", requireAuth, (req, res) => {
   );
   writeUsers(users);
   syncAllowedUsers(users);
+  appendAuditLog(req, "users.update_self", "users", { id: sessionUser.id });
   return res.json({ user: updated });
 });
 
 app.post("/api/logout", (req, res) => {
+  appendAuditLog(req, "auth.logout", "auth", {});
   req.session?.destroy(() => undefined);
   res.clearCookie("rainbow.sid");
   res.json({ ok: true });
 });
 
-app.listen(Number(PORT), () => {
-  console.log(`Auth server running on http://127.0.0.1:${PORT}`);
-});
+app.listen(Number(PORT));
+
+
+
+
+
+
+
+
+

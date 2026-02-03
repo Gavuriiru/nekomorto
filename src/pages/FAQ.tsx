@@ -5,6 +5,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { HelpCircle, Info, Users, Rocket, Shield, Sparkles } from "lucide-react";
 import { getApiBase } from "@/lib/api-base";
+import { apiFetch } from "@/lib/api-client";
 import { usePageMeta } from "@/hooks/use-page-meta";
 
 const iconMap: Record<string, typeof HelpCircle> = {
@@ -83,7 +84,7 @@ const FAQ = () => {
     let isActive = true;
     const load = async () => {
       try {
-        const response = await fetch(`${apiBase}/api/public/pages`);
+        const response = await apiFetch(apiBase, "/api/public/pages");
         if (!response.ok) {
           return;
         }
@@ -175,3 +176,5 @@ const FAQ = () => {
 };
 
 export default FAQ;
+
+

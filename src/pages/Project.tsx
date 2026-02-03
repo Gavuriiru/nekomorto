@@ -24,6 +24,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { getApiBase } from "@/lib/api-base";
+import { isChapterBasedType, isLightNovelType, isMangaType } from "@/lib/project-utils";
+import { formatDate } from "@/lib/date";
+import { apiFetch } from "@/lib/api-client";
 import { useSiteSettings } from "@/hooks/use-site-settings";
 import { usePageMeta } from "@/hooks/use-page-meta";
 import NotFound from "./NotFound";
@@ -55,7 +58,7 @@ const ProjectPage = () => {
     let isActive = true;
     const load = async () => {
       try {
-        const response = await fetch(`${apiBase}/api/public/projects/${slug}`);
+        const response = await apiFetch(apiBase, `/api/public/projects/${slug}`);
         if (!response.ok) {
           if (isActive) {
             setProject(null);
@@ -90,15 +93,15 @@ const ProjectPage = () => {
       return;
     }
     trackedViewsRef.current.add(project.id);
-    void fetch(`${apiBase}/api/public/projects/${project.id}/view`, { method: "POST" });
+    void apiFetch(apiBase, `/api/public/projects/${project.id}/view`, { method: "POST" });
   }, [apiBase, project?.id]);
   useEffect(() => {
     let isActive = true;
     const loadMeta = async () => {
       try {
         const [projectsRes, tagsRes] = await Promise.all([
-          fetch(`${apiBase}/api/public/projects`),
-          fetch(`${apiBase}/api/public/tag-translations`, { cache: "no-store" }),
+          apiFetch(apiBase, "/api/public/projects"),
+          apiFetch(apiBase, "/api/public/tag-translations", { cache: "no-store" }),
         ]);
         if (projectsRes.ok) {
           const data = await projectsRes.json();
@@ -133,12 +136,7 @@ const ProjectPage = () => {
       return [];
     }
     const typeLabel = (project.type || "").toLowerCase();
-    const isChapterBased =
-      typeLabel === "mangá" ||
-      typeLabel === "manga" ||
-      typeLabel === "webtoon" ||
-      typeLabel.includes("light") ||
-      typeLabel.includes("novel");
+    const isChapterBased = isChapterBasedType(typeLabel);
     return [
       { label: "Formato", value: project.type },
       { label: "Status", value: project.status },
@@ -261,17 +259,10 @@ const ProjectPage = () => {
     });
   }, [project?.relations, projectDirectory]);
 
-  const isManga = useMemo(() => {
-    const type = (project?.type || "").toLowerCase();
-    return type === "mangá" || type === "manga" || type === "webtoon";
-  }, [project?.type]);
-
-  const isLightNovel = useMemo(() => {
-    const type = (project?.type || "").toLowerCase();
-    return type.includes("light") || type.includes("novel");
-  }, [project?.type]);
-
-  const isChapterBased = isManga || isLightNovel;
+  const projectType = project?.type || "";
+  const isManga = isMangaType(projectType);
+  const isLightNovel = isLightNovelType(projectType);
+  const isChapterBased = isChapterBasedType(projectType);
   type EpisodeItem = (typeof sortedDownloadableEpisodes)[number];
 
   const volumeGroups = useMemo(() => {
@@ -707,7 +698,7 @@ const ProjectPage = () => {
                                           <span>{episode.duration}</span>
                                           <span>
                                             <CalendarDays className="mr-1 inline h-3 w-3 text-primary/70" />
-                                            {new Date(episode.releaseDate).toLocaleDateString("pt-BR")}
+                                            {formatDate(episode.releaseDate)}
                                           </span>
                                         </div>
                                         <p className="text-sm text-muted-foreground">{episode.synopsis}</p>
@@ -780,7 +771,7 @@ const ProjectPage = () => {
                                 <span>{episode.duration}</span>
                                 <span>
                                   <CalendarDays className="mr-1 inline h-3 w-3 text-primary/70" />
-                                  {new Date(episode.releaseDate).toLocaleDateString("pt-BR")}
+                                  {formatDate(episode.releaseDate)}
                                 </span>
                               </div>
                               <p className="text-sm text-muted-foreground">{episode.synopsis}</p>
@@ -873,4 +864,10 @@ const ProjectPage = () => {
 };
 
 export default ProjectPage;
+
+
+
+
+
+
 

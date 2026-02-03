@@ -14,7 +14,9 @@ import { Card, CardContent } from "@/components/ui/card";
 import { estimateReadTime, renderPostContent } from "@/lib/post-content";
 import { normalizeAssetUrl } from "@/lib/asset-url";
 import { getApiBase } from "@/lib/api-base";
+import { apiFetch } from "@/lib/api-client";
 import { usePageMeta } from "@/hooks/use-page-meta";
+import { formatDateTime } from "@/lib/date";
 
 const Post = () => {
   const { slug } = useParams();
@@ -45,7 +47,7 @@ const Post = () => {
     const load = async () => {
       try {
         setIsLoading(true);
-        const response = await fetch(`${apiBase}/api/public/posts/${slug}`);
+        const response = await apiFetch(apiBase, `/api/public/posts/${slug}`);
         if (!response.ok) {
           if (isActive) {
             setLoadError(true);
@@ -87,7 +89,7 @@ const Post = () => {
       return;
     }
     trackedViewsRef.current.add(post.slug);
-    void fetch(`${apiBase}/api/public/posts/${post.slug}/view`, { method: "POST" });
+    void apiFetch(apiBase, `/api/public/posts/${post.slug}/view`, { method: "POST" });
   }, [apiBase, post?.slug]);
   usePageMeta({
     title: post?.seoTitle || post?.title || "Postagem",
@@ -100,10 +102,7 @@ const Post = () => {
     if (!post?.publishedAt) {
       return "";
     }
-    return new Date(post.publishedAt).toLocaleString("pt-BR", {
-      dateStyle: "short",
-      timeStyle: "short",
-    });
+    return formatDateTime(post.publishedAt)
   }, [post?.publishedAt]);
 
   const readTime = useMemo(() => {
@@ -209,6 +208,8 @@ const Post = () => {
 };
 
 export default Post;
+
+
 
 
 

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+﻿import { useEffect, useState } from "react";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { Badge } from "@/components/ui/badge";
@@ -20,6 +20,7 @@ import {
   Shield,
 } from "lucide-react";
 import { getApiBase } from "@/lib/api-base";
+import { apiFetch } from "@/lib/api-client";
 import { usePageMeta } from "@/hooks/use-page-meta";
 
 const iconMap: Record<string, typeof Heart> = {
@@ -73,7 +74,7 @@ const defaultAbout = {
   pillars: [
     {
       title: "Pipeline",
-      description: "Tradução → Revisão → Timing → Typesetting → Qualidade → Encode.",
+      description: "Tradução �?' Revisão �?' Timing �?' Typesetting �?' Qualidade �?' Encode.",
       icon: "Zap",
     },
     {
@@ -129,7 +130,7 @@ const About = () => {
     let isActive = true;
     const load = async () => {
       try {
-        const response = await fetch(`${apiBase}/api/public/pages`);
+        const response = await apiFetch(apiBase, "/api/public/pages");
         if (!response.ok) {
           return;
         }
@@ -161,12 +162,12 @@ const About = () => {
     <div className="min-h-screen bg-background text-foreground">
       <Header />
 
-      <main className="pt-20">
+      <main>
         <section className="relative overflow-hidden border-b border-border/60">
           <div className="absolute inset-0 bg-gradient-to-b from-primary/20 via-background to-background" />
           <div className="absolute -left-24 top-10 h-64 w-64 rounded-full bg-primary/20 blur-[120px]" />
           <div className="absolute -right-24 bottom-10 h-64 w-64 rounded-full bg-accent/20 blur-[120px]" />
-          <div className="relative mx-auto grid w-full max-w-6xl gap-8 px-6 pb-16 pt-12 md:grid-cols-[1.2fr_0.8fr] md:px-10">
+          <div className="relative mx-auto grid w-full max-w-6xl gap-8 px-6 pb-16 pt-24 md:grid-cols-[1.2fr_0.8fr] md:px-10 md:pt-28">
             <div className="space-y-5">
               <Badge variant="secondary" className="text-xs uppercase tracking-widest">
                 {about.heroBadge}
@@ -267,3 +268,6 @@ const About = () => {
 };
 
 export default About;
+
+
+

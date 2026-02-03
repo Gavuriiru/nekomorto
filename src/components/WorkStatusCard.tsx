@@ -5,6 +5,8 @@ import { Progress } from "@/components/ui/progress";
 import { Clock } from "lucide-react";
 import { Link } from "react-router-dom";
 import { getApiBase } from "@/lib/api-base";
+import { apiFetch } from "@/lib/api-client";
+import { isLightNovelType, isMangaType } from "@/lib/project-utils";
 import type { Project } from "@/data/projects";
 
 type WorkKind = "anime" | "manga";
@@ -47,7 +49,7 @@ const WorkStatusCard = () => {
     let isActive = true;
     const load = async () => {
       try {
-        const response = await fetch(`${apiBase}/api/public/projects`);
+        const response = await apiFetch(apiBase, "/api/public/projects");
         if (!response.ok) {
           return;
         }
@@ -71,12 +73,9 @@ const WorkStatusCard = () => {
   const workItems = useMemo<WorkItem[]>(() => {
     const items: WorkItem[] = [];
     projects.forEach((project) => {
-      const typeLabel = (project.type || "").toLowerCase();
-      const isLightNovel = typeLabel.includes("light") || typeLabel.includes("novel");
-      const isManga =
-        typeLabel === "mangá" ||
-        typeLabel === "manga" ||
-        typeLabel === "webtoon";
+      const typeLabel = project.type || "";
+      const isLightNovel = isLightNovelType(typeLabel);
+      const isManga = isMangaType(typeLabel);
       if (isLightNovel) {
         return;
       }
@@ -174,3 +173,7 @@ const WorkStatusCard = () => {
 };
 
 export default WorkStatusCard;
+
+
+
+

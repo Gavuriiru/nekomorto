@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+﻿import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import DashboardShell from "@/components/DashboardShell";
 import ImageLibraryDialog from "@/components/ImageLibraryDialog";
@@ -39,6 +39,8 @@ import {
 } from "lucide-react";
 import { convertPostContent, createSlug, renderPostContent } from "@/lib/post-content";
 import { getApiBase } from "@/lib/api-base";
+import { apiFetch } from "@/lib/api-client";
+import { isChapterBasedType, isLightNovelType, isMangaType } from "@/lib/project-utils";
 import { usePageMeta } from "@/hooks/use-page-meta";
 import PostContentEditor from "@/components/PostContentEditor";
 
@@ -234,11 +236,7 @@ const mangaStages = [
 ];
 
 const getProgressStage = (type: string, completedStages?: string[]) => {
-  const isManga =
-    type.toLowerCase().includes("mang") ||
-    type.toLowerCase().includes("webtoon") ||
-    type.toLowerCase().includes("light") ||
-    type.toLowerCase().includes("novel");
+  const isManga = isMangaType(type);
   const stages = isManga ? mangaStages : animeStages;
   const completedSet = new Set((completedStages || []).filter(Boolean));
   const next = stages.find((stage) => !completedSet.has(stage.id));
@@ -685,7 +683,7 @@ const DashboardProjectsEditor = () => {
   useEffect(() => {
     const loadUser = async () => {
       try {
-        const response = await fetch(`${apiBase}/api/me`, { credentials: "include" });
+        const response = await apiFetch(apiBase, "/api/me", { auth: true });
         if (!response.ok) {
           setCurrentUser(null);
           return;
@@ -726,16 +724,9 @@ const DashboardProjectsEditor = () => {
     setSearchParams(nextParams, { replace: true });
   }, [searchParams, setSearchParams, sortMode]);
 
-  const isManga = useMemo(() => {
-    const type = (formState.type || "").toLowerCase();
-    return type.includes("mang") || type.includes("webtoon");
-  }, [formState.type]);
-  const isLightNovel = useMemo(() => {
-    const type = (formState.type || "").toLowerCase();
-    return type.includes("light") || type.includes("novel");
-  }, [formState.type]);
-
-  const isChapterBased = isManga || isLightNovel;
+  const isManga = isMangaType(formState.type || "");
+  const isLightNovel = isLightNovelType(formState.type || "");
+  const isChapterBased = isChapterBasedType(formState.type || "");
   const stageOptions = isChapterBased ? mangaStages : animeStages;
 
   const sortedEpisodeDownloads = useMemo(() => {
@@ -855,7 +846,7 @@ const DashboardProjectsEditor = () => {
   };
 
   const loadProjects = useCallback(async () => {
-    const response = await fetch(`${apiBase}/api/projects`, { credentials: "include" });
+    const response = await apiFetch(apiBase, "/api/projects", { auth: true });
     if (!response.ok) {
       throw new Error("projects_load_failed");
     }
@@ -869,7 +860,7 @@ const DashboardProjectsEditor = () => {
       try {
         const [projectsResult, usersResult] = await Promise.allSettled([
           loadProjects(),
-          fetch(`${apiBase}/api/users`, { credentials: "include" }),
+          apiFetch(apiBase, "/api/users", { auth: true }),
         ]);
         if (usersResult.status === "fulfilled") {
           const response = usersResult.value;
@@ -1019,10 +1010,10 @@ const DashboardProjectsEditor = () => {
     setProjects(next);
     listDragId.current = null;
 
-    await fetch(`${apiBase}/api/projects/reorder`, {
+    await apiFetch(apiBase, "/api/projects/reorder", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      credentials: "include",
+      auth: true,
       body: JSON.stringify({ orderedIds: next.map((project) => project.id) }),
     });
   };
@@ -1195,13 +1186,13 @@ const DashboardProjectsEditor = () => {
       }),
     };
 
-    const response = await fetch(
-      editingProject ? `${apiBase}/api/projects/${editingProject.id}` : `${apiBase}/api/projects`,
+    const response = await apiFetch(
+      apiBase,
+      editingProject ? `/api/projects/${editingProject.id}` : "/api/projects",
       {
         method: editingProject ? "PUT" : "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify(payload),
+        auth: true,
+        json: payload,
       },
     );
 
@@ -1223,9 +1214,9 @@ const DashboardProjectsEditor = () => {
     if (!deleteTarget) {
       return;
     }
-    const response = await fetch(`${apiBase}/api/projects/${deleteTarget.id}`, {
+    const response = await apiFetch(apiBase, `/api/projects/${deleteTarget.id}`, {
       method: "DELETE",
-      credentials: "include",
+      auth: true,
     });
     if (response.ok) {
       setProjects((prev) => prev.filter((project) => project.id !== deleteTarget.id));
@@ -1353,10 +1344,10 @@ const DashboardProjectsEditor = () => {
     const syncTags = tagsFromMedia.length ? tagsFromMedia : tags;
     const syncGenres = genresFromMedia;
     if (syncTags.length || syncGenres.length) {
-      fetch(`${apiBase}/api/tag-translations/sync`, {
+      apiFetch(apiBase, "/api/tag-translations/sync", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        credentials: "include",
+        auth: true,
         body: JSON.stringify({ tags: syncTags, genres: syncGenres }),
       }).catch(() => undefined);
     }
@@ -1367,7 +1358,7 @@ const DashboardProjectsEditor = () => {
     if (!Number.isFinite(id)) {
       return;
     }
-    const response = await fetch(`${apiBase}/api/anilist/${id}`, { credentials: "include" });
+    const response = await apiFetch(apiBase, `/api/anilist/${id}`, { auth: true });
     if (!response.ok) {
       return;
     }
@@ -2182,66 +2173,74 @@ const DashboardProjectsEditor = () => {
                     onDragStart={() => setEpisodeDragId(index)}
                     onDragOver={(event) => event.preventDefault()}
                     onDrop={() => handleEpisodeDrop(index)}
+                    onClick={(event) => {
+                      const target = event.target as HTMLElement | null;
+                      if (target?.closest("button, a, input, textarea, select, option, [data-no-toggle]")) {
+                        return;
+                      }
+                      setCollapsedEpisodes((prev) => ({
+                        ...prev,
+                        [index]: !prev[index],
+                      }));
+                    }}
                   >
-                    <CardContent className="space-y-3 p-4">
-                      <div className="flex flex-wrap items-center justify-between gap-3">
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <CardContent className={`space-y-3 ${collapsedEpisodes[index] ? "p-4" : "p-5"}`}>
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <div className="flex items-center gap-2 text-base font-semibold text-foreground">
                           <span className="rounded-full border border-border/60 bg-background/70 px-2 py-0.5 text-xs">
                             {isChapterBased ? "Cap" : "Ep"} {episode.number || index + 1}
                           </span>
                           {episode.title ? (
-                            <span className="font-medium text-foreground">{episode.title}</span>
+                            <span className="line-clamp-1">{episode.title}</span>
+                          ) : null}
+                          {episode.releaseDate ? (
+                            <span className="rounded-full border border-border/60 bg-background/50 px-2 py-0.5 text-[10px] leading-none">
+                              {episode.releaseDate}
+                            </span>
                           ) : null}
                         </div>
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="outline"
-                          onClick={() =>
-                            setCollapsedEpisodes((prev) => ({
-                              ...prev,
-                              [index]: !prev[index],
-                            }))
-                          }
-                        >
-                          {collapsedEpisodes[index] ? "Expandir" : "Colapsar"}
-                        </Button>
-                      </div>
-                      {collapsedEpisodes[index] ? (
-                        <div className="grid gap-1 text-xs text-muted-foreground md:grid-cols-[auto_minmax(0,1fr)_auto]">
-                          {episode.releaseDate ? (
-                            <div className="flex items-center gap-2">
-                              <span className="rounded-full border border-border/60 bg-background/50 px-2 py-0.5 leading-none">
-                                {episode.releaseDate}
-                              </span>
+                        <div className="flex flex-wrap items-center gap-2">
+                          {collapsedEpisodes[index] ? (
+                            <div className="flex flex-wrap items-center gap-1">
+                              {isLightNovel && String(episode.content || "").trim().length > 0 ? (
+                                <span className="rounded-full border border-primary/40 bg-primary/10 px-2 py-0.5 text-[10px] text-primary leading-none">
+                                  Conteúdo
+                                </span>
+                              ) : null}
+                              {!isChapterBased && !episode.sources.some((source) => source.url) ? (
+                                <span className="rounded-full border border-border/60 bg-background/50 px-2 py-0.5 text-[10px] leading-none">
+                                  {stageOptions.find(
+                                    (stage) =>
+                                      stage.id ===
+                                      getProgressStage(formState.type || "", episode.completedStages),
+                                  )?.label || "Aguardando Raw"}
+                                </span>
+                              ) : null}
+                              {episode.sources.some((source) => source.url) ? (
+                                <span className="rounded-full border border-emerald-500/40 bg-emerald-500/10 px-2 py-0.5 text-[10px] text-emerald-400 leading-none">
+                                  Download
+                                </span>
+                              ) : null}
                             </div>
                           ) : null}
-                          <span className="line-clamp-1 text-foreground/70 leading-none">
-                            {episode.synopsis || "Sem sinopse"}
-                          </span>
-                          <div className="flex flex-wrap items-center justify-end gap-1">
-                            {isLightNovel && String(episode.content || "").trim().length > 0 ? (
-                              <span className="rounded-full border border-primary/40 bg-primary/10 px-2 py-0.5 text-primary leading-none">
-                                Contedo
-                              </span>
-                            ) : null}
-                            {!isChapterBased && !episode.sources.some((source) => source.url) ? (
-                              <span className="rounded-full border border-border/60 bg-background/50 px-2 py-0.5 leading-none">
-                                {stageOptions.find(
-                                  (stage) =>
-                                    stage.id ===
-                                    getProgressStage(formState.type || "", episode.completedStages),
-                                )?.label || "Aguardando Raw"}
-                              </span>
-                            ) : null}
-                            {episode.sources.some((source) => source.url) ? (
-                              <span className="rounded-full border border-emerald-500/40 bg-emerald-500/10 px-2 py-0.5 text-emerald-400 leading-none">
-                                Download
-                              </span>
-                            ) : null}
-                          </div>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="ghost"
+                            className="h-7 px-2 text-[11px] text-destructive hover:text-destructive"
+                            data-no-toggle
+                            onClick={() =>
+                              setFormState((prev) => ({
+                                ...prev,
+                                episodeDownloads: prev.episodeDownloads.filter((_, idx) => idx !== index),
+                              }))
+                            }
+                          >
+                            {isChapterBased ? "Remover capítulo" : "Remover episódio"}
+                          </Button>
                         </div>
-                      ) : (
+                      </div>
+                      {collapsedEpisodes[index] ? null : (
                         <>
                           <div className="grid gap-3 md:grid-cols-6">
                             <Input
@@ -2254,7 +2253,7 @@ const DashboardProjectsEditor = () => {
                                   return { ...prev, episodeDownloads: next };
                                 })
                               }
-                              placeholder="Nmero"
+                              placeholder="Número"
                             />
                             {isManga ? (
                               <Input
@@ -2360,7 +2359,7 @@ const DashboardProjectsEditor = () => {
                           </div>
                           <div className="mt-3 space-y-2">
                             <Label className="text-xs">
-                              {isChapterBased ? "Capa do capitulo" : "Capa do episodio"}
+                              {isChapterBased ? "Capa do capítulo" : "Capa do episódio"}
                             </Label>
                             <div className="flex flex-wrap items-center gap-3">
                               {episode.coverImageUrl ? (
@@ -2391,7 +2390,7 @@ const DashboardProjectsEditor = () => {
                           </div>
                           {isLightNovel ? (
                             <div className="mt-4">
-                              <Label className="text-xs">Contedo do captulo</Label>
+                              <Label className="text-xs">Conteúdo do capítulo</Label>
                               <div className="mt-3">
                                 <EpisodeContentEditor
                                   value={episode.content || ""}
@@ -2422,7 +2421,7 @@ const DashboardProjectsEditor = () => {
                           ) : null}
                           {!episode.sources.some((source) => source.url) && !isChapterBased ? (
                             <div className="mt-3">
-                              <Label className="text-xs">Etapas concludas</Label>
+                              <Label className="text-xs">Etapas concluídas</Label>
                               <div className="mt-2 flex flex-wrap gap-2">
                                 {stageOptions.map((stage) => {
                                   const completed = (episode.completedStages || []).includes(stage.id);
@@ -2542,21 +2541,6 @@ const DashboardProjectsEditor = () => {
                           ) : null}
                         </>
                       )}
-                      <div className="mt-3 flex justify-end">
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={() =>
-                            setFormState((prev) => ({
-                              ...prev,
-                              episodeDownloads: prev.episodeDownloads.filter((_, idx) => idx !== index),
-                            }))
-                          }
-                        >
-                          {isChapterBased ? "Remover capítulo" : "Remover episódio"}
-                        </Button>
-                      </div>
                     </CardContent>
                   </Card>
                 ))}
@@ -2610,7 +2594,7 @@ const DashboardProjectsEditor = () => {
         apiBase={apiBase}
         description={
           libraryTarget === "chapter"
-            ? "Envie novas imagens ou selecione uma existente para inserir no capitulo."
+            ? "Envie novas imagens ou selecione uma existente para inserir no capítulo."
             : "Envie novas imagens ou selecione uma existente para usar no projeto."
         }
         uploadFolder={libraryFolder || undefined}
@@ -2626,5 +2610,13 @@ const DashboardProjectsEditor = () => {
 };
 
 export default DashboardProjectsEditor;
+
+
+
+
+
+
+
+
 
 

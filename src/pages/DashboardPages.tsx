@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+﻿import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import DashboardShell from "@/components/DashboardShell";
 import { Button } from "@/components/ui/button";
@@ -41,6 +41,7 @@ import {
   QrCode,
 } from "lucide-react";
 import { getApiBase } from "@/lib/api-base";
+import { apiFetch } from "@/lib/api-client";
 import { usePageMeta } from "@/hooks/use-page-meta";
 
 type AboutHighlight = { label: string; text: string; icon: string };
@@ -129,14 +130,50 @@ const editorIconMap: Record<string, typeof Heart> = {
   Shield,
 };
 
-const pageLabels: Record<string, string> = {
-  about: "Sobre",
-  donations: "Doações",
-  faq: "FAQ",
-  team: "Equipe",
+const emptyPages: PagesConfig = {
+  about: {
+    heroBadge: "",
+    heroTitle: "",
+    heroSubtitle: "",
+    heroBadges: [],
+    highlights: [],
+    manifestoTitle: "",
+    manifestoIcon: "Flame",
+    manifestoParagraphs: [],
+    pillars: [],
+    values: [],
+  },
+  donations: {
+    heroTitle: "",
+    heroSubtitle: "",
+    costs: [],
+    reasonTitle: "",
+    reasonIcon: "HeartHandshake",
+    reasonText: "",
+    reasonNote: "",
+    pixKey: "",
+    pixNote: "",
+    qrCustomUrl: "",
+    pixIcon: "QrCode",
+    donorsIcon: "PiggyBank",
+    donors: [],
+  },
+  faq: {
+    heroTitle: "",
+    heroSubtitle: "",
+    introCards: [],
+    groups: [],
+  },
+  team: {
+    heroBadge: "",
+    heroTitle: "",
+    heroSubtitle: "",
+    retiredTitle: "",
+    retiredSubtitle: "",
+  },
 };
 
-const defaultPages: PagesConfig = {
+const seedPages: PagesConfig = {
   about: {
     heroBadge: "Sobre",
     heroTitle: "Uma fansub com identidade própria",
@@ -167,7 +204,7 @@ const defaultPages: PagesConfig = {
       "Nossas escolhas são orientadas por clareza, estilo e consistência. O resultado precisa ser bonito, legível e fiel ao tom da história.",
     ],
     pillars: [
-      { title: "Pipeline", description: "Tradução → Revisão → Timing → Typesetting → Qualidade → Encode.", icon: "Zap" },
+      { title: "Pipeline", description: "Tradução �?' Revisão �?' Timing �?' Typesetting �?' Qualidade �?' Encode.", icon: "Zap" },
       { title: "Comunidade", description: "Feedbacks ajudam a evoluir o padrão e manter a identidade da equipe.", icon: "Users" },
       { title: "Estilo", description: "Tipografia, ritmo e efeitos visuais criam uma experiência memorável.", icon: "Sparkles" },
     ],
@@ -311,6 +348,14 @@ const defaultPages: PagesConfig = {
   },
 };
 
+const defaultPages: PagesConfig = import.meta.env.DEV ? seedPages : emptyPages;
+
+const pageLabels: Record<string, string> = {
+  about: "Sobre",
+  donations: "Doações",
+  faq: "FAQ",
+  team: "Equipe",
+};
 
 const reorder = <T,>(items: T[], from: number, to: number) => {
   const next = [...items];
@@ -408,7 +453,7 @@ const DashboardPages = () => {
   useEffect(() => {
     const load = async () => {
       try {
-        const response = await fetch(`${apiBase}/api/pages`, { credentials: "include" });
+        const response = await apiFetch(apiBase, "/api/pages", { auth: true });
         if (!response.ok) {
           setPages(defaultPages);
           return;
@@ -435,7 +480,7 @@ const DashboardPages = () => {
   useEffect(() => {
     const loadUser = async () => {
       try {
-        const response = await fetch(`${apiBase}/api/me`, { credentials: "include" });
+        const response = await apiFetch(apiBase, "/api/me", { auth: true });
         if (!response.ok) {
           setCurrentUser(null);
           return;
@@ -452,10 +497,10 @@ const DashboardPages = () => {
   const handleSave = async () => {
     setIsSaving(true);
     try {
-      await fetch(`${apiBase}/api/pages`, {
+      await apiFetch(apiBase, "/api/pages", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        credentials: "include",
+        auth: true,
         body: JSON.stringify({ pages }),
       });
     } finally {
@@ -1182,7 +1227,7 @@ const DashboardPages = () => {
                                 next[index] = { ...donor, date: e.target.value };
                                 updateDonations({ donors: next });
                               }}
-                              placeholder="M�s/Ano"
+                              placeholder="Mês/Ano"
                             />
                           </div>
                         </div>
@@ -1484,6 +1529,15 @@ const DashboardPages = () => {
 };
 
 export default DashboardPages;
+
+
+
+
+
+
+
+
+
 
 
 

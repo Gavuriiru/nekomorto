@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+﻿import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -15,8 +15,10 @@ import WorkStatusCard from "./WorkStatusCard";
 import DiscordInviteCard from "./DiscordInviteCard";
 import { CalendarDays, User } from "lucide-react";
 import { getApiBase } from "@/lib/api-base";
+import { apiFetch } from "@/lib/api-client";
 import type { Project } from "@/data/projects";
 import { normalizeAssetUrl } from "@/lib/asset-url";
+import { formatDate } from "@/lib/date";
 
 const ReleasesSection = () => {
   const apiBase = getApiBase();
@@ -42,7 +44,7 @@ const ReleasesSection = () => {
     let isActive = true;
     const load = async () => {
       try {
-        const response = await fetch(`${apiBase}/api/public/posts`);
+        const response = await apiFetch(apiBase, "/api/public/posts");
         if (!response.ok) {
           return;
         }
@@ -67,7 +69,7 @@ const ReleasesSection = () => {
     let isActive = true;
     const loadProjects = async () => {
       try {
-        const response = await fetch(`${apiBase}/api/public/projects`);
+        const response = await apiFetch(apiBase, "/api/public/projects");
         if (!response.ok) {
           return;
         }
@@ -91,7 +93,7 @@ const ReleasesSection = () => {
     let isActive = true;
     const loadTranslations = async () => {
       try {
-        const response = await fetch(`${apiBase}/api/public/tag-translations`, { cache: "no-store" });
+        const response = await apiFetch(apiBase, "/api/public/tag-translations", { cache: "no-store" });
         if (!response.ok) {
           return;
         }
@@ -182,7 +184,7 @@ const ReleasesSection = () => {
                             </span>
                             <span className="inline-flex items-center gap-1.5">
                               <CalendarDays className="h-4 w-4 text-primary/70" aria-hidden="true" />
-                              {new Date(release.publishedAt).toLocaleDateString("pt-BR")}
+                              {formatDate(release.publishedAt)}
                             </span>
                           </div>
                         </CardContent>
@@ -258,4 +260,7 @@ const ReleasesSection = () => {
 };
 
 export default ReleasesSection;
+
+
+
 

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+﻿import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import DashboardShell from "@/components/DashboardShell";
 import ImageLibraryDialog from "@/components/ImageLibraryDialog";
@@ -43,6 +43,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { getApiBase } from "@/lib/api-base";
+import { apiFetch } from "@/lib/api-client";
 import { useSiteSettings } from "@/hooks/use-site-settings";
 import type { SiteSettings } from "@/types/site-settings";
 import { usePageMeta } from "@/hooks/use-page-meta";
@@ -151,7 +152,7 @@ const DashboardSettings = () => {
   useEffect(() => {
     const loadUser = async () => {
       try {
-        const response = await fetch(`${apiBase}/api/me`, { credentials: "include" });
+        const response = await apiFetch(apiBase, "/api/me", { auth: true });
         if (!response.ok) {
           setCurrentUser(null);
           return;
@@ -174,9 +175,9 @@ const DashboardSettings = () => {
       setIsLoading(true);
       try {
         const [settingsRes, translationsRes, projectsRes] = await Promise.all([
-          fetch(`${apiBase}/api/settings`, { credentials: "include" }),
-          fetch(`${apiBase}/api/public/tag-translations`, { cache: "no-store" }),
-          fetch(`${apiBase}/api/projects`, { credentials: "include" }),
+          apiFetch(apiBase, "/api/settings", { auth: true }),
+          apiFetch(apiBase, "/api/public/tag-translations", { cache: "no-store" }),
+          apiFetch(apiBase, "/api/projects", { auth: true }),
         ]);
         if (settingsRes.ok) {
           const data = await settingsRes.json();
@@ -229,9 +230,9 @@ const DashboardSettings = () => {
       }
       setIsSyncingAniList(true);
       try {
-        const response = await fetch(`${apiBase}/api/tag-translations/anilist-sync`, {
+        const response = await apiFetch(apiBase, "/api/tag-translations/anilist-sync", {
           method: "POST",
-          credentials: "include",
+          auth: true,
         });
         if (!response.ok) {
           throw new Error("sync_failed");
@@ -325,10 +326,10 @@ const DashboardSettings = () => {
     setUploadingKey(`download-icon-${index}`);
     try {
       const dataUrl = await fileToDataUrl(file);
-      const response = await fetch(`${apiBase}/api/uploads/image`, {
+      const response = await apiFetch(apiBase, "/api/uploads/image", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        credentials: "include",
+        auth: true,
         body: JSON.stringify({
           dataUrl,
           filename: file.name,
@@ -369,10 +370,10 @@ const DashboardSettings = () => {
       } else if (nextSettings.community.discordUrl) {
         nextSettings.navbar.recruitmentUrl = nextSettings.community.discordUrl;
       }
-      const response = await fetch(`${apiBase}/api/settings`, {
+      const response = await apiFetch(apiBase, "/api/settings", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        credentials: "include",
+        auth: true,
         body: JSON.stringify({ settings: nextSettings }),
       });
       if (!response.ok) {
@@ -396,10 +397,10 @@ const DashboardSettings = () => {
   const handleSaveTranslations = async () => {
     setIsSavingTranslations(true);
     try {
-      const response = await fetch(`${apiBase}/api/tag-translations`, {
+      const response = await apiFetch(apiBase, "/api/tag-translations", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        credentials: "include",
+        auth: true,
         body: JSON.stringify({
           tags: tagTranslations,
           genres: genreTranslations,
@@ -1467,3 +1468,6 @@ const DashboardSettings = () => {
 };
 
 export default DashboardSettings;
+
+
+

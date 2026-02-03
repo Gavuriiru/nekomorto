@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+﻿import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
@@ -20,6 +20,7 @@ import {
   PaginationPrevious,
 } from "@/components/ui/pagination";
 import { getApiBase } from "@/lib/api-base";
+import { apiFetch } from "@/lib/api-client";
 import type { Project } from "@/data/projects";
 import { usePageMeta } from "@/hooks/use-page-meta";
 
@@ -45,7 +46,7 @@ const Projects = () => {
     let isActive = true;
     const load = async () => {
       try {
-        const response = await fetch(`${apiBase}/api/public/projects`);
+        const response = await apiFetch(apiBase, "/api/public/projects");
         if (!response.ok) {
           return;
         }
@@ -70,7 +71,7 @@ const Projects = () => {
     let isActive = true;
     const loadTranslations = async () => {
       try {
-        const response = await fetch(`${apiBase}/api/public/tag-translations`, { cache: "no-store" });
+        const response = await apiFetch(apiBase, "/api/public/tag-translations", { cache: "no-store" });
         if (!response.ok) {
           return;
         }
@@ -239,7 +240,7 @@ const Projects = () => {
               <div className="flex flex-wrap gap-2">
                 <span className="font-semibold text-foreground">{filteredProjects.length}</span>
                 <span>projetos encontrados</span>
-                <span className="hidden text-muted-foreground md:inline">•</span>
+                <span className="hidden text-muted-foreground md:inline">�?�</span>
                 <span className="hidden md:inline">Atualizado semanalmente</span>
               </div>
               <Button variant="ghost" onClick={resetFilters} className="text-xs uppercase">
@@ -439,3 +440,6 @@ const Projects = () => {
 };
 
 export default Projects;
+
+
+

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+﻿import { useEffect, useMemo, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 import { ChevronLeft, BookOpen } from "lucide-react";
 
@@ -8,6 +8,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { getApiBase } from "@/lib/api-base";
+import { apiFetch } from "@/lib/api-client";
+import { isLightNovelType } from "@/lib/project-utils";
 import { renderPostContent } from "@/lib/post-content";
 import CommentsSection from "@/components/CommentsSection";
 import { usePageMeta } from "@/hooks/use-page-meta";
@@ -54,7 +56,7 @@ const ProjectReading = () => {
     let isActive = true;
     const load = async () => {
       try {
-        const response = await fetch(`${apiBase}/api/public/projects/${slug}`);
+        const response = await apiFetch(apiBase, `/api/public/projects/${slug}`);
         if (!response.ok) {
           if (isActive) {
             setProject(null);
@@ -84,10 +86,7 @@ const ProjectReading = () => {
   const chapterNumber = Number(chapter);
   const volumeParam = Number(searchParams.get("volume"));
 
-  const isLightNovel = useMemo(() => {
-    const type = (project?.type || "").toLowerCase();
-    return type.includes("light") || type.includes("novel");
-  }, [project?.type]);
+  const isLightNovel = isLightNovelType(project?.type || "");
 
   const sortedChapters = useMemo(() => {
     if (!project) {
@@ -145,9 +144,7 @@ const ProjectReading = () => {
       }
       const volumeQuery = Number.isFinite(volumeParam) ? `?volume=${volumeParam}` : "";
       try {
-        const response = await fetch(
-          `${apiBase}/api/public/projects/${project.id}/chapters/${chapterNumber}${volumeQuery}`,
-        );
+        const response = await apiFetch(apiBase, `/api/public/projects/${project.id}/chapters/${chapterNumber}${volumeQuery}`);
         if (!response.ok) {
           if (isActive) {
             setChapterContent(null);
@@ -227,13 +224,13 @@ const ProjectReading = () => {
             <div className="space-y-2">
               <Badge variant="secondary" className="text-xs uppercase">
                 Cap {chapterData?.number ?? chapterNumber}
-                {chapterData?.volume ? ` • Vol. ${chapterData.volume}` : ""}
+                {chapterData?.volume ? ` �?� Vol. ${chapterData.volume}` : ""}
               </Badge>
               <h1 className="text-2xl font-semibold text-foreground md:text-3xl">
                 {chapterContent?.title || chapterData?.title || project.title}
               </h1>
               <p className="text-sm text-muted-foreground">
-                {project.title} • Leitura de Light Novel
+                {project.title} �?� Leitura de Light Novel
               </p>
             </div>
             <Card className="border-border/60 bg-card/80 shadow-lg">
@@ -274,3 +271,8 @@ const ProjectReading = () => {
 };
 
 export default ProjectReading;
+
+
+
+
+

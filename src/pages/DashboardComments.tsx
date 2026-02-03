@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { getApiBase } from "@/lib/api-base";
+import { apiFetch } from "@/lib/api-client";
+import { formatDateTime } from "@/lib/date";
 import { usePageMeta } from "@/hooks/use-page-meta";
 
 
@@ -22,9 +24,6 @@ type PendingComment = {
   targetLabel: string;
   targetUrl: string;
 };
-
-const formatDateTime = (value: string) =>
-  new Date(value).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" });
 
 const DashboardComments = () => {
   usePageMeta({ title: "Comentários", noIndex: true });
@@ -42,7 +41,7 @@ const DashboardComments = () => {
   const loadComments = useCallback(async () => {
     try {
       setIsLoading(true);
-      const response = await fetch(`${apiBase}/api/comments/pending`, { credentials: "include" });
+      const response = await apiFetch(apiBase, "/api/comments/pending", { auth: true });
       if (!response.ok) {
         setComments([]);
         return;
@@ -63,7 +62,7 @@ const DashboardComments = () => {
   useEffect(() => {
     const loadUser = async () => {
       try {
-        const response = await fetch(`${apiBase}/api/me`, { credentials: "include" });
+        const response = await apiFetch(apiBase, "/api/me", { auth: true });
         if (!response.ok) {
           setCurrentUser(null);
           return;
@@ -79,9 +78,9 @@ const DashboardComments = () => {
   }, [apiBase]);
 
   const handleApprove = async (id: string) => {
-    const response = await fetch(`${apiBase}/api/comments/${id}/approve`, {
+    const response = await apiFetch(apiBase, `/api/comments/${id}/approve`, {
       method: "POST",
-      credentials: "include",
+      auth: true,
     });
     if (response.ok) {
       setComments((prev) => prev.filter((comment) => comment.id !== id));
@@ -89,9 +88,9 @@ const DashboardComments = () => {
   };
 
   const handleDelete = async (id: string) => {
-    const response = await fetch(`${apiBase}/api/comments/${id}`, {
+    const response = await apiFetch(apiBase, `/api/comments/${id}`, {
       method: "DELETE",
-      credentials: "include",
+      auth: true,
     });
     if (response.ok) {
       setComments((prev) => prev.filter((comment) => comment.id !== id));

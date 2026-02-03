@@ -23,6 +23,7 @@ import {
   Youtube,
 } from "lucide-react";
 import { getApiBase } from "@/lib/api-base";
+import { apiFetch } from "@/lib/api-client";
 import { usePageMeta } from "@/hooks/use-page-meta";
 import { useSiteSettings } from "@/hooks/use-site-settings";
 
@@ -115,8 +116,8 @@ const Team = () => {
     const load = async () => {
       try {
         const [usersRes, linkRes] = await Promise.all([
-          fetch(`${apiBase}/api/public/users`),
-          fetch(`${apiBase}/api/link-types`),
+          apiFetch(apiBase, "/api/public/users"),
+          apiFetch(apiBase, "/api/link-types"),
         ]);
         if (usersRes.ok) {
           const data = await usersRes.json();
@@ -150,7 +151,7 @@ const Team = () => {
     let isActive = true;
     const loadCopy = async () => {
       try {
-        const response = await fetch(`${apiBase}/api/public/pages`);
+        const response = await apiFetch(apiBase, "/api/public/pages");
         if (!response.ok) {
           return;
         }
@@ -185,10 +186,10 @@ const Team = () => {
     <div className="min-h-screen bg-background text-foreground">
       <Header />
 
-      <main className="pt-20">
+      <main>
         <section className="relative overflow-hidden">
           <div className="absolute inset-0 bg-gradient-to-b from-primary/15 via-background to-background" />
-          <div className="relative mx-auto flex w-full max-w-6xl flex-col gap-6 px-6 pb-12 pt-12 md:px-10">
+          <div className="relative mx-auto flex w-full max-w-6xl flex-col gap-6 px-6 pb-12 pt-24 md:px-10 md:pt-28">
             <div className="max-w-3xl space-y-4">
               <Badge variant="secondary" className="text-xs uppercase tracking-widest">
                 {pageCopy.heroBadge}
@@ -452,3 +453,5 @@ const Team = () => {
 };
 
 export default Team;
+
+

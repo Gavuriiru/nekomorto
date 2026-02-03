@@ -4,16 +4,8 @@ import { Badge } from "@/components/ui/badge";
 import { Clock, Sparkles } from "lucide-react";
 import { Link } from "react-router-dom";
 import { getApiBase } from "@/lib/api-base";
-
-const formatLocalDate = (dateString: string) => {
-  const [year, month, day] = dateString.split("-").map(Number);
-
-  if (!year || !month || !day) {
-    return dateString;
-  }
-
-  return new Date(year, month - 1, day).toLocaleDateString("pt-BR");
-};
+import { apiFetch } from "@/lib/api-client";
+import { formatDate } from "@/lib/date";
 
 type UpdateRecord = {
   id: string;
@@ -36,7 +28,7 @@ const LatestEpisodeCard = () => {
     let isActive = true;
     const load = async () => {
       try {
-        const response = await fetch(`${apiBase}/api/public/updates`);
+        const response = await apiFetch(apiBase, "/api/public/updates");
         if (!response.ok) {
           return;
         }
@@ -61,7 +53,7 @@ const LatestEpisodeCard = () => {
     let isActive = true;
     const loadProjects = async () => {
       try {
-        const response = await fetch(`${apiBase}/api/public/projects`);
+        const response = await apiFetch(apiBase, "/api/public/projects");
         if (!response.ok) {
           return;
         }
@@ -181,7 +173,7 @@ const LatestEpisodeCard = () => {
                 </p>
                 <span className="inline-flex items-center gap-1.5 text-[10px] text-muted-foreground">
                   <Clock className="h-3 w-3 text-primary/70" aria-hidden="true" />
-                  {formatLocalDate(update.updatedAt.split("T")[0])}
+                  {formatDate(update.updatedAt.split("T")[0])}
                 </span>
               </div>
               </Link>

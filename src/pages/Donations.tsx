@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+﻿import { useEffect, useState } from "react";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { Button } from "@/components/ui/button";
@@ -23,6 +23,7 @@ import {
   Shield,
 } from "lucide-react";
 import { getApiBase } from "@/lib/api-base";
+import { apiFetch } from "@/lib/api-client";
 import { usePageMeta } from "@/hooks/use-page-meta";
 
 const iconMap: Record<string, typeof Server> = {
@@ -42,33 +43,51 @@ const iconMap: Record<string, typeof Server> = {
   Shield,
 };
 
-const defaultDonations = {
+const emptyDonations = {
+  heroTitle: "",
+  heroSubtitle: "",
+  costs: [],
+  reasonTitle: "",
+  reasonIcon: "HeartHandshake",
+  reasonText: "",
+  reasonNote: "",
+  pixKey: "",
+  pixNote: "",
+  qrCustomUrl: "",
+  pixIcon: "QrCode",
+  donorsIcon: "PiggyBank",
+  donors: [],
+};
+
+const seedDonations = {
   heroTitle: "Ajude a Nekomata a seguir no ar",
   heroSubtitle:
-    "Cada doação mantém o site vivo, fortalece nossos lançamentos e garante qualidade no que entregamos. Se quiser apoiar, qualquer valor faz diferença.",
+    "Cada doa��o mant�m o site vivo, fortalece nossos lan�amentos e garante qualidade no que entregamos. Se quiser apoiar, qualquer valor faz diferen�a.",
   costs: [
-    { title: "Hospedagem e domínio", description: "Manter o site no ar com estabilidade.", icon: "Server" },
+    { title: "Hospedagem e dom�nio", description: "Manter o site no ar com estabilidade.", icon: "Server" },
     { title: "Armazenamento", description: "Arquivos, backups e infraestrutura dos projetos.", icon: "PiggyBank" },
-    { title: "Incentivo por projeto", description: "Apoio pontual para demandas específicas.", icon: "Sparkles" },
+    { title: "Incentivo por projeto", description: "Apoio pontual para demandas espec�ficas.", icon: "Sparkles" },
   ],
   reasonTitle: "Por que doar?",
   reasonIcon: "HeartHandshake",
   reasonText:
-    "Somos um projeto feito por fãs, sem fins lucrativos. Doações ajudam com custos reais e permitem que a equipe invista tempo e cuidado em cada etapa.",
-  reasonNote: "Toda ajuda é bem-vinda. Se quiser apoiar, faça isso por gostar do nosso trabalho.",
+    "Somos um projeto feito por f�s, sem fins lucrativos. Doa��es ajudam com custos reais e permitem que a equipe invista tempo e cuidado em cada etapa.",
+  reasonNote: "Toda ajuda � bem-vinda. Se quiser apoiar, fa�a isso por gostar do nosso trabalho.",
   pixKey: "707e9869-0160-4a88-8332-31eac7cee73f",
   pixNote: "Cole a chave no app do seu banco.",
   qrCustomUrl: "",
   pixIcon: "QrCode",
   donorsIcon: "PiggyBank",
   donors: [
-    { name: "IgorBKRY", amount: "R$ 10,00", goal: "Fansub Geral", tier: "Sem patente", date: "Mar/2024" },
-    { name: "Anônimo", amount: "R$ 25,00", goal: "Fansub Geral", tier: "Bronze", date: "Mar/2024" },
-    { name: "Anônimo", amount: "R$ 60,00", goal: "Fansub Geral", tier: "Prata", date: "Mar/2024" },
-    { name: "Fabiana A.", amount: "R$ 40,00", goal: "Fansub Geral", tier: "Ouro", date: "Abr/2024" },
-    { name: "Rafa Chaves", amount: "R$ 120,00", goal: "Projeto especial", tier: "Master", date: "Mai/2024" },
+    { name: "IgorBKRY", amount: "R$ 10,00", goal: "Fansub Geral", date: "Mar/2024" },
+    { name: "An�nimo", amount: "R$ 25,00", goal: "Fansub Geral", date: "Mar/2024" },
+    { name: "An�nimo", amount: "R$ 60,00", goal: "Fansub Geral", date: "Mar/2024" },
+    { name: "Fabiana A.", amount: "R$ 40,00", goal: "Fansub Geral", date: "Abr/2024" },
+    { name: "Rafa Chaves", amount: "R$ 120,00", goal: "Projeto especial", date: "Mai/2024" },
   ],
 };
+
+const defaultDonations = import.meta.env.DEV ? seedDonations : emptyDonations;
 
 const Donations = () => {
   usePageMeta({ title: "Doações" });
@@ -81,7 +100,7 @@ const Donations = () => {
     let isActive = true;
     const load = async () => {
       try {
-        const response = await fetch(`${apiBase}/api/public/pages`);
+        const response = await apiFetch(apiBase, "/api/public/pages");
         if (!response.ok) {
           return;
         }
@@ -234,7 +253,7 @@ const Donations = () => {
                       <th className="pb-3">Doador</th>
                       <th className="pb-3">Valor</th>
                       <th className="pb-3">Objetivo</th>
-                      <th className="pb-3">M�s/Ano</th>
+                      <th className="pb-3">M�s/Ano</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border/40">
@@ -260,4 +279,9 @@ const Donations = () => {
 };
 
 export default Donations;
+
+
+
+
+
 

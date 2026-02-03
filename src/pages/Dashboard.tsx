@@ -5,6 +5,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import type { Project } from "@/data/projects";
 import { getApiBase } from "@/lib/api-base";
+import { apiFetch } from "@/lib/api-client";
+import { formatDateTime } from "@/lib/date";
 import { usePageMeta } from "@/hooks/use-page-meta";
 
 type DashboardPost = {
@@ -49,7 +51,7 @@ const Dashboard = () => {
   useEffect(() => {
     const loadUser = async () => {
       try {
-        const response = await fetch(`${apiBase}/api/me`, { credentials: "include" });
+        const response = await apiFetch(apiBase, "/api/me", { auth: true });
         if (!response.ok) {
           setCurrentUser(null);
           return;
@@ -69,7 +71,7 @@ const Dashboard = () => {
   useEffect(() => {
     const loadProjects = async () => {
       try {
-        const response = await fetch(`${apiBase}/api/projects`, { credentials: "include" });
+        const response = await apiFetch(apiBase, "/api/projects", { auth: true });
         if (!response.ok) {
           setProjects([]);
           return;
@@ -88,7 +90,7 @@ const Dashboard = () => {
     let isActive = true;
     const loadPosts = async () => {
       try {
-        const response = await fetch(`${apiBase}/api/posts`, { credentials: "include" });
+        const response = await apiFetch(apiBase, "/api/posts", { auth: true });
         if (!response.ok) {
           if (isActive) {
             setPosts([]);
@@ -116,9 +118,7 @@ const Dashboard = () => {
     let isActive = true;
     const loadRecentComments = async () => {
       try {
-        const response = await fetch(`${apiBase}/api/comments/recent?limit=3`, {
-          credentials: "include",
-        });
+        const response = await apiFetch(apiBase, "/api/comments/recent?limit=3", { auth: true });
         if (!response.ok) {
           if (isActive) {
             setRecentComments([]);
@@ -170,9 +170,6 @@ const Dashboard = () => {
     }
     return currentUser ? `@${currentUser.username}` : "OAuth Discord pendente";
   }, [currentUser, isLoadingUser]);
-
-  const formatDateTime = (value: string) =>
-    new Date(value).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" });
 
   const last7Days = useMemo(() => {
     const days: string[] = [];
@@ -546,8 +543,6 @@ const Dashboard = () => {
                       <a
                         key={comment.id}
                         href={comment.url}
-                        target="_blank"
-                        rel="noreferrer"
                         className="block rounded-2xl border border-white/10 bg-white/5 p-4 transition hover:border-primary/40 hover:bg-primary/5"
                       >
                         <div className="flex items-center justify-between text-xs text-muted-foreground">

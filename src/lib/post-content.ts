@@ -164,9 +164,85 @@ const normalizeLocalHtml = (value: string) => {
   );
 };
 
+const sanitizeHtml = (value: string) => {
+  if (!value) {
+    return "";
+  }
+  if (typeof window === "undefined" || typeof DOMParser === "undefined") {
+    return value
+      .replace(/<\s*script[^>]*>[\s\S]*?<\s*\/\s*script>/gi, "")
+      .replace(/<\s*style[^>]*>[\s\S]*?<\s*\/\s*style>/gi, "")
+      .replace(/\son\w+\s*=\s*(["']).*?\1/gi, "")
+      .replace(/javascript:/gi, "");
+  }
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(value, "text/html");
+  const allowedTags = new Set([
+    "A",
+    "P",
+    "BR",
+    "STRONG",
+    "EM",
+    "B",
+    "I",
+    "U",
+    "S",
+    "DEL",
+    "UL",
+    "OL",
+    "LI",
+    "BLOCKQUOTE",
+    "H1",
+    "H2",
+    "H3",
+    "H4",
+    "IMG",
+    "HR",
+    "CODE",
+    "PRE",
+    "SPAN",
+    "DIV",
+  ]);
+  const allowedAttrs = new Set(["class", "title"]);
+  const allowedUrlAttrs = new Set(["href", "src"]);
+  const isSafeUrl = (url: string) =>
+    /^(https?:|mailto:|\/|#)/i.test(url);
+
+  const walker = doc.createTreeWalker(doc.body, NodeFilter.SHOW_ELEMENT);
+  const toRemove: Element[] = [];
+  while (walker.nextNode()) {
+    const el = walker.currentNode as Element;
+    if (!allowedTags.has(el.tagName)) {
+      toRemove.push(el);
+      continue;
+    }
+    [...el.attributes].forEach((attr) => {
+      const name = attr.name.toLowerCase();
+      if (name.startsWith("on")) {
+        el.removeAttribute(attr.name);
+        return;
+      }
+      if (allowedUrlAttrs.has(attr.name)) {
+        if (!isSafeUrl(attr.value)) {
+          el.removeAttribute(attr.name);
+        }
+        return;
+      }
+      if (!allowedAttrs.has(attr.name) && !allowedUrlAttrs.has(attr.name)) {
+        el.removeAttribute(attr.name);
+      }
+    });
+    if (el.tagName === "A" && el.getAttribute("target") === "_blank") {
+      el.setAttribute("rel", "noopener noreferrer");
+    }
+  }
+  toRemove.forEach((el) => el.remove());
+  return doc.body.innerHTML;
+};
+
 export const renderPostContent = (content: string, format: "markdown" | "html") => {
   if (format === "html") {
-    return normalizeLocalHtml(content || "");
+    return sanitizeHtml(normalizeLocalHtml(content || ""));
   }
   return markdownToHtml(content || "");
 };

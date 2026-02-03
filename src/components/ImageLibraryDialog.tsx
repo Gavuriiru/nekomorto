@@ -5,6 +5,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "@/components/ui/use-toast";
+import { apiFetch } from "@/lib/api-client";
 
 type LibraryImage = {
   name: string;
@@ -94,7 +95,7 @@ const ImageLibraryDialog = ({
       const responses = await Promise.all(
         folders.map((folder) => {
           const query = folder ? `?folder=${encodeURIComponent(folder)}` : "";
-          return fetch(`${apiBase}/api/uploads/list${query}`, { credentials: "include" });
+          return apiFetch(apiBase, `/api/uploads/list${query}`, { auth: true });
         }),
       );
       const files: LibraryImage[] = [];
@@ -147,10 +148,10 @@ const ImageLibraryDialog = ({
 
   const uploadImage = async (file: File) => {
     const dataUrl = await fileToDataUrl(file);
-    const response = await fetch(`${apiBase}/api/uploads/image`, {
+    const response = await apiFetch(apiBase, "/api/uploads/image", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      credentials: "include",
+      auth: true,
       body: JSON.stringify({
         dataUrl,
         filename: file.name,
@@ -213,10 +214,10 @@ const ImageLibraryDialog = ({
   const handleDelete = async (url: string) => {
     setDeletingUrl(url);
     try {
-      const response = await fetch(`${apiBase}/api/uploads/delete`, {
+      const response = await apiFetch(apiBase, "/api/uploads/delete", {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
-        credentials: "include",
+        auth: true,
         body: JSON.stringify({ url }),
       });
       if (response.status === 409) {

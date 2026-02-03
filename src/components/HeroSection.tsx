@@ -11,6 +11,7 @@ import {
   type CarouselApi,
 } from "@/components/ui/carousel";
 import { getApiBase } from "@/lib/api-base";
+import { apiFetch } from "@/lib/api-client";
 import type { Project } from "@/data/projects";
 
 type HeroSlide = {
@@ -82,7 +83,9 @@ const HeroSection = () => {
   const [api, setApi] = React.useState<CarouselApi | null>(null);
   const autoplayRef = React.useRef<number | null>(null);
   const resumeTimeoutRef = React.useRef<number | null>(null);
-  const [heroSlides, setHeroSlides] = React.useState<HeroSlide[]>(heroSlidesSeed);
+  const [heroSlides, setHeroSlides] = React.useState<HeroSlide[]>(
+    import.meta.env.DEV ? heroSlidesSeed : [],
+  );
   const apiBase = getApiBase();
   const latestSlideId = React.useMemo(() => {
     if (!heroSlides.length) {
@@ -147,8 +150,8 @@ const HeroSection = () => {
     const load = async () => {
       try {
         const [projectsRes, updatesRes] = await Promise.all([
-          fetch(`${apiBase}/api/public/projects`),
-          fetch(`${apiBase}/api/public/updates`),
+          apiFetch(apiBase, "/api/public/projects"),
+          apiFetch(apiBase, "/api/public/updates"),
         ]);
         if (!projectsRes.ok) {
           return;
@@ -223,11 +226,15 @@ const HeroSection = () => {
         }
 
         if (isActive) {
-          setHeroSlides(slides);
+          if (!slides.length && import.meta.env.DEV) {
+            setHeroSlides(heroSlidesSeed);
+          } else {
+            setHeroSlides(slides);
+          }
         }
       } catch {
         if (isActive) {
-          setHeroSlides(heroSlidesSeed);
+          setHeroSlides(import.meta.env.DEV ? heroSlidesSeed : []);
         }
       }
     };
