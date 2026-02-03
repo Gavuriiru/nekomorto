@@ -768,14 +768,17 @@ const DashboardPosts = () => {
     return String(data.url || "");
   };
 
-  const insertImageToContent = (url: string, altText?: string) => {
-    const alt = altText || "Imagem";
-    if (formState.contentFormat === "markdown") {
-      insertAtCursor(`\n\n![${alt}](${url})\n`);
-    } else {
-      insertAtCursor(`\n\n<img src="${url}" alt="${alt}" loading="lazy" />\n`);
-    }
-  };
+  const insertImageToContent = useCallback(
+    (url: string, altText?: string) => {
+      const alt = altText || "Imagem";
+      if (formState.contentFormat === "markdown") {
+        insertAtCursor(`\n\n![${alt}](${url})\n`);
+      } else {
+        insertAtCursor(`\n\n<img src="${url}" alt="${alt}" loading="lazy" />\n`);
+      }
+    },
+    [formState.contentFormat, insertAtCursor],
+  );
 
   const insertAtCursorWithContent = (baseContent: string, text: string) => {
     const textarea = editorRef.current;

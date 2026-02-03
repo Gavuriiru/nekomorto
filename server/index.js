@@ -1877,6 +1877,58 @@ app.get("/api/public/tag-translations", (req, res) => {
   res.json({ tags: translations.tags, genres: translations.genres });
 });
 
+app.post("/api/tag-translations/anilist-sync", requireAuth, async (req, res) => {
+  const sessionUser = req.session.user;
+  if (!canManageSettings(sessionUser?.id)) {
+    return res.status(403).json({ error: "forbidden" });
+  }
+  try {
+    const query = `
+      query {
+        GenreCollection
+        MediaTagCollection {
+          name
+        }
+      }
+    `;
+    const response = await fetch(ANILIST_API, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ query }),
+    });
+    if (!response.ok) {
+      return res.status(502).json({ error: "anilist_failed" });
+    }
+    const data = await response.json();
+    const rawGenres = Array.isArray(data?.data?.GenreCollection) ? data.data.GenreCollection : [];
+    const rawTags = Array.isArray(data?.data?.MediaTagCollection) ? data.data.MediaTagCollection : [];
+    const genres = rawGenres
+      .map((genre) => String(genre || "").trim())
+      .filter(Boolean);
+    const tags = rawTags
+      .map((tag) => String(tag?.name || "").trim())
+      .filter(Boolean);
+    const current = loadTagTranslations();
+    const nextTags = { ...current.tags };
+    const nextGenres = { ...current.genres };
+    tags.forEach((tag) => {
+      if (typeof nextTags[tag] !== "string") {
+        nextTags[tag] = "";
+      }
+    });
+    genres.forEach((genre) => {
+      if (typeof nextGenres[genre] !== "string") {
+        nextGenres[genre] = "";
+      }
+    });
+    const payload = { tags: nextTags, genres: nextGenres };
+    writeTagTranslations(payload);
+    return res.json(payload);
+  } catch {
+    return res.status(502).json({ error: "anilist_failed" });
+  }
+});
+
 app.get("/api/public/pages", (req, res) => {
   return res.json({ pages: loadPages() });
 });

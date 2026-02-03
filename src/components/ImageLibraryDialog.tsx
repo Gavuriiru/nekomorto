@@ -71,7 +71,6 @@ const ImageLibraryDialog = ({
   const [confirmDeleteUrl, setConfirmDeleteUrl] = useState<string | null>(null);
   const [deletingUrl, setDeletingUrl] = useState<string | null>(null);
 
-  const listKey = listFolders && listFolders.length > 0 ? listFolders.join("|") : "";
   const folders = useMemo(() => {
     const set = new Set<string>();
     if (listFolders && listFolders.length > 0) {
@@ -87,7 +86,7 @@ const ImageLibraryDialog = ({
       set.add("");
     }
     return Array.from(set);
-  }, [listAll, listKey, uploadFolder]);
+  }, [listAll, listFolders, uploadFolder]);
 
   const loadLibrary = useCallback(async () => {
     setIsLoading(true);

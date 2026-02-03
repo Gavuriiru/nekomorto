@@ -281,66 +281,76 @@ const Projects = () => {
 
                       {project.tags.length > 0 || project.genres?.length || project.producers?.length ? (
                         <div className="flex flex-wrap gap-1 overflow-hidden">
-                          {[
-                            ...project.tags.filter(Boolean).map((tag) => ({
-                              key: `tag-${tag}`,
-                              label: tagTranslations[tag] || tag,
-                              variant: "outline" as const,
-                              href: `/projetos?tag=${encodeURIComponent(tag)}`,
-                            })),
-                            ...(project.genres || []).filter(Boolean).map((genre) => ({
-                              key: `genre-${genre}`,
-                              label: genreTranslations[genre] || genre,
-                              variant: "outline" as const,
-                              href: `/projetos?genero=${encodeURIComponent(genre)}`,
-                            })),
-                            ...(project.producers || []).filter(Boolean).map((producer) => ({
-                              key: `producer-${producer}`,
-                              label: producer,
-                              variant: "outline" as const,
-                            })),
-                          ]
-                            .filter((item) => item.label && item.label.length <= 18)
-                            .slice(0, 6)
-                            .map((item, itemIndex) =>
-                              item.href ? (
-                                <button
-                                  key={item.key}
-                                  type="button"
-                                  className={
-                                    itemIndex >= 2
-                                      ? "hidden sm:inline-flex"
-                                      : "inline-flex"
-                                  }
-                                  title={item.label}
-                                  onClick={(event) => {
-                                    event.preventDefault();
-                                    event.stopPropagation();
-                                    navigate(item.href);
-                                  }}
-                                >
+                          {(() => {
+                            const tagItems = project.tags
+                              .filter(Boolean)
+                              .map((tag) => ({
+                                key: `tag-${tag}`,
+                                label: tagTranslations[tag] || tag,
+                                variant: "outline" as const,
+                                href: `/projetos?tag=${encodeURIComponent(tag)}`,
+                              }))
+                              .sort((a, b) => a.label.localeCompare(b.label, "pt-BR"));
+                            const genreItems = (project.genres || [])
+                              .filter(Boolean)
+                              .map((genre) => ({
+                                key: `genre-${genre}`,
+                                label: genreTranslations[genre] || genre,
+                                variant: "outline" as const,
+                                href: `/projetos?genero=${encodeURIComponent(genre)}`,
+                              }))
+                              .sort((a, b) => a.label.localeCompare(b.label, "pt-BR"));
+                            const producerItems = (project.producers || [])
+                              .filter(Boolean)
+                              .map((producer) => ({
+                                key: `producer-${producer}`,
+                                label: producer,
+                                variant: "outline" as const,
+                              }))
+                              .sort((a, b) => a.label.localeCompare(b.label, "pt-BR"));
+                            return [...tagItems, ...genreItems, ...producerItems]
+                              .filter((item) => item.label && item.label.length <= 18)
+                              .slice(0, 6)
+                              .map((item, itemIndex) =>
+                                item.href ? (
+                                  <button
+                                    key={item.key}
+                                    type="button"
+                                    className={
+                                      itemIndex >= 2
+                                        ? "hidden sm:inline-flex"
+                                        : "inline-flex"
+                                    }
+                                    title={item.label}
+                                    onClick={(event) => {
+                                      event.preventDefault();
+                                      event.stopPropagation();
+                                      navigate(item.href);
+                                    }}
+                                  >
+                                    <Badge
+                                      variant={item.variant}
+                                      className="h-5 whitespace-nowrap text-[9px] uppercase leading-none px-2"
+                                    >
+                                      {item.label}
+                                    </Badge>
+                                  </button>
+                                ) : (
                                   <Badge
+                                    key={item.key}
                                     variant={item.variant}
-                                    className="h-5 whitespace-nowrap text-[9px] uppercase leading-none px-2"
+                                    className={`h-5 whitespace-nowrap text-[9px] uppercase leading-none px-2 ${
+                                      itemIndex >= 2
+                                        ? "hidden sm:inline-flex"
+                                        : "inline-flex"
+                                    }`}
+                                    title={item.label}
                                   >
                                     {item.label}
                                   </Badge>
-                                </button>
-                              ) : (
-                                <Badge
-                                  key={item.key}
-                                  variant={item.variant}
-                                  className={`h-5 whitespace-nowrap text-[9px] uppercase leading-none px-2 ${
-                                    itemIndex >= 2
-                                      ? "hidden sm:inline-flex"
-                                      : "inline-flex"
-                                  }`}
-                                  title={item.label}
-                                >
-                                  {item.label}
-                                </Badge>
-                              ),
-                            )}
+                                ),
+                              );
+                          })()}
                         </div>
                       ) : null}
 

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import DashboardShell from "@/components/DashboardShell";
 import ImageLibraryDialog from "@/components/ImageLibraryDialog";
@@ -136,6 +136,7 @@ const DashboardSettings = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isSavingTranslations, setIsSavingTranslations] = useState(false);
+  const [isSyncingAniList, setIsSyncingAniList] = useState(false);
   const [uploadingKey, setUploadingKey] = useState<string | null>(null);
   const [isLibraryOpen, setIsLibraryOpen] = useState(false);
   const [libraryTarget, setLibraryTarget] = useState<
@@ -145,6 +146,7 @@ const DashboardSettings = () => {
   const [genreQuery, setGenreQuery] = useState("");
   const [newTag, setNewTag] = useState("");
   const [newGenre, setNewGenre] = useState("");
+  const hasSyncedAniList = useRef(false);
 
   useEffect(() => {
     const loadUser = async () => {
@@ -219,6 +221,51 @@ const DashboardSettings = () => {
       isActive = false;
     };
   }, [apiBase, publicSettings]);
+
+  const syncAniListTerms = useCallback(
+    async (options?: { silent?: boolean }) => {
+      if (isSyncingAniList) {
+        return;
+      }
+      setIsSyncingAniList(true);
+      try {
+        const response = await fetch(`${apiBase}/api/tag-translations/anilist-sync`, {
+          method: "POST",
+          credentials: "include",
+        });
+        if (!response.ok) {
+          throw new Error("sync_failed");
+        }
+        const data = await response.json();
+        setTagTranslations(data.tags || {});
+        setGenreTranslations(data.genres || {});
+        if (!options?.silent) {
+          toast({
+            title: "Termos do AniList atualizados",
+            description: "Tags e gêneros foram importados para tradução.",
+          });
+        }
+      } catch {
+        if (!options?.silent) {
+          toast({
+            title: "Não foi possível importar",
+            description: "Verifique a conexão ou tente novamente.",
+          });
+        }
+      } finally {
+        setIsSyncingAniList(false);
+      }
+    },
+    [apiBase, isSyncingAniList],
+  );
+
+  useEffect(() => {
+    if (isLoading || hasSyncedAniList.current) {
+      return;
+    }
+    hasSyncedAniList.current = true;
+    void syncAniListTerms({ silent: true });
+  }, [isLoading, syncAniListTerms]);
 
   const isIconUrl = (value?: string | null) => {
     if (!value) return false;
@@ -543,7 +590,7 @@ const DashboardSettings = () => {
                         </Button>
                       </div>
                       <div className="space-y-2">
-                        <Label>Imagem padr?o de compartilhamento</Label>
+                        <Label>Imagem padrão de compartilhamento</Label>
                         {settings.site.defaultShareImage ? (
                           <div className="flex items-center gap-3">
                             <img
@@ -612,16 +659,28 @@ const DashboardSettings = () => {
                           Termos em inglês importados do AniList com a tradução exibida no site.
                         </p>
                       </div>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={handleSaveTranslations}
-                        disabled={isSavingTranslations}
-                        className="gap-2"
-                      >
-                        <Save className="h-4 w-4" />
-                        {isSavingTranslations ? "Salvando..." : "Salvar traduções"}
-                      </Button>
+                      <div className="flex flex-wrap gap-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => syncAniListTerms()}
+                          disabled={isSyncingAniList}
+                          className="gap-2"
+                        >
+                          <Download className="h-4 w-4" />
+                          {isSyncingAniList ? "Importando..." : "Importar AniList"}
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={handleSaveTranslations}
+                          disabled={isSavingTranslations}
+                          className="gap-2"
+                        >
+                          <Save className="h-4 w-4" />
+                          {isSavingTranslations ? "Salvando..." : "Salvar traduções"}
+                        </Button>
+                      </div>
                     </div>
                     <div className="grid gap-3 md:grid-cols-[1fr_auto]">
                       <Input
