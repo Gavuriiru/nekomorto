@@ -10,6 +10,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { getApiBase } from "@/lib/api-base";
 import { renderPostContent } from "@/lib/post-content";
 import CommentsSection from "@/components/CommentsSection";
+import { usePageMeta } from "@/hooks/use-page-meta";
 import NotFound from "./NotFound";
 import type { Project } from "@/data/projects";
 
@@ -27,6 +28,23 @@ const ProjectReading = () => {
     contentFormat?: "markdown" | "html";
   } | null>(null);
   const [hasLoaded, setHasLoaded] = useState(false);
+
+  const pageTitle = useMemo(() => {
+    if (!project) {
+      return "Leitura";
+    }
+    const chapterNumber = chapterContent?.number ?? chapter;
+    const chapterLabel = chapterNumber ? `Capítulo ${chapterNumber}` : "Capítulo";
+    const titlePart = chapterContent?.title ? `${chapterLabel} - ${chapterContent.title}` : chapterLabel;
+    return `${titlePart} - ${project.title}`;
+  }, [chapter, chapterContent?.number, chapterContent?.title, project]);
+
+  usePageMeta({
+    title: pageTitle,
+    description: chapterContent?.synopsis || project?.synopsis || "",
+    image: project?.cover,
+    type: "article",
+  });
 
   useEffect(() => {
     if (!slug) {

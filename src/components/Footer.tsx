@@ -1,64 +1,43 @@
-import { Facebook, Instagram, Twitter, MessageCircle } from "lucide-react";
-
-const footerColumns = [
-  {
-    title: "Nekomata",
-    links: [
-      { label: "Sobre", href: "/sobre" },
-      { label: "Equipe", href: "/equipe" },
-    ],
-  },
-  {
-    title: "Ajude nossa equipe",
-    links: [
-      { label: "Recrutamento", href: "https://discord.com/invite/BAHKhdX2ju" },
-      { label: "Doações", href: "/doacoes" },
-    ],
-  },
-  {
-    title: "Links úteis",
-    links: [
-      { label: "Projetos", href: "/projetos" },
-      { label: "FAQ", href: "/faq" },
-      { label: "Reportar erros", href: "https://discord.com/invite/BAHKhdX2ju" },
-      { label: "Info Anime", href: "https://infoanime.com.br" },
-    ],
-  },
-];
-
-const socialLinks = [
-  {
-    label: "Instagram",
-    href: "https://instagram.com",
-    icon: Instagram,
-  },
-  {
-    label: "Facebook",
-    href: "https://facebook.com",
-    icon: Facebook,
-  },
-  {
-    label: "Twitter",
-    href: "https://twitter.com",
-    icon: Twitter,
-  },
-  {
-    label: "Discord",
-    href: "https://discord.com/invite/BAHKhdX2ju",
-    icon: MessageCircle,
-  },
-];
+import { Facebook, Instagram, Twitter, MessageCircle, Youtube, X, Globe } from "lucide-react";
+import { useSiteSettings } from "@/hooks/use-site-settings";
 
 const Footer = () => {
+  const { settings } = useSiteSettings();
+  const footer = settings.footer;
+  const footerColumns = footer.columns || [];
+  const socialLinks = footer.socialLinks || [];
+  const disclaimer = footer.disclaimer || [];
+  const iconMap: Record<string, typeof Globe> = {
+    instagram: Instagram,
+    facebook: Facebook,
+    twitter: Twitter,
+    x: X,
+    youtube: Youtube,
+    discord: MessageCircle,
+    "message-circle": MessageCircle,
+    globe: Globe,
+    site: Globe,
+  };
+
   return (
     <footer className="mt-16 border-t border-border/60 bg-card/60">
       <div className="mx-auto max-w-7xl px-6 md:px-12 py-14">
         <div className="grid gap-10 lg:grid-cols-[1.2fr_1fr_1fr_1fr_1.1fr]">
           <div className="space-y-4">
-            <p className="text-3xl font-black tracking-widest text-gradient-rainbow">NEKOMATA</p>
+            <div className="flex items-center gap-3">
+              {footer.brandLogoUrl ? (
+                <img
+                  src={footer.brandLogoUrl}
+                  alt={footer.brandName}
+                  className="h-10 w-10 rounded-full object-cover shadow-sm"
+                />
+              ) : null}
+              <p className="text-3xl font-black tracking-widest text-gradient-rainbow">
+                {footer.brandName}
+              </p>
+            </div>
             <p className="text-sm text-muted-foreground leading-relaxed">
-              Fansub dedicada a trazer histórias inesquecíveis com o carinho que a comunidade merece.
-              Traduzimos por paixão, respeitando autores e apoiando o consumo legal das obras.
+              {footer.brandDescription}
             </p>
           </div>
 
@@ -88,7 +67,8 @@ const Footer = () => {
             </p>
             <div className="space-y-2">
               {socialLinks.map((link) => {
-                const Icon = link.icon;
+                const iconKey = link.icon || link.label;
+                const Icon = iconMap[String(iconKey).toLowerCase()] || Globe;
                 return (
                   <a
                     key={link.label}
@@ -110,28 +90,20 @@ const Footer = () => {
 
         <div className="mt-12 grid gap-6 border-t border-border/60 pt-8 lg:grid-cols-[1.3fr_1fr]">
           <div className="space-y-3 text-sm text-muted-foreground">
-            <p>
-              Todo o conteúdo divulgado aqui pertence a seus respectivos autores e editoras. As traduções
-              são realizadas por fãs, sem fins lucrativos, com o objetivo de divulgar as obras no Brasil.
-            </p>
-            <p>
-              Caso goste de alguma obra, apoie a versão oficial. A venda de materiais legendados pela equipe
-              é proibida.
-            </p>
+            {disclaimer.map((item, index) => (
+              <p key={`footer-disclaimer-${index}`}>{item}</p>
+            ))}
           </div>
           <div className="flex flex-col gap-3 rounded-2xl border border-primary/20 bg-gradient-card p-5 text-sm text-foreground">
-            <p className="font-semibold text-primary">Atribuição • Não Comercial</p>
-            <p className="text-muted-foreground">
-              Este site segue a licença Creative Commons BY-NC. Você pode compartilhar com créditos, sem
-              fins comerciais.
-            </p>
+            <p className="font-semibold text-primary">{footer.highlightTitle}</p>
+            <p className="text-muted-foreground">{footer.highlightDescription}</p>
           </div>
         </div>
       </div>
 
       <div className="border-t border-border/60 bg-background/40">
         <div className="mx-auto flex max-w-7xl flex-col gap-2 px-6 py-6 text-xs text-muted-foreground md:flex-row md:items-center md:justify-between md:px-12">
-          <p>© 2014 - 2026 Nekomata Fansub. Feito por fãs para fãs.</p>
+          <p>{footer.copyright}</p>
         </div>
       </div>
     </footer>

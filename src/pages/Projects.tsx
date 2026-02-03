@@ -1,4 +1,4 @@
-﻿import { useMemo, useState, useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
@@ -21,10 +21,13 @@ import {
 } from "@/components/ui/pagination";
 import { getApiBase } from "@/lib/api-base";
 import type { Project } from "@/data/projects";
+import { usePageMeta } from "@/hooks/use-page-meta";
 
 const alphabetOptions = ["Todas", ..."ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("")];
 
 const Projects = () => {
+  usePageMeta({ title: "Projetos" });
+
   const apiBase = getApiBase();
   const [projects, setProjects] = useState<Project[]>([]);
   const [selectedTag, setSelectedTag] = useState("Todas");

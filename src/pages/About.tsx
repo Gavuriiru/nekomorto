@@ -1,4 +1,4 @@
-﻿import { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { Badge } from "@/components/ui/badge";
@@ -20,6 +20,7 @@ import {
   Shield,
 } from "lucide-react";
 import { getApiBase } from "@/lib/api-base";
+import { usePageMeta } from "@/hooks/use-page-meta";
 
 const iconMap: Record<string, typeof Heart> = {
   Heart,
@@ -112,7 +113,15 @@ const defaultAbout = {
   ],
 };
 
+type HighlightItem = {
+  label: string;
+  text: string;
+  icon?: string;
+};
+
 const About = () => {
+  usePageMeta({ title: "Sobre" });
+
   const apiBase = getApiBase();
   const [about, setAbout] = useState(defaultAbout);
 
@@ -127,7 +136,7 @@ const About = () => {
         const data = await response.json();
         if (isActive && data.pages?.about) {
           const incoming = data.pages.about;
-          const highlights = (incoming.highlights || defaultAbout.highlights).map((item: any) => ({
+          const highlights = (incoming.highlights || defaultAbout.highlights).map((item: HighlightItem) => ({
             icon: "Sparkles",
             ...item,
           }));

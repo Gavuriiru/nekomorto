@@ -1,8 +1,12 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { MessageCircle, Users } from "lucide-react";
+import { useSiteSettings } from "@/hooks/use-site-settings";
 
 const DiscordInviteCard = () => {
+  const { settings } = useSiteSettings();
+  const discordUrl = settings.community.discordUrl || settings.navbar.recruitmentUrl || "#";
+
   return (
     <Card className="bg-card border-border">
       <CardHeader className="px-4 pb-3 pt-4">
@@ -27,7 +31,7 @@ const DiscordInviteCard = () => {
         </div>
         <Button asChild className="w-full">
           <a
-            href="https://discord.gg/BAHKhdX2ju"
+            href={discordUrl}
             target="_blank"
             rel="noreferrer"
           >

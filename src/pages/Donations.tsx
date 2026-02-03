@@ -1,4 +1,4 @@
-﻿import { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { Button } from "@/components/ui/button";
@@ -23,6 +23,7 @@ import {
   Shield,
 } from "lucide-react";
 import { getApiBase } from "@/lib/api-base";
+import { usePageMeta } from "@/hooks/use-page-meta";
 
 const iconMap: Record<string, typeof Server> = {
   Server,
@@ -70,6 +71,8 @@ const defaultDonations = {
 };
 
 const Donations = () => {
+  usePageMeta({ title: "Doações" });
+
   const apiBase = getApiBase();
   const [copied, setCopied] = useState(false);
   const [donations, setDonations] = useState(defaultDonations);

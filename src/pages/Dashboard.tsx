@@ -1,33 +1,11 @@
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useEffect, useMemo, useState } from "react";
-import Header from "@/components/Header";
-import Footer from "@/components/Footer";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import DashboardShell from "@/components/DashboardShell";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Sidebar,
-  SidebarContent,
-  SidebarHeader,
-  SidebarInset,
-  SidebarMenu,
-  SidebarMenuButton,
-  SidebarMenuItem,
-  SidebarProvider,
-  SidebarSeparator,
-  SidebarTrigger,
-} from "@/components/ui/sidebar";
 import type { Project } from "@/data/projects";
-import {
-  FileText,
-  FolderCog,
-  LayoutGrid,
-  MessageSquare,
-  Settings,
-  Shield,
-  UserRound,
-} from "lucide-react";
 import { getApiBase } from "@/lib/api-base";
+import { usePageMeta } from "@/hooks/use-page-meta";
 
 type ProjectView = {
   projectId: string;
@@ -52,17 +30,9 @@ const recentPosts: Array<{
 }> = [];
 
 const Dashboard = () => {
-  const location = useLocation();
+  usePageMeta({ title: "Dashboard", noIndex: true });
+
   const navigate = useNavigate();
-  const menuItems = [
-    { label: "Início", href: "/dashboard", icon: LayoutGrid, enabled: true },
-    { label: "Postagens", href: "/dashboard/posts", icon: FileText, enabled: true },
-    { label: "Projetos", href: "/dashboard/projetos", icon: FolderCog, enabled: true },
-    { label: "Comentários", href: "/dashboard/comentarios", icon: MessageSquare, enabled: true },
-    { label: "Usuários", href: "/dashboard/usuarios", icon: UserRound, enabled: true },
-    { label: "Páginas", href: "/dashboard/paginas", icon: Shield, enabled: true },
-    { label: "Configurações", href: "/dashboard/configuracoes", icon: Settings, enabled: false },
-  ];
   const [currentUser, setCurrentUser] = useState<{
     id: string;
     name: string;
@@ -163,95 +133,14 @@ const Dashboard = () => {
   const areaPath = hasViewData ? `M0,${chartHeight} L${chartPoints} L${chartWidth},${chartHeight} Z` : "";
 
   return (
-    <SidebarProvider defaultOpen>
-      <Sidebar variant="inset" collapsible="icon">
-        <SidebarHeader className="gap-4 transition-all duration-200 ease-linear group-data-[collapsible=icon]:gap-2 group-data-[collapsible=icon]:items-center">
-          <div
-            className="flex items-center gap-3 rounded-xl border border-sidebar-border bg-sidebar-accent/30 p-3 transition-all duration-300 ease-out hover:border-primary/40 hover:bg-sidebar-accent/50 cursor-pointer group-data-[collapsible=icon]:pointer-events-none group-data-[collapsible=icon]:opacity-0 group-data-[collapsible=icon]:-translate-x-1 group-data-[collapsible=icon]:hidden"
-            role="button"
-            tabIndex={0}
-            onClick={() => navigate("/dashboard/usuarios?edit=me")}
-            onKeyDown={(event) => {
-              if (event.key === "Enter" || event.key === " ") {
-                event.preventDefault();
-                navigate("/dashboard/usuarios?edit=me");
-              }
-            }}
-          >
-            <Avatar className="h-11 w-11 border border-sidebar-border">
-              {currentUser?.avatarUrl ? (
-                <AvatarImage src={currentUser.avatarUrl} alt={currentUser.name} />
-              ) : null}
-              <AvatarFallback className="bg-sidebar-accent text-xs text-sidebar-foreground">
-                {currentUser ? currentUser.name.slice(0, 2).toUpperCase() : "??"}
-              </AvatarFallback>
-            </Avatar>
-            <div className="flex flex-1 flex-col">
-              <span className="text-sm font-semibold text-sidebar-foreground">{userLabel}</span>
-              <span className="text-xs text-sidebar-foreground/70">{userSubLabel}</span>
-            </div>
-          </div>
-          <div
-            className="hidden items-center justify-center rounded-xl border border-sidebar-border bg-sidebar-accent/30 p-2 transition-all duration-300 ease-out hover:border-primary/40 hover:bg-sidebar-accent/50 cursor-pointer group-data-[collapsible=icon]:flex group-data-[collapsible=icon]:opacity-100 group-data-[collapsible=icon]:translate-x-0"
-            role="button"
-            tabIndex={0}
-            onClick={() => navigate("/dashboard/usuarios?edit=me")}
-            onKeyDown={(event) => {
-              if (event.key === "Enter" || event.key === " ") {
-                event.preventDefault();
-                navigate("/dashboard/usuarios?edit=me");
-              }
-            }}
-          >
-            <Avatar className="h-8 w-8 border border-sidebar-border shadow-sm">
-              {currentUser?.avatarUrl ? (
-                <AvatarImage src={currentUser.avatarUrl} alt={currentUser.name} />
-              ) : null}
-              <AvatarFallback className="bg-sidebar-accent text-xs text-sidebar-foreground">
-                {currentUser ? currentUser.name.slice(0, 2).toUpperCase() : "??"}
-              </AvatarFallback>
-            </Avatar>
-          </div>
-        </SidebarHeader>
-        <SidebarSeparator className="my-2" />
-        <SidebarContent>
-          <SidebarMenu>
-            {menuItems.map((item) => {
-              const isActive = location.pathname === item.href;
-              const ItemIcon = item.icon;
-              return (
-                <SidebarMenuItem key={item.href}>
-                  <SidebarMenuButton
-                    asChild
-                    isActive={isActive}
-                    tooltip={item.label}
-                    className={`group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0${!item.enabled ? " opacity-60" : ""}`}
-                  >
-                    {item.enabled ? (
-                      <Link to={item.href}>
-                        <ItemIcon />
-                        <span className="group-data-[collapsible=icon]:hidden">{item.label}</span>
-                      </Link>
-                    ) : (
-                      <button type="button" aria-disabled="true" disabled>
-                        <ItemIcon />
-                        <span className="group-data-[collapsible=icon]:hidden">{item.label}</span>
-                      </button>
-                    )}
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              );
-            })}
-          </SidebarMenu>
-        </SidebarContent>
-      </Sidebar>
-
-      <SidebarInset className="bg-gradient-to-b from-background via-[hsl(var(--primary)/0.12)] to-background text-foreground">
-        <Header
-          variant="fixed"
-          leading={<SidebarTrigger className="text-white/80 hover:text-white" />}
-        />
-        <main className="pt-24">
+    <DashboardShell
+      currentUser={currentUser}
+      isLoadingUser={isLoadingUser}
+      userLabel={userLabel}
+      userSubLabel={userSubLabel}
+      onUserCardClick={() => navigate("/dashboard/usuarios?edit=me")}
+    >
+      <main className="pt-24">
           <section className="mx-auto w-full max-w-6xl px-6 pb-20 md:px-10">
             <header className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
               <div className="space-y-3">
@@ -502,9 +391,7 @@ const Dashboard = () => {
           </section>
           </section>
         </main>
-        <Footer />
-      </SidebarInset>
-    </SidebarProvider>
+    </DashboardShell>
   );
 };
 

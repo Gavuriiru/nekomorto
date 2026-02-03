@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Instagram, X, Youtube, MessageCircle, Globe } from "lucide-react";
 import { getApiBase } from "@/lib/api-base";
+import { usePageMeta } from "@/hooks/use-page-meta";
 
 type PublicUser = {
   id: string;
@@ -20,6 +21,8 @@ type PublicUser = {
 };
 
 const Team = () => {
+  usePageMeta({ title: "Equipe" });
+
   const apiBase = getApiBase();
   const [members, setMembers] = useState<PublicUser[]>([]);
   const [isLoading, setIsLoading] = useState(true);

@@ -42,7 +42,7 @@ const applyInlineFormatting = (value: string) => {
   html = html.replace(/\*([^*]+)\*/g, "<em>$1</em>");
   html = html.replace(/_([^_]+)_/g, "<em>$1</em>");
   html = html.replace(/~~([^~]+)~~/g, "<del>$1</del>");
-  html = html.replace(/!\[([^\]]*)\]\(([^)\s]+)(?:\s+\"([^\"]+)\")?\)/g, (_match, alt, url, title) => {
+  html = html.replace(/!\[([^\]]*)\]\(([^)\s]+)(?:\s+"([^"]+)")?\)/g, (_match, alt, url, title) => {
     const safeAlt = escapeHtml(String(alt || ""));
     const safeUrl = escapeHtml(normalizeLocalUrl(String(url || "")));
     const titleAttr = title ? ` title="${escapeHtml(String(title))}"` : "";

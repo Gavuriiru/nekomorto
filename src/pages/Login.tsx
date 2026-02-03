@@ -5,8 +5,11 @@ import Footer from "@/components/Footer";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { getApiBase } from "@/lib/api-base";
+import { usePageMeta } from "@/hooks/use-page-meta";
 
 const Login = () => {
+  usePageMeta({ title: "Login", noIndex: true });
+
   const location = useLocation();
   const params = useMemo(() => new URLSearchParams(location.search), [location.search]);
   const error = params.get("error");

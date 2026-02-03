@@ -66,7 +66,6 @@ const isAllowedOrigin = (origin) => {
 };
 
 if (!DISCORD_CLIENT_ID || !DISCORD_CLIENT_SECRET || !SESSION_SECRET) {
-  // eslint-disable-next-line no-console
   console.warn("Missing DISCORD_CLIENT_ID, DISCORD_CLIENT_SECRET, or SESSION_SECRET in env.");
 }
 
@@ -179,6 +178,127 @@ const updatesFilePath = path.join(__dirname, "data", "updates.json");
 const tagTranslationsFilePath = path.join(__dirname, "data", "tag-translations.json");
 const commentsFilePath = path.join(__dirname, "data", "comments.json");
 const pagesFilePath = path.join(__dirname, "data", "pages.json");
+const siteSettingsFilePath = path.join(__dirname, "data", "site-settings.json");
+
+const defaultSiteSettings = {
+  site: {
+    name: "NEKOMATA",
+    logoUrl: "",
+    faviconUrl: "",
+    description:
+      "Fansub dedicada a trazer histórias inesquecíveis com o carinho que a comunidade merece.",
+    defaultShareImage: "/placeholder.svg",
+  },
+  navbar: {
+    recruitmentUrl: "https://discord.com/invite/BAHKhdX2ju",
+  },
+  community: {
+    discordUrl: "https://discord.com/invite/BAHKhdX2ju",
+  },
+  downloads: {
+    sources: [
+      { id: "google-drive", label: "Google Drive", color: "#34A853", icon: "google-drive" },
+      { id: "mega", label: "MEGA", color: "#D9272E", icon: "mega" },
+      { id: "torrent", label: "Torrent", color: "#7C3AED", icon: "torrent" },
+      { id: "mediafire", label: "Mediafire", color: "#2563EB", icon: "mediafire" },
+      { id: "telegram", label: "Telegram", color: "#0EA5E9", icon: "telegram" },
+      { id: "outro", label: "Outro", color: "#64748B", icon: "link" },
+    ],
+  },
+  teamRoles: [
+    { id: "tradutor", label: "Tradutor", icon: "languages" },
+    { id: "revisor", label: "Revisor", icon: "check" },
+    { id: "typesetter", label: "Typesetter", icon: "pen-tool" },
+    { id: "qualidade", label: "Qualidade", icon: "sparkles" },
+    { id: "desenvolvedor", label: "Desenvolvedor", icon: "code" },
+    { id: "cleaner", label: "Cleaner", icon: "paintbrush" },
+    { id: "redrawer", label: "Redrawer", icon: "layers" },
+    { id: "encoder", label: "Encoder", icon: "video" },
+    { id: "k-timer", label: "K-Timer", icon: "clock" },
+    { id: "logo-maker", label: "Logo Maker", icon: "badge" },
+    { id: "k-maker", label: "K-Maker", icon: "palette" },
+  ],
+  footer: {
+    brandName: "NEKOMATA",
+    brandLogoUrl: "",
+    brandDescription:
+      "Fansub dedicada a trazer histórias inesquecíveis com o carinho que a comunidade merece. Traduzimos por paixão, respeitando autores e apoiando o consumo legal das obras.",
+    columns: [
+      {
+        title: "Nekomata",
+        links: [
+          { label: "Sobre", href: "/sobre" },
+          { label: "Equipe", href: "/equipe" },
+        ],
+      },
+      {
+        title: "Ajude nossa equipe",
+        links: [
+          { label: "Recrutamento", href: "https://discord.com/invite/BAHKhdX2ju" },
+          { label: "Doações", href: "/doacoes" },
+        ],
+      },
+      {
+        title: "Links úteis",
+        links: [
+          { label: "Projetos", href: "/projetos" },
+          { label: "FAQ", href: "/faq" },
+          { label: "Reportar erros", href: "https://discord.com/invite/BAHKhdX2ju" },
+          { label: "Info Anime", href: "https://infoanime.com.br" },
+        ],
+      },
+    ],
+    socialLinks: [
+      { label: "Instagram", href: "https://instagram.com", icon: "instagram" },
+      { label: "Facebook", href: "https://facebook.com", icon: "facebook" },
+      { label: "Twitter", href: "https://twitter.com", icon: "twitter" },
+      { label: "Discord", href: "https://discord.com/invite/BAHKhdX2ju", icon: "discord" },
+    ],
+    disclaimer: [
+      "Todo o conteúdo divulgado aqui pertence a seus respectivos autores e editoras. As traduções são realizadas por fãs, sem fins lucrativos, com o objetivo de divulgar as obras no Brasil.",
+      "Caso goste de alguma obra, apoie a versão oficial. A venda de materiais legendados pela equipe é proibida.",
+    ],
+    highlightTitle: "Atribuição • Não Comercial",
+    highlightDescription:
+      "Este site segue a licença Creative Commons BY-NC. Você pode compartilhar com créditos, sem fins comerciais.",
+    copyright: "© 2014 - 2026 Nekomata Fansub. Feito por fãs para fãs.",
+  },
+};
+
+const mergeSettings = (base, override) => {
+  if (Array.isArray(base)) {
+    return Array.isArray(override) ? override : base;
+  }
+  if (base && typeof base === "object") {
+    const next = { ...base };
+    if (override && typeof override === "object") {
+      Object.keys(override).forEach((key) => {
+        next[key] = mergeSettings(base[key], override[key]);
+      });
+    }
+    return next;
+  }
+  return override ?? base;
+};
+
+const normalizeSiteSettings = (payload) => {
+  const merged = mergeSettings(defaultSiteSettings, payload || {});
+  const discordUrl = String(merged?.community?.discordUrl || "").trim();
+  if (discordUrl) {
+    if (!merged.navbar?.recruitmentUrl) {
+      merged.navbar.recruitmentUrl = discordUrl;
+    }
+    if (Array.isArray(merged.footer?.socialLinks)) {
+      merged.footer.socialLinks = merged.footer.socialLinks.map((link) => {
+        if (String(link.label || "").toLowerCase() === "discord" && !link.href) {
+          return { ...link, href: discordUrl };
+        }
+        return link;
+      });
+    }
+  }
+  return merged;
+};
 
 const loadProjects = () => {
   try {
@@ -273,6 +393,27 @@ const loadPages = () => {
 const writePages = (pages) => {
   fs.mkdirSync(path.dirname(pagesFilePath), { recursive: true });
   fs.writeFileSync(pagesFilePath, JSON.stringify(pages, null, 2));
+};
+
+const loadSiteSettings = () => {
+  try {
+    if (!fs.existsSync(siteSettingsFilePath)) {
+      const seeded = normalizeSiteSettings(defaultSiteSettings);
+      fs.mkdirSync(path.dirname(siteSettingsFilePath), { recursive: true });
+      fs.writeFileSync(siteSettingsFilePath, JSON.stringify(seeded, null, 2));
+      return seeded;
+    }
+    const raw = fs.readFileSync(siteSettingsFilePath, "utf-8");
+    const parsed = JSON.parse(raw || "{}");
+    return normalizeSiteSettings(parsed);
+  } catch {
+    return normalizeSiteSettings(defaultSiteSettings);
+  }
+};
+
+const writeSiteSettings = (settings) => {
+  fs.mkdirSync(path.dirname(siteSettingsFilePath), { recursive: true });
+  fs.writeFileSync(siteSettingsFilePath, JSON.stringify(settings, null, 2));
 };
 
 const normalizeEmail = (value) => String(value || "").trim().toLowerCase();
@@ -661,19 +802,31 @@ app.get("/login", async (req, res) => {
   }
 });
 
+const buildUserPayload = (sessionUser) => {
+  ensureOwnerUser(sessionUser);
+  const users = normalizeUsers(loadUsers());
+  const matched = users.find((user) => user.id === String(sessionUser.id));
+  return {
+    ...sessionUser,
+    permissions: matched?.permissions || [],
+    roles: matched?.roles || [],
+  };
+};
+
 app.get("/api/me", (req, res) => {
   if (!req.session?.user) {
     return res.status(401).json({ error: "unauthorized" });
   }
 
-  ensureOwnerUser(req.session.user);
-  const users = normalizeUsers(loadUsers());
-  const matched = users.find((user) => user.id === String(req.session.user.id));
-  return res.json({
-    ...req.session.user,
-    permissions: matched?.permissions || [],
-    roles: matched?.roles || [],
-  });
+  return res.json(buildUserPayload(req.session.user));
+});
+
+app.get("/api/public/me", (req, res) => {
+  if (!req.session?.user) {
+    return res.json({ user: null });
+  }
+
+  return res.json({ user: buildUserPayload(req.session.user) });
 });
 
 const requireAuth = (req, res, next) => {
@@ -779,6 +932,18 @@ const canManagePages = (userId) => {
   const user = normalizeUsers(loadUsers()).find((item) => item.id === String(userId));
   const permissions = Array.isArray(user?.permissions) ? user.permissions : [];
   return permissions.includes("*") || permissions.includes("paginas");
+};
+
+const canManageSettings = (userId) => {
+  if (!userId) {
+    return false;
+  }
+  if (isOwner(userId)) {
+    return true;
+  }
+  const user = normalizeUsers(loadUsers()).find((item) => item.id === String(userId));
+  const permissions = Array.isArray(user?.permissions) ? user.permissions : [];
+  return permissions.includes("*") || permissions.includes("configuracoes");
 };
 
 const syncAllowedUsers = (users) => {
@@ -1702,6 +1867,10 @@ app.get("/api/public/updates", (req, res) => {
   res.json({ updates });
 });
 
+app.get("/api/public/settings", (req, res) => {
+  return res.json({ settings: loadSiteSettings() });
+});
+
 app.get("/api/public/tag-translations", (req, res) => {
   const translations = loadTagTranslations();
   res.json({ tags: translations.tags, genres: translations.genres });
@@ -1709,6 +1878,28 @@ app.get("/api/public/tag-translations", (req, res) => {
 
 app.get("/api/public/pages", (req, res) => {
   return res.json({ pages: loadPages() });
+});
+
+app.get("/api/settings", requireAuth, (req, res) => {
+  const userId = req.session?.user?.id;
+  if (!canManageSettings(userId)) {
+    return res.status(403).json({ error: "Sem permissão para gerenciar configurações." });
+  }
+  return res.json({ settings: loadSiteSettings() });
+});
+
+app.put("/api/settings", requireAuth, (req, res) => {
+  const userId = req.session?.user?.id;
+  if (!canManageSettings(userId)) {
+    return res.status(403).json({ error: "Sem permissão para gerenciar configurações." });
+  }
+  const settings = req.body?.settings;
+  if (!settings || typeof settings !== "object") {
+    return res.status(400).json({ error: "Payload inválido." });
+  }
+  const normalized = normalizeSiteSettings(settings);
+  writeSiteSettings(normalized);
+  return res.json({ settings: normalized });
 });
 
 app.get("/api/pages", requireAuth, (req, res) => {
@@ -1759,6 +1950,29 @@ app.post("/api/tag-translations/sync", requireAuth, (req, res) => {
   });
 
   const payload = { tags: nextTags, genres: nextGenres };
+  writeTagTranslations(payload);
+  return res.json(payload);
+});
+
+app.put("/api/tag-translations", requireAuth, (req, res) => {
+  const sessionUser = req.session.user;
+  if (!canManageSettings(sessionUser?.id)) {
+    return res.status(403).json({ error: "forbidden" });
+  }
+  const tags = req.body?.tags;
+  const genres = req.body?.genres;
+  if (!tags || typeof tags !== "object") {
+    return res.status(400).json({ error: "tags_required" });
+  }
+  const normalizedTags = Object.fromEntries(
+    Object.entries(tags).map(([key, value]) => [String(key), String(value || "")]),
+  );
+  const normalizedGenres = genres && typeof genres === "object"
+    ? Object.fromEntries(
+        Object.entries(genres).map(([key, value]) => [String(key), String(value || "")]),
+      )
+    : {};
+  const payload = { tags: normalizedTags, genres: normalizedGenres };
   writeTagTranslations(payload);
   return res.json(payload);
 });
@@ -2080,6 +2294,5 @@ app.post("/api/logout", (req, res) => {
 });
 
 app.listen(Number(PORT), () => {
-  // eslint-disable-next-line no-console
   console.log(`Auth server running on http://127.0.0.1:${PORT}`);
 });

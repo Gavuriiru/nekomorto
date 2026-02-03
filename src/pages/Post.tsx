@@ -14,6 +14,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { estimateReadTime, renderPostContent } from "@/lib/post-content";
 import { normalizeAssetUrl } from "@/lib/asset-url";
 import { getApiBase } from "@/lib/api-base";
+import { usePageMeta } from "@/hooks/use-page-meta";
 
 const Post = () => {
   const { slug } = useParams();
@@ -77,21 +78,12 @@ const Post = () => {
     };
   }, [apiBase, slug]);
 
-  useEffect(() => {
-    if (!post) {
-      return;
-    }
-    const title = post.seoTitle || post.title;
-    document.title = `${title} | Nekomata`;
-    const description = post.seoDescription || post.excerpt || "";
-    let meta = document.querySelector("meta[name=description]") as HTMLMetaElement | null;
-    if (!meta) {
-      meta = document.createElement("meta");
-      meta.name = "description";
-      document.head.appendChild(meta);
-    }
-    meta.content = description;
-  }, [post]);
+  usePageMeta({
+    title: post?.seoTitle || post?.title || "Postagem",
+    description: post?.seoDescription || post?.excerpt || "",
+    image: normalizeAssetUrl(post?.coverImageUrl),
+    type: "article",
+  });
 
   const formattedDate = useMemo(() => {
     if (!post?.publishedAt) {

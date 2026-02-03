@@ -1,11 +1,9 @@
-﻿import { useEffect, useMemo, useRef, useState } from "react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
-import Header from "@/components/Header";
-import Footer from "@/components/Footer";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import DashboardShell from "@/components/DashboardShell";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   Dialog,
   DialogContent,
@@ -27,18 +25,6 @@ import { toast } from "@/components/ui/use-toast";
 import { usePostEditorState } from "@/hooks/use-post-editor-state";
 import PostContentEditor from "@/components/PostContentEditor";
 import {
-  Sidebar,
-  SidebarContent,
-  SidebarHeader,
-  SidebarInset,
-  SidebarMenu,
-  SidebarMenuButton,
-  SidebarMenuItem,
-  SidebarProvider,
-  SidebarSeparator,
-  SidebarTrigger,
-} from "@/components/ui/sidebar";
-import {
   AlignCenter,
   AlignLeft,
   AlignRight,
@@ -46,13 +32,8 @@ import {
   Copy,
   Edit3,
   Eye,
-  FileText,
-  FolderCog,
-  LayoutGrid,
   MessageSquare,
   Plus,
-  Settings,
-  Shield,
   Trash2,
   X,
   UserRound,
@@ -61,17 +42,8 @@ import { convertPostContent, createSlug, renderPostContent, stripHtml } from "@/
 import type { Project } from "@/data/projects";
 import ProjectEmbedCard from "@/components/ProjectEmbedCard";
 import { getApiBase } from "@/lib/api-base";
+import { usePageMeta } from "@/hooks/use-page-meta";
 import { normalizeAssetUrl } from "@/lib/asset-url";
-
-const menuItems = [
-  { label: "Início", href: "/dashboard", icon: LayoutGrid, enabled: true },
-  { label: "Postagens", href: "/dashboard/posts", icon: FileText, enabled: true },
-  { label: "Projetos", href: "/dashboard/projetos", icon: FolderCog, enabled: true },
-  { label: "Comentários", href: "/dashboard/comentarios", icon: MessageSquare, enabled: true },
-  { label: "Usuários", href: "/dashboard/usuarios", icon: UserRound, enabled: true },
-  { label: "Páginas", href: "/dashboard/paginas", icon: Shield, enabled: true },
-  { label: "Configurações", href: "/dashboard/configuracoes", icon: Settings, enabled: false },
-];
 
 const emptyForm = {
   title: "",
@@ -116,7 +88,7 @@ type UserRecord = {
 };
 
 const DashboardPosts = () => {
-  const location = useLocation();
+  usePageMeta({ title: "Posts", noIndex: true });
   const navigate = useNavigate();
   const apiBase = getApiBase();
   const [posts, setPosts] = useState<PostRecord[]>([]);
@@ -305,12 +277,6 @@ const DashboardPosts = () => {
   }, [apiBase]);
 
   useEffect(() => {
-    if (isLibraryOpen) {
-      loadLibrary();
-    }
-  }, [isLibraryOpen]);
-
-  useEffect(() => {
     if (!isEditorOpen || !isDirty) {
       return;
     }
@@ -320,7 +286,7 @@ const DashboardPosts = () => {
     };
     window.addEventListener("beforeunload", handler);
     return () => window.removeEventListener("beforeunload", handler);
-  }, [isEditorOpen, isDirty]);
+  }, [isEditorOpen, isDirty, navigate]);
 
   useEffect(() => {
     if (!isEditorOpen || !isDirty) {
@@ -353,7 +319,7 @@ const DashboardPosts = () => {
       window.removeEventListener("popstate", handlePopState);
       hasPushedBlockRef.current = false;
     };
-  }, [isEditorOpen, isDirty]);
+  }, [isEditorOpen, isDirty, navigate]);
 
   useEffect(() => {
     if (!isEditorOpen || !isDirty) {
@@ -897,7 +863,7 @@ const DashboardPosts = () => {
     setIsLibraryOpen(true);
   };
 
-  const loadLibrary = async () => {
+  const loadLibrary = useCallback(async () => {
     try {
       const response = await fetch(`${apiBase}/api/uploads/list`, { credentials: "include" });
       if (!response.ok) {
@@ -909,7 +875,13 @@ const DashboardPosts = () => {
     } catch {
       setLibraryImages([]);
     }
-  };
+  }, [apiBase]);
+
+  useEffect(() => {
+    if (isLibraryOpen) {
+      loadLibrary();
+    }
+  }, [isLibraryOpen, loadLibrary]);
 
   const handleUploadImage = async () => {
     if (!imageFile) {
@@ -1436,97 +1408,19 @@ const DashboardPosts = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
-      <SidebarProvider defaultOpen>
-        <Sidebar variant="inset" collapsible="icon">
-          <SidebarHeader className="gap-4 group-data-[collapsible=icon]:gap-2 group-data-[collapsible=icon]:items-center">
-            <div
-              className="flex items-center gap-3 rounded-xl border border-sidebar-border bg-sidebar-accent/30 p-3 transition hover:border-primary/40 hover:bg-sidebar-accent/50 cursor-pointer group-data-[collapsible=icon]:hidden"
-              role="button"
-              tabIndex={0}
-              onClick={() => navigate("/dashboard/usuarios?edit=me")}
-              onKeyDown={(event) => {
-                if (event.key === "Enter" || event.key === " ") {
-                  event.preventDefault();
-                  navigate("/dashboard/usuarios?edit=me");
-                }
-              }}
-            >
-              <Avatar className="h-11 w-11 border border-sidebar-border">
-                {currentUser?.avatarUrl ? (
-                  <AvatarImage src={currentUser.avatarUrl} alt={currentUser.name} />
-                ) : null}
-                <AvatarFallback className="bg-sidebar-accent text-xs text-sidebar-foreground">
-                  {currentUser ? currentUser.name.slice(0, 2).toUpperCase() : "??"}
-                </AvatarFallback>
-              </Avatar>
-              <div className="flex flex-1 flex-col">
-                <span className="text-sm font-semibold text-sidebar-foreground">
-                  {currentUser?.name ?? "Usuário"}
-                </span>
-                <span className="text-xs text-sidebar-foreground/70">
-                  {currentUser?.username ? `@${currentUser.username}` : "Dashboard"}
-                </span>
-              </div>
-            </div>
-            <div
-              className="hidden items-center justify-center rounded-xl border border-sidebar-border bg-sidebar-accent/30 p-2 transition hover:border-primary/40 hover:bg-sidebar-accent/50 cursor-pointer group-data-[collapsible=icon]:flex"
-              role="button"
-              tabIndex={0}
-              onClick={() => navigate("/dashboard/usuarios?edit=me")}
-              onKeyDown={(event) => {
-                if (event.key === "Enter" || event.key === " ") {
-                  event.preventDefault();
-                  navigate("/dashboard/usuarios?edit=me");
-                }
-              }}
-            >
-              <Avatar className="h-8 w-8 border border-sidebar-border shadow-sm">
-                {currentUser?.avatarUrl ? (
-                  <AvatarImage src={currentUser.avatarUrl} alt={currentUser.name} />
-                ) : null}
-                <AvatarFallback className="bg-sidebar-accent text-[10px] text-sidebar-foreground">
-                  {currentUser ? currentUser.name.slice(0, 2).toUpperCase() : "??"}
-                </AvatarFallback>
-              </Avatar>
-            </div>
-          </SidebarHeader>
-          <SidebarSeparator className="my-2" />
-          <SidebarContent>
-            <SidebarMenu>
-              {menuItems.map((item) => (
-                <SidebarMenuItem key={item.href}>
-                  <SidebarMenuButton asChild isActive={location.pathname === item.href} tooltip={item.label} disabled={!item.enabled}>
-                    {item.enabled ? (
-                      <Link
-                        to={item.href}
-                        onClick={(event) => {
-                          if (!isEditorOpen || !isDirty) {
-                            return;
-                          }
-                          event.preventDefault();
-                          handleRouteNavigate(item.href);
-                        }}
-                      >
-                        <item.icon />
-                        <span className="group-data-[collapsible=icon]:hidden">{item.label}</span>
-                      </Link>
-                    ) : (
-                      <button type="button" aria-disabled="true" disabled>
-                        <item.icon />
-                        <span className="group-data-[collapsible=icon]:hidden">{item.label}</span>
-                      </button>
-                    )}
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </SidebarContent>
-        </Sidebar>
-
-        <SidebarInset className="bg-gradient-to-b from-background via-[hsl(var(--primary)/0.12)] to-background text-foreground">
-          <Header variant="fixed" leading={<SidebarTrigger className="text-white/80 hover:text-white" />} />
-          <main className="pt-24 px-6 pb-20 md:px-10">
+    <>
+      <DashboardShell
+        currentUser={currentUser}
+        onUserCardClick={() => navigate("/dashboard/usuarios?edit=me")}
+        onMenuItemClick={(item, event) => {
+          if (!item.enabled || !isEditorOpen || !isDirty) {
+            return;
+          }
+          event.preventDefault();
+          handleRouteNavigate(item.href);
+        }}
+      >
+        <main className="pt-24 px-6 pb-20 md:px-10">
             <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
               <div>
                 <Badge variant="secondary" className="text-xs uppercase tracking-widest">
@@ -2080,8 +1974,7 @@ const DashboardPosts = () => {
               )}
             </section>
           </main>
-        </SidebarInset>
-      </SidebarProvider>
+      </DashboardShell>
 
       <Dialog open={isImageDialogOpen} onOpenChange={setIsImageDialogOpen}>
         <DialogContent className="max-w-lg">
@@ -2470,26 +2363,8 @@ const DashboardPosts = () => {
           </div>
         </DialogContent>
       </Dialog>
-
-      <Footer />
-    </div>
+    </>
   );
 };
 
 export default DashboardPosts;
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

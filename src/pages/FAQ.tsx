@@ -5,6 +5,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { HelpCircle, Info, Users, Rocket, Shield, Sparkles } from "lucide-react";
 import { getApiBase } from "@/lib/api-base";
+import { usePageMeta } from "@/hooks/use-page-meta";
 
 const iconMap: Record<string, typeof HelpCircle> = {
   HelpCircle,
@@ -73,6 +74,8 @@ const defaultFaq = {
 };
 
 const FAQ = () => {
+  usePageMeta({ title: "FAQ" });
+
   const apiBase = getApiBase();
   const [faq, setFaq] = useState(defaultFaq);
 

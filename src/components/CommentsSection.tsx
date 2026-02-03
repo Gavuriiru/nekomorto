@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { MessageSquare, Reply } from "lucide-react";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -76,7 +76,7 @@ const CommentsSection = ({ targetType, targetId, chapterNumber, volume }: Commen
 
   const commentTree = useMemo(() => buildCommentTree(comments), [comments]);
 
-  const fetchComments = async () => {
+  const fetchComments = useCallback(async () => {
     try {
       setIsLoading(true);
       const params = new URLSearchParams({
@@ -101,37 +101,41 @@ const CommentsSection = ({ targetType, targetId, chapterNumber, volume }: Commen
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [apiBase, chapterNumber, targetId, targetType, volume]);
 
   useEffect(() => {
     void fetchComments();
-  }, [apiBase, targetId, targetType, chapterNumber, volume]);
+  }, [fetchComments]);
 
   useEffect(() => {
     let isActive = true;
     const loadMe = async () => {
       try {
-        const response = await fetch(`${apiBase}/api/me`, { credentials: "include" });
+        const response = await fetch(`${apiBase}/api/public/me`, { credentials: "include" });
         if (!response.ok) {
           return;
         }
         const data = await response.json();
+        const user = data?.user ?? data;
+        if (!user) {
+          return;
+        }
         if (!isActive) {
           return;
         }
-        const permissions = Array.isArray(data.permissions) ? data.permissions : [];
+        const permissions = Array.isArray(user.permissions) ? user.permissions : [];
         const moderator =
           permissions.includes("*") ||
           permissions.includes("comentarios") ||
           permissions.includes("posts") ||
           permissions.includes("projetos");
-        setCurrentUser({ name: data.name || "", email: data.email || "", permissions });
+        setCurrentUser({ name: user.name || "", email: user.email || "", permissions });
         setCanModerate(moderator);
         if (moderator) {
           setForm((prev) => ({
             ...prev,
-            name: data.name || prev.name,
-            email: data.email || prev.email,
+            name: user.name || prev.name,
+            email: user.email || prev.email,
           }));
         }
       } catch {

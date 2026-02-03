@@ -1,47 +1,14 @@
-import { useEffect, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import {
-  LayoutGrid,
-  FileText,
-  FolderCog,
-  MessageSquare,
-  Settings,
-  Shield,
-  UserRound,
-  CheckCircle2,
-  Trash2,
-  ExternalLink,
-} from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { CheckCircle2, Trash2, ExternalLink } from "lucide-react";
 
-import Header from "@/components/Header";
-import Footer from "@/components/Footer";
+import DashboardShell from "@/components/DashboardShell";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import {
-  Sidebar,
-  SidebarContent,
-  SidebarHeader,
-  SidebarInset,
-  SidebarMenu,
-  SidebarMenuButton,
-  SidebarMenuItem,
-  SidebarProvider,
-  SidebarSeparator,
-  SidebarTrigger,
-} from "@/components/ui/sidebar";
 import { Badge } from "@/components/ui/badge";
 import { getApiBase } from "@/lib/api-base";
+import { usePageMeta } from "@/hooks/use-page-meta";
 
-const menuItems = [
-  { label: "Início", href: "/dashboard", icon: LayoutGrid, enabled: true },
-  { label: "Postagens", href: "/dashboard/posts", icon: FileText, enabled: true },
-  { label: "Projetos", href: "/dashboard/projetos", icon: FolderCog, enabled: true },
-  { label: "Comentários", href: "/dashboard/comentarios", icon: MessageSquare, enabled: true },
-  { label: "Usuários", href: "/dashboard/usuarios", icon: UserRound, enabled: true },
-  { label: "Páginas", href: "/dashboard/paginas", icon: Shield, enabled: true },
-  { label: "Configurações", href: "/dashboard/configuracoes", icon: Settings, enabled: false },
-];
 
 type PendingComment = {
   id: string;
@@ -60,6 +27,7 @@ const formatDateTime = (value: string) =>
   new Date(value).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" });
 
 const DashboardComments = () => {
+  usePageMeta({ title: "Comentários", noIndex: true });
   const apiBase = getApiBase();
   const navigate = useNavigate();
   const [comments, setComments] = useState<PendingComment[]>([]);
@@ -71,7 +39,7 @@ const DashboardComments = () => {
     avatarUrl?: string | null;
   } | null>(null);
 
-  const loadComments = async () => {
+  const loadComments = useCallback(async () => {
     try {
       setIsLoading(true);
       const response = await fetch(`${apiBase}/api/comments/pending`, { credentials: "include" });
@@ -86,11 +54,11 @@ const DashboardComments = () => {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [apiBase]);
 
   useEffect(() => {
     void loadComments();
-  }, [apiBase]);
+  }, [loadComments]);
 
   useEffect(() => {
     const loadUser = async () => {
@@ -131,82 +99,11 @@ const DashboardComments = () => {
   };
 
   return (
-    <SidebarProvider defaultOpen>
-      <Sidebar variant="inset" collapsible="icon">
-        <SidebarHeader className="gap-4 transition-all duration-200 ease-linear group-data-[collapsible=icon]:gap-2 group-data-[collapsible=icon]:items-center">
-          <div
-            className="flex items-center gap-3 rounded-xl border border-sidebar-border bg-sidebar-accent/30 p-3 transition-all duration-300 ease-out hover:border-primary/40 hover:bg-sidebar-accent/50 cursor-pointer group-data-[collapsible=icon]:pointer-events-none group-data-[collapsible=icon]:opacity-0 group-data-[collapsible=icon]:-translate-x-1 group-data-[collapsible=icon]:hidden"
-            role="button"
-            tabIndex={0}
-            onClick={() => navigate("/dashboard/usuarios?edit=me")}
-            onKeyDown={(event) => {
-              if (event.key === "Enter" || event.key === " ") {
-                event.preventDefault();
-                navigate("/dashboard/usuarios?edit=me");
-              }
-            }}
-          >
-            <Avatar className="h-11 w-11 border border-sidebar-border">
-              {currentUser?.avatarUrl ? (
-                <AvatarImage src={currentUser.avatarUrl} alt={currentUser.name} />
-              ) : null}
-              <AvatarFallback className="bg-sidebar-accent text-xs text-sidebar-foreground">
-                {currentUser ? currentUser.name.slice(0, 2).toUpperCase() : "??"}
-              </AvatarFallback>
-            </Avatar>
-            <div className="flex flex-1 flex-col">
-              <span className="text-sm font-semibold text-sidebar-foreground">
-                {currentUser?.name ?? "Usuário"}
-              </span>
-              <span className="text-xs text-sidebar-foreground/70">
-                {currentUser?.username ? `@${currentUser.username}` : "Dashboard"}
-              </span>
-            </div>
-          </div>
-          <div
-            className="hidden items-center justify-center rounded-xl border border-sidebar-border bg-sidebar-accent/30 p-2 transition-all duration-300 ease-out hover:border-primary/40 hover:bg-sidebar-accent/50 cursor-pointer group-data-[collapsible=icon]:flex group-data-[collapsible=icon]:opacity-100 group-data-[collapsible=icon]:translate-x-0"
-            role="button"
-            tabIndex={0}
-            onClick={() => navigate("/dashboard/usuarios?edit=me")}
-            onKeyDown={(event) => {
-              if (event.key === "Enter" || event.key === " ") {
-                event.preventDefault();
-                navigate("/dashboard/usuarios?edit=me");
-              }
-            }}
-          >
-            <Avatar className="h-8 w-8 border border-sidebar-border shadow-sm">
-              {currentUser?.avatarUrl ? (
-                <AvatarImage src={currentUser.avatarUrl} alt={currentUser.name} />
-              ) : null}
-              <AvatarFallback className="bg-sidebar-accent text-[10px] text-sidebar-foreground">
-                {currentUser ? currentUser.name.slice(0, 2).toUpperCase() : "??"}
-              </AvatarFallback>
-            </Avatar>
-          </div>
-        </SidebarHeader>
-        <SidebarSeparator className="my-2" />
-        <SidebarContent>
-          <SidebarMenu>
-            {menuItems.map((item) => (
-              <SidebarMenuItem key={item.href}>
-                <SidebarMenuButton asChild disabled={!item.enabled}>
-                  <Link
-                    to={item.href}
-                    className="flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium text-sidebar-foreground/80 transition hover:bg-sidebar-accent/40 hover:text-sidebar-foreground"
-                  >
-                    <item.icon className="h-4 w-4" />
-                    <span className="group-data-[collapsible=icon]:hidden">{item.label}</span>
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            ))}
-          </SidebarMenu>
-        </SidebarContent>
-      </Sidebar>
-      <SidebarInset className="bg-gradient-to-b from-background via-[hsl(var(--primary)/0.12)] to-background text-foreground">
-        <Header variant="fixed" leading={<SidebarTrigger className="text-white/80 hover:text-white" />} />
-        <main className="px-6 pb-20 pt-24 md:px-10">
+    <DashboardShell
+      currentUser={currentUser}
+      onUserCardClick={() => navigate("/dashboard/usuarios?edit=me")}
+    >
+      <main className="px-6 pb-20 pt-24 md:px-10">
           <div className="mx-auto flex w-full max-w-6xl flex-col gap-6">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
@@ -275,9 +172,7 @@ const DashboardComments = () => {
             )}
           </div>
         </main>
-        <Footer />
-      </SidebarInset>
-    </SidebarProvider>
+    </DashboardShell>
   );
 };
 

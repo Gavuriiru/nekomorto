@@ -1,6 +1,18 @@
-﻿import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { BookOpen, CalendarDays, Download, Film, PlayCircle, Share2, Users } from "lucide-react";
+import {
+  BookOpen,
+  CalendarDays,
+  Cloud,
+  Download,
+  Film,
+  HardDrive,
+  Link2,
+  PlayCircle,
+  Send,
+  Share2,
+  Users,
+} from "lucide-react";
 
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
@@ -12,6 +24,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { getApiBase } from "@/lib/api-base";
+import { useSiteSettings } from "@/hooks/use-site-settings";
+import { usePageMeta } from "@/hooks/use-page-meta";
 import NotFound from "./NotFound";
 import type { Project } from "@/data/projects";
 
@@ -24,6 +38,14 @@ const ProjectPage = () => {
   const [tagTranslations, setTagTranslations] = useState<Record<string, string>>({});
   const [genreTranslations, setGenreTranslations] = useState<Record<string, string>>({});
   const [episodePage, setEpisodePage] = useState(1);
+  const { settings } = useSiteSettings();
+
+  usePageMeta({
+    title: project?.title || "Projeto",
+    description: project?.synopsis || "",
+    image: project?.cover || settings.site.defaultShareImage,
+    type: "article",
+  });
 
   useEffect(() => {
     if (!slug) {
@@ -118,6 +140,54 @@ const ProjectPage = () => {
     ].filter((item) => String(item.value || "").trim().length > 0);
   }, [project]);
 
+  const sourceThemeMap = useMemo(() => {
+    const map = new Map<string, { color: string; icon?: string }>();
+    settings.downloads.sources.forEach((source) => {
+      if (!source?.label) {
+        return;
+      }
+      map.set(source.label.toLowerCase(), {
+        color: source.color || "#7C3AED",
+        icon: source.icon,
+      });
+    });
+    return map;
+  }, [settings.downloads.sources]);
+
+  const renderSourceIcon = (iconKey: string | undefined, color: string) => {
+    if (iconKey && (iconKey.startsWith("http") || iconKey.startsWith("data:"))) {
+      return <img src={iconKey} alt="" className="h-4 w-4" />;
+    }
+    const normalized = String(iconKey || "").toLowerCase();
+    if (normalized === "google-drive") {
+      return (
+        <svg viewBox="0 0 24 24" aria-hidden="true" className="h-4 w-4" style={{ color }}>
+          <path fill="currentColor" d="M7.5 3h9l4.5 8-4.5 8h-9L3 11z" />
+        </svg>
+      );
+    }
+    if (normalized === "mega") {
+      return (
+        <svg viewBox="0 0 24 24" aria-hidden="true" className="h-4 w-4">
+          <circle cx="12" cy="12" r="10" fill={color} />
+          <path
+            fill="#fff"
+            d="M7.2 16.4V7.6h1.6l3.2 4.2 3.2-4.2h1.6v8.8h-1.6V10l-3.2 4.1L8.8 10v6.4z"
+          />
+        </svg>
+      );
+    }
+    const iconMap: Record<string, typeof Download> = {
+      telegram: Send,
+      mediafire: Cloud,
+      torrent: HardDrive,
+      link: Link2,
+      download: Download,
+    };
+    const Icon = iconMap[normalized] || Download;
+    return <Icon className="h-4 w-4" style={{ color }} />;
+  };
+
   const downloadableEpisodes = useMemo(
     () => (project?.episodeDownloads || []).filter((episode) => (episode.sources || []).length > 0),
     [project?.episodeDownloads],
@@ -177,9 +247,10 @@ const ProjectPage = () => {
   }, [project?.type]);
 
   const isChapterBased = isManga || isLightNovel;
+  type EpisodeItem = (typeof sortedDownloadableEpisodes)[number];
 
   const volumeGroups = useMemo(() => {
-    const groups = new Map<string, { label: string; volume?: number; items: typeof sortedLightNovelChapters }>();
+    const groups = new Map<string, { label: string; volume?: number; items: EpisodeItem[] }>();
     const allItems = isLightNovel ? sortedLightNovelChapters : sortedDownloadableEpisodes;
     allItems.forEach((item) => {
       const volumeKey = typeof item.volume === "number" && !Number.isNaN(item.volume) ? String(item.volume) : "none";
@@ -190,7 +261,7 @@ const ProjectPage = () => {
           items: [],
         });
       }
-      groups.get(volumeKey)?.items.push(item as any);
+      groups.get(volumeKey)?.items.push(item);
     });
     const entries = Array.from(groups.entries()).sort((a, b) => {
       if (a[0] === "none") return 1;
@@ -617,57 +688,18 @@ const ProjectPage = () => {
                                         <p className="text-sm text-muted-foreground">{episode.synopsis}</p>
                                       </div>
                                       <div className="mt-auto flex flex-wrap gap-2 md:justify-end md:self-end">
-                                        {episode.sources.map((source) => {
-                                          const icon =
-                                            source.label === "Google Drive" ? (
-                                              <svg
-                                                viewBox="0 0 24 24"
-                                                aria-hidden="true"
-                                                className="h-4 w-4 text-[#34A853]"
-                                              >
-                                                <path
-                                                  fill="currentColor"
-                                                  d="M7.5 3h9l4.5 8-4.5 8h-9L3 11z"
-                                                />
-                                              </svg>
-                                            ) : source.label === "MEGA" ? (
-                                              <svg
-                                                viewBox="0 0 24 24"
-                                                aria-hidden="true"
-                                                className="h-4 w-4 text-[#D9272E]"
-                                              >
-                                                <circle cx="12" cy="12" r="10" fill="currentColor" />
-                                                <path
-                                                  fill="#fff"
-                                                  d="M7.2 16.4V7.6h1.6l3.2 4.2 3.2-4.2h1.6v8.8h-1.6V10l-3.2 4.1L8.8 10v6.4z"
-                                                />
-                                              </svg>
-                                            ) : (
-                                              <svg
-                                                viewBox="0 0 24 24"
-                                                aria-hidden="true"
-                                                className="h-4 w-4 text-[#7C3AED]"
-                                              >
-                                                <path
-                                                  fill="currentColor"
-                                                  d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2Zm1 5.5 3.5 3.5H13Zm-2 0v3.5H7.5Zm-3.5 6.5 3.5-3.5V14Z"
-                                                />
-                                              </svg>
-                                            );
-                                          const buttonClassName =
-                                            source.label === "Google Drive"
-                                              ? "border-[#34A853]/60 text-[#34A853] hover:bg-[#34A853]/15"
-                                              : source.label === "MEGA"
-                                              ? "border-[#D9272E]/60 text-[#D9272E] hover:bg-[#D9272E]/15"
-                                              : "border-[#7C3AED]/60 text-[#7C3AED] hover:bg-[#7C3AED]/15";
-
+                                        {episode.sources.map((source, sourceIndex) => {
+                                          const theme = sourceThemeMap.get(source.label.toLowerCase());
+                                          const color = theme?.color || "#7C3AED";
+                                          const icon = renderSourceIcon(theme?.icon, color);
                                           return (
                                             <Button
-                                              key={source.label}
+                                              key={`${source.label}-${sourceIndex}`}
                                               asChild
                                               variant="outline"
                                               size="sm"
-                                              className={`bg-black/35 ${buttonClassName}`}
+                                              className="bg-black/35 hover:bg-white/5"
+                                              style={{ borderColor: `${color}99`, color }}
                                             >
                                               <a
                                                 href={source.url}
@@ -729,57 +761,18 @@ const ProjectPage = () => {
                               <p className="text-sm text-muted-foreground">{episode.synopsis}</p>
                             </div>
                             <div className="mt-auto flex flex-wrap gap-2 md:justify-end md:self-end">
-                              {episode.sources.map((source) => {
-                                const icon =
-                                  source.label === "Google Drive" ? (
-                                    <svg
-                                      viewBox="0 0 24 24"
-                                      aria-hidden="true"
-                                      className="h-4 w-4 text-[#34A853]"
-                                    >
-                                      <path
-                                        fill="currentColor"
-                                        d="M7.5 3h9l4.5 8-4.5 8h-9L3 11z"
-                                      />
-                                    </svg>
-                                  ) : source.label === "MEGA" ? (
-                                    <svg
-                                      viewBox="0 0 24 24"
-                                      aria-hidden="true"
-                                      className="h-4 w-4 text-[#D9272E]"
-                                    >
-                                      <circle cx="12" cy="12" r="10" fill="currentColor" />
-                                      <path
-                                        fill="#fff"
-                                        d="M7.2 16.4V7.6h1.6l3.2 4.2 3.2-4.2h1.6v8.8h-1.6V10l-3.2 4.1L8.8 10v6.4z"
-                                      />
-                                    </svg>
-                                  ) : (
-                                    <svg
-                                      viewBox="0 0 24 24"
-                                      aria-hidden="true"
-                                      className="h-4 w-4 text-[#7C3AED]"
-                                    >
-                                      <path
-                                        fill="currentColor"
-                                        d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2Zm1 5.5 3.5 3.5H13Zm-2 0v3.5H7.5Zm-3.5 6.5 3.5-3.5V14Z"
-                                      />
-                                    </svg>
-                                  );
-                                const buttonClassName =
-                                  source.label === "Google Drive"
-                                    ? "border-[#34A853]/60 text-[#34A853] hover:bg-[#34A853]/15"
-                                    : source.label === "MEGA"
-                                    ? "border-[#D9272E]/60 text-[#D9272E] hover:bg-[#D9272E]/15"
-                                    : "border-[#7C3AED]/60 text-[#7C3AED] hover:bg-[#7C3AED]/15";
-
+                              {episode.sources.map((source, sourceIndex) => {
+                                const theme = sourceThemeMap.get(source.label.toLowerCase());
+                                const color = theme?.color || "#7C3AED";
+                                const icon = renderSourceIcon(theme?.icon, color);
                                 return (
                                   <Button
-                                    key={source.label}
+                                    key={`${source.label}-${sourceIndex}`}
                                     asChild
                                     variant="outline"
                                     size="sm"
-                                    className={`bg-black/35 ${buttonClassName}`}
+                                    className="bg-black/35 hover:bg-white/5"
+                                    style={{ borderColor: `${color}99`, color }}
                                   >
                                     <a
                                       href={source.url}

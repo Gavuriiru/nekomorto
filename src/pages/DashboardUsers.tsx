@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
-import Header from "@/components/Header";
-import Footer from "@/components/Footer";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import DashboardShell from "@/components/DashboardShell";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -29,32 +28,27 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
-  Sidebar,
-  SidebarContent,
-  SidebarHeader,
-  SidebarInset,
-  SidebarMenu,
-  SidebarMenuButton,
-  SidebarMenuItem,
-  SidebarProvider,
-  SidebarSeparator,
-  SidebarTrigger,
-} from "@/components/ui/sidebar";
-import {
-  FileText,
-  FolderCog,
-  LayoutGrid,
-  MessageSquare,
-  Settings,
-  Shield,
   UserRound,
+  BadgeCheck,
+  Check,
+  Clock,
+  Code,
   Globe,
   Instagram,
+  Languages,
+  Layers,
+  Paintbrush,
+  Palette,
+  PenTool,
+  Sparkles,
+  Video,
   X,
   Youtube,
   MessageCircle,
 } from "lucide-react";
 import { getApiBase } from "@/lib/api-base";
+import { usePageMeta } from "@/hooks/use-page-meta";
+import { useSiteSettings } from "@/hooks/use-site-settings";
 
 type UserRecord = {
   id: string;
@@ -92,7 +86,7 @@ const permissionOptions = [
   { id: "configuracoes", label: "Configurações" },
 ];
 
-const roleOptions = [
+const defaultRoleOptions = [
   "Tradutor",
   "Revisor",
   "Typesetter",
@@ -117,11 +111,35 @@ const socialIconMap: Record<string, typeof Globe> = {
   site: Globe,
 };
 
+const roleIconRegistry: Record<string, typeof Globe> = {
+  languages: Languages,
+  check: Check,
+  "pen-tool": PenTool,
+  sparkles: Sparkles,
+  code: Code,
+  paintbrush: Paintbrush,
+  layers: Layers,
+  video: Video,
+  clock: Clock,
+  badge: BadgeCheck,
+  palette: Palette,
+  user: UserRound,
+};
+
 const DashboardUsers = () => {
-  const location = useLocation();
+  usePageMeta({ title: "Usuários", noIndex: true });
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const apiBase = getApiBase();
+  const { settings } = useSiteSettings();
+  const roleOptions = useMemo(() => {
+    const labels = settings.teamRoles.map((role) => role.label).filter(Boolean);
+    return labels.length ? labels : defaultRoleOptions;
+  }, [settings.teamRoles]);
+  const roleIconMap = useMemo(
+    () => new Map(settings.teamRoles.map((role) => [role.label, role.icon])),
+    [settings.teamRoles],
+  );
   const [users, setUsers] = useState<UserRecord[]>([]);
   const [ownerIds, setOwnerIds] = useState<string[]>([]);
   const [currentUser, setCurrentUser] = useState<{
@@ -148,15 +166,6 @@ const DashboardUsers = () => {
     [],
   );
 
-  const menuItems = [
-    { label: "Início", href: "/dashboard", icon: LayoutGrid, enabled: true },
-    { label: "Postagens", href: "/dashboard/posts", icon: FileText, enabled: true },
-    { label: "Projetos", href: "/dashboard/projetos", icon: FolderCog, enabled: true },
-    { label: "Comentários", href: "/dashboard/comentarios", icon: MessageSquare, enabled: true },
-    { label: "Usuários", href: "/dashboard/usuarios", icon: UserRound, enabled: true },
-    { label: "Páginas", href: "/dashboard/paginas", icon: Shield, enabled: true },
-    { label: "Configurações", href: "/dashboard/configuracoes", icon: Settings, enabled: false },
-  ];
 
   const currentUserRecord = currentUser
     ? users.find((user) => user.id === currentUser.id) || null
@@ -424,93 +433,12 @@ const DashboardUsers = () => {
   };
 
   return (
-    <SidebarProvider defaultOpen>
-      <Sidebar variant="inset" collapsible="icon">
-        <SidebarHeader className="gap-4 group-data-[collapsible=icon]:gap-2 group-data-[collapsible=icon]:items-center">
-          <div
-            className="flex items-center gap-3 rounded-xl border border-sidebar-border bg-sidebar-accent/30 p-3 transition hover:border-primary/40 hover:bg-sidebar-accent/50 cursor-pointer group-data-[collapsible=icon]:hidden"
-            role="button"
-            tabIndex={0}
-            onClick={() => currentUserRecord && handleUserCardClick(currentUserRecord)}
-            onKeyDown={(event) => {
-              if (!currentUserRecord) return;
-              if (event.key === "Enter" || event.key === " ") {
-                event.preventDefault();
-                handleUserCardClick(currentUserRecord);
-              }
-            }}
-          >
-            <Avatar className="h-11 w-11 border border-sidebar-border">
-              {currentUser?.avatarUrl ? (
-                <AvatarImage src={currentUser.avatarUrl} alt={currentUser.name} />
-              ) : null}
-              <AvatarFallback className="bg-sidebar-accent text-xs text-sidebar-foreground">
-                {currentUser ? currentUser.name.slice(0, 2).toUpperCase() : "??"}
-              </AvatarFallback>
-            </Avatar>
-            <div className="flex flex-1 flex-col">
-              <span className="text-sm font-semibold text-sidebar-foreground">
-                {currentUser?.name ?? "Usuário"}
-              </span>
-              <span className="text-xs text-sidebar-foreground/70">
-                {currentUser?.username ? `@${currentUser.username}` : "Dashboard"}
-              </span>
-            </div>
-          </div>
-          <div
-            className="hidden items-center justify-center rounded-xl border border-sidebar-border bg-sidebar-accent/30 p-2 transition hover:border-primary/40 hover:bg-sidebar-accent/50 cursor-pointer group-data-[collapsible=icon]:flex"
-            role="button"
-            tabIndex={0}
-            onClick={() => currentUserRecord && handleUserCardClick(currentUserRecord)}
-            onKeyDown={(event) => {
-              if (!currentUserRecord) return;
-              if (event.key === "Enter" || event.key === " ") {
-                event.preventDefault();
-                handleUserCardClick(currentUserRecord);
-              }
-            }}
-          >
-            <Avatar className="h-8 w-8 border border-sidebar-border shadow-sm">
-              {currentUser?.avatarUrl ? (
-                <AvatarImage src={currentUser.avatarUrl} alt={currentUser.name} />
-              ) : null}
-              <AvatarFallback className="bg-sidebar-accent text-[10px] text-sidebar-foreground">
-                {currentUser ? currentUser.name.slice(0, 2).toUpperCase() : "??"}
-              </AvatarFallback>
-            </Avatar>
-          </div>
-        </SidebarHeader>
-        <SidebarSeparator className="my-2" />
-        <SidebarContent>
-          <SidebarMenu>
-            {menuItems.map((item) => {
-              const isActive = location.pathname === item.href;
-              const ItemIcon = item.icon;
-              return (
-                <SidebarMenuItem key={item.href}>
-                  <SidebarMenuButton asChild isActive={isActive} tooltip={item.label} disabled={!item.enabled}>
-                    {item.enabled ? (
-                      <Link to={item.href}>
-                        <ItemIcon />
-                        <span className="group-data-[collapsible=icon]:hidden">{item.label}</span>
-                      </Link>
-                    ) : (
-                      <button type="button" aria-disabled="true" disabled>
-                        <ItemIcon />
-                        <span className="group-data-[collapsible=icon]:hidden">{item.label}</span>
-                      </button>
-                    )}
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              );
-            })}
-          </SidebarMenu>
-        </SidebarContent>
-      </Sidebar>
-
-      <SidebarInset className="bg-gradient-to-b from-background via-[hsl(var(--primary)/0.12)] to-background text-foreground">
-        <Header variant="fixed" leading={<SidebarTrigger className="text-white/80 hover:text-white" />} />
-        <main className="pt-24">
+    <>
+      <DashboardShell
+      currentUser={currentUser}
+      onUserCardClick={currentUserRecord ? () => handleUserCardClick(currentUserRecord) : undefined}
+    >
+      <main className="pt-24">
           <section className="mx-auto w-full max-w-6xl px-6 pb-20 md:px-10">
             <header className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
               <div>
@@ -708,8 +636,7 @@ const DashboardUsers = () => {
             )}
           </section>
         </main>
-        <Footer />
-      </SidebarInset>
+      </DashboardShell>
 
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent className="w-[92vw] max-h-[90vh] max-w-xl overflow-y-auto">
@@ -907,6 +834,8 @@ const DashboardUsers = () => {
               <div className="flex flex-wrap gap-2">
                 {roleOptions.map((role) => {
                   const isSelected = formState.roles.includes(role);
+                  const iconKey = roleIconMap.get(role);
+                  const RoleIcon = iconKey ? roleIconRegistry[String(iconKey).toLowerCase()] : null;
                   return (
                     <Button
                       key={role}
@@ -916,6 +845,7 @@ const DashboardUsers = () => {
                       onClick={() => toggleRole(role)}
                       disabled={!canManageBadges}
                     >
+                      {RoleIcon ? <RoleIcon className="h-4 w-4" /> : null}
                       {role}
                     </Button>
                   );
@@ -982,7 +912,7 @@ const DashboardUsers = () => {
           </div>
         </DialogContent>
       </Dialog>
-    </SidebarProvider>
+    </>
   );
 };
 

@@ -1,7 +1,6 @@
-﻿import { useEffect, useMemo, useState } from "react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
-import Header from "@/components/Header";
-import Footer from "@/components/Footer";
+import { useEffect, useMemo, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import DashboardShell from "@/components/DashboardShell";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -14,18 +13,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Sidebar,
-  SidebarContent,
-  SidebarHeader,
-  SidebarInset,
-  SidebarMenu,
-  SidebarMenuButton,
-  SidebarMenuItem,
-  SidebarProvider,
-  SidebarSeparator,
-  SidebarTrigger,
-} from "@/components/ui/sidebar";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
@@ -54,6 +41,7 @@ import {
   QrCode,
 } from "lucide-react";
 import { getApiBase } from "@/lib/api-base";
+import { usePageMeta } from "@/hooks/use-page-meta";
 
 type AboutHighlight = { label: string; text: string; icon: string };
 type AboutValue = { title: string; description: string; icon: string };
@@ -323,15 +311,6 @@ const defaultPages: PagesConfig = {
   },
 };
 
-const menuItems = [
-  { label: "Início", href: "/dashboard", icon: LayoutGrid, enabled: true },
-  { label: "Postagens", href: "/dashboard/posts", icon: FileText, enabled: true },
-  { label: "Projetos", href: "/dashboard/projetos", icon: FolderCog, enabled: true },
-  { label: "Comentários", href: "/dashboard/comentarios", icon: MessageSquare, enabled: true },
-  { label: "Usuários", href: "/dashboard/usuarios", icon: UserRound, enabled: true },
-  { label: "Páginas", href: "/dashboard/paginas", icon: Shield, enabled: true },
-  { label: "Configurações", href: "/dashboard/configuracoes", icon: Settings, enabled: false },
-];
 
 const reorder = <T,>(items: T[], from: number, to: number) => {
   const next = [...items];
@@ -376,8 +355,8 @@ const IconSelect = ({
 };
 
 const DashboardPages = () => {
+  usePageMeta({ title: "Páginas", noIndex: true });
   const apiBase = getApiBase();
-  const location = useLocation();
   const navigate = useNavigate();
   const [pages, setPages] = useState<PagesConfig>(defaultPages);
   const [isLoading, setIsLoading] = useState(true);
@@ -550,101 +529,22 @@ const DashboardPages = () => {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-background text-foreground">
-        <Header />
+      <DashboardShell
+        currentUser={currentUser}
+        onUserCardClick={() => navigate("/dashboard/usuarios?edit=me")}
+      >
         <main className="mx-auto w-full max-w-5xl px-6 pt-20 text-sm text-muted-foreground">
           Carregando páginas...
         </main>
-        <Footer />
-      </div>
+      </DashboardShell>
     );
   }
 
   return (
-    <SidebarProvider defaultOpen>
-      <Sidebar variant="inset" collapsible="icon">
-        <SidebarHeader className="gap-4 transition-all duration-200 ease-linear group-data-[collapsible=icon]:gap-2 group-data-[collapsible=icon]:items-center">
-          <div
-            className="flex items-center gap-3 rounded-xl border border-sidebar-border bg-sidebar-accent/30 p-3 transition-all duration-300 ease-out hover:border-primary/40 hover:bg-sidebar-accent/50 cursor-pointer group-data-[collapsible=icon]:pointer-events-none group-data-[collapsible=icon]:opacity-0 group-data-[collapsible=icon]:-translate-x-1 group-data-[collapsible=icon]:hidden"
-            role="button"
-            tabIndex={0}
-            onClick={() => navigate("/dashboard/usuarios?edit=me")}
-            onKeyDown={(event) => {
-              if (event.key === "Enter" || event.key === " ") {
-                event.preventDefault();
-                navigate("/dashboard/usuarios?edit=me");
-              }
-            }}
-          >
-            <Avatar className="h-11 w-11 border border-sidebar-border">
-              {currentUser?.avatarUrl ? (
-                <AvatarImage src={currentUser.avatarUrl} alt={currentUser.name} />
-              ) : null}
-              <AvatarFallback className="bg-sidebar-accent text-xs text-sidebar-foreground">
-                {currentUser ? currentUser.name.slice(0, 2).toUpperCase() : "??"}
-              </AvatarFallback>
-            </Avatar>
-            <div className="flex flex-1 flex-col">
-              <span className="text-sm font-semibold text-sidebar-foreground">
-                {currentUser?.name ?? "Usuário"}
-              </span>
-              <span className="text-xs text-sidebar-foreground/70">
-                {currentUser?.username ? `@${currentUser.username}` : "Dashboard"}
-              </span>
-            </div>
-          </div>
-          <div
-            className="hidden items-center justify-center rounded-xl border border-sidebar-border bg-sidebar-accent/30 p-2 transition-all duration-300 ease-out hover:border-primary/40 hover:bg-sidebar-accent/50 cursor-pointer group-data-[collapsible=icon]:flex group-data-[collapsible=icon]:opacity-100 group-data-[collapsible=icon]:translate-x-0"
-            role="button"
-            tabIndex={0}
-            onClick={() => navigate("/dashboard/usuarios?edit=me")}
-            onKeyDown={(event) => {
-              if (event.key === "Enter" || event.key === " ") {
-                event.preventDefault();
-                navigate("/dashboard/usuarios?edit=me");
-              }
-            }}
-          >
-            <Avatar className="h-8 w-8 border border-sidebar-border shadow-sm">
-              {currentUser?.avatarUrl ? (
-                <AvatarImage src={currentUser.avatarUrl} alt={currentUser.name} />
-              ) : null}
-              <AvatarFallback className="bg-sidebar-accent text-[10px] text-sidebar-foreground">
-                {currentUser ? currentUser.name.slice(0, 2).toUpperCase() : "??"}
-              </AvatarFallback>
-            </Avatar>
-          </div>
-        </SidebarHeader>
-        <SidebarSeparator className="my-2" />
-        <SidebarContent>
-          <SidebarMenu>
-            {menuItems.map((item) => {
-              const isActive = location.pathname === item.href;
-              const ItemIcon = item.icon;
-              return (
-                <SidebarMenuItem key={item.href}>
-                  <SidebarMenuButton asChild isActive={isActive} tooltip={item.label} disabled={!item.enabled}>
-                    {item.enabled ? (
-                      <Link to={item.href}>
-                        <ItemIcon />
-                        <span className="group-data-[collapsible=icon]:hidden">{item.label}</span>
-                      </Link>
-                    ) : (
-                      <button type="button" aria-disabled="true" disabled>
-                        <ItemIcon />
-                        <span className="group-data-[collapsible=icon]:hidden">{item.label}</span>
-                      </button>
-                    )}
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              );
-            })}
-          </SidebarMenu>
-        </SidebarContent>
-      </Sidebar>
-
-      <SidebarInset className="bg-gradient-to-b from-background via-[hsl(var(--primary)/0.12)] to-background text-foreground">
-        <Header variant="fixed" leading={<SidebarTrigger className="text-white/80 hover:text-white" />} />
+    <DashboardShell
+      currentUser={currentUser}
+      onUserCardClick={() => navigate("/dashboard/usuarios?edit=me")}
+    >
         <main className="pt-24">
           <section className="mx-auto w-full max-w-6xl px-6 pb-20 md:px-10">
             <div className="flex flex-wrap items-center justify-between gap-3">
@@ -1588,9 +1488,7 @@ const DashboardPages = () => {
 
           </section>
         </main>
-        <Footer />
-      </SidebarInset>
-    </SidebarProvider>
+    </DashboardShell>
   );
 };
 

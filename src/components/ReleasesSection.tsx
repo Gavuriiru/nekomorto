@@ -1,4 +1,5 @@
-﻿import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -13,7 +14,6 @@ import LatestEpisodeCard from "./LatestEpisodeCard";
 import WorkStatusCard from "./WorkStatusCard";
 import DiscordInviteCard from "./DiscordInviteCard";
 import { CalendarDays, User } from "lucide-react";
-import { Link } from "react-router-dom";
 import { getApiBase } from "@/lib/api-base";
 import type { Project } from "@/data/projects";
 import { normalizeAssetUrl } from "@/lib/asset-url";

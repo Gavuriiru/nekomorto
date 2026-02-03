@@ -1,5 +1,5 @@
-import type { ReactNode } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
+import type { ReactNode } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -14,6 +14,7 @@ import { Menu } from "lucide-react";
 import type { Project } from "@/data/projects";
 import { cn } from "@/lib/utils";
 import { getApiBase } from "@/lib/api-base";
+import { useSiteSettings } from "@/hooks/use-site-settings";
 
 type HeaderProps = {
   variant?: "fixed" | "static";
@@ -43,6 +44,12 @@ const Header = ({ variant = "fixed", leading, className }: HeaderProps) => {
   const searchRef = useRef<HTMLDivElement | null>(null);
   const location = useLocation();
   const apiBase = getApiBase();
+  const { settings } = useSiteSettings();
+
+  const siteNameRaw = settings.site.name || "Nekomata";
+  const siteName = siteNameRaw.toUpperCase();
+  const logoUrl = settings.site.logoUrl?.trim();
+  const recruitmentUrl = settings.navbar.recruitmentUrl || settings.community.discordUrl || "#";
 
   const projectItems = projects.map((project) => ({
     label: project.title,
@@ -169,13 +176,13 @@ const Header = ({ variant = "fixed", leading, className }: HeaderProps) => {
   useEffect(() => {
     const loadUser = async () => {
       try {
-        const response = await fetch(`${apiBase}/api/me`, { credentials: "include" });
+        const response = await fetch(`${apiBase}/api/public/me`, { credentials: "include" });
         if (!response.ok) {
           setCurrentUser(null);
           return;
         }
         const data = await response.json();
-        setCurrentUser(data);
+        setCurrentUser(data?.user ?? null);
       } catch {
         setCurrentUser(null);
       }
@@ -198,8 +205,11 @@ const Header = ({ variant = "fixed", leading, className }: HeaderProps) => {
       <nav className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           {leading}
-          <Link to="/" className="text-2xl md:text-3xl font-black tracking-wider text-white">
-            NEKOMATA
+          <Link to="/" className="flex items-center gap-3 text-2xl md:text-3xl font-black tracking-wider text-white">
+            {logoUrl ? (
+              <img src={logoUrl} alt={siteName} className="h-9 w-9 rounded-full object-cover shadow-sm" />
+            ) : null}
+            <span>{siteName}</span>
           </Link>
         </div>
         
@@ -236,7 +246,7 @@ const Header = ({ variant = "fixed", leading, className }: HeaderProps) => {
               Equipe
             </Link>
             <a
-              href="https://discord.com/invite/BAHKhdX2ju"
+              href={recruitmentUrl}
               className="text-white/80 hover:text-white transition-colors"
               target="_blank"
               rel="noreferrer"
@@ -390,7 +400,7 @@ const Header = ({ variant = "fixed", leading, className }: HeaderProps) => {
                 <Link to="/equipe">Equipe</Link>
               </DropdownMenuItem>
               <DropdownMenuItem asChild>
-                <a href="https://discord.com/invite/BAHKhdX2ju" target="_blank" rel="noreferrer">
+                <a href={recruitmentUrl} target="_blank" rel="noreferrer">
                   Recrutamento
                 </a>
               </DropdownMenuItem>
@@ -409,11 +419,11 @@ const Header = ({ variant = "fixed", leading, className }: HeaderProps) => {
                       <AvatarImage src={currentUser.avatarUrl} alt={currentUser.name} />
                     ) : null}
                     <AvatarFallback className="bg-secondary text-xs text-foreground">
-                      {currentUser.name.slice(0, 2).toUpperCase()}
+                      {(currentUser.name || "").slice(0, 2).toUpperCase()}
                     </AvatarFallback>
                   </Avatar>
                   <span className="hidden text-sm font-medium text-white md:inline">
-                    {currentUser.name}
+                    {currentUser.name || ""}
                   </span>
                 </Button>
               </DropdownMenuTrigger>

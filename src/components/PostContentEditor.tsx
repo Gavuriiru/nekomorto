@@ -1,4 +1,4 @@
-﻿import { ReactNode } from "react";
+import * as React from "react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
@@ -51,9 +51,9 @@ type PostContentEditorProps = {
   coverAlt?: string;
   title?: string;
   excerpt?: string;
-  previewMeta?: ReactNode;
-  toolbarExtra?: ReactNode;
-  imagePanel?: ReactNode;
+  previewMeta?: React.ReactNode;
+  toolbarExtra?: React.ReactNode;
+  imagePanel?: React.ReactNode;
   onPreviewClick?: React.MouseEventHandler<HTMLDivElement>;
   onPreviewDragStart?: React.DragEventHandler<HTMLDivElement>;
   onPreviewDrop?: React.DragEventHandler<HTMLDivElement>;

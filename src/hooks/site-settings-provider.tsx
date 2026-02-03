@@ -1,0 +1,99 @@
+import { useCallback, useEffect, useMemo, useState } from "react";
+import type { ReactNode } from "react";
+import type { SiteSettings } from "@/types/site-settings";
+import { getApiBase } from "@/lib/api-base";
+import { defaultSettings, mergeSettings, SiteSettingsContext } from "@/hooks/site-settings-context";
+
+const ensureMeta = (selector: string, attrs: Record<string, string>) => {
+  let el = document.querySelector(selector) as HTMLMetaElement | null;
+  if (!el) {
+    el = document.createElement("meta");
+    Object.entries(attrs).forEach(([key, value]) => {
+      el?.setAttribute(key, value);
+    });
+    document.head.appendChild(el);
+  }
+  return el;
+};
+
+const applyDocumentSettings = (settings: SiteSettings) => {
+  if (!settings) {
+    return;
+  }
+  const siteName = settings.site.name || "NEKOMATA";
+  const description = settings.site.description || "";
+  const shareImage = settings.site.defaultShareImage || "";
+  document.title = siteName;
+
+  const descriptionMeta = ensureMeta('meta[name="description"]', { name: "description" });
+  descriptionMeta?.setAttribute("content", description);
+
+  const ogTitle = ensureMeta('meta[property="og:title"]', { property: "og:title" });
+  ogTitle?.setAttribute("content", siteName);
+  const ogDescription = ensureMeta('meta[property="og:description"]', { property: "og:description" });
+  ogDescription?.setAttribute("content", description);
+  const ogSiteName = ensureMeta('meta[property="og:site_name"]', { property: "og:site_name" });
+  ogSiteName?.setAttribute("content", siteName);
+  const ogImage = ensureMeta('meta[property="og:image"]', { property: "og:image" });
+  ogImage?.setAttribute("content", shareImage);
+
+  const twitterTitle = ensureMeta('meta[name="twitter:title"]', { name: "twitter:title" });
+  twitterTitle?.setAttribute("content", siteName);
+  const twitterDescription = ensureMeta('meta[name="twitter:description"]', { name: "twitter:description" });
+  twitterDescription?.setAttribute("content", description);
+  const twitterImage = ensureMeta('meta[name="twitter:image"]', { name: "twitter:image" });
+  twitterImage?.setAttribute("content", shareImage);
+  const twitterCard = ensureMeta('meta[name="twitter:card"]', { name: "twitter:card" });
+  twitterCard?.setAttribute("content", shareImage ? "summary_large_image" : "summary");
+
+  if (settings.site.faviconUrl) {
+    let icon = document.querySelector("link[rel='icon']") as HTMLLinkElement | null;
+    if (!icon) {
+      icon = document.createElement("link");
+      icon.rel = "icon";
+      document.head.appendChild(icon);
+    }
+    icon.href = settings.site.faviconUrl;
+  }
+};
+
+export const SiteSettingsProvider = ({ children }: { children: ReactNode }) => {
+  const apiBase = getApiBase();
+  const [settings, setSettings] = useState<SiteSettings>(defaultSettings);
+  const [isLoading, setIsLoading] = useState(true);
+
+  const refresh = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const response = await fetch(`${apiBase}/api/public/settings`);
+      if (!response.ok) {
+        return;
+      }
+      const data = await response.json();
+      setSettings(mergeSettings(defaultSettings, data.settings || {}));
+    } catch {
+      setSettings(defaultSettings);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [apiBase]);
+
+  useEffect(() => {
+    refresh();
+  }, [refresh]);
+
+  useEffect(() => {
+    applyDocumentSettings(settings);
+  }, [settings]);
+
+  const value = useMemo(
+    () => ({
+      settings,
+      isLoading,
+      refresh,
+    }),
+    [settings, isLoading, refresh],
+  );
+
+  return <SiteSettingsContext.Provider value={value}>{children}</SiteSettingsContext.Provider>;
+};

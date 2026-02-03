@@ -148,7 +148,7 @@ export const usePostEditorState = <T extends PostFormState>({
     }
     setHistory([currentContent]);
     setHistoryIndex(0);
-  }, [isEditorOpen, formState.contentFormat]);
+  }, [currentContent, isEditorOpen, formState.contentFormat]);
 
   useEffect(() => {
     if (!isEditorOpen || historyGuard.current) {
