@@ -81,8 +81,15 @@
   }
 
   body {
-    @apply bg-background text-foreground font-sans antialiased;
+    @apply bg-background text-foreground font-sans subpixel-antialiased;
     font-family: 'Inter', sans-serif;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: auto;
+    -moz-osx-font-smoothing: auto;
+  }
+
+  body :where([class*="border-"]) {
+    border-color: transparent;
   }
 
   html {
@@ -153,7 +160,7 @@
 
   .reveal-hidden {
     opacity: 0;
-    transform: translateY(12px) scale(0.98);
+    transform: translateY(12px);
   }
 
   .reveal-visible {
@@ -189,6 +196,12 @@
 
   .pressable:active {
     transform: scale(0.98);
+  }
+
+  .soft-divider > * + * {
+    border-top: 1px solid hsl(var(--border) / 0.2);
+    margin-top: 0.75rem;
+    padding-top: 0.75rem;
   }
 
   @keyframes fadeIn {

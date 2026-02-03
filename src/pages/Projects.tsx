@@ -163,7 +163,7 @@ const Projects = () => {
       <Header />
       <main className="pt-28">
         <section className="mx-auto w-full max-w-6xl px-6 pb-20 md:px-10 reveal" data-reveal>
-          <div className="grid gap-4 rounded-2xl border border-border/60 bg-card/60 p-6 shadow-lg backdrop-blur md:grid-cols-[repeat(4,minmax(0,1fr))]">
+          <div className="grid gap-4 rounded-2xl bg-card/60 p-6 shadow-lg backdrop-blur md:grid-cols-[repeat(4,minmax(0,1fr))]">
             <div className="flex flex-col gap-2">
               <span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
                 A-Z
@@ -236,7 +236,7 @@ const Projects = () => {
               </Select>
             </div>
 
-            <div className="md:col-span-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border/40 bg-background/40 px-4 py-3 text-sm text-muted-foreground">
+            <div className="md:col-span-4 flex flex-wrap items-center justify-between gap-3 rounded-xl bg-background/40 px-4 py-3 text-sm text-muted-foreground">
               <div className="flex flex-wrap gap-2">
                 <span className="font-semibold text-foreground">{filteredProjects.length}</span>
                 <span>projetos encontrados</span>
@@ -249,7 +249,7 @@ const Projects = () => {
             </div>
           </div>
           {paginatedProjects.length === 0 ? (
-            <div className="mt-10 rounded-2xl border border-dashed border-border/60 bg-card/40 px-6 py-12 text-center text-sm text-muted-foreground">
+            <div className="mt-10 rounded-2xl bg-card/40 px-6 py-12 text-center text-sm text-muted-foreground">
               Nenhum projeto encontrado para os filtros selecionados.
             </div>
           ) : (
@@ -262,7 +262,7 @@ const Projects = () => {
                   <Link
                     key={project.id}
                     to={`/projeto/${project.id}`}
-                    className="group flex min-h-[12.5rem] w-full items-start gap-5 rounded-2xl border border-border/60 bg-gradient-card p-5 transition hover:border-primary/50 hover:shadow-lg md:h-[15rem]"
+                    className="group flex min-h-[12.5rem] w-full items-start gap-5 rounded-2xl bg-gradient-card p-5 shadow-[0_28px_120px_-60px_rgba(0,0,0,0.55)] transition hover:shadow-[0_36px_150px_-70px_rgba(0,0,0,0.6),_0_0_28px_rgba(236,72,153,0.18)] hover:brightness-105 md:h-[15rem]"
                   >
                     <div className="h-[9.75rem] w-28 flex-shrink-0 overflow-hidden rounded-xl bg-secondary shadow-inner md:h-[12.5rem] md:w-36">
                       <img
@@ -357,20 +357,20 @@ const Projects = () => {
 
                       <div className="mt-auto flex flex-wrap gap-2 text-xs text-muted-foreground">
                         {project.status ? (
-                          <span className="shrink-0 rounded-full border border-border/60 bg-background/50 px-3 py-1 truncate">
+                          <span className="shrink-0 rounded-full bg-background/50 px-3 py-1 truncate">
                             {project.status}
                           </span>
                         ) : null}
                         {project.studio ? (
                           <span
-                            className="hidden shrink-0 max-w-[9rem] rounded-full border border-border/60 bg-background/50 px-3 py-1 truncate lg:inline-flex lg:max-w-[12rem]"
+                            className="hidden shrink-0 max-w-[9rem] rounded-full bg-background/50 px-3 py-1 truncate lg:inline-flex lg:max-w-[12rem]"
                             title={project.studio}
                           >
                             {project.studio}
                           </span>
                         ) : null}
                         {project.episodes ? (
-                          <span className="hidden shrink-0 rounded-full border border-border/60 bg-background/50 px-3 py-1 truncate xl:inline-flex">
+                          <span className="hidden shrink-0 rounded-full bg-background/50 px-3 py-1 truncate xl:inline-flex">
                             {project.episodes}
                           </span>
                         ) : null}
@@ -440,6 +440,7 @@ const Projects = () => {
 };
 
 export default Projects;
+
 
 
 
