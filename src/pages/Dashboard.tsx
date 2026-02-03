@@ -1,4 +1,4 @@
-import { Link, useNavigate } from "react-router-dom";
+﻿import { Link, useNavigate } from "react-router-dom";
 import { useEffect, useMemo, useState } from "react";
 import DashboardShell from "@/components/DashboardShell";
 import { Badge } from "@/components/ui/badge";
@@ -7,27 +7,26 @@ import type { Project } from "@/data/projects";
 import { getApiBase } from "@/lib/api-base";
 import { usePageMeta } from "@/hooks/use-page-meta";
 
-type ProjectView = {
-  projectId: string;
+type DashboardPost = {
+  id: string;
+  slug: string;
+  title: string;
   views: number;
+  viewsDaily?: Record<string, number>;
+  status: string;
+  publishedAt: string;
+  updatedAt: string;
 };
 
-const projectPageViews: ProjectView[] = [];
-const recentComments: Array<{
+type DashboardComment = {
   id: string;
   author: string;
   message: string;
   page: string;
   createdAt: string;
-}> = [];
-
-const recentPosts: Array<{
-  id: string;
-  title: string;
-  views: number;
+  url: string;
   status: string;
-  updatedAt: string;
-}> = [];
+};
 
 const Dashboard = () => {
   usePageMeta({ title: "Dashboard", noIndex: true });
@@ -42,6 +41,9 @@ const Dashboard = () => {
   } | null>(null);
   const [isLoadingUser, setIsLoadingUser] = useState(true);
   const [projects, setProjects] = useState<Project[]>([]);
+  const [posts, setPosts] = useState<DashboardPost[]>([]);
+  const [recentComments, setRecentComments] = useState<DashboardComment[]>([]);
+  const [pendingCommentsCount, setPendingCommentsCount] = useState(0);
   const apiBase = getApiBase();
 
   useEffect(() => {
@@ -82,6 +84,79 @@ const Dashboard = () => {
     loadProjects();
   }, [apiBase]);
 
+  useEffect(() => {
+    let isActive = true;
+    const loadPosts = async () => {
+      try {
+        const response = await fetch(`${apiBase}/api/posts`, { credentials: "include" });
+        if (!response.ok) {
+          if (isActive) {
+            setPosts([]);
+          }
+          return;
+        }
+        const data = await response.json();
+        if (isActive) {
+          setPosts(Array.isArray(data.posts) ? data.posts : []);
+        }
+      } catch {
+        if (isActive) {
+          setPosts([]);
+        }
+      }
+    };
+
+    loadPosts();
+    return () => {
+      isActive = false;
+    };
+  }, [apiBase]);
+
+  useEffect(() => {
+    let isActive = true;
+    const loadRecentComments = async () => {
+      try {
+        const response = await fetch(`${apiBase}/api/comments/recent?limit=3`, {
+          credentials: "include",
+        });
+        if (!response.ok) {
+          if (isActive) {
+            setRecentComments([]);
+            setPendingCommentsCount(0);
+          }
+          return;
+        }
+        const data = await response.json();
+        if (isActive) {
+          setRecentComments(
+            Array.isArray(data.comments)
+              ? data.comments.map((comment) => ({
+                  id: comment.id,
+                  author: comment.name,
+                  message: comment.content,
+                  page: comment.targetLabel,
+                  createdAt: comment.createdAt,
+                  url: comment.targetUrl,
+                  status: comment.status || "approved",
+                }))
+              : [],
+          );
+          setPendingCommentsCount(Number.isFinite(data.pendingCount) ? data.pendingCount : 0);
+        }
+      } catch {
+        if (isActive) {
+          setRecentComments([]);
+          setPendingCommentsCount(0);
+        }
+      }
+    };
+
+    loadRecentComments();
+    return () => {
+      isActive = false;
+    };
+  }, [apiBase]);
+
   const userLabel = useMemo(() => {
     if (isLoadingUser) {
       return "Carregando usuário...";
@@ -96,8 +171,25 @@ const Dashboard = () => {
     return currentUser ? `@${currentUser.username}` : "OAuth Discord pendente";
   }, [currentUser, isLoadingUser]);
 
+  const formatDateTime = (value: string) =>
+    new Date(value).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" });
+
+  const last7Days = useMemo(() => {
+    const days: string[] = [];
+    const today = new Date();
+    for (let index = 6; index >= 0; index -= 1) {
+      const date = new Date(today);
+      date.setDate(today.getDate() - index);
+      days.push(date.toISOString().slice(0, 10));
+    }
+    return days;
+  }, []);
+
+  const sumViewsForDays = (viewsDaily: Record<string, number> | undefined) =>
+    last7Days.reduce((sum, day) => sum + (viewsDaily?.[day] ?? 0), 0);
+
   const totalProjects = projects.length;
-  const totalEpisodes = projects.reduce((sum, project) => sum + (project.episodeDownloads?.length || 0), 0);
+  const totalMedia = projects.reduce((sum, project) => sum + (project.episodeDownloads?.length || 0), 0);
   const activeProjects = projects.filter((project) => {
     const status = project.status.toLowerCase();
     return status.includes("andamento") || status.includes("produ");
@@ -107,30 +199,128 @@ const Dashboard = () => {
     return status.includes("complet") || status.includes("lan");
   }).length;
 
-  const projectViewsById = new Map(projectPageViews.map((item) => [item.projectId, item.views]));
+  const totalProjectViews = projects.reduce((sum, project) => sum + (project.views ?? 0), 0);
+  const totalPostViews = posts.reduce((sum, post) => sum + (post.views ?? 0), 0);
+  const totalViews = totalProjectViews + totalPostViews;
+  const totalProjectViewsLast7 = projects.reduce(
+    (sum, project) => sum + sumViewsForDays(project.viewsDaily),
+    0,
+  );
+  const totalPostViewsLast7 = posts.reduce(
+    (sum, post) => sum + sumViewsForDays(post.viewsDaily),
+    0,
+  );
+  const totalViewsLast7 = totalProjectViewsLast7 + totalPostViewsLast7;
+  const pendingPostsCount = posts.filter((post) => post.status !== "published").length;
+
   const rankedProjects = projects
-    .filter((project) => projectViewsById.has(project.id))
     .map((project) => ({
       ...project,
-      views: projectViewsById.get(project.id) ?? 0,
+      views: project.views ?? 0,
     }))
+    .filter((project) => project.views > 0)
     .sort((a, b) => b.views - a.views);
-  const hasViewData = rankedProjects.length > 0;
+  const hasProjectViewData = rankedProjects.length > 0;
+  const hasAnalyticsData = totalViewsLast7 > 0;
+
+  const dailyProjectTotals = useMemo(
+    () =>
+      last7Days.map((day) =>
+        projects.reduce((sum, project) => sum + (project.viewsDaily?.[day] ?? 0), 0),
+      ),
+    [last7Days, projects],
+  );
+
+  const recentPosts = useMemo(
+    () =>
+      posts
+        .slice()
+        .sort((a, b) => {
+          const aDate = new Date(a.updatedAt || a.publishedAt).getTime();
+          const bDate = new Date(b.updatedAt || b.publishedAt).getTime();
+          return bDate - aDate;
+        })
+        .slice(0, 3),
+    [posts],
+  );
 
   const chartWidth = 100;
   const chartHeight = 40;
-  const chartPoints = hasViewData
-    ? rankedProjects
-        .slice(0, 7)
-        .map((project, index, items) => {
-          const maxViews = Math.max(...items.map((item) => item.views));
+  const chartPoints = hasAnalyticsData
+    ? dailyProjectTotals
+        .map((value, index, items) => {
+          const maxViews = Math.max(...items.map((item) => item));
           const x = (chartWidth / Math.max(items.length - 1, 1)) * index;
-          const y = chartHeight - (project.views / Math.max(maxViews, 1)) * (chartHeight - 6) - 3;
+          const y = chartHeight - (value / Math.max(maxViews, 1)) * (chartHeight - 6) - 3;
           return `${x},${y}`;
         })
         .join(" ")
     : "";
-  const areaPath = hasViewData ? `M0,${chartHeight} L${chartPoints} L${chartWidth},${chartHeight} Z` : "";
+  const areaPath = hasAnalyticsData ? `M0,${chartHeight} L${chartPoints} L${chartWidth},${chartHeight} Z` : "";
+
+  const handleExportReport = () => {
+    const escapeCsv = (value: string | number | null | undefined) => {
+      const text = String(value ?? "");
+      if (text.includes("\"") || text.includes(",") || text.includes("\n")) {
+        return `"${text.replace(/"/g, '""')}"`;
+      }
+      return text;
+    };
+
+    const rows: string[] = [];
+    rows.push("Resumo");
+    rows.push(`Total de projetos,${totalProjects}`);
+    rows.push(`Total de mídias,${totalMedia}`);
+    rows.push(`Projetos ativos,${activeProjects}`);
+    rows.push(`Projetos finalizados,${finishedProjects}`);
+    rows.push(`Acessos em projetos,${totalProjectViews}`);
+    rows.push(`Acessos em posts,${totalPostViews}`);
+    rows.push(`Acessos totais,${totalViews}`);
+    rows.push("");
+    rows.push("Projetos");
+    rows.push("id,titulo,status,views,comentarios,atualizado_em");
+    projects.forEach((project) => {
+      rows.push(
+        [
+          escapeCsv(project.id),
+          escapeCsv(project.title),
+          escapeCsv(project.status),
+          escapeCsv(project.views ?? 0),
+          escapeCsv(project.commentsCount ?? 0),
+          escapeCsv(project.updatedAt ?? ""),
+        ].join(","),
+      );
+    });
+    rows.push("");
+    rows.push("Posts");
+    rows.push("id,slug,titulo,status,views,comentarios,publicado_em,atualizado_em");
+    posts.forEach((post) => {
+      rows.push(
+        [
+          escapeCsv(post.id),
+          escapeCsv(post.slug),
+          escapeCsv(post.title),
+          escapeCsv(post.status),
+          escapeCsv(post.views ?? 0),
+          escapeCsv((post as { commentsCount?: number }).commentsCount ?? 0),
+          escapeCsv(post.publishedAt ?? ""),
+          escapeCsv(post.updatedAt ?? ""),
+        ].join(","),
+      );
+    });
+
+    const csvContent = `\uFEFF${rows.join("\n")}`;
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    const dateStamp = new Date().toISOString().slice(0, 10);
+    link.download = `relatorio-dashboard-${dateStamp}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(url);
+  };
 
   return (
     <DashboardShell
@@ -158,7 +348,11 @@ const Dashboard = () => {
             <div className="flex flex-wrap items-center gap-3">
               <Badge className="bg-white/10 text-muted-foreground">Acesso restrito</Badge>
               {currentUser ? (
-                <Button variant="outline" className="border-white/15 bg-white/5" disabled>
+                <Button
+                  variant="outline"
+                  className="border-white/15 bg-white/5"
+                  onClick={handleExportReport}
+                >
                   Exportar relatório
                 </Button>
               ) : (
@@ -178,8 +372,8 @@ const Dashboard = () => {
               <p className="mt-2 text-xs text-muted-foreground">Catálogo completo do site.</p>
             </div>
             <div className="rounded-2xl border border-white/10 bg-gradient-to-br from-white/5 to-white/0 p-5">
-              <p className="text-sm text-muted-foreground">Episódios disponíveis</p>
-              <div className="mt-3 text-2xl font-semibold">{totalEpisodes}</div>
+              <p className="text-sm text-muted-foreground">Mídias disponíveis</p>
+              <div className="mt-3 text-2xl font-semibold">{totalMedia}</div>
               <p className="mt-2 text-xs text-muted-foreground">Downloads ativos nos projetos.</p>
             </div>
             <div className="rounded-2xl border border-white/10 bg-gradient-to-br from-white/5 to-white/0 p-5">
@@ -199,21 +393,26 @@ const Dashboard = () => {
               <div className="rounded-3xl border border-white/10 bg-white/5 p-6 shadow-[0_20px_60px_-40px_rgba(0,0,0,0.8)]">
                 <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
                   <div>
-                    <p className="text-sm text-muted-foreground">Páginas de projeto mais acessadas</p>
-                    {hasViewData ? (
+                    <p className="text-sm text-muted-foreground">Analytics de acessos</p>
+                    {hasAnalyticsData ? (
                       <div className="mt-3 flex items-center gap-3">
-                        <span className="text-3xl font-semibold">{rankedProjects[0]?.views ?? 0}</span>
-                        <Badge className="bg-white/10 text-muted-foreground">Top 1</Badge>
+                        <span className="text-3xl font-semibold">{totalViewsLast7}</span>
+                        <Badge className="bg-white/10 text-muted-foreground">Últimos 7 dias</Badge>
                       </div>
                     ) : (
                       <p className="mt-3 text-sm text-muted-foreground">
                         Nenhum dado de acesso foi coletado ainda.
                       </p>
                     )}
+                    {hasAnalyticsData ? (
+                      <p className="mt-2 text-xs text-muted-foreground">
+                        {totalProjectViewsLast7} em projetos • {totalPostViewsLast7} em posts
+                      </p>
+                    ) : null}
                   </div>
                   <div className="w-full max-w-xs">
                     <div className="h-32 rounded-2xl border border-white/10 bg-gradient-to-br from-white/5 to-white/0 p-4">
-                      {hasViewData ? (
+                      {hasAnalyticsData ? (
                         <svg viewBox="0 0 100 40" className="h-full w-full">
                           <defs>
                             <linearGradient id="visits-gradient" x1="0" y1="0" x2="0" y2="1">
@@ -234,7 +433,7 @@ const Dashboard = () => {
                       ) : (
                         <div className="flex h-full flex-col items-center justify-center text-center text-xs text-muted-foreground">
                           <span>Gráfico indisponível</span>
-                          <span>Integração de analytics pendente</span>
+                          <span>Sem dados de projetos ainda</span>
                         </div>
                       )}
                     </div>
@@ -245,14 +444,18 @@ const Dashboard = () => {
               <div className="rounded-3xl border border-white/10 bg-white/5 p-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <h2 className="text-lg font-semibold">Páginas mais acessadas</h2>
+                    <h2 className="text-lg font-semibold">Projetos mais acessados</h2>
                     <p className="text-sm text-muted-foreground">Ranking por projetos individuais</p>
                   </div>
-                  <Button variant="ghost" className="text-muted-foreground hover:text-foreground" disabled>
-                    Ver detalhes
+                  <Button
+                    variant="ghost"
+                    className="text-muted-foreground hover:text-foreground"
+                    asChild
+                  >
+                    <Link to="/dashboard/projetos?sort=views">Ver detalhes</Link>
                   </Button>
                 </div>
-                {hasViewData ? (
+                {hasProjectViewData ? (
                   <div className="mt-6 space-y-4">
                     {rankedProjects.slice(0, 5).map((project) => (
                       <Link
@@ -283,8 +486,12 @@ const Dashboard = () => {
                     <h2 className="text-lg font-semibold">Posts mais recentes</h2>
                     <p className="text-sm text-muted-foreground">Publicações e visualizações</p>
                   </div>
-                  <Button variant="ghost" className="text-muted-foreground hover:text-foreground" disabled>
-                    Gerenciar posts
+                  <Button
+                    variant="ghost"
+                    className="text-muted-foreground hover:text-foreground"
+                    asChild
+                  >
+                    <Link to="/dashboard/posts">Gerenciar posts</Link>
                   </Button>
                 </div>
                 {recentPosts.length === 0 ? (
@@ -294,19 +501,24 @@ const Dashboard = () => {
                 ) : (
                   <div className="mt-6 space-y-4">
                     {recentPosts.map((post) => (
-                      <div
+                      <Link
                         key={post.id}
-                        className="flex flex-col gap-3 rounded-2xl border border-white/10 bg-white/5 p-4 md:flex-row md:items-center md:justify-between"
+                        to={`/postagem/${post.slug}`}
+                        className="flex flex-col gap-3 rounded-2xl border border-white/10 bg-white/5 p-4 transition hover:border-primary/40 hover:bg-primary/5 md:flex-row md:items-center md:justify-between"
                       >
                         <div>
                           <p className="font-medium">{post.title}</p>
                           <p className="text-xs text-muted-foreground">Status: {post.status}</p>
                         </div>
                         <div className="flex items-center gap-3 text-sm">
-                          <span className="text-muted-foreground">{post.views} views</span>
-                          <Badge className="bg-white/10 text-muted-foreground">{post.updatedAt}</Badge>
+                          <span className="text-muted-foreground">
+                            {post.views} visualizações
+                          </span>
+                          <Badge className="bg-white/10 text-muted-foreground">
+                            {formatDateTime(post.updatedAt || post.publishedAt)}
+                          </Badge>
                         </div>
-                      </div>
+                      </Link>
                     ))}
                   </div>
                 )}
@@ -321,7 +533,7 @@ const Dashboard = () => {
                     <p className="text-sm text-muted-foreground">Sistema por página</p>
                   </div>
                   <Badge className="bg-white/10 text-muted-foreground">
-                    {recentComments.length} novos
+                    {pendingCommentsCount} pendentes
                   </Badge>
                 </div>
                 {recentComments.length === 0 ? (
@@ -331,43 +543,30 @@ const Dashboard = () => {
                 ) : (
                   <div className="mt-6 space-y-4">
                     {recentComments.map((comment) => (
-                      <div key={comment.id} className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                      <a
+                        key={comment.id}
+                        href={comment.url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="block rounded-2xl border border-white/10 bg-white/5 p-4 transition hover:border-primary/40 hover:bg-primary/5"
+                      >
                         <div className="flex items-center justify-between text-xs text-muted-foreground">
                           <span>{comment.author}</span>
-                          <span>{comment.createdAt}</span>
+                          <span>{formatDateTime(comment.createdAt)}</span>
                         </div>
                         <p className="mt-2 text-sm text-foreground">{comment.message}</p>
                         <p className="mt-2 text-xs text-muted-foreground">Em: {comment.page}</p>
-                      </div>
+                      </a>
                     ))}
                   </div>
                 )}
               </div>
 
               <div className="rounded-3xl border border-white/10 bg-white/5 p-6">
-                <h2 className="text-lg font-semibold">Ações rápidas</h2>
-                <p className="text-sm text-muted-foreground">Permissões, posts e configurações.</p>
-                <div className="mt-5 grid gap-3">
-                  <Button className="justify-between bg-white/5 text-foreground hover:bg-white/10" variant="ghost" disabled>
-                    Gerenciar cargos
-                    <span className="text-xs text-muted-foreground">Discord</span>
-                  </Button>
-                  <Button className="justify-between bg-white/5 text-foreground hover:bg-white/10" variant="ghost" disabled>
-                    Configurações gerais
-                    <span className="text-xs text-muted-foreground">Site</span>
-                  </Button>
-                  <Button className="justify-between bg-white/5 text-foreground hover:bg-white/10" variant="ghost" disabled>
-                    Moderação de comentários
-                    <span className="text-xs text-muted-foreground">Comunidade</span>
-                  </Button>
-                </div>
-              </div>
-
-              <div className="rounded-3xl border border-white/10 bg-white/5 p-6">
                 <h2 className="text-lg font-semibold">Projetos cadastrados</h2>
                 <p className="text-sm text-muted-foreground">Acesso rápido ao catálogo.</p>
                 <div className="mt-5 space-y-3">
-                  {projects.slice(0, 6).map((project) => (
+                  {projects.slice(0, 3).map((project) => (
                     <Link
                       key={project.id}
                       to={`/projeto/${project.id}`}
@@ -377,7 +576,7 @@ const Dashboard = () => {
                       <Badge className="bg-white/10 text-muted-foreground">{project.status}</Badge>
                     </Link>
                   ))}
-                  {projects.length > 6 && (
+                  {projects.length > 3 && (
                     <Link
                       to="/projetos"
                       className="rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-center text-sm text-muted-foreground transition hover:border-primary/40 hover:bg-primary/5 hover:text-foreground"

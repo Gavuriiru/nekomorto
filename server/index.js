@@ -502,6 +502,7 @@ const normalizePosts = (posts) => {
       projectId: post.projectId || "",
       tags: Array.isArray(post.tags) ? post.tags.filter(Boolean) : [],
       views: Number.isFinite(post.views) ? post.views : 0,
+      viewsDaily: post.viewsDaily && typeof post.viewsDaily === "object" ? post.viewsDaily : {},
       commentsCount: Number.isFinite(post.commentsCount) ? post.commentsCount : 0,
       createdAt: post.createdAt || new Date().toISOString(),
       updatedAt: post.updatedAt || post.createdAt || new Date().toISOString(),
@@ -551,11 +552,62 @@ const normalizeProjects = (projects) =>
         }))
       : [],
     views: Number.isFinite(project.views) ? project.views : 0,
+    viewsDaily: project.viewsDaily && typeof project.viewsDaily === "object" ? project.viewsDaily : {},
     commentsCount: Number.isFinite(project.commentsCount) ? project.commentsCount : 0,
     order: Number.isFinite(project.order) ? project.order : index,
     createdAt: project.createdAt || new Date().toISOString(),
     updatedAt: project.updatedAt || project.createdAt || new Date().toISOString(),
   }));
+
+const getTodayKey = () => new Date().toISOString().slice(0, 10);
+
+const incrementPostViews = (slug) => {
+  const posts = normalizePosts(loadPosts());
+  const index = posts.findIndex((post) => post.slug === String(slug));
+  if (index === -1) {
+    return null;
+  }
+  const existing = posts[index];
+  const nextViews = Number.isFinite(existing.views) ? existing.views + 1 : 1;
+  const todayKey = getTodayKey();
+  const nextViewsDaily = {
+    ...(existing.viewsDaily || {}),
+    [todayKey]: Number.isFinite(existing.viewsDaily?.[todayKey])
+      ? existing.viewsDaily[todayKey] + 1
+      : 1,
+  };
+  posts[index] = {
+    ...existing,
+    views: nextViews,
+    viewsDaily: nextViewsDaily,
+  };
+  writePosts(posts);
+  return posts[index];
+};
+
+const incrementProjectViews = (id) => {
+  const projects = normalizeProjects(loadProjects());
+  const index = projects.findIndex((project) => project.id === String(id));
+  if (index === -1) {
+    return null;
+  }
+  const existing = projects[index];
+  const nextViews = Number.isFinite(existing.views) ? existing.views + 1 : 1;
+  const todayKey = getTodayKey();
+  const nextViewsDaily = {
+    ...(existing.viewsDaily || {}),
+    [todayKey]: Number.isFinite(existing.viewsDaily?.[todayKey])
+      ? existing.viewsDaily[todayKey] + 1
+      : 1,
+  };
+  projects[index] = {
+    ...existing,
+    views: nextViews,
+    viewsDaily: nextViewsDaily,
+  };
+  writeProjects(projects);
+  return projects[index];
+};
 
 const countApprovedComments = (comments, targetType, targetId) =>
   comments.filter(
@@ -670,7 +722,7 @@ const collectEpisodeUpdates = (prevProject, nextProject) => {
       const newUrlSet = new Set(sources.map((s) => s.url));
       const addedOnly = sources.length > prevSources.length && prevSources.every((s) => newUrlSet.has(s.url));
       updates.push({
-        kind: addedOnly ? "Lançamento" : "Ajuste",
+        kind: "Ajuste",
         reason: addedOnly
           ? `Novo link adicionado no ${unitLabel.toLowerCase()} ${number}`
           : `Links ajustados no ${unitLabel.toLowerCase()} ${number}`,
@@ -1121,6 +1173,22 @@ app.get("/api/public/posts/:slug", (req, res) => {
   });
 });
 
+app.post("/api/public/posts/:slug/view", (req, res) => {
+  const now = Date.now();
+  const slug = String(req.params.slug || "");
+  const posts = normalizePosts(loadPosts());
+  const post = posts.find((item) => item.slug === slug);
+  if (!post) {
+    return res.status(404).json({ error: "not_found" });
+  }
+  const publishTime = new Date(post.publishedAt).getTime();
+  if (publishTime > now || (post.status !== "published" && post.status !== "scheduled")) {
+    return res.status(404).json({ error: "not_found" });
+  }
+  const updated = incrementPostViews(slug);
+  return res.json({ views: updated?.views ?? post.views ?? 0 });
+});
+
 app.get("/api/public/comments", (req, res) => {
   const type = String(req.query.type || "").toLowerCase();
   const id = String(req.query.id || "").trim();
@@ -1311,6 +1379,39 @@ app.get("/api/comments/pending", requireAuth, (req, res) => {
       };
     });
   return res.json({ comments });
+});
+
+app.get("/api/comments/recent", requireAuth, (req, res) => {
+  const sessionUser = req.session.user;
+  if (!canManageComments(sessionUser?.id)) {
+    return res.status(403).json({ error: "forbidden" });
+  }
+  const limitRaw = Number(req.query.limit);
+  const limit = Number.isFinite(limitRaw) && limitRaw > 0 ? Math.min(limitRaw, 10) : 4;
+  const posts = normalizePosts(loadPosts());
+  const projects = normalizeProjects(loadProjects());
+  const comments = loadComments();
+  const pendingCount = comments.filter((comment) => comment.status === "pending").length;
+  const recent = comments
+    .slice()
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+    .slice(0, limit)
+    .map((comment) => {
+      const target = buildCommentTargetInfo(comment, posts, projects);
+      return {
+        id: comment.id,
+        status: comment.status,
+        targetType: comment.targetType,
+        targetId: comment.targetId,
+        name: comment.name,
+        content: comment.content,
+        createdAt: comment.createdAt,
+        avatarUrl: comment.avatarUrl || buildGravatarUrl(comment.emailHash || ""),
+        targetLabel: target.label,
+        targetUrl: target.url,
+      };
+    });
+  return res.json({ comments: recent, pendingCount, totalCount: comments.length });
 });
 
 app.post("/api/comments/:id/approve", requireAuth, (req, res) => {
@@ -1825,6 +1926,17 @@ app.get("/api/public/projects/:id", (req, res) => {
   return res.json({ project: sanitized });
 });
 
+app.post("/api/public/projects/:id/view", (req, res) => {
+  const id = String(req.params.id || "");
+  const projects = normalizeProjects(loadProjects());
+  const project = projects.find((item) => item.id === id);
+  if (!project) {
+    return res.status(404).json({ error: "not_found" });
+  }
+  const updated = incrementProjectViews(id);
+  return res.json({ views: updated?.views ?? project.views ?? 0 });
+});
+
 app.get("/api/public/projects/:id/chapters/:number", (req, res) => {
   const id = String(req.params.id || "");
   const chapterNumber = Number(req.params.number);
@@ -1863,6 +1975,14 @@ app.get("/api/public/projects/:id/chapters/:number", (req, res) => {
 
 app.get("/api/public/updates", (req, res) => {
   const updates = loadUpdates()
+    .map((update) => {
+      const reason = String(update?.reason || "");
+      const kind = String(update?.kind || "");
+      if (kind.toLowerCase().startsWith("lan") && reason.toLowerCase().includes("novo link adicionado")) {
+        return { ...update, kind: "Ajuste" };
+      }
+      return update;
+    })
     .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
     .slice(0, 10);
   res.json({ updates });

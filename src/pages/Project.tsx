@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+﻿import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import {
   BookOpen,
@@ -39,6 +39,7 @@ const ProjectPage = () => {
   const [genreTranslations, setGenreTranslations] = useState<Record<string, string>>({});
   const [episodePage, setEpisodePage] = useState(1);
   const { settings } = useSiteSettings();
+  const trackedViewsRef = useRef<Set<string>>(new Set());
 
   usePageMeta({
     title: project?.title || "Projeto",
@@ -79,15 +80,25 @@ const ProjectPage = () => {
     return () => {
       isActive = false;
     };
-  }, [apiBase, slug]);
+    }, [apiBase, slug]);
 
+  useEffect(() => {
+    if (!project?.id) {
+      return;
+    }
+    if (trackedViewsRef.current.has(project.id)) {
+      return;
+    }
+    trackedViewsRef.current.add(project.id);
+    void fetch(`${apiBase}/api/public/projects/${project.id}/view`, { method: "POST" });
+  }, [apiBase, project?.id]);
   useEffect(() => {
     let isActive = true;
     const loadMeta = async () => {
       try {
         const [projectsRes, tagsRes] = await Promise.all([
           fetch(`${apiBase}/api/public/projects`),
-          fetch(`${apiBase}/api/public/tag-translations`),
+          fetch(`${apiBase}/api/public/tag-translations`, { cache: "no-store" }),
         ]);
         if (projectsRes.ok) {
           const data = await projectsRes.json();
@@ -139,6 +150,20 @@ const ProjectPage = () => {
       { label: "Agenda", value: project.schedule },
     ].filter((item) => String(item.value || "").trim().length > 0);
   }, [project]);
+
+  const sortedTags = useMemo(() => {
+    const tags = Array.isArray(project?.tags) ? [...project.tags] : [];
+    return tags.sort((a, b) =>
+      (tagTranslations[a] || a).localeCompare(tagTranslations[b] || b, "pt-BR"),
+    );
+  }, [project?.tags, tagTranslations]);
+
+  const sortedGenres = useMemo(() => {
+    const genres = Array.isArray(project?.genres) ? [...project.genres] : [];
+    return genres.sort((a, b) =>
+      (genreTranslations[a] || a).localeCompare(genreTranslations[b] || b, "pt-BR"),
+    );
+  }, [project?.genres, genreTranslations]);
 
   const sourceThemeMap = useMemo(() => {
     const map = new Map<string, { color: string; icon?: string }>();
@@ -361,7 +386,7 @@ const ProjectPage = () => {
               </p>
               {project.tags?.length ? (
                 <div className="flex flex-wrap gap-2">
-                  {project.tags.map((tag) => (
+                  {sortedTags.map((tag) => (
                     <Link key={tag} to={`/projetos?tag=${encodeURIComponent(tag)}`} className="inline-flex">
                       <Badge variant="secondary" className="text-[10px] uppercase">
                         {tagTranslations[tag] || tag}
@@ -408,7 +433,7 @@ const ProjectPage = () => {
                   </p>
                   {project.genres?.length ? (
                     <div className="flex flex-wrap gap-2">
-                      {project.genres.map((genre) => (
+                      {sortedGenres.map((genre) => (
                         <Link key={genre} to={`/projetos?genero=${encodeURIComponent(genre)}`} className="inline-flex">
                           <Badge variant="outline" className="text-[10px] uppercase">
                             {genreTranslations[genre] || genre}
@@ -848,3 +873,4 @@ const ProjectPage = () => {
 };
 
 export default ProjectPage;
+

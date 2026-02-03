@@ -189,8 +189,8 @@ const Donations = () => {
                   <span className="text-xs text-muted-foreground">Chave e QR</span>
                 </div>
                 <div className="mt-4 grid gap-4 md:grid-cols-[0.8fr_1.2fr] md:items-center">
-                  <div className="mx-auto w-full max-w-[200px] overflow-hidden rounded-2xl border border-border/60 bg-background/60 p-3 md:mx-0">
-                    <img src={qrUrl} alt="QR Code PIX" className="aspect-square w-full rounded-xl object-contain" />
+                  <div className="mx-auto w-full max-w-[200px] overflow-hidden rounded-2xl border border-border/60 bg-background/60 p-2 md:mx-0">
+                    <img src={qrUrl} alt="QR Code PIX" className="aspect-square w-full rounded-md object-cover" />
                   </div>
                   <div className="space-y-3">
                     <div className="rounded-2xl border border-border/60 bg-background/60 px-4 py-3 text-center font-mono text-sm text-primary">
@@ -223,22 +223,26 @@ const Donations = () => {
               <Separator className="my-6 bg-border/60" />
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-sm">
+                  <colgroup>
+                    <col className="w-[34%]" />
+                    <col className="w-[22%]" />
+                    <col className="w-[28%]" />
+                    <col className="w-[16%]" />
+                  </colgroup>
                   <thead className="text-xs uppercase tracking-widest text-muted-foreground">
                     <tr>
                       <th className="pb-3">Doador</th>
                       <th className="pb-3">Valor</th>
                       <th className="pb-3">Objetivo</th>
-                      <th className="pb-3">Tipo</th>
-                      <th className="pb-3">MÃªs/Ano</th>
+                      <th className="pb-3">Mês/Ano</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border/40">
-                    {donations.donors.map((donor) => (
-                      <tr key={`${donor.name}-${donor.date}`}>
+                    {donations.donors.map((donor, index) => (
+                      <tr key={`${donor.name}-${donor.date}-${index}`}>
                         <td className="py-3 font-medium text-foreground">{donor.name}</td>
                         <td className="py-3 text-muted-foreground">{donor.amount}</td>
                         <td className="py-3 text-muted-foreground">{donor.goal}</td>
-                        <td className="py-3 text-muted-foreground">{donor.tier}</td>
                         <td className="py-3 text-muted-foreground">{donor.date}</td>
                       </tr>
                     ))}
@@ -256,3 +260,4 @@ const Donations = () => {
 };
 
 export default Donations;
+

@@ -62,6 +62,7 @@ export type Project = {
   startDate?: string;
   endDate?: string;
   views?: number;
+  viewsDaily?: Record<string, number>;
   commentsCount?: number;
   episodeDownloads: ProjectEpisode[];
   staff: ProjectStaff[];

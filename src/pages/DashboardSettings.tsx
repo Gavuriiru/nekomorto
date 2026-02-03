@@ -175,7 +175,7 @@ const DashboardSettings = () => {
       try {
         const [settingsRes, translationsRes, projectsRes] = await Promise.all([
           fetch(`${apiBase}/api/settings`, { credentials: "include" }),
-          fetch(`${apiBase}/api/public/tag-translations`),
+          fetch(`${apiBase}/api/public/tag-translations`, { cache: "no-store" }),
           fetch(`${apiBase}/api/projects`, { credentials: "include" }),
         ]);
         if (settingsRes.ok) {
@@ -408,11 +408,19 @@ const DashboardSettings = () => {
       if (!response.ok) {
         throw new Error("save_failed");
       }
+      const data = await response.json().catch(() => null);
+      if (data?.tags) {
+        setTagTranslations(data.tags);
+      }
+      if (data?.genres) {
+        setGenreTranslations(data.genres);
+      }
       toast({ title: "Traduções salvas" });
-    } catch {
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
       toast({
         title: "Falha ao salvar",
-        description: "Não foi possível salvar as traduções.",
+        description: `Não foi possível salvar as traduções. ${message ? `(${message})` : ""}`,
         variant: "destructive",
       });
     } finally {
@@ -671,9 +679,14 @@ const DashboardSettings = () => {
                           {isSyncingAniList ? "Importando..." : "Importar AniList"}
                         </Button>
                         <Button
+                          type="button"
                           size="sm"
                           variant="outline"
-                          onClick={handleSaveTranslations}
+                          onClick={(event) => {
+                            event.preventDefault();
+                            event.stopPropagation();
+                            void handleSaveTranslations();
+                          }}
                           disabled={isSavingTranslations}
                           className="gap-2"
                         >
@@ -728,7 +741,7 @@ const DashboardSettings = () => {
                                 <td className="px-4 py-3">
                                   <Input
                                     value={tagTranslations[tag] || ""}
-                                    placeholder="Tradução"
+                                    placeholder={tag}
                                     onChange={(event) =>
                                       setTagTranslations((prev) => ({ ...prev, [tag]: event.target.value }))
                                     }
@@ -814,7 +827,7 @@ const DashboardSettings = () => {
                                 <td className="px-4 py-3">
                                   <Input
                                     value={genreTranslations[genre] || ""}
-                                    placeholder="Tradução"
+                                    placeholder={genre}
                                     onChange={(event) =>
                                       setGenreTranslations((prev) => ({ ...prev, [genre]: event.target.value }))
                                     }

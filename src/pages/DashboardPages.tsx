@@ -47,7 +47,7 @@ type AboutHighlight = { label: string; text: string; icon: string };
 type AboutValue = { title: string; description: string; icon: string };
 type AboutPillar = { title: string; description: string; icon: string };
 type DonationsCost = { title: string; description: string; icon: string };
-type Donor = { name: string; amount: string; goal: string; tier: string; date: string };
+type Donor = { name: string; amount: string; goal: string; date: string };
 type FAQItem = { question: string; answer: string };
 type FAQGroup = { title: string; icon: string; items: FAQItem[] };
 type FAQIntro = { title: string; icon: string; text: string; note: string };
@@ -216,11 +216,11 @@ const defaultPages: PagesConfig = {
     pixIcon: "QrCode",
     donorsIcon: "PiggyBank",
     donors: [
-      { name: "IgorBKRY", amount: "R$ 10,00", goal: "Fansub Geral", tier: "Sem patente", date: "Mar/2024" },
-      { name: "An么nimo", amount: "R$ 25,00", goal: "Fansub Geral", tier: "Bronze", date: "Mar/2024" },
-      { name: "An么nimo", amount: "R$ 60,00", goal: "Fansub Geral", tier: "Prata", date: "Mar/2024" },
-      { name: "Fabiana A.", amount: "R$ 40,00", goal: "Fansub Geral", tier: "Ouro", date: "Abr/2024" },
-      { name: "Rafa Chaves", amount: "R$ 120,00", goal: "Projeto especial", tier: "Master", date: "Mai/2024" },
+      { name: "IgorBKRY", amount: "R$ 10,00", goal: "Fansub Geral", date: "Mar/2024" },
+      { name: "An么nimo", amount: "R$ 25,00", goal: "Fansub Geral", date: "Mar/2024" },
+      { name: "An么nimo", amount: "R$ 60,00", goal: "Fansub Geral", date: "Mar/2024" },
+      { name: "Fabiana A.", amount: "R$ 40,00", goal: "Fansub Geral", date: "Abr/2024" },
+      { name: "Rafa Chaves", amount: "R$ 120,00", goal: "Projeto especial", date: "Mai/2024" },
     ],
   },
   faq: {
@@ -1113,7 +1113,7 @@ const DashboardPages = () => {
                           updateDonations({
                             donors: [
                               ...pages.donations.donors,
-                              { name: "Novo doador", amount: "", goal: "", tier: "", date: "" },
+                              { name: "Novo doador", amount: "", goal: "", date: "" },
                             ],
                           })
                         }
@@ -1147,7 +1147,7 @@ const DashboardPages = () => {
                               <Trash2 className="h-4 w-4" />
                             </Button>
                           </div>
-                          <div className="mt-3 grid gap-2 md:grid-cols-5">
+                          <div className="mt-3 grid gap-2 md:grid-cols-4">
                             <Input
                               value={donor.name}
                               onChange={(e) => {
@@ -1176,22 +1176,13 @@ const DashboardPages = () => {
                               placeholder="Objetivo"
                             />
                             <Input
-                              value={donor.tier}
-                              onChange={(e) => {
-                                const next = [...pages.donations.donors];
-                                next[index] = { ...donor, tier: e.target.value };
-                                updateDonations({ donors: next });
-                              }}
-                              placeholder="Tipo"
-                            />
-                            <Input
                               value={donor.date}
                               onChange={(e) => {
                                 const next = [...pages.donations.donors];
                                 next[index] = { ...donor, date: e.target.value };
                                 updateDonations({ donors: next });
                               }}
-                              placeholder="M锚s/Ano"
+                              placeholder="M阺/Ano"
                             />
                           </div>
                         </div>
@@ -1493,4 +1484,7 @@ const DashboardPages = () => {
 };
 
 export default DashboardPages;
+
+
+
 

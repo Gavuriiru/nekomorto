@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useState } from "react";
+﻿import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import { CalendarDays, Clock, User } from "lucide-react";
 
@@ -38,6 +38,7 @@ const Post = () => {
   } | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
+  const trackedViewsRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     let isActive = true;
@@ -78,6 +79,16 @@ const Post = () => {
     };
   }, [apiBase, slug]);
 
+  useEffect(() => {
+    if (!post?.slug) {
+      return;
+    }
+    if (trackedViewsRef.current.has(post.slug)) {
+      return;
+    }
+    trackedViewsRef.current.add(post.slug);
+    void fetch(`${apiBase}/api/public/posts/${post.slug}/view`, { method: "POST" });
+  }, [apiBase, post?.slug]);
   usePageMeta({
     title: post?.seoTitle || post?.title || "Postagem",
     description: post?.seoDescription || post?.excerpt || "",
@@ -198,5 +209,6 @@ const Post = () => {
 };
 
 export default Post;
+
 
 

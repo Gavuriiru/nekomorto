@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import DashboardShell from "@/components/DashboardShell";
 import ImageLibraryDialog from "@/components/ImageLibraryDialog";
 import { Badge } from "@/components/ui/badge";
@@ -643,7 +643,20 @@ const DashboardProjectsEditor = () => {
   const [projects, setProjects] = useState<ProjectRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
-  const [sortMode, setSortMode] = useState<"order" | "alpha" | "status" | "views" | "comments" | "recent">("order");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [sortMode, setSortMode] = useState<"order" | "alpha" | "status" | "views" | "comments" | "recent">(() => {
+    const sortParam = searchParams.get("sort");
+    if (
+      sortParam === "alpha" ||
+      sortParam === "status" ||
+      sortParam === "views" ||
+      sortParam === "comments" ||
+      sortParam === "recent"
+    ) {
+      return sortParam;
+    }
+    return "order";
+  });
   const [isEditorOpen, setIsEditorOpen] = useState(false);
   const [editingProject, setEditingProject] = useState<ProjectRecord | null>(null);
   const [formState, setFormState] = useState<ProjectForm>(emptyProject);
@@ -687,6 +700,31 @@ const DashboardProjectsEditor = () => {
     loadUser();
   }, [apiBase]);
   const listDragId = useRef<string | null>(null);
+
+  useEffect(() => {
+    const sortParam = searchParams.get("sort");
+    const nextSort =
+      sortParam === "alpha" ||
+      sortParam === "status" ||
+      sortParam === "views" ||
+      sortParam === "comments" ||
+      sortParam === "recent"
+        ? sortParam
+        : "order";
+    if (nextSort !== sortMode) {
+      setSortMode(nextSort);
+    }
+  }, [searchParams, sortMode]);
+
+  useEffect(() => {
+    const nextParams = new URLSearchParams(searchParams);
+    if (sortMode === "order") {
+      nextParams.delete("sort");
+    } else {
+      nextParams.set("sort", sortMode);
+    }
+    setSearchParams(nextParams, { replace: true });
+  }, [searchParams, setSearchParams, sortMode]);
 
   const isManga = useMemo(() => {
     const type = (formState.type || "").toLowerCase();

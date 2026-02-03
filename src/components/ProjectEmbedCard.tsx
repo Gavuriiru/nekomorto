@@ -52,7 +52,7 @@ const ProjectEmbedCard = ({ projectId }: ProjectEmbedCardProps) => {
     let isActive = true;
     const loadTranslations = async () => {
       try {
-        const response = await fetch(`${apiBase}/api/public/tag-translations`);
+        const response = await fetch(`${apiBase}/api/public/tag-translations`, { cache: "no-store" });
         if (!response.ok) {
           return;
         }

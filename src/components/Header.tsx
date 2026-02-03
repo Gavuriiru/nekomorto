@@ -160,7 +160,7 @@ const Header = ({ variant = "fixed", leading, className }: HeaderProps) => {
   useEffect(() => {
     const loadTranslations = async () => {
       try {
-        const response = await fetch(`${apiBase}/api/public/tag-translations`);
+        const response = await fetch(`${apiBase}/api/public/tag-translations`, { cache: "no-store" });
         if (!response.ok) {
           return;
         }
