@@ -5,6 +5,7 @@ export type SiteSettings = {
     faviconUrl: string;
     description: string;
     defaultShareImage: string;
+    titleSeparator?: string;
   };
   navbar: {
     recruitmentUrl: string;

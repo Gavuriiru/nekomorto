@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import DashboardShell from "@/components/DashboardShell";
+import ImageLibraryDialog from "@/components/ImageLibraryDialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -22,6 +23,7 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
+import { toast } from "@/components/ui/use-toast";
 import {
   Eye,
   FileText,
@@ -67,6 +69,7 @@ type ProjectEpisode = {
   synopsis: string;
   releaseDate: string;
   duration: string;
+  coverImageUrl?: string;
   sourceType: "TV" | "Web" | "Blu-ray";
   sources: DownloadSource[];
   progressStage?: string;
@@ -346,14 +349,6 @@ const buildImageMarkup = (url: string, alt: string, format: "markdown" | "html")
   }
   return `\n\n![${alt}](${url})\n`;
 };
-
-const fileToDataUrl = (file: File) =>
-  new Promise<string>((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(String(reader.result));
-    reader.onerror = () => reject(new Error("file_read_failed"));
-    reader.readAsDataURL(file);
-  });
 
 type EpisodeContentEditorProps = {
   value: string;
@@ -665,13 +660,10 @@ const DashboardProjectsEditor = () => {
   const [memberDirectory, setMemberDirectory] = useState<string[]>([]);
   const [collapsedEpisodes, setCollapsedEpisodes] = useState<Record<number, boolean>>({});
   const [isLibraryOpen, setIsLibraryOpen] = useState(false);
-  const [libraryImages, setLibraryImages] = useState<Array<{ name: string; url: string }>>([]);
-  const [libraryUrl, setLibraryUrl] = useState("");
-  const [libraryAlt, setLibraryAlt] = useState("");
-  const [libraryTarget, setLibraryTarget] = useState<"chapter" | "cover" | "banner" | "hero">("chapter");
-  const [isLibraryDragActive, setIsLibraryDragActive] = useState(false);
-  const [imageFile, setImageFile] = useState<File | null>(null);
-  const [isUploading, setIsUploading] = useState(false);
+  const [libraryTarget, setLibraryTarget] = useState<
+    "chapter" | "cover" | "banner" | "hero" | "episode-cover"
+  >("chapter");
+  const [episodeCoverIndex, setEpisodeCoverIndex] = useState<number | null>(null);
   const [activeChapterIndex, setActiveChapterIndex] = useState<number | null>(null);
   const [activeChapterFormat, setActiveChapterFormat] = useState<"markdown" | "html">("markdown");
   const [libraryFolder, setLibraryFolder] = useState<string>("");
@@ -743,58 +735,6 @@ const DashboardProjectsEditor = () => {
     });
   }, [formState.episodeDownloads, isChapterBased, sortedEpisodeDownloads]);
 
-  const uploadImage = async (file: File) => {
-    const dataUrl = await fileToDataUrl(file);
-    const response = await fetch(`${apiBase}/api/uploads/image`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      credentials: "include",
-      body: JSON.stringify({
-        dataUrl,
-        filename: file.name,
-        folder: libraryFolder || undefined,
-      }),
-    });
-    if (!response.ok) {
-      throw new Error("upload_failed");
-    }
-    const data = await response.json();
-    return String(data.url || "");
-  };
-
-  const loadLibrary = useCallback(async () => {
-    try {
-      const folders = libraryFolder ? [libraryFolder, ""] : [""];
-      const responses = await Promise.all(
-        folders.map((folder) => {
-          const query = folder ? `?folder=${encodeURIComponent(folder)}` : "";
-          return fetch(`${apiBase}/api/uploads/list${query}`, { credentials: "include" });
-        }),
-      );
-      const files: Array<{ name: string; url: string }> = [];
-      for (const response of responses) {
-        if (!response.ok) {
-          continue;
-        }
-        const data = await response.json();
-        if (Array.isArray(data.files)) {
-          files.push(...data.files);
-        }
-      }
-      const seen = new Set<string>();
-      const unique = files.filter((file) => {
-        if (!file?.url || seen.has(file.url)) {
-          return false;
-        }
-        seen.add(file.url);
-        return true;
-      });
-      setLibraryImages(unique);
-    } catch {
-      setLibraryImages([]);
-    }
-  }, [apiBase, libraryFolder]);
-
   const insertImageToChapter = (url: string, altText?: string) => {
     if (activeChapterIndex === null) {
       return;
@@ -833,43 +773,24 @@ const DashboardProjectsEditor = () => {
         next.banner = url;
       } else if (libraryTarget === "hero") {
         next.heroImageUrl = url;
+      } else if (libraryTarget === "episode-cover") {
+        if (episodeCoverIndex === null) {
+          return prev;
+        }
+        const nextEpisodes = [...prev.episodeDownloads];
+        if (!nextEpisodes[episodeCoverIndex]) {
+          return prev;
+        }
+        nextEpisodes[episodeCoverIndex] = {
+          ...nextEpisodes[episodeCoverIndex],
+          coverImageUrl: url,
+        };
+        return { ...prev, episodeDownloads: nextEpisodes };
       }
       return next;
     });
   };
 
-  const handleLibraryUpload = async (file: File) => {
-    try {
-      setIsUploading(true);
-      await uploadImage(file);
-      await loadLibrary();
-    } catch {
-      // ignore
-    } finally {
-      setIsUploading(false);
-    }
-  };
-
-  const handleLibraryDrop = (event: React.DragEvent<HTMLDivElement>) => {
-    event.preventDefault();
-    setIsLibraryDragActive(false);
-    const file = event.dataTransfer.files?.[0];
-    if (!file) {
-      return;
-    }
-    void handleLibraryUpload(file);
-  };
-
-  const handleLibraryAddUrl = () => {
-    const url = libraryUrl.trim();
-    if (!url) {
-      return;
-    }
-    applyLibraryImage(url, libraryAlt || "Imagem");
-    setLibraryUrl("");
-    setLibraryAlt("");
-    setIsLibraryOpen(false);
-  };
 
   const openLibraryForChapter = (index: number, format: "markdown" | "html") => {
     setActiveChapterIndex(index);
@@ -884,13 +805,14 @@ const DashboardProjectsEditor = () => {
     const projectSlug = formState.id?.trim() || createSlug(formState.title.trim());
     setLibraryFolder(projectSlug ? `projects/${projectSlug}` : "projects");
     setLibraryTarget(target);
-    if (target === "cover") {
-      setLibraryUrl(formState.cover || "");
-    } else if (target === "banner") {
-      setLibraryUrl(formState.banner || "");
-    } else {
-      setLibraryUrl(formState.heroImageUrl || "");
-    }
+    setIsLibraryOpen(true);
+  };
+
+  const openLibraryForEpisodeCover = (index: number) => {
+    const projectSlug = formState.id?.trim() || createSlug(formState.title.trim());
+    setLibraryFolder(projectSlug ? `projects/${projectSlug}/episodes` : "projects/episodes");
+    setEpisodeCoverIndex(index);
+    setLibraryTarget("episode-cover");
     setIsLibraryOpen(true);
   };
 
@@ -946,18 +868,10 @@ const DashboardProjectsEditor = () => {
   }, [apiBase, loadProjects]);
 
   useEffect(() => {
-    if (isLibraryOpen) {
-      void loadLibrary();
-    }
-  }, [isLibraryOpen, loadLibrary]);
-
-  useEffect(() => {
     if (!isLibraryOpen) {
       setLibraryFolder("");
-      setLibraryUrl("");
-      setLibraryAlt("");
-      setImageFile(null);
       setLibraryTarget("chapter");
+      setEpisodeCoverIndex(null);
     }
   }, [isLibraryOpen]);
 
@@ -986,6 +900,29 @@ const DashboardProjectsEditor = () => {
       return haystack.includes(query);
     });
   }, [projects, searchQuery]);
+
+  const currentLibrarySelection = useMemo(() => {
+    if (libraryTarget === "cover") {
+      return formState.cover || "";
+    }
+    if (libraryTarget === "banner") {
+      return formState.banner || "";
+    }
+    if (libraryTarget === "hero") {
+      return formState.heroImageUrl || "";
+    }
+    if (libraryTarget === "episode-cover" && episodeCoverIndex !== null) {
+      return formState.episodeDownloads[episodeCoverIndex]?.coverImageUrl || "";
+    }
+    return "";
+  }, [
+    episodeCoverIndex,
+    formState.banner,
+    formState.cover,
+    formState.episodeDownloads,
+    formState.heroImageUrl,
+    libraryTarget,
+  ]);
 
   const sortedProjects = useMemo(() => {
     const next = [...filteredProjects];
@@ -1797,11 +1734,6 @@ const DashboardProjectsEditor = () => {
                     Biblioteca
                   </Button>
                 </div>
-                <Input
-                  value={formState.heroImageUrl}
-                  onChange={(event) => setFormState((prev) => ({ ...prev, heroImageUrl: event.target.value }))}
-                  placeholder="URL da imagem do carrossel"
-                />
               </div>
               <div className="space-y-2">
                 <Label>Capa</Label>
@@ -1822,11 +1754,6 @@ const DashboardProjectsEditor = () => {
                     Biblioteca
                   </Button>
                 </div>
-                <Input
-                  value={formState.cover}
-                  onChange={(event) => setFormState((prev) => ({ ...prev, cover: event.target.value }))}
-                  placeholder="URL da capa"
-                />
               </div>
               <div className="space-y-2">
                 <Label>Banner</Label>
@@ -1847,11 +1774,6 @@ const DashboardProjectsEditor = () => {
                     Biblioteca
                   </Button>
                 </div>
-                <Input
-                  value={formState.banner}
-                  onChange={(event) => setFormState((prev) => ({ ...prev, banner: event.target.value }))}
-                  placeholder="URL do banner"
-                />
               </div>
             </div>
 
@@ -2197,6 +2119,7 @@ const DashboardProjectsEditor = () => {
                         synopsis: "",
                         releaseDate: "",
                         duration: "",
+                        coverImageUrl: "",
                         sourceType: "TV",
                         sources: [],
                         progressStage: "aguardando-raw",
@@ -2396,6 +2319,37 @@ const DashboardProjectsEditor = () => {
                                 </div>
                               </div>
                             ) : null}
+                          </div>
+                          <div className="mt-3 space-y-2">
+                            <Label className="text-xs">
+                              {isChapterBased ? "Capa do capitulo" : "Capa do episodio"}
+                            </Label>
+                            <div className="flex flex-wrap items-center gap-3">
+                              {episode.coverImageUrl ? (
+                                <div className="flex items-center gap-3 rounded-2xl border border-border/60 bg-card/60 px-3 py-2">
+                                  <img
+                                    src={episode.coverImageUrl}
+                                    alt={episode.title || "Capa"}
+                                    className="h-12 w-12 rounded-lg object-cover"
+                                  />
+                                  <span className="max-w-[240px] truncate text-xs text-muted-foreground">
+                                    {episode.coverImageUrl}
+                                  </span>
+                                </div>
+                              ) : (
+                                <div className="flex h-12 w-12 items-center justify-center rounded-lg border border-dashed border-border/60 text-[10px] text-muted-foreground">
+                                  Sem imagem
+                                </div>
+                              )}
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                onClick={() => openLibraryForEpisodeCover(index)}
+                              >
+                                Biblioteca
+                              </Button>
+                            </div>
                           </div>
                           {isLightNovel ? (
                             <div className="mt-4">
@@ -2612,105 +2566,22 @@ const DashboardProjectsEditor = () => {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={isLibraryOpen} onOpenChange={setIsLibraryOpen}>
-        <DialogContent className="max-w-3xl">
-          <DialogHeader>
-            <DialogTitle>Biblioteca de imagens</DialogTitle>
-            <DialogDescription>
-              {libraryTarget === "chapter"
-                ? "Envie novas imagens ou selecione uma existente para inserir no capítulo."
-                : "Envie novas imagens ou selecione uma existente para usar no projeto."}
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div
-              className={`rounded-2xl border border-dashed border-border/60 bg-background/60 p-4 text-center text-xs text-muted-foreground ${
-                isLibraryDragActive ? "ring-2 ring-primary/60 border-primary/60" : ""
-              }`}
-              onDragOver={(event) => {
-                event.preventDefault();
-                setIsLibraryDragActive(true);
-              }}
-              onDragLeave={() => setIsLibraryDragActive(false)}
-              onDrop={handleLibraryDrop}
-            >
-              Arraste uma imagem para enviar ou use o seletor abaixo.
-            </div>
-            <div className="flex flex-wrap items-center gap-3">
-              <Input
-                type="file"
-                accept="image/*"
-                onChange={(event) => setImageFile(event.target.files?.[0] || null)}
-              />
-              <Button
-                type="button"
-                variant="outline"
-                disabled={!imageFile || isUploading}
-                onClick={() => {
-                  if (!imageFile) {
-                    return;
-                  }
-                  void handleLibraryUpload(imageFile);
-                }}
-              >
-                {isUploading ? "Enviando..." : "Enviar imagem"}
-              </Button>
-            </div>
-            <div
-              className={
-                libraryTarget === "chapter"
-                  ? "grid gap-3 md:grid-cols-[2fr_1fr_auto]"
-                  : "grid gap-3 md:grid-cols-[2fr_auto]"
-              }
-            >
-              <Input
-                value={libraryUrl}
-                onChange={(event) => setLibraryUrl(event.target.value)}
-                placeholder="URL da imagem"
-              />
-              {libraryTarget === "chapter" ? (
-                <Input
-                  value={libraryAlt}
-                  onChange={(event) => setLibraryAlt(event.target.value)}
-                  placeholder="Texto alternativo"
-                />
-              ) : null}
-              <Button type="button" size="sm" onClick={handleLibraryAddUrl} disabled={!libraryUrl.trim()}>
-                Usar imagem
-              </Button>
-            </div>
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {libraryImages.length === 0 ? (
-                <div className="rounded-xl border border-border/60 bg-background/60 p-6 text-center text-xs text-muted-foreground sm:col-span-2 lg:col-span-3">
-                  Nenhuma imagem enviada ainda.
-                </div>
-              ) : (
-                libraryImages.map((item) => (
-                  <button
-                    key={item.url}
-                    type="button"
-                    className="group flex items-center gap-3 rounded-xl border border-border/60 bg-background/60 p-3 text-left text-xs hover:border-primary/40"
-                    onClick={() => {
-                      applyLibraryImage(item.url, item.name || "Imagem");
-                      setIsLibraryOpen(false);
-                    }}
-                  >
-                    <img
-                      src={item.url}
-                      alt={item.name || "Imagem"}
-                      className="h-16 w-16 rounded-lg object-cover"
-                    />
-                    <div className="min-w-0">
-                      <p className="truncate text-xs font-semibold text-foreground">{item.name || "Imagem"}</p>
-                      <p className="truncate text-[10px] text-muted-foreground">{item.url}</p>
-                    </div>
-                  </button>
-                ))
-              )}
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
+      <ImageLibraryDialog
+        open={isLibraryOpen}
+        onOpenChange={setIsLibraryOpen}
+        apiBase={apiBase}
+        description={
+          libraryTarget === "chapter"
+            ? "Envie novas imagens ou selecione uma existente para inserir no capitulo."
+            : "Envie novas imagens ou selecione uma existente para usar no projeto."
+        }
+        uploadFolder={libraryFolder || undefined}
+        listFolders={[""]}
+        showAltInput={libraryTarget === "chapter"}
+        allowDeselect={libraryTarget !== "chapter"}
+        currentSelectionUrl={currentLibrarySelection || undefined}
+        onSelect={(url, altText) => applyLibraryImage(url, altText)}
+      />
 
     </>
   );

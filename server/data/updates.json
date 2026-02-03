@@ -289,5 +289,16 @@
     "unit": "Episódio",
     "updatedAt": "2026-02-03T02:51:34.830Z",
     "image": "https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx21878-rfzDjP2gjxGR.jpg"
+  },
+  {
+    "id": "f4079f78-48a4-4224-8f38-95d4d972e9af",
+    "projectId": "21878",
+    "projectTitle": "Gabriel Dropout",
+    "episodeNumber": 13,
+    "kind": "Lançamento",
+    "reason": "Episódio 13 disponível",
+    "unit": "Episódio",
+    "updatedAt": "2026-02-03T05:20:02.912Z",
+    "image": "https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx21878-rfzDjP2gjxGR.jpg"
   }
 ]

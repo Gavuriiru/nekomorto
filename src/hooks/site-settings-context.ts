@@ -9,6 +9,7 @@ export const defaultSettings: SiteSettings = {
     description:
       "Fansub dedicada a trazer histórias inesquecíveis com o carinho que a comunidade merece.",
     defaultShareImage: "/placeholder.svg",
+    titleSeparator: " | ",
   },
   navbar: {
     recruitmentUrl: "https://discord.com/invite/BAHKhdX2ju",

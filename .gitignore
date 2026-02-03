@@ -10,6 +10,14 @@ lerna-debug.log*
 node_modules
 dist
 dist-ssr
+.vite
+.cache
+.eslintcache
+coverage
+*.tsbuildinfo
+.turbo
+.parcel-cache
+.rollup.cache
 *.local
 
 # Editor directories and files
@@ -17,9 +25,25 @@ dist-ssr
 !.vscode/extensions.json
 .idea
 .DS_Store
+.AppleDouble
+.LSOverride
 *.suo
 *.ntvs*
 *.njsproj
 *.sln
 *.sw?
 .env
+.env.*
+!.env.example
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Runtime/server data
+server/data/
+!server/data/*.example.json
+
+# Local tooling / generated assets
+temp_block.txt
+public/uploads/

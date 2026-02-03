@@ -10,6 +10,7 @@ export type ProjectEpisode = {
   synopsis: string;
   releaseDate: string;
   duration: string;
+  coverImageUrl?: string;
   sourceType: "TV" | "Web" | "Blu-ray";
   sources: DownloadSource[];
   progressStage?: string;

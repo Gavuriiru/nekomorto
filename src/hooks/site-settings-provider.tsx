@@ -23,28 +23,32 @@ const applyDocumentSettings = (settings: SiteSettings) => {
   const siteName = settings.site.name || "NEKOMATA";
   const description = settings.site.description || "";
   const shareImage = settings.site.defaultShareImage || "";
-  document.title = siteName;
+  const hasPageMeta = document.documentElement.dataset.pageMeta === "true";
 
-  const descriptionMeta = ensureMeta('meta[name="description"]', { name: "description" });
-  descriptionMeta?.setAttribute("content", description);
-
-  const ogTitle = ensureMeta('meta[property="og:title"]', { property: "og:title" });
-  ogTitle?.setAttribute("content", siteName);
-  const ogDescription = ensureMeta('meta[property="og:description"]', { property: "og:description" });
-  ogDescription?.setAttribute("content", description);
   const ogSiteName = ensureMeta('meta[property="og:site_name"]', { property: "og:site_name" });
   ogSiteName?.setAttribute("content", siteName);
-  const ogImage = ensureMeta('meta[property="og:image"]', { property: "og:image" });
-  ogImage?.setAttribute("content", shareImage);
+  if (!hasPageMeta) {
+    document.title = siteName;
 
-  const twitterTitle = ensureMeta('meta[name="twitter:title"]', { name: "twitter:title" });
-  twitterTitle?.setAttribute("content", siteName);
-  const twitterDescription = ensureMeta('meta[name="twitter:description"]', { name: "twitter:description" });
-  twitterDescription?.setAttribute("content", description);
-  const twitterImage = ensureMeta('meta[name="twitter:image"]', { name: "twitter:image" });
-  twitterImage?.setAttribute("content", shareImage);
-  const twitterCard = ensureMeta('meta[name="twitter:card"]', { name: "twitter:card" });
-  twitterCard?.setAttribute("content", shareImage ? "summary_large_image" : "summary");
+    const descriptionMeta = ensureMeta('meta[name="description"]', { name: "description" });
+    descriptionMeta?.setAttribute("content", description);
+
+    const ogTitle = ensureMeta('meta[property="og:title"]', { property: "og:title" });
+    ogTitle?.setAttribute("content", siteName);
+    const ogDescription = ensureMeta('meta[property="og:description"]', { property: "og:description" });
+    ogDescription?.setAttribute("content", description);
+    const ogImage = ensureMeta('meta[property="og:image"]', { property: "og:image" });
+    ogImage?.setAttribute("content", shareImage);
+
+    const twitterTitle = ensureMeta('meta[name="twitter:title"]', { name: "twitter:title" });
+    twitterTitle?.setAttribute("content", siteName);
+    const twitterDescription = ensureMeta('meta[name="twitter:description"]', { name: "twitter:description" });
+    twitterDescription?.setAttribute("content", description);
+    const twitterImage = ensureMeta('meta[name="twitter:image"]', { name: "twitter:image" });
+    twitterImage?.setAttribute("content", shareImage);
+    const twitterCard = ensureMeta('meta[name="twitter:card"]', { name: "twitter:card" });
+    twitterCard?.setAttribute("content", shareImage ? "summary_large_image" : "summary");
+  }
 
   if (settings.site.faviconUrl) {
     let icon = document.querySelector("link[rel='icon']") as HTMLLinkElement | null;

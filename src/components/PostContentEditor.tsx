@@ -39,7 +39,7 @@ type PostContentEditorProps = {
   onOpenGradientDialog: () => void;
   onOpenImageDialog: () => void;
   onOpenLinkDialog: () => void;
-  onInsertCover: () => void;
+  onInsertCover?: () => void;
   onUndo: () => void;
   onRedo: () => void;
   onEmbedVideo: () => void;
@@ -210,7 +210,7 @@ const PostContentEditor = ({
         </TabsContent>
       </Tabs>
       {imagePanel}
-      {coverImageUrl ? (
+      {coverImageUrl && onInsertCover ? (
         <Button type="button" variant="outline" className="gap-2" onClick={onInsertCover}>
           <LinkIcon className="h-4 w-4" />
           Inserir capa no texto

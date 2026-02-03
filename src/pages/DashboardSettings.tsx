@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import DashboardShell from "@/components/DashboardShell";
+import ImageLibraryDialog from "@/components/ImageLibraryDialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -130,10 +131,16 @@ const DashboardSettings = () => {
   const [isLoadingUser, setIsLoadingUser] = useState(true);
   const [tagTranslations, setTagTranslations] = useState<Record<string, string>>({});
   const [genreTranslations, setGenreTranslations] = useState<Record<string, string>>({});
+  const [knownTags, setKnownTags] = useState<string[]>([]);
+  const [knownGenres, setKnownGenres] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isSavingTranslations, setIsSavingTranslations] = useState(false);
   const [uploadingKey, setUploadingKey] = useState<string | null>(null);
+  const [isLibraryOpen, setIsLibraryOpen] = useState(false);
+  const [libraryTarget, setLibraryTarget] = useState<
+    "site.logoUrl" | "site.faviconUrl" | "site.defaultShareImage" | "footer.brandLogoUrl"
+  >("site.logoUrl");
   const [tagQuery, setTagQuery] = useState("");
   const [genreQuery, setGenreQuery] = useState("");
   const [newTag, setNewTag] = useState("");
@@ -164,9 +171,10 @@ const DashboardSettings = () => {
     const load = async () => {
       setIsLoading(true);
       try {
-        const [settingsRes, translationsRes] = await Promise.all([
+        const [settingsRes, translationsRes, projectsRes] = await Promise.all([
           fetch(`${apiBase}/api/settings`, { credentials: "include" }),
           fetch(`${apiBase}/api/public/tag-translations`),
+          fetch(`${apiBase}/api/projects`, { credentials: "include" }),
         ]);
         if (settingsRes.ok) {
           const data = await settingsRes.json();
@@ -179,6 +187,20 @@ const DashboardSettings = () => {
           if (isActive) {
             setTagTranslations(data.tags || {});
             setGenreTranslations(data.genres || {});
+          }
+        }
+        if (projectsRes.ok) {
+          const data = await projectsRes.json();
+          if (isActive) {
+            const projects = Array.isArray(data.projects) ? data.projects : [];
+            const tags = new Set<string>();
+            const genres = new Set<string>();
+            projects.forEach((project) => {
+              (project.tags || []).forEach((tag: string) => tags.add(tag));
+              (project.genres || []).forEach((genre: string) => genres.add(genre));
+            });
+            setKnownTags(Array.from(tags).sort((a, b) => a.localeCompare(b, "en")));
+            setKnownGenres(Array.from(genres).sort((a, b) => a.localeCompare(b, "en")));
           }
         }
       } catch {
@@ -203,50 +225,54 @@ const DashboardSettings = () => {
     return value.startsWith("http") || value.startsWith("data:");
   };
 
-  const uploadImage = async (file: File, target: string) => {
-    setUploadingKey(target);
-    try {
-      const dataUrl = await fileToDataUrl(file);
-      const response = await fetch(`${apiBase}/api/uploads/image`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({
-          dataUrl,
-          filename: file.name,
-          folder: "branding",
-        }),
-      });
-      if (!response.ok) {
-        throw new Error("upload_failed");
-      }
-      const data = await response.json();
-      setSettings((prev) => {
-        if (target === "site.logoUrl") {
-          return { ...prev, site: { ...prev.site, logoUrl: data.url } };
-        }
-        if (target === "site.faviconUrl") {
-          return { ...prev, site: { ...prev.site, faviconUrl: data.url } };
-        }
-        if (target === "site.defaultShareImage") {
-          return { ...prev, site: { ...prev.site, defaultShareImage: data.url } };
-        }
-        if (target === "footer.brandLogoUrl") {
-          return { ...prev, footer: { ...prev.footer, brandLogoUrl: data.url } };
-        }
-        return prev;
-      });
-      toast({ title: "Upload concluído", description: "Imagem enviada com sucesso." });
-    } catch {
-      toast({
-        title: "Falha no upload",
-        description: "Não foi possível enviar a imagem.",
-        variant: "destructive",
-      });
-    } finally {
-      setUploadingKey(null);
-    }
+  const openLibrary = (target: typeof libraryTarget) => {
+    setLibraryTarget(target);
+    setIsLibraryOpen(true);
   };
+
+  const applyLibraryImage = (url: string) => {
+    setSettings((prev) => {
+      if (libraryTarget === "site.logoUrl") {
+        return { ...prev, site: { ...prev.site, logoUrl: url } };
+      }
+      if (libraryTarget === "site.faviconUrl") {
+        return { ...prev, site: { ...prev.site, faviconUrl: url } };
+      }
+      if (libraryTarget === "site.defaultShareImage") {
+        return { ...prev, site: { ...prev.site, defaultShareImage: url } };
+      }
+      if (libraryTarget === "footer.brandLogoUrl") {
+        return { ...prev, footer: { ...prev.footer, brandLogoUrl: url } };
+      }
+      return prev;
+    });
+  };
+
+  const currentLibrarySelection = useMemo(() => {
+    if (libraryTarget === "site.logoUrl") {
+      return settings.site.logoUrl || "";
+    }
+    if (libraryTarget === "site.faviconUrl") {
+      return settings.site.faviconUrl || "";
+    }
+    if (libraryTarget === "site.defaultShareImage") {
+      return settings.site.defaultShareImage || "";
+    }
+    if (libraryTarget === "footer.brandLogoUrl") {
+      return settings.footer.brandLogoUrl || "";
+    }
+    return "";
+  }, [
+    libraryTarget,
+    settings.footer.brandLogoUrl,
+    settings.site.defaultShareImage,
+    settings.site.faviconUrl,
+    settings.site.logoUrl,
+  ]);
+
+
+
+
 
   const uploadDownloadIcon = async (file: File, index: number) => {
     setUploadingKey(`download-icon-${index}`);
@@ -349,17 +375,19 @@ const DashboardSettings = () => {
 
   const filteredTags = useMemo(() => {
     const query = tagQuery.trim().toLowerCase();
-    return Object.keys(tagTranslations)
+    const allTags = Array.from(new Set([...knownTags, ...Object.keys(tagTranslations)]));
+    return allTags
       .filter((tag) => !query || tag.toLowerCase().includes(query))
-      .sort((a, b) => a.localeCompare(b, "pt-BR"));
-  }, [tagTranslations, tagQuery]);
+      .sort((a, b) => a.localeCompare(b, "en"));
+  }, [knownTags, tagTranslations, tagQuery]);
 
   const filteredGenres = useMemo(() => {
     const query = genreQuery.trim().toLowerCase();
-    return Object.keys(genreTranslations)
+    const allGenres = Array.from(new Set([...knownGenres, ...Object.keys(genreTranslations)]));
+    return allGenres
       .filter((genre) => !query || genre.toLowerCase().includes(query))
-      .sort((a, b) => a.localeCompare(b, "pt-BR"));
-  }, [genreTranslations, genreQuery]);
+      .sort((a, b) => a.localeCompare(b, "en"));
+  }, [knownGenres, genreTranslations, genreQuery]);
 
   const userLabel = useMemo(() => {
     if (isLoadingUser) {
@@ -443,6 +471,22 @@ const DashboardSettings = () => {
                         />
                       </div>
                       <div className="space-y-2">
+                        <Label>Separador do título</Label>
+                        <Input
+                          value={settings.site.titleSeparator || " | "}
+                          onChange={(event) =>
+                            setSettings((prev) => ({
+                              ...prev,
+                              site: { ...prev.site, titleSeparator: event.target.value },
+                            }))
+                          }
+                          placeholder=" | "
+                        />
+                        <p className="text-xs text-muted-foreground">
+                          Usado entre o título da página e o nome do site.
+                        </p>
+                      </div>
+                      <div className="space-y-2">
                         <Label>Descrição curta</Label>
                         <Textarea
                           value={settings.site.description}
@@ -458,70 +502,70 @@ const DashboardSettings = () => {
 
                     <div className="grid gap-4 md:grid-cols-3">
                       <div className="space-y-2">
-                        <Label>Logo (URL)</Label>
-                        <Input
-                          value={settings.site.logoUrl}
-                          onChange={(event) =>
-                            setSettings((prev) => ({ ...prev, site: { ...prev.site, logoUrl: event.target.value } }))
-                          }
-                        />
-                        <Input
-                          type="file"
-                          accept="image/*"
-                          onChange={(event) => {
-                            const file = event.target.files?.[0];
-                            if (file) {
-                              uploadImage(file, "site.logoUrl");
-                            }
-                          }}
-                          disabled={uploadingKey === "site.logoUrl"}
-                        />
+                        <Label>Logo</Label>
+                        {settings.site.logoUrl ? (
+                          <div className="flex items-center gap-3">
+                            <img
+                              src={settings.site.logoUrl}
+                              alt="Logo"
+                              className="h-10 w-10 rounded bg-black/10 object-contain"
+                            />
+                            <span className="text-xs text-muted-foreground break-all">{settings.site.logoUrl}</span>
+                          </div>
+                        ) : (
+                          <p className="text-xs text-muted-foreground">Sem logo definida.</p>
+                        )}
+                        <Button type="button" variant="outline" size="sm" onClick={() => openLibrary("site.logoUrl")}>
+                          Biblioteca
+                        </Button>
                       </div>
                       <div className="space-y-2">
-                        <Label>Favicon (URL)</Label>
-                        <Input
-                          value={settings.site.faviconUrl}
-                          onChange={(event) =>
-                            setSettings((prev) => ({
-                              ...prev,
-                              site: { ...prev.site, faviconUrl: event.target.value },
-                            }))
-                          }
-                        />
-                        <Input
-                          type="file"
-                          accept="image/*"
-                          onChange={(event) => {
-                            const file = event.target.files?.[0];
-                            if (file) {
-                              uploadImage(file, "site.faviconUrl");
-                            }
-                          }}
-                          disabled={uploadingKey === "site.faviconUrl"}
-                        />
+                        <Label>Favicon</Label>
+                        {settings.site.faviconUrl ? (
+                          <div className="flex items-center gap-3">
+                            <img
+                              src={settings.site.faviconUrl}
+                              alt="Favicon"
+                              className="h-8 w-8 rounded bg-black/10 object-contain"
+                            />
+                            <span className="text-xs text-muted-foreground break-all">{settings.site.faviconUrl}</span>
+                          </div>
+                        ) : (
+                          <p className="text-xs text-muted-foreground">Sem favicon definido.</p>
+                        )}
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => openLibrary("site.faviconUrl")}
+                        >
+                          Biblioteca
+                        </Button>
                       </div>
                       <div className="space-y-2">
-                        <Label>Imagem padrao de compartilhamento</Label>
-                        <Input
-                          value={settings.site.defaultShareImage}
-                          onChange={(event) =>
-                            setSettings((prev) => ({
-                              ...prev,
-                              site: { ...prev.site, defaultShareImage: event.target.value },
-                            }))
-                          }
-                        />
-                        <Input
-                          type="file"
-                          accept="image/*"
-                          onChange={(event) => {
-                            const file = event.target.files?.[0];
-                            if (file) {
-                              uploadImage(file, "site.defaultShareImage");
-                            }
-                          }}
-                          disabled={uploadingKey === "site.defaultShareImage"}
-                        />
+                        <Label>Imagem padr?o de compartilhamento</Label>
+                        {settings.site.defaultShareImage ? (
+                          <div className="flex items-center gap-3">
+                            <img
+                              src={settings.site.defaultShareImage}
+                              alt="Imagem de compartilhamento"
+                              className="h-10 w-16 rounded bg-black/10 object-cover"
+                            />
+                            <span className="text-xs text-muted-foreground break-all">
+                              {settings.site.defaultShareImage}
+                            </span>
+                          </div>
+                        ) : (
+                          <p className="text-xs text-muted-foreground">Sem imagem definida.</p>
+                        )}
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => openLibrary("site.defaultShareImage")}
+                        >
+                          Biblioteca
+                        </Button>
                       </div>
                     </div>
 
@@ -963,27 +1007,29 @@ const DashboardSettings = () => {
                         />
                       </div>
                       <div className="space-y-2">
-                        <Label>Logo (URL)</Label>
-                        <Input
-                          value={settings.footer.brandLogoUrl}
-                          onChange={(event) =>
-                            setSettings((prev) => ({
-                              ...prev,
-                              footer: { ...prev.footer, brandLogoUrl: event.target.value },
-                            }))
-                          }
-                        />
-                        <Input
-                          type="file"
-                          accept="image/*"
-                          onChange={(event) => {
-                            const file = event.target.files?.[0];
-                            if (file) {
-                              uploadImage(file, "footer.brandLogoUrl");
-                            }
-                          }}
-                          disabled={uploadingKey === "footer.brandLogoUrl"}
-                        />
+                        <Label>Logo</Label>
+                        {settings.footer.brandLogoUrl ? (
+                          <div className="flex items-center gap-3">
+                            <img
+                              src={settings.footer.brandLogoUrl}
+                              alt="Logo do footer"
+                              className="h-10 w-10 rounded bg-black/10 object-contain"
+                            />
+                            <span className="text-xs text-muted-foreground break-all">
+                              {settings.footer.brandLogoUrl}
+                            </span>
+                          </div>
+                        ) : (
+                          <p className="text-xs text-muted-foreground">Sem logo definida.</p>
+                        )}
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => openLibrary("footer.brandLogoUrl")}
+                        >
+                          Biblioteca
+                        </Button>
                       </div>
                     </div>
                     <div className="space-y-2">
@@ -1331,6 +1377,19 @@ const DashboardSettings = () => {
             </Tabs>
           </section>
         </main>
+        <ImageLibraryDialog
+          open={isLibraryOpen}
+          onOpenChange={setIsLibraryOpen}
+          apiBase={apiBase}
+          description="Selecione uma imagem ja enviada para reutilizar ou exclua itens que nao estejam em uso."
+          uploadFolder="branding"
+          listFolders={[""]}
+          allowUrlInput={false}
+          showAltInput={false}
+          allowDeselect
+          currentSelectionUrl={currentLibrarySelection || undefined}
+          onSelect={(url) => applyLibraryImage(url)}
+        />
     </DashboardShell>
   );
 };

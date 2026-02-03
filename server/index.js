@@ -188,6 +188,7 @@ const defaultSiteSettings = {
     description:
       "Fansub dedicada a trazer histórias inesquecíveis com o carinho que a comunidade merece.",
     defaultShareImage: "/placeholder.svg",
+    titleSeparator: " | ",
   },
   navbar: {
     recruitmentUrl: "https://discord.com/invite/BAHKhdX2ju",
@@ -2104,7 +2105,10 @@ app.post("/api/uploads/image", requireAuth, (req, res) => {
 app.get("/api/uploads/list", requireAuth, (req, res) => {
   const uploadsDir = path.join(__dirname, "..", "public", "uploads");
   const folder = typeof req.query.folder === "string" ? req.query.folder.trim() : "";
-  const safeFolder = folder
+  const listAll = folder === "__all__";
+  const safeFolder = listAll
+    ? ""
+    : folder
     ? folder
         .replace(/[^a-z0-9/_-]+/gi, "-")
         .replace(/\/{2,}/g, "/")
@@ -2112,16 +2116,113 @@ app.get("/api/uploads/list", requireAuth, (req, res) => {
     : "";
   const targetDir = safeFolder ? path.join(uploadsDir, safeFolder) : uploadsDir;
   try {
-    const items = fs.existsSync(targetDir) ? fs.readdirSync(targetDir) : [];
-    const files = items
-      .filter((item) => /\.(png|jpe?g|gif|webp|svg)$/i.test(item))
-      .map((item) => ({
-        name: item,
-        url: `${PRIMARY_APP_ORIGIN}/uploads/${safeFolder ? `${safeFolder}/` : ""}${item}`,
-      }));
+    const collectFiles = (dir, base) => {
+      if (!fs.existsSync(dir)) {
+        return [];
+      }
+      const entries = fs.readdirSync(dir, { withFileTypes: true });
+      const results = [];
+      entries.forEach((entry) => {
+        const fullPath = path.join(dir, entry.name);
+        if (entry.isDirectory()) {
+          results.push(...collectFiles(fullPath, path.join(base, entry.name)));
+          return;
+        }
+        if (!/\.(png|jpe?g|gif|webp|svg)$/i.test(entry.name)) {
+          return;
+        }
+        const relative = path.join(base, entry.name).split(path.sep).join("/");
+        results.push({
+          name: entry.name,
+          url: `${PRIMARY_APP_ORIGIN}/uploads/${relative}`,
+        });
+      });
+      return results;
+    };
+    const files = listAll
+      ? collectFiles(uploadsDir, "")
+      : (fs.existsSync(targetDir) ? fs.readdirSync(targetDir) : [])
+          .filter((item) => /\.(png|jpe?g|gif|webp|svg)$/i.test(item))
+          .map((item) => ({
+            name: item,
+            url: `${PRIMARY_APP_ORIGIN}/uploads/${safeFolder ? `${safeFolder}/` : ""}${item}`,
+          }));
     return res.json({ files });
   } catch {
     return res.json({ files: [] });
+  }
+});
+
+const normalizeUploadUrl = (value) => {
+  if (!value || typeof value !== "string") return null;
+  if (!value.includes("/uploads/")) return null;
+  return value.split("?")[0];
+};
+
+const collectUploadUrls = (value, urls) => {
+  if (!value) return;
+  if (typeof value === "string") {
+    const normalized = normalizeUploadUrl(value);
+    if (normalized) {
+      urls.add(normalized);
+    }
+    return;
+  }
+  if (Array.isArray(value)) {
+    value.forEach((item) => collectUploadUrls(item, urls));
+    return;
+  }
+  if (typeof value === "object") {
+    Object.values(value).forEach((item) => collectUploadUrls(item, urls));
+  }
+};
+
+const getUsedUploadUrls = () => {
+  const urls = new Set();
+  collectUploadUrls(loadSiteSettings(), urls);
+  collectUploadUrls(loadPosts(), urls);
+  collectUploadUrls(loadProjects(), urls);
+  collectUploadUrls(loadUsers(), urls);
+  collectUploadUrls(loadPages(), urls);
+  return urls;
+};
+
+app.delete("/api/uploads/delete", requireAuth, (req, res) => {
+  const sessionUser = req.session.user;
+  if (!canManagePosts(sessionUser?.id)) {
+    return res.status(403).json({ error: "forbidden" });
+  }
+
+  const { url } = req.body || {};
+  const normalized = normalizeUploadUrl(url);
+  if (!normalized) {
+    return res.status(400).json({ error: "invalid_url" });
+  }
+
+  const usedUrls = getUsedUploadUrls();
+  if (usedUrls.has(normalized)) {
+    return res.status(409).json({ error: "in_use" });
+  }
+
+  try {
+    const uploadsDir = path.join(__dirname, "..", "public", "uploads");
+    const parsed = new URL(normalized, PRIMARY_APP_ORIGIN);
+    const pathname = decodeURIComponent(parsed.pathname || "");
+    if (!pathname.startsWith("/uploads/")) {
+      return res.status(400).json({ error: "invalid_path" });
+    }
+    const relativePath = pathname.replace(/^\/uploads\//, "");
+    const targetPath = path.join(uploadsDir, relativePath);
+    const resolved = path.resolve(targetPath);
+    if (!resolved.startsWith(path.resolve(uploadsDir))) {
+      return res.status(400).json({ error: "invalid_path" });
+    }
+    if (fs.existsSync(resolved)) {
+      fs.unlinkSync(resolved);
+    }
+    return res.json({ ok: true });
+  } catch {
+    return res.status(500).json({ error: "delete_failed" });
   }
 });
 

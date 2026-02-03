@@ -3,9 +3,28 @@ import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
-import { Instagram, X, Youtube, MessageCircle, Globe } from "lucide-react";
+import {
+  BadgeCheck,
+  Check,
+  Clock,
+  Code,
+  Globe,
+  Instagram,
+  Languages,
+  Layers,
+  MessageCircle,
+  Paintbrush,
+  Palette,
+  PenTool,
+  Sparkles,
+  User,
+  Video,
+  X,
+  Youtube,
+} from "lucide-react";
 import { getApiBase } from "@/lib/api-base";
 import { usePageMeta } from "@/hooks/use-page-meta";
+import { useSiteSettings } from "@/hooks/use-site-settings";
 
 type PublicUser = {
   id: string;
@@ -24,6 +43,7 @@ const Team = () => {
   usePageMeta({ title: "Equipe" });
 
   const apiBase = getApiBase();
+  const { settings } = useSiteSettings();
   const [members, setMembers] = useState<PublicUser[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [cacheBust, setCacheBust] = useState(Date.now());
@@ -51,6 +71,44 @@ const Team = () => {
     }),
     [],
   );
+  const roleIconRegistry = useMemo(
+    () => ({
+      languages: Languages,
+      check: Check,
+      "pen-tool": PenTool,
+      sparkles: Sparkles,
+      code: Code,
+      paintbrush: Paintbrush,
+      layers: Layers,
+      video: Video,
+      clock: Clock,
+      badge: BadgeCheck,
+      palette: Palette,
+      user: User,
+    }),
+    [],
+  );
+  const roleIconMap = useMemo(
+    () => new Map((settings?.teamRoles || []).map((role) => [role.label, role.icon])),
+    [settings?.teamRoles],
+  );
+  const getRoleIcon = (role: string) => {
+    const key = roleIconMap.get(role);
+    if (key) {
+      return roleIconRegistry[String(key).toLowerCase()];
+    }
+    const normalized = role.toLowerCase();
+    if (normalized === "dono") {
+      return BadgeCheck;
+    }
+    if (normalized === "membro") {
+      return User;
+    }
+    if (normalized.includes("aposent")) {
+      return Clock;
+    }
+    return null;
+  };
 
   useEffect(() => {
     let isActive = true;
@@ -224,23 +282,35 @@ const Team = () => {
                               {member.bio || "Sem biografia cadastrada."}
                             </p>
                             <div className="flex flex-wrap gap-2">
-                              {(member.roles || []).includes("Dono") && (
-                                <Badge variant="secondary" className="text-[10px] uppercase">
-                                  Dono
-                                </Badge>
-                              )}
+                              {(member.roles || []).includes("Dono") && (() => {
+                                const RoleIcon = getRoleIcon("Dono");
+                                return (
+                                  <Badge variant="secondary" className="text-[10px] uppercase gap-1">
+                                    {RoleIcon ? <RoleIcon className="h-3 w-3" /> : null}
+                                    Dono
+                                  </Badge>
+                                );
+                              })()}
                               {areas.length > 0 ? (
-                                areas.map((area) => (
-                                  <Badge key={area} variant="secondary" className="text-[10px] uppercase">
-                                    {area}
-                                  </Badge>
-                                ))
+                                areas.map((area) => {
+                                  const RoleIcon = getRoleIcon(area);
+                                  return (
+                                    <Badge key={area} variant="secondary" className="text-[10px] uppercase gap-1">
+                                      {RoleIcon ? <RoleIcon className="h-3 w-3" /> : null}
+                                      {area}
+                                    </Badge>
+                                  );
+                                })
                               ) : (
-                                !(member.roles || []).includes("Dono") && (
-                                  <Badge variant="secondary" className="text-[10px] uppercase">
-                                    Membro
-                                  </Badge>
-                                )
+                                !(member.roles || []).includes("Dono") && (() => {
+                                  const RoleIcon = getRoleIcon("Membro");
+                                  return (
+                                    <Badge variant="secondary" className="text-[10px] uppercase gap-1">
+                                      {RoleIcon ? <RoleIcon className="h-3 w-3" /> : null}
+                                      Membro
+                                    </Badge>
+                                  );
+                                })()
                               )}
                             </div>
                           </div>
@@ -331,23 +401,35 @@ const Team = () => {
                                   {member.bio || "Sem biografia cadastrada."}
                                 </p>
                                 <div className="flex flex-wrap gap-2">
-                                  {(member.roles || []).includes("Dono") && (
-                                    <Badge variant="secondary" className="text-[10px] uppercase">
-                                      Dono
-                                    </Badge>
-                                  )}
+                                  {(member.roles || []).includes("Dono") && (() => {
+                                    const RoleIcon = getRoleIcon("Dono");
+                                    return (
+                                      <Badge variant="secondary" className="text-[10px] uppercase gap-1">
+                                        {RoleIcon ? <RoleIcon className="h-3 w-3" /> : null}
+                                        Dono
+                                      </Badge>
+                                    );
+                                  })()}
                                   {areas.length > 0 ? (
-                                    areas.map((area) => (
-                                      <Badge key={area} variant="secondary" className="text-[10px] uppercase">
-                                        {area}
-                                      </Badge>
-                                    ))
+                                    areas.map((area) => {
+                                      const RoleIcon = getRoleIcon(area);
+                                      return (
+                                        <Badge key={area} variant="secondary" className="text-[10px] uppercase gap-1">
+                                          {RoleIcon ? <RoleIcon className="h-3 w-3" /> : null}
+                                          {area}
+                                        </Badge>
+                                      );
+                                    })
                                   ) : (
-                                    !(member.roles || []).includes("Dono") && (
-                                      <Badge variant="secondary" className="text-[10px] uppercase">
-                                        Aposentado
-                                      </Badge>
-                                    )
+                                    !(member.roles || []).includes("Dono") && (() => {
+                                      const RoleIcon = getRoleIcon("Aposentado");
+                                      return (
+                                        <Badge variant="secondary" className="text-[10px] uppercase gap-1">
+                                          {RoleIcon ? <RoleIcon className="h-3 w-3" /> : null}
+                                          Aposentado
+                                        </Badge>
+                                      );
+                                    })()
                                   )}
                                 </div>
                               </div>

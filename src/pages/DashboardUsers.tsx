@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import DashboardShell from "@/components/DashboardShell";
+import ImageLibraryDialog from "@/components/ImageLibraryDialog";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -21,12 +22,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import {
   UserRound,
   BadgeCheck,
@@ -154,6 +149,8 @@ const DashboardUsers = () => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<UserRecord | null>(null);
   const [formState, setFormState] = useState(emptyForm);
+  const [isLibraryOpen, setIsLibraryOpen] = useState(false);
+  const [libraryTarget, setLibraryTarget] = useState<"avatar" | "cover">("avatar");
   const [linkTypes, setLinkTypes] = useState<Array<{ id: string; label: string; icon: string }>>([]);
   const fallbackLinkTypes = useMemo(
     () => [
@@ -171,6 +168,21 @@ const DashboardUsers = () => {
     ? users.find((user) => user.id === currentUser.id) || null
     : null;
   const canManageUsers = currentUser?.id ? ownerIds.includes(currentUser.id) : false;
+  const openLibrary = (target: "avatar" | "cover") => {
+    setLibraryTarget(target);
+    setIsLibraryOpen(true);
+  };
+  const handleLibrarySelect = useCallback(
+    (url: string) => {
+      if (libraryTarget === "avatar") {
+        setFormState((prev) => ({ ...prev, avatarUrl: url }));
+        return;
+      }
+      setFormState((prev) => ({ ...prev, coverImageUrl: url }));
+    },
+    [libraryTarget],
+  );
+  const currentLibrarySelection = libraryTarget === "avatar" ? formState.avatarUrl : formState.coverImageUrl;
   const canManageBadges =
     canManageUsers ||
     (currentUserRecord
@@ -435,9 +447,9 @@ const DashboardUsers = () => {
   return (
     <>
       <DashboardShell
-      currentUser={currentUser}
-      onUserCardClick={currentUserRecord ? () => handleUserCardClick(currentUserRecord) : undefined}
-    >
+        currentUser={currentUser}
+        onUserCardClick={currentUserRecord ? () => handleUserCardClick(currentUserRecord) : undefined}
+      >
       <main className="pt-24">
           <section className="mx-auto w-full max-w-6xl px-6 pb-20 md:px-10">
             <header className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
@@ -458,11 +470,10 @@ const DashboardUsers = () => {
             </header>
 
             <div className="mt-10">
+
               <div className="flex items-center justify-between">
                 <h2 className="text-lg font-semibold">Usuários ativos</h2>
-                <Badge className="bg-white/10 text-muted-foreground">
-                  {activeUsers.length}
-                </Badge>
+                <Badge className="bg-white/10 text-muted-foreground">{activeUsers.length}</Badge>
               </div>
 
               {isLoading ? (
@@ -513,7 +524,7 @@ const DashboardUsers = () => {
                                 <Badge className="bg-primary/20 text-primary">Dono</Badge>
                               )}
                             </div>
-                            <p className="text-sm text-muted-foreground">{user.phrase || "—"}</p>
+                            <p className="text-sm text-muted-foreground">{user.phrase || "-"}</p>
                             <p className="mt-2 text-xs text-muted-foreground line-clamp-2">
                               {user.bio || "Sem biografia cadastrada."}
                             </p>
@@ -528,115 +539,92 @@ const DashboardUsers = () => {
                             )}
                           </div>
                         </div>
-                        {(canManageBadges || canManageUsers || currentUser?.id === user.id) && (
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button size="icon" variant="ghost" onClick={(event) => event.stopPropagation()}>
-                                <span className="sr-only">Ações</span>
-                                <span className="text-xl leading-none">⋯</span>
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              {canManageUsers && !ownerIds.includes(user.id) && (
-                                <DropdownMenuItem onClick={() => handleStatusToggle(user)}>
-                                  Aposentar
-                                </DropdownMenuItem>
-                              )}
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        )}
                       </div>
                     </div>
                   ))}
                 </div>
               )}
-            </div>
 
-            {retiredUsers.length > 0 && (
-              <div className="mt-12">
-                <div className="flex items-center justify-between">
-                  <h2 className="text-lg font-semibold">Usuários aposentados</h2>
-                  <Badge className="bg-white/10 text-muted-foreground">
-                    {retiredUsers.length}
-                  </Badge>
-                </div>
-                <div className="mt-6 grid gap-4 md:grid-cols-2">
-                  {retiredUsers.map((user) => (
-                    <div
-                      key={user.id}
-                      className="rounded-2xl border border-white/10 bg-white/5 p-5"
-                      draggable={canManageUsers}
-                      onDragStart={() => {
-                        setDragId(user.id);
-                        setDragGroup("retired");
-                      }}
-                      onDragOver={(event) => handleDragOverRetired(event, user.id)}
-                      onDragEnd={handleDragEnd}
-                      onClick={() => handleUserCardClick(user)}
-                      role="button"
-                      tabIndex={0}
-                      onKeyDown={(event) => {
-                        if (event.key === "Enter" || event.key === " ") {
-                          event.preventDefault();
-                          handleUserCardClick(user);
-                        }
-                      }}
-                    >
-                      <div className="flex items-start justify-between gap-4">
-                        <div className="flex gap-4">
-                          <Avatar className="h-14 w-14 border border-white/10">
-                            {user.avatarUrl ? (
-                              <AvatarImage src={user.avatarUrl} alt={user.name} />
-                            ) : null}
-                            <AvatarFallback className="bg-white/10 text-sm text-white">
-                              {user.name.slice(0, 2).toUpperCase()}
-                            </AvatarFallback>
-                          </Avatar>
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <h3 className="text-lg font-semibold">{user.name}</h3>
-                              <Badge className="bg-white/10 text-muted-foreground">Aposentado</Badge>
-                            </div>
-                            <p className="text-sm text-muted-foreground">{user.phrase || "—"}</p>
-                            <p className="mt-2 text-xs text-muted-foreground line-clamp-2">
-                              {user.bio || "Sem biografia cadastrada."}
-                            </p>
-                            {user.roles && user.roles.length > 0 && (
-                              <div className="mt-3 flex flex-wrap gap-2">
-                                {user.roles.map((role) => (
-                                  <Badge key={role} variant="secondary" className="text-[10px] uppercase">
-                                    {role}
-                                  </Badge>
-                                ))}
+              {retiredUsers.length > 0 && (
+                <div className="mt-12">
+                  <div className="flex items-center justify-between">
+                    <h2 className="text-lg font-semibold">Usuários aposentados</h2>
+                    <Badge className="bg-white/10 text-muted-foreground">{retiredUsers.length}</Badge>
+                  </div>
+                  <div className="mt-6 grid gap-4 md:grid-cols-2">
+                    {retiredUsers.map((user) => (
+                      <div
+                        key={user.id}
+                        className="rounded-2xl border border-white/10 bg-white/5 p-5"
+                        draggable={canManageUsers}
+                        onDragStart={() => {
+                          setDragId(user.id);
+                          setDragGroup("retired");
+                        }}
+                        onDragOver={(event) => handleDragOverRetired(event, user.id)}
+                        onDragEnd={handleDragEnd}
+                        onClick={() => handleUserCardClick(user)}
+                        role="button"
+                        tabIndex={0}
+                        onKeyDown={(event) => {
+                          if (event.key === "Enter" || event.key === " ") {
+                            event.preventDefault();
+                            handleUserCardClick(user);
+                          }
+                        }}
+                      >
+                        <div className="flex items-start justify-between gap-4">
+                          <div className="flex gap-4">
+                            <Avatar className="h-14 w-14 border border-white/10">
+                              {user.avatarUrl ? (
+                                <AvatarImage src={user.avatarUrl} alt={user.name} />
+                              ) : null}
+                              <AvatarFallback className="bg-white/10 text-sm text-white">
+                                {user.name.slice(0, 2).toUpperCase()}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <h3 className="text-lg font-semibold">{user.name}</h3>
+                                <Badge className="bg-white/10 text-muted-foreground">Aposentado</Badge>
                               </div>
-                            )}
+                              <p className="text-sm text-muted-foreground">{user.phrase || "-"}</p>
+                              <p className="mt-2 text-xs text-muted-foreground line-clamp-2">
+                                {user.bio || "Sem biografia cadastrada."}
+                              </p>
+                              {user.roles && user.roles.length > 0 && (
+                                <div className="mt-3 flex flex-wrap gap-2">
+                                  {user.roles.map((role) => (
+                                    <Badge key={role} variant="secondary" className="text-[10px] uppercase">
+                                      {role}
+                                    </Badge>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
                           </div>
                         </div>
-                        {(canManageBadges || canManageUsers || currentUser?.id === user.id) && (
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button size="icon" variant="ghost" onClick={(event) => event.stopPropagation()}>
-                                <span className="sr-only">Ações</span>
-                                <span className="text-xl leading-none">⋯</span>
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">                              {canManageUsers && (
-                                <DropdownMenuItem onClick={() => handleStatusToggle(user)}>
-                                  Reativar
-                                </DropdownMenuItem>
-                              )}
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        )}
                       </div>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
+            </div>
           </section>
         </main>
       </DashboardShell>
+      <ImageLibraryDialog
+        open={isLibraryOpen}
+        onOpenChange={setIsLibraryOpen}
+        apiBase={apiBase}
+        description="Selecione uma imagem já enviada para reutilizar ou envie um novo arquivo."
+        uploadFolder="users"
+        listFolders={[""]}
+        showAltInput={false}
+        allowDeselect
+        currentSelectionUrl={currentLibrarySelection || undefined}
+        onSelect={(url) => handleLibrarySelect(url)}
+      />
 
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent className="w-[92vw] max-h-[90vh] max-w-xl overflow-y-auto">
@@ -696,33 +684,60 @@ const DashboardUsers = () => {
               />
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="user-avatar">Avatar (URL)</Label>
-              <Input
-                id="user-avatar"
-                value={formState.avatarUrl}
-                onChange={(event) => setFormState((prev) => ({ ...prev, avatarUrl: event.target.value }))}
-                placeholder="https://"
-                disabled={rolesOnlyEdit}
-              />
+              <Label>Avatar</Label>
+              <div className="flex flex-wrap items-center gap-3">
+                {formState.avatarUrl ? (
+                  <Avatar className="h-12 w-12">
+                    <AvatarImage src={formState.avatarUrl} alt={formState.name || "Avatar"} />
+                    <AvatarFallback>{(formState.name || "U").slice(0, 1)}</AvatarFallback>
+                  </Avatar>
+                ) : (
+                  <div className="flex h-12 w-12 items-center justify-center rounded-full border border-dashed border-border/60 text-[10px] text-muted-foreground">
+                    Sem imagem
+                  </div>
+                )}
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() => openLibrary("avatar")}
+                  disabled={rolesOnlyEdit}
+                >
+                  Biblioteca
+                </Button>
+              </div>
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="user-cover">Imagem do card público (URL)</Label>
-              <Input
-                id="user-cover"
-                value={formState.coverImageUrl}
-                onChange={(event) =>
-                  setFormState((prev) => ({ ...prev, coverImageUrl: event.target.value }))
-                }
-                placeholder="https://"
-                disabled={rolesOnlyEdit}
-              />
+              <Label>Imagem do card público</Label>
+              <div className="flex flex-wrap items-center gap-3">
+                {formState.coverImageUrl ? (
+                  <img
+                    src={formState.coverImageUrl}
+                    alt={formState.name || "Capa"}
+                    className="h-14 w-14 rounded-lg object-cover"
+                  />
+                ) : (
+                  <div className="flex h-14 w-14 items-center justify-center rounded-lg border border-dashed border-border/60 text-[10px] text-muted-foreground">
+                    Sem imagem
+                  </div>
+                )}
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() => openLibrary("cover")}
+                  disabled={rolesOnlyEdit}
+                >
+                  Biblioteca
+                </Button>
+              </div>
             </div>
             <div className="grid gap-2">
               <Label>Links e redes</Label>
               <div className="grid gap-3">
-                {formState.socials.length === 0 && (
+                {formState.socials.length === 0 ? (
                   <p className="text-xs text-muted-foreground">Nenhum link adicionado.</p>
-                )}
+                ) : null}
                 {formState.socials.map((social, index) => (
                   <div
                     key={`${social.label}-${index}`}
@@ -758,7 +773,7 @@ const DashboardUsers = () => {
                             </SelectItem>
                           );
                         })}
-                    </SelectContent>
+                      </SelectContent>
                     </Select>
                     <Input
                       value={social.href}
@@ -806,30 +821,7 @@ const DashboardUsers = () => {
             <div className="grid gap-2">
               <Label>Funções</Label>
               {!canManageBadges && (
-                <p className="text-xs text-muted-foreground">
-                  Apenas dono ou admin podem alterar funções.
-                </p>
-              )}
-              {formState.roles.length > 0 && (
-                <div className="flex flex-wrap gap-2">
-                  {formState.roles.map((role) => (
-                    <div
-                      key={role}
-                      className="flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs uppercase text-foreground"
-                    >
-                      <span>{role}</span>
-                      <button
-                        type="button"
-                        className="rounded-full px-1 text-muted-foreground transition hover:text-foreground"
-                        onClick={() => toggleRole(role)}
-                        disabled={!canManageBadges || isOwnerRecord}
-                        aria-label={`Remover ${role}`}
-                      >
-                        ×
-                      </button>
-                    </div>
-                  ))}
-                </div>
+                <p className="text-xs text-muted-foreground">Apenas dono ou admin podem alterar funções.</p>
               )}
               <div className="flex flex-wrap gap-2">
                 {roleOptions.map((role) => {
@@ -857,9 +849,7 @@ const DashboardUsers = () => {
             </div>
             <div className="grid gap-2">
               <Label>Permissões</Label>
-              {isOwnerRecord && (
-                <Badge className="w-fit bg-primary/20 text-primary">Acesso total</Badge>
-              )}
+              {isOwnerRecord && <Badge className="w-fit bg-primary/20 text-primary">Acesso total</Badge>}
               <div className="flex flex-wrap gap-2">
                 {permissionOptions.map((permission) => {
                   const isSelected = formState.permissions.includes(permission.id);
@@ -878,9 +868,7 @@ const DashboardUsers = () => {
                 })}
               </div>
               {!canManageUsers && (
-                <p className="text-xs text-muted-foreground">
-                  Apenas o dono pode alterar permissões.
-                </p>
+                <p className="text-xs text-muted-foreground">Apenas o dono pode alterar permissões.</p>
               )}
             </div>
             <div className="grid gap-2">

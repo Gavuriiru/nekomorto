@@ -40,20 +40,22 @@ export const usePageMeta = ({
   image,
   type = "website",
   noIndex = false,
-  separator = " | ",
+  separator,
 }: PageMetaOptions) => {
   const { settings } = useSiteSettings();
   const siteName = settings.site.name || "Nekomata";
+  const effectiveSeparator = separator ?? settings.site.titleSeparator ?? " | ";
   const pageTitle = useMemo(() => {
     if (!title) {
       return siteName;
     }
-    return `${title}${separator}${siteName}`;
-  }, [separator, siteName, title]);
+    return `${title}${effectiveSeparator}${siteName}`;
+  }, [effectiveSeparator, siteName, title]);
   const pageDescription = description ?? settings.site.description ?? "";
   const pageImage = image ?? settings.site.defaultShareImage ?? "";
 
   useEffect(() => {
+    document.documentElement.dataset.pageMeta = "true";
     document.title = pageTitle;
 
     const descriptionMeta = ensureMeta('meta[name="description"]', { name: "description" });
@@ -88,5 +90,9 @@ export const usePageMeta = ({
 
     const canonical = ensureLink('link[rel="canonical"]', { rel: "canonical" });
     canonical?.setAttribute("href", window.location.href);
+
+    return () => {
+      delete document.documentElement.dataset.pageMeta;
+    };
   }, [noIndex, pageDescription, pageImage, pageTitle, siteName, type]);
 };

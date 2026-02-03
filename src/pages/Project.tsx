@@ -661,7 +661,7 @@ const ProjectPage = () => {
                                   <CardContent className="relative grid gap-6 p-6 md:grid-cols-[240px_minmax(0,1fr)]">
                                     <div className="overflow-hidden rounded-xl border border-border/50 bg-background/50 shadow-sm">
                                       <img
-                                        src={project.banner}
+                                        src={episode.coverImageUrl || project.banner || project.cover || "/placeholder.svg"}
                                         alt={`Preview de ${episode.title}`}
                                         className="aspect-[16/9] w-full object-cover"
                                       />
@@ -738,7 +738,7 @@ const ProjectPage = () => {
                           ) : null}
                           <div className="overflow-hidden rounded-xl border border-border/50 bg-background/50 shadow-sm">
                             <img
-                              src={project.banner}
+                              src={episode.coverImageUrl || project.banner || project.cover || "/placeholder.svg"}
                               alt={`Preview de ${episode.title}`}
                               className="aspect-[16/9] w-full object-cover"
                             />

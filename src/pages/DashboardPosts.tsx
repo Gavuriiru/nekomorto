@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import DashboardShell from "@/components/DashboardShell";
+import ImageLibraryDialog from "@/components/ImageLibraryDialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -107,17 +108,8 @@ const DashboardPosts = () => {
   const [editingPost, setEditingPost] = useState<PostRecord | null>(null);
   const [formState, setFormState] = useState(emptyForm);
   const [isSlugCustom, setIsSlugCustom] = useState(false);
-  const [isImageDialogOpen, setIsImageDialogOpen] = useState(false);
-  const [imageUrl, setImageUrl] = useState("");
-  const [imageAlt, setImageAlt] = useState("");
-  const [imageFile, setImageFile] = useState<File | null>(null);
-  const [isUploading, setIsUploading] = useState(false);
   const [isLibraryOpen, setIsLibraryOpen] = useState(false);
-  const [libraryImages, setLibraryImages] = useState<Array<{ name: string; url: string }>>([]);
   const [imageTarget, setImageTarget] = useState<"editor" | "cover">("editor");
-  const [libraryUrl, setLibraryUrl] = useState("");
-  const [libraryAlt, setLibraryAlt] = useState("");
-  const [isLibraryDragActive, setIsLibraryDragActive] = useState(false);
   const [imageEditOpen, setImageEditOpen] = useState(false);
   const [imageEditSrc, setImageEditSrc] = useState("");
   const [imageEditAlt, setImageEditAlt] = useState("");
@@ -427,6 +419,16 @@ const DashboardPosts = () => {
 
   const projectMap = useMemo(
     () => new Map(projects.map((project) => [project.id, project])),
+    [projects],
+  );
+  const projectLibraryItems = useMemo(
+    () =>
+      projects
+        .flatMap((project) => [
+          { key: `${project.id}-cover`, label: `${project.title} (Capa)`, url: project.cover },
+          { key: `${project.id}-banner`, label: `${project.title} (Banner)`, url: project.banner },
+        ])
+        .filter((item) => Boolean(item.url)),
     [projects],
   );
   const projectTags = useMemo(() => {
@@ -847,106 +849,29 @@ const DashboardPosts = () => {
     return { next, alt };
   };
 
-  const handleInsertImage = () => {
-    if (!imageUrl) {
-      return;
-    }
-    insertImageToContent(imageUrl, imageAlt || "Imagem");
-    setImageUrl("");
-    setImageAlt("");
-    setImageFile(null);
-    setIsImageDialogOpen(false);
-  };
+
 
   const openLibrary = (target: "editor" | "cover") => {
     setImageTarget(target);
     setIsLibraryOpen(true);
   };
 
-  const loadLibrary = useCallback(async () => {
-    try {
-      const response = await fetch(`${apiBase}/api/uploads/list`, { credentials: "include" });
-      if (!response.ok) {
-        setLibraryImages([]);
+  const handleLibrarySelect = useCallback(
+    (url: string, altText?: string) => {
+      if (imageTarget === "cover") {
+        setFormState((prev) => ({
+          ...prev,
+          coverImageUrl: url,
+          coverAlt: prev.coverAlt || altText || prev.title || "Capa",
+        }));
         return;
       }
-      const data = await response.json();
-      setLibraryImages(Array.isArray(data.files) ? data.files : []);
-    } catch {
-      setLibraryImages([]);
-    }
-  }, [apiBase]);
+      insertImageToContent(url, altText || "Imagem");
+    },
+    [imageTarget, insertImageToContent],
+  );
 
-  useEffect(() => {
-    if (isLibraryOpen) {
-      loadLibrary();
-    }
-  }, [isLibraryOpen, loadLibrary]);
 
-  const handleUploadImage = async () => {
-    if (!imageFile) {
-      return;
-    }
-    try {
-      setIsUploading(true);
-      const url = await uploadImage(imageFile);
-      setImageUrl(url);
-      if (!imageAlt) {
-        setImageAlt(imageFile.name.replace(/\.[^/.]+$/, "").replace(/[-_]/g, " "));
-      }
-    } catch {
-      toast({ title: "Não foi possível enviar a imagem" });
-    } finally {
-      setIsUploading(false);
-    }
-  };
-
-  const handleLibraryUpload = async (file: File) => {
-    try {
-      setIsUploading(true);
-      await uploadImage(file);
-      await loadLibrary();
-    } catch {
-      toast({ title: "Não foi possível enviar a imagem" });
-    } finally {
-      setIsUploading(false);
-    }
-  };
-
-  const handleLibraryDrop = (event: React.DragEvent<HTMLDivElement>) => {
-    event.preventDefault();
-    setIsLibraryDragActive(false);
-    const file = event.dataTransfer?.files?.[0];
-    if (!file) {
-      return;
-    }
-    if (!file.type.startsWith("image/")) {
-      toast({ title: "Arraste apenas imagens para a biblioteca." });
-      return;
-    }
-    handleLibraryUpload(file);
-  };
-
-  const handleLibraryDragStart = (event: React.DragEvent<HTMLButtonElement>, url: string) => {
-    event.dataTransfer.setData("text/plain", url);
-    event.dataTransfer.setData("text/uri-list", url);
-    event.dataTransfer.effectAllowed = "copy";
-  };
-
-  const handleLibraryAddUrl = () => {
-    const url = libraryUrl.trim();
-    if (!url) {
-      return;
-    }
-    if (imageTarget === "cover") {
-      setFormState((prev) => ({ ...prev, coverImageUrl: url }));
-    } else {
-      insertImageToContent(url, libraryAlt || "Imagem");
-    }
-    setLibraryUrl("");
-    setLibraryAlt("");
-    setIsLibraryOpen(false);
-  };
 
   const handleCopyLink = async (slug: string) => {
     const url = `${window.location.origin}/postagem/${slug}`;
@@ -1495,16 +1420,6 @@ const DashboardPosts = () => {
                     onOpenGradientDialog={() => setIsGradientDialogOpen(true)}
                     onOpenImageDialog={() => openLibrary("editor")}
                     onOpenLinkDialog={openLinkDialog}
-                    onInsertCover={() => {
-                      const alt = formState.coverAlt || formState.title || "Capa";
-                      if (formState.contentFormat === "markdown") {
-                        insertAtCursor(`\n\n![${alt}](${formState.coverImageUrl})\n`);
-                      } else {
-                        insertAtCursor(
-                          `\n\n<img src="${formState.coverImageUrl}" alt="${alt}" loading="lazy" />\n`,
-                        );
-                      }
-                    }}
                     onUndo={handleUndo}
                     onRedo={handleRedo}
                     onEmbedVideo={openVideoDialog}
@@ -1626,43 +1541,24 @@ const DashboardPosts = () => {
                     <Card className="border-border/60 bg-card/80">
                       <CardContent className="space-y-4 p-6">
                         <div className="space-y-2">
-                          <Label htmlFor="post-cover">Capa</Label>
-                          <Input
-                            id="post-cover"
-                            value={formState.coverImageUrl}
-                            onChange={(event) =>
-                              setFormState((prev) => ({ ...prev, coverImageUrl: event.target.value }))
-                            }
-                            placeholder="https://..."
-                          />
-                          <div className="flex flex-wrap gap-2">
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="sm"
-                              onClick={() => openLibrary("cover")}
-                            >
-                              Biblioteca
-                            </Button>
-                            <Input
-                              type="file"
-                              accept="image/*"
-                              onChange={(event) => {
-                                const file = event.target.files?.[0];
-                                if (file) {
-                                  handleLibraryUpload(file);
-                                  openLibrary("cover");
-                                }
-                              }}
-                            />
-                          </div>
-                          <Input
-                            value={formState.coverAlt}
-                            onChange={(event) =>
-                              setFormState((prev) => ({ ...prev, coverAlt: event.target.value }))
-                            }
-                            placeholder="Texto alternativo (SEO)"
-                          />
+                          <Label>Capa</Label>
+                          {formState.coverImageUrl ? (
+                            <div className="flex items-center gap-3">
+                              <img
+                                src={normalizeAssetUrl(formState.coverImageUrl)}
+                                alt={formState.coverAlt || formState.title || "Capa"}
+                                className="h-14 w-14 rounded-lg object-cover"
+                              />
+                              <span className="text-xs text-muted-foreground break-all">
+                                {formState.coverImageUrl}
+                              </span>
+                            </div>
+                          ) : (
+                            <p className="text-xs text-muted-foreground">Sem capa definida.</p>
+                          )}
+                          <Button type="button" variant="outline" size="sm" onClick={() => openLibrary("cover")}>
+                            Biblioteca
+                          </Button>
                         </div>
                       </CardContent>
                     </Card>
@@ -1976,167 +1872,24 @@ const DashboardPosts = () => {
           </main>
       </DashboardShell>
 
-      <Dialog open={isImageDialogOpen} onOpenChange={setIsImageDialogOpen}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader>
-            <DialogTitle>Inserir imagem</DialogTitle>
-            <DialogDescription>
-              Envie uma imagem para o armazenamento do site ou informe uma URL externa.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label>URL da imagem</Label>
-              <Input value={imageUrl} onChange={(event) => setImageUrl(event.target.value)} />
-            </div>
-            <div className="space-y-2">
-              <Label>Texto alternativo (alt)</Label>
-              <Input value={imageAlt} onChange={(event) => setImageAlt(event.target.value)} />
-            </div>
-            <div className="space-y-2">
-              <Label>Upload</Label>
-              <Input type="file" accept="image/*" onChange={(event) => setImageFile(event.target.files?.[0] || null)} />
-              <Button type="button" variant="outline" disabled={!imageFile || isUploading} onClick={handleUploadImage}>
-                {isUploading ? "Enviando..." : "Enviar imagem"}
-              </Button>
-            </div>
-            <Button type="button" variant="ghost" onClick={() => openLibrary("editor")}>
-              Escolher da biblioteca
-            </Button>
-            <div className="flex justify-end gap-3">
-              <Button variant="ghost" onClick={() => setIsImageDialogOpen(false)}>
-                Cancelar
-              </Button>
-              <Button onClick={handleInsertImage}>Inserir no texto</Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
 
-      <Dialog open={isLibraryOpen} onOpenChange={setIsLibraryOpen}>
-        <DialogContent className="max-w-4xl">
-          <DialogHeader>
-            <DialogTitle>Biblioteca de imagens</DialogTitle>
-            <DialogDescription>Escolha uma imagem já enviada ou use capas/banners de projetos.</DialogDescription>
-          </DialogHeader>
-          <div className="mt-2 grid gap-4 md:grid-cols-[1.1fr_0.9fr]">
-            <div
-              className={`flex h-full flex-col justify-center rounded-2xl border border-dashed border-border/70 bg-card/50 p-5 text-sm text-muted-foreground transition ${
-                isLibraryDragActive ? "ring-2 ring-primary/60 border-primary/60" : ""
-              }`}
-              onDragOver={(event) => {
-                event.preventDefault();
-                setIsLibraryDragActive(true);
-              }}
-              onDragEnter={(event) => {
-                event.preventDefault();
-                setIsLibraryDragActive(true);
-              }}
-              onDragLeave={(event) => {
-                event.preventDefault();
-                setIsLibraryDragActive(false);
-              }}
-              onDrop={handleLibraryDrop}
-            >
-              <p className="font-medium text-foreground">Arraste uma imagem para enviar</p>
-              <p className="mt-1 text-xs text-muted-foreground">
-                Solte aqui ou use o seletor para adicionar na biblioteca.
-              </p>
-              <div className="mt-4">
-                <Input
-                  type="file"
-                  accept="image/*"
-                  onChange={(event) => {
-                    const file = event.target.files?.[0];
-                    if (file) {
-                      handleLibraryUpload(file);
-                    }
-                  }}
-                />
-              </div>
-            </div>
-            <div className="rounded-2xl border border-border/60 bg-card/70 p-5">
-              <div className="space-y-3">
-                <div className="space-y-2">
-                  <Label>URL da imagem</Label>
-                  <Input value={libraryUrl} onChange={(event) => setLibraryUrl(event.target.value)} />
-                </div>
-                <div className="space-y-2">
-                  <Label>Texto alternativo</Label>
-                  <Input value={libraryAlt} onChange={(event) => setLibraryAlt(event.target.value)} />
-                </div>
-                <div className="flex justify-end">
-                  <Button type="button" size="sm" onClick={handleLibraryAddUrl} disabled={!libraryUrl.trim()}>
-                    Adicionar
-                  </Button>
-                </div>
-              </div>
-            </div>
-          </div>
-          <div className="mt-6 max-h-[420px] space-y-8 overflow-auto">
-            <div>
-              <h3 className="text-sm font-semibold text-foreground">Uploads</h3>
-              {libraryImages.length === 0 ? (
-                <p className="mt-3 text-xs text-muted-foreground">Nenhuma imagem enviada ainda.</p>
-              ) : (
-                <div className="mt-3 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
-                  {libraryImages.map((item) => (
-                    <button
-                      key={item.url}
-                      type="button"
-                      draggable
-                      className="group overflow-hidden rounded-xl border border-border/60 bg-card/60 text-left transition hover:border-primary/40"
-                      onDragStart={(event) => handleLibraryDragStart(event, item.url)}
-                      onClick={() => {
-                        if (imageTarget === "cover") {
-                          setFormState((prev) => ({ ...prev, coverImageUrl: item.url }));
-                        } else {
-                          const alt = item.name.replace(/\.[^/.]+$/, "").replace(/[-_]/g, " ").trim();
-                          insertImageToContent(item.url, alt || "Imagem");
-                        }
-                        setIsLibraryOpen(false);
-                      }}
-                    >
-                      <img src={item.url} alt={item.name} className="h-32 w-full object-cover" />
-                      <div className="p-2 text-xs text-muted-foreground">{item.name}</div>
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-            <div>
-              <h3 className="text-sm font-semibold text-foreground">Projetos</h3>
-              <div className="mt-3 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
-                {projects
-                  .flatMap((project) => [
-                    { key: `${project.id}-cover`, label: `${project.title} (Capa)`, url: project.cover },
-                    { key: `${project.id}-banner`, label: `${project.title} (Banner)`, url: project.banner },
-                  ])
-                  .map((item) => (
-                    <button
-                      key={item.key}
-                      type="button"
-                      draggable
-                      className="group overflow-hidden rounded-xl border border-border/60 bg-card/60 text-left transition hover:border-primary/40"
-                      onDragStart={(event) => handleLibraryDragStart(event, item.url)}
-                      onClick={() => {
-                        if (imageTarget === "cover") {
-                          setFormState((prev) => ({ ...prev, coverImageUrl: item.url }));
-                        } else {
-                          insertImageToContent(item.url, item.label);
-                        }
-                        setIsLibraryOpen(false);
-                      }}
-                    >
-                      <img src={item.url} alt={item.label} className="h-32 w-full object-cover" />
-                      <div className="p-2 text-xs text-muted-foreground">{item.label}</div>
-                    </button>
-                  ))}
-              </div>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
+      <ImageLibraryDialog
+        open={isLibraryOpen}
+        onOpenChange={setIsLibraryOpen}
+        apiBase={apiBase}
+        description="Escolha uma imagem ja enviada ou use capas/banners de projetos."
+        listFolders={[""]}
+        showAltInput={imageTarget === "editor"}
+        allowDeselect={imageTarget === "cover"}
+        currentSelectionUrl={imageTarget === "cover" ? formState.coverImageUrl : undefined}
+        onSelect={handleLibrarySelect}
+        sections={[
+          {
+            title: "Projetos",
+            items: projectLibraryItems,
+          },
+        ]}
+      />
 
       <Dialog open={isLinkDialogOpen} onOpenChange={setIsLinkDialogOpen}>
         <DialogContent className="max-w-md">

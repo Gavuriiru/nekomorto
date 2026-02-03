@@ -27,15 +27,22 @@
     "order": 0
   },
   {
-    "id": "355750436424384524",
-    "name": "furro",
+    "id": "368280970102833153",
+    "name": "Pitas",
     "phrase": "",
     "bio": "",
     "avatarUrl": null,
     "coverImageUrl": null,
     "socials": [],
     "status": "active",
-    "permissions": [],
+    "permissions": [
+      "posts",
+      "configuracoes",
+      "projetos",
+      "comentarios",
+      "usuarios",
+      "paginas"
+    ],
     "roles": [],
     "order": 1
   },
@@ -53,22 +60,15 @@
     "order": 2
   },
   {
-    "id": "368280970102833153",
-    "name": "Pitas",
+    "id": "355750436424384524",
+    "name": "furro",
     "phrase": "",
     "bio": "",
     "avatarUrl": null,
     "coverImageUrl": null,
     "socials": [],
     "status": "retired",
-    "permissions": [
-      "posts",
-      "configuracoes",
-      "projetos",
-      "comentarios",
-      "usuarios",
-      "paginas"
-    ],
+    "permissions": [],
     "roles": [],
     "order": 3
   }

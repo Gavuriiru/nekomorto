@@ -1,4 +1,5 @@
 import { Facebook, Instagram, Twitter, MessageCircle, Youtube, X, Globe } from "lucide-react";
+import { Link } from "react-router-dom";
 import { useSiteSettings } from "@/hooks/use-site-settings";
 
 const Footer = () => {
@@ -7,6 +8,7 @@ const Footer = () => {
   const footerColumns = footer.columns || [];
   const socialLinks = footer.socialLinks || [];
   const disclaimer = footer.disclaimer || [];
+  const isInternalLink = (href: string) => href.startsWith("/") && !href.startsWith("//");
   const iconMap: Record<string, typeof Globe> = {
     instagram: Instagram,
     facebook: Facebook,
@@ -49,12 +51,21 @@ const Footer = () => {
               <ul className="space-y-2 text-sm">
                 {column.links.map((link) => (
                   <li key={link.label}>
-                    <a
-                      href={link.href}
-                      className="text-foreground/80 transition-colors hover:text-primary"
-                    >
-                      {link.label}
-                    </a>
+                    {isInternalLink(link.href) ? (
+                      <Link
+                        to={link.href}
+                        className="text-foreground/80 transition-colors hover:text-primary"
+                      >
+                        {link.label}
+                      </Link>
+                    ) : (
+                      <a
+                        href={link.href}
+                        className="text-foreground/80 transition-colors hover:text-primary"
+                      >
+                        {link.label}
+                      </a>
+                    )}
                   </li>
                 ))}
               </ul>

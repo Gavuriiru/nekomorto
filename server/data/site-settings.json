@@ -4,7 +4,8 @@
     "logoUrl": "",
     "faviconUrl": "http://192.168.1.5:5173/uploads/branding/dt6robwv4aa8gt5-removebg-preview-png-1770088013396.png",
     "description": "Fansub dedicada a trazer histórias inesquecíveis com o carinho que a comunidade merece.",
-    "defaultShareImage": "/placeholder.svg"
+    "defaultShareImage": "/placeholder.svg",
+    "titleSeparator": " | "
   },
   "navbar": {
     "recruitmentUrl": "https://discord.com/invite/BAHKhdX2ju"
@@ -190,6 +191,6 @@
     ],
     "highlightTitle": "Atribuição • Não Comercial",
     "highlightDescription": "Este site segue a licença Creative Commons BY-NC. Você pode compartilhar com créditos, sem fins comerciais.",
-    "copyright": "© 2014 - 2026 Nekomata Fansub. Feito por fãs para fãs."
+    "copyright": "© 2021 - 2026 Nekomata Fansub. Feito por fãs para fãs."
   }
 }

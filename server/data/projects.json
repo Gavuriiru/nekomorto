@@ -97,7 +97,8 @@
         "completedStages": [
           "aguardando-raw"
         ],
-        "chapterUpdatedAt": ""
+        "chapterUpdatedAt": "",
+        "coverImageUrl": "http://192.168.1.5:5173/uploads/tumblr-69ff2002e56e03005bfb00d5f4847bba-27382347-1280-jpg-1770093474614.jpeg"
       },
       {
         "number": 2,
@@ -120,7 +121,8 @@
           "revisao",
           "timing"
         ],
-        "chapterUpdatedAt": ""
+        "chapterUpdatedAt": "",
+        "coverImageUrl": "http://192.168.1.5:5173/uploads/tumblr-69ff2002e56e03005bfb00d5f4847bba-27382347-1280-jpg-1770093474614.jpeg"
       },
       {
         "number": 3,
@@ -329,19 +331,25 @@
         "releaseDate": "",
         "duration": "",
         "sourceType": "TV",
-        "sources": [],
+        "sources": [
+          {
+            "label": "MEGA",
+            "url": "fs"
+          }
+        ],
         "progressStage": "aguardando-raw",
         "completedStages": [],
         "content": "",
         "contentFormat": "markdown",
-        "chapterUpdatedAt": ""
+        "chapterUpdatedAt": "",
+        "coverImageUrl": "http://192.168.1.5:5173/uploads/projects/86864/episodes/gabriel-3b-angel-29-png-1770095194334.png"
       }
     ],
     "views": 0,
     "commentsCount": 0,
     "order": 13,
     "createdAt": "2026-02-02T02:08:59.658Z",
-    "updatedAt": "2026-02-03T03:48:37.982Z"
+    "updatedAt": "2026-02-03T05:20:02.912Z"
   },
   {
     "id": "86864",
@@ -430,7 +438,8 @@
         "completedStages": [],
         "content": "",
         "contentFormat": "markdown",
-        "chapterUpdatedAt": ""
+        "chapterUpdatedAt": "",
+        "coverImageUrl": "http://192.168.1.5:5173/uploads/tumblr-69ff2002e56e03005bfb00d5f4847bba-27382347-1280-jpg-1770093474614.jpeg"
       },
       {
         "number": 4,
@@ -518,14 +527,15 @@
         ],
         "content": "",
         "contentFormat": "markdown",
-        "chapterUpdatedAt": ""
+        "chapterUpdatedAt": "",
+        "coverImageUrl": "http://192.168.1.5:5173/uploads/projects/86864/episodes/dq3svekxgaqulp3-png-1770095977168.png"
       }
     ],
     "views": 0,
     "commentsCount": 0,
     "order": 14,
     "createdAt": "2026-02-02T02:23:30.645Z",
-    "updatedAt": "2026-02-02T03:45:31.936Z"
+    "updatedAt": "2026-02-03T05:19:39.597Z"
   },
   {
     "id": "78399",
@@ -633,7 +643,8 @@
         "completedStages": [],
         "content": "ashdasgdasgdsZGsdgsg",
         "contentFormat": "markdown",
-        "chapterUpdatedAt": ""
+        "chapterUpdatedAt": "",
+        "coverImageUrl": "http://192.168.1.5:5173/uploads/tumblr-ac95f359f5801c4bb9cd59603dfe42ef-fa4db966-1280-jpg-1770093565827.jpeg"
       },
       {
         "number": 2,
@@ -731,13 +742,14 @@
         "completedStages": [],
         "content": "dada",
         "contentFormat": "markdown",
-        "chapterUpdatedAt": "2026-02-02T03:45:41.065Z"
+        "chapterUpdatedAt": "2026-02-02T03:45:41.065Z",
+        "coverImageUrl": "http://192.168.1.5:5173/uploads/branding/dt6robwv4aa8gt5-removebg-preview-png-1770088013396.png"
       }
     ],
     "views": 0,
     "commentsCount": 2,
     "order": 15,
     "createdAt": "2026-02-02T02:36:26.744Z",
-    "updatedAt": "2026-02-03T03:46:44.250Z"
+    "updatedAt": "2026-02-03T05:19:24.237Z"
   }
 ]
