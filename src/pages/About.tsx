@@ -74,7 +74,7 @@ const defaultAbout = {
   pillars: [
     {
       title: "Pipeline",
-      description: "Tradução �?' Revisão �?' Timing �?' Typesetting �?' Qualidade �?' Encode.",
+      description: "Tradução → Revisão → Timing → Typesetting → Qualidade → Encode.",
       icon: "Zap",
     },
     {
@@ -163,7 +163,7 @@ const About = () => {
       <Header />
 
       <main>
-        <section className="relative overflow-hidden border-b border-border/60">
+        <section className="relative overflow-hidden border-b border-border/60 reveal" data-reveal>
           <div className="absolute inset-0 bg-gradient-to-b from-primary/20 via-background to-background" />
           <div className="absolute -left-24 top-10 h-64 w-64 rounded-full bg-primary/20 blur-[120px]" />
           <div className="absolute -right-24 bottom-10 h-64 w-64 rounded-full bg-accent/20 blur-[120px]" />
@@ -185,7 +185,7 @@ const About = () => {
           </div>
         </section>
 
-        <section className="mx-auto w-full max-w-6xl px-6 pb-16 pt-10 md:px-10">
+        <section className="mx-auto w-full max-w-6xl px-6 pb-16 pt-10 md:px-10 reveal" data-reveal>
           <div className="grid gap-6 lg:grid-cols-[0.9fr_1.1fr]">
             <div className="space-y-4">
               {about.highlights.map((item) => {
@@ -220,7 +220,7 @@ const About = () => {
           </div>
         </section>
 
-        <section className="mx-auto w-full max-w-6xl px-6 pb-16 pt-2 md:px-10">
+        <section className="mx-auto w-full max-w-6xl px-6 pb-16 pt-2 md:px-10 reveal" data-reveal>
           <div className="grid gap-6 md:grid-cols-3">
             {about.pillars.map((pillar) => {
               const Icon = iconMap[pillar.icon] || Sparkles;
@@ -239,7 +239,7 @@ const About = () => {
           </div>
         </section>
 
-        <section className="mx-auto w-full max-w-6xl px-6 pb-24 pt-4 md:px-10">
+        <section className="mx-auto w-full max-w-6xl px-6 pb-24 pt-4 md:px-10 reveal" data-reveal>
           <div className="grid gap-6 md:grid-cols-2">
             {about.values.map((value) => {
               const Icon = iconMap[value.icon] || Sparkles;
@@ -268,6 +268,8 @@ const About = () => {
 };
 
 export default About;
+
+
 
 
 

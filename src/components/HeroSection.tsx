@@ -187,43 +187,73 @@ const HeroSection = () => {
 
         const resultIds = new Set<string>();
         const slides: HeroSlide[] = [];
-        const pushSlide = (project: Project, updatedAt?: string) => {
-          if (slides.length >= 5 || resultIds.has(project.id)) {
-            return;
+        const maxSlides = 5;
+        const epoch = "1970-01-01T00:00:00.000Z";
+        const createSlide = (project: Project, updatedAt?: string) => {
+          if (resultIds.has(project.id)) {
+            return null;
           }
-          resultIds.add(project.id);
           const image = project.heroImageUrl || project.banner || project.cover || "";
           if (!image) {
-            return;
+            return null;
           }
-          slides.push({
+          return {
             id: project.id,
             title: project.title,
             description: project.synopsis || project.description || "",
-            updatedAt: updatedAt || new Date().toISOString(),
+            updatedAt: updatedAt || epoch,
             image,
             projectId: project.id,
             trailerUrl: project.trailerUrl || "",
             format: project.type || "",
             status: project.status || "",
-          });
+          };
         };
 
-        forcedSorted.forEach((project) => {
-          pushSlide(project, latestLaunchByProject.get(project.id));
-        });
+        const orderedProjects = projects
+          .map((project, index) => {
+            const updatedAt = latestLaunchByProject.get(project.id) || "";
+            const time = updatedAt ? new Date(updatedAt).getTime() : 0;
+            return { project, index, updatedAt, time };
+          })
+          .sort((a, b) => {
+            if (b.time !== a.time) {
+              return b.time - a.time;
+            }
+            return a.index - b.index;
+          });
 
-        latestLaunchByProject.forEach((updatedAt, projectId) => {
-          const project = projectsById.get(projectId);
-          if (!project) {
+        orderedProjects.forEach((item) => {
+          const slide = createSlide(item.project, item.updatedAt);
+          if (!slide) {
             return;
           }
-          pushSlide(project, updatedAt);
+          if (slides.length < maxSlides) {
+            slides.push(slide);
+            resultIds.add(slide.id);
+            return;
+          }
+          if (!item.project.forceHero) {
+            return;
+          }
+          slides.push(slide);
+          resultIds.add(slide.id);
+          const removeIndexFromEnd = [...slides]
+            .reverse()
+            .findIndex((candidate) => !projectsById.get(candidate.id)?.forceHero);
+          if (removeIndexFromEnd === -1) {
+            const removed = slides.shift();
+            if (removed) {
+              resultIds.delete(removed.id);
+            }
+            return;
+          }
+          const removeIndex = slides.length - 1 - removeIndexFromEnd;
+          const [removed] = slides.splice(removeIndex, 1);
+          if (removed) {
+            resultIds.delete(removed.id);
+          }
         });
-
-        if (!slides.length) {
-          projects.slice(0, 5).forEach((project) => pushSlide(project));
-        }
 
         if (isActive) {
           if (!slides.length && import.meta.env.DEV) {

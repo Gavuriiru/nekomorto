@@ -176,9 +176,6 @@ const Post = () => {
                 <article className="space-y-8">
                   <Card className="border-border bg-card shadow-sm">
                     <CardContent className="space-y-7 p-6 text-sm leading-relaxed text-muted-foreground">
-                      {post.excerpt ? (
-                        <p className="text-base text-muted-foreground">{post.excerpt}</p>
-                      ) : null}
                       <div
                         className="post-content space-y-4 text-muted-foreground"
                         dangerouslySetInnerHTML={{ __html: htmlContent }}

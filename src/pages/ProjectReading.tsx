@@ -224,13 +224,13 @@ const ProjectReading = () => {
             <div className="space-y-2">
               <Badge variant="secondary" className="text-xs uppercase">
                 Cap {chapterData?.number ?? chapterNumber}
-                {chapterData?.volume ? ` �?� Vol. ${chapterData.volume}` : ""}
+                {chapterData?.volume ? ` • Vol. ${chapterData.volume}` : ""}
               </Badge>
               <h1 className="text-2xl font-semibold text-foreground md:text-3xl">
                 {chapterContent?.title || chapterData?.title || project.title}
               </h1>
               <p className="text-sm text-muted-foreground">
-                {project.title} �?� Leitura de Light Novel
+                {project.title} • Leitura de Light Novel
               </p>
             </div>
             <Card className="border-border/60 bg-card/80 shadow-lg">
@@ -271,6 +271,7 @@ const ProjectReading = () => {
 };
 
 export default ProjectReading;
+
 
 
 

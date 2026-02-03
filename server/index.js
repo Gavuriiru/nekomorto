@@ -2238,6 +2238,8 @@ app.get("/api/public/projects", (req, res) => {
       staff: project.staff,
       animeStaff: project.animeStaff,
       trailerUrl: project.trailerUrl,
+      forceHero: project.forceHero,
+      heroImageUrl: project.heroImageUrl,
       episodeDownloads: project.episodeDownloads.map((episode) => ({
         ...episode,
         content: undefined,

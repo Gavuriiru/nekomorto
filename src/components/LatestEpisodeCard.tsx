@@ -1,6 +1,7 @@
 ﻿import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Clock, Sparkles } from "lucide-react";
 import { Link } from "react-router-dom";
 import { getApiBase } from "@/lib/api-base";
@@ -23,6 +24,7 @@ const LatestEpisodeCard = () => {
   const apiBase = getApiBase();
   const [recentUpdates, setRecentUpdates] = useState<UpdateRecord[]>([]);
   const [projectTypes, setProjectTypes] = useState<Record<string, string>>({});
+  const [isLoadingUpdates, setIsLoadingUpdates] = useState(true);
 
   useEffect(() => {
     let isActive = true;
@@ -39,6 +41,10 @@ const LatestEpisodeCard = () => {
       } catch {
         if (isActive) {
           setRecentUpdates([]);
+        }
+      } finally {
+        if (isActive) {
+          setIsLoadingUpdates(false);
         }
       }
     };
@@ -82,7 +88,7 @@ const LatestEpisodeCard = () => {
   }, [apiBase]);
 
   return (
-    <Card className="bg-card border-border overflow-hidden">
+    <Card className="bg-card border-border overflow-hidden reveal" data-reveal>
       <CardHeader className="px-4 pb-3 pt-4">
         <CardTitle className="text-lg font-semibold text-foreground flex items-center gap-2">
           <Sparkles className="w-4 h-4 text-primary" />
@@ -93,7 +99,23 @@ const LatestEpisodeCard = () => {
         </p>
       </CardHeader>
       <CardContent className="space-y-3 px-4 pb-4 pt-0">
-        {recentUpdates.length === 0 ? (
+        {isLoadingUpdates ? (
+          <div className="space-y-3">
+            {Array.from({ length: 3 }).map((_, index) => (
+              <div
+                key={`update-skeleton-${index}`}
+                className="flex items-start gap-4 rounded-xl border border-border/60 bg-background/40 p-4"
+              >
+                <Skeleton className="h-20 w-16 rounded-lg" />
+                <div className="flex-1 space-y-2">
+                  <Skeleton className="h-3 w-24" />
+                  <Skeleton className="h-4 w-3/4" />
+                  <Skeleton className="h-3 w-2/3" />
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : recentUpdates.length === 0 ? (
           <div className="rounded-xl border border-dashed border-border/60 bg-background/50 p-4 text-xs text-muted-foreground">
             Nenhuma atualização recente cadastrada.
           </div>
@@ -138,7 +160,8 @@ const LatestEpisodeCard = () => {
               <Link
                 key={update.id}
                 to={`/projeto/${update.projectId}`}
-                className="group flex items-start gap-4 rounded-xl border border-border/60 bg-background/40 p-4 transition hover:border-primary/40 hover:bg-primary/5"
+                className="group flex items-start gap-4 rounded-xl border border-border/60 bg-background/40 p-4 transition hover:border-primary/40 hover:bg-primary/5 reveal"
+                data-reveal
               >
               <div className="w-24 flex-shrink-0 overflow-hidden rounded-lg bg-secondary aspect-[2/3]">
                 <img
@@ -186,3 +209,4 @@ const LatestEpisodeCard = () => {
 };
 
 export default LatestEpisodeCard;
+

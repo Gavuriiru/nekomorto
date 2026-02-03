@@ -2,6 +2,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Clock } from "lucide-react";
 import { Link } from "react-router-dom";
 import { getApiBase } from "@/lib/api-base";
@@ -44,6 +45,7 @@ const mangaStages = [
 const WorkStatusCard = () => {
   const apiBase = getApiBase();
   const [projects, setProjects] = useState<Project[]>([]);
+  const [isLoadingProjects, setIsLoadingProjects] = useState(true);
 
   useEffect(() => {
     let isActive = true;
@@ -60,6 +62,10 @@ const WorkStatusCard = () => {
       } catch {
         if (isActive) {
           setProjects([]);
+        }
+      } finally {
+        if (isActive) {
+          setIsLoadingProjects(false);
         }
       }
     };
@@ -114,7 +120,7 @@ const WorkStatusCard = () => {
   const itemsInProgress = workItems;
 
   return (
-    <Card className="bg-card border-border">
+    <Card className="bg-card border-border reveal" data-reveal>
       <CardHeader className="px-4 pb-3 pt-4">
         <CardTitle className="text-lg font-semibold text-foreground flex items-center gap-2">
           <Clock className="w-4 h-4 text-primary" />
@@ -122,7 +128,17 @@ const WorkStatusCard = () => {
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-3 px-4 pb-4 pt-0">
-        {itemsInProgress.length === 0 ? (
+        {isLoadingProjects ? (
+          <div className="space-y-3">
+            {Array.from({ length: 2 }).map((_, index) => (
+              <div key={`progress-skeleton-${index}`} className="rounded-md bg-secondary/40 p-3">
+                <Skeleton className="h-3 w-2/3" />
+                <Skeleton className="mt-2 h-2 w-1/2" />
+                <Skeleton className="mt-3 h-2 w-full" />
+              </div>
+            ))}
+          </div>
+        ) : itemsInProgress.length === 0 ? (
           <div className="rounded-xl border border-dashed border-border/60 bg-background/50 p-4 text-xs text-muted-foreground">
             Nenhum episódio em progresso no momento.
           </div>
@@ -173,6 +189,7 @@ const WorkStatusCard = () => {
 };
 
 export default WorkStatusCard;
+
 
 
 

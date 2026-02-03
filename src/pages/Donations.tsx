@@ -62,17 +62,17 @@ const emptyDonations = {
 const seedDonations = {
   heroTitle: "Ajude a Nekomata a seguir no ar",
   heroSubtitle:
-    "Cada doa��o mant�m o site vivo, fortalece nossos lan�amentos e garante qualidade no que entregamos. Se quiser apoiar, qualquer valor faz diferen�a.",
+    "Cada doa??o mant?m o site vivo, fortalece nossos lan?amentos e garante qualidade no que entregamos. Se quiser apoiar, qualquer valor faz diferen?a.",
   costs: [
-    { title: "Hospedagem e dom�nio", description: "Manter o site no ar com estabilidade.", icon: "Server" },
+    { title: "Hospedagem e dom?nio", description: "Manter o site no ar com estabilidade.", icon: "Server" },
     { title: "Armazenamento", description: "Arquivos, backups e infraestrutura dos projetos.", icon: "PiggyBank" },
-    { title: "Incentivo por projeto", description: "Apoio pontual para demandas espec�ficas.", icon: "Sparkles" },
+    { title: "Incentivo por projeto", description: "Apoio pontual para demandas espec?ficas.", icon: "Sparkles" },
   ],
   reasonTitle: "Por que doar?",
   reasonIcon: "HeartHandshake",
   reasonText:
-    "Somos um projeto feito por f�s, sem fins lucrativos. Doa��es ajudam com custos reais e permitem que a equipe invista tempo e cuidado em cada etapa.",
-  reasonNote: "Toda ajuda � bem-vinda. Se quiser apoiar, fa�a isso por gostar do nosso trabalho.",
+    "Somos um projeto feito por f?s, sem fins lucrativos. Doa??es ajudam com custos reais e permitem que a equipe invista tempo e cuidado em cada etapa.",
+  reasonNote: "Toda ajuda ? bem-vinda. Se quiser apoiar, fa?a isso por gostar do nosso trabalho.",
   pixKey: "707e9869-0160-4a88-8332-31eac7cee73f",
   pixNote: "Cole a chave no app do seu banco.",
   qrCustomUrl: "",
@@ -80,8 +80,8 @@ const seedDonations = {
   donorsIcon: "PiggyBank",
   donors: [
     { name: "IgorBKRY", amount: "R$ 10,00", goal: "Fansub Geral", date: "Mar/2024" },
-    { name: "An�nimo", amount: "R$ 25,00", goal: "Fansub Geral", date: "Mar/2024" },
-    { name: "An�nimo", amount: "R$ 60,00", goal: "Fansub Geral", date: "Mar/2024" },
+    { name: "An?nimo", amount: "R$ 25,00", goal: "Fansub Geral", date: "Mar/2024" },
+    { name: "An?nimo", amount: "R$ 60,00", goal: "Fansub Geral", date: "Mar/2024" },
     { name: "Fabiana A.", amount: "R$ 40,00", goal: "Fansub Geral", date: "Abr/2024" },
     { name: "Rafa Chaves", amount: "R$ 120,00", goal: "Projeto especial", date: "Mai/2024" },
   ],
@@ -146,7 +146,7 @@ const Donations = () => {
       <Header />
 
       <main>
-        <section className="relative overflow-hidden border-b border-border/60">
+        <section className="relative overflow-hidden border-b border-border/60 reveal" data-reveal>
           <div className="absolute inset-0 bg-gradient-to-b from-primary/15 via-background to-background" />
           <div className="absolute -left-24 top-10 h-64 w-64 rounded-full bg-primary/20 blur-[120px]" />
           <div className="absolute -right-24 bottom-10 h-64 w-64 rounded-full bg-accent/20 blur-[120px]" />
@@ -158,7 +158,7 @@ const Donations = () => {
           </div>
         </section>
 
-        <section className="mx-auto w-full max-w-6xl px-6 pb-12 pt-10 md:px-10">
+        <section className="mx-auto w-full max-w-6xl px-6 pb-12 pt-10 md:px-10 reveal" data-reveal>
           <div className="grid gap-6 md:grid-cols-3">
             {donations.costs.map((item) => {
               const Icon = iconMap[item.icon] || Sparkles;
@@ -180,7 +180,7 @@ const Donations = () => {
           </div>
         </section>
 
-        <section className="mx-auto w-full max-w-6xl px-6 pb-12 pt-2 md:px-10">
+        <section className="mx-auto w-full max-w-6xl px-6 pb-12 pt-2 md:px-10 reveal" data-reveal>
           <Card className="border-border/60 bg-card/90 shadow-xl">
             <CardContent className="grid gap-6 p-6 md:grid-cols-[1.1fr_0.9fr] md:p-8">
               <div className="space-y-4">
@@ -229,7 +229,7 @@ const Donations = () => {
           </Card>
         </section>
 
-        <section className="mx-auto w-full max-w-6xl px-6 pb-24 pt-4 md:px-10">
+        <section className="mx-auto w-full max-w-6xl px-6 pb-24 pt-4 md:px-10 reveal" data-reveal>
           <Card className="border-border/60 bg-card/80 shadow-lg">
             <CardContent className="p-6 md:p-8">
               <div className="flex items-center gap-3 text-xl font-semibold text-foreground">
@@ -253,7 +253,7 @@ const Donations = () => {
                       <th className="pb-3">Doador</th>
                       <th className="pb-3">Valor</th>
                       <th className="pb-3">Objetivo</th>
-                      <th className="pb-3">M�s/Ano</th>
+                      <th className="pb-3">M?s/Ano</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border/40">
@@ -279,6 +279,9 @@ const Donations = () => {
 };
 
 export default Donations;
+
+
+
 
 
 

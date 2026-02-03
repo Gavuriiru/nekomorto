@@ -2,6 +2,7 @@
 import { Link } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Pagination,
   PaginationContent,
@@ -38,6 +39,7 @@ const ReleasesSection = () => {
     }>
   >([]);
   const [projects, setProjects] = useState<Project[]>([]);
+  const [isLoadingPosts, setIsLoadingPosts] = useState(true);
   const [tagTranslations, setTagTranslations] = useState<Record<string, string>>({});
 
   useEffect(() => {
@@ -55,6 +57,10 @@ const ReleasesSection = () => {
       } catch {
         if (isActive) {
           setPosts([]);
+        }
+      } finally {
+        if (isActive) {
+          setIsLoadingPosts(false);
         }
       }
     };
@@ -121,7 +127,7 @@ const ReleasesSection = () => {
   const showPagination = totalPages > 1;
 
   return (
-    <section className="py-16 px-6 md:px-12 bg-background">
+    <section className="py-16 px-6 md:px-12 bg-background reveal" data-reveal>
       <div className="max-w-7xl mx-auto">
         <h2 className="text-2xl md:text-3xl font-bold mb-8 text-foreground">
           Lançamentos Recentes
@@ -130,7 +136,18 @@ const ReleasesSection = () => {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Left side - Release cards (blog posts) */}
           <div className="lg:col-span-2">
-            {pagedReleases.length === 0 ? (
+            {isLoadingPosts ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
+                {Array.from({ length: 4 }).map((_, index) => (
+                  <div key={`release-skeleton-${index}`} className="rounded-2xl border border-white/10 bg-white/5 p-5">
+                    <Skeleton className="aspect-[3/2] w-full rounded-lg" />
+                    <Skeleton className="mt-4 h-4 w-3/4" />
+                    <Skeleton className="mt-2 h-3 w-full" />
+                    <Skeleton className="mt-2 h-3 w-5/6" />
+                  </div>
+                ))}
+              </div>
+            ) : pagedReleases.length === 0 ? (
               <div className="rounded-2xl border border-dashed border-white/10 bg-white/5 px-6 py-10 text-sm text-muted-foreground">
                 Nenhuma postagem publicada ainda.
               </div>
@@ -146,8 +163,9 @@ const ReleasesSection = () => {
                     <Link
                       key={release.id}
                       to={`/postagem/${release.slug}`}
-                      className="group animate-fade-in"
-                      style={{ animationDelay: `${index * 0.1}s` }}
+                      className="group reveal"
+                      data-reveal
+                      style={{ transitionDelay: `${index * 80}ms` }}
                     >
                       <Card className="bg-card border-border hover:border-primary/50 transition-all h-full">
                         <CardContent className="p-5 flex flex-col h-full gap-4">

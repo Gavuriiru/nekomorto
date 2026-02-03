@@ -328,7 +328,7 @@ const Dashboard = () => {
       onUserCardClick={() => navigate("/dashboard/usuarios?edit=me")}
     >
       <main className="pt-24">
-          <section className="mx-auto w-full max-w-6xl px-6 pb-20 md:px-10">
+          <section className="mx-auto w-full max-w-6xl px-6 pb-20 md:px-10 reveal" data-reveal>
             <header className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
               <div className="space-y-3">
                 <div className="inline-flex items-center gap-3 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs uppercase tracking-[0.3em] text-muted-foreground">
@@ -385,7 +385,7 @@ const Dashboard = () => {
             </div>
           </div>
 
-          <section className="mt-10 grid gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+          <section className="mt-10 grid gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] reveal" data-reveal>
             <div className="space-y-6">
               <div className="rounded-3xl border border-white/10 bg-white/5 p-6 shadow-[0_20px_60px_-40px_rgba(0,0,0,0.8)]">
                 <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
@@ -590,3 +590,4 @@ const Dashboard = () => {
 };
 
 export default Dashboard;
+

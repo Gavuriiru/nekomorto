@@ -204,7 +204,7 @@ const seedPages: PagesConfig = {
       "Nossas escolhas são orientadas por clareza, estilo e consistência. O resultado precisa ser bonito, legível e fiel ao tom da história.",
     ],
     pillars: [
-      { title: "Pipeline", description: "Tradução �?' Revisão �?' Timing �?' Typesetting �?' Qualidade �?' Encode.", icon: "Zap" },
+      { title: "Pipeline", description: "Tradução → Revisão → Timing → Typesetting → Qualidade → Encode.", icon: "Zap" },
       { title: "Comunidade", description: "Feedbacks ajudam a evoluir o padrão e manter a identidade da equipe.", icon: "Users" },
       { title: "Estilo", description: "Tipografia, ritmo e efeitos visuais criam uma experiência memorável.", icon: "Sparkles" },
     ],
@@ -1529,6 +1529,7 @@ const DashboardPages = () => {
 };
 
 export default DashboardPages;
+
 
 
 

@@ -187,7 +187,7 @@ const Team = () => {
       <Header />
 
       <main>
-        <section className="relative overflow-hidden">
+        <section className="relative overflow-hidden reveal" data-reveal>
           <div className="absolute inset-0 bg-gradient-to-b from-primary/15 via-background to-background" />
           <div className="relative mx-auto flex w-full max-w-6xl flex-col gap-6 px-6 pb-12 pt-24 md:px-10 md:pt-28">
             <div className="max-w-3xl space-y-4">
@@ -200,7 +200,7 @@ const Team = () => {
           </div>
         </section>
 
-        <section className="mx-auto w-full max-w-6xl px-6 pb-20 pt-6 md:px-10">
+        <section className="mx-auto w-full max-w-6xl px-6 pb-20 pt-6 md:px-10 reveal" data-reveal>
           {isLoading ? (
             <div className="mt-10 rounded-2xl border border-white/10 bg-white/5 px-6 py-10 text-sm text-muted-foreground">
               Carregando equipe...
@@ -453,5 +453,6 @@ const Team = () => {
 };
 
 export default Team;
+
 
 

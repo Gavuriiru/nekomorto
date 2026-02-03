@@ -107,7 +107,7 @@ const FAQ = () => {
       <Header />
 
       <main>
-        <section className="relative overflow-hidden border-b border-border/60">
+        <section className="relative overflow-hidden border-b border-border/60 reveal" data-reveal>
           <div className="absolute inset-0 bg-gradient-to-b from-primary/15 via-background to-background" />
           <div className="absolute -left-24 top-10 h-64 w-64 rounded-full bg-primary/20 blur-[120px]" />
           <div className="absolute -right-24 bottom-10 h-64 w-64 rounded-full bg-accent/20 blur-[120px]" />
@@ -119,7 +119,7 @@ const FAQ = () => {
           </div>
         </section>
 
-        <section className="mx-auto w-full max-w-6xl px-6 pb-16 pt-10 md:px-10">
+        <section className="mx-auto w-full max-w-6xl px-6 pb-16 pt-10 md:px-10 reveal" data-reveal>
           <div className="grid gap-6 md:grid-cols-2">
             {faq.introCards.map((card) => {
               const Icon = iconMap[card.icon] || HelpCircle;
@@ -140,7 +140,7 @@ const FAQ = () => {
           </div>
         </section>
 
-        <section className="mx-auto w-full max-w-6xl px-6 pb-24 pt-2 md:px-10">
+        <section className="mx-auto w-full max-w-6xl px-6 pb-24 pt-2 md:px-10 reveal" data-reveal>
           <div className="grid gap-6">
             {faq.groups.map((group) => {
               const Icon = iconMap[group.icon] || HelpCircle;
@@ -176,5 +176,6 @@ const FAQ = () => {
 };
 
 export default FAQ;
+
 
 

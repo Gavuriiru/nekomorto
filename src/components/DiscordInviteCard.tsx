@@ -8,7 +8,7 @@ const DiscordInviteCard = () => {
   const discordUrl = settings.community.discordUrl || settings.navbar.recruitmentUrl || "#";
 
   return (
-    <Card className="bg-card border-border">
+    <Card className="bg-card border-border reveal" data-reveal>
       <CardHeader className="px-4 pb-3 pt-4">
         <CardTitle className="text-lg font-semibold text-foreground flex items-center gap-2">
           <MessageCircle className="w-4 h-4 text-primary" />

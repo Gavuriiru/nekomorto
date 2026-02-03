@@ -162,7 +162,7 @@ const Projects = () => {
     <div className="min-h-screen bg-gradient-to-b from-background via-[hsl(var(--primary)/0.12)] to-background text-foreground">
       <Header />
       <main className="pt-28">
-        <section className="mx-auto w-full max-w-6xl px-6 pb-20 md:px-10">
+        <section className="mx-auto w-full max-w-6xl px-6 pb-20 md:px-10 reveal" data-reveal>
           <div className="grid gap-4 rounded-2xl border border-border/60 bg-card/60 p-6 shadow-lg backdrop-blur md:grid-cols-[repeat(4,minmax(0,1fr))]">
             <div className="flex flex-col gap-2">
               <span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
@@ -240,7 +240,7 @@ const Projects = () => {
               <div className="flex flex-wrap gap-2">
                 <span className="font-semibold text-foreground">{filteredProjects.length}</span>
                 <span>projetos encontrados</span>
-                <span className="hidden text-muted-foreground md:inline">�?�</span>
+                <span className="hidden text-muted-foreground md:inline">•</span>
                 <span className="hidden md:inline">Atualizado semanalmente</span>
               </div>
               <Button variant="ghost" onClick={resetFilters} className="text-xs uppercase">
@@ -440,6 +440,8 @@ const Projects = () => {
 };
 
 export default Projects;
+
+
 
 
 
