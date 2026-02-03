@@ -8,6 +8,25 @@ const Footer = () => {
   const footerColumns = footer.columns || [];
   const socialLinks = footer.socialLinks || [];
   const disclaimer = footer.disclaimer || [];
+  const renderCopyright = () => {
+    const text = footer.copyright || "";
+    const marker = "©";
+    const index = text.indexOf(marker);
+    if (index === -1) {
+      return <p>{text}</p>;
+    }
+    const before = text.slice(0, index);
+    const after = text.slice(index + marker.length);
+    return (
+      <p>
+        {before}
+        <Link to="/login" className="text-muted-foreground/70 hover:text-foreground transition-colors">
+          {marker}
+        </Link>
+        {after}
+      </p>
+    );
+  };
   const isInternalLink = (href: string) => href.startsWith("/") && !href.startsWith("//");
   const iconMap: Record<string, typeof Globe> = {
     instagram: Instagram,
@@ -114,7 +133,7 @@ const Footer = () => {
 
       <div className="border-t border-border/60 bg-background/40">
         <div className="mx-auto flex max-w-7xl flex-col gap-2 px-6 py-6 text-xs text-muted-foreground md:flex-row md:items-center md:justify-between md:px-12">
-          <p>{footer.copyright}</p>
+          {renderCopyright()}
         </div>
       </div>
     </footer>

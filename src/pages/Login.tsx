@@ -1,20 +1,43 @@
-import { useMemo } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { useEffect, useMemo } from "react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { getApiBase } from "@/lib/api-base";
+import { apiFetch } from "@/lib/api-client";
 import { usePageMeta } from "@/hooks/use-page-meta";
 
 const Login = () => {
   usePageMeta({ title: "Login", noIndex: true });
 
   const location = useLocation();
+  const navigate = useNavigate();
   const params = useMemo(() => new URLSearchParams(location.search), [location.search]);
   const error = params.get("error");
   const next = params.get("next");
   const apiBase = getApiBase();
+
+  useEffect(() => {
+    let isActive = true;
+    const checkSession = async () => {
+      try {
+        const response = await apiFetch(apiBase, "/api/me", { auth: true });
+        if (!response.ok) {
+          return;
+        }
+        if (isActive) {
+          navigate("/dashboard", { replace: true });
+        }
+      } catch {
+        // ignore
+      }
+    };
+    void checkSession();
+    return () => {
+      isActive = false;
+    };
+  }, [apiBase, navigate]);
 
   const errorMessage = (() => {
     switch (error) {
