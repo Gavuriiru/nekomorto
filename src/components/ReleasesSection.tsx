@@ -129,10 +129,6 @@ const ReleasesSection = () => {
   return (
     <section className="py-16 px-6 md:px-12 bg-background reveal" data-reveal>
       <div className="max-w-7xl mx-auto">
-        <h2 className="text-2xl md:text-3xl font-bold mb-8 text-foreground">
-          Lançamentos Recentes
-        </h2>
-
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Left side - Release cards (blog posts) */}
           <div className="lg:col-span-2">
@@ -167,9 +163,9 @@ const ReleasesSection = () => {
                       data-reveal
                       style={{ transitionDelay: `${index * 80}ms` }}
                     >
-                      <Card className="bg-card border-border hover:border-primary/50 transition-all h-full">
-                        <CardContent className="p-5 flex flex-col h-full gap-4">
-                          <div className="relative w-full aspect-[3/2] rounded-lg overflow-hidden bg-secondary">
+                      <Card className="bg-card border-border hover:border-primary/50 transition-all h-full overflow-hidden">
+                        <CardContent className="p-0 flex flex-col h-full">
+                          <div className="relative w-full aspect-[3/2] overflow-hidden bg-secondary">
                             <img
                               src={normalizeAssetUrl(release.coverImageUrl) || "/placeholder.svg"}
                               alt={release.title}
@@ -187,15 +183,15 @@ const ReleasesSection = () => {
                               </div>
                             ) : null}
                           </div>
-                          <div className="space-y-2">
-                            <h3 className="text-lg font-semibold text-foreground group-hover:text-primary transition-colors">
+                          <div className="p-5 space-y-2">
+                            <h3 className="text-xl md:text-2xl font-semibold text-foreground group-hover:text-primary transition-colors leading-snug">
                               {release.title}
                             </h3>
                             <p className="text-sm text-muted-foreground line-clamp-3">
                               {release.excerpt || "Sem prévia cadastrada."}
                             </p>
                           </div>
-                          <div className="mt-auto flex items-center justify-between gap-3 text-xs text-muted-foreground">
+                          <div className="mt-auto px-5 pb-5 flex items-center justify-between gap-3 text-xs text-muted-foreground">
                             <span className="inline-flex items-center gap-1.5">
                               <User className="h-4 w-4 text-primary/70" aria-hidden="true" />
                               {release.author || "Equipe"}
