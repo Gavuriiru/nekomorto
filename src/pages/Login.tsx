@@ -40,17 +40,17 @@ const Login = () => {
   const errorMessage = (() => {
     switch (error) {
       case "unauthorized":
-        return "Seu usuÃ¡rio ainda nÃ£o tem acesso liberado.";
+        return "Seu usuário ainda não tem acesso liberado.";
       case "state_mismatch":
-        return "Falha de seguranÃ§a na autenticaÃ§Ã£o. Tente novamente.";
+        return "Falha de segurança na autenticação. Tente novamente.";
       case "token_exchange_failed":
-        return "NÃ£o foi possÃ­vel concluir a autenticaÃ§Ã£o.";
+        return "Não foi possível concluir a autenticação.";
       case "user_fetch_failed":
-        return "NÃ£o foi possÃ­vel buscar seus dados.";
+        return "Não foi possível buscar seus dados.";
       case "missing_code":
-        return "AutenticaÃ§Ã£o cancelada ou incompleta.";
+        return "Autenticação cancelada ou incompleta.";
       case "server_error":
-        return "Erro interno no servidor de autenticaÃ§Ã£o.";
+        return "Erro interno no servidor de autenticação.";
       default:
         return null;
     }
@@ -77,10 +77,10 @@ const Login = () => {
                 </div>
                 <div className="space-y-2">
                   <h1 className="text-3xl font-semibold lg:text-4xl">
-                    AutorizaÃ§Ã£o NecessÃ¡ria
+                    Autorização Necessária
                   </h1>
                   <p className="text-sm text-muted-foreground">
-                    FaÃ§a o seu login para acessar a plataforma.
+                    Faça o seu login para acessar a plataforma.
                   </p>
                 </div>
 

@@ -36,6 +36,11 @@ const writeOwnerIds = (ids) => {
   fs.writeFileSync(ownerIdsFilePath, JSON.stringify(unique, null, 2));
 };
 const isOwner = (id) => loadOwnerIds().includes(String(id));
+const getPrimaryOwnerId = () => loadOwnerIds()[0] || null;
+const isPrimaryOwner = (id) => {
+  const primary = getPrimaryOwnerId();
+  return Boolean(primary && String(id) === String(primary));
+};
 
 const loadAuditLog = () => {
   try {
@@ -107,6 +112,7 @@ const APP_ORIGINS = APP_ORIGIN.split(",")
   .filter(Boolean);
 const PRIMARY_APP_ORIGIN = APP_ORIGINS[0] || "http://127.0.0.1:5173";
 const MAX_SVG_SIZE_BYTES = 256 * 1024;
+const MAX_UPLOAD_SIZE_BYTES = 5 * 1024 * 1024;
 const resolveRequestOrigin = (req) => {
   const originHeader = String(req.headers.origin || "");
   if (originHeader) {
@@ -309,7 +315,12 @@ const loadPosts = () => {
   try {
     const raw = fs.readFileSync(filePath, "utf-8");
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [];
+    const items = Array.isArray(parsed) ? parsed : [];
+    const pruned = pruneExpiredDeleted(items);
+    if (pruned.length !== items.length) {
+      writePosts(pruned);
+    }
+    return pruned;
   } catch {
     return [];
   }
@@ -429,8 +440,36 @@ const mergeSettings = (base, override) => {
   return override ?? base;
 };
 
+const hasMojibake = (value) => /Ã|Â|�/.test(String(value || ""));
+const fixMojibakeText = (value) => {
+  if (typeof value !== "string") {
+    return value;
+  }
+  if (!hasMojibake(value)) {
+    return value;
+  }
+  try {
+    return Buffer.from(value, "latin1").toString("utf8");
+  } catch {
+    return value;
+  }
+};
+const fixMojibakeDeep = (value) => {
+  if (Array.isArray(value)) {
+    return value.map((item) => fixMojibakeDeep(item));
+  }
+  if (value && typeof value === "object") {
+    const next = { ...value };
+    Object.keys(next).forEach((key) => {
+      next[key] = fixMojibakeDeep(next[key]);
+    });
+    return next;
+  }
+  return fixMojibakeText(value);
+};
+
 const normalizeSiteSettings = (payload) => {
-  const merged = mergeSettings(defaultSiteSettings, payload || {});
+  const merged = fixMojibakeDeep(mergeSettings(defaultSiteSettings, payload || {}));
   merged.navbar = { ...(merged.navbar || {}), recruitmentUrl: "/recrutamento" };
   const discordUrl = String(merged?.community?.discordUrl || "").trim();
   if (discordUrl) {
@@ -453,7 +492,12 @@ const loadProjects = () => {
     }
     const raw = fs.readFileSync(projectsFilePath, "utf-8");
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [];
+    const items = Array.isArray(parsed) ? parsed : [];
+    const pruned = pruneExpiredDeleted(items);
+    if (pruned.length !== items.length) {
+      writeProjects(pruned);
+    }
+    return pruned;
   } catch {
     return [];
   }
@@ -550,8 +594,25 @@ const loadSiteSettings = () => {
       return seeded;
     }
     const raw = fs.readFileSync(siteSettingsFilePath, "utf-8");
-    const parsed = JSON.parse(raw || "{}");
-    return normalizeSiteSettings(parsed);
+    let parsed = {};
+    try {
+      parsed = JSON.parse(raw || "{}");
+    } catch {
+      parsed = {};
+    }
+    if (hasMojibake(raw)) {
+      try {
+        const fixedRaw = Buffer.from(raw, "latin1").toString("utf8");
+        parsed = JSON.parse(fixedRaw || "{}");
+      } catch {
+        // ignore
+      }
+    }
+    const normalized = normalizeSiteSettings(parsed);
+    if (JSON.stringify(parsed) !== JSON.stringify(normalized)) {
+      fs.writeFileSync(siteSettingsFilePath, JSON.stringify(normalized, null, 2));
+    }
+    return normalized;
   } catch {
     return normalizeSiteSettings(defaultSiteSettings);
   }
@@ -705,6 +766,19 @@ const createSlug = (value) =>
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "");
+const DELETE_RETENTION_MS = 3 * 24 * 60 * 60 * 1000;
+const isWithinRestoreWindow = (deletedAt) => {
+  if (!deletedAt) {
+    return false;
+  }
+  const ts = new Date(deletedAt).getTime();
+  if (!Number.isFinite(ts)) {
+    return false;
+  }
+  return Date.now() - ts <= DELETE_RETENTION_MS;
+};
+const pruneExpiredDeleted = (items) =>
+  (Array.isArray(items) ? items : []).filter((item) => !item?.deletedAt || isWithinRestoreWindow(item.deletedAt));
 
 const normalizePosts = (posts) => {
   const now = Date.now();
@@ -740,6 +814,8 @@ const normalizePosts = (posts) => {
       views: Number.isFinite(post.views) ? post.views : 0,
       viewsDaily: post.viewsDaily && typeof post.viewsDaily === "object" ? post.viewsDaily : {},
       commentsCount: Number.isFinite(post.commentsCount) ? post.commentsCount : 0,
+      deletedAt: post.deletedAt || null,
+      deletedBy: post.deletedBy || null,
       createdAt: post.createdAt || new Date().toISOString(),
       updatedAt: post.updatedAt || post.createdAt || new Date().toISOString(),
     };
@@ -791,6 +867,8 @@ const normalizeProjects = (projects) =>
     viewsDaily: project.viewsDaily && typeof project.viewsDaily === "object" ? project.viewsDaily : {},
     commentsCount: Number.isFinite(project.commentsCount) ? project.commentsCount : 0,
     order: Number.isFinite(project.order) ? project.order : index,
+    deletedAt: project.deletedAt || null,
+    deletedBy: project.deletedBy || null,
     createdAt: project.createdAt || new Date().toISOString(),
     updatedAt: project.updatedAt || project.createdAt || new Date().toISOString(),
   }));
@@ -1159,6 +1237,13 @@ const requireOwner = (req, res, next) => {
   return next();
 };
 
+const requirePrimaryOwner = (req, res, next) => {
+  if (!req.session?.user || !isPrimaryOwner(req.session.user.id)) {
+    return res.status(403).json({ error: "forbidden" });
+  }
+  return next();
+};
+
 const normalizeUsers = (users) => {
   return users.map((user, index) => ({
     id: String(user.id),
@@ -1195,6 +1280,26 @@ const isAdminUser = (user) => {
   }
   const permissions = Array.isArray(user.permissions) ? user.permissions : [];
   return permissions.includes("*") || permissions.includes("usuarios");
+};
+
+const adminBadgePermissions = [
+  "posts",
+  "projetos",
+  "comentarios",
+  "usuarios",
+  "paginas",
+  "configuracoes",
+];
+
+const isAdminBadgeUser = (user) => {
+  if (!user) {
+    return false;
+  }
+  const permissions = Array.isArray(user.permissions) ? user.permissions : [];
+  if (permissions.includes("*")) {
+    return true;
+  }
+  return adminBadgePermissions.every((permission) => permissions.includes(permission));
 };
 
 const canManagePosts = (userId) => {
@@ -1352,14 +1457,23 @@ app.get("/api/owners", requireOwner, (req, res) => {
   return res.json({ ownerIds: loadOwnerIds() });
 });
 
-app.put("/api/owners", requireOwner, (req, res) => {
+app.put("/api/owners", requirePrimaryOwner, (req, res) => {
   const ownerIds = req.body?.ownerIds;
   if (!Array.isArray(ownerIds)) {
     return res.status(400).json({ error: "owner_ids_required" });
   }
-  writeOwnerIds(ownerIds);
+  const primaryOwnerId = getPrimaryOwnerId();
+  const nextIds = Array.isArray(ownerIds) ? ownerIds.map((id) => String(id)) : [];
+  const unique = Array.from(new Set(nextIds.filter(Boolean)));
+  if (primaryOwnerId) {
+    const normalizedPrimary = String(primaryOwnerId);
+    const filtered = unique.filter((id) => id !== normalizedPrimary);
+    unique.length = 0;
+    unique.push(normalizedPrimary, ...filtered);
+  }
+  writeOwnerIds(unique);
   syncAllowedUsers(normalizeUsers(loadUsers()));
-  appendAuditLog(req, "owners.update", "owners", { count: ownerIds.length });
+  appendAuditLog(req, "owners.update", "owners", { count: unique.length });
   return res.json({ ownerIds: loadOwnerIds() });
 });
 
@@ -1407,6 +1521,7 @@ app.get("/api/public/users", (req, res) => {
       coverImageUrl: user.coverImageUrl,
       socials: user.socials,
       roles: applyOwnerRole(user).roles,
+      isAdmin: !isOwner(user.id) && isAdminBadgeUser(user),
       status: user.status,
     }));
 
@@ -1444,6 +1559,7 @@ app.get("/api/posts", requireAuth, (req, res) => {
 app.get("/api/public/posts", (req, res) => {
   const now = Date.now();
   const posts = normalizePosts(loadPosts())
+    .filter((post) => !post.deletedAt)
     .filter((post) => {
       const publishTime = new Date(post.publishedAt).getTime();
       return publishTime <= now && (post.status === "published" || post.status === "scheduled");
@@ -1473,6 +1589,9 @@ app.get("/api/public/posts/:slug", (req, res) => {
   const posts = normalizePosts(loadPosts());
   const post = posts.find((item) => item.slug === slug);
   if (!post) {
+    return res.status(404).json({ error: "not_found" });
+  }
+  if (post.deletedAt) {
     return res.status(404).json({ error: "not_found" });
   }
   const publishTime = new Date(post.publishedAt).getTime();
@@ -1511,6 +1630,9 @@ app.post("/api/public/posts/:slug/view", (req, res) => {
   const posts = normalizePosts(loadPosts());
   const post = posts.find((item) => item.slug === slug);
   if (!post) {
+    return res.status(404).json({ error: "not_found" });
+  }
+  if (post.deletedAt) {
     return res.status(404).json({ error: "not_found" });
   }
   const publishTime = new Date(post.publishedAt).getTime();
@@ -1583,6 +1705,9 @@ app.post("/api/public/comments", async (req, res) => {
   if (!normalizedTargetType || !normalizedTargetId) {
     return res.status(400).json({ error: "target_required" });
   }
+  if (!["post", "project", "chapter"].includes(normalizedTargetType)) {
+    return res.status(400).json({ error: "invalid_target" });
+  }
   if (!normalizedName || !normalizedContent) {
     return res.status(400).json({ error: "fields_required" });
   }
@@ -1595,12 +1720,19 @@ app.post("/api/public/comments", async (req, res) => {
 
   const posts = normalizePosts(loadPosts());
   const projects = normalizeProjects(loadProjects());
+  const nowEpoch = Date.now();
   if (normalizedTargetType === "post") {
-    if (!posts.some((post) => post.slug === normalizedTargetId)) {
+    const post = posts.find((item) => item.slug === normalizedTargetId);
+    if (!post || post.deletedAt) {
+      return res.status(404).json({ error: "target_not_found" });
+    }
+    const publishTime = new Date(post.publishedAt).getTime();
+    if (publishTime > nowEpoch || (post.status !== "published" && post.status !== "scheduled")) {
       return res.status(404).json({ error: "target_not_found" });
     }
   } else if (normalizedTargetType === "project") {
-    if (!projects.some((project) => project.id === normalizedTargetId)) {
+    const project = projects.find((item) => item.id === normalizedTargetId);
+    if (!project || project.deletedAt) {
       return res.status(404).json({ error: "target_not_found" });
     }
   } else if (normalizedTargetType === "chapter") {
@@ -1609,11 +1741,22 @@ app.post("/api/public/comments", async (req, res) => {
       return res.status(400).json({ error: "chapter_required" });
     }
     const project = projects.find((item) => item.id === normalizedTargetId);
-    if (!project) {
+    if (!project || project.deletedAt) {
       return res.status(404).json({ error: "target_not_found" });
     }
-  } else {
-    return res.status(400).json({ error: "invalid_target" });
+    const volumeNumber = Number.isFinite(volume) ? Number(volume) : null;
+    const episode = (project.episodeDownloads || []).find((item) => {
+      if (Number(item.number) !== chapter) {
+        return false;
+      }
+      if (volumeNumber === null) {
+        return true;
+      }
+      return Number(item.volume || 0) === volumeNumber;
+    });
+    if (!episode) {
+      return res.status(404).json({ error: "target_not_found" });
+    }
   }
 
   const comments = loadComments();
@@ -1957,13 +2100,58 @@ app.delete("/api/posts/:id", requireAuth, (req, res) => {
 
   const { id } = req.params;
   let posts = normalizePosts(loadPosts());
-  const next = posts.filter((post) => post.id !== String(id));
-  if (next.length === posts.length) {
+  const index = posts.findIndex((post) => post.id === String(id));
+  if (index === -1) {
     return res.status(404).json({ error: "not_found" });
   }
-  writePosts(next);
-  appendAuditLog(req, "posts.delete", "posts", { id });
+  const existing = posts[index];
+  if (existing.deletedAt && !isWithinRestoreWindow(existing.deletedAt)) {
+    const next = posts.filter((post) => post.id !== String(id));
+    writePosts(next);
+    appendAuditLog(req, "posts.delete.final", "posts", { id });
+    return res.json({ ok: true });
+  }
+  if (!existing.deletedAt) {
+    posts[index] = {
+      ...existing,
+      deletedAt: new Date().toISOString(),
+      deletedBy: sessionUser?.id || null,
+      updatedAt: new Date().toISOString(),
+    };
+    writePosts(posts);
+    appendAuditLog(req, "posts.delete", "posts", { id });
+  }
   return res.json({ ok: true });
+});
+
+app.post("/api/posts/:id/restore", requireAuth, (req, res) => {
+  const sessionUser = req.session.user;
+  if (!canManagePosts(sessionUser?.id)) {
+    return res.status(403).json({ error: "forbidden" });
+  }
+  const { id } = req.params;
+  let posts = normalizePosts(loadPosts());
+  const index = posts.findIndex((post) => post.id === String(id));
+  if (index === -1) {
+    return res.status(404).json({ error: "not_found" });
+  }
+  const existing = posts[index];
+  if (!existing.deletedAt) {
+    return res.json({ post: existing });
+  }
+  if (!isWithinRestoreWindow(existing.deletedAt)) {
+    return res.status(410).json({ error: "restore_window_expired" });
+  }
+  const restored = {
+    ...existing,
+    deletedAt: null,
+    deletedBy: null,
+    updatedAt: new Date().toISOString(),
+  };
+  posts[index] = restored;
+  writePosts(posts);
+  appendAuditLog(req, "posts.restore", "posts", { id });
+  return res.json({ post: restored });
 });
 
 app.get("/api/projects", requireAuth, (req, res) => {
@@ -2145,13 +2333,58 @@ app.delete("/api/projects/:id", requireAuth, (req, res) => {
   }
   const { id } = req.params;
   const projects = normalizeProjects(loadProjects());
-  const next = projects.filter((project) => project.id !== String(id));
-  if (next.length === projects.length) {
+  const index = projects.findIndex((project) => project.id === String(id));
+  if (index === -1) {
     return res.status(404).json({ error: "not_found" });
   }
-  writeProjects(next);
-  appendAuditLog(req, "projects.delete", "projects", { id });
+  const existing = projects[index];
+  if (existing.deletedAt && !isWithinRestoreWindow(existing.deletedAt)) {
+    const next = projects.filter((project) => project.id !== String(id));
+    writeProjects(next);
+    appendAuditLog(req, "projects.delete.final", "projects", { id });
+    return res.json({ ok: true });
+  }
+  if (!existing.deletedAt) {
+    projects[index] = {
+      ...existing,
+      deletedAt: new Date().toISOString(),
+      deletedBy: sessionUser?.id || null,
+      updatedAt: new Date().toISOString(),
+    };
+    writeProjects(projects);
+    appendAuditLog(req, "projects.delete", "projects", { id });
+  }
   return res.json({ ok: true });
+});
+
+app.post("/api/projects/:id/restore", requireAuth, (req, res) => {
+  const sessionUser = req.session.user;
+  if (!canManageProjects(sessionUser?.id)) {
+    return res.status(403).json({ error: "forbidden" });
+  }
+  const { id } = req.params;
+  const projects = normalizeProjects(loadProjects());
+  const index = projects.findIndex((project) => project.id === String(id));
+  if (index === -1) {
+    return res.status(404).json({ error: "not_found" });
+  }
+  const existing = projects[index];
+  if (!existing.deletedAt) {
+    return res.json({ project: existing });
+  }
+  if (!isWithinRestoreWindow(existing.deletedAt)) {
+    return res.status(410).json({ error: "restore_window_expired" });
+  }
+  const restored = {
+    ...existing,
+    deletedAt: null,
+    deletedBy: null,
+    updatedAt: new Date().toISOString(),
+  };
+  projects[index] = restored;
+  writeProjects(projects);
+  appendAuditLog(req, "projects.restore", "projects", { id });
+  return res.json({ project: restored });
 });
 
 app.put("/api/projects/reorder", requireAuth, (req, res) => {
@@ -2206,6 +2439,7 @@ app.post("/api/projects/:id/rebuild-updates", requireAuth, (req, res) => {
 
 app.get("/api/public/projects", (req, res) => {
   const projects = normalizeProjects(loadProjects())
+    .filter((project) => !project.deletedAt)
     .sort((a, b) => a.order - b.order)
     .map((project) => ({
       id: project.id,
@@ -2257,6 +2491,9 @@ app.get("/api/public/projects/:id", (req, res) => {
   if (!project) {
     return res.status(404).json({ error: "not_found" });
   }
+  if (project.deletedAt) {
+    return res.status(404).json({ error: "not_found" });
+  }
   const sanitized = {
     ...project,
     episodeDownloads: project.episodeDownloads.map((episode) => ({
@@ -2279,6 +2516,9 @@ app.post("/api/public/projects/:id/view", (req, res) => {
   if (!project) {
     return res.status(404).json({ error: "not_found" });
   }
+  if (project.deletedAt) {
+    return res.status(404).json({ error: "not_found" });
+  }
   const updated = incrementProjectViews(id);
   return res.json({ views: updated?.views ?? project.views ?? 0 });
 });
@@ -2293,6 +2533,9 @@ app.get("/api/public/projects/:id/chapters/:number", (req, res) => {
   const projects = normalizeProjects(loadProjects());
   const project = projects.find((item) => item.id === id);
   if (!project) {
+    return res.status(404).json({ error: "not_found" });
+  }
+  if (project.deletedAt) {
     return res.status(404).json({ error: "not_found" });
   }
   const chapter = project.episodeDownloads.find((episode) => {
@@ -2320,7 +2563,17 @@ app.get("/api/public/projects/:id/chapters/:number", (req, res) => {
 });
 
 app.get("/api/public/updates", (req, res) => {
+  const projects = normalizeProjects(loadProjects());
+  const validProjectIds = new Set(
+    projects.filter((project) => !project.deletedAt).map((project) => project.id),
+  );
   const updates = loadUpdates()
+    .filter((update) => {
+      if (!update?.projectId) {
+        return true;
+      }
+      return validProjectIds.has(String(update.projectId));
+    })
     .map((update) => {
       const reason = String(update?.reason || "");
       const kind = String(update?.kind || "");
@@ -2482,17 +2735,20 @@ app.put("/api/tag-translations", requireAuth, (req, res) => {
   }
   const tags = req.body?.tags;
   const genres = req.body?.genres;
-  if (!tags || typeof tags !== "object") {
-    return res.status(400).json({ error: "tags_required" });
+  if ((!tags || typeof tags !== "object") && (!genres || typeof genres !== "object")) {
+    return res.status(400).json({ error: "translations_required" });
   }
-  const normalizedTags = Object.fromEntries(
-    Object.entries(tags).map(([key, value]) => [String(key), String(value || "")]),
-  );
+  const current = loadTagTranslations();
+  const normalizedTags = tags && typeof tags === "object"
+    ? Object.fromEntries(
+        Object.entries(tags).map(([key, value]) => [String(key), String(value || "")]),
+      )
+    : current.tags;
   const normalizedGenres = genres && typeof genres === "object"
     ? Object.fromEntries(
         Object.entries(genres).map(([key, value]) => [String(key), String(value || "")]),
       )
-    : {};
+    : current.genres;
   const payload = { tags: normalizedTags, genres: normalizedGenres };
   writeTagTranslations(payload);
   return res.json(payload);
@@ -2604,6 +2860,12 @@ app.post("/api/uploads/image", requireAuth, (req, res) => {
     return res.status(400).json({ error: "unsupported_image_type" });
   }
   const buffer = Buffer.from(match[2], "base64");
+  if (!buffer.length) {
+    return res.status(400).json({ error: "empty_upload" });
+  }
+  if (buffer.length > MAX_UPLOAD_SIZE_BYTES) {
+    return res.status(400).json({ error: "file_too_large" });
+  }
   const ext = mime.split("/")[1] || "png";
   if (mime.toLowerCase() === "image/svg+xml" && buffer.length > MAX_SVG_SIZE_BYTES) {
     return res.status(400).json({ error: "svg_too_large" });
@@ -2902,6 +3164,62 @@ app.put("/api/users/:id", (req, res) => {
   return res.json({ user: applyOwnerRole(updated) });
 });
 
+app.delete("/api/users/:id", requireOwner, (req, res) => {
+  const sessionUser = req.session.user;
+  const targetId = String(req.params.id || "");
+  const primaryOwnerId = getPrimaryOwnerId();
+
+  if (!targetId) {
+    return res.status(400).json({ error: "invalid_id" });
+  }
+  if (sessionUser?.id && String(sessionUser.id) === targetId) {
+    return res.status(400).json({ error: "cannot_delete_self" });
+  }
+  if (primaryOwnerId && String(primaryOwnerId) === targetId) {
+    return res.status(403).json({ error: "cannot_delete_primary_owner" });
+  }
+  if (isOwner(targetId) && !isPrimaryOwner(sessionUser?.id)) {
+    return res.status(403).json({ error: "owner_delete_forbidden" });
+  }
+
+  let users = normalizeUsers(loadUsers());
+  const index = users.findIndex((user) => user.id === targetId);
+  if (index === -1) {
+    return res.status(404).json({ error: "not_found" });
+  }
+
+  const removed = users[index];
+  users = users.filter((user) => user.id !== targetId);
+
+  const activeUsers = users.filter((user) => user.status === "active").sort((a, b) => a.order - b.order);
+  const retiredUsers = users.filter((user) => user.status === "retired").sort((a, b) => a.order - b.order);
+  let orderIndex = 0;
+  const reordered = [
+    ...activeUsers.map((user) => ({ ...user, order: orderIndex++ })),
+    ...retiredUsers.map((user) => ({ ...user, order: orderIndex++ })),
+  ];
+
+  let nextOwnerIds = loadOwnerIds();
+  if (nextOwnerIds.includes(targetId)) {
+    nextOwnerIds = nextOwnerIds.filter((id) => id !== targetId);
+    if (nextOwnerIds.length === 0 && primaryOwnerId) {
+      nextOwnerIds = [String(primaryOwnerId)];
+    }
+    writeOwnerIds(nextOwnerIds);
+  }
+
+  const normalizedUsers = normalizeUsers(reordered).map((user) =>
+    isOwner(user.id)
+      ? { ...user, status: "active", permissions: ["*"] }
+      : user,
+  );
+  normalizedUsers.sort((a, b) => a.order - b.order);
+  writeUsers(normalizedUsers);
+  syncAllowedUsers(normalizedUsers);
+  appendAuditLog(req, "users.delete", "users", { id: targetId, wasOwner: isOwner(removed.id) });
+  return res.json({ ok: true, ownerIds: loadOwnerIds() });
+});
+
 app.put("/api/users/self", requireAuth, (req, res) => {
   const sessionUser = req.session.user;
   let users = normalizeUsers(loadUsers());
@@ -2942,10 +3260,3 @@ app.post("/api/logout", (req, res) => {
 });
 
 app.listen(Number(PORT));
-
-
-
-
-
-
-

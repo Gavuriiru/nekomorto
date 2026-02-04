@@ -15,6 +15,7 @@ import {
   Palette,
   PenTool,
   Sparkles,
+  Shield,
   User,
   Video,
   X,
@@ -35,6 +36,7 @@ type PublicUser = {
   socials?: Array<{ label: string; href: string }>;
   permissions?: string[];
   roles?: string[];
+  isAdmin?: boolean;
   status?: "active" | "retired";
 };
 
@@ -102,6 +104,9 @@ const Team = () => {
     }
     if (normalized === "membro") {
       return User;
+    }
+    if (normalized === "administrador") {
+      return Shield;
     }
     if (normalized.includes("aposent")) {
       return Clock;
@@ -289,6 +294,15 @@ const Team = () => {
                                   </Badge>
                                 );
                               })()}
+                              {!(member.roles || []).includes("Dono") && member.isAdmin && (() => {
+                                const RoleIcon = getRoleIcon("Administrador");
+                                return (
+                                  <Badge variant="secondary" className="text-[10px] uppercase gap-1">
+                                    {RoleIcon ? <RoleIcon className="h-3 w-3" /> : null}
+                                    Administrador
+                                  </Badge>
+                                );
+                              })()}
                               {areas.length > 0 ? (
                                 areas.map((area) => {
                                   const RoleIcon = getRoleIcon(area);
@@ -300,7 +314,7 @@ const Team = () => {
                                   );
                                 })
                               ) : (
-                                !(member.roles || []).includes("Dono") && (() => {
+                                !(member.roles || []).includes("Dono") && !member.isAdmin && (() => {
                                   const RoleIcon = getRoleIcon("Membro");
                                   return (
                                     <Badge variant="secondary" className="text-[10px] uppercase gap-1">
@@ -399,12 +413,30 @@ const Team = () => {
                                   {member.bio || "Sem biografia cadastrada."}
                                 </p>
                                 <div className="flex flex-wrap gap-2">
+                                  {member.status === "retired" && (() => {
+                                    const RoleIcon = getRoleIcon("Aposentado");
+                                    return (
+                                      <Badge variant="secondary" className="text-[10px] uppercase gap-1">
+                                        {RoleIcon ? <RoleIcon className="h-3 w-3" /> : null}
+                                        Aposentado
+                                      </Badge>
+                                    );
+                                  })()}
                                   {(member.roles || []).includes("Dono") && (() => {
                                     const RoleIcon = getRoleIcon("Dono");
                                     return (
                                       <Badge variant="secondary" className="text-[10px] uppercase gap-1">
                                         {RoleIcon ? <RoleIcon className="h-3 w-3" /> : null}
                                         Dono
+                                      </Badge>
+                                    );
+                                  })()}
+                                  {!(member.roles || []).includes("Dono") && member.isAdmin && (() => {
+                                    const RoleIcon = getRoleIcon("Administrador");
+                                    return (
+                                      <Badge variant="secondary" className="text-[10px] uppercase gap-1">
+                                        {RoleIcon ? <RoleIcon className="h-3 w-3" /> : null}
+                                        Administrador
                                       </Badge>
                                     );
                                   })()}
@@ -418,17 +450,7 @@ const Team = () => {
                                         </Badge>
                                       );
                                     })
-                                  ) : (
-                                    !(member.roles || []).includes("Dono") && (() => {
-                                      const RoleIcon = getRoleIcon("Aposentado");
-                                      return (
-                                        <Badge variant="secondary" className="text-[10px] uppercase gap-1">
-                                          {RoleIcon ? <RoleIcon className="h-3 w-3" /> : null}
-                                          Aposentado
-                                        </Badge>
-                                      );
-                                    })()
-                                  )}
+                                  ) : null}
                                 </div>
                               </div>
                             </div>

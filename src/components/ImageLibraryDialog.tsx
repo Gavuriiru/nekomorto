@@ -38,6 +38,7 @@ type ImageLibraryDialogProps = {
   showAltInput?: boolean;
   allowDeleteUploads?: boolean;
   allowDeselect?: boolean;
+  selectOnUpload?: boolean;
   currentSelectionUrl?: string;
   sections?: LibrarySection[];
   onSelect: (url: string, alt?: string) => void;
@@ -59,6 +60,7 @@ const ImageLibraryDialog = ({
   showAltInput = true,
   allowDeleteUploads = true,
   allowDeselect = true,
+  selectOnUpload = false,
   currentSelectionUrl,
   sections = [],
   onSelect,
@@ -168,7 +170,13 @@ const ImageLibraryDialog = ({
   const handleUpload = async (file: File) => {
     try {
       setIsUploading(true);
-      await uploadImage(file);
+      const url = await uploadImage(file);
+      if (selectOnUpload && url) {
+        const alt = getAltFromName(file.name) || "Imagem";
+        onSelect(url, alt);
+        onOpenChange(false);
+        return;
+      }
       await loadLibrary();
     } catch {
       toast({ title: "Nao foi possivel enviar a imagem." });
