@@ -119,6 +119,8 @@ type ProjectRecord = {
   order: number;
   createdAt?: string;
   updatedAt?: string;
+  deletedAt?: string | null;
+  deletedBy?: string | null;
 };
 
 type ProjectForm = Omit<ProjectRecord, "views" | "commentsCount" | "order">;
@@ -632,6 +634,7 @@ const DashboardProjectsEditor = () => {
   usePageMeta({ title: "Projetos", noIndex: true });
   const navigate = useNavigate();
   const apiBase = getApiBase();
+  const restoreWindowMs = 3 * 24 * 60 * 60 * 1000;
   const [currentUser, setCurrentUser] = useState<{
     id: string;
     name: string;
@@ -904,12 +907,45 @@ const DashboardProjectsEditor = () => {
     }
   }, [isLibraryOpen]);
 
+  const isRestorable = useCallback((project: ProjectRecord) => {
+    if (!project.deletedAt) {
+      return false;
+    }
+    const ts = new Date(project.deletedAt).getTime();
+    if (!Number.isFinite(ts)) {
+      return false;
+    }
+    return Date.now() - ts <= restoreWindowMs;
+  }, [restoreWindowMs]);
+
+  const getRestoreRemainingLabel = (project: ProjectRecord) => {
+    if (!project.deletedAt) {
+      return "";
+    }
+    const ts = new Date(project.deletedAt).getTime();
+    if (!Number.isFinite(ts)) {
+      return "";
+    }
+    const remainingMs = restoreWindowMs - (Date.now() - ts);
+    const remainingDays = Math.max(0, Math.ceil(remainingMs / (24 * 60 * 60 * 1000)));
+    if (remainingDays <= 1) {
+      return "1 dia";
+    }
+    return `${remainingDays} dias`;
+  };
+
+  const activeProjects = useMemo(() => projects.filter((project) => !project.deletedAt), [projects]);
+  const trashedProjects = useMemo(
+    () => projects.filter((project) => project.deletedAt && isRestorable(project)),
+    [isRestorable, projects],
+  );
+
   const filteredProjects = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
     if (!query) {
-      return projects;
+      return activeProjects;
     }
-    return projects.filter((project) => {
+    return activeProjects.filter((project) => {
       const haystack = [
         project.title,
         project.titleOriginal,
@@ -928,7 +964,7 @@ const DashboardProjectsEditor = () => {
         .toLowerCase();
       return haystack.includes(query);
     });
-  }, [projects, searchQuery]);
+  }, [activeProjects, searchQuery]);
 
   const currentLibrarySelection = useMemo(() => {
     if (libraryTarget === "cover") {
@@ -1218,10 +1254,35 @@ const DashboardProjectsEditor = () => {
       method: "DELETE",
       auth: true,
     });
-    if (response.ok) {
-      setProjects((prev) => prev.filter((project) => project.id !== deleteTarget.id));
-      setDeleteTarget(null);
+    if (!response.ok) {
+      toast({ title: "Não foi possível excluir o projeto" });
+      return;
     }
+    await loadProjects();
+    setDeleteTarget(null);
+    if (editingProject && deleteTarget.id === editingProject.id) {
+      closeEditor();
+    }
+    toast({ title: "Projeto movido para a lixeira", description: "Você pode restaurar por 3 dias." });
+  };
+
+  const handleRestoreProject = async (project: ProjectRecord) => {
+    const response = await apiFetch(apiBase, `/api/projects/${project.id}/restore`, {
+      method: "POST",
+      auth: true,
+    });
+    if (!response.ok) {
+      if (response.status === 410) {
+        toast({ title: "Janela de restauração expirou" });
+        await loadProjects();
+        return;
+      }
+      toast({ title: "Não foi possível restaurar o projeto" });
+      return;
+    }
+    const data = await response.json();
+    setProjects((prev) => prev.map((item) => (item.id === project.id ? data.project : item)));
+    toast({ title: "Projeto restaurado" });
   };
 
   const mapAniListToForm = (media: AniListMedia) => {
@@ -1650,6 +1711,48 @@ const DashboardProjectsEditor = () => {
                   ))}
                 </div>
               )}
+              {trashedProjects.length > 0 ? (
+                <Card className="mt-8 border-border/60 bg-card/60">
+                  <CardContent className="space-y-4 p-6">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h3 className="text-lg font-semibold">Lixeira</h3>
+                        <p className="text-xs text-muted-foreground">
+                          Restaure em até 3 dias após a exclusão.
+                        </p>
+                      </div>
+                      <Badge variant="secondary" className="text-xs uppercase">
+                        {trashedProjects.length} itens
+                      </Badge>
+                    </div>
+                    <div className="grid gap-3">
+                      {trashedProjects.map((project) => (
+                        <div
+                          key={`trash-${project.id}`}
+                          className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3"
+                        >
+                          <div className="min-w-0">
+                            <p className="text-sm font-medium text-foreground">{project.title}</p>
+                            <p className="text-xs text-muted-foreground">ID {project.id}</p>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <span className="text-xs text-muted-foreground">
+                              Restam {getRestoreRemainingLabel(project)}
+                            </span>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleRestoreProject(project)}
+                            >
+                              Restaurar
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              ) : null}
             </section>
           </main>
       </DashboardShell>
@@ -2574,7 +2677,7 @@ const DashboardProjectsEditor = () => {
           <DialogHeader>
             <DialogTitle>Excluir projeto?</DialogTitle>
             <DialogDescription>
-              {deleteTarget ? `Excluir "${deleteTarget.title}"? Esta ação não pode ser desfeita.` : ""}
+              {deleteTarget ? `Excluir "${deleteTarget.title}"? Você pode restaurar por até 3 dias.` : ""}
             </DialogDescription>
           </DialogHeader>
           <div className="flex justify-end gap-3">
@@ -2601,6 +2704,7 @@ const DashboardProjectsEditor = () => {
         listFolders={[""]}
         showAltInput={libraryTarget === "chapter"}
         allowDeselect={libraryTarget !== "chapter"}
+        selectOnUpload
         currentSelectionUrl={currentLibrarySelection || undefined}
         onSelect={(url, altText) => applyLibraryImage(url, altText)}
       />

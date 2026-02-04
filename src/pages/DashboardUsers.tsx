@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+﻿import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import DashboardShell from "@/components/DashboardShell";
 import ImageLibraryDialog from "@/components/ImageLibraryDialog";
@@ -21,6 +21,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import {
   UserRound,
@@ -45,6 +46,7 @@ import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
 import { usePageMeta } from "@/hooks/use-page-meta";
 import { useSiteSettings } from "@/hooks/use-site-settings";
+import { toast } from "@/components/ui/use-toast";
 
 type UserRecord = {
   id: string;
@@ -81,6 +83,9 @@ const permissionOptions = [
   { id: "paginas", label: "Páginas" },
   { id: "configuracoes", label: "Configurações" },
 ];
+
+const stripOwnerRole = (roles: string[]) =>
+  roles.filter((role) => role.trim().toLowerCase() !== "dono");
 
 const defaultRoleOptions = [
   "Tradutor",
@@ -150,6 +155,8 @@ const DashboardUsers = () => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<UserRecord | null>(null);
   const [formState, setFormState] = useState(emptyForm);
+  const [ownerToggle, setOwnerToggle] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<UserRecord | null>(null);
   const [isLibraryOpen, setIsLibraryOpen] = useState(false);
   const [libraryTarget, setLibraryTarget] = useState<"avatar" | "cover">("avatar");
   const [linkTypes, setLinkTypes] = useState<Array<{ id: string; label: string; icon: string }>>([]);
@@ -169,6 +176,8 @@ const DashboardUsers = () => {
     ? users.find((user) => user.id === currentUser.id) || null
     : null;
   const canManageUsers = currentUser?.id ? ownerIds.includes(currentUser.id) : false;
+  const primaryOwnerId = ownerIds[0] || "";
+  const canManageOwners = Boolean(currentUser?.id && primaryOwnerId && currentUser.id === primaryOwnerId);
   const openLibrary = (target: "avatar" | "cover") => {
     setLibraryTarget(target);
     setIsLibraryOpen(true);
@@ -184,6 +193,27 @@ const DashboardUsers = () => {
     [libraryTarget],
   );
   const currentLibrarySelection = libraryTarget === "avatar" ? formState.avatarUrl : formState.coverImageUrl;
+  const openEditDialog = useCallback((user: UserRecord) => {
+    const normalizedPermissions = user.permissions.includes("*")
+      ? permissionOptions.map((permission) => permission.id)
+      : [...user.permissions];
+    const normalizedRoles = ownerIds.includes(user.id) ? user.roles : stripOwnerRole(user.roles);
+    setEditingUser(user);
+    setFormState({
+      id: user.id,
+      name: user.name,
+      phrase: user.phrase,
+      bio: user.bio,
+      avatarUrl: user.avatarUrl || "",
+      coverImageUrl: user.coverImageUrl || "",
+      socials: user.socials ? [...user.socials] : [],
+      status: user.status,
+      permissions: normalizedPermissions,
+      roles: normalizedRoles ? [...normalizedRoles] : [],
+    });
+    setOwnerToggle(ownerIds.includes(user.id));
+    setIsDialogOpen(true);
+  }, [ownerIds]);
   const canManageBadges =
     canManageUsers ||
     (currentUserRecord
@@ -199,6 +229,19 @@ const DashboardUsers = () => {
     [users],
   );
   const isOwnerRecord = editingUser ? ownerIds.includes(editingUser.id) : false;
+  const isPrimaryOwnerRecord = editingUser ? editingUser.id === primaryOwnerId : false;
+  const effectivePermissions = useMemo(() => {
+    if (formState.permissions.includes("*")) {
+      return permissionOptions.map((permission) => permission.id);
+    }
+    return formState.permissions;
+  }, [formState.permissions]);
+  const isAdminRecord = (user: UserRecord) =>
+    user.permissions.includes("*") ||
+    permissionOptions.every((permission) => user.permissions.includes(permission.id));
+  const isAdminForm =
+    effectivePermissions.includes("*") ||
+    permissionOptions.every((permission) => effectivePermissions.includes(permission.id));
   const rolesOnlyEdit =
     Boolean(editingUser) && canManageBadges && !canManageUsers && currentUser?.id !== editingUser.id;
 
@@ -243,28 +286,12 @@ const DashboardUsers = () => {
     }
     openEditDialog(currentUserRecord);
     navigate("/dashboard/usuarios", { replace: true });
-  }, [currentUserRecord, isDialogOpen, navigate, searchParams]);
+  }, [currentUserRecord, isDialogOpen, navigate, openEditDialog, searchParams]);
 
   const openNewDialog = () => {
     setEditingUser(null);
     setFormState(emptyForm);
-    setIsDialogOpen(true);
-  };
-
-  const openEditDialog = (user: UserRecord) => {
-    setEditingUser(user);
-    setFormState({
-      id: user.id,
-      name: user.name,
-      phrase: user.phrase,
-      bio: user.bio,
-      avatarUrl: user.avatarUrl || "",
-      coverImageUrl: user.coverImageUrl || "",
-      socials: user.socials ? [...user.socials] : [],
-      status: user.status,
-      permissions: [...user.permissions],
-      roles: user.roles ? [...user.roles] : [],
-    });
+    setOwnerToggle(false);
     setIsDialogOpen(true);
   };
 
@@ -289,7 +316,7 @@ const DashboardUsers = () => {
       socials: formState.socials.filter((item) => item.label.trim() && item.href.trim()),
       status: formState.status,
       permissions: formState.permissions,
-      roles: formState.roles,
+      roles: ownerToggle ? formState.roles : stripOwnerRole(formState.roles),
     };
     const payload =
       editingUser && !canManageUsers && canManageBadges
@@ -315,8 +342,40 @@ const DashboardUsers = () => {
 
     if (response.ok) {
       const data = await response.json();
+      const targetId = editingUser ? editingUser.id : data.user?.id || basePayload.id;
+      const shouldKeepOwner =
+        ownerToggle && (!editingUser || !ownerIds.includes(editingUser.id) || isAdminForm);
+      if (canManageOwners && targetId) {
+        const nextOwnerIds = shouldKeepOwner
+          ? Array.from(new Set([...ownerIds, targetId]))
+          : ownerIds.filter((id) => id !== targetId);
+        if (nextOwnerIds.join(",") !== ownerIds.join(",")) {
+          const ownersResponse = await apiFetch(apiBase, "/api/owners", {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            auth: true,
+            body: JSON.stringify({ ownerIds: nextOwnerIds }),
+          });
+          if (ownersResponse.ok) {
+            const ownersData = await ownersResponse.json();
+            setOwnerIds(Array.isArray(ownersData.ownerIds) ? ownersData.ownerIds : nextOwnerIds);
+            if (!shouldKeepOwner) {
+              setOwnerToggle(false);
+            }
+          } else if (!shouldKeepOwner) {
+            toast({ title: "Não foi possível rebaixar o dono" });
+          }
+        }
+      }
+      const sanitizedPermissions = formState.permissions.includes("*")
+        ? permissionOptions.map((permission) => permission.id)
+        : formState.permissions;
+      const updatedUser =
+        !shouldKeepOwner && editingUser
+          ? { ...data.user, permissions: sanitizedPermissions }
+          : data.user;
       if (editingUser) {
-        setUsers((prev) => prev.map((user) => (user.id === editingUser.id ? data.user : user)));
+        setUsers((prev) => prev.map((user) => (user.id === editingUser.id ? updatedUser : user)));
       } else {
         setUsers((prev) => [...prev, data.user]);
       }
@@ -347,14 +406,41 @@ const DashboardUsers = () => {
       return;
     }
     setFormState((prev) => {
-      const hasPermission = prev.permissions.includes(permissionId);
+      const basePermissions = prev.permissions.includes("*")
+        ? permissionOptions.map((permission) => permission.id)
+        : prev.permissions;
+      const hasPermission = basePermissions.includes(permissionId);
       return {
         ...prev,
         permissions: hasPermission
-          ? prev.permissions.filter((item) => item !== permissionId)
-          : [...prev.permissions, permissionId],
+          ? basePermissions.filter((item) => item !== permissionId)
+          : [...basePermissions, permissionId],
       };
     });
+  };
+
+  const handleDeleteUser = async () => {
+    if (!deleteTarget) {
+      return;
+    }
+    const response = await apiFetch(apiBase, `/api/users/${deleteTarget.id}`, {
+      method: "DELETE",
+      auth: true,
+    });
+    if (!response.ok) {
+      toast({ title: "Não foi possível excluir o usuário" });
+      return;
+    }
+    const data = await response.json();
+    setUsers((prev) => prev.filter((user) => user.id !== deleteTarget.id));
+    if (Array.isArray(data.ownerIds)) {
+      setOwnerIds(data.ownerIds);
+    }
+    if (editingUser && editingUser.id === deleteTarget.id) {
+      setIsDialogOpen(false);
+    }
+    setDeleteTarget(null);
+    toast({ title: "Usuário excluído" });
   };
 
   const toggleRole = (role: string) => {
@@ -457,7 +543,7 @@ const DashboardUsers = () => {
                 <div className="inline-flex items-center gap-3 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs uppercase tracking-[0.3em] text-muted-foreground">
                   Usuários
                 </div>
-                <h1 className="mt-4 text-3xl font-semibold lg:text-4xl">Gestão de usuários</h1>
+                <h1 className="mt-4 text-3xl font-semibold lg:text-4xl">Gestão de Usuários</h1>
                 <p className="mt-2 text-sm text-muted-foreground">
                   Reordene arrastando para refletir a ordem na página pública.
                 </p>
@@ -478,7 +564,7 @@ const DashboardUsers = () => {
 
               {isLoading ? (
                 <div className="mt-6 rounded-2xl border border-white/10 bg-white/5 px-4 py-8 text-sm text-muted-foreground">
-                  Carregando usuários...
+                  Carregando Usuários...
                 </div>
               ) : activeUsers.length === 0 ? (
                 <div className="mt-6 rounded-2xl border border-dashed border-white/10 bg-white/5 px-4 py-8 text-sm text-muted-foreground">
@@ -523,6 +609,9 @@ const DashboardUsers = () => {
                               {ownerIds.includes(user.id) && (
                                 <Badge className="bg-primary/20 text-primary">Dono</Badge>
                               )}
+                              {!ownerIds.includes(user.id) && isAdminRecord(user) && (
+                                <Badge className="bg-white/10 text-muted-foreground">Administrador</Badge>
+                              )}
                             </div>
                             <p className="text-sm text-muted-foreground">{user.phrase || "-"}</p>
                             <p className="mt-2 text-xs text-muted-foreground line-clamp-2">
@@ -530,7 +619,10 @@ const DashboardUsers = () => {
                             </p>
                             {user.roles && user.roles.length > 0 && (
                               <div className="mt-3 flex flex-wrap gap-2">
-                                {user.roles.map((role) => (
+                                {(ownerIds.includes(user.id)
+                                  ? user.roles
+                                  : stripOwnerRole(user.roles)
+                                ).map((role) => (
                                   <Badge key={role} variant="secondary" className="text-[10px] uppercase">
                                     {role}
                                   </Badge>
@@ -587,6 +679,9 @@ const DashboardUsers = () => {
                               <div className="flex items-center gap-2">
                                 <h3 className="text-lg font-semibold">{user.name}</h3>
                                 <Badge className="bg-white/10 text-muted-foreground">Aposentado</Badge>
+                                {isAdminRecord(user) && (
+                                  <Badge className="bg-white/10 text-muted-foreground">Administrador</Badge>
+                                )}
                               </div>
                               <p className="text-sm text-muted-foreground">{user.phrase || "-"}</p>
                               <p className="mt-2 text-xs text-muted-foreground line-clamp-2">
@@ -594,7 +689,10 @@ const DashboardUsers = () => {
                               </p>
                               {user.roles && user.roles.length > 0 && (
                                 <div className="mt-3 flex flex-wrap gap-2">
-                                  {user.roles.map((role) => (
+                                  {(ownerIds.includes(user.id)
+                                    ? user.roles
+                                    : stripOwnerRole(user.roles)
+                                  ).map((role) => (
                                     <Badge key={role} variant="secondary" className="text-[10px] uppercase">
                                       {role}
                                     </Badge>
@@ -821,7 +919,7 @@ const DashboardUsers = () => {
             <div className="grid gap-2">
               <Label>Funções</Label>
               {!canManageBadges && (
-                <p className="text-xs text-muted-foreground">Apenas dono ou admin podem alterar funções.</p>
+                <p className="text-xs text-muted-foreground">Apenas dono ou admin podem alterar Funções.</p>
               )}
               <div className="flex flex-wrap gap-2">
                 {roleOptions.map((role) => {
@@ -850,9 +948,12 @@ const DashboardUsers = () => {
             <div className="grid gap-2">
               <Label>Permissões</Label>
               {isOwnerRecord && <Badge className="w-fit bg-primary/20 text-primary">Acesso total</Badge>}
+              {!isOwnerRecord && isAdminForm && (
+                <Badge className="w-fit bg-white/10 text-muted-foreground">Administrador</Badge>
+              )}
               <div className="flex flex-wrap gap-2">
                 {permissionOptions.map((permission) => {
-                  const isSelected = formState.permissions.includes(permission.id);
+                  const isSelected = effectivePermissions.includes(permission.id);
                   return (
                     <Button
                       key={permission.id}
@@ -871,25 +972,56 @@ const DashboardUsers = () => {
                 <p className="text-xs text-muted-foreground">Apenas o dono pode alterar permissões.</p>
               )}
             </div>
+            {canManageUsers ? (
+              <div className="grid gap-2">
+                <Label>Dono</Label>
+                <div className="flex items-center justify-between gap-4 rounded-2xl border border-border/60 bg-card/60 px-4 py-3">
+                  <span className="text-sm text-muted-foreground">
+                    Permite acesso total ao painel e às configurações críticas.
+                  </span>
+                  <Switch
+                    checked={ownerToggle}
+                    onCheckedChange={setOwnerToggle}
+                    disabled={!canManageOwners || rolesOnlyEdit || isPrimaryOwnerRecord}
+                  />
+                </div>
+                {!canManageOwners ? (
+                  <p className="text-xs text-muted-foreground">
+                    Apenas o primeiro dono pode promover ou rebaixar outros donos.
+                  </p>
+                ) : null}
+                {isPrimaryOwnerRecord ? (
+                  <p className="text-xs text-muted-foreground">
+                    O primeiro dono não pode ser rebaixado.
+                  </p>
+                ) : null}
+              </div>
+            ) : null}
             <div className="grid gap-2">
-              <Label htmlFor="user-status">Status</Label>
-              <select
-                id="user-status"
-                className="h-10 rounded-md border border-input bg-background px-3 text-sm text-foreground"
-                value={formState.status}
-                onChange={(event) =>
-                  setFormState((prev) => ({
-                    ...prev,
-                    status: event.target.value === "retired" ? "retired" : "active",
-                  }))
-                }
-                disabled={!canManageUsers || (editingUser ? ownerIds.includes(editingUser.id) : false) || rolesOnlyEdit}
-              >
-                <option value="active">Ativo</option>
-                <option value="retired">Aposentado</option>
-              </select>
+              <Label>Status</Label>
+              <div className="flex items-center justify-between gap-4 rounded-2xl border border-border/60 bg-card/60 px-4 py-3">
+                <span className="text-sm text-muted-foreground">
+                  {formState.status === "active" ? "Ativo" : "Aposentado"}
+                </span>
+                <Switch
+                  checked={formState.status === "active"}
+                  onCheckedChange={(checked) =>
+                    setFormState((prev) => ({ ...prev, status: checked ? "active" : "retired" }))
+                  }
+                  disabled={!canManageUsers || isOwnerRecord || rolesOnlyEdit}
+                />
+              </div>
             </div>
             <div className="flex justify-end gap-3">
+              {editingUser ? (
+                <Button
+                  variant="destructive"
+                  onClick={() => setDeleteTarget(editingUser)}
+                  disabled={!canManageUsers || isPrimaryOwnerRecord || editingUser.id === currentUser?.id}
+                >
+                  Excluir
+                </Button>
+              ) : null}
               <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
                 Cancelar
               </Button>
@@ -900,10 +1032,38 @@ const DashboardUsers = () => {
           </div>
         </DialogContent>
       </Dialog>
+      <Dialog
+        open={Boolean(deleteTarget)}
+        onOpenChange={(open) => {
+          if (!open) {
+            setDeleteTarget(null);
+          }
+        }}
+      >
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Excluir usuário?</DialogTitle>
+            <DialogDescription>
+              {deleteTarget ? `Excluir "${deleteTarget.name}"? Esta ação não pode ser desfeita.` : ""}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex justify-end gap-3">
+            <Button variant="ghost" onClick={() => setDeleteTarget(null)}>
+              Cancelar
+            </Button>
+            <Button variant="destructive" onClick={handleDeleteUser}>
+              Excluir
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </>
   );
 };
 
 export default DashboardUsers;
+
+
+
 
 

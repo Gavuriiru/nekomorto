@@ -83,6 +83,8 @@ type PostRecord = {
   tags?: string[];
   views: number;
   commentsCount: number;
+  deletedAt?: string | null;
+  deletedBy?: string | null;
 };
 
 type UserRecord = {
@@ -94,6 +96,7 @@ const DashboardPosts = () => {
   usePageMeta({ title: "Posts", noIndex: true });
   const navigate = useNavigate();
   const apiBase = getApiBase();
+  const restoreWindowMs = 3 * 24 * 60 * 60 * 1000;
   const [posts, setPosts] = useState<PostRecord[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [postOrder, setPostOrder] = useState<string[]>([]);
@@ -460,6 +463,36 @@ const DashboardPosts = () => {
       return ordered;
     });
   }, [projectTags, formState.tags]);
+  const isRestorable = useCallback((post: PostRecord) => {
+    if (!post.deletedAt) {
+      return false;
+    }
+    const ts = new Date(post.deletedAt).getTime();
+    if (!Number.isFinite(ts)) {
+      return false;
+    }
+    return Date.now() - ts <= restoreWindowMs;
+  }, [restoreWindowMs]);
+  const getRestoreRemainingLabel = (post: PostRecord) => {
+    if (!post.deletedAt) {
+      return "";
+    }
+    const ts = new Date(post.deletedAt).getTime();
+    if (!Number.isFinite(ts)) {
+      return "";
+    }
+    const remainingMs = restoreWindowMs - (Date.now() - ts);
+    const remainingDays = Math.max(0, Math.ceil(remainingMs / (24 * 60 * 60 * 1000)));
+    if (remainingDays <= 1) {
+      return "1 dia";
+    }
+    return `${remainingDays} dias`;
+  };
+  const activePosts = useMemo(() => posts.filter((post) => !post.deletedAt), [posts]);
+  const trashedPosts = useMemo(
+    () => posts.filter((post) => post.deletedAt && isRestorable(post)),
+    [isRestorable, posts],
+  );
   const availableTags = useMemo(() => {
     const collected = new Set<string>();
     projects.forEach((project) => {
@@ -469,7 +502,7 @@ const DashboardPosts = () => {
         }
       });
     });
-    posts.forEach((post) => {
+    activePosts.forEach((post) => {
       (post.tags || []).forEach((tag) => {
         if (tag) {
           collected.add(tag);
@@ -477,7 +510,7 @@ const DashboardPosts = () => {
       });
     });
     return Array.from(collected).sort((a, b) => a.localeCompare(b, "pt-BR"));
-  }, [posts, projects]);
+  }, [activePosts, projects]);
   const mergedTags = useMemo(() => {
     if (tagOrder.length) {
       return tagOrder;
@@ -490,11 +523,11 @@ const DashboardPosts = () => {
     const query = searchQuery.trim().toLowerCase();
     if (!query) {
       if (sortMode === "projects" && projectFilterId !== "all") {
-        return posts.filter((post) => post.projectId === projectFilterId);
+        return activePosts.filter((post) => post.projectId === projectFilterId);
       }
-      return posts;
+      return activePosts;
     }
-    return posts.filter((post) => {
+    return activePosts.filter((post) => {
       if (sortMode === "projects" && projectFilterId !== "all" && post.projectId !== projectFilterId) {
         return false;
       }
@@ -516,7 +549,7 @@ const DashboardPosts = () => {
         .toLowerCase();
       return haystack.includes(query);
     });
-  }, [posts, projectFilterId, projectMap, searchQuery, sortMode]);
+  }, [activePosts, projectFilterId, projectMap, searchQuery, sortMode]);
 
   const sortedPosts = useMemo(() => {
     const orderMap = new Map(postOrder.map((id, index) => [id, index]));
@@ -1082,7 +1115,25 @@ const DashboardPosts = () => {
     if (editingPost && deleteTarget.id === editingPost.id) {
       closeEditor();
     }
-    toast({ title: "Postagem removida" });
+    toast({ title: "Postagem movida para a lixeira", description: "Você pode restaurar por 3 dias." });
+  };
+  const handleRestorePost = async (post: PostRecord) => {
+    const response = await apiFetch(apiBase, `/api/posts/${post.id}/restore`, {
+      method: "POST",
+      auth: true,
+    });
+    if (!response.ok) {
+      if (response.status === 410) {
+        toast({ title: "Janela de restauração expirou" });
+        await loadPosts();
+        return;
+      }
+      toast({ title: "Não foi possível restaurar a postagem" });
+      return;
+    }
+    const data = await response.json();
+    setPosts((prev) => prev.map((item) => (item.id === post.id ? data.post : item)));
+    toast({ title: "Postagem restaurada" });
   };
 
   const previewContentRaw = renderPostContent(
@@ -1863,6 +1914,48 @@ const DashboardPosts = () => {
                   })}
                 </div>
               )}
+              {trashedPosts.length > 0 ? (
+                <Card className="mt-8 border-border/60 bg-card/60">
+                  <CardContent className="space-y-4 p-6">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h3 className="text-lg font-semibold">Lixeira</h3>
+                        <p className="text-xs text-muted-foreground">
+                          Restaure em até 3 dias após a exclusão.
+                        </p>
+                      </div>
+                      <Badge variant="secondary" className="text-xs uppercase">
+                        {trashedPosts.length} itens
+                      </Badge>
+                    </div>
+                    <div className="grid gap-3">
+                      {trashedPosts.map((post) => (
+                        <div
+                          key={`trash-${post.id}`}
+                          className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3"
+                        >
+                          <div className="min-w-0">
+                            <p className="text-sm font-medium text-foreground">{post.title}</p>
+                            <p className="text-xs text-muted-foreground">/{post.slug}</p>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <span className="text-xs text-muted-foreground">
+                              Restam {getRestoreRemainingLabel(post)}
+                            </span>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleRestorePost(post)}
+                            >
+                              Restaurar
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              ) : null}
             </section>
           </main>
       </DashboardShell>
@@ -1876,6 +1969,7 @@ const DashboardPosts = () => {
         listFolders={[""]}
         showAltInput={imageTarget === "editor"}
         allowDeselect={imageTarget === "cover"}
+        selectOnUpload
         currentSelectionUrl={imageTarget === "cover" ? formState.coverImageUrl : undefined}
         onSelect={handleLibrarySelect}
         sections={[
@@ -2098,7 +2192,7 @@ const DashboardPosts = () => {
           <DialogHeader>
             <DialogTitle>Excluir postagem?</DialogTitle>
             <DialogDescription>
-              {deleteTarget ? `Excluir "${deleteTarget.title}"? Esta ação não pode ser desfeita.` : ""}
+              {deleteTarget ? `Excluir "${deleteTarget.title}"? Você pode restaurar por até 3 dias.` : ""}
             </DialogDescription>
           </DialogHeader>
           <div className="flex justify-end gap-3">

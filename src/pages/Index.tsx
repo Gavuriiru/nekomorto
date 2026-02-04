@@ -3,7 +3,7 @@ import ReleasesSection from "@/components/ReleasesSection";
 import { usePageMeta } from "@/hooks/use-page-meta";
 
 const Index = () => {
-  usePageMeta({ title: "InÃ­cio" });
+  usePageMeta({ title: "Início" });
 
   return (
     <div className="min-h-screen bg-background">
