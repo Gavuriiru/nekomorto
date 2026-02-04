@@ -27,6 +27,7 @@ import { formatDate } from "@/lib/date";
 import { apiFetch } from "@/lib/api-client";
 import { useSiteSettings } from "@/hooks/use-site-settings";
 import { usePageMeta } from "@/hooks/use-page-meta";
+import { normalizeAssetUrl } from "@/lib/asset-url";
 import NotFound from "./NotFound";
 import type { Project } from "@/data/projects";
 
@@ -42,10 +43,15 @@ const ProjectPage = () => {
   const { settings } = useSiteSettings();
   const trackedViewsRef = useRef<Set<string>>(new Set());
 
+  const shareImage = useMemo(
+    () => normalizeAssetUrl(project?.cover) || normalizeAssetUrl(settings.site.defaultShareImage),
+    [project?.cover, settings.site.defaultShareImage],
+  );
+
   usePageMeta({
     title: project?.title || "Projeto",
     description: project?.synopsis || "",
-    image: project?.cover || settings.site.defaultShareImage,
+    image: shareImage,
     type: "article",
   });
 

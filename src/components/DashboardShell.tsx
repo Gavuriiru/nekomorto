@@ -144,9 +144,9 @@ const DashboardShell = ({
           </SidebarContent>
         </Sidebar>
 
-        <SidebarInset className="bg-gradient-to-b from-background via-[hsl(var(--primary)/0.12)] to-background text-foreground">
+        <SidebarInset className="flex min-h-screen flex-col bg-gradient-to-b from-background via-[hsl(var(--primary)/0.12)] to-background text-foreground">
           <Header variant="fixed" leading={<SidebarTrigger className="text-white/80 hover:text-white" />} />
-          {children}
+          <div className="flex-1">{children}</div>
           <Footer />
         </SidebarInset>
       </SidebarProvider>

@@ -1,5 +1,6 @@
 import { useEffect, useMemo } from "react";
 import { useSiteSettings } from "@/hooks/use-site-settings";
+import { normalizeAssetUrl } from "@/lib/asset-url";
 
 type PageMetaOptions = {
   title?: string;
@@ -52,7 +53,10 @@ export const usePageMeta = ({
     return `${title}${effectiveSeparator}${siteName}`;
   }, [effectiveSeparator, siteName, title]);
   const pageDescription = description ?? settings.site.description ?? "";
-  const pageImage = image ?? settings.site.defaultShareImage ?? "";
+  const pageImage = useMemo(() => {
+    const candidate = image ?? settings.site.defaultShareImage ?? "";
+    return normalizeAssetUrl(candidate);
+  }, [image, settings.site.defaultShareImage]);
 
   useEffect(() => {
     document.documentElement.dataset.pageMeta = "true";

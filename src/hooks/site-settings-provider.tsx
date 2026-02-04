@@ -4,6 +4,7 @@ import type { SiteSettings } from "@/types/site-settings";
 import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
 import { defaultSettings, mergeSettings, SiteSettingsContext } from "@/hooks/site-settings-context";
+import { normalizeAssetUrl } from "@/lib/asset-url";
 
 const ensureMeta = (selector: string, attrs: Record<string, string>) => {
   let el = document.querySelector(selector) as HTMLMetaElement | null;
@@ -23,7 +24,7 @@ const applyDocumentSettings = (settings: SiteSettings) => {
   }
   const siteName = settings.site.name || "NEKOMATA";
   const description = settings.site.description || "";
-  const shareImage = settings.site.defaultShareImage || "";
+  const shareImage = normalizeAssetUrl(settings.site.defaultShareImage || "");
   const hasPageMeta = document.documentElement.dataset.pageMeta === "true";
 
   const ogSiteName = ensureMeta('meta[property="og:site_name"]', { property: "og:site_name" });

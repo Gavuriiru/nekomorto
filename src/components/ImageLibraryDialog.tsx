@@ -312,7 +312,20 @@ const ImageLibraryDialog = ({
                       <Input value={libraryAlt} onChange={(event) => setLibraryAlt(event.target.value)} />
                     </div>
                   ) : null}
-                  <div className="flex justify-end">
+                  <div className="flex flex-wrap justify-end gap-2">
+                    {allowDeselect && currentSelectionUrl ? (
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          onSelect("", "");
+                          onOpenChange(false);
+                        }}
+                      >
+                        Remover imagem
+                      </Button>
+                    ) : null}
                     <Button type="button" size="sm" onClick={handleAddUrl} disabled={!libraryUrl.trim()}>
                       Usar imagem
                     </Button>

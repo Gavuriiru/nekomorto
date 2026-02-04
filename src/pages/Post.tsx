@@ -14,6 +14,7 @@ import { normalizeAssetUrl } from "@/lib/asset-url";
 import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
 import { usePageMeta } from "@/hooks/use-page-meta";
+import { useSiteSettings } from "@/hooks/use-site-settings";
 import { formatDateTime } from "@/lib/date";
 
 const Post = () => {
@@ -39,6 +40,7 @@ const Post = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
   const trackedViewsRef = useRef<Set<string>>(new Set());
+  const { settings } = useSiteSettings();
 
   useEffect(() => {
     let isActive = true;
@@ -89,10 +91,16 @@ const Post = () => {
     trackedViewsRef.current.add(post.slug);
     void apiFetch(apiBase, `/api/public/posts/${post.slug}/view`, { method: "POST" });
   }, [apiBase, post?.slug]);
+  const shareImage = useMemo(
+    () =>
+      normalizeAssetUrl(post?.coverImageUrl) || normalizeAssetUrl(settings.site.defaultShareImage),
+    [post?.coverImageUrl, settings.site.defaultShareImage],
+  );
+
   usePageMeta({
     title: post?.seoTitle || post?.title || "Postagem",
     description: post?.seoDescription || post?.excerpt || "",
-    image: normalizeAssetUrl(post?.coverImageUrl),
+    image: shareImage,
     type: "article",
   });
 
