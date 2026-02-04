@@ -557,7 +557,7 @@ const Dashboard = () => {
                 )}
               </div>
 
-              <div className="rounded-3xl border border-white/10 bg-white/5 p-6">
+              <div className="rounded-3xl border border-white/10 bg-white/5 p-6 overflow-hidden">
                 <h2 className="text-lg font-semibold">Projetos cadastrados</h2>
                 <p className="text-sm text-muted-foreground">Acesso rápido ao catálogo.</p>
                 <div className="mt-5 space-y-3">
@@ -574,7 +574,7 @@ const Dashboard = () => {
                   {projects.length > 3 && (
                     <Link
                       to="/projetos"
-                      className="rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-center text-sm text-muted-foreground transition hover:border-primary/40 hover:bg-primary/5 hover:text-foreground"
+                      className="block w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-center text-sm text-muted-foreground transition hover:border-primary/40 hover:bg-primary/5 hover:text-foreground"
                     >
                       Ver todos os projetos
                     </Link>

@@ -1,6 +1,4 @@
 ﻿import { useEffect, useState } from "react";
-import Header from "@/components/Header";
-import Footer from "@/components/Footer";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
@@ -143,7 +141,6 @@ const Donations = () => {
 
   return (
     <div className="min-h-screen bg-background text-foreground">
-      <Header />
 
       <main>
         <section className="relative overflow-hidden border-b border-border/60 reveal" data-reveal>
@@ -272,14 +269,11 @@ const Donations = () => {
           </Card>
         </section>
       </main>
-
-      <Footer />
     </div>
   );
 };
 
 export default Donations;
-
 
 
 

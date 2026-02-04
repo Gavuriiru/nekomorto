@@ -14,8 +14,6 @@ import {
   Users,
 } from "lucide-react";
 
-import Header from "@/components/Header";
-import Footer from "@/components/Footer";
 import CommentsSection from "@/components/CommentsSection";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -344,7 +342,6 @@ const ProjectPage = () => {
 
   return (
     <div className="min-h-screen bg-background text-foreground">
-      <Header />
 
       <main>
         <section className="relative overflow-hidden border-b border-border/60">
@@ -857,14 +854,11 @@ const ProjectPage = () => {
           </div>
         </section>
       </main>
-
-      <Footer />
     </div>
   );
 };
 
 export default ProjectPage;
-
 
 
 

@@ -1,7 +1,5 @@
 ﻿import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
-import Header from "@/components/Header";
-import Footer from "@/components/Footer";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -160,7 +158,6 @@ const Projects = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-background via-[hsl(var(--primary)/0.12)] to-background text-foreground">
-      <Header />
       <main className="pt-28">
         <section className="mx-auto w-full max-w-6xl px-6 pb-20 md:px-10 reveal" data-reveal>
           <div className="grid gap-4 rounded-2xl bg-card/60 p-6 shadow-lg backdrop-blur md:grid-cols-[repeat(4,minmax(0,1fr))]">
@@ -434,7 +431,6 @@ const Projects = () => {
           )}
         </section>
       </main>
-      <Footer />
     </div>
   );
 };

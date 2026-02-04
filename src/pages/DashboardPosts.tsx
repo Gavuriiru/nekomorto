@@ -995,21 +995,11 @@ const DashboardPosts = () => {
     }
   };
 
-  const handleDelete = async () => {
+  const handleDelete = () => {
     if (!editingPost) {
       return;
     }
-    const response = await apiFetch(apiBase, `/api/posts/${editingPost.id}`, {
-      method: "DELETE",
-      auth: true,
-    });
-    if (!response.ok) {
-      toast({ title: "Não foi possível excluir a postagem" });
-      return;
-    }
-    await loadPosts();
-    closeEditor();
-    toast({ title: "Postagem removida" });
+    setDeleteTarget(editingPost);
   };
 
   const handleDeletePost = async (post: PostRecord) => {
@@ -1089,6 +1079,9 @@ const DashboardPosts = () => {
     }
     await loadPosts();
     setDeleteTarget(null);
+    if (editingPost && deleteTarget.id === editingPost.id) {
+      closeEditor();
+    }
     toast({ title: "Postagem removida" });
   };
 

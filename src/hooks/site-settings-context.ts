@@ -12,7 +12,7 @@ export const defaultSettings: SiteSettings = {
     titleSeparator: " | ",
   },
   navbar: {
-    recruitmentUrl: "https://discord.com/invite/BAHKhdX2ju",
+    recruitmentUrl: "/recrutamento",
   },
   community: {
     discordUrl: "https://discord.com/invite/BAHKhdX2ju",
@@ -56,7 +56,7 @@ export const defaultSettings: SiteSettings = {
       {
         title: "Ajude nossa equipe",
         links: [
-          { label: "Recrutamento", href: "https://discord.com/invite/BAHKhdX2ju" },
+          { label: "Recrutamento", href: "/recrutamento" },
           { label: "Doações", href: "/doacoes" },
         ],
       },

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+﻿import { useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
@@ -50,7 +50,8 @@ const Header = ({ variant = "fixed", leading, className }: HeaderProps) => {
   const siteNameRaw = settings.site.name || "Nekomata";
   const siteName = siteNameRaw.toUpperCase();
   const logoUrl = settings.site.logoUrl?.trim();
-  const recruitmentUrl = settings.navbar.recruitmentUrl || settings.community.discordUrl || "#";
+  const recruitmentUrl = settings.navbar.recruitmentUrl || settings.community.discordUrl || "/recrutamento";
+  const isRecruitmentInternal = recruitmentUrl.startsWith("/") && !recruitmentUrl.startsWith("//");
 
   const projectItems = projects.map((project) => ({
     label: project.title,
@@ -198,7 +199,7 @@ const Header = ({ variant = "fixed", leading, className }: HeaderProps) => {
         "left-0 right-0 px-6 py-4 text-white transition-all duration-300 md:px-12 after:pointer-events-none after:absolute after:inset-0 after:bg-gradient-to-b after:from-black/25 after:via-black/10 after:to-transparent",
         variant === "fixed" ? "fixed top-0" : "relative",
         isScrolled && variant === "fixed" ? "bg-background/70 backdrop-blur-xl" : "bg-transparent",
-        leading ? "z-0" : "z-50",
+        leading ? "z-10" : "z-50",
         leading ? "md:pl-[var(--sidebar-offset)]" : "",
         className,
       )}
@@ -246,14 +247,27 @@ const Header = ({ variant = "fixed", leading, className }: HeaderProps) => {
             >
               Equipe
             </Link>
-            <a
-              href={recruitmentUrl}
-              className="text-white/80 hover:text-white transition-colors"
-              target="_blank"
-              rel="noreferrer"
-            >
-              Recrutamento
-            </a>
+            {isRecruitmentInternal ? (
+              <Link
+                to={recruitmentUrl}
+                className={`transition-colors ${
+                  location.pathname.startsWith("/recrutamento")
+                    ? "text-white font-semibold"
+                    : "text-white/80 hover:text-white"
+                }`}
+              >
+                Recrutamento
+              </Link>
+            ) : (
+              <a
+                href={recruitmentUrl}
+                className="text-white/80 hover:text-white transition-colors"
+                target="_blank"
+                rel="noreferrer"
+              >
+                Recrutamento
+              </a>
+            )}
             <Link
               to="/sobre"
               className={`transition-colors ${
@@ -401,9 +415,13 @@ const Header = ({ variant = "fixed", leading, className }: HeaderProps) => {
                 <Link to="/equipe">Equipe</Link>
               </DropdownMenuItem>
               <DropdownMenuItem asChild>
-                <a href={recruitmentUrl} target="_blank" rel="noreferrer">
-                  Recrutamento
-                </a>
+                {isRecruitmentInternal ? (
+                  <Link to={recruitmentUrl}>Recrutamento</Link>
+                ) : (
+                  <a href={recruitmentUrl} target="_blank" rel="noreferrer">
+                    Recrutamento
+                  </a>
+                )}
               </DropdownMenuItem>
               <DropdownMenuItem asChild>
                 <Link to="/sobre">Sobre</Link>
@@ -453,6 +471,8 @@ const Header = ({ variant = "fixed", leading, className }: HeaderProps) => {
 };
 
 export default Header;
+
+
 
 
 

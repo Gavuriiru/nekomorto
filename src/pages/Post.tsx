@@ -2,8 +2,6 @@
 import { useParams } from "react-router-dom";
 import { CalendarDays, Clock, User } from "lucide-react";
 
-import Header from "@/components/Header";
-import Footer from "@/components/Footer";
 import DiscordInviteCard from "@/components/DiscordInviteCard";
 import LatestEpisodeCard from "@/components/LatestEpisodeCard";
 import WorkStatusCard from "@/components/WorkStatusCard";
@@ -122,7 +120,6 @@ const Post = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      <Header />
 
       <main className="px-6 pb-20 pt-14 md:px-12">
         <div className="mx-auto flex max-w-6xl flex-col gap-10">
@@ -198,8 +195,6 @@ const Post = () => {
           )}
         </div>
       </main>
-
-      <Footer />
     </div>
   );
 };

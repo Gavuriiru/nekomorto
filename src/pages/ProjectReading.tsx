@@ -2,8 +2,6 @@
 import { Link, useParams, useSearchParams } from "react-router-dom";
 import { ChevronLeft, BookOpen } from "lucide-react";
 
-import Header from "@/components/Header";
-import Footer from "@/components/Footer";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -185,7 +183,6 @@ const ProjectReading = () => {
 
   return (
     <div className="flex min-h-screen flex-col">
-      <Header />
       <main className="flex-1 bg-background">
         <section className="mx-auto w-full max-w-4xl px-6 pb-16 pt-10 md:px-10">
           <div className="space-y-6">
@@ -265,7 +262,6 @@ const ProjectReading = () => {
           </div>
         </section>
       </main>
-      <Footer />
     </div>
   );
 };

@@ -1,6 +1,4 @@
 ﻿import { useEffect, useState } from "react";
-import Header from "@/components/Header";
-import Footer from "@/components/Footer";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -160,7 +158,6 @@ const About = () => {
 
   return (
     <div className="min-h-screen bg-background text-foreground">
-      <Header />
 
       <main>
         <section className="relative overflow-hidden border-b border-border/60 reveal" data-reveal>
@@ -261,8 +258,6 @@ const About = () => {
           </div>
         </section>
       </main>
-
-      <Footer />
     </div>
   );
 };

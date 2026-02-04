@@ -1,7 +1,5 @@
-import { useEffect, useMemo } from "react";
+﻿import { useEffect, useMemo } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import Header from "@/components/Header";
-import Footer from "@/components/Footer";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { getApiBase } from "@/lib/api-base";
@@ -42,17 +40,17 @@ const Login = () => {
   const errorMessage = (() => {
     switch (error) {
       case "unauthorized":
-        return "Seu usuário ainda não tem acesso liberado.";
+        return "Seu usuÃ¡rio ainda nÃ£o tem acesso liberado.";
       case "state_mismatch":
-        return "Falha de segurança na autenticação. Tente novamente.";
+        return "Falha de seguranÃ§a na autenticaÃ§Ã£o. Tente novamente.";
       case "token_exchange_failed":
-        return "Não foi possível concluir a autenticação.";
+        return "NÃ£o foi possÃ­vel concluir a autenticaÃ§Ã£o.";
       case "user_fetch_failed":
-        return "Não foi possível buscar seus dados.";
+        return "NÃ£o foi possÃ­vel buscar seus dados.";
       case "missing_code":
-        return "Autenticação cancelada ou incompleta.";
+        return "AutenticaÃ§Ã£o cancelada ou incompleta.";
       case "server_error":
-        return "Erro interno no servidor de autenticação.";
+        return "Erro interno no servidor de autenticaÃ§Ã£o.";
       default:
         return null;
     }
@@ -60,7 +58,6 @@ const Login = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-background via-[hsl(var(--primary)/0.12)] to-background text-foreground">
-      <Header />
       <main className="pt-28">
         <section className="mx-auto w-full max-w-3xl px-6 pb-20 md:px-10">
           <div className="relative overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-white/10 via-white/5 to-transparent p-1 shadow-[0_40px_120px_-70px_rgba(0,0,0,0.9)]">
@@ -80,10 +77,10 @@ const Login = () => {
                 </div>
                 <div className="space-y-2">
                   <h1 className="text-3xl font-semibold lg:text-4xl">
-                    Autorização Necessária
+                    AutorizaÃ§Ã£o NecessÃ¡ria
                   </h1>
                   <p className="text-sm text-muted-foreground">
-                    Faça o seu login para acessar a plataforma.
+                    FaÃ§a o seu login para acessar a plataforma.
                   </p>
                 </div>
 
@@ -114,9 +111,10 @@ const Login = () => {
           </div>
         </section>
       </main>
-      <Footer />
     </div>
   );
 };
 
 export default Login;
+
+

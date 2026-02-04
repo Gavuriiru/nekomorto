@@ -1,6 +1,4 @@
-import { Link, useLocation } from "react-router-dom";
-import Header from "@/components/Header";
-import Footer from "@/components/Footer";
+﻿import { Link, useLocation } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -10,11 +8,10 @@ const NotFound = () => {
   const location = useLocation();
   const requestedPath = `${location.pathname}${location.search}${location.hash}`;
 
-  usePageMeta({ title: "Página não encontrada", noIndex: true });
+  usePageMeta({ title: "PÃ¡gina nÃ£o encontrada", noIndex: true });
 
   return (
     <div className="min-h-screen bg-background text-foreground">
-      <Header />
 
       <main>
         <section className="relative min-h-screen overflow-hidden border-b border-border/60">
@@ -28,21 +25,21 @@ const NotFound = () => {
                 Erro 404
               </Badge>
               <h1 className="text-3xl font-semibold text-foreground md:text-5xl">
-                Página não encontrada
+                PÃ¡gina nÃ£o encontrada
               </h1>
               <p className="text-sm text-muted-foreground md:text-base">
-                Não conseguimos localizar o endereço solicitado. Verifique se o link está correto ou
-                volte para a página inicial.
+                NÃ£o conseguimos localizar o endereÃ§o solicitado. Verifique se o link estÃ¡ correto ou
+                volte para a pÃ¡gina inicial.
               </p>
               <div className="w-fit rounded-full border border-border/60 bg-background/70 px-4 py-2 text-xs text-muted-foreground">
                 {requestedPath || "/"}
               </div>
               <div className="flex flex-wrap gap-3">
                 <Button asChild>
-                  <Link to="/">Voltar para a página inicial</Link>
+                  <Link to="/">Voltar para a pÃ¡gina inicial</Link>
                 </Button>
                 <Button variant="outline" onClick={() => window.history.back()}>
-                  Voltar para a página anterior
+                  Voltar para a pÃ¡gina anterior
                 </Button>
               </div>
             </div>
@@ -50,12 +47,12 @@ const NotFound = () => {
             <Card className="border-border/60 bg-card/80 shadow-lg">
               <CardContent className="space-y-4 p-6 md:p-8">
                 <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-                  Sugestões rápidas
+                  SugestÃµes rÃ¡pidas
                 </p>
                 <div className="space-y-3 text-sm text-muted-foreground">
-                  <p>Confira os projetos e lançamentos mais recentes.</p>
-                  <p>Conheça a equipe e o nosso manifesto.</p>
-                  <p>Acompanhe novidades e atualizações no site.</p>
+                  <p>Confira os projetos e lanÃ§amentos mais recentes.</p>
+                  <p>ConheÃ§a a equipe e o nosso manifesto.</p>
+                  <p>Acompanhe novidades e atualizaÃ§Ãµes no site.</p>
                 </div>
                 <div className="flex flex-wrap gap-3">
                   <Button asChild variant="secondary">
@@ -70,11 +67,10 @@ const NotFound = () => {
           </div>
         </section>
       </main>
-
-      <Footer />
     </div>
   );
 };
 
 export default NotFound;
+
 

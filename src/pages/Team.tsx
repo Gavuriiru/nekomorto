@@ -1,6 +1,4 @@
 ﻿import { useEffect, useMemo, useState } from "react";
-import Header from "@/components/Header";
-import Footer from "@/components/Footer";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -184,7 +182,6 @@ const Team = () => {
 
   return (
     <div className="min-h-screen bg-background text-foreground">
-      <Header />
 
       <main>
         <section className="relative overflow-hidden reveal" data-reveal>
@@ -446,13 +443,12 @@ const Team = () => {
           )}
         </section>
       </main>
-
-      <Footer />
     </div>
   );
 };
 
 export default Team;
+
 
 
 

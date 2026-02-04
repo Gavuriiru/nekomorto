@@ -1,4 +1,4 @@
-﻿import "dotenv/config";
+import "dotenv/config";
 import crypto from "crypto";
 import express from "express";
 import session from "express-session";
@@ -333,12 +333,12 @@ const defaultSiteSettings = {
     logoUrl: "",
     faviconUrl: "",
     description:
-      "Fansub dedicada a trazer histÃ³rias inesquecÃ­veis com o carinho que a comunidade merece.",
+      "Fansub dedicada a trazer histórias inesquecíveis com o carinho que a comunidade merece.",
     defaultShareImage: "/placeholder.svg",
     titleSeparator: " | ",
   },
   navbar: {
-    recruitmentUrl: "https://discord.com/invite/BAHKhdX2ju",
+    recruitmentUrl: "/recrutamento",
   },
   community: {
     discordUrl: "https://discord.com/invite/BAHKhdX2ju",
@@ -370,7 +370,7 @@ const defaultSiteSettings = {
     brandName: "NEKOMATA",
     brandLogoUrl: "",
     brandDescription:
-      "Fansub dedicada a trazer histÃ³rias inesquecÃ­veis com o carinho que a comunidade merece. Traduzimos por paixÃ£o, respeitando autores e apoiando o consumo legal das obras.",
+      "Fansub dedicada a trazer histórias inesquecíveis com o carinho que a comunidade merece. Traduzimos por paixão, respeitando autores e apoiando o consumo legal das obras.",
     columns: [
       {
         title: "Nekomata",
@@ -382,12 +382,12 @@ const defaultSiteSettings = {
       {
         title: "Ajude nossa equipe",
         links: [
-          { label: "Recrutamento", href: "https://discord.com/invite/BAHKhdX2ju" },
-          { label: "DoaÃ§Ãµes", href: "/doacoes" },
+          { label: "Recrutamento", href: "/recrutamento" },
+          { label: "Doações", href: "/doacoes" },
         ],
       },
       {
-        title: "Links Ãºteis",
+        title: "Links úteis",
         links: [
           { label: "Projetos", href: "/projetos" },
           { label: "FAQ", href: "/faq" },
@@ -403,13 +403,13 @@ const defaultSiteSettings = {
       { label: "Discord", href: "https://discord.com/invite/BAHKhdX2ju", icon: "discord" },
     ],
     disclaimer: [
-      "Todo o conteÃºdo divulgado aqui pertence a seus respectivos autores e editoras. As traduÃ§Ãµes sÃ£o realizadas por fÃ£s, sem fins lucrativos, com o objetivo de divulgar as obras no Brasil.",
-      "Caso goste de alguma obra, apoie a versÃ£o oficial. A venda de materiais legendados pela equipe Ã© proibida.",
+      "Todo o conteúdo divulgado aqui pertence a seus respectivos autores e editoras. As traduções são realizadas por fãs, sem fins lucrativos, com o objetivo de divulgar as obras no Brasil.",
+      "Caso goste de alguma obra, apoie a versão oficial. A venda de materiais legendados pela equipe é proibida.",
     ],
-    highlightTitle: "AtribuiÃ§Ã£o â€¢ NÃ£o Comercial",
+    highlightTitle: "Atribuição • Não Comercial",
     highlightDescription:
-      "Este site segue a licenÃ§a Creative Commons BY-NC. VocÃª pode compartilhar com crÃ©ditos, sem fins comerciais.",
-    copyright: "Â© 2014 - 2026 Nekomata Fansub. Feito por fÃ£s para fÃ£s.",
+      "Este site segue a licença Creative Commons BY-NC. Você pode compartilhar com créditos, sem fins comerciais.",
+    copyright: "© 2014 - 2026 Nekomata Fansub. Feito por fãs para fãs.",
   },
 };
 
@@ -712,7 +712,7 @@ const normalizePosts = (posts) => {
   const now = Date.now();
   return posts.map((post, index) => {
     const id = String(post.id || `${Date.now()}-${index}`);
-    const title = String(post.title || "Sem tÃ­tulo");
+    const title = String(post.title || "Sem título");
     const slug = String(post.slug || createSlug(title) || id);
     const publishedAt = post.publishedAt || post.createdAt || new Date().toISOString();
     const scheduledAt = post.scheduledAt || null;
@@ -752,7 +752,7 @@ const normalizeProjects = (projects) =>
   projects.map((project, index) => ({
     id: String(project.id || `project-${Date.now()}-${index}`),
     anilistId: project.anilistId ? Number(project.anilistId) : null,
-    title: String(project.title || "Sem tÃ­tulo"),
+    title: String(project.title || "Sem título"),
     titleOriginal: String(project.titleOriginal || ""),
     titleEnglish: String(project.titleEnglish || ""),
     synopsis: String(project.synopsis || ""),
@@ -894,7 +894,7 @@ const collectEpisodeUpdates = (prevProject, nextProject) => {
     typeLabel.includes("webtoon") ||
     typeLabel.includes("light") ||
     typeLabel.includes("novel");
-  const unitLabel = isChapterBased ? "CapÃ­tulo" : "EpisÃ³dio";
+  const unitLabel = isChapterBased ? "Capítulo" : "Episódio";
   const isLightNovel =
     typeLabel.includes("light") || typeLabel.includes("novel");
   nextEpisodes.forEach((ep) => {
@@ -928,8 +928,8 @@ const collectEpisodeUpdates = (prevProject, nextProject) => {
           return;
         }
         updates.push({
-          kind: "LanÃ§amento",
-          reason: `${unitLabel} ${number} disponÃ­vel`,
+          kind: "Lançamento",
+          reason: `${unitLabel} ${number} disponível`,
           episodeNumber: number,
           unit: unitLabel,
           updatedAt: chapterUpdatedAt,
@@ -939,7 +939,7 @@ const collectEpisodeUpdates = (prevProject, nextProject) => {
       if (nextSignature !== prevSignature) {
         updates.push({
           kind: "Ajuste",
-          reason: `ConteÃºdo ajustado no ${unitLabel.toLowerCase()} ${number}`,
+          reason: `Conteúdo ajustado no ${unitLabel.toLowerCase()} ${number}`,
           episodeNumber: number,
           unit: unitLabel,
           updatedAt: chapterUpdatedAt || new Date().toISOString(),
@@ -949,8 +949,8 @@ const collectEpisodeUpdates = (prevProject, nextProject) => {
     }
     if (!prev || prevSources.length === 0) {
       updates.push({
-        kind: "LanÃ§amento",
-        reason: `${unitLabel} ${number} disponÃ­vel`,
+        kind: "Lançamento",
+        reason: `${unitLabel} ${number} disponível`,
         episodeNumber: number,
         unit: unitLabel,
       });
@@ -2046,9 +2046,9 @@ app.post("/api/projects", requireAuth, (req, res) => {
         projectId: nextProject.id,
         projectTitle: nextProject.title,
         episodeNumber: episode.number,
-        kind: "LanÃ§amento",
-        reason: `CapÃ­tulo ${episode.number} disponÃ­vel`,
-        unit: "CapÃ­tulo",
+        kind: "Lançamento",
+        reason: `Capítulo ${episode.number} disponível`,
+        unit: "Capítulo",
         updatedAt: new Date(Date.now() - fallbackSource.indexOf(episode) * 1000).toISOString(),
         image: nextProject.cover || "",
       }));
@@ -2126,9 +2126,9 @@ app.put("/api/projects/:id", requireAuth, (req, res) => {
         projectId: merged.id,
         projectTitle: merged.title,
         episodeNumber: episode.number,
-        kind: "LanÃ§amento",
-        reason: `CapÃ­tulo ${episode.number} disponÃ­vel`,
-        unit: "CapÃ­tulo",
+        kind: "Lançamento",
+        reason: `Capítulo ${episode.number} disponível`,
+        unit: "Capítulo",
         updatedAt: new Date(Date.now() - fallbackSource.indexOf(episode) * 1000).toISOString(),
         image: merged.cover || "",
       }));
@@ -2404,7 +2404,7 @@ app.get("/api/public/pages", (req, res) => {
 app.get("/api/settings", requireAuth, (req, res) => {
   const userId = req.session?.user?.id;
   if (!canManageSettings(userId)) {
-    return res.status(403).json({ error: "Sem permissÃ£o para gerenciar configuraÃ§Ãµes." });
+    return res.status(403).json({ error: "Sem permissão para gerenciar configurações." });
   }
   return res.json({ settings: loadSiteSettings() });
 });
@@ -2412,11 +2412,11 @@ app.get("/api/settings", requireAuth, (req, res) => {
 app.put("/api/settings", requireAuth, (req, res) => {
   const userId = req.session?.user?.id;
   if (!canManageSettings(userId)) {
-    return res.status(403).json({ error: "Sem permissÃ£o para gerenciar configuraÃ§Ãµes." });
+    return res.status(403).json({ error: "Sem permissão para gerenciar configurações." });
   }
   const settings = req.body?.settings;
   if (!settings || typeof settings !== "object") {
-    return res.status(400).json({ error: "Payload invÃ¡lido." });
+    return res.status(400).json({ error: "Payload inválido." });
   }
   const normalized = normalizeSiteSettings(settings);
   writeSiteSettings(normalized);
@@ -2427,7 +2427,7 @@ app.put("/api/settings", requireAuth, (req, res) => {
 app.get("/api/pages", requireAuth, (req, res) => {
   const userId = req.session?.user?.id;
   if (!canManagePages(userId)) {
-    return res.status(403).json({ error: "Sem permissÃ£o para gerenciar pÃ¡ginas." });
+    return res.status(403).json({ error: "Sem permissão para gerenciar páginas." });
   }
   return res.json({ pages: loadPages() });
 });
@@ -2435,11 +2435,11 @@ app.get("/api/pages", requireAuth, (req, res) => {
 app.put("/api/pages", requireAuth, (req, res) => {
   const userId = req.session?.user?.id;
   if (!canManagePages(userId)) {
-    return res.status(403).json({ error: "Sem permissÃ£o para gerenciar pÃ¡ginas." });
+    return res.status(403).json({ error: "Sem permissão para gerenciar páginas." });
   }
   const pages = req.body?.pages;
   if (!pages || typeof pages !== "object") {
-    return res.status(400).json({ error: "Payload invÃ¡lido." });
+    return res.status(400).json({ error: "Payload inválido." });
   }
   writePages(pages);
   appendAuditLog(req, "pages.update", "pages", {});
@@ -2944,7 +2944,6 @@ app.post("/api/logout", (req, res) => {
 });
 
 app.listen(Number(PORT));
-
 
 
 

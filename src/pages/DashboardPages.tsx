@@ -39,6 +39,14 @@ import {
   Rocket,
   HeartHandshake,
   QrCode,
+  Languages,
+  ScanText,
+  PenTool,
+  Video,
+  Paintbrush,
+  Layers,
+  Timer,
+  ShieldCheck,
 } from "lucide-react";
 import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
@@ -52,6 +60,7 @@ type Donor = { name: string; amount: string; goal: string; date: string };
 type FAQItem = { question: string; answer: string };
 type FAQGroup = { title: string; icon: string; items: FAQItem[] };
 type FAQIntro = { title: string; icon: string; text: string; note: string };
+type RecruitmentRole = { title: string; description: string; icon: string };
 
 type PagesConfig = {
   about: {
@@ -94,6 +103,15 @@ type PagesConfig = {
     retiredTitle: string;
     retiredSubtitle: string;
   };
+  recruitment: {
+    heroBadge: string;
+    heroTitle: string;
+    heroSubtitle: string;
+    roles: RecruitmentRole[];
+    ctaTitle: string;
+    ctaSubtitle: string;
+    ctaButtonLabel: string;
+  };
 };
 
 const iconOptions = [
@@ -111,6 +129,14 @@ const iconOptions = [
   "Info",
   "Rocket",
   "Shield",
+  "Languages",
+  "ScanText",
+  "PenTool",
+  "Video",
+  "Paintbrush",
+  "Layers",
+  "Timer",
+  "ShieldCheck",
 ];
 
 const editorIconMap: Record<string, typeof Heart> = {
@@ -128,6 +154,14 @@ const editorIconMap: Record<string, typeof Heart> = {
   Info,
   Rocket,
   Shield,
+  Languages,
+  ScanText,
+  PenTool,
+  Video,
+  Paintbrush,
+  Layers,
+  Timer,
+  ShieldCheck,
 };
 
 const emptyPages: PagesConfig = {
@@ -170,6 +204,15 @@ const emptyPages: PagesConfig = {
     heroSubtitle: "",
     retiredTitle: "",
     retiredSubtitle: "",
+  },
+  recruitment: {
+    heroBadge: "",
+    heroTitle: "",
+    heroSubtitle: "",
+    roles: [],
+    ctaTitle: "",
+    ctaSubtitle: "",
+    ctaButtonLabel: "",
   },
 };
 
@@ -346,6 +389,62 @@ const seedPages: PagesConfig = {
     retiredTitle: "Membros aposentados",
     retiredSubtitle: "Agradecemos por todas as contribuições.",
   },
+  recruitment: {
+    heroBadge: "Recrutamento",
+    heroTitle: "Venha fazer parte da equipe",
+    heroSubtitle:
+      "Buscamos pessoas comprometidas e curiosas. Se você gosta de traduções, edição ou produção visual, há um lugar para você aqui.",
+    roles: [
+      {
+        title: "Tradutor",
+        description: "Adapta o texto original para português mantendo tom, contexto e naturalidade.",
+        icon: "Languages",
+      },
+      {
+        title: "Revisor",
+        description: "Garante coerência, gramática e fluidez do texto antes da etapa visual.",
+        icon: "ScanText",
+      },
+      {
+        title: "Typesetter",
+        description: "Integra o texto à arte, ajustando tipografia, efeitos e legibilidade.",
+        icon: "PenTool",
+      },
+      {
+        title: "Quality Check",
+        description: "Revisa o resultado final buscando erros visuais, timing e consistência.",
+        icon: "ShieldCheck",
+      },
+      {
+        title: "Encoder",
+        description: "Responsável por exportação e ajustes finais de qualidade do vídeo/arquivo.",
+        icon: "Video",
+      },
+      {
+        title: "Cleaner",
+        description: "Remove textos da arte original preparando o material para o typesetting.",
+        icon: "Paintbrush",
+      },
+      {
+        title: "Redrawer",
+        description: "Reconstrói partes da arte removidas pelo cleaning para preservar o visual.",
+        icon: "Layers",
+      },
+      {
+        title: "Timer",
+        description: "Sincroniza falas com o tempo, garantindo leitura confortável e precisa.",
+        icon: "Timer",
+      },
+      {
+        title: "Karaoke/FX",
+        description: "Cria efeitos especiais e animações para openings/endings quando necessário.",
+        icon: "Sparkles",
+      },
+    ],
+    ctaTitle: "Pronto para participar?",
+    ctaSubtitle: "Entre no nosso servidor e fale com a equipe.",
+    ctaButtonLabel: "Entrar no Discord",
+  },
 };
 
 const defaultPages: PagesConfig = import.meta.env.DEV ? seedPages : emptyPages;
@@ -355,6 +454,7 @@ const pageLabels: Record<string, string> = {
   donations: "Doações",
   faq: "FAQ",
   team: "Equipe",
+  recruitment: "Recrutamento",
 };
 
 const reorder = <T,>(items: T[], from: number, to: number) => {
@@ -406,7 +506,7 @@ const DashboardPages = () => {
   const [pages, setPages] = useState<PagesConfig>(defaultPages);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
-  const [pageOrder, setPageOrder] = useState<string[]>(["about", "donations", "faq", "team"]);
+  const [pageOrder, setPageOrder] = useState<string[]>(["about", "donations", "faq", "team", "recruitment"]);
   const [dragPageIndex, setDragPageIndex] = useState<number | null>(null);
   const [dragState, setDragState] = useState<{ list: string; index: number } | null>(null);
   const [currentUser, setCurrentUser] = useState<{
@@ -516,6 +616,8 @@ const DashboardPages = () => {
     setPages((prev) => ({ ...prev, faq: { ...prev.faq, ...patch } }));
   const updateTeam = (patch: Partial<PagesConfig["team"]>) =>
     setPages((prev) => ({ ...prev, team: { ...prev.team, ...patch } }));
+  const updateRecruitment = (patch: Partial<PagesConfig["recruitment"]>) =>
+    setPages((prev) => ({ ...prev, recruitment: { ...prev.recruitment, ...patch } }));
 
   const handlePageDragStart = (index: number) => setDragPageIndex(index);
   const handlePageDrop = (index: number) => {
@@ -558,6 +660,8 @@ const DashboardPages = () => {
       updateFaq({ introCards: reorder(pages.faq.introCards, from, to) });
     } else if (list === "faq.groups") {
       updateFaq({ groups: reorder(pages.faq.groups, from, to) });
+    } else if (list === "recruitment.roles") {
+      updateRecruitment({ roles: reorder(pages.recruitment.roles, from, to) });
     } else if (list.startsWith("faq.items.")) {
       const groupIndex = Number(list.split(".")[2]);
       if (!Number.isNaN(groupIndex)) {
@@ -608,7 +712,7 @@ const DashboardPages = () => {
             </div>
 
             <Tabs defaultValue={pageOrder[0] || "about"} className="mt-8">
-              <TabsList className="grid w-full grid-cols-4">
+              <TabsList className="grid w-full grid-cols-5">
                 {pageOrder.map((key, index) => (
                   <TabsTrigger
                     key={key}
@@ -1515,6 +1619,142 @@ const DashboardPages = () => {
                       <Textarea
                         value={pages.team.retiredSubtitle}
                         onChange={(e) => updateTeam({ retiredSubtitle: e.target.value })}
+                      />
+                    </div>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+
+              <TabsContent value="recruitment" className="mt-6 space-y-6">
+                <Card className="border-border/60 bg-card/80">
+                  <CardContent className="grid gap-4 p-6 md:grid-cols-2">
+                    <div className="grid gap-2">
+                      <Label>Badge</Label>
+                      <Input
+                        value={pages.recruitment.heroBadge}
+                        onChange={(e) => updateRecruitment({ heroBadge: e.target.value })}
+                      />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label>Título</Label>
+                      <Input
+                        value={pages.recruitment.heroTitle}
+                        onChange={(e) => updateRecruitment({ heroTitle: e.target.value })}
+                      />
+                    </div>
+                    <div className="md:col-span-2 grid gap-2">
+                      <Label>Subtítulo</Label>
+                      <Textarea
+                        value={pages.recruitment.heroSubtitle}
+                        onChange={(e) => updateRecruitment({ heroSubtitle: e.target.value })}
+                      />
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card className="border-border/60 bg-card/80">
+                  <CardContent className="space-y-4 p-6">
+                    <div className="flex items-center justify-between">
+                      <h2 className="text-sm font-semibold uppercase tracking-widest text-muted-foreground">
+                        Funções
+                      </h2>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() =>
+                          updateRecruitment({
+                            roles: [
+                              ...pages.recruitment.roles,
+                              { title: "Nova função", description: "", icon: "Sparkles" },
+                            ],
+                          })
+                        }
+                      >
+                        <Plus className="mr-2 h-4 w-4" />
+                        Adicionar
+                      </Button>
+                    </div>
+                    <div className="grid gap-4">
+                      {pages.recruitment.roles.map((role, index) => (
+                        <div
+                          key={`${role.title}-${index}`}
+                          draggable
+                          onDragStart={() => handleDragStart("recruitment.roles", index)}
+                          onDragOver={(event) => event.preventDefault()}
+                          onDrop={() => handleDrop("recruitment.roles", index)}
+                          className="rounded-xl border border-border/60 bg-background/60 p-4"
+                        >
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                              <GripVertical className="h-4 w-4" />
+                              Arraste para reordenar
+                            </div>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() =>
+                                updateRecruitment({
+                                  roles: pages.recruitment.roles.filter((_, i) => i !== index),
+                                })
+                              }
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                          <div className="mt-3 grid gap-2 md:grid-cols-2">
+                            <Input
+                              value={role.title}
+                              onChange={(e) => {
+                                const next = [...pages.recruitment.roles];
+                                next[index] = { ...role, title: e.target.value };
+                                updateRecruitment({ roles: next });
+                              }}
+                            />
+                            <IconSelect
+                              value={role.icon}
+                              onChange={(nextIcon) => {
+                                const next = [...pages.recruitment.roles];
+                                next[index] = { ...role, icon: nextIcon };
+                                updateRecruitment({ roles: next });
+                              }}
+                            />
+                            <Textarea
+                              className="md:col-span-2"
+                              value={role.description}
+                              onChange={(e) => {
+                                const next = [...pages.recruitment.roles];
+                                next[index] = { ...role, description: e.target.value };
+                                updateRecruitment({ roles: next });
+                              }}
+                            />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card className="border-border/60 bg-card/80">
+                  <CardContent className="grid gap-4 p-6 md:grid-cols-2">
+                    <div className="grid gap-2">
+                      <Label>Título do CTA</Label>
+                      <Input
+                        value={pages.recruitment.ctaTitle}
+                        onChange={(e) => updateRecruitment({ ctaTitle: e.target.value })}
+                      />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label>Texto do CTA</Label>
+                      <Input
+                        value={pages.recruitment.ctaSubtitle}
+                        onChange={(e) => updateRecruitment({ ctaSubtitle: e.target.value })}
+                      />
+                    </div>
+                    <div className="md:col-span-2 grid gap-2">
+                      <Label>Texto do botão</Label>
+                      <Input
+                        value={pages.recruitment.ctaButtonLabel}
+                        onChange={(e) => updateRecruitment({ ctaButtonLabel: e.target.value })}
                       />
                     </div>
                   </CardContent>
