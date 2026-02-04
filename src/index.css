@@ -15,38 +15,38 @@
 
 @layer base {
   :root {
-    --background: 270 50% 5%;
+    --background: 220 12% 7%;
     --foreground: 0 0% 100%;
 
-    --card: 270 40% 8%;
+    --card: 220 10% 11%;
     --card-foreground: 0 0% 100%;
 
-    --popover: 270 40% 8%;
+    --popover: 220 10% 11%;
     --popover-foreground: 0 0% 100%;
 
-    --primary: 280 80% 60%;
+    --primary: 263 66% 64%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 270 30% 15%;
+    --secondary: 220 10% 16%;
     --secondary-foreground: 0 0% 100%;
 
-    --muted: 270 20% 20%;
-    --muted-foreground: 270 10% 70%;
+    --muted: 220 8% 19%;
+    --muted-foreground: 220 8% 72%;
 
-    --accent: 320 80% 60%;
+    --accent: 273 60% 66%;
     --accent-foreground: 0 0% 100%;
 
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 270 30% 20%;
-    --input: 270 30% 15%;
-    --ring: 280 80% 60%;
+    --border: 220 8% 24%;
+    --input: 220 10% 16%;
+    --ring: 263 66% 64%;
 
     --radius: 0.75rem;
 
     /* Custom gradients */
-    --gradient-hero: linear-gradient(180deg, hsl(270 50% 5% / 0.3) 0%, hsl(270 50% 5% / 0.95) 100%);
+    --gradient-hero: linear-gradient(180deg, hsl(220 12% 7% / 0.3) 0%, hsl(220 12% 7% / 0.95) 100%);
     --gradient-rainbow: linear-gradient(135deg, 
       hsl(0 80% 60%) 0%, 
       hsl(30 80% 60%) 14%, 
@@ -57,20 +57,20 @@
       hsl(280 80% 60%) 84%, 
       hsl(320 80% 60%) 100%
     );
-    --gradient-card: linear-gradient(135deg, hsl(270 40% 10%) 0%, hsl(280 40% 8%) 100%);
+    --gradient-card: linear-gradient(135deg, hsl(220 10% 12%) 0%, hsl(220 12% 9%) 100%);
 
-    --sidebar-background: 270 40% 8%;
+    --sidebar-background: 220 10% 11%;
     --sidebar-foreground: 0 0% 100%;
-    --sidebar-primary: 280 80% 60%;
+    --sidebar-primary: 263 66% 64%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 270 30% 15%;
+    --sidebar-accent: 220 10% 16%;
     --sidebar-accent-foreground: 0 0% 100%;
-    --sidebar-border: 270 30% 20%;
-    --sidebar-ring: 280 80% 60%;
+    --sidebar-border: 220 8% 24%;
+    --sidebar-ring: 263 66% 64%;
   }
 
   .dark {
-    --background: 270 50% 5%;
+    --background: 220 12% 7%;
     --foreground: 0 0% 100%;
   }
 }

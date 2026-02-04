@@ -259,7 +259,7 @@ const Projects = () => {
                   <Link
                     key={project.id}
                     to={`/projeto/${project.id}`}
-                    className="group flex min-h-[12.5rem] w-full items-start gap-5 overflow-hidden rounded-2xl bg-gradient-card p-5 shadow-[0_28px_120px_-60px_rgba(0,0,0,0.55)] transition hover:shadow-[0_36px_150px_-70px_rgba(0,0,0,0.6),_0_0_28px_rgba(236,72,153,0.18)] hover:brightness-105 md:h-[15rem]"
+                    className="group flex min-h-[12.5rem] w-full items-start gap-5 overflow-hidden rounded-2xl bg-gradient-card p-5 shadow-[0_28px_120px_-60px_rgba(0,0,0,0.55)] transition hover:shadow-[0_36px_150px_-70px_rgba(0,0,0,0.6),_0_0_28px_hsl(var(--accent)/0.24)] hover:brightness-105 md:h-[15rem]"
                   >
                     <div className="h-[9.75rem] w-28 flex-shrink-0 overflow-hidden rounded-xl bg-secondary shadow-inner md:h-[12.5rem] md:w-36">
                       <img

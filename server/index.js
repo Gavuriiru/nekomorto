@@ -371,6 +371,9 @@ const defaultSiteSettings = {
     defaultShareImage: "/placeholder.svg",
     titleSeparator: " | ",
   },
+  theme: {
+    accent: "#9667e0",
+  },
   navbar: {
     recruitmentUrl: "/recrutamento",
   },

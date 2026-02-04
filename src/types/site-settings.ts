@@ -7,6 +7,9 @@ export type SiteSettings = {
     defaultShareImage: string;
     titleSeparator?: string;
   };
+  theme: {
+    accent: string;
+  };
   navbar: {
     recruitmentUrl: string;
   };

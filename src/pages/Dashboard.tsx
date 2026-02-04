@@ -413,15 +413,15 @@ const Dashboard = () => {
                         <svg viewBox="0 0 100 40" className="h-full w-full">
                           <defs>
                             <linearGradient id="visits-gradient" x1="0" y1="0" x2="0" y2="1">
-                              <stop offset="0%" stopColor="hsl(280 80% 70%)" stopOpacity="0.7" />
-                              <stop offset="100%" stopColor="hsl(320 80% 60%)" stopOpacity="0" />
+                              <stop offset="0%" stopColor="hsl(var(--accent))" stopOpacity="0.7" />
+                              <stop offset="100%" stopColor="hsl(var(--accent))" stopOpacity="0" />
                             </linearGradient>
                           </defs>
                           <path d={areaPath} fill="url(#visits-gradient)" />
                           <polyline
                             points={chartPoints}
                             fill="none"
-                            stroke="hsl(280 80% 70%)"
+                            stroke="hsl(var(--accent))"
                             strokeWidth="2.5"
                             strokeLinejoin="round"
                             strokeLinecap="round"

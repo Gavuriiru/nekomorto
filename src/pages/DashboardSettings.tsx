@@ -45,6 +45,7 @@ import {
 import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
 import { useSiteSettings } from "@/hooks/use-site-settings";
+import { defaultSettings, mergeSettings } from "@/hooks/site-settings-context";
 import type { SiteSettings } from "@/types/site-settings";
 import { usePageMeta } from "@/hooks/use-page-meta";
 
@@ -182,7 +183,7 @@ const DashboardSettings = () => {
         if (settingsRes.ok) {
           const data = await settingsRes.json();
           if (isActive && data.settings) {
-            setSettings(data.settings);
+            setSettings(mergeSettings(defaultSettings, data.settings));
           }
         }
         if (translationsRes.ok) {
@@ -378,7 +379,7 @@ const DashboardSettings = () => {
         throw new Error("save_failed");
       }
       const data = await response.json();
-      setSettings(data.settings || nextSettings);
+      setSettings(mergeSettings(defaultSettings, data.settings || nextSettings));
       await refresh();
       toast({ title: "Configurações salvas" });
     } catch {
@@ -551,6 +552,34 @@ const DashboardSettings = () => {
                             }))
                           }
                         />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Cor de destaque (accent)</Label>
+                        <div className="flex items-center gap-3">
+                          <Input
+                            type="color"
+                            value={settings.theme.accent || "#000000"}
+                            onChange={(event) =>
+                              setSettings((prev) => ({
+                                ...prev,
+                                theme: { ...prev.theme, accent: event.target.value },
+                              }))
+                            }
+                          />
+                          <Input
+                            value={settings.theme.accent}
+                            onChange={(event) =>
+                              setSettings((prev) => ({
+                                ...prev,
+                                theme: { ...prev.theme, accent: event.target.value },
+                              }))
+                            }
+                            placeholder="#9667e0"
+                          />
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          Atualiza a cor principal e o accent do site.
+                        </p>
                       </div>
                     </div>
 
