@@ -431,11 +431,9 @@ const mergeSettings = (base, override) => {
 
 const normalizeSiteSettings = (payload) => {
   const merged = mergeSettings(defaultSiteSettings, payload || {});
+  merged.navbar = { ...(merged.navbar || {}), recruitmentUrl: "/recrutamento" };
   const discordUrl = String(merged?.community?.discordUrl || "").trim();
   if (discordUrl) {
-    if (!merged.navbar?.recruitmentUrl) {
-      merged.navbar.recruitmentUrl = discordUrl;
-    }
     if (Array.isArray(merged.footer?.socialLinks)) {
       merged.footer.socialLinks = merged.footer.socialLinks.map((link) => {
         if (String(link.label || "").toLowerCase() === "discord" && !link.href) {
@@ -2944,7 +2942,6 @@ app.post("/api/logout", (req, res) => {
 });
 
 app.listen(Number(PORT));
-
 
 
 

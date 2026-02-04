@@ -366,10 +366,8 @@ const DashboardSettings = () => {
       );
       if (socialDiscord?.href) {
         nextSettings.community.discordUrl = socialDiscord.href;
-        nextSettings.navbar.recruitmentUrl = socialDiscord.href;
-      } else if (nextSettings.community.discordUrl) {
-        nextSettings.navbar.recruitmentUrl = nextSettings.community.discordUrl;
       }
+      nextSettings.navbar.recruitmentUrl = "/recrutamento";
       const response = await apiFetch(apiBase, "/api/settings", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
@@ -625,35 +623,6 @@ const DashboardSettings = () => {
                       </div>
                     </div>
 
-                    <div className="grid gap-4 md:grid-cols-2">
-                      <div className="space-y-2">
-                        <Label>Link do Discord</Label>
-                        <Input
-                          value={settings.community.discordUrl}
-                          onChange={(event) =>
-                            setSettings((prev) => ({
-                              ...prev,
-                              community: { ...prev.community, discordUrl: event.target.value },
-                            }))
-                          }
-                        />
-                        <p className="text-xs text-muted-foreground">
-                          Atualiza recrutamento na navbar e o botão de entrar no servidor.
-                        </p>
-                      </div>
-                      <div className="space-y-2">
-                        <Label>Link de recrutamento (navbar)</Label>
-                        <Input
-                          value={settings.navbar.recruitmentUrl}
-                          onChange={(event) =>
-                            setSettings((prev) => ({
-                              ...prev,
-                              navbar: { ...prev.navbar, recruitmentUrl: event.target.value },
-                            }))
-                          }
-                        />
-                      </div>
-                    </div>
                   </CardContent>
                 </Card>
               </TabsContent>
