@@ -283,7 +283,12 @@ const loadUsers = () => {
   try {
     const raw = fs.readFileSync(filePath, "utf-8");
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [];
+    const items = Array.isArray(parsed) ? parsed : [];
+    const normalized = normalizeUsers(items);
+    if (JSON.stringify(items) !== JSON.stringify(normalized)) {
+      writeUsers(normalized);
+    }
+    return normalized;
   } catch {
     return [];
   }
@@ -291,7 +296,7 @@ const loadUsers = () => {
 
 const writeUsers = (users) => {
   const filePath = path.join(__dirname, "data", "users.json");
-  fs.writeFileSync(filePath, JSON.stringify(users, null, 2));
+  fs.writeFileSync(filePath, JSON.stringify(normalizeUploadsDeep(users), null, 2));
 };
 
 const loadLinkTypes = () => {
@@ -320,7 +325,11 @@ const loadPosts = () => {
     if (pruned.length !== items.length) {
       writePosts(pruned);
     }
-    return pruned;
+    const normalized = normalizePosts(pruned);
+    if (JSON.stringify(pruned) !== JSON.stringify(normalized)) {
+      writePosts(normalized);
+    }
+    return normalized;
   } catch {
     return [];
   }
@@ -328,7 +337,7 @@ const loadPosts = () => {
 
 const writePosts = (posts) => {
   const filePath = path.join(__dirname, "data", "posts.json");
-  fs.writeFileSync(filePath, JSON.stringify(posts, null, 2));
+  fs.writeFileSync(filePath, JSON.stringify(normalizeUploadsDeep(posts), null, 2));
 };
 
 const projectsFilePath = path.join(__dirname, "data", "projects.json");
@@ -468,6 +477,49 @@ const fixMojibakeDeep = (value) => {
   return fixMojibakeText(value);
 };
 
+const normalizeUploadsPath = (value) => {
+  if (!value || typeof value !== "string") {
+    return value;
+  }
+  if (value.startsWith("/uploads/")) {
+    return value;
+  }
+  try {
+    const parsed = new URL(value, PRIMARY_APP_ORIGIN);
+    if (parsed.pathname && parsed.pathname.startsWith("/uploads/")) {
+      return `${parsed.pathname}${parsed.search}${parsed.hash}`;
+    }
+  } catch {
+    // ignore
+  }
+  return value;
+};
+
+const normalizeUploadsInText = (value) => {
+  if (!value || typeof value !== "string") {
+    return value;
+  }
+  if (!value.includes("/uploads/")) {
+    return value;
+  }
+  const urlPattern = /https?:\/\/[^\s"'()<>]+/gi;
+  return value.replace(urlPattern, (match) => normalizeUploadsPath(match));
+};
+
+const normalizeUploadsDeep = (value) => {
+  if (Array.isArray(value)) {
+    return value.map((item) => normalizeUploadsDeep(item));
+  }
+  if (value && typeof value === "object") {
+    const next = { ...value };
+    Object.keys(next).forEach((key) => {
+      next[key] = normalizeUploadsDeep(next[key]);
+    });
+    return next;
+  }
+  return normalizeUploadsInText(value);
+};
+
 const normalizeSiteSettings = (payload) => {
   const merged = fixMojibakeDeep(mergeSettings(defaultSiteSettings, payload || {}));
   merged.navbar = { ...(merged.navbar || {}), recruitmentUrl: "/recrutamento" };
@@ -482,7 +534,7 @@ const normalizeSiteSettings = (payload) => {
       });
     }
   }
-  return merged;
+  return normalizeUploadsDeep(merged);
 };
 
 const loadProjects = () => {
@@ -497,7 +549,11 @@ const loadProjects = () => {
     if (pruned.length !== items.length) {
       writeProjects(pruned);
     }
-    return pruned;
+    const normalized = normalizeProjects(pruned);
+    if (JSON.stringify(pruned) !== JSON.stringify(normalized)) {
+      writeProjects(normalized);
+    }
+    return normalized;
   } catch {
     return [];
   }
@@ -505,7 +561,7 @@ const loadProjects = () => {
 
 const writeProjects = (projects) => {
   fs.mkdirSync(path.dirname(projectsFilePath), { recursive: true });
-  fs.writeFileSync(projectsFilePath, JSON.stringify(projects, null, 2));
+  fs.writeFileSync(projectsFilePath, JSON.stringify(normalizeUploadsDeep(projects), null, 2));
 };
 
 const loadUpdates = () => {
@@ -574,7 +630,12 @@ const loadPages = () => {
       return seed;
     }
     const raw = fs.readFileSync(pagesFilePath, "utf-8");
-    return JSON.parse(raw || "{}");
+    const parsed = JSON.parse(raw || "{}");
+    const normalized = normalizeUploadsDeep(parsed);
+    if (JSON.stringify(parsed) !== JSON.stringify(normalized)) {
+      fs.writeFileSync(pagesFilePath, JSON.stringify(normalized, null, 2));
+    }
+    return normalized;
   } catch {
     return {};
   }
@@ -582,7 +643,7 @@ const loadPages = () => {
 
 const writePages = (pages) => {
   fs.mkdirSync(path.dirname(pagesFilePath), { recursive: true });
-  fs.writeFileSync(pagesFilePath, JSON.stringify(pages, null, 2));
+  fs.writeFileSync(pagesFilePath, JSON.stringify(normalizeUploadsDeep(pages), null, 2));
 };
 
 const loadSiteSettings = () => {
@@ -620,7 +681,7 @@ const loadSiteSettings = () => {
 
 const writeSiteSettings = (settings) => {
   fs.mkdirSync(path.dirname(siteSettingsFilePath), { recursive: true });
-  fs.writeFileSync(siteSettingsFilePath, JSON.stringify(settings, null, 2));
+  fs.writeFileSync(siteSettingsFilePath, JSON.stringify(normalizeUploadsDeep(settings), null, 2));
 };
 
 const normalizeEmail = (value) => String(value || "").trim().toLowerCase();
@@ -794,7 +855,7 @@ const normalizePosts = (posts) => {
         : new Date(publishedAt).getTime() > now
           ? "scheduled"
           : "published";
-    return {
+    const normalized = {
       id,
       title,
       slug,
@@ -819,11 +880,13 @@ const normalizePosts = (posts) => {
       createdAt: post.createdAt || new Date().toISOString(),
       updatedAt: post.updatedAt || post.createdAt || new Date().toISOString(),
     };
+    return normalizeUploadsDeep(normalized);
   });
 };
 
 const normalizeProjects = (projects) =>
-  projects.map((project, index) => ({
+  projects.map((project, index) =>
+    normalizeUploadsDeep({
     id: String(project.id || `project-${Date.now()}-${index}`),
     anilistId: project.anilistId ? Number(project.anilistId) : null,
     title: String(project.title || "Sem título"),
@@ -871,7 +934,8 @@ const normalizeProjects = (projects) =>
     deletedBy: project.deletedBy || null,
     createdAt: project.createdAt || new Date().toISOString(),
     updatedAt: project.updatedAt || project.createdAt || new Date().toISOString(),
-  }));
+  }),
+  );
 
 const getTodayKey = () => new Date().toISOString().slice(0, 10);
 
@@ -1245,7 +1309,8 @@ const requirePrimaryOwner = (req, res, next) => {
 };
 
 const normalizeUsers = (users) => {
-  return users.map((user, index) => ({
+  return users.map((user, index) =>
+    normalizeUploadsDeep({
     id: String(user.id),
     name: user.name || "Sem nome",
     phrase: user.phrase || "",
@@ -1257,7 +1322,8 @@ const normalizeUsers = (users) => {
     permissions: Array.isArray(user.permissions) ? user.permissions : [],
     roles: Array.isArray(user.roles) ? user.roles.filter(Boolean) : [],
     order: typeof user.order === "number" ? user.order : index,
-  }));
+  }),
+  );
 };
 
 const applyOwnerRole = (user) => {
@@ -2896,7 +2962,7 @@ app.post("/api/uploads/image", requireAuth, (req, res) => {
 
   appendAuditLog(req, "uploads.image", "uploads", { fileName, folder: safeFolder || "" });
   return res.json({
-    url: `${PRIMARY_APP_ORIGIN}/uploads/${safeFolder ? `${safeFolder}/` : ""}${fileName}`,
+    url: `/uploads/${safeFolder ? `${safeFolder}/` : ""}${fileName}`,
     fileName,
   });
 });
@@ -2937,7 +3003,7 @@ app.get("/api/uploads/list", requireAuth, (req, res) => {
         const relative = path.join(base, entry.name).split(path.sep).join("/");
         results.push({
           name: entry.name,
-          url: `${PRIMARY_APP_ORIGIN}/uploads/${relative}`,
+          url: `/uploads/${relative}`,
         });
       });
       return results;
@@ -2948,7 +3014,7 @@ app.get("/api/uploads/list", requireAuth, (req, res) => {
           .filter((item) => /\.(png|jpe?g|gif|webp|svg)$/i.test(item))
           .map((item) => ({
             name: item,
-            url: `${PRIMARY_APP_ORIGIN}/uploads/${safeFolder ? `${safeFolder}/` : ""}${item}`,
+            url: `/uploads/${safeFolder ? `${safeFolder}/` : ""}${item}`,
           }));
     return res.json({ files });
   } catch {
@@ -2956,19 +3022,65 @@ app.get("/api/uploads/list", requireAuth, (req, res) => {
   }
 });
 
+const toUploadPath = (value) => {
+  if (!value || typeof value !== "string") {
+    return null;
+  }
+  if (value.startsWith("/uploads/")) {
+    return value.split("?")[0].split("#")[0];
+  }
+  try {
+    const parsed = new URL(value, PRIMARY_APP_ORIGIN);
+    if (parsed.pathname && parsed.pathname.startsWith("/uploads/")) {
+      return parsed.pathname;
+    }
+  } catch {
+    // ignore
+  }
+  return null;
+};
+
+const extractUploadPathsFromText = (value) => {
+  if (!value || typeof value !== "string") {
+    return [];
+  }
+  if (!value.includes("/uploads/")) {
+    return [];
+  }
+  const matches = new Set();
+  const absolutePattern = /https?:\/\/[^\s"'()<>]+/gi;
+  const relativePattern = /\/uploads\/[^\s"'()<>]+/gi;
+  const absoluteMatches = value.match(absolutePattern) || [];
+  absoluteMatches.forEach((match) => {
+    const normalized = toUploadPath(match);
+    if (normalized) {
+      matches.add(normalized);
+    }
+  });
+  const relativeMatches = value.match(relativePattern) || [];
+  relativeMatches.forEach((match) => {
+    const normalized = toUploadPath(match);
+    if (normalized) {
+      matches.add(normalized);
+    }
+  });
+  return Array.from(matches);
+};
+
 const normalizeUploadUrl = (value) => {
   if (!value || typeof value !== "string") return null;
-  if (!value.includes("/uploads/")) return null;
-  return value.split("?")[0];
+  const direct = toUploadPath(value);
+  if (direct) {
+    return direct;
+  }
+  const extracted = extractUploadPathsFromText(value);
+  return extracted[0] || null;
 };
 
 const collectUploadUrls = (value, urls) => {
   if (!value) return;
   if (typeof value === "string") {
-    const normalized = normalizeUploadUrl(value);
-    if (normalized) {
-      urls.add(normalized);
-    }
+    extractUploadPathsFromText(value).forEach((item) => urls.add(item));
     return;
   }
   if (Array.isArray(value)) {
