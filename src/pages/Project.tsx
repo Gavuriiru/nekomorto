@@ -182,7 +182,10 @@ const ProjectPage = () => {
   }, [settings.downloads.sources]);
 
   const renderSourceIcon = (iconKey: string | undefined, color: string) => {
-    if (iconKey && (iconKey.startsWith("http") || iconKey.startsWith("data:"))) {
+    if (
+      iconKey &&
+      (iconKey.startsWith("http") || iconKey.startsWith("data:") || iconKey.startsWith("/uploads/"))
+    ) {
       return <img src={iconKey} alt="" className="h-4 w-4" />;
     }
     const normalized = String(iconKey || "").toLowerCase();

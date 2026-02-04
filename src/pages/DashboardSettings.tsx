@@ -270,7 +270,7 @@ const DashboardSettings = () => {
 
   const isIconUrl = (value?: string | null) => {
     if (!value) return false;
-    return value.startsWith("http") || value.startsWith("data:");
+    return value.startsWith("http") || value.startsWith("data:") || value.startsWith("/uploads/");
   };
 
   const openLibrary = (target: typeof libraryTarget) => {

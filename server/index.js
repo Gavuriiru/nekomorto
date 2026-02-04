@@ -66,6 +66,13 @@ const appendAuditLog = (req, action, resource, meta = {}) => {
     const cutoff = now.getTime() - 30 * 24 * 60 * 60 * 1000;
     const ip = req.headers["x-forwarded-for"]?.split(",")[0]?.trim() || req.ip;
     const sessionUser = req.session?.user || null;
+    const resourceId =
+      meta?.resourceId ||
+      meta?.id ||
+      meta?.slug ||
+      meta?.projectId ||
+      meta?.userId ||
+      null;
     const entry = {
       id: crypto.randomUUID(),
       ts: now.toISOString(),
@@ -74,6 +81,7 @@ const appendAuditLog = (req, action, resource, meta = {}) => {
       ip: String(ip || ""),
       action,
       resource,
+      resourceId,
       meta,
     };
     const existing = loadAuditLog().filter((item) => {
@@ -96,6 +104,7 @@ const {
   DISCORD_CLIENT_SECRET,
   DISCORD_REDIRECT_URI = "http://127.0.0.1:8080/login",
   APP_ORIGIN = "http://127.0.0.1:5173",
+  ADMIN_ORIGINS = "",
   SESSION_SECRET,
   PORT = 8080,
   OWNER_IDS: OWNER_IDS_ENV = "",
@@ -110,9 +119,13 @@ const OWNER_IDS = (OWNER_IDS_ENV || (isProduction ? "" : "380305493391966208"))
 const APP_ORIGINS = APP_ORIGIN.split(",")
   .map((origin) => origin.trim())
   .filter(Boolean);
+const EXTRA_ORIGINS = ADMIN_ORIGINS.split(",")
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+const ALLOWED_ORIGINS = Array.from(new Set([...APP_ORIGINS, ...EXTRA_ORIGINS]));
 const PRIMARY_APP_ORIGIN = APP_ORIGINS[0] || "http://127.0.0.1:5173";
 const MAX_SVG_SIZE_BYTES = 256 * 1024;
-const MAX_UPLOAD_SIZE_BYTES = 5 * 1024 * 1024;
+const MAX_UPLOAD_SIZE_BYTES = 15 * 1024 * 1024;
 const resolveRequestOrigin = (req) => {
   const originHeader = String(req.headers.origin || "");
   if (originHeader) {
@@ -146,7 +159,7 @@ const isAllowedOrigin = (origin) => {
   if (!origin) {
     return !isProduction;
   }
-  if (APP_ORIGINS.includes(origin)) {
+  if (ALLOWED_ORIGINS.includes(origin)) {
     return true;
   }
   if (isProduction) {
@@ -256,7 +269,7 @@ app.use(
     cookie: {
       httpOnly: true,
       sameSite: "lax",
-      secure: PRIMARY_APP_ORIGIN.startsWith("https://"),
+      secure: "auto",
       maxAge: 1000 * 60 * 60 * 24 * 7,
     },
   }),
@@ -342,6 +355,7 @@ const writePosts = (posts) => {
 
 const projectsFilePath = path.join(__dirname, "data", "projects.json");
 const updatesFilePath = path.join(__dirname, "data", "updates.json");
+const uploadsFilePath = path.join(__dirname, "data", "uploads.json");
 const tagTranslationsFilePath = path.join(__dirname, "data", "tag-translations.json");
 const commentsFilePath = path.join(__dirname, "data", "comments.json");
 const pagesFilePath = path.join(__dirname, "data", "pages.json");
@@ -621,6 +635,26 @@ const writeComments = (comments) => {
   fs.writeFileSync(commentsFilePath, JSON.stringify(comments, null, 2));
 };
 
+const loadUploads = () => {
+  try {
+    if (!fs.existsSync(uploadsFilePath)) {
+      fs.mkdirSync(path.dirname(uploadsFilePath), { recursive: true });
+      fs.writeFileSync(uploadsFilePath, JSON.stringify([], null, 2));
+      return [];
+    }
+    const raw = fs.readFileSync(uploadsFilePath, "utf-8");
+    const parsed = JSON.parse(raw || "[]");
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+};
+
+const writeUploads = (uploads) => {
+  fs.mkdirSync(path.dirname(uploadsFilePath), { recursive: true });
+  fs.writeFileSync(uploadsFilePath, JSON.stringify(uploads, null, 2));
+};
+
 const loadPages = () => {
   try {
     if (!fs.existsSync(pagesFilePath)) {
@@ -630,8 +664,16 @@ const loadPages = () => {
       return seed;
     }
     const raw = fs.readFileSync(pagesFilePath, "utf-8");
-    const parsed = JSON.parse(raw || "{}");
-    const normalized = normalizeUploadsDeep(parsed);
+    let parsed = JSON.parse(raw || "{}");
+    if (hasMojibake(raw)) {
+      try {
+        const fixedRaw = Buffer.from(raw, "latin1").toString("utf8");
+        parsed = JSON.parse(fixedRaw || "{}");
+      } catch {
+        // ignore
+      }
+    }
+    const normalized = normalizeUploadsDeep(fixMojibakeDeep(parsed));
     if (JSON.stringify(parsed) !== JSON.stringify(normalized)) {
       fs.writeFileSync(pagesFilePath, JSON.stringify(normalized, null, 2));
     }
@@ -643,7 +685,7 @@ const loadPages = () => {
 
 const writePages = (pages) => {
   fs.mkdirSync(path.dirname(pagesFilePath), { recursive: true });
-  fs.writeFileSync(pagesFilePath, JSON.stringify(normalizeUploadsDeep(pages), null, 2));
+  fs.writeFileSync(pagesFilePath, JSON.stringify(normalizeUploadsDeep(fixMojibakeDeep(pages)), null, 2));
 };
 
 const loadSiteSettings = () => {
@@ -841,6 +883,15 @@ const isWithinRestoreWindow = (deletedAt) => {
 const pruneExpiredDeleted = (items) =>
   (Array.isArray(items) ? items : []).filter((item) => !item?.deletedAt || isWithinRestoreWindow(item.deletedAt));
 
+const buildSearchText = (...parts) =>
+  parts
+    .flat()
+    .filter((part) => typeof part === "string" && part.trim().length > 0)
+    .join(" ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase();
+
 const normalizePosts = (posts) => {
   const now = Date.now();
   return posts.map((post, index) => {
@@ -880,13 +931,19 @@ const normalizePosts = (posts) => {
       createdAt: post.createdAt || new Date().toISOString(),
       updatedAt: post.updatedAt || post.createdAt || new Date().toISOString(),
     };
+    normalized.searchText = buildSearchText(
+      normalized.title,
+      normalized.excerpt,
+      normalized.author,
+      ...(Array.isArray(normalized.tags) ? normalized.tags : []),
+    );
     return normalizeUploadsDeep(normalized);
   });
 };
 
 const normalizeProjects = (projects) =>
-  projects.map((project, index) =>
-    normalizeUploadsDeep({
+  projects.map((project, index) => {
+    const normalized = {
     id: String(project.id || `project-${Date.now()}-${index}`),
     anilistId: project.anilistId ? Number(project.anilistId) : null,
     title: String(project.title || "Sem título"),
@@ -934,8 +991,20 @@ const normalizeProjects = (projects) =>
     deletedBy: project.deletedBy || null,
     createdAt: project.createdAt || new Date().toISOString(),
     updatedAt: project.updatedAt || project.createdAt || new Date().toISOString(),
-  }),
+  };
+  normalized.searchText = buildSearchText(
+    normalized.title,
+    normalized.titleOriginal,
+    normalized.titleEnglish,
+    normalized.synopsis,
+    normalized.description,
+    normalized.type,
+    normalized.status,
+    ...(Array.isArray(normalized.tags) ? normalized.tags : []),
+    ...(Array.isArray(normalized.genres) ? normalized.genres : []),
   );
+  return normalizeUploadsDeep(normalized);
+  });
 
 const getTodayKey = () => new Date().toISOString().slice(0, 10);
 
@@ -1623,6 +1692,11 @@ app.get("/api/posts", requireAuth, (req, res) => {
 });
 
 app.get("/api/public/posts", (req, res) => {
+  const limitRaw = Number(req.query.limit);
+  const pageRaw = Number(req.query.page);
+  const usePagination = Number.isFinite(limitRaw) || Number.isFinite(pageRaw);
+  const limit = usePagination ? Math.min(Math.max(limitRaw || 10, 1), 100) : null;
+  const page = usePagination ? Math.max(pageRaw || 1, 1) : null;
   const now = Date.now();
   const posts = normalizePosts(loadPosts())
     .filter((post) => !post.deletedAt)
@@ -1645,8 +1719,12 @@ app.get("/api/public/posts", (req, res) => {
       projectId: post.projectId || "",
       tags: Array.isArray(post.tags) ? post.tags : [],
     }));
-
-  res.json({ posts });
+  if (!usePagination) {
+    return res.json({ posts });
+  }
+  const start = (page - 1) * limit;
+  const paged = posts.slice(start, start + limit);
+  return res.json({ posts: paged, page, limit, total: posts.length });
 });
 
 app.get("/api/public/posts/:slug", (req, res) => {
@@ -2048,12 +2126,16 @@ app.post("/api/posts", requireAuth, (req, res) => {
     projectId,
     tags,
   } = req.body || {};
-  if (!title || !slug) {
-    return res.status(400).json({ error: "title_and_slug_required" });
+  if (!title) {
+    return res.status(400).json({ error: "title_required" });
   }
 
   let posts = normalizePosts(loadPosts());
-  if (posts.some((post) => post.slug === String(slug))) {
+  const normalizedSlug = createSlug(slug || title);
+  if (!normalizedSlug) {
+    return res.status(400).json({ error: "slug_required" });
+  }
+  if (posts.some((post) => post.slug === normalizedSlug)) {
     return res.status(409).json({ error: "slug_exists" });
   }
 
@@ -2069,7 +2151,7 @@ app.post("/api/posts", requireAuth, (req, res) => {
   const newPost = {
     id: crypto.randomUUID(),
     title: String(title),
-    slug: String(slug),
+    slug: normalizedSlug,
     coverImageUrl: coverImageUrl || null,
     coverAlt: coverAlt || "",
     excerpt: excerpt || "",
@@ -2125,7 +2207,8 @@ app.put("/api/posts/:id", requireAuth, (req, res) => {
     return res.status(404).json({ error: "not_found" });
   }
 
-  if (slug && posts.some((post) => post.slug === String(slug) && post.id !== String(id))) {
+  const normalizedSlug = slug ? createSlug(slug) : "";
+  if (normalizedSlug && posts.some((post) => post.slug === normalizedSlug && post.id !== String(id))) {
     return res.status(409).json({ error: "slug_exists" });
   }
 
@@ -2135,7 +2218,7 @@ app.put("/api/posts/:id", requireAuth, (req, res) => {
   const updated = {
     ...existing,
     title: title ? String(title) : existing.title,
-    slug: slug ? String(slug) : existing.slug,
+    slug: normalizedSlug || existing.slug,
     coverImageUrl: coverImageUrl === "" ? null : coverImageUrl ?? existing.coverImageUrl,
     coverAlt: typeof coverAlt === "string" ? coverAlt : existing.coverAlt,
     excerpt: typeof excerpt === "string" ? excerpt : existing.excerpt,
@@ -2504,6 +2587,11 @@ app.post("/api/projects/:id/rebuild-updates", requireAuth, (req, res) => {
 });
 
 app.get("/api/public/projects", (req, res) => {
+  const limitRaw = Number(req.query.limit);
+  const pageRaw = Number(req.query.page);
+  const usePagination = Number.isFinite(limitRaw) || Number.isFinite(pageRaw);
+  const limit = usePagination ? Math.min(Math.max(limitRaw || 20, 1), 200) : null;
+  const page = usePagination ? Math.max(pageRaw || 1, 1) : null;
   const projects = normalizeProjects(loadProjects())
     .filter((project) => !project.deletedAt)
     .sort((a, b) => a.order - b.order)
@@ -2546,8 +2634,12 @@ app.get("/api/public/projects", (req, res) => {
       views: project.views,
       commentsCount: project.commentsCount,
     }));
-
-  res.json({ projects });
+  if (!usePagination) {
+    return res.json({ projects });
+  }
+  const start = (page - 1) * limit;
+  const paged = projects.slice(start, start + limit);
+  return res.json({ projects: paged, page, limit, total: projects.length });
 });
 
 app.get("/api/public/projects/:id", (req, res) => {
@@ -2629,6 +2721,11 @@ app.get("/api/public/projects/:id/chapters/:number", (req, res) => {
 });
 
 app.get("/api/public/updates", (req, res) => {
+  const limitRaw = Number(req.query.limit);
+  const pageRaw = Number(req.query.page);
+  const usePagination = Number.isFinite(limitRaw) || Number.isFinite(pageRaw);
+  const limit = usePagination ? Math.min(Math.max(limitRaw || 10, 1), 50) : 10;
+  const page = usePagination ? Math.max(pageRaw || 1, 1) : 1;
   const projects = normalizeProjects(loadProjects());
   const validProjectIds = new Set(
     projects.filter((project) => !project.deletedAt).map((project) => project.id),
@@ -2648,9 +2745,13 @@ app.get("/api/public/updates", (req, res) => {
       }
       return update;
     })
-    .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
-    .slice(0, 10);
-  res.json({ updates });
+    .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+  if (!usePagination) {
+    return res.json({ updates: updates.slice(0, limit) });
+  }
+  const start = (page - 1) * limit;
+  const paged = updates.slice(start, start + limit);
+  return res.json({ updates: paged, page, limit, total: updates.length });
 });
 
 app.get("/api/public/settings", (req, res) => {
@@ -2932,7 +3033,7 @@ app.post("/api/uploads/image", requireAuth, (req, res) => {
   if (buffer.length > MAX_UPLOAD_SIZE_BYTES) {
     return res.status(400).json({ error: "file_too_large" });
   }
-  const ext = mime.split("/")[1] || "png";
+  const ext = mime.toLowerCase() === "image/svg+xml" ? "svg" : mime.split("/")[1] || "png";
   if (mime.toLowerCase() === "image/svg+xml" && buffer.length > MAX_SVG_SIZE_BYTES) {
     return res.status(400).json({ error: "svg_too_large" });
   }
@@ -2960,9 +3061,22 @@ app.post("/api/uploads/image", requireAuth, (req, res) => {
     fs.writeFileSync(filePath, buffer);
   }
 
-  appendAuditLog(req, "uploads.image", "uploads", { fileName, folder: safeFolder || "" });
+  const relativeUrl = `/uploads/${safeFolder ? `${safeFolder}/` : ""}${fileName}`;
+  const uploads = loadUploads();
+  uploads.push({
+    id: crypto.randomUUID(),
+    url: relativeUrl,
+    fileName,
+    folder: safeFolder || "",
+    size: buffer.length,
+    mime,
+    createdAt: new Date().toISOString(),
+  });
+  writeUploads(uploads);
+
+  appendAuditLog(req, "uploads.image", "uploads", { fileName, folder: safeFolder || "", url: relativeUrl });
   return res.json({
-    url: `/uploads/${safeFolder ? `${safeFolder}/` : ""}${fileName}`,
+    url: relativeUrl,
     fileName,
   });
 });
@@ -2997,7 +3111,7 @@ app.get("/api/uploads/list", requireAuth, (req, res) => {
           results.push(...collectFiles(fullPath, path.join(base, entry.name)));
           return;
         }
-        if (!/\.(png|jpe?g|gif|webp|svg)$/i.test(entry.name)) {
+        if (!/\.(png|jpe?g|gif|webp|svg(\+xml)?)$/i.test(entry.name)) {
           return;
         }
         const relative = path.join(base, entry.name).split(path.sep).join("/");
@@ -3011,7 +3125,7 @@ app.get("/api/uploads/list", requireAuth, (req, res) => {
     const files = listAll
       ? collectFiles(uploadsDir, "")
       : (fs.existsSync(targetDir) ? fs.readdirSync(targetDir) : [])
-          .filter((item) => /\.(png|jpe?g|gif|webp|svg)$/i.test(item))
+          .filter((item) => /\.(png|jpe?g|gif|webp|svg(\+xml)?)$/i.test(item))
           .map((item) => ({
             name: item,
             url: `/uploads/${safeFolder ? `${safeFolder}/` : ""}${item}`,
@@ -3134,6 +3248,11 @@ app.delete("/api/uploads/delete", requireAuth, (req, res) => {
     }
     if (fs.existsSync(resolved)) {
       fs.unlinkSync(resolved);
+    }
+    const uploads = loadUploads();
+    const nextUploads = uploads.filter((item) => item.url !== normalized);
+    if (nextUploads.length !== uploads.length) {
+      writeUploads(nextUploads);
     }
     appendAuditLog(req, "uploads.delete", "uploads", { url: normalized });
     return res.json({ ok: true });
