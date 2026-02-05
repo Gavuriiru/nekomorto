@@ -117,6 +117,13 @@ const fileToDataUrl = (file: File) =>
     reader.onerror = () => reject(new Error("file_read_failed"));
     reader.readAsDataURL(file);
   });
+
+const normalizeLinkTypeId = (value: string) =>
+  value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-|-$)/g, "");
 const DashboardSettings = () => {
   usePageMeta({ title: "Configurações", noIndex: true });
 
@@ -391,6 +398,7 @@ const DashboardSettings = () => {
       const data = await response.json();
       setSettings(mergeSettings(defaultSettings, data.settings || nextSettings));
       await refresh();
+      await handleSaveLinkTypes({ silent: true });
       toast({ title: "Configurações salvas" });
     } catch {
       toast({
@@ -438,14 +446,54 @@ const DashboardSettings = () => {
     }
   };
 
-  const handleSaveLinkTypes = async () => {
+  const uploadLinkTypeIcon = async (file: File, index: number) => {
+    setUploadingKey(`linktype-icon-${index}`);
+    try {
+      const dataUrl = await fileToDataUrl(file);
+      const response = await apiFetch(apiBase, "/api/uploads/image", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        auth: true,
+        body: JSON.stringify({
+          dataUrl,
+          filename: file.name,
+          folder: "socials",
+        }),
+      });
+      if (!response.ok) {
+        throw new Error("upload_failed");
+      }
+      const data = await response.json();
+      setLinkTypes((prev) => {
+        const next = [...prev];
+        next[index] = { ...next[index], icon: data.url };
+        return next;
+      });
+      toast({ title: "Ícone enviado", description: "SVG atualizado com sucesso." });
+    } catch {
+      toast({
+        title: "Falha no upload",
+        description: "Não foi possível enviar o ícone.",
+        variant: "destructive",
+      });
+    } finally {
+      setUploadingKey(null);
+    }
+  };
+
+  const handleSaveLinkTypes = async (options?: { silent?: boolean }) => {
     setIsSavingLinkTypes(true);
     try {
+      const normalizedItems = linkTypes.map((item) => ({
+        ...item,
+        id: item.id?.trim() ? item.id.trim() : normalizeLinkTypeId(item.label || ""),
+      }));
+      setLinkTypes(normalizedItems);
       const response = await apiFetch(apiBase, "/api/link-types", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         auth: true,
-        body: JSON.stringify({ items: linkTypes }),
+        body: JSON.stringify({ items: normalizedItems }),
       });
       if (!response.ok) {
         throw new Error("save_failed");
@@ -454,13 +502,17 @@ const DashboardSettings = () => {
       if (data?.items) {
         setLinkTypes(data.items);
       }
-      toast({ title: "Redes sociais salvas" });
+      if (!options?.silent) {
+        toast({ title: "Redes sociais salvas" });
+      }
     } catch {
-      toast({
-        title: "Falha ao salvar",
-        description: "Não foi possível salvar as redes sociais.",
-        variant: "destructive",
-      });
+      if (!options?.silent) {
+        toast({
+          title: "Falha ao salvar",
+          description: "Não foi possível salvar as redes sociais.",
+          variant: "destructive",
+        });
+      }
     } finally {
       setIsSavingLinkTypes(false);
     }
@@ -542,10 +594,11 @@ const DashboardSettings = () => {
             </div>
 
             <Tabs defaultValue="geral" className="mt-8">
-              <TabsList className="grid w-full grid-cols-2 md:grid-cols-5">
+              <TabsList className="grid w-full grid-cols-2 md:grid-cols-6">
                 <TabsTrigger value="geral">Geral</TabsTrigger>
                 <TabsTrigger value="traducoes">Traduções</TabsTrigger>
                 <TabsTrigger value="downloads">Downloads</TabsTrigger>
+                <TabsTrigger value="redes-usuarios">Redes sociais</TabsTrigger>
                 <TabsTrigger value="equipe">Equipe</TabsTrigger>
                 <TabsTrigger value="footer">Footer</TabsTrigger>
               </TabsList>
@@ -1116,6 +1169,125 @@ const DashboardSettings = () => {
                 </Card>
               </TabsContent>
 
+              <TabsContent value="redes-usuarios" className="mt-6 space-y-6">
+                <Card className="border-border/60 bg-card/80">
+                  <CardContent className="space-y-6 p-6">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <div>
+                        <h2 className="text-lg font-semibold">Redes sociais (Usuários)</h2>
+                        <p className="text-xs text-muted-foreground">
+                          Opções exibidas no editor de usuários.
+                        </p>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() =>
+                            setLinkTypes((prev) => [
+                              ...prev,
+                              { id: `nova-${Date.now()}`, label: "Nova rede", icon: "globe" },
+                            ])
+                          }
+                        >
+                          <Plus className="h-4 w-4" />
+                          Adicionar
+                        </Button>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          onClick={(event) => {
+                            event.preventDefault();
+                            event.stopPropagation();
+                            void handleSaveLinkTypes();
+                          }}
+                          disabled={isSavingLinkTypes}
+                          className="gap-2"
+                        >
+                          <Save className="h-4 w-4" />
+                          {isSavingLinkTypes ? "Salvando..." : "Salvar"}
+                        </Button>
+                      </div>
+                    </div>
+
+                    <div className="grid gap-3">
+                      {linkTypes.length === 0 ? (
+                        <p className="text-xs text-muted-foreground">Nenhuma rede cadastrada.</p>
+                      ) : null}
+                      {linkTypes.map((link, index) => {
+                        const isCustomIcon = isIconUrl(link.icon);
+                        return (
+                          <div
+                            key={`${link.id}-${index}`}
+                            className="grid items-center gap-3 md:grid-cols-[1fr_1.6fr_auto]"
+                          >
+                            <Input
+                              value={link.label}
+                              placeholder="Label"
+                              onChange={(event) =>
+                                setLinkTypes((prev) => {
+                                  const next = [...prev];
+                                  next[index] = { ...next[index], label: event.target.value };
+                                  return next;
+                                })
+                              }
+                            />
+                            <div className="flex items-center gap-3 rounded-xl border border-border/60 bg-background/60 px-3 py-2 text-xs text-muted-foreground">
+                              {isCustomIcon ? (
+                                <img
+                                  src={link.icon}
+                                  alt={`Ícone ${link.label}`}
+                                  className="h-6 w-6 rounded bg-white/90 p-1"
+                                />
+                              ) : (
+                                <span className="inline-flex h-6 w-6 items-center justify-center rounded bg-white/10 text-[10px]">
+                                  SVG
+                                </span>
+                              )}
+                              <span className="truncate">
+                                {isCustomIcon ? "SVG atual" : "Sem SVG"}
+                              </span>
+                              <div className="ml-auto flex items-center gap-2">
+                                <Input
+                                  id={`linktype-icon-${index}`}
+                                  type="file"
+                                  accept="image/svg+xml"
+                                  className="sr-only"
+                                  onChange={(event) => {
+                                    const file = event.target.files?.[0];
+                                    if (file) {
+                                      uploadLinkTypeIcon(file, index);
+                                    }
+                                  }}
+                                  disabled={uploadingKey === `linktype-icon-${index}`}
+                                />
+                                <Label
+                                  htmlFor={`linktype-icon-${index}`}
+                                  className="inline-flex h-8 cursor-pointer items-center justify-center rounded-md border border-border/60 bg-background px-3 text-[11px] font-medium text-foreground transition hover:border-primary/50"
+                                >
+                                  Escolher SVG
+                                </Label>
+                              </div>
+                            </div>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              onClick={() =>
+                                setLinkTypes((prev) => prev.filter((_, idx) => idx !== index))
+                              }
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+
               <TabsContent value="footer" className="mt-6 space-y-6">
                 <Card className="border-border/60 bg-card/80">
                   <CardContent className="space-y-6 p-6">
@@ -1391,118 +1563,6 @@ const DashboardSettings = () => {
                                   socialLinks: prev.footer.socialLinks.filter((_, idx) => idx !== index),
                                 },
                               }))
-                            }
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <Card className="border-border/60 bg-card/80">
-                  <CardContent className="space-y-6 p-6">
-                    <div className="flex flex-wrap items-center justify-between gap-3">
-                      <div>
-                        <h2 className="text-lg font-semibold">Redes sociais (Usuários)</h2>
-                        <p className="text-xs text-muted-foreground">
-                          Opções exibidas no editor de usuários.
-                        </p>
-                      </div>
-                      <div className="flex flex-wrap gap-2">
-                        <Button
-                          type="button"
-                          variant="outline"
-                          onClick={() =>
-                            setLinkTypes((prev) => [
-                              ...prev,
-                              { id: `nova-${Date.now()}`, label: "Nova rede", icon: "globe" },
-                            ])
-                          }
-                        >
-                          <Plus className="h-4 w-4" />
-                          Adicionar
-                        </Button>
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="outline"
-                          onClick={(event) => {
-                            event.preventDefault();
-                            event.stopPropagation();
-                            void handleSaveLinkTypes();
-                          }}
-                          disabled={isSavingLinkTypes}
-                          className="gap-2"
-                        >
-                          <Save className="h-4 w-4" />
-                          {isSavingLinkTypes ? "Salvando..." : "Salvar"}
-                        </Button>
-                      </div>
-                    </div>
-
-                    <div className="grid gap-3">
-                      {linkTypes.length === 0 ? (
-                        <p className="text-xs text-muted-foreground">Nenhuma rede cadastrada.</p>
-                      ) : null}
-                      {linkTypes.map((link, index) => (
-                        <div key={`${link.id}-${index}`} className="grid gap-3 md:grid-cols-[1fr_1fr_0.8fr_auto]">
-                          <Input
-                            value={link.id}
-                            placeholder="id"
-                            onChange={(event) =>
-                              setLinkTypes((prev) => {
-                                const next = [...prev];
-                                next[index] = { ...next[index], id: event.target.value };
-                                return next;
-                              })
-                            }
-                          />
-                          <Input
-                            value={link.label}
-                            placeholder="Label"
-                            onChange={(event) =>
-                              setLinkTypes((prev) => {
-                                const next = [...prev];
-                                next[index] = { ...next[index], label: event.target.value };
-                                return next;
-                              })
-                            }
-                          />
-                          <Select
-                            value={link.icon || "globe"}
-                            onValueChange={(value) =>
-                              setLinkTypes((prev) => {
-                                const next = [...prev];
-                                next[index] = { ...next[index], icon: value };
-                                return next;
-                              })
-                            }
-                          >
-                            <SelectTrigger>
-                              <SelectValue placeholder="Ícone" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {socialIconOptions.map((option) => {
-                                const Icon = socialIconMap[option.id] || Link2;
-                                return (
-                                  <SelectItem key={option.id} value={option.id}>
-                                    <div className="flex items-center gap-2">
-                                      <Icon className="h-4 w-4 text-muted-foreground" />
-                                      <span>{option.label}</span>
-                                    </div>
-                                  </SelectItem>
-                                );
-                              })}
-                            </SelectContent>
-                          </Select>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            onClick={() =>
-                              setLinkTypes((prev) => prev.filter((_, idx) => idx !== index))
                             }
                           >
                             <Trash2 className="h-4 w-4" />

@@ -72,6 +72,10 @@ const Team = () => {
     }),
     [],
   );
+  const isIconUrl = (value?: string | null) => {
+    if (!value) return false;
+    return value.startsWith("http") || value.startsWith("data:") || value.startsWith("/uploads/");
+  };
   const roleIconRegistry = useMemo(
     () => ({
       languages: Languages,
@@ -258,8 +262,11 @@ const Team = () => {
                                   const type = linkTypeMap.get(social.label);
                                   const iconKey = type?.icon || social.label;
                                   const label = type?.label || social.label;
+                                  const isCustomIcon = isIconUrl(iconKey);
                                   const Icon =
-                                    socialIcons[iconKey?.toLowerCase?.() || iconKey] || Globe;
+                                    !isCustomIcon
+                                      ? socialIcons[iconKey?.toLowerCase?.() || iconKey] || Globe
+                                      : null;
                                   return (
                                     <a
                                       key={`${member.id}-${social.href}`}
@@ -269,7 +276,15 @@ const Team = () => {
                                       className="flex h-8 w-8 items-center justify-center rounded-full border border-primary/20 bg-background/70 text-primary/80 transition hover:border-primary/50 hover:text-primary"
                                       aria-label={label}
                                     >
-                                      <Icon className="h-4 w-4" />
+                                      {isCustomIcon ? (
+                                        <img
+                                          src={iconKey}
+                                          alt=""
+                                          className="h-4 w-4 rounded bg-white/90 p-0.5"
+                                        />
+                                      ) : (
+                                        <Icon className="h-4 w-4" />
+                                      )}
                                     </a>
                                   );
                                 })}
@@ -386,8 +401,11 @@ const Team = () => {
                                       const type = linkTypeMap.get(social.label);
                                       const iconKey = type?.icon || social.label;
                                       const label = type?.label || social.label;
+                                      const isCustomIcon = isIconUrl(iconKey);
                                       const Icon =
-                                        socialIcons[iconKey?.toLowerCase?.() || iconKey] || Globe;
+                                        !isCustomIcon
+                                          ? socialIcons[iconKey?.toLowerCase?.() || iconKey] || Globe
+                                          : null;
                                       return (
                                         <a
                                           key={`${member.id}-${social.href}`}
@@ -397,7 +415,15 @@ const Team = () => {
                                           className="flex h-8 w-8 items-center justify-center rounded-full border border-primary/20 bg-background/70 text-primary/80 transition hover:border-primary/50 hover:text-primary"
                                           aria-label={label}
                                         >
-                                          <Icon className="h-4 w-4" />
+                                          {isCustomIcon ? (
+                                            <img
+                                              src={iconKey}
+                                              alt=""
+                                              className="h-4 w-4 rounded bg-white/90 p-0.5"
+                                            />
+                                          ) : (
+                                            <Icon className="h-4 w-4" />
+                                          )}
                                         </a>
                                       );
                                     })}

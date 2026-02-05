@@ -413,7 +413,7 @@ const Projects = () => {
               <div className="flex flex-wrap gap-2">
                 <span className="font-semibold text-foreground">{filteredProjects.length}</span>
                 <span>projetos encontrados</span>
-                <span className="hidden text-muted-foreground md:inline">•</span>
+                <span className="hidden text-muted-foreground md:inline">&bull;</span>
                 <span className="hidden md:inline">Atualizado semanalmente</span>
               </div>
               <Button variant="ghost" onClick={resetFilters} className="text-xs uppercase">
@@ -500,6 +500,8 @@ const Projects = () => {
 };
 
 export default Projects;
+
+
 
 
 

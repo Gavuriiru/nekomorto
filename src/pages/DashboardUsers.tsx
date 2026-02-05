@@ -112,6 +112,11 @@ const socialIconMap: Record<string, typeof Globe> = {
   site: Globe,
 };
 
+const isIconUrl = (value?: string | null) => {
+  if (!value) return false;
+  return value.startsWith("http") || value.startsWith("data:") || value.startsWith("/uploads/");
+};
+
 const roleIconRegistry: Record<string, typeof Globe> = {
   languages: Languages,
   check: Check,
@@ -857,7 +862,8 @@ const DashboardUsers = () => {
                       </SelectTrigger>
                       <SelectContent align="start">
                         {(linkTypes.length > 0 ? linkTypes : fallbackLinkTypes).map((option) => {
-                          const Icon = socialIconMap[option.icon] || Globe;
+                          const isCustomIcon = isIconUrl(option.icon);
+                          const Icon = !isCustomIcon ? socialIconMap[option.icon] || Globe : null;
                           return (
                             <SelectItem
                               key={option.id}
@@ -865,7 +871,15 @@ const DashboardUsers = () => {
                               className="pl-2 pr-2 [&>span:first-child]:hidden"
                             >
                               <div className="flex items-center gap-2">
-                                <Icon className="h-4 w-4" />
+                                {isCustomIcon ? (
+                                  <img
+                                    src={option.icon}
+                                    alt=""
+                                    className="h-4 w-4 rounded bg-white/90 p-0.5"
+                                  />
+                                ) : (
+                                  <Icon className="h-4 w-4" />
+                                )}
                                 <span>{option.label}</span>
                               </div>
                             </SelectItem>
