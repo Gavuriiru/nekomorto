@@ -77,9 +77,10 @@ const ImageLibraryDialog = ({
   const [isLoading, setIsLoading] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [isDragActive, setIsDragActive] = useState(false);
-  const [confirmDeleteUrl, setConfirmDeleteUrl] = useState<string | null>(null);
-  const [deletingUrl, setDeletingUrl] = useState<string | null>(null);
   const [lastUploadedUrls, setLastUploadedUrls] = useState<string[]>([]);
+  const [confirmDeleteUrls, setConfirmDeleteUrls] = useState<string[] | null>(null);
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
+  const [isSelectionMode, setIsSelectionMode] = useState(false);
 
   const folders = useMemo(() => {
     const set = new Set<string>();
@@ -145,8 +146,18 @@ const ImageLibraryDialog = ({
       setLibraryAlt("");
       setIsDragActive(false);
       setLastUploadedUrls([]);
+      setIsSelectionMode(false);
     }
   }, [open]);
+
+  const toggleSelection = useCallback((url: string) => {
+    setLastUploadedUrls((prev) => {
+      if (prev.includes(url)) {
+        return prev.filter((item) => item !== url);
+      }
+      return [url, ...prev];
+    });
+  }, []);
 
   const handleOpenChange = useCallback(
     (next: boolean) => {
@@ -240,7 +251,6 @@ const ImageLibraryDialog = ({
       setIsUploading(true);
       try {
         for (const file of list) {
-          // eslint-disable-next-line no-await-in-loop
           await handleUpload(file);
         }
         await loadLibrary();
@@ -316,13 +326,9 @@ const ImageLibraryDialog = ({
   const handleSelectUpload = (item: LibraryImage) => {
     const alt = item.name ? getAltFromName(item.name) : "Imagem";
     const effectiveSelectionUrl = currentSelectionUrl;
-    if (applyHighlightedOnClose) {
-      setLastUploadedUrls((prev) => {
-        if (prev.includes(item.url)) {
-          return prev.filter((url) => url !== item.url);
-        }
-        return [item.url, ...prev];
-      });
+    const selectionModeActive = isSelectionMode || applyHighlightedOnClose;
+    if (selectionModeActive) {
+      toggleSelection(item.url);
       return;
     }
     if (allowDeselect && effectiveSelectionUrl && item.url === effectiveSelectionUrl) {
@@ -352,31 +358,43 @@ const ImageLibraryDialog = ({
     handleOpenChange(false);
   };
 
-  const handleDelete = async (url: string) => {
-    setDeletingUrl(url);
+  const handleDeleteMany = async (urls: string[]) => {
+    if (!urls.length) {
+      return;
+    }
+    setIsBulkDeleting(true);
+    let inUseCount = 0;
+    let failedCount = 0;
     try {
-      const response = await apiFetch(apiBase, "/api/uploads/delete", {
-        method: "DELETE",
-        headers: { "Content-Type": "application/json" },
-        auth: true,
-        body: JSON.stringify({ url }),
-      });
-      if (response.status === 409) {
-        toast({
-          title: "Imagem em uso",
-          description: "Remova as referencias antes de excluir o arquivo.",
+      for (const url of urls) {
+        const response = await apiFetch(apiBase, "/api/uploads/delete", {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+          auth: true,
+          body: JSON.stringify({ url }),
         });
-        return;
-      }
-      if (!response.ok) {
-        toast({ title: "Nao foi possivel excluir a imagem." });
-        return;
+        if (response.status === 409) {
+          inUseCount += 1;
+          continue;
+        }
+        if (!response.ok) {
+          failedCount += 1;
+        }
       }
       await loadLibrary();
+      setLastUploadedUrls([]);
+      if (inUseCount > 0) {
+        toast({
+          title: "Algumas imagens estao em uso",
+          description: "Remova as referencias antes de excluir esses arquivos.",
+        });
+      } else if (failedCount > 0) {
+        toast({ title: "Nao foi possivel excluir algumas imagens." });
+      }
     } catch {
-      toast({ title: "Nao foi possivel excluir a imagem." });
+      toast({ title: "Nao foi possivel excluir as imagens." });
     } finally {
-      setDeletingUrl(null);
+      setIsBulkDeleting(false);
     }
   };
 
@@ -457,6 +475,16 @@ const ImageLibraryDialog = ({
                         Remover imagem
                       </Button>
                     ) : null}
+                    {allowDeleteUploads ? (
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant={isSelectionMode ? "secondary" : "outline"}
+                        onClick={() => setIsSelectionMode((prev) => !prev)}
+                      >
+                        {isSelectionMode ? "Selecionando" : "Selecionar"}
+                      </Button>
+                    ) : null}
                     <Button type="button" size="sm" onClick={handleAddUrl} disabled={!libraryUrl.trim()}>
                       Usar imagem
                     </Button>
@@ -471,7 +499,20 @@ const ImageLibraryDialog = ({
           </div>
           <div className="mt-6 max-h-[420px] space-y-8 overflow-auto no-scrollbar">
             <div>
-              <h3 className="text-sm font-semibold text-foreground">Uploads</h3>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <h3 className="text-sm font-semibold text-foreground">Uploads</h3>
+                {allowDeleteUploads ? (
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="destructive"
+                    disabled={lastUploadedUrls.length === 0 || isBulkDeleting}
+                    onClick={() => setConfirmDeleteUrls([...lastUploadedUrls])}
+                  >
+                    {isBulkDeleting ? "Excluindo..." : "Excluir selecionadas"}
+                  </Button>
+                ) : null}
+              </div>
               {isLoading ? (
                 <p className="mt-3 text-xs text-muted-foreground">Carregando biblioteca...</p>
               ) : libraryImages.length === 0 ? (
@@ -480,7 +521,7 @@ const ImageLibraryDialog = ({
                 <div className="mt-3 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
                   {libraryImages.map((item) => {
                     const effectiveSelectionUrl = currentSelectionUrl;
-                    const isHighlighted = highlightOnUpload && lastUploadedUrls.includes(item.url);
+                    const isHighlighted = lastUploadedUrls.includes(item.url);
                     return (
                     <div
                       key={item.url}
@@ -500,20 +541,6 @@ const ImageLibraryDialog = ({
                         <img src={item.url} alt={item.name} className="h-32 w-full object-cover" />
                         <div className="p-2 text-xs text-muted-foreground">{item.name}</div>
                       </button>
-                      {allowDeleteUploads ? (
-                        <div className="px-2 pb-2">
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant="outline"
-                            className="w-full"
-                            onClick={() => setConfirmDeleteUrl(item.url)}
-                            disabled={deletingUrl === item.url}
-                          >
-                            {deletingUrl === item.url ? "Excluindo..." : "Excluir"}
-                          </Button>
-                        </div>
-                      ) : null}
                     </div>
                     );
                   })}
@@ -532,7 +559,7 @@ const ImageLibraryDialog = ({
                   <div className="mt-3 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
                     {section.items.map((item) => {
                       const effectiveSelectionUrl = currentSelectionUrl;
-                      const isHighlighted = highlightOnUpload && lastUploadedUrls.includes(item.url);
+                      const isHighlighted = lastUploadedUrls.includes(item.url);
                       return (
                       <button
                         key={item.key}
@@ -547,13 +574,8 @@ const ImageLibraryDialog = ({
                         onClick={() => {
                           const alt = getAltFromName(item.label);
                           const handler = section.onSelect || onSelect;
-                          if (applyHighlightedOnClose) {
-                            setLastUploadedUrls((prev) => {
-                              if (prev.includes(item.url)) {
-                                return prev.filter((url) => url !== item.url);
-                              }
-                              return [item.url, ...prev];
-                            });
+                          if (isSelectionMode || applyHighlightedOnClose) {
+                            toggleSelection(item.url);
                             return;
                           }
                           if (allowDeselect && effectiveSelectionUrl && item.url === effectiveSelectionUrl) {
@@ -590,26 +612,27 @@ const ImageLibraryDialog = ({
           </div>
         </DialogContent>
       </Dialog>
-      <Dialog open={Boolean(confirmDeleteUrl)} onOpenChange={(next) => !next && setConfirmDeleteUrl(null)}>
+      <Dialog open={Boolean(confirmDeleteUrls)} onOpenChange={(next) => !next && setConfirmDeleteUrls(null)}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Excluir imagem</DialogTitle>
+            <DialogTitle>Excluir imagens</DialogTitle>
             <DialogDescription>
-              Esta acao remove o arquivo da biblioteca. A exclusao so e permitida se a imagem nao estiver em uso.
+              Esta ação remove os arquivos selecionados da biblioteca. A exclusão só é permitida se as imagens não
+              estiverem em uso.
             </DialogDescription>
           </DialogHeader>
           <div className="flex justify-end gap-2">
-            <Button type="button" variant="outline" onClick={() => setConfirmDeleteUrl(null)}>
+            <Button type="button" variant="outline" onClick={() => setConfirmDeleteUrls(null)}>
               Cancelar
             </Button>
             <Button
               type="button"
               variant="destructive"
               onClick={() => {
-                if (confirmDeleteUrl) {
-                  void handleDelete(confirmDeleteUrl);
+                if (confirmDeleteUrls?.length) {
+                  void handleDeleteMany(confirmDeleteUrls);
                 }
-                setConfirmDeleteUrl(null);
+                setConfirmDeleteUrls(null);
               }}
             >
               Excluir
