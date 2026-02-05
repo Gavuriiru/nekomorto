@@ -126,13 +126,25 @@ const applyDocumentSettings = (settings: SiteSettings) => {
   }
 };
 
-export const SiteSettingsProvider = ({ children }: { children: ReactNode }) => {
+export const SiteSettingsProvider = ({
+  children,
+  initialSettings,
+  initiallyLoaded = false,
+}: {
+  children: ReactNode;
+  initialSettings?: SiteSettings;
+  initiallyLoaded?: boolean;
+}) => {
   const apiBase = getApiBase();
-  const [settings, setSettings] = useState<SiteSettings>(defaultSettings);
-  const [isLoading, setIsLoading] = useState(true);
+  const [settings, setSettings] = useState<SiteSettings>(
+    mergeSettings(defaultSettings, initialSettings || {}),
+  );
+  const [isLoading, setIsLoading] = useState(!initiallyLoaded);
 
-  const refresh = useCallback(async () => {
-    setIsLoading(true);
+  const refresh = useCallback(async (showLoading = true) => {
+    if (showLoading) {
+      setIsLoading(true);
+    }
     try {
       const response = await apiFetch(apiBase, "/api/public/settings");
       if (!response.ok) {
@@ -143,17 +155,22 @@ export const SiteSettingsProvider = ({ children }: { children: ReactNode }) => {
     } catch {
       setSettings(defaultSettings);
     } finally {
-      setIsLoading(false);
+      if (showLoading) {
+        setIsLoading(false);
+      }
     }
   }, [apiBase]);
 
   useEffect(() => {
-    refresh();
-  }, [refresh]);
+    refresh(!initiallyLoaded);
+  }, [initiallyLoaded, refresh]);
 
   useEffect(() => {
+    if (isLoading) {
+      return;
+    }
     applyDocumentSettings(settings);
-  }, [settings]);
+  }, [isLoading, settings]);
 
   const value = useMemo(
     () => ({

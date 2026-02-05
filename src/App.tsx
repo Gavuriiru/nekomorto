@@ -131,9 +131,15 @@ const RouterShell = () => {
   );
 };
 
-const App = () => (
+const App = ({
+  initialSettings,
+  initiallyLoaded,
+}: {
+  initialSettings?: Parameters<typeof SiteSettingsProvider>[0]["initialSettings"];
+  initiallyLoaded?: boolean;
+}) => (
   <QueryClientProvider client={queryClient}>
-    <SiteSettingsProvider>
+    <SiteSettingsProvider initialSettings={initialSettings} initiallyLoaded={initiallyLoaded}>
       <TooltipProvider>
         <Toaster />
         <Sonner />

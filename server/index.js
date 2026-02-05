@@ -221,17 +221,44 @@ const renderMetaHtml = ({
 
 const stripHtml = (value) => String(value || "").replace(/<[^>]*>/g, "").replace(/\s+/g, " ").trim();
 
-const buildSiteMeta = () => {
-  const settings = loadSiteSettings();
-  return {
-    title: settings.site?.name || "Nekomata",
-    description: settings.site?.description || "",
-    image: settings.site?.defaultShareImage || "",
-    url: PRIMARY_APP_ORIGIN,
-    type: "website",
-    siteName: settings.site?.name || "Nekomata",
-    favicon: settings.site?.faviconUrl || "",
-  };
+const buildSiteMetaWithSettings = (settings) => ({
+  title: settings.site?.name || "Nekomata",
+  description: settings.site?.description || "",
+  image: settings.site?.defaultShareImage || "",
+  url: PRIMARY_APP_ORIGIN,
+  type: "website",
+  siteName: settings.site?.name || "Nekomata",
+  favicon: settings.site?.faviconUrl || "",
+});
+
+const buildSiteMeta = () => buildSiteMetaWithSettings(loadSiteSettings());
+
+const getPageTitleFromPath = (value) => {
+  const pathValue = String(value || "/");
+  const rules = [
+    [/^\/$/, "Início"],
+    [/^\/postagem\/.+/, "Postagem"],
+    [/^\/equipe\/?$/, "Equipe"],
+    [/^\/sobre\/?$/, "Sobre"],
+    [/^\/doacoes\/?$/, "Doações"],
+    [/^\/faq\/?$/, "FAQ"],
+    [/^\/projetos\/?$/, "Projetos"],
+    [/^\/projeto\/.+\/leitura\/.+/, "Leitura"],
+    [/^\/projeto\/.+/, "Projeto"],
+    [/^\/projetos\/.+\/leitura\/.+/, "Leitura"],
+    [/^\/projetos\/.+/, "Projeto"],
+    [/^\/recrutamento\/?$/, "Recrutamento"],
+    [/^\/login\/?$/, "Login"],
+    [/^\/dashboard\/usuarios\/?$/, "Usuários"],
+    [/^\/dashboard\/posts\/?$/, "Posts"],
+    [/^\/dashboard\/projetos\/?$/, "Projetos"],
+    [/^\/dashboard\/comentarios\/?$/, "Comentários"],
+    [/^\/dashboard\/paginas\/?$/, "Páginas"],
+    [/^\/dashboard\/configuracoes\/?$/, "Configurações"],
+    [/^\/dashboard\/?$/, "Dashboard"],
+  ];
+  const match = rules.find(([regex]) => regex.test(pathValue));
+  return match ? match[1] : "";
 };
 
 const buildProjectMeta = (project) => {
@@ -3669,6 +3696,25 @@ app.get(["/", "/projeto/:id", "/projeto/:id/leitura/:chapter", "/postagem/:slug"
     }
     const meta = buildSiteMeta();
     return res.type("html").send(renderMetaHtml({ ...meta, url: `${PRIMARY_APP_ORIGIN}${req.path}` }));
+  } catch {
+    return res.type("html").send(getIndexHtml());
+  }
+});
+
+app.get("*", (req, res) => {
+  if (req.path.startsWith("/api") || req.path.startsWith("/auth")) {
+    return res.status(404).json({ error: "not_found" });
+  }
+  try {
+    const settings = loadSiteSettings();
+    const meta = buildSiteMetaWithSettings(settings);
+    const siteName = settings.site?.name || "Nekomata";
+    const separator = settings.site?.titleSeparator ?? "";
+    const pageTitle = getPageTitleFromPath(req.path);
+    const title = pageTitle ? `${pageTitle}${separator}${siteName}` : siteName;
+    return res
+      .type("html")
+      .send(renderMetaHtml({ ...meta, title, url: `${PRIMARY_APP_ORIGIN}${req.path}` }));
   } catch {
     return res.type("html").send(getIndexHtml());
   }

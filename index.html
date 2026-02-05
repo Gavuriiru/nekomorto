@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>NEKOMATA</title>
+    <title>Carregando...</title>
     <meta
       name="description"
       content="Fansub dedicada a trazer historias inesqueciveis com o carinho que a comunidade merece."
@@ -21,6 +21,34 @@
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:image" content="/placeholder.svg" />
     <link rel="icon" href="/favicon.ico" />
+    <script>
+      (function () {
+        var getApiBase = function () {
+          var envBase = window.__VITE_API_BASE__;
+          if (typeof envBase === "string" && envBase.trim()) {
+            return envBase;
+          }
+          var loc = window.location;
+          if (loc && loc.hostname && loc.hostname !== "localhost" && loc.hostname !== "127.0.0.1") {
+            return loc.protocol + "//" + loc.hostname + ":8080";
+          }
+          return "http://127.0.0.1:8080";
+        };
+        fetch(getApiBase() + "/api/public/settings")
+          .then(function (res) {
+            return res.ok ? res.json() : null;
+          })
+          .then(function (data) {
+            if (!data || !data.settings) return;
+            window.__BOOTSTRAP_SETTINGS__ = data.settings;
+            var name = (data.settings.site && data.settings.site.name) || "";
+            if (name) {
+              document.title = name;
+            }
+          })
+          .catch(function () {});
+      })();
+    </script>
   </head>
 
   <body>
