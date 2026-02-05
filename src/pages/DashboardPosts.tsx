@@ -1566,7 +1566,18 @@ const DashboardPosts = () => {
         listFolders={[""]}
         showAltInput={imageTarget === "editor"}
         allowDeselect={imageTarget === "cover"}
-        selectOnUpload
+        selectOnUpload={imageTarget === "cover"}
+        highlightOnUpload={imageTarget === "editor"}
+        applyHighlightedOnClose={imageTarget === "editor"}
+        onApplyHighlighted={(urls) => {
+          if (imageTarget !== "editor") {
+            return;
+          }
+          const ordered = [...urls].reverse();
+          ordered.forEach((url) => {
+            insertImageToContent(url, "Imagem");
+          });
+        }}
         currentSelectionUrl={imageTarget === "cover" ? formState.coverImageUrl : undefined}
         onSelect={handleLibrarySelect}
         sections={[

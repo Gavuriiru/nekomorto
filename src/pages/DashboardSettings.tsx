@@ -687,7 +687,7 @@ const DashboardSettings = () => {
                     </div>
 
                     <div className="grid gap-4 md:grid-cols-3">
-                      <div className="space-y-2">
+                      <div className="flex h-full flex-col gap-2">
                         <Label>Logo</Label>
                         {settings.site.logoUrl ? (
                           <div className="flex items-center gap-3">
@@ -700,11 +700,17 @@ const DashboardSettings = () => {
                         ) : (
                           <p className="text-xs text-muted-foreground">Sem logo definida.</p>
                         )}
-                        <Button type="button" variant="outline" size="sm" onClick={() => openLibrary("site.logoUrl")}>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="mt-auto"
+                          onClick={() => openLibrary("site.logoUrl")}
+                        >
                           Biblioteca
                         </Button>
                       </div>
-                      <div className="space-y-2">
+                      <div className="flex h-full flex-col gap-2">
                         <Label>Favicon</Label>
                         {settings.site.faviconUrl ? (
                           <div className="flex items-center gap-3">
@@ -721,12 +727,13 @@ const DashboardSettings = () => {
                           type="button"
                           variant="outline"
                           size="sm"
+                          className="mt-auto"
                           onClick={() => openLibrary("site.faviconUrl")}
                         >
                           Biblioteca
                         </Button>
                       </div>
-                      <div className="space-y-2">
+                      <div className="flex h-full flex-col gap-2">
                         <Label>Imagem padrão de compartilhamento</Label>
                         {settings.site.defaultShareImage ? (
                           <div className="flex items-center gap-3">
@@ -743,6 +750,7 @@ const DashboardSettings = () => {
                           type="button"
                           variant="outline"
                           size="sm"
+                          className="mt-auto"
                           onClick={() => openLibrary("site.defaultShareImage")}
                         >
                           Biblioteca
@@ -1727,6 +1735,7 @@ const DashboardSettings = () => {
           allowUrlInput={false}
           showAltInput={false}
           allowDeselect
+          selectOnUpload
           currentSelectionUrl={currentLibrarySelection || undefined}
           onSelect={(url) => applyLibraryImage(url)}
         />

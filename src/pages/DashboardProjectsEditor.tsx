@@ -2678,7 +2678,7 @@ const DashboardProjectsEditor = () => {
         listFolders={[""]}
         showAltInput={libraryTarget === "chapter"}
         allowDeselect={libraryTarget !== "chapter"}
-        selectOnUpload
+        selectOnUpload={libraryTarget !== "chapter"}
         currentSelectionUrl={currentLibrarySelection || undefined}
         onSelect={(url, altText) => applyLibraryImage(url, altText)}
       />

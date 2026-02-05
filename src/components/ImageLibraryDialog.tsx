@@ -39,6 +39,9 @@ type ImageLibraryDialogProps = {
   allowDeleteUploads?: boolean;
   allowDeselect?: boolean;
   selectOnUpload?: boolean;
+  highlightOnUpload?: boolean;
+  applyHighlightedOnClose?: boolean;
+  onApplyHighlighted?: (urls: string[]) => void;
   currentSelectionUrl?: string;
   sections?: LibrarySection[];
   onSelect: (url: string, alt?: string) => void;
@@ -61,6 +64,9 @@ const ImageLibraryDialog = ({
   allowDeleteUploads = true,
   allowDeselect = true,
   selectOnUpload = false,
+  highlightOnUpload = false,
+  applyHighlightedOnClose = false,
+  onApplyHighlighted,
   currentSelectionUrl,
   sections = [],
   onSelect,
@@ -73,6 +79,7 @@ const ImageLibraryDialog = ({
   const [isDragActive, setIsDragActive] = useState(false);
   const [confirmDeleteUrl, setConfirmDeleteUrl] = useState<string | null>(null);
   const [deletingUrl, setDeletingUrl] = useState<string | null>(null);
+  const [lastUploadedUrls, setLastUploadedUrls] = useState<string[]>([]);
 
   const folders = useMemo(() => {
     const set = new Set<string>();
@@ -137,8 +144,20 @@ const ImageLibraryDialog = ({
       setLibraryUrl("");
       setLibraryAlt("");
       setIsDragActive(false);
+      setLastUploadedUrls([]);
     }
   }, [open]);
+
+  const handleOpenChange = useCallback(
+    (next: boolean) => {
+      if (!next && applyHighlightedOnClose && lastUploadedUrls.length > 0 && onApplyHighlighted) {
+        onApplyHighlighted([...lastUploadedUrls]);
+        setLastUploadedUrls([]);
+      }
+      onOpenChange(next);
+    },
+    [applyHighlightedOnClose, lastUploadedUrls, onApplyHighlighted, onOpenChange],
+  );
 
   const fileToDataUrl = (file: File) =>
     new Promise<string>((resolve, reject) => {
@@ -148,56 +167,129 @@ const ImageLibraryDialog = ({
       reader.readAsDataURL(file);
     });
 
-  const uploadImage = async (file: File) => {
-    const dataUrl = await fileToDataUrl(file);
-    const response = await apiFetch(apiBase, "/api/uploads/image", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      auth: true,
-      body: JSON.stringify({
-        dataUrl,
-        filename: file.name,
-        folder: uploadFolder || undefined,
-      }),
-    });
-    if (!response.ok) {
-      throw new Error("upload_failed");
-    }
-    const data = await response.json();
-    return String(data.url || "");
-  };
+  const uploadImage = useCallback(
+    async (file: File) => {
+      const dataUrl = await fileToDataUrl(file);
+      const response = await apiFetch(apiBase, "/api/uploads/image", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        auth: true,
+        body: JSON.stringify({
+          dataUrl,
+          filename: file.name,
+          folder: uploadFolder || undefined,
+        }),
+      });
+      if (!response.ok) {
+        throw new Error("upload_failed");
+      }
+      const data = await response.json();
+      return String(data.url || "");
+    },
+    [apiBase, uploadFolder],
+  );
 
-  const handleUpload = async (file: File) => {
-    try {
-      setIsUploading(true);
+  const handleUpload = useCallback(
+    async (file: File) => {
       const url = await uploadImage(file);
-      if (selectOnUpload && url) {
+      if (url && selectOnUpload) {
         const alt = getAltFromName(file.name) || "Imagem";
         onSelect(url, alt);
-        onOpenChange(false);
+      }
+      if (url && (selectOnUpload || highlightOnUpload)) {
+        setLastUploadedUrls((prev) => {
+          const next = [url, ...prev];
+          const seen = new Set<string>();
+          return next.filter((item) => {
+            if (!item || seen.has(item)) {
+              return false;
+            }
+            seen.add(item);
+            return true;
+          });
+        });
+      }
+      if (url) {
+        setLibraryImages((prev) => {
+          const next = [{ name: file.name, url }, ...prev];
+          const seen = new Set<string>();
+          return next.filter((item) => {
+            if (!item?.url || seen.has(item.url)) {
+              return false;
+            }
+            seen.add(item.url);
+            return true;
+          });
+        });
+      }
+      return url;
+    },
+    [highlightOnUpload, onSelect, selectOnUpload, uploadImage],
+  );
+
+  const handleUploadFiles = useCallback(
+    async (files: File[] | FileList | null | undefined) => {
+      if (!files || files.length === 0) {
         return;
       }
-      await loadLibrary();
-    } catch {
-      toast({ title: "Nao foi possivel enviar a imagem." });
-    } finally {
-      setIsUploading(false);
-    }
-  };
+      const list = Array.from(files).filter((file) => file.type.startsWith("image/"));
+      if (list.length === 0) {
+        toast({ title: "Envie apenas imagens para a biblioteca." });
+        return;
+      }
+      setIsUploading(true);
+      try {
+        for (const file of list) {
+          // eslint-disable-next-line no-await-in-loop
+          await handleUpload(file);
+        }
+        await loadLibrary();
+      } catch {
+        toast({ title: "Nao foi possivel enviar a imagem." });
+      } finally {
+        setIsUploading(false);
+      }
+    },
+    [handleUpload, loadLibrary],
+  );
 
   const handleDrop = (event: React.DragEvent<HTMLDivElement>) => {
     event.preventDefault();
     setIsDragActive(false);
-    const file = event.dataTransfer?.files?.[0];
-    if (!file) {
-      return;
-    }
-    if (!file.type.startsWith("image/")) {
-      toast({ title: "Arraste apenas imagens para a biblioteca." });
-      return;
-    }
-    void handleUpload(file);
+    const files = event.dataTransfer?.files;
+    void handleUploadFiles(files);
   };
+
+  const handlePaste = useCallback(
+    (event: ClipboardEvent) => {
+      if (!open || isUploading) {
+        return;
+      }
+      const items = Array.from(event.clipboardData?.items || []).filter((item) =>
+        item.type.startsWith("image/"),
+      );
+      if (items.length === 0) {
+        return;
+      }
+      const files = items.map((item) => item.getAsFile()).filter(Boolean) as File[];
+      if (files.length === 0) {
+        return;
+      }
+      event.preventDefault();
+      void handleUploadFiles(files);
+    },
+    [open, isUploading, handleUploadFiles],
+  );
+
+  useEffect(() => {
+    if (!open) {
+      return;
+    }
+    window.addEventListener("paste", handlePaste);
+    return () => {
+      window.removeEventListener("paste", handlePaste);
+    };
+  }, [open, handlePaste]);
 
   const handleAddUrl = () => {
     const url = libraryUrl.trim();
@@ -205,18 +297,59 @@ const ImageLibraryDialog = ({
       return;
     }
     onSelect(url, libraryAlt.trim() || "Imagem");
-    onOpenChange(false);
+    if (selectOnUpload || highlightOnUpload) {
+      setLastUploadedUrls((prev) => {
+        const next = [url, ...prev];
+        const seen = new Set<string>();
+        return next.filter((item) => {
+          if (!item || seen.has(item)) {
+            return false;
+          }
+          seen.add(item);
+          return true;
+        });
+      });
+    }
+    handleOpenChange(false);
   };
 
   const handleSelectUpload = (item: LibraryImage) => {
     const alt = item.name ? getAltFromName(item.name) : "Imagem";
-    if (allowDeselect && currentSelectionUrl && item.url === currentSelectionUrl) {
+    const effectiveSelectionUrl = currentSelectionUrl;
+    if (applyHighlightedOnClose) {
+      setLastUploadedUrls((prev) => {
+        if (prev.includes(item.url)) {
+          return prev.filter((url) => url !== item.url);
+        }
+        return [item.url, ...prev];
+      });
+      return;
+    }
+    if (allowDeselect && effectiveSelectionUrl && item.url === effectiveSelectionUrl) {
       onSelect("", alt || "Imagem");
-      onOpenChange(false);
+      setLastUploadedUrls([]);
+      handleOpenChange(false);
       return;
     }
     onSelect(item.url, alt || "Imagem");
-    onOpenChange(false);
+    if (selectOnUpload || (highlightOnUpload && !applyHighlightedOnClose)) {
+      setLastUploadedUrls((prev) => {
+        const next = [item.url, ...prev];
+        const seen = new Set<string>();
+        return next.filter((value) => {
+          if (!value || seen.has(value)) {
+            return false;
+          }
+          seen.add(value);
+          return true;
+        });
+      });
+    } else if (applyHighlightedOnClose) {
+      // keep highlights from uploads only
+    } else if (lastUploadedUrls.length > 0) {
+      setLastUploadedUrls([]);
+    }
+    handleOpenChange(false);
   };
 
   const handleDelete = async (url: string) => {
@@ -255,7 +388,7 @@ const ImageLibraryDialog = ({
 
   return (
     <>
-      <Dialog open={open} onOpenChange={onOpenChange}>
+      <Dialog open={open} onOpenChange={handleOpenChange}>
         <DialogContent className="max-w-4xl">
           <DialogHeader>
             <DialogTitle>{title}</DialogTitle>
@@ -280,7 +413,7 @@ const ImageLibraryDialog = ({
               }}
               onDrop={handleDrop}
             >
-              <p className="font-medium text-foreground">Arraste uma imagem para enviar</p>
+              <p className="font-medium text-foreground">Arraste ou cole (Ctrl+V) uma imagem para enviar</p>
               <p className="mt-1 text-xs text-muted-foreground">
                 Solte aqui ou use o seletor para adicionar na biblioteca.
               </p>
@@ -288,12 +421,10 @@ const ImageLibraryDialog = ({
                 <Input
                   type="file"
                   accept="image/*"
+                  multiple
                   disabled={isUploading}
                   onChange={(event) => {
-                    const file = event.target.files?.[0];
-                    if (file) {
-                      void handleUpload(file);
-                    }
+                    void handleUploadFiles(event.target.files);
                   }}
                 />
                 {isUploading ? <p className="text-xs text-muted-foreground">Enviando...</p> : null}
@@ -320,7 +451,7 @@ const ImageLibraryDialog = ({
                         variant="outline"
                         onClick={() => {
                           onSelect("", "");
-                          onOpenChange(false);
+                          handleOpenChange(false);
                         }}
                       >
                         Remover imagem
@@ -347,11 +478,14 @@ const ImageLibraryDialog = ({
                 <p className="mt-3 text-xs text-muted-foreground">Nenhuma imagem enviada ainda.</p>
               ) : (
                 <div className="mt-3 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
-                  {libraryImages.map((item) => (
+                  {libraryImages.map((item) => {
+                    const effectiveSelectionUrl = currentSelectionUrl;
+                    const isHighlighted = highlightOnUpload && lastUploadedUrls.includes(item.url);
+                    return (
                     <div
                       key={item.url}
                       className={`group overflow-hidden rounded-xl border border-border/60 bg-card/60 text-left transition hover:border-primary/40 ${
-                        currentSelectionUrl && item.url === currentSelectionUrl
+                        (effectiveSelectionUrl && item.url === effectiveSelectionUrl) || isHighlighted
                           ? "ring-2 ring-primary/60 border-primary/60"
                           : ""
                       }`}
@@ -381,7 +515,8 @@ const ImageLibraryDialog = ({
                         </div>
                       ) : null}
                     </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </div>
@@ -395,13 +530,16 @@ const ImageLibraryDialog = ({
                   <p className="mt-3 text-xs text-muted-foreground">Nenhuma imagem disponivel.</p>
                 ) : (
                   <div className="mt-3 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
-                    {section.items.map((item) => (
+                    {section.items.map((item) => {
+                      const effectiveSelectionUrl = currentSelectionUrl;
+                      const isHighlighted = highlightOnUpload && lastUploadedUrls.includes(item.url);
+                      return (
                       <button
                         key={item.key}
                         type="button"
                         draggable
                         className={`group overflow-hidden rounded-xl border border-border/60 bg-card/60 text-left transition hover:border-primary/40 ${
-                          currentSelectionUrl && item.url === currentSelectionUrl
+                          (effectiveSelectionUrl && item.url === effectiveSelectionUrl) || isHighlighted
                             ? "ring-2 ring-primary/60 border-primary/60"
                             : ""
                         }`}
@@ -409,18 +547,42 @@ const ImageLibraryDialog = ({
                         onClick={() => {
                           const alt = getAltFromName(item.label);
                           const handler = section.onSelect || onSelect;
-                          if (allowDeselect && currentSelectionUrl && item.url === currentSelectionUrl) {
+                          if (applyHighlightedOnClose) {
+                            setLastUploadedUrls((prev) => {
+                              if (prev.includes(item.url)) {
+                                return prev.filter((url) => url !== item.url);
+                              }
+                              return [item.url, ...prev];
+                            });
+                            return;
+                          }
+                          if (allowDeselect && effectiveSelectionUrl && item.url === effectiveSelectionUrl) {
                             handler("", alt || "Imagem", item);
+                            setLastUploadedUrls([]);
                           } else {
                             handler(item.url, alt || "Imagem", item);
+                            if (selectOnUpload || highlightOnUpload) {
+                              setLastUploadedUrls((prev) => {
+                                const next = [item.url, ...prev];
+                                const seen = new Set<string>();
+                                return next.filter((value) => {
+                                  if (!value || seen.has(value)) {
+                                    return false;
+                                  }
+                                  seen.add(value);
+                                  return true;
+                                });
+                              });
+                            }
                           }
-                          onOpenChange(false);
+                          handleOpenChange(false);
                         }}
                       >
                         <img src={item.url} alt={item.label} className="h-32 w-full object-cover" />
                         <div className="p-2 text-xs text-muted-foreground">{item.label}</div>
                       </button>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
               </div>
