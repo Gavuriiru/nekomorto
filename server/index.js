@@ -231,7 +231,7 @@ const buildSiteMeta = () => {
     type: "website",
     siteName: settings.site?.name || "Nekomata",
     favicon: settings.site?.faviconUrl || "",
-  
+  };
 };
 
 const buildProjectMeta = (project) => {
