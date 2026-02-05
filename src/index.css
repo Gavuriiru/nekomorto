@@ -31,7 +31,7 @@
     --secondary-foreground: 0 0% 100%;
 
     --muted: 220 8% 19%;
-    --muted-foreground: 220 8% 72%;
+    --muted-foreground: 220 10% 78%;
 
     --accent: 273 60% 66%;
     --accent-foreground: 0 0% 100%;
@@ -84,8 +84,8 @@
     @apply bg-background text-foreground font-sans subpixel-antialiased;
     font-family: 'Inter', sans-serif;
     text-rendering: optimizeLegibility;
-    -webkit-font-smoothing: auto;
-    -moz-osx-font-smoothing: auto;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
 
   body :where([class*="border-"]) {

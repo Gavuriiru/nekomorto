@@ -36,6 +36,11 @@ import {
   Shield,
   Trash2,
   UserRound,
+  Download,
+  Send,
+  Cloud,
+  HardDrive,
+  Link2,
 } from "lucide-react";
 import { convertPostContent, createSlug, renderPostContent } from "@/lib/post-content";
 import { getApiBase } from "@/lib/api-base";
@@ -43,6 +48,7 @@ import { apiFetch } from "@/lib/api-client";
 import { isChapterBasedType, isLightNovelType, isMangaType } from "@/lib/project-utils";
 import { usePageMeta } from "@/hooks/use-page-meta";
 import PostContentEditor from "@/components/PostContentEditor";
+import { useSiteSettings } from "@/hooks/use-site-settings";
 
 type ProjectRelation = {
   relation: string;
@@ -203,7 +209,6 @@ const emptyProject: ProjectForm = {
 
 const formatOptions = ["Anime", "Mangá", "Webtoon", "Light Novel", "Filme", "OVA", "ONA", "Especial", "Spin-off"];
 const statusOptions = ["Em andamento", "Finalizado", "Pausado", "Cancelado"];
-const downloadSourceOptions = ["Google Drive", "MEGA", "Torrent", "Mediafire", "Telegram", "Outro"];
 const fansubRoleOptions = [
   "Tradução",
   "Revisão",
@@ -371,6 +376,12 @@ const EpisodeContentEditor = ({
   const [history, setHistory] = useState<string[]>([value]);
   const [historyIndex, setHistoryIndex] = useState(0);
   const historyGuard = useRef(false);
+  const [textColorValue, setTextColorValue] = useState("#ffffff");
+  const [backgroundColorValue, setBackgroundColorValue] = useState("#ffffff");
+  const [gradientStart, setGradientStart] = useState("#8b5cf6");
+  const [gradientEnd, setGradientEnd] = useState("#ec4899");
+  const [gradientAngle, setGradientAngle] = useState(90);
+  const [gradientTarget, setGradientTarget] = useState<"text" | "background">("text");
 
   useEffect(() => {
     setHistory([value]);
@@ -511,27 +522,21 @@ const EpisodeContentEditor = ({
     applyWrap(`<span style="${style}">`, "</span>");
   };
 
-  const handleOpenColorDialog = (type: "text" | "background") => {
-    const color = window.prompt("Cor (hex ou nome)", "#ffffff");
-    if (!color) {
-      return;
-    }
-    handleColor(color, type);
+  const handleTextColorPick = (nextColor: string) => {
+    setTextColorValue(nextColor);
   };
 
-  const handleOpenGradientDialog = () => {
-    const start = window.prompt("Cor inicial do gradiente", "#8b5cf6");
-    if (!start) {
-      return;
-    }
-    const end = window.prompt("Cor final do gradiente", "#ec4899");
-    if (!end) {
-      return;
-    }
-    applyWrap(
-      `<span style="background:linear-gradient(90deg, ${start}, ${end}); -webkit-background-clip:text; color:transparent;">`,
-      "</span>",
-    );
+  const handleBackgroundColorPick = (nextColor: string) => {
+    setBackgroundColorValue(nextColor);
+  };
+
+  const applyGradient = () => {
+    const gradient = `linear-gradient(${gradientAngle}deg, ${gradientStart}, ${gradientEnd})`;
+    const style =
+      gradientTarget === "text"
+        ? `background:${gradient};-webkit-background-clip:text;color:transparent;-webkit-text-fill-color:transparent;display:inline-block;`
+        : `background:${gradient};`;
+    applyWrap(`<span style="${style}">`, "</span>");
   };
 
   const handleOpenImageDialog = () => {
@@ -613,8 +618,19 @@ const EpisodeContentEditor = ({
       onApplyOrderedList={handleOrderedList}
       onAlign={handleAlign}
       onColor={handleColor}
-      onOpenColorDialog={handleOpenColorDialog}
-      onOpenGradientDialog={handleOpenGradientDialog}
+      textColorValue={textColorValue}
+      backgroundColorValue={backgroundColorValue}
+      onPickTextColor={handleTextColorPick}
+      onPickBackgroundColor={handleBackgroundColorPick}
+      gradientStart={gradientStart}
+      gradientEnd={gradientEnd}
+      gradientAngle={gradientAngle}
+      gradientTarget={gradientTarget}
+      onGradientStartChange={setGradientStart}
+      onGradientEndChange={setGradientEnd}
+      onGradientAngleChange={setGradientAngle}
+      onGradientTargetChange={setGradientTarget}
+      onApplyGradient={applyGradient}
       onOpenImageDialog={handleOpenImageDialog}
       onOpenLinkDialog={handleOpenLinkDialog}
       onInsertCover={() => {}}
@@ -634,6 +650,7 @@ const DashboardProjectsEditor = () => {
   usePageMeta({ title: "Projetos", noIndex: true });
   const navigate = useNavigate();
   const apiBase = getApiBase();
+  const { settings: publicSettings } = useSiteSettings();
   const restoreWindowMs = 3 * 24 * 60 * 60 * 1000;
   const [currentUser, setCurrentUser] = useState<{
     id: string;
@@ -659,6 +676,109 @@ const DashboardProjectsEditor = () => {
     return "order";
   });
   const [isEditorOpen, setIsEditorOpen] = useState(false);
+
+  const staffRoleOptions = useMemo(() => {
+    const labels = publicSettings.teamRoles.map((role) => role.label).filter(Boolean);
+    if (labels.length) {
+      return labels;
+    }
+    const fallback = formState.staff.map((item) => item.role).filter(Boolean);
+    return Array.from(new Set(fallback));
+  }, [publicSettings.teamRoles, formState.staff]);
+
+  const knownTags = useMemo(() => {
+    const set = new Set<string>();
+    projects.forEach((project) => {
+      (project.tags || []).forEach((tag) => set.add(tag));
+    });
+    return Array.from(set).sort((a, b) => a.localeCompare(b, "pt-BR"));
+  }, [projects]);
+
+  const knownGenres = useMemo(() => {
+    const set = new Set<string>();
+    projects.forEach((project) => {
+      (project.genres || []).forEach((genre) => set.add(genre));
+    });
+    return Array.from(set).sort((a, b) => a.localeCompare(b, "pt-BR"));
+  }, [projects]);
+
+  const tagSuggestions = useMemo(() => {
+    const query = tagInput.trim().toLowerCase();
+    if (!query) {
+      return [];
+    }
+    return knownTags
+      .filter((tag) => tag.toLowerCase().includes(query) && !formState.tags.includes(tag))
+      .slice(0, 6);
+  }, [tagInput, knownTags, formState.tags]);
+
+  const genreSuggestions = useMemo(() => {
+    const query = genreInput.trim().toLowerCase();
+    if (!query) {
+      return [];
+    }
+    return knownGenres
+      .filter((genre) => genre.toLowerCase().includes(query) && !formState.genres.includes(genre))
+      .slice(0, 6);
+  }, [genreInput, knownGenres, formState.genres]);
+
+  const downloadSourceOptions = useMemo(() => {
+    const sources =
+      publicSettings?.downloads?.sources?.map((source) => ({
+        label: String(source.label || "").trim(),
+        icon: source.icon,
+        color: source.color || "#7C3AED",
+      })) ?? [];
+    const filtered = sources.filter((source) => source.label);
+    if (filtered.length) {
+      return filtered;
+    }
+    return [
+      { label: "Google Drive", icon: "google-drive", color: "#34A853" },
+      { label: "MEGA", icon: "mega", color: "#D9272E" },
+      { label: "Torrent", icon: "torrent", color: "#7C3AED" },
+      { label: "Mediafire", icon: "mediafire", color: "#2563EB" },
+      { label: "Telegram", icon: "telegram", color: "#0EA5E9" },
+      { label: "Outro", icon: "link", color: "#64748B" },
+    ];
+  }, [publicSettings?.downloads?.sources]);
+
+  const renderDownloadIcon = (iconKey: string | undefined, color: string) => {
+    if (
+      iconKey &&
+      (iconKey.startsWith("http") || iconKey.startsWith("data:") || iconKey.startsWith("/uploads/"))
+    ) {
+      return <img src={iconKey} alt="" className="h-4 w-4" />;
+    }
+    const normalized = String(iconKey || "").toLowerCase();
+    if (normalized === "google-drive") {
+      return (
+        <svg viewBox="0 0 24 24" aria-hidden="true" className="h-4 w-4" style={{ color }}>
+          <path fill="currentColor" d="M7.5 3h9l4.5 8-4.5 8h-9L3 11z" />
+        </svg>
+      );
+    }
+    if (normalized === "mega") {
+      return (
+        <svg viewBox="0 0 24 24" aria-hidden="true" className="h-4 w-4">
+          <circle cx="12" cy="12" r="10" fill={color} />
+          <path
+            fill="#fff"
+            d="M7.2 16.4V7.6h1.6l3.2 4.2 3.2-4.2h1.6v8.8h-1.6V10l-3.2 4.1L8.8 10v6.4z"
+          />
+        </svg>
+      );
+    }
+    const iconMap: Record<string, typeof Download> = {
+      telegram: Send,
+      mediafire: Cloud,
+      torrent: HardDrive,
+      link: Link2,
+      download: Download,
+    };
+    const Icon = iconMap[normalized] || Download;
+    return <Icon className="h-4 w-4" style={{ color }} />;
+  };
   const [editingProject, setEditingProject] = useState<ProjectRecord | null>(null);
   const [formState, setFormState] = useState<ProjectForm>(emptyProject);
   const [deleteTarget, setDeleteTarget] = useState<ProjectRecord | null>(null);
@@ -1455,6 +1575,14 @@ const DashboardProjectsEditor = () => {
     setGenreInput("");
   };
 
+  const handleRemoveTag = (tag: string) => {
+    setFormState((prev) => ({ ...prev, tags: prev.tags.filter((item) => item !== tag) }));
+  };
+
+  const handleRemoveGenre = (genre: string) => {
+    setFormState((prev) => ({ ...prev, genres: prev.genres.filter((item) => item !== genre) }));
+  };
+
   const handleAddProducer = () => {
     const next = producerInput.trim();
     if (!next) {
@@ -1842,67 +1970,70 @@ const DashboardProjectsEditor = () => {
               </div>
             </div>
 
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="space-y-2 md:col-span-2">
+            <div className="grid gap-3 md:grid-cols-3">
+              <div className="space-y-2">
                 <Label>Imagem do carrossel</Label>
-                <div className="flex flex-wrap items-center gap-3">
-                  <div className="flex min-w-0 items-center gap-3 rounded-2xl border border-border/60 bg-card/60 px-3 py-2">
-                    {formState.heroImageUrl ? (
-                      <img
-                        src={formState.heroImageUrl}
-                        alt="Imagem do carrossel"
-                        className="h-14 w-14 rounded-lg object-cover"
-                      />
-                    ) : (
-                      <div className="flex h-14 w-14 items-center justify-center rounded-lg border border-dashed border-border/60 text-[10px] text-muted-foreground">
-                        Sem imagem
-                      </div>
-                    )}
-                    <span className="max-w-[260px] truncate text-xs text-muted-foreground">
-                      {formState.heroImageUrl || "Usa o banner se vazio."}
-                    </span>
-                  </div>
-                  <Button type="button" variant="outline" onClick={() => openLibraryForProjectImage("hero")}>
+                <div className="flex items-center gap-3 rounded-2xl border border-border/60 bg-card/60 px-3 py-2">
+                  {formState.heroImageUrl ? (
+                    <img
+                      src={formState.heroImageUrl}
+                      alt="Imagem do carrossel"
+                      className="h-12 w-12 rounded-lg object-cover"
+                    />
+                  ) : (
+                    <div className="flex h-12 w-12 items-center justify-center rounded-lg border border-dashed border-border/60 text-center text-[10px] text-muted-foreground leading-tight">
+                      Sem imagem
+                    </div>
+                  )}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="ml-auto"
+                    onClick={() => openLibraryForProjectImage("hero")}
+                  >
                     Biblioteca
                   </Button>
                 </div>
               </div>
               <div className="space-y-2">
                 <Label>Capa</Label>
-                <div className="flex flex-wrap items-center gap-3">
-                  <div className="flex min-w-0 items-center gap-3 rounded-2xl border border-border/60 bg-card/60 px-3 py-2">
-                    {formState.cover ? (
-                      <img src={formState.cover} alt="Capa" className="h-14 w-14 rounded-lg object-cover" />
-                    ) : (
-                      <div className="flex h-14 w-14 items-center justify-center rounded-lg border border-dashed border-border/60 text-[10px] text-muted-foreground">
-                        Sem imagem
-                      </div>
-                    )}
-                    <span className="max-w-[260px] truncate text-xs text-muted-foreground">
-                      {formState.cover || "Sem capa definida."}
-                    </span>
-                  </div>
-                  <Button type="button" variant="outline" onClick={() => openLibraryForProjectImage("cover")}>
+                <div className="flex items-center gap-3 rounded-2xl border border-border/60 bg-card/60 px-3 py-2">
+                  {formState.cover ? (
+                    <img src={formState.cover} alt="Capa" className="h-12 w-12 rounded-lg object-cover" />
+                  ) : (
+                    <div className="flex h-12 w-12 items-center justify-center rounded-lg border border-dashed border-border/60 text-center text-[10px] text-muted-foreground leading-tight">
+                      Sem imagem
+                    </div>
+                  )}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="ml-auto"
+                    onClick={() => openLibraryForProjectImage("cover")}
+                  >
                     Biblioteca
                   </Button>
                 </div>
               </div>
               <div className="space-y-2">
                 <Label>Banner</Label>
-                <div className="flex flex-wrap items-center gap-3">
-                  <div className="flex min-w-0 items-center gap-3 rounded-2xl border border-border/60 bg-card/60 px-3 py-2">
-                    {formState.banner ? (
-                      <img src={formState.banner} alt="Banner" className="h-14 w-14 rounded-lg object-cover" />
-                    ) : (
-                      <div className="flex h-14 w-14 items-center justify-center rounded-lg border border-dashed border-border/60 text-[10px] text-muted-foreground">
-                        Sem imagem
-                      </div>
-                    )}
-                    <span className="max-w-[260px] truncate text-xs text-muted-foreground">
-                      {formState.banner || "Sem banner definido."}
-                    </span>
-                  </div>
-                  <Button type="button" variant="outline" onClick={() => openLibraryForProjectImage("banner")}>
+                <div className="flex items-center gap-3 rounded-2xl border border-border/60 bg-card/60 px-3 py-2">
+                  {formState.banner ? (
+                    <img src={formState.banner} alt="Banner" className="h-12 w-12 rounded-lg object-cover" />
+                  ) : (
+                    <div className="flex h-12 w-12 items-center justify-center rounded-lg border border-dashed border-border/60 text-center text-[10px] text-muted-foreground leading-tight">
+                      Sem imagem
+                    </div>
+                  )}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="ml-auto"
+                    onClick={() => openLibraryForProjectImage("banner")}
+                  >
                     Biblioteca
                   </Button>
                 </div>
@@ -2016,12 +2147,38 @@ const DashboardProjectsEditor = () => {
                   <Input
                     value={tagInput}
                     onChange={(event) => setTagInput(event.target.value)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter") {
+                        event.preventDefault();
+                        handleAddTag();
+                      }
+                    }}
                     placeholder="Adicionar tag"
                   />
-                  <Button type="button" variant="outline" onClick={handleAddTag}>
-                    Adicionar
-                  </Button>
                 </div>
+                {tagSuggestions.length > 0 ? (
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {tagSuggestions.map((tag) => (
+                      <Button
+                        key={`tag-suggestion-${tag}`}
+                        type="button"
+                        size="sm"
+                        variant="ghost"
+                        className="h-7 px-2 text-xs"
+                        onClick={() => {
+                          setTagInput(tag);
+                          setFormState((prev) => ({
+                            ...prev,
+                            tags: prev.tags.includes(tag) ? prev.tags : [...prev.tags, tag],
+                          }));
+                          setTagInput("");
+                        }}
+                      >
+                        {tag}
+                      </Button>
+                    ))}
+                  </div>
+                ) : null}
                 <div className="mt-2 flex flex-wrap gap-2">
                   {formState.tags.map((tag, index) => (
                     <Badge
@@ -2031,7 +2188,8 @@ const DashboardProjectsEditor = () => {
                       onDragStart={() => setTagDragIndex(index)}
                       onDragOver={(event) => event.preventDefault()}
                       onDrop={() => handleTagDrop(index)}
-                      className="cursor-move"
+                      onClick={() => handleRemoveTag(tag)}
+                      className="cursor-pointer"
                     >
                       {tag}
                     </Badge>
@@ -2044,15 +2202,41 @@ const DashboardProjectsEditor = () => {
                   <Input
                     value={genreInput}
                     onChange={(event) => setGenreInput(event.target.value)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter") {
+                        event.preventDefault();
+                        handleAddGenre();
+                      }
+                    }}
                     placeholder="Adicionar gênero"
                   />
-                  <Button type="button" variant="outline" onClick={handleAddGenre}>
-                    Adicionar
-                  </Button>
                 </div>
+                {genreSuggestions.length > 0 ? (
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {genreSuggestions.map((genre) => (
+                      <Button
+                        key={`genre-suggestion-${genre}`}
+                        type="button"
+                        size="sm"
+                        variant="ghost"
+                        className="h-7 px-2 text-xs"
+                        onClick={() => {
+                          setGenreInput(genre);
+                          setFormState((prev) => ({
+                            ...prev,
+                            genres: prev.genres.includes(genre) ? prev.genres : [...prev.genres, genre],
+                          }));
+                          setGenreInput("");
+                        }}
+                      >
+                        {genre}
+                      </Button>
+                    ))}
+                  </div>
+                ) : null}
                 <div className="mt-2 flex flex-wrap gap-2">
                   {formState.genres.map((genre, index) => (
-                    <Badge key={`${genre}-${index}`} variant="secondary">
+                    <Badge key={`${genre}-${index}`} variant="secondary" onClick={() => handleRemoveGenre(genre)} className="cursor-pointer">
                       {genre}
                     </Badge>
                   ))}
@@ -2168,17 +2352,30 @@ const DashboardProjectsEditor = () => {
                     onDrop={() => handleStaffDrop(index)}
                   >
                     <div className="grid gap-3 md:grid-cols-[1fr_auto]">
-                      <Input
-                        value={role.role}
-                        onChange={(event) =>
+                      <Select
+                        value={role.role || ""}
+                        onValueChange={(value) =>
                           setFormState((prev) => {
                             const next = [...prev.staff];
-                            next[index] = { ...next[index], role: event.target.value };
+                            next[index] = { ...next[index], role: value };
                             return { ...prev, staff: next };
                           })
                         }
-                        placeholder="Função"
-                      />
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Função" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {(role.role && !staffRoleOptions.includes(role.role)
+                            ? [role.role, ...staffRoleOptions]
+                            : staffRoleOptions
+                          ).map((option) => (
+                            <SelectItem key={option} value={option}>
+                              {option}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                       <Button
                         type="button"
                         variant="ghost"
@@ -2472,12 +2669,9 @@ const DashboardProjectsEditor = () => {
                                     alt={episode.title || "Capa"}
                                     className="h-12 w-12 rounded-lg object-cover"
                                   />
-                                  <span className="max-w-[240px] truncate text-xs text-muted-foreground">
-                                    {episode.coverImageUrl}
-                                  </span>
                                 </div>
                               ) : (
-                                <div className="flex h-12 w-12 items-center justify-center rounded-lg border border-dashed border-border/60 text-[10px] text-muted-foreground">
+                                <div className="flex h-12 w-12 items-center justify-center rounded-lg border border-dashed border-border/60 text-center text-[10px] text-muted-foreground leading-tight">
                                   Sem imagem
                                 </div>
                               )}
@@ -2559,17 +2753,17 @@ const DashboardProjectsEditor = () => {
                             <div className="mt-3">
                               <Label className="text-xs">Fontes de download</Label>
                               <div className="mt-2 grid gap-2">
-                                {episode.sources.map((source, sourceIndex) => (
+                                {(episode.sources || []).map((source, sourceIndex) => (
                                   <div
                                     key={`${source.label}-${sourceIndex}`}
-                                    className="grid gap-2 md:grid-cols-[1fr_2fr_auto]"
+                                    className="grid items-center gap-2 md:grid-cols-[1fr_2fr_auto]"
                                   >
                                     <Select
                                       value={source.label}
                                       onValueChange={(value) =>
                                         setFormState((prev) => {
                                           const next = [...prev.episodeDownloads];
-                                          const sources = [...next[index].sources];
+                                          const sources = [...(next[index].sources || [])];
                                           sources[sourceIndex] = {
                                             ...sources[sourceIndex],
                                             label: value,
@@ -2584,8 +2778,11 @@ const DashboardProjectsEditor = () => {
                                       </SelectTrigger>
                                       <SelectContent>
                                         {downloadSourceOptions.map((option) => (
-                                          <SelectItem key={option} value={option}>
-                                            {option}
+                                          <SelectItem key={option.label} value={option.label}>
+                                            <span className="flex items-center gap-2">
+                                              {renderDownloadIcon(option.icon, option.color)}
+                                              <span>{option.label}</span>
+                                            </span>
                                           </SelectItem>
                                         ))}
                                       </SelectContent>
@@ -2595,7 +2792,7 @@ const DashboardProjectsEditor = () => {
                                       onChange={(event) =>
                                         setFormState((prev) => {
                                           const next = [...prev.episodeDownloads];
-                                          const sources = [...next[index].sources];
+                                          const sources = [...(next[index].sources || [])];
                                           sources[sourceIndex] = {
                                             ...sources[sourceIndex],
                                             url: event.target.value,
@@ -2609,16 +2806,18 @@ const DashboardProjectsEditor = () => {
                                     <Button
                                       type="button"
                                       variant="ghost"
+                                      size="icon"
+                                      className="h-9 w-9"
                                       onClick={() =>
                                         setFormState((prev) => {
                                           const next = [...prev.episodeDownloads];
-                                          const sources = next[index].sources.filter((_, idx) => idx !== sourceIndex);
+                                          const sources = (next[index].sources || []).filter((_, idx) => idx !== sourceIndex);
                                           next[index] = { ...next[index], sources };
                                           return { ...prev, episodeDownloads: next };
                                         })
                                       }
                                     >
-                                      Remover
+                                      <Trash2 className="h-4 w-4" />
                                     </Button>
                                   </div>
                                 ))}
@@ -2629,9 +2828,10 @@ const DashboardProjectsEditor = () => {
                                   onClick={() =>
                                     setFormState((prev) => {
                                       const next = [...prev.episodeDownloads];
+                                      const existingSources = next[index].sources || [];
                                       next[index] = {
                                         ...next[index],
-                                        sources: [...next[index].sources, { label: "", url: "" }],
+                                        sources: [...existingSources, { label: "", url: "" }],
                                       };
                                       return { ...prev, episodeDownloads: next };
                                     })

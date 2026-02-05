@@ -160,7 +160,7 @@ const Projects = () => {
     <div className="min-h-screen bg-gradient-to-b from-background via-[hsl(var(--primary)/0.12)] to-background text-foreground">
       <main className="pt-28">
         <section className="mx-auto w-full max-w-6xl px-6 pb-20 md:px-10 reveal" data-reveal>
-          <div className="grid gap-4 rounded-2xl bg-card/60 p-6 shadow-lg backdrop-blur md:grid-cols-[repeat(4,minmax(0,1fr))]">
+          <div className="grid gap-4 rounded-2xl bg-card/70 p-6 shadow-lg md:grid-cols-[repeat(4,minmax(0,1fr))]">
             <div className="flex flex-col gap-2">
               <span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
                 A-Z

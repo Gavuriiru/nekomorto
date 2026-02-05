@@ -29,7 +29,7 @@ import {
   AlignCenter,
   AlignLeft,
   AlignRight,
-  Calendar,
+  Calendar as CalendarIcon,
   Copy,
   Edit3,
   Eye,
@@ -44,9 +44,11 @@ import type { Project } from "@/data/projects";
 import ProjectEmbedCard from "@/components/ProjectEmbedCard";
 import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
-import { formatDateTimeShort } from "@/lib/date";
+import { formatDate, formatDateTimeShort } from "@/lib/date";
 import { usePageMeta } from "@/hooks/use-page-meta";
 import { normalizeAssetUrl } from "@/lib/asset-url";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 const emptyForm = {
   title: "",
@@ -63,6 +65,34 @@ const emptyForm = {
   projectId: "",
   tags: [] as string[],
 };
+
+const pad = (value: number) => String(value).padStart(2, "0");
+
+const toLocalDateTimeValue = (date: Date) =>
+  `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(
+    date.getHours(),
+  )}:${pad(date.getMinutes())}`;
+
+const parseLocalDateTimeValue = (value: string) => {
+  const [datePart, timePart] = value.split("T");
+  if (!datePart) {
+    return { date: null as Date | null, time: "" };
+  }
+  const [year, month, day] = datePart.split("-").map((chunk) => Number(chunk));
+  if (!year || !month || !day) {
+    return { date: null as Date | null, time: "" };
+  }
+  return {
+    date: new Date(year, month - 1, day),
+    time: timePart || "",
+  };
+};
+
+const toLocalDateTimeFromIso = (value?: string | null) =>
+  value ? toLocalDateTimeValue(new Date(value)) : "";
+
+const buildNumberOptions = (count: number) =>
+  Array.from({ length: count }, (_, index) => pad(index));
 
 type PostRecord = {
   id: string;
@@ -97,6 +127,7 @@ const DashboardPosts = () => {
   const navigate = useNavigate();
   const apiBase = getApiBase();
   const restoreWindowMs = 3 * 24 * 60 * 60 * 1000;
+  const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
   const [posts, setPosts] = useState<PostRecord[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [postOrder, setPostOrder] = useState<string[]>([]);
@@ -121,11 +152,8 @@ const DashboardPosts = () => {
   const [imageEditWidth, setImageEditWidth] = useState("");
   const [imageEditAlign, setImageEditAlign] = useState<"left" | "center" | "right">("center");
   const [imageEditMarkup, setImageEditMarkup] = useState("");
-  const [isColorDialogOpen, setIsColorDialogOpen] = useState(false);
-  const [colorTarget, setColorTarget] = useState<"text" | "background">("text");
-  const [colorValue, setColorValue] = useState("#ffffff");
-  const colorInputRef = useRef<HTMLInputElement | null>(null);
-  const [isGradientDialogOpen, setIsGradientDialogOpen] = useState(false);
+  const [textColorValue, setTextColorValue] = useState("#ffffff");
+  const [backgroundColorValue, setBackgroundColorValue] = useState("#ffffff");
   const [gradientStart, setGradientStart] = useState("#ff6ec7");
   const [gradientEnd, setGradientEnd] = useState("#7dd3fc");
   const [gradientAngle, setGradientAngle] = useState(135);
@@ -362,7 +390,7 @@ const DashboardPosts = () => {
         setFormState({
           ...emptyForm,
           author: currentUser?.name || "",
-          publishAt: new Date().toISOString().slice(0, 16),
+          publishAt: toLocalDateTimeValue(new Date()),
         });
         setIsEditorOpen(true);
       };
@@ -375,7 +403,7 @@ const DashboardPosts = () => {
     setFormState({
       ...emptyForm,
       author: currentUser?.name || "",
-      publishAt: new Date().toISOString().slice(0, 16),
+      publishAt: toLocalDateTimeValue(new Date()),
     });
     setIsEditorOpen(true);
   };
@@ -394,7 +422,7 @@ const DashboardPosts = () => {
       coverImageUrl: post.coverImageUrl || "",
       coverAlt: post.coverAlt || "",
       status: post.status || "draft",
-      publishAt: post.publishedAt ? post.publishedAt.slice(0, 16) : "",
+      publishAt: toLocalDateTimeFromIso(post.publishedAt),
       projectId: post.projectId || "",
       tags: Array.isArray(post.tags) ? post.tags : [],
     });
@@ -670,24 +698,74 @@ const DashboardPosts = () => {
     setIsGradientDialogOpen(false);
   };
 
-  const openColorDialog = (type: "text" | "background") => {
-    setColorTarget(type);
-    setIsColorDialogOpen(true);
+  const handleTextColorPick = (nextColor: string) => {
+    setTextColorValue(nextColor);
   };
 
-  useEffect(() => {
-    if (!isColorDialogOpen) {
+  const handleBackgroundColorPick = (nextColor: string) => {
+    setBackgroundColorValue(nextColor);
+  };
+
+  const handlePublishDateChange = (nextDate?: Date) => {
+    if (!nextDate) {
+      setFormState((prev) => ({ ...prev, publishAt: "" }));
       return;
     }
-    const timer = window.setTimeout(() => {
-      colorInputRef.current?.click();
-    }, 0);
-    return () => window.clearTimeout(timer);
-  }, [isColorDialogOpen]);
+    const { time } = parseLocalDateTimeValue(formState.publishAt || "");
+    const timePart = time || "12:00";
+    const nextValue = `${toLocalDateTimeValue(nextDate).slice(0, 10)}T${timePart}`;
+    setFormState((prev) => ({ ...prev, publishAt: nextValue }));
+  };
 
-  const applyColorSelection = () => {
-    applyColor(colorValue, colorTarget);
-    setIsColorDialogOpen(false);
+  const handlePublishTimeChange = (nextTime: string) => {
+    const { date } = parseLocalDateTimeValue(formState.publishAt || "");
+    const baseDate = date || new Date();
+    const datePart = toLocalDateTimeValue(baseDate).slice(0, 10);
+    setFormState((prev) => ({ ...prev, publishAt: `${datePart}T${nextTime}` }));
+  };
+
+  const timeParts = parseLocalDateTimeValue(formState.publishAt || "");
+  const hours = buildNumberOptions(24);
+  const minutes = buildNumberOptions(60);
+  const timeTypeBuffer = useRef<{ hours: string; minutes: string }>({ hours: "", minutes: "" });
+  const timeTypeTimer = useRef<{ hours?: number; minutes?: number }>({});
+  const currentHour = (timeParts.time || "12:00").split(":")[0];
+  const currentMinute = (timeParts.time || "12:00").split(":")[1];
+
+  const setTimeFromTyping = (target: "hours" | "minutes", digit: string) => {
+    const existing = timeTypeBuffer.current[target] + digit;
+    const limited = existing.slice(-2);
+    timeTypeBuffer.current[target] = limited;
+    if (timeTypeTimer.current[target]) {
+      window.clearTimeout(timeTypeTimer.current[target]);
+    }
+    timeTypeTimer.current[target] = window.setTimeout(() => {
+      timeTypeBuffer.current[target] = "";
+    }, 900);
+    const numeric = Number(limited);
+    if (Number.isNaN(numeric)) {
+      return;
+    }
+    if (target === "hours") {
+      const nextHour = pad(Math.max(0, Math.min(23, numeric)));
+      handlePublishTimeChange(`${nextHour}:${currentMinute}`);
+    } else {
+      const nextMinute = pad(Math.max(0, Math.min(59, numeric)));
+      handlePublishTimeChange(`${currentHour}:${nextMinute}`);
+    }
+  };
+
+  const handleTimeType = (target: "hours" | "minutes") => (event: React.KeyboardEvent) => {
+    if (event.key.length === 1 && /\d/.test(event.key)) {
+      event.preventDefault();
+      setTimeFromTyping(target, event.key);
+    }
+  };
+
+  const handleSetNow = () => {
+    const now = new Date();
+    handlePublishDateChange(now);
+    handlePublishTimeChange(`${pad(now.getHours())}:${pad(now.getMinutes())}`);
   };
 
   const handleAddTag = () => {
@@ -1466,8 +1544,19 @@ const DashboardPosts = () => {
                     onApplyOrderedList={handleOrderedList}
                     onAlign={applyAlign}
                     onColor={applyColor}
-                    onOpenColorDialog={openColorDialog}
-                    onOpenGradientDialog={() => setIsGradientDialogOpen(true)}
+                    textColorValue={textColorValue}
+                    backgroundColorValue={backgroundColorValue}
+                    onPickTextColor={handleTextColorPick}
+                    onPickBackgroundColor={handleBackgroundColorPick}
+                    gradientStart={gradientStart}
+                    gradientEnd={gradientEnd}
+                    gradientAngle={gradientAngle}
+                    gradientTarget={gradientTarget}
+                    onGradientStartChange={setGradientStart}
+                    onGradientEndChange={setGradientEnd}
+                    onGradientAngleChange={setGradientAngle}
+                    onGradientTargetChange={setGradientTarget}
+                    onApplyGradient={applyGradient}
                     onOpenImageDialog={() => openLibrary("editor")}
                     onOpenLinkDialog={openLinkDialog}
                     onUndo={handleUndo}
@@ -1501,7 +1590,7 @@ const DashboardPosts = () => {
                           {formState.author || "Autor"}
                         </span>
                         <span className="inline-flex items-center gap-2">
-                          <Calendar className="h-4 w-4" />
+                          <CalendarIcon className="h-4 w-4" />
                           {formState.publishAt ? formatDateTimeShort(formState.publishAt) : ""}
                         </span>
                       </div>
@@ -1576,14 +1665,81 @@ const DashboardPosts = () => {
                         </div>
                         <div className="space-y-2">
                           <Label htmlFor="post-date">Publicação</Label>
-                          <Input
-                            id="post-date"
-                            type="datetime-local"
-                            value={formState.publishAt}
-                            onChange={(event) =>
-                              setFormState((prev) => ({ ...prev, publishAt: event.target.value }))
-                            }
-                          />
+                          <div className="grid gap-3 md:grid-cols-[1.2fr_0.8fr]">
+                            <Popover>
+                              <PopoverTrigger asChild>
+                                <Button
+                                  id="post-date"
+                                  variant="outline"
+                                  className="justify-start text-left font-normal"
+                                >
+                                  {formState.publishAt
+                                    ? formatDate(formState.publishAt)
+                                    : "Selecionar data"}
+                                </Button>
+                              </PopoverTrigger>
+                              <PopoverContent align="start" className="w-auto p-0">
+                                <Calendar
+                                  mode="single"
+                                  selected={parseLocalDateTimeValue(formState.publishAt || "").date ?? undefined}
+                                  onSelect={(date) => handlePublishDateChange(date ?? undefined)}
+                                  initialFocus
+                                />
+                              </PopoverContent>
+                            </Popover>
+                            <div className="flex items-center gap-1">
+                              <Select
+                                value={currentHour}
+                                onValueChange={(value) =>
+                                  handlePublishTimeChange(`${value}:${currentMinute}`)
+                                }
+                              >
+                                <SelectTrigger
+                                  className="w-14 justify-center px-2 [&>svg]:hidden"
+                                  onKeyDown={handleTimeType("hours")}
+                                >
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {hours.map((hour) => (
+                                    <SelectItem key={hour} value={hour}>
+                                      {hour}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                              <span className="text-xs text-muted-foreground">:</span>
+                              <Select
+                                value={currentMinute}
+                                onValueChange={(value) =>
+                                  handlePublishTimeChange(`${currentHour}:${value}`)
+                                }
+                              >
+                                <SelectTrigger
+                                  className="w-14 justify-center px-2 [&>svg]:hidden"
+                                  onKeyDown={handleTimeType("minutes")}
+                                >
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {minutes.map((minute) => (
+                                    <SelectItem key={minute} value={minute}>
+                                      {minute}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="ghost"
+                                className="h-8 px-2 text-xs"
+                                onClick={handleSetNow}
+                              >
+                                Agora
+                              </Button>
+                            </div>
+                          </div>
                         </div>
                       </CardContent>
                     </Card>
@@ -2021,93 +2177,6 @@ const DashboardPosts = () => {
                 Cancelar
               </Button>
               <Button onClick={handleInsertVideo}>Inserir vídeo</Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={isGradientDialogOpen} onOpenChange={setIsGradientDialogOpen}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Gradiente</DialogTitle>
-            <DialogDescription>Crie um gradiente para texto ou fundo.</DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div
-              className="h-14 w-full rounded-xl border border-border/60"
-              style={{
-                background: `linear-gradient(${gradientAngle}deg, ${gradientStart}, ${gradientEnd})`,
-              }}
-            />
-            <div className="space-y-2">
-              <Label>Aplicar em</Label>
-              <Select value={gradientTarget} onValueChange={(value) => setGradientTarget(value as "text" | "background")}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="text">Texto</SelectItem>
-                  <SelectItem value="background">Fundo</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-2">
-                <Label>Cor inicial</Label>
-                <Input type="color" value={gradientStart} onChange={(event) => setGradientStart(event.target.value)} />
-              </div>
-              <div className="space-y-2">
-                <Label>Cor final</Label>
-                <Input type="color" value={gradientEnd} onChange={(event) => setGradientEnd(event.target.value)} />
-              </div>
-            </div>
-            <div className="space-y-2">
-              <Label>Ângulo</Label>
-              <Input
-                type="number"
-                min={0}
-                max={360}
-                value={gradientAngle}
-                onChange={(event) => setGradientAngle(Number(event.target.value || 0))}
-              />
-            </div>
-            <div className="flex justify-end gap-3">
-              <Button variant="ghost" onClick={() => setIsGradientDialogOpen(false)}>
-                Cancelar
-              </Button>
-              <Button onClick={applyGradient}>Aplicar gradiente</Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={isColorDialogOpen} onOpenChange={setIsColorDialogOpen}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Cor sólida</DialogTitle>
-            <DialogDescription>Escolha uma cor para o texto ou fundo.</DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-border/60 bg-card/70 px-4 py-3">
-              <span className="text-sm text-muted-foreground">
-                {colorTarget === "text" ? "Texto" : "Fundo"}
-              </span>
-              <div className="flex items-center gap-3">
-                <input
-                  ref={colorInputRef}
-                  type="color"
-                  value={colorValue}
-                  onChange={(event) => setColorValue(event.target.value)}
-                  className="h-10 w-14 cursor-pointer rounded-md border border-border/60 bg-transparent p-1"
-                />
-                <span className="text-xs text-muted-foreground">{colorValue}</span>
-              </div>
-            </div>
-            <div className="flex justify-end gap-3">
-              <Button variant="ghost" onClick={() => setIsColorDialogOpen(false)}>
-                Cancelar
-              </Button>
-              <Button onClick={applyColorSelection}>Aplicar cor</Button>
             </div>
           </div>
         </DialogContent>

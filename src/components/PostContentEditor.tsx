@@ -1,7 +1,11 @@
 import * as React from "react";
 import { Button } from "@/components/ui/button";
+import { ColorPicker } from "@/components/ui/color-picker";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   AlignCenter,
   AlignLeft,
@@ -35,8 +39,19 @@ type PostContentEditorProps = {
   onApplyOrderedList: () => void;
   onAlign: (align: "left" | "center" | "right") => void;
   onColor: (color: string, type: "text" | "background") => void;
-  onOpenColorDialog: (type: "text" | "background") => void;
-  onOpenGradientDialog: () => void;
+  textColorValue: string;
+  backgroundColorValue: string;
+  onPickTextColor: (color: string) => void;
+  onPickBackgroundColor: (color: string) => void;
+  gradientStart: string;
+  gradientEnd: string;
+  gradientAngle: number;
+  gradientTarget: "text" | "background";
+  onGradientStartChange: (value: string) => void;
+  onGradientEndChange: (value: string) => void;
+  onGradientAngleChange: (value: number) => void;
+  onGradientTargetChange: (value: "text" | "background") => void;
+  onApplyGradient: () => void;
   onOpenImageDialog: () => void;
   onOpenLinkDialog: () => void;
   onInsertCover?: () => void;
@@ -72,8 +87,19 @@ const PostContentEditor = ({
   onApplyOrderedList,
   onAlign,
   onColor,
-  onOpenColorDialog,
-  onOpenGradientDialog,
+  textColorValue,
+  backgroundColorValue,
+  onPickTextColor,
+  onPickBackgroundColor,
+  gradientStart,
+  gradientEnd,
+  gradientAngle,
+  gradientTarget,
+  onGradientStartChange,
+  onGradientEndChange,
+  onGradientAngleChange,
+  onGradientTargetChange,
+  onApplyGradient,
   onOpenImageDialog,
   onOpenLinkDialog,
   onInsertCover,
@@ -148,36 +174,97 @@ const PostContentEditor = ({
             <Button type="button" variant="ghost" size="icon" onClick={() => onAlign("right")} title="Alinhar à direita">
               <AlignRight className="h-4 w-4" />
             </Button>
-            <Button
-              type="button"
-              variant="outline"
-              size="icon"
-              onClick={() => onOpenColorDialog("text")}
-              title="Cor do texto"
-              className="border-border/60 bg-secondary/40 text-primary hover:border-primary/60"
-            >
-              <Type className="h-4 w-4" />
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              size="icon"
-              onClick={() => onOpenColorDialog("background")}
-              title="Cor de fundo"
-              className="border-border/60 bg-secondary/40 text-primary hover:border-primary/60"
-            >
-              <PaintBucket className="h-4 w-4" />
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              size="icon"
-              onClick={onOpenGradientDialog}
-              title="Gradiente"
-              className="border-border/60 bg-gradient-to-br from-primary/20 via-background to-accent/20 text-primary hover:border-primary/60"
-            >
-              <Palette className="h-4 w-4" />
-            </Button>
+            <ColorPicker
+              label="Cor do texto"
+              value={textColorValue}
+              onChange={(color) => {
+                const next = color.toString("hex");
+                onPickTextColor(next);
+                onColor(next, "text");
+              }}
+              trigger={<Type className="h-4 w-4" />}
+              showSwatch={false}
+              buttonClassName="inline-flex h-9 w-9 items-center justify-center rounded-md border border-border/60 bg-secondary/40 text-primary transition hover:border-primary/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+            />
+            <ColorPicker
+              label="Cor de fundo"
+              value={backgroundColorValue}
+              onChange={(color) => {
+                const next = color.toString("hex");
+                onPickBackgroundColor(next);
+                onColor(next, "background");
+              }}
+              trigger={<PaintBucket className="h-4 w-4" />}
+              showSwatch={false}
+              buttonClassName="inline-flex h-9 w-9 items-center justify-center rounded-md border border-border/60 bg-secondary/40 text-primary transition hover:border-primary/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+            />
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  title="Gradiente"
+                  className="border-border/60 bg-gradient-to-br from-primary/20 via-background to-accent/20 text-primary hover:border-primary/60"
+                >
+                  <Palette className="h-4 w-4" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent align="start" className="w-80 space-y-3">
+                <div
+                  className="h-14 w-full rounded-lg border border-border/60"
+                  style={{
+                    background: `linear-gradient(${gradientAngle}deg, ${gradientStart}, ${gradientEnd})`,
+                  }}
+                />
+                <div className="grid grid-cols-2 gap-2">
+                  <ColorPicker
+                    label="Início"
+                    value={gradientStart}
+                    onChange={(color) => onGradientStartChange(color.toString("hex"))}
+                  />
+                  <ColorPicker
+                    label="Fim"
+                    value={gradientEnd}
+                    onChange={(color) => onGradientEndChange(color.toString("hex"))}
+                  />
+                </div>
+                <div className="flex items-center gap-2">
+                  <Label className="text-xs text-muted-foreground">Ângulo</Label>
+                  <Input
+                    type="number"
+                    min={0}
+                    max={360}
+                    value={gradientAngle}
+                    onChange={(event) => onGradientAngleChange(Number(event.target.value || 0))}
+                    className="h-8"
+                  />
+                  <div className="ml-auto flex items-center gap-2">
+                    <Button
+                      type="button"
+                      variant={gradientTarget === "text" ? "secondary" : "ghost"}
+                      size="sm"
+                      onClick={() => onGradientTargetChange("text")}
+                    >
+                      Texto
+                    </Button>
+                    <Button
+                      type="button"
+                      variant={gradientTarget === "background" ? "secondary" : "ghost"}
+                      size="sm"
+                      onClick={() => onGradientTargetChange("background")}
+                    >
+                      Fundo
+                    </Button>
+                  </div>
+                </div>
+                <div className="flex justify-end">
+                  <Button type="button" size="sm" onClick={onApplyGradient}>
+                    Aplicar gradiente
+                  </Button>
+                </div>
+              </PopoverContent>
+            </Popover>
             <Button type="button" variant="ghost" size="icon" onClick={onOpenImageDialog} title="Imagem">
               <FileImage className="h-4 w-4" />
             </Button>

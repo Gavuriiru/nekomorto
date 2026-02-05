@@ -7,6 +7,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { ColorPicker } from "@/components/ui/color-picker";
 import {
   Select,
   SelectContent,
@@ -135,9 +136,11 @@ const DashboardSettings = () => {
   const [genreTranslations, setGenreTranslations] = useState<Record<string, string>>({});
   const [knownTags, setKnownTags] = useState<string[]>([]);
   const [knownGenres, setKnownGenres] = useState<string[]>([]);
+  const [linkTypes, setLinkTypes] = useState<Array<{ id: string; label: string; icon: string }>>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isSavingTranslations, setIsSavingTranslations] = useState(false);
+  const [isSavingLinkTypes, setIsSavingLinkTypes] = useState(false);
   const [isSyncingAniList, setIsSyncingAniList] = useState(false);
   const [uploadingKey, setUploadingKey] = useState<string | null>(null);
   const [isLibraryOpen, setIsLibraryOpen] = useState(false);
@@ -175,10 +178,11 @@ const DashboardSettings = () => {
     const load = async () => {
       setIsLoading(true);
       try {
-        const [settingsRes, translationsRes, projectsRes] = await Promise.all([
+        const [settingsRes, translationsRes, projectsRes, linkTypesRes] = await Promise.all([
           apiFetch(apiBase, "/api/settings", { auth: true }),
           apiFetch(apiBase, "/api/public/tag-translations", { cache: "no-store" }),
           apiFetch(apiBase, "/api/projects", { auth: true }),
+          apiFetch(apiBase, "/api/link-types"),
         ]);
         if (settingsRes.ok) {
           const data = await settingsRes.json();
@@ -205,6 +209,12 @@ const DashboardSettings = () => {
             });
             setKnownTags(Array.from(tags).sort((a, b) => a.localeCompare(b, "en")));
             setKnownGenres(Array.from(genres).sort((a, b) => a.localeCompare(b, "en")));
+          }
+        }
+        if (linkTypesRes.ok) {
+          const data = await linkTypesRes.json();
+          if (isActive) {
+            setLinkTypes(Array.isArray(data.items) ? data.items : []);
           }
         }
       } catch {
@@ -428,6 +438,34 @@ const DashboardSettings = () => {
     }
   };
 
+  const handleSaveLinkTypes = async () => {
+    setIsSavingLinkTypes(true);
+    try {
+      const response = await apiFetch(apiBase, "/api/link-types", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        auth: true,
+        body: JSON.stringify({ items: linkTypes }),
+      });
+      if (!response.ok) {
+        throw new Error("save_failed");
+      }
+      const data = await response.json().catch(() => null);
+      if (data?.items) {
+        setLinkTypes(data.items);
+      }
+      toast({ title: "Redes sociais salvas" });
+    } catch {
+      toast({
+        title: "Falha ao salvar",
+        description: "Não foi possível salvar as redes sociais.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSavingLinkTypes(false);
+    }
+  };
+
   const filteredTags = useMemo(() => {
     const query = tagQuery.trim().toLowerCase();
     const allTags = Array.from(new Set([...knownTags, ...Object.keys(tagTranslations)]));
@@ -554,27 +592,19 @@ const DashboardSettings = () => {
                         />
                       </div>
                       <div className="space-y-2">
-                        <Label>Cor de destaque (accent)</Label>
+                        <Label>Cor de destaque</Label>
                         <div className="flex items-center gap-3">
-                          <Input
-                            type="color"
+                          <ColorPicker
+                            label=""
+                            showSwatch
+                            buttonClassName="inline-flex h-9 w-9 items-center justify-center rounded-md border border-border/60 bg-background/60 shadow-sm transition hover:border-primary/40"
                             value={settings.theme.accent || "#000000"}
-                            onChange={(event) =>
+                            onChange={(color) =>
                               setSettings((prev) => ({
                                 ...prev,
-                                theme: { ...prev.theme, accent: event.target.value },
+                                theme: { ...prev.theme, accent: color.toString("hex") },
                               }))
                             }
-                          />
-                          <Input
-                            value={settings.theme.accent}
-                            onChange={(event) =>
-                              setSettings((prev) => ({
-                                ...prev,
-                                theme: { ...prev.theme, accent: event.target.value },
-                              }))
-                            }
-                            placeholder="#9667e0"
                           />
                         </div>
                         <p className="text-xs text-muted-foreground">
@@ -593,7 +623,6 @@ const DashboardSettings = () => {
                               alt="Logo"
                               className="h-10 w-10 rounded bg-black/10 object-contain"
                             />
-                            <span className="text-xs text-muted-foreground break-all">{settings.site.logoUrl}</span>
                           </div>
                         ) : (
                           <p className="text-xs text-muted-foreground">Sem logo definida.</p>
@@ -611,7 +640,6 @@ const DashboardSettings = () => {
                               alt="Favicon"
                               className="h-8 w-8 rounded bg-black/10 object-contain"
                             />
-                            <span className="text-xs text-muted-foreground break-all">{settings.site.faviconUrl}</span>
                           </div>
                         ) : (
                           <p className="text-xs text-muted-foreground">Sem favicon definido.</p>
@@ -634,9 +662,6 @@ const DashboardSettings = () => {
                               alt="Imagem de compartilhamento"
                               className="h-10 w-16 rounded bg-black/10 object-cover"
                             />
-                            <span className="text-xs text-muted-foreground break-all">
-                              {settings.site.defaultShareImage}
-                            </span>
                           </div>
                         ) : (
                           <p className="text-xs text-muted-foreground">Sem imagem definida.</p>
@@ -725,46 +750,48 @@ const DashboardSettings = () => {
                       {filteredTags.length === 0 ? (
                         <p className="px-4 py-3 text-xs text-muted-foreground">Nenhuma tag encontrada.</p>
                       ) : (
-                        <table className="w-full text-sm">
-                          <thead className="bg-background/70 text-xs uppercase tracking-wide text-muted-foreground">
-                            <tr>
-                              <th className="px-4 py-3 text-left font-medium">Termo (AniList)</th>
-                              <th className="px-4 py-3 text-left font-medium">Tradução</th>
-                              <th className="px-4 py-3 text-right font-medium">Ações</th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-border/60">
-                            {filteredTags.map((tag) => (
-                              <tr key={tag} className="bg-background/40">
-                                <td className="px-4 py-3 font-medium text-foreground">{tag}</td>
-                                <td className="px-4 py-3">
-                                  <Input
-                                    value={tagTranslations[tag] || ""}
-                                    placeholder={tag}
-                                    onChange={(event) =>
-                                      setTagTranslations((prev) => ({ ...prev, [tag]: event.target.value }))
-                                    }
-                                  />
-                                </td>
-                                <td className="px-4 py-3 text-right">
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    onClick={() =>
-                                      setTagTranslations((prev) => {
-                                        const next = { ...prev };
-                                        delete next[tag];
-                                        return next;
-                                      })
-                                    }
-                                  >
-                                    <Trash2 className="h-4 w-4" />
-                                  </Button>
-                                </td>
+                        <div className="max-h-[420px] overflow-y-auto no-scrollbar">
+                          <table className="w-full text-sm">
+                            <thead className="sticky top-0 bg-background/90 text-xs uppercase tracking-wide text-muted-foreground">
+                              <tr>
+                                <th className="px-4 py-3 text-left font-medium">Termo (AniList)</th>
+                                <th className="px-4 py-3 text-left font-medium">Tradução</th>
+                                <th className="px-4 py-3 text-right font-medium">Ações</th>
                               </tr>
-                            ))}
-                          </tbody>
-                        </table>
+                            </thead>
+                            <tbody className="divide-y divide-border/60">
+                              {filteredTags.map((tag) => (
+                                <tr key={tag} className="bg-background/40">
+                                  <td className="px-4 py-3 font-medium text-foreground">{tag}</td>
+                                  <td className="px-4 py-3">
+                                    <Input
+                                      value={tagTranslations[tag] || ""}
+                                      placeholder={tag}
+                                      onChange={(event) =>
+                                        setTagTranslations((prev) => ({ ...prev, [tag]: event.target.value }))
+                                      }
+                                    />
+                                  </td>
+                                  <td className="px-4 py-3 text-right">
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      onClick={() =>
+                                        setTagTranslations((prev) => {
+                                          const next = { ...prev };
+                                          delete next[tag];
+                                          return next;
+                                        })
+                                      }
+                                    >
+                                      <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
                       )}
                     </div>
                   </CardContent>
@@ -826,46 +853,48 @@ const DashboardSettings = () => {
                       {filteredGenres.length === 0 ? (
                         <p className="px-4 py-3 text-xs text-muted-foreground">Nenhum gênero encontrado.</p>
                       ) : (
-                        <table className="w-full text-sm">
-                          <thead className="bg-background/70 text-xs uppercase tracking-wide text-muted-foreground">
-                            <tr>
-                              <th className="px-4 py-3 text-left font-medium">Termo (AniList)</th>
-                              <th className="px-4 py-3 text-left font-medium">Tradução</th>
-                              <th className="px-4 py-3 text-right font-medium">Ações</th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-border/60">
-                            {filteredGenres.map((genre) => (
-                              <tr key={genre} className="bg-background/40">
-                                <td className="px-4 py-3 font-medium text-foreground">{genre}</td>
-                                <td className="px-4 py-3">
-                                  <Input
-                                    value={genreTranslations[genre] || ""}
-                                    placeholder={genre}
-                                    onChange={(event) =>
-                                      setGenreTranslations((prev) => ({ ...prev, [genre]: event.target.value }))
-                                    }
-                                  />
-                                </td>
-                                <td className="px-4 py-3 text-right">
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    onClick={() =>
-                                      setGenreTranslations((prev) => {
-                                        const next = { ...prev };
-                                        delete next[genre];
-                                        return next;
-                                      })
-                                    }
-                                  >
-                                    <Trash2 className="h-4 w-4" />
-                                  </Button>
-                                </td>
+                        <div className="max-h-[420px] overflow-y-auto no-scrollbar">
+                          <table className="w-full text-sm">
+                            <thead className="sticky top-0 bg-background/90 text-xs uppercase tracking-wide text-muted-foreground">
+                              <tr>
+                                <th className="px-4 py-3 text-left font-medium">Termo (AniList)</th>
+                                <th className="px-4 py-3 text-left font-medium">Tradução</th>
+                                <th className="px-4 py-3 text-right font-medium">Ações</th>
                               </tr>
-                            ))}
-                          </tbody>
-                        </table>
+                            </thead>
+                            <tbody className="divide-y divide-border/60">
+                              {filteredGenres.map((genre) => (
+                                <tr key={genre} className="bg-background/40">
+                                  <td className="px-4 py-3 font-medium text-foreground">{genre}</td>
+                                  <td className="px-4 py-3">
+                                    <Input
+                                      value={genreTranslations[genre] || ""}
+                                      placeholder={genre}
+                                      onChange={(event) =>
+                                        setGenreTranslations((prev) => ({ ...prev, [genre]: event.target.value }))
+                                      }
+                                    />
+                                  </td>
+                                  <td className="px-4 py-3 text-right">
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      onClick={() =>
+                                        setGenreTranslations((prev) => {
+                                          const next = { ...prev };
+                                          delete next[genre];
+                                          return next;
+                                        })
+                                      }
+                                    >
+                                      <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
                       )}
                     </div>
                   </CardContent>
@@ -907,9 +936,12 @@ const DashboardSettings = () => {
                       </Button>
                     </div>
 
-                    <div className="grid gap-4">
+                    <div className="grid gap-3">
                       {settings.downloads.sources.map((source, index) => (
-                        <div key={`${source.id}-${index}`} className="grid gap-3 md:grid-cols-[1.4fr_0.6fr_1.2fr_auto]">
+                        <div
+                          key={`${source.id}-${index}`}
+                          className="grid items-center gap-3 md:grid-cols-[1.3fr_0.25fr_1.6fr_auto]"
+                        >
                           <Input
                             value={source.label}
                             onChange={(event) =>
@@ -921,45 +953,57 @@ const DashboardSettings = () => {
                             }
                             placeholder="Nome"
                           />
-                          <Input
-                            type="color"
-                            value={source.color}
-                            onChange={(event) =>
-                              setSettings((prev) => {
-                                const next = [...prev.downloads.sources];
-                                next[index] = { ...next[index], color: event.target.value };
-                                return { ...prev, downloads: { ...prev.downloads, sources: next } };
-                              })
-                            }
-                          />
-                          <div className="flex flex-col gap-2">
-                            <div className="flex items-center gap-3 rounded-xl border border-border/60 bg-background/60 px-3 py-2 text-xs text-muted-foreground">
-                              {isIconUrl(source.icon) ? (
-                                <img
-                                  src={source.icon}
-                                  alt={`Ícone ${source.label}`}
-                                  className="h-6 w-6 rounded bg-white/90 p-1"
-                                />
-                              ) : (
-                                <span className="inline-flex h-6 w-6 items-center justify-center rounded bg-white/10 text-[10px]">
-                                  SVG
-                                </span>
-                              )}
-                              <span className="truncate">
-                                {isIconUrl(source.icon) ? "SVG atual" : "Nenhum SVG enviado"}
-                              </span>
-                            </div>
-                            <Input
-                              type="file"
-                              accept="image/svg+xml"
-                              onChange={(event) => {
-                                const file = event.target.files?.[0];
-                                if (file) {
-                                  uploadDownloadIcon(file, index);
-                                }
-                              }}
-                              disabled={uploadingKey === `download-icon-${index}`}
+                          <div className="flex items-center justify-center">
+                            <ColorPicker
+                              label=""
+                              showSwatch
+                              buttonClassName="inline-flex h-9 w-9 items-center justify-center rounded-md border border-border/60 bg-background/60 shadow-sm transition hover:border-primary/40"
+                              value={source.color}
+                              onChange={(color) =>
+                                setSettings((prev) => {
+                                  const next = [...prev.downloads.sources];
+                                  next[index] = { ...next[index], color: color.toString("hex") };
+                                  return { ...prev, downloads: { ...prev.downloads, sources: next } };
+                                })
+                              }
                             />
+                          </div>
+                          <div className="flex items-center gap-3 rounded-xl border border-border/60 bg-background/60 px-3 py-2 text-xs text-muted-foreground">
+                            {isIconUrl(source.icon) ? (
+                              <img
+                                src={source.icon}
+                                alt={`Ícone ${source.label}`}
+                                className="h-6 w-6 rounded bg-white/90 p-1"
+                              />
+                            ) : (
+                              <span className="inline-flex h-6 w-6 items-center justify-center rounded bg-white/10 text-[10px]">
+                                SVG
+                              </span>
+                            )}
+                            <span className="truncate">
+                              {isIconUrl(source.icon) ? "SVG atual" : "Sem SVG"}
+                            </span>
+                            <div className="ml-auto flex items-center gap-2">
+                              <Input
+                                id={`download-icon-${index}`}
+                                type="file"
+                                accept="image/svg+xml"
+                                className="sr-only"
+                                onChange={(event) => {
+                                  const file = event.target.files?.[0];
+                                  if (file) {
+                                    uploadDownloadIcon(file, index);
+                                  }
+                                }}
+                                disabled={uploadingKey === `download-icon-${index}`}
+                              />
+                              <Label
+                                htmlFor={`download-icon-${index}`}
+                                className="inline-flex h-8 cursor-pointer items-center justify-center rounded-md border border-border/60 bg-background px-3 text-[11px] font-medium text-foreground transition hover:border-primary/50"
+                              >
+                                Escolher SVG
+                              </Label>
+                            </div>
                           </div>
                           <Button
                             type="button"
@@ -989,7 +1033,7 @@ const DashboardSettings = () => {
                   <CardContent className="space-y-6 p-6">
                     <div className="flex flex-wrap items-center justify-between gap-3">
                       <div>
-                        <h2 className="text-lg font-semibold">Funcoes do time</h2>
+                        <h2 className="text-lg font-semibold">Funções do time</h2>
                         <p className="text-xs text-muted-foreground">
                           Ajuste os cargos disponíveis para membros.
                         </p>
@@ -1101,9 +1145,6 @@ const DashboardSettings = () => {
                               alt="Logo do footer"
                               className="h-10 w-10 rounded bg-black/10 object-contain"
                             />
-                            <span className="text-xs text-muted-foreground break-all">
-                              {settings.footer.brandLogoUrl}
-                            </span>
                           </div>
                         ) : (
                           <p className="text-xs text-muted-foreground">Sem logo definida.</p>
@@ -1350,6 +1391,118 @@ const DashboardSettings = () => {
                                   socialLinks: prev.footer.socialLinks.filter((_, idx) => idx !== index),
                                 },
                               }))
+                            }
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card className="border-border/60 bg-card/80">
+                  <CardContent className="space-y-6 p-6">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <div>
+                        <h2 className="text-lg font-semibold">Redes sociais (Usuários)</h2>
+                        <p className="text-xs text-muted-foreground">
+                          Opções exibidas no editor de usuários.
+                        </p>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() =>
+                            setLinkTypes((prev) => [
+                              ...prev,
+                              { id: `nova-${Date.now()}`, label: "Nova rede", icon: "globe" },
+                            ])
+                          }
+                        >
+                          <Plus className="h-4 w-4" />
+                          Adicionar
+                        </Button>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          onClick={(event) => {
+                            event.preventDefault();
+                            event.stopPropagation();
+                            void handleSaveLinkTypes();
+                          }}
+                          disabled={isSavingLinkTypes}
+                          className="gap-2"
+                        >
+                          <Save className="h-4 w-4" />
+                          {isSavingLinkTypes ? "Salvando..." : "Salvar"}
+                        </Button>
+                      </div>
+                    </div>
+
+                    <div className="grid gap-3">
+                      {linkTypes.length === 0 ? (
+                        <p className="text-xs text-muted-foreground">Nenhuma rede cadastrada.</p>
+                      ) : null}
+                      {linkTypes.map((link, index) => (
+                        <div key={`${link.id}-${index}`} className="grid gap-3 md:grid-cols-[1fr_1fr_0.8fr_auto]">
+                          <Input
+                            value={link.id}
+                            placeholder="id"
+                            onChange={(event) =>
+                              setLinkTypes((prev) => {
+                                const next = [...prev];
+                                next[index] = { ...next[index], id: event.target.value };
+                                return next;
+                              })
+                            }
+                          />
+                          <Input
+                            value={link.label}
+                            placeholder="Label"
+                            onChange={(event) =>
+                              setLinkTypes((prev) => {
+                                const next = [...prev];
+                                next[index] = { ...next[index], label: event.target.value };
+                                return next;
+                              })
+                            }
+                          />
+                          <Select
+                            value={link.icon || "globe"}
+                            onValueChange={(value) =>
+                              setLinkTypes((prev) => {
+                                const next = [...prev];
+                                next[index] = { ...next[index], icon: value };
+                                return next;
+                              })
+                            }
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Ícone" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {socialIconOptions.map((option) => {
+                                const Icon = socialIconMap[option.id] || Link2;
+                                return (
+                                  <SelectItem key={option.id} value={option.id}>
+                                    <div className="flex items-center gap-2">
+                                      <Icon className="h-4 w-4 text-muted-foreground" />
+                                      <span>{option.label}</span>
+                                    </div>
+                                  </SelectItem>
+                                );
+                              })}
+                            </SelectContent>
+                          </Select>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            onClick={() =>
+                              setLinkTypes((prev) => prev.filter((_, idx) => idx !== index))
                             }
                           >
                             <Trash2 className="h-4 w-4" />

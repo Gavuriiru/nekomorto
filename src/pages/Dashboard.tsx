@@ -454,7 +454,7 @@ const Dashboard = () => {
                 </div>
                 {hasProjectViewData ? (
                   <div className="mt-6 space-y-4">
-                    {rankedProjects.slice(0, 5).map((project) => (
+                    {rankedProjects.slice(0, 3).map((project) => (
                       <Link
                         key={project.id}
                         to={`/projeto/${project.id}`}
@@ -539,7 +539,7 @@ const Dashboard = () => {
                   </div>
                 ) : (
                   <div className="mt-6 space-y-4">
-                    {recentComments.map((comment) => (
+                    {recentComments.slice(0, 3).map((comment) => (
                       <a
                         key={comment.id}
                         href={comment.url}
