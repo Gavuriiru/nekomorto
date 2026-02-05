@@ -188,7 +188,10 @@ const About = () => {
               {about.highlights.map((item) => {
                 const HighlightIcon = iconMap[item.icon] || Sparkles;
                 return (
-                  <div key={item.label} className="rounded-2xl border border-border/60 bg-background/60 p-5">
+                  <div
+                    key={item.label}
+                    className="rounded-2xl border border-border/60 bg-background/60 p-5 transition hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-lg"
+                  >
                     <div className="flex items-center gap-3 text-xs font-semibold uppercase tracking-widest text-primary/80">
                       <HighlightIcon className="h-4 w-4 text-primary" />
                       {item.label}
@@ -198,7 +201,7 @@ const About = () => {
                 );
               })}
             </div>
-            <Card className="border-border/60 bg-card/80 shadow-lg">
+            <Card className="border-border/60 bg-card/80 shadow-lg transition hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-xl">
               <CardContent className="space-y-5 p-6 md:p-8">
                 <div className="flex items-center gap-3 text-sm font-semibold uppercase tracking-widest text-muted-foreground">
                   {(() => {
@@ -222,7 +225,10 @@ const About = () => {
             {about.pillars.map((pillar) => {
               const Icon = iconMap[pillar.icon] || Sparkles;
               return (
-                <Card key={pillar.title} className="border-border/60 bg-card/80 shadow-lg">
+                <Card
+                  key={pillar.title}
+                  className="border-border/60 bg-card/80 shadow-lg transition hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-xl"
+                >
                   <CardContent className="space-y-3 p-6">
                     <div className="flex items-center gap-3 text-sm font-semibold uppercase tracking-widest text-muted-foreground">
                       <Icon className="h-4 w-4 text-primary" />
@@ -243,7 +249,7 @@ const About = () => {
               return (
                 <Card
                   key={value.title}
-                  className="border-border/60 bg-card/80 shadow-lg transition hover:border-primary/40"
+                  className="border-border/60 bg-card/80 shadow-lg transition hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-xl"
                 >
                   <CardContent className="space-y-3 p-6">
                     <div className="flex items-center gap-3 text-sm font-semibold uppercase tracking-widest text-muted-foreground">

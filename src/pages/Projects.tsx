@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+ï»¿import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -375,11 +375,11 @@ const Projects = () => {
 
             <div className="flex flex-col gap-2">
               <span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-                Gêneros
+                GÃªneros
               </span>
               <Select value={selectedGenre} onValueChange={setSelectedGenre}>
                 <SelectTrigger className="bg-background/60">
-                  <SelectValue placeholder="Todos os gêneros" />
+                  <SelectValue placeholder="Todos os gÃªneros" />
                 </SelectTrigger>
                 <SelectContent>
                   {genreOptions.map((genre) => (
@@ -500,6 +500,7 @@ const Projects = () => {
 };
 
 export default Projects;
+
 
 
 
