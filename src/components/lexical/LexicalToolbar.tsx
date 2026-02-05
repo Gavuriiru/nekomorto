@@ -1,17 +1,14 @@
 import * as React from "react";
 import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
-import { $createParagraphNode, $getSelection, $isElementNode, $isRangeSelection, FORMAT_ELEMENT_COMMAND, FORMAT_TEXT_COMMAND, REDO_COMMAND, SELECTION_CHANGE_COMMAND, UNDO_COMMAND } from "lexical";
+import { $createParagraphNode, $getRoot, $getSelection, $isElementNode, $isRangeSelection, FORMAT_ELEMENT_COMMAND, FORMAT_TEXT_COMMAND, REDO_COMMAND, SELECTION_CHANGE_COMMAND, UNDO_COMMAND } from "lexical";
 import { $setBlocksType } from "@lexical/selection";
-import { INSERT_ORDERED_LIST_COMMAND, INSERT_UNORDERED_LIST_COMMAND, INSERT_CHECK_LIST_COMMAND, REMOVE_LIST_COMMAND } from "@lexical/list";
-import { INSERT_TABLE_COMMAND } from "@lexical/table";
-import { TOGGLE_LINK_COMMAND } from "@lexical/link";
+import { INSERT_ORDERED_LIST_COMMAND, INSERT_UNORDERED_LIST_COMMAND } from "@lexical/list";
 import { $createHeadingNode, $createQuoteNode, $isHeadingNode, $isQuoteNode } from "@lexical/rich-text";
 import { $createCodeNode, $isCodeNode } from "@lexical/code";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { AlignCenter, AlignLeft, AlignRight, Bold, CheckSquare, Code, Heading1, Heading2, Heading3, Italic, Link2, List, ListOrdered, Quote, Redo2, Strikethrough, Table, Underline, Undo2, Image as ImageIcon, Video } from "lucide-react";
-import { INSERT_IMAGE_COMMAND } from "@/components/lexical/nodes/ImageNode";
-import { INSERT_VIDEO_COMMAND } from "@/components/lexical/nodes/VideoNode";
+import { toast } from "@/components/ui/use-toast";
+import { AlignCenter, AlignLeft, AlignRight, Bold, Code, Heading1, Heading2, Heading3, Italic, Link2, List, ListOrdered, Quote, Redo2, Strikethrough, Table, Underline, Undo2, Image as ImageIcon, Video } from "lucide-react";
 
 type BlockType =
   | "paragraph"
@@ -25,30 +22,17 @@ type LexicalToolbarProps = {
   onRequestImage?: () => void;
   onRequestLink?: () => void;
   onRequestVideo?: () => void;
+  onRequestTable?: () => void;
 };
 
-const insertTable = (editor: ReturnType<typeof useLexicalComposerContext>[0]) => {
-  const rows = Number(window.prompt("Linhas da tabela", "3"));
-  const columns = Number(window.prompt("Colunas da tabela", "3"));
-  if (!Number.isFinite(rows) || !Number.isFinite(columns) || rows <= 0 || columns <= 0) {
-    return;
-  }
-  editor.dispatchCommand(INSERT_TABLE_COMMAND, { rows, columns });
-};
-
-const normalizeVideoUrl = (url: string) => {
-  if (url.includes("youtube.com/watch?v=")) {
-    return url.replace("watch?v=", "embed/");
-  }
-  if (url.includes("youtu.be/")) {
-    return url.replace("youtu.be/", "youtube.com/embed/");
-  }
-  return url;
-};
-
-const setBlockType = (editor: ReturnType<typeof useLexicalComposerContext>[0], value: BlockType) => {
+const applyBlockType = (editor: ReturnType<typeof useLexicalComposerContext>[0], value: BlockType) => {
+  editor.focus();
   editor.update(() => {
-    const selection = $getSelection();
+    let selection = $getSelection();
+    if (!$isRangeSelection(selection)) {
+      $getRoot().selectStart();
+      selection = $getSelection();
+    }
     if (!$isRangeSelection(selection)) {
       return;
     }
@@ -78,9 +62,45 @@ const setBlockType = (editor: ReturnType<typeof useLexicalComposerContext>[0], v
   });
 };
 
-const LexicalToolbar = ({ onRequestImage, onRequestLink, onRequestVideo }: LexicalToolbarProps) => {
+const LexicalToolbar = ({ onRequestImage, onRequestLink, onRequestVideo, onRequestTable }: LexicalToolbarProps) => {
   const [editor] = useLexicalComposerContext();
   const [blockType, setBlockType] = React.useState<BlockType>("paragraph");
+  const blockLabel = React.useMemo(() => {
+    switch (blockType) {
+      case "h1":
+        return "H1";
+      case "h2":
+        return "H2";
+      case "h3":
+        return "H3";
+      case "quote":
+        return "Citação";
+      case "code":
+        return "Código";
+      default:
+        return "Parágrafo";
+    }
+  }, [blockType]);
+  const requireSelection = React.useCallback(
+    (command: Parameters<typeof editor.dispatchCommand>[0]) => {
+      let hasRange = false;
+      editor.focus();
+      editor.update(
+        () => {
+          const selection = $getSelection();
+          hasRange = $isRangeSelection(selection);
+        },
+        { discrete: true },
+      );
+      if (!hasRange) {
+        toast({ title: "Clique no texto para posicionar o cursor." });
+        return;
+      }
+      editor.focus();
+      editor.dispatchCommand(command, undefined);
+    },
+    [editor],
+  );
 
   React.useEffect(() => {
     return editor.registerUpdateListener(({ editorState }) => {
@@ -145,11 +165,27 @@ const LexicalToolbar = ({ onRequestImage, onRequestLink, onRequestVideo }: Lexic
     );
   }, [editor]);
 
+  React.useEffect(() => {
+    editor.update(() => {
+      const selection = $getSelection();
+      if (!$isRangeSelection(selection)) {
+        $getRoot().selectStart();
+      }
+    });
+  }, [editor]);
+
   return (
     <div className="lexical-toolbar">
-      <Select value={blockType} onValueChange={(value) => setBlockType(editor, value as BlockType)}>
+      <Select
+        value={blockType}
+        onValueChange={(value) => {
+          const next = value as BlockType;
+          setBlockType(next);
+          applyBlockType(editor, next);
+        }}
+      >
         <SelectTrigger className="h-9 w-[160px]">
-          <SelectValue placeholder="Bloco" />
+          <SelectValue placeholder="Bloco">{blockLabel}</SelectValue>
         </SelectTrigger>
         <SelectContent>
           <SelectItem value="paragraph">Parágrafo</SelectItem>
@@ -208,33 +244,17 @@ const LexicalToolbar = ({ onRequestImage, onRequestLink, onRequestVideo }: Lexic
         <Button type="button" variant="ghost" size="icon" onClick={() => editor.dispatchCommand(FORMAT_ELEMENT_COMMAND, "right")}>
           <AlignRight className="h-4 w-4" />
         </Button>
-        <Button type="button" variant="ghost" size="icon" onClick={() => editor.dispatchCommand(INSERT_UNORDERED_LIST_COMMAND, undefined)}>
+        <Button type="button" variant="ghost" size="icon" onClick={() => requireSelection(INSERT_UNORDERED_LIST_COMMAND)}>
           <List className="h-4 w-4" />
         </Button>
-        <Button type="button" variant="ghost" size="icon" onClick={() => editor.dispatchCommand(INSERT_ORDERED_LIST_COMMAND, undefined)}>
+        <Button type="button" variant="ghost" size="icon" onClick={() => requireSelection(INSERT_ORDERED_LIST_COMMAND)}>
           <ListOrdered className="h-4 w-4" />
-        </Button>
-        <Button type="button" variant="ghost" size="icon" onClick={() => editor.dispatchCommand(INSERT_CHECK_LIST_COMMAND, undefined)}>
-          <CheckSquare className="h-4 w-4" />
-        </Button>
-        <Button type="button" variant="ghost" size="icon" onClick={() => editor.dispatchCommand(REMOVE_LIST_COMMAND, undefined)}>
-          <List className="h-4 w-4" />
         </Button>
         <Button
           type="button"
           variant="ghost"
           size="icon"
-          onClick={() => {
-            if (onRequestLink) {
-              onRequestLink();
-              return;
-            }
-            const url = window.prompt("URL do link", "https://");
-            if (!url) {
-              return;
-            }
-            editor.dispatchCommand(TOGGLE_LINK_COMMAND, url);
-          }}
+          onClick={() => onRequestLink?.()}
         >
           <Link2 className="h-4 w-4" />
         </Button>
@@ -242,23 +262,7 @@ const LexicalToolbar = ({ onRequestImage, onRequestLink, onRequestVideo }: Lexic
           type="button"
           variant="ghost"
           size="icon"
-          onClick={() => {
-            if (onRequestImage) {
-              onRequestImage();
-              return;
-            }
-            const url = window.prompt("URL da imagem");
-            if (!url) {
-              return;
-            }
-            const alt = window.prompt("Texto alternativo", "Imagem") || "Imagem";
-            editor.dispatchCommand(INSERT_IMAGE_COMMAND, {
-              src: url,
-              altText: alt,
-              width: "100%",
-              align: "center",
-            });
-          }}
+          onClick={() => onRequestImage?.()}
         >
           <ImageIcon className="h-4 w-4" />
         </Button>
@@ -266,21 +270,11 @@ const LexicalToolbar = ({ onRequestImage, onRequestLink, onRequestVideo }: Lexic
           type="button"
           variant="ghost"
           size="icon"
-          onClick={() => {
-            if (onRequestVideo) {
-              onRequestVideo();
-              return;
-            }
-            const url = window.prompt("URL do vídeo (embed ou link)");
-            if (!url) {
-              return;
-            }
-            editor.dispatchCommand(INSERT_VIDEO_COMMAND, { src: normalizeVideoUrl(url), title: "Video" });
-          }}
+          onClick={() => onRequestVideo?.()}
         >
           <Video className="h-4 w-4" />
         </Button>
-        <Button type="button" variant="ghost" size="icon" onClick={() => insertTable(editor)}>
+        <Button type="button" variant="ghost" size="icon" onClick={() => onRequestTable?.()}>
           <Table className="h-4 w-4" />
         </Button>
         <Button type="button" variant="ghost" size="icon" onClick={() => editor.dispatchCommand(UNDO_COMMAND, undefined)}>

@@ -94,6 +94,7 @@ export class VideoNode extends DecoratorNode<JSX.Element> {
     iframe.setAttribute("allow", "accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture");
     iframe.setAttribute("allowfullscreen", "true");
     iframe.setAttribute("frameborder", "0");
+    iframe.setAttribute("data-lexical-node", "video");
     return { element: iframe };
   }
 

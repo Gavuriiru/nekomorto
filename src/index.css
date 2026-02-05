@@ -136,6 +136,201 @@
   .post-content img {
     @apply rounded-lg;
   }
+
+  .post-content h1 {
+    @apply text-2xl font-semibold text-foreground;
+  }
+
+  .post-content h2 {
+    @apply text-xl font-semibold text-foreground;
+  }
+
+  .post-content h3 {
+    @apply text-lg font-semibold text-foreground;
+  }
+
+  .post-content blockquote {
+    @apply border-l-4 border-primary/50 pl-4 text-muted-foreground;
+  }
+
+  .post-content pre {
+    @apply rounded-xl border border-border/60 bg-muted/40 p-4 text-xs text-foreground;
+    overflow-x: auto;
+  }
+
+  .post-content code {
+    @apply rounded bg-muted px-1 py-0.5 text-xs text-foreground;
+  }
+
+  .post-content table {
+    @apply w-full border-collapse text-sm;
+  }
+
+  .post-content th,
+  .post-content td {
+    @apply border border-border/60 px-3 py-2 text-left;
+  }
+
+  .post-content thead {
+    @apply bg-muted/40;
+  }
+
+  .post-content hr {
+    @apply border-border/60;
+  }
+
+  .post-content iframe {
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    border: 0;
+    border-radius: 0.75rem;
+  }
+
+  .post-content ul[data-lexical-list-type="check"] {
+    list-style: none;
+    padding-left: 0;
+  }
+
+  .post-content ul[data-lexical-list-type="check"] li {
+    position: relative;
+    padding-left: 1.75rem;
+  }
+
+  .post-content ul[data-lexical-list-type="check"] li::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 0.2rem;
+    width: 0.95rem;
+    height: 0.95rem;
+    border: 2px solid hsl(var(--border));
+    border-radius: 0.2rem;
+    background: hsl(var(--background));
+  }
+
+  .post-content ul[data-lexical-list-type="check"] li[data-lexical-checked="true"]::after {
+    content: "";
+    position: absolute;
+    left: 0.3rem;
+    top: 0.4rem;
+    width: 0.35rem;
+    height: 0.55rem;
+    border-right: 2px solid hsl(var(--primary));
+    border-bottom: 2px solid hsl(var(--primary));
+    transform: rotate(45deg);
+  }
+
+  .post-content ul:has([data-lexical-checked]),
+  .post-content ol:has([data-lexical-checked]) {
+    list-style: none;
+    padding-left: 0;
+  }
+
+  .post-content [data-lexical-checked] {
+    list-style: none;
+    position: relative;
+    padding-left: 1.75rem;
+    display: block;
+  }
+
+  .post-content [data-lexical-checked]::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 0.2rem;
+    width: 0.95rem;
+    height: 0.95rem;
+    border: 2px solid hsl(var(--border));
+    border-radius: 0.2rem;
+    background: hsl(var(--background));
+  }
+
+  .post-content [data-lexical-checked="true"]::after {
+    content: "";
+    position: absolute;
+    left: 0.3rem;
+    top: 0.4rem;
+    width: 0.35rem;
+    height: 0.55rem;
+    border-right: 2px solid hsl(var(--primary));
+    border-bottom: 2px solid hsl(var(--primary));
+    transform: rotate(45deg);
+  }
+
+  .post-content ul li[data-lexical-checked],
+  .post-content ol li[data-lexical-checked] {
+    list-style: none;
+    position: relative;
+    padding-left: 1.75rem;
+  }
+
+  .post-content ul li[data-lexical-checked]::before,
+  .post-content ol li[data-lexical-checked]::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 0.2rem;
+    width: 0.95rem;
+    height: 0.95rem;
+    border: 2px solid hsl(var(--border));
+    border-radius: 0.2rem;
+    background: hsl(var(--background));
+  }
+
+  .post-content ul li[data-lexical-checked="true"]::after,
+  .post-content ol li[data-lexical-checked="true"]::after {
+    content: "";
+    position: absolute;
+    left: 0.3rem;
+    top: 0.4rem;
+    width: 0.35rem;
+    height: 0.55rem;
+    border-right: 2px solid hsl(var(--primary));
+    border-bottom: 2px solid hsl(var(--primary));
+    transform: rotate(45deg);
+  }
+
+
+  .reader-content {
+    font-size: 1rem;
+    line-height: 1.9;
+  }
+
+  .reader-content p {
+    margin: 0 0 1.2rem;
+  }
+
+  .reader-content h1 {
+    font-size: 2rem;
+    margin: 0 0 1.4rem;
+  }
+
+  .reader-content h2 {
+    font-size: 1.5rem;
+    margin: 1.4rem 0 1rem;
+  }
+
+  .reader-content h3 {
+    font-size: 1.25rem;
+    margin: 1.2rem 0 0.8rem;
+  }
+
+  .reader-content blockquote {
+    margin: 1.2rem 0;
+  }
+
+  .reader-content ul,
+  .reader-content ol {
+    margin: 0 0 1.2rem;
+  }
+
+  .reader-content table {
+    margin: 0 0 1.4rem;
+  }
+
+  .reader-content iframe {
+    margin: 1.2rem 0;
+  }
 }
 
 @layer utilities {
@@ -322,6 +517,52 @@
 
 .lexical-listitem {
   margin: 0.25rem 0;
+}
+
+.lexical-content ul,
+.lexical-list-ul {
+  list-style: disc;
+}
+
+.lexical-content ol,
+.lexical-list-ol {
+  list-style: decimal;
+}
+
+.lexical-listitem-checked,
+.lexical-listitem-unchecked {
+  list-style: none;
+}
+
+.lexical-listitem-checked,
+.lexical-listitem-unchecked {
+  position: relative;
+  padding-left: 1.75rem;
+}
+
+.lexical-listitem-checked::before,
+.lexical-listitem-unchecked::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0.25rem;
+  width: 0.95rem;
+  height: 0.95rem;
+  border: 2px solid hsl(var(--border));
+  border-radius: 0.2rem;
+  background: hsl(var(--background));
+}
+
+.lexical-listitem-checked::after {
+  content: "";
+  position: absolute;
+  left: 0.3rem;
+  top: 0.45rem;
+  width: 0.35rem;
+  height: 0.55rem;
+  border-right: 2px solid hsl(var(--primary));
+  border-bottom: 2px solid hsl(var(--primary));
+  transform: rotate(45deg);
 }
 
 .lexical-link {

@@ -1011,7 +1011,16 @@ const DashboardPosts = () => {
             </div>
 
             {isEditorOpen && canManagePosts ? (
-              <section className="mt-10 space-y-8">
+              <section
+                className="mt-10 space-y-8"
+                onFocusCapture={(event) => {
+                  const target = event.target as HTMLElement | null;
+                  if (target?.closest(".lexical-editor")) {
+                    return;
+                  }
+                  editorRef.current?.blur();
+                }}
+              >
                 <div className="grid gap-8 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
                   <LexicalEditor
                     ref={editorRef}

@@ -125,6 +125,7 @@ export class ImageNode extends DecoratorNode<JSX.Element> {
     img.setAttribute("src", this.__src);
     img.setAttribute("alt", this.__altText);
     img.setAttribute("loading", "lazy");
+    img.setAttribute("data-lexical-node", "image");
     if (this.__width) {
       img.style.width = this.__width;
     }

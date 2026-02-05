@@ -2235,6 +2235,15 @@ const DashboardProjectsEditor = () => {
                       ) {
                         return;
                       }
+                      const selection = window.getSelection();
+                      const anchorNode = selection?.anchorNode as HTMLElement | null;
+                      const focusNode = selection?.focusNode as HTMLElement | null;
+                      if (
+                        selection?.type === "Range" &&
+                        (anchorNode?.closest?.(".lexical-editor") || focusNode?.closest?.(".lexical-editor"))
+                      ) {
+                        return;
+                      }
                       setCollapsedEpisodes((prev) => ({
                         ...prev,
                         [index]: !prev[index],
@@ -2445,13 +2454,23 @@ const DashboardProjectsEditor = () => {
                           {isLightNovel ? (
                             <div className="mt-4">
                               <Label className="text-xs">Conteúdo do capítulo</Label>
-                              <div className="mt-3">
-                                <EpisodeContentEditor
-                                  value={episode.content || ""}
-                                  format={episode.contentFormat || "lexical"}
-                                  onRegister={(handlers) => {
-                                    chapterEditorsRef.current[index] = handlers;
-                                  }}
+                        <div
+                          className="mt-3"
+                          onFocusCapture={(event) => {
+                            const target = event.target as HTMLElement | null;
+                            if (target?.closest(".lexical-editor")) {
+                              return;
+                            }
+                            const editor = chapterEditorsRef.current[index];
+                            editor?.blur?.();
+                          }}
+                        >
+                          <EpisodeContentEditor
+                            value={episode.content || ""}
+                            format={episode.contentFormat || "lexical"}
+                            onRegister={(handlers) => {
+                              chapterEditorsRef.current[index] = handlers;
+                            }}
                                   onChange={(nextValue) =>
                                     setFormState((prev) => {
                                       const next = [...prev.episodeDownloads];

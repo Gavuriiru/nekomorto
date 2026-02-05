@@ -242,6 +242,9 @@ const sanitizeHtml = (value: string) => {
         el.removeAttribute(attr.name);
         return;
       }
+      if (name.startsWith("data-lexical-")) {
+        return;
+      }
       if (allowedUrlAttrs.has(attr.name)) {
         if (!isSafeUrl(attr.value)) {
           el.removeAttribute(attr.name);

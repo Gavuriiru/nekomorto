@@ -239,7 +239,7 @@ const ProjectReading = () => {
                 ) : null}
                 {chapterContent?.content ? (
                   <div
-                    className="post-content space-y-4 text-sm text-muted-foreground"
+                    className="post-content reader-content space-y-4 text-sm text-muted-foreground"
                     dangerouslySetInnerHTML={{ __html: htmlContent }}
                   />
                 ) : (
