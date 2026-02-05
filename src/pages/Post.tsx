@@ -28,7 +28,7 @@ const Post = () => {
     coverAlt?: string | null;
     excerpt: string;
     content: string;
-    contentFormat: "markdown" | "html";
+  contentFormat: "markdown" | "html" | "lexical";
     author: string;
     publishedAt: string;
     views: number;

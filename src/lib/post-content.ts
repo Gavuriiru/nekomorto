@@ -1,3 +1,5 @@
+import { renderLexicalJsonToHtml } from "@/lib/lexical/serialize";
+
 const escapeHtml = (value: string) =>
   value
     .replace(/&/g, "&amp;")
@@ -202,8 +204,26 @@ const sanitizeHtml = (value: string) => {
     "PRE",
     "SPAN",
     "DIV",
+    "TABLE",
+    "THEAD",
+    "TBODY",
+    "TR",
+    "TD",
+    "TH",
+    "IFRAME",
   ]);
-  const allowedAttrs = new Set(["class", "title"]);
+  const allowedAttrs = new Set([
+    "class",
+    "title",
+    "style",
+    "colspan",
+    "rowspan",
+    "width",
+    "height",
+    "frameborder",
+    "allow",
+    "allowfullscreen",
+  ]);
   const allowedUrlAttrs = new Set(["href", "src"]);
   const isSafeUrl = (url: string) =>
     /^(https?:|mailto:|\/|#)/i.test(url);
@@ -240,7 +260,12 @@ const sanitizeHtml = (value: string) => {
   return doc.body.innerHTML;
 };
 
-export const renderPostContent = (content: string, format: "markdown" | "html") => {
+export type PostContentFormat = "markdown" | "html" | "lexical";
+
+export const renderPostContent = (content: string, format: PostContentFormat) => {
+  if (format === "lexical") {
+    return sanitizeHtml(normalizeLocalHtml(renderLexicalJsonToHtml(content || "")));
+  }
   if (format === "html") {
     return sanitizeHtml(normalizeLocalHtml(content || ""));
   }
@@ -300,7 +325,7 @@ export const convertPostContent = (content: string, from: "markdown" | "html", t
 
 export const stripHtml = (value: string) => value.replace(/<[^>]*>/g, " ");
 
-export const estimateReadTime = (content: string, format: "markdown" | "html") => {
+export const estimateReadTime = (content: string, format: PostContentFormat) => {
   const html = renderPostContent(content, format);
   const text = stripHtml(html);
   const words = text.split(/\s+/).filter(Boolean);

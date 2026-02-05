@@ -1,0 +1,37 @@
+export const lexicalTheme = {
+  paragraph: "lexical-paragraph",
+  heading: {
+    h1: "lexical-heading-h1",
+    h2: "lexical-heading-h2",
+    h3: "lexical-heading-h3",
+    h4: "lexical-heading-h4",
+  },
+  quote: "lexical-quote",
+  list: {
+    listitem: "lexical-listitem",
+    listitemChecked: "lexical-listitem-checked",
+    listitemUnchecked: "lexical-listitem-unchecked",
+    nested: {
+      listitem: "lexical-nested-listitem",
+    },
+    ol: "lexical-list-ol",
+    ul: "lexical-list-ul",
+  },
+  link: "lexical-link",
+  text: {
+    bold: "lexical-text-bold",
+    italic: "lexical-text-italic",
+    underline: "lexical-text-underline",
+    strikethrough: "lexical-text-strikethrough",
+    underlineStrikethrough: "lexical-text-underlineStrikethrough",
+    code: "lexical-text-code",
+    subscript: "lexical-text-subscript",
+    superscript: "lexical-text-superscript",
+  },
+  code: "lexical-code",
+  table: "lexical-table",
+  tableCell: "lexical-table-cell",
+  tableCellHeader: "lexical-table-cell-header",
+  image: "lexical-image",
+  video: "lexical-video",
+};

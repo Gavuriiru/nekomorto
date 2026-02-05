@@ -124,6 +124,153 @@ const EXTRA_ORIGINS = ADMIN_ORIGINS.split(",")
   .filter(Boolean);
 const ALLOWED_ORIGINS = Array.from(new Set([...APP_ORIGINS, ...EXTRA_ORIGINS]));
 const PRIMARY_APP_ORIGIN = APP_ORIGINS[0] || "http://127.0.0.1:5173";
+
+const clientRootDir = path.join(__dirname, "..");
+const clientDistDir = path.join(clientRootDir, "dist");
+const clientIndexPath = fs.existsSync(path.join(clientDistDir, "index.html"))
+  ? path.join(clientDistDir, "index.html")
+  : path.join(clientRootDir, "index.html");
+let cachedIndexHtml = null;
+
+const getIndexHtml = () => {
+  if (!cachedIndexHtml) {
+    cachedIndexHtml = fs.readFileSync(clientIndexPath, "utf-8");
+  }
+  return cachedIndexHtml;
+};
+
+const escapeHtml = (value) =>
+  String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+
+const toAbsoluteUrl = (value) => {
+  const input = String(value || "").trim();
+  if (!input) {
+    return "";
+  }
+  if (input.startsWith("http://") || input.startsWith("https://") || input.startsWith("data:")) {
+    return input;
+  }
+  try {
+    return new URL(input, PRIMARY_APP_ORIGIN).toString();
+  } catch {
+    return input;
+  }
+};
+
+const upsertMeta = (html, attr, key, content) => {
+  const escaped = escapeHtml(content);
+  const tag = `<meta ${attr}="${key}" content="${escaped}" />`;
+  const regex = new RegExp(`<meta[^>]*${attr}="${key}"[^>]*>`, "i");
+  if (regex.test(html)) {
+    return html.replace(regex, tag);
+  }
+  return html.replace("</head>", `  ${tag}\n</head>`);
+};
+
+const upsertLink = (html, rel, href) => {
+  const escaped = escapeHtml(href);
+  const tag = `<link rel="${rel}" href="${escaped}" />`;
+  const regex = new RegExp(`<link[^>]*rel="${rel}"[^>]*>`, "i");
+  if (regex.test(html)) {
+    return html.replace(regex, tag);
+  }
+  return html.replace("</head>", `  ${tag}\n</head>`);
+};
+
+const replaceTitle = (html, title) =>
+  html.replace(/<title>.*?<\/title>/i, `<title>${escapeHtml(title)}</title>`);
+
+const renderMetaHtml = ({
+  title,
+  description,
+  image,
+  url,
+  type = "website",
+  siteName,
+  favicon,
+}) => {
+  let html = getIndexHtml();
+  const safeUrl = url || PRIMARY_APP_ORIGIN;
+  const safeImage = image ? toAbsoluteUrl(image) : "";
+  html = replaceTitle(html, title);
+  html = upsertMeta(html, "name", "description", description);
+  html = upsertMeta(html, "property", "og:title", title);
+  html = upsertMeta(html, "property", "og:description", description);
+  html = upsertMeta(html, "property", "og:type", type);
+  html = upsertMeta(html, "property", "og:url", safeUrl);
+  html = upsertMeta(html, "property", "og:site_name", siteName);
+  html = upsertMeta(html, "property", "og:locale", "pt_BR");
+  if (safeImage) {
+    html = upsertMeta(html, "property", "og:image", safeImage);
+    html = upsertMeta(html, "name", "twitter:image", safeImage);
+  }
+  html = upsertMeta(html, "name", "twitter:title", title);
+  html = upsertMeta(html, "name", "twitter:description", description);
+  html = upsertMeta(html, "name", "twitter:card", safeImage ? "summary_large_image" : "summary");
+  html = upsertLink(html, "canonical", safeUrl);
+  if (favicon) {
+    html = upsertLink(html, "icon", toAbsoluteUrl(favicon));
+  }
+  return html;
+};
+
+const stripHtml = (value) => String(value || "").replace(/<[^>]*>/g, "").replace(/\s+/g, " ").trim();
+
+const buildSiteMeta = () => {
+  const settings = loadSiteSettings();
+  return {
+    title: settings.site?.name || "Nekomata",
+    description: settings.site?.description || "",
+    image: settings.site?.defaultShareImage || "",
+    url: PRIMARY_APP_ORIGIN,
+    type: "website",
+    siteName: settings.site?.name || "Nekomata",
+    favicon: settings.site?.faviconUrl || "",
+  };
+};
+
+const buildProjectMeta = (project) => {
+  const settings = loadSiteSettings();
+  const siteName = settings.site?.name || "Nekomata";
+  const title = project?.title ? `${project.title} | ${siteName}` : siteName;
+  const description =
+    stripHtml(project?.synopsis || project?.description || "") || settings.site?.description || "";
+  const image = project?.banner || project?.cover || settings.site?.defaultShareImage || "";
+  return {
+    title,
+    description,
+    image,
+    url: `${PRIMARY_APP_ORIGIN}/projeto/${project?.id || ""}`,
+    type: "article",
+    siteName,
+    favicon: settings.site?.faviconUrl || "",
+  };
+};
+
+const buildPostMeta = (post) => {
+  const settings = loadSiteSettings();
+  const siteName = settings.site?.name || "Nekomata";
+  const title = post?.title ? `${post.title} | ${siteName}` : siteName;
+  const description =
+    stripHtml(post?.seoDescription || post?.excerpt || post?.content || "") ||
+    settings.site?.description ||
+    "";
+  const image = post?.coverImageUrl || settings.site?.defaultShareImage || "";
+  return {
+    title,
+    description,
+    image,
+    url: `${PRIMARY_APP_ORIGIN}/postagem/${post?.slug || ""}`,
+    type: "article",
+    siteName,
+    favicon: settings.site?.faviconUrl || "",
+  };
+};
 const MAX_SVG_SIZE_BYTES = 256 * 1024;
 const MAX_UPLOAD_SIZE_BYTES = 15 * 1024 * 1024;
 const resolveRequestOrigin = (req) => {
@@ -917,7 +1064,10 @@ const normalizePosts = (posts) => {
       coverAlt: post.coverAlt || "",
       excerpt: post.excerpt || "",
       content: post.content || "",
-      contentFormat: post.contentFormat === "html" ? "html" : "markdown",
+      contentFormat:
+        post.contentFormat === "html" || post.contentFormat === "lexical"
+          ? post.contentFormat
+          : "markdown",
       author: post.author || "",
       publishedAt,
       scheduledAt,
@@ -2159,7 +2309,10 @@ app.post("/api/posts", requireAuth, (req, res) => {
     coverAlt: coverAlt || "",
     excerpt: excerpt || "",
     content: content || "",
-    contentFormat: contentFormat === "html" ? "html" : "markdown",
+    contentFormat:
+      contentFormat === "html" || contentFormat === "lexical"
+        ? contentFormat
+        : "markdown",
     author: author || sessionUser?.name || "Autor",
     publishedAt: normalizedPublishedAt,
     scheduledAt: scheduledAt || null,
@@ -2226,7 +2379,14 @@ app.put("/api/posts/:id", requireAuth, (req, res) => {
     coverAlt: typeof coverAlt === "string" ? coverAlt : existing.coverAlt,
     excerpt: typeof excerpt === "string" ? excerpt : existing.excerpt,
     content: typeof content === "string" ? content : existing.content,
-    contentFormat: contentFormat === "html" ? "html" : contentFormat === "markdown" ? "markdown" : existing.contentFormat,
+    contentFormat:
+      contentFormat === "html"
+        ? "html"
+        : contentFormat === "markdown"
+          ? "markdown"
+          : contentFormat === "lexical"
+            ? "lexical"
+            : existing.contentFormat,
     author: typeof author === "string" ? author : existing.author,
     publishedAt: publishedAt || existing.publishedAt,
     scheduledAt: scheduledAt || existing.scheduledAt,
@@ -3491,6 +3651,27 @@ app.post("/api/logout", (req, res) => {
   req.session?.destroy(() => undefined);
   res.clearCookie("rainbow.sid");
   res.json({ ok: true });
+});
+
+app.get(["/", "/projeto/:id", "/projeto/:id/leitura/:chapter", "/postagem/:slug"], (req, res) => {
+  try {
+    if (req.path.startsWith("/postagem/")) {
+      const slug = String(req.params.slug || "");
+      const post = normalizePosts(loadPosts()).find((item) => item.slug === slug);
+      const meta = post ? buildPostMeta(post) : buildSiteMeta();
+      return res.type("html").send(renderMetaHtml({ ...meta, url: `${PRIMARY_APP_ORIGIN}${req.path}` }));
+    }
+    if (req.path.startsWith("/projeto/")) {
+      const id = String(req.params.id || "");
+      const project = normalizeProjects(loadProjects()).find((item) => String(item.id) === id);
+      const meta = project ? buildProjectMeta(project) : buildSiteMeta();
+      return res.type("html").send(renderMetaHtml({ ...meta, url: `${PRIMARY_APP_ORIGIN}${req.path}` }));
+    }
+    const meta = buildSiteMeta();
+    return res.type("html").send(renderMetaHtml({ ...meta, url: `${PRIMARY_APP_ORIGIN}${req.path}` }));
+  } catch {
+    return res.type("html").send(getIndexHtml());
+  }
 });
 
 app.listen(Number(PORT));

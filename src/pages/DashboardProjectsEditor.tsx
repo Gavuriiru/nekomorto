@@ -42,12 +42,13 @@ import {
   HardDrive,
   Link2,
 } from "lucide-react";
-import { convertPostContent, createSlug, renderPostContent } from "@/lib/post-content";
+import { createSlug, renderPostContent } from "@/lib/post-content";
 import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
 import { isChapterBasedType, isLightNovelType, isMangaType } from "@/lib/project-utils";
 import { usePageMeta } from "@/hooks/use-page-meta";
-import PostContentEditor from "@/components/PostContentEditor";
+import LexicalEditor, { type LexicalEditorHandle } from "@/components/lexical/LexicalEditor";
+import { htmlToLexicalJson } from "@/lib/lexical/serialize";
 import { useSiteSettings } from "@/hooks/use-site-settings";
 
 type ProjectRelation = {
@@ -83,7 +84,7 @@ type ProjectEpisode = {
   progressStage?: string;
   completedStages?: string[];
   content?: string;
-  contentFormat?: "markdown" | "html";
+  contentFormat?: "markdown" | "html" | "lexical";
   chapterUpdatedAt?: string;
 };
 
@@ -348,20 +349,13 @@ const generateLocalId = () => {
   return `${alpha}${random}${stamp}`;
 };
 
-const buildImageMarkup = (url: string, alt: string, format: "markdown" | "html") => {
-  if (format === "html") {
-    return `\n\n<img src="${url}" alt="${alt}" loading="lazy" />\n`;
-  }
-  return `\n\n![${alt}](${url})\n`;
-};
-
 type EpisodeContentEditorProps = {
   value: string;
-  format: "markdown" | "html";
+  format: "markdown" | "html" | "lexical";
   onChange: (value: string) => void;
-  onFormatChange: (value: "markdown" | "html") => void;
+  onFormatChange: (value: "lexical") => void;
   onOpenImageLibrary?: () => void;
-  onRegister?: (handlers: { insertAtCursor: (text: string) => void }) => void;
+  onRegister?: (handlers: LexicalEditorHandle | null) => void;
 };
 
 const EpisodeContentEditor = ({
@@ -372,276 +366,36 @@ const EpisodeContentEditor = ({
   onOpenImageLibrary,
   onRegister,
 }: EpisodeContentEditorProps) => {
-  const editorRef = useRef<HTMLTextAreaElement | null>(null);
-  const [history, setHistory] = useState<string[]>([value]);
-  const [historyIndex, setHistoryIndex] = useState(0);
-  const historyGuard = useRef(false);
-  const [textColorValue, setTextColorValue] = useState("#ffffff");
-  const [backgroundColorValue, setBackgroundColorValue] = useState("#ffffff");
-  const [gradientStart, setGradientStart] = useState("#8b5cf6");
-  const [gradientEnd, setGradientEnd] = useState("#ec4899");
-  const [gradientAngle, setGradientAngle] = useState(90);
-  const [gradientTarget, setGradientTarget] = useState<"text" | "background">("text");
-
-  useEffect(() => {
-    setHistory([value]);
-    setHistoryIndex(0);
+  const editorRef = useRef<LexicalEditorHandle | null>(null);
+  const lexicalValue = useMemo(() => {
+    if (format === "lexical") {
+      return value;
+    }
+    const html = format === "markdown" ? renderPostContent(value, "markdown") : value;
+    return htmlToLexicalJson(html);
   }, [format, value]);
 
   useEffect(() => {
-    if (historyGuard.current) {
-      historyGuard.current = false;
-      return;
+    if (format !== "lexical") {
+      onChange(lexicalValue);
+      onFormatChange("lexical");
     }
-    const timer = window.setTimeout(() => {
-      setHistory((prev) => {
-        const next = prev.slice(0, historyIndex + 1);
-        if (next[next.length - 1] !== value) {
-          next.push(value);
-          setHistoryIndex(next.length - 1);
-        }
-        return next;
-      });
-    }, 400);
-    return () => window.clearTimeout(timer);
-  }, [value, historyIndex]);
-
-  const applyTextEdit = useCallback((
-    next: string,
-    cursorStart: number,
-    cursorEnd: number,
-    scrollTop: number,
-  ) => {
-    onChange(next);
-    requestAnimationFrame(() => {
-      const textarea = editorRef.current;
-      if (!textarea) {
-        return;
-      }
-      textarea.focus();
-      textarea.setSelectionRange(cursorStart, cursorEnd);
-      textarea.scrollTop = scrollTop;
-    });
-  }, [onChange]);
-
-  const insertAtCursor = useCallback((text: string) => {
-    const textarea = editorRef.current;
-    if (!textarea) {
-      onChange(`${value}${text}`);
-      return;
-    }
-    const start = textarea.selectionStart;
-    const end = textarea.selectionEnd;
-    const scrollTop = textarea.scrollTop;
-    const next = `${value.slice(0, start)}${text}${value.slice(end)}`;
-    applyTextEdit(next, start + text.length, start + text.length, scrollTop);
-  }, [applyTextEdit, onChange, value]);
+  }, [format, lexicalValue, onChange, onFormatChange]);
 
   useEffect(() => {
     if (!onRegister) {
       return;
     }
-    onRegister({ insertAtCursor });
-  }, [insertAtCursor, onRegister]);
-
-  const applyWrap = (before: string, after = before) => {
-    const textarea = editorRef.current;
-    if (!textarea) {
-      return;
-    }
-    const start = textarea.selectionStart;
-    const end = textarea.selectionEnd;
-    const scrollTop = textarea.scrollTop;
-    const selected = value.slice(start, end);
-    const next = `${value.slice(0, start)}${before}${selected}${after}${value.slice(end)}`;
-    applyTextEdit(next, start + before.length, end + before.length, scrollTop);
-  };
-
-  const applyLinePrefix = (prefix: string) => {
-    const textarea = editorRef.current;
-    if (!textarea) {
-      return;
-    }
-    const start = textarea.selectionStart;
-    const end = textarea.selectionEnd;
-    const scrollTop = textarea.scrollTop;
-    const selected = value.slice(start, end) || "";
-    const lines = selected.split(/\r?\n/).map((line) => `${prefix}${line}`);
-    const inserted = lines.join("\n");
-    const next = `${value.slice(0, start)}${inserted}${value.slice(end)}`;
-    applyTextEdit(next, start, start + inserted.length, scrollTop);
-  };
-
-  const applyListHtml = (type: "ul" | "ol") => {
-    const textarea = editorRef.current;
-    const start = textarea?.selectionStart ?? 0;
-    const end = textarea?.selectionEnd ?? 0;
-    const scrollTop = textarea?.scrollTop ?? 0;
-    const selected = value.slice(start, end).trim();
-    const lines = selected ? selected.split(/\r?\n/).filter(Boolean) : [""];
-    const items = lines.map((line) => `  <li>${line.trim()}</li>`).join("\n");
-    const block = `<${type}>\n${items}\n</${type}>`;
-    const next = `${value.slice(0, start)}${block}${value.slice(end)}`;
-    applyTextEdit(next, start, start + block.length, scrollTop);
-  };
-
-  const handleHeading = () => {
-    if (format === "html") {
-      applyWrap("<h1>", "</h1>");
-      return;
-    }
-    applyLinePrefix("# ");
-  };
-
-  const handleUnorderedList = () => {
-    if (format === "html") {
-      applyListHtml("ul");
-      return;
-    }
-    applyLinePrefix("- ");
-  };
-
-  const handleOrderedList = () => {
-    if (format === "html") {
-      applyListHtml("ol");
-      return;
-    }
-    applyLinePrefix("1. ");
-  };
-
-  const handleAlign = (align: "left" | "center" | "right") => {
-    if (format === "html") {
-      applyWrap(`<div style="text-align:${align}">`, "</div>");
-      return;
-    }
-    applyWrap(`<div style="text-align:${align}">`, "</div>");
-  };
-
-  const handleColor = (color: string, type: "text" | "background") => {
-    const style = type === "background" ? `background-color:${color};` : `color:${color};`;
-    applyWrap(`<span style="${style}">`, "</span>");
-  };
-
-  const handleTextColorPick = (nextColor: string) => {
-    setTextColorValue(nextColor);
-  };
-
-  const handleBackgroundColorPick = (nextColor: string) => {
-    setBackgroundColorValue(nextColor);
-  };
-
-  const applyGradient = () => {
-    const gradient = `linear-gradient(${gradientAngle}deg, ${gradientStart}, ${gradientEnd})`;
-    const style =
-      gradientTarget === "text"
-        ? `background:${gradient};-webkit-background-clip:text;color:transparent;-webkit-text-fill-color:transparent;display:inline-block;`
-        : `background:${gradient};`;
-    applyWrap(`<span style="${style}">`, "</span>");
-  };
-
-  const handleOpenImageDialog = () => {
-    if (onOpenImageLibrary) {
-      onOpenImageLibrary();
-      return;
-    }
-    const url = window.prompt("URL da imagem");
-    if (!url) {
-      return;
-    }
-    const alt = window.prompt("Texto alternativo", "Imagem") || "Imagem";
-    if (format === "html") {
-      insertAtCursor(`\n<img src="${url}" alt="${alt}">\n`);
-      return;
-    }
-    insertAtCursor(`\n![${alt}](${url})\n`);
-  };
-
-  const handleOpenLinkDialog = () => {
-    const url = window.prompt("URL do link");
-    if (!url) {
-      return;
-    }
-    const text = window.prompt("Texto do link", url) || url;
-    if (format === "html") {
-      insertAtCursor(`<a href="${url}" target="_blank" rel="noreferrer">${text}</a>`);
-      return;
-    }
-    insertAtCursor(`[${text}](${url})`);
-  };
-
-  const handleEmbedVideo = () => {
-    const url = window.prompt("URL do vídeo (embed ou link)");
-    if (!url) {
-      return;
-    }
-    insertAtCursor(`\n\n<iframe src="${url}" title="Video" allowfullscreen></iframe>\n\n`);
-  };
-
-  const handleUndo = () => {
-    if (historyIndex <= 0) {
-      return;
-    }
-    historyGuard.current = true;
-    const nextIndex = historyIndex - 1;
-    setHistoryIndex(nextIndex);
-    onChange(history[nextIndex]);
-  };
-
-  const handleRedo = () => {
-    if (historyIndex >= history.length - 1) {
-      return;
-    }
-    historyGuard.current = true;
-    const nextIndex = historyIndex + 1;
-    setHistoryIndex(nextIndex);
-    onChange(history[nextIndex]);
-  };
-
-  const handleFormatChange = (next: "markdown" | "html") => {
-    if (next === format) {
-      return;
-    }
-    const converted = convertPostContent(value, format, next);
-    onFormatChange(next);
-    onChange(converted);
-  };
+    onRegister(editorRef.current);
+  }, [onRegister, lexicalValue]);
 
   return (
-    <PostContentEditor
-      format={format}
-      value={value}
-      onFormatChange={handleFormatChange}
+    <LexicalEditor
+      ref={editorRef}
+      value={lexicalValue}
       onChange={onChange}
-      onApplyWrap={applyWrap}
-      onApplyHeading={handleHeading}
-      onApplyUnorderedList={handleUnorderedList}
-      onApplyOrderedList={handleOrderedList}
-      onAlign={handleAlign}
-      onColor={handleColor}
-      textColorValue={textColorValue}
-      backgroundColorValue={backgroundColorValue}
-      onPickTextColor={handleTextColorPick}
-      onPickBackgroundColor={handleBackgroundColorPick}
-      gradientStart={gradientStart}
-      gradientEnd={gradientEnd}
-      gradientAngle={gradientAngle}
-      gradientTarget={gradientTarget}
-      onGradientStartChange={setGradientStart}
-      onGradientEndChange={setGradientEnd}
-      onGradientAngleChange={setGradientAngle}
-      onGradientTargetChange={setGradientTarget}
-      onApplyGradient={applyGradient}
-      onOpenImageDialog={handleOpenImageDialog}
-      onOpenLinkDialog={handleOpenLinkDialog}
-      onInsertCover={() => {}}
-      onUndo={handleUndo}
-      onRedo={handleRedo}
-      onEmbedVideo={handleEmbedVideo}
-      onKeyDown={() => {}}
-      onDrop={() => {}}
-      textareaRef={editorRef}
-      previewHtml={renderPostContent(value, format)}
-      showPreview
+      onRequestImage={onOpenImageLibrary}
+      placeholder="Escreva o capítulo..."
     />
   );
 };
@@ -676,51 +430,6 @@ const DashboardProjectsEditor = () => {
     return "order";
   });
   const [isEditorOpen, setIsEditorOpen] = useState(false);
-
-  const staffRoleOptions = useMemo(() => {
-    const labels = publicSettings.teamRoles.map((role) => role.label).filter(Boolean);
-    if (labels.length) {
-      return labels;
-    }
-    const fallback = formState.staff.map((item) => item.role).filter(Boolean);
-    return Array.from(new Set(fallback));
-  }, [publicSettings.teamRoles, formState.staff]);
-
-  const knownTags = useMemo(() => {
-    const set = new Set<string>();
-    projects.forEach((project) => {
-      (project.tags || []).forEach((tag) => set.add(tag));
-    });
-    return Array.from(set).sort((a, b) => a.localeCompare(b, "pt-BR"));
-  }, [projects]);
-
-  const knownGenres = useMemo(() => {
-    const set = new Set<string>();
-    projects.forEach((project) => {
-      (project.genres || []).forEach((genre) => set.add(genre));
-    });
-    return Array.from(set).sort((a, b) => a.localeCompare(b, "pt-BR"));
-  }, [projects]);
-
-  const tagSuggestions = useMemo(() => {
-    const query = tagInput.trim().toLowerCase();
-    if (!query) {
-      return [];
-    }
-    return knownTags
-      .filter((tag) => tag.toLowerCase().includes(query) && !formState.tags.includes(tag))
-      .slice(0, 6);
-  }, [tagInput, knownTags, formState.tags]);
-
-  const genreSuggestions = useMemo(() => {
-    const query = genreInput.trim().toLowerCase();
-    if (!query) {
-      return [];
-    }
-    return knownGenres
-      .filter((genre) => genre.toLowerCase().includes(query) && !formState.genres.includes(genre))
-      .slice(0, 6);
-  }, [genreInput, knownGenres, formState.genres]);
 
   const downloadSourceOptions = useMemo(() => {
     const sources =
@@ -799,9 +508,53 @@ const DashboardProjectsEditor = () => {
   >("chapter");
   const [episodeCoverIndex, setEpisodeCoverIndex] = useState<number | null>(null);
   const [activeChapterIndex, setActiveChapterIndex] = useState<number | null>(null);
-  const [activeChapterFormat, setActiveChapterFormat] = useState<"markdown" | "html">("markdown");
   const [libraryFolder, setLibraryFolder] = useState<string>("");
-  const chapterEditorsRef = useRef<Record<number, { insertAtCursor: (text: string) => void }>>({});
+  const chapterEditorsRef = useRef<Record<number, LexicalEditorHandle | null>>({});
+
+  const staffRoleOptions = useMemo(() => {
+    const labels = publicSettings.teamRoles.map((role) => role.label).filter(Boolean);
+    if (labels.length) {
+      return labels;
+    }
+    const fallback = formState.staff.map((item) => item.role).filter(Boolean);
+    return Array.from(new Set(fallback));
+  }, [publicSettings.teamRoles, formState.staff]);
+
+  const knownTags = useMemo(() => {
+    const set = new Set<string>();
+    projects.forEach((project) => {
+      (project.tags || []).forEach((tag) => set.add(tag));
+    });
+    return Array.from(set).sort((a, b) => a.localeCompare(b, "pt-BR"));
+  }, [projects]);
+
+  const knownGenres = useMemo(() => {
+    const set = new Set<string>();
+    projects.forEach((project) => {
+      (project.genres || []).forEach((genre) => set.add(genre));
+    });
+    return Array.from(set).sort((a, b) => a.localeCompare(b, "pt-BR"));
+  }, [projects]);
+
+  const tagSuggestions = useMemo(() => {
+    const query = tagInput.trim().toLowerCase();
+    if (!query) {
+      return [];
+    }
+    return knownTags
+      .filter((tag) => tag.toLowerCase().includes(query) && !formState.tags.includes(tag))
+      .slice(0, 6);
+  }, [tagInput, knownTags, formState.tags]);
+
+  const genreSuggestions = useMemo(() => {
+    const query = genreInput.trim().toLowerCase();
+    if (!query) {
+      return [];
+    }
+    return knownGenres
+      .filter((genre) => genre.toLowerCase().includes(query) && !formState.genres.includes(genre))
+      .slice(0, 6);
+  }, [genreInput, knownGenres, formState.genres]);
 
   useEffect(() => {
     const loadUser = async () => {
@@ -891,25 +644,15 @@ const DashboardProjectsEditor = () => {
     if (activeChapterIndex === null) {
       return;
     }
-    const alt = altText || "Imagem";
-    const markup = buildImageMarkup(url, alt, activeChapterFormat);
     const editor = chapterEditorsRef.current[activeChapterIndex];
-    if (editor?.insertAtCursor) {
-      editor.insertAtCursor(markup);
-      return;
+    if (editor) {
+      editor.insertImage({
+        src: url,
+        altText: altText || "Imagem",
+        width: "100%",
+        align: "center",
+      });
     }
-    setFormState((prev) => {
-      const next = [...prev.episodeDownloads];
-      const target = next[activeChapterIndex];
-      if (!target) {
-        return prev;
-      }
-      next[activeChapterIndex] = {
-        ...target,
-        content: `${target.content || ""}${markup}`,
-      };
-      return { ...prev, episodeDownloads: next };
-    });
   };
 
   const applyLibraryImage = (url: string, altText?: string) => {
@@ -944,9 +687,8 @@ const DashboardProjectsEditor = () => {
   };
 
 
-  const openLibraryForChapter = (index: number, format: "markdown" | "html") => {
+  const openLibraryForChapter = (index: number) => {
     setActiveChapterIndex(index);
-    setActiveChapterFormat(format);
     const projectSlug = formState.id?.trim() || createSlug(formState.title.trim());
     setLibraryFolder(projectSlug ? `light-novel/${projectSlug}` : "light-novel");
     setLibraryTarget("chapter");
@@ -1183,7 +925,21 @@ const DashboardProjectsEditor = () => {
   };
 
   const openEdit = (project: ProjectRecord) => {
-    const initialEpisodes = Array.isArray(project.episodeDownloads) ? project.episodeDownloads : [];
+    const initialEpisodes = Array.isArray(project.episodeDownloads)
+      ? project.episodeDownloads.map((episode) => {
+          const format = episode.contentFormat || "markdown";
+          if (format === "lexical") {
+            return episode;
+          }
+          const baseContent = episode.content || "";
+          const html = format === "markdown" ? renderPostContent(baseContent, "markdown") : baseContent;
+          return {
+            ...episode,
+            content: htmlToLexicalJson(html),
+            contentFormat: "lexical",
+          };
+        })
+      : [];
     setEditingProject(project);
     setFormState({
       id: project.id,
@@ -2454,7 +2210,7 @@ const DashboardProjectsEditor = () => {
                         progressStage: "aguardando-raw",
                         completedStages: [],
                         content: "",
-                        contentFormat: "markdown",
+                        contentFormat: "lexical",
                       };
                       const next = [...prev.episodeDownloads, newEpisode];
                       return { ...prev, episodeDownloads: next };
@@ -2469,13 +2225,14 @@ const DashboardProjectsEditor = () => {
                   <Card
                     key={`${episode.number}-${index}`}
                     className="border-border/60 bg-card/70"
-                    draggable
-                    onDragStart={() => setEpisodeDragId(index)}
-                    onDragOver={(event) => event.preventDefault()}
-                    onDrop={() => handleEpisodeDrop(index)}
+                    onDragStart={() => setEpisodeDragId(null)}
                     onClick={(event) => {
                       const target = event.target as HTMLElement | null;
-                      if (target?.closest("button, a, input, textarea, select, option, [data-no-toggle]")) {
+                      if (
+                        target?.closest(
+                          "button, a, input, textarea, select, option, [data-no-toggle], [contenteditable='true'], .lexical-editor",
+                        )
+                      ) {
                         return;
                       }
                       setCollapsedEpisodes((prev) => ({
@@ -2691,7 +2448,7 @@ const DashboardProjectsEditor = () => {
                               <div className="mt-3">
                                 <EpisodeContentEditor
                                   value={episode.content || ""}
-                                  format={episode.contentFormat || "markdown"}
+                                  format={episode.contentFormat || "lexical"}
                                   onRegister={(handlers) => {
                                     chapterEditorsRef.current[index] = handlers;
                                   }}
@@ -2709,9 +2466,7 @@ const DashboardProjectsEditor = () => {
                                       return { ...prev, episodeDownloads: next };
                                     })
                                   }
-                                  onOpenImageLibrary={() =>
-                                    openLibraryForChapter(index, episode.contentFormat || "markdown")
-                                  }
+                                  onOpenImageLibrary={() => openLibraryForChapter(index)}
                                 />
                               </div>
                             </div>

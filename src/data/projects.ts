@@ -16,7 +16,7 @@ export type ProjectEpisode = {
   progressStage?: string;
   completedStages?: string[];
   content?: string;
-  contentFormat?: "markdown" | "html";
+  contentFormat?: "markdown" | "html" | "lexical";
   chapterUpdatedAt?: string;
 };
 

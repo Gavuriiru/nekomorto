@@ -25,7 +25,7 @@ const ProjectReading = () => {
     title?: string;
     synopsis?: string;
     content?: string;
-    contentFormat?: "markdown" | "html";
+    contentFormat?: "markdown" | "html" | "lexical";
   } | null>(null);
   const [hasLoaded, setHasLoaded] = useState(false);
 
