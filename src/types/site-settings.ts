@@ -16,6 +16,13 @@ export type SiteSettings = {
   community: {
     discordUrl: string;
   };
+  branding: {
+    wordmarkUrl: string;
+    wordmarkUrlNavbar: string;
+    wordmarkUrlFooter: string;
+    wordmarkPlacement: "navbar" | "footer" | "both";
+    wordmarkEnabled: boolean;
+  };
   downloads: {
     sources: Array<{
       id: string;

@@ -554,6 +554,13 @@ const defaultSiteSettings = {
   community: {
     discordUrl: "https://discord.com/invite/BAHKhdX2ju",
   },
+  branding: {
+    wordmarkUrl: "",
+    wordmarkUrlNavbar: "",
+    wordmarkUrlFooter: "",
+    wordmarkPlacement: "both",
+    wordmarkEnabled: false,
+  },
   downloads: {
     sources: [
       { id: "google-drive", label: "Google Drive", color: "#34A853", icon: "google-drive" },
@@ -714,6 +721,19 @@ const normalizeUploadsDeep = (value) => {
 const normalizeSiteSettings = (payload) => {
   const merged = fixMojibakeDeep(mergeSettings(defaultSiteSettings, payload || {}));
   merged.navbar = { ...(merged.navbar || {}), recruitmentUrl: "/recrutamento" };
+  const allowedPlacements = new Set(["navbar", "footer", "both"]);
+  const placement = String(merged?.branding?.wordmarkPlacement || "both");
+  const legacyWordmarkUrl = String(merged?.branding?.wordmarkUrl || "");
+  const wordmarkUrlNavbar = String(merged?.branding?.wordmarkUrlNavbar || "");
+  const wordmarkUrlFooter = String(merged?.branding?.wordmarkUrlFooter || "");
+  merged.branding = {
+    ...(merged.branding || {}),
+    wordmarkUrl: legacyWordmarkUrl,
+    wordmarkUrlNavbar: wordmarkUrlNavbar || legacyWordmarkUrl,
+    wordmarkUrlFooter: wordmarkUrlFooter || legacyWordmarkUrl,
+    wordmarkPlacement: allowedPlacements.has(placement) ? placement : "both",
+    wordmarkEnabled: Boolean(merged?.branding?.wordmarkEnabled),
+  };
   const discordUrl = String(merged?.community?.discordUrl || "").trim();
   if (discordUrl) {
     if (Array.isArray(merged.footer?.socialLinks)) {

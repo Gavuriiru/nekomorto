@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { ColorPicker } from "@/components/ui/color-picker";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select,
   SelectContent,
@@ -152,7 +153,12 @@ const DashboardSettings = () => {
   const [uploadingKey, setUploadingKey] = useState<string | null>(null);
   const [isLibraryOpen, setIsLibraryOpen] = useState(false);
   const [libraryTarget, setLibraryTarget] = useState<
-    "site.logoUrl" | "site.faviconUrl" | "site.defaultShareImage" | "footer.brandLogoUrl"
+    | "site.logoUrl"
+    | "site.faviconUrl"
+    | "site.defaultShareImage"
+    | "footer.brandLogoUrl"
+    | "branding.wordmarkUrlNavbar"
+    | "branding.wordmarkUrlFooter"
   >("site.logoUrl");
   const [tagQuery, setTagQuery] = useState("");
   const [genreQuery, setGenreQuery] = useState("");
@@ -310,6 +316,12 @@ const DashboardSettings = () => {
       if (libraryTarget === "footer.brandLogoUrl") {
         return { ...prev, footer: { ...prev.footer, brandLogoUrl: url } };
       }
+      if (libraryTarget === "branding.wordmarkUrlNavbar") {
+        return { ...prev, branding: { ...prev.branding, wordmarkUrlNavbar: url } };
+      }
+      if (libraryTarget === "branding.wordmarkUrlFooter") {
+        return { ...prev, branding: { ...prev.branding, wordmarkUrlFooter: url } };
+      }
       return prev;
     });
   };
@@ -327,9 +339,17 @@ const DashboardSettings = () => {
     if (libraryTarget === "footer.brandLogoUrl") {
       return settings.footer.brandLogoUrl || "";
     }
+    if (libraryTarget === "branding.wordmarkUrlNavbar") {
+      return settings.branding.wordmarkUrlNavbar || "";
+    }
+    if (libraryTarget === "branding.wordmarkUrlFooter") {
+      return settings.branding.wordmarkUrlFooter || "";
+    }
     return "";
   }, [
     libraryTarget,
+    settings.branding.wordmarkUrlFooter,
+    settings.branding.wordmarkUrlNavbar,
     settings.footer.brandLogoUrl,
     settings.site.defaultShareImage,
     settings.site.faviconUrl,
@@ -728,6 +748,27 @@ const DashboardSettings = () => {
                           Biblioteca
                         </Button>
                       </div>
+                    </div>
+
+                    <div className="rounded-2xl border border-border/60 bg-background/50 p-4 space-y-3">
+                      <div className="flex items-center gap-2">
+                        <Checkbox
+                          id="wordmark-enabled"
+                          checked={settings.branding.wordmarkEnabled}
+                          onCheckedChange={(checked) =>
+                            setSettings((prev) => ({
+                              ...prev,
+                              branding: { ...prev.branding, wordmarkEnabled: checked === true },
+                            }))
+                          }
+                        />
+                        <Label htmlFor="wordmark-enabled" className="text-sm font-medium">
+                          Substituir texto pelo logo padrão no navbar e footer
+                        </Label>
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        Desmarque para manter o nome como está atualmente.
+                      </p>
                     </div>
 
                   </CardContent>

@@ -8,6 +8,18 @@ const Footer = () => {
   const footerColumns = footer.columns || [];
   const socialLinks = footer.socialLinks || [];
   const disclaimer = footer.disclaimer || [];
+  const legacyWordmarkUrl = settings.branding.wordmarkUrl?.trim();
+  const wordmarkFooterUrl =
+    settings.branding.wordmarkUrlFooter?.trim() ||
+    settings.branding.wordmarkUrlNavbar?.trim() ||
+    legacyWordmarkUrl ||
+    footer.brandLogoUrl ||
+    "";
+  const wordmarkPlacement = settings.branding.wordmarkPlacement || "both";
+  const showWordmarkInFooter =
+    settings.branding.wordmarkEnabled &&
+    Boolean(wordmarkFooterUrl) &&
+    (wordmarkPlacement === "footer" || wordmarkPlacement === "both");
   const renderCopyright = () => {
     const text = footer.copyright || "";
     const marker = "©";
@@ -46,16 +58,29 @@ const Footer = () => {
         <div className="grid gap-10 lg:grid-cols-[1.2fr_1fr_1fr_1fr_1.1fr]">
           <div className="space-y-4">
             <div className="flex items-center gap-3">
-              {footer.brandLogoUrl ? (
-                <img
-                  src={footer.brandLogoUrl}
-                  alt={footer.brandName}
-                  className="h-10 w-10 rounded-full object-cover shadow-sm"
-                />
-              ) : null}
-              <p className="text-3xl font-black tracking-widest text-gradient-rainbow">
-                {footer.brandName}
-              </p>
+              {showWordmarkInFooter ? (
+                <>
+                  <img
+                    src={wordmarkFooterUrl}
+                    alt={footer.brandName}
+                    className="h-9 md:h-12 w-auto max-w-[220px] md:max-w-[280px] object-contain"
+                  />
+                  <span className="sr-only">{footer.brandName}</span>
+                </>
+              ) : (
+                <>
+                  {footer.brandLogoUrl ? (
+                    <img
+                      src={footer.brandLogoUrl}
+                      alt={footer.brandName}
+                      className="h-10 w-10 rounded-full object-cover shadow-sm"
+                    />
+                  ) : null}
+                  <p className="text-3xl font-black tracking-widest text-gradient-rainbow">
+                    {footer.brandName}
+                  </p>
+                </>
+              )}
             </div>
             <p className="text-sm text-muted-foreground leading-relaxed">
               {footer.brandDescription}

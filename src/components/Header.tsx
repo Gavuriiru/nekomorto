@@ -50,6 +50,18 @@ const Header = ({ variant = "fixed", leading, className }: HeaderProps) => {
   const siteNameRaw = settings.site.name || "Nekomata";
   const siteName = siteNameRaw.toUpperCase();
   const logoUrl = settings.site.logoUrl?.trim();
+  const legacyWordmarkUrl = settings.branding.wordmarkUrl?.trim();
+  const wordmarkNavbarUrl =
+    settings.branding.wordmarkUrlNavbar?.trim() ||
+    settings.branding.wordmarkUrlFooter?.trim() ||
+    legacyWordmarkUrl ||
+    logoUrl ||
+    "";
+  const wordmarkPlacement = settings.branding.wordmarkPlacement || "both";
+  const showWordmarkInNavbar =
+    settings.branding.wordmarkEnabled &&
+    Boolean(wordmarkNavbarUrl) &&
+    (wordmarkPlacement === "navbar" || wordmarkPlacement === "both");
   const recruitmentUrl = settings.navbar.recruitmentUrl || settings.community.discordUrl || "/recrutamento";
   const isRecruitmentInternal = recruitmentUrl.startsWith("/") && !recruitmentUrl.startsWith("//");
 
@@ -208,10 +220,23 @@ const Header = ({ variant = "fixed", leading, className }: HeaderProps) => {
         <div className="flex items-center gap-3">
           {leading}
           <Link to="/" className="flex items-center gap-3 text-2xl md:text-3xl font-black tracking-wider text-white">
-            {logoUrl ? (
-              <img src={logoUrl} alt={siteName} className="h-9 w-9 rounded-full object-cover shadow-sm" />
-            ) : null}
-            <span>{siteName}</span>
+            {showWordmarkInNavbar ? (
+              <>
+                <img
+                  src={wordmarkNavbarUrl}
+                  alt={siteName}
+                  className="h-8 md:h-10 w-auto max-w-[200px] md:max-w-[260px] object-contain"
+                />
+                <span className="sr-only">{siteName}</span>
+              </>
+            ) : (
+              <>
+                {logoUrl ? (
+                  <img src={logoUrl} alt={siteName} className="h-9 w-9 rounded-full object-cover shadow-sm" />
+                ) : null}
+                <span>{siteName}</span>
+              </>
+            )}
           </Link>
         </div>
         

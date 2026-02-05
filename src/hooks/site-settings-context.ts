@@ -20,6 +20,13 @@ export const defaultSettings: SiteSettings = {
   community: {
     discordUrl: "https://discord.com/invite/BAHKhdX2ju",
   },
+  branding: {
+    wordmarkUrl: "",
+    wordmarkUrlNavbar: "",
+    wordmarkUrlFooter: "",
+    wordmarkPlacement: "both",
+    wordmarkEnabled: false,
+  },
   downloads: {
     sources: [
       { id: "google-drive", label: "Google Drive", color: "#34A853", icon: "google-drive" },
