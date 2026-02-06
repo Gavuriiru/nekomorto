@@ -5,6 +5,7 @@ import ImageLibraryDialog from "@/components/ImageLibraryDialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import {
   Dialog,
   DialogContent,
@@ -500,6 +501,7 @@ const DashboardProjectsEditor = () => {
   const [staffDragIndex, setStaffDragIndex] = useState<number | null>(null);
   const [tagDragIndex, setTagDragIndex] = useState<number | null>(null);
   const [staffMemberInput, setStaffMemberInput] = useState<Record<number, string>>({});
+  const [animeStaffMemberInput, setAnimeStaffMemberInput] = useState<Record<number, string>>({});
   const [memberDirectory, setMemberDirectory] = useState<string[]>([]);
   const [collapsedEpisodes, setCollapsedEpisodes] = useState<Record<number, boolean>>({});
   const [isLibraryOpen, setIsLibraryOpen] = useState(false);
@@ -2079,6 +2081,117 @@ const DashboardProjectsEditor = () => {
                 ))}
               </div>
             </div>
+
+            <Accordion type="single" collapsible>
+              <AccordionItem
+                value="anime-staff"
+                className="rounded-2xl bg-card/60 p-3"
+              >
+                <AccordionTrigger className="h-10 rounded-xl bg-background/60 px-3 text-sm font-semibold text-foreground hover:no-underline">
+                  Equipe do anime (AniList)
+                </AccordionTrigger>
+                <AccordionContent className="pt-2">
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <Label className="text-base">Equipe do anime (AniList)</Label>
+                        <p className="text-[11px] text-muted-foreground">
+                          Edite o nome da função para traduzir como ela aparece no público.
+                        </p>
+                      </div>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={() =>
+                          setFormState((prev) => ({
+                            ...prev,
+                            animeStaff: [...prev.animeStaff, { role: "", members: [] }],
+                          }))
+                        }
+                      >
+                        Adicionar função
+                      </Button>
+                    </div>
+                    <div className="grid gap-3">
+                      {formState.animeStaff.map((role, index) => (
+                        <div
+                          key={`${role.role}-${index}`}
+                          className="rounded-2xl border border-border/60 bg-card/60 p-3"
+                        >
+                          <div className="grid gap-3 md:grid-cols-[1fr_auto]">
+                            <Input
+                              value={role.role || ""}
+                              onChange={(event) =>
+                                setFormState((prev) => {
+                                  const next = [...prev.animeStaff];
+                                  next[index] = { ...next[index], role: event.target.value };
+                                  return { ...prev, animeStaff: next };
+                                })
+                              }
+                              placeholder="Função"
+                            />
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              onClick={() =>
+                                setFormState((prev) => ({
+                                  ...prev,
+                                  animeStaff: prev.animeStaff.filter((_, idx) => idx !== index),
+                                }))
+                              }
+                            >
+                              Remover
+                            </Button>
+                          </div>
+                          <div className="mt-3 flex flex-wrap items-center gap-2">
+                            <Input
+                              list="staff-directory"
+                              value={animeStaffMemberInput[index] || ""}
+                              onChange={(event) =>
+                                setAnimeStaffMemberInput((prev) => ({
+                                  ...prev,
+                                  [index]: event.target.value,
+                                }))
+                              }
+                              placeholder="Adicionar membro"
+                            />
+                            <Button
+                              type="button"
+                              variant="outline"
+                              onClick={() =>
+                                setFormState((prev) => {
+                                  const next = [...prev.animeStaff];
+                                  const name = (animeStaffMemberInput[index] || "").trim();
+                                  if (!name) {
+                                    return prev;
+                                  }
+                                  const members = next[index].members || [];
+                                  next[index] = {
+                                    ...next[index],
+                                    members: members.includes(name) ? members : [...members, name],
+                                  };
+                                  return { ...prev, animeStaff: next };
+                                })
+                              }
+                            >
+                              Adicionar
+                            </Button>
+                          </div>
+                          <div className="mt-2 flex flex-wrap gap-2">
+                            {(role.members || []).map((member) => (
+                              <Badge key={member} variant="secondary">
+                                {member}
+                              </Badge>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
+            </Accordion>
 
             <div className="space-y-3">
               <div className="flex items-center justify-between">

@@ -167,6 +167,78 @@ const ProjectPage = () => {
     );
   }, [project?.genres, genreTranslations]);
 
+  const anilistRoleMap = useMemo(() => {
+    const entries: Array<[string, string]> = [
+      ["director", "Direção"],
+      ["chief director", "Diretor chefe"],
+      ["assistant director", "Direção assistente"],
+      ["action director", "Direção de ação"],
+      ["series composition", "Composição de série"],
+      ["script", "Roteiro"],
+      ["storyboard", "Storyboard"],
+      ["story", "História"],
+      ["episode director", "Direção de episódio"],
+      ["original story", "História original"],
+      ["original creator", "Autor original"],
+      ["original work assistance", "Assistência de obra original"],
+      ["character design", "Design de personagens"],
+      ["original character design", "Design original de personagens"],
+      ["original character design assistance", "Assistência de design original de personagens"],
+      ["chief character design", "Design-chefe de personagens"],
+      ["animation director", "Direção de animação"],
+      ["main animator", "Animador principal"],
+      ["chief animation director", "Direção-chefe de animação"],
+      ["key animation", "Animação-chave"],
+      ["in-between animation", "Intercalação"],
+      ["art director", "Direção de arte"],
+      ["art design", "Design de arte"],
+      ["background art", "Arte de fundo"],
+      ["color design", "Design de cor"],
+      ["color coordinator", "Coordenação de cor"],
+      ["director of photography", "Direção de fotografia"],
+      ["photography director", "Direção de fotografia"],
+      ["editing", "Edição"],
+      ["music", "Música"],
+      ["sound director", "Direção de som"],
+      ["sound effects", "Efeitos sonoros"],
+      ["sound design", "Design de som"],
+      ["theme song performance", "Performance da música tema"],
+      ["theme song performance (op)", "Performance da música tema (OP)"],
+      ["theme song performance (ed)", "Performance da música tema (ED)"],
+      ["producer", "Produção"],
+      ["assistant producer", "Produção assistente"],
+      ["production", "Produção"],
+      ["production assistant", "Assistência de produção"],
+      ["3d director", "Direção 3D"],
+      ["3d animation", "Animação 3D"],
+      ["3d modeling", "Modelagem 3D"],
+      ["cg director", "Direção de CG"],
+      ["mechanical design", "Design mecânico"],
+      ["prop design", "Design de props"],
+      ["design assistance", "Assistência de design"],
+      ["title logo design", "Design do logo do título"],
+      ["design works", "Design works"],
+      ["layout", "Layout"],
+      ["literary arts", "Artes literárias"],
+      ["special effects", "Efeitos especiais"],
+      ["cg", "CG"],
+      ["design", "Design"],
+      ["casting", "Casting"],
+      ["supervisor", "Supervisor"],
+      ["creative producer", "Produção criativa"],
+      ["illustration", "Ilustração"],
+    ];
+    return new Map(entries);
+  }, []);
+
+  const translateAnilistRole = (role: string) => {
+    const normalized = String(role || "").trim();
+    if (!normalized) {
+      return role;
+    }
+    return anilistRoleMap.get(normalized.toLowerCase()) || role;
+  };
+
   const sourceThemeMap = useMemo(() => {
     const map = new Map<string, { color: string; icon?: string }>();
     settings.downloads.sources.forEach((source) => {
@@ -541,7 +613,7 @@ const ProjectPage = () => {
                           className="rounded-xl border border-border/50 bg-background/60 p-4"
                         >
                           <p className="text-xs font-semibold uppercase tracking-widest text-primary/80">
-                            {staff.role}
+                            {translateAnilistRole(staff.role)}
                           </p>
                           <p className="mt-2 text-sm text-foreground">{staff.members.join(", ")}</p>
                         </div>
