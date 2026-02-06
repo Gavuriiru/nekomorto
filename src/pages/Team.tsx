@@ -194,9 +194,9 @@ const Team = () => {
     <div className="min-h-screen bg-background text-foreground">
 
       <main>
-        <section className="relative overflow-hidden reveal" data-reveal>
+        <section className="relative overflow-hidden">
           <div className="absolute inset-0 bg-gradient-to-b from-primary/15 via-background to-background" />
-          <div className="relative mx-auto flex w-full max-w-6xl flex-col gap-6 px-6 pb-12 pt-24 md:px-10 md:pt-28">
+          <div className="relative mx-auto flex w-full max-w-6xl flex-col gap-6 px-6 pb-12 pt-24 md:px-10 md:pt-28 reveal" data-reveal>
             <div className="max-w-3xl space-y-4">
               <Badge variant="secondary" className="text-xs uppercase tracking-widest">
                 {pageCopy.heroBadge}

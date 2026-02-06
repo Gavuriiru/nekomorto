@@ -160,11 +160,11 @@ const About = () => {
     <div className="min-h-screen bg-background text-foreground">
 
       <main>
-        <section className="relative overflow-hidden border-b border-border/60 reveal" data-reveal>
+        <section className="relative overflow-hidden border-b border-border/60">
           <div className="absolute inset-0 bg-gradient-to-b from-primary/20 via-background to-background" />
           <div className="absolute -left-24 top-10 h-64 w-64 rounded-full bg-primary/20 blur-[120px]" />
           <div className="absolute -right-24 bottom-10 h-64 w-64 rounded-full bg-accent/20 blur-[120px]" />
-          <div className="relative mx-auto grid w-full max-w-6xl gap-8 px-6 pb-16 pt-24 md:grid-cols-[1.2fr_0.8fr] md:px-10 md:pt-28">
+          <div className="relative mx-auto grid w-full max-w-6xl gap-8 px-6 pb-16 pt-24 md:grid-cols-[1.2fr_0.8fr] md:px-10 md:pt-28 reveal" data-reveal>
             <div className="space-y-5">
               <Badge variant="secondary" className="text-xs uppercase tracking-widest">
                 {about.heroBadge}
