@@ -563,12 +563,12 @@ const defaultSiteSettings = {
   },
   downloads: {
     sources: [
-      { id: "google-drive", label: "Google Drive", color: "#34A853", icon: "google-drive" },
-      { id: "mega", label: "MEGA", color: "#D9272E", icon: "mega" },
-      { id: "torrent", label: "Torrent", color: "#7C3AED", icon: "torrent" },
-      { id: "mediafire", label: "Mediafire", color: "#2563EB", icon: "mediafire" },
-      { id: "telegram", label: "Telegram", color: "#0EA5E9", icon: "telegram" },
-      { id: "outro", label: "Outro", color: "#64748B", icon: "link" },
+      { id: "google-drive", label: "Google Drive", color: "#34A853", icon: "google-drive", tintIcon: true },
+      { id: "mega", label: "MEGA", color: "#D9272E", icon: "mega", tintIcon: true },
+      { id: "torrent", label: "Torrent", color: "#7C3AED", icon: "torrent", tintIcon: true },
+      { id: "mediafire", label: "Mediafire", color: "#2563EB", icon: "mediafire", tintIcon: true },
+      { id: "telegram", label: "Telegram", color: "#0EA5E9", icon: "telegram", tintIcon: true },
+      { id: "outro", label: "Outro", color: "#64748B", icon: "link", tintIcon: true },
     ],
   },
   teamRoles: [
@@ -744,6 +744,12 @@ const normalizeSiteSettings = (payload) => {
         return link;
       });
     }
+  }
+  if (Array.isArray(merged?.downloads?.sources)) {
+    merged.downloads.sources = merged.downloads.sources.map((source) => ({
+      ...source,
+      tintIcon: source?.tintIcon !== false,
+    }));
   }
   return normalizeUploadsDeep(merged);
 };

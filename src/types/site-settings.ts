@@ -29,6 +29,7 @@ export type SiteSettings = {
       label: string;
       color: string;
       icon?: string;
+      tintIcon?: boolean;
     }>;
   };
   teamRoles: Array<{

@@ -2,6 +2,7 @@
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import DashboardShell from "@/components/DashboardShell";
 import ImageLibraryDialog from "@/components/ImageLibraryDialog";
+import ThemedSvgLogo from "@/components/ThemedSvgLogo";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -437,6 +438,7 @@ const DashboardProjectsEditor = () => {
         label: String(source.label || "").trim(),
         icon: source.icon,
         color: source.color || "#7C3AED",
+        tintIcon: source.tintIcon !== false,
       })) ?? [];
     const filtered = sources.filter((source) => source.label);
     if (filtered.length) {
@@ -452,12 +454,27 @@ const DashboardProjectsEditor = () => {
     ];
   }, [publicSettings?.downloads?.sources]);
 
-  const renderDownloadIcon = (iconKey: string | undefined, color: string) => {
+  const renderDownloadIcon = (
+    iconKey: string | undefined,
+    color: string,
+    label?: string,
+    tintIcon = true,
+  ) => {
     if (
       iconKey &&
       (iconKey.startsWith("http") || iconKey.startsWith("data:") || iconKey.startsWith("/uploads/"))
     ) {
-      return <img src={iconKey} alt="" className="h-4 w-4" />;
+      if (!tintIcon) {
+        return <img src={iconKey} alt={label || ""} className="h-4 w-4" />;
+      }
+      return (
+        <ThemedSvgLogo
+          url={iconKey}
+          label={label || "Fonte de download"}
+          className="h-4 w-4"
+          color={color}
+        />
+      );
     }
     const normalized = String(iconKey || "").toLowerCase();
     if (normalized === "google-drive") {
@@ -2556,7 +2573,12 @@ const DashboardProjectsEditor = () => {
                                         {downloadSourceOptions.map((option) => (
                                           <SelectItem key={option.label} value={option.label}>
                                             <span className="flex items-center gap-2">
-                                              {renderDownloadIcon(option.icon, option.color)}
+                                              {renderDownloadIcon(
+                                                option.icon,
+                                                option.color,
+                                                option.label,
+                                                option.tintIcon,
+                                              )}
                                               <span>{option.label}</span>
                                             </span>
                                           </SelectItem>

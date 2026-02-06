@@ -20,6 +20,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import ThemedSvgLogo from "@/components/ThemedSvgLogo";
 import { getApiBase } from "@/lib/api-base";
 import { isChapterBasedType, isLightNovelType, isMangaType } from "@/lib/project-utils";
 import { formatDate } from "@/lib/date";
@@ -259,7 +260,7 @@ const ProjectPage = () => {
   };
 
   const sourceThemeMap = useMemo(() => {
-    const map = new Map<string, { color: string; icon?: string }>();
+    const map = new Map<string, { color: string; icon?: string; tintIcon: boolean }>();
     settings.downloads.sources.forEach((source) => {
       if (!source?.label) {
         return;
@@ -267,17 +268,33 @@ const ProjectPage = () => {
       map.set(source.label.toLowerCase(), {
         color: source.color || "#7C3AED",
         icon: source.icon,
+        tintIcon: source.tintIcon !== false,
       });
     });
     return map;
   }, [settings.downloads.sources]);
 
-  const renderSourceIcon = (iconKey: string | undefined, color: string) => {
+  const renderSourceIcon = (
+    iconKey: string | undefined,
+    color: string,
+    label?: string,
+    tintIcon = true,
+  ) => {
     if (
       iconKey &&
       (iconKey.startsWith("http") || iconKey.startsWith("data:") || iconKey.startsWith("/uploads/"))
     ) {
-      return <img src={iconKey} alt="" className="h-4 w-4" />;
+      if (!tintIcon) {
+        return <img src={iconKey} alt={label || ""} className="h-4 w-4" />;
+      }
+      return (
+        <ThemedSvgLogo
+          url={iconKey}
+          label={label || "Fonte de download"}
+          className="h-4 w-4"
+          color={color}
+        />
+      );
     }
     const normalized = String(iconKey || "").toLowerCase();
     if (normalized === "google-drive") {
@@ -798,7 +815,12 @@ const ProjectPage = () => {
                                         {episode.sources.map((source, sourceIndex) => {
                                           const theme = sourceThemeMap.get(source.label.toLowerCase());
                                           const color = theme?.color || "#7C3AED";
-                                          const icon = renderSourceIcon(theme?.icon, color);
+                                          const icon = renderSourceIcon(
+                                            theme?.icon,
+                                            color,
+                                            source.label,
+                                            theme?.tintIcon ?? true,
+                                          );
                                           return (
                                             <Button
                                               key={`${source.label}-${sourceIndex}`}
@@ -871,7 +893,12 @@ const ProjectPage = () => {
                               {episode.sources.map((source, sourceIndex) => {
                                 const theme = sourceThemeMap.get(source.label.toLowerCase());
                                 const color = theme?.color || "#7C3AED";
-                                const icon = renderSourceIcon(theme?.icon, color);
+                                const icon = renderSourceIcon(
+                                  theme?.icon,
+                                  color,
+                                  source.label,
+                                  theme?.tintIcon ?? true,
+                                );
                                 return (
                                   <Button
                                     key={`${source.label}-${sourceIndex}`}

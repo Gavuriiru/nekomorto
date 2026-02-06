@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { ColorPicker } from "@/components/ui/color-picker";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Switch } from "@/components/ui/switch";
 import {
   Select,
   SelectContent,
@@ -1167,6 +1168,7 @@ const DashboardSettings = () => {
                                   label: "Nova fonte",
                                   color: "#64748B",
                                   icon: "",
+                                  tintIcon: true,
                                 },
                               ],
                             },
@@ -1178,92 +1180,120 @@ const DashboardSettings = () => {
                     </div>
 
                     <div className="grid gap-3">
-                      {settings.downloads.sources.map((source, index) => (
-                        <div
-                          key={`${source.id}-${index}`}
-                          className="grid items-center gap-3 md:grid-cols-[1.3fr_0.25fr_1.6fr_auto]"
-                        >
-                          <Input
-                            value={source.label}
-                            onChange={(event) =>
-                              setSettings((prev) => {
-                                const next = [...prev.downloads.sources];
-                                next[index] = { ...next[index], label: event.target.value };
-                                return { ...prev, downloads: { ...prev.downloads, sources: next } };
-                              })
-                            }
-                            placeholder="Nome"
-                          />
-                          <div className="flex items-center justify-center">
-                            <ColorPicker
-                              label=""
-                              showSwatch
-                              buttonClassName="inline-flex h-9 w-9 items-center justify-center rounded-md border border-border/60 bg-background/60 shadow-sm transition hover:border-primary/40"
-                              value={source.color}
-                              onChange={(color) =>
+                      {settings.downloads.sources.map((source, index) => {
+                        const shouldTint = source.tintIcon !== false;
+                        return (
+                          <div
+                            key={`${source.id}-${index}`}
+                            className="grid items-center gap-3 md:grid-cols-[1.2fr_0.25fr_0.6fr_1.6fr_auto]"
+                          >
+                            <Input
+                              value={source.label}
+                              onChange={(event) =>
                                 setSettings((prev) => {
                                   const next = [...prev.downloads.sources];
-                                  next[index] = { ...next[index], color: color.toString("hex") };
+                                  next[index] = { ...next[index], label: event.target.value };
                                   return { ...prev, downloads: { ...prev.downloads, sources: next } };
                                 })
                               }
+                              placeholder="Nome"
                             />
-                          </div>
-                          <div className="flex items-center gap-3 rounded-xl border border-border/60 bg-background/60 px-3 py-2 text-xs text-muted-foreground">
-                            {isIconUrl(source.icon) ? (
-                              <img
-                                src={source.icon}
-                                alt={`Ícone ${source.label}`}
-                                className="h-6 w-6 rounded bg-white/90 p-1"
+                            <div className="flex items-center justify-center">
+                              <ColorPicker
+                                label=""
+                                showSwatch
+                                buttonClassName="inline-flex h-9 w-9 items-center justify-center rounded-md border border-border/60 bg-background/60 shadow-sm transition hover:border-primary/40"
+                                value={source.color}
+                                onChange={(color) =>
+                                  setSettings((prev) => {
+                                    const next = [...prev.downloads.sources];
+                                    next[index] = { ...next[index], color: color.toString("hex") };
+                                    return { ...prev, downloads: { ...prev.downloads, sources: next } };
+                                  })
+                                }
                               />
-                            ) : (
-                              <span className="inline-flex h-6 w-6 items-center justify-center rounded bg-white/10 text-[10px]">
-                                SVG
-                              </span>
-                            )}
-                            <span className="truncate">
-                              {isIconUrl(source.icon) ? "SVG atual" : "Sem SVG"}
-                            </span>
-                            <div className="ml-auto flex items-center gap-2">
-                              <Input
-                                id={`download-icon-${index}`}
-                                type="file"
-                                accept="image/svg+xml"
-                                className="sr-only"
-                                onChange={(event) => {
-                                  const file = event.target.files?.[0];
-                                  if (file) {
-                                    uploadDownloadIcon(file, index);
-                                  }
-                                }}
-                                disabled={uploadingKey === `download-icon-${index}`}
-                              />
-                              <Label
-                                htmlFor={`download-icon-${index}`}
-                                className="inline-flex h-8 cursor-pointer items-center justify-center rounded-md border border-border/60 bg-background px-3 text-[11px] font-medium text-foreground transition hover:border-primary/50"
-                              >
-                                Escolher SVG
-                              </Label>
                             </div>
+                            <div className="flex items-center justify-center gap-2 rounded-xl border border-border/60 bg-background/60 px-3 py-2">
+                              <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+                                Aplicar ao ícone
+                              </span>
+                              <Switch
+                                checked={shouldTint}
+                                onCheckedChange={(checked) =>
+                                  setSettings((prev) => {
+                                    const next = [...prev.downloads.sources];
+                                    next[index] = { ...next[index], tintIcon: checked };
+                                    return { ...prev, downloads: { ...prev.downloads, sources: next } };
+                                  })
+                                }
+                                aria-label={`Colorir SVG de ${source.label}`}
+                              />
+                            </div>
+                            <div className="flex items-center gap-3 rounded-xl border border-border/60 bg-background/60 px-3 py-2 text-xs text-muted-foreground">
+                              {isIconUrl(source.icon) ? (
+                                shouldTint ? (
+                                  <ThemedSvgLogo
+                                    url={source.icon}
+                                    label={`Ícone ${source.label}`}
+                                    className="h-6 w-6 rounded bg-white/90 p-1"
+                                    color={source.color}
+                                  />
+                                ) : (
+                                  <img
+                                    src={source.icon}
+                                    alt={`Ícone ${source.label}`}
+                                    className="h-6 w-6 rounded bg-white/90 p-1"
+                                  />
+                                )
+                              ) : (
+                                <span className="inline-flex h-6 w-6 items-center justify-center rounded bg-white/10 text-[10px]">
+                                  SVG
+                                </span>
+                              )}
+                              <span className="truncate">
+                                {isIconUrl(source.icon) ? "SVG atual" : "Sem SVG"}
+                              </span>
+                              <div className="ml-auto flex items-center gap-2">
+                                <Input
+                                  id={`download-icon-${index}`}
+                                  type="file"
+                                  accept="image/svg+xml"
+                                  className="sr-only"
+                                  onChange={(event) => {
+                                    const file = event.target.files?.[0];
+                                    if (file) {
+                                      uploadDownloadIcon(file, index);
+                                    }
+                                  }}
+                                  disabled={uploadingKey === `download-icon-${index}`}
+                                />
+                                <Label
+                                  htmlFor={`download-icon-${index}`}
+                                  className="inline-flex h-8 cursor-pointer items-center justify-center rounded-md border border-border/60 bg-background px-3 text-[11px] font-medium text-foreground transition hover:border-primary/50"
+                                >
+                                  Escolher SVG
+                                </Label>
+                              </div>
+                            </div>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              onClick={() =>
+                                setSettings((prev) => ({
+                                  ...prev,
+                                  downloads: {
+                                    ...prev.downloads,
+                                    sources: prev.downloads.sources.filter((_, idx) => idx !== index),
+                                  },
+                                }))
+                              }
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
                           </div>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            onClick={() =>
-                              setSettings((prev) => ({
-                                ...prev,
-                                downloads: {
-                                  ...prev.downloads,
-                                  sources: prev.downloads.sources.filter((_, idx) => idx !== index),
-                                },
-                              }))
-                            }
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   </CardContent>
                 </Card>

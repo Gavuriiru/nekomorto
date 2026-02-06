@@ -4,6 +4,7 @@ type ThemedSvgLogoProps = {
   url: string;
   label: string;
   className?: string;
+  color?: string;
 };
 
 const isSvgUrl = (value: string) =>
@@ -222,16 +223,17 @@ const normalizeSvg = (svgText: string) => {
   const safeStyle = existingStyle.endsWith(";") || !existingStyle ? existingStyle : `${existingStyle};`;
   svg.setAttribute(
     "style",
-    `${safeStyle}color: hsl(var(--primary)); background: transparent;`,
+    `${safeStyle}color: currentColor; background: transparent;`,
   );
 
   return new XMLSerializer().serializeToString(svg);
 };
 
-const ThemedSvgLogo = ({ url, label, className }: ThemedSvgLogoProps) => {
+const ThemedSvgLogo = ({ url, label, className, color }: ThemedSvgLogoProps) => {
   const [svgMarkup, setSvgMarkup] = useState<string | null>(null);
 
   const shouldInline = useMemo(() => isSvgUrl(url), [url]);
+  const wrapperStyle = color ? { color } : undefined;
 
   useEffect(() => {
     let isActive = true;
@@ -273,13 +275,14 @@ const ThemedSvgLogo = ({ url, label, className }: ThemedSvgLogoProps) => {
   }, [shouldInline, url]);
 
   if (!shouldInline || !svgMarkup) {
-    return <img src={url} alt={label} className={className} />;
+    return <img src={url} alt={label} className={className} style={wrapperStyle} />;
   }
 
   return (
     <span
       role="img"
       aria-label={label}
+      style={wrapperStyle}
       className={`inline-flex items-center justify-center [&_svg]:h-full [&_svg]:w-full [&_svg]:block ${className || ""}`}
       dangerouslySetInnerHTML={{ __html: svgMarkup }}
     />
