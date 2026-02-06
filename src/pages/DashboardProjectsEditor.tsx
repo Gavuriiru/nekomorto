@@ -940,6 +940,7 @@ const DashboardProjectsEditor = () => {
           };
         })
       : [];
+    const mergedSynopsis = project.synopsis || project.description || "";
     setEditingProject(project);
     setFormState({
       id: project.id,
@@ -947,8 +948,8 @@ const DashboardProjectsEditor = () => {
       title: project.title || "",
       titleOriginal: project.titleOriginal || "",
       titleEnglish: project.titleEnglish || "",
-      synopsis: project.synopsis || "",
-      description: project.description || "",
+      synopsis: mergedSynopsis,
+      description: mergedSynopsis,
       type: project.type || "",
       status: project.status || "",
       year: project.year || "",
@@ -1035,7 +1036,7 @@ const DashboardProjectsEditor = () => {
       titleOriginal: formState.titleOriginal?.trim() || "",
       titleEnglish: formState.titleEnglish?.trim() || "",
       synopsis: formState.synopsis?.trim() || "",
-      description: formState.description?.trim() || "",
+      description: formState.synopsis?.trim() || "",
       type: formState.type?.trim() || "",
       status: formState.status?.trim() || "",
       year: formState.year?.trim() || "",
@@ -1248,6 +1249,7 @@ const DashboardProjectsEditor = () => {
 
     const genresFromMedia = (media.genres || []).filter(Boolean);
 
+    const mergedSynopsis = stripHtml(media.description || "");
     setFormState((prev) => ({
       ...prev,
       id: prev.id || String(media.id),
@@ -1255,8 +1257,8 @@ const DashboardProjectsEditor = () => {
       title: media.title?.romaji || media.title?.english || media.title?.native || prev.title,
       titleOriginal: media.title?.native || "",
       titleEnglish: media.title?.english || "",
-      synopsis: stripHtml(media.description || ""),
-      description: stripHtml(media.description || ""),
+      synopsis: mergedSynopsis,
+      description: mergedSynopsis,
       type: formatType(media.format || "") || prev.type,
       status: formatStatus(media.status || "") || prev.status,
       year: media.seasonYear ? String(media.seasonYear) : prev.year,
@@ -1810,15 +1812,7 @@ const DashboardProjectsEditor = () => {
                 <Textarea
                   value={formState.synopsis}
                   onChange={(event) => setFormState((prev) => ({ ...prev, synopsis: event.target.value }))}
-                  rows={4}
-                />
-              </div>
-              <div className="space-y-2 md:col-span-2">
-                <Label>Descrição completa</Label>
-                <Textarea
-                  value={formState.description}
-                  onChange={(event) => setFormState((prev) => ({ ...prev, description: event.target.value }))}
-                  rows={5}
+                  rows={6}
                 />
               </div>
             </div>

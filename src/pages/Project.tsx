@@ -19,7 +19,6 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { getApiBase } from "@/lib/api-base";
 import { isChapterBasedType, isLightNovelType, isMangaType } from "@/lib/project-utils";
@@ -517,9 +516,6 @@ const ProjectPage = () => {
                       )}
                       Sobre o projeto
                     </div>
-                  <p className="text-sm leading-relaxed text-muted-foreground md:text-base">
-                    {project.description}
-                  </p>
                   {project.genres?.length ? (
                     <div className="flex flex-wrap gap-2">
                       {sortedGenres.map((genre) => (
@@ -532,19 +528,16 @@ const ProjectPage = () => {
                     </div>
                   ) : null}
                   {projectDetails.length ? (
-                    <>
-                      <Separator className="bg-border/60" />
-                      <div className="grid gap-4 md:grid-cols-2">
-                        {projectDetails.map((detail) => (
-                          <div key={detail.label} className="rounded-xl border border-border/50 bg-background/60 p-4">
-                            <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
-                              {detail.label}
-                            </span>
-                            <p className="mt-2 text-sm font-semibold text-foreground">{detail.value}</p>
-                          </div>
-                        ))}
-                      </div>
-                    </>
+                    <div className="grid gap-4 md:grid-cols-2">
+                      {projectDetails.map((detail) => (
+                        <div key={detail.label} className="rounded-xl border border-border/50 bg-background/60 px-4 py-3">
+                          <span className="block text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+                            {detail.label}
+                          </span>
+                          <p className="mt-1 text-sm font-semibold text-foreground">{detail.value}</p>
+                        </div>
+                      ))}
+                    </div>
                   ) : null}
                 </CardContent>
               </Card>
@@ -606,12 +599,12 @@ const ProjectPage = () => {
                       {project.staff.map((staff) => (
                         <div
                           key={staff.role}
-                          className="rounded-xl border border-border/50 bg-background/60 p-4"
+                          className="rounded-xl border border-border/50 bg-background/60 px-4 py-3"
                         >
-                          <p className="text-xs font-semibold uppercase tracking-widest text-primary/80">
+                          <p className="block text-xs font-semibold uppercase tracking-widest text-primary/80">
                             {staff.role}
                           </p>
-                          <p className="mt-2 text-sm text-foreground">{staff.members.join(", ")}</p>
+                          <p className="mt-1 text-sm text-foreground">{staff.members.join(", ")}</p>
                         </div>
                       ))}
                     </div>
@@ -630,12 +623,12 @@ const ProjectPage = () => {
                       {project.animeStaff.map((staff) => (
                         <div
                           key={staff.role}
-                          className="rounded-xl border border-border/50 bg-background/60 p-4"
+                          className="rounded-xl border border-border/50 bg-background/60 px-4 py-3"
                         >
-                          <p className="text-xs font-semibold uppercase tracking-widest text-primary/80">
+                          <p className="block text-xs font-semibold uppercase tracking-widest text-primary/80">
                             {translateAnilistRole(staff.role)}
                           </p>
-                          <p className="mt-2 text-sm text-foreground">{staff.members.join(", ")}</p>
+                          <p className="mt-1 text-sm text-foreground">{staff.members.join(", ")}</p>
                         </div>
                       ))}
                     </div>
