@@ -136,9 +136,18 @@ const Recruitment = () => {
       <main className="px-6 pb-20 pt-14 md:px-12">
         <section className="mx-auto w-full max-w-6xl pb-10 pt-6">
           <div className="space-y-4">
-            <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">{recruitment.heroBadge}</p>
-            <h1 className="text-3xl font-semibold text-foreground md:text-4xl">{recruitment.heroTitle}</h1>
-            <p className="max-w-2xl text-sm text-muted-foreground">{recruitment.heroSubtitle}</p>
+            <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground animate-fade-in">
+              {recruitment.heroBadge}
+            </p>
+            <h1 className="text-3xl font-semibold text-foreground md:text-4xl animate-slide-up">
+              {recruitment.heroTitle}
+            </h1>
+            <p
+              className="max-w-2xl text-sm text-muted-foreground animate-slide-up opacity-0"
+              style={{ animationDelay: "0.2s" }}
+            >
+              {recruitment.heroSubtitle}
+            </p>
           </div>
         </section>
 

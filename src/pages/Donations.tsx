@@ -149,8 +149,15 @@ const Donations = () => {
           <div className="absolute -right-24 bottom-10 h-64 w-64 rounded-full bg-accent/20 blur-[120px]" />
           <div className="relative mx-auto flex w-full max-w-6xl flex-col gap-6 px-6 pb-16 pt-20 md:px-10 reveal" data-reveal>
             <div className="max-w-3xl space-y-4">
-              <h1 className="text-3xl font-semibold text-foreground md:text-5xl">{donations.heroTitle}</h1>
-              <p className="text-sm text-muted-foreground md:text-base">{donations.heroSubtitle}</p>
+              <h1 className="text-3xl font-semibold text-foreground md:text-5xl animate-slide-up">
+                {donations.heroTitle}
+              </h1>
+              <p
+                className="text-sm text-muted-foreground md:text-base animate-slide-up opacity-0"
+                style={{ animationDelay: "0.2s" }}
+              >
+                {donations.heroSubtitle}
+              </p>
             </div>
           </div>
         </section>

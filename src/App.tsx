@@ -3,6 +3,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
+import { useLayoutEffect } from "react";
 import { SiteSettingsProvider } from "@/hooks/site-settings-provider";
 import { useReveal } from "@/hooks/use-reveal";
 import Index from "./pages/Index";
@@ -32,6 +33,16 @@ const queryClient = new QueryClient();
 const PageTransition = ({ children }: { children: React.ReactNode }) => (
   <div className="page-transition">{children}</div>
 );
+
+const ScrollToTop = () => {
+  const location = useLocation();
+
+  useLayoutEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+  }, [location.pathname, location.search]);
+
+  return null;
+};
 
 const RouterShell = () => {
   const location = useLocation();
@@ -129,6 +140,7 @@ const App = ({
         <Toaster />
         <Sonner />
         <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+          <ScrollToTop />
           <RouterShell />
         </BrowserRouter>
       </TooltipProvider>

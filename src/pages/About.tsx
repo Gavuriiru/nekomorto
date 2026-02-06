@@ -166,12 +166,19 @@ const About = () => {
           <div className="absolute -right-24 bottom-10 h-64 w-64 rounded-full bg-accent/20 blur-[120px]" />
           <div className="relative mx-auto grid w-full max-w-6xl gap-8 px-6 pb-16 pt-24 md:grid-cols-[1.2fr_0.8fr] md:px-10 md:pt-28 reveal" data-reveal>
             <div className="space-y-5">
-              <Badge variant="secondary" className="text-xs uppercase tracking-widest">
+              <Badge variant="secondary" className="text-xs uppercase tracking-widest animate-fade-in">
                 {about.heroBadge}
               </Badge>
-              <h1 className="text-3xl font-semibold text-foreground md:text-5xl">{about.heroTitle}</h1>
-              <p className="text-sm text-muted-foreground md:text-base">{about.heroSubtitle}</p>
-              <div className="flex flex-wrap gap-3">
+              <h1 className="text-3xl font-semibold text-foreground md:text-5xl animate-slide-up">
+                {about.heroTitle}
+              </h1>
+              <p
+                className="text-sm text-muted-foreground md:text-base animate-slide-up opacity-0"
+                style={{ animationDelay: "0.2s" }}
+              >
+                {about.heroSubtitle}
+              </p>
+              <div className="flex flex-wrap gap-3 animate-slide-up opacity-0" style={{ animationDelay: "0.4s" }}>
                 {about.heroBadges.map((badge) => (
                   <Badge key={badge} variant="secondary" className="text-xs uppercase tracking-widest">
                     {badge}
