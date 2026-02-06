@@ -50,23 +50,7 @@ import { useSiteSettings } from "@/hooks/use-site-settings";
 import { defaultSettings, mergeSettings } from "@/hooks/site-settings-context";
 import type { SiteSettings } from "@/types/site-settings";
 import { usePageMeta } from "@/hooks/use-page-meta";
-
-const downloadIconOptions = [
-  { id: "google-drive", label: "Google Drive" },
-  { id: "mega", label: "MEGA" },
-  { id: "torrent", label: "Torrent" },
-  { id: "mediafire", label: "Mediafire" },
-  { id: "telegram", label: "Telegram" },
-  { id: "link", label: "Link" },
-];
-
-const socialIconOptions = [
-  ...downloadIconOptions,
-  { id: "instagram", label: "Instagram" },
-  { id: "facebook", label: "Facebook" },
-  { id: "twitter", label: "Twitter" },
-  { id: "discord", label: "Discord" },
-];
+import ThemedSvgLogo from "@/components/ThemedSvgLogo";
 
 const roleIconOptions = [
   { id: "languages", label: "Languages" },
@@ -1284,10 +1268,10 @@ const DashboardSettings = () => {
                             />
                             <div className="flex items-center gap-3 rounded-xl border border-border/60 bg-background/60 px-3 py-2 text-xs text-muted-foreground">
                               {isCustomIcon ? (
-                                <img
-                                  src={link.icon}
-                                  alt={`Ícone ${link.label}`}
-                                  className="h-6 w-6 rounded bg-white/90 p-1"
+                                <ThemedSvgLogo
+                                  url={link.icon}
+                                  label={`Ícone ${link.label}`}
+                                  className="h-6 w-6 text-primary"
                                 />
                               ) : (
                                 <span className="inline-flex h-6 w-6 items-center justify-center rounded bg-white/10 text-[10px]">
@@ -1538,7 +1522,11 @@ const DashboardSettings = () => {
                               ...prev.footer,
                               socialLinks: [
                                 ...prev.footer.socialLinks,
-                                { label: "Nova rede", href: "", icon: "link" },
+                                {
+                                  label: "Nova rede",
+                                  href: "",
+                                  icon: linkTypes[0]?.icon || "link",
+                                },
                               ],
                             },
                           }))
@@ -1550,18 +1538,54 @@ const DashboardSettings = () => {
 
                     <div className="grid gap-3">
                       {settings.footer.socialLinks.map((link, index) => (
-                        <div key={`${link.label}-${index}`} className="grid gap-3 md:grid-cols-[1fr_1.6fr_0.8fr_auto]">
-                          <Input
-                            value={link.label}
-                            placeholder="Label"
-                            onChange={(event) =>
+                        <div key={`${link.label}-${index}`} className="grid gap-3 md:grid-cols-[0.8fr_1.6fr_auto]">
+                          <Select
+                            value={link.icon || "link"}
+                            onValueChange={(value) =>
                               setSettings((prev) => {
                                 const next = [...prev.footer.socialLinks];
-                                next[index] = { ...next[index], label: event.target.value };
+                                const matched = linkTypes.find((item) => item.icon === value || item.id === value);
+                                next[index] = {
+                                  ...next[index],
+                                  icon: value,
+                                  label: matched?.label || link.label || "Rede social",
+                                };
                                 return { ...prev, footer: { ...prev.footer, socialLinks: next } };
                               })
                             }
-                          />
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Ícone" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {linkTypes.length === 0 ? (
+                                <SelectItem value="link" disabled>
+                                  Cadastre redes sociais na aba acima
+                                </SelectItem>
+                              ) : null}
+                              {linkTypes.map((option) => {
+                                const iconValue = option.icon || option.id;
+                                const isCustomIcon = isIconUrl(iconValue);
+                                const Icon = socialIconMap[option.id] || Link2;
+                                return (
+                                  <SelectItem key={option.id} value={iconValue}>
+                                    <div className="flex items-center gap-2">
+                                      {isCustomIcon ? (
+                                        <ThemedSvgLogo
+                                          url={iconValue}
+                                          label={`Ícone ${option.label}`}
+                                          className="h-4 w-4 text-primary"
+                                        />
+                                      ) : (
+                                        <Icon className="h-4 w-4 text-muted-foreground" />
+                                      )}
+                                      <span>{option.label}</span>
+                                    </div>
+                                  </SelectItem>
+                                );
+                              })}
+                            </SelectContent>
+                          </Select>
                           <Input
                             value={link.href}
                             placeholder="URL"
@@ -1573,33 +1597,6 @@ const DashboardSettings = () => {
                               })
                             }
                           />
-                          <Select
-                            value={link.icon || "link"}
-                            onValueChange={(value) =>
-                              setSettings((prev) => {
-                                const next = [...prev.footer.socialLinks];
-                                next[index] = { ...next[index], icon: value };
-                                return { ...prev, footer: { ...prev.footer, socialLinks: next } };
-                              })
-                            }
-                          >
-                            <SelectTrigger>
-                              <SelectValue placeholder="Ícone" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {socialIconOptions.map((option) => {
-                                const Icon = socialIconMap[option.id] || Link2;
-                                return (
-                                  <SelectItem key={option.id} value={option.id}>
-                                    <div className="flex items-center gap-2">
-                                      <Icon className="h-4 w-4 text-muted-foreground" />
-                                      <span>{option.label}</span>
-                                    </div>
-                                  </SelectItem>
-                                );
-                              })}
-                            </SelectContent>
-                          </Select>
                           <Button
                             type="button"
                             variant="ghost"

@@ -11,6 +11,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Menu } from "lucide-react";
+import ThemedSvgLogo from "@/components/ThemedSvgLogo";
 import type { Project } from "@/data/projects";
 import { cn } from "@/lib/utils";
 import { getApiBase } from "@/lib/api-base";
@@ -232,7 +233,11 @@ const Header = ({ variant = "fixed", leading, className }: HeaderProps) => {
             ) : (
               <>
                 {logoUrl ? (
-                  <img src={logoUrl} alt={siteName} className="h-9 w-9 rounded-full object-cover shadow-sm" />
+                  <ThemedSvgLogo
+                    url={logoUrl}
+                    label={siteName}
+                    className="h-9 w-9 rounded-full object-cover shadow-sm text-primary"
+                  />
                 ) : null}
                 <span>{siteName}</span>
               </>

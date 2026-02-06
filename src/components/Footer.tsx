@@ -1,6 +1,7 @@
 import { Facebook, Instagram, Twitter, MessageCircle, Youtube, X, Globe } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useSiteSettings } from "@/hooks/use-site-settings";
+import ThemedSvgLogo from "@/components/ThemedSvgLogo";
 
 const Footer = () => {
   const { settings } = useSiteSettings();
@@ -51,6 +52,8 @@ const Footer = () => {
     globe: Globe,
     site: Globe,
   };
+  const isIconUrl = (value?: string | null) =>
+    Boolean(value && (value.startsWith("http") || value.startsWith("data:") || value.startsWith("/uploads/")));
 
   return (
     <footer className="mt-16 border-t border-border/60 bg-card/60">
@@ -70,10 +73,10 @@ const Footer = () => {
               ) : (
                 <>
                   {footer.brandLogoUrl ? (
-                    <img
-                      src={footer.brandLogoUrl}
-                      alt={footer.brandName}
-                      className="h-10 w-10 rounded-full object-cover shadow-sm"
+                    <ThemedSvgLogo
+                      url={footer.brandLogoUrl}
+                      label={footer.brandName}
+                      className="h-10 w-10 rounded-full object-cover shadow-sm text-primary"
                     />
                   ) : null}
                   <p className="text-3xl font-black tracking-widest text-gradient-rainbow">
@@ -123,7 +126,9 @@ const Footer = () => {
             <div className="space-y-2">
               {socialLinks.map((link) => {
                 const iconKey = link.icon || link.label;
-                const Icon = iconMap[String(iconKey).toLowerCase()] || Globe;
+                const iconValue = String(iconKey || "");
+                const Icon = iconMap[iconValue.toLowerCase()] || Globe;
+                const renderCustomIcon = isIconUrl(iconValue);
                 return (
                   <a
                     key={link.label}
@@ -133,7 +138,15 @@ const Footer = () => {
                     rel="noreferrer"
                   >
                     <span className="flex h-8 w-8 items-center justify-center rounded-full border border-border/60 bg-secondary/70 text-primary/80 transition group-hover:border-primary/40 group-hover:text-primary">
-                      <Icon className="h-4 w-4" aria-hidden="true" />
+                      {renderCustomIcon ? (
+                        <ThemedSvgLogo
+                          url={iconValue}
+                          label={link.label}
+                          className="h-4 w-4 text-primary"
+                        />
+                      ) : (
+                        <Icon className="h-4 w-4" aria-hidden="true" />
+                      )}
                     </span>
                     {link.label}
                   </a>

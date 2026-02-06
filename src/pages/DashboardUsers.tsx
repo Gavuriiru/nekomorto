@@ -47,6 +47,7 @@ import { apiFetch } from "@/lib/api-client";
 import { usePageMeta } from "@/hooks/use-page-meta";
 import { useSiteSettings } from "@/hooks/use-site-settings";
 import { toast } from "@/components/ui/use-toast";
+import ThemedSvgLogo from "@/components/ThemedSvgLogo";
 
 type UserRecord = {
   id: string;
@@ -872,10 +873,10 @@ const DashboardUsers = () => {
                             >
                               <div className="flex items-center gap-2">
                                 {isCustomIcon ? (
-                                  <img
-                                    src={option.icon}
-                                    alt=""
-                                    className="h-4 w-4 rounded bg-white/90 p-0.5"
+                                  <ThemedSvgLogo
+                                    url={option.icon}
+                                    label={option.label}
+                                    className="h-4 w-4 text-primary"
                                   />
                                 ) : (
                                   <Icon className="h-4 w-4" />

@@ -25,6 +25,7 @@ import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
 import { usePageMeta } from "@/hooks/use-page-meta";
 import { useSiteSettings } from "@/hooks/use-site-settings";
+import ThemedSvgLogo from "@/components/ThemedSvgLogo";
 
 type PublicUser = {
   id: string;
@@ -277,10 +278,10 @@ const Team = () => {
                                       aria-label={label}
                                     >
                                       {isCustomIcon ? (
-                                        <img
-                                          src={iconKey}
-                                          alt=""
-                                          className="h-4 w-4 rounded bg-white/90 p-0.5"
+                                        <ThemedSvgLogo
+                                          url={iconKey}
+                                          label={label}
+                                          className="h-4 w-4 text-primary"
                                         />
                                       ) : (
                                         <Icon className="h-4 w-4" />
@@ -416,10 +417,10 @@ const Team = () => {
                                           aria-label={label}
                                         >
                                           {isCustomIcon ? (
-                                            <img
-                                              src={iconKey}
-                                              alt=""
-                                              className="h-4 w-4 rounded bg-white/90 p-0.5"
+                                            <ThemedSvgLogo
+                                              url={iconKey}
+                                              label={label}
+                                              className="h-4 w-4 text-primary"
                                             />
                                           ) : (
                                             <Icon className="h-4 w-4" />
