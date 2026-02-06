@@ -929,21 +929,33 @@ const DashboardSettings = () => {
                           Termos em inglês importados do AniList com a tradução exibida no site.
                         </p>
                       </div>
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="outline"
-                        onClick={(event) => {
-                          event.preventDefault();
-                          event.stopPropagation();
-                          void handleSaveTranslations();
-                        }}
-                        disabled={isSavingTranslations}
-                        className="gap-2"
-                      >
-                        <Save className="h-4 w-4" />
-                        {isSavingTranslations ? "Salvando..." : "Salvar traduções"}
-                      </Button>
+                      <div className="flex flex-wrap gap-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => syncAniListTerms()}
+                          disabled={isSyncingAniList}
+                          className="gap-2"
+                        >
+                          <Download className="h-4 w-4" />
+                          {isSyncingAniList ? "Importando..." : "Importar AniList"}
+                        </Button>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          onClick={(event) => {
+                            event.preventDefault();
+                            event.stopPropagation();
+                            void handleSaveTranslations();
+                          }}
+                          disabled={isSavingTranslations}
+                          className="gap-2"
+                        >
+                          <Save className="h-4 w-4" />
+                          {isSavingTranslations ? "Salvando..." : "Salvar traduções"}
+                        </Button>
+                      </div>
                     </div>
                     <div className="grid gap-3 md:grid-cols-[1fr_auto]">
                       <Input
