@@ -859,6 +859,107 @@ const writeUploads = (uploads) => {
   fs.writeFileSync(uploadsFilePath, JSON.stringify(uploads, null, 2));
 };
 
+const PRIVATE_UPLOAD_FOLDERS = new Set(["downloads", "socials"]);
+
+const getUploadRootSegment = (value) => {
+  if (!value) {
+    return "";
+  }
+  const normalized = String(value).replace(/^\/+/, "");
+  const [root] = normalized.split(/[\\/]/);
+  return String(root || "").toLowerCase();
+};
+
+const isPrivateUploadFolder = (value) => PRIVATE_UPLOAD_FOLDERS.has(getUploadRootSegment(value));
+
+const normalizeUploadUrlValue = (value) => {
+  if (!value || typeof value !== "string") {
+    return null;
+  }
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return null;
+  }
+  if (trimmed.startsWith("/uploads/")) {
+    return trimmed.split("?")[0].split("#")[0];
+  }
+  try {
+    const parsed = new URL(trimmed, PRIMARY_APP_ORIGIN);
+    if (parsed.pathname && parsed.pathname.startsWith("/uploads/")) {
+      return parsed.pathname;
+    }
+  } catch {
+    // ignore
+  }
+  return null;
+};
+
+const collectDownloadIconUploads = (settings) => {
+  const urls = new Set();
+  const sources = settings?.downloads?.sources;
+  if (!Array.isArray(sources)) {
+    return urls;
+  }
+  sources.forEach((source) => {
+    const normalized = normalizeUploadUrlValue(source?.icon);
+    if (!normalized) {
+      return;
+    }
+    const relative = normalized.replace(/^\/uploads\//, "");
+    if (isPrivateUploadFolder(relative)) {
+      urls.add(normalized);
+    }
+  });
+  return urls;
+};
+
+const collectLinkTypeIconUploads = (items) => {
+  const urls = new Set();
+  if (!Array.isArray(items)) {
+    return urls;
+  }
+  items.forEach((item) => {
+    const normalized = normalizeUploadUrlValue(item?.icon);
+    if (!normalized) {
+      return;
+    }
+    const relative = normalized.replace(/^\/uploads\//, "");
+    if (isPrivateUploadFolder(relative)) {
+      urls.add(normalized);
+    }
+  });
+  return urls;
+};
+
+const deletePrivateUploadByUrl = (value) => {
+  try {
+    const normalized = normalizeUploadUrlValue(value);
+    if (!normalized) {
+      return;
+    }
+    const relativePath = normalized.replace(/^\/uploads\//, "");
+    if (!isPrivateUploadFolder(relativePath)) {
+      return;
+    }
+    const uploadsDir = path.join(__dirname, "..", "public", "uploads");
+    const targetPath = path.join(uploadsDir, relativePath);
+    const resolved = path.resolve(targetPath);
+    if (!resolved.startsWith(path.resolve(uploadsDir))) {
+      return;
+    }
+    if (fs.existsSync(resolved)) {
+      fs.unlinkSync(resolved);
+    }
+    const uploads = loadUploads();
+    const nextUploads = uploads.filter((item) => item.url !== normalized);
+    if (nextUploads.length !== uploads.length) {
+      writeUploads(nextUploads);
+    }
+  } catch {
+    // ignore cleanup errors
+  }
+};
+
 const loadPages = () => {
   try {
     if (!fs.existsSync(pagesFilePath)) {
@@ -1880,6 +1981,8 @@ app.put("/api/link-types", requireOwner, (req, res) => {
   if (!Array.isArray(items)) {
     return res.status(400).json({ error: "items_required" });
   }
+  const previousLinkTypes = loadLinkTypes();
+  const previousIcons = collectLinkTypeIconUploads(previousLinkTypes);
   const normalized = items
     .map((item) => ({
       id: String(item.id || "").trim(),
@@ -1888,6 +1991,9 @@ app.put("/api/link-types", requireOwner, (req, res) => {
     }))
     .filter((item) => item.id && item.label);
   writeLinkTypes(normalized);
+  const nextIcons = collectLinkTypeIconUploads(normalized);
+  const removedIcons = Array.from(previousIcons).filter((url) => !nextIcons.has(url));
+  removedIcons.forEach((url) => deletePrivateUploadByUrl(url));
   return res.json({ items: normalized });
 });
 
@@ -3058,8 +3164,13 @@ app.put("/api/settings", requireAuth, (req, res) => {
   if (!settings || typeof settings !== "object") {
     return res.status(400).json({ error: "Payload inválido." });
   }
+  const previousSettings = loadSiteSettings();
+  const previousDownloadIcons = collectDownloadIconUploads(previousSettings);
   const normalized = normalizeSiteSettings(settings);
   writeSiteSettings(normalized);
+  const nextDownloadIcons = collectDownloadIconUploads(normalized);
+  const removedIcons = Array.from(previousDownloadIcons).filter((url) => !nextDownloadIcons.has(url));
+  removedIcons.forEach((url) => deletePrivateUploadByUrl(url));
   appendAuditLog(req, "settings.update", "settings", {});
   return res.json({ settings: normalized });
 });
@@ -3253,7 +3364,7 @@ app.post("/api/uploads/image", requireAuth, (req, res) => {
     return res.status(429).json({ error: "rate_limited" });
   }
 
-  const { dataUrl, filename, folder } = req.body || {};
+  const { dataUrl, filename, folder, slot } = req.body || {};
   if (!dataUrl || typeof dataUrl !== "string") {
     return res.status(400).json({ error: "data_url_required" });
   }
@@ -3282,7 +3393,13 @@ app.post("/api/uploads/image", requireAuth, (req, res) => {
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "");
-  const fileName = `${safeName || "imagem"}-${Date.now()}.${ext}`;
+  const safeSlot = typeof slot === "string" && slot.trim()
+    ? slot
+        .trim()
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-+|-+$/g, "")
+    : "";
   const uploadsDir = path.join(__dirname, "..", "public", "uploads");
   const safeFolder = typeof folder === "string" && folder.trim()
     ? folder
@@ -3293,6 +3410,10 @@ app.post("/api/uploads/image", requireAuth, (req, res) => {
     : "";
   const targetDir = safeFolder ? path.join(uploadsDir, safeFolder) : uploadsDir;
   fs.mkdirSync(targetDir, { recursive: true });
+  const useSlotName = Boolean(safeSlot && isPrivateUploadFolder(safeFolder));
+  const fileName = useSlotName
+    ? `${safeSlot}.${ext}`
+    : `${safeName || "imagem"}-${Date.now()}.${ext}`;
   const filePath = path.join(targetDir, fileName);
   if (mime.toLowerCase() === "image/svg+xml") {
     const svgText = buffer.toString("utf-8");
@@ -3304,7 +3425,7 @@ app.post("/api/uploads/image", requireAuth, (req, res) => {
 
   const relativeUrl = `/uploads/${safeFolder ? `${safeFolder}/` : ""}${fileName}`;
   const uploads = loadUploads();
-  uploads.push({
+  const uploadEntry = {
     id: crypto.randomUUID(),
     url: relativeUrl,
     fileName,
@@ -3312,7 +3433,17 @@ app.post("/api/uploads/image", requireAuth, (req, res) => {
     size: buffer.length,
     mime,
     createdAt: new Date().toISOString(),
-  });
+  };
+  const existingIndex = uploads.findIndex((item) => item.url === relativeUrl);
+  if (existingIndex >= 0) {
+    uploads[existingIndex] = {
+      ...uploads[existingIndex],
+      ...uploadEntry,
+      id: uploads[existingIndex].id,
+    };
+  } else {
+    uploads.push(uploadEntry);
+  }
   writeUploads(uploads);
 
   appendAuditLog(req, "uploads.image", "uploads", { fileName, folder: safeFolder || "", url: relativeUrl });
@@ -3348,14 +3479,19 @@ app.get("/api/uploads/list", requireAuth, (req, res) => {
       const results = [];
       entries.forEach((entry) => {
         const fullPath = path.join(dir, entry.name);
+        const nextBase = path.join(base, entry.name);
+        const normalizedBase = nextBase.split(path.sep).join("/");
+        if (listAll && isPrivateUploadFolder(normalizedBase)) {
+          return;
+        }
         if (entry.isDirectory()) {
-          results.push(...collectFiles(fullPath, path.join(base, entry.name)));
+          results.push(...collectFiles(fullPath, nextBase));
           return;
         }
         if (!/\.(png|jpe?g|gif|webp|svg(\+xml)?)$/i.test(entry.name)) {
           return;
         }
-        const relative = path.join(base, entry.name).split(path.sep).join("/");
+        const relative = normalizedBase;
         results.push({
           name: entry.name,
           url: `/uploads/${relative}`,

@@ -366,6 +366,8 @@ const DashboardSettings = () => {
   const uploadDownloadIcon = async (file: File, index: number) => {
     setUploadingKey(`download-icon-${index}`);
     try {
+      const source = settings.downloads.sources[index];
+      const slot = source?.id ? String(source.id) : `download-${index}`;
       const dataUrl = await fileToDataUrl(file);
       const response = await apiFetch(apiBase, "/api/uploads/image", {
         method: "POST",
@@ -375,6 +377,7 @@ const DashboardSettings = () => {
           dataUrl,
           filename: file.name,
           folder: "downloads",
+          slot,
         }),
       });
       if (!response.ok) {
@@ -476,6 +479,8 @@ const DashboardSettings = () => {
   const uploadLinkTypeIcon = async (file: File, index: number) => {
     setUploadingKey(`linktype-icon-${index}`);
     try {
+      const link = linkTypes[index];
+      const slot = link?.id ? String(link.id) : normalizeLinkTypeId(link?.label || `rede-${index}`);
       const dataUrl = await fileToDataUrl(file);
       const response = await apiFetch(apiBase, "/api/uploads/image", {
         method: "POST",
@@ -485,6 +490,7 @@ const DashboardSettings = () => {
           dataUrl,
           filename: file.name,
           folder: "socials",
+          slot,
         }),
       });
       if (!response.ok) {
