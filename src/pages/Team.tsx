@@ -258,7 +258,7 @@ const Team = () => {
                                   }
                                   target.src = "/placeholder.svg";
                                 }}
-                                className="absolute bottom-0 left-1/2 h-56 w-56 -translate-x-1/2 rounded-full object-cover object-center drop-shadow-[0_22px_44px_rgba(0,0,0,0.55)] transition-transform duration-500 group-hover:scale-105 sm:h-64 sm:w-64 md:h-72 md:w-72 lg:h-80 lg:w-80"
+                                className="absolute bottom-0 left-1/2 h-56 w-56 -translate-x-1/2 rounded-full object-cover object-center transition-transform duration-500 group-hover:scale-105 sm:h-64 sm:w-64 md:h-72 md:w-72 lg:h-80 lg:w-80"
                               />
                             </div>
                           </div>
@@ -397,7 +397,7 @@ const Team = () => {
                                       }
                                       target.src = "/placeholder.svg";
                                     }}
-                                    className="absolute bottom-0 left-1/2 h-56 w-56 -translate-x-1/2 rounded-full object-cover object-center drop-shadow-[0_22px_44px_rgba(0,0,0,0.55)] transition-transform duration-500 group-hover:scale-105 sm:h-64 sm:w-64 md:h-72 md:w-72 lg:h-80 lg:w-80"
+                                    className="absolute bottom-0 left-1/2 h-56 w-56 -translate-x-1/2 rounded-full object-cover object-center transition-transform duration-500 group-hover:scale-105 sm:h-64 sm:w-64 md:h-72 md:w-72 lg:h-80 lg:w-80"
                                   />
                                 </div>
                               </div>
