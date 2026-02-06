@@ -83,23 +83,32 @@ const HeroSection = () => {
   const [api, setApi] = React.useState<CarouselApi | null>(null);
   const autoplayRef = React.useRef<number | null>(null);
   const resumeTimeoutRef = React.useRef<number | null>(null);
-  const [heroSlides, setHeroSlides] = React.useState<HeroSlide[]>(
-    import.meta.env.DEV ? heroSlidesSeed : [],
-  );
+  const [heroSlides, setHeroSlides] = React.useState<HeroSlide[]>([]);
+  const [projectsCount, setProjectsCount] = React.useState<number | null>(null);
+  const [hasLoaded, setHasLoaded] = React.useState(false);
   const apiBase = getApiBase();
+  const visibleSlides = React.useMemo(() => {
+    if (heroSlides.length > 0) {
+      return heroSlides;
+    }
+    if (!hasLoaded || projectsCount === null) {
+      return [];
+    }
+    return projectsCount === 0 ? heroSlidesSeed : [];
+  }, [hasLoaded, heroSlides, projectsCount]);
   const latestSlideId = React.useMemo(() => {
-    if (!heroSlides.length) {
+    if (!visibleSlides.length) {
       return "";
     }
-    return heroSlides.reduce((latest, current) => {
+    return visibleSlides.reduce((latest, current) => {
       if (!latest) {
         return current;
       }
       return new Date(current.updatedAt).getTime() > new Date(latest.updatedAt).getTime()
         ? current
         : latest;
-    }, heroSlides[0])?.id;
-  }, [heroSlides]);
+    }, visibleSlides[0])?.id;
+  }, [visibleSlides]);
 
   const stopAutoplay = React.useCallback(() => {
     if (autoplayRef.current !== null) {
@@ -256,7 +265,8 @@ const HeroSection = () => {
         });
 
         if (isActive) {
-          if (!slides.length && import.meta.env.DEV) {
+          setProjectsCount(projects.length);
+          if (!slides.length && projects.length === 0) {
             setHeroSlides(heroSlidesSeed);
           } else {
             setHeroSlides(slides);
@@ -264,7 +274,12 @@ const HeroSection = () => {
         }
       } catch {
         if (isActive) {
-          setHeroSlides(import.meta.env.DEV ? heroSlidesSeed : []);
+          setHeroSlides([]);
+          setProjectsCount(null);
+        }
+      } finally {
+        if (isActive) {
+          setHasLoaded(true);
         }
       }
     };
@@ -295,7 +310,7 @@ const HeroSection = () => {
     <section className="relative min-h-screen overflow-hidden">
       <Carousel opts={{ loop: true }} setApi={setApi} className="min-h-screen">
         <CarouselContent className="ml-0">
-          {heroSlides.map((slide) => (
+          {visibleSlides.map((slide) => (
             <CarouselItem key={slide.id} className="pl-0">
               <div className="relative min-h-screen flex items-end overflow-hidden">
                 {/* Background Image - positioned to show character on the right */}

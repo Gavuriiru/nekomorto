@@ -3,7 +3,6 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
-import { motion } from "framer-motion";
 import { SiteSettingsProvider } from "@/hooks/site-settings-provider";
 import { useReveal } from "@/hooks/use-reveal";
 import Index from "./pages/Index";
@@ -30,22 +29,8 @@ import PublicLayout from "./components/PublicLayout";
 
 const queryClient = new QueryClient();
 
-const pageTransition = {
-  initial: { opacity: 0, y: 12 },
-  animate: { opacity: 1, y: 0 },
-  exit: { opacity: 0, y: -8 },
-};
-
 const PageTransition = ({ children }: { children: React.ReactNode }) => (
-  <motion.div
-    variants={pageTransition}
-    initial="initial"
-    animate="animate"
-    exit="exit"
-    transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
-  >
-    {children}
-  </motion.div>
+  <div className="page-transition">{children}</div>
 );
 
 const RouterShell = () => {
