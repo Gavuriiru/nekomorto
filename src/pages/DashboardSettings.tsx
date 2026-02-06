@@ -126,8 +126,10 @@ const DashboardSettings = () => {
   const [isLoadingUser, setIsLoadingUser] = useState(true);
   const [tagTranslations, setTagTranslations] = useState<Record<string, string>>({});
   const [genreTranslations, setGenreTranslations] = useState<Record<string, string>>({});
+  const [staffRoleTranslations, setStaffRoleTranslations] = useState<Record<string, string>>({});
   const [knownTags, setKnownTags] = useState<string[]>([]);
   const [knownGenres, setKnownGenres] = useState<string[]>([]);
+  const [knownStaffRoles, setKnownStaffRoles] = useState<string[]>([]);
   const [linkTypes, setLinkTypes] = useState<Array<{ id: string; label: string; icon: string }>>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -148,6 +150,8 @@ const DashboardSettings = () => {
   const [genreQuery, setGenreQuery] = useState("");
   const [newTag, setNewTag] = useState("");
   const [newGenre, setNewGenre] = useState("");
+  const [staffRoleQuery, setStaffRoleQuery] = useState("");
+  const [newStaffRole, setNewStaffRole] = useState("");
   const hasSyncedAniList = useRef(false);
 
   useEffect(() => {
@@ -192,6 +196,7 @@ const DashboardSettings = () => {
           if (isActive) {
             setTagTranslations(data.tags || {});
             setGenreTranslations(data.genres || {});
+            setStaffRoleTranslations(data.staffRoles || {});
           }
         }
         if (projectsRes.ok) {
@@ -200,12 +205,22 @@ const DashboardSettings = () => {
             const projects = Array.isArray(data.projects) ? data.projects : [];
             const tags = new Set<string>();
             const genres = new Set<string>();
+            const staffRoles = new Set<string>();
             projects.forEach((project) => {
               (project.tags || []).forEach((tag: string) => tags.add(tag));
               (project.genres || []).forEach((genre: string) => genres.add(genre));
+              if (Array.isArray(project.animeStaff)) {
+                project.animeStaff.forEach((staff: { role?: string | null }) => {
+                  const role = String(staff?.role || "").trim();
+                  if (role) {
+                    staffRoles.add(role);
+                  }
+                });
+              }
             });
             setKnownTags(Array.from(tags).sort((a, b) => a.localeCompare(b, "en")));
             setKnownGenres(Array.from(genres).sort((a, b) => a.localeCompare(b, "en")));
+            setKnownStaffRoles(Array.from(staffRoles).sort((a, b) => a.localeCompare(b, "en")));
           }
         }
         if (linkTypesRes.ok) {
@@ -248,6 +263,9 @@ const DashboardSettings = () => {
         const data = await response.json();
         setTagTranslations(data.tags || {});
         setGenreTranslations(data.genres || {});
+        if (data.staffRoles) {
+          setStaffRoleTranslations(data.staffRoles || {});
+        }
         if (!options?.silent) {
           toast({
             title: "Termos do AniList atualizados",
@@ -425,6 +443,7 @@ const DashboardSettings = () => {
         body: JSON.stringify({
           tags: tagTranslations,
           genres: genreTranslations,
+          staffRoles: staffRoleTranslations,
         }),
       });
       if (!response.ok) {
@@ -436,6 +455,9 @@ const DashboardSettings = () => {
       }
       if (data?.genres) {
         setGenreTranslations(data.genres);
+      }
+      if (data?.staffRoles) {
+        setStaffRoleTranslations(data.staffRoles);
       }
       toast({ title: "Traduções salvas" });
     } catch (error) {
@@ -538,6 +560,14 @@ const DashboardSettings = () => {
       .sort((a, b) => a.localeCompare(b, "en"));
   }, [knownGenres, genreTranslations, genreQuery]);
 
+  const filteredStaffRoles = useMemo(() => {
+    const query = staffRoleQuery.trim().toLowerCase();
+    const allRoles = Array.from(new Set([...knownStaffRoles, ...Object.keys(staffRoleTranslations)]));
+    return allRoles
+      .filter((role) => !query || role.toLowerCase().includes(query))
+      .sort((a, b) => a.localeCompare(b, "en"));
+  }, [knownStaffRoles, staffRoleTranslations, staffRoleQuery]);
+
   const userLabel = useMemo(() => {
     if (isLoadingUser) {
       return "Carregando usuário...";
@@ -583,11 +613,14 @@ const DashboardSettings = () => {
           <section className="mx-auto w-full max-w-6xl px-6 pb-20 md:px-10">
             <div className="flex flex-wrap items-center justify-between gap-4">
               <div>
-                <div className="inline-flex items-center gap-3 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs uppercase tracking-[0.3em] text-muted-foreground">
+                <div className="inline-flex items-center gap-3 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs uppercase tracking-[0.3em] text-muted-foreground animate-fade-in">
                   Configurações
                 </div>
-                <h1 className="mt-4 text-3xl font-semibold text-foreground">Painel de ajustes</h1>
-                <p className="mt-2 text-sm text-muted-foreground">
+                <h1 className="mt-4 text-3xl font-semibold text-foreground animate-slide-up">Painel de ajustes</h1>
+                <p
+                  className="mt-2 text-sm text-muted-foreground animate-slide-up opacity-0"
+                  style={{ animationDelay: "0.2s" }}
+                >
                   Atualize identidade, traduções e links globais do site.
                 </p>
               </div>
@@ -597,7 +630,11 @@ const DashboardSettings = () => {
               </Button>
             </div>
 
-            <Tabs defaultValue="geral" className="mt-8">
+            <Tabs
+              defaultValue="geral"
+              className="mt-8 animate-slide-up opacity-0"
+              style={{ animationDelay: "0.2s" }}
+            >
               <TabsList className="grid w-full grid-cols-2 md:grid-cols-6">
                 <TabsTrigger value="geral">Geral</TabsTrigger>
                 <TabsTrigger value="traducoes">Traduções</TabsTrigger>
@@ -969,6 +1006,112 @@ const DashboardSettings = () => {
                                         setGenreTranslations((prev) => {
                                           const next = { ...prev };
                                           delete next[genre];
+                                          return next;
+                                        })
+                                      }
+                                    >
+                                      <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card className="border-border/60 bg-card/80">
+                  <CardContent className="space-y-6 p-6">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <div>
+                        <h2 className="text-lg font-semibold">Cargos do AniList</h2>
+                        <p className="text-xs text-muted-foreground">
+                          Traduza funções da equipe do anime exibidas no projeto.
+                        </p>
+                      </div>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={(event) => {
+                          event.preventDefault();
+                          event.stopPropagation();
+                          void handleSaveTranslations();
+                        }}
+                        disabled={isSavingTranslations}
+                        className="gap-2"
+                      >
+                        <Save className="h-4 w-4" />
+                        {isSavingTranslations ? "Salvando..." : "Salvar traduções"}
+                      </Button>
+                    </div>
+                    <div className="grid gap-3 md:grid-cols-[1fr_auto]">
+                      <Input
+                        placeholder="Buscar cargo"
+                        value={staffRoleQuery}
+                        onChange={(event) => setStaffRoleQuery(event.target.value)}
+                      />
+                      <div className="flex gap-2">
+                        <Input
+                          placeholder="Novo cargo"
+                          value={newStaffRole}
+                          onChange={(event) => setNewStaffRole(event.target.value)}
+                        />
+                        <Button
+                          type="button"
+                          onClick={() => {
+                            const value = newStaffRole.trim();
+                            if (!value || staffRoleTranslations[value] !== undefined) {
+                              return;
+                            }
+                            setStaffRoleTranslations((prev) => ({ ...prev, [value]: "" }));
+                            setNewStaffRole("");
+                          }}
+                        >
+                          <Plus className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                    <div className="overflow-hidden rounded-xl border border-border/60">
+                      {filteredStaffRoles.length === 0 ? (
+                        <p className="px-4 py-3 text-xs text-muted-foreground">Nenhum cargo encontrado.</p>
+                      ) : (
+                        <div className="max-h-[420px] overflow-y-auto no-scrollbar">
+                          <table className="w-full text-sm">
+                            <thead className="sticky top-0 bg-background/90 text-xs uppercase tracking-wide text-muted-foreground">
+                              <tr>
+                                <th className="px-4 py-3 text-left font-medium">Termo (AniList)</th>
+                                <th className="px-4 py-3 text-left font-medium">Tradução</th>
+                                <th className="px-4 py-3 text-right font-medium">Ações</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-border/60">
+                              {filteredStaffRoles.map((role) => (
+                                <tr key={role} className="bg-background/40">
+                                  <td className="px-4 py-3 font-medium text-foreground">{role}</td>
+                                  <td className="px-4 py-3">
+                                    <Input
+                                      value={staffRoleTranslations[role] || ""}
+                                      placeholder={role}
+                                      onChange={(event) =>
+                                        setStaffRoleTranslations((prev) => ({
+                                          ...prev,
+                                          [role]: event.target.value,
+                                        }))
+                                      }
+                                    />
+                                  </td>
+                                  <td className="px-4 py-3 text-right">
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      onClick={() =>
+                                        setStaffRoleTranslations((prev) => {
+                                          const next = { ...prev };
+                                          delete next[role];
                                           return next;
                                         })
                                       }

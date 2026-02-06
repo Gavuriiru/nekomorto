@@ -956,11 +956,14 @@ const DashboardPosts = () => {
         <main className="pt-24 px-6 pb-20 md:px-10">
             <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
               <div>
-                <Badge variant="secondary" className="text-xs uppercase tracking-widest">
+                <Badge variant="secondary" className="text-xs uppercase tracking-widest animate-fade-in">
                   Postagens
                 </Badge>
-                <h1 className="mt-4 text-3xl font-semibold text-foreground">Gerenciar posts</h1>
-                <p className="mt-2 text-sm text-muted-foreground">
+                <h1 className="mt-4 text-3xl font-semibold text-foreground animate-slide-up">Gerenciar posts</h1>
+                <p
+                  className="mt-2 text-sm text-muted-foreground animate-slide-up opacity-0"
+                  style={{ animationDelay: "0.2s" }}
+                >
                   Visualize, edite e publique os posts mais recentes do site.
                 </p>
               </div>
@@ -1320,7 +1323,10 @@ const DashboardPosts = () => {
             ) : null}
 
             <section className="mt-10 space-y-6">
-              <div className="flex flex-wrap items-center justify-between gap-3">
+              <div
+                className="flex flex-wrap items-center justify-between gap-3 animate-slide-up opacity-0"
+                style={{ animationDelay: "120ms" }}
+              >
                 <div className="flex flex-1 flex-wrap items-center gap-3">
                   <div className="w-full max-w-sm">
                     <Input
@@ -1384,7 +1390,7 @@ const DashboardPosts = () => {
                 </div>
               ) : (
                 <div className="grid gap-6">
-                  {sortedPosts.map((post) => {
+                  {sortedPosts.map((post, index) => {
                     const formattedDate = post.publishedAt ? formatDateTimeShort(post.publishedAt) : "Sem data";
                     const project = post.projectId ? projectMap.get(post.projectId) : null;
                     const tags = Array.from(
@@ -1396,7 +1402,8 @@ const DashboardPosts = () => {
                     return (
                       <Card
                         key={post.id}
-                        className="group cursor-pointer overflow-hidden border-border/60 bg-card/80 shadow-lg transition hover:border-primary/40"
+                        className="group cursor-pointer overflow-hidden border-border/60 bg-card/80 shadow-lg transition hover:border-primary/40 animate-slide-up opacity-0"
+                        style={{ animationDelay: `${index * 60}ms` }}
                         onClick={() => {
                           if (canManagePosts) {
                             openEdit(post);
@@ -1526,10 +1533,11 @@ const DashboardPosts = () => {
                       </Badge>
                     </div>
                     <div className="grid gap-3">
-                      {trashedPosts.map((post) => (
+                      {trashedPosts.map((post, index) => (
                         <div
                           key={`trash-${post.id}`}
-                          className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3"
+                          className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 animate-slide-up opacity-0"
+                          style={{ animationDelay: `${index * 60}ms` }}
                         >
                           <div className="min-w-0">
                             <p className="text-sm font-medium text-foreground">{post.title}</p>

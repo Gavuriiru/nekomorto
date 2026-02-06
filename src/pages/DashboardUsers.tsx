@@ -546,11 +546,14 @@ const DashboardUsers = () => {
           <section className="mx-auto w-full max-w-6xl px-6 pb-20 md:px-10">
             <header className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
               <div>
-                <div className="inline-flex items-center gap-3 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs uppercase tracking-[0.3em] text-muted-foreground">
+                <div className="inline-flex items-center gap-3 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs uppercase tracking-[0.3em] text-muted-foreground animate-fade-in">
                   Usuários
                 </div>
-                <h1 className="mt-4 text-3xl font-semibold lg:text-4xl">Gestão de Usuários</h1>
-                <p className="mt-2 text-sm text-muted-foreground">
+                <h1 className="mt-4 text-3xl font-semibold lg:text-4xl animate-slide-up">Gestão de Usuários</h1>
+                <p
+                  className="mt-2 text-sm text-muted-foreground animate-slide-up opacity-0"
+                  style={{ animationDelay: "0.2s" }}
+                >
                   Reordene arrastando para refletir a ordem na página pública.
                 </p>
               </div>
@@ -578,10 +581,11 @@ const DashboardUsers = () => {
                 </div>
               ) : (
                 <div className="mt-6 grid gap-4 md:grid-cols-2">
-                  {activeUsers.map((user) => (
+                  {activeUsers.map((user, index) => (
                     <div
                       key={user.id}
-                      className="relative rounded-2xl border border-white/10 bg-white/5 p-5 transition hover:border-primary/40 hover:bg-primary/5"
+                      className="relative rounded-2xl border border-white/10 bg-white/5 p-5 transition hover:border-primary/40 hover:bg-primary/5 animate-slide-up opacity-0"
+                      style={{ animationDelay: `${index * 60}ms` }}
                       draggable={canManageUsers}
                       onDragStart={() => {
                         setDragId(user.id);
@@ -650,10 +654,11 @@ const DashboardUsers = () => {
                     <Badge className="bg-white/10 text-muted-foreground">{retiredUsers.length}</Badge>
                   </div>
                   <div className="mt-6 grid gap-4 md:grid-cols-2">
-                    {retiredUsers.map((user) => (
+                    {retiredUsers.map((user, index) => (
                       <div
                         key={user.id}
-                        className="rounded-2xl border border-white/10 bg-white/5 p-5"
+                        className="rounded-2xl border border-white/10 bg-white/5 p-5 animate-slide-up opacity-0"
+                        style={{ animationDelay: `${index * 60}ms` }}
                         draggable={canManageUsers}
                         onDragStart={() => {
                           setDragId(user.id);

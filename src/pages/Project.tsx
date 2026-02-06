@@ -39,6 +39,7 @@ const ProjectPage = () => {
   const [projectDirectory, setProjectDirectory] = useState<Project[]>([]);
   const [tagTranslations, setTagTranslations] = useState<Record<string, string>>({});
   const [genreTranslations, setGenreTranslations] = useState<Record<string, string>>({});
+  const [staffRoleTranslations, setStaffRoleTranslations] = useState<Record<string, string>>({});
   const [episodePage, setEpisodePage] = useState(1);
   const { settings } = useSiteSettings();
   const trackedViewsRef = useRef<Set<string>>(new Set());
@@ -118,6 +119,7 @@ const ProjectPage = () => {
           if (isActive) {
             setTagTranslations(data.tags || {});
             setGenreTranslations(data.genres || {});
+            setStaffRoleTranslations(data.staffRoles || {});
           }
         }
       } catch {
@@ -125,6 +127,7 @@ const ProjectPage = () => {
           setProjectDirectory([]);
           setTagTranslations({});
           setGenreTranslations({});
+          setStaffRoleTranslations({});
         }
       }
     };
@@ -231,12 +234,29 @@ const ProjectPage = () => {
     return new Map(entries);
   }, []);
 
+  const staffRoleTranslationMap = useMemo(() => {
+    const map = new Map<string, string>();
+    Object.entries(staffRoleTranslations || {}).forEach(([key, value]) => {
+      const normalized = String(key || "").trim();
+      if (!normalized) {
+        return;
+      }
+      map.set(normalized.toLowerCase(), String(value ?? ""));
+    });
+    return map;
+  }, [staffRoleTranslations]);
+
   const translateAnilistRole = (role: string) => {
     const normalized = String(role || "").trim();
     if (!normalized) {
       return role;
     }
-    return anilistRoleMap.get(normalized.toLowerCase()) || role;
+    const key = normalized.toLowerCase();
+    const translated = staffRoleTranslationMap.get(key);
+    if (translated && translated.trim()) {
+      return translated;
+    }
+    return anilistRoleMap.get(key) || role;
   };
 
   const sourceThemeMap = useMemo(() => {

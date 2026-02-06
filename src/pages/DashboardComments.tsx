@@ -106,12 +106,15 @@ const DashboardComments = () => {
           <div className="mx-auto flex w-full max-w-6xl flex-col gap-6">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
-                <h1 className="text-2xl font-semibold text-foreground">Comentários pendentes</h1>
-                <p className="text-sm text-muted-foreground">
+                <h1 className="text-2xl font-semibold text-foreground animate-slide-up">Comentários pendentes</h1>
+                <p
+                  className="text-sm text-muted-foreground animate-slide-up opacity-0"
+                  style={{ animationDelay: "0.2s" }}
+                >
                   Aprove ou exclua comentários enviados pelos visitantes.
                 </p>
               </div>
-              <Badge variant="secondary" className="text-xs uppercase">
+              <Badge variant="secondary" className="text-xs uppercase animate-fade-in">
                 {comments.length} pendentes
               </Badge>
             </div>
@@ -121,13 +124,20 @@ const DashboardComments = () => {
                 Carregando comentários...
               </div>
             ) : comments.length === 0 ? (
-              <div className="rounded-2xl border border-dashed border-border/60 bg-card/40 p-8 text-center text-sm text-muted-foreground">
+              <div
+                className="rounded-2xl border border-dashed border-border/60 bg-card/40 p-8 text-center text-sm text-muted-foreground animate-slide-up opacity-0"
+                style={{ animationDelay: "120ms" }}
+              >
                 Nenhum comentário aguardando aprovação.
               </div>
             ) : (
               <div className="grid gap-4">
-                {comments.map((comment) => (
-                  <Card key={comment.id} className="border-border/60 bg-card/80 shadow-lg">
+                {comments.map((comment, index) => (
+                  <Card
+                    key={comment.id}
+                    className="border-border/60 bg-card/80 shadow-lg animate-slide-up opacity-0"
+                    style={{ animationDelay: `${index * 60}ms` }}
+                  >
                     <CardContent className="space-y-4 p-6">
                       <div className="flex flex-wrap items-start justify-between gap-4">
                         <div className="space-y-1">

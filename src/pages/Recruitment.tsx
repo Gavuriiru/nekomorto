@@ -153,10 +153,14 @@ const Recruitment = () => {
 
         <section className="mx-auto w-full max-w-6xl">
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {recruitment.roles.map((role) => {
+            {recruitment.roles.map((role, index) => {
               const Icon = iconMap[role.icon || "Sparkles"] || Sparkles;
               return (
-                <Card key={role.title} className="bg-card/70">
+                <Card
+                  key={role.title}
+                  className="bg-card/70 animate-slide-up opacity-0"
+                  style={{ animationDelay: `${index * 80}ms` }}
+                >
                   <CardContent className="space-y-3 p-5">
                     <div className="flex items-center gap-3">
                       <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/5 text-primary">
@@ -173,7 +177,10 @@ const Recruitment = () => {
         </section>
 
         <section className="mx-auto mt-12 w-full max-w-6xl">
-          <Card className="bg-card/70">
+          <Card
+            className="bg-card/70 animate-slide-up opacity-0"
+            style={{ animationDelay: "0.4s" }}
+          >
             <CardContent className="flex flex-col items-start justify-between gap-4 p-6 md:flex-row md:items-center">
               <div className="space-y-1">
                 <h2 className="text-lg font-semibold text-foreground">{recruitment.ctaTitle}</h2>

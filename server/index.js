@@ -796,16 +796,17 @@ const writeUpdates = (updates) => {
 const loadTagTranslations = () => {
   try {
     if (!fs.existsSync(tagTranslationsFilePath)) {
-      return { tags: {}, genres: {} };
+      return { tags: {}, genres: {}, staffRoles: {} };
     }
     const raw = fs.readFileSync(tagTranslationsFilePath, "utf-8");
     const parsed = JSON.parse(raw);
     return {
       tags: parsed?.tags && typeof parsed.tags === "object" ? parsed.tags : {},
       genres: parsed?.genres && typeof parsed.genres === "object" ? parsed.genres : {},
+      staffRoles: parsed?.staffRoles && typeof parsed.staffRoles === "object" ? parsed.staffRoles : {},
     };
   } catch {
-    return { tags: {}, genres: {} };
+    return { tags: {}, genres: {}, staffRoles: {} };
   }
 };
 
@@ -2970,7 +2971,11 @@ app.get("/api/public/settings", (req, res) => {
 
 app.get("/api/public/tag-translations", (req, res) => {
   const translations = loadTagTranslations();
-  res.json({ tags: translations.tags, genres: translations.genres });
+  res.json({
+    tags: translations.tags,
+    genres: translations.genres,
+    staffRoles: translations.staffRoles,
+  });
 });
 
 app.post("/api/tag-translations/anilist-sync", requireAuth, async (req, res) => {
@@ -3007,6 +3012,7 @@ app.post("/api/tag-translations/anilist-sync", requireAuth, async (req, res) => 
     const current = loadTagTranslations();
     const nextTags = { ...current.tags };
     const nextGenres = { ...current.genres };
+    const nextStaffRoles = { ...current.staffRoles };
     tags.forEach((tag) => {
       if (typeof nextTags[tag] !== "string") {
         nextTags[tag] = "";
@@ -3017,7 +3023,7 @@ app.post("/api/tag-translations/anilist-sync", requireAuth, async (req, res) => 
         nextGenres[genre] = "";
       }
     });
-    const payload = { tags: nextTags, genres: nextGenres };
+    const payload = { tags: nextTags, genres: nextGenres, staffRoles: nextStaffRoles };
     writeTagTranslations(payload);
     return res.json(payload);
   } catch {
@@ -3079,10 +3085,11 @@ app.post("/api/tag-translations/sync", requireAuth, (req, res) => {
   if (!canManageProjects(sessionUser?.id)) {
     return res.status(403).json({ error: "forbidden" });
   }
-  const { tags, genres } = req.body || {};
+  const { tags, genres, staffRoles } = req.body || {};
   const current = loadTagTranslations();
   const nextTags = { ...current.tags };
   const nextGenres = { ...current.genres };
+  const nextStaffRoles = { ...current.staffRoles };
 
   const tagList = Array.isArray(tags) ? tags : [];
   tagList.forEach((tag) => {
@@ -3100,7 +3107,15 @@ app.post("/api/tag-translations/sync", requireAuth, (req, res) => {
     }
   });
 
-  const payload = { tags: nextTags, genres: nextGenres };
+  const staffRoleList = Array.isArray(staffRoles) ? staffRoles : [];
+  staffRoleList.forEach((role) => {
+    const key = String(role || "").trim();
+    if (key && typeof nextStaffRoles[key] !== "string") {
+      nextStaffRoles[key] = "";
+    }
+  });
+
+  const payload = { tags: nextTags, genres: nextGenres, staffRoles: nextStaffRoles };
   writeTagTranslations(payload);
   return res.json(payload);
 });
@@ -3112,7 +3127,12 @@ app.put("/api/tag-translations", requireAuth, (req, res) => {
   }
   const tags = req.body?.tags;
   const genres = req.body?.genres;
-  if ((!tags || typeof tags !== "object") && (!genres || typeof genres !== "object")) {
+  const staffRoles = req.body?.staffRoles;
+  if (
+    (!tags || typeof tags !== "object") &&
+    (!genres || typeof genres !== "object") &&
+    (!staffRoles || typeof staffRoles !== "object")
+  ) {
     return res.status(400).json({ error: "translations_required" });
   }
   const current = loadTagTranslations();
@@ -3126,7 +3146,12 @@ app.put("/api/tag-translations", requireAuth, (req, res) => {
         Object.entries(genres).map(([key, value]) => [String(key), String(value || "")]),
       )
     : current.genres;
-  const payload = { tags: normalizedTags, genres: normalizedGenres };
+  const normalizedStaffRoles = staffRoles && typeof staffRoles === "object"
+    ? Object.fromEntries(
+        Object.entries(staffRoles).map(([key, value]) => [String(key), String(value || "")]),
+      )
+    : current.staffRoles;
+  const payload = { tags: normalizedTags, genres: normalizedGenres, staffRoles: normalizedStaffRoles };
   writeTagTranslations(payload);
   return res.json(payload);
 });
