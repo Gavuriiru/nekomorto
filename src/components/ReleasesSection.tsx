@@ -20,6 +20,7 @@ import { apiFetch } from "@/lib/api-client";
 import type { Project } from "@/data/projects";
 import { normalizeAssetUrl } from "@/lib/asset-url";
 import { formatDate } from "@/lib/date";
+import { cn } from "@/lib/utils";
 
 const ReleasesSection = () => {
   const apiBase = getApiBase();
@@ -150,6 +151,7 @@ const ReleasesSection = () => {
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
                 {pagedReleases.map((release, index) => {
+                  const isOrphan = pagedReleases.length % 2 === 1 && index === pagedReleases.length - 1;
                   const projectTag = release.projectId
                     ? projects.find((project) => project.id === release.projectId)?.tags?.[0] || ""
                     : "";
@@ -159,7 +161,10 @@ const ReleasesSection = () => {
                     <Link
                       key={release.id}
                       to={`/postagem/${release.slug}`}
-                      className="group reveal"
+                      className={cn(
+                        "group reveal",
+                        isOrphan && "sm:col-span-2 sm:justify-self-center sm:w-full sm:max-w-[calc((100%-2rem)/2)]"
+                      )}
                       data-reveal
                       style={{ transitionDelay: `${index * 80}ms` }}
                     >
