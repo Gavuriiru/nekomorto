@@ -62,12 +62,11 @@ type ImageLibraryDialogProps = {
 };
 
 const CROPPER_PREVIEW_SIZE = 320;
-const CROPPER_EDGE_PADDING = 6;
+const CROPPER_EDGE_PADDING = 0;
 const CROPPER_CROP_SIZE = CROPPER_PREVIEW_SIZE - CROPPER_EDGE_PADDING * 2;
 const CROPPER_MIN_ZOOM = 1;
 const CROPPER_MAX_ZOOM = 5;
-const CROPPER_MIN_ROTATION = 0;
-const CROPPER_MAX_ROTATION = 270;
+const CROPPER_INITIAL_ZOOM = 1.1;
 
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
 
@@ -112,19 +111,20 @@ type ImageCropperRuntimeProps = {
   onLoad?: (mediaSize: unknown) => void;
   cropSize?: { width: number; height: number };
   zoomWithScroll?: boolean;
+  objectFit?: "contain" | "cover" | "horizontal-cover" | "vertical-cover";
 };
 
 const RuntimeImageCropper = ImageCropper as unknown as (props: ImageCropperRuntimeProps) => ReturnType<typeof ImageCropper>;
 
 const AvatarCropWorkspace = ({ src, isApplyingCrop, onCancel, onApplyCrop }: AvatarCropWorkspaceProps) => {
-  const { cropperState, setCropperState, setResetState, reset, getCroppedImage } = useImageCropper();
+  const { setResetState, reset, getCroppedImage } = useImageCropper();
   const [isCropReady, setIsCropReady] = useState(false);
 
   useEffect(() => {
     setIsCropReady(false);
     setResetState({
       crop: { x: 0, y: 0, width: 100, height: 100 },
-      zoom: CROPPER_MIN_ZOOM,
+      zoom: clamp(CROPPER_INITIAL_ZOOM, CROPPER_MIN_ZOOM, CROPPER_MAX_ZOOM),
       rotation: 0,
       aspectRatio: 1,
       flip: { horizontal: false, vertical: false },
@@ -138,7 +138,7 @@ const AvatarCropWorkspace = ({ src, isApplyingCrop, onCancel, onApplyCrop }: Ava
     const croppedUrl = await getCroppedImage(src);
     if (!croppedUrl) {
       toast({
-        title: "Nao foi possivel gerar o arquivo recortado.",
+        title: "Não foi possível gerar a imagem recortada.",
         description: "Tente novamente em alguns segundos.",
       });
       return;
@@ -161,7 +161,8 @@ const AvatarCropWorkspace = ({ src, isApplyingCrop, onCancel, onApplyCrop }: Ava
     <>
       <div className="grid gap-4 lg:grid-cols-[1.4fr_0.9fr]">
         <div className="rounded-xl border border-border/60 bg-card/60 p-3">
-          <p className="mb-3 text-sm font-medium text-foreground">Preview interativo</p>
+          <p className="mb-1 text-sm font-medium text-foreground">Área de recorte</p>
+          <p className="mb-3 text-xs text-muted-foreground">Mova e ajuste o enquadramento direto na imagem.</p>
           <div
             className="avatar-cropper-preview relative mx-auto overflow-hidden rounded-xl bg-black/20"
             style={{ width: CROPPER_PREVIEW_SIZE, height: CROPPER_PREVIEW_SIZE }}
@@ -172,55 +173,17 @@ const AvatarCropWorkspace = ({ src, isApplyingCrop, onCancel, onApplyCrop }: Ava
               maxZoom={CROPPER_MAX_ZOOM}
               cropSize={{ width: CROPPER_CROP_SIZE, height: CROPPER_CROP_SIZE }}
               zoomWithScroll
+              objectFit="cover"
               onLoad={() => setIsCropReady(true)}
             />
           </div>
         </div>
-        <div className="space-y-4 rounded-xl border border-border/60 bg-card/60 p-4">
-          <p className="text-sm text-muted-foreground">
-            Arraste para mover e use o scroll do mouse para aproximar/afastar. O preview e circular, mas o arquivo
-            salvo continua quadrado.
-          </p>
-
-          <div className="space-y-3">
-            <div className="space-y-1">
-              <Label className="text-xs">Zoom</Label>
-              <Input
-                type="range"
-                min={CROPPER_MIN_ZOOM}
-                max={CROPPER_MAX_ZOOM}
-                step={0.01}
-                value={cropperState.zoom}
-                disabled={!isCropReady}
-                onChange={(event) => {
-                  const value = Number(event.target.value);
-                  if (!Number.isFinite(value)) {
-                    return;
-                  }
-                  setCropperState({ zoom: clamp(value, CROPPER_MIN_ZOOM, CROPPER_MAX_ZOOM) });
-                }}
-              />
-            </div>
-            <div className="space-y-1">
-              <Label className="text-xs">Rotacao</Label>
-              <Input
-                type="range"
-                min={CROPPER_MIN_ROTATION}
-                max={CROPPER_MAX_ROTATION}
-                step={90}
-                value={clamp(Math.round(cropperState.rotation / 90) * 90, CROPPER_MIN_ROTATION, CROPPER_MAX_ROTATION)}
-                disabled={!isCropReady}
-                onChange={(event) => {
-                  const value = Number(event.target.value);
-                  if (!Number.isFinite(value)) {
-                    return;
-                  }
-                  setCropperState({
-                    rotation: clamp(Math.round(value / 90) * 90, CROPPER_MIN_ROTATION, CROPPER_MAX_ROTATION),
-                  });
-                }}
-              />
-            </div>
+        <div className="space-y-3 rounded-xl border border-border/60 bg-card/60 p-4">
+          <p className="text-sm font-medium text-foreground">Como ajustar</p>
+          <div className="space-y-2 text-sm text-muted-foreground">
+            <p>Arraste a imagem para posicionar o avatar.</p>
+            <p>Use o scroll para aproximar ou afastar.</p>
+            <p>Quando estiver satisfeito com o enquadramento, clique em Aplicar avatar.</p>
           </div>
         </div>
       </div>
@@ -232,16 +195,13 @@ const AvatarCropWorkspace = ({ src, isApplyingCrop, onCancel, onApplyCrop }: Ava
         <Button
           type="button"
           variant="outline"
-          onClick={() => {
-            reset();
-            setCropperState({ aspectRatio: 1 });
-          }}
+          onClick={reset}
           disabled={!isCropReady}
         >
           Resetar
         </Button>
         <Button type="button" onClick={() => void handleApply()} disabled={isApplyingCrop || !isCropReady}>
-          {isApplyingCrop ? "Aplicando..." : "Aplicar crop"}
+          {isApplyingCrop ? "Aplicando..." : "Aplicar avatar"}
         </Button>
       </div>
     </>
@@ -734,13 +694,13 @@ const ImageLibraryDialog = ({
     const nextDataUrl = dataUrl.trim();
     if (!nextDataUrl) {
       toast({
-        title: "Nao foi possivel gerar o arquivo recortado.",
+        title: "Não foi possível gerar a imagem recortada.",
         description: "Tente novamente em alguns segundos.",
       });
       return;
     }
     if (cropAvatar && (!cropSlot || !cropSlot.trim())) {
-      toast({ title: "Preencha o ID do usuario antes de aplicar o crop." });
+      toast({ title: "Preencha o ID do usuário antes de aplicar o recorte." });
       return;
     }
 
@@ -770,7 +730,7 @@ const ImageLibraryDialog = ({
       setIsCropDialogOpen(false);
     } catch {
       toast({
-        title: "Nao foi possivel gerar o arquivo recortado.",
+        title: "Não foi possível gerar a imagem recortada.",
         description: "Tente novamente em alguns segundos.",
       });
     } finally {
@@ -940,7 +900,7 @@ const ImageLibraryDialog = ({
                 {mode === "multiple"
                   ? "Clique para alternar seleção. A ordem de clique vira a ordem de inserção."
                   : cropAvatar
-                    ? "Clique na imagem para selecionar e abrir o editor de crop."
+                    ? "Clique na imagem para selecionar e abrir o editor de avatar."
                     : "Clique para selecionar. A imagem só será aplicada ao clicar em Salvar."}
               </p>
             </div>
@@ -1004,9 +964,9 @@ const ImageLibraryDialog = ({
           overlayClassName="z-[230] data-[state=open]:animate-none data-[state=closed]:animate-none"
         >
           <DialogHeader>
-            <DialogTitle>Ajuste do avatar</DialogTitle>
+            <DialogTitle>Editor de avatar</DialogTitle>
             <DialogDescription>
-              Ajuste posicao, zoom e rotacao. O avatar final sera recortado e salvo no servidor.
+              Defina o enquadramento final do avatar e clique em Aplicar avatar.
             </DialogDescription>
           </DialogHeader>
           {primarySelectedUrl ? (
@@ -1019,7 +979,7 @@ const ImageLibraryDialog = ({
               />
             </ImageCropperProvider>
           ) : (
-            <p className="text-sm text-muted-foreground">Selecione um avatar na biblioteca antes de ajustar o crop.</p>
+            <p className="text-sm text-muted-foreground">Selecione um avatar na biblioteca antes de abrir o editor.</p>
           )}
         </DialogContent>
       </Dialog>
@@ -1084,4 +1044,3 @@ const ImageLibraryDialog = ({
 };
 
 export default ImageLibraryDialog;
-
