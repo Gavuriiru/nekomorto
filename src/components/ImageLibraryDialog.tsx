@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ImageCropper, ImageCropperProvider, useImageCropper } from "@wordpress/image-cropper";
+import { ImageCropper, ImageCropperProvider, useImageCropper, type MediaSize } from "@wordpress/image-cropper";
 
 import {
   ContextMenu,
@@ -64,11 +64,110 @@ type ImageLibraryDialogProps = {
 const CROPPER_PREVIEW_SIZE = 320;
 const CROPPER_EDGE_PADDING = 0;
 const CROPPER_CROP_SIZE = CROPPER_PREVIEW_SIZE - CROPPER_EDGE_PADDING * 2;
-const CROPPER_MIN_ZOOM = 1;
+const CROPPER_MIN_ZOOM = 1.05;
 const CROPPER_MAX_ZOOM = 5;
-const CROPPER_INITIAL_ZOOM = 1.1;
+const CROPPER_INITIAL_ZOOM_OFFSET = 0.2;
+const CROPPER_SCROLL_ZOOM_SPEED = 0.18;
 
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
+
+type PixelCrop = { x: number; y: number; width: number; height: number };
+type CropFlip = { horizontal: boolean; vertical: boolean };
+
+const createImageElement = (url: string) =>
+  new Promise<HTMLImageElement>((resolve, reject) => {
+    const image = new Image();
+    image.crossOrigin = "anonymous";
+    image.onload = () => resolve(image);
+    image.onerror = () => reject(new Error("image_load_failed"));
+    image.src = url;
+  });
+
+const getRadianAngle = (degreeValue: number) => (degreeValue * Math.PI) / 180;
+
+const rotateSize = (width: number, height: number, rotation: number) => {
+  const rotRad = getRadianAngle(rotation);
+  return {
+    width: Math.abs(Math.cos(rotRad) * width) + Math.abs(Math.sin(rotRad) * height),
+    height: Math.abs(Math.sin(rotRad) * width) + Math.abs(Math.cos(rotRad) * height),
+  };
+};
+
+const renderCircularCropDataUrl = async ({
+  src,
+  pixelCrop,
+  rotation = 0,
+  flip = { horizontal: false, vertical: false },
+}: {
+  src: string;
+  pixelCrop: PixelCrop;
+  rotation?: number;
+  flip?: CropFlip;
+}) => {
+  try {
+    const image = await createImageElement(src);
+    const rotRad = getRadianAngle(rotation);
+    const { width: boundingBoxWidth, height: boundingBoxHeight } = rotateSize(image.width, image.height, rotation);
+
+    const sourceCanvas = document.createElement("canvas");
+    const sourceCtx = sourceCanvas.getContext("2d");
+    if (!sourceCtx) {
+      return null;
+    }
+
+    sourceCanvas.width = Math.max(1, Math.round(boundingBoxWidth));
+    sourceCanvas.height = Math.max(1, Math.round(boundingBoxHeight));
+    sourceCtx.translate(sourceCanvas.width / 2, sourceCanvas.height / 2);
+    sourceCtx.rotate(rotRad);
+    sourceCtx.scale(flip.horizontal ? -1 : 1, flip.vertical ? -1 : 1);
+    sourceCtx.translate(-image.width / 2, -image.height / 2);
+    sourceCtx.drawImage(image, 0, 0);
+
+    const cropWidth = Math.max(1, Math.round(pixelCrop.width));
+    const cropHeight = Math.max(1, Math.round(pixelCrop.height));
+    const croppedCanvas = document.createElement("canvas");
+    const croppedCtx = croppedCanvas.getContext("2d");
+    if (!croppedCtx) {
+      return null;
+    }
+
+    croppedCanvas.width = cropWidth;
+    croppedCanvas.height = cropHeight;
+    croppedCtx.imageSmoothingEnabled = true;
+    croppedCtx.imageSmoothingQuality = "high";
+    croppedCtx.drawImage(
+      sourceCanvas,
+      Math.round(pixelCrop.x),
+      Math.round(pixelCrop.y),
+      cropWidth,
+      cropHeight,
+      0,
+      0,
+      cropWidth,
+      cropHeight,
+    );
+
+    const outputCanvas = document.createElement("canvas");
+    const outputCtx = outputCanvas.getContext("2d");
+    if (!outputCtx) {
+      return null;
+    }
+
+    outputCanvas.width = cropWidth;
+    outputCanvas.height = cropHeight;
+    outputCtx.imageSmoothingEnabled = true;
+    outputCtx.imageSmoothingQuality = "high";
+    outputCtx.beginPath();
+    outputCtx.arc(cropWidth / 2, cropHeight / 2, Math.min(cropWidth, cropHeight) / 2, 0, Math.PI * 2);
+    outputCtx.closePath();
+    outputCtx.clip();
+    outputCtx.drawImage(croppedCanvas, 0, 0);
+
+    return outputCanvas.toDataURL("image/png");
+  } catch {
+    return null;
+  }
+};
 
 const fileToDataUrl = (file: File) =>
   new Promise<string>((resolve, reject) => {
@@ -77,23 +176,6 @@ const fileToDataUrl = (file: File) =>
     reader.onerror = () => reject(new Error("file_read_failed"));
     reader.readAsDataURL(file);
   });
-
-const blobToDataUrl = (blob: Blob) =>
-  new Promise<string>((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(String(reader.result || ""));
-    reader.onerror = () => reject(new Error("blob_read_failed"));
-    reader.readAsDataURL(blob);
-  });
-
-const blobUrlToDataUrl = async (url: string) => {
-  const response = await fetch(url);
-  if (!response.ok) {
-    throw new Error("blob_fetch_failed");
-  }
-  const blob = await response.blob();
-  return blobToDataUrl(blob);
-};
 
 const toEffectiveName = (item: LibraryImageItem) => item.name || item.fileName || item.label || "Imagem";
 
@@ -108,54 +190,105 @@ type ImageCropperRuntimeProps = {
   src: string;
   minZoom?: number;
   maxZoom?: number;
-  onLoad?: (mediaSize: unknown) => void;
+  onLoad?: (mediaSize: MediaSize) => void;
   cropSize?: { width: number; height: number };
   zoomWithScroll?: boolean;
+  zoomSpeed?: number;
+  restrictPosition?: boolean;
   objectFit?: "contain" | "cover" | "horizontal-cover" | "vertical-cover";
 };
 
 const RuntimeImageCropper = ImageCropper as unknown as (props: ImageCropperRuntimeProps) => ReturnType<typeof ImageCropper>;
 
+type CropperObjectFit = "horizontal-cover" | "vertical-cover";
+
+const resolveObjectFit = (mediaSize: MediaSize): CropperObjectFit => {
+  const width = mediaSize.naturalWidth || mediaSize.width;
+  const height = mediaSize.naturalHeight || mediaSize.height;
+  return width >= height ? "vertical-cover" : "horizontal-cover";
+};
+
+const computeAdaptiveMinZoom = (mediaSize: MediaSize) => {
+  const width = mediaSize.naturalWidth || mediaSize.width;
+  const height = mediaSize.naturalHeight || mediaSize.height;
+  if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) {
+    return CROPPER_MIN_ZOOM;
+  }
+  const longByShort = width >= height ? width / height : height / width;
+  const safetyBoost = Math.min(0.18, Math.max(0, (longByShort - 1) * 0.06));
+  return clamp(CROPPER_MIN_ZOOM + safetyBoost, CROPPER_MIN_ZOOM, CROPPER_MAX_ZOOM - 0.1);
+};
+
+const computeInitialZoom = (minZoom: number) =>
+  clamp(minZoom + CROPPER_INITIAL_ZOOM_OFFSET, minZoom, CROPPER_MAX_ZOOM);
+
 const AvatarCropWorkspace = ({ src, isApplyingCrop, onCancel, onApplyCrop }: AvatarCropWorkspaceProps) => {
-  const { setResetState, reset, getCroppedImage } = useImageCropper();
+  const { cropperState, setResetState, reset } = useImageCropper();
   const [isCropReady, setIsCropReady] = useState(false);
+  const [cropMinZoom, setCropMinZoom] = useState(CROPPER_MIN_ZOOM);
+  const [cropObjectFit, setCropObjectFit] = useState<CropperObjectFit>("horizontal-cover");
 
   useEffect(() => {
     setIsCropReady(false);
+    setCropMinZoom(CROPPER_MIN_ZOOM);
+    setCropObjectFit("horizontal-cover");
     setResetState({
       crop: { x: 0, y: 0, width: 100, height: 100 },
-      zoom: clamp(CROPPER_INITIAL_ZOOM, CROPPER_MIN_ZOOM, CROPPER_MAX_ZOOM),
+      zoom: computeInitialZoom(CROPPER_MIN_ZOOM),
       rotation: 0,
       aspectRatio: 1,
       flip: { horizontal: false, vertical: false },
     });
   }, [setResetState, src]);
 
+  const handleCropperLoad = useCallback(
+    (mediaSize: MediaSize) => {
+      const nextMinZoom = computeAdaptiveMinZoom(mediaSize);
+      const nextObjectFit = resolveObjectFit(mediaSize);
+
+      setCropMinZoom(nextMinZoom);
+      setCropObjectFit(nextObjectFit);
+      setResetState({
+        crop: { x: 0, y: 0, width: 100, height: 100 },
+        zoom: computeInitialZoom(nextMinZoom),
+        rotation: 0,
+        aspectRatio: 1,
+        flip: { horizontal: false, vertical: false },
+      });
+      setIsCropReady(true);
+    },
+    [setResetState],
+  );
+
   const handleApply = useCallback(async () => {
     if (!isCropReady) {
       return;
     }
-    const croppedUrl = await getCroppedImage(src);
-    if (!croppedUrl) {
+    const pixelCrop = cropperState.croppedAreaPixels;
+    if (!pixelCrop) {
       toast({
-        title: "Não foi possível gerar a imagem recortada.",
+        title: "N\u00E3o foi poss\u00EDvel gerar a imagem recortada.",
         description: "Tente novamente em alguns segundos.",
       });
       return;
     }
 
-    try {
-      const dataUrl = await blobUrlToDataUrl(croppedUrl);
-      if (!dataUrl) {
-        throw new Error("crop_data_url_empty");
-      }
-      await onApplyCrop(dataUrl);
-    } finally {
-      if (croppedUrl.startsWith("blob:")) {
-        URL.revokeObjectURL(croppedUrl);
-      }
+    const dataUrl = await renderCircularCropDataUrl({
+      src,
+      pixelCrop,
+      rotation: cropperState.rotation,
+      flip: cropperState.flip,
+    });
+    if (!dataUrl) {
+      toast({
+        title: "N\u00E3o foi poss\u00EDvel gerar a imagem recortada.",
+        description: "Tente novamente em alguns segundos.",
+      });
+      return;
     }
-  }, [getCroppedImage, isCropReady, onApplyCrop, src]);
+
+    await onApplyCrop(dataUrl);
+  }, [cropperState.croppedAreaPixels, cropperState.flip, cropperState.rotation, isCropReady, onApplyCrop, src]);
 
   return (
     <>
@@ -169,12 +302,14 @@ const AvatarCropWorkspace = ({ src, isApplyingCrop, onCancel, onApplyCrop }: Ava
           >
             <RuntimeImageCropper
               src={src}
-              minZoom={CROPPER_MIN_ZOOM}
+              minZoom={cropMinZoom}
               maxZoom={CROPPER_MAX_ZOOM}
               cropSize={{ width: CROPPER_CROP_SIZE, height: CROPPER_CROP_SIZE }}
               zoomWithScroll
-              objectFit="cover"
-              onLoad={() => setIsCropReady(true)}
+              zoomSpeed={CROPPER_SCROLL_ZOOM_SPEED}
+              restrictPosition
+              objectFit={cropObjectFit}
+              onLoad={handleCropperLoad}
             />
           </div>
         </div>
@@ -522,7 +657,7 @@ const ImageLibraryDialog = ({
           }
         }
       } catch {
-        toast({ title: "Não foi possível enviar a imagem." });
+        toast({ title: "N\u00E3o foi poss\u00EDvel enviar a imagem." });
       } finally {
         setIsUploading(false);
       }
@@ -547,7 +682,7 @@ const ImageLibraryDialog = ({
         }),
       });
       if (!response.ok) {
-        toast({ title: "Não foi possível importar a imagem por URL." });
+        toast({ title: "N\u00E3o foi poss\u00EDvel importar a imagem por URL." });
         return;
       }
       const data = await response.json();
@@ -620,12 +755,12 @@ const ImageLibraryDialog = ({
         if (response.status === 409) {
           toast({
             title: "Imagem em uso",
-            description: "Remova referências antes de excluir.",
+            description: "Remova refer\u00EAncias antes de excluir.",
           });
           return;
         }
         if (!response.ok) {
-          toast({ title: "Não foi possível excluir a imagem." });
+          toast({ title: "N\u00E3o foi poss\u00EDvel excluir a imagem." });
           return;
         }
         setSelectedUrls((prev) => prev.filter((url) => url !== item.url));
@@ -658,11 +793,11 @@ const ImageLibraryDialog = ({
         }),
       });
       if (response.status === 409) {
-        toast({ title: "Conflito de nome", description: "Já existe um arquivo com esse nome." });
+        toast({ title: "Conflito de nome", description: "J\u00E1 existe um arquivo com esse nome." });
         return;
       }
       if (!response.ok) {
-        toast({ title: "Não foi possível renomear a imagem." });
+        toast({ title: "N\u00E3o foi poss\u00EDvel renomear a imagem." });
         return;
       }
       const data = await response.json();
@@ -694,13 +829,13 @@ const ImageLibraryDialog = ({
     const nextDataUrl = dataUrl.trim();
     if (!nextDataUrl) {
       toast({
-        title: "Não foi possível gerar a imagem recortada.",
+        title: "N\u00E3o foi poss\u00EDvel gerar a imagem recortada.",
         description: "Tente novamente em alguns segundos.",
       });
       return;
     }
     if (cropAvatar && (!cropSlot || !cropSlot.trim())) {
-      toast({ title: "Preencha o ID do usuário antes de aplicar o recorte." });
+      toast({ title: "Preencha o ID do usu\u00E1rio antes de aplicar o recorte." });
       return;
     }
 
@@ -712,7 +847,7 @@ const ImageLibraryDialog = ({
         auth: true,
         body: JSON.stringify({
           dataUrl: nextDataUrl,
-          filename: cropSlot ? `${cropSlot}.jpg` : `avatar-crop-${Date.now()}.jpg`,
+          filename: cropSlot ? `${cropSlot}.png` : `avatar-crop-${Date.now()}.png`,
           folder: cropTargetFolder || uploadFolder || undefined,
           slot: cropSlot || undefined,
         }),
@@ -730,7 +865,7 @@ const ImageLibraryDialog = ({
       setIsCropDialogOpen(false);
     } catch {
       toast({
-        title: "Não foi possível gerar a imagem recortada.",
+        title: "N\u00E3o foi poss\u00EDvel gerar a imagem recortada.",
         description: "Tente novamente em alguns segundos.",
       });
     } finally {
@@ -814,8 +949,8 @@ const ImageLibraryDialog = ({
                       {item.source === "project"
                         ? "Item somente leitura (projeto)."
                         : item.inUse
-                          ? "Exclusão bloqueada: imagem em uso."
-                          : "Ações indisponíveis."}
+                          ? "Exclus\u00E3o bloqueada: imagem em uso."
+                          : "A\u00E7\u00F5es indispon\u00EDveis."}
                     </ContextMenuLabel>
                   </>
                 ) : null}
@@ -898,10 +1033,10 @@ const ImageLibraryDialog = ({
               )}
               <p className="text-xs text-muted-foreground">
                 {mode === "multiple"
-                  ? "Clique para alternar seleção. A ordem de clique vira a ordem de inserção."
+                  ? "Clique para alternar sele\u00E7\u00E3o. A ordem de clique vira a ordem de inser\u00E7\u00E3o."
                   : cropAvatar
                     ? "Clique na imagem para selecionar e abrir o editor de avatar."
-                    : "Clique para selecionar. A imagem só será aplicada ao clicar em Salvar."}
+                    : "Clique para selecionar. A imagem s\u00F3 ser\u00E1 aplicada ao clicar em Salvar."}
               </p>
             </div>
           </div>
@@ -927,7 +1062,7 @@ const ImageLibraryDialog = ({
               <p className="mt-2 text-xs text-muted-foreground">Selecionadas: {selectedUrls.length}</p>
               {renderGrid(
                 filteredUploads,
-                normalizedSearch ? "Nenhum upload encontrado para essa pesquisa." : "Nenhum upload disponível.",
+                normalizedSearch ? "Nenhum upload encontrado para essa pesquisa." : "Nenhum upload dispon\u00EDvel.",
               )}
             </div>
             <div>
@@ -989,8 +1124,8 @@ const ImageLibraryDialog = ({
             <DialogTitle>Excluir imagem?</DialogTitle>
             <DialogDescription>
               {deleteTarget
-                ? `A imagem "${toEffectiveName(deleteTarget)}" será removida permanentemente.`
-                : "Confirme a exclusão da imagem."}
+                ? `A imagem "${toEffectiveName(deleteTarget)}" ser\u00E1 removida permanentemente.`
+                : "Confirme a exclus\u00E3o da imagem."}
             </DialogDescription>
           </DialogHeader>
           <div className="flex justify-end gap-2">
