@@ -2,6 +2,7 @@
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import DashboardShell from "@/components/DashboardShell";
 import ImageLibraryDialog from "@/components/ImageLibraryDialog";
+import ThemedSvgLogo from "@/components/ThemedSvgLogo";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -36,13 +37,19 @@ import {
   Shield,
   Trash2,
   UserRound,
+  Download,
+  Send,
+  Cloud,
+  HardDrive,
+  Link2,
 } from "lucide-react";
-import { convertPostContent, createSlug, renderPostContent } from "@/lib/post-content";
+import { createSlug } from "@/lib/post-content";
 import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
 import { isChapterBasedType, isLightNovelType, isMangaType } from "@/lib/project-utils";
 import { usePageMeta } from "@/hooks/use-page-meta";
-import PostContentEditor from "@/components/PostContentEditor";
+import LexicalEditor, { type LexicalEditorHandle } from "@/components/lexical/LexicalEditor";
+import { useSiteSettings } from "@/hooks/use-site-settings";
 
 type ProjectRelation = {
   relation: string;
@@ -77,7 +84,7 @@ type ProjectEpisode = {
   progressStage?: string;
   completedStages?: string[];
   content?: string;
-  contentFormat?: "markdown" | "html";
+  contentFormat?: "lexical";
   chapterUpdatedAt?: string;
 };
 
@@ -203,7 +210,6 @@ const emptyProject: ProjectForm = {
 
 const formatOptions = ["Anime", "Mangá", "Webtoon", "Light Novel", "Filme", "OVA", "ONA", "Especial", "Spin-off"];
 const statusOptions = ["Em andamento", "Finalizado", "Pausado", "Cancelado"];
-const downloadSourceOptions = ["Google Drive", "MEGA", "Torrent", "Mediafire", "Telegram", "Outro"];
 const fansubRoleOptions = [
   "Tradução",
   "Revisão",
@@ -343,289 +349,32 @@ const generateLocalId = () => {
   return `${alpha}${random}${stamp}`;
 };
 
-const buildImageMarkup = (url: string, alt: string, format: "markdown" | "html") => {
-  if (format === "html") {
-    return `\n\n<img src="${url}" alt="${alt}" loading="lazy" />\n`;
-  }
-  return `\n\n![${alt}](${url})\n`;
-};
-
 type EpisodeContentEditorProps = {
   value: string;
-  format: "markdown" | "html";
   onChange: (value: string) => void;
-  onFormatChange: (value: "markdown" | "html") => void;
-  onOpenImageLibrary?: () => void;
-  onRegister?: (handlers: { insertAtCursor: (text: string) => void }) => void;
+  onRegister?: (handlers: LexicalEditorHandle | null) => void;
 };
 
 const EpisodeContentEditor = ({
   value,
-  format,
   onChange,
-  onFormatChange,
-  onOpenImageLibrary,
   onRegister,
 }: EpisodeContentEditorProps) => {
-  const editorRef = useRef<HTMLTextAreaElement | null>(null);
-  const [history, setHistory] = useState<string[]>([value]);
-  const [historyIndex, setHistoryIndex] = useState(0);
-  const historyGuard = useRef(false);
-
-  useEffect(() => {
-    setHistory([value]);
-    setHistoryIndex(0);
-  }, [format, value]);
-
-  useEffect(() => {
-    if (historyGuard.current) {
-      historyGuard.current = false;
-      return;
-    }
-    const timer = window.setTimeout(() => {
-      setHistory((prev) => {
-        const next = prev.slice(0, historyIndex + 1);
-        if (next[next.length - 1] !== value) {
-          next.push(value);
-          setHistoryIndex(next.length - 1);
-        }
-        return next;
-      });
-    }, 400);
-    return () => window.clearTimeout(timer);
-  }, [value, historyIndex]);
-
-  const applyTextEdit = useCallback((
-    next: string,
-    cursorStart: number,
-    cursorEnd: number,
-    scrollTop: number,
-  ) => {
-    onChange(next);
-    requestAnimationFrame(() => {
-      const textarea = editorRef.current;
-      if (!textarea) {
-        return;
-      }
-      textarea.focus();
-      textarea.setSelectionRange(cursorStart, cursorEnd);
-      textarea.scrollTop = scrollTop;
-    });
-  }, [onChange]);
-
-  const insertAtCursor = useCallback((text: string) => {
-    const textarea = editorRef.current;
-    if (!textarea) {
-      onChange(`${value}${text}`);
-      return;
-    }
-    const start = textarea.selectionStart;
-    const end = textarea.selectionEnd;
-    const scrollTop = textarea.scrollTop;
-    const next = `${value.slice(0, start)}${text}${value.slice(end)}`;
-    applyTextEdit(next, start + text.length, start + text.length, scrollTop);
-  }, [applyTextEdit, onChange, value]);
+  const editorRef = useRef<LexicalEditorHandle | null>(null);
 
   useEffect(() => {
     if (!onRegister) {
       return;
     }
-    onRegister({ insertAtCursor });
-  }, [insertAtCursor, onRegister]);
-
-  const applyWrap = (before: string, after = before) => {
-    const textarea = editorRef.current;
-    if (!textarea) {
-      return;
-    }
-    const start = textarea.selectionStart;
-    const end = textarea.selectionEnd;
-    const scrollTop = textarea.scrollTop;
-    const selected = value.slice(start, end);
-    const next = `${value.slice(0, start)}${before}${selected}${after}${value.slice(end)}`;
-    applyTextEdit(next, start + before.length, end + before.length, scrollTop);
-  };
-
-  const applyLinePrefix = (prefix: string) => {
-    const textarea = editorRef.current;
-    if (!textarea) {
-      return;
-    }
-    const start = textarea.selectionStart;
-    const end = textarea.selectionEnd;
-    const scrollTop = textarea.scrollTop;
-    const selected = value.slice(start, end) || "";
-    const lines = selected.split(/\r?\n/).map((line) => `${prefix}${line}`);
-    const inserted = lines.join("\n");
-    const next = `${value.slice(0, start)}${inserted}${value.slice(end)}`;
-    applyTextEdit(next, start, start + inserted.length, scrollTop);
-  };
-
-  const applyListHtml = (type: "ul" | "ol") => {
-    const textarea = editorRef.current;
-    const start = textarea?.selectionStart ?? 0;
-    const end = textarea?.selectionEnd ?? 0;
-    const scrollTop = textarea?.scrollTop ?? 0;
-    const selected = value.slice(start, end).trim();
-    const lines = selected ? selected.split(/\r?\n/).filter(Boolean) : [""];
-    const items = lines.map((line) => `  <li>${line.trim()}</li>`).join("\n");
-    const block = `<${type}>\n${items}\n</${type}>`;
-    const next = `${value.slice(0, start)}${block}${value.slice(end)}`;
-    applyTextEdit(next, start, start + block.length, scrollTop);
-  };
-
-  const handleHeading = () => {
-    if (format === "html") {
-      applyWrap("<h1>", "</h1>");
-      return;
-    }
-    applyLinePrefix("# ");
-  };
-
-  const handleUnorderedList = () => {
-    if (format === "html") {
-      applyListHtml("ul");
-      return;
-    }
-    applyLinePrefix("- ");
-  };
-
-  const handleOrderedList = () => {
-    if (format === "html") {
-      applyListHtml("ol");
-      return;
-    }
-    applyLinePrefix("1. ");
-  };
-
-  const handleAlign = (align: "left" | "center" | "right") => {
-    if (format === "html") {
-      applyWrap(`<div style="text-align:${align}">`, "</div>");
-      return;
-    }
-    applyWrap(`<div style="text-align:${align}">`, "</div>");
-  };
-
-  const handleColor = (color: string, type: "text" | "background") => {
-    const style = type === "background" ? `background-color:${color};` : `color:${color};`;
-    applyWrap(`<span style="${style}">`, "</span>");
-  };
-
-  const handleOpenColorDialog = (type: "text" | "background") => {
-    const color = window.prompt("Cor (hex ou nome)", "#ffffff");
-    if (!color) {
-      return;
-    }
-    handleColor(color, type);
-  };
-
-  const handleOpenGradientDialog = () => {
-    const start = window.prompt("Cor inicial do gradiente", "#8b5cf6");
-    if (!start) {
-      return;
-    }
-    const end = window.prompt("Cor final do gradiente", "#ec4899");
-    if (!end) {
-      return;
-    }
-    applyWrap(
-      `<span style="background:linear-gradient(90deg, ${start}, ${end}); -webkit-background-clip:text; color:transparent;">`,
-      "</span>",
-    );
-  };
-
-  const handleOpenImageDialog = () => {
-    if (onOpenImageLibrary) {
-      onOpenImageLibrary();
-      return;
-    }
-    const url = window.prompt("URL da imagem");
-    if (!url) {
-      return;
-    }
-    const alt = window.prompt("Texto alternativo", "Imagem") || "Imagem";
-    if (format === "html") {
-      insertAtCursor(`\n<img src="${url}" alt="${alt}">\n`);
-      return;
-    }
-    insertAtCursor(`\n![${alt}](${url})\n`);
-  };
-
-  const handleOpenLinkDialog = () => {
-    const url = window.prompt("URL do link");
-    if (!url) {
-      return;
-    }
-    const text = window.prompt("Texto do link", url) || url;
-    if (format === "html") {
-      insertAtCursor(`<a href="${url}" target="_blank" rel="noreferrer">${text}</a>`);
-      return;
-    }
-    insertAtCursor(`[${text}](${url})`);
-  };
-
-  const handleEmbedVideo = () => {
-    const url = window.prompt("URL do vídeo (embed ou link)");
-    if (!url) {
-      return;
-    }
-    insertAtCursor(`\n\n<iframe src="${url}" title="Video" allowfullscreen></iframe>\n\n`);
-  };
-
-  const handleUndo = () => {
-    if (historyIndex <= 0) {
-      return;
-    }
-    historyGuard.current = true;
-    const nextIndex = historyIndex - 1;
-    setHistoryIndex(nextIndex);
-    onChange(history[nextIndex]);
-  };
-
-  const handleRedo = () => {
-    if (historyIndex >= history.length - 1) {
-      return;
-    }
-    historyGuard.current = true;
-    const nextIndex = historyIndex + 1;
-    setHistoryIndex(nextIndex);
-    onChange(history[nextIndex]);
-  };
-
-  const handleFormatChange = (next: "markdown" | "html") => {
-    if (next === format) {
-      return;
-    }
-    const converted = convertPostContent(value, format, next);
-    onFormatChange(next);
-    onChange(converted);
-  };
+    onRegister(editorRef.current);
+  }, [onRegister]);
 
   return (
-    <PostContentEditor
-      format={format}
+    <LexicalEditor
+      ref={editorRef}
       value={value}
-      onFormatChange={handleFormatChange}
       onChange={onChange}
-      onApplyWrap={applyWrap}
-      onApplyHeading={handleHeading}
-      onApplyUnorderedList={handleUnorderedList}
-      onApplyOrderedList={handleOrderedList}
-      onAlign={handleAlign}
-      onColor={handleColor}
-      onOpenColorDialog={handleOpenColorDialog}
-      onOpenGradientDialog={handleOpenGradientDialog}
-      onOpenImageDialog={handleOpenImageDialog}
-      onOpenLinkDialog={handleOpenLinkDialog}
-      onInsertCover={() => {}}
-      onUndo={handleUndo}
-      onRedo={handleRedo}
-      onEmbedVideo={handleEmbedVideo}
-      onKeyDown={() => {}}
-      onDrop={() => {}}
-      textareaRef={editorRef}
-      previewHtml={renderPostContent(value, format)}
-      showPreview
+      placeholder="Escreva o capítulo..."
     />
   );
 };
@@ -634,6 +383,7 @@ const DashboardProjectsEditor = () => {
   usePageMeta({ title: "Projetos", noIndex: true });
   const navigate = useNavigate();
   const apiBase = getApiBase();
+  const { settings: publicSettings } = useSiteSettings();
   const restoreWindowMs = 3 * 24 * 60 * 60 * 1000;
   const [currentUser, setCurrentUser] = useState<{
     id: string;
@@ -659,6 +409,80 @@ const DashboardProjectsEditor = () => {
     return "order";
   });
   const [isEditorOpen, setIsEditorOpen] = useState(false);
+
+  const downloadSourceOptions = useMemo(() => {
+    const sources =
+      publicSettings?.downloads?.sources?.map((source) => ({
+        label: String(source.label || "").trim(),
+        icon: source.icon,
+        color: source.color || "#7C3AED",
+        tintIcon: source.tintIcon !== false,
+      })) ?? [];
+    const filtered = sources.filter((source) => source.label);
+    if (filtered.length) {
+      return filtered;
+    }
+    return [
+      { label: "Google Drive", icon: "google-drive", color: "#34A853" },
+      { label: "MEGA", icon: "mega", color: "#D9272E" },
+      { label: "Torrent", icon: "torrent", color: "#7C3AED" },
+      { label: "Mediafire", icon: "mediafire", color: "#2563EB" },
+      { label: "Telegram", icon: "telegram", color: "#0EA5E9" },
+      { label: "Outro", icon: "link", color: "#64748B" },
+    ];
+  }, [publicSettings?.downloads?.sources]);
+
+  const renderDownloadIcon = (
+    iconKey: string | undefined,
+    color: string,
+    label?: string,
+    tintIcon = true,
+  ) => {
+    if (
+      iconKey &&
+      (iconKey.startsWith("http") || iconKey.startsWith("data:") || iconKey.startsWith("/uploads/"))
+    ) {
+      if (!tintIcon) {
+        return <img src={iconKey} alt={label || ""} className="h-4 w-4" />;
+      }
+      return (
+        <ThemedSvgLogo
+          url={iconKey}
+          label={label || "Fonte de download"}
+          className="h-4 w-4"
+          color={color}
+        />
+      );
+    }
+    const normalized = String(iconKey || "").toLowerCase();
+    if (normalized === "google-drive") {
+      return (
+        <svg viewBox="0 0 24 24" aria-hidden="true" className="h-4 w-4" style={{ color }}>
+          <path fill="currentColor" d="M7.5 3h9l4.5 8-4.5 8h-9L3 11z" />
+        </svg>
+      );
+    }
+    if (normalized === "mega") {
+      return (
+        <svg viewBox="0 0 24 24" aria-hidden="true" className="h-4 w-4">
+          <circle cx="12" cy="12" r="10" fill={color} />
+          <path
+            fill="#fff"
+            d="M7.2 16.4V7.6h1.6l3.2 4.2 3.2-4.2h1.6v8.8h-1.6V10l-3.2 4.1L8.8 10v6.4z"
+          />
+        </svg>
+      );
+    }
+    const iconMap: Record<string, typeof Download> = {
+      telegram: Send,
+      mediafire: Cloud,
+      torrent: HardDrive,
+      link: Link2,
+      download: Download,
+    };
+    const Icon = iconMap[normalized] || Download;
+    return <Icon className="h-4 w-4" style={{ color }} />;
+  };
   const [editingProject, setEditingProject] = useState<ProjectRecord | null>(null);
   const [formState, setFormState] = useState<ProjectForm>(emptyProject);
   const [deleteTarget, setDeleteTarget] = useState<ProjectRecord | null>(null);
@@ -675,13 +499,62 @@ const DashboardProjectsEditor = () => {
   const [collapsedEpisodes, setCollapsedEpisodes] = useState<Record<number, boolean>>({});
   const [isLibraryOpen, setIsLibraryOpen] = useState(false);
   const [libraryTarget, setLibraryTarget] = useState<
-    "chapter" | "cover" | "banner" | "hero" | "episode-cover"
-  >("chapter");
+    "cover" | "banner" | "hero" | "episode-cover"
+  >("cover");
   const [episodeCoverIndex, setEpisodeCoverIndex] = useState<number | null>(null);
-  const [activeChapterIndex, setActiveChapterIndex] = useState<number | null>(null);
-  const [activeChapterFormat, setActiveChapterFormat] = useState<"markdown" | "html">("markdown");
   const [libraryFolder, setLibraryFolder] = useState<string>("");
-  const chapterEditorsRef = useRef<Record<number, { insertAtCursor: (text: string) => void }>>({});
+  const chapterEditorsRef = useRef<Record<number, LexicalEditorHandle | null>>({});
+  const handleEditorOpenChange = (next: boolean) => {
+    if (!next && isLibraryOpen) {
+      return;
+    }
+    setIsEditorOpen(next);
+  };
+
+  const staffRoleOptions = useMemo(() => {
+    const labels = publicSettings.teamRoles.map((role) => role.label).filter(Boolean);
+    if (labels.length) {
+      return labels;
+    }
+    const fallback = formState.staff.map((item) => item.role).filter(Boolean);
+    return Array.from(new Set(fallback));
+  }, [publicSettings.teamRoles, formState.staff]);
+
+  const knownTags = useMemo(() => {
+    const set = new Set<string>();
+    projects.forEach((project) => {
+      (project.tags || []).forEach((tag) => set.add(tag));
+    });
+    return Array.from(set).sort((a, b) => a.localeCompare(b, "pt-BR"));
+  }, [projects]);
+
+  const knownGenres = useMemo(() => {
+    const set = new Set<string>();
+    projects.forEach((project) => {
+      (project.genres || []).forEach((genre) => set.add(genre));
+    });
+    return Array.from(set).sort((a, b) => a.localeCompare(b, "pt-BR"));
+  }, [projects]);
+
+  const tagSuggestions = useMemo(() => {
+    const query = tagInput.trim().toLowerCase();
+    if (!query) {
+      return [];
+    }
+    return knownTags
+      .filter((tag) => tag.toLowerCase().includes(query) && !formState.tags.includes(tag))
+      .slice(0, 6);
+  }, [tagInput, knownTags, formState.tags]);
+
+  const genreSuggestions = useMemo(() => {
+    const query = genreInput.trim().toLowerCase();
+    if (!query) {
+      return [];
+    }
+    return knownGenres
+      .filter((genre) => genre.toLowerCase().includes(query) && !formState.genres.includes(genre))
+      .slice(0, 6);
+  }, [genreInput, knownGenres, formState.genres]);
 
   useEffect(() => {
     const loadUser = async () => {
@@ -767,36 +640,7 @@ const DashboardProjectsEditor = () => {
     });
   }, [formState.episodeDownloads, isChapterBased, sortedEpisodeDownloads]);
 
-  const insertImageToChapter = (url: string, altText?: string) => {
-    if (activeChapterIndex === null) {
-      return;
-    }
-    const alt = altText || "Imagem";
-    const markup = buildImageMarkup(url, alt, activeChapterFormat);
-    const editor = chapterEditorsRef.current[activeChapterIndex];
-    if (editor?.insertAtCursor) {
-      editor.insertAtCursor(markup);
-      return;
-    }
-    setFormState((prev) => {
-      const next = [...prev.episodeDownloads];
-      const target = next[activeChapterIndex];
-      if (!target) {
-        return prev;
-      }
-      next[activeChapterIndex] = {
-        ...target,
-        content: `${target.content || ""}${markup}`,
-      };
-      return { ...prev, episodeDownloads: next };
-    });
-  };
-
-  const applyLibraryImage = (url: string, altText?: string) => {
-    if (libraryTarget === "chapter") {
-      insertImageToChapter(url, altText);
-      return;
-    }
+  const applyLibraryImage = (url: string, _altText?: string) => {
     setFormState((prev) => {
       const next = { ...prev };
       if (libraryTarget === "cover") {
@@ -821,16 +665,6 @@ const DashboardProjectsEditor = () => {
       }
       return next;
     });
-  };
-
-
-  const openLibraryForChapter = (index: number, format: "markdown" | "html") => {
-    setActiveChapterIndex(index);
-    setActiveChapterFormat(format);
-    const projectSlug = formState.id?.trim() || createSlug(formState.title.trim());
-    setLibraryFolder(projectSlug ? `light-novel/${projectSlug}` : "light-novel");
-    setLibraryTarget("chapter");
-    setIsLibraryOpen(true);
   };
 
   const openLibraryForProjectImage = (target: "cover" | "banner" | "hero") => {
@@ -902,7 +736,7 @@ const DashboardProjectsEditor = () => {
   useEffect(() => {
     if (!isLibraryOpen) {
       setLibraryFolder("");
-      setLibraryTarget("chapter");
+      setLibraryTarget("cover");
       setEpisodeCoverIndex(null);
     }
   }, [isLibraryOpen]);
@@ -1063,7 +897,14 @@ const DashboardProjectsEditor = () => {
   };
 
   const openEdit = (project: ProjectRecord) => {
-    const initialEpisodes = Array.isArray(project.episodeDownloads) ? project.episodeDownloads : [];
+    const initialEpisodes = Array.isArray(project.episodeDownloads)
+      ? project.episodeDownloads.map((episode) => ({
+          ...episode,
+          content: episode.content || "",
+          contentFormat: "lexical",
+        }))
+      : [];
+    const mergedSynopsis = project.synopsis || project.description || "";
     setEditingProject(project);
     setFormState({
       id: project.id,
@@ -1071,8 +912,8 @@ const DashboardProjectsEditor = () => {
       title: project.title || "",
       titleOriginal: project.titleOriginal || "",
       titleEnglish: project.titleEnglish || "",
-      synopsis: project.synopsis || "",
-      description: project.description || "",
+      synopsis: mergedSynopsis,
+      description: mergedSynopsis,
       type: project.type || "",
       status: project.status || "",
       year: project.year || "",
@@ -1159,7 +1000,7 @@ const DashboardProjectsEditor = () => {
       titleOriginal: formState.titleOriginal?.trim() || "",
       titleEnglish: formState.titleEnglish?.trim() || "",
       synopsis: formState.synopsis?.trim() || "",
-      description: formState.description?.trim() || "",
+      description: formState.synopsis?.trim() || "",
       type: formState.type?.trim() || "",
       status: formState.status?.trim() || "",
       year: formState.year?.trim() || "",
@@ -1372,6 +1213,7 @@ const DashboardProjectsEditor = () => {
 
     const genresFromMedia = (media.genres || []).filter(Boolean);
 
+    const mergedSynopsis = stripHtml(media.description || "");
     setFormState((prev) => ({
       ...prev,
       id: prev.id || String(media.id),
@@ -1379,8 +1221,8 @@ const DashboardProjectsEditor = () => {
       title: media.title?.romaji || media.title?.english || media.title?.native || prev.title,
       titleOriginal: media.title?.native || "",
       titleEnglish: media.title?.english || "",
-      synopsis: stripHtml(media.description || ""),
-      description: stripHtml(media.description || ""),
+      synopsis: mergedSynopsis,
+      description: mergedSynopsis,
       type: formatType(media.format || "") || prev.type,
       status: formatStatus(media.status || "") || prev.status,
       year: media.seasonYear ? String(media.seasonYear) : prev.year,
@@ -1453,6 +1295,14 @@ const DashboardProjectsEditor = () => {
       genres: prev.genres.includes(next) ? prev.genres : [...prev.genres, next],
     }));
     setGenreInput("");
+  };
+
+  const handleRemoveTag = (tag: string) => {
+    setFormState((prev) => ({ ...prev, tags: prev.tags.filter((item) => item !== tag) }));
+  };
+
+  const handleRemoveGenre = (genre: string) => {
+    setFormState((prev) => ({ ...prev, genres: prev.genres.filter((item) => item !== genre) }));
   };
 
   const handleAddProducer = () => {
@@ -1542,11 +1392,14 @@ const DashboardProjectsEditor = () => {
           <main className="pt-24 px-6 pb-20 md:px-10">
             <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
               <div>
-                <Badge variant="secondary" className="text-xs uppercase tracking-widest">
+                <Badge variant="secondary" className="text-xs uppercase tracking-widest animate-fade-in">
                   Projetos
                 </Badge>
-                <h1 className="mt-4 text-3xl font-semibold text-foreground">Gerenciar projetos</h1>
-                <p className="mt-2 text-sm text-muted-foreground">
+                <h1 className="mt-4 text-3xl font-semibold text-foreground animate-slide-up">Gerenciar projetos</h1>
+                <p
+                  className="mt-2 text-sm text-muted-foreground animate-slide-up opacity-0"
+                  style={{ animationDelay: "0.2s" }}
+                >
                   Crie, edite e organize os projetos visíveis no site.
                 </p>
               </div>
@@ -1557,7 +1410,10 @@ const DashboardProjectsEditor = () => {
             </div>
 
             <section className="mt-10 space-y-6">
-              <div className="flex flex-wrap items-center justify-between gap-3">
+              <div
+                className="flex flex-wrap items-center justify-between gap-3 animate-slide-up opacity-0"
+                style={{ animationDelay: "120ms" }}
+              >
                 <div className="flex flex-1 flex-wrap items-center gap-3">
                   <div className="w-full max-w-sm">
                     <Input
@@ -1595,10 +1451,11 @@ const DashboardProjectsEditor = () => {
                 </div>
               ) : (
                 <div className="grid gap-6">
-                  {sortedProjects.map((project) => (
+                  {sortedProjects.map((project, index) => (
                     <Card
                       key={project.id}
-                      className="group cursor-pointer overflow-hidden border-border/60 bg-card/80 shadow-lg transition hover:border-primary/40"
+                      className="group cursor-pointer overflow-hidden border-border/60 bg-card/80 shadow-lg transition hover:border-primary/40 animate-slide-up opacity-0"
+                      style={{ animationDelay: `${index * 60}ms` }}
                       draggable={sortMode === "order"}
                       onDragStart={() => handleListDragStart(project.id)}
                       onDragOver={(event) => {
@@ -1726,10 +1583,11 @@ const DashboardProjectsEditor = () => {
                       </Badge>
                     </div>
                     <div className="grid gap-3">
-                      {trashedProjects.map((project) => (
+                      {trashedProjects.map((project, index) => (
                         <div
                           key={`trash-${project.id}`}
-                          className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3"
+                          className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 animate-slide-up opacity-0"
+                          style={{ animationDelay: `${index * 60}ms` }}
                         >
                           <div className="min-w-0">
                             <p className="text-sm font-medium text-foreground">{project.title}</p>
@@ -1757,8 +1615,38 @@ const DashboardProjectsEditor = () => {
           </main>
       </DashboardShell>
 
-      <Dialog open={isEditorOpen} onOpenChange={setIsEditorOpen}>
-        <DialogContent className="max-w-5xl max-h-[92vh] overflow-y-auto">
+      {isEditorOpen ? (
+        <div
+          className="pointer-events-auto fixed inset-0 z-40 bg-black/80 backdrop-blur-sm"
+          aria-hidden="true"
+        />
+      ) : null}
+
+      <Dialog open={isEditorOpen} onOpenChange={handleEditorOpenChange} modal={false}>
+        <DialogContent
+          className="max-w-5xl max-h-[92vh] overflow-y-auto"
+          disableOutsidePointerEvents={false}
+          onPointerDownOutside={(event) => {
+            if (isLibraryOpen) {
+              event.preventDefault();
+              return;
+            }
+            const target = event.target as HTMLElement | null;
+            if (target?.closest(".lexical-playground")) {
+              event.preventDefault();
+            }
+          }}
+          onInteractOutside={(event) => {
+            if (isLibraryOpen) {
+              event.preventDefault();
+              return;
+            }
+            const target = event.target as HTMLElement | null;
+            if (target?.closest(".lexical-playground")) {
+              event.preventDefault();
+            }
+          }}
+        >
           <DialogHeader>
             <DialogTitle>{editingProject ? "Editar projeto" : "Novo projeto"}</DialogTitle>
             <DialogDescription>
@@ -1842,67 +1730,70 @@ const DashboardProjectsEditor = () => {
               </div>
             </div>
 
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="space-y-2 md:col-span-2">
+            <div className="grid gap-3 md:grid-cols-3">
+              <div className="space-y-2">
                 <Label>Imagem do carrossel</Label>
-                <div className="flex flex-wrap items-center gap-3">
-                  <div className="flex min-w-0 items-center gap-3 rounded-2xl border border-border/60 bg-card/60 px-3 py-2">
-                    {formState.heroImageUrl ? (
-                      <img
-                        src={formState.heroImageUrl}
-                        alt="Imagem do carrossel"
-                        className="h-14 w-14 rounded-lg object-cover"
-                      />
-                    ) : (
-                      <div className="flex h-14 w-14 items-center justify-center rounded-lg border border-dashed border-border/60 text-[10px] text-muted-foreground">
-                        Sem imagem
-                      </div>
-                    )}
-                    <span className="max-w-[260px] truncate text-xs text-muted-foreground">
-                      {formState.heroImageUrl || "Usa o banner se vazio."}
-                    </span>
-                  </div>
-                  <Button type="button" variant="outline" onClick={() => openLibraryForProjectImage("hero")}>
+                <div className="flex items-center gap-3 rounded-2xl border border-border/60 bg-card/60 px-3 py-2">
+                  {formState.heroImageUrl ? (
+                    <img
+                      src={formState.heroImageUrl}
+                      alt="Imagem do carrossel"
+                      className="h-12 w-12 rounded-lg object-cover"
+                    />
+                  ) : (
+                    <div className="flex h-12 w-12 items-center justify-center rounded-lg border border-dashed border-border/60 text-center text-[10px] text-muted-foreground leading-tight">
+                      Sem imagem
+                    </div>
+                  )}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="ml-auto"
+                    onClick={() => openLibraryForProjectImage("hero")}
+                  >
                     Biblioteca
                   </Button>
                 </div>
               </div>
               <div className="space-y-2">
                 <Label>Capa</Label>
-                <div className="flex flex-wrap items-center gap-3">
-                  <div className="flex min-w-0 items-center gap-3 rounded-2xl border border-border/60 bg-card/60 px-3 py-2">
-                    {formState.cover ? (
-                      <img src={formState.cover} alt="Capa" className="h-14 w-14 rounded-lg object-cover" />
-                    ) : (
-                      <div className="flex h-14 w-14 items-center justify-center rounded-lg border border-dashed border-border/60 text-[10px] text-muted-foreground">
-                        Sem imagem
-                      </div>
-                    )}
-                    <span className="max-w-[260px] truncate text-xs text-muted-foreground">
-                      {formState.cover || "Sem capa definida."}
-                    </span>
-                  </div>
-                  <Button type="button" variant="outline" onClick={() => openLibraryForProjectImage("cover")}>
+                <div className="flex items-center gap-3 rounded-2xl border border-border/60 bg-card/60 px-3 py-2">
+                  {formState.cover ? (
+                    <img src={formState.cover} alt="Capa" className="h-12 w-12 rounded-lg object-cover" />
+                  ) : (
+                    <div className="flex h-12 w-12 items-center justify-center rounded-lg border border-dashed border-border/60 text-center text-[10px] text-muted-foreground leading-tight">
+                      Sem imagem
+                    </div>
+                  )}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="ml-auto"
+                    onClick={() => openLibraryForProjectImage("cover")}
+                  >
                     Biblioteca
                   </Button>
                 </div>
               </div>
               <div className="space-y-2">
                 <Label>Banner</Label>
-                <div className="flex flex-wrap items-center gap-3">
-                  <div className="flex min-w-0 items-center gap-3 rounded-2xl border border-border/60 bg-card/60 px-3 py-2">
-                    {formState.banner ? (
-                      <img src={formState.banner} alt="Banner" className="h-14 w-14 rounded-lg object-cover" />
-                    ) : (
-                      <div className="flex h-14 w-14 items-center justify-center rounded-lg border border-dashed border-border/60 text-[10px] text-muted-foreground">
-                        Sem imagem
-                      </div>
-                    )}
-                    <span className="max-w-[260px] truncate text-xs text-muted-foreground">
-                      {formState.banner || "Sem banner definido."}
-                    </span>
-                  </div>
-                  <Button type="button" variant="outline" onClick={() => openLibraryForProjectImage("banner")}>
+                <div className="flex items-center gap-3 rounded-2xl border border-border/60 bg-card/60 px-3 py-2">
+                  {formState.banner ? (
+                    <img src={formState.banner} alt="Banner" className="h-12 w-12 rounded-lg object-cover" />
+                  ) : (
+                    <div className="flex h-12 w-12 items-center justify-center rounded-lg border border-dashed border-border/60 text-center text-[10px] text-muted-foreground leading-tight">
+                      Sem imagem
+                    </div>
+                  )}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="ml-auto"
+                    onClick={() => openLibraryForProjectImage("banner")}
+                  >
                     Biblioteca
                   </Button>
                 </div>
@@ -1915,15 +1806,7 @@ const DashboardProjectsEditor = () => {
                 <Textarea
                   value={formState.synopsis}
                   onChange={(event) => setFormState((prev) => ({ ...prev, synopsis: event.target.value }))}
-                  rows={4}
-                />
-              </div>
-              <div className="space-y-2 md:col-span-2">
-                <Label>Descrição completa</Label>
-                <Textarea
-                  value={formState.description}
-                  onChange={(event) => setFormState((prev) => ({ ...prev, description: event.target.value }))}
-                  rows={5}
+                  rows={6}
                 />
               </div>
             </div>
@@ -2016,12 +1899,38 @@ const DashboardProjectsEditor = () => {
                   <Input
                     value={tagInput}
                     onChange={(event) => setTagInput(event.target.value)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter") {
+                        event.preventDefault();
+                        handleAddTag();
+                      }
+                    }}
                     placeholder="Adicionar tag"
                   />
-                  <Button type="button" variant="outline" onClick={handleAddTag}>
-                    Adicionar
-                  </Button>
                 </div>
+                {tagSuggestions.length > 0 ? (
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {tagSuggestions.map((tag) => (
+                      <Button
+                        key={`tag-suggestion-${tag}`}
+                        type="button"
+                        size="sm"
+                        variant="ghost"
+                        className="h-7 px-2 text-xs"
+                        onClick={() => {
+                          setTagInput(tag);
+                          setFormState((prev) => ({
+                            ...prev,
+                            tags: prev.tags.includes(tag) ? prev.tags : [...prev.tags, tag],
+                          }));
+                          setTagInput("");
+                        }}
+                      >
+                        {tag}
+                      </Button>
+                    ))}
+                  </div>
+                ) : null}
                 <div className="mt-2 flex flex-wrap gap-2">
                   {formState.tags.map((tag, index) => (
                     <Badge
@@ -2031,7 +1940,8 @@ const DashboardProjectsEditor = () => {
                       onDragStart={() => setTagDragIndex(index)}
                       onDragOver={(event) => event.preventDefault()}
                       onDrop={() => handleTagDrop(index)}
-                      className="cursor-move"
+                      onClick={() => handleRemoveTag(tag)}
+                      className="cursor-pointer"
                     >
                       {tag}
                     </Badge>
@@ -2044,15 +1954,41 @@ const DashboardProjectsEditor = () => {
                   <Input
                     value={genreInput}
                     onChange={(event) => setGenreInput(event.target.value)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter") {
+                        event.preventDefault();
+                        handleAddGenre();
+                      }
+                    }}
                     placeholder="Adicionar gênero"
                   />
-                  <Button type="button" variant="outline" onClick={handleAddGenre}>
-                    Adicionar
-                  </Button>
                 </div>
+                {genreSuggestions.length > 0 ? (
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {genreSuggestions.map((genre) => (
+                      <Button
+                        key={`genre-suggestion-${genre}`}
+                        type="button"
+                        size="sm"
+                        variant="ghost"
+                        className="h-7 px-2 text-xs"
+                        onClick={() => {
+                          setGenreInput(genre);
+                          setFormState((prev) => ({
+                            ...prev,
+                            genres: prev.genres.includes(genre) ? prev.genres : [...prev.genres, genre],
+                          }));
+                          setGenreInput("");
+                        }}
+                      >
+                        {genre}
+                      </Button>
+                    ))}
+                  </div>
+                ) : null}
                 <div className="mt-2 flex flex-wrap gap-2">
                   {formState.genres.map((genre, index) => (
-                    <Badge key={`${genre}-${index}`} variant="secondary">
+                    <Badge key={`${genre}-${index}`} variant="secondary" onClick={() => handleRemoveGenre(genre)} className="cursor-pointer">
                       {genre}
                     </Badge>
                   ))}
@@ -2168,17 +2104,30 @@ const DashboardProjectsEditor = () => {
                     onDrop={() => handleStaffDrop(index)}
                   >
                     <div className="grid gap-3 md:grid-cols-[1fr_auto]">
-                      <Input
-                        value={role.role}
-                        onChange={(event) =>
+                      <Select
+                        value={role.role || ""}
+                        onValueChange={(value) =>
                           setFormState((prev) => {
                             const next = [...prev.staff];
-                            next[index] = { ...next[index], role: event.target.value };
+                            next[index] = { ...next[index], role: value };
                             return { ...prev, staff: next };
                           })
                         }
-                        placeholder="Função"
-                      />
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Função" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {(role.role && !staffRoleOptions.includes(role.role)
+                            ? [role.role, ...staffRoleOptions]
+                            : staffRoleOptions
+                          ).map((option) => (
+                            <SelectItem key={option} value={option}>
+                              {option}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                       <Button
                         type="button"
                         variant="ghost"
@@ -2257,7 +2206,7 @@ const DashboardProjectsEditor = () => {
                         progressStage: "aguardando-raw",
                         completedStages: [],
                         content: "",
-                        contentFormat: "markdown",
+                        contentFormat: "lexical",
                       };
                       const next = [...prev.episodeDownloads, newEpisode];
                       return { ...prev, episodeDownloads: next };
@@ -2272,13 +2221,23 @@ const DashboardProjectsEditor = () => {
                   <Card
                     key={`${episode.number}-${index}`}
                     className="border-border/60 bg-card/70"
-                    draggable
-                    onDragStart={() => setEpisodeDragId(index)}
-                    onDragOver={(event) => event.preventDefault()}
-                    onDrop={() => handleEpisodeDrop(index)}
+                    onDragStart={() => setEpisodeDragId(null)}
                     onClick={(event) => {
                       const target = event.target as HTMLElement | null;
-                      if (target?.closest("button, a, input, textarea, select, option, [data-no-toggle]")) {
+                      if (
+                        target?.closest(
+                          "button, a, input, textarea, select, option, [data-no-toggle], [contenteditable='true'], .lexical-playground",
+                        )
+                      ) {
+                        return;
+                      }
+                      const selection = window.getSelection();
+                      const anchorNode = selection?.anchorNode as HTMLElement | null;
+                      const focusNode = selection?.focusNode as HTMLElement | null;
+                      if (
+                        selection?.type === "Range" &&
+                        (anchorNode?.closest?.(".lexical-playground") || focusNode?.closest?.(".lexical-playground"))
+                      ) {
                         return;
                       }
                       setCollapsedEpisodes((prev) => ({
@@ -2472,12 +2431,9 @@ const DashboardProjectsEditor = () => {
                                     alt={episode.title || "Capa"}
                                     className="h-12 w-12 rounded-lg object-cover"
                                   />
-                                  <span className="max-w-[240px] truncate text-xs text-muted-foreground">
-                                    {episode.coverImageUrl}
-                                  </span>
                                 </div>
                               ) : (
-                                <div className="flex h-12 w-12 items-center justify-center rounded-lg border border-dashed border-border/60 text-[10px] text-muted-foreground">
+                                <div className="flex h-12 w-12 items-center justify-center rounded-lg border border-dashed border-border/60 text-center text-[10px] text-muted-foreground leading-tight">
                                   Sem imagem
                                 </div>
                               )}
@@ -2494,31 +2450,30 @@ const DashboardProjectsEditor = () => {
                           {isLightNovel ? (
                             <div className="mt-4">
                               <Label className="text-xs">Conteúdo do capítulo</Label>
-                              <div className="mt-3">
-                                <EpisodeContentEditor
-                                  value={episode.content || ""}
-                                  format={episode.contentFormat || "markdown"}
-                                  onRegister={(handlers) => {
-                                    chapterEditorsRef.current[index] = handlers;
-                                  }}
-                                  onChange={(nextValue) =>
-                                    setFormState((prev) => {
-                                      const next = [...prev.episodeDownloads];
-                                      next[index] = { ...next[index], content: nextValue };
-                                      return { ...prev, episodeDownloads: next };
-                                    })
-                                  }
-                                  onFormatChange={(nextFormat) =>
-                                    setFormState((prev) => {
-                                      const next = [...prev.episodeDownloads];
-                                      next[index] = { ...next[index], contentFormat: nextFormat };
-                                      return { ...prev, episodeDownloads: next };
-                                    })
-                                  }
-                                  onOpenImageLibrary={() =>
-                                    openLibraryForChapter(index, episode.contentFormat || "markdown")
-                                  }
-                                />
+                        <div
+                          className="mt-3"
+                          onFocusCapture={(event) => {
+                            const target = event.target as HTMLElement | null;
+                            if (target?.closest(".lexical-playground")) {
+                              return;
+                            }
+                            const editor = chapterEditorsRef.current[index];
+                            editor?.blur?.();
+                          }}
+                        >
+                          <EpisodeContentEditor
+                            value={episode.content || ""}
+                            onRegister={(handlers) => {
+                              chapterEditorsRef.current[index] = handlers;
+                            }}
+                            onChange={(nextValue) =>
+                              setFormState((prev) => {
+                                const next = [...prev.episodeDownloads];
+                                next[index] = { ...next[index], content: nextValue };
+                                return { ...prev, episodeDownloads: next };
+                              })
+                            }
+                          />
                               </div>
                             </div>
                           ) : null}
@@ -2559,17 +2514,17 @@ const DashboardProjectsEditor = () => {
                             <div className="mt-3">
                               <Label className="text-xs">Fontes de download</Label>
                               <div className="mt-2 grid gap-2">
-                                {episode.sources.map((source, sourceIndex) => (
+                                {(episode.sources || []).map((source, sourceIndex) => (
                                   <div
                                     key={`${source.label}-${sourceIndex}`}
-                                    className="grid gap-2 md:grid-cols-[1fr_2fr_auto]"
+                                    className="grid items-center gap-2 md:grid-cols-[1fr_2fr_auto]"
                                   >
                                     <Select
                                       value={source.label}
                                       onValueChange={(value) =>
                                         setFormState((prev) => {
                                           const next = [...prev.episodeDownloads];
-                                          const sources = [...next[index].sources];
+                                          const sources = [...(next[index].sources || [])];
                                           sources[sourceIndex] = {
                                             ...sources[sourceIndex],
                                             label: value,
@@ -2584,8 +2539,16 @@ const DashboardProjectsEditor = () => {
                                       </SelectTrigger>
                                       <SelectContent>
                                         {downloadSourceOptions.map((option) => (
-                                          <SelectItem key={option} value={option}>
-                                            {option}
+                                          <SelectItem key={option.label} value={option.label}>
+                                            <span className="flex items-center gap-2">
+                                              {renderDownloadIcon(
+                                                option.icon,
+                                                option.color,
+                                                option.label,
+                                                option.tintIcon,
+                                              )}
+                                              <span>{option.label}</span>
+                                            </span>
                                           </SelectItem>
                                         ))}
                                       </SelectContent>
@@ -2595,7 +2558,7 @@ const DashboardProjectsEditor = () => {
                                       onChange={(event) =>
                                         setFormState((prev) => {
                                           const next = [...prev.episodeDownloads];
-                                          const sources = [...next[index].sources];
+                                          const sources = [...(next[index].sources || [])];
                                           sources[sourceIndex] = {
                                             ...sources[sourceIndex],
                                             url: event.target.value,
@@ -2609,16 +2572,18 @@ const DashboardProjectsEditor = () => {
                                     <Button
                                       type="button"
                                       variant="ghost"
+                                      size="icon"
+                                      className="h-9 w-9"
                                       onClick={() =>
                                         setFormState((prev) => {
                                           const next = [...prev.episodeDownloads];
-                                          const sources = next[index].sources.filter((_, idx) => idx !== sourceIndex);
+                                          const sources = (next[index].sources || []).filter((_, idx) => idx !== sourceIndex);
                                           next[index] = { ...next[index], sources };
                                           return { ...prev, episodeDownloads: next };
                                         })
                                       }
                                     >
-                                      Remover
+                                      <Trash2 className="h-4 w-4" />
                                     </Button>
                                   </div>
                                 ))}
@@ -2629,9 +2594,10 @@ const DashboardProjectsEditor = () => {
                                   onClick={() =>
                                     setFormState((prev) => {
                                       const next = [...prev.episodeDownloads];
+                                      const existingSources = next[index].sources || [];
                                       next[index] = {
                                         ...next[index],
-                                        sources: [...next[index].sources, { label: "", url: "" }],
+                                        sources: [...existingSources, { label: "", url: "" }],
                                       };
                                       return { ...prev, episodeDownloads: next };
                                     })
@@ -2695,18 +2661,13 @@ const DashboardProjectsEditor = () => {
         open={isLibraryOpen}
         onOpenChange={setIsLibraryOpen}
         apiBase={apiBase}
-        description={
-          libraryTarget === "chapter"
-            ? "Envie novas imagens ou selecione uma existente para inserir no capítulo."
-            : "Envie novas imagens ou selecione uma existente para usar no projeto."
-        }
+        description="Envie novas imagens ou selecione uma existente para usar no projeto."
         uploadFolder={libraryFolder || undefined}
         listFolders={[""]}
-        showAltInput={libraryTarget === "chapter"}
-        allowDeselect={libraryTarget !== "chapter"}
-        selectOnUpload
-        currentSelectionUrl={currentLibrarySelection || undefined}
-        onSelect={(url, altText) => applyLibraryImage(url, altText)}
+        allowDeselect
+        mode="single"
+        currentSelectionUrls={currentLibrarySelection ? [currentLibrarySelection] : []}
+        onSave={({ urls }) => applyLibraryImage(urls[0] || "")}
       />
 
     </>

@@ -698,11 +698,14 @@ const DashboardPages = () => {
           <section className="mx-auto w-full max-w-6xl px-6 pb-20 md:px-10">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
-                <div className="inline-flex items-center gap-3 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs uppercase tracking-[0.3em] text-muted-foreground">
+                <div className="inline-flex items-center gap-3 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs uppercase tracking-[0.3em] text-muted-foreground animate-fade-in">
                   Páginas
                 </div>
-                <h1 className="mt-4 text-3xl font-semibold lg:text-4xl">Gerenciar páginas</h1>
-                <p className="mt-2 text-sm text-muted-foreground">
+                <h1 className="mt-4 text-3xl font-semibold lg:text-4xl animate-slide-up">Gerenciar páginas</h1>
+                <p
+                  className="mt-2 text-sm text-muted-foreground animate-slide-up opacity-0"
+                  style={{ animationDelay: "0.2s" }}
+                >
                   Edite textos, cards, badges e listas das páginas públicas.
                 </p>
               </div>
@@ -711,7 +714,11 @@ const DashboardPages = () => {
               </Button>
             </div>
 
-            <Tabs defaultValue={pageOrder[0] || "about"} className="mt-8">
+            <Tabs
+              defaultValue={pageOrder[0] || "about"}
+              className="mt-8 animate-slide-up opacity-0"
+              style={{ animationDelay: "0.2s" }}
+            >
               <TabsList className="grid w-full grid-cols-5">
                 {pageOrder.map((key, index) => (
                   <TabsTrigger

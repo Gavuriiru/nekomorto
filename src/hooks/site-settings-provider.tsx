@@ -18,6 +18,44 @@ const ensureMeta = (selector: string, attrs: Record<string, string>) => {
   return el;
 };
 
+const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
+
+const hexToHsl = (hex: string) => {
+  const cleaned = hex.trim().replace("#", "");
+  if (!/^[0-9a-fA-F]{3}$|^[0-9a-fA-F]{6}$/.test(cleaned)) {
+    return null;
+  }
+  const expanded =
+    cleaned.length === 3 ? cleaned.split("").map((char) => char + char).join("") : cleaned;
+  const r = parseInt(expanded.slice(0, 2), 16) / 255;
+  const g = parseInt(expanded.slice(2, 4), 16) / 255;
+  const b = parseInt(expanded.slice(4, 6), 16) / 255;
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  const delta = max - min;
+  let h = 0;
+  if (delta !== 0) {
+    if (max === r) {
+      h = ((g - b) / delta) % 6;
+    } else if (max === g) {
+      h = (b - r) / delta + 2;
+    } else {
+      h = (r - g) / delta + 4;
+    }
+    h = Math.round(h * 60);
+    if (h < 0) {
+      h += 360;
+    }
+  }
+  const l = (max + min) / 2;
+  const s = delta === 0 ? 0 : delta / (1 - Math.abs(2 * l - 1));
+  return {
+    h,
+    s: Math.round(s * 100),
+    l: Math.round(l * 100),
+  };
+};
+
 const applyDocumentSettings = (settings: SiteSettings) => {
   if (!settings) {
     return;
@@ -61,15 +99,52 @@ const applyDocumentSettings = (settings: SiteSettings) => {
     }
     icon.href = settings.site.faviconUrl;
   }
+
+  const root = document.documentElement;
+  const accentHex = settings.theme?.accent?.trim();
+  if (accentHex) {
+    const accent = hexToHsl(accentHex);
+    if (accent) {
+      const primaryValue = `${accent.h} ${accent.s}% ${accent.l}%`;
+      const accentValue = `${accent.h} ${clamp(accent.s - 10, 0, 100)}% ${clamp(
+        accent.l + 6,
+        0,
+        100,
+      )}%`;
+      root.style.setProperty("--primary", primaryValue);
+      root.style.setProperty("--ring", primaryValue);
+      root.style.setProperty("--sidebar-primary", primaryValue);
+      root.style.setProperty("--sidebar-ring", primaryValue);
+      root.style.setProperty("--accent", accentValue);
+    }
+  } else {
+    root.style.removeProperty("--primary");
+    root.style.removeProperty("--ring");
+    root.style.removeProperty("--sidebar-primary");
+    root.style.removeProperty("--sidebar-ring");
+    root.style.removeProperty("--accent");
+  }
 };
 
-export const SiteSettingsProvider = ({ children }: { children: ReactNode }) => {
+export const SiteSettingsProvider = ({
+  children,
+  initialSettings,
+  initiallyLoaded = false,
+}: {
+  children: ReactNode;
+  initialSettings?: SiteSettings;
+  initiallyLoaded?: boolean;
+}) => {
   const apiBase = getApiBase();
-  const [settings, setSettings] = useState<SiteSettings>(defaultSettings);
-  const [isLoading, setIsLoading] = useState(true);
+  const [settings, setSettings] = useState<SiteSettings>(
+    mergeSettings(defaultSettings, initialSettings || {}),
+  );
+  const [isLoading, setIsLoading] = useState(!initiallyLoaded);
 
-  const refresh = useCallback(async () => {
-    setIsLoading(true);
+  const refresh = useCallback(async (showLoading = true) => {
+    if (showLoading) {
+      setIsLoading(true);
+    }
     try {
       const response = await apiFetch(apiBase, "/api/public/settings");
       if (!response.ok) {
@@ -80,17 +155,22 @@ export const SiteSettingsProvider = ({ children }: { children: ReactNode }) => {
     } catch {
       setSettings(defaultSettings);
     } finally {
-      setIsLoading(false);
+      if (showLoading) {
+        setIsLoading(false);
+      }
     }
   }, [apiBase]);
 
   useEffect(() => {
-    refresh();
-  }, [refresh]);
+    refresh(!initiallyLoaded);
+  }, [initiallyLoaded, refresh]);
 
   useEffect(() => {
+    if (isLoading) {
+      return;
+    }
     applyDocumentSettings(settings);
-  }, [settings]);
+  }, [isLoading, settings]);
 
   const value = useMemo(
     () => ({

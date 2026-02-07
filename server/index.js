@@ -124,8 +124,253 @@ const EXTRA_ORIGINS = ADMIN_ORIGINS.split(",")
   .filter(Boolean);
 const ALLOWED_ORIGINS = Array.from(new Set([...APP_ORIGINS, ...EXTRA_ORIGINS]));
 const PRIMARY_APP_ORIGIN = APP_ORIGINS[0] || "http://127.0.0.1:5173";
+
+const clientRootDir = path.join(__dirname, "..");
+const clientDistDir = path.join(clientRootDir, "dist");
+const clientIndexPath = fs.existsSync(path.join(clientDistDir, "index.html"))
+  ? path.join(clientDistDir, "index.html")
+  : path.join(clientRootDir, "index.html");
+let cachedIndexHtml = null;
+
+const getIndexHtml = () => {
+  if (!cachedIndexHtml) {
+    cachedIndexHtml = fs.readFileSync(clientIndexPath, "utf-8");
+  }
+  return cachedIndexHtml;
+};
+
+const escapeHtml = (value) =>
+  String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+
+const toAbsoluteUrl = (value) => {
+  const input = String(value || "").trim();
+  if (!input) {
+    return "";
+  }
+  if (input.startsWith("http://") || input.startsWith("https://") || input.startsWith("data:")) {
+    return input;
+  }
+  try {
+    return new URL(input, PRIMARY_APP_ORIGIN).toString();
+  } catch {
+    return input;
+  }
+};
+
+const upsertMeta = (html, attr, key, content) => {
+  const escaped = escapeHtml(content);
+  const tag = `<meta ${attr}="${key}" content="${escaped}" />`;
+  const regex = new RegExp(`<meta[^>]*${attr}="${key}"[^>]*>`, "i");
+  if (regex.test(html)) {
+    return html.replace(regex, tag);
+  }
+  return html.replace("</head>", `  ${tag}\n</head>`);
+};
+
+const upsertLink = (html, rel, href) => {
+  const escaped = escapeHtml(href);
+  const tag = `<link rel="${rel}" href="${escaped}" />`;
+  const regex = new RegExp(`<link[^>]*rel="${rel}"[^>]*>`, "i");
+  if (regex.test(html)) {
+    return html.replace(regex, tag);
+  }
+  return html.replace("</head>", `  ${tag}\n</head>`);
+};
+
+const replaceTitle = (html, title) =>
+  html.replace(/<title>.*?<\/title>/i, `<title>${escapeHtml(title)}</title>`);
+
+const renderMetaHtml = ({
+  title,
+  description,
+  image,
+  url,
+  type = "website",
+  siteName,
+  favicon,
+}) => {
+  let html = getIndexHtml();
+  const safeUrl = url || PRIMARY_APP_ORIGIN;
+  const safeImage = image ? toAbsoluteUrl(image) : "";
+  html = replaceTitle(html, title);
+  html = upsertMeta(html, "name", "description", description);
+  html = upsertMeta(html, "property", "og:title", title);
+  html = upsertMeta(html, "property", "og:description", description);
+  html = upsertMeta(html, "property", "og:type", type);
+  html = upsertMeta(html, "property", "og:url", safeUrl);
+  html = upsertMeta(html, "property", "og:site_name", siteName);
+  html = upsertMeta(html, "property", "og:locale", "pt_BR");
+  if (safeImage) {
+    html = upsertMeta(html, "property", "og:image", safeImage);
+    html = upsertMeta(html, "name", "twitter:image", safeImage);
+  }
+  html = upsertMeta(html, "name", "twitter:title", title);
+  html = upsertMeta(html, "name", "twitter:description", description);
+  html = upsertMeta(html, "name", "twitter:card", safeImage ? "summary_large_image" : "summary");
+  html = upsertLink(html, "canonical", safeUrl);
+  if (favicon) {
+    html = upsertLink(html, "icon", toAbsoluteUrl(favicon));
+  }
+  return html;
+};
+
+const stripHtml = (value) => String(value || "").replace(/<[^>]*>/g, "").replace(/\s+/g, " ").trim();
+
+const buildSiteMetaWithSettings = (settings) => ({
+  title: settings.site?.name || "Nekomata",
+  description: settings.site?.description || "",
+  image: settings.site?.defaultShareImage || "",
+  url: PRIMARY_APP_ORIGIN,
+  type: "website",
+  siteName: settings.site?.name || "Nekomata",
+  favicon: settings.site?.faviconUrl || "",
+});
+
+const buildSiteMeta = () => buildSiteMetaWithSettings(loadSiteSettings());
+
+const getPageTitleFromPath = (value) => {
+  const pathValue = String(value || "/");
+  const rules = [
+    [/^\/$/, "Início"],
+    [/^\/postagem\/.+/, "Postagem"],
+    [/^\/equipe\/?$/, "Equipe"],
+    [/^\/sobre\/?$/, "Sobre"],
+    [/^\/doacoes\/?$/, "Doações"],
+    [/^\/faq\/?$/, "FAQ"],
+    [/^\/projetos\/?$/, "Projetos"],
+    [/^\/projeto\/.+\/leitura\/.+/, "Leitura"],
+    [/^\/projeto\/.+/, "Projeto"],
+    [/^\/projetos\/.+\/leitura\/.+/, "Leitura"],
+    [/^\/projetos\/.+/, "Projeto"],
+    [/^\/recrutamento\/?$/, "Recrutamento"],
+    [/^\/login\/?$/, "Login"],
+    [/^\/dashboard\/usuarios\/?$/, "Usuários"],
+    [/^\/dashboard\/posts\/?$/, "Posts"],
+    [/^\/dashboard\/projetos\/?$/, "Projetos"],
+    [/^\/dashboard\/comentarios\/?$/, "Comentários"],
+    [/^\/dashboard\/paginas\/?$/, "Páginas"],
+    [/^\/dashboard\/configuracoes\/?$/, "Configurações"],
+    [/^\/dashboard\/?$/, "Dashboard"],
+  ];
+  const match = rules.find(([regex]) => regex.test(pathValue));
+  return match ? match[1] : "";
+};
+
+const buildProjectMeta = (project) => {
+  const settings = loadSiteSettings();
+  const siteName = settings.site?.name || "Nekomata";
+  const title = project?.title ? `${project.title} | ${siteName}` : siteName;
+  const description =
+    stripHtml(project?.synopsis || project?.description || "") || settings.site?.description || "";
+  const image = project?.banner || project?.cover || settings.site?.defaultShareImage || "";
+  return {
+    title,
+    description,
+    image,
+    url: `${PRIMARY_APP_ORIGIN}/projeto/${project?.id || ""}`,
+    type: "article",
+    siteName,
+    favicon: settings.site?.faviconUrl || "",
+  };
+};
+
+const buildPostMeta = (post) => {
+  const settings = loadSiteSettings();
+  const siteName = settings.site?.name || "Nekomata";
+  const title = post?.title ? `${post.title} | ${siteName}` : siteName;
+  const description =
+    stripHtml(post?.seoDescription || post?.excerpt || post?.content || "") ||
+    settings.site?.description ||
+    "";
+  const image = post?.coverImageUrl || settings.site?.defaultShareImage || "";
+  return {
+    title,
+    description,
+    image,
+    url: `${PRIMARY_APP_ORIGIN}/postagem/${post?.slug || ""}`,
+    type: "article",
+    siteName,
+    favicon: settings.site?.faviconUrl || "",
+  };
+};
 const MAX_SVG_SIZE_BYTES = 256 * 1024;
 const MAX_UPLOAD_SIZE_BYTES = 15 * 1024 * 1024;
+const ALLOWED_UPLOAD_IMAGE_MIMES = new Set([
+  "image/png",
+  "image/jpeg",
+  "image/jpg",
+  "image/gif",
+  "image/webp",
+  "image/svg+xml",
+]);
+const UPLOAD_EXTENSION_TO_MIME = {
+  png: "image/png",
+  jpg: "image/jpeg",
+  jpeg: "image/jpeg",
+  gif: "image/gif",
+  webp: "image/webp",
+  svg: "image/svg+xml",
+};
+const UPLOAD_MIME_TO_EXTENSION = {
+  "image/png": "png",
+  "image/jpeg": "jpeg",
+  "image/jpg": "jpeg",
+  "image/gif": "gif",
+  "image/webp": "webp",
+  "image/svg+xml": "svg",
+};
+const DEFAULT_AVATAR_DISPLAY = {
+  x: 0,
+  y: 0,
+  zoom: 1,
+  rotation: 0,
+};
+const sanitizeUploadFolder = (value) => {
+  if (typeof value !== "string" || !value.trim()) {
+    return "";
+  }
+  return value
+    .trim()
+    .replace(/[^a-z0-9/_-]+/gi, "-")
+    .replace(/\/{2,}/g, "/")
+    .replace(/^\//, "");
+};
+const sanitizeUploadBaseName = (value) =>
+  String(value || "upload")
+    .toLowerCase()
+    .replace(/\.[^/.]+$/, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+const sanitizeUploadSlot = (value) =>
+  String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+const normalizeAvatarDisplay = (value) => {
+  const source = value && typeof value === "object" ? value : {};
+  const x = Number(source.x);
+  const y = Number(source.y);
+  const zoom = Number(source.zoom);
+  const rotation = Number(source.rotation);
+  return {
+    x: Number.isFinite(x) ? x : DEFAULT_AVATAR_DISPLAY.x,
+    y: Number.isFinite(y) ? y : DEFAULT_AVATAR_DISPLAY.y,
+    zoom: Number.isFinite(zoom) && zoom > 0 ? zoom : DEFAULT_AVATAR_DISPLAY.zoom,
+    rotation: Number.isFinite(rotation) ? rotation : DEFAULT_AVATAR_DISPLAY.rotation,
+  };
+};
+const isSupportedUploadImageMime = (value) =>
+  ALLOWED_UPLOAD_IMAGE_MIMES.has(String(value || "").toLowerCase());
+const getUploadExtFromMime = (value) =>
+  UPLOAD_MIME_TO_EXTENSION[String(value || "").toLowerCase()] || "png";
+const getUploadMimeFromExtension = (value) =>
+  UPLOAD_EXTENSION_TO_MIME[String(value || "").toLowerCase()] || "";
 const resolveRequestOrigin = (req) => {
   const originHeader = String(req.headers.origin || "");
   if (originHeader) {
@@ -353,6 +598,74 @@ const writePosts = (posts) => {
   fs.writeFileSync(filePath, JSON.stringify(normalizeUploadsDeep(posts), null, 2));
 };
 
+const updateLexicalPollVotes = (
+  content,
+  { question, optionUid, voterId, checked },
+) => {
+  if (!content || typeof content !== "string") {
+    return { updated: false };
+  }
+  let parsed = null;
+  try {
+    parsed = JSON.parse(content);
+  } catch {
+    return { updated: false };
+  }
+  if (!parsed || typeof parsed !== "object") {
+    return { updated: false };
+  }
+  const safeQuestion = typeof question === "string" ? question : null;
+  const safeOptionUid = String(optionUid || "").trim();
+  const safeVoterId = String(voterId || "").trim();
+  if (!safeOptionUid || !safeVoterId) {
+    return { updated: false };
+  }
+  let updated = false;
+
+  const updateNode = (node) => {
+    if (!node || typeof node !== "object") {
+      return;
+    }
+    if (node.type === "poll" && Array.isArray(node.options)) {
+      if (safeQuestion && node.question !== safeQuestion) {
+        // continue searching
+      } else {
+        const option = node.options.find(
+          (entry) => entry && entry.uid === safeOptionUid,
+        );
+        if (option) {
+          const votes = Array.isArray(option.votes)
+            ? option.votes.filter((vote) => typeof vote === "string")
+            : [];
+          const hasVote = votes.includes(safeVoterId);
+          const shouldCheck =
+            typeof checked === "boolean" ? checked : !hasVote;
+          if (shouldCheck && !hasVote) {
+            votes.push(safeVoterId);
+            option.votes = votes;
+            updated = true;
+          } else if (!shouldCheck && hasVote) {
+            option.votes = votes.filter((vote) => vote !== safeVoterId);
+            updated = true;
+          }
+          return;
+        }
+      }
+    }
+    if (Array.isArray(node.children)) {
+      node.children.forEach(updateNode);
+    }
+  };
+
+  updateNode(parsed.root || parsed);
+
+  if (!updated) {
+    return { updated: false };
+  }
+
+  return { updated: true, content: JSON.stringify(parsed) };
+};
+
 const projectsFilePath = path.join(__dirname, "data", "projects.json");
 const updatesFilePath = path.join(__dirname, "data", "updates.json");
 const uploadsFilePath = path.join(__dirname, "data", "uploads.json");
@@ -371,20 +684,30 @@ const defaultSiteSettings = {
     defaultShareImage: "/placeholder.svg",
     titleSeparator: " | ",
   },
+  theme: {
+    accent: "#9667e0",
+  },
   navbar: {
     recruitmentUrl: "/recrutamento",
   },
   community: {
     discordUrl: "https://discord.com/invite/BAHKhdX2ju",
   },
+  branding: {
+    wordmarkUrl: "",
+    wordmarkUrlNavbar: "",
+    wordmarkUrlFooter: "",
+    wordmarkPlacement: "both",
+    wordmarkEnabled: false,
+  },
   downloads: {
     sources: [
-      { id: "google-drive", label: "Google Drive", color: "#34A853", icon: "google-drive" },
-      { id: "mega", label: "MEGA", color: "#D9272E", icon: "mega" },
-      { id: "torrent", label: "Torrent", color: "#7C3AED", icon: "torrent" },
-      { id: "mediafire", label: "Mediafire", color: "#2563EB", icon: "mediafire" },
-      { id: "telegram", label: "Telegram", color: "#0EA5E9", icon: "telegram" },
-      { id: "outro", label: "Outro", color: "#64748B", icon: "link" },
+      { id: "google-drive", label: "Google Drive", color: "#34A853", icon: "google-drive", tintIcon: true },
+      { id: "mega", label: "MEGA", color: "#D9272E", icon: "mega", tintIcon: true },
+      { id: "torrent", label: "Torrent", color: "#7C3AED", icon: "torrent", tintIcon: true },
+      { id: "mediafire", label: "Mediafire", color: "#2563EB", icon: "mediafire", tintIcon: true },
+      { id: "telegram", label: "Telegram", color: "#0EA5E9", icon: "telegram", tintIcon: true },
+      { id: "outro", label: "Outro", color: "#64748B", icon: "link", tintIcon: true },
     ],
   },
   teamRoles: [
@@ -537,6 +860,19 @@ const normalizeUploadsDeep = (value) => {
 const normalizeSiteSettings = (payload) => {
   const merged = fixMojibakeDeep(mergeSettings(defaultSiteSettings, payload || {}));
   merged.navbar = { ...(merged.navbar || {}), recruitmentUrl: "/recrutamento" };
+  const allowedPlacements = new Set(["navbar", "footer", "both"]);
+  const placement = String(merged?.branding?.wordmarkPlacement || "both");
+  const legacyWordmarkUrl = String(merged?.branding?.wordmarkUrl || "");
+  const wordmarkUrlNavbar = String(merged?.branding?.wordmarkUrlNavbar || "");
+  const wordmarkUrlFooter = String(merged?.branding?.wordmarkUrlFooter || "");
+  merged.branding = {
+    ...(merged.branding || {}),
+    wordmarkUrl: legacyWordmarkUrl,
+    wordmarkUrlNavbar: wordmarkUrlNavbar || legacyWordmarkUrl,
+    wordmarkUrlFooter: wordmarkUrlFooter || legacyWordmarkUrl,
+    wordmarkPlacement: allowedPlacements.has(placement) ? placement : "both",
+    wordmarkEnabled: Boolean(merged?.branding?.wordmarkEnabled),
+  };
   const discordUrl = String(merged?.community?.discordUrl || "").trim();
   if (discordUrl) {
     if (Array.isArray(merged.footer?.socialLinks)) {
@@ -547,6 +883,12 @@ const normalizeSiteSettings = (payload) => {
         return link;
       });
     }
+  }
+  if (Array.isArray(merged?.downloads?.sources)) {
+    merged.downloads.sources = merged.downloads.sources.map((source) => ({
+      ...source,
+      tintIcon: source?.tintIcon !== false,
+    }));
   }
   return normalizeUploadsDeep(merged);
 };
@@ -599,16 +941,17 @@ const writeUpdates = (updates) => {
 const loadTagTranslations = () => {
   try {
     if (!fs.existsSync(tagTranslationsFilePath)) {
-      return { tags: {}, genres: {} };
+      return { tags: {}, genres: {}, staffRoles: {} };
     }
     const raw = fs.readFileSync(tagTranslationsFilePath, "utf-8");
     const parsed = JSON.parse(raw);
     return {
       tags: parsed?.tags && typeof parsed.tags === "object" ? parsed.tags : {},
       genres: parsed?.genres && typeof parsed.genres === "object" ? parsed.genres : {},
+      staffRoles: parsed?.staffRoles && typeof parsed.staffRoles === "object" ? parsed.staffRoles : {},
     };
   } catch {
-    return { tags: {}, genres: {} };
+    return { tags: {}, genres: {}, staffRoles: {} };
   }
 };
 
@@ -653,6 +996,107 @@ const loadUploads = () => {
 const writeUploads = (uploads) => {
   fs.mkdirSync(path.dirname(uploadsFilePath), { recursive: true });
   fs.writeFileSync(uploadsFilePath, JSON.stringify(uploads, null, 2));
+};
+
+const PRIVATE_UPLOAD_FOLDERS = new Set(["downloads", "socials", "users"]);
+
+const getUploadRootSegment = (value) => {
+  if (!value) {
+    return "";
+  }
+  const normalized = String(value).replace(/^\/+/, "");
+  const [root] = normalized.split(/[\\/]/);
+  return String(root || "").toLowerCase();
+};
+
+const isPrivateUploadFolder = (value) => PRIVATE_UPLOAD_FOLDERS.has(getUploadRootSegment(value));
+
+const normalizeUploadUrlValue = (value) => {
+  if (!value || typeof value !== "string") {
+    return null;
+  }
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return null;
+  }
+  if (trimmed.startsWith("/uploads/")) {
+    return trimmed.split("?")[0].split("#")[0];
+  }
+  try {
+    const parsed = new URL(trimmed, PRIMARY_APP_ORIGIN);
+    if (parsed.pathname && parsed.pathname.startsWith("/uploads/")) {
+      return parsed.pathname;
+    }
+  } catch {
+    // ignore
+  }
+  return null;
+};
+
+const collectDownloadIconUploads = (settings) => {
+  const urls = new Set();
+  const sources = settings?.downloads?.sources;
+  if (!Array.isArray(sources)) {
+    return urls;
+  }
+  sources.forEach((source) => {
+    const normalized = normalizeUploadUrlValue(source?.icon);
+    if (!normalized) {
+      return;
+    }
+    const relative = normalized.replace(/^\/uploads\//, "");
+    if (isPrivateUploadFolder(relative)) {
+      urls.add(normalized);
+    }
+  });
+  return urls;
+};
+
+const collectLinkTypeIconUploads = (items) => {
+  const urls = new Set();
+  if (!Array.isArray(items)) {
+    return urls;
+  }
+  items.forEach((item) => {
+    const normalized = normalizeUploadUrlValue(item?.icon);
+    if (!normalized) {
+      return;
+    }
+    const relative = normalized.replace(/^\/uploads\//, "");
+    if (isPrivateUploadFolder(relative)) {
+      urls.add(normalized);
+    }
+  });
+  return urls;
+};
+
+const deletePrivateUploadByUrl = (value) => {
+  try {
+    const normalized = normalizeUploadUrlValue(value);
+    if (!normalized) {
+      return;
+    }
+    const relativePath = normalized.replace(/^\/uploads\//, "");
+    if (!isPrivateUploadFolder(relativePath)) {
+      return;
+    }
+    const uploadsDir = path.join(__dirname, "..", "public", "uploads");
+    const targetPath = path.join(uploadsDir, relativePath);
+    const resolved = path.resolve(targetPath);
+    if (!resolved.startsWith(path.resolve(uploadsDir))) {
+      return;
+    }
+    if (fs.existsSync(resolved)) {
+      fs.unlinkSync(resolved);
+    }
+    const uploads = loadUploads();
+    const nextUploads = uploads.filter((item) => item.url !== normalized);
+    if (nextUploads.length !== uploads.length) {
+      writeUploads(nextUploads);
+    }
+  } catch {
+    // ignore cleanup errors
+  }
 };
 
 const loadPages = () => {
@@ -864,6 +1308,24 @@ const canRegisterView = (ip) => {
   viewRateLimit.set(ip, entry);
   return entry.count <= maxPerWindow;
 };
+
+const pollVoteRateLimit = new Map();
+const canRegisterPollVote = (ip) => {
+  if (!ip) {
+    return true;
+  }
+  const now = Date.now();
+  const windowMs = 60 * 1000;
+  const maxPerWindow = isProduction ? 20 : 120;
+  const entry = pollVoteRateLimit.get(ip) || { count: 0, resetAt: now + windowMs };
+  if (now > entry.resetAt) {
+    entry.count = 0;
+    entry.resetAt = now + windowMs;
+  }
+  entry.count += 1;
+  pollVoteRateLimit.set(ip, entry);
+  return entry.count <= maxPerWindow;
+};
 const createSlug = (value) =>
   String(value || "")
     .toLowerCase()
@@ -914,7 +1376,10 @@ const normalizePosts = (posts) => {
       coverAlt: post.coverAlt || "",
       excerpt: post.excerpt || "",
       content: post.content || "",
-      contentFormat: post.contentFormat === "html" ? "html" : "markdown",
+      contentFormat:
+        post.contentFormat === "html" || post.contentFormat === "lexical"
+          ? post.contentFormat
+          : "markdown",
       author: post.author || "",
       publishedAt,
       scheduledAt,
@@ -1337,6 +1802,7 @@ const buildUserPayload = (sessionUser) => {
     ...sessionUser,
     permissions: matched?.permissions || [],
     roles: matched?.roles || [],
+    avatarDisplay: normalizeAvatarDisplay(matched?.avatarDisplay),
   };
 };
 
@@ -1385,11 +1851,11 @@ const normalizeUsers = (users) => {
     phrase: user.phrase || "",
     bio: user.bio || "",
     avatarUrl: user.avatarUrl || null,
-    coverImageUrl: user.coverImageUrl || null,
     socials: Array.isArray(user.socials) ? user.socials.filter(Boolean) : [],
     status: user.status === "retired" ? "retired" : "active",
     permissions: Array.isArray(user.permissions) ? user.permissions : [],
     roles: Array.isArray(user.roles) ? user.roles.filter(Boolean) : [],
+    avatarDisplay: normalizeAvatarDisplay(user.avatarDisplay),
     order: typeof user.order === "number" ? user.order : index,
   }),
   );
@@ -1537,7 +2003,7 @@ const ensureOwnerUser = (sessionUser) => {
       phrase: "",
       bio: "",
       avatarUrl: sessionUser.avatarUrl || null,
-      coverImageUrl: null,
+      avatarDisplay: normalizeAvatarDisplay(null),
       socials: [],
       status: "active",
       permissions: ["*"],
@@ -1567,7 +2033,7 @@ app.get("/api/users", requireAuth, (req, res) => {
       phrase: "",
       bio: "",
       avatarUrl: sessionUser.avatarUrl || null,
-      coverImageUrl: null,
+      avatarDisplay: normalizeAvatarDisplay(null),
       socials: [],
       status: "active",
       permissions: ["*"],
@@ -1653,7 +2119,7 @@ app.get("/api/public/users", (req, res) => {
       phrase: user.phrase,
       bio: user.bio,
       avatarUrl: user.avatarUrl,
-      coverImageUrl: user.coverImageUrl,
+      avatarDisplay: normalizeAvatarDisplay(user.avatarDisplay),
       socials: user.socials,
       roles: applyOwnerRole(user).roles,
       isAdmin: !isOwner(user.id) && isAdminBadgeUser(user),
@@ -1673,6 +2139,8 @@ app.put("/api/link-types", requireOwner, (req, res) => {
   if (!Array.isArray(items)) {
     return res.status(400).json({ error: "items_required" });
   }
+  const previousLinkTypes = loadLinkTypes();
+  const previousIcons = collectLinkTypeIconUploads(previousLinkTypes);
   const normalized = items
     .map((item) => ({
       id: String(item.id || "").trim(),
@@ -1681,6 +2149,9 @@ app.put("/api/link-types", requireOwner, (req, res) => {
     }))
     .filter((item) => item.id && item.label);
   writeLinkTypes(normalized);
+  const nextIcons = collectLinkTypeIconUploads(normalized);
+  const removedIcons = Array.from(previousIcons).filter((url) => !nextIcons.has(url));
+  removedIcons.forEach((url) => deletePrivateUploadByUrl(url));
   return res.json({ items: normalized });
 });
 
@@ -1785,6 +2256,39 @@ app.post("/api/public/posts/:slug/view", (req, res) => {
   }
   const updated = incrementPostViews(slug);
   return res.json({ views: updated?.views ?? post.views ?? 0 });
+});
+
+app.post("/api/public/posts/:slug/polls/vote", (req, res) => {
+  const ip = req.headers["x-forwarded-for"]?.split(",")[0]?.trim() || req.ip;
+  if (!canRegisterPollVote(ip)) {
+    return res.status(429).json({ error: "rate_limited" });
+  }
+  const slug = String(req.params.slug || "");
+  const { optionUid, voterId, checked, question } = req.body || {};
+  if (!optionUid || !voterId) {
+    return res.status(400).json({ error: "invalid_payload" });
+  }
+  const posts = normalizePosts(loadPosts());
+  const index = posts.findIndex((post) => post.slug === slug);
+  if (index === -1) {
+    return res.status(404).json({ error: "not_found" });
+  }
+  const post = posts[index];
+  const result = updateLexicalPollVotes(post.content, {
+    question,
+    optionUid,
+    voterId,
+    checked,
+  });
+  if (!result.updated || !result.content) {
+    return res.status(404).json({ error: "poll_not_found" });
+  }
+  posts[index] = {
+    ...post,
+    content: result.content,
+  };
+  writePosts(posts);
+  return res.json({ ok: true });
 });
 
 app.get("/api/public/comments", (req, res) => {
@@ -2156,7 +2660,10 @@ app.post("/api/posts", requireAuth, (req, res) => {
     coverAlt: coverAlt || "",
     excerpt: excerpt || "",
     content: content || "",
-    contentFormat: contentFormat === "html" ? "html" : "markdown",
+    contentFormat:
+      contentFormat === "html" || contentFormat === "lexical"
+        ? contentFormat
+        : "markdown",
     author: author || sessionUser?.name || "Autor",
     publishedAt: normalizedPublishedAt,
     scheduledAt: scheduledAt || null,
@@ -2223,7 +2730,14 @@ app.put("/api/posts/:id", requireAuth, (req, res) => {
     coverAlt: typeof coverAlt === "string" ? coverAlt : existing.coverAlt,
     excerpt: typeof excerpt === "string" ? excerpt : existing.excerpt,
     content: typeof content === "string" ? content : existing.content,
-    contentFormat: contentFormat === "html" ? "html" : contentFormat === "markdown" ? "markdown" : existing.contentFormat,
+    contentFormat:
+      contentFormat === "html"
+        ? "html"
+        : contentFormat === "markdown"
+          ? "markdown"
+          : contentFormat === "lexical"
+            ? "lexical"
+            : existing.contentFormat,
     author: typeof author === "string" ? author : existing.author,
     publishedAt: publishedAt || existing.publishedAt,
     scheduledAt: scheduledAt || existing.scheduledAt,
@@ -2720,6 +3234,63 @@ app.get("/api/public/projects/:id/chapters/:number", (req, res) => {
   });
 });
 
+app.post("/api/public/projects/:id/chapters/:number/polls/vote", (req, res) => {
+  const ip = req.headers["x-forwarded-for"]?.split(",")[0]?.trim() || req.ip;
+  if (!canRegisterPollVote(ip)) {
+    return res.status(429).json({ error: "rate_limited" });
+  }
+  const id = String(req.params.id || "");
+  const chapterNumber = Number(req.params.number);
+  const volume = req.query.volume ? Number(req.query.volume) : null;
+  const { optionUid, voterId, checked, question } = req.body || {};
+  if (!Number.isFinite(chapterNumber)) {
+    return res.status(400).json({ error: "invalid_chapter" });
+  }
+  if (!optionUid || !voterId) {
+    return res.status(400).json({ error: "invalid_payload" });
+  }
+  const projects = normalizeProjects(loadProjects());
+  const projectIndex = projects.findIndex((item) => item.id === id);
+  if (projectIndex === -1) {
+    return res.status(404).json({ error: "not_found" });
+  }
+  const project = projects[projectIndex];
+  const chapterIndex = project.episodeDownloads.findIndex((episode) => {
+    if (Number(episode.number) !== chapterNumber) {
+      return false;
+    }
+    if (Number.isFinite(volume)) {
+      return Number(episode.volume || 0) === volume;
+    }
+    return true;
+  });
+  if (chapterIndex === -1) {
+    return res.status(404).json({ error: "not_found" });
+  }
+  const chapter = project.episodeDownloads[chapterIndex];
+  const result = updateLexicalPollVotes(chapter.content, {
+    question,
+    optionUid,
+    voterId,
+    checked,
+  });
+  if (!result.updated || !result.content) {
+    return res.status(404).json({ error: "poll_not_found" });
+  }
+  const updatedChapter = {
+    ...chapter,
+    content: result.content,
+  };
+  const updatedEpisodes = [...project.episodeDownloads];
+  updatedEpisodes[chapterIndex] = updatedChapter;
+  projects[projectIndex] = {
+    ...project,
+    episodeDownloads: updatedEpisodes,
+  };
+  writeProjects(projects);
+  return res.json({ ok: true });
+});
+
 app.get("/api/public/updates", (req, res) => {
   const limitRaw = Number(req.query.limit);
   const pageRaw = Number(req.query.page);
@@ -2760,7 +3331,11 @@ app.get("/api/public/settings", (req, res) => {
 
 app.get("/api/public/tag-translations", (req, res) => {
   const translations = loadTagTranslations();
-  res.json({ tags: translations.tags, genres: translations.genres });
+  res.json({
+    tags: translations.tags,
+    genres: translations.genres,
+    staffRoles: translations.staffRoles,
+  });
 });
 
 app.post("/api/tag-translations/anilist-sync", requireAuth, async (req, res) => {
@@ -2797,6 +3372,7 @@ app.post("/api/tag-translations/anilist-sync", requireAuth, async (req, res) => 
     const current = loadTagTranslations();
     const nextTags = { ...current.tags };
     const nextGenres = { ...current.genres };
+    const nextStaffRoles = { ...current.staffRoles };
     tags.forEach((tag) => {
       if (typeof nextTags[tag] !== "string") {
         nextTags[tag] = "";
@@ -2807,7 +3383,7 @@ app.post("/api/tag-translations/anilist-sync", requireAuth, async (req, res) => 
         nextGenres[genre] = "";
       }
     });
-    const payload = { tags: nextTags, genres: nextGenres };
+    const payload = { tags: nextTags, genres: nextGenres, staffRoles: nextStaffRoles };
     writeTagTranslations(payload);
     return res.json(payload);
   } catch {
@@ -2836,8 +3412,13 @@ app.put("/api/settings", requireAuth, (req, res) => {
   if (!settings || typeof settings !== "object") {
     return res.status(400).json({ error: "Payload inválido." });
   }
+  const previousSettings = loadSiteSettings();
+  const previousDownloadIcons = collectDownloadIconUploads(previousSettings);
   const normalized = normalizeSiteSettings(settings);
   writeSiteSettings(normalized);
+  const nextDownloadIcons = collectDownloadIconUploads(normalized);
+  const removedIcons = Array.from(previousDownloadIcons).filter((url) => !nextDownloadIcons.has(url));
+  removedIcons.forEach((url) => deletePrivateUploadByUrl(url));
   appendAuditLog(req, "settings.update", "settings", {});
   return res.json({ settings: normalized });
 });
@@ -2869,10 +3450,11 @@ app.post("/api/tag-translations/sync", requireAuth, (req, res) => {
   if (!canManageProjects(sessionUser?.id)) {
     return res.status(403).json({ error: "forbidden" });
   }
-  const { tags, genres } = req.body || {};
+  const { tags, genres, staffRoles } = req.body || {};
   const current = loadTagTranslations();
   const nextTags = { ...current.tags };
   const nextGenres = { ...current.genres };
+  const nextStaffRoles = { ...current.staffRoles };
 
   const tagList = Array.isArray(tags) ? tags : [];
   tagList.forEach((tag) => {
@@ -2890,7 +3472,15 @@ app.post("/api/tag-translations/sync", requireAuth, (req, res) => {
     }
   });
 
-  const payload = { tags: nextTags, genres: nextGenres };
+  const staffRoleList = Array.isArray(staffRoles) ? staffRoles : [];
+  staffRoleList.forEach((role) => {
+    const key = String(role || "").trim();
+    if (key && typeof nextStaffRoles[key] !== "string") {
+      nextStaffRoles[key] = "";
+    }
+  });
+
+  const payload = { tags: nextTags, genres: nextGenres, staffRoles: nextStaffRoles };
   writeTagTranslations(payload);
   return res.json(payload);
 });
@@ -2902,7 +3492,12 @@ app.put("/api/tag-translations", requireAuth, (req, res) => {
   }
   const tags = req.body?.tags;
   const genres = req.body?.genres;
-  if ((!tags || typeof tags !== "object") && (!genres || typeof genres !== "object")) {
+  const staffRoles = req.body?.staffRoles;
+  if (
+    (!tags || typeof tags !== "object") &&
+    (!genres || typeof genres !== "object") &&
+    (!staffRoles || typeof staffRoles !== "object")
+  ) {
     return res.status(400).json({ error: "translations_required" });
   }
   const current = loadTagTranslations();
@@ -2916,7 +3511,12 @@ app.put("/api/tag-translations", requireAuth, (req, res) => {
         Object.entries(genres).map(([key, value]) => [String(key), String(value || "")]),
       )
     : current.genres;
-  const payload = { tags: normalizedTags, genres: normalizedGenres };
+  const normalizedStaffRoles = staffRoles && typeof staffRoles === "object"
+    ? Object.fromEntries(
+        Object.entries(staffRoles).map(([key, value]) => [String(key), String(value || "")]),
+      )
+    : current.staffRoles;
+  const payload = { tags: normalizedTags, genres: normalizedGenres, staffRoles: normalizedStaffRoles };
   writeTagTranslations(payload);
   return res.json(payload);
 });
@@ -3012,7 +3612,7 @@ app.post("/api/uploads/image", requireAuth, (req, res) => {
     return res.status(429).json({ error: "rate_limited" });
   }
 
-  const { dataUrl, filename, folder } = req.body || {};
+  const { dataUrl, filename, folder, slot } = req.body || {};
   if (!dataUrl || typeof dataUrl !== "string") {
     return res.status(400).json({ error: "data_url_required" });
   }
@@ -3037,21 +3637,16 @@ app.post("/api/uploads/image", requireAuth, (req, res) => {
   if (mime.toLowerCase() === "image/svg+xml" && buffer.length > MAX_SVG_SIZE_BYTES) {
     return res.status(400).json({ error: "svg_too_large" });
   }
-  const safeName = String(filename || "upload")
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
-  const fileName = `${safeName || "imagem"}-${Date.now()}.${ext}`;
+  const safeName = sanitizeUploadBaseName(filename || "upload");
+  const safeSlot = sanitizeUploadSlot(slot);
   const uploadsDir = path.join(__dirname, "..", "public", "uploads");
-  const safeFolder = typeof folder === "string" && folder.trim()
-    ? folder
-        .trim()
-        .replace(/[^a-z0-9/_-]+/gi, "-")
-        .replace(/\/{2,}/g, "/")
-        .replace(/^\//, "")
-    : "";
+  const safeFolder = sanitizeUploadFolder(folder);
   const targetDir = safeFolder ? path.join(uploadsDir, safeFolder) : uploadsDir;
   fs.mkdirSync(targetDir, { recursive: true });
+  const useSlotName = Boolean(safeSlot && isPrivateUploadFolder(safeFolder));
+  const fileName = useSlotName
+    ? `${safeSlot}.${ext}`
+    : `${safeName || "imagem"}-${Date.now()}.${ext}`;
   const filePath = path.join(targetDir, fileName);
   if (mime.toLowerCase() === "image/svg+xml") {
     const svgText = buffer.toString("utf-8");
@@ -3063,7 +3658,7 @@ app.post("/api/uploads/image", requireAuth, (req, res) => {
 
   const relativeUrl = `/uploads/${safeFolder ? `${safeFolder}/` : ""}${fileName}`;
   const uploads = loadUploads();
-  uploads.push({
+  const uploadEntry = {
     id: crypto.randomUUID(),
     url: relativeUrl,
     fileName,
@@ -3071,7 +3666,17 @@ app.post("/api/uploads/image", requireAuth, (req, res) => {
     size: buffer.length,
     mime,
     createdAt: new Date().toISOString(),
-  });
+  };
+  const existingIndex = uploads.findIndex((item) => item.url === relativeUrl);
+  if (existingIndex >= 0) {
+    uploads[existingIndex] = {
+      ...uploads[existingIndex],
+      ...uploadEntry,
+      id: uploads[existingIndex].id,
+    };
+  } else {
+    uploads.push(uploadEntry);
+  }
   writeUploads(uploads);
 
   appendAuditLog(req, "uploads.image", "uploads", { fileName, folder: safeFolder || "", url: relativeUrl });
@@ -3089,16 +3694,16 @@ app.get("/api/uploads/list", requireAuth, (req, res) => {
   const uploadsDir = path.join(__dirname, "..", "public", "uploads");
   const folder = typeof req.query.folder === "string" ? req.query.folder.trim() : "";
   const listAll = folder === "__all__";
-  const safeFolder = listAll
-    ? ""
-    : folder
-    ? folder
-        .replace(/[^a-z0-9/_-]+/gi, "-")
-        .replace(/\/{2,}/g, "/")
-        .replace(/^\//, "")
-    : "";
+  const safeFolder = listAll ? "" : sanitizeUploadFolder(folder);
   const targetDir = safeFolder ? path.join(uploadsDir, safeFolder) : uploadsDir;
   try {
+    const usedUrls = getUsedUploadUrls();
+    const uploadMeta = loadUploads();
+    const uploadMetaMap = new Map(
+      uploadMeta
+        .map((item) => [normalizeUploadUrl(item?.url), item])
+        .filter(([key]) => Boolean(key)),
+    );
     const collectFiles = (dir, base) => {
       if (!fs.existsSync(dir)) {
         return [];
@@ -3107,17 +3712,35 @@ app.get("/api/uploads/list", requireAuth, (req, res) => {
       const results = [];
       entries.forEach((entry) => {
         const fullPath = path.join(dir, entry.name);
+        const nextBase = path.join(base, entry.name);
+        const normalizedBase = nextBase.split(path.sep).join("/");
+        if (listAll && isPrivateUploadFolder(normalizedBase)) {
+          return;
+        }
         if (entry.isDirectory()) {
-          results.push(...collectFiles(fullPath, path.join(base, entry.name)));
+          results.push(...collectFiles(fullPath, nextBase));
           return;
         }
         if (!/\.(png|jpe?g|gif|webp|svg(\+xml)?)$/i.test(entry.name)) {
           return;
         }
-        const relative = path.join(base, entry.name).split(path.sep).join("/");
+        const relative = normalizedBase;
+        const url = `/uploads/${relative}`;
+        const normalizedUrl = normalizeUploadUrl(url) || url;
+        const stat = fs.statSync(fullPath);
+        const meta = uploadMetaMap.get(normalizedUrl) || null;
+        const inUse = usedUrls.has(normalizedUrl);
         results.push({
           name: entry.name,
-          url: `/uploads/${relative}`,
+          url: normalizedUrl,
+          source: "upload",
+          folder: meta?.folder ?? path.dirname(relative).replace(/\\/g, "/").replace(/^\.$/, ""),
+          fileName: meta?.fileName || entry.name,
+          mime: meta?.mime || getUploadMimeFromExtension(path.extname(entry.name).replace(".", "")),
+          size: typeof meta?.size === "number" ? meta.size : stat.size,
+          createdAt: meta?.createdAt || stat.mtime.toISOString(),
+          inUse,
+          canDelete: !inUse,
         });
       });
       return results;
@@ -3126,13 +3749,187 @@ app.get("/api/uploads/list", requireAuth, (req, res) => {
       ? collectFiles(uploadsDir, "")
       : (fs.existsSync(targetDir) ? fs.readdirSync(targetDir) : [])
           .filter((item) => /\.(png|jpe?g|gif|webp|svg(\+xml)?)$/i.test(item))
-          .map((item) => ({
-            name: item,
-            url: `/uploads/${safeFolder ? `${safeFolder}/` : ""}${item}`,
-          }));
+          .map((item) => {
+            const fullPath = path.join(targetDir, item);
+            const relativePath = `${safeFolder ? `${safeFolder}/` : ""}${item}`;
+            const url = `/uploads/${relativePath}`;
+            const normalizedUrl = normalizeUploadUrl(url) || url;
+            const stat = fs.statSync(fullPath);
+            const meta = uploadMetaMap.get(normalizedUrl) || null;
+            const inUse = usedUrls.has(normalizedUrl);
+            return {
+              name: item,
+              url: normalizedUrl,
+              source: "upload",
+              folder: meta?.folder ?? safeFolder,
+              fileName: meta?.fileName || item,
+              mime: meta?.mime || getUploadMimeFromExtension(path.extname(item).replace(".", "")),
+              size: typeof meta?.size === "number" ? meta.size : stat.size,
+              createdAt: meta?.createdAt || stat.mtime.toISOString(),
+              inUse,
+              canDelete: !inUse,
+            };
+          });
     return res.json({ files });
   } catch {
     return res.json({ files: [] });
+  }
+});
+
+const collectProjectImageItems = (projects) => {
+  const dedupe = new Set();
+  const items = [];
+  const push = (project, url, kind, label) => {
+    const normalizedUrl = normalizeUploadUrl(url) || String(url || "").trim();
+    if (!normalizedUrl || dedupe.has(normalizedUrl)) {
+      return;
+    }
+    dedupe.add(normalizedUrl);
+    items.push({
+      source: "project",
+      url: normalizedUrl,
+      label,
+      projectId: project.id,
+      projectTitle: project.title,
+      kind,
+    });
+  };
+  projects.forEach((project) => {
+    push(project, project.cover, "cover", `${project.title} (Capa)`);
+    push(project, project.banner, "banner", `${project.title} (Banner)`);
+    push(project, project.heroImageUrl, "hero", `${project.title} (Carrossel)`);
+    (Array.isArray(project.relations) ? project.relations : []).forEach((relation, index) => {
+      const relationLabel = relation?.title
+        ? `${project.title} (Relação: ${relation.title})`
+        : `${project.title} (Relação ${index + 1})`;
+      push(project, relation?.image, "relation", relationLabel);
+    });
+    (Array.isArray(project.episodeDownloads) ? project.episodeDownloads : []).forEach((episode, index) => {
+      const suffix = episode?.number ? `Cap/Ep ${episode.number}` : `Cap/Ep ${index + 1}`;
+      push(project, episode?.coverImageUrl, "episode-cover", `${project.title} (${suffix})`);
+    });
+  });
+  return items;
+};
+
+app.get("/api/uploads/project-images", requireAuth, (req, res) => {
+  const sessionUser = req.session.user;
+  if (!canManageUploads(sessionUser?.id)) {
+    return res.status(403).json({ error: "forbidden" });
+  }
+  const projects = normalizeProjects(loadProjects());
+  return res.json({ items: collectProjectImageItems(projects) });
+});
+
+app.post("/api/uploads/image-from-url", requireAuth, async (req, res) => {
+  const sessionUser = req.session.user;
+  if (!canManageUploads(sessionUser?.id)) {
+    return res.status(403).json({ error: "forbidden" });
+  }
+  const ip = req.headers["x-forwarded-for"]?.split(",")[0]?.trim() || req.ip;
+  if (!canUploadImage(ip)) {
+    return res.status(429).json({ error: "rate_limited" });
+  }
+
+  const remoteUrl = String(req.body?.url || "").trim();
+  const safeFolder = sanitizeUploadFolder(req.body?.folder || "");
+  if (!remoteUrl) {
+    return res.status(400).json({ error: "url_required" });
+  }
+  let parsedRemote;
+  try {
+    parsedRemote = new URL(remoteUrl);
+    if (parsedRemote.protocol !== "http:" && parsedRemote.protocol !== "https:") {
+      return res.status(400).json({ error: "invalid_url" });
+    }
+  } catch {
+    return res.status(400).json({ error: "invalid_url" });
+  }
+
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 20_000);
+    const response = await fetch(parsedRemote.toString(), {
+      method: "GET",
+      redirect: "follow",
+      signal: controller.signal,
+    });
+    clearTimeout(timeout);
+    if (!response.ok) {
+      return res.status(502).json({ error: "fetch_failed" });
+    }
+
+    const contentTypeHeader = String(response.headers.get("content-type") || "");
+    const headerMime = contentTypeHeader.split(";")[0].trim().toLowerCase();
+    const extFromUrl = path.extname(parsedRemote.pathname || "").replace(".", "").toLowerCase();
+    let mime = isSupportedUploadImageMime(headerMime)
+      ? headerMime
+      : getUploadMimeFromExtension(extFromUrl);
+    if (!isSupportedUploadImageMime(mime)) {
+      return res.status(400).json({ error: "unsupported_image_type" });
+    }
+
+    const buffer = Buffer.from(await response.arrayBuffer());
+    if (!buffer.length) {
+      return res.status(400).json({ error: "empty_upload" });
+    }
+    if (buffer.length > MAX_UPLOAD_SIZE_BYTES) {
+      return res.status(400).json({ error: "file_too_large" });
+    }
+    if (mime === "image/svg+xml" && buffer.length > MAX_SVG_SIZE_BYTES) {
+      return res.status(400).json({ error: "svg_too_large" });
+    }
+
+    if (!isSupportedUploadImageMime(headerMime) && !extFromUrl) {
+      if (buffer[0] === 0x89 && buffer[1] === 0x50 && buffer[2] === 0x4e && buffer[3] === 0x47) {
+        mime = "image/png";
+      } else if (buffer[0] === 0xff && buffer[1] === 0xd8) {
+        mime = "image/jpeg";
+      } else if (buffer[0] === 0x47 && buffer[1] === 0x49 && buffer[2] === 0x46) {
+        mime = "image/gif";
+      }
+      if (!isSupportedUploadImageMime(mime)) {
+        return res.status(400).json({ error: "unsupported_image_type" });
+      }
+    }
+
+    const uploadsDir = path.join(__dirname, "..", "public", "uploads");
+    const targetDir = safeFolder ? path.join(uploadsDir, safeFolder) : uploadsDir;
+    fs.mkdirSync(targetDir, { recursive: true });
+
+    const parsedName = decodeURIComponent(path.basename(parsedRemote.pathname || "") || "upload");
+    const safeBase = sanitizeUploadBaseName(parsedName || "upload");
+    const ext = getUploadExtFromMime(mime);
+    const fileName = `${safeBase || "imagem"}-${Date.now()}.${ext}`;
+    const filePath = path.join(targetDir, fileName);
+
+    if (mime === "image/svg+xml") {
+      const sanitized = sanitizeSvg(buffer.toString("utf-8"));
+      fs.writeFileSync(filePath, sanitized);
+    } else {
+      fs.writeFileSync(filePath, buffer);
+    }
+
+    const relativeUrl = `/uploads/${safeFolder ? `${safeFolder}/` : ""}${fileName}`;
+    const uploads = loadUploads();
+    uploads.push({
+      id: crypto.randomUUID(),
+      url: relativeUrl,
+      fileName,
+      folder: safeFolder || "",
+      size: buffer.length,
+      mime,
+      createdAt: new Date().toISOString(),
+    });
+    writeUploads(uploads);
+    appendAuditLog(req, "uploads.image_from_url", "uploads", {
+      url: relativeUrl,
+      remoteUrl: parsedRemote.toString(),
+      folder: safeFolder || "",
+    });
+    return res.json({ url: relativeUrl, fileName });
+  } catch {
+    return res.status(502).json({ error: "fetch_failed" });
   }
 });
 
@@ -3213,8 +4010,211 @@ const getUsedUploadUrls = () => {
   collectUploadUrls(loadProjects(), urls);
   collectUploadUrls(loadUsers(), urls);
   collectUploadUrls(loadPages(), urls);
+  collectUploadUrls(loadComments(), urls);
+  collectUploadUrls(loadUpdates(), urls);
   return urls;
 };
+
+const escapeRegExp = (value) => String(value || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+const replaceUploadReferencesInText = (value, oldUrl, newUrl) => {
+  if (!value || typeof value !== "string") {
+    return { value, count: 0 };
+  }
+  let next = value;
+  let count = 0;
+  const directRegex = new RegExp(escapeRegExp(oldUrl), "g");
+  const directMatches = next.match(directRegex);
+  if (directMatches?.length) {
+    count += directMatches.length;
+    next = next.replace(directRegex, newUrl);
+  }
+  const absolutePattern = /https?:\/\/[^\s"'()<>]+/gi;
+  next = next.replace(absolutePattern, (match) => {
+    const normalized = toUploadPath(match);
+    if (normalized !== oldUrl) {
+      return match;
+    }
+    count += 1;
+    try {
+      const parsed = new URL(match);
+      parsed.pathname = newUrl;
+      return parsed.toString();
+    } catch {
+      return match.replace(oldUrl, newUrl);
+    }
+  });
+  return { value: next, count };
+};
+
+const replaceUploadReferencesDeep = (value, oldUrl, newUrl) => {
+  if (typeof value === "string") {
+    return replaceUploadReferencesInText(value, oldUrl, newUrl);
+  }
+  if (Array.isArray(value)) {
+    let count = 0;
+    const next = value.map((item) => {
+      const result = replaceUploadReferencesDeep(item, oldUrl, newUrl);
+      count += result.count;
+      return result.value;
+    });
+    return { value: next, count };
+  }
+  if (value && typeof value === "object") {
+    let count = 0;
+    const next = { ...value };
+    Object.keys(next).forEach((key) => {
+      const result = replaceUploadReferencesDeep(next[key], oldUrl, newUrl);
+      count += result.count;
+      next[key] = result.value;
+    });
+    return { value: next, count };
+  }
+  return { value, count: 0 };
+};
+
+app.put("/api/uploads/rename", requireAuth, (req, res) => {
+  const sessionUser = req.session.user;
+  if (!canManageUploads(sessionUser?.id)) {
+    return res.status(403).json({ error: "forbidden" });
+  }
+
+  const normalized = normalizeUploadUrl(req.body?.url);
+  const requestedName = String(req.body?.newName || "").trim();
+  if (!normalized) {
+    return res.status(400).json({ error: "invalid_url" });
+  }
+  if (!requestedName) {
+    return res.status(400).json({ error: "invalid_name" });
+  }
+
+  try {
+    const uploadsDir = path.join(__dirname, "..", "public", "uploads");
+    const parsed = new URL(normalized, PRIMARY_APP_ORIGIN);
+    const pathname = decodeURIComponent(parsed.pathname || "");
+    if (!pathname.startsWith("/uploads/")) {
+      return res.status(400).json({ error: "invalid_path" });
+    }
+    const relativePath = pathname.replace(/^\/uploads\//, "");
+    const oldFileName = path.basename(relativePath);
+    const oldExt = path.extname(oldFileName).replace(".", "").toLowerCase();
+    const oldFolder = path.dirname(relativePath).replace(/\\/g, "/").replace(/^\.$/, "");
+    const safeBaseName = sanitizeUploadBaseName(requestedName);
+    if (!safeBaseName) {
+      return res.status(400).json({ error: "invalid_name" });
+    }
+    const nextFileName = `${safeBaseName}.${oldExt || "png"}`;
+    if (nextFileName === oldFileName) {
+      return res.json({ ok: true, oldUrl: normalized, newUrl: normalized, updatedReferences: 0 });
+    }
+
+    const oldFilePath = path.join(uploadsDir, relativePath);
+    const nextRelativePath = `${oldFolder ? `${oldFolder}/` : ""}${nextFileName}`;
+    const nextFilePath = path.join(uploadsDir, nextRelativePath);
+    const resolvedOld = path.resolve(oldFilePath);
+    const resolvedNew = path.resolve(nextFilePath);
+    const uploadsRoot = path.resolve(uploadsDir);
+    if (!resolvedOld.startsWith(uploadsRoot) || !resolvedNew.startsWith(uploadsRoot)) {
+      return res.status(400).json({ error: "invalid_path" });
+    }
+    if (!fs.existsSync(resolvedOld)) {
+      return res.status(404).json({ error: "not_found" });
+    }
+    if (fs.existsSync(resolvedNew)) {
+      return res.status(409).json({ error: "name_conflict" });
+    }
+    fs.renameSync(resolvedOld, resolvedNew);
+
+    const nextUrl = `/uploads/${nextRelativePath}`;
+    const uploads = loadUploads();
+    const uploadsNext = uploads.map((item) =>
+      item.url === normalized
+        ? {
+            ...item,
+            url: nextUrl,
+            fileName: nextFileName,
+            folder: oldFolder,
+          }
+        : item,
+    );
+    writeUploads(uploadsNext);
+
+    const replacements = [];
+    const pushResult = (key, result) => {
+      if (result.count > 0) {
+        replacements.push(`${key}:${result.count}`);
+      }
+    };
+
+    const settingsResult = replaceUploadReferencesDeep(loadSiteSettings(), normalized, nextUrl);
+    pushResult("settings", settingsResult);
+    if (settingsResult.count > 0) {
+      writeSiteSettings(settingsResult.value);
+    }
+
+    const postsResult = replaceUploadReferencesDeep(loadPosts(), normalized, nextUrl);
+    pushResult("posts", postsResult);
+    if (postsResult.count > 0) {
+      writePosts(postsResult.value);
+    }
+
+    const projectsResult = replaceUploadReferencesDeep(loadProjects(), normalized, nextUrl);
+    pushResult("projects", projectsResult);
+    if (projectsResult.count > 0) {
+      writeProjects(projectsResult.value);
+    }
+
+    const usersResult = replaceUploadReferencesDeep(loadUsers(), normalized, nextUrl);
+    pushResult("users", usersResult);
+    if (usersResult.count > 0) {
+      writeUsers(usersResult.value);
+    }
+
+    const pagesResult = replaceUploadReferencesDeep(loadPages(), normalized, nextUrl);
+    pushResult("pages", pagesResult);
+    if (pagesResult.count > 0) {
+      writePages(pagesResult.value);
+    }
+
+    const commentsResult = replaceUploadReferencesDeep(loadComments(), normalized, nextUrl);
+    pushResult("comments", commentsResult);
+    if (commentsResult.count > 0) {
+      writeComments(commentsResult.value);
+    }
+
+    const updatesResult = replaceUploadReferencesDeep(loadUpdates(), normalized, nextUrl);
+    pushResult("updates", updatesResult);
+    if (updatesResult.count > 0) {
+      writeUpdates(updatesResult.value);
+    }
+
+    const updatedReferences = [
+      settingsResult.count,
+      postsResult.count,
+      projectsResult.count,
+      usersResult.count,
+      pagesResult.count,
+      commentsResult.count,
+      updatesResult.count,
+    ].reduce((sum, value) => sum + value, 0);
+
+    appendAuditLog(req, "uploads.rename", "uploads", {
+      oldUrl: normalized,
+      newUrl: nextUrl,
+      updatedReferences,
+      replacements,
+    });
+
+    return res.json({
+      ok: true,
+      oldUrl: normalized,
+      newUrl: nextUrl,
+      updatedReferences,
+    });
+  } catch {
+    return res.status(500).json({ error: "rename_failed" });
+  }
+});
 
 app.delete("/api/uploads/delete", requireAuth, (req, res) => {
   const sessionUser = req.session.user;
@@ -3262,7 +4262,7 @@ app.delete("/api/uploads/delete", requireAuth, (req, res) => {
 });
 
 app.post("/api/users", requireOwner, (req, res) => {
-  const { id, name, phrase, bio, avatarUrl, coverImageUrl, socials, status, permissions, roles } = req.body || {};
+  const { id, name, phrase, bio, avatarUrl, avatarDisplay, socials, status, permissions, roles } = req.body || {};
   if (!id || !name) {
     return res.status(400).json({ error: "id_and_name_required" });
   }
@@ -3278,7 +4278,7 @@ app.post("/api/users", requireOwner, (req, res) => {
     phrase: phrase || "",
     bio: bio || "",
     avatarUrl: avatarUrl || null,
-    coverImageUrl: coverImageUrl || null,
+    avatarDisplay: normalizeAvatarDisplay(avatarDisplay),
     socials: Array.isArray(socials) ? socials.filter(Boolean) : [],
     status: status === "retired" ? "retired" : "active",
     permissions: Array.isArray(permissions) ? permissions : [],
@@ -3376,7 +4376,10 @@ app.put("/api/users/:id", (req, res) => {
     phrase: update.phrase ?? existing.phrase,
     bio: update.bio ?? existing.bio,
     avatarUrl: update.avatarUrl ?? existing.avatarUrl,
-    coverImageUrl: update.coverImageUrl ?? existing.coverImageUrl,
+    avatarDisplay:
+      update.avatarDisplay !== undefined
+        ? normalizeAvatarDisplay(update.avatarDisplay)
+        : normalizeAvatarDisplay(existing.avatarDisplay),
     socials: Array.isArray(update.socials) ? update.socials : existing.socials,
     status: update.status === "retired" ? "retired" : "active",
     permissions: Array.isArray(update.permissions) ? update.permissions : existing.permissions,
@@ -3467,7 +4470,10 @@ app.put("/api/users/self", requireAuth, (req, res) => {
     phrase: update.phrase ?? existing.phrase,
     bio: update.bio ?? existing.bio,
     avatarUrl: update.avatarUrl ?? existing.avatarUrl,
-    coverImageUrl: update.coverImageUrl ?? existing.coverImageUrl,
+    avatarDisplay:
+      update.avatarDisplay !== undefined
+        ? normalizeAvatarDisplay(update.avatarDisplay)
+        : normalizeAvatarDisplay(existing.avatarDisplay),
     socials: Array.isArray(update.socials) ? update.socials : existing.socials,
   };
 
@@ -3488,6 +4494,46 @@ app.post("/api/logout", (req, res) => {
   req.session?.destroy(() => undefined);
   res.clearCookie("rainbow.sid");
   res.json({ ok: true });
+});
+
+app.get(["/", "/projeto/:id", "/projeto/:id/leitura/:chapter", "/postagem/:slug"], (req, res) => {
+  try {
+    if (req.path.startsWith("/postagem/")) {
+      const slug = String(req.params.slug || "");
+      const post = normalizePosts(loadPosts()).find((item) => item.slug === slug);
+      const meta = post ? buildPostMeta(post) : buildSiteMeta();
+      return res.type("html").send(renderMetaHtml({ ...meta, url: `${PRIMARY_APP_ORIGIN}${req.path}` }));
+    }
+    if (req.path.startsWith("/projeto/")) {
+      const id = String(req.params.id || "");
+      const project = normalizeProjects(loadProjects()).find((item) => String(item.id) === id);
+      const meta = project ? buildProjectMeta(project) : buildSiteMeta();
+      return res.type("html").send(renderMetaHtml({ ...meta, url: `${PRIMARY_APP_ORIGIN}${req.path}` }));
+    }
+    const meta = buildSiteMeta();
+    return res.type("html").send(renderMetaHtml({ ...meta, url: `${PRIMARY_APP_ORIGIN}${req.path}` }));
+  } catch {
+    return res.type("html").send(getIndexHtml());
+  }
+});
+
+app.get("*", (req, res) => {
+  if (req.path.startsWith("/api") || req.path.startsWith("/auth")) {
+    return res.status(404).json({ error: "not_found" });
+  }
+  try {
+    const settings = loadSiteSettings();
+    const meta = buildSiteMetaWithSettings(settings);
+    const siteName = settings.site?.name || "Nekomata";
+    const separator = settings.site?.titleSeparator ?? "";
+    const pageTitle = getPageTitleFromPath(req.path);
+    const title = pageTitle ? `${pageTitle}${separator}${siteName}` : siteName;
+    return res
+      .type("html")
+      .send(renderMetaHtml({ ...meta, title, url: `${PRIMARY_APP_ORIGIN}${req.path}` }));
+  } catch {
+    return res.type("html").send(getIndexHtml());
+  }
 });
 
 app.listen(Number(PORT));

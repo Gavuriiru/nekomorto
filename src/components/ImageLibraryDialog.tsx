@@ -1,5 +1,14 @@
-﻿import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import "croppie/croppie.css";
 
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuLabel,
+  ContextMenuSeparator,
+  ContextMenuTrigger,
+} from "@/components/ui/context-menu";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -7,23 +16,30 @@ import { Label } from "@/components/ui/label";
 import { toast } from "@/components/ui/use-toast";
 import { apiFetch } from "@/lib/api-client";
 
-type LibraryImage = {
+export type LibraryImageSource = "upload" | "project";
+
+export type LibraryImageItem = {
   name: string;
   url: string;
+  source: LibraryImageSource;
+  label?: string;
+  folder?: string;
+  fileName?: string;
+  mime?: string;
+  size?: number;
+  createdAt?: string;
+  inUse?: boolean;
+  canDelete?: boolean;
+  projectId?: string;
+  projectTitle?: string;
+  kind?: string;
 };
 
-type LibrarySectionItem = {
-  key: string;
-  label: string;
-  url: string;
+export type ImageLibrarySavePayload = {
+  urls: string[];
+  items: LibraryImageItem[];
 };
 
-type LibrarySection = {
-  title: string;
-  items: LibrarySectionItem[];
-  description?: string;
-  onSelect?: (url: string, alt?: string, item?: LibrarySectionItem) => void;
-};
 
 type ImageLibraryDialogProps = {
   open: boolean;
@@ -34,50 +50,107 @@ type ImageLibraryDialogProps = {
   uploadFolder?: string;
   listFolders?: string[];
   listAll?: boolean;
-  allowUrlInput?: boolean;
-  showAltInput?: boolean;
-  allowDeleteUploads?: boolean;
+  mode?: "single" | "multiple";
   allowDeselect?: boolean;
-  selectOnUpload?: boolean;
+  showUrlImport?: boolean;
+  currentSelectionUrls?: string[];
   currentSelectionUrl?: string;
-  sections?: LibrarySection[];
-  onSelect: (url: string, alt?: string) => void;
+  cropAvatar?: boolean;
+  cropTargetFolder?: string;
+  cropSlot?: string;
+  onSave: (payload: ImageLibrarySavePayload) => void;
 };
 
-const getAltFromName = (name: string) =>
-  name.replace(/\.[^/.]+$/, "").replace(/[-_]/g, " ").trim();
+type CroppieInstance = {
+  bind: (options: { url: string; points?: number[]; orientation?: number; zoom?: number; useCanvas?: boolean }) => Promise<void>;
+  result: (options: {
+    type?: "canvas" | "base64" | "html" | "blob" | "rawcanvas";
+    size?: "viewport" | "original" | { width: number; height: number };
+    format?: "jpeg" | "png" | "webp";
+    quality?: number;
+    circle?: boolean;
+  }) => Promise<string | Blob | HTMLElement | HTMLCanvasElement>;
+  get: () => { points?: number[]; orientation?: number; zoom?: number };
+  rotate: (degrees: 90 | 180 | 270 | -90 | -180 | -270) => void;
+  setZoom: (zoom: number) => void;
+  destroy: () => void;
+};
+
+type CroppieConstructor = new (container: HTMLElement, options?: Record<string, unknown>) => CroppieInstance;
+
+const resolveCroppieConstructor = async (): Promise<CroppieConstructor> => {
+  const module = await import("croppie");
+  return ((module as { default?: unknown }).default ?? module) as CroppieConstructor;
+};
+
+const CROPIE_VIEWPORT_SIZE = 256;
+const CROPIE_BOUNDARY_SIZE = 320;
+const CROPIE_MIN_ZOOM = 0;
+const CROPIE_MAX_ZOOM = 3.5;
+const CROPIE_MIN_ROTATION = -270;
+const CROPIE_MAX_ROTATION = 270;
+const CROPIE_ROTATION_STEPS = new Set([-270, -180, -90, 90, 180, 270]);
+
+const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
+
+const fileToDataUrl = (file: File) =>
+  new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = () => reject(new Error("file_read_failed"));
+    reader.readAsDataURL(file);
+  });
+
+const toEffectiveName = (item: LibraryImageItem) => item.name || item.fileName || item.label || "Imagem";
 
 const ImageLibraryDialog = ({
   open,
   onOpenChange,
   apiBase,
   title = "Biblioteca de imagens",
-  description = "Selecione uma imagem ja enviada ou envie novos arquivos.",
+  description = "Selecione imagens do servidor ou dos projetos, depois confirme em Salvar.",
   uploadFolder,
   listFolders,
   listAll = true,
-  allowUrlInput = true,
-  showAltInput = true,
-  allowDeleteUploads = true,
+  mode = "single",
   allowDeselect = true,
-  selectOnUpload = false,
+  showUrlImport = true,
+  currentSelectionUrls,
   currentSelectionUrl,
-  sections = [],
-  onSelect,
+  cropAvatar = false,
+  cropTargetFolder,
+  cropSlot,
+  onSave,
 }: ImageLibraryDialogProps) => {
-  const [libraryImages, setLibraryImages] = useState<LibraryImage[]>([]);
-  const [libraryUrl, setLibraryUrl] = useState("");
-  const [libraryAlt, setLibraryAlt] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [isDragActive, setIsDragActive] = useState(false);
-  const [confirmDeleteUrl, setConfirmDeleteUrl] = useState<string | null>(null);
-  const [deletingUrl, setDeletingUrl] = useState<string | null>(null);
+  const [uploads, setUploads] = useState<LibraryImageItem[]>([]);
+  const [projectImages, setProjectImages] = useState<LibraryImageItem[]>([]);
+  const [selectedUrls, setSelectedUrls] = useState<string[]>([]);
+  const [urlInput, setUrlInput] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [renameTarget, setRenameTarget] = useState<LibraryImageItem | null>(null);
+  const [renameValue, setRenameValue] = useState("");
+  const [deleteTarget, setDeleteTarget] = useState<LibraryImageItem | null>(null);
+  const [isRenaming, setIsRenaming] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [isApplyingCrop, setIsApplyingCrop] = useState(false);
+  const [cropZoom, setCropZoom] = useState(1);
+  const [cropRotation, setCropRotation] = useState(0);
+  const [isCropReady, setIsCropReady] = useState(false);
+  const [isCropDialogOpen, setIsCropDialogOpen] = useState(false);
+  const cropContainerRef = useRef<HTMLDivElement | null>(null);
+  const croppieRef = useRef<CroppieInstance | null>(null);
 
   const folders = useMemo(() => {
     const set = new Set<string>();
-    if (listFolders && listFolders.length > 0) {
-      listFolders.forEach((folder) => set.add(folder));
+    if (Array.isArray(listFolders) && listFolders.length > 0) {
+      listFolders.forEach((folder) => {
+        if (folder != null) {
+          set.add(String(folder));
+        }
+      });
     }
     if (uploadFolder) {
       set.add(uploadFolder);
@@ -91,7 +164,51 @@ const ImageLibraryDialog = ({
     return Array.from(set);
   }, [listAll, listFolders, uploadFolder]);
 
-  const loadLibrary = useCallback(async () => {
+  const allItems = useMemo(() => {
+    const map = new Map<string, LibraryImageItem>();
+    uploads.forEach((item) => {
+      map.set(item.url, item);
+    });
+    projectImages.forEach((item) => {
+      if (!map.has(item.url)) {
+        map.set(item.url, item);
+      }
+    });
+    return map;
+  }, [projectImages, uploads]);
+
+  const primarySelectedUrl = selectedUrls[0] || "";
+  const normalizedSearch = searchQuery.trim().toLowerCase();
+
+  const matchesSearch = useCallback(
+    (item: LibraryImageItem) => {
+      if (!normalizedSearch) {
+        return true;
+      }
+      const haystack = [
+        item.name,
+        item.label,
+        item.fileName,
+        item.projectTitle,
+        item.projectId,
+        item.kind,
+        item.url,
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+      return haystack.includes(normalizedSearch);
+    },
+    [normalizedSearch],
+  );
+
+  const filteredUploads = useMemo(() => uploads.filter(matchesSearch), [matchesSearch, uploads]);
+  const filteredProjectImages = useMemo(
+    () => projectImages.filter(matchesSearch),
+    [matchesSearch, projectImages],
+  );
+
+  const loadUploads = useCallback(async () => {
     setIsLoading(true);
     try {
       const responses = await Promise.all(
@@ -100,170 +217,692 @@ const ImageLibraryDialog = ({
           return apiFetch(apiBase, `/api/uploads/list${query}`, { auth: true });
         }),
       );
-      const files: LibraryImage[] = [];
+      const files: LibraryImageItem[] = [];
       for (const response of responses) {
         if (!response.ok) {
           continue;
         }
         const data = await response.json();
-        if (Array.isArray(data.files)) {
-          files.push(...data.files);
+        if (!Array.isArray(data.files)) {
+          continue;
+        }
+        for (const file of data.files) {
+          if (!file?.url) {
+            continue;
+          }
+          files.push({
+            source: "upload",
+            url: String(file.url),
+            name: String(file.name || file.fileName || ""),
+            label: String(file.label || file.name || file.fileName || ""),
+            folder: typeof file.folder === "string" ? file.folder : "",
+            fileName: typeof file.fileName === "string" ? file.fileName : String(file.name || ""),
+            mime: typeof file.mime === "string" ? file.mime : "",
+            size: typeof file.size === "number" ? file.size : undefined,
+            createdAt: typeof file.createdAt === "string" ? file.createdAt : undefined,
+            inUse: Boolean(file.inUse),
+            canDelete: typeof file.canDelete === "boolean" ? file.canDelete : !file.inUse,
+          });
         }
       }
-      const seen = new Set<string>();
-      const unique = files.filter((file) => {
-        if (!file?.url || seen.has(file.url)) {
-          return false;
-        }
-        seen.add(file.url);
-        return true;
+      const unique = new Map<string, LibraryImageItem>();
+      files.forEach((item) => {
+        unique.set(item.url, item);
       });
-      setLibraryImages(unique);
-    } catch {
-      setLibraryImages([]);
+      setUploads(Array.from(unique.values()));
     } finally {
       setIsLoading(false);
     }
   }, [apiBase, folders]);
 
-  useEffect(() => {
-    if (open) {
-      void loadLibrary();
+  const loadProjectImages = useCallback(async () => {
+    try {
+      const response = await apiFetch(apiBase, "/api/uploads/project-images", { auth: true });
+      if (!response.ok) {
+        setProjectImages([]);
+        return;
+      }
+      const data = await response.json();
+      if (!Array.isArray(data.items)) {
+        setProjectImages([]);
+        return;
+      }
+      const mapped = data.items
+        .filter((item: { url?: string }) => Boolean(item?.url))
+        .map(
+          (item: {
+            url: string;
+            label?: string;
+            projectId?: string;
+            projectTitle?: string;
+            kind?: string;
+            source?: string;
+          }) =>
+            ({
+              source: "project",
+              url: String(item.url),
+              name: String(item.label || item.url),
+              label: String(item.label || item.url),
+              projectId: item.projectId ? String(item.projectId) : "",
+              projectTitle: item.projectTitle ? String(item.projectTitle) : "",
+              kind: item.kind ? String(item.kind) : "",
+              inUse: true,
+              canDelete: false,
+            }) as LibraryImageItem,
+        );
+      const unique = new Map<string, LibraryImageItem>();
+      mapped.forEach((item: LibraryImageItem) => {
+        unique.set(item.url, item);
+      });
+      setProjectImages(Array.from(unique.values()));
+    } catch {
+      setProjectImages([]);
     }
-  }, [open, loadLibrary]);
+  }, [apiBase]);
+
+  const loadLibrary = useCallback(async () => {
+    await Promise.all([loadUploads(), loadProjectImages()]);
+  }, [loadProjectImages, loadUploads]);
 
   useEffect(() => {
     if (!open) {
-      setLibraryUrl("");
-      setLibraryAlt("");
+      return;
+    }
+    void loadLibrary();
+  }, [loadLibrary, open]);
+
+  useEffect(() => {
+    if (!open) {
       setIsDragActive(false);
+      return;
     }
-  }, [open]);
-
-  const fileToDataUrl = (file: File) =>
-    new Promise<string>((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(String(reader.result));
-      reader.onerror = () => reject(new Error("file_read_failed"));
-      reader.readAsDataURL(file);
-    });
-
-  const uploadImage = async (file: File) => {
-    const dataUrl = await fileToDataUrl(file);
-    const response = await apiFetch(apiBase, "/api/uploads/image", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      auth: true,
-      body: JSON.stringify({
-        dataUrl,
-        filename: file.name,
-        folder: uploadFolder || undefined,
-      }),
-    });
-    if (!response.ok) {
-      throw new Error("upload_failed");
+    const fromArray =
+      Array.isArray(currentSelectionUrls) && currentSelectionUrls.length > 0 ? currentSelectionUrls : undefined;
+    const baseUrls = fromArray ?? (currentSelectionUrl ? [currentSelectionUrl] : []);
+    if (mode === "multiple") {
+      setSelectedUrls(baseUrls.filter(Boolean));
+    } else {
+      setSelectedUrls(baseUrls.length > 0 ? [baseUrls[0]] : []);
     }
-    const data = await response.json();
-    return String(data.url || "");
-  };
+    setCropZoom(1);
+    setCropRotation(0);
+    setIsCropReady(false);
+    setIsCropDialogOpen(false);
+  }, [currentSelectionUrl, currentSelectionUrls, mode, open]);
 
-  const handleUpload = async (file: File) => {
-    try {
-      setIsUploading(true);
-      const url = await uploadImage(file);
-      if (selectOnUpload && url) {
-        const alt = getAltFromName(file.name) || "Imagem";
-        onSelect(url, alt);
-        onOpenChange(false);
+  useEffect(() => {
+    if (!open) {
+      return;
+    }
+    if (cropAvatar && mode === "single") {
+      return;
+    }
+    setSelectedUrls((prev) => prev.filter((url) => allItems.has(url)));
+  }, [allItems, cropAvatar, mode, open]);
+
+  const setSelection = useCallback(
+    (url: string, options?: { openCrop?: boolean }) => {
+      let isSameSelection = false;
+      setSelectedUrls((prev) => {
+        if (mode === "multiple") {
+          if (prev.includes(url)) {
+            return prev.filter((item) => item !== url);
+          }
+          return [...prev, url];
+        }
+        isSameSelection = prev[0] === url;
+        if (cropAvatar) {
+          return [url];
+        }
+        if (isSameSelection) {
+          return allowDeselect ? [] : prev;
+        }
+        return [url];
+      });
+      if (cropAvatar && mode === "single") {
+        if (!isSameSelection) {
+          setCropZoom(1);
+          setCropRotation(0);
+        }
+        setIsCropReady(false);
+        if (options?.openCrop) {
+          setIsCropDialogOpen(true);
+        }
+      }
+    },
+    [allowDeselect, cropAvatar, mode],
+  );
+
+  useEffect(() => {
+    if (!primarySelectedUrl) {
+      setIsCropDialogOpen(false);
+    }
+  }, [primarySelectedUrl]);
+
+  useEffect(() => {
+    setCropZoom(1);
+    setCropRotation(0);
+    setIsCropReady(false);
+  }, [primarySelectedUrl]);
+
+  const destroyCroppie = useCallback(() => {
+    const instance = croppieRef.current;
+    if (instance) {
+      instance.destroy();
+      croppieRef.current = null;
+    }
+    if (cropContainerRef.current) {
+      cropContainerRef.current.innerHTML = "";
+    }
+    setIsCropReady(false);
+  }, []);
+
+  useEffect(() => {
+    if (!isCropDialogOpen || !primarySelectedUrl) {
+      destroyCroppie();
+      return;
+    }
+
+    let disposed = false;
+    let localCroppie: CroppieInstance | null = null;
+    let mountedContainer: HTMLDivElement | null = null;
+    const setupCroppie = async () => {
+      try {
+        const Croppie = await resolveCroppieConstructor();
+        if (disposed) {
+          return;
+        }
+
+        for (let attempt = 0; attempt < 20; attempt += 1) {
+          if (disposed) {
+            return;
+          }
+          mountedContainer = cropContainerRef.current;
+          if (mountedContainer) {
+            break;
+          }
+          await new Promise<void>((resolve) => {
+            window.requestAnimationFrame(() => resolve());
+          });
+        }
+        if (!mountedContainer || disposed) {
+          return;
+        }
+
+        localCroppie = new Croppie(mountedContainer, {
+          viewport: { width: CROPIE_VIEWPORT_SIZE, height: CROPIE_VIEWPORT_SIZE, type: "circle" },
+          boundary: { width: CROPIE_BOUNDARY_SIZE, height: CROPIE_BOUNDARY_SIZE },
+          enableExif: true,
+          enableOrientation: true,
+          enableZoom: true,
+          enforceBoundary: true,
+          showZoomer: false,
+          mouseWheelZoom: true,
+          minZoom: CROPIE_MIN_ZOOM,
+          maxZoom: CROPIE_MAX_ZOOM,
+        });
+        croppieRef.current = localCroppie;
+        await localCroppie.bind({ url: primarySelectedUrl });
+        if (disposed) {
+          return;
+        }
+        const initialZoom = Number(localCroppie.get()?.zoom ?? 1);
+        setCropZoom(Number.isFinite(initialZoom) ? initialZoom : 1);
+        setCropRotation(0);
+        setIsCropReady(true);
+      } catch {
+        if (!disposed) {
+          toast({ title: "Nao foi possivel abrir o editor de crop." });
+          destroyCroppie();
+        }
+      }
+    };
+
+    void setupCroppie();
+
+    return () => {
+      disposed = true;
+      if (localCroppie) {
+        localCroppie.destroy();
+      }
+      if (croppieRef.current === localCroppie) {
+        croppieRef.current = null;
+      }
+      if (mountedContainer) {
+        mountedContainer.innerHTML = "";
+      }
+      setIsCropReady(false);
+    };
+  }, [destroyCroppie, isCropDialogOpen, primarySelectedUrl]);
+
+  const handleUploadFiles = useCallback(
+    async (files: File[] | FileList | null | undefined) => {
+      if (!files || files.length === 0) {
         return;
       }
-      await loadLibrary();
-    } catch {
-      toast({ title: "Nao foi possivel enviar a imagem." });
+      const list = Array.from(files).filter((file) => file.type.startsWith("image/"));
+      if (list.length === 0) {
+        toast({ title: "Envie apenas arquivos de imagem." });
+        return;
+      }
+      setIsUploading(true);
+      try {
+        const uploadedUrls: string[] = [];
+        for (const file of list) {
+          const dataUrl = await fileToDataUrl(file);
+          const response = await apiFetch(apiBase, "/api/uploads/image", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            auth: true,
+            body: JSON.stringify({
+              dataUrl,
+              filename: file.name,
+              folder: uploadFolder || undefined,
+            }),
+          });
+          if (!response.ok) {
+            throw new Error("upload_failed");
+          }
+          const data = await response.json();
+          const url = String(data.url || "");
+          if (url) {
+            uploadedUrls.push(url);
+          }
+        }
+        await loadUploads();
+        if (uploadedUrls.length > 0) {
+          if (mode === "multiple") {
+            setSelectedUrls((prev) => {
+              const next = [...prev];
+              uploadedUrls.forEach((url) => {
+                if (!next.includes(url)) {
+                  next.push(url);
+                }
+              });
+              return next;
+            });
+          } else {
+            setSelectedUrls([uploadedUrls[uploadedUrls.length - 1]]);
+          }
+        }
+      } catch {
+        toast({ title: "Não foi possível enviar a imagem." });
+      } finally {
+        setIsUploading(false);
+      }
+    },
+    [apiBase, loadUploads, mode, uploadFolder],
+  );
+
+  const handleImportFromUrl = useCallback(async () => {
+    const value = urlInput.trim();
+    if (!value) {
+      return;
+    }
+    setIsUploading(true);
+    try {
+      const response = await apiFetch(apiBase, "/api/uploads/image-from-url", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        auth: true,
+        body: JSON.stringify({
+          url: value,
+          folder: uploadFolder || undefined,
+        }),
+      });
+      if (!response.ok) {
+        toast({ title: "Não foi possível importar a imagem por URL." });
+        return;
+      }
+      const data = await response.json();
+      const createdUrl = String(data.url || "");
+      setUrlInput("");
+      await loadUploads();
+      if (!createdUrl) {
+        return;
+      }
+      if (mode === "multiple") {
+        setSelectedUrls((prev) => (prev.includes(createdUrl) ? prev : [...prev, createdUrl]));
+      } else {
+        setSelectedUrls([createdUrl]);
+      }
     } finally {
       setIsUploading(false);
     }
-  };
+  }, [apiBase, loadUploads, mode, uploadFolder, urlInput]);
 
   const handleDrop = (event: React.DragEvent<HTMLDivElement>) => {
     event.preventDefault();
     setIsDragActive(false);
-    const file = event.dataTransfer?.files?.[0];
-    if (!file) {
-      return;
-    }
-    if (!file.type.startsWith("image/")) {
-      toast({ title: "Arraste apenas imagens para a biblioteca." });
-      return;
-    }
-    void handleUpload(file);
+    void handleUploadFiles(event.dataTransfer?.files);
   };
 
-  const handleAddUrl = () => {
-    const url = libraryUrl.trim();
-    if (!url) {
+  const handlePaste = useCallback(
+    (event: ClipboardEvent) => {
+      if (!open || isUploading) {
+        return;
+      }
+      const items = Array.from(event.clipboardData?.items || []).filter((item) =>
+        item.type.startsWith("image/"),
+      );
+      if (items.length === 0) {
+        return;
+      }
+      const files = items.map((item) => item.getAsFile()).filter(Boolean) as File[];
+      if (files.length === 0) {
+        return;
+      }
+      event.preventDefault();
+      void handleUploadFiles(files);
+    },
+    [handleUploadFiles, isUploading, open],
+  );
+
+  useEffect(() => {
+    if (!open) {
       return;
     }
-    onSelect(url, libraryAlt.trim() || "Imagem");
-    onOpenChange(false);
-  };
+    window.addEventListener("paste", handlePaste);
+    return () => {
+      window.removeEventListener("paste", handlePaste);
+    };
+  }, [handlePaste, open]);
 
-  const handleSelectUpload = (item: LibraryImage) => {
-    const alt = item.name ? getAltFromName(item.name) : "Imagem";
-    if (allowDeselect && currentSelectionUrl && item.url === currentSelectionUrl) {
-      onSelect("", alt || "Imagem");
-      onOpenChange(false);
+  const handleDelete = useCallback(
+    async (item: LibraryImageItem) => {
+      if (item.source !== "upload") {
+        return;
+      }
+      setIsDeleting(true);
+      try {
+        const response = await apiFetch(apiBase, "/api/uploads/delete", {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+          auth: true,
+          body: JSON.stringify({ url: item.url }),
+        });
+        if (response.status === 409) {
+          toast({
+            title: "Imagem em uso",
+            description: "Remova referências antes de excluir.",
+          });
+          return;
+        }
+        if (!response.ok) {
+          toast({ title: "Não foi possível excluir a imagem." });
+          return;
+        }
+        setSelectedUrls((prev) => prev.filter((url) => url !== item.url));
+        await loadUploads();
+      } finally {
+        setIsDeleting(false);
+      }
+    },
+    [apiBase, loadUploads],
+  );
+
+  const handleRenameConfirm = useCallback(async () => {
+    if (!renameTarget || renameTarget.source !== "upload") {
+      setRenameTarget(null);
       return;
     }
-    onSelect(item.url, alt || "Imagem");
-    onOpenChange(false);
-  };
-
-  const handleDelete = async (url: string) => {
-    setDeletingUrl(url);
+    const nextName = renameValue.trim();
+    if (!nextName) {
+      return;
+    }
+    setIsRenaming(true);
     try {
-      const response = await apiFetch(apiBase, "/api/uploads/delete", {
-        method: "DELETE",
+      const response = await apiFetch(apiBase, "/api/uploads/rename", {
+        method: "PUT",
         headers: { "Content-Type": "application/json" },
         auth: true,
-        body: JSON.stringify({ url }),
+        body: JSON.stringify({
+          url: renameTarget.url,
+          newName: nextName,
+        }),
       });
       if (response.status === 409) {
-        toast({
-          title: "Imagem em uso",
-          description: "Remova as referencias antes de excluir o arquivo.",
-        });
+        toast({ title: "Conflito de nome", description: "Já existe um arquivo com esse nome." });
         return;
       }
       if (!response.ok) {
-        toast({ title: "Nao foi possivel excluir a imagem." });
+        toast({ title: "Não foi possível renomear a imagem." });
         return;
       }
+      const data = await response.json();
+      const oldUrl = String(data.oldUrl || renameTarget.url);
+      const newUrl = String(data.newUrl || "");
+      if (newUrl) {
+        setSelectedUrls((prev) => prev.map((url) => (url === oldUrl ? newUrl : url)));
+      }
+      setRenameTarget(null);
+      setRenameValue("");
       await loadLibrary();
-    } catch {
-      toast({ title: "Nao foi possivel excluir a imagem." });
     } finally {
-      setDeletingUrl(null);
+      setIsRenaming(false);
     }
+  }, [apiBase, loadLibrary, renameTarget, renameValue]);
+
+  const handleSave = () => {
+    const items = selectedUrls
+      .map((url) => allItems.get(url))
+      .filter((item): item is LibraryImageItem => Boolean(item));
+    onSave({
+      urls: selectedUrls,
+      items,
+    });
+    onOpenChange(false);
   };
 
-  const handleDragStart = (event: React.DragEvent<HTMLButtonElement>, url: string) => {
-    event.dataTransfer.setData("text/plain", url);
-    event.dataTransfer.setData("text/uri-list", url);
-    event.dataTransfer.effectAllowed = "copy";
+  const setCroppieZoom = useCallback((value: number) => {
+    const instance = croppieRef.current;
+    if (!instance) {
+      return;
+    }
+    instance.setZoom(value);
+    setCropZoom(value);
+  }, []);
+
+  const setCroppieRotation = useCallback(
+    (value: number) => {
+      const normalized = clamp(Math.round(value / 90) * 90, CROPIE_MIN_ROTATION, CROPIE_MAX_ROTATION);
+      const delta = normalized - cropRotation;
+      if (delta === 0 || !CROPIE_ROTATION_STEPS.has(delta)) {
+        return;
+      }
+      const instance = croppieRef.current;
+      if (!instance) {
+        return;
+      }
+      instance.rotate(delta as 90 | 180 | 270 | -90 | -180 | -270);
+      setCropRotation(normalized);
+    },
+    [cropRotation],
+  );
+
+  const resetCropEditor = useCallback(async () => {
+    const instance = croppieRef.current;
+    if (!instance || !primarySelectedUrl) {
+      return;
+    }
+    setIsCropReady(false);
+    try {
+      await instance.bind({ url: primarySelectedUrl });
+      const initialZoom = Number(instance.get()?.zoom ?? 1);
+      setCropZoom(Number.isFinite(initialZoom) ? initialZoom : 1);
+      setCropRotation(0);
+      setIsCropReady(true);
+    } catch {
+      toast({ title: "Nao foi possivel resetar o crop." });
+    }
+  }, [primarySelectedUrl]);
+
+  const applyCrop = useCallback(async () => {
+    if (!primarySelectedUrl) {
+      return;
+    }
+    const instance = croppieRef.current;
+    if (!instance) {
+      toast({ title: "Ajuste o recorte antes de aplicar." });
+      return;
+    }
+    if (cropAvatar && (!cropSlot || !cropSlot.trim())) {
+      toast({ title: "Preencha o ID do usuario antes de aplicar o crop." });
+      return;
+    }
+
+    setIsApplyingCrop(true);
+    try {
+      const result = await instance.result({
+        type: "base64",
+        size: "viewport",
+        format: "png",
+        quality: 1,
+        circle: false,
+      });
+      const dataUrl = typeof result === "string" ? result : "";
+      if (!dataUrl) {
+        throw new Error("apply_crop_result_empty");
+      }
+      const response = await apiFetch(apiBase, "/api/uploads/image", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        auth: true,
+        body: JSON.stringify({
+          dataUrl,
+          filename: cropSlot ? `${cropSlot}.png` : `avatar-crop-${Date.now()}.png`,
+          folder: cropTargetFolder || uploadFolder || undefined,
+          slot: cropSlot || undefined,
+        }),
+      });
+      if (!response.ok) {
+        throw new Error("apply_crop_upload_failed");
+      }
+      const data = await response.json();
+      const nextUrl = String(data.url || "");
+      if (!nextUrl) {
+        throw new Error("apply_crop_upload_missing_url");
+      }
+
+      setSelectedUrls([nextUrl]);
+      setCropZoom(1);
+      setCropRotation(0);
+      setIsCropReady(false);
+      setIsCropDialogOpen(false);
+    } catch {
+      toast({
+        title: "Nao foi possivel gerar o arquivo recortado.",
+        description: "Tente novamente em alguns segundos.",
+      });
+    } finally {
+      setIsApplyingCrop(false);
+    }
+  }, [apiBase, cropAvatar, cropSlot, cropTargetFolder, primarySelectedUrl, uploadFolder]);
+
+  const renderGrid = (items: LibraryImageItem[], emptyText: string) => {
+    if (isLoading) {
+      return <p className="mt-3 text-xs text-muted-foreground">Carregando...</p>;
+    }
+    if (items.length === 0) {
+      return <p className="mt-3 text-xs text-muted-foreground">{emptyText}</p>;
+    }
+    return (
+      <div className="mt-3 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+        {items.map((item) => {
+          const isSelected = selectedUrls.includes(item.url);
+          const canRename = item.source === "upload";
+          const canDelete = item.source === "upload" && Boolean(item.canDelete);
+          return (
+            <ContextMenu key={`${item.source}:${item.url}`}>
+              <ContextMenuTrigger asChild>
+                <button
+                  type="button"
+                  className={`group overflow-hidden rounded-xl border border-border/60 bg-card/60 text-left transition hover:border-primary/40 ${
+                    isSelected ? "ring-2 ring-primary/60 border-primary/60" : ""
+                  }`}
+                  onClick={() =>
+                    setSelection(item.url, {
+                      openCrop: cropAvatar && mode === "single",
+                    })
+                  }
+                >
+                  <img src={item.url} alt={toEffectiveName(item)} className="h-28 w-full object-cover" />
+                  <div className="p-2 text-xs text-muted-foreground line-clamp-2">
+                    {item.label || toEffectiveName(item)}
+                  </div>
+                </button>
+              </ContextMenuTrigger>
+              <ContextMenuContent className="w-56 z-[230]">
+                <ContextMenuLabel>{item.source === "upload" ? "Upload do servidor" : "Imagem de projeto"}</ContextMenuLabel>
+                <ContextMenuSeparator />
+                {cropAvatar && mode === "single" ? (
+                  <ContextMenuItem
+                    onSelect={() => {
+                      setSelection(item.url, { openCrop: true });
+                    }}
+                  >
+                    Editar avatar
+                  </ContextMenuItem>
+                ) : null}
+                {cropAvatar && mode === "single" ? <ContextMenuSeparator /> : null}
+                <ContextMenuItem
+                  disabled={!canRename}
+                  onSelect={() => {
+                    if (!canRename) {
+                      return;
+                    }
+                    setRenameTarget(item);
+                    setRenameValue(toEffectiveName(item));
+                  }}
+                >
+                  Renomear
+                </ContextMenuItem>
+                <ContextMenuItem
+                  disabled={!canDelete || isDeleting}
+                  onSelect={() => {
+                    if (!canDelete) {
+                      return;
+                    }
+                    setDeleteTarget(item);
+                  }}
+                >
+                  Excluir
+                </ContextMenuItem>
+                {!canRename || !canDelete ? (
+                  <>
+                    <ContextMenuSeparator />
+                    <ContextMenuLabel className="text-xs font-normal text-muted-foreground">
+                      {item.source === "project"
+                        ? "Item somente leitura (projeto)."
+                        : item.inUse
+                          ? "Exclusão bloqueada: imagem em uso."
+                          : "Ações indisponíveis."}
+                    </ContextMenuLabel>
+                  </>
+                ) : null}
+              </ContextMenuContent>
+            </ContextMenu>
+          );
+        })}
+      </div>
+    );
   };
 
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-4xl">
+        <DialogContent
+          className="flex h-[90vh] w-[92vw] max-w-5xl flex-col overflow-hidden z-[200] data-[state=open]:animate-none data-[state=closed]:animate-none [&>button]:hidden"
+          overlayClassName="z-[190] data-[state=open]:animate-none data-[state=closed]:animate-none"
+          onEscapeKeyDown={(event) => event.preventDefault()}
+        >
           <DialogHeader>
             <DialogTitle>{title}</DialogTitle>
             <DialogDescription>{description}</DialogDescription>
           </DialogHeader>
-          <div className="mt-2 grid gap-4 md:grid-cols-[1.1fr_0.9fr]">
+          <div className="mt-2 grid gap-3 lg:grid-cols-[1.25fr_0.95fr]">
             <div
-              className={`flex h-full flex-col justify-center rounded-2xl border border-dashed border-border/70 bg-card/50 p-5 text-sm text-muted-foreground transition ${
+              className={`flex h-full flex-col justify-center rounded-2xl border border-dashed border-border/70 bg-card/50 p-4 text-sm text-muted-foreground transition ${
                 isDragActive ? "ring-2 ring-primary/60 border-primary/60" : ""
               }`}
               onDragOver={(event) => {
@@ -280,178 +919,259 @@ const ImageLibraryDialog = ({
               }}
               onDrop={handleDrop}
             >
-              <p className="font-medium text-foreground">Arraste uma imagem para enviar</p>
-              <p className="mt-1 text-xs text-muted-foreground">
-                Solte aqui ou use o seletor para adicionar na biblioteca.
-              </p>
-              <div className="mt-4 space-y-3">
+              <p className="font-medium text-foreground">Arraste, cole (Ctrl+V) ou escolha arquivos</p>
+              <p className="mt-1 text-xs text-muted-foreground">Upload direto para o servidor.</p>
+              <div className="mt-3">
                 <Input
                   type="file"
                   accept="image/*"
+                  multiple={mode === "multiple"}
                   disabled={isUploading}
                   onChange={(event) => {
-                    const file = event.target.files?.[0];
-                    if (file) {
-                      void handleUpload(file);
-                    }
+                    void handleUploadFiles(event.target.files);
                   }}
                 />
-                {isUploading ? <p className="text-xs text-muted-foreground">Enviando...</p> : null}
+                {isUploading ? <p className="text-xs text-muted-foreground">Processando...</p> : null}
               </div>
             </div>
-            <div className="rounded-2xl border border-border/60 bg-card/70 p-5">
-              {allowUrlInput ? (
-                <div className="space-y-3">
-                  <div className="space-y-2">
-                    <Label>URL da imagem</Label>
-                    <Input value={libraryUrl} onChange={(event) => setLibraryUrl(event.target.value)} />
-                  </div>
-                  {showAltInput ? (
-                    <div className="space-y-2">
-                      <Label>Texto alternativo</Label>
-                      <Input value={libraryAlt} onChange={(event) => setLibraryAlt(event.target.value)} />
-                    </div>
-                  ) : null}
-                  <div className="flex flex-wrap justify-end gap-2">
-                    {allowDeselect && currentSelectionUrl ? (
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="outline"
-                        onClick={() => {
-                          onSelect("", "");
-                          onOpenChange(false);
-                        }}
-                      >
-                        Remover imagem
-                      </Button>
-                    ) : null}
-                    <Button type="button" size="sm" onClick={handleAddUrl} disabled={!libraryUrl.trim()}>
-                      Usar imagem
+            <div className="rounded-2xl border border-border/60 bg-card/70 p-4 space-y-3">
+              {showUrlImport ? (
+                <div className="space-y-2">
+                  <Label>Importar por URL</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      value={urlInput}
+                      onChange={(event) => setUrlInput(event.target.value)}
+                      placeholder="https://site.com/imagem.png"
+                    />
+                    <Button
+                      type="button"
+                      size="sm"
+                      onClick={() => void handleImportFromUrl()}
+                      disabled={isUploading || !urlInput.trim()}
+                    >
+                      Importar URL
                     </Button>
                   </div>
                 </div>
               ) : (
-                <p className="text-sm text-muted-foreground">
-                  Selecione um item abaixo para reutilizar na sua configuracao.
-                </p>
+                <p className="text-sm text-muted-foreground">Importação por URL desativada.</p>
+              )}
+              <p className="text-xs text-muted-foreground">
+                {mode === "multiple"
+                  ? "Clique para alternar seleção. A ordem de clique vira a ordem de inserção."
+                  : cropAvatar
+                    ? "Clique na imagem para selecionar e abrir o editor de crop."
+                    : "Clique para selecionar. A imagem só será aplicada ao clicar em Salvar."}
+              </p>
+            </div>
+          </div>
+
+          <div className="mt-4 min-h-0 flex-1 space-y-8 overflow-auto no-scrollbar">
+            <div>
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <h3 className="text-sm font-semibold text-foreground">Uploads do servidor</h3>
+                <div className="flex w-full items-center gap-2 sm:w-auto">
+                  <Input
+                    value={searchQuery}
+                    onChange={(event) => setSearchQuery(event.target.value)}
+                    placeholder="Pesquisar por nome ou projeto..."
+                    className="h-9 sm:w-72"
+                  />
+                  {allowDeselect ? (
+                    <Button type="button" size="sm" variant="outline" onClick={() => setSelectedUrls([])}>
+                      Limpar seleção
+                    </Button>
+                  ) : null}
+                </div>
+              </div>
+              <p className="mt-2 text-xs text-muted-foreground">Selecionadas: {selectedUrls.length}</p>
+              {renderGrid(
+                filteredUploads,
+                normalizedSearch ? "Nenhum upload encontrado para essa pesquisa." : "Nenhum upload disponível.",
+              )}
+            </div>
+            <div>
+              <h3 className="text-sm font-semibold text-foreground">Imagens dos projetos</h3>
+              {renderGrid(
+                filteredProjectImages,
+                normalizedSearch
+                  ? "Nenhuma imagem de projeto encontrada para essa pesquisa."
+                  : "Nenhuma imagem de projeto encontrada.",
               )}
             </div>
           </div>
-          <div className="mt-6 max-h-[420px] space-y-8 overflow-auto no-scrollbar">
-            <div>
-              <h3 className="text-sm font-semibold text-foreground">Uploads</h3>
-              {isLoading ? (
-                <p className="mt-3 text-xs text-muted-foreground">Carregando biblioteca...</p>
-              ) : libraryImages.length === 0 ? (
-                <p className="mt-3 text-xs text-muted-foreground">Nenhuma imagem enviada ainda.</p>
-              ) : (
-                <div className="mt-3 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
-                  {libraryImages.map((item) => (
-                    <div
-                      key={item.url}
-                      className={`group overflow-hidden rounded-xl border border-border/60 bg-card/60 text-left transition hover:border-primary/40 ${
-                        currentSelectionUrl && item.url === currentSelectionUrl
-                          ? "ring-2 ring-primary/60 border-primary/60"
-                          : ""
-                      }`}
-                    >
-                      <button
-                        type="button"
-                        className="block w-full text-left"
-                        draggable
-                        onDragStart={(event) => handleDragStart(event, item.url)}
-                        onClick={() => handleSelectUpload(item)}
-                      >
-                        <img src={item.url} alt={item.name} className="h-32 w-full object-cover" />
-                        <div className="p-2 text-xs text-muted-foreground">{item.name}</div>
-                      </button>
-                      {allowDeleteUploads ? (
-                        <div className="px-2 pb-2">
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant="outline"
-                            className="w-full"
-                            onClick={() => setConfirmDeleteUrl(item.url)}
-                            disabled={deletingUrl === item.url}
-                          >
-                            {deletingUrl === item.url ? "Excluindo..." : "Excluir"}
-                          </Button>
-                        </div>
-                      ) : null}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-            {sections.map((section) => (
-              <div key={section.title}>
-                <h3 className="text-sm font-semibold text-foreground">{section.title}</h3>
-                {section.description ? (
-                  <p className="mt-2 text-xs text-muted-foreground">{section.description}</p>
-                ) : null}
-                {section.items.length === 0 ? (
-                  <p className="mt-3 text-xs text-muted-foreground">Nenhuma imagem disponivel.</p>
-                ) : (
-                  <div className="mt-3 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
-                    {section.items.map((item) => (
-                      <button
-                        key={item.key}
-                        type="button"
-                        draggable
-                        className={`group overflow-hidden rounded-xl border border-border/60 bg-card/60 text-left transition hover:border-primary/40 ${
-                          currentSelectionUrl && item.url === currentSelectionUrl
-                            ? "ring-2 ring-primary/60 border-primary/60"
-                            : ""
-                        }`}
-                        onDragStart={(event) => handleDragStart(event, item.url)}
-                        onClick={() => {
-                          const alt = getAltFromName(item.label);
-                          const handler = section.onSelect || onSelect;
-                          if (allowDeselect && currentSelectionUrl && item.url === currentSelectionUrl) {
-                            handler("", alt || "Imagem", item);
-                          } else {
-                            handler(item.url, alt || "Imagem", item);
-                          }
-                          onOpenChange(false);
-                        }}
-                      >
-                        <img src={item.url} alt={item.label} className="h-32 w-full object-cover" />
-                        <div className="p-2 text-xs text-muted-foreground">{item.label}</div>
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-            ))}
+
+          <div className="mt-4 flex justify-end gap-2">
+            <Button type="button" onClick={handleSave}>
+              Salvar
+            </Button>
           </div>
         </DialogContent>
       </Dialog>
-      <Dialog open={Boolean(confirmDeleteUrl)} onOpenChange={(next) => !next && setConfirmDeleteUrl(null)}>
-        <DialogContent className="max-w-md">
+
+      <Dialog
+        open={isCropDialogOpen}
+        onOpenChange={(next) => {
+          if (next) {
+            setIsCropDialogOpen(true);
+            return;
+          }
+          destroyCroppie();
+          setCropZoom(1);
+          setCropRotation(0);
+          setIsCropDialogOpen(false);
+        }}
+      >
+        <DialogContent
+          className="max-h-[92vh] max-w-5xl overflow-auto z-[240] data-[state=open]:animate-none data-[state=closed]:animate-none"
+          overlayClassName="z-[230] data-[state=open]:animate-none data-[state=closed]:animate-none"
+        >
           <DialogHeader>
-            <DialogTitle>Excluir imagem</DialogTitle>
+            <DialogTitle>Ajuste do avatar</DialogTitle>
             <DialogDescription>
-              Esta acao remove o arquivo da biblioteca. A exclusao so e permitida se a imagem nao estiver em uso.
+              Ajuste posicao, zoom e rotacao. O avatar final sera recortado e salvo no servidor.
+            </DialogDescription>
+          </DialogHeader>
+          {primarySelectedUrl ? (
+            <>
+              <div className="grid gap-4 lg:grid-cols-[1.4fr_0.9fr]">
+                <div className="rounded-xl border border-border/60 bg-card/60 p-3">
+                  <p className="mb-3 text-sm font-medium text-foreground">Preview interativo</p>
+                  <div className="relative mx-auto flex h-[320px] w-[320px] items-center justify-center overflow-hidden rounded-xl bg-black/20">
+                    <div ref={cropContainerRef} className="h-full w-full" />
+                  </div>
+                </div>
+                <div className="space-y-4 rounded-xl border border-border/60 bg-card/60 p-4">
+                  <p className="text-sm text-muted-foreground">
+                    Arraste a imagem direto no preview para ajustar o enquadramento.
+                  </p>
+
+                  <div className="space-y-3">
+                    <div className="space-y-1">
+                      <Label className="text-xs">Zoom</Label>
+                      <Input
+                        type="range"
+                        min={CROPIE_MIN_ZOOM}
+                        max={CROPIE_MAX_ZOOM}
+                        step={0.01}
+                        value={cropZoom}
+                        disabled={!isCropReady}
+                        onChange={(event) => {
+                          const value = Number(event.target.value);
+                          if (!Number.isFinite(value)) {
+                            return;
+                          }
+                          setCroppieZoom(clamp(value, CROPIE_MIN_ZOOM, CROPIE_MAX_ZOOM));
+                        }}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">Rotacao</Label>
+                      <Input
+                        type="range"
+                        min={CROPIE_MIN_ROTATION}
+                        max={CROPIE_MAX_ROTATION}
+                        step={90}
+                        value={cropRotation}
+                        disabled={!isCropReady}
+                        onChange={(event) => {
+                          const value = Number(event.target.value);
+                          if (!Number.isFinite(value)) {
+                            return;
+                          }
+                          setCroppieRotation(value);
+                        }}
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-2 flex justify-end gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    destroyCroppie();
+                    setCropZoom(1);
+                    setCropRotation(0);
+                    setIsCropDialogOpen(false);
+                  }}
+                >
+                  Cancelar
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => void resetCropEditor()}
+                  disabled={!isCropReady}
+                >
+                  Resetar
+                </Button>
+                <Button type="button" onClick={() => void applyCrop()} disabled={isApplyingCrop || !isCropReady}>
+                  {isApplyingCrop ? "Aplicando..." : "Aplicar crop"}
+                </Button>
+              </div>
+            </>
+          ) : (
+            <p className="text-sm text-muted-foreground">Selecione um avatar na biblioteca antes de ajustar o crop.</p>
+          )}
+        </DialogContent>
+      </Dialog>
+      <Dialog open={Boolean(deleteTarget)} onOpenChange={(next) => !next && setDeleteTarget(null)}>
+        <DialogContent className="max-w-md z-[240]" overlayClassName="z-[230]">
+          <DialogHeader>
+            <DialogTitle>Excluir imagem?</DialogTitle>
+            <DialogDescription>
+              {deleteTarget
+                ? `A imagem "${toEffectiveName(deleteTarget)}" será removida permanentemente.`
+                : "Confirme a exclusão da imagem."}
             </DialogDescription>
           </DialogHeader>
           <div className="flex justify-end gap-2">
-            <Button type="button" variant="outline" onClick={() => setConfirmDeleteUrl(null)}>
+            <Button type="button" variant="outline" onClick={() => setDeleteTarget(null)} disabled={isDeleting}>
               Cancelar
             </Button>
             <Button
               type="button"
               variant="destructive"
+              disabled={isDeleting}
               onClick={() => {
-                if (confirmDeleteUrl) {
-                  void handleDelete(confirmDeleteUrl);
+                if (!deleteTarget) {
+                  return;
                 }
-                setConfirmDeleteUrl(null);
+                void (async () => {
+                  await handleDelete(deleteTarget);
+                  setDeleteTarget(null);
+                })();
               }}
             >
-              Excluir
+              {isDeleting ? "Excluindo..." : "Excluir"}
             </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={Boolean(renameTarget)} onOpenChange={(next) => !next && setRenameTarget(null)}>
+        <DialogContent className="max-w-md z-[240]" overlayClassName="z-[230]">
+          <DialogHeader>
+            <DialogTitle>Renomear imagem</DialogTitle>
+            <DialogDescription>
+              O nome novo atualiza o caminho da imagem onde ela estiver sendo usada.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <Label>Novo nome do arquivo</Label>
+            <Input value={renameValue} onChange={(event) => setRenameValue(event.target.value)} />
+            <div className="flex justify-end gap-2">
+              <Button type="button" variant="outline" onClick={() => setRenameTarget(null)}>
+                Cancelar
+              </Button>
+              <Button type="button" disabled={isRenaming || !renameValue.trim()} onClick={() => void handleRenameConfirm()}>
+                {isRenaming ? "Renomeando..." : "Renomear"}
+              </Button>
+            </div>
           </div>
         </DialogContent>
       </Dialog>
@@ -460,3 +1180,4 @@ const ImageLibraryDialog = ({
 };
 
 export default ImageLibraryDialog;
+

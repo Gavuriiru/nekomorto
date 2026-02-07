@@ -1,4 +1,5 @@
 ﻿import { useEffect, useState } from "react";
+import type { CSSProperties } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -161,44 +162,49 @@ const LatestEpisodeCard = () => {
                   <Link
                     key={update.id}
                     to={`/projeto/${update.projectId}`}
-                    className="group flex items-start gap-4 rounded-xl bg-background/40 p-4 transition hover:bg-primary/5 reveal"
+                    style={{ "--card-h": "164px", "--card-pad": "16px" } as CSSProperties}
+                    className="group relative block h-[var(--card-h)] rounded-2xl bg-gradient-to-br from-background/70 via-background/40 to-background/70 shadow-none transition hover:-translate-y-0.5 hover:shadow-sm reveal"
                     data-reveal
                   >
-                    <div className="w-24 flex-shrink-0 overflow-hidden rounded-lg bg-secondary aspect-[2/3]">
-                      <img
-                        src={update.image || "/placeholder.svg"}
-                        alt={update.projectTitle}
-                        className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
-                      />
-                    </div>
-                    <div className="flex min-w-0 flex-1 flex-col gap-2">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <Badge variant="secondary" className="text-[10px]">
-                          {unitShort} {update.episodeNumber}
-                        </Badge>
-                        <Badge
-                          variant="outline"
-                          className={`text-[10px] ${
-                            kindLabel === "Lançamento"
-                              ? "border-primary/50 text-primary"
-                              : kindLabel === "Ajuste"
-                              ? "border-amber-500/50 text-amber-400"
-                              : "border-border/60 text-muted-foreground"
-                          }`}
-                        >
-                          {kindLabel}
-                        </Badge>
+                    <div className="absolute inset-[var(--card-pad)] flex items-start gap-4">
+                      <div className="flex-shrink-0 overflow-hidden rounded-xl bg-secondary/60 h-full aspect-[23/32]">
+                        <img
+                          src={update.image || "/placeholder.svg"}
+                          alt={update.projectTitle}
+                          className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                        />
                       </div>
-                      <h4 className="truncate text-sm font-semibold text-foreground transition-colors group-hover:text-primary">
-                        {update.projectTitle}
-                      </h4>
-                      <p className="text-xs text-muted-foreground leading-relaxed line-clamp-2">
-                        {reason}
-                      </p>
-                      <span className="inline-flex items-center gap-1.5 text-[10px] text-muted-foreground">
-                        <Clock className="h-3 w-3 text-primary/70" aria-hidden="true" />
-                        {formatDate(update.updatedAt.split("T")[0])}
-                      </span>
+                      <div className="flex min-w-0 flex-1 flex-col gap-3 h-full">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <Badge variant="secondary" className="text-[10px]">
+                            {unitShort} {update.episodeNumber}
+                          </Badge>
+                          <Badge
+                            variant="outline"
+                            className={`text-[10px] ${
+                              kindLabel === "Lançamento"
+                                ? "border-primary/50 text-primary"
+                                : kindLabel === "Ajuste"
+                                ? "border-amber-500/50 text-amber-400"
+                                : "border-border/60 text-muted-foreground"
+                            }`}
+                          >
+                            {kindLabel}
+                          </Badge>
+                        </div>
+                        <div className="space-y-1">
+                          <h4 className="text-sm font-semibold text-foreground transition-colors group-hover:text-primary line-clamp-2">
+                            {update.projectTitle}
+                          </h4>
+                          <p className="text-xs text-muted-foreground leading-relaxed line-clamp-2">
+                            {reason}
+                          </p>
+                        </div>
+                        <span className="mt-auto inline-flex items-center gap-1.5 text-[10px] text-muted-foreground">
+                          <Clock className="h-3 w-3 text-primary/70" aria-hidden="true" />
+                          {formatDate(update.updatedAt.split("T")[0])}
+                        </span>
+                      </div>
                     </div>
                   </Link>
                 );

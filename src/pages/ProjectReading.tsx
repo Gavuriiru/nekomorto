@@ -5,10 +5,13 @@ import { ChevronLeft, BookOpen } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import DiscordInviteCard from "@/components/DiscordInviteCard";
+import LatestEpisodeCard from "@/components/LatestEpisodeCard";
+import WorkStatusCard from "@/components/WorkStatusCard";
 import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
 import { isLightNovelType } from "@/lib/project-utils";
-import { renderPostContent } from "@/lib/post-content";
+import LexicalViewer from "@/components/lexical/LexicalViewer";
 import CommentsSection from "@/components/CommentsSection";
 import { usePageMeta } from "@/hooks/use-page-meta";
 import NotFound from "./NotFound";
@@ -25,7 +28,7 @@ const ProjectReading = () => {
     title?: string;
     synopsis?: string;
     content?: string;
-    contentFormat?: "markdown" | "html";
+    contentFormat?: "lexical";
   } | null>(null);
   const [hasLoaded, setHasLoaded] = useState(false);
 
@@ -165,9 +168,7 @@ const ProjectReading = () => {
     };
   }, [apiBase, project, chapterNumber, volumeParam]);
 
-  const htmlContent = chapterContent
-    ? renderPostContent(chapterContent.content || "", chapterContent.contentFormat || "markdown")
-    : "";
+  const chapterLexical = chapterContent?.content || "";
 
   if (!slug || (!project && hasLoaded)) {
     return <NotFound />;
@@ -184,14 +185,14 @@ const ProjectReading = () => {
   return (
     <div className="flex min-h-screen flex-col">
       <main className="flex-1 bg-background">
-        <section className="mx-auto w-full max-w-4xl px-6 pb-16 pt-10 md:px-10">
+        <section className="mx-auto w-full max-w-6xl px-6 pb-16 pt-10 md:px-10">
           <div className="space-y-6">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <Button asChild variant="ghost" size="sm" className="gap-2">
-              <Link to={`/projeto/${project.id}`}>
-                <ChevronLeft className="h-4 w-4" />
-                Voltar ao projeto
-              </Link>
+                <Link to={`/projeto/${project.id}`}>
+                  <ChevronLeft className="h-4 w-4" />
+                  Voltar ao projeto
+                </Link>
               </Button>
               <div className="flex flex-wrap items-center gap-2">
                 {previousChapter ? (
@@ -230,36 +231,57 @@ const ProjectReading = () => {
                 {project.title} • Leitura de Light Novel
               </p>
             </div>
-            <Card className="border-border/60 bg-card/80 shadow-lg">
-              <CardContent className="space-y-6 p-6">
-                {chapterContent?.synopsis || chapterData?.synopsis ? (
-                  <p className="text-sm text-muted-foreground">
-                    {chapterContent?.synopsis || chapterData?.synopsis}
-                  </p>
-                ) : null}
-                {chapterContent?.content ? (
-                  <div
-                    className="post-content space-y-4 text-sm text-muted-foreground"
-                    dangerouslySetInnerHTML={{ __html: htmlContent }}
-                  />
-                ) : (
-                  <div className="rounded-xl border border-dashed border-border/60 bg-background/60 p-6 text-center text-sm text-muted-foreground">
-                    Conteúdo ainda não disponível.
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-            <CommentsSection
-              targetType="chapter"
-              targetId={project.id}
-              chapterNumber={chapterData?.number ?? chapterNumber}
-              volume={chapterData?.volume ?? (Number.isFinite(volumeParam) ? volumeParam : undefined)}
-            />
-            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              <BookOpen className="h-4 w-4 text-primary/70" />
-              Capítulos publicados diretamente no site.
-            </div>
           </div>
+
+          <section className="mt-8 grid gap-8 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+            <article className="space-y-6">
+              <Card className="border-border/60 bg-card/80 shadow-lg">
+                <CardContent className="space-y-6 p-6">
+                  {chapterContent?.synopsis || chapterData?.synopsis ? (
+                    <p className="text-sm text-muted-foreground">
+                      {chapterContent?.synopsis || chapterData?.synopsis}
+                    </p>
+                  ) : null}
+                  {chapterContent?.content ? (
+                    <LexicalViewer
+                      value={chapterLexical}
+                      className="post-content reader-content space-y-4 text-sm text-muted-foreground"
+                      pollTarget={
+                        project?.id && Number.isFinite(chapterNumber)
+                          ? {
+                              type: "chapter",
+                              projectId: project.id,
+                              chapterNumber: chapterData?.number ?? chapterNumber,
+                              volume: chapterData?.volume ?? (Number.isFinite(volumeParam) ? volumeParam : undefined),
+                            }
+                          : undefined
+                      }
+                    />
+                  ) : (
+                    <div className="rounded-xl border border-dashed border-border/60 bg-background/60 p-6 text-center text-sm text-muted-foreground">
+                      Conteúdo ainda não disponível.
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+              <CommentsSection
+                targetType="chapter"
+                targetId={project.id}
+                chapterNumber={chapterData?.number ?? chapterNumber}
+                volume={chapterData?.volume ?? (Number.isFinite(volumeParam) ? volumeParam : undefined)}
+              />
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <BookOpen className="h-4 w-4 text-primary/70" />
+                Capítulos publicados diretamente no site.
+              </div>
+            </article>
+
+            <aside className="space-y-6">
+              <LatestEpisodeCard />
+              <WorkStatusCard />
+              <DiscordInviteCard />
+            </aside>
+          </section>
         </section>
       </main>
     </div>

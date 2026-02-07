@@ -19,8 +19,8 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import ThemedSvgLogo from "@/components/ThemedSvgLogo";
 import { getApiBase } from "@/lib/api-base";
 import { isChapterBasedType, isLightNovelType, isMangaType } from "@/lib/project-utils";
 import { formatDate } from "@/lib/date";
@@ -39,6 +39,7 @@ const ProjectPage = () => {
   const [projectDirectory, setProjectDirectory] = useState<Project[]>([]);
   const [tagTranslations, setTagTranslations] = useState<Record<string, string>>({});
   const [genreTranslations, setGenreTranslations] = useState<Record<string, string>>({});
+  const [staffRoleTranslations, setStaffRoleTranslations] = useState<Record<string, string>>({});
   const [episodePage, setEpisodePage] = useState(1);
   const { settings } = useSiteSettings();
   const trackedViewsRef = useRef<Set<string>>(new Set());
@@ -118,6 +119,7 @@ const ProjectPage = () => {
           if (isActive) {
             setTagTranslations(data.tags || {});
             setGenreTranslations(data.genres || {});
+            setStaffRoleTranslations(data.staffRoles || {});
           }
         }
       } catch {
@@ -125,6 +127,7 @@ const ProjectPage = () => {
           setProjectDirectory([]);
           setTagTranslations({});
           setGenreTranslations({});
+          setStaffRoleTranslations({});
         }
       }
     };
@@ -167,8 +170,97 @@ const ProjectPage = () => {
     );
   }, [project?.genres, genreTranslations]);
 
+  const anilistRoleMap = useMemo(() => {
+    const entries: Array<[string, string]> = [
+      ["director", "Direção"],
+      ["chief director", "Diretor chefe"],
+      ["assistant director", "Direção assistente"],
+      ["action director", "Direção de ação"],
+      ["series composition", "Composição de série"],
+      ["script", "Roteiro"],
+      ["storyboard", "Storyboard"],
+      ["story", "História"],
+      ["episode director", "Direção de episódio"],
+      ["original story", "História original"],
+      ["original creator", "Autor original"],
+      ["original work assistance", "Assistência de obra original"],
+      ["character design", "Design de personagens"],
+      ["original character design", "Design original de personagens"],
+      ["original character design assistance", "Assistência de design original de personagens"],
+      ["chief character design", "Design-chefe de personagens"],
+      ["animation director", "Direção de animação"],
+      ["main animator", "Animador principal"],
+      ["chief animation director", "Direção-chefe de animação"],
+      ["key animation", "Animação-chave"],
+      ["in-between animation", "Intercalação"],
+      ["art director", "Direção de arte"],
+      ["art design", "Design de arte"],
+      ["background art", "Arte de fundo"],
+      ["color design", "Design de cor"],
+      ["color coordinator", "Coordenação de cor"],
+      ["director of photography", "Direção de fotografia"],
+      ["photography director", "Direção de fotografia"],
+      ["editing", "Edição"],
+      ["music", "Música"],
+      ["sound director", "Direção de som"],
+      ["sound effects", "Efeitos sonoros"],
+      ["sound design", "Design de som"],
+      ["theme song performance", "Performance da música tema"],
+      ["theme song performance (op)", "Performance da música tema (OP)"],
+      ["theme song performance (ed)", "Performance da música tema (ED)"],
+      ["producer", "Produção"],
+      ["assistant producer", "Produção assistente"],
+      ["production", "Produção"],
+      ["production assistant", "Assistência de produção"],
+      ["3d director", "Direção 3D"],
+      ["3d animation", "Animação 3D"],
+      ["3d modeling", "Modelagem 3D"],
+      ["cg director", "Direção de CG"],
+      ["mechanical design", "Design mecânico"],
+      ["prop design", "Design de props"],
+      ["design assistance", "Assistência de design"],
+      ["title logo design", "Design do logo do título"],
+      ["design works", "Design works"],
+      ["layout", "Layout"],
+      ["literary arts", "Artes literárias"],
+      ["special effects", "Efeitos especiais"],
+      ["cg", "CG"],
+      ["design", "Design"],
+      ["casting", "Casting"],
+      ["supervisor", "Supervisor"],
+      ["creative producer", "Produção criativa"],
+      ["illustration", "Ilustração"],
+    ];
+    return new Map(entries);
+  }, []);
+
+  const staffRoleTranslationMap = useMemo(() => {
+    const map = new Map<string, string>();
+    Object.entries(staffRoleTranslations || {}).forEach(([key, value]) => {
+      const normalized = String(key || "").trim();
+      if (!normalized) {
+        return;
+      }
+      map.set(normalized.toLowerCase(), String(value ?? ""));
+    });
+    return map;
+  }, [staffRoleTranslations]);
+
+  const translateAnilistRole = (role: string) => {
+    const normalized = String(role || "").trim();
+    if (!normalized) {
+      return role;
+    }
+    const key = normalized.toLowerCase();
+    const translated = staffRoleTranslationMap.get(key);
+    if (translated && translated.trim()) {
+      return translated;
+    }
+    return anilistRoleMap.get(key) || role;
+  };
+
   const sourceThemeMap = useMemo(() => {
-    const map = new Map<string, { color: string; icon?: string }>();
+    const map = new Map<string, { color: string; icon?: string; tintIcon: boolean }>();
     settings.downloads.sources.forEach((source) => {
       if (!source?.label) {
         return;
@@ -176,17 +268,33 @@ const ProjectPage = () => {
       map.set(source.label.toLowerCase(), {
         color: source.color || "#7C3AED",
         icon: source.icon,
+        tintIcon: source.tintIcon !== false,
       });
     });
     return map;
   }, [settings.downloads.sources]);
 
-  const renderSourceIcon = (iconKey: string | undefined, color: string) => {
+  const renderSourceIcon = (
+    iconKey: string | undefined,
+    color: string,
+    label?: string,
+    tintIcon = true,
+  ) => {
     if (
       iconKey &&
       (iconKey.startsWith("http") || iconKey.startsWith("data:") || iconKey.startsWith("/uploads/"))
     ) {
-      return <img src={iconKey} alt="" className="h-4 w-4" />;
+      if (!tintIcon) {
+        return <img src={iconKey} alt={label || ""} className="h-4 w-4" />;
+      }
+      return (
+        <ThemedSvgLogo
+          url={iconKey}
+          label={label || "Fonte de download"}
+          className="h-4 w-4"
+          color={color}
+        />
+      );
     }
     const normalized = String(iconKey || "").toLowerCase();
     if (normalized === "google-drive") {
@@ -425,9 +533,6 @@ const ProjectPage = () => {
                       )}
                       Sobre o projeto
                     </div>
-                  <p className="text-sm leading-relaxed text-muted-foreground md:text-base">
-                    {project.description}
-                  </p>
                   {project.genres?.length ? (
                     <div className="flex flex-wrap gap-2">
                       {sortedGenres.map((genre) => (
@@ -440,19 +545,16 @@ const ProjectPage = () => {
                     </div>
                   ) : null}
                   {projectDetails.length ? (
-                    <>
-                      <Separator className="bg-border/60" />
-                      <div className="grid gap-4 md:grid-cols-2">
-                        {projectDetails.map((detail) => (
-                          <div key={detail.label} className="rounded-xl border border-border/50 bg-background/60 p-4">
-                            <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
-                              {detail.label}
-                            </span>
-                            <p className="mt-2 text-sm font-semibold text-foreground">{detail.value}</p>
-                          </div>
-                        ))}
-                      </div>
-                    </>
+                    <div className="grid gap-4 md:grid-cols-2">
+                      {projectDetails.map((detail) => (
+                        <div key={detail.label} className="rounded-xl border border-border/50 bg-background/60 px-4 py-3">
+                          <span className="block text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+                            {detail.label}
+                          </span>
+                          <p className="mt-1 text-sm font-semibold text-foreground">{detail.value}</p>
+                        </div>
+                      ))}
+                    </div>
                   ) : null}
                 </CardContent>
               </Card>
@@ -514,12 +616,12 @@ const ProjectPage = () => {
                       {project.staff.map((staff) => (
                         <div
                           key={staff.role}
-                          className="rounded-xl border border-border/50 bg-background/60 p-4"
+                          className="rounded-xl border border-border/50 bg-background/60 px-4 py-3"
                         >
-                          <p className="text-xs font-semibold uppercase tracking-widest text-primary/80">
+                          <p className="block text-xs font-semibold uppercase tracking-widest text-primary/80">
                             {staff.role}
                           </p>
-                          <p className="mt-2 text-sm text-foreground">{staff.members.join(", ")}</p>
+                          <p className="mt-1 text-sm text-foreground">{staff.members.join(", ")}</p>
                         </div>
                       ))}
                     </div>
@@ -538,12 +640,12 @@ const ProjectPage = () => {
                       {project.animeStaff.map((staff) => (
                         <div
                           key={staff.role}
-                          className="rounded-xl border border-border/50 bg-background/60 p-4"
+                          className="rounded-xl border border-border/50 bg-background/60 px-4 py-3"
                         >
-                          <p className="text-xs font-semibold uppercase tracking-widest text-primary/80">
-                            {staff.role}
+                          <p className="block text-xs font-semibold uppercase tracking-widest text-primary/80">
+                            {translateAnilistRole(staff.role)}
                           </p>
-                          <p className="mt-2 text-sm text-foreground">{staff.members.join(", ")}</p>
+                          <p className="mt-1 text-sm text-foreground">{staff.members.join(", ")}</p>
                         </div>
                       ))}
                     </div>
@@ -713,7 +815,12 @@ const ProjectPage = () => {
                                         {episode.sources.map((source, sourceIndex) => {
                                           const theme = sourceThemeMap.get(source.label.toLowerCase());
                                           const color = theme?.color || "#7C3AED";
-                                          const icon = renderSourceIcon(theme?.icon, color);
+                                          const icon = renderSourceIcon(
+                                            theme?.icon,
+                                            color,
+                                            source.label,
+                                            theme?.tintIcon ?? true,
+                                          );
                                           return (
                                             <Button
                                               key={`${source.label}-${sourceIndex}`}
@@ -786,7 +893,12 @@ const ProjectPage = () => {
                               {episode.sources.map((source, sourceIndex) => {
                                 const theme = sourceThemeMap.get(source.label.toLowerCase());
                                 const color = theme?.color || "#7C3AED";
-                                const icon = renderSourceIcon(theme?.icon, color);
+                                const icon = renderSourceIcon(
+                                  theme?.icon,
+                                  color,
+                                  source.label,
+                                  theme?.tintIcon ?? true,
+                                );
                                 return (
                                   <Button
                                     key={`${source.label}-${sourceIndex}`}

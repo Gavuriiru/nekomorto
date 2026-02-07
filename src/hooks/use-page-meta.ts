@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from "react";
+import { useLayoutEffect, useMemo } from "react";
 import { useSiteSettings } from "@/hooks/use-site-settings";
 import { normalizeAssetUrl } from "@/lib/asset-url";
 
@@ -43,9 +43,9 @@ export const usePageMeta = ({
   noIndex = false,
   separator,
 }: PageMetaOptions) => {
-  const { settings } = useSiteSettings();
+  const { settings, isLoading } = useSiteSettings();
   const siteName = settings.site.name || "Nekomata";
-  const effectiveSeparator = separator ?? settings.site.titleSeparator ?? " | ";
+  const effectiveSeparator = separator ?? settings.site.titleSeparator ?? "";
   const pageTitle = useMemo(() => {
     if (!title) {
       return siteName;
@@ -58,7 +58,10 @@ export const usePageMeta = ({
     return normalizeAssetUrl(candidate);
   }, [image, settings.site.defaultShareImage]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
+    if (isLoading) {
+      return;
+    }
     document.documentElement.dataset.pageMeta = "true";
     document.title = pageTitle;
 
@@ -98,5 +101,5 @@ export const usePageMeta = ({
     return () => {
       delete document.documentElement.dataset.pageMeta;
     };
-  }, [noIndex, pageDescription, pageImage, pageTitle, siteName, type]);
+  }, [isLoading, noIndex, pageDescription, pageImage, pageTitle, siteName, type]);
 };

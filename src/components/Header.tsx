@@ -11,6 +11,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Menu } from "lucide-react";
+import ThemedSvgLogo from "@/components/ThemedSvgLogo";
 import type { Project } from "@/data/projects";
 import { cn } from "@/lib/utils";
 import { getApiBase } from "@/lib/api-base";
@@ -50,8 +51,23 @@ const Header = ({ variant = "fixed", leading, className }: HeaderProps) => {
   const siteNameRaw = settings.site.name || "Nekomata";
   const siteName = siteNameRaw.toUpperCase();
   const logoUrl = settings.site.logoUrl?.trim();
+  const legacyWordmarkUrl = settings.branding.wordmarkUrl?.trim();
+  const wordmarkNavbarUrl =
+    settings.branding.wordmarkUrlNavbar?.trim() ||
+    settings.branding.wordmarkUrlFooter?.trim() ||
+    legacyWordmarkUrl ||
+    logoUrl ||
+    "";
+  const wordmarkPlacement = settings.branding.wordmarkPlacement || "both";
+  const showWordmarkInNavbar =
+    settings.branding.wordmarkEnabled &&
+    Boolean(wordmarkNavbarUrl) &&
+    (wordmarkPlacement === "navbar" || wordmarkPlacement === "both");
   const recruitmentUrl = settings.navbar.recruitmentUrl || settings.community.discordUrl || "/recrutamento";
   const isRecruitmentInternal = recruitmentUrl.startsWith("/") && !recruitmentUrl.startsWith("//");
+  const headerMenuContentClass =
+    "border-white/25 bg-gradient-to-b from-black/40 via-black/25 to-black/10 text-white/90 shadow-xl backdrop-blur-sm";
+  const headerMenuItemClass = "focus:bg-white/10 focus:text-white";
 
   const projectItems = projects.map((project) => ({
     label: project.title,
@@ -208,10 +224,27 @@ const Header = ({ variant = "fixed", leading, className }: HeaderProps) => {
         <div className="flex items-center gap-3">
           {leading}
           <Link to="/" className="flex items-center gap-3 text-2xl md:text-3xl font-black tracking-wider text-white">
-            {logoUrl ? (
-              <img src={logoUrl} alt={siteName} className="h-9 w-9 rounded-full object-cover shadow-sm" />
-            ) : null}
-            <span>{siteName}</span>
+            {showWordmarkInNavbar ? (
+              <>
+                <img
+                  src={wordmarkNavbarUrl}
+                  alt={siteName}
+                  className="h-8 md:h-10 w-auto max-w-[200px] md:max-w-[260px] object-contain"
+                />
+                <span className="sr-only">{siteName}</span>
+              </>
+            ) : (
+              <>
+                {logoUrl ? (
+                  <ThemedSvgLogo
+                    url={logoUrl}
+                    label={siteName}
+                    className="h-9 w-9 rounded-full object-cover shadow-sm text-primary"
+                  />
+                ) : null}
+                <span>{siteName}</span>
+              </>
+            )}
           </Link>
         </div>
         
@@ -404,17 +437,17 @@ const Header = ({ variant = "fixed", leading, className }: HeaderProps) => {
                 <Menu className="h-5 w-5" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-48">
-              <DropdownMenuItem asChild>
+            <DropdownMenuContent align="end" className={`w-48 ${headerMenuContentClass}`}>
+              <DropdownMenuItem asChild className={headerMenuItemClass}>
                 <Link to="/">Início</Link>
               </DropdownMenuItem>
-              <DropdownMenuItem asChild>
+              <DropdownMenuItem asChild className={headerMenuItemClass}>
                 <Link to="/projetos">Projetos</Link>
               </DropdownMenuItem>
-              <DropdownMenuItem asChild>
+              <DropdownMenuItem asChild className={headerMenuItemClass}>
                 <Link to="/equipe">Equipe</Link>
               </DropdownMenuItem>
-              <DropdownMenuItem asChild>
+              <DropdownMenuItem asChild className={headerMenuItemClass}>
                 {isRecruitmentInternal ? (
                   <Link to={recruitmentUrl}>Recrutamento</Link>
                 ) : (
@@ -423,7 +456,7 @@ const Header = ({ variant = "fixed", leading, className }: HeaderProps) => {
                   </a>
                 )}
               </DropdownMenuItem>
-              <DropdownMenuItem asChild>
+              <DropdownMenuItem asChild className={headerMenuItemClass}>
                 <Link to="/sobre">Sobre</Link>
               </DropdownMenuItem>
             </DropdownMenuContent>
@@ -446,11 +479,12 @@ const Header = ({ variant = "fixed", leading, className }: HeaderProps) => {
                   </span>
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-44">
-                <DropdownMenuItem asChild>
+              <DropdownMenuContent align="end" className={`w-44 ${headerMenuContentClass}`}>
+                <DropdownMenuItem asChild className={headerMenuItemClass}>
                   <Link to="/dashboard">Dashboard</Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem
+                  className={headerMenuItemClass}
                   onClick={async () => {
                     await apiFetch(apiBase, "/api/logout", {
                       method: "POST",

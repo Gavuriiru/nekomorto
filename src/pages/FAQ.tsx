@@ -104,14 +104,21 @@ const FAQ = () => {
     <div className="min-h-screen bg-background text-foreground">
 
       <main>
-        <section className="relative overflow-hidden border-b border-border/60 reveal" data-reveal>
+        <section className="relative overflow-hidden border-b border-border/60">
           <div className="absolute inset-0 bg-gradient-to-b from-primary/15 via-background to-background" />
           <div className="absolute -left-24 top-10 h-64 w-64 rounded-full bg-primary/20 blur-[120px]" />
           <div className="absolute -right-24 bottom-10 h-64 w-64 rounded-full bg-accent/20 blur-[120px]" />
-          <div className="relative mx-auto flex w-full max-w-6xl flex-col gap-6 px-6 pb-16 pt-20 md:px-10">
+          <div className="relative mx-auto flex w-full max-w-6xl flex-col gap-6 px-6 pb-16 pt-20 md:px-10 reveal" data-reveal>
             <div className="max-w-3xl space-y-4">
-              <h1 className="text-3xl font-semibold text-foreground md:text-5xl">{faq.heroTitle}</h1>
-              <p className="text-sm text-muted-foreground md:text-base">{faq.heroSubtitle}</p>
+              <h1 className="text-3xl font-semibold text-foreground md:text-5xl animate-slide-up">
+                {faq.heroTitle}
+              </h1>
+              <p
+                className="text-sm text-muted-foreground md:text-base animate-slide-up opacity-0"
+                style={{ animationDelay: "0.2s" }}
+              >
+                {faq.heroSubtitle}
+              </p>
             </div>
           </div>
         </section>

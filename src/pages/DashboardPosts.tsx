@@ -21,15 +21,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/components/ui/use-toast";
-import { usePostEditorState } from "@/hooks/use-post-editor-state";
-import PostContentEditor from "@/components/PostContentEditor";
 import {
-  AlignCenter,
-  AlignLeft,
-  AlignRight,
-  Calendar,
   Copy,
   Edit3,
   Eye,
@@ -39,22 +32,23 @@ import {
   X,
   UserRound,
 } from "lucide-react";
-import { convertPostContent, createSlug, renderPostContent, stripHtml } from "@/lib/post-content";
+import { createSlug, getLexicalText } from "@/lib/post-content";
+import LexicalEditor, { type LexicalEditorHandle } from "@/components/lexical/LexicalEditor";
 import type { Project } from "@/data/projects";
 import ProjectEmbedCard from "@/components/ProjectEmbedCard";
 import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
-import { formatDateTimeShort } from "@/lib/date";
+import { formatDate, formatDateTimeShort } from "@/lib/date";
 import { usePageMeta } from "@/hooks/use-page-meta";
 import { normalizeAssetUrl } from "@/lib/asset-url";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 const emptyForm = {
   title: "",
   slug: "",
   excerpt: "",
-  contentMarkdown: "",
-  contentHtml: "",
-  contentFormat: "markdown" as "markdown" | "html",
+  contentLexical: "",
   author: "",
   coverImageUrl: "",
   coverAlt: "",
@@ -64,6 +58,34 @@ const emptyForm = {
   tags: [] as string[],
 };
 
+const pad = (value: number) => String(value).padStart(2, "0");
+
+const toLocalDateTimeValue = (date: Date) =>
+  `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(
+    date.getHours(),
+  )}:${pad(date.getMinutes())}`;
+
+const parseLocalDateTimeValue = (value: string) => {
+  const [datePart, timePart] = value.split("T");
+  if (!datePart) {
+    return { date: null as Date | null, time: "" };
+  }
+  const [year, month, day] = datePart.split("-").map((chunk) => Number(chunk));
+  if (!year || !month || !day) {
+    return { date: null as Date | null, time: "" };
+  }
+  return {
+    date: new Date(year, month - 1, day),
+    time: timePart || "",
+  };
+};
+
+const toLocalDateTimeFromIso = (value?: string | null) =>
+  value ? toLocalDateTimeValue(new Date(value)) : "";
+
+const buildNumberOptions = (count: number) =>
+  Array.from({ length: count }, (_, index) => pad(index));
+
 type PostRecord = {
   id: string;
   title: string;
@@ -72,7 +94,7 @@ type PostRecord = {
   coverAlt?: string | null;
   excerpt: string;
   content: string;
-  contentFormat: "markdown" | "html";
+  contentFormat?: "lexical";
   author: string;
   publishedAt: string;
   scheduledAt?: string | null;
@@ -97,6 +119,7 @@ const DashboardPosts = () => {
   const navigate = useNavigate();
   const apiBase = getApiBase();
   const restoreWindowMs = 3 * 24 * 60 * 60 * 1000;
+  const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
   const [posts, setPosts] = useState<PostRecord[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [postOrder, setPostOrder] = useState<string[]>([]);
@@ -114,22 +137,6 @@ const DashboardPosts = () => {
   const [formState, setFormState] = useState(emptyForm);
   const [isSlugCustom, setIsSlugCustom] = useState(false);
   const [isLibraryOpen, setIsLibraryOpen] = useState(false);
-  const [imageTarget, setImageTarget] = useState<"editor" | "cover">("editor");
-  const [imageEditOpen, setImageEditOpen] = useState(false);
-  const [imageEditSrc, setImageEditSrc] = useState("");
-  const [imageEditAlt, setImageEditAlt] = useState("");
-  const [imageEditWidth, setImageEditWidth] = useState("");
-  const [imageEditAlign, setImageEditAlign] = useState<"left" | "center" | "right">("center");
-  const [imageEditMarkup, setImageEditMarkup] = useState("");
-  const [isColorDialogOpen, setIsColorDialogOpen] = useState(false);
-  const [colorTarget, setColorTarget] = useState<"text" | "background">("text");
-  const [colorValue, setColorValue] = useState("#ffffff");
-  const colorInputRef = useRef<HTMLInputElement | null>(null);
-  const [isGradientDialogOpen, setIsGradientDialogOpen] = useState(false);
-  const [gradientStart, setGradientStart] = useState("#ff6ec7");
-  const [gradientEnd, setGradientEnd] = useState("#7dd3fc");
-  const [gradientAngle, setGradientAngle] = useState(135);
-  const [gradientTarget, setGradientTarget] = useState<"text" | "background">("text");
   const [sortMode, setSortMode] = useState<"recent" | "alpha" | "tags" | "projects" | "status" | "views" | "comments">("recent");
   const [searchQuery, setSearchQuery] = useState("");
   const [projectFilterId, setProjectFilterId] = useState<string>("all");
@@ -139,12 +146,6 @@ const DashboardPosts = () => {
   const tagInputRef = useRef<HTMLInputElement | null>(null);
   const [tagOrder, setTagOrder] = useState<string[]>([]);
   const [draggedTag, setDraggedTag] = useState<string | null>(null);
-  const draggedImageRef = useRef<{ url: string; alt: string } | null>(null);
-  const [isLinkDialogOpen, setIsLinkDialogOpen] = useState(false);
-  const [linkUrl, setLinkUrl] = useState("");
-  const [linkText, setLinkText] = useState("");
-  const [isVideoDialogOpen, setIsVideoDialogOpen] = useState(false);
-  const [videoUrl, setVideoUrl] = useState("");
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [confirmTitle, setConfirmTitle] = useState("Sair da edição?");
   const [confirmDescription, setConfirmDescription] = useState(
@@ -152,24 +153,7 @@ const DashboardPosts = () => {
   );
   const confirmActionRef = useRef<(() => void) | null>(null);
   const confirmCancelRef = useRef<(() => void) | null>(null);
-  const editorRef = useRef<HTMLTextAreaElement | null>(null);
-  const {
-    currentContent,
-    updateContent,
-    applyTextEdit,
-    insertAtCursor,
-    applyWrap,
-    applyLinePrefix,
-    handleUnorderedList,
-    handleOrderedList,
-    handleUndo,
-    handleRedo,
-  } = usePostEditorState({
-    formState,
-    setFormState,
-    editorRef,
-    isEditorOpen,
-  });
+  const editorRef = useRef<LexicalEditorHandle | null>(null);
 
   const currentUserRecord = currentUser
     ? users.find((user) => user.id === currentUser.id) || null
@@ -189,8 +173,7 @@ const DashboardPosts = () => {
     const hasContent =
       formState.title ||
       formState.excerpt ||
-      formState.contentMarkdown ||
-      formState.contentHtml ||
+      formState.contentLexical ||
       formState.coverImageUrl;
     return Boolean(hasContent);
   }, [formState]);
@@ -362,7 +345,7 @@ const DashboardPosts = () => {
         setFormState({
           ...emptyForm,
           author: currentUser?.name || "",
-          publishAt: new Date().toISOString().slice(0, 16),
+          publishAt: toLocalDateTimeValue(new Date()),
         });
         setIsEditorOpen(true);
       };
@@ -375,7 +358,7 @@ const DashboardPosts = () => {
     setFormState({
       ...emptyForm,
       author: currentUser?.name || "",
-      publishAt: new Date().toISOString().slice(0, 16),
+      publishAt: toLocalDateTimeValue(new Date()),
     });
     setIsEditorOpen(true);
   };
@@ -383,18 +366,17 @@ const DashboardPosts = () => {
   const openEdit = (post: PostRecord) => {
     setEditingPost(post);
     setIsSlugCustom(true);
+    const lexicalContent = post.content || "";
     setFormState({
       title: post.title || "",
       slug: post.slug || "",
       excerpt: post.excerpt || "",
-      contentMarkdown: post.contentFormat === "markdown" ? post.content || "" : "",
-      contentHtml: post.contentFormat === "html" ? post.content || "" : "",
-      contentFormat: post.contentFormat || "markdown",
+      contentLexical: lexicalContent,
       author: post.author || "",
       coverImageUrl: post.coverImageUrl || "",
       coverAlt: post.coverAlt || "",
       status: post.status || "draft",
-      publishAt: post.publishedAt ? post.publishedAt.slice(0, 16) : "",
+      publishAt: toLocalDateTimeFromIso(post.publishedAt),
       projectId: post.projectId || "",
       tags: Array.isArray(post.tags) ? post.tags : [],
     });
@@ -424,16 +406,6 @@ const DashboardPosts = () => {
 
   const projectMap = useMemo(
     () => new Map(projects.map((project) => [project.id, project])),
-    [projects],
-  );
-  const projectLibraryItems = useMemo(
-    () =>
-      projects
-        .flatMap((project) => [
-          { key: `${project.id}-cover`, label: `${project.title} (Capa)`, url: project.cover },
-          { key: `${project.id}-banner`, label: `${project.title} (Banner)`, url: project.banner },
-        ])
-        .filter((item) => Boolean(item.url)),
     [projects],
   );
   const projectTags = useMemo(() => {
@@ -586,108 +558,66 @@ const DashboardPosts = () => {
     return next;
   }, [filteredPosts, postOrder, projectMap, sortMode]);
 
-  const handleFormatChange = (value: "markdown" | "html") => {
-    if (value === formState.contentFormat) {
+  const handlePublishDateChange = (nextDate?: Date) => {
+    if (!nextDate) {
+      setFormState((prev) => ({ ...prev, publishAt: "" }));
       return;
     }
-    if (value === "html") {
-      const html = convertPostContent(formState.contentMarkdown || "", "markdown", "html");
-      setFormState((prev) => ({
-        ...prev,
-        contentFormat: "html",
-        contentHtml: html,
-      }));
-      return;
-    }
-    const markdown = convertPostContent(formState.contentHtml || "", "html", "markdown");
-    setFormState((prev) => ({
-      ...prev,
-      contentFormat: "markdown",
-      contentMarkdown: markdown,
-    }));
+    const { time } = parseLocalDateTimeValue(formState.publishAt || "");
+    const timePart = time || "12:00";
+    const nextValue = `${toLocalDateTimeValue(nextDate).slice(0, 10)}T${timePart}`;
+    setFormState((prev) => ({ ...prev, publishAt: nextValue }));
   };
 
-  const applyAlign = (align: "left" | "center" | "right") => {
-    const textarea = editorRef.current;
-    if (!textarea) {
-      return;
-    }
-    const start = textarea.selectionStart;
-    const end = textarea.selectionEnd;
-    const scrollTop = textarea.scrollTop;
-    if (start === end) {
-      toast({ title: "Selecione um trecho para alinhar." });
-      return;
-    }
-    const selected = currentContent.slice(start, end);
-    const block = `<div style="text-align:${align}">${selected}</div>`;
-    const next = `${currentContent.slice(0, start)}${block}${currentContent.slice(end)}`;
-    applyTextEdit(next, start, start + block.length, scrollTop);
+  const handlePublishTimeChange = (nextTime: string) => {
+    const { date } = parseLocalDateTimeValue(formState.publishAt || "");
+    const baseDate = date || new Date();
+    const datePart = toLocalDateTimeValue(baseDate).slice(0, 10);
+    setFormState((prev) => ({ ...prev, publishAt: `${datePart}T${nextTime}` }));
   };
 
-  const applyColor = (color: string, type: "text" | "background") => {
-    const textarea = editorRef.current;
-    if (!textarea) {
+  const timeParts = parseLocalDateTimeValue(formState.publishAt || "");
+  const hours = buildNumberOptions(24);
+  const minutes = buildNumberOptions(60);
+  const timeTypeBuffer = useRef<{ hours: string; minutes: string }>({ hours: "", minutes: "" });
+  const timeTypeTimer = useRef<{ hours?: number; minutes?: number }>({});
+  const currentHour = (timeParts.time || "12:00").split(":")[0];
+  const currentMinute = (timeParts.time || "12:00").split(":")[1];
+
+  const setTimeFromTyping = (target: "hours" | "minutes", digit: string) => {
+    const existing = timeTypeBuffer.current[target] + digit;
+    const limited = existing.slice(-2);
+    timeTypeBuffer.current[target] = limited;
+    if (timeTypeTimer.current[target]) {
+      window.clearTimeout(timeTypeTimer.current[target]);
+    }
+    timeTypeTimer.current[target] = window.setTimeout(() => {
+      timeTypeBuffer.current[target] = "";
+    }, 900);
+    const numeric = Number(limited);
+    if (Number.isNaN(numeric)) {
       return;
     }
-    const start = textarea.selectionStart;
-    const end = textarea.selectionEnd;
-    const scrollTop = textarea.scrollTop;
-    if (start === end) {
-      toast({ title: "Selecione um trecho para aplicar cor." });
-      return;
+    if (target === "hours") {
+      const nextHour = pad(Math.max(0, Math.min(23, numeric)));
+      handlePublishTimeChange(`${nextHour}:${currentMinute}`);
+    } else {
+      const nextMinute = pad(Math.max(0, Math.min(59, numeric)));
+      handlePublishTimeChange(`${currentHour}:${nextMinute}`);
     }
-    const selected = currentContent.slice(start, end);
-    const style = type === "text" ? `color:${color};` : `background-color:${color};`;
-    const existingSpanMatch = selected.match(/^<span style="[^"]*">([\s\S]*)<\/span>$/);
-    const inner = existingSpanMatch ? existingSpanMatch[1] : selected;
-    const wrapped = `<span style="${style}">${inner}</span>`;
-    const next = `${currentContent.slice(0, start)}${wrapped}${currentContent.slice(end)}`;
-    applyTextEdit(next, start, start + wrapped.length, scrollTop);
   };
 
-  const applyGradient = () => {
-    const textarea = editorRef.current;
-    if (!textarea) {
-      return;
+  const handleTimeType = (target: "hours" | "minutes") => (event: React.KeyboardEvent) => {
+    if (event.key.length === 1 && /\d/.test(event.key)) {
+      event.preventDefault();
+      setTimeFromTyping(target, event.key);
     }
-    const start = textarea.selectionStart;
-    const end = textarea.selectionEnd;
-    const scrollTop = textarea.scrollTop;
-    if (start === end) {
-      toast({ title: "Selecione um trecho para aplicar gradiente." });
-      return;
-    }
-    const selected = currentContent.slice(start, end);
-    const gradient = `linear-gradient(${gradientAngle}deg, ${gradientStart}, ${gradientEnd})`;
-    const style =
-      gradientTarget === "text"
-        ? `background:${gradient};-webkit-background-clip:text;color:transparent;-webkit-text-fill-color:transparent;display:inline-block;`
-        : `background:${gradient};`;
-    const wrapped = `<span style="${style}">${selected}</span>`;
-    const next = `${currentContent.slice(0, start)}${wrapped}${currentContent.slice(end)}`;
-    applyTextEdit(next, start, start + wrapped.length, scrollTop);
-    setIsGradientDialogOpen(false);
   };
 
-  const openColorDialog = (type: "text" | "background") => {
-    setColorTarget(type);
-    setIsColorDialogOpen(true);
-  };
-
-  useEffect(() => {
-    if (!isColorDialogOpen) {
-      return;
-    }
-    const timer = window.setTimeout(() => {
-      colorInputRef.current?.click();
-    }, 0);
-    return () => window.clearTimeout(timer);
-  }, [isColorDialogOpen]);
-
-  const applyColorSelection = () => {
-    applyColor(colorValue, colorTarget);
-    setIsColorDialogOpen(false);
+  const handleSetNow = () => {
+    const now = new Date();
+    handlePublishDateChange(now);
+    handlePublishTimeChange(`${pad(now.getHours())}:${pad(now.getMinutes())}`);
   };
 
   const handleAddTag = () => {
@@ -754,160 +684,17 @@ const DashboardPosts = () => {
     setDraggedTag(null);
   };
 
-  const handleApplyHeading = () => {
-    if (formState.contentFormat === "html") {
-      applyWrap("<h2>", "</h2>");
-      return;
-    }
-    applyLinePrefix("# ");
-  };
-
-  const getFirstImageFromContent = () => {
-    const content =
-      formState.contentFormat === "markdown" ? formState.contentMarkdown : formState.contentHtml;
-    const markdownMatch = content.match(/!\[([^\]]*)\]\(([^)\s]+)[^)]*\)/i);
-    if (markdownMatch) {
-      return { url: markdownMatch[2], alt: markdownMatch[1] || "" };
-    }
-    const htmlMatch = content.match(/<img[^>]*src=["']([^"']+)["'][^>]*alt=["']([^"']*)["'][^>]*>/i);
-    if (htmlMatch) {
-      return { url: htmlMatch[1], alt: htmlMatch[2] || "" };
-    }
-    const htmlSrcMatch = content.match(/<img[^>]*src=["']([^"']+)["'][^>]*>/i);
-    if (htmlSrcMatch) {
-      return { url: htmlSrcMatch[1], alt: "" };
-    }
-    return null;
-  };
-
-  const fileToDataUrl = (file: File) =>
-    new Promise<string>((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(String(reader.result));
-      reader.onerror = () => reject(new Error("file_read_failed"));
-      reader.readAsDataURL(file);
-    });
-
-  const uploadImage = async (file: File) => {
-    const dataUrl = await fileToDataUrl(file);
-    const response = await apiFetch(apiBase, "/api/uploads/image", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      auth: true,
-      body: JSON.stringify({ dataUrl, filename: file.name }),
-    });
-    if (!response.ok) {
-      throw new Error("upload_failed");
-    }
-    const data = await response.json();
-    return String(data.url || "");
-  };
-
-  const insertImageToContent = useCallback(
-    (url: string, altText?: string) => {
-      const alt = altText || "Imagem";
-      if (formState.contentFormat === "markdown") {
-        insertAtCursor(`\n\n![${alt}](${url})\n`);
-      } else {
-        insertAtCursor(`\n\n<img src="${url}" alt="${alt}" loading="lazy" />\n`);
-      }
-    },
-    [formState.contentFormat, insertAtCursor],
-  );
-
-  const insertAtCursorWithContent = (baseContent: string, text: string) => {
-    const textarea = editorRef.current;
-    if (!textarea) {
-      updateContent(`${baseContent}${text}`);
-      return;
-    }
-    const start = textarea.selectionStart;
-    const end = textarea.selectionEnd;
-    const scrollTop = textarea.scrollTop;
-    const next = `${baseContent.slice(0, start)}${text}${baseContent.slice(end)}`;
-    applyTextEdit(next, start + text.length, start + text.length, scrollTop);
-  };
-
-  const insertAtCursorWithoutReplace = (baseContent: string, text: string) => {
-    const textarea = editorRef.current;
-    if (!textarea) {
-      updateContent(`${baseContent}${text}`);
-      return;
-    }
-    const start = textarea.selectionStart;
-    const scrollTop = textarea.scrollTop;
-    const next = `${baseContent.slice(0, start)}${text}${baseContent.slice(start)}`;
-    applyTextEdit(next, start + text.length, start + text.length, scrollTop);
-  };
-
-  const insertAtPosition = (baseContent: string, text: string, position: number) => {
-    const textarea = editorRef.current;
-    const safePosition = Math.max(0, Math.min(position, baseContent.length));
-    const scrollTop = textarea?.scrollTop ?? 0;
-    const next = `${baseContent.slice(0, safePosition)}${text}${baseContent.slice(safePosition)}`;
-    applyTextEdit(next, safePosition + text.length, safePosition + text.length, scrollTop);
-  };
-
-  const insertImageBeforeTarget = (content: string, imageMarkup: string, targetUrl: string) => {
-    const escaped = targetUrl.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    const markdownRegex = new RegExp(`!\\[[^\\]]*\\]\\(${escaped}[^)]*\\)`, "i");
-    const htmlRegex = new RegExp(`<img[^>]*src=["']${escaped}["'][^>]*>`, "i");
-    const markdownMatch = content.match(markdownRegex);
-    if (markdownMatch?.index !== undefined) {
-      return `${content.slice(0, markdownMatch.index)}${imageMarkup}\n\n${content.slice(markdownMatch.index)}`;
-    }
-    const htmlMatch = content.match(htmlRegex);
-    if (htmlMatch?.index !== undefined) {
-      return `${content.slice(0, htmlMatch.index)}${imageMarkup}\n\n${content.slice(htmlMatch.index)}`;
-    }
-    return `${content}${imageMarkup}`;
-  };
-
-  const removeImageFromContent = (url: string) => {
-    const escaped = url.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    const markdownRegex = new RegExp(`!\\[([^\\]]*)\\]\\(${escaped}[^)]*\\)\\s*`, "i");
-    const htmlRegex = new RegExp(`<img[^>]*src=["']${escaped}["'][^>]*>\\s*`, "i");
-    let next = currentContent;
-    let alt = "";
-    const markdownMatch = next.match(markdownRegex);
-    if (markdownMatch) {
-      alt = markdownMatch[1] || "";
-      next = next.replace(markdownRegex, "");
-      return { next, alt };
-    }
-    const htmlMatch = next.match(
-      new RegExp(`<img[^>]*src=["']${escaped}["'][^>]*alt=["']([^"']*)["'][^>]*>`, "i"),
-    );
-    if (htmlMatch) {
-      alt = htmlMatch[1] || "";
-      next = next.replace(htmlRegex, "");
-      return { next, alt };
-    }
-    next = next.replace(htmlRegex, "");
-    return { next, alt };
-  };
-
-
-
-  const openLibrary = (target: "editor" | "cover") => {
-    setImageTarget(target);
+  const openLibrary = () => {
     setIsLibraryOpen(true);
   };
 
-  const handleLibrarySelect = useCallback(
-    (url: string, altText?: string) => {
-      if (imageTarget === "cover") {
-        setFormState((prev) => ({
-          ...prev,
-          coverImageUrl: url,
-          coverAlt: prev.coverAlt || altText || prev.title || "Capa",
-        }));
-        return;
-      }
-      insertImageToContent(url, altText || "Imagem");
-    },
-    [imageTarget, insertImageToContent],
-  );
+  const handleLibrarySelect = useCallback((url: string, altText?: string) => {
+    setFormState((prev) => ({
+      ...prev,
+      coverImageUrl: url,
+      coverAlt: prev.coverAlt || altText || prev.title || "Capa",
+    }));
+  }, []);
 
 
 
@@ -933,16 +720,11 @@ const DashboardPosts = () => {
     }
     const resolvedPublishedAt =
       resolvedStatus === "published" ? new Date().toISOString() : publishAtValue;
-    const contentHtml = renderPostContent(
-      formState.contentFormat === "markdown" ? formState.contentMarkdown : formState.contentHtml,
-      formState.contentFormat,
-    );
-    const seoDescription = stripHtml(contentHtml).trim().slice(0, 150);
-    const fallbackImage = getFirstImageFromContent();
-    const coverImageUrl = formState.coverImageUrl.trim() || fallbackImage?.url || null;
-    const coverAlt = formState.coverAlt.trim() || fallbackImage?.alt || "";
-    const excerpt =
-      formState.excerpt.trim() || stripHtml(contentHtml).trim().slice(0, 160);
+    const lexicalText = getLexicalText(formState.contentLexical);
+    const seoDescription = lexicalText.trim().slice(0, 150);
+    const coverImageUrl = formState.coverImageUrl.trim() || null;
+    const coverAlt = formState.coverAlt.trim() || "";
+    const excerpt = formState.excerpt.trim() || lexicalText.trim().slice(0, 160);
     const rawTagInput = tagInputRef.current?.value ?? tagInput;
     const pendingTags = rawTagInput
       .split(",")
@@ -967,9 +749,8 @@ const DashboardPosts = () => {
       coverImageUrl,
       coverAlt,
       excerpt,
-      content:
-        formState.contentFormat === "markdown" ? formState.contentMarkdown : formState.contentHtml,
-      contentFormat: formState.contentFormat,
+      content: formState.contentLexical,
+      contentFormat: "lexical",
       author: formState.author.trim(),
       publishedAt: resolvedPublishedAt,
       status: resolvedStatus,
@@ -1039,65 +820,6 @@ const DashboardPosts = () => {
     setDeleteTarget(post);
   };
 
-  const renderImagePanel = () => {
-    if (editorImages.images.length === 0) {
-      return (
-        <div className="rounded-2xl border border-dashed border-border/60 bg-card/40 px-4 py-3 text-xs text-muted-foreground">
-          Nenhuma imagem no texto.
-        </div>
-      );
-    }
-    return (
-      <div className="rounded-2xl border border-border/60 bg-card/50 p-4">
-        <p className="text-xs uppercase tracking-widest text-muted-foreground">Imagens no texto</p>
-        <div className="mt-3 flex flex-wrap gap-3">
-          {editorImages.images.map((image, index) => (
-            <button
-              key={`${image.src}-${index}`}
-              type="button"
-              draggable
-              className="group flex w-40 flex-col gap-2 rounded-xl border border-border/60 bg-card/60 p-2 text-left transition hover:border-primary/40"
-              onDragStart={(event) => {
-                event.dataTransfer.setData("application/x-editor-image-index", String(index));
-                event.dataTransfer.setData("text/plain", String(index));
-                event.dataTransfer.effectAllowed = "move";
-              }}
-              onDragOver={(event) => event.preventDefault()}
-              onDrop={(event) => {
-                event.preventDefault();
-                const fromIndex = Number(event.dataTransfer.getData("text/plain"));
-                if (!Number.isNaN(fromIndex)) {
-                  reorderEditorImages(fromIndex, index);
-                }
-              }}
-              onClick={() => {
-                const widthMatch = image.markup.match(/width\s*:\s*([^;"]+)[;"\s]/i);
-                const attrWidthMatch = image.markup.match(/width=["']([^"']+)["']/i);
-                const detectedWidth = (widthMatch?.[1] || attrWidthMatch?.[1] || "").trim();
-                setImageEditSrc(image.src);
-                setImageEditAlt(image.alt || "");
-                setImageEditWidth(detectedWidth);
-                setImageEditAlign("center");
-                setImageEditMarkup(image.markup);
-                setImageEditOpen(true);
-              }}
-            >
-              <div className="relative h-20 w-full overflow-hidden rounded-lg bg-muted/30">
-                <img src={image.src} alt={image.alt || "Imagem"} className="h-full w-full object-cover" />
-              </div>
-              <span className="text-[11px] text-muted-foreground line-clamp-2">
-                {image.alt || "Imagem sem alt"}
-              </span>
-            </button>
-          ))}
-        </div>
-        <p className="mt-3 text-xs text-muted-foreground">
-          Clique para editar a imagem. Arraste para reordenar. Para inserir no texto, posicione o cursor e arraste.
-        </p>
-      </div>
-    );
-  };
-
   const handleConfirmDelete = async () => {
     if (!deleteTarget) {
       return;
@@ -1136,251 +858,6 @@ const DashboardPosts = () => {
     toast({ title: "Postagem restaurada" });
   };
 
-  const previewContentRaw = renderPostContent(
-    currentContent || formState.excerpt,
-    formState.contentFormat,
-  );
-  const previewContent = previewContentRaw.replace(
-    /<img([^>]*?)>/gi,
-    (_match, attrs: string) => {
-      const srcMatch = attrs.match(/src=["']([^"']+)["']/i);
-      const src = srcMatch?.[1] || "";
-      return `<img${attrs} data-editor-src="${src}" draggable="true">`;
-    },
-  );
-  const handleEditorKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (event.ctrlKey && !event.shiftKey && event.key.toLowerCase() === "z") {
-      event.preventDefault();
-      handleUndo();
-    }
-    if ((event.ctrlKey && event.shiftKey && event.key.toLowerCase() === "z") || (event.ctrlKey && event.key.toLowerCase() === "y")) {
-      event.preventDefault();
-      handleRedo();
-    }
-  };
-
-  const handleEditorDrop = async (event: React.DragEvent<HTMLTextAreaElement>) => {
-    event.preventDefault();
-    const dataTransfer = event.dataTransfer;
-    if (!dataTransfer) {
-      return;
-    }
-    const draggedIndexRaw = dataTransfer.getData("application/x-editor-image-index");
-    if (draggedIndexRaw) {
-      const fromIndex = Number(draggedIndexRaw);
-      if (!Number.isNaN(fromIndex)) {
-        moveEditorImageToCursor(fromIndex);
-      }
-      return;
-    }
-    const draggedUrl = dataTransfer.getData("application/x-editor-image");
-    if (draggedUrl) {
-      const { next, alt } = removeImageFromContent(draggedUrl);
-      insertAtCursorWithContent(
-        next,
-        formState.contentFormat === "markdown"
-          ? `\n\n![${alt || "Imagem"}](${draggedUrl})\n`
-          : `\n\n<img src="${draggedUrl}" alt="${alt || "Imagem"}" loading="lazy" />\n`,
-      );
-      draggedImageRef.current = null;
-      return;
-    }
-    if (!dataTransfer.files?.length) {
-      const url = dataTransfer.getData("text/uri-list") || dataTransfer.getData("text/plain");
-      if (url && /^https?:\/\//i.test(url)) {
-        insertImageToContent(url, "Imagem");
-      }
-      return;
-    }
-    const file = dataTransfer.files[0];
-    if (!file.type.startsWith("image/")) {
-      toast({ title: "Arraste apenas imagens para o editor." });
-      return;
-    }
-    try {
-      setIsUploading(true);
-      const url = await uploadImage(file);
-      const alt = file.name.replace(/\\.[^/.]+$/, "").replace(/[-_]/g, " ") || "Imagem";
-      insertImageToContent(url, alt);
-    } catch {
-      toast({ title: "Não foi possível enviar a imagem" });
-    } finally {
-      setIsUploading(false);
-    }
-  };
-
-
-  const applyImageUpdate = () => {
-    if (!imageEditSrc || !imageEditMarkup) {
-      setImageEditOpen(false);
-      return;
-    }
-    const styleParts = ["height:auto;", "display:block;"];
-    if (imageEditWidth.trim()) {
-      styleParts.unshift(`width:${imageEditWidth.trim()};`);
-    }
-    if (imageEditAlign === "left") {
-      styleParts.push("margin-right:auto;");
-    } else if (imageEditAlign === "right") {
-      styleParts.push("margin-left:auto;");
-    } else {
-      styleParts.push("margin-left:auto;");
-      styleParts.push("margin-right:auto;");
-    }
-    const imgTag = `<img src="${imageEditSrc}" alt="${imageEditAlt || "Imagem"}" style="${styleParts.join("")}" loading="lazy" />`;
-
-    const updated = currentContent.replace(imageEditMarkup, imgTag);
-    updateContent(updated);
-    setImageEditOpen(false);
-  };
-
-  const handleRemoveImage = () => {
-    if (!imageEditMarkup) {
-      setImageEditOpen(false);
-      return;
-    }
-    const updated = currentContent.replace(imageEditMarkup, "");
-    updateContent(updated);
-    setImageEditOpen(false);
-  };
-
-  const openLinkDialog = () => {
-    const textarea = editorRef.current;
-    const start = textarea?.selectionStart ?? 0;
-    const end = textarea?.selectionEnd ?? 0;
-    const selected = currentContent.slice(start, end);
-    setLinkText(selected.trim());
-    setIsLinkDialogOpen(true);
-  };
-
-  const handleInsertLink = () => {
-    const trimmedUrl = linkUrl.trim();
-    if (!trimmedUrl) {
-      return;
-    }
-    const text = (linkText || trimmedUrl).trim();
-    const linkMarkup =
-      formState.contentFormat === "markdown"
-        ? `[${text}](${trimmedUrl})`
-        : `<a href="${trimmedUrl}" target="_blank" rel="noreferrer">${text}</a>`;
-
-    const textarea = editorRef.current;
-    if (textarea) {
-      const start = textarea.selectionStart;
-      const end = textarea.selectionEnd;
-      const scrollTop = textarea.scrollTop;
-      const next = `${currentContent.slice(0, start)}${linkMarkup}${currentContent.slice(end)}`;
-      applyTextEdit(next, start + linkMarkup.length, start + linkMarkup.length, scrollTop);
-    } else {
-      updateContent(`${currentContent}\n\n${linkMarkup}\n`);
-    }
-    setLinkUrl("");
-    setLinkText("");
-    setIsLinkDialogOpen(false);
-  };
-
-  const openVideoDialog = () => {
-    setIsVideoDialogOpen(true);
-  };
-
-  const editorImages = useMemo(() => {
-    const content = currentContent;
-    const images: Array<{ markup: string; src: string; alt: string }> = [];
-    const segments: string[] = [];
-    if (formState.contentFormat === "markdown") {
-      const regex = /!\[([^\]]*)\]\(([^)\s]+)[^)]*\)/gi;
-      let lastIndex = 0;
-      let match: RegExpExecArray | null;
-      while ((match = regex.exec(content)) !== null) {
-        segments.push(content.slice(lastIndex, match.index));
-        images.push({
-          markup: match[0],
-          alt: match[1] || "",
-          src: match[2] || "",
-        });
-        lastIndex = match.index + match[0].length;
-      }
-      segments.push(content.slice(lastIndex));
-    } else {
-      const regex = /<img\b[^>]*>/gi;
-      let lastIndex = 0;
-      let match: RegExpExecArray | null;
-      while ((match = regex.exec(content)) !== null) {
-        segments.push(content.slice(lastIndex, match.index));
-        const markup = match[0];
-        const srcMatch = markup.match(/src=["']([^"']+)["']/i);
-        const altMatch = markup.match(/alt=["']([^"']*)["']/i);
-        images.push({
-          markup,
-          alt: altMatch?.[1] || "",
-          src: srcMatch?.[1] || "",
-        });
-        lastIndex = match.index + match[0].length;
-      }
-      segments.push(content.slice(lastIndex));
-    }
-    return { images, segments };
-  }, [currentContent, formState.contentFormat]);
-
-  const reorderEditorImages = (fromIndex: number, toIndex: number) => {
-    if (fromIndex === toIndex) {
-      return;
-    }
-    const { images, segments } = editorImages;
-    if (!images[fromIndex] || !images[toIndex]) {
-      return;
-    }
-    const nextImages = [...images];
-    const [moved] = nextImages.splice(fromIndex, 1);
-    nextImages.splice(toIndex, 0, moved);
-    let rebuilt = "";
-    for (let i = 0; i < nextImages.length; i += 1) {
-      rebuilt += segments[i] ?? "";
-      rebuilt += nextImages[i]?.markup ?? "";
-    }
-    rebuilt += segments[nextImages.length] ?? "";
-    updateContent(rebuilt);
-  };
-
-  const moveEditorImageToCursor = (fromIndex: number) => {
-    const { images, segments } = editorImages;
-    if (!images[fromIndex]) {
-      return;
-    }
-    const textarea = editorRef.current;
-    const cursorStart = textarea?.selectionStart ?? 0;
-    let imageStart = 0;
-    for (let i = 0; i < fromIndex; i += 1) {
-      imageStart += (segments[i]?.length ?? 0);
-      imageStart += images[i]?.markup.length ?? 0;
-    }
-    imageStart += segments[fromIndex]?.length ?? 0;
-    const imageLength = images[fromIndex].markup.length;
-    const imageEnd = imageStart + imageLength;
-    const baseContent = `${currentContent.slice(0, imageStart)}${currentContent.slice(imageEnd)}`;
-    let insertPosition = cursorStart;
-    if (cursorStart > imageEnd) {
-      insertPosition = cursorStart - imageLength;
-    } else if (cursorStart >= imageStart) {
-      insertPosition = imageStart;
-    }
-    insertAtPosition(baseContent, images[fromIndex].markup, insertPosition);
-  };
-
-  const handleInsertVideo = () => {
-    const url = videoUrl.trim();
-    if (!url) {
-      return;
-    }
-    const embedUrl = url.includes("youtube.com")
-      ? url.replace("watch?v=", "embed/")
-      : url.includes("youtu.be/")
-        ? url.replace("youtu.be/", "youtube.com/embed/")
-        : url;
-    insertAtCursor(`\n\n<iframe src="${embedUrl}" title="Video" allowfullscreen></iframe>\n`);
-    setVideoUrl("");
-    setIsVideoDialogOpen(false);
-  };
 
   return (
     <>
@@ -1398,11 +875,14 @@ const DashboardPosts = () => {
         <main className="pt-24 px-6 pb-20 md:px-10">
             <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
               <div>
-                <Badge variant="secondary" className="text-xs uppercase tracking-widest">
+                <Badge variant="secondary" className="text-xs uppercase tracking-widest animate-fade-in">
                   Postagens
                 </Badge>
-                <h1 className="mt-4 text-3xl font-semibold text-foreground">Gerenciar posts</h1>
-                <p className="mt-2 text-sm text-muted-foreground">
+                <h1 className="mt-4 text-3xl font-semibold text-foreground animate-slide-up">Gerenciar posts</h1>
+                <p
+                  className="mt-2 text-sm text-muted-foreground animate-slide-up opacity-0"
+                  style={{ animationDelay: "0.2s" }}
+                >
                   Visualize, edite e publique os posts mais recentes do site.
                 </p>
               </div>
@@ -1453,59 +933,28 @@ const DashboardPosts = () => {
             </div>
 
             {isEditorOpen && canManagePosts ? (
-              <section className="mt-10 space-y-8">
+              <section
+                className="mt-10 space-y-8"
+                onFocusCapture={(event) => {
+                  const target = event.target as HTMLElement | null;
+                  if (target?.closest(".lexical-playground")) {
+                    return;
+                  }
+                  editorRef.current?.blur();
+                }}
+              >
                 <div className="grid gap-8 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
-                  <PostContentEditor
-                    format={formState.contentFormat}
-                    value={currentContent}
-                    onFormatChange={handleFormatChange}
-                    onChange={updateContent}
-                    onApplyWrap={applyWrap}
-                    onApplyHeading={handleApplyHeading}
-                    onApplyUnorderedList={handleUnorderedList}
-                    onApplyOrderedList={handleOrderedList}
-                    onAlign={applyAlign}
-                    onColor={applyColor}
-                    onOpenColorDialog={openColorDialog}
-                    onOpenGradientDialog={() => setIsGradientDialogOpen(true)}
-                    onOpenImageDialog={() => openLibrary("editor")}
-                    onOpenLinkDialog={openLinkDialog}
-                    onUndo={handleUndo}
-                    onRedo={handleRedo}
-                    onEmbedVideo={openVideoDialog}
-                    onKeyDown={handleEditorKeyDown}
-                    onDrop={handleEditorDrop}
-                    textareaRef={editorRef}
-                    previewHtml={previewContent}
-                    coverImageUrl={formState.coverImageUrl || getFirstImageFromContent()?.url}
-                    coverAlt={formState.coverAlt || getFirstImageFromContent()?.alt}
-                    title={formState.title}
-                    excerpt={formState.excerpt}
-                    imagePanel={renderImagePanel()}
-                    onPreviewClick={(event) => {
-                      const target = event.target as HTMLElement | null;
-                      if (!target || target.tagName !== "IMG") {
-                        return;
-                      }
-                      const img = target as HTMLImageElement;
-                      setImageEditSrc(img.src);
-                      setImageEditAlt(img.alt || "");
-                      setImageEditWidth("100%");
-                      setImageEditAlign("center");
-                      setImageEditOpen(true);
-                    }}
-                    previewMeta={
-                      <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
-                        <span className="inline-flex items-center gap-2">
-                          <UserRound className="h-4 w-4" />
-                          {formState.author || "Autor"}
-                        </span>
-                        <span className="inline-flex items-center gap-2">
-                          <Calendar className="h-4 w-4" />
-                          {formState.publishAt ? formatDateTimeShort(formState.publishAt) : ""}
-                        </span>
-                      </div>
+                  <LexicalEditor
+                    ref={editorRef}
+                    value={formState.contentLexical}
+                    onChange={(value) =>
+                      setFormState((prev) => ({
+                        ...prev,
+                        contentLexical: value,
+                      }))
                     }
+                    placeholder="Escreva o conteúdo do post..."
+                    className="lexical-playground--stretch"
                   />
 
                   <aside className="space-y-6">
@@ -1576,14 +1025,81 @@ const DashboardPosts = () => {
                         </div>
                         <div className="space-y-2">
                           <Label htmlFor="post-date">Publicação</Label>
-                          <Input
-                            id="post-date"
-                            type="datetime-local"
-                            value={formState.publishAt}
-                            onChange={(event) =>
-                              setFormState((prev) => ({ ...prev, publishAt: event.target.value }))
-                            }
-                          />
+                          <div className="grid gap-3 md:grid-cols-[1.2fr_0.8fr]">
+                            <Popover>
+                              <PopoverTrigger asChild>
+                                <Button
+                                  id="post-date"
+                                  variant="outline"
+                                  className="justify-start text-left font-normal"
+                                >
+                                  {formState.publishAt
+                                    ? formatDate(formState.publishAt)
+                                    : "Selecionar data"}
+                                </Button>
+                              </PopoverTrigger>
+                              <PopoverContent align="start" className="w-auto p-0">
+                                <Calendar
+                                  mode="single"
+                                  selected={parseLocalDateTimeValue(formState.publishAt || "").date ?? undefined}
+                                  onSelect={(date) => handlePublishDateChange(date ?? undefined)}
+                                  initialFocus
+                                />
+                              </PopoverContent>
+                            </Popover>
+                            <div className="flex items-center gap-1">
+                              <Select
+                                value={currentHour}
+                                onValueChange={(value) =>
+                                  handlePublishTimeChange(`${value}:${currentMinute}`)
+                                }
+                              >
+                                <SelectTrigger
+                                  className="w-14 justify-center px-2 [&>svg]:hidden"
+                                  onKeyDown={handleTimeType("hours")}
+                                >
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {hours.map((hour) => (
+                                    <SelectItem key={hour} value={hour}>
+                                      {hour}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                              <span className="text-xs text-muted-foreground">:</span>
+                              <Select
+                                value={currentMinute}
+                                onValueChange={(value) =>
+                                  handlePublishTimeChange(`${currentHour}:${value}`)
+                                }
+                              >
+                                <SelectTrigger
+                                  className="w-14 justify-center px-2 [&>svg]:hidden"
+                                  onKeyDown={handleTimeType("minutes")}
+                                >
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {minutes.map((minute) => (
+                                    <SelectItem key={minute} value={minute}>
+                                      {minute}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="ghost"
+                                className="h-8 px-2 text-xs"
+                                onClick={handleSetNow}
+                              >
+                                Agora
+                              </Button>
+                            </div>
+                          </div>
                         </div>
                       </CardContent>
                     </Card>
@@ -1606,7 +1122,7 @@ const DashboardPosts = () => {
                           ) : (
                             <p className="text-xs text-muted-foreground">Sem capa definida.</p>
                           )}
-                          <Button type="button" variant="outline" size="sm" onClick={() => openLibrary("cover")}>
+                          <Button type="button" variant="outline" size="sm" onClick={openLibrary}>
                             Biblioteca
                           </Button>
                         </div>
@@ -1723,7 +1239,10 @@ const DashboardPosts = () => {
             ) : null}
 
             <section className="mt-10 space-y-6">
-              <div className="flex flex-wrap items-center justify-between gap-3">
+              <div
+                className="flex flex-wrap items-center justify-between gap-3 animate-slide-up opacity-0"
+                style={{ animationDelay: "120ms" }}
+              >
                 <div className="flex flex-1 flex-wrap items-center gap-3">
                   <div className="w-full max-w-sm">
                     <Input
@@ -1787,7 +1306,7 @@ const DashboardPosts = () => {
                 </div>
               ) : (
                 <div className="grid gap-6">
-                  {sortedPosts.map((post) => {
+                  {sortedPosts.map((post, index) => {
                     const formattedDate = post.publishedAt ? formatDateTimeShort(post.publishedAt) : "Sem data";
                     const project = post.projectId ? projectMap.get(post.projectId) : null;
                     const tags = Array.from(
@@ -1799,7 +1318,8 @@ const DashboardPosts = () => {
                     return (
                       <Card
                         key={post.id}
-                        className="group cursor-pointer overflow-hidden border-border/60 bg-card/80 shadow-lg transition hover:border-primary/40"
+                        className="group cursor-pointer overflow-hidden border-border/60 bg-card/80 shadow-lg transition hover:border-primary/40 animate-slide-up opacity-0"
+                        style={{ animationDelay: `${index * 60}ms` }}
                         onClick={() => {
                           if (canManagePosts) {
                             openEdit(post);
@@ -1929,10 +1449,11 @@ const DashboardPosts = () => {
                       </Badge>
                     </div>
                     <div className="grid gap-3">
-                      {trashedPosts.map((post) => (
+                      {trashedPosts.map((post, index) => (
                         <div
                           key={`trash-${post.id}`}
-                          className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3"
+                          className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 animate-slide-up opacity-0"
+                          style={{ animationDelay: `${index * 60}ms` }}
                         >
                           <div className="min-w-0">
                             <p className="text-sm font-medium text-foreground">{post.title}</p>
@@ -1967,190 +1488,11 @@ const DashboardPosts = () => {
         apiBase={apiBase}
         description="Escolha uma imagem ja enviada ou use capas/banners de projetos."
         listFolders={[""]}
-        showAltInput={imageTarget === "editor"}
-        allowDeselect={imageTarget === "cover"}
-        selectOnUpload
-        currentSelectionUrl={imageTarget === "cover" ? formState.coverImageUrl : undefined}
-        onSelect={handleLibrarySelect}
-        sections={[
-          {
-            title: "Projetos",
-            items: projectLibraryItems,
-          },
-        ]}
+        allowDeselect
+        mode="single"
+        currentSelectionUrls={formState.coverImageUrl ? [formState.coverImageUrl] : []}
+        onSave={({ urls }) => handleLibrarySelect(urls[0] || "")}
       />
-
-      <Dialog open={isLinkDialogOpen} onOpenChange={setIsLinkDialogOpen}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Inserir link</DialogTitle>
-            <DialogDescription>Adicione um hyperlink no conteúdo.</DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label>URL</Label>
-              <Input value={linkUrl} onChange={(event) => setLinkUrl(event.target.value)} />
-            </div>
-            <div className="space-y-2">
-              <Label>Texto</Label>
-              <Input value={linkText} onChange={(event) => setLinkText(event.target.value)} />
-            </div>
-            <div className="flex justify-end gap-3">
-              <Button variant="ghost" onClick={() => setIsLinkDialogOpen(false)}>
-                Cancelar
-              </Button>
-              <Button onClick={handleInsertLink}>Inserir link</Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={isVideoDialogOpen} onOpenChange={setIsVideoDialogOpen}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Incorporar vídeo</DialogTitle>
-            <DialogDescription>Cole o link do YouTube ou Vimeo.</DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label>URL do vídeo</Label>
-              <Input value={videoUrl} onChange={(event) => setVideoUrl(event.target.value)} />
-            </div>
-            <div className="flex justify-end gap-3">
-              <Button variant="ghost" onClick={() => setIsVideoDialogOpen(false)}>
-                Cancelar
-              </Button>
-              <Button onClick={handleInsertVideo}>Inserir vídeo</Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={isGradientDialogOpen} onOpenChange={setIsGradientDialogOpen}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Gradiente</DialogTitle>
-            <DialogDescription>Crie um gradiente para texto ou fundo.</DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div
-              className="h-14 w-full rounded-xl border border-border/60"
-              style={{
-                background: `linear-gradient(${gradientAngle}deg, ${gradientStart}, ${gradientEnd})`,
-              }}
-            />
-            <div className="space-y-2">
-              <Label>Aplicar em</Label>
-              <Select value={gradientTarget} onValueChange={(value) => setGradientTarget(value as "text" | "background")}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="text">Texto</SelectItem>
-                  <SelectItem value="background">Fundo</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-2">
-                <Label>Cor inicial</Label>
-                <Input type="color" value={gradientStart} onChange={(event) => setGradientStart(event.target.value)} />
-              </div>
-              <div className="space-y-2">
-                <Label>Cor final</Label>
-                <Input type="color" value={gradientEnd} onChange={(event) => setGradientEnd(event.target.value)} />
-              </div>
-            </div>
-            <div className="space-y-2">
-              <Label>Ângulo</Label>
-              <Input
-                type="number"
-                min={0}
-                max={360}
-                value={gradientAngle}
-                onChange={(event) => setGradientAngle(Number(event.target.value || 0))}
-              />
-            </div>
-            <div className="flex justify-end gap-3">
-              <Button variant="ghost" onClick={() => setIsGradientDialogOpen(false)}>
-                Cancelar
-              </Button>
-              <Button onClick={applyGradient}>Aplicar gradiente</Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={isColorDialogOpen} onOpenChange={setIsColorDialogOpen}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Cor sólida</DialogTitle>
-            <DialogDescription>Escolha uma cor para o texto ou fundo.</DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-border/60 bg-card/70 px-4 py-3">
-              <span className="text-sm text-muted-foreground">
-                {colorTarget === "text" ? "Texto" : "Fundo"}
-              </span>
-              <div className="flex items-center gap-3">
-                <input
-                  ref={colorInputRef}
-                  type="color"
-                  value={colorValue}
-                  onChange={(event) => setColorValue(event.target.value)}
-                  className="h-10 w-14 cursor-pointer rounded-md border border-border/60 bg-transparent p-1"
-                />
-                <span className="text-xs text-muted-foreground">{colorValue}</span>
-              </div>
-            </div>
-            <div className="flex justify-end gap-3">
-              <Button variant="ghost" onClick={() => setIsColorDialogOpen(false)}>
-                Cancelar
-              </Button>
-              <Button onClick={applyColorSelection}>Aplicar cor</Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={imageEditOpen} onOpenChange={setImageEditOpen}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader>
-            <DialogTitle>Editar imagem</DialogTitle>
-            <DialogDescription>Ajuste tamanho, alinhamento e texto alternativo.</DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label>Alt</Label>
-              <Input value={imageEditAlt} onChange={(event) => setImageEditAlt(event.target.value)} />
-            </div>
-            <div className="space-y-2">
-              <Label>Largura</Label>
-              <Input value={imageEditWidth} onChange={(event) => setImageEditWidth(event.target.value)} placeholder="Ex: 100% ou 480px" />
-            </div>
-            <div className="space-y-2">
-              <Label>Alinhamento</Label>
-              <Select value={imageEditAlign} onValueChange={(value) => setImageEditAlign(value as "left" | "center" | "right")}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="left">Esquerda</SelectItem>
-                  <SelectItem value="center">Centro</SelectItem>
-                  <SelectItem value="right">Direita</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="flex flex-wrap justify-between gap-3">
-              <Button variant="destructive" onClick={handleRemoveImage}>Excluir</Button>
-              <div className="flex gap-3">
-                <Button variant="ghost" onClick={() => setImageEditOpen(false)}>Cancelar</Button>
-                <Button onClick={applyImageUpdate}>Salvar</Button>
-              </div>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
 
       <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
         <DialogContent className="max-w-md">

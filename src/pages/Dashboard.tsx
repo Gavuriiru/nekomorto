@@ -331,13 +331,16 @@ const Dashboard = () => {
           <section className="mx-auto w-full max-w-6xl px-6 pb-20 md:px-10 reveal" data-reveal>
             <header className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
               <div className="space-y-3">
-                <div className="inline-flex items-center gap-3 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs uppercase tracking-[0.3em] text-muted-foreground">
+                <div className="inline-flex items-center gap-3 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs uppercase tracking-[0.3em] text-muted-foreground animate-fade-in">
                   Dashboard Interna
               </div>
-              <h1 className="text-3xl font-semibold lg:text-4xl">
+              <h1 className="text-3xl font-semibold lg:text-4xl animate-slide-up">
                 Painel de controle da comunidade
               </h1>
-              <p className="max-w-2xl text-sm text-muted-foreground">
+              <p
+                className="max-w-2xl text-sm text-muted-foreground animate-slide-up opacity-0"
+                style={{ animationDelay: "0.2s" }}
+              >
                 Visão geral dos projetos e do conteúdo. Assim que as integrações de analytics e
                 comentários estiverem ativas, os dados aparecem aqui automaticamente.
               </p>
@@ -363,22 +366,34 @@ const Dashboard = () => {
           </header>
 
           <div className="mt-10 grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-            <div className="rounded-2xl border border-white/10 bg-gradient-to-br from-white/5 to-white/0 p-5">
+            <div
+              className="rounded-2xl border border-white/10 bg-gradient-to-br from-white/5 to-white/0 p-5 animate-slide-up opacity-0"
+              style={{ animationDelay: "0ms" }}
+            >
               <p className="text-sm text-muted-foreground">Projetos cadastrados</p>
               <div className="mt-3 text-2xl font-semibold">{totalProjects}</div>
               <p className="mt-2 text-xs text-muted-foreground">Catálogo completo do site.</p>
             </div>
-            <div className="rounded-2xl border border-white/10 bg-gradient-to-br from-white/5 to-white/0 p-5">
+            <div
+              className="rounded-2xl border border-white/10 bg-gradient-to-br from-white/5 to-white/0 p-5 animate-slide-up opacity-0"
+              style={{ animationDelay: "80ms" }}
+            >
               <p className="text-sm text-muted-foreground">Mídias disponíveis</p>
               <div className="mt-3 text-2xl font-semibold">{totalMedia}</div>
               <p className="mt-2 text-xs text-muted-foreground">Downloads ativos nos projetos.</p>
             </div>
-            <div className="rounded-2xl border border-white/10 bg-gradient-to-br from-white/5 to-white/0 p-5">
+            <div
+              className="rounded-2xl border border-white/10 bg-gradient-to-br from-white/5 to-white/0 p-5 animate-slide-up opacity-0"
+              style={{ animationDelay: "160ms" }}
+            >
               <p className="text-sm text-muted-foreground">Projetos ativos</p>
               <div className="mt-3 text-2xl font-semibold">{activeProjects}</div>
               <p className="mt-2 text-xs text-muted-foreground">Em andamento ou produção.</p>
             </div>
-            <div className="rounded-2xl border border-white/10 bg-gradient-to-br from-white/5 to-white/0 p-5">
+            <div
+              className="rounded-2xl border border-white/10 bg-gradient-to-br from-white/5 to-white/0 p-5 animate-slide-up opacity-0"
+              style={{ animationDelay: "240ms" }}
+            >
               <p className="text-sm text-muted-foreground">Projetos finalizados</p>
               <div className="mt-3 text-2xl font-semibold">{finishedProjects}</div>
               <p className="mt-2 text-xs text-muted-foreground">Completo ou lançado.</p>
@@ -387,7 +402,10 @@ const Dashboard = () => {
 
           <section className="mt-10 grid gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] reveal" data-reveal>
             <div className="space-y-6">
-              <div className="rounded-3xl border border-white/10 bg-white/5 p-6 shadow-[0_20px_60px_-40px_rgba(0,0,0,0.8)]">
+              <div
+                className="rounded-3xl border border-white/10 bg-white/5 p-6 shadow-[0_20px_60px_-40px_rgba(0,0,0,0.8)] animate-slide-up opacity-0"
+                style={{ animationDelay: "120ms" }}
+              >
                 <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
                   <div>
                     <p className="text-sm text-muted-foreground">Analytics de acessos</p>
@@ -413,15 +431,15 @@ const Dashboard = () => {
                         <svg viewBox="0 0 100 40" className="h-full w-full">
                           <defs>
                             <linearGradient id="visits-gradient" x1="0" y1="0" x2="0" y2="1">
-                              <stop offset="0%" stopColor="hsl(280 80% 70%)" stopOpacity="0.7" />
-                              <stop offset="100%" stopColor="hsl(320 80% 60%)" stopOpacity="0" />
+                              <stop offset="0%" stopColor="hsl(var(--accent))" stopOpacity="0.7" />
+                              <stop offset="100%" stopColor="hsl(var(--accent))" stopOpacity="0" />
                             </linearGradient>
                           </defs>
                           <path d={areaPath} fill="url(#visits-gradient)" />
                           <polyline
                             points={chartPoints}
                             fill="none"
-                            stroke="hsl(280 80% 70%)"
+                            stroke="hsl(var(--accent))"
                             strokeWidth="2.5"
                             strokeLinejoin="round"
                             strokeLinecap="round"
@@ -438,7 +456,10 @@ const Dashboard = () => {
                 </div>
               </div>
 
-              <div className="rounded-3xl border border-white/10 bg-white/5 p-6">
+              <div
+                className="rounded-3xl border border-white/10 bg-white/5 p-6 animate-slide-up opacity-0"
+                style={{ animationDelay: "200ms" }}
+              >
                 <div className="flex items-center justify-between">
                   <div>
                     <h2 className="text-lg font-semibold">Projetos mais acessados</h2>
@@ -454,7 +475,7 @@ const Dashboard = () => {
                 </div>
                 {hasProjectViewData ? (
                   <div className="mt-6 space-y-4">
-                    {rankedProjects.slice(0, 5).map((project) => (
+                    {rankedProjects.slice(0, 3).map((project) => (
                       <Link
                         key={project.id}
                         to={`/projeto/${project.id}`}
@@ -477,7 +498,10 @@ const Dashboard = () => {
                 )}
               </div>
 
-              <div className="rounded-3xl border border-white/10 bg-white/5 p-6">
+              <div
+                className="rounded-3xl border border-white/10 bg-white/5 p-6 animate-slide-up opacity-0"
+                style={{ animationDelay: "280ms" }}
+              >
                 <div className="flex items-center justify-between">
                   <div>
                     <h2 className="text-lg font-semibold">Posts mais recentes</h2>
@@ -523,7 +547,10 @@ const Dashboard = () => {
             </div>
 
             <aside className="space-y-6">
-              <div className="rounded-3xl border border-white/10 bg-white/5 p-6">
+              <div
+                className="rounded-3xl border border-white/10 bg-white/5 p-6 animate-slide-up opacity-0"
+                style={{ animationDelay: "360ms" }}
+              >
                 <div className="flex items-center justify-between">
                   <div>
                     <h2 className="text-lg font-semibold">Comentários recentes</h2>
@@ -539,7 +566,7 @@ const Dashboard = () => {
                   </div>
                 ) : (
                   <div className="mt-6 space-y-4">
-                    {recentComments.map((comment) => (
+                    {recentComments.slice(0, 3).map((comment) => (
                       <a
                         key={comment.id}
                         href={comment.url}
@@ -557,7 +584,10 @@ const Dashboard = () => {
                 )}
               </div>
 
-              <div className="rounded-3xl border border-white/10 bg-white/5 p-6 overflow-hidden">
+              <div
+                className="rounded-3xl border border-white/10 bg-white/5 p-6 overflow-hidden animate-slide-up opacity-0"
+                style={{ animationDelay: "440ms" }}
+              >
                 <h2 className="text-lg font-semibold">Projetos cadastrados</h2>
                 <p className="text-sm text-muted-foreground">Acesso rápido ao catálogo.</p>
                 <div className="mt-5 space-y-3">

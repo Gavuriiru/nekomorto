@@ -15,38 +15,38 @@
 
 @layer base {
   :root {
-    --background: 270 50% 5%;
+    --background: 220 12% 7%;
     --foreground: 0 0% 100%;
 
-    --card: 270 40% 8%;
+    --card: 220 10% 11%;
     --card-foreground: 0 0% 100%;
 
-    --popover: 270 40% 8%;
+    --popover: 220 10% 11%;
     --popover-foreground: 0 0% 100%;
 
-    --primary: 280 80% 60%;
+    --primary: 263 66% 64%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 270 30% 15%;
+    --secondary: 220 10% 16%;
     --secondary-foreground: 0 0% 100%;
 
-    --muted: 270 20% 20%;
-    --muted-foreground: 270 10% 70%;
+    --muted: 220 8% 19%;
+    --muted-foreground: 220 10% 78%;
 
-    --accent: 320 80% 60%;
+    --accent: 273 60% 66%;
     --accent-foreground: 0 0% 100%;
 
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 270 30% 20%;
-    --input: 270 30% 15%;
-    --ring: 280 80% 60%;
+    --border: 220 8% 24%;
+    --input: 220 10% 16%;
+    --ring: 263 66% 64%;
 
     --radius: 0.75rem;
 
     /* Custom gradients */
-    --gradient-hero: linear-gradient(180deg, hsl(270 50% 5% / 0.3) 0%, hsl(270 50% 5% / 0.95) 100%);
+    --gradient-hero: linear-gradient(180deg, hsl(220 12% 7% / 0.3) 0%, hsl(220 12% 7% / 0.95) 100%);
     --gradient-rainbow: linear-gradient(135deg, 
       hsl(0 80% 60%) 0%, 
       hsl(30 80% 60%) 14%, 
@@ -57,20 +57,20 @@
       hsl(280 80% 60%) 84%, 
       hsl(320 80% 60%) 100%
     );
-    --gradient-card: linear-gradient(135deg, hsl(270 40% 10%) 0%, hsl(280 40% 8%) 100%);
+    --gradient-card: linear-gradient(135deg, hsl(220 10% 12%) 0%, hsl(220 12% 9%) 100%);
 
-    --sidebar-background: 270 40% 8%;
+    --sidebar-background: 220 10% 11%;
     --sidebar-foreground: 0 0% 100%;
-    --sidebar-primary: 280 80% 60%;
+    --sidebar-primary: 263 66% 64%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 270 30% 15%;
+    --sidebar-accent: 220 10% 16%;
     --sidebar-accent-foreground: 0 0% 100%;
-    --sidebar-border: 270 30% 20%;
-    --sidebar-ring: 280 80% 60%;
+    --sidebar-border: 220 8% 24%;
+    --sidebar-ring: 263 66% 64%;
   }
 
   .dark {
-    --background: 270 50% 5%;
+    --background: 220 12% 7%;
     --foreground: 0 0% 100%;
   }
 }
@@ -84,8 +84,8 @@
     @apply bg-background text-foreground font-sans subpixel-antialiased;
     font-family: 'Inter', sans-serif;
     text-rendering: optimizeLegibility;
-    -webkit-font-smoothing: auto;
-    -moz-osx-font-smoothing: auto;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
 
   body :where([class*="border-"]) {
@@ -94,6 +94,12 @@
 
   html {
     scroll-behavior: smooth;
+  }
+
+  .reactEasyCrop_Image,
+  .reactEasyCrop_Video {
+    max-width: none;
+    max-height: none;
   }
 
   h1, h2, h3, h4, h5, h6 {
@@ -136,6 +142,219 @@
   .post-content img {
     @apply rounded-lg;
   }
+
+  .post-content h1 {
+    @apply text-2xl font-semibold text-foreground;
+  }
+
+  .post-content h2 {
+    @apply text-xl font-semibold text-foreground;
+  }
+
+  .post-content h3 {
+    @apply text-lg font-semibold text-foreground;
+  }
+
+  .post-content blockquote {
+    @apply border-l-4 border-primary/50 pl-4 text-muted-foreground;
+  }
+
+  .post-content pre {
+    @apply rounded-xl border border-border/60 bg-muted/40 p-4 text-xs text-foreground;
+    overflow-x: auto;
+  }
+
+  .post-content code {
+    @apply rounded bg-muted px-1 py-0.5 text-xs text-foreground;
+  }
+
+  .post-content table {
+    @apply w-full border-collapse text-sm;
+  }
+
+  .post-content th,
+  .post-content td {
+    @apply border border-border/60 px-3 py-2 text-left;
+  }
+
+  .post-content thead {
+    @apply bg-muted/40;
+  }
+
+  .post-content hr {
+    @apply border-border/60;
+  }
+
+  .post-content iframe {
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    border: 0;
+    border-radius: 0.75rem;
+  }
+
+  .post-content ul[data-lexical-list-type="check"],
+  .post-content ul[__lexicallisttype="check"] {
+    list-style: none;
+    padding-left: 0;
+  }
+
+  .post-content ul[data-lexical-list-type="check"] li,
+  .post-content ul[__lexicallisttype="check"] li {
+    position: relative;
+    padding-left: 1.75rem;
+  }
+
+  .post-content ul[data-lexical-list-type="check"] li::before,
+  .post-content ul[__lexicallisttype="check"] li::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 50%;
+    width: 0.95rem;
+    height: 0.95rem;
+    border: 2px solid hsl(var(--border));
+    border-radius: 0.2rem;
+    background: hsl(var(--background));
+    transform: translateY(-50%);
+  }
+
+  .post-content ul[data-lexical-list-type="check"] li[data-lexical-checked="true"]::after,
+  .post-content ul[__lexicallisttype="check"] li[aria-checked="true"]::after {
+    content: "";
+    position: absolute;
+    left: 0.3rem;
+    top: 50%;
+    width: 0.35rem;
+    height: 0.55rem;
+    border-right: 2px solid hsl(var(--primary));
+    border-bottom: 2px solid hsl(var(--primary));
+    transform: translateY(-55%) rotate(45deg);
+  }
+
+  .post-content ul:has([data-lexical-checked]),
+  .post-content ol:has([data-lexical-checked]),
+  .post-content ul:has([aria-checked]),
+  .post-content ol:has([aria-checked]) {
+    list-style: none;
+    padding-left: 0;
+  }
+
+  .post-content [data-lexical-checked],
+  .post-content [aria-checked] {
+    list-style: none;
+    position: relative;
+    padding-left: 1.75rem;
+    display: block;
+  }
+
+  .post-content [data-lexical-checked]::before,
+  .post-content [aria-checked]::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 50%;
+    width: 0.95rem;
+    height: 0.95rem;
+    border: 2px solid hsl(var(--border));
+    border-radius: 0.2rem;
+    background: hsl(var(--background));
+    transform: translateY(-50%);
+  }
+
+  .post-content [data-lexical-checked="true"]::after,
+  .post-content [aria-checked="true"]::after {
+    content: "";
+    position: absolute;
+    left: 0.3rem;
+    top: 50%;
+    width: 0.35rem;
+    height: 0.55rem;
+    border-right: 2px solid hsl(var(--primary));
+    border-bottom: 2px solid hsl(var(--primary));
+    transform: translateY(-55%) rotate(45deg);
+  }
+
+  .post-content ul li[data-lexical-checked],
+  .post-content ol li[data-lexical-checked],
+  .post-content ul li[aria-checked],
+  .post-content ol li[aria-checked] {
+    list-style: none;
+    position: relative;
+    padding-left: 1.75rem;
+  }
+
+  .post-content ul li[data-lexical-checked]::before,
+  .post-content ol li[data-lexical-checked]::before,
+  .post-content ul li[aria-checked]::before,
+  .post-content ol li[aria-checked]::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 50%;
+    width: 0.95rem;
+    height: 0.95rem;
+    border: 2px solid hsl(var(--border));
+    border-radius: 0.2rem;
+    background: hsl(var(--background));
+    transform: translateY(-50%);
+  }
+
+  .post-content ul li[data-lexical-checked="true"]::after,
+  .post-content ol li[data-lexical-checked="true"]::after,
+  .post-content ul li[aria-checked="true"]::after,
+  .post-content ol li[aria-checked="true"]::after {
+    content: "";
+    position: absolute;
+    left: 0.3rem;
+    top: 50%;
+    width: 0.35rem;
+    height: 0.55rem;
+    border-right: 2px solid hsl(var(--primary));
+    border-bottom: 2px solid hsl(var(--primary));
+    transform: translateY(-55%) rotate(45deg);
+  }
+
+
+  .reader-content {
+    font-size: 1rem;
+    line-height: 1.9;
+  }
+
+  .reader-content p {
+    margin: 0 0 1.2rem;
+  }
+
+  .reader-content h1 {
+    font-size: 2rem;
+    margin: 0 0 1.4rem;
+  }
+
+  .reader-content h2 {
+    font-size: 1.5rem;
+    margin: 1.4rem 0 1rem;
+  }
+
+  .reader-content h3 {
+    font-size: 1.25rem;
+    margin: 1.2rem 0 0.8rem;
+  }
+
+  .reader-content blockquote {
+    margin: 1.2rem 0;
+  }
+
+  .reader-content ul,
+  .reader-content ol {
+    margin: 0 0 1.2rem;
+  }
+
+  .reader-content table {
+    margin: 0 0 1.4rem;
+  }
+
+  .reader-content iframe {
+    margin: 1.2rem 0;
+  }
 }
 
 @layer utilities {
@@ -151,9 +370,14 @@
     animation: spinSlow 14s linear infinite;
   }
 
-  .reveal {
+  .page-transition {
     opacity: 1;
-    transform: translateY(0) scale(1);
+    transform: none;
+  }
+
+  .reveal {
+    opacity: 0;
+    transform: translateY(12px) scale(1);
     transition: opacity 0.6s ease, transform 0.6s ease;
     will-change: opacity, transform;
   }
@@ -224,6 +448,7 @@
     }
   }
 
+
   @keyframes spinSlow {
     from {
       transform: rotate(0deg);
@@ -232,4 +457,218 @@
       transform: rotate(360deg);
     }
   }
+}
+
+.lexical-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.lexical-content-wrapper {
+  position: relative;
+}
+
+.lexical-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  border: 1px solid hsl(var(--border));
+  background: hsl(var(--card));
+  padding: 0.5rem;
+  border-radius: 0.75rem;
+  position: sticky;
+  top: 6rem;
+  z-index: 10;
+  backdrop-filter: blur(8px);
+}
+
+.lexical-content {
+  min-height: 320px;
+  padding: 1rem;
+  border-radius: 1rem;
+  border: 1px solid hsl(var(--border));
+  background: hsl(var(--card));
+  color: hsl(var(--foreground));
+  outline: none;
+  position: relative;
+}
+
+.lexical-placeholder {
+  color: hsl(var(--muted-foreground));
+  pointer-events: none;
+  position: absolute;
+  top: 0.75rem;
+  left: 1rem;
+  font-size: 0.875rem;
+}
+
+.lexical-paragraph {
+  margin: 0 0 1rem;
+}
+
+.lexical-heading-h1 {
+  font-size: 2rem;
+  font-weight: 600;
+  margin: 0 0 1rem;
+}
+
+.lexical-heading-h2 {
+  font-size: 1.6rem;
+  font-weight: 600;
+  margin: 0 0 0.9rem;
+}
+
+.lexical-heading-h3 {
+  font-size: 1.3rem;
+  font-weight: 600;
+  margin: 0 0 0.8rem;
+}
+
+.lexical-heading-h4 {
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin: 0 0 0.7rem;
+}
+
+.lexical-quote {
+  border-left: 3px solid hsl(var(--primary));
+  padding-left: 1rem;
+  color: hsl(var(--muted-foreground));
+  margin: 0 0 1rem;
+}
+
+.lexical-list-ul,
+.lexical-list-ol {
+  padding-left: 1.5rem;
+  margin: 0 0 1rem;
+}
+
+.lexical-listitem {
+  margin: 0.25rem 0;
+}
+
+.lexical-content ul,
+.lexical-list-ul {
+  list-style: disc;
+}
+
+.lexical-content ol,
+.lexical-list-ol {
+  list-style: decimal;
+}
+
+.lexical-listitem-checked,
+.lexical-listitem-unchecked {
+  list-style: none;
+}
+
+.lexical-listitem-checked,
+.lexical-listitem-unchecked {
+  position: relative;
+  padding-left: 1.75rem;
+}
+
+.lexical-listitem-checked::before,
+.lexical-listitem-unchecked::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0.25rem;
+  width: 0.95rem;
+  height: 0.95rem;
+  border: 2px solid hsl(var(--border));
+  border-radius: 0.2rem;
+  background: hsl(var(--background));
+}
+
+.lexical-listitem-checked::after {
+  content: "";
+  position: absolute;
+  left: 0.3rem;
+  top: 0.45rem;
+  width: 0.35rem;
+  height: 0.55rem;
+  border-right: 2px solid hsl(var(--primary));
+  border-bottom: 2px solid hsl(var(--primary));
+  transform: rotate(45deg);
+}
+
+.lexical-link {
+  color: hsl(var(--primary));
+  text-decoration: underline;
+}
+
+.lexical-text-bold {
+  font-weight: 700;
+}
+
+.lexical-text-italic {
+  font-style: italic;
+}
+
+.lexical-text-underline {
+  text-decoration: underline;
+}
+
+.lexical-text-strikethrough {
+  text-decoration: line-through;
+}
+
+.lexical-text-code {
+  font-family: "JetBrains Mono", "Fira Code", monospace;
+  font-size: 0.9em;
+  background: hsl(var(--muted));
+  padding: 0.1rem 0.3rem;
+  border-radius: 0.3rem;
+}
+
+.lexical-code {
+  background: hsl(var(--muted));
+  padding: 1rem;
+  border-radius: 0.75rem;
+  font-family: "JetBrains Mono", "Fira Code", monospace;
+  font-size: 0.9rem;
+  margin: 0 0 1rem;
+  overflow-x: auto;
+}
+
+.lexical-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0 0 1rem;
+}
+
+.lexical-table-cell,
+.lexical-table-cell-header {
+  border: 1px solid hsl(var(--border));
+  padding: 0.5rem;
+}
+
+.lexical-image-wrapper {
+  display: block;
+  margin: 0 0 1rem;
+}
+
+.lexical-image {
+  max-width: 100%;
+  border-radius: 0.75rem;
+  border: 1px solid hsl(var(--border));
+}
+
+.lexical-video {
+  position: relative;
+  width: 100%;
+  padding-bottom: 56.25%;
+  margin: 0 0 1rem;
+}
+
+.lexical-video iframe {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border-radius: 0.75rem;
+  border: 0;
 }

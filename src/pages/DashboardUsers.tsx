@@ -1,8 +1,7 @@
-﻿import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import DashboardShell from "@/components/DashboardShell";
 import ImageLibraryDialog from "@/components/ImageLibraryDialog";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -47,6 +46,7 @@ import { apiFetch } from "@/lib/api-client";
 import { usePageMeta } from "@/hooks/use-page-meta";
 import { useSiteSettings } from "@/hooks/use-site-settings";
 import { toast } from "@/components/ui/use-toast";
+import ThemedSvgLogo from "@/components/ThemedSvgLogo";
 
 type UserRecord = {
   id: string;
@@ -54,12 +54,53 @@ type UserRecord = {
   phrase: string;
   bio: string;
   avatarUrl?: string | null;
-  coverImageUrl?: string | null;
   socials?: Array<{ label: string; href: string }>;
   status: "active" | "retired";
   permissions: string[];
   roles?: string[];
   order: number;
+};
+
+type DashboardAvatarProps = {
+  avatarUrl?: string | null;
+  name: string;
+  sizeClassName: string;
+  frameClassName: string;
+  fallbackClassName: string;
+  fallbackText: string;
+};
+
+const DashboardAvatar = ({
+  avatarUrl,
+  name,
+  sizeClassName,
+  frameClassName,
+  fallbackClassName,
+  fallbackText,
+}: DashboardAvatarProps) => {
+  const [hasError, setHasError] = useState(false);
+  const hasImage = Boolean(avatarUrl) && !hasError;
+
+  useEffect(() => {
+    setHasError(false);
+  }, [avatarUrl]);
+
+  if (!hasImage) {
+    return <div className={fallbackClassName}>{fallbackText}</div>;
+  }
+
+  return (
+    <div className={`${sizeClassName} ${frameClassName} relative shrink-0 overflow-hidden rounded-full`}>
+      <img
+        src={String(avatarUrl)}
+        alt={name}
+        referrerPolicy="no-referrer"
+        crossOrigin="anonymous"
+        className="h-full w-full object-cover"
+        onError={() => setHasError(true)}
+      />
+    </div>
+  );
 };
 
 const emptyForm = {
@@ -68,7 +109,6 @@ const emptyForm = {
   phrase: "",
   bio: "",
   avatarUrl: "",
-  coverImageUrl: "",
   socials: [] as Array<{ label: string; href: string }>,
   status: "active" as "active" | "retired",
   permissions: [] as string[],
@@ -110,6 +150,11 @@ const socialIconMap: Record<string, typeof Globe> = {
   "message-circle": MessageCircle,
   globe: Globe,
   site: Globe,
+};
+
+const isIconUrl = (value?: string | null) => {
+  if (!value) return false;
+  return value.startsWith("http") || value.startsWith("data:") || value.startsWith("/uploads/");
 };
 
 const roleIconRegistry: Record<string, typeof Globe> = {
@@ -158,7 +203,6 @@ const DashboardUsers = () => {
   const [ownerToggle, setOwnerToggle] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<UserRecord | null>(null);
   const [isLibraryOpen, setIsLibraryOpen] = useState(false);
-  const [libraryTarget, setLibraryTarget] = useState<"avatar" | "cover">("avatar");
   const [linkTypes, setLinkTypes] = useState<Array<{ id: string; label: string; icon: string }>>([]);
   const fallbackLinkTypes = useMemo(
     () => [
@@ -178,21 +222,17 @@ const DashboardUsers = () => {
   const canManageUsers = currentUser?.id ? ownerIds.includes(currentUser.id) : false;
   const primaryOwnerId = ownerIds[0] || "";
   const canManageOwners = Boolean(currentUser?.id && primaryOwnerId && currentUser.id === primaryOwnerId);
-  const openLibrary = (target: "avatar" | "cover") => {
-    setLibraryTarget(target);
+  const openLibrary = () => {
     setIsLibraryOpen(true);
   };
-  const handleLibrarySelect = useCallback(
-    (url: string) => {
-      if (libraryTarget === "avatar") {
-        setFormState((prev) => ({ ...prev, avatarUrl: url }));
-        return;
-      }
-      setFormState((prev) => ({ ...prev, coverImageUrl: url }));
-    },
-    [libraryTarget],
-  );
-  const currentLibrarySelection = libraryTarget === "avatar" ? formState.avatarUrl : formState.coverImageUrl;
+  const handleLibrarySave = useCallback(({ urls }: { urls: string[] }) => {
+    const url = urls[0] || "";
+    setFormState((prev) => ({
+      ...prev,
+      avatarUrl: url,
+    }));
+  }, []);
+  const currentLibrarySelection = formState.avatarUrl;
   const openEditDialog = useCallback((user: UserRecord) => {
     const normalizedPermissions = user.permissions.includes("*")
       ? permissionOptions.map((permission) => permission.id)
@@ -205,7 +245,6 @@ const DashboardUsers = () => {
       phrase: user.phrase,
       bio: user.bio,
       avatarUrl: user.avatarUrl || "",
-      coverImageUrl: user.coverImageUrl || "",
       socials: user.socials ? [...user.socials] : [],
       status: user.status,
       permissions: normalizedPermissions,
@@ -290,7 +329,7 @@ const DashboardUsers = () => {
 
   const openNewDialog = () => {
     setEditingUser(null);
-    setFormState(emptyForm);
+    setFormState({ ...emptyForm });
     setOwnerToggle(false);
     setIsDialogOpen(true);
   };
@@ -312,7 +351,6 @@ const DashboardUsers = () => {
       phrase: formState.phrase.trim(),
       bio: formState.bio.trim(),
       avatarUrl: formState.avatarUrl.trim() || null,
-      coverImageUrl: formState.coverImageUrl.trim() || null,
       socials: formState.socials.filter((item) => item.label.trim() && item.href.trim()),
       status: formState.status,
       permissions: formState.permissions,
@@ -540,11 +578,14 @@ const DashboardUsers = () => {
           <section className="mx-auto w-full max-w-6xl px-6 pb-20 md:px-10">
             <header className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
               <div>
-                <div className="inline-flex items-center gap-3 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs uppercase tracking-[0.3em] text-muted-foreground">
+                <div className="inline-flex items-center gap-3 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs uppercase tracking-[0.3em] text-muted-foreground animate-fade-in">
                   Usuários
                 </div>
-                <h1 className="mt-4 text-3xl font-semibold lg:text-4xl">Gestão de Usuários</h1>
-                <p className="mt-2 text-sm text-muted-foreground">
+                <h1 className="mt-4 text-3xl font-semibold lg:text-4xl animate-slide-up">Gestão de Usuários</h1>
+                <p
+                  className="mt-2 text-sm text-muted-foreground animate-slide-up opacity-0"
+                  style={{ animationDelay: "0.2s" }}
+                >
                   Reordene arrastando para refletir a ordem na página pública.
                 </p>
               </div>
@@ -572,10 +613,16 @@ const DashboardUsers = () => {
                 </div>
               ) : (
                 <div className="mt-6 grid gap-4 md:grid-cols-2">
-                  {activeUsers.map((user) => (
+                  {activeUsers.map((user, index) => {
+                    const isLoneLastActiveCard =
+                      activeUsers.length % 2 === 1 && index === activeUsers.length - 1;
+                    return (
                     <div
                       key={user.id}
-                      className="relative rounded-2xl border border-white/10 bg-white/5 p-5 transition hover:border-primary/40 hover:bg-primary/5"
+                      className={`relative rounded-2xl border border-white/10 bg-white/5 p-5 transition hover:border-primary/40 hover:bg-primary/5 animate-slide-up opacity-0 ${
+                        isLoneLastActiveCard ? "md:col-span-2 md:mx-auto md:w-[calc(50%-0.5rem)]" : ""
+                      }`}
+                      style={{ animationDelay: `${index * 60}ms` }}
                       draggable={canManageUsers}
                       onDragStart={() => {
                         setDragId(user.id);
@@ -593,17 +640,17 @@ const DashboardUsers = () => {
                         }
                       }}
                     >
-                      <div className="flex items-start justify-between gap-4">
-                        <div className="flex gap-4">
-                          <Avatar className="h-14 w-14 border border-white/10">
-                            {user.avatarUrl ? (
-                              <AvatarImage src={user.avatarUrl} alt={user.name} />
-                            ) : null}
-                            <AvatarFallback className="bg-white/10 text-sm text-white">
-                              {user.name.slice(0, 2).toUpperCase()}
-                            </AvatarFallback>
-                          </Avatar>
-                          <div>
+                        <div className="flex items-start justify-between gap-4">
+                          <div className="flex gap-4">
+                            <DashboardAvatar
+                              avatarUrl={user.avatarUrl}
+                              name={user.name}
+                              sizeClassName="h-14 w-14"
+                              frameClassName="border border-white/10 bg-white/5"
+                              fallbackClassName="flex h-14 w-14 items-center justify-center rounded-full border border-white/10 bg-white/10 text-sm text-white"
+                              fallbackText={user.name.slice(0, 2).toUpperCase()}
+                            />
+                            <div>
                             <div className="flex items-center gap-2">
                               <h3 className="text-lg font-semibold">{user.name}</h3>
                               {ownerIds.includes(user.id) && (
@@ -633,7 +680,8 @@ const DashboardUsers = () => {
                         </div>
                       </div>
                     </div>
-                  ))}
+                  );
+                  })}
                 </div>
               )}
 
@@ -644,10 +692,16 @@ const DashboardUsers = () => {
                     <Badge className="bg-white/10 text-muted-foreground">{retiredUsers.length}</Badge>
                   </div>
                   <div className="mt-6 grid gap-4 md:grid-cols-2">
-                    {retiredUsers.map((user) => (
+                    {retiredUsers.map((user, index) => {
+                      const isLoneLastRetiredCard =
+                        retiredUsers.length % 2 === 1 && index === retiredUsers.length - 1;
+                      return (
                       <div
                         key={user.id}
-                        className="rounded-2xl border border-white/10 bg-white/5 p-5"
+                        className={`rounded-2xl border border-white/10 bg-white/5 p-5 animate-slide-up opacity-0 ${
+                          isLoneLastRetiredCard ? "md:col-span-2 md:mx-auto md:w-[calc(50%-0.5rem)]" : ""
+                        }`}
+                        style={{ animationDelay: `${index * 60}ms` }}
                         draggable={canManageUsers}
                         onDragStart={() => {
                           setDragId(user.id);
@@ -667,14 +721,14 @@ const DashboardUsers = () => {
                       >
                         <div className="flex items-start justify-between gap-4">
                           <div className="flex gap-4">
-                            <Avatar className="h-14 w-14 border border-white/10">
-                              {user.avatarUrl ? (
-                                <AvatarImage src={user.avatarUrl} alt={user.name} />
-                              ) : null}
-                              <AvatarFallback className="bg-white/10 text-sm text-white">
-                                {user.name.slice(0, 2).toUpperCase()}
-                              </AvatarFallback>
-                            </Avatar>
+                            <DashboardAvatar
+                              avatarUrl={user.avatarUrl}
+                              name={user.name}
+                              sizeClassName="h-14 w-14"
+                              frameClassName="border border-white/10 bg-white/5"
+                              fallbackClassName="flex h-14 w-14 items-center justify-center rounded-full border border-white/10 bg-white/10 text-sm text-white"
+                              fallbackText={user.name.slice(0, 2).toUpperCase()}
+                            />
                             <div>
                               <div className="flex items-center gap-2">
                                 <h3 className="text-lg font-semibold">{user.name}</h3>
@@ -703,7 +757,8 @@ const DashboardUsers = () => {
                           </div>
                         </div>
                       </div>
-                    ))}
+                    );
+                    })}
                   </div>
                 </div>
               )}
@@ -716,16 +771,21 @@ const DashboardUsers = () => {
         onOpenChange={setIsLibraryOpen}
         apiBase={apiBase}
         description="Selecione uma imagem já enviada para reutilizar ou envie um novo arquivo."
-        uploadFolder="users"
         listFolders={[""]}
-        showAltInput={false}
         allowDeselect
-        currentSelectionUrl={currentLibrarySelection || undefined}
-        onSelect={(url) => handleLibrarySelect(url)}
+        mode="single"
+        cropAvatar
+        cropTargetFolder="users"
+        cropSlot={formState.id ? `avatar-${formState.id}` : undefined}
+        currentSelectionUrls={currentLibrarySelection ? [currentLibrarySelection] : []}
+        onSave={({ urls }) => handleLibrarySave({ urls })}
       />
 
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="w-[92vw] max-h-[90vh] max-w-xl overflow-y-auto">
+        <DialogContent
+          className="w-[92vw] max-h-[90vh] max-w-xl overflow-y-auto"
+          overlayClassName="backdrop-blur-sm"
+        >
           <DialogHeader>
             <DialogTitle>{editingUser ? "Editar usuário" : "Adicionar usuário"}</DialogTitle>
             <DialogDescription>
@@ -785,10 +845,14 @@ const DashboardUsers = () => {
               <Label>Avatar</Label>
               <div className="flex flex-wrap items-center gap-3">
                 {formState.avatarUrl ? (
-                  <Avatar className="h-12 w-12">
-                    <AvatarImage src={formState.avatarUrl} alt={formState.name || "Avatar"} />
-                    <AvatarFallback>{(formState.name || "U").slice(0, 1)}</AvatarFallback>
-                  </Avatar>
+                  <DashboardAvatar
+                    avatarUrl={formState.avatarUrl}
+                    name={formState.name || "Avatar"}
+                    sizeClassName="h-12 w-12"
+                    frameClassName="border border-border/60 bg-card/60"
+                    fallbackClassName="flex h-12 w-12 items-center justify-center rounded-full border border-border/60 bg-card/60 text-xs text-foreground"
+                    fallbackText={(formState.name || "U").slice(0, 1).toUpperCase()}
+                  />
                 ) : (
                   <div className="flex h-12 w-12 items-center justify-center rounded-full border border-dashed border-border/60 text-[10px] text-muted-foreground">
                     Sem imagem
@@ -798,32 +862,7 @@ const DashboardUsers = () => {
                   type="button"
                   size="sm"
                   variant="outline"
-                  onClick={() => openLibrary("avatar")}
-                  disabled={rolesOnlyEdit}
-                >
-                  Biblioteca
-                </Button>
-              </div>
-            </div>
-            <div className="grid gap-2">
-              <Label>Imagem do card público</Label>
-              <div className="flex flex-wrap items-center gap-3">
-                {formState.coverImageUrl ? (
-                  <img
-                    src={formState.coverImageUrl}
-                    alt={formState.name || "Capa"}
-                    className="h-14 w-14 rounded-lg object-cover"
-                  />
-                ) : (
-                  <div className="flex h-14 w-14 items-center justify-center rounded-lg border border-dashed border-border/60 text-[10px] text-muted-foreground">
-                    Sem imagem
-                  </div>
-                )}
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  onClick={() => openLibrary("cover")}
+                  onClick={openLibrary}
                   disabled={rolesOnlyEdit}
                 >
                   Biblioteca
@@ -857,7 +896,8 @@ const DashboardUsers = () => {
                       </SelectTrigger>
                       <SelectContent align="start">
                         {(linkTypes.length > 0 ? linkTypes : fallbackLinkTypes).map((option) => {
-                          const Icon = socialIconMap[option.icon] || Globe;
+                          const isCustomIcon = isIconUrl(option.icon);
+                          const Icon = !isCustomIcon ? socialIconMap[option.icon] || Globe : null;
                           return (
                             <SelectItem
                               key={option.id}
@@ -865,7 +905,15 @@ const DashboardUsers = () => {
                               className="pl-2 pr-2 [&>span:first-child]:hidden"
                             >
                               <div className="flex items-center gap-2">
-                                <Icon className="h-4 w-4" />
+                                {isCustomIcon ? (
+                                  <ThemedSvgLogo
+                                    url={option.icon}
+                                    label={option.label}
+                                    className="h-4 w-4 text-primary"
+                                  />
+                                ) : (
+                                  <Icon className="h-4 w-4" />
+                                )}
                                 <span>{option.label}</span>
                               </div>
                             </SelectItem>
@@ -1062,8 +1110,4 @@ const DashboardUsers = () => {
 };
 
 export default DashboardUsers;
-
-
-
-
 

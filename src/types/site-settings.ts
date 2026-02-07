@@ -7,11 +7,21 @@ export type SiteSettings = {
     defaultShareImage: string;
     titleSeparator?: string;
   };
+  theme: {
+    accent: string;
+  };
   navbar: {
     recruitmentUrl: string;
   };
   community: {
     discordUrl: string;
+  };
+  branding: {
+    wordmarkUrl: string;
+    wordmarkUrlNavbar: string;
+    wordmarkUrlFooter: string;
+    wordmarkPlacement: "navbar" | "footer" | "both";
+    wordmarkEnabled: boolean;
   };
   downloads: {
     sources: Array<{
@@ -19,6 +29,7 @@ export type SiteSettings = {
       label: string;
       color: string;
       icon?: string;
+      tintIcon?: boolean;
     }>;
   };
   teamRoles: Array<{

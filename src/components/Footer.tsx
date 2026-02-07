@@ -1,6 +1,7 @@
 import { Facebook, Instagram, Twitter, MessageCircle, Youtube, X, Globe } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useSiteSettings } from "@/hooks/use-site-settings";
+import ThemedSvgLogo from "@/components/ThemedSvgLogo";
 
 const Footer = () => {
   const { settings } = useSiteSettings();
@@ -8,6 +9,18 @@ const Footer = () => {
   const footerColumns = footer.columns || [];
   const socialLinks = footer.socialLinks || [];
   const disclaimer = footer.disclaimer || [];
+  const legacyWordmarkUrl = settings.branding.wordmarkUrl?.trim();
+  const wordmarkFooterUrl =
+    settings.branding.wordmarkUrlFooter?.trim() ||
+    settings.branding.wordmarkUrlNavbar?.trim() ||
+    legacyWordmarkUrl ||
+    footer.brandLogoUrl ||
+    "";
+  const wordmarkPlacement = settings.branding.wordmarkPlacement || "both";
+  const showWordmarkInFooter =
+    settings.branding.wordmarkEnabled &&
+    Boolean(wordmarkFooterUrl) &&
+    (wordmarkPlacement === "footer" || wordmarkPlacement === "both");
   const renderCopyright = () => {
     const text = footer.copyright || "";
     const marker = "©";
@@ -39,6 +52,8 @@ const Footer = () => {
     globe: Globe,
     site: Globe,
   };
+  const isIconUrl = (value?: string | null) =>
+    Boolean(value && (value.startsWith("http") || value.startsWith("data:") || value.startsWith("/uploads/")));
 
   return (
     <footer className="mt-16 border-t border-border/60 bg-card/60">
@@ -46,30 +61,43 @@ const Footer = () => {
         <div className="grid gap-10 lg:grid-cols-[1.2fr_1fr_1fr_1fr_1.1fr]">
           <div className="space-y-4">
             <div className="flex items-center gap-3">
-              {footer.brandLogoUrl ? (
-                <img
-                  src={footer.brandLogoUrl}
-                  alt={footer.brandName}
-                  className="h-10 w-10 rounded-full object-cover shadow-sm"
-                />
-              ) : null}
-              <p className="text-3xl font-black tracking-widest text-gradient-rainbow">
-                {footer.brandName}
-              </p>
+              {showWordmarkInFooter ? (
+                <>
+                  <img
+                    src={wordmarkFooterUrl}
+                    alt={footer.brandName}
+                    className="h-9 md:h-12 w-auto max-w-[220px] md:max-w-[280px] object-contain"
+                  />
+                  <span className="sr-only">{footer.brandName}</span>
+                </>
+              ) : (
+                <>
+                  {footer.brandLogoUrl ? (
+                    <ThemedSvgLogo
+                      url={footer.brandLogoUrl}
+                      label={footer.brandName}
+                      className="h-10 w-10 rounded-full object-cover shadow-sm text-primary"
+                    />
+                  ) : null}
+                  <p className="text-3xl font-black tracking-widest text-gradient-rainbow">
+                    {footer.brandName}
+                  </p>
+                </>
+              )}
             </div>
             <p className="text-sm text-muted-foreground leading-relaxed">
               {footer.brandDescription}
             </p>
           </div>
 
-          {footerColumns.map((column) => (
-            <div key={column.title} className="space-y-4">
+          {footerColumns.map((column, columnIndex) => (
+            <div key={`${column.title}-${columnIndex}`} className="space-y-4">
               <p className="text-sm font-semibold uppercase tracking-[0.2em] text-muted-foreground">
                 {column.title}
               </p>
               <ul className="space-y-2 text-sm">
-                {column.links.map((link) => (
-                  <li key={link.label}>
+                {column.links.map((link, linkIndex) => (
+                  <li key={`${link.label}-${link.href}-${linkIndex}`}>
                     {isInternalLink(link.href) ? (
                       <Link
                         to={link.href}
@@ -96,19 +124,29 @@ const Footer = () => {
               Siga-nos
             </p>
             <div className="space-y-2">
-              {socialLinks.map((link) => {
+              {socialLinks.map((link, linkIndex) => {
                 const iconKey = link.icon || link.label;
-                const Icon = iconMap[String(iconKey).toLowerCase()] || Globe;
+                const iconValue = String(iconKey || "");
+                const Icon = iconMap[iconValue.toLowerCase()] || Globe;
+                const renderCustomIcon = isIconUrl(iconValue);
                 return (
                   <a
-                    key={link.label}
+                    key={`${link.label}-${link.href}-${linkIndex}`}
                     href={link.href}
                     className="group flex items-center gap-3 text-sm text-foreground/80 transition-colors hover:text-primary"
                     target="_blank"
                     rel="noreferrer"
                   >
                     <span className="flex h-8 w-8 items-center justify-center rounded-full border border-border/60 bg-secondary/70 text-primary/80 transition group-hover:border-primary/40 group-hover:text-primary">
-                      <Icon className="h-4 w-4" aria-hidden="true" />
+                      {renderCustomIcon ? (
+                        <ThemedSvgLogo
+                          url={iconValue}
+                          label={link.label}
+                          className="h-4 w-4 text-primary"
+                        />
+                      ) : (
+                        <Icon className="h-4 w-4" aria-hidden="true" />
+                      )}
                     </span>
                     {link.label}
                   </a>

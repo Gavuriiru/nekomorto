@@ -7,6 +7,9 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { ColorPicker } from "@/components/ui/color-picker";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Switch } from "@/components/ui/switch";
 import {
   Select,
   SelectContent,
@@ -45,25 +48,10 @@ import {
 import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
 import { useSiteSettings } from "@/hooks/use-site-settings";
+import { defaultSettings, mergeSettings } from "@/hooks/site-settings-context";
 import type { SiteSettings } from "@/types/site-settings";
 import { usePageMeta } from "@/hooks/use-page-meta";
-
-const downloadIconOptions = [
-  { id: "google-drive", label: "Google Drive" },
-  { id: "mega", label: "MEGA" },
-  { id: "torrent", label: "Torrent" },
-  { id: "mediafire", label: "Mediafire" },
-  { id: "telegram", label: "Telegram" },
-  { id: "link", label: "Link" },
-];
-
-const socialIconOptions = [
-  ...downloadIconOptions,
-  { id: "instagram", label: "Instagram" },
-  { id: "facebook", label: "Facebook" },
-  { id: "twitter", label: "Twitter" },
-  { id: "discord", label: "Discord" },
-];
+import ThemedSvgLogo from "@/components/ThemedSvgLogo";
 
 const roleIconOptions = [
   { id: "languages", label: "Languages" },
@@ -115,6 +103,13 @@ const fileToDataUrl = (file: File) =>
     reader.onerror = () => reject(new Error("file_read_failed"));
     reader.readAsDataURL(file);
   });
+
+const normalizeLinkTypeId = (value: string) =>
+  value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-|-$)/g, "");
 const DashboardSettings = () => {
   usePageMeta({ title: "Configurações", noIndex: true });
 
@@ -132,21 +127,32 @@ const DashboardSettings = () => {
   const [isLoadingUser, setIsLoadingUser] = useState(true);
   const [tagTranslations, setTagTranslations] = useState<Record<string, string>>({});
   const [genreTranslations, setGenreTranslations] = useState<Record<string, string>>({});
+  const [staffRoleTranslations, setStaffRoleTranslations] = useState<Record<string, string>>({});
   const [knownTags, setKnownTags] = useState<string[]>([]);
   const [knownGenres, setKnownGenres] = useState<string[]>([]);
+  const [knownStaffRoles, setKnownStaffRoles] = useState<string[]>([]);
+  const [linkTypes, setLinkTypes] = useState<Array<{ id: string; label: string; icon: string }>>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isSavingTranslations, setIsSavingTranslations] = useState(false);
+  const [isSavingLinkTypes, setIsSavingLinkTypes] = useState(false);
   const [isSyncingAniList, setIsSyncingAniList] = useState(false);
   const [uploadingKey, setUploadingKey] = useState<string | null>(null);
   const [isLibraryOpen, setIsLibraryOpen] = useState(false);
   const [libraryTarget, setLibraryTarget] = useState<
-    "site.logoUrl" | "site.faviconUrl" | "site.defaultShareImage" | "footer.brandLogoUrl"
+    | "site.logoUrl"
+    | "site.faviconUrl"
+    | "site.defaultShareImage"
+    | "footer.brandLogoUrl"
+    | "branding.wordmarkUrlNavbar"
+    | "branding.wordmarkUrlFooter"
   >("site.logoUrl");
   const [tagQuery, setTagQuery] = useState("");
   const [genreQuery, setGenreQuery] = useState("");
   const [newTag, setNewTag] = useState("");
   const [newGenre, setNewGenre] = useState("");
+  const [staffRoleQuery, setStaffRoleQuery] = useState("");
+  const [newStaffRole, setNewStaffRole] = useState("");
   const hasSyncedAniList = useRef(false);
 
   useEffect(() => {
@@ -174,15 +180,16 @@ const DashboardSettings = () => {
     const load = async () => {
       setIsLoading(true);
       try {
-        const [settingsRes, translationsRes, projectsRes] = await Promise.all([
+        const [settingsRes, translationsRes, projectsRes, linkTypesRes] = await Promise.all([
           apiFetch(apiBase, "/api/settings", { auth: true }),
           apiFetch(apiBase, "/api/public/tag-translations", { cache: "no-store" }),
           apiFetch(apiBase, "/api/projects", { auth: true }),
+          apiFetch(apiBase, "/api/link-types"),
         ]);
         if (settingsRes.ok) {
           const data = await settingsRes.json();
           if (isActive && data.settings) {
-            setSettings(data.settings);
+            setSettings(mergeSettings(defaultSettings, data.settings));
           }
         }
         if (translationsRes.ok) {
@@ -190,6 +197,7 @@ const DashboardSettings = () => {
           if (isActive) {
             setTagTranslations(data.tags || {});
             setGenreTranslations(data.genres || {});
+            setStaffRoleTranslations(data.staffRoles || {});
           }
         }
         if (projectsRes.ok) {
@@ -198,12 +206,28 @@ const DashboardSettings = () => {
             const projects = Array.isArray(data.projects) ? data.projects : [];
             const tags = new Set<string>();
             const genres = new Set<string>();
+            const staffRoles = new Set<string>();
             projects.forEach((project) => {
               (project.tags || []).forEach((tag: string) => tags.add(tag));
               (project.genres || []).forEach((genre: string) => genres.add(genre));
+              if (Array.isArray(project.animeStaff)) {
+                project.animeStaff.forEach((staff: { role?: string | null }) => {
+                  const role = String(staff?.role || "").trim();
+                  if (role) {
+                    staffRoles.add(role);
+                  }
+                });
+              }
             });
             setKnownTags(Array.from(tags).sort((a, b) => a.localeCompare(b, "en")));
             setKnownGenres(Array.from(genres).sort((a, b) => a.localeCompare(b, "en")));
+            setKnownStaffRoles(Array.from(staffRoles).sort((a, b) => a.localeCompare(b, "en")));
+          }
+        }
+        if (linkTypesRes.ok) {
+          const data = await linkTypesRes.json();
+          if (isActive) {
+            setLinkTypes(Array.isArray(data.items) ? data.items : []);
           }
         }
       } catch {
@@ -240,6 +264,9 @@ const DashboardSettings = () => {
         const data = await response.json();
         setTagTranslations(data.tags || {});
         setGenreTranslations(data.genres || {});
+        if (data.staffRoles) {
+          setStaffRoleTranslations(data.staffRoles || {});
+        }
         if (!options?.silent) {
           toast({
             title: "Termos do AniList atualizados",
@@ -292,6 +319,12 @@ const DashboardSettings = () => {
       if (libraryTarget === "footer.brandLogoUrl") {
         return { ...prev, footer: { ...prev.footer, brandLogoUrl: url } };
       }
+      if (libraryTarget === "branding.wordmarkUrlNavbar") {
+        return { ...prev, branding: { ...prev.branding, wordmarkUrlNavbar: url } };
+      }
+      if (libraryTarget === "branding.wordmarkUrlFooter") {
+        return { ...prev, branding: { ...prev.branding, wordmarkUrlFooter: url } };
+      }
       return prev;
     });
   };
@@ -309,9 +342,17 @@ const DashboardSettings = () => {
     if (libraryTarget === "footer.brandLogoUrl") {
       return settings.footer.brandLogoUrl || "";
     }
+    if (libraryTarget === "branding.wordmarkUrlNavbar") {
+      return settings.branding.wordmarkUrlNavbar || "";
+    }
+    if (libraryTarget === "branding.wordmarkUrlFooter") {
+      return settings.branding.wordmarkUrlFooter || "";
+    }
     return "";
   }, [
     libraryTarget,
+    settings.branding.wordmarkUrlFooter,
+    settings.branding.wordmarkUrlNavbar,
     settings.footer.brandLogoUrl,
     settings.site.defaultShareImage,
     settings.site.faviconUrl,
@@ -325,6 +366,8 @@ const DashboardSettings = () => {
   const uploadDownloadIcon = async (file: File, index: number) => {
     setUploadingKey(`download-icon-${index}`);
     try {
+      const source = settings.downloads.sources[index];
+      const slot = source?.id ? String(source.id) : `download-${index}`;
       const dataUrl = await fileToDataUrl(file);
       const response = await apiFetch(apiBase, "/api/uploads/image", {
         method: "POST",
@@ -334,6 +377,7 @@ const DashboardSettings = () => {
           dataUrl,
           filename: file.name,
           folder: "downloads",
+          slot,
         }),
       });
       if (!response.ok) {
@@ -378,8 +422,9 @@ const DashboardSettings = () => {
         throw new Error("save_failed");
       }
       const data = await response.json();
-      setSettings(data.settings || nextSettings);
+      setSettings(mergeSettings(defaultSettings, data.settings || nextSettings));
       await refresh();
+      await handleSaveLinkTypes({ silent: true });
       toast({ title: "Configurações salvas" });
     } catch {
       toast({
@@ -402,6 +447,7 @@ const DashboardSettings = () => {
         body: JSON.stringify({
           tags: tagTranslations,
           genres: genreTranslations,
+          staffRoles: staffRoleTranslations,
         }),
       });
       if (!response.ok) {
@@ -414,6 +460,9 @@ const DashboardSettings = () => {
       if (data?.genres) {
         setGenreTranslations(data.genres);
       }
+      if (data?.staffRoles) {
+        setStaffRoleTranslations(data.staffRoles);
+      }
       toast({ title: "Traduções salvas" });
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
@@ -424,6 +473,81 @@ const DashboardSettings = () => {
       });
     } finally {
       setIsSavingTranslations(false);
+    }
+  };
+
+  const uploadLinkTypeIcon = async (file: File, index: number) => {
+    setUploadingKey(`linktype-icon-${index}`);
+    try {
+      const link = linkTypes[index];
+      const slot = link?.id ? String(link.id) : normalizeLinkTypeId(link?.label || `rede-${index}`);
+      const dataUrl = await fileToDataUrl(file);
+      const response = await apiFetch(apiBase, "/api/uploads/image", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        auth: true,
+        body: JSON.stringify({
+          dataUrl,
+          filename: file.name,
+          folder: "socials",
+          slot,
+        }),
+      });
+      if (!response.ok) {
+        throw new Error("upload_failed");
+      }
+      const data = await response.json();
+      setLinkTypes((prev) => {
+        const next = [...prev];
+        next[index] = { ...next[index], icon: data.url };
+        return next;
+      });
+      toast({ title: "Ícone enviado", description: "SVG atualizado com sucesso." });
+    } catch {
+      toast({
+        title: "Falha no upload",
+        description: "Não foi possível enviar o ícone.",
+        variant: "destructive",
+      });
+    } finally {
+      setUploadingKey(null);
+    }
+  };
+
+  const handleSaveLinkTypes = async (options?: { silent?: boolean }) => {
+    setIsSavingLinkTypes(true);
+    try {
+      const normalizedItems = linkTypes.map((item) => ({
+        ...item,
+        id: item.id?.trim() ? item.id.trim() : normalizeLinkTypeId(item.label || ""),
+      }));
+      setLinkTypes(normalizedItems);
+      const response = await apiFetch(apiBase, "/api/link-types", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        auth: true,
+        body: JSON.stringify({ items: normalizedItems }),
+      });
+      if (!response.ok) {
+        throw new Error("save_failed");
+      }
+      const data = await response.json().catch(() => null);
+      if (data?.items) {
+        setLinkTypes(data.items);
+      }
+      if (!options?.silent) {
+        toast({ title: "Redes sociais salvas" });
+      }
+    } catch {
+      if (!options?.silent) {
+        toast({
+          title: "Falha ao salvar",
+          description: "Não foi possível salvar as redes sociais.",
+          variant: "destructive",
+        });
+      }
+    } finally {
+      setIsSavingLinkTypes(false);
     }
   };
 
@@ -442,6 +566,14 @@ const DashboardSettings = () => {
       .filter((genre) => !query || genre.toLowerCase().includes(query))
       .sort((a, b) => a.localeCompare(b, "en"));
   }, [knownGenres, genreTranslations, genreQuery]);
+
+  const filteredStaffRoles = useMemo(() => {
+    const query = staffRoleQuery.trim().toLowerCase();
+    const allRoles = Array.from(new Set([...knownStaffRoles, ...Object.keys(staffRoleTranslations)]));
+    return allRoles
+      .filter((role) => !query || role.toLowerCase().includes(query))
+      .sort((a, b) => a.localeCompare(b, "en"));
+  }, [knownStaffRoles, staffRoleTranslations, staffRoleQuery]);
 
   const userLabel = useMemo(() => {
     if (isLoadingUser) {
@@ -488,11 +620,14 @@ const DashboardSettings = () => {
           <section className="mx-auto w-full max-w-6xl px-6 pb-20 md:px-10">
             <div className="flex flex-wrap items-center justify-between gap-4">
               <div>
-                <div className="inline-flex items-center gap-3 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs uppercase tracking-[0.3em] text-muted-foreground">
+                <div className="inline-flex items-center gap-3 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs uppercase tracking-[0.3em] text-muted-foreground animate-fade-in">
                   Configurações
                 </div>
-                <h1 className="mt-4 text-3xl font-semibold text-foreground">Painel de ajustes</h1>
-                <p className="mt-2 text-sm text-muted-foreground">
+                <h1 className="mt-4 text-3xl font-semibold text-foreground animate-slide-up">Painel de ajustes</h1>
+                <p
+                  className="mt-2 text-sm text-muted-foreground animate-slide-up opacity-0"
+                  style={{ animationDelay: "0.2s" }}
+                >
                   Atualize identidade, traduções e links globais do site.
                 </p>
               </div>
@@ -502,11 +637,16 @@ const DashboardSettings = () => {
               </Button>
             </div>
 
-            <Tabs defaultValue="geral" className="mt-8">
-              <TabsList className="grid w-full grid-cols-2 md:grid-cols-5">
+            <Tabs
+              defaultValue="geral"
+              className="mt-8 animate-slide-up opacity-0"
+              style={{ animationDelay: "0.2s" }}
+            >
+              <TabsList className="grid w-full grid-cols-2 md:grid-cols-6">
                 <TabsTrigger value="geral">Geral</TabsTrigger>
                 <TabsTrigger value="traducoes">Traduções</TabsTrigger>
                 <TabsTrigger value="downloads">Downloads</TabsTrigger>
+                <TabsTrigger value="redes-usuarios">Redes sociais</TabsTrigger>
                 <TabsTrigger value="equipe">Equipe</TabsTrigger>
                 <TabsTrigger value="footer">Footer</TabsTrigger>
               </TabsList>
@@ -552,10 +692,30 @@ const DashboardSettings = () => {
                           }
                         />
                       </div>
+                      <div className="space-y-2">
+                        <Label>Cor de destaque</Label>
+                        <div className="flex items-center gap-3">
+                          <ColorPicker
+                            label=""
+                            showSwatch
+                            buttonClassName="inline-flex h-9 w-9 items-center justify-center rounded-md border border-border/60 bg-background/60 shadow-sm transition hover:border-primary/40"
+                            value={settings.theme.accent || "#000000"}
+                            onChange={(color) =>
+                              setSettings((prev) => ({
+                                ...prev,
+                                theme: { ...prev.theme, accent: color.toString("hex") },
+                              }))
+                            }
+                          />
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          Atualiza a cor principal e o accent do site.
+                        </p>
+                      </div>
                     </div>
 
                     <div className="grid gap-4 md:grid-cols-3">
-                      <div className="space-y-2">
+                      <div className="flex h-full flex-col gap-2">
                         <Label>Logo</Label>
                         {settings.site.logoUrl ? (
                           <div className="flex items-center gap-3">
@@ -564,16 +724,21 @@ const DashboardSettings = () => {
                               alt="Logo"
                               className="h-10 w-10 rounded bg-black/10 object-contain"
                             />
-                            <span className="text-xs text-muted-foreground break-all">{settings.site.logoUrl}</span>
                           </div>
                         ) : (
                           <p className="text-xs text-muted-foreground">Sem logo definida.</p>
                         )}
-                        <Button type="button" variant="outline" size="sm" onClick={() => openLibrary("site.logoUrl")}>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="mt-auto"
+                          onClick={() => openLibrary("site.logoUrl")}
+                        >
                           Biblioteca
                         </Button>
                       </div>
-                      <div className="space-y-2">
+                      <div className="flex h-full flex-col gap-2">
                         <Label>Favicon</Label>
                         {settings.site.faviconUrl ? (
                           <div className="flex items-center gap-3">
@@ -582,7 +747,6 @@ const DashboardSettings = () => {
                               alt="Favicon"
                               className="h-8 w-8 rounded bg-black/10 object-contain"
                             />
-                            <span className="text-xs text-muted-foreground break-all">{settings.site.faviconUrl}</span>
                           </div>
                         ) : (
                           <p className="text-xs text-muted-foreground">Sem favicon definido.</p>
@@ -591,12 +755,13 @@ const DashboardSettings = () => {
                           type="button"
                           variant="outline"
                           size="sm"
+                          className="mt-auto"
                           onClick={() => openLibrary("site.faviconUrl")}
                         >
                           Biblioteca
                         </Button>
                       </div>
-                      <div className="space-y-2">
+                      <div className="flex h-full flex-col gap-2">
                         <Label>Imagem padrão de compartilhamento</Label>
                         {settings.site.defaultShareImage ? (
                           <div className="flex items-center gap-3">
@@ -605,9 +770,6 @@ const DashboardSettings = () => {
                               alt="Imagem de compartilhamento"
                               className="h-10 w-16 rounded bg-black/10 object-cover"
                             />
-                            <span className="text-xs text-muted-foreground break-all">
-                              {settings.site.defaultShareImage}
-                            </span>
                           </div>
                         ) : (
                           <p className="text-xs text-muted-foreground">Sem imagem definida.</p>
@@ -616,11 +778,33 @@ const DashboardSettings = () => {
                           type="button"
                           variant="outline"
                           size="sm"
+                          className="mt-auto"
                           onClick={() => openLibrary("site.defaultShareImage")}
                         >
                           Biblioteca
                         </Button>
                       </div>
+                    </div>
+
+                    <div className="rounded-2xl border border-border/60 bg-background/50 p-4 space-y-3">
+                      <div className="flex items-center gap-2">
+                        <Checkbox
+                          id="wordmark-enabled"
+                          checked={settings.branding.wordmarkEnabled}
+                          onCheckedChange={(checked) =>
+                            setSettings((prev) => ({
+                              ...prev,
+                              branding: { ...prev.branding, wordmarkEnabled: checked === true },
+                            }))
+                          }
+                        />
+                        <Label htmlFor="wordmark-enabled" className="text-sm font-medium">
+                          Substituir texto pelo logo padrão no navbar e footer
+                        </Label>
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        Desmarque para manter o nome como está atualmente.
+                      </p>
                     </div>
 
                   </CardContent>
@@ -696,46 +880,48 @@ const DashboardSettings = () => {
                       {filteredTags.length === 0 ? (
                         <p className="px-4 py-3 text-xs text-muted-foreground">Nenhuma tag encontrada.</p>
                       ) : (
-                        <table className="w-full text-sm">
-                          <thead className="bg-background/70 text-xs uppercase tracking-wide text-muted-foreground">
-                            <tr>
-                              <th className="px-4 py-3 text-left font-medium">Termo (AniList)</th>
-                              <th className="px-4 py-3 text-left font-medium">Tradução</th>
-                              <th className="px-4 py-3 text-right font-medium">Ações</th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-border/60">
-                            {filteredTags.map((tag) => (
-                              <tr key={tag} className="bg-background/40">
-                                <td className="px-4 py-3 font-medium text-foreground">{tag}</td>
-                                <td className="px-4 py-3">
-                                  <Input
-                                    value={tagTranslations[tag] || ""}
-                                    placeholder={tag}
-                                    onChange={(event) =>
-                                      setTagTranslations((prev) => ({ ...prev, [tag]: event.target.value }))
-                                    }
-                                  />
-                                </td>
-                                <td className="px-4 py-3 text-right">
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    onClick={() =>
-                                      setTagTranslations((prev) => {
-                                        const next = { ...prev };
-                                        delete next[tag];
-                                        return next;
-                                      })
-                                    }
-                                  >
-                                    <Trash2 className="h-4 w-4" />
-                                  </Button>
-                                </td>
+                        <div className="max-h-[420px] overflow-y-auto no-scrollbar">
+                          <table className="w-full text-sm">
+                            <thead className="sticky top-0 bg-background/90 text-xs uppercase tracking-wide text-muted-foreground">
+                              <tr>
+                                <th className="px-4 py-3 text-left font-medium">Termo (AniList)</th>
+                                <th className="px-4 py-3 text-left font-medium">Tradução</th>
+                                <th className="px-4 py-3 text-right font-medium">Ações</th>
                               </tr>
-                            ))}
-                          </tbody>
-                        </table>
+                            </thead>
+                            <tbody className="divide-y divide-border/60">
+                              {filteredTags.map((tag) => (
+                                <tr key={tag} className="bg-background/40">
+                                  <td className="px-4 py-3 font-medium text-foreground">{tag}</td>
+                                  <td className="px-4 py-3">
+                                    <Input
+                                      value={tagTranslations[tag] || ""}
+                                      placeholder={tag}
+                                      onChange={(event) =>
+                                        setTagTranslations((prev) => ({ ...prev, [tag]: event.target.value }))
+                                      }
+                                    />
+                                  </td>
+                                  <td className="px-4 py-3 text-right">
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      onClick={() =>
+                                        setTagTranslations((prev) => {
+                                          const next = { ...prev };
+                                          delete next[tag];
+                                          return next;
+                                        })
+                                      }
+                                    >
+                                      <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
                       )}
                     </div>
                   </CardContent>
@@ -750,21 +936,33 @@ const DashboardSettings = () => {
                           Termos em inglês importados do AniList com a tradução exibida no site.
                         </p>
                       </div>
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="outline"
-                        onClick={(event) => {
-                          event.preventDefault();
-                          event.stopPropagation();
-                          void handleSaveTranslations();
-                        }}
-                        disabled={isSavingTranslations}
-                        className="gap-2"
-                      >
-                        <Save className="h-4 w-4" />
-                        {isSavingTranslations ? "Salvando..." : "Salvar traduções"}
-                      </Button>
+                      <div className="flex flex-wrap gap-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => syncAniListTerms()}
+                          disabled={isSyncingAniList}
+                          className="gap-2"
+                        >
+                          <Download className="h-4 w-4" />
+                          {isSyncingAniList ? "Importando..." : "Importar AniList"}
+                        </Button>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          onClick={(event) => {
+                            event.preventDefault();
+                            event.stopPropagation();
+                            void handleSaveTranslations();
+                          }}
+                          disabled={isSavingTranslations}
+                          className="gap-2"
+                        >
+                          <Save className="h-4 w-4" />
+                          {isSavingTranslations ? "Salvando..." : "Salvar traduções"}
+                        </Button>
+                      </div>
                     </div>
                     <div className="grid gap-3 md:grid-cols-[1fr_auto]">
                       <Input
@@ -797,46 +995,154 @@ const DashboardSettings = () => {
                       {filteredGenres.length === 0 ? (
                         <p className="px-4 py-3 text-xs text-muted-foreground">Nenhum gênero encontrado.</p>
                       ) : (
-                        <table className="w-full text-sm">
-                          <thead className="bg-background/70 text-xs uppercase tracking-wide text-muted-foreground">
-                            <tr>
-                              <th className="px-4 py-3 text-left font-medium">Termo (AniList)</th>
-                              <th className="px-4 py-3 text-left font-medium">Tradução</th>
-                              <th className="px-4 py-3 text-right font-medium">Ações</th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-border/60">
-                            {filteredGenres.map((genre) => (
-                              <tr key={genre} className="bg-background/40">
-                                <td className="px-4 py-3 font-medium text-foreground">{genre}</td>
-                                <td className="px-4 py-3">
-                                  <Input
-                                    value={genreTranslations[genre] || ""}
-                                    placeholder={genre}
-                                    onChange={(event) =>
-                                      setGenreTranslations((prev) => ({ ...prev, [genre]: event.target.value }))
-                                    }
-                                  />
-                                </td>
-                                <td className="px-4 py-3 text-right">
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    onClick={() =>
-                                      setGenreTranslations((prev) => {
-                                        const next = { ...prev };
-                                        delete next[genre];
-                                        return next;
-                                      })
-                                    }
-                                  >
-                                    <Trash2 className="h-4 w-4" />
-                                  </Button>
-                                </td>
+                        <div className="max-h-[420px] overflow-y-auto no-scrollbar">
+                          <table className="w-full text-sm">
+                            <thead className="sticky top-0 bg-background/90 text-xs uppercase tracking-wide text-muted-foreground">
+                              <tr>
+                                <th className="px-4 py-3 text-left font-medium">Termo (AniList)</th>
+                                <th className="px-4 py-3 text-left font-medium">Tradução</th>
+                                <th className="px-4 py-3 text-right font-medium">Ações</th>
                               </tr>
-                            ))}
-                          </tbody>
-                        </table>
+                            </thead>
+                            <tbody className="divide-y divide-border/60">
+                              {filteredGenres.map((genre) => (
+                                <tr key={genre} className="bg-background/40">
+                                  <td className="px-4 py-3 font-medium text-foreground">{genre}</td>
+                                  <td className="px-4 py-3">
+                                    <Input
+                                      value={genreTranslations[genre] || ""}
+                                      placeholder={genre}
+                                      onChange={(event) =>
+                                        setGenreTranslations((prev) => ({ ...prev, [genre]: event.target.value }))
+                                      }
+                                    />
+                                  </td>
+                                  <td className="px-4 py-3 text-right">
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      onClick={() =>
+                                        setGenreTranslations((prev) => {
+                                          const next = { ...prev };
+                                          delete next[genre];
+                                          return next;
+                                        })
+                                      }
+                                    >
+                                      <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card className="border-border/60 bg-card/80">
+                  <CardContent className="space-y-6 p-6">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <div>
+                        <h2 className="text-lg font-semibold">Cargos do AniList</h2>
+                        <p className="text-xs text-muted-foreground">
+                          Traduza funções da equipe do anime exibidas no projeto.
+                        </p>
+                      </div>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={(event) => {
+                          event.preventDefault();
+                          event.stopPropagation();
+                          void handleSaveTranslations();
+                        }}
+                        disabled={isSavingTranslations}
+                        className="gap-2"
+                      >
+                        <Save className="h-4 w-4" />
+                        {isSavingTranslations ? "Salvando..." : "Salvar traduções"}
+                      </Button>
+                    </div>
+                    <div className="grid gap-3 md:grid-cols-[1fr_auto]">
+                      <Input
+                        placeholder="Buscar cargo"
+                        value={staffRoleQuery}
+                        onChange={(event) => setStaffRoleQuery(event.target.value)}
+                      />
+                      <div className="flex gap-2">
+                        <Input
+                          placeholder="Novo cargo"
+                          value={newStaffRole}
+                          onChange={(event) => setNewStaffRole(event.target.value)}
+                        />
+                        <Button
+                          type="button"
+                          onClick={() => {
+                            const value = newStaffRole.trim();
+                            if (!value || staffRoleTranslations[value] !== undefined) {
+                              return;
+                            }
+                            setStaffRoleTranslations((prev) => ({ ...prev, [value]: "" }));
+                            setNewStaffRole("");
+                          }}
+                        >
+                          <Plus className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                    <div className="overflow-hidden rounded-xl border border-border/60">
+                      {filteredStaffRoles.length === 0 ? (
+                        <p className="px-4 py-3 text-xs text-muted-foreground">Nenhum cargo encontrado.</p>
+                      ) : (
+                        <div className="max-h-[420px] overflow-y-auto no-scrollbar">
+                          <table className="w-full text-sm">
+                            <thead className="sticky top-0 bg-background/90 text-xs uppercase tracking-wide text-muted-foreground">
+                              <tr>
+                                <th className="px-4 py-3 text-left font-medium">Termo (AniList)</th>
+                                <th className="px-4 py-3 text-left font-medium">Tradução</th>
+                                <th className="px-4 py-3 text-right font-medium">Ações</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-border/60">
+                              {filteredStaffRoles.map((role) => (
+                                <tr key={role} className="bg-background/40">
+                                  <td className="px-4 py-3 font-medium text-foreground">{role}</td>
+                                  <td className="px-4 py-3">
+                                    <Input
+                                      value={staffRoleTranslations[role] || ""}
+                                      placeholder={role}
+                                      onChange={(event) =>
+                                        setStaffRoleTranslations((prev) => ({
+                                          ...prev,
+                                          [role]: event.target.value,
+                                        }))
+                                      }
+                                    />
+                                  </td>
+                                  <td className="px-4 py-3 text-right">
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      onClick={() =>
+                                        setStaffRoleTranslations((prev) => {
+                                          const next = { ...prev };
+                                          delete next[role];
+                                          return next;
+                                        })
+                                      }
+                                    >
+                                      <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
                       )}
                     </div>
                   </CardContent>
@@ -868,6 +1174,7 @@ const DashboardSettings = () => {
                                   label: "Nova fonte",
                                   color: "#64748B",
                                   icon: "",
+                                  tintIcon: true,
                                 },
                               ],
                             },
@@ -878,78 +1185,121 @@ const DashboardSettings = () => {
                       </Button>
                     </div>
 
-                    <div className="grid gap-4">
-                      {settings.downloads.sources.map((source, index) => (
-                        <div key={`${source.id}-${index}`} className="grid gap-3 md:grid-cols-[1.4fr_0.6fr_1.2fr_auto]">
-                          <Input
-                            value={source.label}
-                            onChange={(event) =>
-                              setSettings((prev) => {
-                                const next = [...prev.downloads.sources];
-                                next[index] = { ...next[index], label: event.target.value };
-                                return { ...prev, downloads: { ...prev.downloads, sources: next } };
-                              })
-                            }
-                            placeholder="Nome"
-                          />
-                          <Input
-                            type="color"
-                            value={source.color}
-                            onChange={(event) =>
-                              setSettings((prev) => {
-                                const next = [...prev.downloads.sources];
-                                next[index] = { ...next[index], color: event.target.value };
-                                return { ...prev, downloads: { ...prev.downloads, sources: next } };
-                              })
-                            }
-                          />
-                          <div className="flex flex-col gap-2">
+                    <div className="grid gap-3">
+                      {settings.downloads.sources.map((source, index) => {
+                        const shouldTint = source.tintIcon !== false;
+                        return (
+                          <div
+                            key={`${source.id}-${index}`}
+                            className="grid items-center gap-3 md:grid-cols-[1.2fr_0.25fr_0.6fr_1.6fr_auto]"
+                          >
+                            <Input
+                              value={source.label}
+                              onChange={(event) =>
+                                setSettings((prev) => {
+                                  const next = [...prev.downloads.sources];
+                                  next[index] = { ...next[index], label: event.target.value };
+                                  return { ...prev, downloads: { ...prev.downloads, sources: next } };
+                                })
+                              }
+                              placeholder="Nome"
+                            />
+                            <div className="flex items-center justify-center">
+                              <ColorPicker
+                                label=""
+                                showSwatch
+                                buttonClassName="inline-flex h-9 w-9 items-center justify-center rounded-md border border-border/60 bg-background/60 shadow-sm transition hover:border-primary/40"
+                                value={source.color}
+                                onChange={(color) =>
+                                  setSettings((prev) => {
+                                    const next = [...prev.downloads.sources];
+                                    next[index] = { ...next[index], color: color.toString("hex") };
+                                    return { ...prev, downloads: { ...prev.downloads, sources: next } };
+                                  })
+                                }
+                              />
+                            </div>
+                            <div className="flex items-center justify-center gap-2 rounded-xl border border-border/60 bg-background/60 px-3 py-2">
+                              <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+                                Aplicar ao ícone
+                              </span>
+                              <Switch
+                                checked={shouldTint}
+                                onCheckedChange={(checked) =>
+                                  setSettings((prev) => {
+                                    const next = [...prev.downloads.sources];
+                                    next[index] = { ...next[index], tintIcon: checked };
+                                    return { ...prev, downloads: { ...prev.downloads, sources: next } };
+                                  })
+                                }
+                                aria-label={`Colorir SVG de ${source.label}`}
+                              />
+                            </div>
                             <div className="flex items-center gap-3 rounded-xl border border-border/60 bg-background/60 px-3 py-2 text-xs text-muted-foreground">
                               {isIconUrl(source.icon) ? (
-                                <img
-                                  src={source.icon}
-                                  alt={`Ícone ${source.label}`}
-                                  className="h-6 w-6 rounded bg-white/90 p-1"
-                                />
+                                shouldTint ? (
+                                  <ThemedSvgLogo
+                                    url={source.icon}
+                                    label={`Ícone ${source.label}`}
+                                    className="h-6 w-6 rounded bg-white/90 p-1"
+                                    color={source.color}
+                                  />
+                                ) : (
+                                  <img
+                                    src={source.icon}
+                                    alt={`Ícone ${source.label}`}
+                                    className="h-6 w-6 rounded bg-white/90 p-1"
+                                  />
+                                )
                               ) : (
                                 <span className="inline-flex h-6 w-6 items-center justify-center rounded bg-white/10 text-[10px]">
                                   SVG
                                 </span>
                               )}
                               <span className="truncate">
-                                {isIconUrl(source.icon) ? "SVG atual" : "Nenhum SVG enviado"}
+                                {isIconUrl(source.icon) ? "SVG atual" : "Sem SVG"}
                               </span>
+                              <div className="ml-auto flex items-center gap-2">
+                                <Input
+                                  id={`download-icon-${index}`}
+                                  type="file"
+                                  accept="image/svg+xml"
+                                  className="sr-only"
+                                  onChange={(event) => {
+                                    const file = event.target.files?.[0];
+                                    if (file) {
+                                      uploadDownloadIcon(file, index);
+                                    }
+                                  }}
+                                  disabled={uploadingKey === `download-icon-${index}`}
+                                />
+                                <Label
+                                  htmlFor={`download-icon-${index}`}
+                                  className="inline-flex h-8 cursor-pointer items-center justify-center rounded-md border border-border/60 bg-background px-3 text-[11px] font-medium text-foreground transition hover:border-primary/50"
+                                >
+                                  Escolher SVG
+                                </Label>
+                              </div>
                             </div>
-                            <Input
-                              type="file"
-                              accept="image/svg+xml"
-                              onChange={(event) => {
-                                const file = event.target.files?.[0];
-                                if (file) {
-                                  uploadDownloadIcon(file, index);
-                                }
-                              }}
-                              disabled={uploadingKey === `download-icon-${index}`}
-                            />
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              onClick={() =>
+                                setSettings((prev) => ({
+                                  ...prev,
+                                  downloads: {
+                                    ...prev.downloads,
+                                    sources: prev.downloads.sources.filter((_, idx) => idx !== index),
+                                  },
+                                }))
+                              }
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
                           </div>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            onClick={() =>
-                              setSettings((prev) => ({
-                                ...prev,
-                                downloads: {
-                                  ...prev.downloads,
-                                  sources: prev.downloads.sources.filter((_, idx) => idx !== index),
-                                },
-                              }))
-                            }
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   </CardContent>
                 </Card>
@@ -960,7 +1310,7 @@ const DashboardSettings = () => {
                   <CardContent className="space-y-6 p-6">
                     <div className="flex flex-wrap items-center justify-between gap-3">
                       <div>
-                        <h2 className="text-lg font-semibold">Funcoes do time</h2>
+                        <h2 className="text-lg font-semibold">Funções do time</h2>
                         <p className="text-xs text-muted-foreground">
                           Ajuste os cargos disponíveis para membros.
                         </p>
@@ -1043,6 +1393,125 @@ const DashboardSettings = () => {
                 </Card>
               </TabsContent>
 
+              <TabsContent value="redes-usuarios" className="mt-6 space-y-6">
+                <Card className="border-border/60 bg-card/80">
+                  <CardContent className="space-y-6 p-6">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <div>
+                        <h2 className="text-lg font-semibold">Redes sociais (Usuários)</h2>
+                        <p className="text-xs text-muted-foreground">
+                          Opções exibidas no editor de usuários.
+                        </p>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() =>
+                            setLinkTypes((prev) => [
+                              ...prev,
+                              { id: `nova-${Date.now()}`, label: "Nova rede", icon: "globe" },
+                            ])
+                          }
+                        >
+                          <Plus className="h-4 w-4" />
+                          Adicionar
+                        </Button>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          onClick={(event) => {
+                            event.preventDefault();
+                            event.stopPropagation();
+                            void handleSaveLinkTypes();
+                          }}
+                          disabled={isSavingLinkTypes}
+                          className="gap-2"
+                        >
+                          <Save className="h-4 w-4" />
+                          {isSavingLinkTypes ? "Salvando..." : "Salvar"}
+                        </Button>
+                      </div>
+                    </div>
+
+                    <div className="grid gap-3">
+                      {linkTypes.length === 0 ? (
+                        <p className="text-xs text-muted-foreground">Nenhuma rede cadastrada.</p>
+                      ) : null}
+                      {linkTypes.map((link, index) => {
+                        const isCustomIcon = isIconUrl(link.icon);
+                        return (
+                          <div
+                            key={`${link.id}-${index}`}
+                            className="grid items-center gap-3 md:grid-cols-[1fr_1.6fr_auto]"
+                          >
+                            <Input
+                              value={link.label}
+                              placeholder="Label"
+                              onChange={(event) =>
+                                setLinkTypes((prev) => {
+                                  const next = [...prev];
+                                  next[index] = { ...next[index], label: event.target.value };
+                                  return next;
+                                })
+                              }
+                            />
+                            <div className="flex items-center gap-3 rounded-xl border border-border/60 bg-background/60 px-3 py-2 text-xs text-muted-foreground">
+                              {isCustomIcon ? (
+                                <ThemedSvgLogo
+                                  url={link.icon}
+                                  label={`Ícone ${link.label}`}
+                                  className="h-6 w-6 text-primary"
+                                />
+                              ) : (
+                                <span className="inline-flex h-6 w-6 items-center justify-center rounded bg-white/10 text-[10px]">
+                                  SVG
+                                </span>
+                              )}
+                              <span className="truncate">
+                                {isCustomIcon ? "SVG atual" : "Sem SVG"}
+                              </span>
+                              <div className="ml-auto flex items-center gap-2">
+                                <Input
+                                  id={`linktype-icon-${index}`}
+                                  type="file"
+                                  accept="image/svg+xml"
+                                  className="sr-only"
+                                  onChange={(event) => {
+                                    const file = event.target.files?.[0];
+                                    if (file) {
+                                      uploadLinkTypeIcon(file, index);
+                                    }
+                                  }}
+                                  disabled={uploadingKey === `linktype-icon-${index}`}
+                                />
+                                <Label
+                                  htmlFor={`linktype-icon-${index}`}
+                                  className="inline-flex h-8 cursor-pointer items-center justify-center rounded-md border border-border/60 bg-background px-3 text-[11px] font-medium text-foreground transition hover:border-primary/50"
+                                >
+                                  Escolher SVG
+                                </Label>
+                              </div>
+                            </div>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              onClick={() =>
+                                setLinkTypes((prev) => prev.filter((_, idx) => idx !== index))
+                              }
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+
               <TabsContent value="footer" className="mt-6 space-y-6">
                 <Card className="border-border/60 bg-card/80">
                   <CardContent className="space-y-6 p-6">
@@ -1072,9 +1541,6 @@ const DashboardSettings = () => {
                               alt="Logo do footer"
                               className="h-10 w-10 rounded bg-black/10 object-contain"
                             />
-                            <span className="text-xs text-muted-foreground break-all">
-                              {settings.footer.brandLogoUrl}
-                            </span>
                           </div>
                         ) : (
                           <p className="text-xs text-muted-foreground">Sem logo definida.</p>
@@ -1247,7 +1713,11 @@ const DashboardSettings = () => {
                               ...prev.footer,
                               socialLinks: [
                                 ...prev.footer.socialLinks,
-                                { label: "Nova rede", href: "", icon: "link" },
+                                {
+                                  label: "Nova rede",
+                                  href: "",
+                                  icon: linkTypes[0]?.icon || "link",
+                                },
                               ],
                             },
                           }))
@@ -1259,18 +1729,54 @@ const DashboardSettings = () => {
 
                     <div className="grid gap-3">
                       {settings.footer.socialLinks.map((link, index) => (
-                        <div key={`${link.label}-${index}`} className="grid gap-3 md:grid-cols-[1fr_1.6fr_0.8fr_auto]">
-                          <Input
-                            value={link.label}
-                            placeholder="Label"
-                            onChange={(event) =>
+                        <div key={`${link.label}-${index}`} className="grid gap-3 md:grid-cols-[0.8fr_1.6fr_auto]">
+                          <Select
+                            value={link.icon || "link"}
+                            onValueChange={(value) =>
                               setSettings((prev) => {
                                 const next = [...prev.footer.socialLinks];
-                                next[index] = { ...next[index], label: event.target.value };
+                                const matched = linkTypes.find((item) => item.icon === value || item.id === value);
+                                next[index] = {
+                                  ...next[index],
+                                  icon: value,
+                                  label: matched?.label || link.label || "Rede social",
+                                };
                                 return { ...prev, footer: { ...prev.footer, socialLinks: next } };
                               })
                             }
-                          />
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Ícone" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {linkTypes.length === 0 ? (
+                                <SelectItem value="link" disabled>
+                                  Cadastre redes sociais na aba acima
+                                </SelectItem>
+                              ) : null}
+                              {linkTypes.map((option) => {
+                                const iconValue = option.icon || option.id;
+                                const isCustomIcon = isIconUrl(iconValue);
+                                const Icon = socialIconMap[option.id] || Link2;
+                                return (
+                                  <SelectItem key={option.id} value={iconValue}>
+                                    <div className="flex items-center gap-2">
+                                      {isCustomIcon ? (
+                                        <ThemedSvgLogo
+                                          url={iconValue}
+                                          label={`Ícone ${option.label}`}
+                                          className="h-4 w-4 text-primary"
+                                        />
+                                      ) : (
+                                        <Icon className="h-4 w-4 text-muted-foreground" />
+                                      )}
+                                      <span>{option.label}</span>
+                                    </div>
+                                  </SelectItem>
+                                );
+                              })}
+                            </SelectContent>
+                          </Select>
                           <Input
                             value={link.href}
                             placeholder="URL"
@@ -1282,33 +1788,6 @@ const DashboardSettings = () => {
                               })
                             }
                           />
-                          <Select
-                            value={link.icon || "link"}
-                            onValueChange={(value) =>
-                              setSettings((prev) => {
-                                const next = [...prev.footer.socialLinks];
-                                next[index] = { ...next[index], icon: value };
-                                return { ...prev, footer: { ...prev.footer, socialLinks: next } };
-                              })
-                            }
-                          >
-                            <SelectTrigger>
-                              <SelectValue placeholder="Ícone" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {socialIconOptions.map((option) => {
-                                const Icon = socialIconMap[option.id] || Link2;
-                                return (
-                                  <SelectItem key={option.id} value={option.id}>
-                                    <div className="flex items-center gap-2">
-                                      <Icon className="h-4 w-4 text-muted-foreground" />
-                                      <span>{option.label}</span>
-                                    </div>
-                                  </SelectItem>
-                                );
-                              })}
-                            </SelectContent>
-                          </Select>
                           <Button
                             type="button"
                             variant="ghost"
@@ -1441,11 +1920,11 @@ const DashboardSettings = () => {
           description="Selecione uma imagem ja enviada para reutilizar ou exclua itens que nao estejam em uso."
           uploadFolder="branding"
           listFolders={[""]}
-          allowUrlInput={false}
-          showAltInput={false}
+          showUrlImport={false}
           allowDeselect
-          currentSelectionUrl={currentLibrarySelection || undefined}
-          onSelect={(url) => applyLibraryImage(url)}
+          mode="single"
+          currentSelectionUrls={currentLibrarySelection ? [currentLibrarySelection] : []}
+          onSave={({ urls }) => applyLibraryImage(urls[0] || "")}
         />
     </DashboardShell>
   );
