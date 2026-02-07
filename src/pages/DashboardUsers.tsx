@@ -1,8 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import Cropper from "react-easy-crop";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import DashboardShell from "@/components/DashboardShell";
-import ImageLibraryDialog, { type AvatarDisplay } from "@/components/ImageLibraryDialog";
+import ImageLibraryDialog from "@/components/ImageLibraryDialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -55,7 +54,6 @@ type UserRecord = {
   phrase: string;
   bio: string;
   avatarUrl?: string | null;
-  avatarDisplay?: AvatarDisplay | null;
   socials?: Array<{ label: string; href: string }>;
   status: "active" | "retired";
   permissions: string[];
@@ -63,38 +61,8 @@ type UserRecord = {
   order: number;
 };
 
-const defaultAvatarDisplay: AvatarDisplay = { x: 0, y: 0, zoom: 1, rotation: 0 };
-const minAvatarZoom = 1;
-const maxAvatarZoom = 5;
-
-const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
-
-const normalizeAvatarDisplay = (value?: Partial<AvatarDisplay> | null): AvatarDisplay => {
-  const x = Number(value?.x);
-  const y = Number(value?.y);
-  const zoom = Number(value?.zoom);
-  const rotation = Number(value?.rotation);
-  const normalizedZoom =
-    Number.isFinite(zoom) && zoom > 0
-      ? clamp(zoom, minAvatarZoom, maxAvatarZoom)
-      : defaultAvatarDisplay.zoom;
-  const normalizeOffset = (offset: number) => {
-    if (!Number.isFinite(offset)) {
-      return 0;
-    }
-    return offset;
-  };
-  return {
-    x: normalizeOffset(x),
-    y: normalizeOffset(y),
-    zoom: normalizedZoom,
-    rotation: Number.isFinite(rotation) ? rotation : defaultAvatarDisplay.rotation,
-  };
-};
-
 type DashboardAvatarProps = {
   avatarUrl?: string | null;
-  avatarDisplay?: AvatarDisplay | null;
   name: string;
   sizeClassName: string;
   frameClassName: string;
@@ -104,35 +72,18 @@ type DashboardAvatarProps = {
 
 const DashboardAvatar = ({
   avatarUrl,
-  avatarDisplay,
   name,
   sizeClassName,
   frameClassName,
   fallbackClassName,
   fallbackText,
 }: DashboardAvatarProps) => {
-  const [cropAreaSize, setCropAreaSize] = useState({ width: 1, height: 1 });
-  const [cropPosition, setCropPosition] = useState({ x: 0, y: 0 });
   const [hasError, setHasError] = useState(false);
   const hasImage = Boolean(avatarUrl) && !hasError;
-  const normalizedDisplay = useMemo(
-    () => normalizeAvatarDisplay(avatarDisplay),
-    [avatarDisplay],
-  );
 
   useEffect(() => {
     setHasError(false);
-    setCropAreaSize({ width: 1, height: 1 });
   }, [avatarUrl]);
-
-  useEffect(() => {
-    const safeWidth = cropAreaSize.width > 0 ? cropAreaSize.width : 1;
-    const safeHeight = cropAreaSize.height > 0 ? cropAreaSize.height : 1;
-    setCropPosition({
-      x: normalizedDisplay.x * safeWidth,
-      y: normalizedDisplay.y * safeHeight,
-    });
-  }, [cropAreaSize.height, cropAreaSize.width, normalizedDisplay.x, normalizedDisplay.y]);
 
   if (!hasImage) {
     return <div className={fallbackClassName}>{fallbackText}</div>;
@@ -140,54 +91,14 @@ const DashboardAvatar = ({
 
   return (
     <div className={`${sizeClassName} ${frameClassName} relative shrink-0 overflow-hidden rounded-full`}>
-      <div className="pointer-events-none absolute inset-0">
-        <Cropper
-          image={String(avatarUrl)}
-          crop={cropPosition}
-          zoom={normalizedDisplay.zoom}
-          rotation={normalizedDisplay.rotation}
-          aspect={1}
-          cropShape="round"
-          objectFit="cover"
-          showGrid={false}
-          minZoom={minAvatarZoom}
-          maxZoom={maxAvatarZoom}
-          zoomWithScroll={false}
-          disableAutomaticStylesInjection
-          onWheelRequest={() => false}
-          onTouchRequest={() => false}
-          onCropChange={(nextCrop) => {
-            setCropPosition((prev) =>
-              Math.abs(prev.x - nextCrop.x) < 0.05 && Math.abs(prev.y - nextCrop.y) < 0.05
-                ? prev
-                : nextCrop,
-            );
-          }}
-          onCropSizeChange={(size) => {
-            const width = Number(size?.width || 0);
-            const height = Number(size?.height || 0);
-            if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) {
-              return;
-            }
-            setCropAreaSize((prev) =>
-              Math.abs(prev.width - width) < 0.5 && Math.abs(prev.height - height) < 0.5
-                ? prev
-                : { width, height },
-            );
-          }}
-          style={{
-            containerStyle: { cursor: "default" },
-            cropAreaStyle: { border: "none", boxShadow: "none" },
-          }}
-          mediaProps={{
-            alt: name,
-            draggable: false,
-            referrerPolicy: "no-referrer",
-            crossOrigin: "anonymous",
-            onError: () => setHasError(true),
-          }}
-        />
-      </div>
+      <img
+        src={String(avatarUrl)}
+        alt={name}
+        referrerPolicy="no-referrer"
+        crossOrigin="anonymous"
+        className="h-full w-full object-cover"
+        onError={() => setHasError(true)}
+      />
     </div>
   );
 };
@@ -198,7 +109,6 @@ const emptyForm = {
   phrase: "",
   bio: "",
   avatarUrl: "",
-  avatarDisplay: defaultAvatarDisplay,
   socials: [] as Array<{ label: string; href: string }>,
   status: "active" as "active" | "retired",
   permissions: [] as string[],
@@ -315,26 +225,13 @@ const DashboardUsers = () => {
   const openLibrary = () => {
     setIsLibraryOpen(true);
   };
-  const handleLibrarySave = useCallback(
-    ({
-      urls,
-      avatarDisplay,
-    }: {
-      urls: string[];
-      avatarDisplay?: AvatarDisplay;
-    }) => {
-      const url = urls[0] || "";
-      setFormState((prev) => ({
-        ...prev,
-        avatarUrl: url,
-        avatarDisplay:
-          avatarDisplay != null
-            ? normalizeAvatarDisplay(avatarDisplay)
-            : normalizeAvatarDisplay(prev.avatarDisplay),
-      }));
-    },
-    [],
-  );
+  const handleLibrarySave = useCallback(({ urls }: { urls: string[] }) => {
+    const url = urls[0] || "";
+    setFormState((prev) => ({
+      ...prev,
+      avatarUrl: url,
+    }));
+  }, []);
   const currentLibrarySelection = formState.avatarUrl;
   const openEditDialog = useCallback((user: UserRecord) => {
     const normalizedPermissions = user.permissions.includes("*")
@@ -348,7 +245,6 @@ const DashboardUsers = () => {
       phrase: user.phrase,
       bio: user.bio,
       avatarUrl: user.avatarUrl || "",
-      avatarDisplay: normalizeAvatarDisplay(user.avatarDisplay),
       socials: user.socials ? [...user.socials] : [],
       status: user.status,
       permissions: normalizedPermissions,
@@ -433,7 +329,7 @@ const DashboardUsers = () => {
 
   const openNewDialog = () => {
     setEditingUser(null);
-    setFormState({ ...emptyForm, avatarDisplay: normalizeAvatarDisplay(emptyForm.avatarDisplay) });
+    setFormState({ ...emptyForm });
     setOwnerToggle(false);
     setIsDialogOpen(true);
   };
@@ -455,7 +351,6 @@ const DashboardUsers = () => {
       phrase: formState.phrase.trim(),
       bio: formState.bio.trim(),
       avatarUrl: formState.avatarUrl.trim() || null,
-      avatarDisplay: normalizeAvatarDisplay(formState.avatarDisplay),
       socials: formState.socials.filter((item) => item.label.trim() && item.href.trim()),
       status: formState.status,
       permissions: formState.permissions,
@@ -749,7 +644,6 @@ const DashboardUsers = () => {
                           <div className="flex gap-4">
                             <DashboardAvatar
                               avatarUrl={user.avatarUrl}
-                              avatarDisplay={user.avatarDisplay}
                               name={user.name}
                               sizeClassName="h-14 w-14"
                               frameClassName="border border-white/10 bg-white/5"
@@ -829,7 +723,6 @@ const DashboardUsers = () => {
                           <div className="flex gap-4">
                             <DashboardAvatar
                               avatarUrl={user.avatarUrl}
-                              avatarDisplay={user.avatarDisplay}
                               name={user.name}
                               sizeClassName="h-14 w-14"
                               frameClassName="border border-white/10 bg-white/5"
@@ -878,14 +771,14 @@ const DashboardUsers = () => {
         onOpenChange={setIsLibraryOpen}
         apiBase={apiBase}
         description="Selecione uma imagem já enviada para reutilizar ou envie um novo arquivo."
-        uploadFolder="users"
         listFolders={[""]}
         allowDeselect
         mode="single"
         cropAvatar
-        initialAvatarDisplay={formState.avatarDisplay}
+        cropTargetFolder="users"
+        cropSlot={formState.id ? `avatar-${formState.id}` : undefined}
         currentSelectionUrls={currentLibrarySelection ? [currentLibrarySelection] : []}
-        onSave={({ urls, avatarDisplay }) => handleLibrarySave({ urls, avatarDisplay })}
+        onSave={({ urls }) => handleLibrarySave({ urls })}
       />
 
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
@@ -954,7 +847,6 @@ const DashboardUsers = () => {
                 {formState.avatarUrl ? (
                   <DashboardAvatar
                     avatarUrl={formState.avatarUrl}
-                    avatarDisplay={formState.avatarDisplay}
                     name={formState.name || "Avatar"}
                     sizeClassName="h-12 w-12"
                     frameClassName="border border-border/60 bg-card/60"

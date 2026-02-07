@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState } from "react";
-import Cropper from "react-easy-crop";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -34,12 +33,6 @@ type PublicUser = {
   phrase: string;
   bio: string;
   avatarUrl?: string | null;
-  avatarDisplay?: {
-    x: number;
-    y: number;
-    zoom: number;
-    rotation: number;
-  } | null;
   socials?: Array<{ label: string; href: string }>;
   permissions?: string[];
   roles?: string[];
@@ -48,120 +41,35 @@ type PublicUser = {
   order?: number;
 };
 
-type AvatarDisplay = {
-  x: number;
-  y: number;
-  zoom: number;
-  rotation: number;
-};
-
-const MIN_AVATAR_ZOOM = 1;
-const MAX_AVATAR_ZOOM = 5;
-
-const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
-
-const normalizeAvatarDisplay = (value?: Partial<AvatarDisplay> | null): AvatarDisplay => {
-  const x = Number(value?.x);
-  const y = Number(value?.y);
-  const zoom = Number(value?.zoom);
-  const rotation = Number(value?.rotation);
-  const normalizeOffset = (offset: number) => {
-    if (!Number.isFinite(offset)) {
-      return 0;
-    }
-    return offset;
-  };
-  return {
-    x: normalizeOffset(x),
-    y: normalizeOffset(y),
-    zoom: Number.isFinite(zoom) && zoom > 0 ? clamp(zoom, MIN_AVATAR_ZOOM, MAX_AVATAR_ZOOM) : 1,
-    rotation: Number.isFinite(rotation) ? rotation : 0,
-  };
-};
-
 type TeamMemberAvatarProps = {
   imageSrc: string;
   name: string;
-  avatarDisplay?: Partial<AvatarDisplay> | null;
 };
 
-const TeamMemberAvatar = ({ imageSrc, name, avatarDisplay }: TeamMemberAvatarProps) => {
+const TeamMemberAvatar = ({ imageSrc, name }: TeamMemberAvatarProps) => {
   const [resolvedSrc, setResolvedSrc] = useState(imageSrc || "/placeholder.svg");
-  const [cropAreaSize, setCropAreaSize] = useState({ width: 1, height: 1 });
-  const [cropPosition, setCropPosition] = useState({ x: 0, y: 0 });
-  const normalizedDisplay = useMemo(() => normalizeAvatarDisplay(avatarDisplay), [avatarDisplay]);
 
   useEffect(() => {
     setResolvedSrc(imageSrc || "/placeholder.svg");
-    setCropAreaSize({ width: 1, height: 1 });
   }, [imageSrc]);
-
-  useEffect(() => {
-    const safeWidth = cropAreaSize.width > 0 ? cropAreaSize.width : 1;
-    const safeHeight = cropAreaSize.height > 0 ? cropAreaSize.height : 1;
-    setCropPosition({
-      x: normalizedDisplay.x * safeWidth,
-      y: normalizedDisplay.y * safeHeight,
-    });
-  }, [cropAreaSize.height, cropAreaSize.width, normalizedDisplay.x, normalizedDisplay.y]);
 
   return (
     <div
       className="absolute bottom-0 left-1/2 h-56 w-56 -translate-x-1/2 overflow-hidden rounded-full transition-transform duration-500 group-hover:scale-105 sm:h-64 sm:w-64 md:h-72 md:w-72 lg:h-80 lg:w-80"
     >
-      <div className="pointer-events-none absolute inset-0">
-        <Cropper
-          image={resolvedSrc}
-          crop={cropPosition}
-          zoom={normalizedDisplay.zoom}
-          rotation={normalizedDisplay.rotation}
-          aspect={1}
-          cropShape="round"
-          objectFit="cover"
-          showGrid={false}
-          minZoom={MIN_AVATAR_ZOOM}
-          maxZoom={MAX_AVATAR_ZOOM}
-          zoomWithScroll={false}
-          disableAutomaticStylesInjection
-          onWheelRequest={() => false}
-          onTouchRequest={() => false}
-          onCropChange={(nextCrop) => {
-            setCropPosition((prev) =>
-              Math.abs(prev.x - nextCrop.x) < 0.05 && Math.abs(prev.y - nextCrop.y) < 0.05
-                ? prev
-                : nextCrop,
-            );
-          }}
-          onCropSizeChange={(size) => {
-            const width = Number(size?.width || 0);
-            const height = Number(size?.height || 0);
-            if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) {
-              return;
-            }
-            setCropAreaSize((prev) =>
-              Math.abs(prev.width - width) < 0.5 && Math.abs(prev.height - height) < 0.5
-                ? prev
-                : { width, height },
-            );
-          }}
-          style={{
-            containerStyle: { cursor: "default" },
-            cropAreaStyle: { border: "none", boxShadow: "none" },
-          }}
-          mediaProps={{
-            alt: name,
-            draggable: false,
-            referrerPolicy: "no-referrer",
-            crossOrigin: "anonymous",
-            onError: () => {
-              if (resolvedSrc === "/placeholder.svg") {
-                return;
-              }
-              setResolvedSrc("/placeholder.svg");
-            },
-          }}
-        />
-      </div>
+      <img
+        src={resolvedSrc}
+        alt={name}
+        referrerPolicy="no-referrer"
+        crossOrigin="anonymous"
+        className="h-full w-full object-cover"
+        onError={() => {
+          if (resolvedSrc === "/placeholder.svg") {
+            return;
+          }
+          setResolvedSrc("/placeholder.svg");
+        }}
+      />
     </div>
   );
 };
@@ -245,7 +153,7 @@ const Team = () => {
   };
 
   const renderMemberAvatar = (member: PublicUser, imageSrc: string) => {
-    return <TeamMemberAvatar imageSrc={imageSrc} name={member.name} avatarDisplay={member.avatarDisplay} />;
+    return <TeamMemberAvatar imageSrc={imageSrc} name={member.name} />;
   };
 
   useEffect(() => {

@@ -998,7 +998,7 @@ const writeUploads = (uploads) => {
   fs.writeFileSync(uploadsFilePath, JSON.stringify(uploads, null, 2));
 };
 
-const PRIVATE_UPLOAD_FOLDERS = new Set(["downloads", "socials"]);
+const PRIVATE_UPLOAD_FOLDERS = new Set(["downloads", "socials", "users"]);
 
 const getUploadRootSegment = (value) => {
   if (!value) {

@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-import Cropper from "react-easy-crop";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import "croppie/croppie.css";
 
 import {
   ContextMenu,
@@ -15,13 +15,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "@/components/ui/use-toast";
 import { apiFetch } from "@/lib/api-client";
-
-export type AvatarDisplay = {
-  x: number;
-  y: number;
-  zoom: number;
-  rotation: number;
-};
 
 export type LibraryImageSource = "upload" | "project";
 
@@ -45,7 +38,6 @@ export type LibraryImageItem = {
 export type ImageLibrarySavePayload = {
   urls: string[];
   items: LibraryImageItem[];
-  avatarDisplay?: AvatarDisplay;
 };
 
 
@@ -64,45 +56,42 @@ type ImageLibraryDialogProps = {
   currentSelectionUrls?: string[];
   currentSelectionUrl?: string;
   cropAvatar?: boolean;
-  initialAvatarDisplay?: AvatarDisplay;
+  cropTargetFolder?: string;
+  cropSlot?: string;
   onSave: (payload: ImageLibrarySavePayload) => void;
 };
 
-const DEFAULT_AVATAR_DISPLAY: AvatarDisplay = {
-  x: 0,
-  y: 0,
-  zoom: 1,
-  rotation: 0,
+type CroppieInstance = {
+  bind: (options: { url: string; points?: number[]; orientation?: number; zoom?: number; useCanvas?: boolean }) => Promise<void>;
+  result: (options: {
+    type?: "canvas" | "base64" | "html" | "blob" | "rawcanvas";
+    size?: "viewport" | "original" | { width: number; height: number };
+    format?: "jpeg" | "png" | "webp";
+    quality?: number;
+    circle?: boolean;
+  }) => Promise<string | Blob | HTMLElement | HTMLCanvasElement>;
+  get: () => { points?: number[]; orientation?: number; zoom?: number };
+  rotate: (degrees: 90 | 180 | 270 | -90 | -180 | -270) => void;
+  setZoom: (zoom: number) => void;
+  destroy: () => void;
 };
-const MIN_AVATAR_ZOOM = 1;
-const MAX_AVATAR_ZOOM = 5;
+
+type CroppieConstructor = new (container: HTMLElement, options?: Record<string, unknown>) => CroppieInstance;
+
+const resolveCroppieConstructor = async (): Promise<CroppieConstructor> => {
+  const module = await import("croppie");
+  return ((module as { default?: unknown }).default ?? module) as CroppieConstructor;
+};
+
+const CROPIE_VIEWPORT_SIZE = 256;
+const CROPIE_BOUNDARY_SIZE = 320;
+const CROPIE_MIN_ZOOM = 0;
+const CROPIE_MAX_ZOOM = 3.5;
+const CROPIE_MIN_ROTATION = -270;
+const CROPIE_MAX_ROTATION = 270;
+const CROPIE_ROTATION_STEPS = new Set([-270, -180, -90, 90, 180, 270]);
 
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
-
-const normalizeAvatarDisplay = (value?: Partial<AvatarDisplay> | null): AvatarDisplay => {
-  const x = Number(value?.x);
-  const y = Number(value?.y);
-  const zoom = Number(value?.zoom);
-  const rotation = Number(value?.rotation);
-  const normalizedZoom =
-    Number.isFinite(zoom) && zoom > 0
-      ? clamp(zoom, MIN_AVATAR_ZOOM, MAX_AVATAR_ZOOM)
-      : DEFAULT_AVATAR_DISPLAY.zoom;
-  const normalizeOffset = (offset: number, fallback: number) => {
-    if (!Number.isFinite(offset)) {
-      return fallback;
-    }
-    return offset;
-  };
-  const normalizedX = normalizeOffset(x, DEFAULT_AVATAR_DISPLAY.x);
-  const normalizedY = normalizeOffset(y, DEFAULT_AVATAR_DISPLAY.y);
-  return {
-    x: normalizedX,
-    y: normalizedY,
-    zoom: normalizedZoom,
-    rotation: Number.isFinite(rotation) ? rotation : DEFAULT_AVATAR_DISPLAY.rotation,
-  };
-};
 
 const fileToDataUrl = (file: File) =>
   new Promise<string>((resolve, reject) => {
@@ -129,7 +118,8 @@ const ImageLibraryDialog = ({
   currentSelectionUrls,
   currentSelectionUrl,
   cropAvatar = false,
-  initialAvatarDisplay,
+  cropTargetFolder,
+  cropSlot,
   onSave,
 }: ImageLibraryDialogProps) => {
   const [isLoading, setIsLoading] = useState(false);
@@ -145,11 +135,13 @@ const ImageLibraryDialog = ({
   const [deleteTarget, setDeleteTarget] = useState<LibraryImageItem | null>(null);
   const [isRenaming, setIsRenaming] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
-  const [avatarDisplay, setAvatarDisplay] = useState<AvatarDisplay>(normalizeAvatarDisplay(initialAvatarDisplay));
-  const [cropDraft, setCropDraft] = useState<AvatarDisplay>(normalizeAvatarDisplay(initialAvatarDisplay));
+  const [isApplyingCrop, setIsApplyingCrop] = useState(false);
+  const [cropZoom, setCropZoom] = useState(1);
+  const [cropRotation, setCropRotation] = useState(0);
+  const [isCropReady, setIsCropReady] = useState(false);
   const [isCropDialogOpen, setIsCropDialogOpen] = useState(false);
-  const [cropAreaSize, setCropAreaSize] = useState({ width: 1, height: 1 });
-  const [cropperRenderKey, setCropperRenderKey] = useState(0);
+  const cropContainerRef = useRef<HTMLDivElement | null>(null);
+  const croppieRef = useRef<CroppieInstance | null>(null);
 
   const folders = useMemo(() => {
     const set = new Set<string>();
@@ -332,18 +324,21 @@ const ImageLibraryDialog = ({
     } else {
       setSelectedUrls(baseUrls.length > 0 ? [baseUrls[0]] : []);
     }
-    const normalizedDisplay = normalizeAvatarDisplay(initialAvatarDisplay);
-    setAvatarDisplay(normalizedDisplay);
-    setCropDraft(normalizedDisplay);
+    setCropZoom(1);
+    setCropRotation(0);
+    setIsCropReady(false);
     setIsCropDialogOpen(false);
-  }, [currentSelectionUrl, currentSelectionUrls, initialAvatarDisplay, mode, open]);
+  }, [currentSelectionUrl, currentSelectionUrls, mode, open]);
 
   useEffect(() => {
     if (!open) {
       return;
     }
+    if (cropAvatar && mode === "single") {
+      return;
+    }
     setSelectedUrls((prev) => prev.filter((url) => allItems.has(url)));
-  }, [allItems, open]);
+  }, [allItems, cropAvatar, mode, open]);
 
   const setSelection = useCallback(
     (url: string, options?: { openCrop?: boolean }) => {
@@ -365,17 +360,17 @@ const ImageLibraryDialog = ({
         return [url];
       });
       if (cropAvatar && mode === "single") {
-        const nextDisplay = isSameSelection ? avatarDisplay : DEFAULT_AVATAR_DISPLAY;
         if (!isSameSelection) {
-          setAvatarDisplay(DEFAULT_AVATAR_DISPLAY);
+          setCropZoom(1);
+          setCropRotation(0);
         }
-        setCropDraft(normalizeAvatarDisplay(nextDisplay));
+        setIsCropReady(false);
         if (options?.openCrop) {
           setIsCropDialogOpen(true);
         }
       }
     },
-    [allowDeselect, avatarDisplay, cropAvatar, mode],
+    [allowDeselect, cropAvatar, mode],
   );
 
   useEffect(() => {
@@ -385,20 +380,100 @@ const ImageLibraryDialog = ({
   }, [primarySelectedUrl]);
 
   useEffect(() => {
-    setCropAreaSize({ width: 1, height: 1 });
+    setCropZoom(1);
+    setCropRotation(0);
+    setIsCropReady(false);
   }, [primarySelectedUrl]);
 
+  const destroyCroppie = useCallback(() => {
+    const instance = croppieRef.current;
+    if (instance) {
+      instance.destroy();
+      croppieRef.current = null;
+    }
+    if (cropContainerRef.current) {
+      cropContainerRef.current.innerHTML = "";
+    }
+    setIsCropReady(false);
+  }, []);
+
   useEffect(() => {
-    if (!isCropDialogOpen) {
+    if (!isCropDialogOpen || !primarySelectedUrl) {
+      destroyCroppie();
       return;
     }
-    const timeoutId = window.setTimeout(() => {
-      setCropperRenderKey((prev) => prev + 1);
-    }, 0);
-    return () => {
-      window.clearTimeout(timeoutId);
+
+    let disposed = false;
+    let localCroppie: CroppieInstance | null = null;
+    let mountedContainer: HTMLDivElement | null = null;
+    const setupCroppie = async () => {
+      try {
+        const Croppie = await resolveCroppieConstructor();
+        if (disposed) {
+          return;
+        }
+
+        for (let attempt = 0; attempt < 20; attempt += 1) {
+          if (disposed) {
+            return;
+          }
+          mountedContainer = cropContainerRef.current;
+          if (mountedContainer) {
+            break;
+          }
+          await new Promise<void>((resolve) => {
+            window.requestAnimationFrame(() => resolve());
+          });
+        }
+        if (!mountedContainer || disposed) {
+          return;
+        }
+
+        localCroppie = new Croppie(mountedContainer, {
+          viewport: { width: CROPIE_VIEWPORT_SIZE, height: CROPIE_VIEWPORT_SIZE, type: "circle" },
+          boundary: { width: CROPIE_BOUNDARY_SIZE, height: CROPIE_BOUNDARY_SIZE },
+          enableExif: true,
+          enableOrientation: true,
+          enableZoom: true,
+          enforceBoundary: true,
+          showZoomer: false,
+          mouseWheelZoom: true,
+          minZoom: CROPIE_MIN_ZOOM,
+          maxZoom: CROPIE_MAX_ZOOM,
+        });
+        croppieRef.current = localCroppie;
+        await localCroppie.bind({ url: primarySelectedUrl });
+        if (disposed) {
+          return;
+        }
+        const initialZoom = Number(localCroppie.get()?.zoom ?? 1);
+        setCropZoom(Number.isFinite(initialZoom) ? initialZoom : 1);
+        setCropRotation(0);
+        setIsCropReady(true);
+      } catch {
+        if (!disposed) {
+          toast({ title: "Nao foi possivel abrir o editor de crop." });
+          destroyCroppie();
+        }
+      }
     };
-  }, [isCropDialogOpen, primarySelectedUrl]);
+
+    void setupCroppie();
+
+    return () => {
+      disposed = true;
+      if (localCroppie) {
+        localCroppie.destroy();
+      }
+      if (croppieRef.current === localCroppie) {
+        croppieRef.current = null;
+      }
+      if (mountedContainer) {
+        mountedContainer.innerHTML = "";
+      }
+      setIsCropReady(false);
+    };
+  }, [destroyCroppie, isCropDialogOpen, primarySelectedUrl]);
 
   const handleUploadFiles = useCallback(
     async (files: File[] | FileList | null | undefined) => {
@@ -615,10 +690,114 @@ const ImageLibraryDialog = ({
     onSave({
       urls: selectedUrls,
       items,
-      avatarDisplay: cropAvatar && items.length > 0 ? normalizeAvatarDisplay(avatarDisplay) : undefined,
     });
     onOpenChange(false);
   };
+
+  const setCroppieZoom = useCallback((value: number) => {
+    const instance = croppieRef.current;
+    if (!instance) {
+      return;
+    }
+    instance.setZoom(value);
+    setCropZoom(value);
+  }, []);
+
+  const setCroppieRotation = useCallback(
+    (value: number) => {
+      const normalized = clamp(Math.round(value / 90) * 90, CROPIE_MIN_ROTATION, CROPIE_MAX_ROTATION);
+      const delta = normalized - cropRotation;
+      if (delta === 0 || !CROPIE_ROTATION_STEPS.has(delta)) {
+        return;
+      }
+      const instance = croppieRef.current;
+      if (!instance) {
+        return;
+      }
+      instance.rotate(delta as 90 | 180 | 270 | -90 | -180 | -270);
+      setCropRotation(normalized);
+    },
+    [cropRotation],
+  );
+
+  const resetCropEditor = useCallback(async () => {
+    const instance = croppieRef.current;
+    if (!instance || !primarySelectedUrl) {
+      return;
+    }
+    setIsCropReady(false);
+    try {
+      await instance.bind({ url: primarySelectedUrl });
+      const initialZoom = Number(instance.get()?.zoom ?? 1);
+      setCropZoom(Number.isFinite(initialZoom) ? initialZoom : 1);
+      setCropRotation(0);
+      setIsCropReady(true);
+    } catch {
+      toast({ title: "Nao foi possivel resetar o crop." });
+    }
+  }, [primarySelectedUrl]);
+
+  const applyCrop = useCallback(async () => {
+    if (!primarySelectedUrl) {
+      return;
+    }
+    const instance = croppieRef.current;
+    if (!instance) {
+      toast({ title: "Ajuste o recorte antes de aplicar." });
+      return;
+    }
+    if (cropAvatar && (!cropSlot || !cropSlot.trim())) {
+      toast({ title: "Preencha o ID do usuario antes de aplicar o crop." });
+      return;
+    }
+
+    setIsApplyingCrop(true);
+    try {
+      const result = await instance.result({
+        type: "base64",
+        size: "viewport",
+        format: "png",
+        quality: 1,
+        circle: false,
+      });
+      const dataUrl = typeof result === "string" ? result : "";
+      if (!dataUrl) {
+        throw new Error("apply_crop_result_empty");
+      }
+      const response = await apiFetch(apiBase, "/api/uploads/image", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        auth: true,
+        body: JSON.stringify({
+          dataUrl,
+          filename: cropSlot ? `${cropSlot}.png` : `avatar-crop-${Date.now()}.png`,
+          folder: cropTargetFolder || uploadFolder || undefined,
+          slot: cropSlot || undefined,
+        }),
+      });
+      if (!response.ok) {
+        throw new Error("apply_crop_upload_failed");
+      }
+      const data = await response.json();
+      const nextUrl = String(data.url || "");
+      if (!nextUrl) {
+        throw new Error("apply_crop_upload_missing_url");
+      }
+
+      setSelectedUrls([nextUrl]);
+      setCropZoom(1);
+      setCropRotation(0);
+      setIsCropReady(false);
+      setIsCropDialogOpen(false);
+    } catch {
+      toast({
+        title: "Nao foi possivel gerar o arquivo recortado.",
+        description: "Tente novamente em alguns segundos.",
+      });
+    } finally {
+      setIsApplyingCrop(false);
+    }
+  }, [apiBase, cropAvatar, cropSlot, cropTargetFolder, primarySelectedUrl, uploadFolder]);
 
   const renderGrid = (items: LibraryImageItem[], emptyText: string) => {
     if (isLoading) {
@@ -838,7 +1017,9 @@ const ImageLibraryDialog = ({
             setIsCropDialogOpen(true);
             return;
           }
-          setCropDraft(avatarDisplay);
+          destroyCroppie();
+          setCropZoom(1);
+          setCropRotation(0);
           setIsCropDialogOpen(false);
         }}
       >
@@ -849,7 +1030,7 @@ const ImageLibraryDialog = ({
           <DialogHeader>
             <DialogTitle>Ajuste do avatar</DialogTitle>
             <DialogDescription>
-              Ajuste posição, zoom e rotação. O arquivo não é recortado no servidor.
+              Ajuste posicao, zoom e rotacao. O avatar final sera recortado e salvo no servidor.
             </DialogDescription>
           </DialogHeader>
           {primarySelectedUrl ? (
@@ -857,65 +1038,13 @@ const ImageLibraryDialog = ({
               <div className="grid gap-4 lg:grid-cols-[1.4fr_0.9fr]">
                 <div className="rounded-xl border border-border/60 bg-card/60 p-3">
                   <p className="mb-3 text-sm font-medium text-foreground">Preview interativo</p>
-                  <div className="relative mx-auto h-[280px] w-[280px] overflow-hidden rounded-full bg-black/20 sm:h-[320px] sm:w-[320px]">
-                    <Cropper
-                      key={`avatar-crop-main-${primarySelectedUrl}-${cropperRenderKey}`}
-                      image={primarySelectedUrl}
-                      crop={{
-                        x: cropDraft.x * cropAreaSize.width,
-                        y: cropDraft.y * cropAreaSize.height,
-                      }}
-                      zoom={cropDraft.zoom}
-                      rotation={cropDraft.rotation}
-                      aspect={1}
-                      cropShape="round"
-                      showGrid={false}
-                      objectFit="cover"
-                      minZoom={MIN_AVATAR_ZOOM}
-                      maxZoom={MAX_AVATAR_ZOOM}
-                      onCropSizeChange={(size) => {
-                        const width = Number(size?.width || 0);
-                        const height = Number(size?.height || 0);
-                        if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) {
-                          return;
-                        }
-                        setCropAreaSize((prev) => {
-                          if (Math.abs(prev.width - width) < 0.5 && Math.abs(prev.height - height) < 0.5) {
-                            return prev;
-                          }
-                          return { width, height };
-                        });
-                      }}
-                      onCropChange={(crop) => {
-                        if (cropAreaSize.width <= 1 || cropAreaSize.height <= 1) {
-                          return;
-                        }
-                        const safeWidth = cropAreaSize.width > 0 ? cropAreaSize.width : 1;
-                        const safeHeight = cropAreaSize.height > 0 ? cropAreaSize.height : 1;
-                        setCropDraft((prev) => ({
-                          ...prev,
-                          x: crop.x / safeWidth,
-                          y: crop.y / safeHeight,
-                        }));
-                      }}
-                      onZoomChange={(zoom) => {
-                        setCropDraft((prev) => ({ ...prev, zoom: clamp(zoom, MIN_AVATAR_ZOOM, MAX_AVATAR_ZOOM) }));
-                      }}
-                      onRotationChange={(rotation) => {
-                        setCropDraft((prev) => ({ ...prev, rotation: clamp(rotation, -180, 180) }));
-                      }}
-                      style={{
-                        cropAreaStyle: {
-                          border: "none",
-                          boxShadow: "none",
-                        },
-                      }}
-                    />
+                  <div className="relative mx-auto flex h-[320px] w-[320px] items-center justify-center overflow-hidden rounded-xl bg-black/20">
+                    <div ref={cropContainerRef} className="h-full w-full" />
                   </div>
                 </div>
                 <div className="space-y-4 rounded-xl border border-border/60 bg-card/60 p-4">
                   <p className="text-sm text-muted-foreground">
-                    Arraste direto no preview para ajustar posição.
+                    Arraste a imagem direto no preview para ajustar o enquadramento.
                   </p>
 
                   <div className="space-y-3">
@@ -923,36 +1052,35 @@ const ImageLibraryDialog = ({
                       <Label className="text-xs">Zoom</Label>
                       <Input
                         type="range"
-                        min={MIN_AVATAR_ZOOM}
-                        max={MAX_AVATAR_ZOOM}
+                        min={CROPIE_MIN_ZOOM}
+                        max={CROPIE_MAX_ZOOM}
                         step={0.01}
-                        value={cropDraft.zoom}
+                        value={cropZoom}
+                        disabled={!isCropReady}
                         onChange={(event) => {
                           const value = Number(event.target.value);
                           if (!Number.isFinite(value)) {
                             return;
                           }
-                          setCropDraft((prev) => ({
-                            ...prev,
-                            zoom: clamp(value, MIN_AVATAR_ZOOM, MAX_AVATAR_ZOOM),
-                          }));
+                          setCroppieZoom(clamp(value, CROPIE_MIN_ZOOM, CROPIE_MAX_ZOOM));
                         }}
                       />
                     </div>
                     <div className="space-y-1">
-                      <Label className="text-xs">Rotação</Label>
+                      <Label className="text-xs">Rotacao</Label>
                       <Input
                         type="range"
-                        min={-180}
-                        max={180}
-                        step={1}
-                        value={cropDraft.rotation}
+                        min={CROPIE_MIN_ROTATION}
+                        max={CROPIE_MAX_ROTATION}
+                        step={90}
+                        value={cropRotation}
+                        disabled={!isCropReady}
                         onChange={(event) => {
                           const value = Number(event.target.value);
                           if (!Number.isFinite(value)) {
                             return;
                           }
-                          setCropDraft((prev) => ({ ...prev, rotation: clamp(value, -180, 180) }));
+                          setCroppieRotation(value);
                         }}
                       />
                     </div>
@@ -965,7 +1093,9 @@ const ImageLibraryDialog = ({
                   type="button"
                   variant="outline"
                   onClick={() => {
-                    setCropDraft(avatarDisplay);
+                    destroyCroppie();
+                    setCropZoom(1);
+                    setCropRotation(0);
                     setIsCropDialogOpen(false);
                   }}
                 >
@@ -974,20 +1104,13 @@ const ImageLibraryDialog = ({
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={() => {
-                    setCropDraft(DEFAULT_AVATAR_DISPLAY);
-                  }}
+                  onClick={() => void resetCropEditor()}
+                  disabled={!isCropReady}
                 >
                   Resetar
                 </Button>
-                <Button
-                  type="button"
-                  onClick={() => {
-                    setAvatarDisplay(normalizeAvatarDisplay(cropDraft));
-                    setIsCropDialogOpen(false);
-                  }}
-                >
-                  Aplicar crop
+                <Button type="button" onClick={() => void applyCrop()} disabled={isApplyingCrop || !isCropReady}>
+                  {isApplyingCrop ? "Aplicando..." : "Aplicar crop"}
                 </Button>
               </div>
             </>
@@ -996,7 +1119,6 @@ const ImageLibraryDialog = ({
           )}
         </DialogContent>
       </Dialog>
-
       <Dialog open={Boolean(deleteTarget)} onOpenChange={(next) => !next && setDeleteTarget(null)}>
         <DialogContent className="max-w-md z-[240]" overlayClassName="z-[230]">
           <DialogHeader>
@@ -1058,3 +1180,4 @@ const ImageLibraryDialog = ({
 };
 
 export default ImageLibraryDialog;
+
