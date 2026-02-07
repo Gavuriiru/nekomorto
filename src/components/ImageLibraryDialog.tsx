@@ -959,6 +959,7 @@ const ImageLibraryDialog = ({
                       cropShape="round"
                       showGrid
                       objectFit={cropMediaFit}
+                      style={{ mediaStyle: cropMediaStyle }}
                       minZoom={MIN_AVATAR_ZOOM}
                       maxZoom={MAX_AVATAR_ZOOM}
                       onMediaLoaded={(mediaSize) => {
