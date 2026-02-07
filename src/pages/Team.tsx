@@ -59,6 +59,7 @@ type CropMediaFit = "horizontal-cover" | "vertical-cover";
 const DEFAULT_AVATAR_MEDIA_RATIO = 1;
 const MIN_AVATAR_ZOOM = 1;
 const MAX_AVATAR_ZOOM = 5;
+const AVATAR_RENDER_NUDGE_PX = 0.5;
 
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
 
@@ -100,7 +101,7 @@ const getAvatarMediaStyleByFit = (fit: CropMediaFit) =>
       };
 
 const toAvatarOffsetStyle = (display: AvatarDisplay) => ({
-  transform: `translate(${display.x * 100}%, ${display.y * 100}%)`,
+  transform: `translate(calc(${display.x * 100}% - ${AVATAR_RENDER_NUDGE_PX}px), calc(${display.y * 100}% - ${AVATAR_RENDER_NUDGE_PX}px))`,
   transformOrigin: "center center",
 });
 

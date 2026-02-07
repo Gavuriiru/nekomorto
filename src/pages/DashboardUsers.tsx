@@ -66,6 +66,7 @@ const defaultAvatarDisplay: AvatarDisplay = { x: 0, y: 0, zoom: 1, rotation: 0 }
 const defaultAvatarMediaRatio = 1;
 const minAvatarZoom = 1;
 const maxAvatarZoom = 5;
+const AVATAR_RENDER_NUDGE_PX = 0.5;
 
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
 
@@ -113,7 +114,7 @@ const getAvatarMediaStyleByFit = (fit: CropMediaFit) =>
       };
 
 const toAvatarOffsetStyle = (display: AvatarDisplay) => ({
-  transform: `translate(${display.x * 100}%, ${display.y * 100}%)`,
+  transform: `translate(calc(${display.x * 100}% - ${AVATAR_RENDER_NUDGE_PX}px), calc(${display.y * 100}% - ${AVATAR_RENDER_NUDGE_PX}px))`,
   transformOrigin: "center center",
 });
 
