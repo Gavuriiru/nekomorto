@@ -56,15 +56,8 @@ type AvatarDisplay = {
 
 type CropMediaFit = "horizontal-cover" | "vertical-cover";
 
-const DEFAULT_AVATAR_DISPLAY: AvatarDisplay = {
-  x: 0,
-  y: 0,
-  zoom: 1,
-  rotation: 0,
-};
 const DEFAULT_AVATAR_MEDIA_RATIO = 1;
-const LEGACY_AVATAR_OFFSET_THRESHOLD = 20;
-const MIN_AVATAR_ZOOM = 0.25;
+const MIN_AVATAR_ZOOM = 1;
 const MAX_AVATAR_ZOOM = 5;
 
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
@@ -77,9 +70,6 @@ const normalizeAvatarDisplay = (value?: Partial<AvatarDisplay> | null): AvatarDi
   const normalizeOffset = (offset: number) => {
     if (!Number.isFinite(offset)) {
       return 0;
-    }
-    if (Math.abs(offset) > LEGACY_AVATAR_OFFSET_THRESHOLD) {
-      return offset / 360;
     }
     return offset;
   };
@@ -108,27 +98,6 @@ const getAvatarMediaStyleByFit = (fit: CropMediaFit) =>
         maxWidth: "none",
         maxHeight: "none",
       };
-
-const getAvatarOffsetBounds = (mediaRatio: number, zoom: number) => {
-  const safeRatio =
-    Number.isFinite(mediaRatio) && mediaRatio > 0 ? mediaRatio : DEFAULT_AVATAR_MEDIA_RATIO;
-  const safeZoom = Number.isFinite(zoom) && zoom > 0 ? zoom : DEFAULT_AVATAR_DISPLAY.zoom;
-  const baseWidth = safeRatio >= 1 ? safeRatio : 1;
-  const baseHeight = safeRatio >= 1 ? 1 : 1 / safeRatio;
-  return {
-    maxX: Math.max(0, (baseWidth * safeZoom - 1) / 2),
-    maxY: Math.max(0, (baseHeight * safeZoom - 1) / 2),
-  };
-};
-
-const clampAvatarDisplay = (display: AvatarDisplay, mediaRatio: number): AvatarDisplay => {
-  const bounds = getAvatarOffsetBounds(mediaRatio, display.zoom);
-  return {
-    ...display,
-    x: clamp(display.x, -bounds.maxX, bounds.maxX),
-    y: clamp(display.y, -bounds.maxY, bounds.maxY),
-  };
-};
 
 const toAvatarOffsetStyle = (display: AvatarDisplay) => ({
   transform: `translate(${display.x * 100}%, ${display.y * 100}%)`,
@@ -221,10 +190,7 @@ const Team = () => {
 
   const renderMemberAvatar = (member: PublicUser, imageSrc: string) => {
     const mediaRatio = avatarRatioByMemberId[member.id] || DEFAULT_AVATAR_MEDIA_RATIO;
-    const normalizedDisplay = clampAvatarDisplay(
-      normalizeAvatarDisplay(member.avatarDisplay),
-      mediaRatio,
-    );
+    const normalizedDisplay = normalizeAvatarDisplay(member.avatarDisplay);
     const fit = getCropMediaFit(mediaRatio);
     const mediaStyle = getAvatarMediaStyleByFit(fit);
     return (

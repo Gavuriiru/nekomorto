@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Cropper from "react-easy-crop";
 import "react-easy-crop/react-easy-crop.css";
 
@@ -49,11 +49,6 @@ export type ImageLibrarySavePayload = {
   avatarDisplay?: AvatarDisplay;
 };
 
-type CropMediaFit = "horizontal-cover" | "vertical-cover";
-type AvatarOffsetBounds = {
-  maxX: number;
-  maxY: number;
-};
 
 type ImageLibraryDialogProps = {
   open: boolean;
@@ -80,61 +75,10 @@ const DEFAULT_AVATAR_DISPLAY: AvatarDisplay = {
   zoom: 1,
   rotation: 0,
 };
-const LEGACY_AVATAR_OFFSET_THRESHOLD = 20;
-const MIN_AVATAR_ZOOM = 0.25;
+const MIN_AVATAR_ZOOM = 1;
 const MAX_AVATAR_ZOOM = 5;
-const DEFAULT_AVATAR_MEDIA_RATIO = 1;
 
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
-
-const toAvatarOffsetStyle = (display: AvatarDisplay): CSSProperties => ({
-  transform: `translate(${display.x * 100}%, ${display.y * 100}%)`,
-  transformOrigin: "center center",
-});
-
-const toAvatarMediaStyle = (display: AvatarDisplay): CSSProperties => ({
-  transform: `rotate(${display.rotation}deg) scale(${display.zoom})`,
-  transformOrigin: "center center",
-});
-
-const getCropMediaFit = (mediaRatio: number): CropMediaFit =>
-  mediaRatio >= 1 ? "vertical-cover" : "horizontal-cover";
-
-const getAvatarMediaStyleByFit = (fit: CropMediaFit): CSSProperties =>
-  fit === "horizontal-cover"
-    ? {
-        width: "100%",
-        height: "auto",
-        maxWidth: "none",
-        maxHeight: "none",
-      }
-    : {
-        width: "auto",
-        height: "100%",
-        maxWidth: "none",
-        maxHeight: "none",
-      };
-
-const getAvatarOffsetBounds = (mediaRatio: number, zoom: number): AvatarOffsetBounds => {
-  const safeRatio =
-    Number.isFinite(mediaRatio) && mediaRatio > 0 ? mediaRatio : DEFAULT_AVATAR_MEDIA_RATIO;
-  const safeZoom = Number.isFinite(zoom) && zoom > 0 ? zoom : DEFAULT_AVATAR_DISPLAY.zoom;
-  const baseWidth = safeRatio >= 1 ? safeRatio : 1;
-  const baseHeight = safeRatio >= 1 ? 1 : 1 / safeRatio;
-  return {
-    maxX: Math.max(0, (baseWidth * safeZoom - 1) / 2),
-    maxY: Math.max(0, (baseHeight * safeZoom - 1) / 2),
-  };
-};
-
-const clampAvatarOffsets = (display: AvatarDisplay, mediaRatio: number): AvatarDisplay => {
-  const bounds = getAvatarOffsetBounds(mediaRatio, display.zoom);
-  return {
-    ...display,
-    x: clamp(display.x, -bounds.maxX, bounds.maxX),
-    y: clamp(display.y, -bounds.maxY, bounds.maxY),
-  };
-};
 
 const normalizeAvatarDisplay = (value?: Partial<AvatarDisplay> | null): AvatarDisplay => {
   const x = Number(value?.x);
@@ -148,9 +92,6 @@ const normalizeAvatarDisplay = (value?: Partial<AvatarDisplay> | null): AvatarDi
   const normalizeOffset = (offset: number, fallback: number) => {
     if (!Number.isFinite(offset)) {
       return fallback;
-    }
-    if (Math.abs(offset) > LEGACY_AVATAR_OFFSET_THRESHOLD) {
-      return offset / 360;
     }
     return offset;
   };
@@ -208,9 +149,8 @@ const ImageLibraryDialog = ({
   const [avatarDisplay, setAvatarDisplay] = useState<AvatarDisplay>(normalizeAvatarDisplay(initialAvatarDisplay));
   const [cropDraft, setCropDraft] = useState<AvatarDisplay>(normalizeAvatarDisplay(initialAvatarDisplay));
   const [isCropDialogOpen, setIsCropDialogOpen] = useState(false);
-  const [cropViewportSize, setCropViewportSize] = useState(360);
-  const [cropMediaRatio, setCropMediaRatio] = useState(DEFAULT_AVATAR_MEDIA_RATIO);
-  const cropViewportRef = useRef<HTMLDivElement | null>(null);
+  const [cropAreaSize, setCropAreaSize] = useState({ width: 1, height: 1 });
+  const [cropperRenderKey, setCropperRenderKey] = useState(0);
 
   const folders = useMemo(() => {
     const set = new Set<string>();
@@ -446,48 +386,20 @@ const ImageLibraryDialog = ({
   }, [primarySelectedUrl]);
 
   useEffect(() => {
-    setCropMediaRatio(DEFAULT_AVATAR_MEDIA_RATIO);
+    setCropAreaSize({ width: 1, height: 1 });
   }, [primarySelectedUrl]);
 
   useEffect(() => {
-    if (!isCropDialogOpen || !cropViewportRef.current || typeof ResizeObserver === "undefined") {
+    if (!isCropDialogOpen) {
       return;
     }
-    const element = cropViewportRef.current;
-    const updateSize = () => {
-      const rect = element.getBoundingClientRect();
-      const next = Math.max(1, Math.min(rect.width, rect.height));
-      setCropViewportSize((prev) => (Math.abs(prev - next) > 0.5 ? next : prev));
-    };
-    updateSize();
-    const observer = new ResizeObserver(() => {
-      updateSize();
-    });
-    observer.observe(element);
+    const timeoutId = window.setTimeout(() => {
+      setCropperRenderKey((prev) => prev + 1);
+    }, 0);
     return () => {
-      observer.disconnect();
+      window.clearTimeout(timeoutId);
     };
-  }, [isCropDialogOpen]);
-
-  const cropMediaFit = useMemo(() => getCropMediaFit(cropMediaRatio), [cropMediaRatio]);
-  const cropMediaStyle = useMemo<CSSProperties>(
-    () => getAvatarMediaStyleByFit(cropMediaFit),
-    [cropMediaFit],
-  );
-  const cropBounds = useMemo(
-    () => getAvatarOffsetBounds(cropMediaRatio, cropDraft.zoom),
-    [cropDraft.zoom, cropMediaRatio],
-  );
-
-  useEffect(() => {
-    setCropDraft((prev) => {
-      const next = clampAvatarOffsets(prev, cropMediaRatio);
-      if (next.x === prev.x && next.y === prev.y) {
-        return prev;
-      }
-      return next;
-    });
-  }, [cropDraft.zoom, cropMediaRatio]);
+  }, [isCropDialogOpen, primarySelectedUrl]);
 
   const handleUploadFiles = useCallback(
     async (files: File[] | FileList | null | undefined) => {
@@ -704,8 +616,7 @@ const ImageLibraryDialog = ({
     onSave({
       urls: selectedUrls,
       items,
-      avatarDisplay:
-        cropAvatar && items.length > 0 ? clampAvatarOffsets(avatarDisplay, cropMediaRatio) : undefined,
+      avatarDisplay: cropAvatar && items.length > 0 ? normalizeAvatarDisplay(avatarDisplay) : undefined,
     });
     onOpenChange(false);
   };
@@ -932,7 +843,10 @@ const ImageLibraryDialog = ({
           setIsCropDialogOpen(false);
         }}
       >
-        <DialogContent className="max-h-[92vh] max-w-5xl overflow-auto z-[240]" overlayClassName="z-[230]">
+        <DialogContent
+          className="max-h-[92vh] max-w-5xl overflow-auto z-[240] data-[state=open]:animate-none data-[state=closed]:animate-none"
+          overlayClassName="z-[230] data-[state=open]:animate-none data-[state=closed]:animate-none"
+        >
           <DialogHeader>
             <DialogTitle>Ajuste do avatar</DialogTitle>
             <DialogDescription>
@@ -943,42 +857,48 @@ const ImageLibraryDialog = ({
             <>
               <div className="grid gap-4 lg:grid-cols-[1.4fr_0.9fr]">
                 <div className="rounded-xl border border-border/60 bg-card/60 p-3">
+                  <p className="mb-3 text-sm font-medium text-foreground">Preview interativo</p>
                   <div
-                    ref={cropViewportRef}
-                    className="relative mx-auto w-full max-w-[360px] aspect-square overflow-hidden rounded-lg border border-border/60 bg-black/20"
+                    className="relative mx-auto h-[280px] w-[280px] overflow-hidden rounded-full border border-border/60 bg-black/20 sm:h-[320px] sm:w-[320px]"
                   >
                     <Cropper
+                      key={`avatar-crop-main-${primarySelectedUrl}-${cropperRenderKey}`}
                       image={primarySelectedUrl}
                       crop={{
-                        x: cropDraft.x * cropViewportSize,
-                        y: cropDraft.y * cropViewportSize,
+                        x: cropDraft.x * cropAreaSize.width,
+                        y: cropDraft.y * cropAreaSize.height,
                       }}
                       zoom={cropDraft.zoom}
                       rotation={cropDraft.rotation}
                       aspect={1}
                       cropShape="round"
-                      showGrid
-                      objectFit={cropMediaFit}
-                      style={{ mediaStyle: cropMediaStyle }}
+                      showGrid={false}
+                      objectFit="cover"
                       minZoom={MIN_AVATAR_ZOOM}
                       maxZoom={MAX_AVATAR_ZOOM}
-                      onMediaLoaded={(mediaSize) => {
-                        const width = Number(mediaSize?.naturalWidth || mediaSize?.width || 0);
-                        const height = Number(mediaSize?.naturalHeight || mediaSize?.height || 0);
+                      onCropSizeChange={(size) => {
+                        const width = Number(size?.width || 0);
+                        const height = Number(size?.height || 0);
                         if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) {
-                          setCropMediaRatio(DEFAULT_AVATAR_MEDIA_RATIO);
                           return;
                         }
-                        setCropMediaRatio(width / height);
+                        setCropAreaSize((prev) => {
+                          if (Math.abs(prev.width - width) < 0.5 && Math.abs(prev.height - height) < 0.5) {
+                            return prev;
+                          }
+                          return { width, height };
+                        });
                       }}
                       onCropChange={(crop) => {
-                        const rawX = crop.x / cropViewportSize;
-                        const rawY = crop.y / cropViewportSize;
-                        const bounds = getAvatarOffsetBounds(cropMediaRatio, cropDraft.zoom);
+                        if (cropAreaSize.width <= 1 || cropAreaSize.height <= 1) {
+                          return;
+                        }
+                        const safeWidth = cropAreaSize.width > 0 ? cropAreaSize.width : 1;
+                        const safeHeight = cropAreaSize.height > 0 ? cropAreaSize.height : 1;
                         setCropDraft((prev) => ({
                           ...prev,
-                          x: clamp(rawX, -bounds.maxX, bounds.maxX),
-                          y: clamp(rawY, -bounds.maxY, bounds.maxY),
+                          x: crop.x / safeWidth,
+                          y: crop.y / safeHeight,
                         }));
                       }}
                       onZoomChange={(zoom) => {
@@ -987,31 +907,19 @@ const ImageLibraryDialog = ({
                       onRotationChange={(rotation) => {
                         setCropDraft((prev) => ({ ...prev, rotation: clamp(rotation, -180, 180) }));
                       }}
+                      style={{
+                        cropAreaStyle: {
+                          border: "none",
+                          boxShadow: "none",
+                        },
+                      }}
                     />
                   </div>
                 </div>
                 <div className="space-y-4 rounded-xl border border-border/60 bg-card/60 p-4">
-                  <div>
-                    <p className="text-sm font-medium text-foreground">Preview.</p>
-                    <div className="mt-3 flex justify-center">
-                      <div className="relative h-28 w-28 overflow-hidden rounded-full border border-border/70 bg-muted/30">
-                        <div
-                          className="absolute inset-0 flex items-center justify-center"
-                          style={toAvatarOffsetStyle(cropDraft)}
-                        >
-                          <img
-                            src={primarySelectedUrl}
-                            alt="Preview do avatar público"
-                            className="block max-h-none max-w-none"
-                            style={{
-                              ...cropMediaStyle,
-                              ...toAvatarMediaStyle(cropDraft),
-                            }}
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    Arraste direto no preview para ajustar posição.
+                  </p>
 
                   <div className="space-y-3">
                     <div className="space-y-1">
@@ -1051,107 +959,6 @@ const ImageLibraryDialog = ({
                         }}
                       />
                     </div>
-                    <div className="space-y-1">
-                      <Label className="text-xs">Posição X</Label>
-                      <Input
-                        type="range"
-                        min={-cropBounds.maxX}
-                        max={cropBounds.maxX}
-                        step={0.005}
-                        value={cropDraft.x}
-                        onChange={(event) => {
-                          const value = Number(event.target.value);
-                          if (!Number.isFinite(value)) {
-                            return;
-                          }
-                          setCropDraft((prev) => ({
-                            ...prev,
-                            x: clamp(value, -cropBounds.maxX, cropBounds.maxX),
-                          }));
-                        }}
-                        disabled={cropBounds.maxX <= 0}
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <Label className="text-xs">Posição Y</Label>
-                      <Input
-                        type="range"
-                        min={-cropBounds.maxY}
-                        max={cropBounds.maxY}
-                        step={0.005}
-                        value={cropDraft.y}
-                        onChange={(event) => {
-                          const value = Number(event.target.value);
-                          if (!Number.isFinite(value)) {
-                            return;
-                          }
-                          setCropDraft((prev) => ({
-                            ...prev,
-                            y: clamp(value, -cropBounds.maxY, cropBounds.maxY),
-                          }));
-                        }}
-                        disabled={cropBounds.maxY <= 0}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-2">
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="outline"
-                      onClick={() =>
-                        setCropDraft((prev) => ({
-                          ...prev,
-                          y: clamp(prev.y - 0.03, -cropBounds.maxY, cropBounds.maxY),
-                        }))
-                      }
-                      disabled={cropBounds.maxY <= 0}
-                    >
-                      Mover cima
-                    </Button>
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="outline"
-                      onClick={() =>
-                        setCropDraft((prev) => ({
-                          ...prev,
-                          y: clamp(prev.y + 0.03, -cropBounds.maxY, cropBounds.maxY),
-                        }))
-                      }
-                      disabled={cropBounds.maxY <= 0}
-                    >
-                      Mover baixo
-                    </Button>
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="outline"
-                      onClick={() =>
-                        setCropDraft((prev) => ({
-                          ...prev,
-                          x: clamp(prev.x - 0.03, -cropBounds.maxX, cropBounds.maxX),
-                        }))
-                      }
-                      disabled={cropBounds.maxX <= 0}
-                    >
-                      Mover esquerda
-                    </Button>
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="outline"
-                      onClick={() =>
-                        setCropDraft((prev) => ({
-                          ...prev,
-                          x: clamp(prev.x + 0.03, -cropBounds.maxX, cropBounds.maxX),
-                        }))
-                      }
-                      disabled={cropBounds.maxX <= 0}
-                    >
-                      Mover direita
-                    </Button>
                   </div>
                 </div>
               </div>
@@ -1179,7 +986,7 @@ const ImageLibraryDialog = ({
                 <Button
                   type="button"
                   onClick={() => {
-                    setAvatarDisplay(clampAvatarOffsets(normalizeAvatarDisplay(cropDraft), cropMediaRatio));
+                    setAvatarDisplay(normalizeAvatarDisplay(cropDraft));
                     setIsCropDialogOpen(false);
                   }}
                 >
