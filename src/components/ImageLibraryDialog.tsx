@@ -540,7 +540,7 @@ const ImageLibraryDialog = ({
           }
         }
       } catch {
-        toast({ title: "Nao foi possivel enviar a imagem." });
+        toast({ title: "Não foi possível enviar a imagem." });
       } finally {
         setIsUploading(false);
       }
@@ -565,7 +565,7 @@ const ImageLibraryDialog = ({
         }),
       });
       if (!response.ok) {
-        toast({ title: "Nao foi possivel importar a imagem por URL." });
+        toast({ title: "Não foi possível importar a imagem por URL." });
         return;
       }
       const data = await response.json();
@@ -638,12 +638,12 @@ const ImageLibraryDialog = ({
         if (response.status === 409) {
           toast({
             title: "Imagem em uso",
-            description: "Remova referencias antes de excluir.",
+            description: "Remova referências antes de excluir.",
           });
           return;
         }
         if (!response.ok) {
-          toast({ title: "Nao foi possivel excluir a imagem." });
+          toast({ title: "Não foi possível excluir a imagem." });
           return;
         }
         setSelectedUrls((prev) => prev.filter((url) => url !== item.url));
@@ -676,11 +676,11 @@ const ImageLibraryDialog = ({
         }),
       });
       if (response.status === 409) {
-        toast({ title: "Conflito de nome", description: "Ja existe um arquivo com esse nome." });
+        toast({ title: "Conflito de nome", description: "Já existe um arquivo com esse nome." });
         return;
       }
       if (!response.ok) {
-        toast({ title: "Nao foi possivel renomear a imagem." });
+        toast({ title: "Não foi possível renomear a imagem." });
         return;
       }
       const data = await response.json();
@@ -752,7 +752,7 @@ const ImageLibraryDialog = ({
                       setSelection(item.url, { openCrop: true });
                     }}
                   >
-                    Editar crop do avatar
+                    Editar avatar
                   </ContextMenuItem>
                 ) : null}
                 {cropAvatar && mode === "single" ? <ContextMenuSeparator /> : null}
@@ -786,8 +786,8 @@ const ImageLibraryDialog = ({
                       {item.source === "project"
                         ? "Item somente leitura (projeto)."
                         : item.inUse
-                          ? "Exclusao bloqueada: imagem em uso."
-                          : "Acoes indisponiveis."}
+                          ? "Exclusão bloqueada: imagem em uso."
+                          : "Ações indisponíveis."}
                     </ContextMenuLabel>
                   </>
                 ) : null}
@@ -866,14 +866,14 @@ const ImageLibraryDialog = ({
                   </div>
                 </div>
               ) : (
-                <p className="text-sm text-muted-foreground">Importacao por URL desativada.</p>
+                <p className="text-sm text-muted-foreground">Importação por URL desativada.</p>
               )}
               <p className="text-xs text-muted-foreground">
                 {mode === "multiple"
-                  ? "Clique para alternar selecao. A ordem de clique vira a ordem de insercao."
+                  ? "Clique para alternar seleção. A ordem de clique vira a ordem de inserção."
                   : cropAvatar
                     ? "Clique na imagem para selecionar e abrir o editor de crop."
-                    : "Clique para selecionar. A imagem so sera aplicada ao clicar em Salvar."}
+                    : "Clique para selecionar. A imagem só será aplicada ao clicar em Salvar."}
               </p>
             </div>
           </div>
@@ -891,7 +891,7 @@ const ImageLibraryDialog = ({
                   />
                   {allowDeselect ? (
                     <Button type="button" size="sm" variant="outline" onClick={() => setSelectedUrls([])}>
-                      Limpar selecao
+                      Limpar seleção
                     </Button>
                   ) : null}
                 </div>
@@ -899,7 +899,7 @@ const ImageLibraryDialog = ({
               <p className="mt-2 text-xs text-muted-foreground">Selecionadas: {selectedUrls.length}</p>
               {renderGrid(
                 filteredUploads,
-                normalizedSearch ? "Nenhum upload encontrado para essa pesquisa." : "Nenhum upload disponivel.",
+                normalizedSearch ? "Nenhum upload encontrado para essa pesquisa." : "Nenhum upload disponível.",
               )}
             </div>
             <div>
@@ -936,7 +936,7 @@ const ImageLibraryDialog = ({
           <DialogHeader>
             <DialogTitle>Ajuste do avatar</DialogTitle>
             <DialogDescription>
-              Ajuste posicao, zoom e rotacao. O arquivo nao e recortado no servidor.
+              Ajuste posição, zoom e rotação. O arquivo não é recortado no servidor.
             </DialogDescription>
           </DialogHeader>
           {primarySelectedUrl ? (
@@ -992,7 +992,7 @@ const ImageLibraryDialog = ({
                 </div>
                 <div className="space-y-4 rounded-xl border border-border/60 bg-card/60 p-4">
                   <div>
-                    <p className="text-sm font-medium text-foreground">Preview circular</p>
+                    <p className="text-sm font-medium text-foreground">Preview.</p>
                     <div className="mt-3 flex justify-center">
                       <div className="relative h-28 w-28 overflow-hidden rounded-full border border-border/70 bg-muted/30">
                         <div
@@ -1001,7 +1001,7 @@ const ImageLibraryDialog = ({
                         >
                           <img
                             src={primarySelectedUrl}
-                            alt="Preview do avatar publico"
+                            alt="Preview do avatar público"
                             className="block max-h-none max-w-none"
                             style={{
                               ...cropMediaStyle,
@@ -1035,7 +1035,7 @@ const ImageLibraryDialog = ({
                       />
                     </div>
                     <div className="space-y-1">
-                      <Label className="text-xs">Rotacao</Label>
+                      <Label className="text-xs">Rotação</Label>
                       <Input
                         type="range"
                         min={-180}
@@ -1052,7 +1052,7 @@ const ImageLibraryDialog = ({
                       />
                     </div>
                     <div className="space-y-1">
-                      <Label className="text-xs">Posicao X</Label>
+                      <Label className="text-xs">Posição X</Label>
                       <Input
                         type="range"
                         min={-cropBounds.maxX}
@@ -1073,7 +1073,7 @@ const ImageLibraryDialog = ({
                       />
                     </div>
                     <div className="space-y-1">
-                      <Label className="text-xs">Posicao Y</Label>
+                      <Label className="text-xs">Posição Y</Label>
                       <Input
                         type="range"
                         min={-cropBounds.maxY}
@@ -1199,8 +1199,8 @@ const ImageLibraryDialog = ({
             <DialogTitle>Excluir imagem?</DialogTitle>
             <DialogDescription>
               {deleteTarget
-                ? `A imagem "${toEffectiveName(deleteTarget)}" sera removida permanentemente.`
-                : "Confirme a exclusao da imagem."}
+                ? `A imagem "${toEffectiveName(deleteTarget)}" será removida permanentemente.`
+                : "Confirme a exclusão da imagem."}
             </DialogDescription>
           </DialogHeader>
           <div className="flex justify-end gap-2">

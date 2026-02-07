@@ -1851,7 +1851,6 @@ const normalizeUsers = (users) => {
     phrase: user.phrase || "",
     bio: user.bio || "",
     avatarUrl: user.avatarUrl || null,
-    coverImageUrl: user.coverImageUrl || null,
     socials: Array.isArray(user.socials) ? user.socials.filter(Boolean) : [],
     status: user.status === "retired" ? "retired" : "active",
     permissions: Array.isArray(user.permissions) ? user.permissions : [],
@@ -2004,7 +2003,6 @@ const ensureOwnerUser = (sessionUser) => {
       phrase: "",
       bio: "",
       avatarUrl: sessionUser.avatarUrl || null,
-      coverImageUrl: null,
       avatarDisplay: normalizeAvatarDisplay(null),
       socials: [],
       status: "active",
@@ -2035,7 +2033,6 @@ app.get("/api/users", requireAuth, (req, res) => {
       phrase: "",
       bio: "",
       avatarUrl: sessionUser.avatarUrl || null,
-      coverImageUrl: null,
       avatarDisplay: normalizeAvatarDisplay(null),
       socials: [],
       status: "active",
@@ -2122,7 +2119,6 @@ app.get("/api/public/users", (req, res) => {
       phrase: user.phrase,
       bio: user.bio,
       avatarUrl: user.avatarUrl,
-      coverImageUrl: user.coverImageUrl,
       avatarDisplay: normalizeAvatarDisplay(user.avatarDisplay),
       socials: user.socials,
       roles: applyOwnerRole(user).roles,
@@ -4266,7 +4262,7 @@ app.delete("/api/uploads/delete", requireAuth, (req, res) => {
 });
 
 app.post("/api/users", requireOwner, (req, res) => {
-  const { id, name, phrase, bio, avatarUrl, coverImageUrl, avatarDisplay, socials, status, permissions, roles } = req.body || {};
+  const { id, name, phrase, bio, avatarUrl, avatarDisplay, socials, status, permissions, roles } = req.body || {};
   if (!id || !name) {
     return res.status(400).json({ error: "id_and_name_required" });
   }
@@ -4282,7 +4278,6 @@ app.post("/api/users", requireOwner, (req, res) => {
     phrase: phrase || "",
     bio: bio || "",
     avatarUrl: avatarUrl || null,
-    coverImageUrl: coverImageUrl || null,
     avatarDisplay: normalizeAvatarDisplay(avatarDisplay),
     socials: Array.isArray(socials) ? socials.filter(Boolean) : [],
     status: status === "retired" ? "retired" : "active",
@@ -4381,7 +4376,6 @@ app.put("/api/users/:id", (req, res) => {
     phrase: update.phrase ?? existing.phrase,
     bio: update.bio ?? existing.bio,
     avatarUrl: update.avatarUrl ?? existing.avatarUrl,
-    coverImageUrl: update.coverImageUrl ?? existing.coverImageUrl,
     avatarDisplay:
       update.avatarDisplay !== undefined
         ? normalizeAvatarDisplay(update.avatarDisplay)
@@ -4476,7 +4470,6 @@ app.put("/api/users/self", requireAuth, (req, res) => {
     phrase: update.phrase ?? existing.phrase,
     bio: update.bio ?? existing.bio,
     avatarUrl: update.avatarUrl ?? existing.avatarUrl,
-    coverImageUrl: update.coverImageUrl ?? existing.coverImageUrl,
     avatarDisplay:
       update.avatarDisplay !== undefined
         ? normalizeAvatarDisplay(update.avatarDisplay)

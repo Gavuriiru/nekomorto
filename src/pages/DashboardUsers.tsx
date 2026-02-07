@@ -2,7 +2,6 @@
 import { useNavigate, useSearchParams } from "react-router-dom";
 import DashboardShell from "@/components/DashboardShell";
 import ImageLibraryDialog, { type AvatarDisplay } from "@/components/ImageLibraryDialog";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -56,7 +55,6 @@ type UserRecord = {
   bio: string;
   avatarUrl?: string | null;
   avatarDisplay?: AvatarDisplay | null;
-  coverImageUrl?: string | null;
   socials?: Array<{ label: string; href: string }>;
   status: "active" | "retired";
   permissions: string[];
@@ -65,12 +63,21 @@ type UserRecord = {
 };
 
 const defaultAvatarDisplay: AvatarDisplay = { x: 0, y: 0, zoom: 1, rotation: 0 };
+const defaultAvatarMediaRatio = 1;
+const minAvatarZoom = 0.25;
+const maxAvatarZoom = 5;
+
+const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
+
 const normalizeAvatarDisplay = (value?: Partial<AvatarDisplay> | null): AvatarDisplay => {
   const x = Number(value?.x);
   const y = Number(value?.y);
   const zoom = Number(value?.zoom);
   const rotation = Number(value?.rotation);
-  const normalizedZoom = Number.isFinite(zoom) && zoom > 0 ? zoom : defaultAvatarDisplay.zoom;
+  const normalizedZoom =
+    Number.isFinite(zoom) && zoom > 0
+      ? clamp(zoom, minAvatarZoom, maxAvatarZoom)
+      : defaultAvatarDisplay.zoom;
   const normalizeOffset = (offset: number) => {
     if (!Number.isFinite(offset)) {
       return 0;
@@ -88,6 +95,125 @@ const normalizeAvatarDisplay = (value?: Partial<AvatarDisplay> | null): AvatarDi
   };
 };
 
+type CropMediaFit = "horizontal-cover" | "vertical-cover";
+
+const getCropMediaFit = (mediaRatio: number): CropMediaFit =>
+  mediaRatio >= 1 ? "vertical-cover" : "horizontal-cover";
+
+const getAvatarMediaStyleByFit = (fit: CropMediaFit) =>
+  fit === "horizontal-cover"
+    ? {
+        width: "100%",
+        height: "auto",
+        maxWidth: "none",
+        maxHeight: "none",
+      }
+    : {
+        width: "auto",
+        height: "100%",
+        maxWidth: "none",
+        maxHeight: "none",
+      };
+
+const getAvatarOffsetBounds = (mediaRatio: number, zoom: number) => {
+  const safeRatio =
+    Number.isFinite(mediaRatio) && mediaRatio > 0 ? mediaRatio : defaultAvatarMediaRatio;
+  const safeZoom = Number.isFinite(zoom) && zoom > 0 ? zoom : defaultAvatarDisplay.zoom;
+  const baseWidth = safeRatio >= 1 ? safeRatio : 1;
+  const baseHeight = safeRatio >= 1 ? 1 : 1 / safeRatio;
+  return {
+    maxX: Math.max(0, (baseWidth * safeZoom - 1) / 2),
+    maxY: Math.max(0, (baseHeight * safeZoom - 1) / 2),
+  };
+};
+
+const clampAvatarDisplay = (display: AvatarDisplay, mediaRatio: number): AvatarDisplay => {
+  const bounds = getAvatarOffsetBounds(mediaRatio, display.zoom);
+  return {
+    ...display,
+    x: clamp(display.x, -bounds.maxX, bounds.maxX),
+    y: clamp(display.y, -bounds.maxY, bounds.maxY),
+  };
+};
+
+const toAvatarOffsetStyle = (display: AvatarDisplay) => ({
+  transform: `translate(${display.x * 100}%, ${display.y * 100}%)`,
+  transformOrigin: "center center",
+});
+
+const toAvatarMediaStyle = (display: AvatarDisplay) => ({
+  transform: `rotate(${display.rotation}deg) scale(${display.zoom})`,
+  transformOrigin: "center center",
+});
+
+type DashboardAvatarProps = {
+  avatarUrl?: string | null;
+  avatarDisplay?: AvatarDisplay | null;
+  name: string;
+  sizeClassName: string;
+  frameClassName: string;
+  fallbackClassName: string;
+  fallbackText: string;
+};
+
+const DashboardAvatar = ({
+  avatarUrl,
+  avatarDisplay,
+  name,
+  sizeClassName,
+  frameClassName,
+  fallbackClassName,
+  fallbackText,
+}: DashboardAvatarProps) => {
+  const [mediaRatio, setMediaRatio] = useState(defaultAvatarMediaRatio);
+  const [hasError, setHasError] = useState(false);
+  const hasImage = Boolean(avatarUrl) && !hasError;
+  const normalizedDisplay = useMemo(
+    () => clampAvatarDisplay(normalizeAvatarDisplay(avatarDisplay), mediaRatio),
+    [avatarDisplay, mediaRatio],
+  );
+  const mediaStyle = useMemo(
+    () => getAvatarMediaStyleByFit(getCropMediaFit(mediaRatio)),
+    [mediaRatio],
+  );
+
+  useEffect(() => {
+    setHasError(false);
+    setMediaRatio(defaultAvatarMediaRatio);
+  }, [avatarUrl]);
+
+  if (!hasImage) {
+    return <div className={fallbackClassName}>{fallbackText}</div>;
+  }
+
+  return (
+    <div className={`${sizeClassName} ${frameClassName} relative shrink-0 overflow-hidden rounded-full`}>
+      <div className="absolute inset-0 flex items-center justify-center" style={toAvatarOffsetStyle(normalizedDisplay)}>
+        <img
+          src={String(avatarUrl)}
+          alt={name}
+          referrerPolicy="no-referrer"
+          crossOrigin="anonymous"
+          className="block max-h-none max-w-none"
+          style={{
+            ...mediaStyle,
+            ...toAvatarMediaStyle(normalizedDisplay),
+          }}
+          onLoad={(event) => {
+            const width = event.currentTarget.naturalWidth;
+            const height = event.currentTarget.naturalHeight;
+            if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) {
+              return;
+            }
+            setMediaRatio(width / height);
+          }}
+          onError={() => setHasError(true)}
+        />
+      </div>
+    </div>
+  );
+};
+
 const emptyForm = {
   id: "",
   name: "",
@@ -95,7 +221,6 @@ const emptyForm = {
   bio: "",
   avatarUrl: "",
   avatarDisplay: defaultAvatarDisplay,
-  coverImageUrl: "",
   socials: [] as Array<{ label: string; href: string }>,
   status: "active" as "active" | "retired",
   permissions: [] as string[],
@@ -190,7 +315,6 @@ const DashboardUsers = () => {
   const [ownerToggle, setOwnerToggle] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<UserRecord | null>(null);
   const [isLibraryOpen, setIsLibraryOpen] = useState(false);
-  const [libraryTarget, setLibraryTarget] = useState<"avatar" | "cover">("avatar");
   const [linkTypes, setLinkTypes] = useState<Array<{ id: string; label: string; icon: string }>>([]);
   const fallbackLinkTypes = useMemo(
     () => [
@@ -210,8 +334,7 @@ const DashboardUsers = () => {
   const canManageUsers = currentUser?.id ? ownerIds.includes(currentUser.id) : false;
   const primaryOwnerId = ownerIds[0] || "";
   const canManageOwners = Boolean(currentUser?.id && primaryOwnerId && currentUser.id === primaryOwnerId);
-  const openLibrary = (target: "avatar" | "cover") => {
-    setLibraryTarget(target);
+  const openLibrary = () => {
     setIsLibraryOpen(true);
   };
   const handleLibrarySave = useCallback(
@@ -223,22 +346,18 @@ const DashboardUsers = () => {
       avatarDisplay?: AvatarDisplay;
     }) => {
       const url = urls[0] || "";
-      if (libraryTarget === "avatar") {
-        setFormState((prev) => ({
-          ...prev,
-          avatarUrl: url,
-          avatarDisplay:
-            avatarDisplay != null
-              ? normalizeAvatarDisplay(avatarDisplay)
-              : normalizeAvatarDisplay(prev.avatarDisplay),
-        }));
-        return;
-      }
-      setFormState((prev) => ({ ...prev, coverImageUrl: url }));
+      setFormState((prev) => ({
+        ...prev,
+        avatarUrl: url,
+        avatarDisplay:
+          avatarDisplay != null
+            ? normalizeAvatarDisplay(avatarDisplay)
+            : normalizeAvatarDisplay(prev.avatarDisplay),
+      }));
     },
-    [libraryTarget],
+    [],
   );
-  const currentLibrarySelection = libraryTarget === "avatar" ? formState.avatarUrl : formState.coverImageUrl;
+  const currentLibrarySelection = formState.avatarUrl;
   const openEditDialog = useCallback((user: UserRecord) => {
     const normalizedPermissions = user.permissions.includes("*")
       ? permissionOptions.map((permission) => permission.id)
@@ -252,7 +371,6 @@ const DashboardUsers = () => {
       bio: user.bio,
       avatarUrl: user.avatarUrl || "",
       avatarDisplay: normalizeAvatarDisplay(user.avatarDisplay),
-      coverImageUrl: user.coverImageUrl || "",
       socials: user.socials ? [...user.socials] : [],
       status: user.status,
       permissions: normalizedPermissions,
@@ -360,7 +478,6 @@ const DashboardUsers = () => {
       bio: formState.bio.trim(),
       avatarUrl: formState.avatarUrl.trim() || null,
       avatarDisplay: normalizeAvatarDisplay(formState.avatarDisplay),
-      coverImageUrl: formState.coverImageUrl.trim() || null,
       socials: formState.socials.filter((item) => item.label.trim() && item.href.trim()),
       status: formState.status,
       permissions: formState.permissions,
@@ -623,10 +740,15 @@ const DashboardUsers = () => {
                 </div>
               ) : (
                 <div className="mt-6 grid gap-4 md:grid-cols-2">
-                  {activeUsers.map((user, index) => (
+                  {activeUsers.map((user, index) => {
+                    const isLoneLastActiveCard =
+                      activeUsers.length % 2 === 1 && index === activeUsers.length - 1;
+                    return (
                     <div
                       key={user.id}
-                      className="relative rounded-2xl border border-white/10 bg-white/5 p-5 transition hover:border-primary/40 hover:bg-primary/5 animate-slide-up opacity-0"
+                      className={`relative rounded-2xl border border-white/10 bg-white/5 p-5 transition hover:border-primary/40 hover:bg-primary/5 animate-slide-up opacity-0 ${
+                        isLoneLastActiveCard ? "md:col-span-2 md:mx-auto md:w-[calc(50%-0.5rem)]" : ""
+                      }`}
                       style={{ animationDelay: `${index * 60}ms` }}
                       draggable={canManageUsers}
                       onDragStart={() => {
@@ -645,17 +767,18 @@ const DashboardUsers = () => {
                         }
                       }}
                     >
-                      <div className="flex items-start justify-between gap-4">
-                        <div className="flex gap-4">
-                          <Avatar className="h-14 w-14 border border-white/10">
-                            {user.avatarUrl ? (
-                              <AvatarImage src={user.avatarUrl} alt={user.name} />
-                            ) : null}
-                            <AvatarFallback className="bg-white/10 text-sm text-white">
-                              {user.name.slice(0, 2).toUpperCase()}
-                            </AvatarFallback>
-                          </Avatar>
-                          <div>
+                        <div className="flex items-start justify-between gap-4">
+                          <div className="flex gap-4">
+                            <DashboardAvatar
+                              avatarUrl={user.avatarUrl}
+                              avatarDisplay={user.avatarDisplay}
+                              name={user.name}
+                              sizeClassName="h-14 w-14"
+                              frameClassName="border border-white/10 bg-white/5"
+                              fallbackClassName="flex h-14 w-14 items-center justify-center rounded-full border border-white/10 bg-white/10 text-sm text-white"
+                              fallbackText={user.name.slice(0, 2).toUpperCase()}
+                            />
+                            <div>
                             <div className="flex items-center gap-2">
                               <h3 className="text-lg font-semibold">{user.name}</h3>
                               {ownerIds.includes(user.id) && (
@@ -685,7 +808,8 @@ const DashboardUsers = () => {
                         </div>
                       </div>
                     </div>
-                  ))}
+                  );
+                  })}
                 </div>
               )}
 
@@ -696,10 +820,15 @@ const DashboardUsers = () => {
                     <Badge className="bg-white/10 text-muted-foreground">{retiredUsers.length}</Badge>
                   </div>
                   <div className="mt-6 grid gap-4 md:grid-cols-2">
-                    {retiredUsers.map((user, index) => (
+                    {retiredUsers.map((user, index) => {
+                      const isLoneLastRetiredCard =
+                        retiredUsers.length % 2 === 1 && index === retiredUsers.length - 1;
+                      return (
                       <div
                         key={user.id}
-                        className="rounded-2xl border border-white/10 bg-white/5 p-5 animate-slide-up opacity-0"
+                        className={`rounded-2xl border border-white/10 bg-white/5 p-5 animate-slide-up opacity-0 ${
+                          isLoneLastRetiredCard ? "md:col-span-2 md:mx-auto md:w-[calc(50%-0.5rem)]" : ""
+                        }`}
                         style={{ animationDelay: `${index * 60}ms` }}
                         draggable={canManageUsers}
                         onDragStart={() => {
@@ -720,14 +849,15 @@ const DashboardUsers = () => {
                       >
                         <div className="flex items-start justify-between gap-4">
                           <div className="flex gap-4">
-                            <Avatar className="h-14 w-14 border border-white/10">
-                              {user.avatarUrl ? (
-                                <AvatarImage src={user.avatarUrl} alt={user.name} />
-                              ) : null}
-                              <AvatarFallback className="bg-white/10 text-sm text-white">
-                                {user.name.slice(0, 2).toUpperCase()}
-                              </AvatarFallback>
-                            </Avatar>
+                            <DashboardAvatar
+                              avatarUrl={user.avatarUrl}
+                              avatarDisplay={user.avatarDisplay}
+                              name={user.name}
+                              sizeClassName="h-14 w-14"
+                              frameClassName="border border-white/10 bg-white/5"
+                              fallbackClassName="flex h-14 w-14 items-center justify-center rounded-full border border-white/10 bg-white/10 text-sm text-white"
+                              fallbackText={user.name.slice(0, 2).toUpperCase()}
+                            />
                             <div>
                               <div className="flex items-center gap-2">
                                 <h3 className="text-lg font-semibold">{user.name}</h3>
@@ -756,7 +886,8 @@ const DashboardUsers = () => {
                           </div>
                         </div>
                       </div>
-                    ))}
+                    );
+                    })}
                   </div>
                 </div>
               )}
@@ -773,7 +904,7 @@ const DashboardUsers = () => {
         listFolders={[""]}
         allowDeselect
         mode="single"
-        cropAvatar={libraryTarget === "avatar"}
+        cropAvatar
         initialAvatarDisplay={formState.avatarDisplay}
         currentSelectionUrls={currentLibrarySelection ? [currentLibrarySelection] : []}
         onSave={({ urls, avatarDisplay }) => handleLibrarySave({ urls, avatarDisplay })}
@@ -843,10 +974,15 @@ const DashboardUsers = () => {
               <Label>Avatar</Label>
               <div className="flex flex-wrap items-center gap-3">
                 {formState.avatarUrl ? (
-                  <Avatar className="h-12 w-12">
-                    <AvatarImage src={formState.avatarUrl} alt={formState.name || "Avatar"} />
-                    <AvatarFallback>{(formState.name || "U").slice(0, 1)}</AvatarFallback>
-                  </Avatar>
+                  <DashboardAvatar
+                    avatarUrl={formState.avatarUrl}
+                    avatarDisplay={formState.avatarDisplay}
+                    name={formState.name || "Avatar"}
+                    sizeClassName="h-12 w-12"
+                    frameClassName="border border-border/60 bg-card/60"
+                    fallbackClassName="flex h-12 w-12 items-center justify-center rounded-full border border-border/60 bg-card/60 text-xs text-foreground"
+                    fallbackText={(formState.name || "U").slice(0, 1).toUpperCase()}
+                  />
                 ) : (
                   <div className="flex h-12 w-12 items-center justify-center rounded-full border border-dashed border-border/60 text-[10px] text-muted-foreground">
                     Sem imagem
@@ -856,32 +992,7 @@ const DashboardUsers = () => {
                   type="button"
                   size="sm"
                   variant="outline"
-                  onClick={() => openLibrary("avatar")}
-                  disabled={rolesOnlyEdit}
-                >
-                  Biblioteca
-                </Button>
-              </div>
-            </div>
-            <div className="grid gap-2">
-              <Label>Imagem do card público</Label>
-              <div className="flex flex-wrap items-center gap-3">
-                {formState.coverImageUrl ? (
-                  <img
-                    src={formState.coverImageUrl}
-                    alt={formState.name || "Capa"}
-                    className="h-14 w-14 rounded-lg object-cover"
-                  />
-                ) : (
-                  <div className="flex h-14 w-14 items-center justify-center rounded-lg border border-dashed border-border/60 text-[10px] text-muted-foreground">
-                    Sem imagem
-                  </div>
-                )}
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  onClick={() => openLibrary("cover")}
+                  onClick={openLibrary}
                   disabled={rolesOnlyEdit}
                 >
                   Biblioteca
@@ -1129,8 +1240,4 @@ const DashboardUsers = () => {
 };
 
 export default DashboardUsers;
-
-
-
-
 

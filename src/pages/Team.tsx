@@ -39,7 +39,6 @@ type PublicUser = {
     zoom: number;
     rotation: number;
   } | null;
-  coverImageUrl?: string | null;
   socials?: Array<{ label: string; href: string }>;
   permissions?: string[];
   roles?: string[];
@@ -441,7 +440,7 @@ const Team = () => {
                               <h3 className="text-base font-semibold text-foreground">{member.name}</h3>
                             </div>
                             <p className="text-xs italic text-muted-foreground/80">
-                              {member.phrase ? `"${member.phrase}"` : "—"}
+                              {member.phrase ? `"${member.phrase}"` : "-"}
                             </p>
                             <p className="text-sm text-muted-foreground">
                               {member.bio || "Sem biografia cadastrada."}
@@ -567,7 +566,7 @@ const Team = () => {
                                   <h3 className="text-base font-semibold text-foreground">{member.name}</h3>
                                 </div>
                                 <p className="text-xs italic text-muted-foreground/80">
-                                  {member.phrase ? `"${member.phrase}"` : "—"}
+                                  {member.phrase ? `"${member.phrase}"` : "-"}
                                 </p>
                                 <p className="text-sm text-muted-foreground">
                                   {member.bio || "Sem biografia cadastrada."}
