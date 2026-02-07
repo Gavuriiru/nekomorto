@@ -300,6 +300,77 @@ const buildPostMeta = (post) => {
 };
 const MAX_SVG_SIZE_BYTES = 256 * 1024;
 const MAX_UPLOAD_SIZE_BYTES = 15 * 1024 * 1024;
+const ALLOWED_UPLOAD_IMAGE_MIMES = new Set([
+  "image/png",
+  "image/jpeg",
+  "image/jpg",
+  "image/gif",
+  "image/webp",
+  "image/svg+xml",
+]);
+const UPLOAD_EXTENSION_TO_MIME = {
+  png: "image/png",
+  jpg: "image/jpeg",
+  jpeg: "image/jpeg",
+  gif: "image/gif",
+  webp: "image/webp",
+  svg: "image/svg+xml",
+};
+const UPLOAD_MIME_TO_EXTENSION = {
+  "image/png": "png",
+  "image/jpeg": "jpeg",
+  "image/jpg": "jpeg",
+  "image/gif": "gif",
+  "image/webp": "webp",
+  "image/svg+xml": "svg",
+};
+const DEFAULT_AVATAR_DISPLAY = {
+  x: 0,
+  y: 0,
+  zoom: 1,
+  rotation: 0,
+};
+const sanitizeUploadFolder = (value) => {
+  if (typeof value !== "string" || !value.trim()) {
+    return "";
+  }
+  return value
+    .trim()
+    .replace(/[^a-z0-9/_-]+/gi, "-")
+    .replace(/\/{2,}/g, "/")
+    .replace(/^\//, "");
+};
+const sanitizeUploadBaseName = (value) =>
+  String(value || "upload")
+    .toLowerCase()
+    .replace(/\.[^/.]+$/, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+const sanitizeUploadSlot = (value) =>
+  String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+const normalizeAvatarDisplay = (value) => {
+  const source = value && typeof value === "object" ? value : {};
+  const x = Number(source.x);
+  const y = Number(source.y);
+  const zoom = Number(source.zoom);
+  const rotation = Number(source.rotation);
+  return {
+    x: Number.isFinite(x) ? x : DEFAULT_AVATAR_DISPLAY.x,
+    y: Number.isFinite(y) ? y : DEFAULT_AVATAR_DISPLAY.y,
+    zoom: Number.isFinite(zoom) && zoom > 0 ? zoom : DEFAULT_AVATAR_DISPLAY.zoom,
+    rotation: Number.isFinite(rotation) ? rotation : DEFAULT_AVATAR_DISPLAY.rotation,
+  };
+};
+const isSupportedUploadImageMime = (value) =>
+  ALLOWED_UPLOAD_IMAGE_MIMES.has(String(value || "").toLowerCase());
+const getUploadExtFromMime = (value) =>
+  UPLOAD_MIME_TO_EXTENSION[String(value || "").toLowerCase()] || "png";
+const getUploadMimeFromExtension = (value) =>
+  UPLOAD_EXTENSION_TO_MIME[String(value || "").toLowerCase()] || "";
 const resolveRequestOrigin = (req) => {
   const originHeader = String(req.headers.origin || "");
   if (originHeader) {
@@ -1731,6 +1802,7 @@ const buildUserPayload = (sessionUser) => {
     ...sessionUser,
     permissions: matched?.permissions || [],
     roles: matched?.roles || [],
+    avatarDisplay: normalizeAvatarDisplay(matched?.avatarDisplay),
   };
 };
 
@@ -1784,6 +1856,7 @@ const normalizeUsers = (users) => {
     status: user.status === "retired" ? "retired" : "active",
     permissions: Array.isArray(user.permissions) ? user.permissions : [],
     roles: Array.isArray(user.roles) ? user.roles.filter(Boolean) : [],
+    avatarDisplay: normalizeAvatarDisplay(user.avatarDisplay),
     order: typeof user.order === "number" ? user.order : index,
   }),
   );
@@ -1932,6 +2005,7 @@ const ensureOwnerUser = (sessionUser) => {
       bio: "",
       avatarUrl: sessionUser.avatarUrl || null,
       coverImageUrl: null,
+      avatarDisplay: normalizeAvatarDisplay(null),
       socials: [],
       status: "active",
       permissions: ["*"],
@@ -1962,6 +2036,7 @@ app.get("/api/users", requireAuth, (req, res) => {
       bio: "",
       avatarUrl: sessionUser.avatarUrl || null,
       coverImageUrl: null,
+      avatarDisplay: normalizeAvatarDisplay(null),
       socials: [],
       status: "active",
       permissions: ["*"],
@@ -2048,6 +2123,7 @@ app.get("/api/public/users", (req, res) => {
       bio: user.bio,
       avatarUrl: user.avatarUrl,
       coverImageUrl: user.coverImageUrl,
+      avatarDisplay: normalizeAvatarDisplay(user.avatarDisplay),
       socials: user.socials,
       roles: applyOwnerRole(user).roles,
       isAdmin: !isOwner(user.id) && isAdminBadgeUser(user),
@@ -3565,25 +3641,10 @@ app.post("/api/uploads/image", requireAuth, (req, res) => {
   if (mime.toLowerCase() === "image/svg+xml" && buffer.length > MAX_SVG_SIZE_BYTES) {
     return res.status(400).json({ error: "svg_too_large" });
   }
-  const safeName = String(filename || "upload")
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
-  const safeSlot = typeof slot === "string" && slot.trim()
-    ? slot
-        .trim()
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, "-")
-        .replace(/^-+|-+$/g, "")
-    : "";
+  const safeName = sanitizeUploadBaseName(filename || "upload");
+  const safeSlot = sanitizeUploadSlot(slot);
   const uploadsDir = path.join(__dirname, "..", "public", "uploads");
-  const safeFolder = typeof folder === "string" && folder.trim()
-    ? folder
-        .trim()
-        .replace(/[^a-z0-9/_-]+/gi, "-")
-        .replace(/\/{2,}/g, "/")
-        .replace(/^\//, "")
-    : "";
+  const safeFolder = sanitizeUploadFolder(folder);
   const targetDir = safeFolder ? path.join(uploadsDir, safeFolder) : uploadsDir;
   fs.mkdirSync(targetDir, { recursive: true });
   const useSlotName = Boolean(safeSlot && isPrivateUploadFolder(safeFolder));
@@ -3637,16 +3698,16 @@ app.get("/api/uploads/list", requireAuth, (req, res) => {
   const uploadsDir = path.join(__dirname, "..", "public", "uploads");
   const folder = typeof req.query.folder === "string" ? req.query.folder.trim() : "";
   const listAll = folder === "__all__";
-  const safeFolder = listAll
-    ? ""
-    : folder
-    ? folder
-        .replace(/[^a-z0-9/_-]+/gi, "-")
-        .replace(/\/{2,}/g, "/")
-        .replace(/^\//, "")
-    : "";
+  const safeFolder = listAll ? "" : sanitizeUploadFolder(folder);
   const targetDir = safeFolder ? path.join(uploadsDir, safeFolder) : uploadsDir;
   try {
+    const usedUrls = getUsedUploadUrls();
+    const uploadMeta = loadUploads();
+    const uploadMetaMap = new Map(
+      uploadMeta
+        .map((item) => [normalizeUploadUrl(item?.url), item])
+        .filter(([key]) => Boolean(key)),
+    );
     const collectFiles = (dir, base) => {
       if (!fs.existsSync(dir)) {
         return [];
@@ -3668,9 +3729,22 @@ app.get("/api/uploads/list", requireAuth, (req, res) => {
           return;
         }
         const relative = normalizedBase;
+        const url = `/uploads/${relative}`;
+        const normalizedUrl = normalizeUploadUrl(url) || url;
+        const stat = fs.statSync(fullPath);
+        const meta = uploadMetaMap.get(normalizedUrl) || null;
+        const inUse = usedUrls.has(normalizedUrl);
         results.push({
           name: entry.name,
-          url: `/uploads/${relative}`,
+          url: normalizedUrl,
+          source: "upload",
+          folder: meta?.folder ?? path.dirname(relative).replace(/\\/g, "/").replace(/^\.$/, ""),
+          fileName: meta?.fileName || entry.name,
+          mime: meta?.mime || getUploadMimeFromExtension(path.extname(entry.name).replace(".", "")),
+          size: typeof meta?.size === "number" ? meta.size : stat.size,
+          createdAt: meta?.createdAt || stat.mtime.toISOString(),
+          inUse,
+          canDelete: !inUse,
         });
       });
       return results;
@@ -3679,13 +3753,187 @@ app.get("/api/uploads/list", requireAuth, (req, res) => {
       ? collectFiles(uploadsDir, "")
       : (fs.existsSync(targetDir) ? fs.readdirSync(targetDir) : [])
           .filter((item) => /\.(png|jpe?g|gif|webp|svg(\+xml)?)$/i.test(item))
-          .map((item) => ({
-            name: item,
-            url: `/uploads/${safeFolder ? `${safeFolder}/` : ""}${item}`,
-          }));
+          .map((item) => {
+            const fullPath = path.join(targetDir, item);
+            const relativePath = `${safeFolder ? `${safeFolder}/` : ""}${item}`;
+            const url = `/uploads/${relativePath}`;
+            const normalizedUrl = normalizeUploadUrl(url) || url;
+            const stat = fs.statSync(fullPath);
+            const meta = uploadMetaMap.get(normalizedUrl) || null;
+            const inUse = usedUrls.has(normalizedUrl);
+            return {
+              name: item,
+              url: normalizedUrl,
+              source: "upload",
+              folder: meta?.folder ?? safeFolder,
+              fileName: meta?.fileName || item,
+              mime: meta?.mime || getUploadMimeFromExtension(path.extname(item).replace(".", "")),
+              size: typeof meta?.size === "number" ? meta.size : stat.size,
+              createdAt: meta?.createdAt || stat.mtime.toISOString(),
+              inUse,
+              canDelete: !inUse,
+            };
+          });
     return res.json({ files });
   } catch {
     return res.json({ files: [] });
+  }
+});
+
+const collectProjectImageItems = (projects) => {
+  const dedupe = new Set();
+  const items = [];
+  const push = (project, url, kind, label) => {
+    const normalizedUrl = normalizeUploadUrl(url) || String(url || "").trim();
+    if (!normalizedUrl || dedupe.has(normalizedUrl)) {
+      return;
+    }
+    dedupe.add(normalizedUrl);
+    items.push({
+      source: "project",
+      url: normalizedUrl,
+      label,
+      projectId: project.id,
+      projectTitle: project.title,
+      kind,
+    });
+  };
+  projects.forEach((project) => {
+    push(project, project.cover, "cover", `${project.title} (Capa)`);
+    push(project, project.banner, "banner", `${project.title} (Banner)`);
+    push(project, project.heroImageUrl, "hero", `${project.title} (Carrossel)`);
+    (Array.isArray(project.relations) ? project.relations : []).forEach((relation, index) => {
+      const relationLabel = relation?.title
+        ? `${project.title} (Relação: ${relation.title})`
+        : `${project.title} (Relação ${index + 1})`;
+      push(project, relation?.image, "relation", relationLabel);
+    });
+    (Array.isArray(project.episodeDownloads) ? project.episodeDownloads : []).forEach((episode, index) => {
+      const suffix = episode?.number ? `Cap/Ep ${episode.number}` : `Cap/Ep ${index + 1}`;
+      push(project, episode?.coverImageUrl, "episode-cover", `${project.title} (${suffix})`);
+    });
+  });
+  return items;
+};
+
+app.get("/api/uploads/project-images", requireAuth, (req, res) => {
+  const sessionUser = req.session.user;
+  if (!canManageUploads(sessionUser?.id)) {
+    return res.status(403).json({ error: "forbidden" });
+  }
+  const projects = normalizeProjects(loadProjects());
+  return res.json({ items: collectProjectImageItems(projects) });
+});
+
+app.post("/api/uploads/image-from-url", requireAuth, async (req, res) => {
+  const sessionUser = req.session.user;
+  if (!canManageUploads(sessionUser?.id)) {
+    return res.status(403).json({ error: "forbidden" });
+  }
+  const ip = req.headers["x-forwarded-for"]?.split(",")[0]?.trim() || req.ip;
+  if (!canUploadImage(ip)) {
+    return res.status(429).json({ error: "rate_limited" });
+  }
+
+  const remoteUrl = String(req.body?.url || "").trim();
+  const safeFolder = sanitizeUploadFolder(req.body?.folder || "");
+  if (!remoteUrl) {
+    return res.status(400).json({ error: "url_required" });
+  }
+  let parsedRemote;
+  try {
+    parsedRemote = new URL(remoteUrl);
+    if (parsedRemote.protocol !== "http:" && parsedRemote.protocol !== "https:") {
+      return res.status(400).json({ error: "invalid_url" });
+    }
+  } catch {
+    return res.status(400).json({ error: "invalid_url" });
+  }
+
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 20_000);
+    const response = await fetch(parsedRemote.toString(), {
+      method: "GET",
+      redirect: "follow",
+      signal: controller.signal,
+    });
+    clearTimeout(timeout);
+    if (!response.ok) {
+      return res.status(502).json({ error: "fetch_failed" });
+    }
+
+    const contentTypeHeader = String(response.headers.get("content-type") || "");
+    const headerMime = contentTypeHeader.split(";")[0].trim().toLowerCase();
+    const extFromUrl = path.extname(parsedRemote.pathname || "").replace(".", "").toLowerCase();
+    let mime = isSupportedUploadImageMime(headerMime)
+      ? headerMime
+      : getUploadMimeFromExtension(extFromUrl);
+    if (!isSupportedUploadImageMime(mime)) {
+      return res.status(400).json({ error: "unsupported_image_type" });
+    }
+
+    const buffer = Buffer.from(await response.arrayBuffer());
+    if (!buffer.length) {
+      return res.status(400).json({ error: "empty_upload" });
+    }
+    if (buffer.length > MAX_UPLOAD_SIZE_BYTES) {
+      return res.status(400).json({ error: "file_too_large" });
+    }
+    if (mime === "image/svg+xml" && buffer.length > MAX_SVG_SIZE_BYTES) {
+      return res.status(400).json({ error: "svg_too_large" });
+    }
+
+    if (!isSupportedUploadImageMime(headerMime) && !extFromUrl) {
+      if (buffer[0] === 0x89 && buffer[1] === 0x50 && buffer[2] === 0x4e && buffer[3] === 0x47) {
+        mime = "image/png";
+      } else if (buffer[0] === 0xff && buffer[1] === 0xd8) {
+        mime = "image/jpeg";
+      } else if (buffer[0] === 0x47 && buffer[1] === 0x49 && buffer[2] === 0x46) {
+        mime = "image/gif";
+      }
+      if (!isSupportedUploadImageMime(mime)) {
+        return res.status(400).json({ error: "unsupported_image_type" });
+      }
+    }
+
+    const uploadsDir = path.join(__dirname, "..", "public", "uploads");
+    const targetDir = safeFolder ? path.join(uploadsDir, safeFolder) : uploadsDir;
+    fs.mkdirSync(targetDir, { recursive: true });
+
+    const parsedName = decodeURIComponent(path.basename(parsedRemote.pathname || "") || "upload");
+    const safeBase = sanitizeUploadBaseName(parsedName || "upload");
+    const ext = getUploadExtFromMime(mime);
+    const fileName = `${safeBase || "imagem"}-${Date.now()}.${ext}`;
+    const filePath = path.join(targetDir, fileName);
+
+    if (mime === "image/svg+xml") {
+      const sanitized = sanitizeSvg(buffer.toString("utf-8"));
+      fs.writeFileSync(filePath, sanitized);
+    } else {
+      fs.writeFileSync(filePath, buffer);
+    }
+
+    const relativeUrl = `/uploads/${safeFolder ? `${safeFolder}/` : ""}${fileName}`;
+    const uploads = loadUploads();
+    uploads.push({
+      id: crypto.randomUUID(),
+      url: relativeUrl,
+      fileName,
+      folder: safeFolder || "",
+      size: buffer.length,
+      mime,
+      createdAt: new Date().toISOString(),
+    });
+    writeUploads(uploads);
+    appendAuditLog(req, "uploads.image_from_url", "uploads", {
+      url: relativeUrl,
+      remoteUrl: parsedRemote.toString(),
+      folder: safeFolder || "",
+    });
+    return res.json({ url: relativeUrl, fileName });
+  } catch {
+    return res.status(502).json({ error: "fetch_failed" });
   }
 });
 
@@ -3766,8 +4014,211 @@ const getUsedUploadUrls = () => {
   collectUploadUrls(loadProjects(), urls);
   collectUploadUrls(loadUsers(), urls);
   collectUploadUrls(loadPages(), urls);
+  collectUploadUrls(loadComments(), urls);
+  collectUploadUrls(loadUpdates(), urls);
   return urls;
 };
+
+const escapeRegExp = (value) => String(value || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+const replaceUploadReferencesInText = (value, oldUrl, newUrl) => {
+  if (!value || typeof value !== "string") {
+    return { value, count: 0 };
+  }
+  let next = value;
+  let count = 0;
+  const directRegex = new RegExp(escapeRegExp(oldUrl), "g");
+  const directMatches = next.match(directRegex);
+  if (directMatches?.length) {
+    count += directMatches.length;
+    next = next.replace(directRegex, newUrl);
+  }
+  const absolutePattern = /https?:\/\/[^\s"'()<>]+/gi;
+  next = next.replace(absolutePattern, (match) => {
+    const normalized = toUploadPath(match);
+    if (normalized !== oldUrl) {
+      return match;
+    }
+    count += 1;
+    try {
+      const parsed = new URL(match);
+      parsed.pathname = newUrl;
+      return parsed.toString();
+    } catch {
+      return match.replace(oldUrl, newUrl);
+    }
+  });
+  return { value: next, count };
+};
+
+const replaceUploadReferencesDeep = (value, oldUrl, newUrl) => {
+  if (typeof value === "string") {
+    return replaceUploadReferencesInText(value, oldUrl, newUrl);
+  }
+  if (Array.isArray(value)) {
+    let count = 0;
+    const next = value.map((item) => {
+      const result = replaceUploadReferencesDeep(item, oldUrl, newUrl);
+      count += result.count;
+      return result.value;
+    });
+    return { value: next, count };
+  }
+  if (value && typeof value === "object") {
+    let count = 0;
+    const next = { ...value };
+    Object.keys(next).forEach((key) => {
+      const result = replaceUploadReferencesDeep(next[key], oldUrl, newUrl);
+      count += result.count;
+      next[key] = result.value;
+    });
+    return { value: next, count };
+  }
+  return { value, count: 0 };
+};
+
+app.put("/api/uploads/rename", requireAuth, (req, res) => {
+  const sessionUser = req.session.user;
+  if (!canManageUploads(sessionUser?.id)) {
+    return res.status(403).json({ error: "forbidden" });
+  }
+
+  const normalized = normalizeUploadUrl(req.body?.url);
+  const requestedName = String(req.body?.newName || "").trim();
+  if (!normalized) {
+    return res.status(400).json({ error: "invalid_url" });
+  }
+  if (!requestedName) {
+    return res.status(400).json({ error: "invalid_name" });
+  }
+
+  try {
+    const uploadsDir = path.join(__dirname, "..", "public", "uploads");
+    const parsed = new URL(normalized, PRIMARY_APP_ORIGIN);
+    const pathname = decodeURIComponent(parsed.pathname || "");
+    if (!pathname.startsWith("/uploads/")) {
+      return res.status(400).json({ error: "invalid_path" });
+    }
+    const relativePath = pathname.replace(/^\/uploads\//, "");
+    const oldFileName = path.basename(relativePath);
+    const oldExt = path.extname(oldFileName).replace(".", "").toLowerCase();
+    const oldFolder = path.dirname(relativePath).replace(/\\/g, "/").replace(/^\.$/, "");
+    const safeBaseName = sanitizeUploadBaseName(requestedName);
+    if (!safeBaseName) {
+      return res.status(400).json({ error: "invalid_name" });
+    }
+    const nextFileName = `${safeBaseName}.${oldExt || "png"}`;
+    if (nextFileName === oldFileName) {
+      return res.json({ ok: true, oldUrl: normalized, newUrl: normalized, updatedReferences: 0 });
+    }
+
+    const oldFilePath = path.join(uploadsDir, relativePath);
+    const nextRelativePath = `${oldFolder ? `${oldFolder}/` : ""}${nextFileName}`;
+    const nextFilePath = path.join(uploadsDir, nextRelativePath);
+    const resolvedOld = path.resolve(oldFilePath);
+    const resolvedNew = path.resolve(nextFilePath);
+    const uploadsRoot = path.resolve(uploadsDir);
+    if (!resolvedOld.startsWith(uploadsRoot) || !resolvedNew.startsWith(uploadsRoot)) {
+      return res.status(400).json({ error: "invalid_path" });
+    }
+    if (!fs.existsSync(resolvedOld)) {
+      return res.status(404).json({ error: "not_found" });
+    }
+    if (fs.existsSync(resolvedNew)) {
+      return res.status(409).json({ error: "name_conflict" });
+    }
+    fs.renameSync(resolvedOld, resolvedNew);
+
+    const nextUrl = `/uploads/${nextRelativePath}`;
+    const uploads = loadUploads();
+    const uploadsNext = uploads.map((item) =>
+      item.url === normalized
+        ? {
+            ...item,
+            url: nextUrl,
+            fileName: nextFileName,
+            folder: oldFolder,
+          }
+        : item,
+    );
+    writeUploads(uploadsNext);
+
+    const replacements = [];
+    const pushResult = (key, result) => {
+      if (result.count > 0) {
+        replacements.push(`${key}:${result.count}`);
+      }
+    };
+
+    const settingsResult = replaceUploadReferencesDeep(loadSiteSettings(), normalized, nextUrl);
+    pushResult("settings", settingsResult);
+    if (settingsResult.count > 0) {
+      writeSiteSettings(settingsResult.value);
+    }
+
+    const postsResult = replaceUploadReferencesDeep(loadPosts(), normalized, nextUrl);
+    pushResult("posts", postsResult);
+    if (postsResult.count > 0) {
+      writePosts(postsResult.value);
+    }
+
+    const projectsResult = replaceUploadReferencesDeep(loadProjects(), normalized, nextUrl);
+    pushResult("projects", projectsResult);
+    if (projectsResult.count > 0) {
+      writeProjects(projectsResult.value);
+    }
+
+    const usersResult = replaceUploadReferencesDeep(loadUsers(), normalized, nextUrl);
+    pushResult("users", usersResult);
+    if (usersResult.count > 0) {
+      writeUsers(usersResult.value);
+    }
+
+    const pagesResult = replaceUploadReferencesDeep(loadPages(), normalized, nextUrl);
+    pushResult("pages", pagesResult);
+    if (pagesResult.count > 0) {
+      writePages(pagesResult.value);
+    }
+
+    const commentsResult = replaceUploadReferencesDeep(loadComments(), normalized, nextUrl);
+    pushResult("comments", commentsResult);
+    if (commentsResult.count > 0) {
+      writeComments(commentsResult.value);
+    }
+
+    const updatesResult = replaceUploadReferencesDeep(loadUpdates(), normalized, nextUrl);
+    pushResult("updates", updatesResult);
+    if (updatesResult.count > 0) {
+      writeUpdates(updatesResult.value);
+    }
+
+    const updatedReferences = [
+      settingsResult.count,
+      postsResult.count,
+      projectsResult.count,
+      usersResult.count,
+      pagesResult.count,
+      commentsResult.count,
+      updatesResult.count,
+    ].reduce((sum, value) => sum + value, 0);
+
+    appendAuditLog(req, "uploads.rename", "uploads", {
+      oldUrl: normalized,
+      newUrl: nextUrl,
+      updatedReferences,
+      replacements,
+    });
+
+    return res.json({
+      ok: true,
+      oldUrl: normalized,
+      newUrl: nextUrl,
+      updatedReferences,
+    });
+  } catch {
+    return res.status(500).json({ error: "rename_failed" });
+  }
+});
 
 app.delete("/api/uploads/delete", requireAuth, (req, res) => {
   const sessionUser = req.session.user;
@@ -3815,7 +4266,7 @@ app.delete("/api/uploads/delete", requireAuth, (req, res) => {
 });
 
 app.post("/api/users", requireOwner, (req, res) => {
-  const { id, name, phrase, bio, avatarUrl, coverImageUrl, socials, status, permissions, roles } = req.body || {};
+  const { id, name, phrase, bio, avatarUrl, coverImageUrl, avatarDisplay, socials, status, permissions, roles } = req.body || {};
   if (!id || !name) {
     return res.status(400).json({ error: "id_and_name_required" });
   }
@@ -3832,6 +4283,7 @@ app.post("/api/users", requireOwner, (req, res) => {
     bio: bio || "",
     avatarUrl: avatarUrl || null,
     coverImageUrl: coverImageUrl || null,
+    avatarDisplay: normalizeAvatarDisplay(avatarDisplay),
     socials: Array.isArray(socials) ? socials.filter(Boolean) : [],
     status: status === "retired" ? "retired" : "active",
     permissions: Array.isArray(permissions) ? permissions : [],
@@ -3930,6 +4382,10 @@ app.put("/api/users/:id", (req, res) => {
     bio: update.bio ?? existing.bio,
     avatarUrl: update.avatarUrl ?? existing.avatarUrl,
     coverImageUrl: update.coverImageUrl ?? existing.coverImageUrl,
+    avatarDisplay:
+      update.avatarDisplay !== undefined
+        ? normalizeAvatarDisplay(update.avatarDisplay)
+        : normalizeAvatarDisplay(existing.avatarDisplay),
     socials: Array.isArray(update.socials) ? update.socials : existing.socials,
     status: update.status === "retired" ? "retired" : "active",
     permissions: Array.isArray(update.permissions) ? update.permissions : existing.permissions,
@@ -4021,6 +4477,10 @@ app.put("/api/users/self", requireAuth, (req, res) => {
     bio: update.bio ?? existing.bio,
     avatarUrl: update.avatarUrl ?? existing.avatarUrl,
     coverImageUrl: update.coverImageUrl ?? existing.coverImageUrl,
+    avatarDisplay:
+      update.avatarDisplay !== undefined
+        ? normalizeAvatarDisplay(update.avatarDisplay)
+        : normalizeAvatarDisplay(existing.avatarDisplay),
     socials: Array.isArray(update.socials) ? update.socials : existing.socials,
   };
 

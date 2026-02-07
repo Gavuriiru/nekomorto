@@ -1920,12 +1920,11 @@ const DashboardSettings = () => {
           description="Selecione uma imagem ja enviada para reutilizar ou exclua itens que nao estejam em uso."
           uploadFolder="branding"
           listFolders={[""]}
-          allowUrlInput={false}
-          showAltInput={false}
+          showUrlImport={false}
           allowDeselect
-          selectOnUpload
-          currentSelectionUrl={currentLibrarySelection || undefined}
-          onSelect={(url) => applyLibraryImage(url)}
+          mode="single"
+          currentSelectionUrls={currentLibrarySelection ? [currentLibrarySelection] : []}
+          onSave={({ urls }) => applyLibraryImage(urls[0] || "")}
         />
     </DashboardShell>
   );

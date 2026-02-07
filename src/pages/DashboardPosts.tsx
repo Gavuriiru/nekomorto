@@ -408,16 +408,6 @@ const DashboardPosts = () => {
     () => new Map(projects.map((project) => [project.id, project])),
     [projects],
   );
-  const projectLibraryItems = useMemo(
-    () =>
-      projects
-        .flatMap((project) => [
-          { key: `${project.id}-cover`, label: `${project.title} (Capa)`, url: project.cover },
-          { key: `${project.id}-banner`, label: `${project.title} (Banner)`, url: project.banner },
-        ])
-        .filter((item) => Boolean(item.url)),
-    [projects],
-  );
   const projectTags = useMemo(() => {
     if (!formState.projectId) {
       return [];
@@ -1498,17 +1488,10 @@ const DashboardPosts = () => {
         apiBase={apiBase}
         description="Escolha uma imagem ja enviada ou use capas/banners de projetos."
         listFolders={[""]}
-        showAltInput={false}
         allowDeselect
-        selectOnUpload
-        currentSelectionUrl={formState.coverImageUrl}
-        onSelect={handleLibrarySelect}
-        sections={[
-          {
-            title: "Projetos",
-            items: projectLibraryItems,
-          },
-        ]}
+        mode="single"
+        currentSelectionUrls={formState.coverImageUrl ? [formState.coverImageUrl] : []}
+        onSave={({ urls }) => handleLibrarySelect(urls[0] || "")}
       />
 
       <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>

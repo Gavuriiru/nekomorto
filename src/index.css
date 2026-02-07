@@ -96,6 +96,12 @@
     scroll-behavior: smooth;
   }
 
+  .reactEasyCrop_Image,
+  .reactEasyCrop_Video {
+    max-width: none;
+    max-height: none;
+  }
+
   h1, h2, h3, h4, h5, h6 {
     @apply font-bold tracking-tight;
   }

@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -33,13 +33,113 @@ type PublicUser = {
   phrase: string;
   bio: string;
   avatarUrl?: string | null;
+  avatarDisplay?: {
+    x: number;
+    y: number;
+    zoom: number;
+    rotation: number;
+  } | null;
   coverImageUrl?: string | null;
   socials?: Array<{ label: string; href: string }>;
   permissions?: string[];
   roles?: string[];
   isAdmin?: boolean;
   status?: "active" | "retired";
+  order?: number;
 };
+
+type AvatarDisplay = {
+  x: number;
+  y: number;
+  zoom: number;
+  rotation: number;
+};
+
+type CropMediaFit = "horizontal-cover" | "vertical-cover";
+
+const DEFAULT_AVATAR_DISPLAY: AvatarDisplay = {
+  x: 0,
+  y: 0,
+  zoom: 1,
+  rotation: 0,
+};
+const DEFAULT_AVATAR_MEDIA_RATIO = 1;
+const LEGACY_AVATAR_OFFSET_THRESHOLD = 20;
+const MIN_AVATAR_ZOOM = 0.25;
+const MAX_AVATAR_ZOOM = 5;
+
+const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
+
+const normalizeAvatarDisplay = (value?: Partial<AvatarDisplay> | null): AvatarDisplay => {
+  const x = Number(value?.x);
+  const y = Number(value?.y);
+  const zoom = Number(value?.zoom);
+  const rotation = Number(value?.rotation);
+  const normalizeOffset = (offset: number) => {
+    if (!Number.isFinite(offset)) {
+      return 0;
+    }
+    if (Math.abs(offset) > LEGACY_AVATAR_OFFSET_THRESHOLD) {
+      return offset / 360;
+    }
+    return offset;
+  };
+  return {
+    x: normalizeOffset(x),
+    y: normalizeOffset(y),
+    zoom: Number.isFinite(zoom) && zoom > 0 ? clamp(zoom, MIN_AVATAR_ZOOM, MAX_AVATAR_ZOOM) : 1,
+    rotation: Number.isFinite(rotation) ? rotation : 0,
+  };
+};
+
+const getCropMediaFit = (mediaRatio: number): CropMediaFit =>
+  mediaRatio >= 1 ? "vertical-cover" : "horizontal-cover";
+
+const getAvatarMediaStyleByFit = (fit: CropMediaFit) =>
+  fit === "horizontal-cover"
+    ? {
+        width: "100%",
+        height: "auto",
+        maxWidth: "none",
+        maxHeight: "none",
+      }
+    : {
+        width: "auto",
+        height: "100%",
+        maxWidth: "none",
+        maxHeight: "none",
+      };
+
+const getAvatarOffsetBounds = (mediaRatio: number, zoom: number) => {
+  const safeRatio =
+    Number.isFinite(mediaRatio) && mediaRatio > 0 ? mediaRatio : DEFAULT_AVATAR_MEDIA_RATIO;
+  const safeZoom = Number.isFinite(zoom) && zoom > 0 ? zoom : DEFAULT_AVATAR_DISPLAY.zoom;
+  const baseWidth = safeRatio >= 1 ? safeRatio : 1;
+  const baseHeight = safeRatio >= 1 ? 1 : 1 / safeRatio;
+  return {
+    maxX: Math.max(0, (baseWidth * safeZoom - 1) / 2),
+    maxY: Math.max(0, (baseHeight * safeZoom - 1) / 2),
+  };
+};
+
+const clampAvatarDisplay = (display: AvatarDisplay, mediaRatio: number): AvatarDisplay => {
+  const bounds = getAvatarOffsetBounds(mediaRatio, display.zoom);
+  return {
+    ...display,
+    x: clamp(display.x, -bounds.maxX, bounds.maxX),
+    y: clamp(display.y, -bounds.maxY, bounds.maxY),
+  };
+};
+
+const toAvatarOffsetStyle = (display: AvatarDisplay) => ({
+  transform: `translate(${display.x * 100}%, ${display.y * 100}%)`,
+  transformOrigin: "center center",
+});
+
+const toAvatarMediaStyle = (display: AvatarDisplay) => ({
+  transform: `rotate(${display.rotation}deg) scale(${display.zoom})`,
+  transformOrigin: "center center",
+});
 
 const Team = () => {
   usePageMeta({ title: "Equipe" });
@@ -50,6 +150,7 @@ const Team = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [cacheBust, setCacheBust] = useState(Date.now());
   const [linkTypes, setLinkTypes] = useState<Array<{ id: string; label: string; icon: string }>>([]);
+  const [avatarRatioByMemberId, setAvatarRatioByMemberId] = useState<Record<string, number>>({});
   const [pageCopy, setPageCopy] = useState({
     heroBadge: "Equipe",
     heroTitle: "Conheça quem faz o projeto acontecer",
@@ -117,6 +218,57 @@ const Team = () => {
       return Clock;
     }
     return null;
+  };
+
+  const renderMemberAvatar = (member: PublicUser, imageSrc: string) => {
+    const mediaRatio = avatarRatioByMemberId[member.id] || DEFAULT_AVATAR_MEDIA_RATIO;
+    const normalizedDisplay = clampAvatarDisplay(
+      normalizeAvatarDisplay(member.avatarDisplay),
+      mediaRatio,
+    );
+    const fit = getCropMediaFit(mediaRatio);
+    const mediaStyle = getAvatarMediaStyleByFit(fit);
+    return (
+      <div className="absolute bottom-0 left-1/2 h-56 w-56 -translate-x-1/2 overflow-hidden rounded-full transition-transform duration-500 group-hover:scale-105 sm:h-64 sm:w-64 md:h-72 md:w-72 lg:h-80 lg:w-80">
+        <div className="absolute inset-0 flex items-center justify-center" style={toAvatarOffsetStyle(normalizedDisplay)}>
+          <img
+            src={imageSrc}
+            alt={member.name}
+            referrerPolicy="no-referrer"
+            crossOrigin="anonymous"
+            onLoad={(event) => {
+              const width = event.currentTarget.naturalWidth;
+              const height = event.currentTarget.naturalHeight;
+              if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) {
+                return;
+              }
+              const ratio = width / height;
+              setAvatarRatioByMemberId((prev) => {
+                if (prev[member.id] && Math.abs(prev[member.id] - ratio) < 0.0001) {
+                  return prev;
+                }
+                return {
+                  ...prev,
+                  [member.id]: ratio,
+                };
+              });
+            }}
+            onError={(event) => {
+              const target = event.currentTarget;
+              if (target.src.includes("/placeholder.svg")) {
+                return;
+              }
+              target.src = "/placeholder.svg";
+            }}
+            className="block max-h-none max-w-none"
+            style={{
+              ...mediaStyle,
+              ...toAvatarMediaStyle(normalizedDisplay),
+            }}
+          />
+        </div>
+      </div>
+    );
   };
 
   useEffect(() => {
@@ -246,20 +398,7 @@ const Team = () => {
                         <div className="flex flex-col gap-6 sm:flex-row sm:items-stretch">
                           <div className="relative sm:w-56 md:w-72 lg:w-80">
                             <div className="relative h-64 sm:h-full">
-                              <img
-                                src={imageSrc}
-                                alt={member.name}
-                                referrerPolicy="no-referrer"
-                                crossOrigin="anonymous"
-                                onError={(event) => {
-                                  const target = event.currentTarget;
-                                  if (target.src.endsWith("/placeholder.svg")) {
-                                    return;
-                                  }
-                                  target.src = "/placeholder.svg";
-                                }}
-                                className="absolute bottom-0 left-1/2 h-56 w-56 -translate-x-1/2 rounded-full object-cover object-center transition-transform duration-500 group-hover:scale-105 sm:h-64 sm:w-64 md:h-72 md:w-72 lg:h-80 lg:w-80"
-                              />
+                              {renderMemberAvatar(member, imageSrc)}
                             </div>
                           </div>
 
@@ -385,20 +524,7 @@ const Team = () => {
                             <div className="flex flex-col gap-6 sm:flex-row sm:items-stretch">
                               <div className="relative sm:w-56 md:w-72 lg:w-80">
                                 <div className="relative h-64 sm:h-full">
-                                  <img
-                                    src={imageSrc}
-                                    alt={member.name}
-                                    referrerPolicy="no-referrer"
-                                    crossOrigin="anonymous"
-                                    onError={(event) => {
-                                      const target = event.currentTarget;
-                                      if (target.src.endsWith("/placeholder.svg")) {
-                                        return;
-                                      }
-                                      target.src = "/placeholder.svg";
-                                    }}
-                                    className="absolute bottom-0 left-1/2 h-56 w-56 -translate-x-1/2 rounded-full object-cover object-center transition-transform duration-500 group-hover:scale-105 sm:h-64 sm:w-64 md:h-72 md:w-72 lg:h-80 lg:w-80"
-                                  />
+                                  {renderMemberAvatar(member, imageSrc)}
                                 </div>
                               </div>
 
@@ -504,7 +630,3 @@ const Team = () => {
 };
 
 export default Team;
-
-
-
-

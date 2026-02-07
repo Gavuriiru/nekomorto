@@ -2664,11 +2664,10 @@ const DashboardProjectsEditor = () => {
         description="Envie novas imagens ou selecione uma existente para usar no projeto."
         uploadFolder={libraryFolder || undefined}
         listFolders={[""]}
-        showAltInput={false}
         allowDeselect
-        selectOnUpload
-        currentSelectionUrl={currentLibrarySelection || undefined}
-        onSelect={(url, altText) => applyLibraryImage(url, altText)}
+        mode="single"
+        currentSelectionUrls={currentLibrarySelection ? [currentLibrarySelection] : []}
+        onSave={({ urls }) => applyLibraryImage(urls[0] || "")}
       />
 
     </>

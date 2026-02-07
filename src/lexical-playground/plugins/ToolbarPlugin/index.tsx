@@ -619,6 +619,7 @@ export default function ToolbarPlugin({
   const {toolbarState, updateToolbarState} = useToolbarState();
   const toolbarRef = useRef<HTMLDivElement | null>(null);
   const [isToolbarCompact, setIsToolbarCompact] = useState(true);
+  const [isImageLibraryOpen, setIsImageLibraryOpen] = useState(false);
 
   const updateToolbarCompact = useCallback(() => {
     const toolbar = toolbarRef.current;
@@ -1416,12 +1417,7 @@ export default function ToolbarPlugin({
                 </DropDownItem>
                 <DropDownItem
                   onClick={() => {
-                    showModal('Insert Image', (onClose) => (
-                      <InsertImageDialog
-                        activeEditor={activeEditor}
-                        onClose={onClose}
-                      />
-                    ));
+                    setIsImageLibraryOpen(true);
                   }}
                   className="item">
                   <i className="icon image" />
@@ -1590,6 +1586,12 @@ export default function ToolbarPlugin({
       </div>
 
       {modal}
+      {isImageLibraryOpen ? (
+        <InsertImageDialog
+          activeEditor={activeEditor}
+          onClose={() => setIsImageLibraryOpen(false)}
+        />
+      ) : null}
     </div>
   );
 }

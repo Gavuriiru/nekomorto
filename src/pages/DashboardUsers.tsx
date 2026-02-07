@@ -1,7 +1,7 @@
 ﻿import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import DashboardShell from "@/components/DashboardShell";
-import ImageLibraryDialog from "@/components/ImageLibraryDialog";
+import ImageLibraryDialog, { type AvatarDisplay } from "@/components/ImageLibraryDialog";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -55,6 +55,7 @@ type UserRecord = {
   phrase: string;
   bio: string;
   avatarUrl?: string | null;
+  avatarDisplay?: AvatarDisplay | null;
   coverImageUrl?: string | null;
   socials?: Array<{ label: string; href: string }>;
   status: "active" | "retired";
@@ -63,12 +64,37 @@ type UserRecord = {
   order: number;
 };
 
+const defaultAvatarDisplay: AvatarDisplay = { x: 0, y: 0, zoom: 1, rotation: 0 };
+const normalizeAvatarDisplay = (value?: Partial<AvatarDisplay> | null): AvatarDisplay => {
+  const x = Number(value?.x);
+  const y = Number(value?.y);
+  const zoom = Number(value?.zoom);
+  const rotation = Number(value?.rotation);
+  const normalizedZoom = Number.isFinite(zoom) && zoom > 0 ? zoom : defaultAvatarDisplay.zoom;
+  const normalizeOffset = (offset: number) => {
+    if (!Number.isFinite(offset)) {
+      return 0;
+    }
+    if (Math.abs(offset) > 20) {
+      return offset / 360;
+    }
+    return offset;
+  };
+  return {
+    x: normalizeOffset(x),
+    y: normalizeOffset(y),
+    zoom: normalizedZoom,
+    rotation: Number.isFinite(rotation) ? rotation : defaultAvatarDisplay.rotation,
+  };
+};
+
 const emptyForm = {
   id: "",
   name: "",
   phrase: "",
   bio: "",
   avatarUrl: "",
+  avatarDisplay: defaultAvatarDisplay,
   coverImageUrl: "",
   socials: [] as Array<{ label: string; href: string }>,
   status: "active" as "active" | "retired",
@@ -188,10 +214,24 @@ const DashboardUsers = () => {
     setLibraryTarget(target);
     setIsLibraryOpen(true);
   };
-  const handleLibrarySelect = useCallback(
-    (url: string) => {
+  const handleLibrarySave = useCallback(
+    ({
+      urls,
+      avatarDisplay,
+    }: {
+      urls: string[];
+      avatarDisplay?: AvatarDisplay;
+    }) => {
+      const url = urls[0] || "";
       if (libraryTarget === "avatar") {
-        setFormState((prev) => ({ ...prev, avatarUrl: url }));
+        setFormState((prev) => ({
+          ...prev,
+          avatarUrl: url,
+          avatarDisplay:
+            avatarDisplay != null
+              ? normalizeAvatarDisplay(avatarDisplay)
+              : normalizeAvatarDisplay(prev.avatarDisplay),
+        }));
         return;
       }
       setFormState((prev) => ({ ...prev, coverImageUrl: url }));
@@ -211,6 +251,7 @@ const DashboardUsers = () => {
       phrase: user.phrase,
       bio: user.bio,
       avatarUrl: user.avatarUrl || "",
+      avatarDisplay: normalizeAvatarDisplay(user.avatarDisplay),
       coverImageUrl: user.coverImageUrl || "",
       socials: user.socials ? [...user.socials] : [],
       status: user.status,
@@ -296,7 +337,7 @@ const DashboardUsers = () => {
 
   const openNewDialog = () => {
     setEditingUser(null);
-    setFormState(emptyForm);
+    setFormState({ ...emptyForm, avatarDisplay: normalizeAvatarDisplay(emptyForm.avatarDisplay) });
     setOwnerToggle(false);
     setIsDialogOpen(true);
   };
@@ -318,6 +359,7 @@ const DashboardUsers = () => {
       phrase: formState.phrase.trim(),
       bio: formState.bio.trim(),
       avatarUrl: formState.avatarUrl.trim() || null,
+      avatarDisplay: normalizeAvatarDisplay(formState.avatarDisplay),
       coverImageUrl: formState.coverImageUrl.trim() || null,
       socials: formState.socials.filter((item) => item.label.trim() && item.href.trim()),
       status: formState.status,
@@ -727,13 +769,14 @@ const DashboardUsers = () => {
         onOpenChange={setIsLibraryOpen}
         apiBase={apiBase}
         description="Selecione uma imagem já enviada para reutilizar ou envie um novo arquivo."
-        preload
         uploadFolder="users"
         listFolders={[""]}
-        showAltInput={false}
         allowDeselect
-        currentSelectionUrl={currentLibrarySelection || undefined}
-        onSelect={(url) => handleLibrarySelect(url)}
+        mode="single"
+        cropAvatar={libraryTarget === "avatar"}
+        initialAvatarDisplay={formState.avatarDisplay}
+        currentSelectionUrls={currentLibrarySelection ? [currentLibrarySelection] : []}
+        onSave={({ urls, avatarDisplay }) => handleLibrarySave({ urls, avatarDisplay })}
       />
 
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>

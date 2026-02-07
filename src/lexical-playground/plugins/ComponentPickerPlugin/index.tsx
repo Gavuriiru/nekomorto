@@ -145,7 +145,11 @@ export function getDynamicOptions(editor: LexicalEditor, queryString: string) {
 
 export type ShowModal = ReturnType<typeof useModal>[1];
 
-export function getBaseOptions(editor: LexicalEditor, showModal: ShowModal) {
+export function getBaseOptions(
+  editor: LexicalEditor,
+  showModal: ShowModal,
+  onOpenImageLibrary: () => void,
+) {
   return [
     new ComponentPickerOption('Paragraph', {
       icon: <i className="icon paragraph" />,
@@ -319,10 +323,7 @@ export function getBaseOptions(editor: LexicalEditor, showModal: ShowModal) {
     new ComponentPickerOption('Image', {
       icon: <i className="icon image" />,
       keywords: ['image', 'photo', 'picture', 'file'],
-      onSelect: () =>
-        showModal('Insert Image', (onClose) => (
-          <InsertImageDialog activeEditor={editor} onClose={onClose} />
-        )),
+      onSelect: () => onOpenImageLibrary(),
     }),
     new ComponentPickerOption('Collapsible', {
       icon: <i className="icon caret-right" />,
@@ -354,6 +355,7 @@ export default function ComponentPickerMenuPlugin(): JSX.Element {
   const [editor] = useLexicalComposerContext();
   const [modal, showModal] = useModal();
   const [queryString, setQueryString] = useState<string | null>(null);
+  const [isImageLibraryOpen, setIsImageLibraryOpen] = useState(false);
 
   const checkForTriggerMatch = useBasicTypeaheadTriggerMatch('/', {
     allowWhitespace: true,
@@ -361,7 +363,7 @@ export default function ComponentPickerMenuPlugin(): JSX.Element {
   });
 
   const options = useMemo(() => {
-    const baseOptions = getBaseOptions(editor, showModal);
+    const baseOptions = getBaseOptions(editor, showModal, () => setIsImageLibraryOpen(true));
 
     if (!queryString) {
       return baseOptions;
@@ -398,41 +400,49 @@ export default function ComponentPickerMenuPlugin(): JSX.Element {
   return (
     <>
       {modal}
-      <LexicalTypeaheadMenuPlugin<ComponentPickerOption>
-        onQueryChange={setQueryString}
-        onSelectOption={onSelectOption}
-        triggerFn={checkForTriggerMatch}
-        options={options}
-        menuRenderFn={(
-          anchorElementRef,
-          {selectedIndex, selectOptionAndCleanUp, setHighlightedIndex},
-        ) =>
-          anchorElementRef.current && options.length
-            ? ReactDOM.createPortal(
-                <div className="typeahead-popover component-picker-menu">
-                  <ul>
-                    {options.map((option, i: number) => (
-                      <ComponentPickerMenuItem
-                        index={i}
-                        isSelected={selectedIndex === i}
-                        onClick={() => {
-                          setHighlightedIndex(i);
-                          selectOptionAndCleanUp(option);
-                        }}
-                        onMouseEnter={() => {
-                          setHighlightedIndex(i);
-                        }}
-                        key={option.key}
-                        option={option}
-                      />
-                    ))}
-                  </ul>
-                </div>,
-                anchorElementRef.current,
-              )
-            : null
-        }
-      />
+      {isImageLibraryOpen ? (
+        <InsertImageDialog
+          activeEditor={editor}
+          onClose={() => setIsImageLibraryOpen(false)}
+        />
+      ) : null}
+      {!isImageLibraryOpen ? (
+        <LexicalTypeaheadMenuPlugin<ComponentPickerOption>
+          onQueryChange={setQueryString}
+          onSelectOption={onSelectOption}
+          triggerFn={checkForTriggerMatch}
+          options={options}
+          menuRenderFn={(
+            anchorElementRef,
+            {selectedIndex, selectOptionAndCleanUp, setHighlightedIndex},
+          ) =>
+            anchorElementRef.current && options.length
+              ? ReactDOM.createPortal(
+                  <div className="typeahead-popover component-picker-menu">
+                    <ul>
+                      {options.map((option, i: number) => (
+                        <ComponentPickerMenuItem
+                          index={i}
+                          isSelected={selectedIndex === i}
+                          onClick={() => {
+                            setHighlightedIndex(i);
+                            selectOptionAndCleanUp(option);
+                          }}
+                          onMouseEnter={() => {
+                            setHighlightedIndex(i);
+                          }}
+                          key={option.key}
+                          option={option}
+                        />
+                      ))}
+                    </ul>
+                  </div>,
+                  anchorElementRef.current,
+                )
+              : null
+          }
+        />
+      ) : null}
     </>
   );
 }
