@@ -186,108 +186,126 @@
     border-radius: 0.75rem;
   }
 
-  .post-content ul[data-lexical-list-type="check"] {
+  .post-content ul[data-lexical-list-type="check"],
+  .post-content ul[__lexicallisttype="check"] {
     list-style: none;
     padding-left: 0;
   }
 
-  .post-content ul[data-lexical-list-type="check"] li {
+  .post-content ul[data-lexical-list-type="check"] li,
+  .post-content ul[__lexicallisttype="check"] li {
     position: relative;
     padding-left: 1.75rem;
   }
 
-  .post-content ul[data-lexical-list-type="check"] li::before {
+  .post-content ul[data-lexical-list-type="check"] li::before,
+  .post-content ul[__lexicallisttype="check"] li::before {
     content: "";
     position: absolute;
     left: 0;
-    top: 0.2rem;
+    top: 50%;
     width: 0.95rem;
     height: 0.95rem;
     border: 2px solid hsl(var(--border));
     border-radius: 0.2rem;
     background: hsl(var(--background));
+    transform: translateY(-50%);
   }
 
-  .post-content ul[data-lexical-list-type="check"] li[data-lexical-checked="true"]::after {
+  .post-content ul[data-lexical-list-type="check"] li[data-lexical-checked="true"]::after,
+  .post-content ul[__lexicallisttype="check"] li[aria-checked="true"]::after {
     content: "";
     position: absolute;
     left: 0.3rem;
-    top: 0.4rem;
+    top: 50%;
     width: 0.35rem;
     height: 0.55rem;
     border-right: 2px solid hsl(var(--primary));
     border-bottom: 2px solid hsl(var(--primary));
-    transform: rotate(45deg);
+    transform: translateY(-55%) rotate(45deg);
   }
 
   .post-content ul:has([data-lexical-checked]),
-  .post-content ol:has([data-lexical-checked]) {
+  .post-content ol:has([data-lexical-checked]),
+  .post-content ul:has([aria-checked]),
+  .post-content ol:has([aria-checked]) {
     list-style: none;
     padding-left: 0;
   }
 
-  .post-content [data-lexical-checked] {
+  .post-content [data-lexical-checked],
+  .post-content [aria-checked] {
     list-style: none;
     position: relative;
     padding-left: 1.75rem;
     display: block;
   }
 
-  .post-content [data-lexical-checked]::before {
+  .post-content [data-lexical-checked]::before,
+  .post-content [aria-checked]::before {
     content: "";
     position: absolute;
     left: 0;
-    top: 0.2rem;
+    top: 50%;
     width: 0.95rem;
     height: 0.95rem;
     border: 2px solid hsl(var(--border));
     border-radius: 0.2rem;
     background: hsl(var(--background));
+    transform: translateY(-50%);
   }
 
-  .post-content [data-lexical-checked="true"]::after {
+  .post-content [data-lexical-checked="true"]::after,
+  .post-content [aria-checked="true"]::after {
     content: "";
     position: absolute;
     left: 0.3rem;
-    top: 0.4rem;
+    top: 50%;
     width: 0.35rem;
     height: 0.55rem;
     border-right: 2px solid hsl(var(--primary));
     border-bottom: 2px solid hsl(var(--primary));
-    transform: rotate(45deg);
+    transform: translateY(-55%) rotate(45deg);
   }
 
   .post-content ul li[data-lexical-checked],
-  .post-content ol li[data-lexical-checked] {
+  .post-content ol li[data-lexical-checked],
+  .post-content ul li[aria-checked],
+  .post-content ol li[aria-checked] {
     list-style: none;
     position: relative;
     padding-left: 1.75rem;
   }
 
   .post-content ul li[data-lexical-checked]::before,
-  .post-content ol li[data-lexical-checked]::before {
+  .post-content ol li[data-lexical-checked]::before,
+  .post-content ul li[aria-checked]::before,
+  .post-content ol li[aria-checked]::before {
     content: "";
     position: absolute;
     left: 0;
-    top: 0.2rem;
+    top: 50%;
     width: 0.95rem;
     height: 0.95rem;
     border: 2px solid hsl(var(--border));
     border-radius: 0.2rem;
     background: hsl(var(--background));
+    transform: translateY(-50%);
   }
 
   .post-content ul li[data-lexical-checked="true"]::after,
-  .post-content ol li[data-lexical-checked="true"]::after {
+  .post-content ol li[data-lexical-checked="true"]::after,
+  .post-content ul li[aria-checked="true"]::after,
+  .post-content ol li[aria-checked="true"]::after {
     content: "";
     position: absolute;
     left: 0.3rem;
-    top: 0.4rem;
+    top: 50%;
     width: 0.35rem;
     height: 0.55rem;
     border-right: 2px solid hsl(var(--primary));
     border-bottom: 2px solid hsl(var(--primary));
-    transform: rotate(45deg);
+    transform: translateY(-55%) rotate(45deg);
   }
 
 

@@ -32,9 +32,8 @@ import {
   X,
   UserRound,
 } from "lucide-react";
-import { createSlug, renderPostContent, stripHtml } from "@/lib/post-content";
+import { createSlug, getLexicalText } from "@/lib/post-content";
 import LexicalEditor, { type LexicalEditorHandle } from "@/components/lexical/LexicalEditor";
-import { htmlToLexicalJson } from "@/lib/lexical/serialize";
 import type { Project } from "@/data/projects";
 import ProjectEmbedCard from "@/components/ProjectEmbedCard";
 import { getApiBase } from "@/lib/api-base";
@@ -50,7 +49,6 @@ const emptyForm = {
   slug: "",
   excerpt: "",
   contentLexical: "",
-  contentFormat: "lexical" as const,
   author: "",
   coverImageUrl: "",
   coverAlt: "",
@@ -96,7 +94,7 @@ type PostRecord = {
   coverAlt?: string | null;
   excerpt: string;
   content: string;
-  contentFormat: "markdown" | "html" | "lexical";
+  contentFormat?: "lexical";
   author: string;
   publishedAt: string;
   scheduledAt?: string | null;
@@ -139,7 +137,6 @@ const DashboardPosts = () => {
   const [formState, setFormState] = useState(emptyForm);
   const [isSlugCustom, setIsSlugCustom] = useState(false);
   const [isLibraryOpen, setIsLibraryOpen] = useState(false);
-  const [imageTarget, setImageTarget] = useState<"editor" | "cover">("editor");
   const [sortMode, setSortMode] = useState<"recent" | "alpha" | "tags" | "projects" | "status" | "views" | "comments">("recent");
   const [searchQuery, setSearchQuery] = useState("");
   const [projectFilterId, setProjectFilterId] = useState<string>("all");
@@ -149,11 +146,6 @@ const DashboardPosts = () => {
   const tagInputRef = useRef<HTMLInputElement | null>(null);
   const [tagOrder, setTagOrder] = useState<string[]>([]);
   const [draggedTag, setDraggedTag] = useState<string | null>(null);
-  const [isLinkDialogOpen, setIsLinkDialogOpen] = useState(false);
-  const [linkUrl, setLinkUrl] = useState("");
-  const [linkText, setLinkText] = useState("");
-  const [isVideoDialogOpen, setIsVideoDialogOpen] = useState(false);
-  const [videoUrl, setVideoUrl] = useState("");
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [confirmTitle, setConfirmTitle] = useState("Sair da edição?");
   const [confirmDescription, setConfirmDescription] = useState(
@@ -374,21 +366,12 @@ const DashboardPosts = () => {
   const openEdit = (post: PostRecord) => {
     setEditingPost(post);
     setIsSlugCustom(true);
-    const baseContent = post.content || "";
-    const lexicalContent =
-      post.contentFormat === "lexical"
-        ? baseContent
-        : htmlToLexicalJson(
-            post.contentFormat === "markdown"
-              ? renderPostContent(baseContent, "markdown")
-              : baseContent,
-          );
+    const lexicalContent = post.content || "";
     setFormState({
       title: post.title || "",
       slug: post.slug || "",
       excerpt: post.excerpt || "",
       contentLexical: lexicalContent,
-      contentFormat: "lexical",
       author: post.author || "",
       coverImageUrl: post.coverImageUrl || "",
       coverAlt: post.coverAlt || "",
@@ -711,36 +694,17 @@ const DashboardPosts = () => {
     setDraggedTag(null);
   };
 
-  const insertImageToContent = useCallback((url: string, altText?: string) => {
-    editorRef.current?.insertImage({
-      src: url,
-      altText: altText || "Imagem",
-      width: "100%",
-      align: "center",
-    });
-  }, []);
-
-
-
-  const openLibrary = (target: "editor" | "cover") => {
-    setImageTarget(target);
+  const openLibrary = () => {
     setIsLibraryOpen(true);
   };
 
-  const handleLibrarySelect = useCallback(
-    (url: string, altText?: string) => {
-      if (imageTarget === "cover") {
-        setFormState((prev) => ({
-          ...prev,
-          coverImageUrl: url,
-          coverAlt: prev.coverAlt || altText || prev.title || "Capa",
-        }));
-        return;
-      }
-      insertImageToContent(url, altText || "Imagem");
-    },
-    [imageTarget, insertImageToContent],
-  );
+  const handleLibrarySelect = useCallback((url: string, altText?: string) => {
+    setFormState((prev) => ({
+      ...prev,
+      coverImageUrl: url,
+      coverAlt: prev.coverAlt || altText || prev.title || "Capa",
+    }));
+  }, []);
 
 
 
@@ -766,12 +730,11 @@ const DashboardPosts = () => {
     }
     const resolvedPublishedAt =
       resolvedStatus === "published" ? new Date().toISOString() : publishAtValue;
-    const contentHtml = renderPostContent(formState.contentLexical, "lexical");
-    const seoDescription = stripHtml(contentHtml).trim().slice(0, 150);
+    const lexicalText = getLexicalText(formState.contentLexical);
+    const seoDescription = lexicalText.trim().slice(0, 150);
     const coverImageUrl = formState.coverImageUrl.trim() || null;
     const coverAlt = formState.coverAlt.trim() || "";
-    const excerpt =
-      formState.excerpt.trim() || stripHtml(contentHtml).trim().slice(0, 160);
+    const excerpt = formState.excerpt.trim() || lexicalText.trim().slice(0, 160);
     const rawTagInput = tagInputRef.current?.value ?? tagInput;
     const pendingTags = rawTagInput
       .split(",")
@@ -905,40 +868,6 @@ const DashboardPosts = () => {
     toast({ title: "Postagem restaurada" });
   };
 
-  const openLinkDialog = () => {
-    setIsLinkDialogOpen(true);
-  };
-
-  const handleInsertLink = () => {
-    const trimmedUrl = linkUrl.trim();
-    if (!trimmedUrl) {
-      return;
-    }
-    const text = (linkText || trimmedUrl).trim();
-    editorRef.current?.insertLink(trimmedUrl, text);
-    setLinkUrl("");
-    setLinkText("");
-    setIsLinkDialogOpen(false);
-  };
-
-  const openVideoDialog = () => {
-    setIsVideoDialogOpen(true);
-  };
-
-  const handleInsertVideo = () => {
-    const url = videoUrl.trim();
-    if (!url) {
-      return;
-    }
-    const embedUrl = url.includes("youtube.com")
-      ? url.replace("watch?v=", "embed/")
-      : url.includes("youtu.be/")
-        ? url.replace("youtu.be/", "youtube.com/embed/")
-        : url;
-    editorRef.current?.insertVideo({ src: embedUrl, title: "Video" });
-    setVideoUrl("");
-    setIsVideoDialogOpen(false);
-  };
 
   return (
     <>
@@ -1018,7 +947,7 @@ const DashboardPosts = () => {
                 className="mt-10 space-y-8"
                 onFocusCapture={(event) => {
                   const target = event.target as HTMLElement | null;
-                  if (target?.closest(".lexical-editor")) {
+                  if (target?.closest(".lexical-playground")) {
                     return;
                   }
                   editorRef.current?.blur();
@@ -1032,13 +961,10 @@ const DashboardPosts = () => {
                       setFormState((prev) => ({
                         ...prev,
                         contentLexical: value,
-                        contentFormat: "lexical",
                       }))
                     }
-                    onRequestImage={() => openLibrary("editor")}
-                    onRequestLink={openLinkDialog}
-                    onRequestVideo={openVideoDialog}
                     placeholder="Escreva o conteúdo do post..."
+                    className="lexical-playground--stretch"
                   />
 
                   <aside className="space-y-6">
@@ -1206,7 +1132,7 @@ const DashboardPosts = () => {
                           ) : (
                             <p className="text-xs text-muted-foreground">Sem capa definida.</p>
                           )}
-                          <Button type="button" variant="outline" size="sm" onClick={() => openLibrary("cover")}>
+                          <Button type="button" variant="outline" size="sm" onClick={openLibrary}>
                             Biblioteca
                           </Button>
                         </div>
@@ -1572,21 +1498,10 @@ const DashboardPosts = () => {
         apiBase={apiBase}
         description="Escolha uma imagem ja enviada ou use capas/banners de projetos."
         listFolders={[""]}
-        showAltInput={imageTarget === "editor"}
-        allowDeselect={imageTarget === "cover"}
-        selectOnUpload={imageTarget === "cover"}
-        highlightOnUpload={imageTarget === "editor"}
-        applyHighlightedOnClose={imageTarget === "editor"}
-        onApplyHighlighted={(urls) => {
-          if (imageTarget !== "editor") {
-            return;
-          }
-          const ordered = [...urls].reverse();
-          ordered.forEach((url) => {
-            insertImageToContent(url, "Imagem");
-          });
-        }}
-        currentSelectionUrl={imageTarget === "cover" ? formState.coverImageUrl : undefined}
+        showAltInput={false}
+        allowDeselect
+        selectOnUpload
+        currentSelectionUrl={formState.coverImageUrl}
         onSelect={handleLibrarySelect}
         sections={[
           {
@@ -1595,52 +1510,6 @@ const DashboardPosts = () => {
           },
         ]}
       />
-
-      <Dialog open={isLinkDialogOpen} onOpenChange={setIsLinkDialogOpen}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Inserir link</DialogTitle>
-            <DialogDescription>Adicione um hyperlink no conteúdo.</DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label>URL</Label>
-              <Input value={linkUrl} onChange={(event) => setLinkUrl(event.target.value)} />
-            </div>
-            <div className="space-y-2">
-              <Label>Texto</Label>
-              <Input value={linkText} onChange={(event) => setLinkText(event.target.value)} />
-            </div>
-            <div className="flex justify-end gap-3">
-              <Button variant="ghost" onClick={() => setIsLinkDialogOpen(false)}>
-                Cancelar
-              </Button>
-              <Button onClick={handleInsertLink}>Inserir link</Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={isVideoDialogOpen} onOpenChange={setIsVideoDialogOpen}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Incorporar vídeo</DialogTitle>
-            <DialogDescription>Cole o link do YouTube ou Vimeo.</DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label>URL do vídeo</Label>
-              <Input value={videoUrl} onChange={(event) => setVideoUrl(event.target.value)} />
-            </div>
-            <div className="flex justify-end gap-3">
-              <Button variant="ghost" onClick={() => setIsVideoDialogOpen(false)}>
-                Cancelar
-              </Button>
-              <Button onClick={handleInsertVideo}>Inserir vídeo</Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
 
       <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
         <DialogContent className="max-w-md">

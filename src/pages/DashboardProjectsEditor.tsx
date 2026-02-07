@@ -43,13 +43,12 @@ import {
   HardDrive,
   Link2,
 } from "lucide-react";
-import { createSlug, renderPostContent } from "@/lib/post-content";
+import { createSlug } from "@/lib/post-content";
 import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
 import { isChapterBasedType, isLightNovelType, isMangaType } from "@/lib/project-utils";
 import { usePageMeta } from "@/hooks/use-page-meta";
 import LexicalEditor, { type LexicalEditorHandle } from "@/components/lexical/LexicalEditor";
-import { htmlToLexicalJson } from "@/lib/lexical/serialize";
 import { useSiteSettings } from "@/hooks/use-site-settings";
 
 type ProjectRelation = {
@@ -85,7 +84,7 @@ type ProjectEpisode = {
   progressStage?: string;
   completedStages?: string[];
   content?: string;
-  contentFormat?: "markdown" | "html" | "lexical";
+  contentFormat?: "lexical";
   chapterUpdatedAt?: string;
 };
 
@@ -352,50 +351,29 @@ const generateLocalId = () => {
 
 type EpisodeContentEditorProps = {
   value: string;
-  format: "markdown" | "html" | "lexical";
   onChange: (value: string) => void;
-  onFormatChange: (value: "lexical") => void;
-  onOpenImageLibrary?: () => void;
   onRegister?: (handlers: LexicalEditorHandle | null) => void;
 };
 
 const EpisodeContentEditor = ({
   value,
-  format,
   onChange,
-  onFormatChange,
-  onOpenImageLibrary,
   onRegister,
 }: EpisodeContentEditorProps) => {
   const editorRef = useRef<LexicalEditorHandle | null>(null);
-  const lexicalValue = useMemo(() => {
-    if (format === "lexical") {
-      return value;
-    }
-    const html = format === "markdown" ? renderPostContent(value, "markdown") : value;
-    return htmlToLexicalJson(html);
-  }, [format, value]);
-
-  useEffect(() => {
-    if (format !== "lexical") {
-      onChange(lexicalValue);
-      onFormatChange("lexical");
-    }
-  }, [format, lexicalValue, onChange, onFormatChange]);
 
   useEffect(() => {
     if (!onRegister) {
       return;
     }
     onRegister(editorRef.current);
-  }, [onRegister, lexicalValue]);
+  }, [onRegister]);
 
   return (
     <LexicalEditor
       ref={editorRef}
-      value={lexicalValue}
+      value={value}
       onChange={onChange}
-      onRequestImage={onOpenImageLibrary}
       placeholder="Escreva o capítulo..."
     />
   );
@@ -521,10 +499,9 @@ const DashboardProjectsEditor = () => {
   const [collapsedEpisodes, setCollapsedEpisodes] = useState<Record<number, boolean>>({});
   const [isLibraryOpen, setIsLibraryOpen] = useState(false);
   const [libraryTarget, setLibraryTarget] = useState<
-    "chapter" | "cover" | "banner" | "hero" | "episode-cover"
-  >("chapter");
+    "cover" | "banner" | "hero" | "episode-cover"
+  >("cover");
   const [episodeCoverIndex, setEpisodeCoverIndex] = useState<number | null>(null);
-  const [activeChapterIndex, setActiveChapterIndex] = useState<number | null>(null);
   const [libraryFolder, setLibraryFolder] = useState<string>("");
   const chapterEditorsRef = useRef<Record<number, LexicalEditorHandle | null>>({});
 
@@ -657,26 +634,7 @@ const DashboardProjectsEditor = () => {
     });
   }, [formState.episodeDownloads, isChapterBased, sortedEpisodeDownloads]);
 
-  const insertImageToChapter = (url: string, altText?: string) => {
-    if (activeChapterIndex === null) {
-      return;
-    }
-    const editor = chapterEditorsRef.current[activeChapterIndex];
-    if (editor) {
-      editor.insertImage({
-        src: url,
-        altText: altText || "Imagem",
-        width: "100%",
-        align: "center",
-      });
-    }
-  };
-
-  const applyLibraryImage = (url: string, altText?: string) => {
-    if (libraryTarget === "chapter") {
-      insertImageToChapter(url, altText);
-      return;
-    }
+  const applyLibraryImage = (url: string, _altText?: string) => {
     setFormState((prev) => {
       const next = { ...prev };
       if (libraryTarget === "cover") {
@@ -701,15 +659,6 @@ const DashboardProjectsEditor = () => {
       }
       return next;
     });
-  };
-
-
-  const openLibraryForChapter = (index: number) => {
-    setActiveChapterIndex(index);
-    const projectSlug = formState.id?.trim() || createSlug(formState.title.trim());
-    setLibraryFolder(projectSlug ? `light-novel/${projectSlug}` : "light-novel");
-    setLibraryTarget("chapter");
-    setIsLibraryOpen(true);
   };
 
   const openLibraryForProjectImage = (target: "cover" | "banner" | "hero") => {
@@ -781,7 +730,7 @@ const DashboardProjectsEditor = () => {
   useEffect(() => {
     if (!isLibraryOpen) {
       setLibraryFolder("");
-      setLibraryTarget("chapter");
+      setLibraryTarget("cover");
       setEpisodeCoverIndex(null);
     }
   }, [isLibraryOpen]);
@@ -943,19 +892,11 @@ const DashboardProjectsEditor = () => {
 
   const openEdit = (project: ProjectRecord) => {
     const initialEpisodes = Array.isArray(project.episodeDownloads)
-      ? project.episodeDownloads.map((episode) => {
-          const format = episode.contentFormat || "markdown";
-          if (format === "lexical") {
-            return episode;
-          }
-          const baseContent = episode.content || "";
-          const html = format === "markdown" ? renderPostContent(baseContent, "markdown") : baseContent;
-          return {
-            ...episode,
-            content: htmlToLexicalJson(html),
-            contentFormat: "lexical",
-          };
-        })
+      ? project.episodeDownloads.map((episode) => ({
+          ...episode,
+          content: episode.content || "",
+          contentFormat: "lexical",
+        }))
       : [];
     const mergedSynopsis = project.synopsis || project.description || "";
     setEditingProject(project);
@@ -1668,8 +1609,23 @@ const DashboardProjectsEditor = () => {
           </main>
       </DashboardShell>
 
-      <Dialog open={isEditorOpen} onOpenChange={setIsEditorOpen}>
-        <DialogContent className="max-w-5xl max-h-[92vh] overflow-y-auto">
+      <Dialog open={isEditorOpen} onOpenChange={setIsEditorOpen} modal={false}>
+        <DialogContent
+          className="max-w-5xl max-h-[92vh] overflow-y-auto"
+          disableOutsidePointerEvents={false}
+          onPointerDownOutside={(event) => {
+            const target = event.target as HTMLElement | null;
+            if (target?.closest(".lexical-playground")) {
+              event.preventDefault();
+            }
+          }}
+          onInteractOutside={(event) => {
+            const target = event.target as HTMLElement | null;
+            if (target?.closest(".lexical-playground")) {
+              event.preventDefault();
+            }
+          }}
+        >
           <DialogHeader>
             <DialogTitle>{editingProject ? "Editar projeto" : "Novo projeto"}</DialogTitle>
             <DialogDescription>
@@ -2249,7 +2205,7 @@ const DashboardProjectsEditor = () => {
                       const target = event.target as HTMLElement | null;
                       if (
                         target?.closest(
-                          "button, a, input, textarea, select, option, [data-no-toggle], [contenteditable='true'], .lexical-editor",
+                          "button, a, input, textarea, select, option, [data-no-toggle], [contenteditable='true'], .lexical-playground",
                         )
                       ) {
                         return;
@@ -2259,7 +2215,7 @@ const DashboardProjectsEditor = () => {
                       const focusNode = selection?.focusNode as HTMLElement | null;
                       if (
                         selection?.type === "Range" &&
-                        (anchorNode?.closest?.(".lexical-editor") || focusNode?.closest?.(".lexical-editor"))
+                        (anchorNode?.closest?.(".lexical-playground") || focusNode?.closest?.(".lexical-playground"))
                       ) {
                         return;
                       }
@@ -2477,7 +2433,7 @@ const DashboardProjectsEditor = () => {
                           className="mt-3"
                           onFocusCapture={(event) => {
                             const target = event.target as HTMLElement | null;
-                            if (target?.closest(".lexical-editor")) {
+                            if (target?.closest(".lexical-playground")) {
                               return;
                             }
                             const editor = chapterEditorsRef.current[index];
@@ -2486,26 +2442,17 @@ const DashboardProjectsEditor = () => {
                         >
                           <EpisodeContentEditor
                             value={episode.content || ""}
-                            format={episode.contentFormat || "lexical"}
                             onRegister={(handlers) => {
                               chapterEditorsRef.current[index] = handlers;
                             }}
-                                  onChange={(nextValue) =>
-                                    setFormState((prev) => {
-                                      const next = [...prev.episodeDownloads];
-                                      next[index] = { ...next[index], content: nextValue };
-                                      return { ...prev, episodeDownloads: next };
-                                    })
-                                  }
-                                  onFormatChange={(nextFormat) =>
-                                    setFormState((prev) => {
-                                      const next = [...prev.episodeDownloads];
-                                      next[index] = { ...next[index], contentFormat: nextFormat };
-                                      return { ...prev, episodeDownloads: next };
-                                    })
-                                  }
-                                  onOpenImageLibrary={() => openLibraryForChapter(index)}
-                                />
+                            onChange={(nextValue) =>
+                              setFormState((prev) => {
+                                const next = [...prev.episodeDownloads];
+                                next[index] = { ...next[index], content: nextValue };
+                                return { ...prev, episodeDownloads: next };
+                              })
+                            }
+                          />
                               </div>
                             </div>
                           ) : null}
@@ -2693,16 +2640,12 @@ const DashboardProjectsEditor = () => {
         open={isLibraryOpen}
         onOpenChange={setIsLibraryOpen}
         apiBase={apiBase}
-        description={
-          libraryTarget === "chapter"
-            ? "Envie novas imagens ou selecione uma existente para inserir no capítulo."
-            : "Envie novas imagens ou selecione uma existente para usar no projeto."
-        }
+        description="Envie novas imagens ou selecione uma existente para usar no projeto."
         uploadFolder={libraryFolder || undefined}
         listFolders={[""]}
-        showAltInput={libraryTarget === "chapter"}
-        allowDeselect={libraryTarget !== "chapter"}
-        selectOnUpload={libraryTarget !== "chapter"}
+        showAltInput={false}
+        allowDeselect
+        selectOnUpload
         currentSelectionUrl={currentLibrarySelection || undefined}
         onSelect={(url, altText) => applyLibraryImage(url, altText)}
       />

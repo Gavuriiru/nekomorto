@@ -527,6 +527,74 @@ const writePosts = (posts) => {
   fs.writeFileSync(filePath, JSON.stringify(normalizeUploadsDeep(posts), null, 2));
 };
 
+const updateLexicalPollVotes = (
+  content,
+  { question, optionUid, voterId, checked },
+) => {
+  if (!content || typeof content !== "string") {
+    return { updated: false };
+  }
+  let parsed = null;
+  try {
+    parsed = JSON.parse(content);
+  } catch {
+    return { updated: false };
+  }
+  if (!parsed || typeof parsed !== "object") {
+    return { updated: false };
+  }
+  const safeQuestion = typeof question === "string" ? question : null;
+  const safeOptionUid = String(optionUid || "").trim();
+  const safeVoterId = String(voterId || "").trim();
+  if (!safeOptionUid || !safeVoterId) {
+    return { updated: false };
+  }
+  let updated = false;
+
+  const updateNode = (node) => {
+    if (!node || typeof node !== "object") {
+      return;
+    }
+    if (node.type === "poll" && Array.isArray(node.options)) {
+      if (safeQuestion && node.question !== safeQuestion) {
+        // continue searching
+      } else {
+        const option = node.options.find(
+          (entry) => entry && entry.uid === safeOptionUid,
+        );
+        if (option) {
+          const votes = Array.isArray(option.votes)
+            ? option.votes.filter((vote) => typeof vote === "string")
+            : [];
+          const hasVote = votes.includes(safeVoterId);
+          const shouldCheck =
+            typeof checked === "boolean" ? checked : !hasVote;
+          if (shouldCheck && !hasVote) {
+            votes.push(safeVoterId);
+            option.votes = votes;
+            updated = true;
+          } else if (!shouldCheck && hasVote) {
+            option.votes = votes.filter((vote) => vote !== safeVoterId);
+            updated = true;
+          }
+          return;
+        }
+      }
+    }
+    if (Array.isArray(node.children)) {
+      node.children.forEach(updateNode);
+    }
+  };
+
+  updateNode(parsed.root || parsed);
+
+  if (!updated) {
+    return { updated: false };
+  }
+
+  return { updated: true, content: JSON.stringify(parsed) };
+};
+
 const projectsFilePath = path.join(__dirname, "data", "projects.json");
 const updatesFilePath = path.join(__dirname, "data", "updates.json");
 const uploadsFilePath = path.join(__dirname, "data", "uploads.json");
@@ -1167,6 +1235,24 @@ const canRegisterView = (ip) => {
   }
   entry.count += 1;
   viewRateLimit.set(ip, entry);
+  return entry.count <= maxPerWindow;
+};
+
+const pollVoteRateLimit = new Map();
+const canRegisterPollVote = (ip) => {
+  if (!ip) {
+    return true;
+  }
+  const now = Date.now();
+  const windowMs = 60 * 1000;
+  const maxPerWindow = isProduction ? 20 : 120;
+  const entry = pollVoteRateLimit.get(ip) || { count: 0, resetAt: now + windowMs };
+  if (now > entry.resetAt) {
+    entry.count = 0;
+    entry.resetAt = now + windowMs;
+  }
+  entry.count += 1;
+  pollVoteRateLimit.set(ip, entry);
   return entry.count <= maxPerWindow;
 };
 const createSlug = (value) =>
@@ -2098,6 +2184,39 @@ app.post("/api/public/posts/:slug/view", (req, res) => {
   }
   const updated = incrementPostViews(slug);
   return res.json({ views: updated?.views ?? post.views ?? 0 });
+});
+
+app.post("/api/public/posts/:slug/polls/vote", (req, res) => {
+  const ip = req.headers["x-forwarded-for"]?.split(",")[0]?.trim() || req.ip;
+  if (!canRegisterPollVote(ip)) {
+    return res.status(429).json({ error: "rate_limited" });
+  }
+  const slug = String(req.params.slug || "");
+  const { optionUid, voterId, checked, question } = req.body || {};
+  if (!optionUid || !voterId) {
+    return res.status(400).json({ error: "invalid_payload" });
+  }
+  const posts = normalizePosts(loadPosts());
+  const index = posts.findIndex((post) => post.slug === slug);
+  if (index === -1) {
+    return res.status(404).json({ error: "not_found" });
+  }
+  const post = posts[index];
+  const result = updateLexicalPollVotes(post.content, {
+    question,
+    optionUid,
+    voterId,
+    checked,
+  });
+  if (!result.updated || !result.content) {
+    return res.status(404).json({ error: "poll_not_found" });
+  }
+  posts[index] = {
+    ...post,
+    content: result.content,
+  };
+  writePosts(posts);
+  return res.json({ ok: true });
 });
 
 app.get("/api/public/comments", (req, res) => {
@@ -3041,6 +3160,63 @@ app.get("/api/public/projects/:id/chapters/:number", (req, res) => {
       contentFormat: chapter.contentFormat || "markdown",
     },
   });
+});
+
+app.post("/api/public/projects/:id/chapters/:number/polls/vote", (req, res) => {
+  const ip = req.headers["x-forwarded-for"]?.split(",")[0]?.trim() || req.ip;
+  if (!canRegisterPollVote(ip)) {
+    return res.status(429).json({ error: "rate_limited" });
+  }
+  const id = String(req.params.id || "");
+  const chapterNumber = Number(req.params.number);
+  const volume = req.query.volume ? Number(req.query.volume) : null;
+  const { optionUid, voterId, checked, question } = req.body || {};
+  if (!Number.isFinite(chapterNumber)) {
+    return res.status(400).json({ error: "invalid_chapter" });
+  }
+  if (!optionUid || !voterId) {
+    return res.status(400).json({ error: "invalid_payload" });
+  }
+  const projects = normalizeProjects(loadProjects());
+  const projectIndex = projects.findIndex((item) => item.id === id);
+  if (projectIndex === -1) {
+    return res.status(404).json({ error: "not_found" });
+  }
+  const project = projects[projectIndex];
+  const chapterIndex = project.episodeDownloads.findIndex((episode) => {
+    if (Number(episode.number) !== chapterNumber) {
+      return false;
+    }
+    if (Number.isFinite(volume)) {
+      return Number(episode.volume || 0) === volume;
+    }
+    return true;
+  });
+  if (chapterIndex === -1) {
+    return res.status(404).json({ error: "not_found" });
+  }
+  const chapter = project.episodeDownloads[chapterIndex];
+  const result = updateLexicalPollVotes(chapter.content, {
+    question,
+    optionUid,
+    voterId,
+    checked,
+  });
+  if (!result.updated || !result.content) {
+    return res.status(404).json({ error: "poll_not_found" });
+  }
+  const updatedChapter = {
+    ...chapter,
+    content: result.content,
+  };
+  const updatedEpisodes = [...project.episodeDownloads];
+  updatedEpisodes[chapterIndex] = updatedChapter;
+  projects[projectIndex] = {
+    ...project,
+    episodeDownloads: updatedEpisodes,
+  };
+  writeProjects(projects);
+  return res.json({ ok: true });
 });
 
 app.get("/api/public/updates", (req, res) => {

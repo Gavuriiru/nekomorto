@@ -1,0 +1,14 @@
+.rainbow-color-picker-panel {
+  width: 214px;
+  box-sizing: border-box;
+  padding: 0;
+}
+
+.rainbow-color-picker-panel > * {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.rainbow-color-picker-panel > *:not(:first-child) {
+  margin-top: 12px;
+}

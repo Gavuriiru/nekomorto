@@ -9,7 +9,8 @@ import ProjectEmbedCard from "@/components/ProjectEmbedCard";
 import CommentsSection from "@/components/CommentsSection";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
-import { estimateReadTime, renderPostContent } from "@/lib/post-content";
+import { estimateReadTime } from "@/lib/post-content";
+import LexicalViewer from "@/components/lexical/LexicalViewer";
 import { normalizeAssetUrl } from "@/lib/asset-url";
 import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
@@ -28,7 +29,7 @@ const Post = () => {
     coverAlt?: string | null;
     excerpt: string;
     content: string;
-  contentFormat: "markdown" | "html" | "lexical";
+    contentFormat?: "lexical";
     author: string;
     publishedAt: string;
     views: number;
@@ -115,14 +116,7 @@ const Post = () => {
     if (!post) {
       return "";
     }
-    return estimateReadTime(post.content || post.excerpt, post.contentFormat || "markdown");
-  }, [post]);
-
-  const htmlContent = useMemo(() => {
-    if (!post) {
-      return "";
-    }
-    return renderPostContent(post.content || post.excerpt, post.contentFormat || "markdown");
+    return estimateReadTime(post.content || "");
   }, [post]);
   const coverUrl = useMemo(() => normalizeAssetUrl(post?.coverImageUrl), [post?.coverImageUrl]);
 
@@ -181,9 +175,10 @@ const Post = () => {
                 <article className="space-y-8">
                   <Card className="border-border bg-card shadow-sm">
                     <CardContent className="space-y-7 p-6 text-sm leading-relaxed text-muted-foreground">
-                      <div
+                      <LexicalViewer
+                        value={post.content || ""}
                         className="post-content reader-content space-y-4 text-muted-foreground"
-                        dangerouslySetInnerHTML={{ __html: htmlContent }}
+                        pollTarget={post?.slug ? { type: "post", slug: post.slug } : undefined}
                       />
                     </CardContent>
                   </Card>

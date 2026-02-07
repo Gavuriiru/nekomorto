@@ -11,7 +11,7 @@ import WorkStatusCard from "@/components/WorkStatusCard";
 import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
 import { isLightNovelType } from "@/lib/project-utils";
-import { renderPostContent } from "@/lib/post-content";
+import LexicalViewer from "@/components/lexical/LexicalViewer";
 import CommentsSection from "@/components/CommentsSection";
 import { usePageMeta } from "@/hooks/use-page-meta";
 import NotFound from "./NotFound";
@@ -28,7 +28,7 @@ const ProjectReading = () => {
     title?: string;
     synopsis?: string;
     content?: string;
-    contentFormat?: "markdown" | "html" | "lexical";
+    contentFormat?: "lexical";
   } | null>(null);
   const [hasLoaded, setHasLoaded] = useState(false);
 
@@ -168,9 +168,7 @@ const ProjectReading = () => {
     };
   }, [apiBase, project, chapterNumber, volumeParam]);
 
-  const htmlContent = chapterContent
-    ? renderPostContent(chapterContent.content || "", chapterContent.contentFormat || "markdown")
-    : "";
+  const chapterLexical = chapterContent?.content || "";
 
   if (!slug || (!project && hasLoaded)) {
     return <NotFound />;
@@ -245,9 +243,19 @@ const ProjectReading = () => {
                     </p>
                   ) : null}
                   {chapterContent?.content ? (
-                    <div
+                    <LexicalViewer
+                      value={chapterLexical}
                       className="post-content reader-content space-y-4 text-sm text-muted-foreground"
-                      dangerouslySetInnerHTML={{ __html: htmlContent }}
+                      pollTarget={
+                        project?.id && Number.isFinite(chapterNumber)
+                          ? {
+                              type: "chapter",
+                              projectId: project.id,
+                              chapterNumber: chapterData?.number ?? chapterNumber,
+                              volume: chapterData?.volume ?? (Number.isFinite(volumeParam) ? volumeParam : undefined),
+                            }
+                          : undefined
+                      }
                     />
                   ) : (
                     <div className="rounded-xl border border-dashed border-border/60 bg-background/60 p-6 text-center text-sm text-muted-foreground">

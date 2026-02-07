@@ -90,14 +90,14 @@ const Footer = () => {
             </p>
           </div>
 
-          {footerColumns.map((column) => (
-            <div key={column.title} className="space-y-4">
+          {footerColumns.map((column, columnIndex) => (
+            <div key={`${column.title}-${columnIndex}`} className="space-y-4">
               <p className="text-sm font-semibold uppercase tracking-[0.2em] text-muted-foreground">
                 {column.title}
               </p>
               <ul className="space-y-2 text-sm">
-                {column.links.map((link) => (
-                  <li key={link.label}>
+                {column.links.map((link, linkIndex) => (
+                  <li key={`${link.label}-${link.href}-${linkIndex}`}>
                     {isInternalLink(link.href) ? (
                       <Link
                         to={link.href}
@@ -124,14 +124,14 @@ const Footer = () => {
               Siga-nos
             </p>
             <div className="space-y-2">
-              {socialLinks.map((link) => {
+              {socialLinks.map((link, linkIndex) => {
                 const iconKey = link.icon || link.label;
                 const iconValue = String(iconKey || "");
                 const Icon = iconMap[iconValue.toLowerCase()] || Globe;
                 const renderCustomIcon = isIconUrl(iconValue);
                 return (
                   <a
-                    key={link.label}
+                    key={`${link.label}-${link.href}-${linkIndex}`}
                     href={link.href}
                     className="group flex items-center gap-3 text-sm text-foreground/80 transition-colors hover:text-primary"
                     target="_blank"
