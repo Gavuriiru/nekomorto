@@ -1,4 +1,4 @@
-﻿import { useCallback, useEffect, useMemo, useState } from "react";
+﻿import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -31,6 +31,7 @@ type ImageLibraryDialogProps = {
   apiBase: string;
   title?: string;
   description?: string;
+  preload?: boolean;
   uploadFolder?: string;
   listFolders?: string[];
   listAll?: boolean;
@@ -56,6 +57,7 @@ const ImageLibraryDialog = ({
   apiBase,
   title = "Biblioteca de imagens",
   description = "Selecione uma imagem ja enviada ou envie novos arquivos.",
+  preload = false,
   uploadFolder,
   listFolders,
   listAll = true,
@@ -81,6 +83,7 @@ const ImageLibraryDialog = ({
   const [confirmDeleteUrls, setConfirmDeleteUrls] = useState<string[] | null>(null);
   const [isBulkDeleting, setIsBulkDeleting] = useState(false);
   const [isSelectionMode, setIsSelectionMode] = useState(false);
+  const hasLoadedRef = useRef(false);
 
   const folders = useMemo(() => {
     const set = new Set<string>();
@@ -100,7 +103,10 @@ const ImageLibraryDialog = ({
   }, [listAll, listFolders, uploadFolder]);
 
   const loadLibrary = useCallback(async () => {
-    setIsLoading(true);
+    const shouldShowLoading = !hasLoadedRef.current;
+    if (shouldShowLoading) {
+      setIsLoading(true);
+    }
     try {
       const responses = await Promise.all(
         folders.map((folder) => {
@@ -130,15 +136,22 @@ const ImageLibraryDialog = ({
     } catch {
       setLibraryImages([]);
     } finally {
-      setIsLoading(false);
+      if (shouldShowLoading) {
+        setIsLoading(false);
+      }
+      hasLoadedRef.current = true;
     }
   }, [apiBase, folders]);
 
   useEffect(() => {
     if (open) {
       void loadLibrary();
+      return;
     }
-  }, [open, loadLibrary]);
+    if (preload && !hasLoadedRef.current) {
+      void loadLibrary();
+    }
+  }, [open, preload, loadLibrary]);
 
   useEffect(() => {
     if (!open) {
@@ -407,7 +420,10 @@ const ImageLibraryDialog = ({
   return (
     <>
       <Dialog open={open} onOpenChange={handleOpenChange}>
-        <DialogContent className="max-w-4xl">
+        <DialogContent
+          className="flex h-[90vh] w-[92vw] max-w-4xl flex-col overflow-hidden z-[70] data-[state=open]:animate-none data-[state=closed]:animate-none"
+          overlayClassName="z-[60] data-[state=open]:animate-none data-[state=closed]:animate-none"
+        >
           <DialogHeader>
             <DialogTitle>{title}</DialogTitle>
             <DialogDescription>{description}</DialogDescription>
@@ -497,7 +513,7 @@ const ImageLibraryDialog = ({
               )}
             </div>
           </div>
-          <div className="mt-6 max-h-[420px] space-y-8 overflow-auto no-scrollbar">
+          <div className="mt-6 min-h-0 flex-1 space-y-8 overflow-auto no-scrollbar">
             <div>
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <h3 className="text-sm font-semibold text-foreground">Uploads</h3>
@@ -645,3 +661,11 @@ const ImageLibraryDialog = ({
 };
 
 export default ImageLibraryDialog;
+
+
+
+
+
+
+
+

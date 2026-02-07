@@ -504,6 +504,12 @@ const DashboardProjectsEditor = () => {
   const [episodeCoverIndex, setEpisodeCoverIndex] = useState<number | null>(null);
   const [libraryFolder, setLibraryFolder] = useState<string>("");
   const chapterEditorsRef = useRef<Record<number, LexicalEditorHandle | null>>({});
+  const handleEditorOpenChange = (next: boolean) => {
+    if (!next && isLibraryOpen) {
+      return;
+    }
+    setIsEditorOpen(next);
+  };
 
   const staffRoleOptions = useMemo(() => {
     const labels = publicSettings.teamRoles.map((role) => role.label).filter(Boolean);
@@ -1609,17 +1615,32 @@ const DashboardProjectsEditor = () => {
           </main>
       </DashboardShell>
 
-      <Dialog open={isEditorOpen} onOpenChange={setIsEditorOpen} modal={false}>
+      {isEditorOpen ? (
+        <div
+          className="pointer-events-auto fixed inset-0 z-40 bg-black/80 backdrop-blur-sm"
+          aria-hidden="true"
+        />
+      ) : null}
+
+      <Dialog open={isEditorOpen} onOpenChange={handleEditorOpenChange} modal={false}>
         <DialogContent
           className="max-w-5xl max-h-[92vh] overflow-y-auto"
           disableOutsidePointerEvents={false}
           onPointerDownOutside={(event) => {
+            if (isLibraryOpen) {
+              event.preventDefault();
+              return;
+            }
             const target = event.target as HTMLElement | null;
             if (target?.closest(".lexical-playground")) {
               event.preventDefault();
             }
           }}
           onInteractOutside={(event) => {
+            if (isLibraryOpen) {
+              event.preventDefault();
+              return;
+            }
             const target = event.target as HTMLElement | null;
             if (target?.closest(".lexical-playground")) {
               event.preventDefault();

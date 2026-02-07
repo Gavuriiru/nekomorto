@@ -727,6 +727,7 @@ const DashboardUsers = () => {
         onOpenChange={setIsLibraryOpen}
         apiBase={apiBase}
         description="Selecione uma imagem já enviada para reutilizar ou envie um novo arquivo."
+        preload
         uploadFolder="users"
         listFolders={[""]}
         showAltInput={false}
@@ -736,7 +737,10 @@ const DashboardUsers = () => {
       />
 
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="w-[92vw] max-h-[90vh] max-w-xl overflow-y-auto">
+        <DialogContent
+          className="w-[92vw] max-h-[90vh] max-w-xl overflow-y-auto"
+          overlayClassName="backdrop-blur-sm"
+        >
           <DialogHeader>
             <DialogTitle>{editingUser ? "Editar usuário" : "Adicionar usuário"}</DialogTitle>
             <DialogDescription>
