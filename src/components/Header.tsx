@@ -65,6 +65,9 @@ const Header = ({ variant = "fixed", leading, className }: HeaderProps) => {
     (wordmarkPlacement === "navbar" || wordmarkPlacement === "both");
   const recruitmentUrl = settings.navbar.recruitmentUrl || settings.community.discordUrl || "/recrutamento";
   const isRecruitmentInternal = recruitmentUrl.startsWith("/") && !recruitmentUrl.startsWith("//");
+  const headerMenuContentClass =
+    "border-white/25 bg-gradient-to-b from-black/40 via-black/25 to-black/10 text-white/90 shadow-xl backdrop-blur-sm";
+  const headerMenuItemClass = "focus:bg-white/10 focus:text-white";
 
   const projectItems = projects.map((project) => ({
     label: project.title,
@@ -434,17 +437,17 @@ const Header = ({ variant = "fixed", leading, className }: HeaderProps) => {
                 <Menu className="h-5 w-5" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-48">
-              <DropdownMenuItem asChild>
+            <DropdownMenuContent align="end" className={`w-48 ${headerMenuContentClass}`}>
+              <DropdownMenuItem asChild className={headerMenuItemClass}>
                 <Link to="/">Início</Link>
               </DropdownMenuItem>
-              <DropdownMenuItem asChild>
+              <DropdownMenuItem asChild className={headerMenuItemClass}>
                 <Link to="/projetos">Projetos</Link>
               </DropdownMenuItem>
-              <DropdownMenuItem asChild>
+              <DropdownMenuItem asChild className={headerMenuItemClass}>
                 <Link to="/equipe">Equipe</Link>
               </DropdownMenuItem>
-              <DropdownMenuItem asChild>
+              <DropdownMenuItem asChild className={headerMenuItemClass}>
                 {isRecruitmentInternal ? (
                   <Link to={recruitmentUrl}>Recrutamento</Link>
                 ) : (
@@ -453,7 +456,7 @@ const Header = ({ variant = "fixed", leading, className }: HeaderProps) => {
                   </a>
                 )}
               </DropdownMenuItem>
-              <DropdownMenuItem asChild>
+              <DropdownMenuItem asChild className={headerMenuItemClass}>
                 <Link to="/sobre">Sobre</Link>
               </DropdownMenuItem>
             </DropdownMenuContent>
@@ -476,11 +479,12 @@ const Header = ({ variant = "fixed", leading, className }: HeaderProps) => {
                   </span>
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-44">
-                <DropdownMenuItem asChild>
+              <DropdownMenuContent align="end" className={`w-44 ${headerMenuContentClass}`}>
+                <DropdownMenuItem asChild className={headerMenuItemClass}>
                   <Link to="/dashboard">Dashboard</Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem
+                  className={headerMenuItemClass}
                   onClick={async () => {
                     await apiFetch(apiBase, "/api/logout", {
                       method: "POST",
