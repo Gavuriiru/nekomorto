@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Cropper from "react-easy-crop";
-import "react-easy-crop/react-easy-crop.css";
 
 import {
   ContextMenu,
@@ -858,9 +857,7 @@ const ImageLibraryDialog = ({
               <div className="grid gap-4 lg:grid-cols-[1.4fr_0.9fr]">
                 <div className="rounded-xl border border-border/60 bg-card/60 p-3">
                   <p className="mb-3 text-sm font-medium text-foreground">Preview interativo</p>
-                  <div
-                    className="relative mx-auto h-[280px] w-[280px] overflow-hidden rounded-full border border-border/60 bg-black/20 sm:h-[320px] sm:w-[320px]"
-                  >
+                  <div className="relative mx-auto h-[280px] w-[280px] overflow-hidden rounded-full bg-black/20 sm:h-[320px] sm:w-[320px]">
                     <Cropper
                       key={`avatar-crop-main-${primarySelectedUrl}-${cropperRenderKey}`}
                       image={primarySelectedUrl}

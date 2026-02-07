@@ -3,6 +3,7 @@ import App from "./App.tsx";
 import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
 import "./index.css";
+import "react-easy-crop/react-easy-crop.css";
 
 const titleForPath = (path: string) => {
   const rules: Array<[RegExp, string]> = [

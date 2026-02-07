@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import Cropper from "react-easy-crop";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -54,12 +55,8 @@ type AvatarDisplay = {
   rotation: number;
 };
 
-type CropMediaFit = "horizontal-cover" | "vertical-cover";
-
-const DEFAULT_AVATAR_MEDIA_RATIO = 1;
 const MIN_AVATAR_ZOOM = 1;
 const MAX_AVATAR_ZOOM = 5;
-const AVATAR_RENDER_NUDGE_PX = 0.5;
 
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
 
@@ -82,33 +79,92 @@ const normalizeAvatarDisplay = (value?: Partial<AvatarDisplay> | null): AvatarDi
   };
 };
 
-const getCropMediaFit = (mediaRatio: number): CropMediaFit =>
-  mediaRatio >= 1 ? "vertical-cover" : "horizontal-cover";
+type TeamMemberAvatarProps = {
+  imageSrc: string;
+  name: string;
+  avatarDisplay?: Partial<AvatarDisplay> | null;
+};
 
-const getAvatarMediaStyleByFit = (fit: CropMediaFit) =>
-  fit === "horizontal-cover"
-    ? {
-        width: "100%",
-        height: "auto",
-        maxWidth: "none",
-        maxHeight: "none",
-      }
-    : {
-        width: "auto",
-        height: "100%",
-        maxWidth: "none",
-        maxHeight: "none",
-      };
+const TeamMemberAvatar = ({ imageSrc, name, avatarDisplay }: TeamMemberAvatarProps) => {
+  const [resolvedSrc, setResolvedSrc] = useState(imageSrc || "/placeholder.svg");
+  const [cropAreaSize, setCropAreaSize] = useState({ width: 1, height: 1 });
+  const [cropPosition, setCropPosition] = useState({ x: 0, y: 0 });
+  const normalizedDisplay = useMemo(() => normalizeAvatarDisplay(avatarDisplay), [avatarDisplay]);
 
-const toAvatarOffsetStyle = (display: AvatarDisplay) => ({
-  transform: `translate(calc(${display.x * 100}% - ${AVATAR_RENDER_NUDGE_PX}px), calc(${display.y * 100}% - ${AVATAR_RENDER_NUDGE_PX}px))`,
-  transformOrigin: "center center",
-});
+  useEffect(() => {
+    setResolvedSrc(imageSrc || "/placeholder.svg");
+    setCropAreaSize({ width: 1, height: 1 });
+  }, [imageSrc]);
 
-const toAvatarMediaStyle = (display: AvatarDisplay) => ({
-  transform: `rotate(${display.rotation}deg) scale(${display.zoom})`,
-  transformOrigin: "center center",
-});
+  useEffect(() => {
+    const safeWidth = cropAreaSize.width > 0 ? cropAreaSize.width : 1;
+    const safeHeight = cropAreaSize.height > 0 ? cropAreaSize.height : 1;
+    setCropPosition({
+      x: normalizedDisplay.x * safeWidth,
+      y: normalizedDisplay.y * safeHeight,
+    });
+  }, [cropAreaSize.height, cropAreaSize.width, normalizedDisplay.x, normalizedDisplay.y]);
+
+  return (
+    <div
+      className="absolute bottom-0 left-1/2 h-56 w-56 -translate-x-1/2 overflow-hidden rounded-full transition-transform duration-500 group-hover:scale-105 sm:h-64 sm:w-64 md:h-72 md:w-72 lg:h-80 lg:w-80"
+    >
+      <div className="pointer-events-none absolute inset-0">
+        <Cropper
+          image={resolvedSrc}
+          crop={cropPosition}
+          zoom={normalizedDisplay.zoom}
+          rotation={normalizedDisplay.rotation}
+          aspect={1}
+          cropShape="round"
+          objectFit="cover"
+          showGrid={false}
+          minZoom={MIN_AVATAR_ZOOM}
+          maxZoom={MAX_AVATAR_ZOOM}
+          zoomWithScroll={false}
+          disableAutomaticStylesInjection
+          onWheelRequest={() => false}
+          onTouchRequest={() => false}
+          onCropChange={(nextCrop) => {
+            setCropPosition((prev) =>
+              Math.abs(prev.x - nextCrop.x) < 0.05 && Math.abs(prev.y - nextCrop.y) < 0.05
+                ? prev
+                : nextCrop,
+            );
+          }}
+          onCropSizeChange={(size) => {
+            const width = Number(size?.width || 0);
+            const height = Number(size?.height || 0);
+            if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) {
+              return;
+            }
+            setCropAreaSize((prev) =>
+              Math.abs(prev.width - width) < 0.5 && Math.abs(prev.height - height) < 0.5
+                ? prev
+                : { width, height },
+            );
+          }}
+          style={{
+            containerStyle: { cursor: "default" },
+            cropAreaStyle: { border: "none", boxShadow: "none" },
+          }}
+          mediaProps={{
+            alt: name,
+            draggable: false,
+            referrerPolicy: "no-referrer",
+            crossOrigin: "anonymous",
+            onError: () => {
+              if (resolvedSrc === "/placeholder.svg") {
+                return;
+              }
+              setResolvedSrc("/placeholder.svg");
+            },
+          }}
+        />
+      </div>
+    </div>
+  );
+};
 
 const Team = () => {
   usePageMeta({ title: "Equipe" });
@@ -119,7 +175,6 @@ const Team = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [cacheBust, setCacheBust] = useState(Date.now());
   const [linkTypes, setLinkTypes] = useState<Array<{ id: string; label: string; icon: string }>>([]);
-  const [avatarRatioByMemberId, setAvatarRatioByMemberId] = useState<Record<string, number>>({});
   const [pageCopy, setPageCopy] = useState({
     heroBadge: "Equipe",
     heroTitle: "Conheça quem faz o projeto acontecer",
@@ -190,51 +245,7 @@ const Team = () => {
   };
 
   const renderMemberAvatar = (member: PublicUser, imageSrc: string) => {
-    const mediaRatio = avatarRatioByMemberId[member.id] || DEFAULT_AVATAR_MEDIA_RATIO;
-    const normalizedDisplay = normalizeAvatarDisplay(member.avatarDisplay);
-    const fit = getCropMediaFit(mediaRatio);
-    const mediaStyle = getAvatarMediaStyleByFit(fit);
-    return (
-      <div className="absolute bottom-0 left-1/2 h-56 w-56 -translate-x-1/2 overflow-hidden rounded-full transition-transform duration-500 group-hover:scale-105 sm:h-64 sm:w-64 md:h-72 md:w-72 lg:h-80 lg:w-80">
-        <div className="absolute inset-0 flex items-center justify-center" style={toAvatarOffsetStyle(normalizedDisplay)}>
-          <img
-            src={imageSrc}
-            alt={member.name}
-            referrerPolicy="no-referrer"
-            crossOrigin="anonymous"
-            onLoad={(event) => {
-              const width = event.currentTarget.naturalWidth;
-              const height = event.currentTarget.naturalHeight;
-              if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) {
-                return;
-              }
-              const ratio = width / height;
-              setAvatarRatioByMemberId((prev) => {
-                if (prev[member.id] && Math.abs(prev[member.id] - ratio) < 0.0001) {
-                  return prev;
-                }
-                return {
-                  ...prev,
-                  [member.id]: ratio,
-                };
-              });
-            }}
-            onError={(event) => {
-              const target = event.currentTarget;
-              if (target.src.includes("/placeholder.svg")) {
-                return;
-              }
-              target.src = "/placeholder.svg";
-            }}
-            className="block max-h-none max-w-none"
-            style={{
-              ...mediaStyle,
-              ...toAvatarMediaStyle(normalizedDisplay),
-            }}
-          />
-        </div>
-      </div>
-    );
+    return <TeamMemberAvatar imageSrc={imageSrc} name={member.name} avatarDisplay={member.avatarDisplay} />;
   };
 
   useEffect(() => {
@@ -596,3 +607,4 @@ const Team = () => {
 };
 
 export default Team;
+

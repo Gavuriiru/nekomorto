@@ -1,4 +1,5 @@
-﻿import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import Cropper from "react-easy-crop";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import DashboardShell from "@/components/DashboardShell";
 import ImageLibraryDialog, { type AvatarDisplay } from "@/components/ImageLibraryDialog";
@@ -63,10 +64,8 @@ type UserRecord = {
 };
 
 const defaultAvatarDisplay: AvatarDisplay = { x: 0, y: 0, zoom: 1, rotation: 0 };
-const defaultAvatarMediaRatio = 1;
 const minAvatarZoom = 1;
 const maxAvatarZoom = 5;
-const AVATAR_RENDER_NUDGE_PX = 0.5;
 
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
 
@@ -93,36 +92,6 @@ const normalizeAvatarDisplay = (value?: Partial<AvatarDisplay> | null): AvatarDi
   };
 };
 
-type CropMediaFit = "horizontal-cover" | "vertical-cover";
-
-const getCropMediaFit = (mediaRatio: number): CropMediaFit =>
-  mediaRatio >= 1 ? "vertical-cover" : "horizontal-cover";
-
-const getAvatarMediaStyleByFit = (fit: CropMediaFit) =>
-  fit === "horizontal-cover"
-    ? {
-        width: "100%",
-        height: "auto",
-        maxWidth: "none",
-        maxHeight: "none",
-      }
-    : {
-        width: "auto",
-        height: "100%",
-        maxWidth: "none",
-        maxHeight: "none",
-      };
-
-const toAvatarOffsetStyle = (display: AvatarDisplay) => ({
-  transform: `translate(calc(${display.x * 100}% - ${AVATAR_RENDER_NUDGE_PX}px), calc(${display.y * 100}% - ${AVATAR_RENDER_NUDGE_PX}px))`,
-  transformOrigin: "center center",
-});
-
-const toAvatarMediaStyle = (display: AvatarDisplay) => ({
-  transform: `rotate(${display.rotation}deg) scale(${display.zoom})`,
-  transformOrigin: "center center",
-});
-
 type DashboardAvatarProps = {
   avatarUrl?: string | null;
   avatarDisplay?: AvatarDisplay | null;
@@ -142,22 +111,28 @@ const DashboardAvatar = ({
   fallbackClassName,
   fallbackText,
 }: DashboardAvatarProps) => {
-  const [mediaRatio, setMediaRatio] = useState(defaultAvatarMediaRatio);
+  const [cropAreaSize, setCropAreaSize] = useState({ width: 1, height: 1 });
+  const [cropPosition, setCropPosition] = useState({ x: 0, y: 0 });
   const [hasError, setHasError] = useState(false);
   const hasImage = Boolean(avatarUrl) && !hasError;
   const normalizedDisplay = useMemo(
     () => normalizeAvatarDisplay(avatarDisplay),
     [avatarDisplay],
   );
-  const mediaStyle = useMemo(
-    () => getAvatarMediaStyleByFit(getCropMediaFit(mediaRatio)),
-    [mediaRatio],
-  );
 
   useEffect(() => {
     setHasError(false);
-    setMediaRatio(defaultAvatarMediaRatio);
+    setCropAreaSize({ width: 1, height: 1 });
   }, [avatarUrl]);
+
+  useEffect(() => {
+    const safeWidth = cropAreaSize.width > 0 ? cropAreaSize.width : 1;
+    const safeHeight = cropAreaSize.height > 0 ? cropAreaSize.height : 1;
+    setCropPosition({
+      x: normalizedDisplay.x * safeWidth,
+      y: normalizedDisplay.y * safeHeight,
+    });
+  }, [cropAreaSize.height, cropAreaSize.width, normalizedDisplay.x, normalizedDisplay.y]);
 
   if (!hasImage) {
     return <div className={fallbackClassName}>{fallbackText}</div>;
@@ -165,26 +140,52 @@ const DashboardAvatar = ({
 
   return (
     <div className={`${sizeClassName} ${frameClassName} relative shrink-0 overflow-hidden rounded-full`}>
-      <div className="absolute inset-0 flex items-center justify-center" style={toAvatarOffsetStyle(normalizedDisplay)}>
-        <img
-          src={String(avatarUrl)}
-          alt={name}
-          referrerPolicy="no-referrer"
-          crossOrigin="anonymous"
-          className="block max-h-none max-w-none"
-          style={{
-            ...mediaStyle,
-            ...toAvatarMediaStyle(normalizedDisplay),
+      <div className="pointer-events-none absolute inset-0">
+        <Cropper
+          image={String(avatarUrl)}
+          crop={cropPosition}
+          zoom={normalizedDisplay.zoom}
+          rotation={normalizedDisplay.rotation}
+          aspect={1}
+          cropShape="round"
+          objectFit="cover"
+          showGrid={false}
+          minZoom={minAvatarZoom}
+          maxZoom={maxAvatarZoom}
+          zoomWithScroll={false}
+          disableAutomaticStylesInjection
+          onWheelRequest={() => false}
+          onTouchRequest={() => false}
+          onCropChange={(nextCrop) => {
+            setCropPosition((prev) =>
+              Math.abs(prev.x - nextCrop.x) < 0.05 && Math.abs(prev.y - nextCrop.y) < 0.05
+                ? prev
+                : nextCrop,
+            );
           }}
-          onLoad={(event) => {
-            const width = event.currentTarget.naturalWidth;
-            const height = event.currentTarget.naturalHeight;
+          onCropSizeChange={(size) => {
+            const width = Number(size?.width || 0);
+            const height = Number(size?.height || 0);
             if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) {
               return;
             }
-            setMediaRatio(width / height);
+            setCropAreaSize((prev) =>
+              Math.abs(prev.width - width) < 0.5 && Math.abs(prev.height - height) < 0.5
+                ? prev
+                : { width, height },
+            );
           }}
-          onError={() => setHasError(true)}
+          style={{
+            containerStyle: { cursor: "default" },
+            cropAreaStyle: { border: "none", boxShadow: "none" },
+          }}
+          mediaProps={{
+            alt: name,
+            draggable: false,
+            referrerPolicy: "no-referrer",
+            crossOrigin: "anonymous",
+            onError: () => setHasError(true),
+          }}
         />
       </div>
     </div>
