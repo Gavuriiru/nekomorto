@@ -102,6 +102,13 @@
     max-height: none;
   }
 
+  .avatar-cropper-preview .image-cropper__crop-area,
+  .avatar-cropper-preview .reactEasyCrop_CropArea {
+    border-radius: 9999px;
+    border: 2px solid hsl(0 0% 100% / 0.92) !important;
+    box-shadow: 0 0 0 9999px hsl(0 0% 0% / 0.42);
+  }
+
   h1, h2, h3, h4, h5, h6 {
     @apply font-bold tracking-tight;
   }
