@@ -17,6 +17,9 @@ const FileStore = fileStoreFactory(session);
 
 const ownerIdsFilePath = path.join(__dirname, "data", "owner-ids.json");
 const auditLogFilePath = path.join(__dirname, "data", "audit-log.json");
+const analyticsEventsFilePath = path.join(__dirname, "data", "analytics-events.jsonl");
+const analyticsDailyFilePath = path.join(__dirname, "data", "analytics-daily.json");
+const analyticsMetaFilePath = path.join(__dirname, "data", "analytics-meta.json");
 const loadOwnerIds = () => {
   try {
     if (!fs.existsSync(ownerIdsFilePath)) {
@@ -288,6 +291,9 @@ const {
   PORT = 8080,
   OWNER_IDS: OWNER_IDS_ENV = "",
   BOOTSTRAP_TOKEN,
+  ANALYTICS_IP_SALT = "",
+  ANALYTICS_RETENTION_DAYS: ANALYTICS_RETENTION_DAYS_ENV = "",
+  ANALYTICS_AGG_RETENTION_DAYS: ANALYTICS_AGG_RETENTION_DAYS_ENV = "",
 } = process.env;
 
 const isProduction = process.env.NODE_ENV === "production";
@@ -303,6 +309,421 @@ const EXTRA_ORIGINS = ADMIN_ORIGINS.split(",")
   .filter(Boolean);
 const ALLOWED_ORIGINS = Array.from(new Set([...APP_ORIGINS, ...EXTRA_ORIGINS]));
 const PRIMARY_APP_ORIGIN = APP_ORIGINS[0] || "http://127.0.0.1:5173";
+const PRIMARY_APP_HOST = (() => {
+  try {
+    return new URL(PRIMARY_APP_ORIGIN).host.toLowerCase();
+  } catch {
+    return "";
+  }
+})();
+
+const parseEnvInteger = (value, fallback, min, max) => {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) {
+    return fallback;
+  }
+  return Math.min(Math.max(Math.floor(parsed), min), max);
+};
+
+const ANALYTICS_SCHEMA_VERSION = 1;
+const ANALYTICS_RETENTION_DAYS = parseEnvInteger(ANALYTICS_RETENTION_DAYS_ENV, 90, 7, 3650);
+const ANALYTICS_AGG_RETENTION_DAYS = parseEnvInteger(ANALYTICS_AGG_RETENTION_DAYS_ENV, 365, 30, 3650);
+const ANALYTICS_RETENTION_MS = ANALYTICS_RETENTION_DAYS * 24 * 60 * 60 * 1000;
+const ANALYTICS_AGG_RETENTION_MS = ANALYTICS_AGG_RETENTION_DAYS * 24 * 60 * 60 * 1000;
+const ANALYTICS_EVENT_TYPE_SET = new Set(["view", "comment_created", "comment_approved"]);
+const ANALYTICS_VIEW_RESOURCE_SET = new Set(["post", "project"]);
+const ANALYTICS_VIEW_COOLDOWN_MS = 30 * 60 * 1000;
+const ANALYTICS_META_STRING_MAX = 180;
+const analyticsViewCooldown = new Map();
+
+const parseAnalyticsTs = (value) => {
+  const ts = new Date(value || 0).getTime();
+  return Number.isFinite(ts) ? ts : null;
+};
+
+const getDayKeyFromTs = (value) => {
+  const ts = Number(value);
+  if (!Number.isFinite(ts)) {
+    return new Date().toISOString().slice(0, 10);
+  }
+  return new Date(ts).toISOString().slice(0, 10);
+};
+
+const normalizeAnalyticsTypeFilter = (value) => {
+  const normalized = String(value || "").trim().toLowerCase();
+  if (["post", "project"].includes(normalized)) {
+    return normalized;
+  }
+  return "all";
+};
+
+const parseAnalyticsRangeDays = (value) => {
+  const normalized = String(value || "").trim().toLowerCase();
+  if (normalized === "7d") return 7;
+  if (normalized === "30d") return 30;
+  if (normalized === "90d") return 90;
+  return 30;
+};
+
+const sanitizeAnalyticsText = (value) => {
+  const text = String(value || "").trim();
+  if (!text) return "";
+  if (text.length <= ANALYTICS_META_STRING_MAX) {
+    return text;
+  }
+  return `${text.slice(0, ANALYTICS_META_STRING_MAX)}...`;
+};
+
+const sanitizeUtmValue = (value) =>
+  sanitizeAnalyticsText(value)
+    .toLowerCase()
+    .replace(/[^a-z0-9._-]/g, "_")
+    .slice(0, 64);
+
+const getRequestIp = (req) => req.headers["x-forwarded-for"]?.split(",")[0]?.trim() || req.ip || "";
+
+const getVisitorHash = (req) => {
+  const ip = getRequestIp(req);
+  if (!ip) {
+    return "anonymous";
+  }
+  const salt = ANALYTICS_IP_SALT || SESSION_SECRET || "dev-analytics-salt";
+  return crypto.createHash("sha256").update(`${salt}:${ip}`).digest("hex");
+};
+
+const getRequestAcquisition = (req) => {
+  const refererHeader = String(req.headers.referer || "");
+  const fallback = {
+    referrerHost: "(direct)",
+    utm: { source: "", medium: "", campaign: "" },
+  };
+  if (!refererHeader) {
+    return fallback;
+  }
+  try {
+    const parsed = new URL(refererHeader, PRIMARY_APP_ORIGIN);
+    const host = String(parsed.host || "").trim().toLowerCase();
+    const utm = {
+      source: sanitizeUtmValue(parsed.searchParams.get("utm_source") || ""),
+      medium: sanitizeUtmValue(parsed.searchParams.get("utm_medium") || ""),
+      campaign: sanitizeUtmValue(parsed.searchParams.get("utm_campaign") || ""),
+    };
+    if (!host) {
+      return { ...fallback, utm };
+    }
+    const referrerHost = host === PRIMARY_APP_HOST ? "(internal)" : host;
+    return { referrerHost, utm };
+  } catch {
+    return fallback;
+  }
+};
+
+const sanitizeAnalyticsMeta = (value) => {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return {};
+  }
+  const allowlist = ["targetType", "targetId", "status", "action", "resourceType", "resourceId"];
+  const output = {};
+  allowlist.forEach((key) => {
+    if (!(key in value)) {
+      return;
+    }
+    output[key] = sanitizeAnalyticsText(value[key]);
+  });
+  return output;
+};
+
+const normalizeAnalyticsEvent = (event) => {
+  const eventType = String(event?.eventType || "").trim().toLowerCase();
+  const normalizedType = ANALYTICS_EVENT_TYPE_SET.has(eventType) ? eventType : "view";
+  const resourceTypeRaw = String(event?.resourceType || "").trim().toLowerCase();
+  const resourceType = resourceTypeRaw || "post";
+  return {
+    id: String(event?.id || crypto.randomUUID()),
+    ts: event?.ts || new Date().toISOString(),
+    day: String(event?.day || getDayKeyFromTs(parseAnalyticsTs(event?.ts) || Date.now())),
+    eventType: normalizedType,
+    resourceType,
+    resourceId: String(event?.resourceId || "").trim(),
+    visitorHash: String(event?.visitorHash || "anonymous"),
+    referrerHost: sanitizeAnalyticsText(event?.referrerHost || "(direct)") || "(direct)",
+    utm: {
+      source: sanitizeUtmValue(event?.utm?.source || ""),
+      medium: sanitizeUtmValue(event?.utm?.medium || ""),
+      campaign: sanitizeUtmValue(event?.utm?.campaign || ""),
+    },
+    isAuthenticated: Boolean(event?.isAuthenticated),
+    meta: sanitizeAnalyticsMeta(event?.meta || {}),
+  };
+};
+
+const loadAnalyticsEvents = () => {
+  try {
+    if (!fs.existsSync(analyticsEventsFilePath)) {
+      return [];
+    }
+    const raw = fs.readFileSync(analyticsEventsFilePath, "utf-8");
+    return raw
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter(Boolean)
+      .map((line) => {
+        try {
+          return normalizeAnalyticsEvent(JSON.parse(line));
+        } catch {
+          return null;
+        }
+      })
+      .filter(Boolean);
+  } catch {
+    return [];
+  }
+};
+
+const writeAnalyticsEvents = (events) => {
+  fs.mkdirSync(path.dirname(analyticsEventsFilePath), { recursive: true });
+  const lines = (Array.isArray(events) ? events : [])
+    .map((event) => normalizeAnalyticsEvent(event))
+    .map((event) => JSON.stringify(event));
+  fs.writeFileSync(analyticsEventsFilePath, `${lines.join("\n")}${lines.length ? "\n" : ""}`);
+};
+
+const loadAnalyticsDaily = () => {
+  try {
+    if (!fs.existsSync(analyticsDailyFilePath)) {
+      return {
+        schemaVersion: ANALYTICS_SCHEMA_VERSION,
+        generatedAt: new Date().toISOString(),
+        days: {},
+      };
+    }
+    const raw = fs.readFileSync(analyticsDailyFilePath, "utf-8");
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object") {
+      throw new Error("invalid_analytics_daily");
+    }
+    return {
+      schemaVersion: Number(parsed.schemaVersion) || ANALYTICS_SCHEMA_VERSION,
+      generatedAt: String(parsed.generatedAt || new Date().toISOString()),
+      days: parsed.days && typeof parsed.days === "object" ? parsed.days : {},
+    };
+  } catch {
+    return {
+      schemaVersion: ANALYTICS_SCHEMA_VERSION,
+      generatedAt: new Date().toISOString(),
+      days: {},
+    };
+  }
+};
+
+const writeAnalyticsDaily = (data) => {
+  fs.mkdirSync(path.dirname(analyticsDailyFilePath), { recursive: true });
+  fs.writeFileSync(
+    analyticsDailyFilePath,
+    JSON.stringify(
+      {
+        schemaVersion: ANALYTICS_SCHEMA_VERSION,
+        generatedAt: data?.generatedAt || new Date().toISOString(),
+        days: data?.days && typeof data.days === "object" ? data.days : {},
+      },
+      null,
+      2,
+    ),
+  );
+};
+
+const writeAnalyticsMeta = (value) => {
+  fs.mkdirSync(path.dirname(analyticsMetaFilePath), { recursive: true });
+  const payload = {
+    schemaVersion: ANALYTICS_SCHEMA_VERSION,
+    retentionDays: ANALYTICS_RETENTION_DAYS,
+    aggregateRetentionDays: ANALYTICS_AGG_RETENTION_DAYS,
+    updatedAt: new Date().toISOString(),
+    ...(value && typeof value === "object" ? value : {}),
+  };
+  fs.writeFileSync(analyticsMetaFilePath, JSON.stringify(payload, null, 2));
+};
+
+const ensureAnalyticsDayBucket = (days, dayKey) => {
+  if (!days[dayKey]) {
+    days[dayKey] = {
+      totals: {
+        views: 0,
+        commentsCreated: 0,
+        commentsApproved: 0,
+      },
+      byResourceType: {
+        post: { views: 0 },
+        project: { views: 0 },
+      },
+      acquisition: {
+        referrerHost: {},
+        utmSource: {},
+        utmMedium: {},
+        utmCampaign: {},
+      },
+    };
+  }
+  return days[dayKey];
+};
+
+const incrementCounter = (target, key, amount = 1) => {
+  const normalizedKey = String(key || "").trim();
+  if (!normalizedKey) {
+    return;
+  }
+  target[normalizedKey] = Number(target[normalizedKey] || 0) + amount;
+};
+
+const buildAnalyticsDailyFromEvents = (events, nowTs = Date.now()) => {
+  const cutoff = nowTs - ANALYTICS_AGG_RETENTION_MS;
+  const days = {};
+  events.forEach((event) => {
+    const ts = parseAnalyticsTs(event.ts);
+    if (ts === null || ts < cutoff) {
+      return;
+    }
+    const dayKey = getDayKeyFromTs(ts);
+    const bucket = ensureAnalyticsDayBucket(days, dayKey);
+    if (event.eventType === "view") {
+      bucket.totals.views += 1;
+      if (event.resourceType === "post" || event.resourceType === "project") {
+        bucket.byResourceType[event.resourceType].views += 1;
+      }
+      incrementCounter(bucket.acquisition.referrerHost, event.referrerHost || "(direct)");
+      if (event.utm?.source) incrementCounter(bucket.acquisition.utmSource, event.utm.source);
+      if (event.utm?.medium) incrementCounter(bucket.acquisition.utmMedium, event.utm.medium);
+      if (event.utm?.campaign) incrementCounter(bucket.acquisition.utmCampaign, event.utm.campaign);
+    }
+    if (event.eventType === "comment_created") {
+      bucket.totals.commentsCreated += 1;
+    }
+    if (event.eventType === "comment_approved") {
+      bucket.totals.commentsApproved += 1;
+    }
+  });
+  return {
+    schemaVersion: ANALYTICS_SCHEMA_VERSION,
+    generatedAt: new Date().toISOString(),
+    days,
+  };
+};
+
+const compactAnalyticsData = (nowTs = Date.now()) => {
+  const cutoff = nowTs - ANALYTICS_RETENTION_MS;
+  const compacted = loadAnalyticsEvents()
+    .filter((event) => parseAnalyticsTs(event.ts) !== null)
+    .filter((event) => parseAnalyticsTs(event.ts) >= cutoff)
+    .sort((a, b) => (parseAnalyticsTs(a.ts) || 0) - (parseAnalyticsTs(b.ts) || 0));
+  writeAnalyticsEvents(compacted);
+  const daily = buildAnalyticsDailyFromEvents(compacted, nowTs);
+  writeAnalyticsDaily(daily);
+  writeAnalyticsMeta({
+    eventCount: compacted.length,
+    lastCompactionAt: new Date().toISOString(),
+  });
+  return { events: compacted, daily };
+};
+
+const shouldRegisterAnalyticsView = (visitorHash, resourceType, resourceId, nowTs = Date.now()) => {
+  const key = `${visitorHash}|${resourceType}|${resourceId}`;
+  const previous = analyticsViewCooldown.get(key);
+  if (Number.isFinite(previous) && nowTs - previous < ANALYTICS_VIEW_COOLDOWN_MS) {
+    return false;
+  }
+  analyticsViewCooldown.set(key, nowTs);
+  if (analyticsViewCooldown.size > 20000) {
+    const expirationTs = nowTs - ANALYTICS_VIEW_COOLDOWN_MS;
+    Array.from(analyticsViewCooldown.entries()).forEach(([entryKey, ts]) => {
+      if (ts < expirationTs) {
+        analyticsViewCooldown.delete(entryKey);
+      }
+    });
+  }
+  return true;
+};
+
+const appendAnalyticsEvent = (req, payload) => {
+  try {
+    const normalizedPayload = payload && typeof payload === "object" ? payload : {};
+    const eventType = String(normalizedPayload.eventType || "").trim().toLowerCase();
+    if (!ANALYTICS_EVENT_TYPE_SET.has(eventType)) {
+      return { ok: false, reason: "invalid_event_type" };
+    }
+    const resourceType = String(normalizedPayload.resourceType || "").trim().toLowerCase();
+    const resourceId = String(normalizedPayload.resourceId || "").trim();
+    if (!resourceType || !resourceId) {
+      return { ok: false, reason: "invalid_resource" };
+    }
+    const now = new Date();
+    const visitorHash = getVisitorHash(req);
+    if (
+      eventType === "view" &&
+      ANALYTICS_VIEW_RESOURCE_SET.has(resourceType) &&
+      !shouldRegisterAnalyticsView(visitorHash, resourceType, resourceId, now.getTime())
+    ) {
+      return { ok: false, reason: "cooldown" };
+    }
+    const acquisition = getRequestAcquisition(req);
+    const event = normalizeAnalyticsEvent({
+      id: crypto.randomUUID(),
+      ts: now.toISOString(),
+      day: getDayKeyFromTs(now.getTime()),
+      eventType,
+      resourceType,
+      resourceId,
+      visitorHash,
+      referrerHost: acquisition.referrerHost,
+      utm: acquisition.utm,
+      isAuthenticated: Boolean(req.session?.user),
+      meta: sanitizeAnalyticsMeta(normalizedPayload.meta || {}),
+    });
+    const events = loadAnalyticsEvents();
+    events.push(event);
+    writeAnalyticsEvents(events);
+    const daily = buildAnalyticsDailyFromEvents(events);
+    writeAnalyticsDaily(daily);
+    return { ok: true };
+  } catch {
+    return { ok: false, reason: "error" };
+  }
+};
+
+const buildAnalyticsRange = (rangeDays, nowTs = Date.now()) => {
+  const safeDays = Number.isFinite(rangeDays) ? Math.max(1, Math.floor(rangeDays)) : 30;
+  const endDate = new Date(nowTs);
+  endDate.setUTCHours(23, 59, 59, 999);
+  const startDate = new Date(endDate);
+  startDate.setUTCDate(endDate.getUTCDate() - (safeDays - 1));
+  startDate.setUTCHours(0, 0, 0, 0);
+  const keys = [];
+  for (let index = 0; index < safeDays; index += 1) {
+    const day = new Date(startDate);
+    day.setUTCDate(startDate.getUTCDate() + index);
+    keys.push(day.toISOString().slice(0, 10));
+  }
+  return {
+    rangeDays: safeDays,
+    fromTs: startDate.getTime(),
+    toTs: endDate.getTime(),
+    dayKeys: keys,
+  };
+};
+
+const filterAnalyticsEvents = (events, fromTs, toTs, type) =>
+  events.filter((event) => {
+    const ts = parseAnalyticsTs(event.ts);
+    if (ts === null || ts < fromTs || ts > toTs) {
+      return false;
+    }
+    if (type !== "all" && event.resourceType !== type) {
+      if (event.resourceType === "comment") {
+        return String(event.meta?.targetType || "").toLowerCase() === type;
+      }
+      return false;
+    }
+    return true;
+  });
 
 const clientRootDir = path.join(__dirname, "..");
 const clientDistDir = path.join(clientRootDir, "dist");
@@ -2647,6 +3068,171 @@ app.get("/api/audit-log", requireOwner, (req, res) => {
   });
 });
 
+app.get("/api/analytics/overview", requireAuth, (req, res) => {
+  const rangeDays = parseAnalyticsRangeDays(req.query.range);
+  const type = normalizeAnalyticsTypeFilter(req.query.type);
+  const range = buildAnalyticsRange(rangeDays);
+  const events = filterAnalyticsEvents(loadAnalyticsEvents(), range.fromTs, range.toTs, type);
+  const viewEvents = events.filter((event) => event.eventType === "view");
+  const commentCreatedEvents = events.filter((event) => event.eventType === "comment_created");
+  const commentApprovedEvents = events.filter((event) => event.eventType === "comment_approved");
+  const uniqueVisitors = new Set(viewEvents.map((event) => event.visitorHash));
+
+  return res.json({
+    range: `${rangeDays}d`,
+    type,
+    from: new Date(range.fromTs).toISOString(),
+    to: new Date(range.toTs).toISOString(),
+    metrics: {
+      views: viewEvents.length,
+      uniqueViews: uniqueVisitors.size,
+      commentsCreated: commentCreatedEvents.length,
+      commentsApproved: commentApprovedEvents.length,
+    },
+  });
+});
+
+app.get("/api/analytics/timeseries", requireAuth, (req, res) => {
+  const rangeDays = parseAnalyticsRangeDays(req.query.range);
+  const type = normalizeAnalyticsTypeFilter(req.query.type);
+  const metricRaw = String(req.query.metric || "").trim().toLowerCase();
+  const metric = ["views", "unique_views", "comments"].includes(metricRaw) ? metricRaw : "views";
+  const range = buildAnalyticsRange(rangeDays);
+  const events = filterAnalyticsEvents(loadAnalyticsEvents(), range.fromTs, range.toTs, type);
+  const perDay = Object.fromEntries(
+    range.dayKeys.map((day) => [
+      day,
+      {
+        views: 0,
+        comments: 0,
+        uniqueVisitors: new Set(),
+      },
+    ]),
+  );
+  events.forEach((event) => {
+    const ts = parseAnalyticsTs(event.ts);
+    if (ts === null) {
+      return;
+    }
+    const dayKey = getDayKeyFromTs(ts);
+    if (!perDay[dayKey]) {
+      return;
+    }
+    if (event.eventType === "view") {
+      perDay[dayKey].views += 1;
+      perDay[dayKey].uniqueVisitors.add(event.visitorHash);
+      return;
+    }
+    if (event.eventType === "comment_created") {
+      perDay[dayKey].comments += 1;
+    }
+  });
+
+  return res.json({
+    range: `${rangeDays}d`,
+    type,
+    metric,
+    series: range.dayKeys.map((day) => ({
+      date: day,
+      value:
+        metric === "views"
+          ? perDay[day].views
+          : metric === "comments"
+            ? perDay[day].comments
+            : perDay[day].uniqueVisitors.size,
+    })),
+  });
+});
+
+app.get("/api/analytics/top-content", requireAuth, (req, res) => {
+  const rangeDays = parseAnalyticsRangeDays(req.query.range);
+  const type = normalizeAnalyticsTypeFilter(req.query.type);
+  const limitRaw = Number(req.query.limit);
+  const limit = Number.isFinite(limitRaw) ? Math.min(Math.max(Math.floor(limitRaw), 1), 50) : 10;
+  const range = buildAnalyticsRange(rangeDays);
+  const allEvents = filterAnalyticsEvents(loadAnalyticsEvents(), range.fromTs, range.toTs, type);
+  const viewEvents = allEvents.filter((event) => event.eventType === "view");
+  const grouped = new Map();
+  viewEvents.forEach((event) => {
+    const resourceType = event.resourceType === "project" ? "project" : "post";
+    const key = `${resourceType}:${event.resourceId}`;
+    const previous = grouped.get(key) || {
+      resourceType,
+      resourceId: event.resourceId,
+      views: 0,
+      uniqueVisitors: new Set(),
+    };
+    previous.views += 1;
+    previous.uniqueVisitors.add(event.visitorHash);
+    grouped.set(key, previous);
+  });
+
+  const postsBySlug = new Map(normalizePosts(loadPosts()).map((post) => [post.slug, post]));
+  const projectsById = new Map(normalizeProjects(loadProjects()).map((project) => [project.id, project]));
+
+  const entries = Array.from(grouped.values())
+    .map((item) => {
+      const title =
+        item.resourceType === "project"
+          ? projectsById.get(item.resourceId)?.title || `Projeto ${item.resourceId}`
+          : postsBySlug.get(item.resourceId)?.title || `Post ${item.resourceId}`;
+      return {
+        resourceType: item.resourceType,
+        resourceId: item.resourceId,
+        title,
+        views: item.views,
+        uniqueViews: item.uniqueVisitors.size,
+      };
+    })
+    .sort((a, b) => b.views - a.views)
+    .slice(0, limit);
+
+  return res.json({
+    range: `${rangeDays}d`,
+    type,
+    limit,
+    entries,
+  });
+});
+
+app.get("/api/analytics/acquisition", requireAuth, (req, res) => {
+  const rangeDays = parseAnalyticsRangeDays(req.query.range);
+  const type = normalizeAnalyticsTypeFilter(req.query.type);
+  const range = buildAnalyticsRange(rangeDays);
+  const events = filterAnalyticsEvents(loadAnalyticsEvents(), range.fromTs, range.toTs, type).filter(
+    (event) => event.eventType === "view",
+  );
+
+  const counters = {
+    referrerHost: {},
+    utmSource: {},
+    utmMedium: {},
+    utmCampaign: {},
+  };
+
+  events.forEach((event) => {
+    incrementCounter(counters.referrerHost, event.referrerHost || "(direct)");
+    if (event.utm?.source) incrementCounter(counters.utmSource, event.utm.source);
+    if (event.utm?.medium) incrementCounter(counters.utmMedium, event.utm.medium);
+    if (event.utm?.campaign) incrementCounter(counters.utmCampaign, event.utm.campaign);
+  });
+
+  const toSortedEntries = (target) =>
+    Object.entries(target)
+      .map(([key, value]) => ({ key, count: Number(value) || 0 }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 20);
+
+  return res.json({
+    range: `${rangeDays}d`,
+    type,
+    referrerHost: toSortedEntries(counters.referrerHost),
+    utmSource: toSortedEntries(counters.utmSource),
+    utmMedium: toSortedEntries(counters.utmMedium),
+    utmCampaign: toSortedEntries(counters.utmCampaign),
+  });
+});
+
 const normalizeUsers = (users) => {
   return users.map((user, index) =>
     normalizeUploadsDeep({
@@ -3059,6 +3645,16 @@ app.post("/api/public/posts/:slug/view", (req, res) => {
     return res.status(404).json({ error: "not_found" });
   }
   const updated = incrementPostViews(slug);
+  appendAnalyticsEvent(req, {
+    eventType: "view",
+    resourceType: "post",
+    resourceId: post.slug,
+    meta: {
+      action: "view",
+      resourceType: "post",
+      resourceId: post.slug,
+    },
+  });
   return res.json({ views: updated?.views ?? post.views ?? 0 });
 });
 
@@ -3247,6 +3843,28 @@ app.post("/api/public/comments", async (req, res) => {
 
   comments.push(newComment);
   writeComments(comments);
+  appendAnalyticsEvent(req, {
+    eventType: "comment_created",
+    resourceType: "comment",
+    resourceId: newComment.id,
+    meta: {
+      targetType: normalizedTargetType,
+      targetId: normalizedTargetId,
+      status: newComment.status,
+    },
+  });
+  if (newComment.status === "approved") {
+    appendAnalyticsEvent(req, {
+      eventType: "comment_approved",
+      resourceType: "comment",
+      resourceId: newComment.id,
+      meta: {
+        targetType: normalizedTargetType,
+        targetId: normalizedTargetId,
+        status: newComment.status,
+      },
+    });
+  }
   return res.json({ comment: { id: newComment.id, status: newComment.status } });
 });
 
@@ -3375,6 +3993,16 @@ app.post("/api/comments/:id/approve", requireAuth, (req, res) => {
     );
     writeProjects(updatedProjects);
   }
+  appendAnalyticsEvent(req, {
+    eventType: "comment_approved",
+    resourceType: "comment",
+    resourceId: existing.id,
+    meta: {
+      targetType: existing.targetType,
+      targetId: existing.targetId,
+      status: "approved",
+    },
+  });
 
   return res.json({ ok: true });
 });
@@ -3996,6 +4624,16 @@ app.post("/api/public/projects/:id/view", (req, res) => {
     return res.status(404).json({ error: "not_found" });
   }
   const updated = incrementProjectViews(id);
+  appendAnalyticsEvent(req, {
+    eventType: "view",
+    resourceType: "project",
+    resourceId: project.id,
+    meta: {
+      action: "view",
+      resourceType: "project",
+      resourceId: project.id,
+    },
+  });
   return res.json({ views: updated?.views ?? project.views ?? 0 });
 });
 
@@ -5337,5 +5975,11 @@ app.get("*", (req, res) => {
     return res.type("html").send(getIndexHtml());
   }
 });
+
+try {
+  compactAnalyticsData();
+} catch {
+  // ignore analytics compaction failures on boot
+}
 
 app.listen(Number(PORT));

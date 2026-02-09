@@ -24,6 +24,7 @@ import DashboardPosts from "./pages/DashboardPosts";
 import DashboardProjectsEditor from "./pages/DashboardProjectsEditor";
 import DashboardComments from "./pages/DashboardComments";
 import DashboardAuditLog from "./pages/DashboardAuditLog";
+import DashboardAnalytics from "./pages/DashboardAnalytics";
 import DashboardPages from "./pages/DashboardPages";
 import DashboardSettings from "./pages/DashboardSettings";
 import Recruitment from "./pages/Recruitment";
@@ -105,6 +106,14 @@ const RouterShell = () => {
         element={wrap(
           <RequireAuth>
             <DashboardComments />
+          </RequireAuth>,
+        )}
+      />
+      <Route
+        path="/dashboard/analytics"
+        element={wrap(
+          <RequireAuth>
+            <DashboardAnalytics />
           </RequireAuth>,
         )}
       />

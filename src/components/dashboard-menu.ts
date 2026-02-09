@@ -1,4 +1,5 @@
-import {
+﻿import {
+  ChartSpline,
   ScrollText,
   FileText,
   FolderCog,
@@ -18,6 +19,7 @@ export type DashboardMenuItem = {
 
 export const dashboardMenuItems: DashboardMenuItem[] = [
   { label: "Início", href: "/dashboard", icon: LayoutGrid, enabled: true },
+  { label: "Analytics", href: "/dashboard/analytics", icon: ChartSpline, enabled: true },
   { label: "Postagens", href: "/dashboard/posts", icon: FileText, enabled: true },
   { label: "Projetos", href: "/dashboard/projetos", icon: FolderCog, enabled: true },
   { label: "Comentários", href: "/dashboard/comentarios", icon: MessageSquare, enabled: true },
