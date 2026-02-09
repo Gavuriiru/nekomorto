@@ -1,11 +1,13 @@
 import type { MouseEvent, ReactNode } from "react";
 import { Link, useLocation } from "react-router-dom";
-import Header from "@/components/Header";
+import { Home, LayoutDashboard } from "lucide-react";
+import DashboardHeader from "@/components/DashboardHeader";
 import Footer from "@/components/Footer";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   Sidebar,
   SidebarContent,
+  SidebarFooter,
   SidebarHeader,
   SidebarInset,
   SidebarMenu,
@@ -13,7 +15,6 @@ import {
   SidebarMenuItem,
   SidebarProvider,
   SidebarSeparator,
-  SidebarTrigger,
 } from "@/components/ui/sidebar";
 import { dashboardMenuItems, type DashboardMenuItem } from "@/components/dashboard-menu";
 
@@ -49,28 +50,50 @@ const DashboardShell = ({
 }: DashboardShellProps) => {
   const location = useLocation();
   const userName =
-    userLabel ?? (isLoadingUser ? "Carregando usuário..." : currentUser?.name ?? "Usuário");
+    userLabel ?? (isLoadingUser ? "Carregando usuario..." : currentUser?.name ?? "Usuario");
   const userHandle =
     userSubLabel ?? (currentUser?.username ? `@${currentUser.username}` : "Dashboard");
-  const initials = (currentUser?.name ?? "??").slice(0, 2).toUpperCase();
+  const initialsRaw = (currentUser?.name ?? currentUser?.username ?? "")
+    .split(" ")
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((chunk) => chunk[0])
+    .join("")
+    .toUpperCase();
+  const initials = initialsRaw || "??";
   const isUserClickable = Boolean(onUserCardClick);
   const userCardBaseClass =
-    "flex items-center gap-3 rounded-xl border border-sidebar-border bg-sidebar-accent/30 p-3 transition hover:border-primary/40 hover:bg-sidebar-accent/50 group-data-[collapsible=icon]:hidden";
+    "flex items-center gap-3 rounded-xl border border-sidebar-border/80 bg-sidebar-accent/20 p-3 transition hover:border-sidebar-ring/40 hover:bg-sidebar-accent/35 group-data-[collapsible=icon]:hidden";
   const userCardCompactClass =
-    "hidden items-center justify-center rounded-xl border border-sidebar-border bg-sidebar-accent/30 p-2 transition hover:border-primary/40 hover:bg-sidebar-accent/50 group-data-[collapsible=icon]:flex";
+    "hidden items-center justify-center rounded-xl border border-sidebar-border/80 bg-sidebar-accent/20 p-2 transition hover:border-sidebar-ring/40 hover:bg-sidebar-accent/35 group-data-[collapsible=icon]:flex";
 
   return (
     <div className="min-h-screen bg-background text-foreground">
       <SidebarProvider defaultOpen>
         <Sidebar variant="inset" collapsible="icon">
-          <SidebarHeader className="gap-4 transition-all duration-200 ease-linear group-data-[collapsible=icon]:gap-2 group-data-[collapsible=icon]:items-center">
+          <SidebarHeader className="gap-3 px-2 pb-2 pt-3 transition-all duration-200 ease-linear group-data-[collapsible=icon]:gap-2 group-data-[collapsible=icon]:items-center">
+            <Link
+              to="/dashboard"
+              className="group flex items-center gap-3 rounded-xl border border-sidebar-border/80 bg-sidebar-accent/20 p-3 transition hover:border-sidebar-ring/40 hover:bg-sidebar-accent/35"
+            >
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-sidebar-border/70 bg-sidebar-primary/15 text-sidebar-primary">
+                <LayoutDashboard className="h-4 w-4" />
+              </span>
+              <div className="flex min-w-0 flex-col group-data-[collapsible=icon]:hidden">
+                <span className="truncate text-sm font-semibold text-sidebar-foreground">Dashboard</span>
+                <span className="text-xs text-sidebar-foreground/65">Painel de gestao</span>
+              </div>
+            </Link>
+
             <div
               className={`${userCardBaseClass} ${isUserClickable ? "cursor-pointer" : "cursor-default"}`}
               role={isUserClickable ? "button" : undefined}
               tabIndex={isUserClickable ? 0 : undefined}
               onClick={isUserClickable ? onUserCardClick : undefined}
               onKeyDown={(event) => {
-                if (!isUserClickable) return;
+                if (!isUserClickable) {
+                  return;
+                }
                 if (event.key === "Enter" || event.key === " ") {
                   event.preventDefault();
                   onUserCardClick?.();
@@ -78,10 +101,8 @@ const DashboardShell = ({
               }}
             >
               <Avatar className="h-11 w-11 border border-sidebar-border">
-                {currentUser?.avatarUrl ? (
-                  <AvatarImage src={currentUser.avatarUrl} alt={userName} />
-                ) : null}
-                <AvatarFallback className="bg-sidebar-accent text-xs text-sidebar-foreground">
+                {currentUser?.avatarUrl ? <AvatarImage src={currentUser.avatarUrl} alt={userName} /> : null}
+                <AvatarFallback className="bg-sidebar-primary/10 text-xs text-sidebar-foreground">
                   {initials}
                 </AvatarFallback>
               </Avatar>
@@ -90,13 +111,16 @@ const DashboardShell = ({
                 <span className="text-xs text-sidebar-foreground/70">{userHandle}</span>
               </div>
             </div>
+
             <div
               className={`${userCardCompactClass} ${isUserClickable ? "cursor-pointer" : "cursor-default"}`}
               role={isUserClickable ? "button" : undefined}
               tabIndex={isUserClickable ? 0 : undefined}
               onClick={isUserClickable ? onUserCardClick : undefined}
               onKeyDown={(event) => {
-                if (!isUserClickable) return;
+                if (!isUserClickable) {
+                  return;
+                }
                 if (event.key === "Enter" || event.key === " ") {
                   event.preventDefault();
                   onUserCardClick?.();
@@ -104,24 +128,33 @@ const DashboardShell = ({
               }}
             >
               <Avatar className="h-8 w-8 border border-sidebar-border shadow-sm">
-                {currentUser?.avatarUrl ? (
-                  <AvatarImage src={currentUser.avatarUrl} alt={userName} />
-                ) : null}
-                <AvatarFallback className="bg-sidebar-accent text-[10px] text-sidebar-foreground">
+                {currentUser?.avatarUrl ? <AvatarImage src={currentUser.avatarUrl} alt={userName} /> : null}
+                <AvatarFallback className="bg-sidebar-primary/10 text-[10px] text-sidebar-foreground">
                   {initials}
                 </AvatarFallback>
               </Avatar>
             </div>
           </SidebarHeader>
+
           <SidebarSeparator className="my-2" />
-          <SidebarContent>
-            <SidebarMenu>
+
+          <SidebarContent className="px-2 pb-2">
+            <SidebarMenu className="gap-1.5">
               {menuItems.map((item) => {
-                const isActive = location.pathname === item.href;
+                const isActive =
+                  location.pathname === item.href ||
+                  (item.href !== "/dashboard" && location.pathname.startsWith(`${item.href}/`));
                 const ItemIcon = item.icon;
+
                 return (
                   <SidebarMenuItem key={item.href}>
-                    <SidebarMenuButton asChild isActive={isActive} tooltip={item.label} disabled={!item.enabled}>
+                    <SidebarMenuButton
+                      asChild
+                      isActive={isActive}
+                      tooltip={item.label}
+                      disabled={!item.enabled}
+                      className="h-10 rounded-xl text-sidebar-foreground/80 hover:text-sidebar-foreground data-[active=true]:bg-sidebar-primary/15 data-[active=true]:text-sidebar-foreground data-[active=true]:shadow-[inset_0_0_0_1px_hsl(var(--sidebar-ring)/0.35)]"
+                    >
                       {item.enabled ? (
                         <Link
                           to={item.href}
@@ -142,10 +175,27 @@ const DashboardShell = ({
               })}
             </SidebarMenu>
           </SidebarContent>
+
+          <SidebarFooter className="px-2 pb-3 pt-1">
+            <SidebarMenu>
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  asChild
+                  tooltip="Voltar ao site"
+                  className="h-10 rounded-xl text-sidebar-foreground/80 hover:text-sidebar-foreground"
+                >
+                  <Link to="/">
+                    <Home />
+                    <span className="group-data-[collapsible=icon]:hidden">Voltar ao site</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            </SidebarMenu>
+          </SidebarFooter>
         </Sidebar>
 
         <SidebarInset className="flex min-h-screen flex-col bg-gradient-to-b from-background via-[hsl(var(--primary)/0.12)] to-background text-foreground">
-          <Header variant="fixed" leading={<SidebarTrigger className="text-white/80 hover:text-white" />} />
+          <DashboardHeader currentUser={currentUser} menuItems={menuItems} />
           <div className="flex-1">{children}</div>
           <Footer />
         </SidebarInset>
