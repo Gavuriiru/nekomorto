@@ -1,5 +1,6 @@
-﻿import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import DashboardAutosaveStatus from "@/components/DashboardAutosaveStatus";
 import DashboardShell from "@/components/DashboardShell";
 import ImageLibraryDialog from "@/components/ImageLibraryDialog";
 import { Button } from "@/components/ui/button";
@@ -44,6 +45,13 @@ import {
   Save,
   Trash2,
 } from "lucide-react";
+import {
+  autosaveRuntimeConfig,
+  autosaveStorageKeys,
+  readAutosavePreference,
+  writeAutosavePreference,
+} from "@/config/autosave";
+import { useAutosave, type AutosaveStatus } from "@/hooks/use-autosave";
 import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
 import { useSiteSettings } from "@/hooks/use-site-settings";
@@ -133,6 +141,13 @@ type SettingsTabKey =
   | "navbar"
   | "redes-usuarios"
   | "traducoes";
+
+type LinkTypeItem = { id: string; label: string; icon: string };
+type TranslationsPayload = {
+  tags: Record<string, string>;
+  genres: Record<string, string>;
+  staffRoles: Record<string, string>;
+};
 
 const logoEditorFields: Array<{
   target: LogoLibraryTarget;
@@ -301,6 +316,10 @@ const DashboardSettings = () => {
 
   const navigate = useNavigate();
   const apiBase = getApiBase();
+  const initialAutosaveEnabledRef = useRef(
+    autosaveRuntimeConfig.enabledByDefault &&
+      readAutosavePreference(autosaveStorageKeys.settings, true),
+  );
   const { settings: publicSettings, refresh } = useSiteSettings();
   const [settings, setSettings] = useState<SiteSettings>(publicSettings);
   const [currentUser, setCurrentUser] = useState<{
@@ -317,11 +336,8 @@ const DashboardSettings = () => {
   const [knownTags, setKnownTags] = useState<string[]>([]);
   const [knownGenres, setKnownGenres] = useState<string[]>([]);
   const [knownStaffRoles, setKnownStaffRoles] = useState<string[]>([]);
-  const [linkTypes, setLinkTypes] = useState<Array<{ id: string; label: string; icon: string }>>([]);
+  const [linkTypes, setLinkTypes] = useState<LinkTypeItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [isSaving, setIsSaving] = useState(false);
-  const [isSavingTranslations, setIsSavingTranslations] = useState(false);
-  const [isSavingLinkTypes, setIsSavingLinkTypes] = useState(false);
   const [isSyncingAniList, setIsSyncingAniList] = useState(false);
   const [uploadingKey, setUploadingKey] = useState<string | null>(null);
   const [isLibraryOpen, setIsLibraryOpen] = useState(false);
@@ -539,80 +555,6 @@ const DashboardSettings = () => {
     }
   };
 
-  const handleSaveSettings = async () => {
-    setIsSaving(true);
-    try {
-      const nextSettings = { ...settings };
-      const socialDiscord = nextSettings.footer.socialLinks.find(
-        (link) => String(link.label || "").toLowerCase() === "discord",
-      );
-      if (socialDiscord?.href) {
-        nextSettings.community.discordUrl = socialDiscord.href;
-      }
-      const response = await apiFetch(apiBase, "/api/settings", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        auth: true,
-        body: JSON.stringify({ settings: nextSettings }),
-      });
-      if (!response.ok) {
-        throw new Error("save_failed");
-      }
-      const data = await response.json();
-      setSettings(mergeSettings(defaultSettings, data.settings || nextSettings));
-      await refresh();
-      await handleSaveLinkTypes({ silent: true });
-      toast({ title: "Configurações salvas" });
-    } catch {
-      toast({
-        title: "Falha ao salvar",
-        description: "Não foi possível salvar as configurações.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  const handleSaveTranslations = async () => {
-    setIsSavingTranslations(true);
-    try {
-      const response = await apiFetch(apiBase, "/api/tag-translations", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        auth: true,
-        body: JSON.stringify({
-          tags: tagTranslations,
-          genres: genreTranslations,
-          staffRoles: staffRoleTranslations,
-        }),
-      });
-      if (!response.ok) {
-        throw new Error("save_failed");
-      }
-      const data = await response.json().catch(() => null);
-      if (data?.tags) {
-        setTagTranslations(data.tags);
-      }
-      if (data?.genres) {
-        setGenreTranslations(data.genres);
-      }
-      if (data?.staffRoles) {
-        setStaffRoleTranslations(data.staffRoles);
-      }
-      toast({ title: "Traduções salvas" });
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      toast({
-        title: "Falha ao salvar",
-        description: `Não foi possível salvar as traduções. ${message ? `(${message})` : ""}`,
-        variant: "destructive",
-      });
-    } finally {
-      setIsSavingTranslations(false);
-    }
-  };
-
   const uploadLinkTypeIcon = async (file: File, index: number) => {
     setUploadingKey(`linktype-icon-${index}`);
     try {
@@ -651,13 +593,76 @@ const DashboardSettings = () => {
     }
   };
 
-  const handleSaveLinkTypes = async (options?: { silent?: boolean }) => {
-    setIsSavingLinkTypes(true);
-    try {
-      const normalizedItems = linkTypes.map((item) => ({
-        ...item,
-        id: item.id?.trim() ? item.id.trim() : normalizeLinkTypeId(item.label || ""),
-      }));
+  const saveSettingsResource = useCallback(
+    async (snapshot: SiteSettings) => {
+      const nextSettings = { ...snapshot };
+      const socialDiscord = nextSettings.footer.socialLinks.find(
+        (link) => String(link.label || "").toLowerCase() === "discord",
+      );
+      if (socialDiscord?.href) {
+        nextSettings.community.discordUrl = socialDiscord.href;
+      }
+      const response = await apiFetch(apiBase, "/api/settings", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        auth: true,
+        body: JSON.stringify({ settings: nextSettings }),
+      });
+      if (!response.ok) {
+        throw new Error("save_failed");
+      }
+      const data = await response.json().catch(() => null);
+      const normalizedSettings = mergeSettings(defaultSettings, data?.settings || nextSettings);
+      setSettings(normalizedSettings);
+      return normalizedSettings;
+    },
+    [apiBase],
+  );
+
+  const translationsValue = useMemo<TranslationsPayload>(
+    () => ({
+      tags: tagTranslations,
+      genres: genreTranslations,
+      staffRoles: staffRoleTranslations,
+    }),
+    [genreTranslations, staffRoleTranslations, tagTranslations],
+  );
+
+  const saveTranslationsResource = useCallback(
+    async (snapshot: TranslationsPayload) => {
+      const response = await apiFetch(apiBase, "/api/tag-translations", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        auth: true,
+        body: JSON.stringify(snapshot),
+      });
+      if (!response.ok) {
+        throw new Error("save_failed");
+      }
+      const data = await response.json().catch(() => null);
+      const normalizedTranslations: TranslationsPayload = {
+        tags: data?.tags || snapshot.tags,
+        genres: data?.genres || snapshot.genres,
+        staffRoles: data?.staffRoles || snapshot.staffRoles,
+      };
+      setTagTranslations(normalizedTranslations.tags);
+      setGenreTranslations(normalizedTranslations.genres);
+      setStaffRoleTranslations(normalizedTranslations.staffRoles);
+      return normalizedTranslations;
+    },
+    [apiBase],
+  );
+
+  const saveLinkTypesResource = useCallback(
+    async (snapshot: LinkTypeItem[]) => {
+      const normalizedItems = snapshot
+        .map((item) => ({
+          ...item,
+          id: item.id?.trim() ? item.id.trim() : normalizeLinkTypeId(item.label || ""),
+          label: String(item.label || "").trim(),
+          icon: String(item.icon || "globe").trim(),
+        }))
+        .filter((item) => item.id && item.label);
       setLinkTypes(normalizedItems);
       const response = await apiFetch(apiBase, "/api/link-types", {
         method: "PUT",
@@ -669,24 +674,214 @@ const DashboardSettings = () => {
         throw new Error("save_failed");
       }
       const data = await response.json().catch(() => null);
-      if (data?.items) {
-        setLinkTypes(data.items);
-      }
-      if (!options?.silent) {
-        toast({ title: "Redes sociais salvas" });
-      }
-    } catch {
-      if (!options?.silent) {
+      const resolvedItems = Array.isArray(data?.items) ? data.items : normalizedItems;
+      setLinkTypes(resolvedItems);
+      return resolvedItems;
+    },
+    [apiBase],
+  );
+
+  const settingsAutosave = useAutosave<SiteSettings>({
+    value: settings,
+    onSave: saveSettingsResource,
+    isReady: !isLoading,
+    enabled: initialAutosaveEnabledRef.current,
+    debounceMs: autosaveRuntimeConfig.debounceMs,
+    retryMax: autosaveRuntimeConfig.retryMax,
+    retryBaseMs: autosaveRuntimeConfig.retryBaseMs,
+    onError: (_error, payload) => {
+      if (payload.source === "auto" && payload.consecutiveErrors === 1) {
         toast({
-          title: "Falha ao salvar",
-          description: "Não foi possível salvar as redes sociais.",
+          title: "Falha no autosave de ajustes",
+          description: "As configurações gerais não foram salvas automaticamente.",
           variant: "destructive",
         });
       }
-    } finally {
-      setIsSavingLinkTypes(false);
+    },
+  });
+
+  const translationsAutosave = useAutosave<TranslationsPayload>({
+    value: translationsValue,
+    onSave: saveTranslationsResource,
+    isReady: !isLoading,
+    enabled: initialAutosaveEnabledRef.current,
+    debounceMs: autosaveRuntimeConfig.debounceMs,
+    retryMax: autosaveRuntimeConfig.retryMax,
+    retryBaseMs: autosaveRuntimeConfig.retryBaseMs,
+    onError: (_error, payload) => {
+      if (payload.source === "auto" && payload.consecutiveErrors === 1) {
+        toast({
+          title: "Falha no autosave de traduções",
+          description: "As traduções não foram salvas automaticamente.",
+          variant: "destructive",
+        });
+      }
+    },
+  });
+
+  const linkTypesAutosave = useAutosave<LinkTypeItem[]>({
+    value: linkTypes,
+    onSave: saveLinkTypesResource,
+    isReady: !isLoading,
+    enabled: initialAutosaveEnabledRef.current,
+    debounceMs: autosaveRuntimeConfig.debounceMs,
+    retryMax: autosaveRuntimeConfig.retryMax,
+    retryBaseMs: autosaveRuntimeConfig.retryBaseMs,
+    onError: (_error, payload) => {
+      if (payload.source === "auto" && payload.consecutiveErrors === 1) {
+        toast({
+          title: "Falha no autosave de redes",
+          description: "Os tipos de link não foram salvos automaticamente.",
+          variant: "destructive",
+        });
+      }
+    },
+  });
+
+  const handleAutosaveToggle = useCallback(
+    (nextEnabled: boolean) => {
+      if (!autosaveRuntimeConfig.enabledByDefault) {
+        return;
+      }
+      settingsAutosave.setEnabled(nextEnabled);
+      translationsAutosave.setEnabled(nextEnabled);
+      linkTypesAutosave.setEnabled(nextEnabled);
+    },
+    [linkTypesAutosave, settingsAutosave, translationsAutosave],
+  );
+
+  const autosaveEnabled =
+    settingsAutosave.enabled && translationsAutosave.enabled && linkTypesAutosave.enabled;
+
+  useEffect(() => {
+    writeAutosavePreference(autosaveStorageKeys.settings, autosaveEnabled);
+  }, [autosaveEnabled]);
+
+  const combinedAutosaveStatus = useMemo<AutosaveStatus>(() => {
+    const statuses: AutosaveStatus[] = [
+      settingsAutosave.status,
+      translationsAutosave.status,
+      linkTypesAutosave.status,
+    ];
+    if (statuses.includes("saving")) {
+      return "saving";
     }
-  };
+    if (statuses.includes("error")) {
+      return "error";
+    }
+    if (statuses.includes("pending")) {
+      return "pending";
+    }
+    if (statuses.includes("saved")) {
+      return "saved";
+    }
+    return "idle";
+  }, [linkTypesAutosave.status, settingsAutosave.status, translationsAutosave.status]);
+
+  const combinedLastSavedAt = useMemo(() => {
+    const points = [
+      settingsAutosave.lastSavedAt,
+      translationsAutosave.lastSavedAt,
+      linkTypesAutosave.lastSavedAt,
+    ].filter((point): point is number => Number.isFinite(point));
+    return points.length ? Math.max(...points) : null;
+  }, [
+    linkTypesAutosave.lastSavedAt,
+    settingsAutosave.lastSavedAt,
+    translationsAutosave.lastSavedAt,
+  ]);
+
+  const combinedAutosaveErrorMessage = useMemo(() => {
+    if (settingsAutosave.status === "error") {
+      return "Há falha no salvamento automático dos ajustes gerais.";
+    }
+    if (translationsAutosave.status === "error") {
+      return "Há falha no salvamento automático das traduções.";
+    }
+    if (linkTypesAutosave.status === "error") {
+      return "Há falha no salvamento automático das redes sociais.";
+    }
+    return null;
+  }, [linkTypesAutosave.status, settingsAutosave.status, translationsAutosave.status]);
+
+  const hasPendingChanges =
+    settingsAutosave.isDirty ||
+    translationsAutosave.isDirty ||
+    linkTypesAutosave.isDirty ||
+    settingsAutosave.status === "pending" ||
+    settingsAutosave.status === "saving" ||
+    translationsAutosave.status === "pending" ||
+    translationsAutosave.status === "saving" ||
+    linkTypesAutosave.status === "pending" ||
+    linkTypesAutosave.status === "saving";
+
+  useEffect(() => {
+    if (isLoading || !hasPendingChanges) {
+      return;
+    }
+    const handler = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [hasPendingChanges, isLoading]);
+
+  const flushAllAutosave = useCallback(() => {
+    if (settingsAutosave.enabled) {
+      void settingsAutosave.flushNow();
+    }
+    if (translationsAutosave.enabled) {
+      void translationsAutosave.flushNow();
+    }
+    if (linkTypesAutosave.enabled) {
+      void linkTypesAutosave.flushNow();
+    }
+  }, [linkTypesAutosave, settingsAutosave, translationsAutosave]);
+
+  const handleSaveSettings = useCallback(async () => {
+    const ok = await settingsAutosave.flushNow();
+    if (!ok) {
+      toast({
+        title: "Falha ao salvar",
+        description: "Não foi possível salvar as configurações.",
+        variant: "destructive",
+      });
+      return;
+    }
+    await refresh().catch(() => undefined);
+    toast({ title: "Configurações salvas" });
+  }, [refresh, settingsAutosave]);
+
+  const handleSaveTranslations = useCallback(async () => {
+    const ok = await translationsAutosave.flushNow();
+    if (!ok) {
+      toast({
+        title: "Falha ao salvar",
+        description: "Não foi possível salvar as traduções.",
+        variant: "destructive",
+      });
+      return;
+    }
+    toast({ title: "Traduções salvas" });
+  }, [translationsAutosave]);
+
+  const handleSaveLinkTypes = useCallback(async () => {
+    const ok = await linkTypesAutosave.flushNow();
+    if (!ok) {
+      toast({
+        title: "Falha ao salvar",
+        description: "Não foi possível salvar as redes sociais.",
+        variant: "destructive",
+      });
+      return;
+    }
+    toast({ title: "Redes sociais salvas" });
+  }, [linkTypesAutosave]);
+
+  const isSaving = settingsAutosave.status === "saving";
+  const isSavingTranslations = translationsAutosave.status === "saving";
+  const isSavingLinkTypes = linkTypesAutosave.status === "saving";
 
   const filteredTags = useMemo(() => {
     const query = tagQuery.trim().toLowerCase();
@@ -852,7 +1047,12 @@ const DashboardSettings = () => {
       userSubLabel={userSubLabel}
       onUserCardClick={() => navigate("/dashboard/usuarios?edit=me")}
     >
-      <main className="pt-24">
+      <main
+        className="pt-24"
+        onBlurCapture={() => {
+          flushAllAutosave();
+        }}
+      >
           <section className="mx-auto w-full max-w-6xl px-6 pb-20 md:px-10">
             <div className="flex flex-wrap items-center justify-between gap-4">
               <div>
@@ -867,10 +1067,20 @@ const DashboardSettings = () => {
                   Atualize identidade, traduções e links globais do site.
                 </p>
               </div>
-              <Button onClick={handleSaveSettings} disabled={isSaving} className="gap-2">
-                <Save className="h-4 w-4" />
-                {isSaving ? "Salvando..." : "Salvar ajustes"}
-              </Button>
+              <DashboardAutosaveStatus
+                title="Autosave das configurações"
+                status={combinedAutosaveStatus}
+                enabled={autosaveEnabled}
+                onEnabledChange={handleAutosaveToggle}
+                toggleDisabled={!autosaveRuntimeConfig.enabledByDefault}
+                lastSavedAt={combinedLastSavedAt}
+                errorMessage={combinedAutosaveErrorMessage}
+                onManualSave={() => {
+                  void handleSaveSettings();
+                }}
+                manualActionLabel={isSaving ? "Salvando..." : "Salvar ajustes"}
+                manualActionDisabled={isSaving}
+              />
             </div>
 
             <Tabs

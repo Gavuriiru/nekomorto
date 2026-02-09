@@ -1179,7 +1179,9 @@ const normalizeSiteSettings = (payload) => {
       ? merged.branding.display
       : {};
 
-  const symbolAssetUrl = String(rawBrandAssets.symbolUrl || legacySiteSymbol || "").trim();
+  const symbolAssetUrl = String(
+    rawBrandAssets.symbolUrl || (!hasAnyNewBrandingInput ? legacySiteSymbol : "") || "",
+  ).trim();
   const wordmarkAssetUrl = String(
     rawBrandAssets.wordmarkUrl ||
       (!hasAnyNewBrandingInput

@@ -37,6 +37,29 @@ describe("resolveBranding", () => {
     expect(branding.footer.symbolUrl).toBe("/new-symbol.png");
   });
 
+  it("keeps cleared symbol fields empty even when legacy branding exists", () => {
+    const settings = createSettings({
+      site: { logoUrl: "/legacy-symbol.png" },
+      footer: { brandLogoUrl: "/legacy-footer-symbol.png" },
+      branding: {
+        assets: { symbolUrl: "" },
+        overrides: {
+          navbarSymbolUrl: "",
+          footerSymbolUrl: "",
+        },
+        display: {
+          navbar: "symbol-text",
+          footer: "symbol-text",
+        },
+      },
+    });
+
+    const branding = resolveBranding(settings);
+    expect(branding.assets.symbolUrl).toBe("");
+    expect(branding.navbar.symbolUrl).toBe("");
+    expect(branding.footer.symbolUrl).toBe("");
+  });
+
   it("falls back to legacy values when the new model is missing", () => {
     const settings = createSettings({
       site: { logoUrl: "/legacy-symbol.png" },
@@ -66,6 +89,10 @@ describe("resolveBranding", () => {
       footer: { brandLogoUrl: "/legacy-footer-symbol.png" },
       branding: {
         assets: { symbolUrl: "" },
+        display: {
+          navbar: "invalid",
+          footer: "invalid",
+        },
       },
     });
 

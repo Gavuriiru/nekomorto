@@ -1,5 +1,6 @@
-﻿import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import DashboardAutosaveStatus from "@/components/DashboardAutosaveStatus";
 import DashboardShell from "@/components/DashboardShell";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -48,8 +49,16 @@ import {
   Timer,
   ShieldCheck,
 } from "lucide-react";
+import {
+  autosaveRuntimeConfig,
+  autosaveStorageKeys,
+  readAutosavePreference,
+  writeAutosavePreference,
+} from "@/config/autosave";
+import { useAutosave } from "@/hooks/use-autosave";
 import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
+import { toast } from "@/components/ui/use-toast";
 import { usePageMeta } from "@/hooks/use-page-meta";
 
 type AboutHighlight = { label: string; text: string; icon: string };
@@ -507,9 +516,12 @@ const DashboardPages = () => {
   usePageMeta({ title: "Páginas", noIndex: true });
   const apiBase = getApiBase();
   const navigate = useNavigate();
+  const initialAutosaveEnabledRef = useRef(
+    autosaveRuntimeConfig.enabledByDefault &&
+      readAutosavePreference(autosaveStorageKeys.pages, true),
+  );
   const [pages, setPages] = useState<PagesConfig>(defaultPages);
   const [isLoading, setIsLoading] = useState(true);
-  const [isSaving, setIsSaving] = useState(false);
   const [dragState, setDragState] = useState<{ list: string; index: number } | null>(null);
   const [currentUser, setCurrentUser] = useState<{
     id: string;
@@ -566,19 +578,75 @@ const DashboardPages = () => {
     loadUser();
   }, [apiBase]);
 
-  const handleSave = async () => {
-    setIsSaving(true);
-    try {
-      await apiFetch(apiBase, "/api/pages", {
+  const savePages = useCallback(
+    async (nextPages: PagesConfig) => {
+      const response = await apiFetch(apiBase, "/api/pages", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         auth: true,
-        body: JSON.stringify({ pages }),
+        body: JSON.stringify({ pages: nextPages }),
       });
-    } finally {
-      setIsSaving(false);
+      if (!response.ok) {
+        throw new Error("save_failed");
+      }
+      const data = await response.json().catch(() => null);
+      const normalizedPages = { ...defaultPages, ...(data?.pages || nextPages) };
+      setPages(normalizedPages);
+      return normalizedPages;
+    },
+    [apiBase],
+  );
+
+  const pagesAutosave = useAutosave<PagesConfig>({
+    value: pages,
+    onSave: savePages,
+    isReady: !isLoading,
+    enabled: initialAutosaveEnabledRef.current,
+    debounceMs: autosaveRuntimeConfig.debounceMs,
+    retryMax: autosaveRuntimeConfig.retryMax,
+    retryBaseMs: autosaveRuntimeConfig.retryBaseMs,
+    onError: (_error, payload) => {
+      if (payload.source === "auto" && payload.consecutiveErrors === 1) {
+        toast({
+          title: "Falha no autosave",
+          description: "Não foi possível salvar as páginas automaticamente.",
+          variant: "destructive",
+        });
+      }
+    },
+  });
+
+  useEffect(() => {
+    writeAutosavePreference(autosaveStorageKeys.pages, pagesAutosave.enabled);
+  }, [pagesAutosave.enabled]);
+
+  const hasPendingChanges =
+    pagesAutosave.isDirty ||
+    pagesAutosave.status === "pending" ||
+    pagesAutosave.status === "saving";
+
+  useEffect(() => {
+    if (isLoading || !hasPendingChanges) {
+      return;
     }
-  };
+    const handler = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [hasPendingChanges, isLoading]);
+
+  const handleSave = useCallback(async () => {
+    const ok = await pagesAutosave.flushNow();
+    if (!ok) {
+      toast({
+        title: "Falha ao salvar",
+        description: "Não foi possível salvar as alterações agora.",
+        variant: "destructive",
+      });
+    }
+  }, [pagesAutosave]);
 
   const updateAbout = (patch: Partial<PagesConfig["about"]>) =>
     setPages((prev) => ({ ...prev, about: { ...prev.about, ...patch } }));
@@ -653,7 +721,14 @@ const DashboardPages = () => {
       currentUser={currentUser}
       onUserCardClick={() => navigate("/dashboard/usuarios?edit=me")}
     >
-        <main className="pt-24">
+        <main
+          className="pt-24"
+          onBlurCapture={() => {
+            if (pagesAutosave.enabled) {
+              void pagesAutosave.flushNow();
+            }
+          }}
+        >
           <section className="mx-auto w-full max-w-6xl px-6 pb-20 md:px-10">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
@@ -668,9 +743,31 @@ const DashboardPages = () => {
                   Edite textos, cards, badges e listas das páginas públicas.
                 </p>
               </div>
-              <Button onClick={handleSave} disabled={isSaving}>
-                {isSaving ? "Salvando..." : "Salvar alterações"}
-              </Button>
+              <DashboardAutosaveStatus
+                title="Autosave das páginas"
+                status={pagesAutosave.status}
+                enabled={pagesAutosave.enabled}
+                onEnabledChange={(nextEnabled) => {
+                  if (!autosaveRuntimeConfig.enabledByDefault) {
+                    return;
+                  }
+                  pagesAutosave.setEnabled(nextEnabled);
+                }}
+                toggleDisabled={!autosaveRuntimeConfig.enabledByDefault}
+                lastSavedAt={pagesAutosave.lastSavedAt}
+                errorMessage={
+                  pagesAutosave.status === "error"
+                    ? "As alterações continuam pendentes até um novo salvamento."
+                    : null
+                }
+                onManualSave={() => {
+                  void handleSave();
+                }}
+                manualActionLabel={
+                  pagesAutosave.status === "saving" ? "Salvando..." : "Salvar alterações"
+                }
+                manualActionDisabled={pagesAutosave.status === "saving"}
+              />
             </div>
 
             <Tabs
