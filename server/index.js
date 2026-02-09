@@ -42,6 +42,178 @@ const isPrimaryOwner = (id) => {
   return Boolean(primary && String(id) === String(primary));
 };
 
+const AUDIT_RETENTION_MS = 30 * 24 * 60 * 60 * 1000;
+const AUDIT_MAX_ENTRIES = 20000;
+const AUDIT_CSV_MAX_ROWS = 10000;
+const AUDIT_META_STRING_MAX = 256;
+const AUDIT_ENABLED_ACTION_PATTERN =
+  /(^|\.)(create|update|delete|restore|reorder|login|logout|denied|failed|rate_limited|bootstrap|rebuild|image|rename|success)(\.|_|$)/i;
+const AUDIT_DEFAULT_META_KEYS = [
+  "error",
+  "id",
+  "slug",
+  "resourceId",
+  "projectId",
+  "userId",
+  "ownerId",
+  "count",
+  "fileName",
+  "folder",
+  "url",
+  "wasOwner",
+];
+const AUDIT_META_ALLOWLIST = {
+  "auth.login.failed": ["error"],
+  "auth.login.success": ["userId"],
+  "auth.logout": [],
+  "auth.bootstrap.success": ["ownerId"],
+  "auth.bootstrap.denied": ["error"],
+  "auth.bootstrap.disabled": [],
+  "auth.bootstrap.rate_limited": [],
+  "users.delete": ["id", "wasOwner"],
+  "uploads.image": ["fileName", "folder", "url"],
+  "uploads.image_from_url": ["fileName", "folder", "url", "remoteUrl"],
+  "uploads.rename": ["oldUrl", "newUrl", "updatedReferences", "replacements"],
+  "uploads.delete": ["url"],
+};
+
+const parseAuditTs = (value) => {
+  const ts = new Date(value || 0).getTime();
+  return Number.isFinite(ts) ? ts : null;
+};
+
+const inferAuditStatus = (action) => {
+  const normalized = String(action || "").toLowerCase();
+  if (!normalized) {
+    return "success";
+  }
+  if (normalized.includes("denied")) {
+    return "denied";
+  }
+  if (normalized.includes("failed") || normalized.includes("rate_limited")) {
+    return "failed";
+  }
+  return "success";
+};
+
+const isAuditActionEnabled = (action) => {
+  const normalized = String(action || "").toLowerCase();
+  if (!normalized) {
+    return false;
+  }
+  if (normalized.includes(".read") || normalized.endsWith(".read") || normalized.includes("_read")) {
+    return false;
+  }
+  return AUDIT_ENABLED_ACTION_PATTERN.test(normalized);
+};
+
+const truncateAuditString = (value) => {
+  const text = String(value || "");
+  if (text.length <= AUDIT_META_STRING_MAX) {
+    return text;
+  }
+  return `${text.slice(0, AUDIT_META_STRING_MAX)}...`;
+};
+
+const redactSignedUrl = (value) => {
+  const text = String(value || "");
+  const hasSensitiveQuery = /[?&](token|signature|sig|x-amz-signature|x-goog-signature)=/i.test(text);
+  if (!hasSensitiveQuery) {
+    return null;
+  }
+  try {
+    const parsed = new URL(text, PRIMARY_APP_ORIGIN);
+    return `${parsed.origin}${parsed.pathname}?[redacted]`;
+  } catch {
+    return "[redacted_url]";
+  }
+};
+
+const isSensitiveAuditKey = (key) =>
+  /(token|secret|password|cookie|authorization|session|credential|jwt|signature|sig)/i.test(String(key || ""));
+
+const redactSensitiveFields = (value, key = "", depth = 0) => {
+  if (depth > 4) {
+    return "[max_depth]";
+  }
+  if (value === null || value === undefined) {
+    return value;
+  }
+  if (typeof value === "string") {
+    if (isSensitiveAuditKey(key)) {
+      return "[redacted]";
+    }
+    const redactedUrl = redactSignedUrl(value);
+    return redactedUrl || truncateAuditString(value);
+  }
+  if (typeof value === "number" || typeof value === "boolean") {
+    return value;
+  }
+  if (Array.isArray(value)) {
+    return value.slice(0, 20).map((item) => redactSensitiveFields(item, key, depth + 1));
+  }
+  if (typeof value === "object") {
+    const next = {};
+    Object.keys(value)
+      .slice(0, 30)
+      .forEach((entryKey) => {
+        if (isSensitiveAuditKey(entryKey)) {
+          next[entryKey] = "[redacted]";
+          return;
+        }
+        next[entryKey] = redactSensitiveFields(value[entryKey], entryKey, depth + 1);
+      });
+    return next;
+  }
+  return truncateAuditString(value);
+};
+
+const sanitizeAuditMeta = (meta, action) => {
+  if (!meta || typeof meta !== "object" || Array.isArray(meta)) {
+    return {};
+  }
+  const keys = AUDIT_META_ALLOWLIST[action] || AUDIT_DEFAULT_META_KEYS;
+  const next = {};
+  keys.forEach((key) => {
+    if (!(key in meta)) {
+      return;
+    }
+    next[key] = redactSensitiveFields(meta[key], key);
+  });
+  return next;
+};
+
+const compactAuditEntries = (entries, nowTs = Date.now()) => {
+  const cutoff = nowTs - AUDIT_RETENTION_MS;
+  const filtered = entries
+    .filter((item) => parseAuditTs(item?.ts) !== null)
+    .filter((item) => parseAuditTs(item.ts) >= cutoff)
+    .sort((a, b) => parseAuditTs(a.ts) - parseAuditTs(b.ts));
+  if (filtered.length <= AUDIT_MAX_ENTRIES) {
+    return filtered;
+  }
+  return filtered.slice(filtered.length - AUDIT_MAX_ENTRIES);
+};
+
+const normalizeAuditEntry = (item) => {
+  const normalizedAction = String(item?.action || "").trim();
+  return {
+    id: String(item?.id || crypto.randomUUID()),
+    ts: item?.ts || new Date().toISOString(),
+    actorId: String(item?.actorId || "anonymous"),
+    actorName: String(item?.actorName || "anonymous"),
+    ip: String(item?.ip || ""),
+    action: normalizedAction,
+    resource: String(item?.resource || ""),
+    resourceId: item?.resourceId ? String(item.resourceId) : null,
+    status: ["success", "failed", "denied"].includes(item?.status)
+      ? item.status
+      : inferAuditStatus(normalizedAction),
+    requestId: item?.requestId ? String(item.requestId) : null,
+    meta: sanitizeAuditMeta(item?.meta, normalizedAction),
+  };
+};
+
 const loadAuditLog = () => {
   try {
     if (!fs.existsSync(auditLogFilePath)) {
@@ -49,7 +221,7 @@ const loadAuditLog = () => {
     }
     const raw = fs.readFileSync(auditLogFilePath, "utf-8");
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [];
+    return Array.isArray(parsed) ? parsed.map(normalizeAuditEntry) : [];
   } catch {
     return [];
   }
@@ -57,37 +229,44 @@ const loadAuditLog = () => {
 
 const writeAuditLog = (entries) => {
   fs.mkdirSync(path.dirname(auditLogFilePath), { recursive: true });
-  fs.writeFileSync(auditLogFilePath, JSON.stringify(entries, null, 2));
+  const compacted = compactAuditEntries(Array.isArray(entries) ? entries : []);
+  fs.writeFileSync(auditLogFilePath, JSON.stringify(compacted, null, 2));
 };
 
 const appendAuditLog = (req, action, resource, meta = {}) => {
   try {
+    if (!isAuditActionEnabled(action)) {
+      return;
+    }
     const now = new Date();
-    const cutoff = now.getTime() - 30 * 24 * 60 * 60 * 1000;
     const ip = req.headers["x-forwarded-for"]?.split(",")[0]?.trim() || req.ip;
     const sessionUser = req.session?.user || null;
+    const sanitizedMeta = sanitizeAuditMeta(meta, action);
     const resourceId =
-      meta?.resourceId ||
-      meta?.id ||
-      meta?.slug ||
-      meta?.projectId ||
-      meta?.userId ||
+      sanitizedMeta?.resourceId ||
+      sanitizedMeta?.id ||
+      sanitizedMeta?.slug ||
+      sanitizedMeta?.projectId ||
+      sanitizedMeta?.userId ||
       null;
+    const actorNameRaw = sessionUser?.name || "anonymous";
+    const actorNameFixed =
+      typeof fixMojibakeText === "function" ? fixMojibakeText(actorNameRaw) : String(actorNameRaw);
+    const actorName = String(actorNameFixed || "anonymous").replace(/\uFFFD/g, "").trim() || "anonymous";
     const entry = {
       id: crypto.randomUUID(),
       ts: now.toISOString(),
       actorId: sessionUser?.id || "anonymous",
-      actorName: sessionUser?.name || "anonymous",
+      actorName,
       ip: String(ip || ""),
-      action,
-      resource,
+      action: String(action || ""),
+      resource: String(resource || ""),
       resourceId,
-      meta,
+      status: inferAuditStatus(action),
+      requestId: req.requestId ? String(req.requestId) : null,
+      meta: sanitizedMeta,
     };
-    const existing = loadAuditLog().filter((item) => {
-      const ts = new Date(item?.ts || 0).getTime();
-      return Number.isFinite(ts) && ts >= cutoff;
-    });
+    const existing = loadAuditLog();
     existing.push(entry);
     writeAuditLog(existing);
   } catch {
@@ -748,6 +927,16 @@ app.use(
     },
   }),
 );
+
+app.use((req, res, next) => {
+  const requestIdHeader = String(req.headers["x-request-id"] || "").trim();
+  const requestId = /^[a-zA-Z0-9._:-]{6,128}$/.test(requestIdHeader)
+    ? requestIdHeader
+    : crypto.randomUUID();
+  req.requestId = requestId;
+  res.setHeader("X-Request-Id", requestId);
+  return next();
+});
 
 const loadAllowedUsers = () => {
   const filePath = path.join(__dirname, "data", "allowed-users.json");
@@ -2333,6 +2522,130 @@ const requirePrimaryOwner = (req, res, next) => {
   }
   return next();
 };
+
+app.get("/api/audit-log", requireOwner, (req, res) => {
+  const pageRaw = Number(req.query.page);
+  const limitRaw = Number(req.query.limit);
+  const page = Number.isFinite(pageRaw) && pageRaw > 0 ? Math.floor(pageRaw) : 1;
+  const limit = Number.isFinite(limitRaw) && limitRaw > 0
+    ? Math.min(Math.max(Math.floor(limitRaw), 10), 100)
+    : 50;
+
+  const action = String(req.query.action || "").trim();
+  const resource = String(req.query.resource || "").trim();
+  const actorId = String(req.query.actorId || "").trim();
+  const status = String(req.query.status || "").trim().toLowerCase();
+  const q = String(req.query.q || "").trim().toLowerCase();
+  const format = String(req.query.format || "").trim().toLowerCase();
+  const dateFromRaw = String(req.query.dateFrom || "").trim();
+  const dateToRaw = String(req.query.dateTo || "").trim();
+  const dateFromTs = dateFromRaw ? parseAuditTs(dateFromRaw) : null;
+  const dateToTs = dateToRaw ? parseAuditTs(dateToRaw) : null;
+
+  let entries = loadAuditLog().map(normalizeAuditEntry);
+  entries = entries.filter((entry) => isAuditActionEnabled(entry.action));
+  if (action) {
+    entries = entries.filter((entry) => entry.action === action);
+  }
+  if (resource) {
+    entries = entries.filter((entry) => entry.resource === resource);
+  }
+  if (actorId) {
+    entries = entries.filter((entry) => entry.actorId === actorId);
+  }
+  if (status && ["success", "failed", "denied"].includes(status)) {
+    entries = entries.filter((entry) => entry.status === status);
+  }
+  if (dateFromTs !== null) {
+    entries = entries.filter((entry) => {
+      const ts = parseAuditTs(entry.ts);
+      return ts !== null && ts >= dateFromTs;
+    });
+  }
+  if (dateToTs !== null) {
+    entries = entries.filter((entry) => {
+      const ts = parseAuditTs(entry.ts);
+      return ts !== null && ts <= dateToTs;
+    });
+  }
+  if (q) {
+    entries = entries.filter((entry) => {
+      const haystack = [
+        entry.actorName,
+        entry.resourceId || "",
+        entry.ip,
+        entry.action,
+        entry.resource,
+        JSON.stringify(entry.meta || {}),
+      ]
+        .join(" ")
+        .toLowerCase();
+      return haystack.includes(q);
+    });
+  }
+
+  entries.sort((a, b) => (parseAuditTs(b.ts) || 0) - (parseAuditTs(a.ts) || 0));
+
+  if (format === "csv") {
+    const escapeCsv = (value) => {
+      const text = String(value ?? "");
+      if (text.includes("\"") || text.includes(",") || text.includes("\n")) {
+        return `"${text.replace(/"/g, "\"\"")}"`;
+      }
+      return text;
+    };
+
+    const exportEntries = entries.slice(0, AUDIT_CSV_MAX_ROWS);
+    const isTruncated = entries.length > exportEntries.length;
+    const rows = [];
+    rows.push("id,ts,actorId,actorName,action,resource,resourceId,status,ip,requestId,meta");
+    exportEntries.forEach((entry) => {
+      rows.push(
+        [
+          escapeCsv(entry.id),
+          escapeCsv(entry.ts),
+          escapeCsv(entry.actorId),
+          escapeCsv(entry.actorName),
+          escapeCsv(entry.action),
+          escapeCsv(entry.resource),
+          escapeCsv(entry.resourceId || ""),
+          escapeCsv(entry.status),
+          escapeCsv(entry.ip || ""),
+          escapeCsv(entry.requestId || ""),
+          escapeCsv(JSON.stringify(entry.meta || {})),
+        ].join(","),
+      );
+    });
+    const csv = `\uFEFF${rows.join("\n")}`;
+    const stamp = new Date().toISOString().slice(0, 10);
+    res.setHeader("Content-Type", "text/csv; charset=utf-8");
+    res.setHeader("Content-Disposition", `attachment; filename=\"audit-log-${stamp}.csv\"`);
+    res.setHeader("X-Audit-Export-Truncated", isTruncated ? "1" : "0");
+    res.setHeader("X-Audit-Export-Count", String(exportEntries.length));
+    res.setHeader("X-Audit-Export-Total", String(entries.length));
+    return res.status(200).send(csv);
+  }
+
+  const total = entries.length;
+  const start = (page - 1) * limit;
+  const paged = entries.slice(start, start + limit);
+
+  return res.json({
+    entries: paged,
+    page,
+    limit,
+    total,
+    filtersApplied: {
+      action,
+      resource,
+      actorId,
+      status: ["success", "failed", "denied"].includes(status) ? status : "",
+      q,
+      dateFrom: dateFromRaw,
+      dateTo: dateToRaw,
+    },
+  });
+});
 
 const normalizeUsers = (users) => {
   return users.map((user, index) =>
