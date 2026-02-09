@@ -1,9 +1,10 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { ArrowUpRight, LogOut, Settings, UserCircle2 } from "lucide-react";
+import { LogOut, Menu, Settings, UserCircle2 } from "lucide-react";
 import ThemedSvgLogo from "@/components/ThemedSvgLogo";
 import { dashboardMenuItems as defaultMenuItems, type DashboardMenuItem } from "@/components/dashboard-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -15,6 +16,7 @@ import {
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { useSiteSettings } from "@/hooks/use-site-settings";
 import { useIsMobile } from "@/hooks/use-mobile";
+import type { Project } from "@/data/projects";
 import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
 import { cn } from "@/lib/utils";
@@ -40,7 +42,20 @@ const DashboardHeader = ({
   const apiBase = getApiBase();
   const { settings } = useSiteSettings();
   const isMobile = useIsMobile();
+
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [posts, setPosts] = useState<
+    Array<{
+      title: string;
+      slug: string;
+      excerpt?: string | null;
+    }>
+  >([]);
+  const [tagTranslations, setTagTranslations] = useState<Record<string, string>>({});
+  const searchRef = useRef<HTMLDivElement | null>(null);
 
   const activeMenuItem = useMemo(() => {
     const exactMatch = menuItems.find((item) => item.href === location.pathname);
@@ -55,6 +70,11 @@ const DashboardHeader = ({
 
   const siteName = (settings.site.name || "Nekomata").toUpperCase();
   const logoUrl = settings.site.logoUrl?.trim();
+  const recruitmentUrl = settings.navbar.recruitmentUrl || settings.community.discordUrl || "/recrutamento";
+  const isRecruitmentInternal = recruitmentUrl.startsWith("/") && !recruitmentUrl.startsWith("//");
+  const headerMenuContentClass =
+    "border-white/25 bg-gradient-to-b from-black/40 via-black/25 to-black/10 text-white/90 shadow-xl backdrop-blur-sm";
+  const headerMenuItemClass = "focus:bg-white/10 focus:text-white";
   const userName = currentUser?.name || currentUser?.username || "Conta";
   const userInitials = (currentUser?.name || currentUser?.username || "??")
     .split(" ")
@@ -63,6 +83,116 @@ const DashboardHeader = ({
     .map((chunk) => chunk[0])
     .join("")
     .toUpperCase();
+
+  const projectItems = projects.map((project) => ({
+    label: project.title,
+    href: `/projeto/${project.id}`,
+    image: project.cover,
+    synopsis: project.synopsis,
+    tags: project.tags.map((tag) => tagTranslations[tag] || tag),
+  }));
+
+  const postItems = useMemo(
+    () =>
+      posts.map((post) => ({
+        label: post.title,
+        href: `/postagem/${post.slug}`,
+        excerpt: post.excerpt || "",
+      })),
+    [posts],
+  );
+
+  const filteredProjects = useMemo(() => {
+    if (!query.trim()) {
+      return [];
+    }
+    const lowerQuery = query.toLowerCase();
+    return projectItems.filter((item) => {
+      const searchableText = [item.label, item.synopsis, item.tags.join(" ")].join(" ").toLowerCase();
+      return searchableText.includes(lowerQuery);
+    });
+  }, [projectItems, query]);
+
+  const filteredPosts = useMemo(() => {
+    if (!query.trim()) {
+      return [];
+    }
+    const lowerQuery = query.toLowerCase();
+    return postItems.filter((item) =>
+      [item.label, item.excerpt].join(" ").toLowerCase().includes(lowerQuery),
+    );
+  }, [postItems, query]);
+
+  const showResults = isSearchOpen && query.trim().length > 0;
+  const hasResults = filteredProjects.length > 0 || filteredPosts.length > 0;
+
+  useEffect(() => {
+    const handleOutsideClick = (event: MouseEvent) => {
+      if (searchRef.current && !searchRef.current.contains(event.target as Node)) {
+        setIsSearchOpen(false);
+        setQuery("");
+      }
+    };
+
+    if (isSearchOpen) {
+      document.addEventListener("mousedown", handleOutsideClick);
+    }
+
+    return () => {
+      document.removeEventListener("mousedown", handleOutsideClick);
+    };
+  }, [isSearchOpen]);
+
+  useEffect(() => {
+    const loadProjects = async () => {
+      try {
+        const response = await apiFetch(apiBase, "/api/public/projects");
+        if (!response.ok) {
+          return;
+        }
+        const data = await response.json();
+        setProjects(Array.isArray(data.projects) ? data.projects : []);
+      } catch {
+        setProjects([]);
+      }
+    };
+
+    loadProjects();
+  }, [apiBase]);
+
+  useEffect(() => {
+    const loadPosts = async () => {
+      try {
+        const response = await apiFetch(apiBase, "/api/public/posts");
+        if (!response.ok) {
+          return;
+        }
+        const data = await response.json();
+        setPosts(Array.isArray(data.posts) ? data.posts : []);
+      } catch {
+        setPosts([]);
+      }
+    };
+
+    loadPosts();
+  }, [apiBase]);
+
+  useEffect(() => {
+    const loadTranslations = async () => {
+      try {
+        const response = await apiFetch(apiBase, "/api/public/tag-translations", { cache: "no-store" });
+        if (!response.ok) {
+          return;
+        }
+        const data = await response.json();
+        setTagTranslations(data.tags || {});
+      } catch {
+        setTagTranslations({});
+      }
+    };
+
+    loadTranslations();
+  }, [apiBase]);
 
   const handleLogout = async () => {
     if (isLoggingOut) {
@@ -81,13 +211,11 @@ const DashboardHeader = ({
 
   return (
     <header
-      style={
-        {
-          left: isMobile
-            ? "0px"
-            : "calc(var(--sidebar-offset) - (0.3125rem + min(0.1875rem, max(0rem, calc(var(--sidebar-width-current) - var(--sidebar-width-icon))))))",
-        }
-      }
+      style={{
+        left: isMobile
+          ? "0px"
+          : "calc(var(--sidebar-offset) - (0.3125rem + min(0.1875rem, max(0rem, calc(var(--sidebar-width-current) - var(--sidebar-width-icon))))))",
+      }}
       className={cn(
         "fixed left-0 right-0 top-0 z-40 border-b border-white/10 bg-[linear-gradient(110deg,hsl(var(--sidebar-background)/0.92),hsl(var(--background)/0.9))] backdrop-blur-xl",
         className,
@@ -124,17 +252,219 @@ const DashboardHeader = ({
           </div>
         </div>
 
-        <div className="flex items-center gap-2 sm:gap-3">
-          <Button
-            asChild
-            variant="ghost"
-            className="hidden h-9 rounded-lg border border-white/10 bg-white/5 px-3 text-xs text-white/80 hover:bg-white/10 hover:text-white md:inline-flex"
-          >
-            <Link to="/" className="inline-flex items-center gap-1.5">
-              Ver site
-              <ArrowUpRight className="h-3.5 w-3.5" />
+        <div className="flex items-center gap-3 md:gap-6">
+          <div className="hidden md:flex items-center gap-6 text-sm font-medium text-white/80">
+            <Link
+              to="/"
+              className={`transition-colors ${
+                location.pathname === "/"
+                  ? "text-white font-semibold"
+                  : "text-white/80 hover:text-white"
+              }`}
+            >
+              Início
             </Link>
-          </Button>
+            <Link
+              to="/projetos"
+              className={`transition-colors ${
+                location.pathname.startsWith("/projetos")
+                  ? "text-white font-semibold"
+                  : "text-white/80 hover:text-white"
+              }`}
+            >
+              Projetos
+            </Link>
+            <Link
+              to="/equipe"
+              className={`transition-colors ${
+                location.pathname.startsWith("/equipe")
+                  ? "text-white font-semibold"
+                  : "text-white/80 hover:text-white"
+              }`}
+            >
+              Equipe
+            </Link>
+            {isRecruitmentInternal ? (
+              <Link
+                to={recruitmentUrl}
+                className={`transition-colors ${
+                  location.pathname.startsWith("/recrutamento")
+                    ? "text-white font-semibold"
+                    : "text-white/80 hover:text-white"
+                }`}
+              >
+                Recrutamento
+              </Link>
+            ) : (
+              <a
+                href={recruitmentUrl}
+                className="text-white/80 transition-colors hover:text-white"
+                target="_blank"
+                rel="noreferrer"
+              >
+                Recrutamento
+              </a>
+            )}
+            <Link
+              to="/sobre"
+              className={`transition-colors ${
+                location.pathname.startsWith("/sobre")
+                  ? "text-white font-semibold"
+                  : "text-white/80 hover:text-white"
+              }`}
+            >
+              Sobre
+            </Link>
+          </div>
+
+          <div className="relative hidden items-center gap-3 md:flex" ref={searchRef}>
+            <div
+              className={`flex items-center gap-2 rounded-full border border-transparent bg-secondary/30 px-3 py-2 transition-all duration-300 ${
+                isSearchOpen ? "w-60 lg:w-72 border-border bg-secondary/70" : "w-11"
+              }`}
+            >
+              <button
+                type="button"
+                aria-label="Abrir pesquisa"
+                onClick={() => setIsSearchOpen((prev) => !prev)}
+                className="text-white transition-colors hover:text-primary"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="h-4 w-4"
+                >
+                  <circle cx="11" cy="11" r="8" />
+                  <path d="m21 21-4.3-4.3" />
+                </svg>
+              </button>
+              {isSearchOpen && (
+                <input
+                  value={query}
+                  onChange={(event) => setQuery(event.target.value)}
+                  placeholder="Pesquisar projetos e posts"
+                  className="w-full bg-transparent text-sm text-white outline-none placeholder:text-white/60"
+                />
+              )}
+            </div>
+
+            {showResults && (
+              <div className="absolute right-0 top-12 w-80 rounded-xl border border-border/60 bg-background/95 p-4 shadow-lg backdrop-blur">
+                {filteredProjects.length > 0 && (
+                  <div className="mb-4">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                      Projetos
+                    </p>
+                    <ul className="mt-3 space-y-3">
+                      {filteredProjects.map((item) => (
+                        <li key={item.href}>
+                          <Link
+                            to={item.href}
+                            className="group flex h-[9rem] items-start gap-4 overflow-hidden rounded-xl border border-border/60 bg-gradient-card p-4 transition hover:border-primary/40 hover:bg-primary/5"
+                          >
+                            <div
+                              className="w-20 flex-shrink-0 self-start overflow-hidden rounded-lg bg-secondary"
+                              style={{ aspectRatio: "23 / 32" }}
+                            >
+                              <img
+                                src={item.image}
+                                alt={item.label}
+                                className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                              />
+                            </div>
+                            <div className="min-w-0">
+                              <p className="text-sm font-semibold text-foreground group-hover:text-primary">
+                                {item.label}
+                              </p>
+                              <p className="mt-1 text-xs text-muted-foreground line-clamp-1">
+                                {item.synopsis}
+                              </p>
+                              {item.tags.length > 0 && (
+                                <div className="mt-2 flex flex-wrap gap-1.5 overflow-hidden">
+                                  {item.tags.slice(0, 3).map((tag) => (
+                                    <Badge key={tag} variant="secondary" className="text-[9px] uppercase">
+                                      {tag}
+                                    </Badge>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          </Link>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                {filteredPosts.length > 0 && (
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                      Posts
+                    </p>
+                    <ul className="mt-2 space-y-2">
+                      {filteredPosts.map((item) => (
+                        <li key={item.href}>
+                          <Link
+                            to={item.href}
+                            className="text-sm text-foreground transition-colors hover:text-primary"
+                          >
+                            {item.label}
+                          </Link>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                {!hasResults && (
+                  <p className="text-sm text-muted-foreground">
+                    Nenhum resultado encontrado para a sua pesquisa.
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-10 w-10 rounded-full border border-white/10 bg-white/5 text-white/80 hover:text-white md:hidden"
+                aria-label="Abrir menu"
+              >
+                <Menu className="h-5 w-5" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className={`w-48 ${headerMenuContentClass}`}>
+              <DropdownMenuItem asChild className={headerMenuItemClass}>
+                <Link to="/">Início</Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild className={headerMenuItemClass}>
+                <Link to="/projetos">Projetos</Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild className={headerMenuItemClass}>
+                <Link to="/equipe">Equipe</Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild className={headerMenuItemClass}>
+                {isRecruitmentInternal ? (
+                  <Link to={recruitmentUrl}>Recrutamento</Link>
+                ) : (
+                  <a href={recruitmentUrl} target="_blank" rel="noreferrer">
+                    Recrutamento
+                  </a>
+                )}
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild className={headerMenuItemClass}>
+                <Link to="/sobre">Sobre</Link>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
 
           <DropdownMenu modal={false}>
             <DropdownMenuTrigger asChild>

@@ -10,7 +10,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Menu } from "lucide-react";
+import { LayoutDashboard, LogOut, Menu } from "lucide-react";
 import ThemedSvgLogo from "@/components/ThemedSvgLogo";
 import type { Project } from "@/data/projects";
 import { cn } from "@/lib/utils";
@@ -481,7 +481,10 @@ const Header = ({ variant = "fixed", leading, className }: HeaderProps) => {
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className={`w-44 ${headerMenuContentClass}`}>
                 <DropdownMenuItem asChild className={headerMenuItemClass}>
-                  <Link to="/dashboard">Dashboard</Link>
+                  <Link to="/dashboard" className="flex items-center gap-2">
+                    <LayoutDashboard className="h-4 w-4" />
+                    Dashboard
+                  </Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   className={headerMenuItemClass}
@@ -493,6 +496,7 @@ const Header = ({ variant = "fixed", leading, className }: HeaderProps) => {
                     window.location.href = "/";
                   }}
                 >
+                  <LogOut className="h-4 w-4" />
                   Sair
                 </DropdownMenuItem>
               </DropdownMenuContent>
