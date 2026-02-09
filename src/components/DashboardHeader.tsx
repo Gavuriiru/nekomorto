@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { LogOut, Menu, Settings, UserCircle2 } from "lucide-react";
+import { LogOut, Menu } from "lucide-react";
 import ThemedSvgLogo from "@/components/ThemedSvgLogo";
 import { dashboardMenuItems as defaultMenuItems, type DashboardMenuItem } from "@/components/dashboard-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -217,17 +217,16 @@ const DashboardHeader = ({
           : "calc(var(--sidebar-offset) - (0.3125rem + min(0.1875rem, max(0rem, calc(var(--sidebar-width-current) - var(--sidebar-width-icon))))))",
       }}
       className={cn(
-        "fixed left-0 right-0 top-0 z-40 border-b border-white/10 bg-[linear-gradient(110deg,hsl(var(--sidebar-background)/0.92),hsl(var(--background)/0.9))] backdrop-blur-xl",
+        "fixed left-0 right-0 top-0 z-40 bg-sidebar",
         className,
       )}
     >
-      <div className="flex h-[4.75rem] items-center justify-between px-4 sm:px-6 lg:px-8">
-        <div className="flex min-w-0 items-center gap-3">
+      <div className="flex h-[4.75rem] items-center justify-between px-3 sm:px-4 lg:px-6 2xl:px-8">
+        <div className="flex min-w-0 items-center gap-2 lg:gap-3">
           <SidebarTrigger className="h-9 w-9 rounded-lg border border-white/15 bg-white/5 text-white/80 hover:bg-white/10 hover:text-white" />
-          <div className="h-7 w-px bg-white/10" />
           <Link
             to="/dashboard"
-            className="hidden items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-white/85 transition hover:bg-white/10 lg:flex"
+            className="hidden items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-2.5 py-1.5 text-white/85 transition hover:bg-white/10 xl:flex"
           >
             {logoUrl ? (
               <ThemedSvgLogo
@@ -244,7 +243,7 @@ const DashboardHeader = ({
               {siteName}
             </span>
           </Link>
-          <div className="min-w-0">
+          <div className="min-w-0 hidden lg:block">
             <p className="text-[10px] uppercase tracking-[0.28em] text-white/50">Painel interno</p>
             <p className="truncate text-sm font-semibold text-white">
               {activeMenuItem?.label || "Dashboard"}
@@ -252,8 +251,8 @@ const DashboardHeader = ({
           </div>
         </div>
 
-        <div className="flex items-center gap-3 md:gap-6">
-          <div className="hidden md:flex items-center gap-6 text-sm font-medium text-white/80">
+        <div className="flex items-center gap-2 sm:gap-3 lg:gap-4">
+          <div className="hidden 2xl:flex items-center gap-5 text-sm font-medium text-white/80">
             <Link
               to="/"
               className={`transition-colors ${
@@ -317,10 +316,10 @@ const DashboardHeader = ({
             </Link>
           </div>
 
-          <div className="relative hidden items-center gap-3 md:flex" ref={searchRef}>
+          <div className="relative hidden items-center gap-2 xl:flex" ref={searchRef}>
             <div
               className={`flex items-center gap-2 rounded-full border border-transparent bg-secondary/30 px-3 py-2 transition-all duration-300 ${
-                isSearchOpen ? "w-60 lg:w-72 border-border bg-secondary/70" : "w-11"
+                isSearchOpen ? "w-52 2xl:w-64 border-border bg-secondary/70" : "w-11"
               }`}
             >
               <button
@@ -435,7 +434,7 @@ const DashboardHeader = ({
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-10 w-10 rounded-full border border-white/10 bg-white/5 text-white/80 hover:text-white md:hidden"
+                className="h-10 w-10 rounded-full border border-white/10 bg-white/5 text-white/80 hover:text-white 2xl:hidden"
                 aria-label="Abrir menu"
               >
                 <Menu className="h-5 w-5" />
@@ -476,27 +475,28 @@ const DashboardHeader = ({
                   {currentUser?.avatarUrl ? <AvatarImage src={currentUser.avatarUrl} alt={userName} /> : null}
                   <AvatarFallback className="bg-white/10 text-xs text-white">{userInitials}</AvatarFallback>
                 </Avatar>
-                <span className="hidden max-w-[10rem] truncate text-sm font-medium text-white sm:inline">
+                <span className="hidden max-w-[10rem] truncate text-sm font-medium text-white xl:inline">
                   {userName}
                 </span>
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent
               align="end"
-              className="w-52 border-white/15 bg-sidebar/95 text-white shadow-xl backdrop-blur-sm"
+              className="w-56 border-white/15 bg-sidebar/95 text-white shadow-xl backdrop-blur-sm"
             >
-              <DropdownMenuItem asChild className="focus:bg-white/10 focus:text-white">
-                <Link to="/dashboard/usuarios?edit=me" className="flex items-center gap-2">
-                  <UserCircle2 className="h-4 w-4" />
-                  Meu perfil
-                </Link>
-              </DropdownMenuItem>
-              <DropdownMenuItem asChild className="focus:bg-white/10 focus:text-white">
-                <Link to="/dashboard/configuracoes" className="flex items-center gap-2">
-                  <Settings className="h-4 w-4" />
-                  Configuracoes
-                </Link>
-              </DropdownMenuItem>
+              {menuItems
+                .filter((item) => item.enabled)
+                .map((item) => {
+                  const ItemIcon = item.icon;
+                  return (
+                    <DropdownMenuItem key={item.href} asChild className="focus:bg-white/10 focus:text-white">
+                      <Link to={item.href} className="flex items-center gap-2">
+                        <ItemIcon className="h-4 w-4" />
+                        {item.label}
+                      </Link>
+                    </DropdownMenuItem>
+                  );
+                })}
               <DropdownMenuSeparator className="bg-white/10" />
               <DropdownMenuItem
                 onClick={handleLogout}

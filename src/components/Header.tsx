@@ -8,10 +8,12 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { LayoutDashboard, LogOut, Menu } from "lucide-react";
+import { LogOut, Menu } from "lucide-react";
 import ThemedSvgLogo from "@/components/ThemedSvgLogo";
+import { dashboardMenuItems } from "@/components/dashboard-menu";
 import type { Project } from "@/data/projects";
 import { cn } from "@/lib/utils";
 import { getApiBase } from "@/lib/api-base";
@@ -479,13 +481,21 @@ const Header = ({ variant = "fixed", leading, className }: HeaderProps) => {
                   </span>
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className={`w-44 ${headerMenuContentClass}`}>
-                <DropdownMenuItem asChild className={headerMenuItemClass}>
-                  <Link to="/dashboard" className="flex items-center gap-2">
-                    <LayoutDashboard className="h-4 w-4" />
-                    Dashboard
-                  </Link>
-                </DropdownMenuItem>
+              <DropdownMenuContent align="end" className={`w-56 ${headerMenuContentClass}`}>
+                {dashboardMenuItems
+                  .filter((item) => item.enabled)
+                  .map((item) => {
+                    const ItemIcon = item.icon;
+                    return (
+                      <DropdownMenuItem key={item.href} asChild className={headerMenuItemClass}>
+                        <Link to={item.href} className="flex items-center gap-2">
+                          <ItemIcon className="h-4 w-4" />
+                          {item.label}
+                        </Link>
+                      </DropdownMenuItem>
+                    );
+                  })}
+                <DropdownMenuSeparator className="bg-white/10" />
                 <DropdownMenuItem
                   className={headerMenuItemClass}
                   onClick={async () => {
