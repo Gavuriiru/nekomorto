@@ -19,6 +19,14 @@ export type SiteSettings = {
   };
   community: {
     discordUrl: string;
+    inviteCard: {
+      title: string;
+      subtitle: string;
+      panelTitle: string;
+      panelDescription: string;
+      ctaLabel: string;
+      ctaUrl: string;
+    };
   };
   branding: {
     assets: {

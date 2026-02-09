@@ -144,8 +144,8 @@ describe("DashboardSettings autosave", () => {
     await screen.findByRole("heading", { name: /Painel/i });
 
     apiFetchMock.mockClear();
-    const siteNameInput = await screen.findByDisplayValue(defaultSettings.site.name);
-    fireEvent.change(siteNameInput, { target: { value: "Nekomata Auto" } });
+    const communityCardTitleInput = await screen.findByLabelText(/Titulo do card/i);
+    fireEvent.change(communityCardTitleInput, { target: { value: "Entre na comunidade" } });
 
     await act(async () => {
       await waitMs(1300);

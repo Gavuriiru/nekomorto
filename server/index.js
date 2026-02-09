@@ -927,6 +927,15 @@ const defaultSiteSettings = {
   },
   community: {
     discordUrl: "https://discord.com/invite/BAHKhdX2ju",
+    inviteCard: {
+      title: "Entre no Discord",
+      subtitle: "Converse com a equipe e acompanhe novidades em tempo real.",
+      panelTitle: "Comunidade do Zuraaa!",
+      panelDescription:
+        "Receba alertas de lancamentos, participe de eventos e fale sobre os nossos projetos.",
+      ctaLabel: "Entrar no servidor",
+      ctaUrl: "https://discord.com/invite/BAHKhdX2ju",
+    },
   },
   branding: {
     assets: {
@@ -1272,7 +1281,45 @@ const normalizeSiteSettings = (payload) => {
     brandName: normalizedSiteName,
     brandLogoUrl: resolvedFooterSymbol,
   };
-  const discordUrl = String(merged?.community?.discordUrl || "").trim();
+  const discordUrl =
+    String(merged?.community?.discordUrl || defaultSiteSettings.community.discordUrl || "").trim() ||
+    String(defaultSiteSettings.community.discordUrl || "").trim();
+  const inviteCardPayload =
+    merged?.community?.inviteCard && typeof merged.community.inviteCard === "object"
+      ? merged.community.inviteCard
+      : {};
+  const inviteCardDefaults = defaultSiteSettings.community?.inviteCard || {};
+  const inviteCardTitle =
+    String(inviteCardPayload.title || inviteCardDefaults.title || "").trim() ||
+    String(inviteCardDefaults.title || "").trim();
+  const inviteCardSubtitle =
+    String(inviteCardPayload.subtitle || inviteCardDefaults.subtitle || "").trim() ||
+    String(inviteCardDefaults.subtitle || "").trim();
+  const inviteCardPanelTitle =
+    String(inviteCardPayload.panelTitle || inviteCardDefaults.panelTitle || "").trim() ||
+    String(inviteCardDefaults.panelTitle || "").trim();
+  const inviteCardPanelDescription =
+    String(inviteCardPayload.panelDescription || inviteCardDefaults.panelDescription || "").trim() ||
+    String(inviteCardDefaults.panelDescription || "").trim();
+  const inviteCardCtaLabel =
+    String(inviteCardPayload.ctaLabel || inviteCardDefaults.ctaLabel || "").trim() ||
+    String(inviteCardDefaults.ctaLabel || "").trim();
+  const inviteCardCtaUrlRaw = String(inviteCardPayload.ctaUrl || "").trim();
+  const inviteCardCtaUrl = inviteCardCtaUrlRaw || discordUrl;
+
+  merged.community = {
+    ...(merged.community || {}),
+    discordUrl,
+    inviteCard: {
+      title: inviteCardTitle,
+      subtitle: inviteCardSubtitle,
+      panelTitle: inviteCardPanelTitle,
+      panelDescription: inviteCardPanelDescription,
+      ctaLabel: inviteCardCtaLabel,
+      ctaUrl: inviteCardCtaUrl,
+    },
+  };
+
   if (discordUrl) {
     if (Array.isArray(merged.footer?.socialLinks)) {
       merged.footer.socialLinks = merged.footer.socialLinks.map((link) => {

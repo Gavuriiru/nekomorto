@@ -1166,6 +1166,120 @@ const DashboardSettings = () => {
                       </div>
                     </div>
 
+                    <div className="space-y-4 rounded-2xl border border-border/60 bg-background/50 p-4">
+                      <div>
+                        <h2 className="text-lg font-semibold">Card de comunidade</h2>
+                        <p className="text-xs text-muted-foreground">
+                          Configure os textos e o botao principal do card de Discord.
+                        </p>
+                      </div>
+
+                      <div className="grid gap-4 md:grid-cols-2">
+                        <div className="space-y-2">
+                          <Label htmlFor="community-card-title">Titulo do card</Label>
+                          <Input
+                            id="community-card-title"
+                            value={settings.community.inviteCard.title}
+                            onChange={(event) =>
+                              setSettings((prev) => ({
+                                ...prev,
+                                community: {
+                                  ...prev.community,
+                                  inviteCard: { ...prev.community.inviteCard, title: event.target.value },
+                                },
+                              }))
+                            }
+                          />
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label htmlFor="community-card-button-label">Texto do botao</Label>
+                          <Input
+                            id="community-card-button-label"
+                            value={settings.community.inviteCard.ctaLabel}
+                            onChange={(event) =>
+                              setSettings((prev) => ({
+                                ...prev,
+                                community: {
+                                  ...prev.community,
+                                  inviteCard: { ...prev.community.inviteCard, ctaLabel: event.target.value },
+                                },
+                              }))
+                            }
+                          />
+                        </div>
+
+                        <div className="space-y-2 md:col-span-2">
+                          <Label htmlFor="community-card-subtitle">Subtitulo</Label>
+                          <Textarea
+                            id="community-card-subtitle"
+                            value={settings.community.inviteCard.subtitle}
+                            onChange={(event) =>
+                              setSettings((prev) => ({
+                                ...prev,
+                                community: {
+                                  ...prev.community,
+                                  inviteCard: { ...prev.community.inviteCard, subtitle: event.target.value },
+                                },
+                              }))
+                            }
+                          />
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label htmlFor="community-card-panel-title">Titulo do bloco interno</Label>
+                          <Input
+                            id="community-card-panel-title"
+                            value={settings.community.inviteCard.panelTitle}
+                            onChange={(event) =>
+                              setSettings((prev) => ({
+                                ...prev,
+                                community: {
+                                  ...prev.community,
+                                  inviteCard: { ...prev.community.inviteCard, panelTitle: event.target.value },
+                                },
+                              }))
+                            }
+                          />
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label htmlFor="community-card-cta-url">URL do botao</Label>
+                          <Input
+                            id="community-card-cta-url"
+                            value={settings.community.inviteCard.ctaUrl}
+                            onChange={(event) =>
+                              setSettings((prev) => ({
+                                ...prev,
+                                community: {
+                                  ...prev.community,
+                                  inviteCard: { ...prev.community.inviteCard, ctaUrl: event.target.value },
+                                },
+                              }))
+                            }
+                            placeholder="https://discord.com/invite/..."
+                          />
+                        </div>
+
+                        <div className="space-y-2 md:col-span-2">
+                          <Label htmlFor="community-card-panel-description">Texto do bloco interno</Label>
+                          <Textarea
+                            id="community-card-panel-description"
+                            value={settings.community.inviteCard.panelDescription}
+                            onChange={(event) =>
+                              setSettings((prev) => ({
+                                ...prev,
+                                community: {
+                                  ...prev.community,
+                                  inviteCard: { ...prev.community.inviteCard, panelDescription: event.target.value },
+                                },
+                              }))
+                            }
+                          />
+                        </div>
+                      </div>
+                    </div>
+
                     <div className="space-y-4">
                       <div>
                         <h2 className="text-lg font-semibold">Logos e ícones de marca</h2>

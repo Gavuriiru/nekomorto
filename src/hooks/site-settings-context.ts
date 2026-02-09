@@ -25,6 +25,15 @@ export const defaultSettings: SiteSettings = {
   },
   community: {
     discordUrl: "https://discord.com/invite/BAHKhdX2ju",
+    inviteCard: {
+      title: "Entre no Discord",
+      subtitle: "Converse com a equipe e acompanhe novidades em tempo real.",
+      panelTitle: "Comunidade do Zuraaa!",
+      panelDescription:
+        "Receba alertas de lancamentos, participe de eventos e fale sobre os nossos projetos.",
+      ctaLabel: "Entrar no servidor",
+      ctaUrl: "https://discord.com/invite/BAHKhdX2ju",
+    },
   },
   branding: {
     assets: {
