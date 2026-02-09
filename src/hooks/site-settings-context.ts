@@ -15,7 +15,13 @@ export const defaultSettings: SiteSettings = {
     accent: "#9667e0",
   },
   navbar: {
-    recruitmentUrl: "/recrutamento",
+    links: [
+      { label: "Início", href: "/", icon: "home" },
+      { label: "Projetos", href: "/projetos", icon: "folder-kanban" },
+      { label: "Equipe", href: "/equipe", icon: "users" },
+      { label: "Recrutamento", href: "/recrutamento", icon: "user-plus" },
+      { label: "Sobre", href: "/sobre", icon: "info" },
+    ],
   },
   community: {
     discordUrl: "https://discord.com/invite/BAHKhdX2ju",

@@ -19,6 +19,7 @@ import { cn } from "@/lib/utils";
 import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
 import { useSiteSettings } from "@/hooks/use-site-settings";
+import { getNavbarIcon } from "@/lib/navbar-icons";
 
 type HeaderProps = {
   variant?: "fixed" | "static";
@@ -65,11 +66,37 @@ const Header = ({ variant = "fixed", leading, className }: HeaderProps) => {
     settings.branding.wordmarkEnabled &&
     Boolean(wordmarkNavbarUrl) &&
     (wordmarkPlacement === "navbar" || wordmarkPlacement === "both");
-  const recruitmentUrl = settings.navbar.recruitmentUrl || settings.community.discordUrl || "/recrutamento";
-  const isRecruitmentInternal = recruitmentUrl.startsWith("/") && !recruitmentUrl.startsWith("//");
+  const navbarLinks = useMemo(() => {
+    return Array.isArray(settings.navbar.links)
+      ? settings.navbar.links
+          .map((link) => ({
+            label: String(link?.label || "").trim(),
+            href: String(link?.href || "").trim(),
+            icon: String(link?.icon || "").trim(),
+          }))
+          .filter((link) => link.label && link.href)
+      : [];
+  }, [settings.navbar.links]);
   const headerMenuContentClass =
     "border-white/25 bg-gradient-to-b from-black/40 via-black/25 to-black/10 text-white/90 shadow-xl backdrop-blur-sm";
   const headerMenuItemClass = "focus:bg-white/10 focus:text-white";
+  const isInternalHref = (href: string) => href.startsWith("/") && !href.startsWith("//");
+  const normalizePathname = (value: string) => {
+    const pathname = value.split(/[?#]/, 1)[0] || "/";
+    const withoutTrailingSlash = pathname.replace(/\/+$/, "");
+    return withoutTrailingSlash || "/";
+  };
+  const isNavbarLinkActive = (href: string) => {
+    if (!isInternalHref(href)) {
+      return false;
+    }
+    const currentPath = normalizePathname(location.pathname);
+    const targetPath = normalizePathname(href);
+    if (targetPath === "/") {
+      return currentPath === "/";
+    }
+    return currentPath === targetPath || currentPath.startsWith(`${targetPath}/`);
+  };
 
   const projectItems = projects.map((project) => ({
     label: project.title,
@@ -252,67 +279,31 @@ const Header = ({ variant = "fixed", leading, className }: HeaderProps) => {
         
         <div className="flex items-center gap-3 md:gap-6">
           <div className="hidden md:flex items-center gap-6 text-sm font-medium text-white/80">
-            <Link
-              to="/"
-              className={`transition-colors ${
-                location.pathname === "/"
-                  ? "text-white font-semibold"
-                  : "text-white/80 hover:text-white"
-              }`}
-            >
-              Início
-            </Link>
-            <Link
-              to="/projetos"
-              className={`transition-colors ${
-                location.pathname.startsWith("/projetos")
-                  ? "text-white font-semibold"
-                  : "text-white/80 hover:text-white"
-              }`}
-            >
-              Projetos
-            </Link>
-            <Link
-              to="/equipe"
-              className={`transition-colors ${
-                location.pathname.startsWith("/equipe")
-                  ? "text-white font-semibold"
-                  : "text-white/80 hover:text-white"
-              }`}
-            >
-              Equipe
-            </Link>
-            {isRecruitmentInternal ? (
-              <Link
-                to={recruitmentUrl}
-                className={`transition-colors ${
-                  location.pathname.startsWith("/recrutamento")
-                    ? "text-white font-semibold"
-                    : "text-white/80 hover:text-white"
-                }`}
-              >
-                Recrutamento
-              </Link>
-            ) : (
-              <a
-                href={recruitmentUrl}
-                className="text-white/80 hover:text-white transition-colors"
-                target="_blank"
-                rel="noreferrer"
-              >
-                Recrutamento
-              </a>
-            )}
-            <Link
-              to="/sobre"
-              className={`transition-colors ${
-                location.pathname.startsWith("/sobre")
-                  ? "text-white font-semibold"
-                  : "text-white/80 hover:text-white"
-              }`}
-            >
-              Sobre
-            </Link>
+            {navbarLinks.map((item) => {
+              const isInternal = isInternalHref(item.href);
+              const isActive = isNavbarLinkActive(item.href);
+              const className = `transition-colors ${
+                isActive ? "text-white font-semibold" : "text-white/80 hover:text-white"
+              }`;
+              if (isInternal) {
+                return (
+                  <Link key={`${item.label}-${item.href}`} to={item.href} className={className}>
+                    {item.label}
+                  </Link>
+                );
+              }
+              return (
+                <a
+                  key={`${item.label}-${item.href}`}
+                  href={item.href}
+                  className="text-white/80 hover:text-white transition-colors"
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  {item.label}
+                </a>
+              );
+            })}
           </div>
 
           <div className="relative flex items-center gap-3" ref={searchRef}>
@@ -440,27 +431,24 @@ const Header = ({ variant = "fixed", leading, className }: HeaderProps) => {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className={`w-48 ${headerMenuContentClass}`}>
-              <DropdownMenuItem asChild className={headerMenuItemClass}>
-                <Link to="/">Início</Link>
-              </DropdownMenuItem>
-              <DropdownMenuItem asChild className={headerMenuItemClass}>
-                <Link to="/projetos">Projetos</Link>
-              </DropdownMenuItem>
-              <DropdownMenuItem asChild className={headerMenuItemClass}>
-                <Link to="/equipe">Equipe</Link>
-              </DropdownMenuItem>
-              <DropdownMenuItem asChild className={headerMenuItemClass}>
-                {isRecruitmentInternal ? (
-                  <Link to={recruitmentUrl}>Recrutamento</Link>
-                ) : (
-                  <a href={recruitmentUrl} target="_blank" rel="noreferrer">
-                    Recrutamento
-                  </a>
-                )}
-              </DropdownMenuItem>
-              <DropdownMenuItem asChild className={headerMenuItemClass}>
-                <Link to="/sobre">Sobre</Link>
-              </DropdownMenuItem>
+              {navbarLinks.map((item) => {
+                const ItemIcon = getNavbarIcon(item.icon);
+                return (
+                  <DropdownMenuItem key={`${item.label}-${item.href}`} asChild className={headerMenuItemClass}>
+                    {isInternalHref(item.href) ? (
+                      <Link to={item.href} className="flex items-center gap-2">
+                        <ItemIcon className="h-4 w-4" />
+                        {item.label}
+                      </Link>
+                    ) : (
+                      <a href={item.href} target="_blank" rel="noreferrer" className="flex items-center gap-2">
+                        <ItemIcon className="h-4 w-4" />
+                        {item.label}
+                      </a>
+                    )}
+                  </DropdownMenuItem>
+                );
+              })}
             </DropdownMenuContent>
           </DropdownMenu>
 

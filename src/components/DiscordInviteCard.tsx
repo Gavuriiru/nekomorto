@@ -5,7 +5,7 @@ import { useSiteSettings } from "@/hooks/use-site-settings";
 
 const DiscordInviteCard = () => {
   const { settings } = useSiteSettings();
-  const discordUrl = settings.community.discordUrl || settings.navbar.recruitmentUrl || "#";
+  const discordUrl = settings.community.discordUrl || "#";
 
   return (
     <Card className="bg-card border-border reveal" data-reveal>

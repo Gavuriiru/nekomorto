@@ -52,6 +52,7 @@ import { defaultSettings, mergeSettings } from "@/hooks/site-settings-context";
 import type { SiteSettings } from "@/types/site-settings";
 import { usePageMeta } from "@/hooks/use-page-meta";
 import ThemedSvgLogo from "@/components/ThemedSvgLogo";
+import { navbarIconOptions } from "@/lib/navbar-icons";
 
 const roleIconOptions = [
   { id: "languages", label: "Languages" },
@@ -411,7 +412,6 @@ const DashboardSettings = () => {
       if (socialDiscord?.href) {
         nextSettings.community.discordUrl = socialDiscord.href;
       }
-      nextSettings.navbar.recruitmentUrl = "/recrutamento";
       const response = await apiFetch(apiBase, "/api/settings", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
@@ -642,12 +642,13 @@ const DashboardSettings = () => {
               className="mt-8 animate-slide-up opacity-0"
               style={{ animationDelay: "0.2s" }}
             >
-              <TabsList className="grid w-full grid-cols-2 md:grid-cols-6">
+              <TabsList className="grid w-full grid-cols-2 md:grid-cols-7">
                 <TabsTrigger value="geral">Geral</TabsTrigger>
                 <TabsTrigger value="traducoes">Traduções</TabsTrigger>
                 <TabsTrigger value="downloads">Downloads</TabsTrigger>
                 <TabsTrigger value="redes-usuarios">Redes sociais</TabsTrigger>
                 <TabsTrigger value="equipe">Equipe</TabsTrigger>
+                <TabsTrigger value="navbar">Navbar</TabsTrigger>
                 <TabsTrigger value="footer">Footer</TabsTrigger>
               </TabsList>
 
@@ -1507,6 +1508,108 @@ const DashboardSettings = () => {
                           </div>
                         );
                       })}
+                    </div>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+
+              <TabsContent value="navbar" className="mt-6 space-y-6">
+                <Card className="border-border/60 bg-card/80">
+                  <CardContent className="space-y-6 p-6">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <div>
+                        <h2 className="text-lg font-semibold">Links do menu</h2>
+                        <p className="text-xs text-muted-foreground">
+                          Ordem e URLs usados na navbar do site.
+                        </p>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() =>
+                          setSettings((prev) => ({
+                            ...prev,
+                            navbar: {
+                              ...prev.navbar,
+                              links: [...prev.navbar.links, { label: "Novo link", href: "/", icon: "link" }],
+                            },
+                          }))
+                        }
+                      >
+                        <Plus className="h-4 w-4" />
+                      </Button>
+                    </div>
+
+                    <div className="grid gap-3">
+                      {settings.navbar.links.map((link, index) => (
+                        <div key={`${link.label}-${index}`} className="grid gap-3 md:grid-cols-[0.85fr_1fr_1.6fr_auto]">
+                          <Select
+                            value={link.icon || "link"}
+                            onValueChange={(value) =>
+                              setSettings((prev) => {
+                                const nextLinks = [...prev.navbar.links];
+                                nextLinks[index] = { ...nextLinks[index], icon: value };
+                                return { ...prev, navbar: { ...prev.navbar, links: nextLinks } };
+                              })
+                            }
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Ícone" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {navbarIconOptions.map((option) => {
+                                const OptionIcon = option.icon;
+                                return (
+                                  <SelectItem key={option.id} value={option.id}>
+                                    <div className="flex items-center gap-2">
+                                      <OptionIcon className="h-4 w-4 text-muted-foreground" />
+                                      <span>{option.label}</span>
+                                    </div>
+                                  </SelectItem>
+                                );
+                              })}
+                            </SelectContent>
+                          </Select>
+                          <Input
+                            value={link.label}
+                            placeholder="Label"
+                            onChange={(event) =>
+                              setSettings((prev) => {
+                                const nextLinks = [...prev.navbar.links];
+                                nextLinks[index] = { ...nextLinks[index], label: event.target.value };
+                                return { ...prev, navbar: { ...prev.navbar, links: nextLinks } };
+                              })
+                            }
+                          />
+                          <Input
+                            value={link.href}
+                            placeholder="URL ou rota"
+                            onChange={(event) =>
+                              setSettings((prev) => {
+                                const nextLinks = [...prev.navbar.links];
+                                nextLinks[index] = { ...nextLinks[index], href: event.target.value };
+                                return { ...prev, navbar: { ...prev.navbar, links: nextLinks } };
+                              })
+                            }
+                          />
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            onClick={() =>
+                              setSettings((prev) => ({
+                                ...prev,
+                                navbar: {
+                                  ...prev.navbar,
+                                  links: prev.navbar.links.filter((_, idx) => idx !== index),
+                                },
+                              }))
+                            }
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      ))}
                     </div>
                   </CardContent>
                 </Card>

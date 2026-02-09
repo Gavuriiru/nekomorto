@@ -11,7 +11,11 @@ export type SiteSettings = {
     accent: string;
   };
   navbar: {
-    recruitmentUrl: string;
+    links: Array<{
+      label: string;
+      href: string;
+      icon?: string;
+    }>;
   };
   community: {
     discordUrl: string;

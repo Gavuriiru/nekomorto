@@ -688,7 +688,13 @@ const defaultSiteSettings = {
     accent: "#9667e0",
   },
   navbar: {
-    recruitmentUrl: "/recrutamento",
+    links: [
+      { label: "Início", href: "/", icon: "home" },
+      { label: "Projetos", href: "/projetos", icon: "folder-kanban" },
+      { label: "Equipe", href: "/equipe", icon: "users" },
+      { label: "Recrutamento", href: "/recrutamento", icon: "user-plus" },
+      { label: "Sobre", href: "/sobre", icon: "info" },
+    ],
   },
   community: {
     discordUrl: "https://discord.com/invite/BAHKhdX2ju",
@@ -859,7 +865,41 @@ const normalizeUploadsDeep = (value) => {
 
 const normalizeSiteSettings = (payload) => {
   const merged = fixMojibakeDeep(mergeSettings(defaultSiteSettings, payload || {}));
-  merged.navbar = { ...(merged.navbar || {}), recruitmentUrl: "/recrutamento" };
+  const resolveNavbarIcon = (label, href, icon) => {
+    const iconValue = String(icon || "").trim().toLowerCase();
+    if (iconValue) {
+      return iconValue;
+    }
+    const normalizedLabel = String(label || "").trim().toLowerCase();
+    const normalizedHref = String(href || "").trim();
+    const matchByHref = defaultSiteSettings.navbar.links.find((item) => String(item.href || "").trim() === normalizedHref);
+    if (matchByHref?.icon) {
+      return String(matchByHref.icon).trim().toLowerCase();
+    }
+    const matchByLabel = defaultSiteSettings.navbar.links.find(
+      (item) => String(item.label || "").trim().toLowerCase() === normalizedLabel,
+    );
+    if (matchByLabel?.icon) {
+      return String(matchByLabel.icon).trim().toLowerCase();
+    }
+    return "link";
+  };
+  const navbarLinks = Array.isArray(merged?.navbar?.links)
+    ? merged.navbar.links
+        .map((link) => ({
+          label: String(link?.label || "").trim(),
+          href: String(link?.href || "").trim(),
+          icon: resolveNavbarIcon(link?.label, link?.href, link?.icon),
+        }))
+        .filter((link) => link.label && link.href)
+    : [];
+  const normalizedNavbarLinks =
+    Array.isArray(merged?.navbar?.links)
+      ? navbarLinks
+      : defaultSiteSettings.navbar.links.map((link) => ({ ...link }));
+  merged.navbar = {
+    links: normalizedNavbarLinks,
+  };
   const allowedPlacements = new Set(["navbar", "footer", "both"]);
   const placement = String(merged?.branding?.wordmarkPlacement || "both");
   const legacyWordmarkUrl = String(merged?.branding?.wordmarkUrl || "");

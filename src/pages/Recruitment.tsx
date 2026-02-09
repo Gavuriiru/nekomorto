@@ -95,7 +95,7 @@ const defaultRecruitment = {
 const Recruitment = () => {
   usePageMeta({ title: "Recrutamento" });
   const { settings } = useSiteSettings();
-  const discordUrl = settings.community.discordUrl || settings.navbar.recruitmentUrl || "#";
+  const discordUrl = settings.community.discordUrl || "#";
   const apiBase = getApiBase();
   const [recruitment, setRecruitment] = useState(defaultRecruitment);
 
