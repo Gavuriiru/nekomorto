@@ -21,6 +21,20 @@ export type SiteSettings = {
     discordUrl: string;
   };
   branding: {
+    assets: {
+      symbolUrl: string;
+      wordmarkUrl: string;
+    };
+    overrides: {
+      navbarSymbolUrl: string;
+      footerSymbolUrl: string;
+      navbarWordmarkUrl: string;
+      footerWordmarkUrl: string;
+    };
+    display: {
+      navbar: "wordmark" | "symbol-text" | "symbol";
+      footer: "wordmark" | "symbol-text" | "text";
+    };
     wordmarkUrl: string;
     wordmarkUrlNavbar: string;
     wordmarkUrlFooter: string;

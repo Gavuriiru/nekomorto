@@ -10,17 +10,40 @@ const Footer = () => {
   const socialLinks = footer.socialLinks || [];
   const disclaimer = footer.disclaimer || [];
   const legacyWordmarkUrl = settings.branding.wordmarkUrl?.trim();
-  const wordmarkFooterUrl =
-    settings.branding.wordmarkUrlFooter?.trim() ||
-    settings.branding.wordmarkUrlNavbar?.trim() ||
-    legacyWordmarkUrl ||
-    footer.brandLogoUrl ||
-    "";
-  const wordmarkPlacement = settings.branding.wordmarkPlacement || "both";
-  const showWordmarkInFooter =
+  const legacyNavbarWordmark = settings.branding.wordmarkUrlNavbar?.trim();
+  const legacyFooterWordmark = settings.branding.wordmarkUrlFooter?.trim();
+  const legacyPlacement = settings.branding.wordmarkPlacement || "both";
+  const legacyShowWordmarkFooter =
     settings.branding.wordmarkEnabled &&
-    Boolean(wordmarkFooterUrl) &&
-    (wordmarkPlacement === "footer" || wordmarkPlacement === "both");
+    (legacyPlacement === "footer" || legacyPlacement === "both");
+
+  const symbolAssetUrl = settings.branding.assets?.symbolUrl?.trim() || settings.site.logoUrl?.trim() || "";
+  const wordmarkAssetUrl =
+    settings.branding.assets?.wordmarkUrl?.trim() ||
+    legacyWordmarkUrl ||
+    legacyFooterWordmark ||
+    legacyNavbarWordmark ||
+    "";
+  const footerWordmarkUrl =
+    settings.branding.overrides?.footerWordmarkUrl?.trim() ||
+    legacyFooterWordmark ||
+    settings.branding.overrides?.navbarWordmarkUrl?.trim() ||
+    legacyNavbarWordmark ||
+    wordmarkAssetUrl ||
+    "";
+  const footerSymbolUrl =
+    settings.branding.overrides?.footerSymbolUrl?.trim() ||
+    footer.brandLogoUrl ||
+    symbolAssetUrl;
+
+  const footerModeRaw = settings.branding.display?.footer;
+  const footerMode =
+    footerModeRaw === "wordmark" || footerModeRaw === "symbol-text" || footerModeRaw === "text"
+      ? footerModeRaw
+      : legacyShowWordmarkFooter
+        ? "wordmark"
+        : "symbol-text";
+  const showWordmarkInFooter = footerMode === "wordmark" && Boolean(footerWordmarkUrl);
   const renderCopyright = () => {
     const text = footer.copyright || "";
     const marker = "©";
@@ -64,17 +87,21 @@ const Footer = () => {
               {showWordmarkInFooter ? (
                 <>
                   <img
-                    src={wordmarkFooterUrl}
+                    src={footerWordmarkUrl}
                     alt={footer.brandName}
                     className="h-9 md:h-12 w-auto max-w-[220px] md:max-w-[280px] object-contain"
                   />
                   <span className="sr-only">{footer.brandName}</span>
                 </>
+              ) : footerMode === "text" ? (
+                <p className="text-3xl font-black tracking-widest text-gradient-rainbow">
+                  {footer.brandName}
+                </p>
               ) : (
                 <>
-                  {footer.brandLogoUrl ? (
+                  {footerSymbolUrl ? (
                     <ThemedSvgLogo
-                      url={footer.brandLogoUrl}
+                      url={footerSymbolUrl}
                       label={footer.brandName}
                       className="h-10 w-10 rounded-full object-cover shadow-sm text-primary"
                     />

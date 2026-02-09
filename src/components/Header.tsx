@@ -53,19 +53,41 @@ const Header = ({ variant = "fixed", leading, className }: HeaderProps) => {
 
   const siteNameRaw = settings.site.name || "Nekomata";
   const siteName = siteNameRaw.toUpperCase();
-  const logoUrl = settings.site.logoUrl?.trim();
   const legacyWordmarkUrl = settings.branding.wordmarkUrl?.trim();
-  const wordmarkNavbarUrl =
-    settings.branding.wordmarkUrlNavbar?.trim() ||
-    settings.branding.wordmarkUrlFooter?.trim() ||
-    legacyWordmarkUrl ||
-    logoUrl ||
-    "";
-  const wordmarkPlacement = settings.branding.wordmarkPlacement || "both";
-  const showWordmarkInNavbar =
+  const legacyNavbarWordmark = settings.branding.wordmarkUrlNavbar?.trim();
+  const legacyFooterWordmark = settings.branding.wordmarkUrlFooter?.trim();
+  const legacyPlacement = settings.branding.wordmarkPlacement || "both";
+  const legacyShowWordmarkNavbar =
     settings.branding.wordmarkEnabled &&
-    Boolean(wordmarkNavbarUrl) &&
-    (wordmarkPlacement === "navbar" || wordmarkPlacement === "both");
+    (legacyPlacement === "navbar" || legacyPlacement === "both");
+
+  const symbolAssetUrl = settings.branding.assets?.symbolUrl?.trim() || settings.site.logoUrl?.trim() || "";
+  const wordmarkAssetUrl =
+    settings.branding.assets?.wordmarkUrl?.trim() ||
+    legacyWordmarkUrl ||
+    legacyNavbarWordmark ||
+    legacyFooterWordmark ||
+    "";
+  const navbarWordmarkUrl =
+    settings.branding.overrides?.navbarWordmarkUrl?.trim() ||
+    legacyNavbarWordmark ||
+    settings.branding.overrides?.footerWordmarkUrl?.trim() ||
+    legacyFooterWordmark ||
+    wordmarkAssetUrl ||
+    symbolAssetUrl ||
+    "";
+  const navbarSymbolUrl =
+    settings.branding.overrides?.navbarSymbolUrl?.trim() ||
+    symbolAssetUrl;
+
+  const navbarModeRaw = settings.branding.display?.navbar;
+  const navbarMode =
+    navbarModeRaw === "wordmark" || navbarModeRaw === "symbol-text" || navbarModeRaw === "symbol"
+      ? navbarModeRaw
+      : legacyShowWordmarkNavbar
+        ? "wordmark"
+        : "symbol-text";
+  const showWordmarkInNavbar = navbarMode === "wordmark" && Boolean(navbarWordmarkUrl);
   const navbarLinks = useMemo(() => {
     return Array.isArray(settings.navbar.links)
       ? settings.navbar.links
@@ -256,7 +278,7 @@ const Header = ({ variant = "fixed", leading, className }: HeaderProps) => {
             {showWordmarkInNavbar ? (
               <>
                 <img
-                  src={wordmarkNavbarUrl}
+                  src={navbarWordmarkUrl}
                   alt={siteName}
                   className="h-8 md:h-10 w-auto max-w-[200px] md:max-w-[260px] object-contain"
                 />
@@ -264,14 +286,18 @@ const Header = ({ variant = "fixed", leading, className }: HeaderProps) => {
               </>
             ) : (
               <>
-                {logoUrl ? (
+                {navbarSymbolUrl ? (
                   <ThemedSvgLogo
-                    url={logoUrl}
+                    url={navbarSymbolUrl}
                     label={siteName}
                     className="h-9 w-9 rounded-full object-cover shadow-sm text-primary"
                   />
-                ) : null}
-                <span>{siteName}</span>
+                ) : navbarMode !== "symbol" ? null : (
+                  <span className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/20 bg-white/10 text-sm font-semibold">
+                    {siteName.slice(0, 1)}
+                  </span>
+                )}
+                {navbarMode !== "symbol" ? <span>{siteName}</span> : null}
               </>
             )}
           </Link>

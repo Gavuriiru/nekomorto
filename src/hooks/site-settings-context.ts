@@ -27,6 +27,20 @@ export const defaultSettings: SiteSettings = {
     discordUrl: "https://discord.com/invite/BAHKhdX2ju",
   },
   branding: {
+    assets: {
+      symbolUrl: "",
+      wordmarkUrl: "",
+    },
+    overrides: {
+      navbarSymbolUrl: "",
+      footerSymbolUrl: "",
+      navbarWordmarkUrl: "",
+      footerWordmarkUrl: "",
+    },
+    display: {
+      navbar: "symbol-text",
+      footer: "symbol-text",
+    },
     wordmarkUrl: "",
     wordmarkUrlNavbar: "",
     wordmarkUrlFooter: "",

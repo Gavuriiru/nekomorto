@@ -700,6 +700,20 @@ const defaultSiteSettings = {
     discordUrl: "https://discord.com/invite/BAHKhdX2ju",
   },
   branding: {
+    assets: {
+      symbolUrl: "",
+      wordmarkUrl: "",
+    },
+    overrides: {
+      navbarSymbolUrl: "",
+      footerSymbolUrl: "",
+      navbarWordmarkUrl: "",
+      footerWordmarkUrl: "",
+    },
+    display: {
+      navbar: "symbol-text",
+      footer: "symbol-text",
+    },
     wordmarkUrl: "",
     wordmarkUrlNavbar: "",
     wordmarkUrlFooter: "",
@@ -901,17 +915,125 @@ const normalizeSiteSettings = (payload) => {
     links: normalizedNavbarLinks,
   };
   const allowedPlacements = new Set(["navbar", "footer", "both"]);
-  const placement = String(merged?.branding?.wordmarkPlacement || "both");
-  const legacyWordmarkUrl = String(merged?.branding?.wordmarkUrl || "");
-  const wordmarkUrlNavbar = String(merged?.branding?.wordmarkUrlNavbar || "");
-  const wordmarkUrlFooter = String(merged?.branding?.wordmarkUrlFooter || "");
+  const allowedNavbarModes = new Set(["wordmark", "symbol-text", "symbol"]);
+  const allowedFooterModes = new Set(["wordmark", "symbol-text", "text"]);
+  const legacyPlacement = String(merged?.branding?.wordmarkPlacement || "both");
+  const normalizedLegacyPlacement = allowedPlacements.has(legacyPlacement) ? legacyPlacement : "both";
+  const legacyWordmarkEnabled = Boolean(merged?.branding?.wordmarkEnabled);
+  const legacyWordmarkUrl = String(merged?.branding?.wordmarkUrl || "").trim();
+  const legacyWordmarkUrlNavbar = String(merged?.branding?.wordmarkUrlNavbar || "").trim();
+  const legacyWordmarkUrlFooter = String(merged?.branding?.wordmarkUrlFooter || "").trim();
+  const legacySiteSymbol = String(merged?.site?.logoUrl || "").trim();
+  const legacyFooterSymbol = String(merged?.footer?.brandLogoUrl || "").trim();
+
+  const payloadBranding =
+    payload?.branding && typeof payload.branding === "object"
+      ? payload.branding
+      : null;
+  const hasAnyNewBrandingInput = Boolean(
+    payloadBranding &&
+      (typeof payloadBranding.assets === "object" ||
+        typeof payloadBranding.overrides === "object" ||
+        typeof payloadBranding.display === "object"),
+  );
+
+  const rawBrandAssets =
+    merged?.branding?.assets && typeof merged.branding.assets === "object"
+      ? merged.branding.assets
+      : {};
+  const rawBrandOverrides =
+    merged?.branding?.overrides && typeof merged.branding.overrides === "object"
+      ? merged.branding.overrides
+      : {};
+  const rawBrandDisplay =
+    merged?.branding?.display && typeof merged.branding.display === "object"
+      ? merged.branding.display
+      : {};
+
+  const symbolAssetUrl = String(rawBrandAssets.symbolUrl || legacySiteSymbol || "").trim();
+  const wordmarkAssetUrl = String(
+    rawBrandAssets.wordmarkUrl ||
+      (!hasAnyNewBrandingInput
+        ? legacyWordmarkUrl || legacyWordmarkUrlNavbar || legacyWordmarkUrlFooter
+        : "") ||
+      "",
+  ).trim();
+
+  const navbarSymbolOverride = String(rawBrandOverrides.navbarSymbolUrl || "").trim();
+  const footerSymbolOverride = String(
+    rawBrandOverrides.footerSymbolUrl || (!hasAnyNewBrandingInput ? legacyFooterSymbol : "") || "",
+  ).trim();
+  const navbarWordmarkOverride = String(
+    rawBrandOverrides.navbarWordmarkUrl || (!hasAnyNewBrandingInput ? legacyWordmarkUrlNavbar : "") || "",
+  ).trim();
+  const footerWordmarkOverride = String(
+    rawBrandOverrides.footerWordmarkUrl || (!hasAnyNewBrandingInput ? legacyWordmarkUrlFooter : "") || "",
+  ).trim();
+
+  const legacyNavbarMode =
+    legacyWordmarkEnabled &&
+    (normalizedLegacyPlacement === "navbar" || normalizedLegacyPlacement === "both")
+      ? "wordmark"
+      : "symbol-text";
+  const legacyFooterMode =
+    legacyWordmarkEnabled &&
+    (normalizedLegacyPlacement === "footer" || normalizedLegacyPlacement === "both")
+      ? "wordmark"
+      : "symbol-text";
+
+  const navbarModeCandidate = String(rawBrandDisplay.navbar || "").trim();
+  const footerModeCandidate = String(rawBrandDisplay.footer || "").trim();
+  const navbarMode = allowedNavbarModes.has(navbarModeCandidate)
+    ? navbarModeCandidate
+    : legacyNavbarMode;
+  const footerMode = allowedFooterModes.has(footerModeCandidate)
+    ? footerModeCandidate
+    : legacyFooterMode;
+
+  const resolvedNavbarWordmark = navbarWordmarkOverride || wordmarkAssetUrl;
+  const resolvedFooterWordmark = footerWordmarkOverride || wordmarkAssetUrl;
+  const resolvedFooterSymbol = footerSymbolOverride || symbolAssetUrl;
+
+  const usesWordmarkNavbar = navbarMode === "wordmark";
+  const usesWordmarkFooter = footerMode === "wordmark";
+  const compatPlacement = usesWordmarkNavbar && usesWordmarkFooter
+    ? "both"
+    : usesWordmarkNavbar
+      ? "navbar"
+      : usesWordmarkFooter
+        ? "footer"
+        : normalizedLegacyPlacement;
+  const compatWordmarkEnabled = usesWordmarkNavbar || usesWordmarkFooter;
+
   merged.branding = {
     ...(merged.branding || {}),
-    wordmarkUrl: legacyWordmarkUrl,
-    wordmarkUrlNavbar: wordmarkUrlNavbar || legacyWordmarkUrl,
-    wordmarkUrlFooter: wordmarkUrlFooter || legacyWordmarkUrl,
-    wordmarkPlacement: allowedPlacements.has(placement) ? placement : "both",
-    wordmarkEnabled: Boolean(merged?.branding?.wordmarkEnabled),
+    assets: {
+      symbolUrl: symbolAssetUrl,
+      wordmarkUrl: wordmarkAssetUrl,
+    },
+    overrides: {
+      navbarSymbolUrl: navbarSymbolOverride,
+      footerSymbolUrl: footerSymbolOverride,
+      navbarWordmarkUrl: navbarWordmarkOverride,
+      footerWordmarkUrl: footerWordmarkOverride,
+    },
+    display: {
+      navbar: navbarMode,
+      footer: footerMode,
+    },
+    wordmarkUrl: wordmarkAssetUrl,
+    wordmarkUrlNavbar: resolvedNavbarWordmark,
+    wordmarkUrlFooter: resolvedFooterWordmark,
+    wordmarkPlacement: compatPlacement,
+    wordmarkEnabled: compatWordmarkEnabled,
+  };
+  merged.site = {
+    ...(merged.site || {}),
+    logoUrl: symbolAssetUrl,
+  };
+  merged.footer = {
+    ...(merged.footer || {}),
+    brandLogoUrl: resolvedFooterSymbol,
   };
   const discordUrl = String(merged?.community?.discordUrl || "").trim();
   if (discordUrl) {

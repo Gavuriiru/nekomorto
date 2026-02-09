@@ -70,7 +70,7 @@ const DashboardHeader = ({
   }, [location.pathname, menuItems]);
 
   const siteName = (settings.site.name || "Nekomata").toUpperCase();
-  const logoUrl = settings.site.logoUrl?.trim();
+  const logoUrl = settings.branding.assets?.symbolUrl?.trim() || settings.site.logoUrl?.trim();
   const navbarLinks = useMemo(() => {
     return Array.isArray(settings.navbar.links)
       ? settings.navbar.links

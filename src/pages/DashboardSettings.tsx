@@ -8,7 +8,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { ColorPicker } from "@/components/ui/color-picker";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Switch } from "@/components/ui/switch";
 import {
   Select,
@@ -111,6 +110,191 @@ const normalizeLinkTypeId = (value: string) =>
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/(^-|-$)/g, "");
+
+type LogoLibraryTarget =
+  | "branding.assets.symbolUrl"
+  | "branding.assets.wordmarkUrl"
+  | "site.faviconUrl"
+  | "site.defaultShareImage"
+  | "branding.overrides.navbarWordmarkUrl"
+  | "branding.overrides.footerWordmarkUrl"
+  | "branding.overrides.navbarSymbolUrl"
+  | "branding.overrides.footerSymbolUrl";
+
+type NavbarBrandMode = SiteSettings["branding"]["display"]["navbar"];
+type FooterBrandMode = SiteSettings["branding"]["display"]["footer"];
+
+type SettingsTabKey =
+  | "geral"
+  | "downloads"
+  | "equipe"
+  | "footer"
+  | "navbar"
+  | "redes-usuarios"
+  | "traducoes";
+
+const logoEditorFields: Array<{
+  target: LogoLibraryTarget;
+  label: string;
+  description: string;
+  frameClassName: string;
+  imageClassName: string;
+  optional?: boolean;
+}> = [
+  {
+    target: "branding.assets.symbolUrl",
+    label: "Símbolo da marca",
+    description: "Ativo principal usado como base para logo da marca.",
+    frameClassName: "h-16",
+    imageClassName: "h-10 w-10 rounded bg-black/10 object-contain",
+  },
+  {
+    target: "branding.assets.wordmarkUrl",
+    label: "Logotipo (wordmark)",
+    description: "Tipografia principal da marca usada como base para header e footer.",
+    frameClassName: "h-16",
+    imageClassName: "h-10 w-full object-contain",
+  },
+  {
+    target: "site.faviconUrl",
+    label: "Favicon",
+    description: "Ícone mostrado na aba do navegador.",
+    frameClassName: "h-16",
+    imageClassName: "h-8 w-8 rounded bg-black/10 object-contain",
+  },
+  {
+    target: "site.defaultShareImage",
+    label: "Imagem de compartilhamento",
+    description: "Imagem padrão de cards sociais quando a página não define uma própria.",
+    frameClassName: "h-20",
+    imageClassName: "h-full w-full rounded bg-black/10 object-cover",
+  },
+  {
+    target: "branding.overrides.navbarWordmarkUrl",
+    label: "Override de wordmark da navbar",
+    description: "Opcional. Se vazio, a navbar usa o logotipo principal.",
+    frameClassName: "h-16",
+    imageClassName: "h-10 w-full object-contain",
+    optional: true,
+  },
+  {
+    target: "branding.overrides.footerWordmarkUrl",
+    label: "Override de wordmark do footer",
+    description: "Opcional. Se vazio, o footer usa o logotipo principal.",
+    frameClassName: "h-16",
+    imageClassName: "h-10 w-full object-contain",
+    optional: true,
+  },
+  {
+    target: "branding.overrides.navbarSymbolUrl",
+    label: "Override de símbolo da navbar",
+    description: "Opcional. Se vazio, a navbar usa o símbolo principal.",
+    frameClassName: "h-16",
+    imageClassName: "h-10 w-10 rounded bg-black/10 object-contain",
+    optional: true,
+  },
+  {
+    target: "branding.overrides.footerSymbolUrl",
+    label: "Override de símbolo do footer",
+    description: "Opcional. Se vazio, o footer usa o símbolo principal.",
+    frameClassName: "h-16",
+    imageClassName: "h-10 w-10 rounded bg-black/10 object-contain",
+    optional: true,
+  },
+];
+
+const readLogoField = (nextSettings: SiteSettings, target: LogoLibraryTarget) => {
+  if (target === "branding.assets.symbolUrl") {
+    return nextSettings.branding.assets.symbolUrl || "";
+  }
+  if (target === "branding.assets.wordmarkUrl") {
+    return nextSettings.branding.assets.wordmarkUrl || "";
+  }
+  if (target === "site.faviconUrl") {
+    return nextSettings.site.faviconUrl || "";
+  }
+  if (target === "site.defaultShareImage") {
+    return nextSettings.site.defaultShareImage || "";
+  }
+  if (target === "branding.overrides.navbarWordmarkUrl") {
+    return nextSettings.branding.overrides.navbarWordmarkUrl || "";
+  }
+  if (target === "branding.overrides.footerWordmarkUrl") {
+    return nextSettings.branding.overrides.footerWordmarkUrl || "";
+  }
+  if (target === "branding.overrides.navbarSymbolUrl") {
+    return nextSettings.branding.overrides.navbarSymbolUrl || "";
+  }
+  if (target === "branding.overrides.footerSymbolUrl") {
+    return nextSettings.branding.overrides.footerSymbolUrl || "";
+  }
+  return "";
+};
+
+const writeLogoField = (nextSettings: SiteSettings, target: LogoLibraryTarget, url: string) => {
+  if (target === "branding.assets.symbolUrl") {
+    return {
+      ...nextSettings,
+      branding: {
+        ...nextSettings.branding,
+        assets: { ...nextSettings.branding.assets, symbolUrl: url },
+      },
+    };
+  }
+  if (target === "branding.assets.wordmarkUrl") {
+    return {
+      ...nextSettings,
+      branding: {
+        ...nextSettings.branding,
+        assets: { ...nextSettings.branding.assets, wordmarkUrl: url },
+      },
+    };
+  }
+  if (target === "site.faviconUrl") {
+    return { ...nextSettings, site: { ...nextSettings.site, faviconUrl: url } };
+  }
+  if (target === "site.defaultShareImage") {
+    return { ...nextSettings, site: { ...nextSettings.site, defaultShareImage: url } };
+  }
+  if (target === "branding.overrides.navbarWordmarkUrl") {
+    return {
+      ...nextSettings,
+      branding: {
+        ...nextSettings.branding,
+        overrides: { ...nextSettings.branding.overrides, navbarWordmarkUrl: url },
+      },
+    };
+  }
+  if (target === "branding.overrides.footerWordmarkUrl") {
+    return {
+      ...nextSettings,
+      branding: {
+        ...nextSettings.branding,
+        overrides: { ...nextSettings.branding.overrides, footerWordmarkUrl: url },
+      },
+    };
+  }
+  if (target === "branding.overrides.navbarSymbolUrl") {
+    return {
+      ...nextSettings,
+      branding: {
+        ...nextSettings.branding,
+        overrides: { ...nextSettings.branding.overrides, navbarSymbolUrl: url },
+      },
+    };
+  }
+  if (target === "branding.overrides.footerSymbolUrl") {
+    return {
+      ...nextSettings,
+      branding: {
+        ...nextSettings.branding,
+        overrides: { ...nextSettings.branding.overrides, footerSymbolUrl: url },
+      },
+    };
+  }
+  return nextSettings;
+};
+
 const DashboardSettings = () => {
   usePageMeta({ title: "Configurações", noIndex: true });
 
@@ -140,20 +324,14 @@ const DashboardSettings = () => {
   const [isSyncingAniList, setIsSyncingAniList] = useState(false);
   const [uploadingKey, setUploadingKey] = useState<string | null>(null);
   const [isLibraryOpen, setIsLibraryOpen] = useState(false);
-  const [libraryTarget, setLibraryTarget] = useState<
-    | "site.logoUrl"
-    | "site.faviconUrl"
-    | "site.defaultShareImage"
-    | "footer.brandLogoUrl"
-    | "branding.wordmarkUrlNavbar"
-    | "branding.wordmarkUrlFooter"
-  >("site.logoUrl");
+  const [libraryTarget, setLibraryTarget] = useState<LogoLibraryTarget>("branding.assets.symbolUrl");
   const [tagQuery, setTagQuery] = useState("");
   const [genreQuery, setGenreQuery] = useState("");
   const [newTag, setNewTag] = useState("");
   const [newGenre, setNewGenre] = useState("");
   const [staffRoleQuery, setStaffRoleQuery] = useState("");
   const [newStaffRole, setNewStaffRole] = useState("");
+  const [activeTab, setActiveTab] = useState<SettingsTabKey>("geral");
   const hasSyncedAniList = useRef(false);
 
   useEffect(() => {
@@ -301,64 +479,22 @@ const DashboardSettings = () => {
     return value.startsWith("http") || value.startsWith("data:") || value.startsWith("/uploads/");
   };
 
-  const openLibrary = (target: typeof libraryTarget) => {
+  const openLibrary = (target: LogoLibraryTarget) => {
     setLibraryTarget(target);
     setIsLibraryOpen(true);
   };
 
   const applyLibraryImage = (url: string) => {
-    setSettings((prev) => {
-      if (libraryTarget === "site.logoUrl") {
-        return { ...prev, site: { ...prev.site, logoUrl: url } };
-      }
-      if (libraryTarget === "site.faviconUrl") {
-        return { ...prev, site: { ...prev.site, faviconUrl: url } };
-      }
-      if (libraryTarget === "site.defaultShareImage") {
-        return { ...prev, site: { ...prev.site, defaultShareImage: url } };
-      }
-      if (libraryTarget === "footer.brandLogoUrl") {
-        return { ...prev, footer: { ...prev.footer, brandLogoUrl: url } };
-      }
-      if (libraryTarget === "branding.wordmarkUrlNavbar") {
-        return { ...prev, branding: { ...prev.branding, wordmarkUrlNavbar: url } };
-      }
-      if (libraryTarget === "branding.wordmarkUrlFooter") {
-        return { ...prev, branding: { ...prev.branding, wordmarkUrlFooter: url } };
-      }
-      return prev;
-    });
+    setSettings((prev) => writeLogoField(prev, libraryTarget, url));
+  };
+
+  const clearLibraryImage = (target: LogoLibraryTarget) => {
+    setSettings((prev) => writeLogoField(prev, target, ""));
   };
 
   const currentLibrarySelection = useMemo(() => {
-    if (libraryTarget === "site.logoUrl") {
-      return settings.site.logoUrl || "";
-    }
-    if (libraryTarget === "site.faviconUrl") {
-      return settings.site.faviconUrl || "";
-    }
-    if (libraryTarget === "site.defaultShareImage") {
-      return settings.site.defaultShareImage || "";
-    }
-    if (libraryTarget === "footer.brandLogoUrl") {
-      return settings.footer.brandLogoUrl || "";
-    }
-    if (libraryTarget === "branding.wordmarkUrlNavbar") {
-      return settings.branding.wordmarkUrlNavbar || "";
-    }
-    if (libraryTarget === "branding.wordmarkUrlFooter") {
-      return settings.branding.wordmarkUrlFooter || "";
-    }
-    return "";
-  }, [
-    libraryTarget,
-    settings.branding.wordmarkUrlFooter,
-    settings.branding.wordmarkUrlNavbar,
-    settings.footer.brandLogoUrl,
-    settings.site.defaultShareImage,
-    settings.site.faviconUrl,
-    settings.site.logoUrl,
-  ]);
+    return readLogoField(settings, libraryTarget);
+  }, [libraryTarget, settings]);
 
 
 
@@ -588,6 +724,129 @@ const DashboardSettings = () => {
     }
     return currentUser ? `@${currentUser.username}` : "OAuth Discord pendente";
   }, [currentUser, isLoadingUser]);
+
+  const siteNamePreview = (settings.site.name || "Nekomata").trim() || "Nekomata";
+  const footerBrandNamePreview = (settings.footer.brandName || siteNamePreview).trim() || siteNamePreview;
+
+  const legacySiteSymbol = settings.site.logoUrl?.trim() || "";
+  const legacyFooterSymbol = settings.footer.brandLogoUrl?.trim() || "";
+  const legacyWordmark = settings.branding.wordmarkUrl?.trim() || "";
+  const legacyWordmarkNavbar = settings.branding.wordmarkUrlNavbar?.trim() || "";
+  const legacyWordmarkFooter = settings.branding.wordmarkUrlFooter?.trim() || "";
+  const legacyPlacement = settings.branding.wordmarkPlacement || "both";
+  const legacyWordmarkEnabled = settings.branding.wordmarkEnabled;
+
+  const symbolAssetDirect = settings.branding.assets?.symbolUrl?.trim() || "";
+  const wordmarkAssetDirect = settings.branding.assets?.wordmarkUrl?.trim() || "";
+  const navbarSymbolOverrideDirect = settings.branding.overrides?.navbarSymbolUrl?.trim() || "";
+  const footerSymbolOverrideDirect = settings.branding.overrides?.footerSymbolUrl?.trim() || "";
+  const navbarWordmarkOverrideDirect = settings.branding.overrides?.navbarWordmarkUrl?.trim() || "";
+  const footerWordmarkOverrideDirect = settings.branding.overrides?.footerWordmarkUrl?.trim() || "";
+  const faviconUrl = settings.site.faviconUrl?.trim() || "";
+  const shareImageUrl = settings.site.defaultShareImage?.trim() || "";
+
+  const symbolAssetUrl = symbolAssetDirect || legacySiteSymbol;
+  const wordmarkAssetUrl =
+    wordmarkAssetDirect || legacyWordmark || legacyWordmarkNavbar || legacyWordmarkFooter || "";
+  const resolvedNavbarSymbolUrl = navbarSymbolOverrideDirect || symbolAssetUrl;
+  const resolvedFooterSymbolUrl = footerSymbolOverrideDirect || symbolAssetUrl || legacyFooterSymbol;
+  const resolvedNavbarWordmarkUrl = navbarWordmarkOverrideDirect || wordmarkAssetUrl;
+  const resolvedFooterWordmarkUrl = footerWordmarkOverrideDirect || wordmarkAssetUrl;
+
+  const legacyNavbarMode: NavbarBrandMode =
+    legacyWordmarkEnabled && (legacyPlacement === "navbar" || legacyPlacement === "both")
+      ? "wordmark"
+      : "symbol-text";
+  const legacyFooterMode: FooterBrandMode =
+    legacyWordmarkEnabled && (legacyPlacement === "footer" || legacyPlacement === "both")
+      ? "wordmark"
+      : "symbol-text";
+
+  const navbarMode: NavbarBrandMode =
+    settings.branding.display?.navbar === "wordmark" ||
+    settings.branding.display?.navbar === "symbol-text" ||
+    settings.branding.display?.navbar === "symbol"
+      ? settings.branding.display.navbar
+      : legacyNavbarMode;
+  const footerMode: FooterBrandMode =
+    settings.branding.display?.footer === "wordmark" ||
+    settings.branding.display?.footer === "symbol-text" ||
+    settings.branding.display?.footer === "text"
+      ? settings.branding.display.footer
+      : legacyFooterMode;
+
+  const showWordmarkInNavbarPreview = navbarMode === "wordmark" && Boolean(resolvedNavbarWordmarkUrl);
+  const showWordmarkInFooterPreview = footerMode === "wordmark" && Boolean(resolvedFooterWordmarkUrl);
+
+  const logoFieldState: Record<LogoLibraryTarget, { value: string; preview: string; status: string }> = {
+    "branding.assets.symbolUrl": {
+      value: symbolAssetDirect,
+      preview: symbolAssetUrl,
+      status: symbolAssetDirect
+        ? "Símbolo principal ativo."
+        : legacySiteSymbol
+          ? "Sem valor no modelo novo. Usando fallback legado."
+          : "Sem símbolo definido.",
+    },
+    "branding.assets.wordmarkUrl": {
+      value: wordmarkAssetDirect,
+      preview: wordmarkAssetUrl,
+      status: wordmarkAssetDirect
+        ? "Logotipo principal ativo."
+        : legacyWordmark || legacyWordmarkNavbar || legacyWordmarkFooter
+          ? "Sem valor no modelo novo. Usando fallback legado."
+          : "Sem logotipo definido.",
+    },
+    "site.faviconUrl": {
+      value: faviconUrl,
+      preview: faviconUrl,
+      status: faviconUrl ? "Favicon ativa na aba do navegador." : "Sem favicon definida.",
+    },
+    "site.defaultShareImage": {
+      value: shareImageUrl,
+      preview: shareImageUrl,
+      status: shareImageUrl
+        ? "Imagem padrão de compartilhamento ativa."
+        : "Sem imagem padrão de compartilhamento.",
+    },
+    "branding.overrides.navbarWordmarkUrl": {
+      value: navbarWordmarkOverrideDirect,
+      preview: resolvedNavbarWordmarkUrl,
+      status: navbarWordmarkOverrideDirect
+        ? "Override da navbar ativo."
+        : resolvedNavbarWordmarkUrl
+          ? "Sem override. Navbar usa o logotipo principal."
+          : "Sem imagem disponível para a wordmark da navbar.",
+    },
+    "branding.overrides.footerWordmarkUrl": {
+      value: footerWordmarkOverrideDirect,
+      preview: resolvedFooterWordmarkUrl,
+      status: footerWordmarkOverrideDirect
+        ? "Override do footer ativo."
+        : resolvedFooterWordmarkUrl
+          ? "Sem override. Footer usa o logotipo principal."
+          : "Sem imagem disponível para a wordmark do footer.",
+    },
+    "branding.overrides.navbarSymbolUrl": {
+      value: navbarSymbolOverrideDirect,
+      preview: resolvedNavbarSymbolUrl,
+      status: navbarSymbolOverrideDirect
+        ? "Override da navbar ativo."
+        : resolvedNavbarSymbolUrl
+          ? "Sem override. Navbar usa o símbolo principal."
+          : "Sem símbolo disponível para a navbar.",
+    },
+    "branding.overrides.footerSymbolUrl": {
+      value: footerSymbolOverrideDirect,
+      preview: resolvedFooterSymbolUrl,
+      status: footerSymbolOverrideDirect
+        ? "Override do footer ativo."
+        : resolvedFooterSymbolUrl
+          ? "Sem override. Footer usa o símbolo principal."
+          : "Sem símbolo disponível para o footer.",
+    },
+  };
+
   if (isLoading) {
     return (
       <DashboardShell
@@ -638,15 +897,16 @@ const DashboardSettings = () => {
             </div>
 
             <Tabs
-              defaultValue="downloads"
+              value={activeTab}
+              onValueChange={(value) => setActiveTab(value as SettingsTabKey)}
               className="mt-8 animate-slide-up opacity-0"
               style={{ animationDelay: "0.2s" }}
             >
               <TabsList className="grid w-full grid-cols-2 md:grid-cols-7">
+                <TabsTrigger value="geral">Geral</TabsTrigger>
                 <TabsTrigger value="downloads">Downloads</TabsTrigger>
                 <TabsTrigger value="equipe">Equipe</TabsTrigger>
                 <TabsTrigger value="footer">Footer</TabsTrigger>
-                <TabsTrigger value="geral">Geral</TabsTrigger>
                 <TabsTrigger value="navbar">Navbar</TabsTrigger>
                 <TabsTrigger value="redes-usuarios">Redes sociais</TabsTrigger>
                 <TabsTrigger value="traducoes">Traduções</TabsTrigger>
@@ -715,97 +975,200 @@ const DashboardSettings = () => {
                       </div>
                     </div>
 
-                    <div className="grid gap-4 md:grid-cols-3">
-                      <div className="flex h-full flex-col gap-2">
-                        <Label>Logo</Label>
-                        {settings.site.logoUrl ? (
-                          <div className="flex items-center gap-3">
-                            <img
-                              src={settings.site.logoUrl}
-                              alt="Logo"
-                              className="h-10 w-10 rounded bg-black/10 object-contain"
-                            />
-                          </div>
-                        ) : (
-                          <p className="text-xs text-muted-foreground">Sem logo definida.</p>
-                        )}
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          className="mt-auto"
-                          onClick={() => openLibrary("site.logoUrl")}
-                        >
-                          Biblioteca
-                        </Button>
+                    <div className="space-y-4">
+                      <div>
+                        <h2 className="text-lg font-semibold">Logos e ícones de marca</h2>
+                        <p className="text-xs text-muted-foreground">
+                          Todos os ativos visuais em um só lugar, com fallback e prévia rápida.
+                        </p>
                       </div>
-                      <div className="flex h-full flex-col gap-2">
-                        <Label>Favicon</Label>
-                        {settings.site.faviconUrl ? (
-                          <div className="flex items-center gap-3">
-                            <img
-                              src={settings.site.faviconUrl}
-                              alt="Favicon"
-                              className="h-8 w-8 rounded bg-black/10 object-contain"
-                            />
-                          </div>
-                        ) : (
-                          <p className="text-xs text-muted-foreground">Sem favicon definido.</p>
-                        )}
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          className="mt-auto"
-                          onClick={() => openLibrary("site.faviconUrl")}
-                        >
-                          Biblioteca
-                        </Button>
-                      </div>
-                      <div className="flex h-full flex-col gap-2">
-                        <Label>Imagem padrão de compartilhamento</Label>
-                        {settings.site.defaultShareImage ? (
-                          <div className="flex items-center gap-3">
-                            <img
-                              src={settings.site.defaultShareImage}
-                              alt="Imagem de compartilhamento"
-                              className="h-10 w-16 rounded bg-black/10 object-cover"
-                            />
-                          </div>
-                        ) : (
-                          <p className="text-xs text-muted-foreground">Sem imagem definida.</p>
-                        )}
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          className="mt-auto"
-                          onClick={() => openLibrary("site.defaultShareImage")}
-                        >
-                          Biblioteca
-                        </Button>
-                      </div>
-                    </div>
 
-                    <div className="rounded-2xl border border-border/60 bg-background/50 p-4 space-y-3">
-                      <div className="flex items-center gap-2">
-                        <Checkbox
-                          id="wordmark-enabled"
-                          checked={settings.branding.wordmarkEnabled}
-                          onCheckedChange={(checked) =>
-                            setSettings((prev) => ({
-                              ...prev,
-                              branding: { ...prev.branding, wordmarkEnabled: checked === true },
-                            }))
-                          }
-                        />
-                        <Label htmlFor="wordmark-enabled" className="text-sm font-medium">
-                          Substituir texto pelo logo padrão no navbar e footer
-                        </Label>
+                      <div className="grid gap-4 lg:grid-cols-2">
+                        {logoEditorFields.map((field) => {
+                          const state = logoFieldState[field.target];
+                          const hasDirectValue = Boolean(state.value);
+                          return (
+                            <div
+                              key={field.target}
+                              className="rounded-2xl border border-border/60 bg-background/50 p-4 space-y-3"
+                            >
+                              <div>
+                                <p className="text-sm font-semibold">{field.label}</p>
+                                <p className="text-xs text-muted-foreground">{field.description}</p>
+                              </div>
+
+                              <div
+                                className={`flex items-center justify-center rounded-xl border border-border/60 bg-background/60 p-3 ${field.frameClassName}`}
+                              >
+                                {state.preview ? (
+                                  <img
+                                    src={state.preview}
+                                    alt={field.label}
+                                    className={field.imageClassName}
+                                  />
+                                ) : (
+                                  <span className="text-xs text-muted-foreground">Sem imagem definida</span>
+                                )}
+                              </div>
+
+                              <p className="text-[11px] text-muted-foreground">{state.status}</p>
+
+                              <div className="flex gap-2">
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  className="flex-1"
+                                  onClick={() => openLibrary(field.target)}
+                                >
+                                  Biblioteca
+                                </Button>
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  disabled={!hasDirectValue}
+                                  onClick={() => clearLibraryImage(field.target)}
+                                >
+                                  Limpar
+                                </Button>
+                              </div>
+                            </div>
+                          );
+                        })}
                       </div>
-                      <p className="text-xs text-muted-foreground">
-                        Desmarque para manter o nome como está atualmente.
-                      </p>
+
+                      <div className="grid gap-4 md:grid-cols-2">
+                        <div className="rounded-2xl border border-border/60 bg-background/50 p-4 space-y-3">
+                          <Label>Exibição da marca na navbar</Label>
+                          <Select
+                            value={navbarMode}
+                            onValueChange={(value) =>
+                              setSettings((prev) => ({
+                                ...prev,
+                                branding: {
+                                  ...prev.branding,
+                                  display: {
+                                    ...prev.branding.display,
+                                    navbar: value as NavbarBrandMode,
+                                  },
+                                },
+                              }))
+                            }
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Selecione" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="wordmark">Wordmark</SelectItem>
+                              <SelectItem value="symbol-text">Símbolo + texto</SelectItem>
+                              <SelectItem value="symbol">Somente símbolo</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <p className="text-xs text-muted-foreground">
+                            Define como a identidade aparece no topo do site.
+                          </p>
+                        </div>
+
+                        <div className="rounded-2xl border border-border/60 bg-background/50 p-4 space-y-3">
+                          <Label>Exibição da marca no footer</Label>
+                          <Select
+                            value={footerMode}
+                            onValueChange={(value) =>
+                              setSettings((prev) => ({
+                                ...prev,
+                                branding: {
+                                  ...prev.branding,
+                                  display: {
+                                    ...prev.branding.display,
+                                    footer: value as FooterBrandMode,
+                                  },
+                                },
+                              }))
+                            }
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Selecione" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="wordmark">Wordmark</SelectItem>
+                              <SelectItem value="symbol-text">Símbolo + texto</SelectItem>
+                              <SelectItem value="text">Somente texto</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <p className="text-xs text-muted-foreground">
+                            Define como a identidade aparece no rodapé.
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="grid gap-4 md:grid-cols-2">
+                        <div className="rounded-2xl border border-border/60 bg-background/50 p-4">
+                          <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+                            Prévia navbar
+                          </p>
+                          <div className="mt-3 flex min-h-[68px] items-center gap-3 rounded-xl border border-white/10 bg-slate-950 px-4 py-3 text-white">
+                            {showWordmarkInNavbarPreview ? (
+                              <img
+                                src={resolvedNavbarWordmarkUrl}
+                                alt={siteNamePreview}
+                                className="h-9 w-auto max-w-[220px] object-contain"
+                              />
+                            ) : (
+                              <>
+                                {resolvedNavbarSymbolUrl ? (
+                                  <img
+                                    src={resolvedNavbarSymbolUrl}
+                                    alt="Logo principal"
+                                    className="h-9 w-9 rounded-full object-contain"
+                                  />
+                                ) : (
+                                  <span className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/20 bg-white/10 text-xs font-semibold">
+                                    {siteNamePreview.slice(0, 1).toUpperCase()}
+                                  </span>
+                                )}
+                                {navbarMode !== "symbol" ? (
+                                  <span className="text-sm font-semibold uppercase tracking-[0.2em]">
+                                    {siteNamePreview}
+                                  </span>
+                                ) : null}
+                              </>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="rounded-2xl border border-border/60 bg-background/50 p-4">
+                          <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+                            Prévia footer
+                          </p>
+                          <div className="mt-3 flex min-h-[68px] items-center gap-3 rounded-xl border border-border/60 bg-background/70 px-4 py-3">
+                            {showWordmarkInFooterPreview ? (
+                              <img
+                                src={resolvedFooterWordmarkUrl}
+                                alt={footerBrandNamePreview}
+                                className="h-9 w-auto max-w-[220px] object-contain"
+                              />
+                            ) : footerMode === "text" ? (
+                              <span className="text-lg font-black tracking-widest text-gradient-rainbow">
+                                {footerBrandNamePreview}
+                              </span>
+                            ) : (
+                              <>
+                                {resolvedFooterSymbolUrl ? (
+                                  <img
+                                    src={resolvedFooterSymbolUrl}
+                                    alt="Logo do footer"
+                                    className="h-9 w-9 rounded-full object-contain"
+                                  />
+                                ) : null}
+                                <span className="text-lg font-black tracking-widest text-gradient-rainbow">
+                                  {footerBrandNamePreview}
+                                </span>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      </div>
                     </div>
 
                   </CardContent>
@@ -1620,9 +1983,19 @@ const DashboardSettings = () => {
                   <CardContent className="space-y-6 p-6">
                     <div>
                       <h2 className="text-lg font-semibold">Identidade do footer</h2>
-                      <p className="text-xs text-muted-foreground">Nome, logo e descricao.</p>
+                      <p className="text-xs text-muted-foreground">
+                        Nome e descrição. As logos ficam na aba{" "}
+                        <button
+                          type="button"
+                          className="font-medium text-primary underline underline-offset-2 hover:text-primary/80"
+                          onClick={() => setActiveTab("geral")}
+                        >
+                          Geral
+                        </button>
+                        , em "Logos e ícones de marca".
+                      </p>
                     </div>
-                    <div className="grid gap-4 md:grid-cols-2">
+                    <div className="grid gap-4">
                       <div className="space-y-2">
                         <Label>Nome</Label>
                         <Input
@@ -1634,28 +2007,6 @@ const DashboardSettings = () => {
                             }))
                           }
                         />
-                      </div>
-                      <div className="space-y-2">
-                        <Label>Logo</Label>
-                        {settings.footer.brandLogoUrl ? (
-                          <div className="flex items-center gap-3">
-                            <img
-                              src={settings.footer.brandLogoUrl}
-                              alt="Logo do footer"
-                              className="h-10 w-10 rounded bg-black/10 object-contain"
-                            />
-                          </div>
-                        ) : (
-                          <p className="text-xs text-muted-foreground">Sem logo definida.</p>
-                        )}
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={() => openLibrary("footer.brandLogoUrl")}
-                        >
-                          Biblioteca
-                        </Button>
                       </div>
                     </div>
                     <div className="space-y-2">
