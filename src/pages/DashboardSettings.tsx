@@ -638,18 +638,18 @@ const DashboardSettings = () => {
             </div>
 
             <Tabs
-              defaultValue="geral"
+              defaultValue="downloads"
               className="mt-8 animate-slide-up opacity-0"
               style={{ animationDelay: "0.2s" }}
             >
               <TabsList className="grid w-full grid-cols-2 md:grid-cols-7">
-                <TabsTrigger value="geral">Geral</TabsTrigger>
-                <TabsTrigger value="traducoes">Traduções</TabsTrigger>
                 <TabsTrigger value="downloads">Downloads</TabsTrigger>
-                <TabsTrigger value="redes-usuarios">Redes sociais</TabsTrigger>
                 <TabsTrigger value="equipe">Equipe</TabsTrigger>
-                <TabsTrigger value="navbar">Navbar</TabsTrigger>
                 <TabsTrigger value="footer">Footer</TabsTrigger>
+                <TabsTrigger value="geral">Geral</TabsTrigger>
+                <TabsTrigger value="navbar">Navbar</TabsTrigger>
+                <TabsTrigger value="redes-usuarios">Redes sociais</TabsTrigger>
+                <TabsTrigger value="traducoes">Traduções</TabsTrigger>
               </TabsList>
 
               <TabsContent value="geral" className="mt-6 space-y-6">

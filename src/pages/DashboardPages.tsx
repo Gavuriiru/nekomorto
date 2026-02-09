@@ -457,6 +457,10 @@ const pageLabels: Record<string, string> = {
   recruitment: "Recrutamento",
 };
 
+const orderedPageTabs = Object.entries(pageLabels)
+  .sort(([, labelA], [, labelB]) => labelA.localeCompare(labelB, "pt-BR"))
+  .map(([key, label]) => ({ key, label }));
+
 const reorder = <T,>(items: T[], from: number, to: number) => {
   const next = [...items];
   const [removed] = next.splice(from, 1);
@@ -506,8 +510,6 @@ const DashboardPages = () => {
   const [pages, setPages] = useState<PagesConfig>(defaultPages);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
-  const [pageOrder, setPageOrder] = useState<string[]>(["about", "donations", "faq", "team", "recruitment"]);
-  const [dragPageIndex, setDragPageIndex] = useState<number | null>(null);
   const [dragState, setDragState] = useState<{ list: string; index: number } | null>(null);
   const [currentUser, setCurrentUser] = useState<{
     id: string;
@@ -529,28 +531,6 @@ const DashboardPages = () => {
   }, [pages.donations.pixKey, pages.donations.qrCustomUrl]);
 
   useEffect(() => {
-    const loadOrder = () => {
-      try {
-        const stored = window.localStorage.getItem("dashboard.pages.order");
-        if (!stored) {
-          return;
-        }
-        const parsed = JSON.parse(stored);
-        if (!Array.isArray(parsed)) {
-          return;
-        }
-        const validKeys = Object.keys(pageLabels);
-        const next = parsed.filter((key) => validKeys.includes(key));
-        const normalized = [...next, ...validKeys.filter((key) => !next.includes(key))];
-        setPageOrder(normalized);
-      } catch {
-        // ignore
-      }
-    };
-    loadOrder();
-  }, []);
-
-  useEffect(() => {
     const load = async () => {
       try {
         const response = await apiFetch(apiBase, "/api/pages", { auth: true });
@@ -568,14 +548,6 @@ const DashboardPages = () => {
     };
     load();
   }, [apiBase]);
-
-  useEffect(() => {
-    try {
-      window.localStorage.setItem("dashboard.pages.order", JSON.stringify(pageOrder));
-    } catch {
-      // ignore
-    }
-  }, [pageOrder]);
 
   useEffect(() => {
     const loadUser = async () => {
@@ -618,19 +590,6 @@ const DashboardPages = () => {
     setPages((prev) => ({ ...prev, team: { ...prev.team, ...patch } }));
   const updateRecruitment = (patch: Partial<PagesConfig["recruitment"]>) =>
     setPages((prev) => ({ ...prev, recruitment: { ...prev.recruitment, ...patch } }));
-
-  const handlePageDragStart = (index: number) => setDragPageIndex(index);
-  const handlePageDrop = (index: number) => {
-    if (dragPageIndex === null || dragPageIndex === index) {
-      setDragPageIndex(null);
-      return;
-    }
-    const next = [...pageOrder];
-    const [moved] = next.splice(dragPageIndex, 1);
-    next.splice(index, 0, moved);
-    setPageOrder(next);
-    setDragPageIndex(null);
-  };
 
   const handleDragStart = (list: string, index: number) => {
     setDragState({ list, index });
@@ -715,22 +674,14 @@ const DashboardPages = () => {
             </div>
 
             <Tabs
-              defaultValue={pageOrder[0] || "about"}
+              defaultValue={orderedPageTabs[0]?.key || "donations"}
               className="mt-8 animate-slide-up opacity-0"
               style={{ animationDelay: "0.2s" }}
             >
               <TabsList className="grid w-full grid-cols-5">
-                {pageOrder.map((key, index) => (
-                  <TabsTrigger
-                    key={key}
-                    value={key}
-                    draggable
-                    onDragStart={() => handlePageDragStart(index)}
-                    onDragOver={(event) => event.preventDefault()}
-                    onDrop={() => handlePageDrop(index)}
-                    className="relative"
-                  >
-                    <span className="pointer-events-none">{pageLabels[key] || key}</span>
+                {orderedPageTabs.map((tab) => (
+                  <TabsTrigger key={tab.key} value={tab.key}>
+                    <span>{tab.label}</span>
                   </TabsTrigger>
                 ))}
               </TabsList>
