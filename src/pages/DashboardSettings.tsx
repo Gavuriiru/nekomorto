@@ -52,6 +52,7 @@ import type { SiteSettings } from "@/types/site-settings";
 import { usePageMeta } from "@/hooks/use-page-meta";
 import ThemedSvgLogo from "@/components/ThemedSvgLogo";
 import { navbarIconOptions } from "@/lib/navbar-icons";
+import { resolveBranding } from "@/lib/branding";
 
 const roleIconOptions = [
   { id: "languages", label: "Languages" },
@@ -726,57 +727,33 @@ const DashboardSettings = () => {
   }, [currentUser, isLoadingUser]);
 
   const siteNamePreview = (settings.site.name || "Nekomata").trim() || "Nekomata";
-  const footerBrandNamePreview = (settings.footer.brandName || siteNamePreview).trim() || siteNamePreview;
 
-  const legacySiteSymbol = settings.site.logoUrl?.trim() || "";
-  const legacyFooterSymbol = settings.footer.brandLogoUrl?.trim() || "";
-  const legacyWordmark = settings.branding.wordmarkUrl?.trim() || "";
-  const legacyWordmarkNavbar = settings.branding.wordmarkUrlNavbar?.trim() || "";
-  const legacyWordmarkFooter = settings.branding.wordmarkUrlFooter?.trim() || "";
-  const legacyPlacement = settings.branding.wordmarkPlacement || "both";
-  const legacyWordmarkEnabled = settings.branding.wordmarkEnabled;
-
-  const symbolAssetDirect = settings.branding.assets?.symbolUrl?.trim() || "";
-  const wordmarkAssetDirect = settings.branding.assets?.wordmarkUrl?.trim() || "";
-  const navbarSymbolOverrideDirect = settings.branding.overrides?.navbarSymbolUrl?.trim() || "";
-  const footerSymbolOverrideDirect = settings.branding.overrides?.footerSymbolUrl?.trim() || "";
-  const navbarWordmarkOverrideDirect = settings.branding.overrides?.navbarWordmarkUrl?.trim() || "";
-  const footerWordmarkOverrideDirect = settings.branding.overrides?.footerWordmarkUrl?.trim() || "";
+  const branding = resolveBranding(settings);
+  const legacySiteSymbol = branding.legacy.siteSymbolUrl;
+  const legacyWordmark = branding.legacy.wordmarkUrl;
+  const legacyWordmarkNavbar = branding.legacy.navbarWordmarkUrl;
+  const legacyWordmarkFooter = branding.legacy.footerWordmarkUrl;
+  const symbolAssetDirect = branding.direct.symbolAssetUrl;
+  const wordmarkAssetDirect = branding.direct.wordmarkAssetUrl;
+  const navbarSymbolOverrideDirect = branding.direct.navbarSymbolOverrideUrl;
+  const footerSymbolOverrideDirect = branding.direct.footerSymbolOverrideUrl;
+  const navbarWordmarkOverrideDirect = branding.direct.navbarWordmarkOverrideUrl;
+  const footerWordmarkOverrideDirect = branding.direct.footerWordmarkOverrideUrl;
   const faviconUrl = settings.site.faviconUrl?.trim() || "";
   const shareImageUrl = settings.site.defaultShareImage?.trim() || "";
 
-  const symbolAssetUrl = symbolAssetDirect || legacySiteSymbol;
-  const wordmarkAssetUrl =
-    wordmarkAssetDirect || legacyWordmark || legacyWordmarkNavbar || legacyWordmarkFooter || "";
-  const resolvedNavbarSymbolUrl = navbarSymbolOverrideDirect || symbolAssetUrl;
-  const resolvedFooterSymbolUrl = footerSymbolOverrideDirect || symbolAssetUrl || legacyFooterSymbol;
-  const resolvedNavbarWordmarkUrl = navbarWordmarkOverrideDirect || wordmarkAssetUrl;
-  const resolvedFooterWordmarkUrl = footerWordmarkOverrideDirect || wordmarkAssetUrl;
-
-  const legacyNavbarMode: NavbarBrandMode =
-    legacyWordmarkEnabled && (legacyPlacement === "navbar" || legacyPlacement === "both")
-      ? "wordmark"
-      : "symbol-text";
-  const legacyFooterMode: FooterBrandMode =
-    legacyWordmarkEnabled && (legacyPlacement === "footer" || legacyPlacement === "both")
-      ? "wordmark"
-      : "symbol-text";
-
-  const navbarMode: NavbarBrandMode =
-    settings.branding.display?.navbar === "wordmark" ||
-    settings.branding.display?.navbar === "symbol-text" ||
-    settings.branding.display?.navbar === "symbol"
-      ? settings.branding.display.navbar
-      : legacyNavbarMode;
-  const footerMode: FooterBrandMode =
-    settings.branding.display?.footer === "wordmark" ||
-    settings.branding.display?.footer === "symbol-text" ||
-    settings.branding.display?.footer === "text"
-      ? settings.branding.display.footer
-      : legacyFooterMode;
-
-  const showWordmarkInNavbarPreview = navbarMode === "wordmark" && Boolean(resolvedNavbarWordmarkUrl);
-  const showWordmarkInFooterPreview = footerMode === "wordmark" && Boolean(resolvedFooterWordmarkUrl);
+  const symbolAssetUrl = branding.assets.symbolUrl;
+  const wordmarkAssetUrl = branding.assets.wordmarkUrl;
+  const resolvedNavbarSymbolUrl = branding.navbar.symbolUrl;
+  const resolvedFooterSymbolUrl = branding.footer.symbolUrl;
+  const resolvedNavbarWordmarkUrl = branding.navbar.wordmarkUrl;
+  const resolvedFooterWordmarkUrl = branding.footer.wordmarkUrl;
+  const navbarMode: NavbarBrandMode = branding.display.navbar;
+  const footerMode: FooterBrandMode = branding.display.footer;
+  const showWordmarkInNavbarPreview = branding.navbar.showWordmark;
+  const showWordmarkInFooterPreview = branding.footer.showWordmark;
+  const showNavbarSymbolPreview = navbarMode === "symbol-text" || navbarMode === "symbol";
+  const showNavbarTextPreview = navbarMode === "symbol-text" || navbarMode === "text";
 
   const logoFieldState: Record<LogoLibraryTarget, { value: string; preview: string; status: string }> = {
     "branding.assets.symbolUrl": {
@@ -921,7 +898,11 @@ const DashboardSettings = () => {
                         <Input
                           value={settings.site.name}
                           onChange={(event) =>
-                            setSettings((prev) => ({ ...prev, site: { ...prev.site, name: event.target.value } }))
+                            setSettings((prev) => ({
+                              ...prev,
+                              site: { ...prev.site, name: event.target.value },
+                              footer: { ...prev.footer, brandName: event.target.value },
+                            }))
                           }
                         />
                       </div>
@@ -1063,6 +1044,7 @@ const DashboardSettings = () => {
                               <SelectItem value="wordmark">Wordmark</SelectItem>
                               <SelectItem value="symbol-text">Símbolo + texto</SelectItem>
                               <SelectItem value="symbol">Somente símbolo</SelectItem>
+                              <SelectItem value="text">Somente texto</SelectItem>
                             </SelectContent>
                           </Select>
                           <p className="text-xs text-muted-foreground">
@@ -1116,18 +1098,20 @@ const DashboardSettings = () => {
                               />
                             ) : (
                               <>
-                                {resolvedNavbarSymbolUrl ? (
-                                  <img
-                                    src={resolvedNavbarSymbolUrl}
-                                    alt="Logo principal"
-                                    className="h-9 w-9 rounded-full object-contain"
-                                  />
-                                ) : (
-                                  <span className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/20 bg-white/10 text-xs font-semibold">
-                                    {siteNamePreview.slice(0, 1).toUpperCase()}
-                                  </span>
-                                )}
-                                {navbarMode !== "symbol" ? (
+                                {showNavbarSymbolPreview ? (
+                                  resolvedNavbarSymbolUrl ? (
+                                    <img
+                                      src={resolvedNavbarSymbolUrl}
+                                      alt="Logo principal"
+                                      className="h-9 w-9 rounded-full object-contain"
+                                    />
+                                  ) : (
+                                    <span className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/20 bg-white/10 text-xs font-semibold">
+                                      {siteNamePreview.slice(0, 1).toUpperCase()}
+                                    </span>
+                                  )
+                                ) : null}
+                                {showNavbarTextPreview ? (
                                   <span className="text-sm font-semibold uppercase tracking-[0.2em]">
                                     {siteNamePreview}
                                   </span>
@@ -1145,12 +1129,12 @@ const DashboardSettings = () => {
                             {showWordmarkInFooterPreview ? (
                               <img
                                 src={resolvedFooterWordmarkUrl}
-                                alt={footerBrandNamePreview}
+                                alt={siteNamePreview}
                                 className="h-9 w-auto max-w-[220px] object-contain"
                               />
                             ) : footerMode === "text" ? (
                               <span className="text-lg font-black tracking-widest text-gradient-rainbow">
-                                {footerBrandNamePreview}
+                                {siteNamePreview}
                               </span>
                             ) : (
                               <>
@@ -1162,7 +1146,7 @@ const DashboardSettings = () => {
                                   />
                                 ) : null}
                                 <span className="text-lg font-black tracking-widest text-gradient-rainbow">
-                                  {footerBrandNamePreview}
+                                  {siteNamePreview}
                                 </span>
                               </>
                             )}
@@ -1982,32 +1966,7 @@ const DashboardSettings = () => {
                 <Card className="border-border/60 bg-card/80">
                   <CardContent className="space-y-6 p-6">
                     <div>
-                      <h2 className="text-lg font-semibold">Identidade do footer</h2>
-                      <p className="text-xs text-muted-foreground">
-                        Nome e descrição. As logos ficam na aba{" "}
-                        <button
-                          type="button"
-                          className="font-medium text-primary underline underline-offset-2 hover:text-primary/80"
-                          onClick={() => setActiveTab("geral")}
-                        >
-                          Geral
-                        </button>
-                        , em "Logos e ícones de marca".
-                      </p>
-                    </div>
-                    <div className="grid gap-4">
-                      <div className="space-y-2">
-                        <Label>Nome</Label>
-                        <Input
-                          value={settings.footer.brandName}
-                          onChange={(event) =>
-                            setSettings((prev) => ({
-                              ...prev,
-                              footer: { ...prev.footer, brandName: event.target.value },
-                            }))
-                          }
-                        />
-                      </div>
+                      <h2 className="text-lg font-semibold">Conteúdo do footer</h2>
                     </div>
                     <div className="space-y-2">
                       <Label>Descrição</Label>

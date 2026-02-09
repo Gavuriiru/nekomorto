@@ -21,6 +21,7 @@ import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
 import { cn } from "@/lib/utils";
 import { getNavbarIcon } from "@/lib/navbar-icons";
+import { resolveBranding } from "@/lib/branding";
 
 type DashboardHeaderUser = {
   name?: string;
@@ -70,7 +71,8 @@ const DashboardHeader = ({
   }, [location.pathname, menuItems]);
 
   const siteName = (settings.site.name || "Nekomata").toUpperCase();
-  const logoUrl = settings.branding.assets?.symbolUrl?.trim() || settings.site.logoUrl?.trim();
+  const branding = resolveBranding(settings);
+  const logoUrl = branding.assets.symbolUrl;
   const navbarLinks = useMemo(() => {
     return Array.isArray(settings.navbar.links)
       ? settings.navbar.links

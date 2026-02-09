@@ -2,6 +2,7 @@ import { Facebook, Instagram, Twitter, MessageCircle, Youtube, X, Globe } from "
 import { Link } from "react-router-dom";
 import { useSiteSettings } from "@/hooks/use-site-settings";
 import ThemedSvgLogo from "@/components/ThemedSvgLogo";
+import { resolveBranding } from "@/lib/branding";
 
 const Footer = () => {
   const { settings } = useSiteSettings();
@@ -9,41 +10,12 @@ const Footer = () => {
   const footerColumns = footer.columns || [];
   const socialLinks = footer.socialLinks || [];
   const disclaimer = footer.disclaimer || [];
-  const legacyWordmarkUrl = settings.branding.wordmarkUrl?.trim();
-  const legacyNavbarWordmark = settings.branding.wordmarkUrlNavbar?.trim();
-  const legacyFooterWordmark = settings.branding.wordmarkUrlFooter?.trim();
-  const legacyPlacement = settings.branding.wordmarkPlacement || "both";
-  const legacyShowWordmarkFooter =
-    settings.branding.wordmarkEnabled &&
-    (legacyPlacement === "footer" || legacyPlacement === "both");
-
-  const symbolAssetUrl = settings.branding.assets?.symbolUrl?.trim() || settings.site.logoUrl?.trim() || "";
-  const wordmarkAssetUrl =
-    settings.branding.assets?.wordmarkUrl?.trim() ||
-    legacyWordmarkUrl ||
-    legacyFooterWordmark ||
-    legacyNavbarWordmark ||
-    "";
-  const footerWordmarkUrl =
-    settings.branding.overrides?.footerWordmarkUrl?.trim() ||
-    legacyFooterWordmark ||
-    settings.branding.overrides?.navbarWordmarkUrl?.trim() ||
-    legacyNavbarWordmark ||
-    wordmarkAssetUrl ||
-    "";
-  const footerSymbolUrl =
-    settings.branding.overrides?.footerSymbolUrl?.trim() ||
-    footer.brandLogoUrl ||
-    symbolAssetUrl;
-
-  const footerModeRaw = settings.branding.display?.footer;
-  const footerMode =
-    footerModeRaw === "wordmark" || footerModeRaw === "symbol-text" || footerModeRaw === "text"
-      ? footerModeRaw
-      : legacyShowWordmarkFooter
-        ? "wordmark"
-        : "symbol-text";
-  const showWordmarkInFooter = footerMode === "wordmark" && Boolean(footerWordmarkUrl);
+  const brandName = (settings.site.name || footer.brandName || "Nekomata").trim() || "Nekomata";
+  const branding = resolveBranding(settings);
+  const footerWordmarkUrl = branding.footer.wordmarkUrl;
+  const footerSymbolUrl = branding.footer.symbolUrl;
+  const footerMode = branding.footer.mode;
+  const showWordmarkInFooter = branding.footer.showWordmark;
   const renderCopyright = () => {
     const text = footer.copyright || "";
     const marker = "©";
@@ -88,26 +60,26 @@ const Footer = () => {
                 <>
                   <img
                     src={footerWordmarkUrl}
-                    alt={footer.brandName}
+                    alt={brandName}
                     className="h-9 md:h-12 w-auto max-w-[220px] md:max-w-[280px] object-contain"
                   />
-                  <span className="sr-only">{footer.brandName}</span>
+                  <span className="sr-only">{brandName}</span>
                 </>
               ) : footerMode === "text" ? (
                 <p className="text-3xl font-black tracking-widest text-gradient-rainbow">
-                  {footer.brandName}
+                  {brandName}
                 </p>
               ) : (
                 <>
                   {footerSymbolUrl ? (
                     <ThemedSvgLogo
                       url={footerSymbolUrl}
-                      label={footer.brandName}
+                      label={brandName}
                       className="h-10 w-10 rounded-full object-cover shadow-sm text-primary"
                     />
                   ) : null}
                   <p className="text-3xl font-black tracking-widest text-gradient-rainbow">
-                    {footer.brandName}
+                    {brandName}
                   </p>
                 </>
               )}

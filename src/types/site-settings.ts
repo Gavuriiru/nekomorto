@@ -32,7 +32,7 @@ export type SiteSettings = {
       footerWordmarkUrl: string;
     };
     display: {
-      navbar: "wordmark" | "symbol-text" | "symbol";
+      navbar: "wordmark" | "symbol-text" | "symbol" | "text";
       footer: "wordmark" | "symbol-text" | "text";
     };
     wordmarkUrl: string;
