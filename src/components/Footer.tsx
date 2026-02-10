@@ -11,6 +11,7 @@ const Footer = () => {
   const socialLinks = footer.socialLinks || [];
   const disclaimer = footer.disclaimer || [];
   const brandName = (settings.site.name || footer.brandName || "Nekomata").trim() || "Nekomata";
+  const brandNameUpper = brandName.toUpperCase();
   const branding = resolveBranding(settings);
   const footerWordmarkUrl = branding.footer.wordmarkUrl;
   const footerSymbolUrl = branding.footer.symbolUrl;
@@ -67,7 +68,7 @@ const Footer = () => {
                 </>
               ) : footerMode === "text" ? (
                 <p className="text-3xl font-black tracking-widest text-gradient-rainbow">
-                  {brandName}
+                  {brandNameUpper}
                 </p>
               ) : (
                 <>
@@ -79,7 +80,7 @@ const Footer = () => {
                     />
                   ) : null}
                   <p className="text-3xl font-black tracking-widest text-gradient-rainbow">
-                    {brandName}
+                    {brandNameUpper}
                   </p>
                 </>
               )}

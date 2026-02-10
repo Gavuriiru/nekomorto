@@ -469,8 +469,8 @@ const ProjectPage = () => {
           <div className="absolute inset-0 bg-black/20 backdrop-blur-[2px]" />
           <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent" />
 
-          <div className="relative mx-auto flex min-h-[420px] w-full max-w-6xl flex-col items-start gap-8 px-6 pb-16 pt-24 md:flex-row md:items-center md:px-10 lg:min-h-[520px]">
-            <div className="w-52 flex-shrink-0 overflow-hidden rounded-2xl bg-secondary shadow-2xl md:w-64">
+          <div className="relative mx-auto flex min-h-[420px] w-full max-w-6xl flex-col items-start gap-8 px-6 pb-16 pt-24 md:flex-row md:items-center md:px-10 lg:min-h-[520px] reveal" data-reveal>
+            <div className="w-52 flex-shrink-0 overflow-hidden rounded-2xl bg-secondary shadow-2xl animate-slide-up opacity-0 md:w-64">
               <img
                 src={project.cover}
                 alt={project.title}
@@ -478,19 +478,22 @@ const ProjectPage = () => {
               />
             </div>
             <div className="flex flex-1 flex-col gap-4">
-              <div className="flex flex-wrap items-center gap-3 text-xs uppercase tracking-[0.2em] text-primary/80">
+              <div className="flex flex-wrap items-center gap-3 text-xs uppercase tracking-[0.2em] text-primary/80 animate-fade-in">
                 <span>{project.type}</span>
                 <span className="text-muted-foreground">•</span>
                 <span>{project.status}</span>
               </div>
-              <h1 className="text-3xl font-semibold text-foreground md:text-4xl lg:text-5xl">
+              <h1 className="text-3xl font-semibold text-foreground md:text-4xl lg:text-5xl animate-slide-up">
                 {project.title}
               </h1>
-              <p className="max-w-2xl text-sm text-muted-foreground md:text-base">
+              <p
+                className="max-w-2xl text-sm text-muted-foreground md:text-base animate-slide-up opacity-0"
+                style={{ animationDelay: "0.2s" }}
+              >
                 {project.synopsis}
               </p>
               {project.tags?.length ? (
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap gap-2 animate-slide-up opacity-0" style={{ animationDelay: "0.3s" }}>
                   {sortedTags.map((tag) => (
                     <Link key={tag} to={`/projetos?tag=${encodeURIComponent(tag)}`} className="inline-flex">
                       <Badge variant="secondary" className="text-[10px] uppercase">
@@ -500,7 +503,7 @@ const ProjectPage = () => {
                   ))}
                 </div>
               ) : null}
-              <div className="flex flex-wrap gap-3">
+              <div className="flex flex-wrap gap-3 animate-slide-up opacity-0" style={{ animationDelay: "0.4s" }}>
                 <Button asChild className="gap-2">
                   <a href="#downloads">
                     <Download className="h-4 w-4" />
@@ -520,7 +523,7 @@ const ProjectPage = () => {
           </div>
         </section>
 
-        <section className="mx-auto w-full max-w-6xl px-6 pb-12 pt-12 md:px-10">
+        <section className="mx-auto w-full max-w-6xl px-6 pb-12 pt-12 md:px-10 reveal" data-reveal>
           <div className="grid gap-8 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
             <div className="space-y-8">
               <Card className="border-border/60 bg-card/80 shadow-lg transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:bg-card/90 hover:shadow-lg">
@@ -658,7 +661,8 @@ const ProjectPage = () => {
 
         <section
           id="downloads"
-          className="mx-auto w-full max-w-6xl px-6 pb-20 pt-4 md:px-10"
+          className="mx-auto w-full max-w-6xl px-6 pb-20 pt-4 md:px-10 reveal"
+          data-reveal
         >
           <div className="flex flex-col gap-6">
               <div className="flex flex-wrap items-center justify-between gap-3">
@@ -954,7 +958,7 @@ const ProjectPage = () => {
           </div>
         </section>
 
-        <section className="mx-auto w-full max-w-6xl px-6 pb-24 pt-4 md:px-10">
+        <section className="mx-auto w-full max-w-6xl px-6 pb-24 pt-4 md:px-10 reveal" data-reveal>
           <div className="grid gap-6">
             <Card className="border-border bg-card transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:bg-card/90 hover:shadow-lg">
               <CardHeader>
