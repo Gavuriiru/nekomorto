@@ -408,9 +408,6 @@ const Dashboard = () => {
             </div>
             <div className="flex flex-wrap items-center gap-3">
               <Badge className="bg-white/10 text-muted-foreground">Acesso restrito</Badge>
-              <Button variant="outline" className="border-white/15 bg-white/5" asChild>
-                <Link to={analyticsAllHref}>Abrir analytics</Link>
-              </Button>
               {currentUser ? (
                 <Button
                   variant="outline"

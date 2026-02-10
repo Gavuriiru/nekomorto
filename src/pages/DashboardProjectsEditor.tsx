@@ -1,6 +1,9 @@
 ﻿import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import DashboardShell from "@/components/DashboardShell";
+import DashboardPageContainer from "@/components/dashboard/DashboardPageContainer";
+import DashboardPageHeader from "@/components/dashboard/DashboardPageHeader";
+import { dashboardPageLayoutTokens } from "@/components/dashboard/dashboard-page-tokens";
 import ImageLibraryDialog from "@/components/ImageLibraryDialog";
 import ThemedSvgLogo from "@/components/ThemedSvgLogo";
 import { Badge } from "@/components/ui/badge";
@@ -24,6 +27,14 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
+import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination";
 import { toast } from "@/components/ui/use-toast";
 import {
   Eye,
@@ -349,6 +360,14 @@ const generateLocalId = () => {
   return `${alpha}${random}${stamp}`;
 };
 
+const parsePageParam = (value: string | null) => {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed < 1) {
+    return 1;
+  }
+  return Math.floor(parsed);
+};
+
 type EpisodeContentEditorProps = {
   value: string;
   onChange: (value: string) => void;
@@ -395,7 +414,7 @@ const DashboardProjectsEditor = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchParams, setSearchParams] = useSearchParams();
-  const [sortMode, setSortMode] = useState<"order" | "alpha" | "status" | "views" | "comments" | "recent">(() => {
+  const [sortMode, setSortMode] = useState<"alpha" | "status" | "views" | "comments" | "recent">(() => {
     const sortParam = searchParams.get("sort");
     if (
       sortParam === "alpha" ||
@@ -406,8 +425,9 @@ const DashboardProjectsEditor = () => {
     ) {
       return sortParam;
     }
-    return "order";
+    return "alpha";
   });
+  const [currentPage, setCurrentPage] = useState(() => parsePageParam(searchParams.get("page")));
   const [isEditorOpen, setIsEditorOpen] = useState(false);
 
   const downloadSourceOptions = useMemo(() => {
@@ -573,8 +593,6 @@ const DashboardProjectsEditor = () => {
 
     loadUser();
   }, [apiBase]);
-  const listDragId = useRef<string | null>(null);
-
   useEffect(() => {
     const sortParam = searchParams.get("sort");
     const nextSort =
@@ -584,21 +602,35 @@ const DashboardProjectsEditor = () => {
       sortParam === "comments" ||
       sortParam === "recent"
         ? sortParam
-        : "order";
+        : "alpha";
     if (nextSort !== sortMode) {
       setSortMode(nextSort);
     }
   }, [searchParams, sortMode]);
 
   useEffect(() => {
+    const currentSortParam = searchParams.get("sort");
+    const currentSortMode = currentSortParam ?? "alpha";
+    if (currentSortMode === sortMode) {
+      return;
+    }
     const nextParams = new URLSearchParams(searchParams);
-    if (sortMode === "order") {
+    if (sortMode === "alpha") {
       nextParams.delete("sort");
     } else {
       nextParams.set("sort", sortMode);
     }
     setSearchParams(nextParams, { replace: true });
   }, [searchParams, setSearchParams, sortMode]);
+
+  useEffect(() => {
+    const nextPage = parsePageParam(searchParams.get("page"));
+    setCurrentPage((prev) => (prev === nextPage ? prev : nextPage));
+  }, [searchParams]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, sortMode]);
 
   const isManga = isMangaType(formState.type || "");
   const isLightNovel = isLightNovelType(formState.type || "");
@@ -849,44 +881,31 @@ const DashboardProjectsEditor = () => {
       );
       return next;
     }
-    next.sort((a, b) => a.order - b.order);
+    next.sort((a, b) => a.title.localeCompare(b.title, "pt-BR"));
     return next;
   }, [filteredProjects, sortMode]);
+  const projectsPerPage = 10;
+  const totalPages = Math.max(1, Math.ceil(sortedProjects.length / projectsPerPage));
+  const pageStart = (currentPage - 1) * projectsPerPage;
+  const paginatedProjects = sortedProjects.slice(pageStart, pageStart + projectsPerPage);
 
-  const handleListDragStart = (id: string) => {
-    listDragId.current = id;
-  };
+  useEffect(() => {
+    setCurrentPage((page) => Math.min(page, totalPages));
+  }, [totalPages]);
 
-  const handleListDrop = async (targetId: string) => {
-    if (sortMode !== "order") {
-      listDragId.current = null;
+  useEffect(() => {
+    const currentPageParam = parsePageParam(searchParams.get("page"));
+    if (currentPageParam === currentPage) {
       return;
     }
-    const dragId = listDragId.current;
-    if (!dragId || dragId === targetId) {
-      listDragId.current = null;
-      return;
+    const nextParams = new URLSearchParams(searchParams);
+    if (currentPage <= 1) {
+      nextParams.delete("page");
+    } else {
+      nextParams.set("page", String(currentPage));
     }
-    const ordered = [...projects];
-    const fromIndex = ordered.findIndex((item) => item.id === dragId);
-    const toIndex = ordered.findIndex((item) => item.id === targetId);
-    if (fromIndex === -1 || toIndex === -1) {
-      listDragId.current = null;
-      return;
-    }
-    const [removed] = ordered.splice(fromIndex, 1);
-    ordered.splice(toIndex, 0, removed);
-    const next = ordered.map((project, index) => ({ ...project, order: index }));
-    setProjects(next);
-    listDragId.current = null;
-
-    await apiFetch(apiBase, "/api/projects/reorder", {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      auth: true,
-      body: JSON.stringify({ orderedIds: next.map((project) => project.id) }),
-    });
-  };
+    setSearchParams(nextParams, { replace: true });
+  }, [currentPage, searchParams, setSearchParams]);
 
   const openCreate = () => {
     setEditingProject(null);
@@ -1389,31 +1408,21 @@ const DashboardProjectsEditor = () => {
         currentUser={currentUser}
         onUserCardClick={() => navigate("/dashboard/usuarios?edit=me")}
       >
-          <main className="pt-24 px-6 pb-20 md:px-10">
-            <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
-              <div>
-                <Badge variant="secondary" className="text-xs uppercase tracking-widest animate-fade-in">
-                  Projetos
-                </Badge>
-                <h1 className="mt-4 text-3xl font-semibold text-foreground animate-slide-up">Gerenciar projetos</h1>
-                <p
-                  className="mt-2 text-sm text-muted-foreground animate-slide-up opacity-0"
-                  style={{ animationDelay: "0.2s" }}
-                >
-                  Crie, edite e organize os projetos visíveis no site.
-                </p>
-              </div>
-              <Button className="gap-2" onClick={openCreate}>
-                <Plus className="h-4 w-4" />
-                Novo projeto
-              </Button>
-            </div>
+          <DashboardPageContainer>
+            <DashboardPageHeader
+              badge="Projetos"
+              title="Gerenciar projetos"
+              description="Crie, edite e organize os projetos visíveis no site."
+              actions={(
+                <Button className="gap-2" onClick={openCreate}>
+                  <Plus className="h-4 w-4" />
+                  Novo projeto
+                </Button>
+              )}
+            />
 
-            <section className="mt-10 space-y-6">
-              <div
-                className="flex flex-wrap items-center justify-between gap-3 animate-slide-up opacity-0"
-                style={{ animationDelay: "120ms" }}
-              >
+            <section className="mt-8 space-y-6">
+              <div className="flex flex-wrap items-center justify-between gap-3 animate-slide-up opacity-0">
                 <div className="flex flex-1 flex-wrap items-center gap-3">
                   <div className="w-full max-w-sm">
                     <Input
@@ -1427,7 +1436,6 @@ const DashboardProjectsEditor = () => {
                       <SelectValue placeholder="Ordenar por" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="order">Ordem manual</SelectItem>
                       <SelectItem value="recent">Mais recentes</SelectItem>
                       <SelectItem value="alpha">Ordem alfabética</SelectItem>
                       <SelectItem value="status">Status</SelectItem>
@@ -1436,34 +1444,28 @@ const DashboardProjectsEditor = () => {
                     </SelectContent>
                   </Select>
                 </div>
-                <Badge variant="secondary" className="text-xs uppercase">
+                <Badge variant="secondary" className="text-xs uppercase animate-slide-up opacity-0">
                   {sortedProjects.length} projetos
                 </Badge>
               </div>
 
               {isLoading ? (
-                <div className="rounded-2xl border border-white/10 bg-white/5 px-6 py-10 text-sm text-muted-foreground">
+                <div className={`${dashboardPageLayoutTokens.surfaceDefault} px-6 py-10 text-sm text-muted-foreground`}>
                   Carregando projetos...
                 </div>
               ) : sortedProjects.length === 0 ? (
-                <div className="rounded-2xl border border-dashed border-white/10 bg-white/5 px-6 py-10 text-sm text-muted-foreground">
+                <div
+                  className={`${dashboardPageLayoutTokens.surfaceMuted} border-dashed px-6 py-10 text-sm text-muted-foreground`}
+                >
                   Nenhum projeto encontrado.
                 </div>
               ) : (
                 <div className="grid gap-6">
-                  {sortedProjects.map((project, index) => (
+                  {paginatedProjects.map((project, index) => (
                     <Card
                       key={project.id}
-                      className="group cursor-pointer overflow-hidden border-border/60 bg-card/80 shadow-lg transition hover:border-primary/40 animate-slide-up opacity-0"
-                      style={{ animationDelay: `${index * 60}ms` }}
-                      draggable={sortMode === "order"}
-                      onDragStart={() => handleListDragStart(project.id)}
-                      onDragOver={(event) => {
-                        if (sortMode === "order") {
-                          event.preventDefault();
-                        }
-                      }}
-                      onDrop={() => handleListDrop(project.id)}
+                      className={`${dashboardPageLayoutTokens.listCard} group cursor-pointer overflow-hidden transition hover:border-primary/40 animate-slide-up opacity-0`}
+                      style={{ animationDelay: `${Math.min(index * 35, 210)}ms` }}
                       onClick={() => openEdit(project)}
                     >
                       <CardContent className="p-0">
@@ -1568,6 +1570,46 @@ const DashboardProjectsEditor = () => {
                   ))}
                 </div>
               )}
+              {sortedProjects.length > projectsPerPage ? (
+                <div className="mt-6 flex justify-center">
+                  <Pagination>
+                    <PaginationContent>
+                      <PaginationItem>
+                        <PaginationPrevious
+                          href="#"
+                          onClick={(event) => {
+                            event.preventDefault();
+                            setCurrentPage((page) => Math.max(1, page - 1));
+                          }}
+                        />
+                      </PaginationItem>
+                      {Array.from({ length: totalPages }, (_, index) => index + 1).map((page) => (
+                        <PaginationItem key={page}>
+                          <PaginationLink
+                            href="#"
+                            isActive={page === currentPage}
+                            onClick={(event) => {
+                              event.preventDefault();
+                              setCurrentPage(page);
+                            }}
+                          >
+                            {page}
+                          </PaginationLink>
+                        </PaginationItem>
+                      ))}
+                      <PaginationItem>
+                        <PaginationNext
+                          href="#"
+                          onClick={(event) => {
+                            event.preventDefault();
+                            setCurrentPage((page) => Math.min(totalPages, page + 1));
+                          }}
+                        />
+                      </PaginationItem>
+                    </PaginationContent>
+                  </Pagination>
+                </div>
+              ) : null}
               {trashedProjects.length > 0 ? (
                 <Card className="mt-8 border-border/60 bg-card/60">
                   <CardContent className="space-y-4 p-6">
@@ -1586,8 +1628,8 @@ const DashboardProjectsEditor = () => {
                       {trashedProjects.map((project, index) => (
                         <div
                           key={`trash-${project.id}`}
-                          className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 animate-slide-up opacity-0"
-                          style={{ animationDelay: `${index * 60}ms` }}
+                          className={`${dashboardPageLayoutTokens.surfaceDefault} flex flex-wrap items-center justify-between gap-3 px-4 py-3 animate-slide-up opacity-0`}
+                          style={{ animationDelay: `${Math.min(index * 35, 210)}ms` }}
                         >
                           <div className="min-w-0">
                             <p className="text-sm font-medium text-foreground">{project.title}</p>
@@ -1612,7 +1654,7 @@ const DashboardProjectsEditor = () => {
                 </Card>
               ) : null}
             </section>
-          </main>
+          </DashboardPageContainer>
       </DashboardShell>
 
       {isEditorOpen ? (

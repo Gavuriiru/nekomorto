@@ -1,6 +1,9 @@
 ﻿import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import DashboardShell from "@/components/DashboardShell";
+import DashboardPageContainer from "@/components/dashboard/DashboardPageContainer";
+import DashboardPageHeader from "@/components/dashboard/DashboardPageHeader";
+import { dashboardPageLayoutTokens } from "@/components/dashboard/dashboard-page-tokens";
 import ImageLibraryDialog from "@/components/ImageLibraryDialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -43,6 +46,14 @@ import { usePageMeta } from "@/hooks/use-page-meta";
 import { normalizeAssetUrl } from "@/lib/asset-url";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination";
 
 const emptyForm = {
   title: "",
@@ -86,6 +97,31 @@ const toLocalDateTimeFromIso = (value?: string | null) =>
 const buildNumberOptions = (count: number) =>
   Array.from({ length: count }, (_, index) => pad(index));
 
+const parsePageParam = (value: string | null) => {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed < 1) {
+    return 1;
+  }
+  return Math.floor(parsed);
+};
+
+const parseSortParam = (
+  value: string | null,
+): "recent" | "alpha" | "tags" | "projects" | "status" | "views" | "comments" => {
+  if (
+    value === "alpha" ||
+    value === "tags" ||
+    value === "projects" ||
+    value === "status" ||
+    value === "views" ||
+    value === "comments" ||
+    value === "recent"
+  ) {
+    return value;
+  }
+  return "recent";
+};
+
 type PostRecord = {
   id: string;
   title: string;
@@ -117,12 +153,12 @@ type UserRecord = {
 const DashboardPosts = () => {
   usePageMeta({ title: "Posts", noIndex: true });
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const apiBase = getApiBase();
   const restoreWindowMs = 3 * 24 * 60 * 60 * 1000;
   const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
   const [posts, setPosts] = useState<PostRecord[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
-  const [postOrder, setPostOrder] = useState<string[]>([]);
   const [users, setUsers] = useState<UserRecord[]>([]);
   const [ownerIds, setOwnerIds] = useState<string[]>([]);
   const [currentUser, setCurrentUser] = useState<{
@@ -137,9 +173,12 @@ const DashboardPosts = () => {
   const [formState, setFormState] = useState(emptyForm);
   const [isSlugCustom, setIsSlugCustom] = useState(false);
   const [isLibraryOpen, setIsLibraryOpen] = useState(false);
-  const [sortMode, setSortMode] = useState<"recent" | "alpha" | "tags" | "projects" | "status" | "views" | "comments">("recent");
-  const [searchQuery, setSearchQuery] = useState("");
-  const [projectFilterId, setProjectFilterId] = useState<string>("all");
+  const [sortMode, setSortMode] = useState<"recent" | "alpha" | "tags" | "projects" | "status" | "views" | "comments">(() =>
+    parseSortParam(searchParams.get("sort")),
+  );
+  const [currentPage, setCurrentPage] = useState(() => parsePageParam(searchParams.get("page")));
+  const [searchQuery, setSearchQuery] = useState(() => searchParams.get("q") || "");
+  const [projectFilterId, setProjectFilterId] = useState<string>(() => searchParams.get("project") || "all");
   const [projectFilterQuery, setProjectFilterQuery] = useState("");
   const [deleteTarget, setDeleteTarget] = useState<PostRecord | null>(null);
   const [tagInput, setTagInput] = useState("");
@@ -195,7 +234,6 @@ const DashboardPosts = () => {
     const data = await response.json();
     const nextPosts = Array.isArray(data.posts) ? data.posts : [];
     setPosts(nextPosts);
-    setPostOrder(nextPosts.map((post) => post.id));
   };
 
   useEffect(() => {
@@ -214,7 +252,6 @@ const DashboardPosts = () => {
           if (isActive) {
             const nextPosts = Array.isArray(data.posts) ? data.posts : [];
             setPosts(nextPosts);
-            setPostOrder(nextPosts.map((post) => post.id));
           }
         }
 
@@ -524,7 +561,6 @@ const DashboardPosts = () => {
   }, [activePosts, projectFilterId, projectMap, searchQuery, sortMode]);
 
   const sortedPosts = useMemo(() => {
-    const orderMap = new Map(postOrder.map((id, index) => [id, index]));
     const next = [...filteredPosts];
     next.sort((a, b) => {
       if (sortMode === "alpha") {
@@ -556,7 +592,55 @@ const DashboardPosts = () => {
       return new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime();
     });
     return next;
-  }, [filteredPosts, postOrder, projectMap, sortMode]);
+  }, [filteredPosts, projectMap, sortMode]);
+
+  const postsPerPage = 10;
+  const totalPages = Math.max(1, Math.ceil(sortedPosts.length / postsPerPage));
+  const pageStart = (currentPage - 1) * postsPerPage;
+  const paginatedPosts = sortedPosts.slice(pageStart, pageStart + postsPerPage);
+
+  useEffect(() => {
+    setCurrentPage((page) => Math.min(page, totalPages));
+  }, [totalPages]);
+
+  useEffect(() => {
+    const nextSortMode = parseSortParam(searchParams.get("sort"));
+    const nextSearchQuery = searchParams.get("q") || "";
+    const nextProjectFilterId = searchParams.get("project") || "all";
+    const nextPage = parsePageParam(searchParams.get("page"));
+    setSortMode((prev) => (prev === nextSortMode ? prev : nextSortMode));
+    setSearchQuery((prev) => (prev === nextSearchQuery ? prev : nextSearchQuery));
+    setProjectFilterId((prev) => (prev === nextProjectFilterId ? prev : nextProjectFilterId));
+    setCurrentPage((prev) => (prev === nextPage ? prev : nextPage));
+  }, [searchParams]);
+
+  useEffect(() => {
+    const nextParams = new URLSearchParams(searchParams);
+    if (sortMode === "recent") {
+      nextParams.delete("sort");
+    } else {
+      nextParams.set("sort", sortMode);
+    }
+    const trimmedQuery = searchQuery.trim();
+    if (trimmedQuery) {
+      nextParams.set("q", trimmedQuery);
+    } else {
+      nextParams.delete("q");
+    }
+    if (projectFilterId && projectFilterId !== "all") {
+      nextParams.set("project", projectFilterId);
+    } else {
+      nextParams.delete("project");
+    }
+    if (currentPage <= 1) {
+      nextParams.delete("page");
+    } else {
+      nextParams.set("page", String(currentPage));
+    }
+    if (nextParams.toString() !== searchParams.toString()) {
+      setSearchParams(nextParams, { replace: true });
+    }
+  }, [sortMode, searchQuery, projectFilterId, currentPage, searchParams, setSearchParams]);
 
   const handlePublishDateChange = (nextDate?: Date) => {
     if (!nextDate) {
@@ -872,69 +956,62 @@ const DashboardPosts = () => {
           handleRouteNavigate(item.href);
         }}
       >
-        <main className="pt-24 px-6 pb-20 md:px-10">
-            <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
-              <div>
-                <Badge variant="secondary" className="text-xs uppercase tracking-widest animate-fade-in">
-                  Postagens
-                </Badge>
-                <h1 className="mt-4 text-3xl font-semibold text-foreground animate-slide-up">Gerenciar posts</h1>
-                <p
-                  className="mt-2 text-sm text-muted-foreground animate-slide-up opacity-0"
-                  style={{ animationDelay: "0.2s" }}
-                >
-                  Visualize, edite e publique os posts mais recentes do site.
-                </p>
-              </div>
-              {canManagePosts ? (
-                <div className="flex flex-wrap items-center gap-3">
-                      {isEditorOpen ? (
-                        editingPost ? (
-                          <>
-                            <Button onClick={() => handleSave()} className="gap-2">
-                              <Edit3 className="h-4 w-4" />
-                              Salvar
-                            </Button>
-                            <Button variant="outline" onClick={handleDelete} className="gap-2">
-                              <Trash2 className="h-4 w-4" />
-                              Excluir
-                            </Button>
-                            <Button variant="ghost" onClick={closeEditor} className="gap-2">
-                              <X className="h-4 w-4" />
-                              Fechar
-                            </Button>
-                          </>
-                        ) : (
-                          <>
-                            <Button onClick={() => handleSave("published")} className="gap-2">
-                              <Plus className="h-4 w-4" />
-                              Publicar agora
-                            </Button>
-                            <Button variant="secondary" onClick={() => handleSave("scheduled")}>
-                              Agendar
-                            </Button>
-                            <Button variant="ghost" onClick={() => handleSave("draft")}>
-                              Salvar rascunho
-                            </Button>
-                            <Button variant="ghost" onClick={closeEditor} className="gap-2">
-                              <X className="h-4 w-4" />
-                              Fechar
-                            </Button>
-                          </>
-                        )
+        <DashboardPageContainer>
+            <DashboardPageHeader
+              badge="Postagens"
+              title="Gerenciar posts"
+              description="Visualize, edite e publique os posts mais recentes do site."
+              actions={
+                canManagePosts ? (
+                  <>
+                    {isEditorOpen ? (
+                      editingPost ? (
+                        <>
+                          <Button onClick={() => handleSave()} className="gap-2">
+                            <Edit3 className="h-4 w-4" />
+                            Salvar
+                          </Button>
+                          <Button variant="outline" onClick={handleDelete} className="gap-2">
+                            <Trash2 className="h-4 w-4" />
+                            Excluir
+                          </Button>
+                          <Button variant="ghost" onClick={closeEditor} className="gap-2">
+                            <X className="h-4 w-4" />
+                            Fechar
+                          </Button>
+                        </>
                       ) : (
-                        <Button className="gap-2" onClick={openCreate}>
-                          <Plus className="h-4 w-4" />
-                          Nova postagem
-                        </Button>
-                      )}
-                </div>
-              ) : null}
-            </div>
+                        <>
+                          <Button onClick={() => handleSave("published")} className="gap-2">
+                            <Plus className="h-4 w-4" />
+                            Publicar agora
+                          </Button>
+                          <Button variant="secondary" onClick={() => handleSave("scheduled")}>
+                            Agendar
+                          </Button>
+                          <Button variant="ghost" onClick={() => handleSave("draft")}>
+                            Salvar rascunho
+                          </Button>
+                          <Button variant="ghost" onClick={closeEditor} className="gap-2">
+                            <X className="h-4 w-4" />
+                            Fechar
+                          </Button>
+                        </>
+                      )
+                    ) : (
+                      <Button className="gap-2" onClick={openCreate}>
+                        <Plus className="h-4 w-4" />
+                        Nova postagem
+                      </Button>
+                    )}
+                  </>
+                ) : undefined
+              }
+            />
 
             {isEditorOpen && canManagePosts ? (
               <section
-                className="mt-10 space-y-8"
+                className="mt-8 space-y-8"
                 onFocusCapture={(event) => {
                   const target = event.target as HTMLElement | null;
                   if (target?.closest(".lexical-playground")) {
@@ -1239,19 +1316,25 @@ const DashboardPosts = () => {
             ) : null}
 
             <section className="mt-10 space-y-6">
-              <div
-                className="flex flex-wrap items-center justify-between gap-3 animate-slide-up opacity-0"
-                style={{ animationDelay: "120ms" }}
-              >
+              <div className="flex flex-wrap items-center justify-between gap-3 animate-slide-up opacity-0">
                 <div className="flex flex-1 flex-wrap items-center gap-3">
                   <div className="w-full max-w-sm">
                     <Input
                       value={searchQuery}
-                      onChange={(event) => setSearchQuery(event.target.value)}
+                      onChange={(event) => {
+                        setCurrentPage(1);
+                        setSearchQuery(event.target.value);
+                      }}
                       placeholder="Buscar por título, slug, autor, tags..."
                     />
                   </div>
-                  <Select value={sortMode} onValueChange={(value) => setSortMode(value as typeof sortMode)}>
+                  <Select
+                    value={sortMode}
+                    onValueChange={(value) => {
+                      setCurrentPage(1);
+                      setSortMode(value as typeof sortMode);
+                    }}
+                  >
                     <SelectTrigger className="w-[200px]">
                       <SelectValue placeholder="Ordenar por" />
                     </SelectTrigger>
@@ -1266,7 +1349,13 @@ const DashboardPosts = () => {
                     </SelectContent>
                   </Select>
                   {sortMode === "projects" ? (
-                    <Select value={projectFilterId} onValueChange={setProjectFilterId}>
+                    <Select
+                      value={projectFilterId}
+                      onValueChange={(value) => {
+                        setCurrentPage(1);
+                        setProjectFilterId(value);
+                      }}
+                    >
                       <SelectTrigger className="w-[240px]">
                         <SelectValue placeholder="Selecionar projeto" />
                       </SelectTrigger>
@@ -1292,21 +1381,23 @@ const DashboardPosts = () => {
                     </Select>
                   ) : null}
                 </div>
-                <Badge variant="secondary" className="text-xs uppercase">
+                <Badge variant="secondary" className="text-xs uppercase animate-slide-up opacity-0">
                   {sortedPosts.length} posts
                 </Badge>
               </div>
               {isLoading ? (
-                <div className="rounded-2xl border border-white/10 bg-white/5 px-6 py-10 text-sm text-muted-foreground">
+                <div className={`${dashboardPageLayoutTokens.surfaceDefault} px-6 py-10 text-sm text-muted-foreground`}>
                   Carregando postagens...
                 </div>
               ) : sortedPosts.length === 0 ? (
-                <div className="rounded-2xl border border-dashed border-white/10 bg-white/5 px-6 py-10 text-sm text-muted-foreground">
+                <div
+                  className={`${dashboardPageLayoutTokens.surfaceMuted} border-dashed px-6 py-10 text-sm text-muted-foreground`}
+                >
                   Nenhuma postagem cadastrada ainda.
                 </div>
               ) : (
                 <div className="grid gap-6">
-                  {sortedPosts.map((post, index) => {
+                  {paginatedPosts.map((post, index) => {
                     const formattedDate = post.publishedAt ? formatDateTimeShort(post.publishedAt) : "Sem data";
                     const project = post.projectId ? projectMap.get(post.projectId) : null;
                     const tags = Array.from(
@@ -1318,8 +1409,8 @@ const DashboardPosts = () => {
                     return (
                       <Card
                         key={post.id}
-                        className="group cursor-pointer overflow-hidden border-border/60 bg-card/80 shadow-lg transition hover:border-primary/40 animate-slide-up opacity-0"
-                        style={{ animationDelay: `${index * 60}ms` }}
+                        className={`${dashboardPageLayoutTokens.listCard} group cursor-pointer overflow-hidden transition hover:border-primary/40 animate-slide-up opacity-0`}
+                        style={{ animationDelay: `${Math.min(index * 35, 210)}ms` }}
                         onClick={() => {
                           if (canManagePosts) {
                             openEdit(post);
@@ -1434,6 +1525,46 @@ const DashboardPosts = () => {
                   })}
                 </div>
               )}
+              {sortedPosts.length > postsPerPage ? (
+                <div className="mt-6 flex justify-center">
+                  <Pagination>
+                    <PaginationContent>
+                      <PaginationItem>
+                        <PaginationPrevious
+                          href="#"
+                          onClick={(event) => {
+                            event.preventDefault();
+                            setCurrentPage((page) => Math.max(1, page - 1));
+                          }}
+                        />
+                      </PaginationItem>
+                      {Array.from({ length: totalPages }, (_, index) => index + 1).map((page) => (
+                        <PaginationItem key={page}>
+                          <PaginationLink
+                            href="#"
+                            isActive={page === currentPage}
+                            onClick={(event) => {
+                              event.preventDefault();
+                              setCurrentPage(page);
+                            }}
+                          >
+                            {page}
+                          </PaginationLink>
+                        </PaginationItem>
+                      ))}
+                      <PaginationItem>
+                        <PaginationNext
+                          href="#"
+                          onClick={(event) => {
+                            event.preventDefault();
+                            setCurrentPage((page) => Math.min(totalPages, page + 1));
+                          }}
+                        />
+                      </PaginationItem>
+                    </PaginationContent>
+                  </Pagination>
+                </div>
+              ) : null}
               {trashedPosts.length > 0 ? (
                 <Card className="mt-8 border-border/60 bg-card/60">
                   <CardContent className="space-y-4 p-6">
@@ -1452,8 +1583,8 @@ const DashboardPosts = () => {
                       {trashedPosts.map((post, index) => (
                         <div
                           key={`trash-${post.id}`}
-                          className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 animate-slide-up opacity-0"
-                          style={{ animationDelay: `${index * 60}ms` }}
+                          className={`${dashboardPageLayoutTokens.surfaceDefault} flex flex-wrap items-center justify-between gap-3 px-4 py-3 animate-slide-up opacity-0`}
+                          style={{ animationDelay: `${Math.min(index * 35, 210)}ms` }}
                         >
                           <div className="min-w-0">
                             <p className="text-sm font-medium text-foreground">{post.title}</p>
@@ -1478,7 +1609,7 @@ const DashboardPosts = () => {
                 </Card>
               ) : null}
             </section>
-          </main>
+          </DashboardPageContainer>
       </DashboardShell>
 
 
