@@ -368,6 +368,12 @@ const parsePageParam = (value: string | null) => {
   return Math.floor(parsed);
 };
 
+const buildProjectEditorSnapshot = (form: ProjectForm, anilistIdInput: string) =>
+  JSON.stringify({
+    form,
+    anilistIdInput: anilistIdInput.trim(),
+  });
+
 type EpisodeContentEditorProps = {
   value: string;
   onChange: (value: string) => void;
@@ -394,6 +400,7 @@ const EpisodeContentEditor = ({
       value={value}
       onChange={onChange}
       placeholder="Escreva o capítulo..."
+      className="lexical-playground--modal"
     />
   );
 };
@@ -429,6 +436,7 @@ const DashboardProjectsEditor = () => {
   });
   const [currentPage, setCurrentPage] = useState(() => parsePageParam(searchParams.get("page")));
   const [isEditorOpen, setIsEditorOpen] = useState(false);
+  const [isEditorDialogScrolled, setIsEditorDialogScrolled] = useState(false);
 
   const downloadSourceOptions = useMemo(() => {
     const sources =
@@ -524,12 +532,49 @@ const DashboardProjectsEditor = () => {
   const [episodeCoverIndex, setEpisodeCoverIndex] = useState<number | null>(null);
   const [libraryFolder, setLibraryFolder] = useState<string>("");
   const chapterEditorsRef = useRef<Record<number, LexicalEditorHandle | null>>({});
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [confirmTitle, setConfirmTitle] = useState("Sair da edição?");
+  const [confirmDescription, setConfirmDescription] = useState(
+    "Você tem alterações não salvas. Deseja continuar?",
+  );
+  const confirmActionRef = useRef<(() => void) | null>(null);
+  const confirmCancelRef = useRef<(() => void) | null>(null);
+  const editorInitialSnapshotRef = useRef<string>(buildProjectEditorSnapshot(emptyProject, ""));
+  const isDirty = useMemo(
+    () => buildProjectEditorSnapshot(formState, anilistIdInput) !== editorInitialSnapshotRef.current,
+    [anilistIdInput, formState],
+  );
+
   const handleEditorOpenChange = (next: boolean) => {
     if (!next && isLibraryOpen) {
       return;
     }
-    setIsEditorOpen(next);
+    if (!next) {
+      if (!isDirty) {
+        setIsEditorOpen(false);
+        setEditingProject(null);
+        return;
+      }
+      setConfirmTitle("Sair da edição?");
+      setConfirmDescription("Você tem alterações não salvas. Deseja continuar?");
+      confirmActionRef.current = () => {
+        setIsEditorOpen(false);
+        setEditingProject(null);
+      };
+      confirmCancelRef.current = () => {
+        setConfirmOpen(false);
+      };
+      setConfirmOpen(true);
+      return;
+    }
+    setIsEditorOpen(true);
   };
+
+  useEffect(() => {
+    if (!isEditorOpen) {
+      setIsEditorDialogScrolled(false);
+    }
+  }, [isEditorOpen]);
 
   const staffRoleOptions = useMemo(() => {
     const labels = publicSettings.teamRoles.map((role) => role.label).filter(Boolean);
@@ -908,9 +953,11 @@ const DashboardProjectsEditor = () => {
   }, [currentPage, searchParams, setSearchParams]);
 
   const openCreate = () => {
+    const nextForm = { ...emptyProject };
     setEditingProject(null);
-    setFormState({ ...emptyProject });
+    setFormState(nextForm);
     setAnilistIdInput("");
+    editorInitialSnapshotRef.current = buildProjectEditorSnapshot(nextForm, "");
     setCollapsedEpisodes({});
     setIsEditorOpen(true);
   };
@@ -924,8 +971,7 @@ const DashboardProjectsEditor = () => {
         }))
       : [];
     const mergedSynopsis = project.synopsis || project.description || "";
-    setEditingProject(project);
-    setFormState({
+    const nextForm = {
       id: project.id,
       anilistId: project.anilistId ?? null,
       title: project.title || "",
@@ -958,8 +1004,12 @@ const DashboardProjectsEditor = () => {
       forceHero: Boolean(project.forceHero),
       heroImageUrl: project.heroImageUrl || "",
       episodeDownloads: initialEpisodes,
-    });
-    setAnilistIdInput(project.anilistId ? String(project.anilistId) : "");
+    };
+    const nextAniListInput = project.anilistId ? String(project.anilistId) : "";
+    setEditingProject(project);
+    setFormState(nextForm);
+    setAnilistIdInput(nextAniListInput);
+    editorInitialSnapshotRef.current = buildProjectEditorSnapshot(nextForm, nextAniListInput);
     setCollapsedEpisodes(() => {
       const next: Record<number, boolean> = {};
       initialEpisodes.forEach((_, index) => {
@@ -973,6 +1023,22 @@ const DashboardProjectsEditor = () => {
   const closeEditor = () => {
     setIsEditorOpen(false);
     setEditingProject(null);
+  };
+
+  const requestCloseEditor = () => {
+    if (!isDirty) {
+      closeEditor();
+      return;
+    }
+    setConfirmTitle("Sair da edição?");
+    setConfirmDescription("Você tem alterações não salvas. Deseja continuar?");
+    confirmActionRef.current = () => {
+      closeEditor();
+    };
+    confirmCancelRef.current = () => {
+      setConfirmOpen(false);
+    };
+    setConfirmOpen(true);
   };
 
   const handleSave = async () => {
@@ -1103,6 +1169,7 @@ const DashboardProjectsEditor = () => {
     } else {
       setProjects((prev) => [...prev, data.project]);
     }
+    editorInitialSnapshotRef.current = buildProjectEditorSnapshot(payload as ProjectForm, anilistIdInput);
     closeEditor();
   };
 
@@ -1666,8 +1733,14 @@ const DashboardProjectsEditor = () => {
 
       <Dialog open={isEditorOpen} onOpenChange={handleEditorOpenChange} modal={false}>
         <DialogContent
-          className="max-w-5xl max-h-[92vh] overflow-y-auto"
+          className={`max-w-5xl max-h-[92vh] overflow-y-auto no-scrollbar ${
+            isEditorDialogScrolled ? "editor-modal-scrolled" : ""
+          }`}
           disableOutsidePointerEvents={false}
+          onScroll={(event) => {
+            const nextScrolled = event.currentTarget.scrollTop > 0;
+            setIsEditorDialogScrolled((prev) => (prev === nextScrolled ? prev : nextScrolled));
+          }}
           onPointerDownOutside={(event) => {
             if (isLibraryOpen) {
               event.preventDefault();
@@ -2664,11 +2737,43 @@ const DashboardProjectsEditor = () => {
             </datalist>
 
             <div className="flex justify-end gap-3">
-              <Button variant="ghost" onClick={closeEditor}>
+              <Button variant="ghost" onClick={requestCloseEditor}>
                 Cancelar
               </Button>
               <Button onClick={handleSave}>Salvar projeto</Button>
             </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={confirmOpen}
+        onOpenChange={setConfirmOpen}
+      >
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>{confirmTitle}</DialogTitle>
+            <DialogDescription>{confirmDescription}</DialogDescription>
+          </DialogHeader>
+          <div className="flex justify-end gap-3">
+            <Button
+              variant="ghost"
+              onClick={() => {
+                confirmCancelRef.current?.();
+                setConfirmOpen(false);
+              }}
+            >
+              Continuar editando
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => {
+                confirmActionRef.current?.();
+                setConfirmOpen(false);
+              }}
+            >
+              Sair
+            </Button>
           </div>
         </DialogContent>
       </Dialog>

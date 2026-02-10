@@ -86,7 +86,7 @@ const ProjectEmbedCard = ({ projectId }: ProjectEmbedCardProps) => {
       to={`/projeto/${project?.id ?? projectId}`}
       className="block focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-2xl"
     >
-      <Card className="border-border bg-card shadow-sm">
+      <Card className="border-border bg-card shadow-sm transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:bg-card/90 hover:shadow-lg">
         <CardContent className="space-y-4 p-4">
           <div className="group flex flex-col gap-4 sm:flex-row sm:items-start">
             <div
@@ -133,5 +133,7 @@ const ProjectEmbedCard = ({ projectId }: ProjectEmbedCardProps) => {
 };
 
 export default ProjectEmbedCard;
+
+
 
 

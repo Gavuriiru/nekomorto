@@ -123,7 +123,7 @@ const WorkStatusCard = () => {
     <Card className="bg-card border-border reveal" data-reveal>
       <CardHeader className="px-4 pb-3 pt-4">
         <CardTitle className="text-lg font-semibold text-foreground flex items-center gap-2">
-          <Clock className="w-4 h-4 text-primary" />
+          <Clock className="w-4 h-4 text-primary/80" />
           Em Progresso
         </CardTitle>
       </CardHeader>
@@ -154,14 +154,14 @@ const WorkStatusCard = () => {
               <Link
                 key={item.id}
                 to={`/projeto/${item.projectId}`}
-                className="block rounded-md bg-secondary/50 p-3 hover:bg-secondary transition-colors"
+                className="group/item block rounded-md border border-border/50 bg-secondary/50 p-3 transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:bg-secondary hover:shadow-lg"
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-foreground truncate">
+                    <p className="text-sm font-medium text-foreground truncate transition-colors duration-300 group-hover/item:text-primary">
                       {item.title}
                     </p>
-                    <span className="text-xs text-muted-foreground">
+                    <span className="text-xs text-muted-foreground transition-colors duration-300 group-hover/item:text-foreground/80">
                       {item.entry}
                     </span>
                   </div>
@@ -189,6 +189,8 @@ const WorkStatusCard = () => {
 };
 
 export default WorkStatusCard;
+
+
 
 
 

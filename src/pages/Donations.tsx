@@ -169,14 +169,14 @@ const Donations = () => {
               return (
                 <Card
                   key={item.title}
-                  className="border-border/60 bg-card/80 shadow-lg transition hover:border-primary/40"
+                  className="group border-border/60 bg-card/80 shadow-lg transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:bg-card/90 hover:shadow-lg"
                 >
                   <CardContent className="space-y-3 p-6">
-                    <div className="flex items-center gap-3 text-sm font-semibold uppercase tracking-widest text-muted-foreground">
-                      <Icon className="h-4 w-4 text-primary" />
+                    <div className="flex items-center gap-3 text-sm font-semibold uppercase tracking-widest text-muted-foreground transition-colors duration-300 group-hover:text-primary">
+                      <Icon className="h-4 w-4 text-primary/80 transition-colors duration-300 group-hover:text-primary" />
                       {item.title}
                     </div>
-                    <p className="text-sm text-muted-foreground">{item.description}</p>
+                    <p className="text-sm text-muted-foreground transition-colors duration-300 group-hover:text-foreground/80">{item.description}</p>
                   </CardContent>
                 </Card>
               );
@@ -185,27 +185,27 @@ const Donations = () => {
         </section>
 
         <section className="mx-auto w-full max-w-6xl px-6 pb-12 pt-2 md:px-10 reveal" data-reveal>
-          <Card className="border-border/60 bg-card/90 shadow-xl">
+          <Card className="group border-border/60 bg-card/90 shadow-xl transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:shadow-lg">
             <CardContent className="grid gap-6 p-6 md:grid-cols-[1.1fr_0.9fr] md:p-8">
               <div className="space-y-4">
-                <div className="flex items-center gap-3 text-sm font-semibold uppercase tracking-widest text-muted-foreground">
+                <div className="flex items-center gap-3 text-sm font-semibold uppercase tracking-widest text-muted-foreground transition-colors duration-300 group-hover:text-primary">
                   {(() => {
                     const ReasonIcon = iconMap[donations.reasonIcon] || HeartHandshake;
-                    return <ReasonIcon className="h-4 w-4 text-primary" />;
+                    return <ReasonIcon className="h-4 w-4 text-primary/80 transition-colors duration-300 group-hover:text-primary" />;
                   })()}
                   {donations.reasonTitle}
                 </div>
-                <p className="text-sm text-muted-foreground md:text-base">{donations.reasonText}</p>
-                <div className="rounded-2xl border border-border/60 bg-background/60 p-4 text-sm text-muted-foreground">
+                <p className="text-sm text-muted-foreground transition-colors duration-300 group-hover:text-foreground/80 md:text-base">{donations.reasonText}</p>
+                <div className="rounded-2xl border border-border/60 bg-background/60 p-4 text-sm text-muted-foreground transition-all duration-300 group-hover:border-primary/30 group-hover:bg-background/70 group-hover:text-foreground/80">
                   {donations.reasonNote}
                 </div>
               </div>
-              <div className="rounded-2xl border border-border/60 bg-background/50 p-5">
+              <div className="rounded-2xl border border-border/60 bg-background/50 p-5 transition-all duration-300 group-hover:border-primary/30 group-hover:bg-background/70">
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2 text-sm font-semibold uppercase tracking-widest text-muted-foreground">
+                  <div className="flex items-center gap-2 text-sm font-semibold uppercase tracking-widest text-muted-foreground transition-colors duration-300 group-hover:text-primary">
                     {(() => {
                       const PixIcon = iconMap[donations.pixIcon] || QrCode;
-                      return <PixIcon className="h-4 w-4 text-primary" />;
+                      return <PixIcon className="h-4 w-4 text-primary/80 transition-colors duration-300 group-hover:text-primary" />;
                     })()}
                     Pix
                   </div>
@@ -234,12 +234,12 @@ const Donations = () => {
         </section>
 
         <section className="mx-auto w-full max-w-6xl px-6 pb-24 pt-4 md:px-10 reveal" data-reveal>
-          <Card className="border-border/60 bg-card/80 shadow-lg">
+          <Card className="group border-border/60 bg-card/80 shadow-lg transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:bg-card/90 hover:shadow-lg">
             <CardContent className="p-6 md:p-8">
-              <div className="flex items-center gap-3 text-xl font-semibold text-foreground">
+              <div className="flex items-center gap-3 text-xl font-semibold text-foreground transition-colors duration-300 group-hover:text-primary">
                 {(() => {
                   const DonorsIcon = iconMap[donations.donorsIcon] || PiggyBank;
-                  return <DonorsIcon className="h-5 w-5 text-primary" />;
+                  return <DonorsIcon className="h-5 w-5 text-primary/80 transition-colors duration-300 group-hover:text-primary" />;
                 })()}
                 Lista de doadores
               </div>
@@ -281,6 +281,8 @@ const Donations = () => {
 };
 
 export default Donations;
+
+
 
 
 

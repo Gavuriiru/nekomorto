@@ -523,7 +523,7 @@ const ProjectPage = () => {
         <section className="mx-auto w-full max-w-6xl px-6 pb-12 pt-12 md:px-10">
           <div className="grid gap-8 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
             <div className="space-y-8">
-              <Card className="border-border/60 bg-card/80 shadow-lg">
+              <Card className="border-border/60 bg-card/80 shadow-lg transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:bg-card/90 hover:shadow-lg">
                 <CardContent className="space-y-4 p-6">
                     <div className="flex items-center gap-3 text-sm font-semibold uppercase tracking-widest text-muted-foreground">
                       {isChapterBased ? (
@@ -560,7 +560,7 @@ const ProjectPage = () => {
               </Card>
 
               {visibleRelations.length > 0 ? (
-                <Card className="border-border/60 bg-card/80 shadow-lg">
+                <Card className="border-border/60 bg-card/80 shadow-lg transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:bg-card/90 hover:shadow-lg">
                   <CardContent className="space-y-5 p-6">
                     <div className="flex items-center gap-3 text-sm font-semibold uppercase tracking-widest text-muted-foreground">
                       <Users className="h-4 w-4 text-primary" />
@@ -575,7 +575,7 @@ const ProjectPage = () => {
                           <Link
                             key={`${relation.relation}-${relation.title}`}
                             to={targetId ? `/projeto/${targetId}` : "#"}
-                            className="group flex gap-4 rounded-xl border border-border/50 bg-background/60 p-4 transition hover:border-primary/40 hover:bg-background/80"
+                            className="group flex gap-4 rounded-xl border border-border/50 bg-background/60 p-4 transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:bg-background/80 hover:shadow-lg"
                           >
                             <div className="w-16 flex-shrink-0 overflow-hidden rounded-lg bg-secondary aspect-[2/3]">
                               <img
@@ -606,7 +606,7 @@ const ProjectPage = () => {
 
             <div className="space-y-6">
               {project.staff?.length ? (
-                <Card className="border-border/60 bg-card/70 shadow-md">
+                <Card className="border-border/60 bg-card/70 shadow-md transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:bg-card/90 hover:shadow-lg">
                   <CardContent className="space-y-5 p-6">
                     <div className="flex items-center gap-3 text-sm font-semibold uppercase tracking-widest text-muted-foreground">
                       <Users className="h-4 w-4 text-primary" />
@@ -630,7 +630,7 @@ const ProjectPage = () => {
               ) : null}
 
               {project.animeStaff?.length ? (
-                <Card className="border-border/60 bg-card/70 shadow-md">
+                <Card className="border-border/60 bg-card/70 shadow-md transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:bg-card/90 hover:shadow-lg">
                   <CardContent className="space-y-5 p-6">
                     <div className="flex items-center gap-3 text-sm font-semibold uppercase tracking-widest text-muted-foreground">
                       <Users className="h-4 w-4 text-primary" />
@@ -687,7 +687,7 @@ const ProjectPage = () => {
               ) : (
                 <div className="grid gap-6">
                   {volumeGroups.map((group) => (
-                    <Card key={group.label} className="border-border/60 bg-card/80 shadow-lg">
+                    <Card key={group.label} className="border-border/60 bg-card/80 shadow-lg transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:bg-card/90 hover:shadow-lg">
                       <CardContent className="space-y-4 p-6">
                         <Accordion type="multiple" defaultValue={[group.label]}>
                           <AccordionItem value={group.label} className="border-none">
@@ -709,7 +709,7 @@ const ProjectPage = () => {
                               return (
                                 <Card
                                   key={`${chapter.number}-${chapter.volume || 0}`}
-                                  className="border-border/60 bg-background/60"
+                                  className="border-border/60 bg-background/60 transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:bg-background/80 hover:shadow-lg"
                                 >
                                   <CardContent className="space-y-3 p-4">
                                     <div className="flex flex-wrap items-start justify-between gap-4">
@@ -763,7 +763,7 @@ const ProjectPage = () => {
               <div className="grid gap-6">
                 {isManga
                   ? volumeGroups.map((group) => (
-                      <Card key={group.label} className="border-border/60 bg-card/80 shadow-lg">
+                      <Card key={group.label} className="border-border/60 bg-card/80 shadow-lg transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:bg-card/90 hover:shadow-lg">
                         <CardContent className="space-y-4 p-6">
                           <Accordion type="multiple" defaultValue={[group.label]}>
                             <AccordionItem value={group.label} className="border-none">
@@ -780,7 +780,7 @@ const ProjectPage = () => {
                                   {group.items.map((episode) => (
                                 <Card
                                   key={`${episode.number}-${episode.volume || 0}`}
-                                  className="border-border/60 bg-background/60 shadow-lg transition hover:border-primary/40"
+                                  className="border-border/60 bg-background/60 shadow-lg transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:bg-background/80 hover:shadow-lg"
                                 >
                                   <CardContent className="relative grid gap-6 p-6 md:grid-cols-[240px_minmax(0,1fr)]">
                                     <div className="overflow-hidden rounded-xl border border-border/50 bg-background/50 shadow-sm">
@@ -857,7 +857,7 @@ const ProjectPage = () => {
                   : paginatedEpisodes.map((episode) => (
                       <Card
                         key={episode.number}
-                        className="border-border/60 bg-card/80 shadow-lg transition hover:border-primary/40"
+                        className="border-border/60 bg-card/80 shadow-lg transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:bg-card/90 hover:shadow-lg"
                       >
                         <CardContent className="relative grid gap-6 p-6 md:grid-cols-[240px_minmax(0,1fr)]">
                           {!isManga ? (
@@ -956,7 +956,7 @@ const ProjectPage = () => {
 
         <section className="mx-auto w-full max-w-6xl px-6 pb-24 pt-4 md:px-10">
           <div className="grid gap-6">
-            <Card className="border-border bg-card">
+            <Card className="border-border bg-card transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:bg-card/90 hover:shadow-lg">
               <CardHeader>
                 <CardTitle className="text-lg">Compartilhar</CardTitle>
               </CardHeader>
@@ -980,6 +980,8 @@ const ProjectPage = () => {
 };
 
 export default ProjectPage;
+
+
 
 
 

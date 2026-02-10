@@ -91,6 +91,24 @@
   overflow-y: hidden;
 }
 
+.lexical-playground.lexical-playground--modal .toolbar {
+  position: sticky;
+  top: -1.5rem;
+  z-index: 12;
+  margin-top: 0;
+  margin-bottom: 0.5rem;
+  border: 1px solid hsl(var(--border));
+  border-radius: 0.85rem;
+  background: hsl(var(--card) / 0.98);
+  backdrop-filter: none;
+  box-shadow: 0 8px 20px -18px rgba(0, 0, 0, 0.75);
+}
+
+.editor-modal-scrolled .lexical-playground.lexical-playground--modal .toolbar {
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+}
+
 .lexical-playground .toolbar.toolbar--compact {
   flex-wrap: wrap;
   height: auto;

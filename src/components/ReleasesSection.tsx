@@ -168,7 +168,7 @@ const ReleasesSection = () => {
                       data-reveal
                       style={{ transitionDelay: `${index * 80}ms` }}
                     >
-                      <Card className="bg-card border-border hover:border-primary/50 transition-all h-full overflow-hidden">
+                      <Card className="bg-card border-border h-full overflow-hidden transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:bg-card/90 hover:shadow-lg">
                         <CardContent className="p-0 flex flex-col h-full">
                           <div className="relative w-full aspect-[3/2] overflow-hidden bg-secondary">
                             <img
@@ -279,6 +279,8 @@ const ReleasesSection = () => {
 };
 
 export default ReleasesSection;
+
+
 
 
 

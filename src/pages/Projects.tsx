@@ -69,7 +69,7 @@ const ProjectCard = ({ project, tagTranslations, genreTranslations, navigate }: 
     <Link
       key={project.id}
       to={`/projeto/${project.id}`}
-      className="group flex min-h-[12.5rem] w-full items-start gap-5 overflow-hidden rounded-2xl bg-gradient-card p-5 shadow-[0_28px_120px_-60px_rgba(0,0,0,0.55)] transition hover:shadow-[0_36px_150px_-70px_rgba(0,0,0,0.6),_0_0_28px_hsl(var(--primary)/0.24)] hover:brightness-105 md:h-[15rem]"
+      className="group flex min-h-[12.5rem] w-full items-start gap-5 overflow-hidden rounded-2xl border border-border/60 bg-gradient-card p-5 shadow-[0_28px_120px_-60px_rgba(0,0,0,0.55)] transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:shadow-lg md:h-[15rem]"
     >
       <div className="h-[9.75rem] w-28 flex-shrink-0 overflow-hidden rounded-xl bg-secondary shadow-inner md:h-[12.5rem] md:w-36">
         <img
@@ -80,14 +80,14 @@ const ProjectCard = ({ project, tagTranslations, genreTranslations, navigate }: 
       </div>
       <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden">
         <div>
-          <p className="text-xs uppercase tracking-[0.2em] text-primary/80">{project.type}</p>
+          <p className="text-xs uppercase tracking-[0.2em] text-primary/80 transition-colors duration-300 group-hover:text-primary">{project.type}</p>
           <h2
             ref={titleRef}
-            className="text-xl font-semibold leading-snug text-foreground line-clamp-2 md:text-2xl"
+            className="text-xl font-semibold leading-snug text-foreground transition-colors duration-300 group-hover:text-primary line-clamp-2 md:text-2xl"
           >
             {project.title}
           </h2>
-          <p className={`mt-2 text-sm text-muted-foreground ${synopsisClampClass} break-normal hyphens-none`}>
+          <p className={`mt-2 text-sm text-muted-foreground transition-colors duration-300 group-hover:text-foreground/80 ${synopsisClampClass} break-normal hyphens-none`}>
             {project.synopsis}
           </p>
         </div>

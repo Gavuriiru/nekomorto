@@ -97,6 +97,21 @@ const toLocalDateTimeFromIso = (value?: string | null) =>
 const buildNumberOptions = (count: number) =>
   Array.from({ length: count }, (_, index) => pad(index));
 
+const buildPostEditorSnapshot = (form: typeof emptyForm) =>
+  JSON.stringify({
+    title: form.title,
+    slug: form.slug,
+    excerpt: form.excerpt,
+    contentLexical: form.contentLexical,
+    author: form.author,
+    coverImageUrl: form.coverImageUrl,
+    coverAlt: form.coverAlt,
+    status: form.status,
+    publishAt: form.publishAt,
+    projectId: form.projectId,
+    tags: form.tags,
+  });
+
 const parsePageParam = (value: string | null) => {
   const parsed = Number(value);
   if (!Number.isFinite(parsed) || parsed < 1) {
@@ -169,6 +184,7 @@ const DashboardPosts = () => {
   } | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isEditorOpen, setIsEditorOpen] = useState(false);
+  const [isEditorDialogScrolled, setIsEditorDialogScrolled] = useState(false);
   const [editingPost, setEditingPost] = useState<PostRecord | null>(null);
   const [formState, setFormState] = useState(emptyForm);
   const [isSlugCustom, setIsSlugCustom] = useState(false);
@@ -193,6 +209,7 @@ const DashboardPosts = () => {
   const confirmActionRef = useRef<(() => void) | null>(null);
   const confirmCancelRef = useRef<(() => void) | null>(null);
   const editorRef = useRef<LexicalEditorHandle | null>(null);
+  const editorInitialSnapshotRef = useRef<string>(buildPostEditorSnapshot(emptyForm));
 
   const currentUserRecord = currentUser
     ? users.find((user) => user.id === currentUser.id) || null
@@ -208,14 +225,10 @@ const DashboardPosts = () => {
     return permissions.includes("*") || permissions.includes("posts");
   }, [currentUser, currentUserRecord, ownerIds]);
 
-  const isDirty = useMemo(() => {
-    const hasContent =
-      formState.title ||
-      formState.excerpt ||
-      formState.contentLexical ||
-      formState.coverImageUrl;
-    return Boolean(hasContent);
-  }, [formState]);
+  const isDirty = useMemo(
+    () => buildPostEditorSnapshot(formState) !== editorInitialSnapshotRef.current,
+    [formState],
+  );
 
   const allowPopRef = useRef(false);
   const hasPushedBlockRef = useRef(false);
@@ -225,6 +238,12 @@ const DashboardPosts = () => {
       setFormState((prev) => ({ ...prev, slug: createSlug(prev.title) }));
     }
   }, [formState.title, isSlugCustom]);
+
+  useEffect(() => {
+    if (!isEditorOpen) {
+      setIsEditorDialogScrolled(false);
+    }
+  }, [isEditorOpen]);
 
   const loadPosts = async () => {
     const response = await apiFetch(apiBase, "/api/posts", { auth: true });
@@ -373,17 +392,19 @@ const DashboardPosts = () => {
   }, [isEditorOpen, isDirty, navigate]);
 
   const openCreate = () => {
+    const nextForm = {
+      ...emptyForm,
+      author: currentUser?.name || "",
+      publishAt: toLocalDateTimeValue(new Date()),
+    };
     if (isEditorOpen && isDirty) {
       setConfirmTitle("Criar nova postagem?");
       setConfirmDescription("Há alterações não salvas. Deseja descartar e criar uma nova postagem?");
       confirmActionRef.current = () => {
         setEditingPost(null);
         setIsSlugCustom(false);
-        setFormState({
-          ...emptyForm,
-          author: currentUser?.name || "",
-          publishAt: toLocalDateTimeValue(new Date()),
-        });
+        setFormState(nextForm);
+        editorInitialSnapshotRef.current = buildPostEditorSnapshot(nextForm);
         setIsEditorOpen(true);
       };
       confirmCancelRef.current = null;
@@ -392,23 +413,17 @@ const DashboardPosts = () => {
     }
     setEditingPost(null);
     setIsSlugCustom(false);
-    setFormState({
-      ...emptyForm,
-      author: currentUser?.name || "",
-      publishAt: toLocalDateTimeValue(new Date()),
-    });
+    setFormState(nextForm);
+    editorInitialSnapshotRef.current = buildPostEditorSnapshot(nextForm);
     setIsEditorOpen(true);
   };
 
   const openEdit = (post: PostRecord) => {
-    setEditingPost(post);
-    setIsSlugCustom(true);
-    const lexicalContent = post.content || "";
-    setFormState({
+    const nextForm = {
       title: post.title || "",
       slug: post.slug || "",
       excerpt: post.excerpt || "",
-      contentLexical: lexicalContent,
+      contentLexical: post.content || "",
       author: post.author || "",
       coverImageUrl: post.coverImageUrl || "",
       coverAlt: post.coverAlt || "",
@@ -416,13 +431,44 @@ const DashboardPosts = () => {
       publishAt: toLocalDateTimeFromIso(post.publishedAt),
       projectId: post.projectId || "",
       tags: Array.isArray(post.tags) ? post.tags : [],
-    });
+    };
+    setEditingPost(post);
+    setIsSlugCustom(true);
+    setFormState(nextForm);
+    editorInitialSnapshotRef.current = buildPostEditorSnapshot(nextForm);
     setIsEditorOpen(true);
   };
 
   const closeEditor = () => {
     setIsEditorOpen(false);
     setEditingPost(null);
+  };
+
+  const requestCloseEditor = () => {
+    if (!isEditorOpen || !isDirty) {
+      closeEditor();
+      return;
+    }
+    setConfirmTitle("Sair da edição?");
+    setConfirmDescription("Você tem alterações não salvas. Deseja continuar?");
+    confirmActionRef.current = () => {
+      closeEditor();
+    };
+    confirmCancelRef.current = () => {
+      setConfirmOpen(false);
+    };
+    setConfirmOpen(true);
+  };
+
+  const handleEditorOpenChange = (next: boolean) => {
+    if (!next && isLibraryOpen) {
+      return;
+    }
+    if (!next) {
+      requestCloseEditor();
+      return;
+    }
+    setIsEditorOpen(true);
   };
 
   const handleRouteNavigate = (href: string) => {
@@ -872,9 +918,19 @@ const DashboardPosts = () => {
     }
 
     await loadPosts();
+    const nextFormAfterSave = {
+      ...formState,
+      status: resolvedStatus,
+      publishAt: resolvedPublishedAt ? toLocalDateTimeFromIso(resolvedPublishedAt) : "",
+      excerpt,
+      coverImageUrl: coverImageUrl || "",
+      coverAlt,
+      tags: tagsToSave.filter((tag) => !projectTags.includes(tag)),
+    };
+    editorInitialSnapshotRef.current = buildPostEditorSnapshot(nextFormAfterSave);
     setFormState((prev) => ({
       ...prev,
-      tags: tagsToSave.filter((tag) => !projectTags.includes(tag)),
+      ...nextFormAfterSave,
     }));
     setTagOrder(tagsToSave);
     toast({
@@ -961,65 +1017,69 @@ const DashboardPosts = () => {
               badge="Postagens"
               title="Gerenciar posts"
               description="Visualize, edite e publique os posts mais recentes do site."
-              actions={
-                canManagePosts ? (
-                  <>
-                    {isEditorOpen ? (
-                      editingPost ? (
-                        <>
-                          <Button onClick={() => handleSave()} className="gap-2">
-                            <Edit3 className="h-4 w-4" />
-                            Salvar
-                          </Button>
-                          <Button variant="outline" onClick={handleDelete} className="gap-2">
-                            <Trash2 className="h-4 w-4" />
-                            Excluir
-                          </Button>
-                          <Button variant="ghost" onClick={closeEditor} className="gap-2">
-                            <X className="h-4 w-4" />
-                            Fechar
-                          </Button>
-                        </>
-                      ) : (
-                        <>
-                          <Button onClick={() => handleSave("published")} className="gap-2">
-                            <Plus className="h-4 w-4" />
-                            Publicar agora
-                          </Button>
-                          <Button variant="secondary" onClick={() => handleSave("scheduled")}>
-                            Agendar
-                          </Button>
-                          <Button variant="ghost" onClick={() => handleSave("draft")}>
-                            Salvar rascunho
-                          </Button>
-                          <Button variant="ghost" onClick={closeEditor} className="gap-2">
-                            <X className="h-4 w-4" />
-                            Fechar
-                          </Button>
-                        </>
-                      )
-                    ) : (
-                      <Button className="gap-2" onClick={openCreate}>
-                        <Plus className="h-4 w-4" />
-                        Nova postagem
-                      </Button>
-                    )}
-                  </>
-                ) : undefined
-              }
+              actions={canManagePosts ? (
+                <Button className="gap-2" onClick={openCreate}>
+                  <Plus className="h-4 w-4" />
+                  Nova postagem
+                </Button>
+              ) : undefined}
             />
 
             {isEditorOpen && canManagePosts ? (
-              <section
-                className="mt-8 space-y-8"
-                onFocusCapture={(event) => {
-                  const target = event.target as HTMLElement | null;
-                  if (target?.closest(".lexical-playground")) {
-                    return;
-                  }
-                  editorRef.current?.blur();
-                }}
-              >
+              <>
+                <div
+                  className="pointer-events-auto fixed inset-0 z-40 bg-black/80 backdrop-blur-sm"
+                  aria-hidden="true"
+                />
+                <Dialog open={isEditorOpen} onOpenChange={handleEditorOpenChange} modal={false}>
+                  <DialogContent
+                    className={`max-w-6xl max-h-[92vh] overflow-y-auto no-scrollbar ${
+                      isEditorDialogScrolled ? "editor-modal-scrolled" : ""
+                    }`}
+                    disableOutsidePointerEvents={false}
+                    onScroll={(event) => {
+                      const nextScrolled = event.currentTarget.scrollTop > 0;
+                      setIsEditorDialogScrolled((prev) =>
+                        prev === nextScrolled ? prev : nextScrolled,
+                      );
+                    }}
+                    onPointerDownOutside={(event) => {
+                      if (isLibraryOpen) {
+                        event.preventDefault();
+                        return;
+                      }
+                      const target = event.target as HTMLElement | null;
+                      if (target?.closest(".lexical-playground")) {
+                        event.preventDefault();
+                      }
+                    }}
+                    onInteractOutside={(event) => {
+                      if (isLibraryOpen) {
+                        event.preventDefault();
+                        return;
+                      }
+                      const target = event.target as HTMLElement | null;
+                      if (target?.closest(".lexical-playground")) {
+                        event.preventDefault();
+                      }
+                    }}
+                  >
+                    <DialogHeader>
+                      <DialogTitle>{editingPost ? "Editar postagem" : "Nova postagem"}</DialogTitle>
+                      <DialogDescription>
+                        Crie, edite e publique conteúdos sem sair da listagem.
+                      </DialogDescription>
+                    </DialogHeader>
+                    <div
+                      className="mt-2 space-y-8"
+                      onFocusCapture={(event) => {
+                        const target = event.target as HTMLElement | null;
+                        if (target?.closest(".lexical-playground")) {
+                          return;
+                        }
+                        editorRef.current?.blur();
+                      }}
+                    >
                 <div className="grid gap-8 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
                   <LexicalEditor
                     ref={editorRef}
@@ -1031,7 +1091,7 @@ const DashboardPosts = () => {
                       }))
                     }
                     placeholder="Escreva o conteúdo do post..."
-                    className="lexical-playground--stretch min-w-0 w-full"
+                    className="lexical-playground--stretch lexical-playground--modal min-w-0 w-full"
                   />
 
                   <aside className="min-w-0 space-y-6">
@@ -1312,7 +1372,41 @@ const DashboardPosts = () => {
                 </div>
 
                 {formState.projectId ? <ProjectEmbedCard projectId={formState.projectId} /> : null}
-              </section>
+                      <div className="flex flex-wrap justify-end gap-3">
+                        <Button variant="ghost" onClick={requestCloseEditor} className="gap-2">
+                          <X className="h-4 w-4" />
+                          Fechar
+                        </Button>
+                        {editingPost ? (
+                          <>
+                            <Button variant="outline" onClick={handleDelete} className="gap-2">
+                              <Trash2 className="h-4 w-4" />
+                              Excluir
+                            </Button>
+                            <Button onClick={() => handleSave()} className="gap-2">
+                              <Edit3 className="h-4 w-4" />
+                              Salvar
+                            </Button>
+                          </>
+                        ) : (
+                          <>
+                            <Button variant="ghost" onClick={() => handleSave("draft")}>
+                              Salvar rascunho
+                            </Button>
+                            <Button variant="secondary" onClick={() => handleSave("scheduled")}>
+                              Agendar
+                            </Button>
+                            <Button onClick={() => handleSave("published")} className="gap-2">
+                              <Plus className="h-4 w-4" />
+                              Publicar agora
+                            </Button>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  </DialogContent>
+                </Dialog>
+              </>
             ) : null}
 
             <section className="mt-10 space-y-6">

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+﻿import { useEffect, useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -85,11 +85,11 @@ const Team = () => {
   const [linkTypes, setLinkTypes] = useState<Array<{ id: string; label: string; icon: string }>>([]);
   const [pageCopy, setPageCopy] = useState({
     heroBadge: "Equipe",
-    heroTitle: "Conheça quem faz o projeto acontecer",
+    heroTitle: "ConheÃ§a quem faz o projeto acontecer",
     heroSubtitle:
-      "Os perfis e redes sociais serão gerenciados pela dashboard. Este layout antecipa como a equipe aparecerá para o público.",
+      "Os perfis e redes sociais serÃ£o gerenciados pela dashboard. Este layout antecipa como a equipe aparecerÃ¡ para o pÃºblico.",
     retiredTitle: "Membros aposentados",
-    retiredSubtitle: "Agradecemos por todas as contribuições.",
+    retiredSubtitle: "Agradecemos por todas as contribuiÃ§Ãµes.",
   });
   const socialIcons = useMemo(
     () => ({
@@ -258,7 +258,7 @@ const Team = () => {
             </div>
           ) : members.length === 0 ? (
             <div className="mt-10 rounded-2xl border border-dashed border-white/10 bg-white/5 px-6 py-10 text-sm text-muted-foreground">
-              Nenhum membro disponível no momento.
+              Nenhum membro disponÃ­vel no momento.
             </div>
           ) : (
             <>
@@ -277,7 +277,7 @@ const Team = () => {
                   return (
                     <Card
                       key={member.id}
-                      className="group overflow-visible border-border/60 bg-card/80 shadow-lg transition hover:border-primary/40"
+                      className="group overflow-visible border-border/60 bg-card/80 shadow-lg transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:bg-card/90 hover:shadow-lg"
                     >
                       <CardContent className="relative p-8 sm:p-9">
                         <div className="flex flex-col gap-6 sm:flex-row sm:items-stretch">
@@ -401,7 +401,7 @@ const Team = () => {
                       return (
                         <Card
                           key={member.id}
-                          className={`group overflow-visible border-border/60 bg-card/80 shadow-lg grayscale ${
+                          className={`group overflow-visible border-border/60 bg-card/80 shadow-lg grayscale transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:bg-card/90 hover:shadow-lg ${
                             index === 0 ? "mt-20" : ""
                           }`}
                         >
@@ -515,4 +515,6 @@ const Team = () => {
 };
 
 export default Team;
+
+
 

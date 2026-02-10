@@ -197,28 +197,28 @@ const About = () => {
                 return (
                   <div
                     key={item.label}
-                    className="rounded-2xl border border-border/60 bg-background/60 p-5 transition hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-lg"
+                    className="group rounded-2xl border border-border/60 bg-background/60 p-5 transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:bg-background/80 hover:shadow-lg"
                   >
-                    <div className="flex items-center gap-3 text-xs font-semibold uppercase tracking-widest text-primary/80">
-                      <HighlightIcon className="h-4 w-4 text-primary" />
+                    <div className="flex items-center gap-3 text-xs font-semibold uppercase tracking-widest text-primary/80 transition-colors duration-300 group-hover:text-primary">
+                      <HighlightIcon className="h-4 w-4 text-primary/80 transition-colors duration-300 group-hover:text-primary" />
                       {item.label}
                     </div>
-                    <p className="mt-2 text-sm text-muted-foreground">{item.text}</p>
+                    <p className="mt-2 text-sm text-muted-foreground transition-colors duration-300 group-hover:text-foreground/80">{item.text}</p>
                   </div>
                 );
               })}
             </div>
-            <Card className="border-border/60 bg-card/80 shadow-lg transition hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-xl">
+            <Card className="group border-border/60 bg-card/80 shadow-lg transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:bg-card/90 hover:shadow-lg">
               <CardContent className="space-y-5 p-6 md:p-8">
-                <div className="flex items-center gap-3 text-sm font-semibold uppercase tracking-widest text-muted-foreground">
+                <div className="flex items-center gap-3 text-sm font-semibold uppercase tracking-widest text-muted-foreground transition-colors duration-300 group-hover:text-primary">
                   {(() => {
                     const ManifestoIcon = iconMap[about.manifestoIcon] || Flame;
-                    return <ManifestoIcon className="h-4 w-4 text-primary" />;
+                    return <ManifestoIcon className="h-4 w-4 text-primary/80 transition-colors duration-300 group-hover:text-primary" />;
                   })()}
                   {about.manifestoTitle}
                 </div>
                 {about.manifestoParagraphs.map((paragraph) => (
-                  <p key={paragraph} className="text-sm text-muted-foreground md:text-base">
+                  <p key={paragraph} className="text-sm text-muted-foreground transition-colors duration-300 group-hover:text-foreground/80 md:text-base">
                     {paragraph}
                   </p>
                 ))}
@@ -234,14 +234,14 @@ const About = () => {
               return (
                 <Card
                   key={pillar.title}
-                  className="border-border/60 bg-card/80 shadow-lg transition hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-xl"
+                  className="group border-border/60 bg-card/80 shadow-lg transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:bg-card/90 hover:shadow-lg"
                 >
                   <CardContent className="space-y-3 p-6">
-                    <div className="flex items-center gap-3 text-sm font-semibold uppercase tracking-widest text-muted-foreground">
-                      <Icon className="h-4 w-4 text-primary" />
+                    <div className="flex items-center gap-3 text-sm font-semibold uppercase tracking-widest text-muted-foreground transition-colors duration-300 group-hover:text-primary">
+                      <Icon className="h-4 w-4 text-primary/80 transition-colors duration-300 group-hover:text-primary" />
                       {pillar.title}
                     </div>
-                    <p className="text-sm text-muted-foreground">{pillar.description}</p>
+                    <p className="text-sm text-muted-foreground transition-colors duration-300 group-hover:text-foreground/80">{pillar.description}</p>
                   </CardContent>
                 </Card>
               );
@@ -256,14 +256,14 @@ const About = () => {
               return (
                 <Card
                   key={value.title}
-                  className="border-border/60 bg-card/80 shadow-lg transition hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-xl"
+                  className="group border-border/60 bg-card/80 shadow-lg transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:bg-card/90 hover:shadow-lg"
                 >
                   <CardContent className="space-y-3 p-6">
-                    <div className="flex items-center gap-3 text-sm font-semibold uppercase tracking-widest text-muted-foreground">
-                      <Icon className="h-4 w-4 text-primary" />
+                    <div className="flex items-center gap-3 text-sm font-semibold uppercase tracking-widest text-muted-foreground transition-colors duration-300 group-hover:text-primary">
+                      <Icon className="h-4 w-4 text-primary/80 transition-colors duration-300 group-hover:text-primary" />
                       {value.title}
                     </div>
-                    <p className="text-sm text-muted-foreground">{value.description}</p>
+                    <p className="text-sm text-muted-foreground transition-colors duration-300 group-hover:text-foreground/80">{value.description}</p>
                   </CardContent>
                 </Card>
               );
@@ -276,6 +276,8 @@ const About = () => {
 };
 
 export default About;
+
+
 
 
 
