@@ -10,6 +10,12 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
+import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -353,6 +359,266 @@ const stripHtml = (value?: string | null) => {
     .trim();
 };
 
+const digitsOnly = (value: string) => value.replace(/\D/g, "");
+
+const formatDateDigitsToDisplay = (digits: string) => {
+  const safe = digitsOnly(digits).slice(0, 8);
+  if (!safe) {
+    return "";
+  }
+  if (safe.length <= 2) {
+    return safe;
+  }
+  if (safe.length <= 4) {
+    return `${safe.slice(0, 2)}/${safe.slice(2)}`;
+  }
+  return `${safe.slice(0, 2)}/${safe.slice(2, 4)}/${safe.slice(4)}`;
+};
+
+const formatTimeDigitsToDisplay = (digits: string) => {
+  const safe = digitsOnly(digits).slice(0, 9);
+  if (!safe) {
+    return "";
+  }
+  if (safe.length <= 2) {
+    return safe;
+  }
+  if (safe.length <= 4) {
+    return `${safe.slice(0, safe.length - 2)}:${safe.slice(-2)}`;
+  }
+  return `${safe.slice(0, safe.length - 4)}:${safe.slice(-4, -2)}:${safe.slice(-2)}`;
+};
+
+const displayDateToIso = (value?: string | null) => {
+  const trimmed = String(value || "").trim();
+  if (!trimmed) {
+    return "";
+  }
+  const digits = digitsOnly(trimmed).slice(0, 8);
+  if (digits.length !== 8) {
+    return "";
+  }
+  const day = Number(digits.slice(0, 2));
+  const month = Number(digits.slice(2, 4));
+  const year = Number(digits.slice(4, 8));
+  if (!Number.isFinite(day) || !Number.isFinite(month) || !Number.isFinite(year)) {
+    return "";
+  }
+  if (month < 1 || month > 12 || day < 1 || day > 31 || year < 1000) {
+    return "";
+  }
+  const iso = `${String(year).padStart(4, "0")}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+  const parsed = new Date(`${iso}T00:00`);
+  if (
+    Number.isNaN(parsed.getTime()) ||
+    parsed.getFullYear() !== year ||
+    parsed.getMonth() + 1 !== month ||
+    parsed.getDate() !== day
+  ) {
+    return "";
+  }
+  return iso;
+};
+
+const isoToDisplayDate = (value?: string | null) => {
+  const trimmed = String(value || "").trim();
+  if (!trimmed) {
+    return "";
+  }
+  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+    return `${trimmed.slice(8, 10)}/${trimmed.slice(5, 7)}/${trimmed.slice(0, 4)}`;
+  }
+  if (/^\d{2}-\d{2}-\d{4}$/.test(trimmed)) {
+    return trimmed.replace(/-/g, "/");
+  }
+  if (/^\d{2}\/\d{2}\/\d{4}$/.test(trimmed)) {
+    return trimmed;
+  }
+  if (/^\d{4}-\d{2}-\d{2}[T\s]\d{2}:\d{2}/.test(trimmed)) {
+    return `${trimmed.slice(8, 10)}/${trimmed.slice(5, 7)}/${trimmed.slice(0, 4)}`;
+  }
+  const parsed = new Date(trimmed);
+  if (Number.isNaN(parsed.getTime())) {
+    return "";
+  }
+  const dd = String(parsed.getDate()).padStart(2, "0");
+  const mm = String(parsed.getMonth() + 1).padStart(2, "0");
+  const yyyy = String(parsed.getFullYear()).padStart(4, "0");
+  return `${dd}/${mm}/${yyyy}`;
+};
+
+const displayTimeToCanonical = (value?: string | null) => {
+  const trimmed = String(value || "").trim();
+  if (!trimmed) {
+    return "";
+  }
+  const digits = digitsOnly(trimmed).slice(0, 9);
+  if (digits.length < 3) {
+    return "";
+  }
+  let hours = 0;
+  let minutes = 0;
+  let seconds = 0;
+  if (digits.length <= 4) {
+    minutes = Number(digits.slice(0, digits.length - 2));
+    seconds = Number(digits.slice(-2));
+  } else {
+    hours = Number(digits.slice(0, digits.length - 4));
+    minutes = Number(digits.slice(-4, -2));
+    seconds = Number(digits.slice(-2));
+  }
+  if (!Number.isFinite(hours) || !Number.isFinite(minutes) || !Number.isFinite(seconds)) {
+    return "";
+  }
+  if (hours < 0 || minutes < 0 || minutes > 59 || seconds < 0 || seconds > 59) {
+    return "";
+  }
+  return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+};
+
+const canonicalToDisplayTime = (value?: string | null) => {
+  const trimmed = String(value || "").trim();
+  if (!trimmed) {
+    return "";
+  }
+  let canonical = "";
+  if (/^\d{1,}:\d{2}:\d{2}$/.test(trimmed)) {
+    const [hoursPart, minutesPart, secondsPart] = trimmed.split(":");
+    const hours = Number(hoursPart);
+    const minutes = Number(minutesPart);
+    const seconds = Number(secondsPart);
+    if (
+      Number.isFinite(hours) &&
+      Number.isFinite(minutes) &&
+      Number.isFinite(seconds) &&
+      hours >= 0 &&
+      minutes >= 0 &&
+      minutes <= 59 &&
+      seconds >= 0 &&
+      seconds <= 59
+    ) {
+      canonical = `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+    }
+  } else if (/^\d{1,}:\d{2}$/.test(trimmed)) {
+    const [hoursPart, minutesPart] = trimmed.split(":");
+    const hours = Number(hoursPart);
+    const minutes = Number(minutesPart);
+    if (Number.isFinite(hours) && Number.isFinite(minutes) && hours >= 0 && minutes >= 0 && minutes <= 59) {
+      canonical = `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:00`;
+    }
+  } else {
+    canonical = displayTimeToCanonical(trimmed);
+  }
+  if (!canonical) {
+    return "";
+  }
+  const [hoursPart, minutesPart, secondsPart] = canonical.split(":");
+  const hours = Number(hoursPart);
+  if (!Number.isFinite(hours)) {
+    return canonical;
+  }
+  if (hours === 0) {
+    return `${minutesPart}:${secondsPart}`;
+  }
+  return `${hours}:${minutesPart}:${secondsPart}`;
+};
+
+const normalizeIsoDateFromUnknown = (value?: string | null) => {
+  const trimmed = String(value || "").trim();
+  if (!trimmed) {
+    return "";
+  }
+  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+    return trimmed;
+  }
+  if (/^\d{2}-\d{2}-\d{4}$/.test(trimmed)) {
+    return displayDateToIso(trimmed);
+  }
+  if (/^\d{2}\/\d{2}\/\d{4}$/.test(trimmed)) {
+    return displayDateToIso(trimmed);
+  }
+  if (/^\d{4}-\d{2}-\d{2}[T\s]\d{2}:\d{2}/.test(trimmed)) {
+    return trimmed.slice(0, 10);
+  }
+  const parsed = new Date(trimmed);
+  if (Number.isNaN(parsed.getTime())) {
+    return "";
+  }
+  const yyyy = String(parsed.getFullYear()).padStart(4, "0");
+  const mm = String(parsed.getMonth() + 1).padStart(2, "0");
+  const dd = String(parsed.getDate()).padStart(2, "0");
+  return `${yyyy}-${mm}-${dd}`;
+};
+
+const normalizeCanonicalTimeFromUnknown = (value?: string | null) => {
+  const trimmed = String(value || "").trim();
+  if (!trimmed) {
+    return "";
+  }
+  if (/^\d{1,}:\d{2}:\d{2}$/.test(trimmed)) {
+    const [hoursPart, minutesPart, secondsPart] = trimmed.split(":");
+    const hours = Number(hoursPart);
+    const minutes = Number(minutesPart);
+    const seconds = Number(secondsPart);
+    if (
+      Number.isFinite(hours) &&
+      Number.isFinite(minutes) &&
+      Number.isFinite(seconds) &&
+      hours >= 0 &&
+      minutes >= 0 &&
+      minutes <= 59 &&
+      seconds >= 0 &&
+      seconds <= 59
+    ) {
+      return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+    }
+    return "";
+  }
+  if (/^\d{1,}:\d{2}$/.test(trimmed)) {
+    const [hoursPart, minutesPart] = trimmed.split(":");
+    const hours = Number(hoursPart);
+    const minutes = Number(minutesPart);
+    if (Number.isFinite(hours) && Number.isFinite(minutes) && hours >= 0 && minutes >= 0 && minutes <= 59) {
+      return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:00`;
+    }
+    return "";
+  }
+  return displayTimeToCanonical(trimmed);
+};
+
+const formatEpisodeReleaseDate = (dateValue?: string | null, timeValue?: string | null) => {
+  const date = normalizeIsoDateFromUnknown(dateValue);
+  if (!date) {
+    return String(dateValue || "");
+  }
+  const time = normalizeCanonicalTimeFromUnknown(timeValue);
+  const parsed = new Date(`${date}T00:00`);
+  if (Number.isNaN(parsed.getTime())) {
+    return date;
+  }
+  const dateLabel = new Intl.DateTimeFormat("pt-BR", { dateStyle: "short" }).format(parsed);
+  if (!time) {
+    return dateLabel;
+  }
+  const timeLabel = canonicalToDisplayTime(time);
+  if (!timeLabel) {
+    return dateLabel;
+  }
+  return `${dateLabel} · ${timeLabel}`;
+};
+
+const shiftDraftAfterRemoval = (draft: Record<number, string>, removedIndex: number) => {
+  const next: Record<number, string> = {};
+  Object.entries(draft).forEach(([key, value]) => {
+    const index = Number(key);
+    if (!Number.isFinite(index) || index === removedIndex) {
+      return;
+    }
+    next[index > removedIndex ? index - 1 : index] = value;
+  });
+  return next;
+};
+
 const generateLocalId = () => {
   const alpha = String.fromCharCode(97 + Math.floor(Math.random() * 26));
   const random = Math.random().toString(36).slice(2, 9);
@@ -523,8 +789,11 @@ const DashboardProjectsEditor = () => {
   const [staffDragIndex, setStaffDragIndex] = useState<number | null>(null);
   const [tagDragIndex, setTagDragIndex] = useState<number | null>(null);
   const [staffMemberInput, setStaffMemberInput] = useState<Record<number, string>>({});
+  const [episodeDateDraft, setEpisodeDateDraft] = useState<Record<number, string>>({});
+  const [episodeTimeDraft, setEpisodeTimeDraft] = useState<Record<number, string>>({});
   const [memberDirectory, setMemberDirectory] = useState<string[]>([]);
   const [collapsedEpisodes, setCollapsedEpisodes] = useState<Record<number, boolean>>({});
+  const [editorAccordionValue, setEditorAccordionValue] = useState<string[]>(["dados-principais"]);
   const [isLibraryOpen, setIsLibraryOpen] = useState(false);
   const [libraryTarget, setLibraryTarget] = useState<
     "cover" | "banner" | "hero" | "episode-cover"
@@ -957,6 +1226,9 @@ const DashboardProjectsEditor = () => {
     setEditingProject(null);
     setFormState(nextForm);
     setAnilistIdInput("");
+    setEditorAccordionValue(["dados-principais"]);
+    setEpisodeDateDraft({});
+    setEpisodeTimeDraft({});
     editorInitialSnapshotRef.current = buildProjectEditorSnapshot(nextForm, "");
     setCollapsedEpisodes({});
     setIsEditorOpen(true);
@@ -1009,6 +1281,9 @@ const DashboardProjectsEditor = () => {
     setEditingProject(project);
     setFormState(nextForm);
     setAnilistIdInput(nextAniListInput);
+    setEditorAccordionValue(["dados-principais"]);
+    setEpisodeDateDraft({});
+    setEpisodeTimeDraft({});
     editorInitialSnapshotRef.current = buildProjectEditorSnapshot(nextForm, nextAniListInput);
     setCollapsedEpisodes(() => {
       const next: Record<number, boolean> = {};
@@ -1770,8 +2045,21 @@ const DashboardProjectsEditor = () => {
           </DialogHeader>
 
           <div className="grid gap-6">
-            <div className="rounded-2xl border border-border/60 bg-card/70 p-4">
-              <div className="grid gap-4 md:grid-cols-[1fr_auto]">
+            <Accordion
+              type="multiple"
+              value={editorAccordionValue}
+              onValueChange={setEditorAccordionValue}
+              className="space-y-3"
+            >
+              <AccordionItem value="importacao" className="rounded-2xl border border-border/60 bg-card/70 px-4">
+                <AccordionTrigger className="py-3 text-sm font-semibold hover:no-underline">
+                  <div className="flex w-full items-center justify-between gap-4 text-left">
+                    <span>Importação AniList</span>
+                    <span className="text-xs text-muted-foreground">Preenchimento automático</span>
+                  </div>
+                </AccordionTrigger>
+                <AccordionContent className="pb-4">
+                  <div className="grid gap-4 md:grid-cols-[1fr_auto]">
                 <div className="space-y-2">
                   <Label>ID AniList</Label>
                   <Input
@@ -1783,10 +2071,19 @@ const DashboardProjectsEditor = () => {
                 <Button className="self-end" onClick={handleImportAniList}>
                   Importar do AniList
                 </Button>
-              </div>
-            </div>
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
 
-            <div className="grid gap-4 md:grid-cols-2">
+              <AccordionItem value="dados-principais" className="rounded-2xl border border-border/60 bg-card/70 px-4">
+                <AccordionTrigger className="py-3 text-sm font-semibold hover:no-underline">
+                  <div className="flex w-full items-center justify-between gap-4 text-left">
+                    <span>Dados principais</span>
+                    <span className="text-xs text-muted-foreground">{formState.title || "ID e títulos"}</span>
+                  </div>
+                </AccordionTrigger>
+                <AccordionContent className="pb-4">
+                  <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2">
                 <Label>ID do projeto</Label>
                 <Input
@@ -1843,9 +2140,29 @@ const DashboardProjectsEditor = () => {
                   />
                 </div>
               </div>
-            </div>
+              <div className="space-y-2 md:col-span-2">
+                <Label>Sinopse</Label>
+                <Textarea
+                  value={formState.synopsis}
+                  onChange={(event) => setFormState((prev) => ({ ...prev, synopsis: event.target.value }))}
+                  rows={6}
+                />
+              </div>
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
 
-            <div className="grid gap-3 md:grid-cols-3">
+              <AccordionItem value="midias" className="rounded-2xl border border-border/60 bg-card/70 px-4">
+                <AccordionTrigger className="py-3 text-sm font-semibold hover:no-underline">
+                  <div className="flex w-full items-center justify-between gap-4 text-left">
+                    <span>Mídias</span>
+                    <span className="text-xs text-muted-foreground">
+                      {[formState.heroImageUrl, formState.cover, formState.banner].filter(Boolean).length}/3 selecionadas
+                    </span>
+                  </div>
+                </AccordionTrigger>
+                <AccordionContent className="pb-4">
+                  <div className="grid gap-3 md:grid-cols-3">
               <div className="space-y-2">
                 <Label>Imagem do carrossel</Label>
                 <div className="flex items-center gap-3 rounded-2xl border border-border/60 bg-card/60 px-3 py-2">
@@ -1913,20 +2230,21 @@ const DashboardProjectsEditor = () => {
                   </Button>
                 </div>
               </div>
-            </div>
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
 
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="space-y-2 md:col-span-2">
-                <Label>Sinopse</Label>
-                <Textarea
-                  value={formState.synopsis}
-                  onChange={(event) => setFormState((prev) => ({ ...prev, synopsis: event.target.value }))}
-                  rows={6}
-                />
-              </div>
-            </div>
-
-            <div className="grid gap-4 md:grid-cols-2">
+              <AccordionItem value="metadados" className="rounded-2xl border border-border/60 bg-card/70 px-4">
+                <AccordionTrigger className="py-3 text-sm font-semibold hover:no-underline">
+                  <div className="flex w-full items-center justify-between gap-4 text-left">
+                    <span>Metadados</span>
+                    <span className="text-xs text-muted-foreground">
+                      {formState.type || "Formato"} • {formState.status || "Status"}
+                    </span>
+                  </div>
+                </AccordionTrigger>
+                <AccordionContent className="pb-4">
+                  <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2">
                 <Label>Formato</Label>
                 <Select
@@ -2005,9 +2323,21 @@ const DashboardProjectsEditor = () => {
                   onChange={(event) => setFormState((prev) => ({ ...prev, source: event.target.value }))}
                 />
               </div>
-            </div>
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
 
-            <div className="grid gap-4 md:grid-cols-2">
+              <AccordionItem value="classificacao" className="rounded-2xl border border-border/60 bg-card/70 px-4">
+                <AccordionTrigger className="py-3 text-sm font-semibold hover:no-underline">
+                  <div className="flex w-full items-center justify-between gap-4 text-left">
+                    <span>Classificação</span>
+                    <span className="text-xs text-muted-foreground">
+                      {formState.tags.length} tags • {formState.genres.length} gêneros
+                    </span>
+                  </div>
+                </AccordionTrigger>
+                <AccordionContent className="pb-4">
+                  <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2">
                 <Label>Tags</Label>
                 <div className="flex flex-wrap items-center gap-2">
@@ -2109,9 +2439,19 @@ const DashboardProjectsEditor = () => {
                   ))}
                 </div>
               </div>
-            </div>
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
 
-            <div className="space-y-3">
+              <AccordionItem value="relacoes" className="rounded-2xl border border-border/60 bg-card/70 px-4">
+                <AccordionTrigger className="py-3 text-sm font-semibold hover:no-underline">
+                  <div className="flex w-full items-center justify-between gap-4 text-left">
+                    <span>Relações</span>
+                    <span className="text-xs text-muted-foreground">{formState.relations.length} itens</span>
+                  </div>
+                </AccordionTrigger>
+                <AccordionContent className="pb-4">
+                  <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <Label className="text-base">Relações</Label>
                 <Button
@@ -2189,9 +2529,19 @@ const DashboardProjectsEditor = () => {
                   </div>
                 ))}
               </div>
-            </div>
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
 
-            <div className="space-y-3">
+              <AccordionItem value="equipe" className="rounded-2xl border border-border/60 bg-card/70 px-4">
+                <AccordionTrigger className="py-3 text-sm font-semibold hover:no-underline">
+                  <div className="flex w-full items-center justify-between gap-4 text-left">
+                    <span>Equipe da fansub</span>
+                    <span className="text-xs text-muted-foreground">{formState.staff.length} funções</span>
+                  </div>
+                </AccordionTrigger>
+                <AccordionContent className="pb-4">
+                  <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <Label className="text-base">Equipe da fansub</Label>
                 <Button
@@ -2297,9 +2647,21 @@ const DashboardProjectsEditor = () => {
                   </div>
                 ))}
               </div>
-            </div>
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
 
-            <div className="space-y-4">
+              <AccordionItem value="episodios" className="rounded-2xl border border-border/60 bg-card/70 px-4">
+                <AccordionTrigger className="py-3 text-sm font-semibold hover:no-underline">
+                  <div className="flex w-full items-center justify-between gap-4 text-left">
+                    <span>{isChapterBased ? "Capítulos" : "Episódios"}</span>
+                    <span className="text-xs text-muted-foreground">
+                      {formState.episodeDownloads.length} {isChapterBased ? "capítulos" : "episódios"}
+                    </span>
+                  </div>
+                </AccordionTrigger>
+                <AccordionContent className="pb-4">
+                  <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <Label className="text-base">{isChapterBased ? "Capítulos" : "Episódios"}</Label>
                 <Button
@@ -2372,7 +2734,7 @@ const DashboardProjectsEditor = () => {
                           ) : null}
                           {episode.releaseDate ? (
                             <span className="rounded-full border border-border/60 bg-background/50 px-2 py-0.5 text-[10px] leading-none">
-                              {episode.releaseDate}
+                              {formatEpisodeReleaseDate(episode.releaseDate, episode.duration)}
                             </span>
                           ) : null}
                         </div>
@@ -2407,10 +2769,14 @@ const DashboardProjectsEditor = () => {
                             className="h-7 px-2 text-[11px] text-destructive hover:text-destructive"
                             data-no-toggle
                             onClick={() =>
-                              setFormState((prev) => ({
-                                ...prev,
-                                episodeDownloads: prev.episodeDownloads.filter((_, idx) => idx !== index),
-                              }))
+                              {
+                                setFormState((prev) => ({
+                                  ...prev,
+                                  episodeDownloads: prev.episodeDownloads.filter((_, idx) => idx !== index),
+                                }));
+                                setEpisodeDateDraft((prev) => shiftDraftAfterRemoval(prev, index));
+                                setEpisodeTimeDraft((prev) => shiftDraftAfterRemoval(prev, index));
+                              }
                             }
                           >
                             {isChapterBased ? "Remover capítulo" : "Remover episódio"}
@@ -2419,7 +2785,7 @@ const DashboardProjectsEditor = () => {
                       </div>
                       {collapsedEpisodes[index] ? null : (
                         <>
-                          <div className="grid gap-3 md:grid-cols-6">
+                          <div className="grid gap-3 md:grid-cols-[minmax(84px,0.7fr)_minmax(84px,0.7fr)_minmax(180px,1.4fr)_minmax(150px,1fr)_minmax(110px,0.8fr)_minmax(130px,0.9fr)]">
                             <Input
                               type="number"
                               value={episode.number}
@@ -2461,27 +2827,107 @@ const DashboardProjectsEditor = () => {
                               placeholder="Título"
                             />
                             <Input
-                              value={episode.releaseDate}
-                              onChange={(event) =>
-                                setFormState((prev) => {
-                                  const next = [...prev.episodeDownloads];
-                                  next[index] = { ...next[index], releaseDate: event.target.value };
-                                  return { ...prev, episodeDownloads: next };
-                                })
-                              }
-                              placeholder="Data"
+                              type="text"
+                              inputMode="numeric"
+                              value={episodeDateDraft[index] ?? isoToDisplayDate(episode.releaseDate)}
+                              onChange={(event) => {
+                                const masked = formatDateDigitsToDisplay(event.target.value);
+                                const digits = digitsOnly(masked);
+                                setEpisodeDateDraft((prev) => ({ ...prev, [index]: masked }));
+                                if (digits.length === 8) {
+                                  const iso = displayDateToIso(masked);
+                                  if (iso) {
+                                    setFormState((prev) => {
+                                      const next = [...prev.episodeDownloads];
+                                      next[index] = { ...next[index], releaseDate: iso };
+                                      return { ...prev, episodeDownloads: next };
+                                    });
+                                  }
+                                } else if (digits.length === 0) {
+                                  setFormState((prev) => {
+                                    const next = [...prev.episodeDownloads];
+                                    next[index] = { ...next[index], releaseDate: "" };
+                                    return { ...prev, episodeDownloads: next };
+                                  });
+                                }
+                              }}
+                              onBlur={(event) => {
+                                const masked = formatDateDigitsToDisplay(event.target.value);
+                                const digits = digitsOnly(masked);
+                                if (digits.length === 8) {
+                                  const iso = displayDateToIso(masked);
+                                  if (iso) {
+                                    setFormState((prev) => {
+                                      const next = [...prev.episodeDownloads];
+                                      next[index] = { ...next[index], releaseDate: iso };
+                                      return { ...prev, episodeDownloads: next };
+                                    });
+                                  }
+                                } else if (digits.length === 0) {
+                                  setFormState((prev) => {
+                                    const next = [...prev.episodeDownloads];
+                                    next[index] = { ...next[index], releaseDate: "" };
+                                    return { ...prev, episodeDownloads: next };
+                                  });
+                                }
+                                setEpisodeDateDraft((prev) => {
+                                  const next = { ...prev };
+                                  delete next[index];
+                                  return next;
+                                });
+                              }}
+                              placeholder="DD/MM/AAAA"
+                              className="md:min-w-[150px]"
                             />
                             {!isChapterBased ? (
                               <Input
-                                value={episode.duration}
-                                onChange={(event) =>
-                                  setFormState((prev) => {
-                                    const next = [...prev.episodeDownloads];
-                                    next[index] = { ...next[index], duration: event.target.value };
-                                    return { ...prev, episodeDownloads: next };
-                                  })
-                                }
-                                placeholder="Duração"
+                                type="text"
+                                inputMode="numeric"
+                                value={episodeTimeDraft[index] ?? canonicalToDisplayTime(episode.duration)}
+                                onChange={(event) => {
+                                  const masked = formatTimeDigitsToDisplay(event.target.value);
+                                  const digits = digitsOnly(masked);
+                                  setEpisodeTimeDraft((prev) => ({ ...prev, [index]: masked }));
+                                  const canonical = displayTimeToCanonical(masked);
+                                  if (canonical) {
+                                    setFormState((prev) => {
+                                      const next = [...prev.episodeDownloads];
+                                      next[index] = { ...next[index], duration: canonical };
+                                      return { ...prev, episodeDownloads: next };
+                                    });
+                                  } else if (digits.length === 0) {
+                                    setFormState((prev) => {
+                                      const next = [...prev.episodeDownloads];
+                                      next[index] = { ...next[index], duration: "" };
+                                      return { ...prev, episodeDownloads: next };
+                                    });
+                                  }
+                                }}
+                                onBlur={(event) => {
+                                  const masked = formatTimeDigitsToDisplay(event.target.value);
+                                  const digits = digitsOnly(masked);
+                                  const canonical = displayTimeToCanonical(masked);
+                                  if (canonical) {
+                                    setFormState((prev) => {
+                                      const next = [...prev.episodeDownloads];
+                                      next[index] = { ...next[index], duration: canonical };
+                                      return { ...prev, episodeDownloads: next };
+                                    });
+                                  } else if (digits.length === 0) {
+                                    setFormState((prev) => {
+                                      const next = [...prev.episodeDownloads];
+                                      next[index] = { ...next[index], duration: "" };
+                                      return { ...prev, episodeDownloads: next };
+                                    });
+                                  }
+                                  setEpisodeTimeDraft((prev) => {
+                                    const next = { ...prev };
+                                    delete next[index];
+                                    return next;
+                                  });
+                                }}
+                                placeholder="MM:SS ou H:MM:SS"
+                                className="md:min-w-[150px]"
                               />
                             ) : null}
                             {!isChapterBased ? (
@@ -2729,7 +3175,10 @@ const DashboardProjectsEditor = () => {
                   </Card>
                 ))}
               </div>
-            </div>
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
+            </Accordion>
             <datalist id="staff-directory">
               {memberDirectory.map((name) => (
                 <option key={name} value={name} />
