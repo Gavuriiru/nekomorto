@@ -2543,6 +2543,8 @@ const normalizeProjects = (projects) =>
         : [],
     animeStaff: Array.isArray(project.animeStaff) ? project.animeStaff : [],
     trailerUrl: project.trailerUrl || "",
+    forceHero: Boolean(project.forceHero),
+    heroImageUrl: String(project.heroImageUrl || ""),
     episodeDownloads: Array.isArray(project.episodeDownloads)
       ? project.episodeDownloads.map((episode) => ({
           ...episode,
