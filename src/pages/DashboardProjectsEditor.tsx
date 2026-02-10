@@ -63,6 +63,14 @@ import {
 import { createSlug } from "@/lib/post-content";
 import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
+import {
+  buildTranslationMap,
+  sortByTranslatedLabel,
+  translateAnilistRole,
+  translateGenre,
+  translateRelation,
+  translateTag,
+} from "@/lib/project-taxonomy";
 import { isChapterBasedType, isLightNovelType, isMangaType } from "@/lib/project-utils";
 import { usePageMeta } from "@/hooks/use-page-meta";
 import LexicalEditor, { type LexicalEditorHandle } from "@/components/lexical/LexicalEditor";
@@ -322,29 +330,6 @@ const formatType = (format?: string | null) => {
       return "Música";
     default:
       return "";
-  }
-};
-
-const relationLabel = (relation?: string | null) => {
-  switch (relation) {
-    case "ADAPTATION":
-      return "Adaptação";
-    case "PREQUEL":
-      return "Prequela";
-    case "SEQUEL":
-      return "Sequência";
-    case "PARENT":
-      return "Principal";
-    case "SIDE_STORY":
-      return "Side story";
-    case "SPIN_OFF":
-      return "Spin-off";
-    case "SOURCE":
-      return "Fonte";
-    case "COMPILATION":
-      return "Compilação";
-    default:
-      return relation || "Relacionamento";
   }
 };
 
@@ -784,11 +769,13 @@ const DashboardProjectsEditor = () => {
   const [tagInput, setTagInput] = useState("");
   const [genreInput, setGenreInput] = useState("");
   const [producerInput, setProducerInput] = useState("");
+  const [tagTranslations, setTagTranslations] = useState<Record<string, string>>({});
+  const [genreTranslations, setGenreTranslations] = useState<Record<string, string>>({});
+  const [staffRoleTranslations, setStaffRoleTranslations] = useState<Record<string, string>>({});
   const [episodeDragId, setEpisodeDragId] = useState<number | null>(null);
   const [relationDragIndex, setRelationDragIndex] = useState<number | null>(null);
   const [staffDragIndex, setStaffDragIndex] = useState<number | null>(null);
   const [animeStaffDragIndex, setAnimeStaffDragIndex] = useState<number | null>(null);
-  const [tagDragIndex, setTagDragIndex] = useState<number | null>(null);
   const [staffMemberInput, setStaffMemberInput] = useState<Record<number, string>>({});
   const [animeStaffMemberInput, setAnimeStaffMemberInput] = useState<Record<number, string>>({});
   const [episodeDateDraft, setEpisodeDateDraft] = useState<Record<number, string>>({});
@@ -855,6 +842,20 @@ const DashboardProjectsEditor = () => {
     const fallback = formState.staff.map((item) => item.role).filter(Boolean);
     return Array.from(new Set(fallback));
   }, [publicSettings.teamRoles, formState.staff]);
+
+  const tagTranslationMap = useMemo(() => buildTranslationMap(tagTranslations), [tagTranslations]);
+  const genreTranslationMap = useMemo(() => buildTranslationMap(genreTranslations), [genreTranslations]);
+  const staffRoleTranslationMap = useMemo(() => buildTranslationMap(staffRoleTranslations), [staffRoleTranslations]);
+
+  const translatedSortedEditorTags = useMemo(
+    () => sortByTranslatedLabel(formState.tags, (tag) => translateTag(tag, tagTranslationMap)),
+    [formState.tags, tagTranslationMap],
+  );
+
+  const translatedSortedEditorGenres = useMemo(
+    () => sortByTranslatedLabel(formState.genres, (genre) => translateGenre(genre, genreTranslationMap)),
+    [formState.genres, genreTranslationMap],
+  );
 
   const knownTags = useMemo(() => {
     const set = new Set<string>();
@@ -1043,9 +1044,10 @@ const DashboardProjectsEditor = () => {
     let isActive = true;
     const load = async () => {
       try {
-        const [projectsResult, usersResult] = await Promise.allSettled([
+        const [projectsResult, usersResult, translationsResult] = await Promise.allSettled([
           loadProjects(),
           apiFetch(apiBase, "/api/users", { auth: true }),
+          apiFetch(apiBase, "/api/public/tag-translations", { cache: "no-store" }),
         ]);
         if (usersResult.status === "fulfilled") {
           const response = usersResult.value;
@@ -1065,9 +1067,23 @@ const DashboardProjectsEditor = () => {
         if (projectsResult.status === "rejected") {
           throw projectsResult.reason;
         }
+        if (translationsResult.status === "fulfilled") {
+          const response = translationsResult.value;
+          if (response.ok) {
+            const data = await response.json();
+            if (isActive) {
+              setTagTranslations(data?.tags || {});
+              setGenreTranslations(data?.genres || {});
+              setStaffRoleTranslations(data?.staffRoles || {});
+            }
+          }
+        }
       } catch {
         if (isActive) {
           setProjects([]);
+          setTagTranslations({});
+          setGenreTranslations({});
+          setStaffRoleTranslations({});
         }
       } finally {
         if (isActive) {
@@ -1228,7 +1244,7 @@ const DashboardProjectsEditor = () => {
     setEditingProject(null);
     setFormState(nextForm);
     setAnilistIdInput("");
-    setEditorAccordionValue(["dados-principais"]);
+    setEditorAccordionValue(["importacao"]);
     setEpisodeDateDraft({});
     setEpisodeTimeDraft({});
     setAnimeStaffMemberInput({});
@@ -1523,7 +1539,7 @@ const DashboardProjectsEditor = () => {
         seenRelationIds.add(relationKey);
       }
       acc.push({
-        relation: relationLabel(relationEdges[index]?.relationType || ""),
+        relation: translateRelation(relationEdges[index]?.relationType || ""),
         title: node.title?.romaji || "",
         format: formatType(node.format || ""),
         status: formatStatus(node.status || ""),
@@ -1682,20 +1698,6 @@ const DashboardProjectsEditor = () => {
     setProducerInput("");
   };
 
-  const handleTagDrop = (targetIndex: number) => {
-    if (tagDragIndex === null || tagDragIndex === targetIndex) {
-      setTagDragIndex(null);
-      return;
-    }
-    setFormState((prev) => {
-      const next = [...prev.tags];
-      const [removed] = next.splice(tagDragIndex, 1);
-      next.splice(targetIndex, 0, removed);
-      return { ...prev, tags: next };
-    });
-    setTagDragIndex(null);
-  };
-
   const handleRelationDrop = (targetIndex: number) => {
     if (relationDragIndex === null || relationDragIndex === targetIndex) {
       setRelationDragIndex(null);
@@ -1840,7 +1842,12 @@ const DashboardProjectsEditor = () => {
                             />
                             {project.tags[0] ? (
                               <Badge className="absolute right-3 top-3 text-[10px] uppercase bg-background/85 text-foreground">
-                                {project.tags[0]}
+                                {translateTag(
+                                  sortByTranslatedLabel(project.tags || [], (tag) =>
+                                    translateTag(tag, tagTranslationMap),
+                                  )[0] || "",
+                                  tagTranslationMap,
+                                )}
                               </Badge>
                             ) : null}
                           </div>
@@ -1909,9 +1916,26 @@ const DashboardProjectsEditor = () => {
 
                             {project.tags.length > 0 ? (
                               <div className="flex flex-wrap gap-2">
-                                {project.tags.slice(0, 4).map((tag) => (
-                                  <Badge key={tag} variant="outline" className="text-[10px] uppercase">
-                                    {tag}
+                                {sortByTranslatedLabel(project.tags || [], (tag) =>
+                                  translateTag(tag, tagTranslationMap),
+                                )
+                                  .slice(0, 4)
+                                  .map((tag) => (
+                                  <Badge key={tag} variant="secondary" className="text-[10px] uppercase">
+                                    {translateTag(tag, tagTranslationMap)}
+                                  </Badge>
+                                ))}
+                              </div>
+                            ) : null}
+                            {project.genres?.length ? (
+                              <div className="flex flex-wrap gap-2">
+                                {sortByTranslatedLabel(project.genres || [], (genre) =>
+                                  translateGenre(genre, genreTranslationMap),
+                                )
+                                  .slice(0, 4)
+                                  .map((genre) => (
+                                  <Badge key={genre} variant="outline" className="text-[10px] uppercase">
+                                    {translateGenre(genre, genreTranslationMap)}
                                   </Badge>
                                 ))}
                               </div>
@@ -2396,18 +2420,14 @@ const DashboardProjectsEditor = () => {
                   </div>
                 ) : null}
                 <div className="mt-2 flex flex-wrap gap-2">
-                  {formState.tags.map((tag, index) => (
+                  {translatedSortedEditorTags.map((tag, index) => (
                     <Badge
                       key={`${tag}-${index}`}
                       variant="secondary"
-                      draggable
-                      onDragStart={() => setTagDragIndex(index)}
-                      onDragOver={(event) => event.preventDefault()}
-                      onDrop={() => handleTagDrop(index)}
                       onClick={() => handleRemoveTag(tag)}
                       className="cursor-pointer"
                     >
-                      {tag}
+                      {translateTag(tag, tagTranslationMap)}
                     </Badge>
                   ))}
                 </div>
@@ -2451,9 +2471,9 @@ const DashboardProjectsEditor = () => {
                   </div>
                 ) : null}
                 <div className="mt-2 flex flex-wrap gap-2">
-                  {formState.genres.map((genre, index) => (
+                  {translatedSortedEditorGenres.map((genre, index) => (
                     <Badge key={`${genre}-${index}`} variant="secondary" onClick={() => handleRemoveGenre(genre)} className="cursor-pointer">
-                      {genre}
+                      {translateGenre(genre, genreTranslationMap)}
                     </Badge>
                   ))}
                 </div>
@@ -2494,7 +2514,7 @@ const DashboardProjectsEditor = () => {
                 {formState.relations.map((relation, index) => (
                   <div
                     key={`${relation.title}-${index}`}
-                    className="grid gap-2 rounded-2xl border border-border/60 bg-card/60 p-3 md:grid-cols-[1.2fr_1fr_1fr_auto]"
+                    className="grid gap-2 rounded-2xl border border-border/60 bg-card/60 p-3 md:grid-cols-[1.35fr_1fr_1fr_auto]"
                     draggable
                     onDragStart={() => setRelationDragIndex(index)}
                     onDragOver={(event) => event.preventDefault()}
@@ -2706,17 +2726,24 @@ const DashboardProjectsEditor = () => {
                           onDrop={() => handleAnimeStaffDrop(index)}
                         >
                           <div className="grid gap-3 md:grid-cols-[1fr_auto]">
-                            <Input
-                              value={role.role || ""}
-                              onChange={(event) =>
-                                setFormState((prev) => {
-                                  const next = [...prev.animeStaff];
-                                  next[index] = { ...next[index], role: event.target.value };
-                                  return { ...prev, animeStaff: next };
-                                })
-                              }
-                              placeholder="Função"
-                            />
+                            <div className="space-y-1">
+                              <Input
+                                value={role.role || ""}
+                                onChange={(event) =>
+                                  setFormState((prev) => {
+                                    const next = [...prev.animeStaff];
+                                    next[index] = { ...next[index], role: event.target.value };
+                                    return { ...prev, animeStaff: next };
+                                  })
+                                }
+                                placeholder="Função"
+                              />
+                              {String(role.role || "").trim() ? (
+                                <p className="text-[11px] text-muted-foreground">
+                                  {translateAnilistRole(role.role, staffRoleTranslationMap)}
+                                </p>
+                              ) : null}
+                            </div>
                             <Button
                               type="button"
                               variant="ghost"

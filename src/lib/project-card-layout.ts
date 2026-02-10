@@ -53,7 +53,7 @@ export const prepareProjectBadges = ({
     .map((tag) => ({
       key: `tag-${tag}`,
       label: normalizeLabel(tagTranslations[tag] || tag),
-      variant: "outline" as const,
+      variant: "secondary" as const,
       href: `/projetos?tag=${encodeURIComponent(tag)}`,
     }))
     .sort((a, b) => comparePtBr(a.label, b.label));

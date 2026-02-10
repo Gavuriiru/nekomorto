@@ -25,6 +25,14 @@ import { getApiBase } from "@/lib/api-base";
 import { isChapterBasedType, isLightNovelType, isMangaType } from "@/lib/project-utils";
 import { formatDate } from "@/lib/date";
 import { apiFetch } from "@/lib/api-client";
+import {
+  buildTranslationMap,
+  sortByTranslatedLabel,
+  translateAnilistRole,
+  translateGenre,
+  translateRelation,
+  translateTag,
+} from "@/lib/project-taxonomy";
 import { useSiteSettings } from "@/hooks/use-site-settings";
 import { usePageMeta } from "@/hooks/use-page-meta";
 import { normalizeAssetUrl } from "@/lib/asset-url";
@@ -156,108 +164,19 @@ const ProjectPage = () => {
     ].filter((item) => String(item.value || "").trim().length > 0);
   }, [project]);
 
+  const tagTranslationMap = useMemo(() => buildTranslationMap(tagTranslations), [tagTranslations]);
+  const genreTranslationMap = useMemo(() => buildTranslationMap(genreTranslations), [genreTranslations]);
+  const staffRoleTranslationMap = useMemo(() => buildTranslationMap(staffRoleTranslations), [staffRoleTranslations]);
+
   const sortedTags = useMemo(() => {
-    const tags = Array.isArray(project?.tags) ? [...project.tags] : [];
-    return tags.sort((a, b) =>
-      (tagTranslations[a] || a).localeCompare(tagTranslations[b] || b, "pt-BR"),
-    );
-  }, [project?.tags, tagTranslations]);
+    const tags = Array.isArray(project?.tags) ? project.tags : [];
+    return sortByTranslatedLabel(tags, (tag) => translateTag(tag, tagTranslationMap));
+  }, [project?.tags, tagTranslationMap]);
 
   const sortedGenres = useMemo(() => {
-    const genres = Array.isArray(project?.genres) ? [...project.genres] : [];
-    return genres.sort((a, b) =>
-      (genreTranslations[a] || a).localeCompare(genreTranslations[b] || b, "pt-BR"),
-    );
-  }, [project?.genres, genreTranslations]);
-
-  const anilistRoleMap = useMemo(() => {
-    const entries: Array<[string, string]> = [
-      ["director", "Direção"],
-      ["chief director", "Diretor chefe"],
-      ["assistant director", "Direção assistente"],
-      ["action director", "Direção de ação"],
-      ["series composition", "Composição de série"],
-      ["script", "Roteiro"],
-      ["storyboard", "Storyboard"],
-      ["story", "História"],
-      ["episode director", "Direção de episódio"],
-      ["original story", "História original"],
-      ["original creator", "Autor original"],
-      ["original work assistance", "Assistência de obra original"],
-      ["character design", "Design de personagens"],
-      ["original character design", "Design original de personagens"],
-      ["original character design assistance", "Assistência de design original de personagens"],
-      ["chief character design", "Design-chefe de personagens"],
-      ["animation director", "Direção de animação"],
-      ["main animator", "Animador principal"],
-      ["chief animation director", "Direção-chefe de animação"],
-      ["key animation", "Animação-chave"],
-      ["in-between animation", "Intercalação"],
-      ["art director", "Direção de arte"],
-      ["art design", "Design de arte"],
-      ["background art", "Arte de fundo"],
-      ["color design", "Design de cor"],
-      ["color coordinator", "Coordenação de cor"],
-      ["director of photography", "Direção de fotografia"],
-      ["photography director", "Direção de fotografia"],
-      ["editing", "Edição"],
-      ["music", "Música"],
-      ["sound director", "Direção de som"],
-      ["sound effects", "Efeitos sonoros"],
-      ["sound design", "Design de som"],
-      ["theme song performance", "Performance da música tema"],
-      ["theme song performance (op)", "Performance da música tema (OP)"],
-      ["theme song performance (ed)", "Performance da música tema (ED)"],
-      ["producer", "Produção"],
-      ["assistant producer", "Produção assistente"],
-      ["production", "Produção"],
-      ["production assistant", "Assistência de produção"],
-      ["3d director", "Direção 3D"],
-      ["3d animation", "Animação 3D"],
-      ["3d modeling", "Modelagem 3D"],
-      ["cg director", "Direção de CG"],
-      ["mechanical design", "Design mecânico"],
-      ["prop design", "Design de props"],
-      ["design assistance", "Assistência de design"],
-      ["title logo design", "Design do logo do título"],
-      ["design works", "Design works"],
-      ["layout", "Layout"],
-      ["literary arts", "Artes literárias"],
-      ["special effects", "Efeitos especiais"],
-      ["cg", "CG"],
-      ["design", "Design"],
-      ["casting", "Casting"],
-      ["supervisor", "Supervisor"],
-      ["creative producer", "Produção criativa"],
-      ["illustration", "Ilustração"],
-    ];
-    return new Map(entries);
-  }, []);
-
-  const staffRoleTranslationMap = useMemo(() => {
-    const map = new Map<string, string>();
-    Object.entries(staffRoleTranslations || {}).forEach(([key, value]) => {
-      const normalized = String(key || "").trim();
-      if (!normalized) {
-        return;
-      }
-      map.set(normalized.toLowerCase(), String(value ?? ""));
-    });
-    return map;
-  }, [staffRoleTranslations]);
-
-  const translateAnilistRole = (role: string) => {
-    const normalized = String(role || "").trim();
-    if (!normalized) {
-      return role;
-    }
-    const key = normalized.toLowerCase();
-    const translated = staffRoleTranslationMap.get(key);
-    if (translated && translated.trim()) {
-      return translated;
-    }
-    return anilistRoleMap.get(key) || role;
-  };
+    const genres = Array.isArray(project?.genres) ? project.genres : [];
+    return sortByTranslatedLabel(genres, (genre) => translateGenre(genre, genreTranslationMap));
+  }, [project?.genres, genreTranslationMap]);
 
   const sourceThemeMap = useMemo(() => {
     const map = new Map<string, { color: string; icon?: string; tintIcon: boolean }>();
@@ -497,7 +416,7 @@ const ProjectPage = () => {
                   {sortedTags.map((tag) => (
                     <Link key={tag} to={`/projetos?tag=${encodeURIComponent(tag)}`} className="inline-flex">
                       <Badge variant="secondary" className="text-[10px] uppercase">
-                        {tagTranslations[tag] || tag}
+                        {translateTag(tag, tagTranslationMap)}
                       </Badge>
                     </Link>
                   ))}
@@ -541,7 +460,7 @@ const ProjectPage = () => {
                       {sortedGenres.map((genre) => (
                         <Link key={genre} to={`/projetos?genero=${encodeURIComponent(genre)}`} className="inline-flex">
                           <Badge variant="outline" className="text-[10px] uppercase">
-                            {genreTranslations[genre] || genre}
+                            {translateGenre(genre, genreTranslationMap)}
                           </Badge>
                         </Link>
                       ))}
@@ -589,7 +508,7 @@ const ProjectPage = () => {
                             </div>
                             <div className="min-w-0 space-y-2">
                               <p className="text-xs font-semibold uppercase tracking-widest text-primary/80">
-                                {relation.relation}
+                                {translateRelation(relation.relation)}
                               </p>
                               <p className="text-sm font-semibold text-foreground transition group-hover:text-primary">
                                 {relation.title}
@@ -646,7 +565,7 @@ const ProjectPage = () => {
                           className="rounded-xl border border-border/50 bg-background/60 px-4 py-3"
                         >
                           <p className="block text-xs font-semibold uppercase tracking-widest text-primary/80">
-                            {translateAnilistRole(staff.role)}
+                            {translateAnilistRole(staff.role, staffRoleTranslationMap)}
                           </p>
                           <p className="mt-1 text-sm text-foreground">{staff.members.join(", ")}</p>
                         </div>
