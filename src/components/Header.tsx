@@ -136,7 +136,7 @@ const Header = ({ variant = "fixed", leading, className }: HeaderProps) => {
   const { rootRef: synopsisRootRef, lineByKey: synopsisLineByKey } = useDynamicSynopsisClamp({
     enabled: showResults,
     keys: synopsisKeys,
-    maxLines: 3,
+    maxLines: 4,
   });
   const getSynopsisClampClass = (key: string) => {
     const lines = synopsisLineByKey[key] ?? 2;
@@ -149,7 +149,10 @@ const Header = ({ variant = "fixed", leading, className }: HeaderProps) => {
     if (lines === 2) {
       return "line-clamp-2";
     }
-    return "line-clamp-3";
+    if (lines === 3) {
+      return "line-clamp-3";
+    }
+    return "line-clamp-4";
   };
 
   useEffect(() => {
@@ -361,13 +364,16 @@ const Header = ({ variant = "fixed", leading, className }: HeaderProps) => {
             </div>
 
             {showResults && (
-              <div ref={synopsisRootRef} className="absolute right-0 top-12 w-80 rounded-xl border border-border/60 bg-background/95 p-4 shadow-lg backdrop-blur">
+              <div
+                ref={synopsisRootRef}
+                className="search-popover-enter absolute right-0 top-12 max-h-[78vh] w-80 overflow-hidden rounded-xl border border-border/60 bg-background/95 p-4 shadow-lg backdrop-blur"
+              >
                 {filteredProjects.length > 0 && (
                   <div className="mb-4">
                     <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                       Projetos
                     </p>
-                    <ul className="mt-3 space-y-3">
+                    <ul className="no-scrollbar mt-3 max-h-[44vh] space-y-3 overflow-y-auto overscroll-contain pr-1">
                       {filteredProjects.map((item) => (
                         <li key={item.href}>
                           <Link
@@ -376,7 +382,7 @@ const Header = ({ variant = "fixed", leading, className }: HeaderProps) => {
                           >
                             <div
                               className="w-20 flex-shrink-0 self-start overflow-hidden rounded-lg bg-secondary"
-                              style={{ aspectRatio: "23 / 32" }}
+                              style={{ aspectRatio: "46 / 65" }}
                             >
                               <img
                                 src={item.image}
@@ -419,7 +425,7 @@ const Header = ({ variant = "fixed", leading, className }: HeaderProps) => {
                     <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                       Posts
                     </p>
-                    <ul className="mt-2 space-y-2">
+                    <ul className="no-scrollbar mt-2 max-h-[26vh] space-y-2 overflow-y-auto overscroll-contain pr-1">
                       {filteredPosts.map((item) => (
                         <li key={item.href}>
                           <Link

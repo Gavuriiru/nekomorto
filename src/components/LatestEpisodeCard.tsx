@@ -167,7 +167,7 @@ const LatestEpisodeCard = () => {
                     data-reveal
                   >
                     <div className="absolute inset-[var(--card-pad)] flex items-start gap-4">
-                      <div className="flex-shrink-0 overflow-hidden rounded-xl bg-secondary/60 h-full aspect-[23/32]">
+                      <div className="flex-shrink-0 overflow-hidden rounded-xl bg-secondary/60 h-full aspect-[46/65]">
                         <img
                           src={update.image || "/placeholder.svg"}
                           alt={update.projectTitle}

@@ -1,9 +1,17 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from "react";
 
 type UseDynamicSynopsisClampParams = {
   enabled: boolean;
   keys: string[];
   maxLines?: number;
+  scopeRef?: RefObject<HTMLElement | null>;
+  selectors?: {
+    column?: string;
+    title?: string;
+    synopsis?: string;
+    badges?: string;
+  };
+  resizeDebounceMs?: number;
 };
 
 const toPx = (value: string) => {
@@ -26,11 +34,24 @@ export const useDynamicSynopsisClamp = ({
   enabled,
   keys,
   maxLines = 3,
+  scopeRef,
+  selectors,
+  resizeDebounceMs = 80,
 }: UseDynamicSynopsisClampParams) => {
-  const rootRef = useRef<HTMLDivElement | null>(null);
+  const internalRef = useRef<HTMLElement | null>(null);
+  const rootRef = scopeRef ?? internalRef;
   const frameRef = useRef<number | null>(null);
   const [lineByKey, setLineByKey] = useState<Record<string, number>>({});
   const keysHash = useMemo(() => keys.join("||"), [keys]);
+  const resolvedSelectors = useMemo(
+    () => ({
+      column: selectors?.column || '[data-synopsis-role="column"]',
+      title: selectors?.title || '[data-synopsis-role="title"]',
+      synopsis: selectors?.synopsis || '[data-synopsis-role="synopsis"]',
+      badges: selectors?.badges || '[data-synopsis-role="badges"]',
+    }),
+    [selectors?.badges, selectors?.column, selectors?.synopsis, selectors?.title],
+  );
 
   const recalculate = useCallback(() => {
     const root = rootRef.current;
@@ -40,16 +61,16 @@ export const useDynamicSynopsisClamp = ({
     }
 
     const next: Record<string, number> = {};
-    const columns = root.querySelectorAll<HTMLElement>('[data-synopsis-role="column"]');
+    const columns = root.querySelectorAll<HTMLElement>(resolvedSelectors.column);
     columns.forEach((column) => {
       const key = String(column.dataset.synopsisKey || "");
       if (!key) {
         return;
       }
 
-      const title = column.querySelector<HTMLElement>('[data-synopsis-role="title"]');
-      const synopsis = column.querySelector<HTMLElement>('[data-synopsis-role="synopsis"]');
-      const badges = column.querySelector<HTMLElement>('[data-synopsis-role="badges"]');
+      const title = column.querySelector<HTMLElement>(resolvedSelectors.title);
+      const synopsis = column.querySelector<HTMLElement>(resolvedSelectors.synopsis);
+      const badges = column.querySelector<HTMLElement>(resolvedSelectors.badges);
       if (!title || !synopsis) {
         return;
       }
@@ -70,7 +91,7 @@ export const useDynamicSynopsisClamp = ({
     });
 
     setLineByKey((current) => (mapsAreEqual(current, next) ? current : next));
-  }, [enabled, maxLines]);
+  }, [enabled, maxLines, resolvedSelectors.badges, resolvedSelectors.column, resolvedSelectors.synopsis, resolvedSelectors.title, rootRef]);
 
   useEffect(() => {
     if (frameRef.current !== null) {
@@ -95,12 +116,12 @@ export const useDynamicSynopsisClamp = ({
       if (timeoutId !== null) {
         window.clearTimeout(timeoutId);
       }
-      timeoutId = window.setTimeout(recalculate, 80);
+      timeoutId = window.setTimeout(recalculate, resizeDebounceMs);
     };
     window.addEventListener("resize", handleResize, { passive: true });
 
     const observer = new ResizeObserver(() => recalculate());
-    rootRef.current.querySelectorAll<HTMLElement>('[data-synopsis-role="column"]').forEach((element) => {
+    rootRef.current.querySelectorAll<HTMLElement>(resolvedSelectors.column).forEach((element) => {
       observer.observe(element);
     });
 
@@ -112,7 +133,7 @@ export const useDynamicSynopsisClamp = ({
       window.removeEventListener("resize", handleResize);
       observer.disconnect();
     };
-  }, [enabled, keysHash, recalculate]);
+  }, [enabled, keysHash, recalculate, resizeDebounceMs, resolvedSelectors.column, rootRef]);
 
   return {
     rootRef,

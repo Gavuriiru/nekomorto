@@ -91,13 +91,13 @@ const ProjectEmbedCard = ({ projectId }: ProjectEmbedCardProps) => {
           <div className="group flex flex-col gap-4 sm:flex-row sm:items-start">
             <div
               className="w-full overflow-hidden rounded-xl border border-border transition sm:w-32 group-hover:border-primary/40"
-              style={{ aspectRatio: "23 / 32" }}
+              style={{ aspectRatio: "46 / 65" }}
             >
               <img
                 src={project?.cover || "/placeholder.svg"}
                 alt={project?.title || "Projeto"}
                 className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
-                style={{ aspectRatio: "23 / 32" }}
+                style={{ aspectRatio: "46 / 65" }}
               />
             </div>
             <div className="flex flex-1 flex-col gap-2.5">

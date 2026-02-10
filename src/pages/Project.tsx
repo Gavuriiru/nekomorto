@@ -474,7 +474,7 @@ const ProjectPage = () => {
               <img
                 src={project.cover}
                 alt={project.title}
-                className="h-full w-full object-cover aspect-[23/32]"
+                className="h-full w-full object-cover aspect-[46/65]"
               />
             </div>
             <div className="flex flex-1 flex-col gap-4">

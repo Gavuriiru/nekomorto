@@ -1,4 +1,4 @@
-﻿import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+﻿import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -21,6 +21,9 @@ import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
 import type { Project } from "@/data/projects";
 import { usePageMeta } from "@/hooks/use-page-meta";
+import { useDynamicSynopsisClamp } from "@/hooks/use-dynamic-synopsis-clamp";
+import { prepareProjectBadges } from "@/lib/project-card-layout";
+import { cn } from "@/lib/utils";
 
 const alphabetOptions = ["Todas", ..."ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("")];
 
@@ -29,45 +32,94 @@ type ProjectCardProps = {
   tagTranslations: Record<string, string>;
   genreTranslations: Record<string, string>;
   navigate: ReturnType<typeof useNavigate>;
+  synopsisClampClass: string;
 };
 
-const ProjectCard = ({ project, tagTranslations, genreTranslations, navigate }: ProjectCardProps) => {
-  const titleRef = useRef<HTMLHeadingElement | null>(null);
-  const [titleLines, setTitleLines] = useState(1);
+const ProjectCard = ({
+  project,
+  tagTranslations,
+  genreTranslations,
+  navigate,
+  synopsisClampClass,
+}: ProjectCardProps) => {
+  const [badgesRowWidth, setBadgesRowWidth] = useState(0);
+  const [badgeWidths, setBadgeWidths] = useState<Record<string, number>>({});
+  const badgesRowRef = useRef<HTMLDivElement | null>(null);
+  const badgeMeasureRef = useRef<HTMLDivElement | null>(null);
+  const { allItems, visibleItems, extraCount, showOverflowBadge } = useMemo(
+    () =>
+      prepareProjectBadges({
+        tags: project.tags,
+        genres: project.genres || [],
+        producers: project.producers || [],
+        tagTranslations,
+        genreTranslations,
+        maxVisible: 3,
+        maxChars: 18,
+        maxRowWidth: badgesRowWidth,
+        badgeWidths,
+        overflowBadgeWidth: 36,
+        gapPx: 4,
+      }),
+    [
+      badgeWidths,
+      badgesRowWidth,
+      genreTranslations,
+      project.genres,
+      project.producers,
+      project.tags,
+      tagTranslations,
+    ],
+  );
 
-  const updateTitleLines = useCallback(() => {
-    const el = titleRef.current;
-    if (!el) {
+  useEffect(() => {
+    const rowNode = badgesRowRef.current;
+    if (!rowNode) {
+      setBadgesRowWidth(0);
       return;
     }
-    const styles = window.getComputedStyle(el);
-    const fontSize = parseFloat(styles.fontSize || "16");
-    const lineHeightValue =
-      styles.lineHeight === "normal" ? fontSize * 1.25 : parseFloat(styles.lineHeight);
-    const height = el.getBoundingClientRect().height;
-    if (!lineHeightValue || !height) {
-      return;
-    }
-    const lines = Math.max(1, Math.round(height / lineHeightValue));
-    setTitleLines(lines);
-  }, []);
 
-  useLayoutEffect(() => {
-    updateTitleLines();
-    const el = titleRef.current;
-    if (!el || typeof ResizeObserver === "undefined") {
-      return;
-    }
-    const observer = new ResizeObserver(() => updateTitleLines());
-    observer.observe(el);
+    const updateWidth = () => setBadgesRowWidth(rowNode.clientWidth);
+    updateWidth();
+
+    const observer = new ResizeObserver(updateWidth);
+    observer.observe(rowNode);
     return () => observer.disconnect();
-  }, [updateTitleLines]);
+  }, [allItems.length, project.id]);
 
-  const synopsisClampClass = titleLines >= 2 ? "line-clamp-1" : "line-clamp-2";
+  useEffect(() => {
+    const measureNode = badgeMeasureRef.current;
+    if (!measureNode || allItems.length === 0) {
+      setBadgeWidths({});
+      return;
+    }
+
+    const nextWidths: Record<string, number> = {};
+    const nodes = measureNode.querySelectorAll<HTMLElement>("[data-badge-key]");
+    nodes.forEach((node) => {
+      const key = node.dataset.badgeKey;
+      if (key) {
+        nextWidths[key] = node.offsetWidth;
+      }
+    });
+
+    setBadgeWidths((current) => {
+      const currentKeys = Object.keys(current);
+      const nextKeys = Object.keys(nextWidths);
+      if (currentKeys.length !== nextKeys.length) {
+        return nextWidths;
+      }
+      for (const key of nextKeys) {
+        if (current[key] !== nextWidths[key]) {
+          return nextWidths;
+        }
+      }
+      return current;
+    });
+  }, [allItems]);
 
   return (
     <Link
-      key={project.id}
       to={`/projeto/${project.id}`}
       className="group flex min-h-[12.5rem] w-full items-start gap-5 overflow-hidden rounded-2xl border border-border/60 bg-gradient-card p-5 shadow-[0_28px_120px_-60px_rgba(0,0,0,0.55)] transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:shadow-lg md:h-[15rem]"
     >
@@ -76,124 +128,113 @@ const ProjectCard = ({ project, tagTranslations, genreTranslations, navigate }: 
           src={project.cover}
           alt={project.title}
           className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
-                  />
+        />
       </div>
-      <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden">
-        <div>
-          <p className="text-xs uppercase tracking-[0.2em] text-primary/80 transition-colors duration-300 group-hover:text-primary">{project.type}</p>
-          <h2
-            ref={titleRef}
-            className="text-xl font-semibold leading-snug text-foreground transition-colors duration-300 group-hover:text-primary line-clamp-2 md:text-2xl"
-          >
+      <div
+        data-synopsis-role="column"
+        data-synopsis-key={project.id}
+        className="flex h-full min-h-0 flex-1 flex-col overflow-hidden"
+      >
+        <div data-synopsis-role="title" className="shrink-0">
+          <p className="text-xs uppercase tracking-[0.2em] text-primary/80 transition-colors duration-300 group-hover:text-primary">
+            {project.type}
+          </p>
+          <h2 className="line-clamp-2 text-xl font-semibold leading-snug text-foreground transition-colors duration-300 group-hover:text-primary md:text-2xl">
             {project.title}
           </h2>
-          <p className={`mt-2 text-sm text-muted-foreground transition-colors duration-300 group-hover:text-foreground/80 ${synopsisClampClass} break-normal hyphens-none`}>
-            {project.synopsis}
-          </p>
         </div>
 
-        {project.tags.length > 0 || project.genres?.length || project.producers?.length ? (
-          <div className="flex max-h-12 flex-wrap gap-1 overflow-hidden">
-            {(() => {
-              const tagItems = project.tags
-                .filter(Boolean)
-                .map((tag) => ({
-                  key: `tag-${tag}`,
-                  label: tagTranslations[tag] || tag,
-                  variant: "outline" as const,
-                  href: `/projetos?tag=${encodeURIComponent(tag)}`,
-                }))
-                .sort((a, b) => a.label.localeCompare(b.label, "pt-BR"));
-              const genreItems = (project.genres || [])
-                .filter(Boolean)
-                .map((genre) => ({
-                  key: `genre-${genre}`,
-                  label: genreTranslations[genre] || genre,
-                  variant: "outline" as const,
-                  href: `/projetos?genero=${encodeURIComponent(genre)}`,
-                }))
-                .sort((a, b) => a.label.localeCompare(b.label, "pt-BR"));
-              const producerItems = (project.producers || [])
-                .filter(Boolean)
-                .map((producer) => ({
-                  key: `producer-${producer}`,
-                  label: producer,
-                  variant: "outline" as const,
-                }))
-                .sort((a, b) => a.label.localeCompare(b.label, "pt-BR"));
-              const items = [...tagItems, ...genreItems, ...producerItems].filter(
-                (item) => item.label && item.label.length <= 18,
-                );
-              const visibleItems = items.slice(0, 3);
-              const extraCount = Math.max(0, items.length - visibleItems.length);
-              return [
-                ...visibleItems.map((item) =>
-                  item.href ? (
-                    <button
-                      key={item.key}
-                      type="button"
-                      className="inline-flex"
-                      title={item.label}
-                      onClick={(event) => {
-                        event.preventDefault();
-                        event.stopPropagation();
-                        navigate(item.href);
-                      }}
-                    >
-                      <Badge
-                        variant={item.variant}
-                        className="h-5 whitespace-nowrap text-[9px] uppercase leading-none px-2"
-                      >
-                        {item.label}
-                      </Badge>
-                    </button>
-                  ) : (
+        <p
+          data-synopsis-role="synopsis"
+          className={cn(
+            "mt-2 overflow-hidden text-sm leading-snug text-muted-foreground transition-colors duration-300 group-hover:text-foreground/80 break-normal hyphens-none",
+            synopsisClampClass,
+          )}
+        >
+          {project.synopsis}
+        </p>
+
+        <div data-synopsis-role="badges" className="relative mt-auto flex shrink-0 flex-col gap-2 pt-3">
+          {visibleItems.length > 0 || extraCount > 0 ? (
+            <div ref={badgesRowRef} className="flex min-w-0 flex-nowrap items-center gap-1 overflow-hidden">
+              {visibleItems.map((item) =>
+                item.href ? (
+                  <button
+                    key={item.key}
+                    type="button"
+                    className="inline-flex shrink-0"
+                    title={item.label}
+                    onClick={(event) => {
+                      event.preventDefault();
+                      event.stopPropagation();
+                      navigate(item.href);
+                    }}
+                  >
                     <Badge
-                      key={item.key}
                       variant={item.variant}
-                      className="inline-flex h-5 whitespace-nowrap text-[9px] uppercase leading-none px-2"
-                      title={item.label}
+                      className="h-5 shrink-0 whitespace-nowrap px-2 text-[9px] uppercase leading-none"
                     >
                       {item.label}
                     </Badge>
-                  ),
+                  </button>
+                ) : (
+                  <Badge
+                    key={item.key}
+                    variant={item.variant}
+                    className="inline-flex h-5 shrink-0 whitespace-nowrap px-2 text-[9px] uppercase leading-none"
+                    title={item.label}
+                  >
+                    {item.label}
+                  </Badge>
                 ),
-                ...(extraCount > 0
-                  ? [
-                      <Badge
-                        key={`extra-${project.id}`}
-                        variant="secondary"
-                        className="inline-flex h-5 whitespace-nowrap text-[9px] uppercase leading-none px-2"
-                        title={`+${extraCount} tags`}
-                      >
-                        +{extraCount}
-                      </Badge>,
-                    ]
-                  : []),
-              ];
-            })()}
+              )}
+              {showOverflowBadge ? (
+                <Badge
+                  key={`extra-${project.id}`}
+                  variant="secondary"
+                  className="inline-flex h-5 w-[2.25rem] shrink-0 justify-center whitespace-nowrap px-2 text-[9px] uppercase leading-none"
+                  title={`+${extraCount} tags`}
+                >
+                  +{extraCount}
+                </Badge>
+              ) : null}
+            </div>
+          ) : null}
+          <div
+            ref={badgeMeasureRef}
+            aria-hidden
+            className="pointer-events-none absolute -left-[9999px] top-0 flex items-center gap-1 opacity-0"
+          >
+            {allItems.map((item) => (
+              <Badge
+                key={`measure-${item.key}`}
+                data-badge-key={item.key}
+                variant={item.variant}
+                className="inline-flex h-5 shrink-0 whitespace-nowrap px-2 text-[9px] uppercase leading-none"
+              >
+                {item.label}
+              </Badge>
+            ))}
           </div>
-        ) : null}
 
-        <div className="mt-auto flex flex-wrap gap-2 text-xs text-muted-foreground">
-          {project.status ? (
-            <span className="shrink-0 rounded-full bg-background/50 px-3 py-1 truncate">
-              {project.status}
-            </span>
-          ) : null}
-          {project.studio ? (
-            <span
-              className="hidden shrink-0 max-w-[9rem] rounded-full bg-background/50 px-3 py-1 truncate lg:inline-flex lg:max-w-[12rem]"
-              title={project.studio}
-            >
-              {project.studio}
-            </span>
-          ) : null}
-          {project.episodes ? (
-            <span className="hidden shrink-0 rounded-full bg-background/50 px-3 py-1 truncate xl:inline-flex">
-              {project.episodes}
-            </span>
-          ) : null}
+          <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
+            {project.status ? (
+              <span className="shrink-0 rounded-full bg-background/50 px-3 py-1 truncate">{project.status}</span>
+            ) : null}
+            {project.studio ? (
+              <span
+                className="hidden shrink-0 max-w-[9rem] rounded-full bg-background/50 px-3 py-1 truncate lg:inline-flex lg:max-w-[12rem]"
+                title={project.studio}
+              >
+                {project.studio}
+              </span>
+            ) : null}
+            {project.episodes ? (
+              <span className="hidden shrink-0 rounded-full bg-background/50 px-3 py-1 truncate xl:inline-flex">
+                {project.episodes}
+              </span>
+            ) : null}
+          </div>
         </div>
       </div>
     </Link>
@@ -204,6 +245,7 @@ const Projects = () => {
   usePageMeta({ title: "Projetos" });
 
   const apiBase = getApiBase();
+  const hasMountedRef = useRef(false);
   const [projects, setProjects] = useState<Project[]>([]);
   const [selectedTag, setSelectedTag] = useState("Todas");
   const [selectedLetter, setSelectedLetter] = useState("Todas");
@@ -321,9 +363,39 @@ const Projects = () => {
     setCurrentPage(1);
   }, [selectedLetter, selectedTag, selectedType, selectedGenre]);
 
+  useEffect(() => {
+    if (!hasMountedRef.current) {
+      hasMountedRef.current = true;
+      return;
+    }
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }, [currentPage]);
+
   const totalPages = Math.max(1, Math.ceil(filteredProjects.length / projectsPerPage));
   const pageStart = (currentPage - 1) * projectsPerPage;
   const paginatedProjects = filteredProjects.slice(pageStart, pageStart + projectsPerPage);
+  const synopsisKeys = useMemo(() => paginatedProjects.map((project) => project.id), [paginatedProjects]);
+  const { rootRef: listRootRef, lineByKey } = useDynamicSynopsisClamp({
+    enabled: paginatedProjects.length > 0,
+    keys: synopsisKeys,
+    maxLines: 4,
+  });
+  const getSynopsisClampClass = (projectId: string) => {
+    const lines = lineByKey[projectId] ?? 2;
+    if (lines <= 0) {
+      return "hidden";
+    }
+    if (lines === 1) {
+      return "line-clamp-1";
+    }
+    if (lines === 2) {
+      return "line-clamp-2";
+    }
+    if (lines === 3) {
+      return "line-clamp-3";
+    }
+    return "line-clamp-4";
+  };
 
   const resetFilters = () => {
     setSelectedTag("Todas");
@@ -426,7 +498,7 @@ const Projects = () => {
               Nenhum projeto encontrado para os filtros selecionados.
             </div>
           ) : (
-            <div className="mt-10 grid gap-6 md:grid-cols-2 md:auto-rows-fr">
+            <div ref={listRootRef} className="mt-10 grid gap-6 md:grid-cols-2 md:auto-rows-fr">
               {paginatedProjects.map((project, index) => {
                 const isLastSingle =
                   paginatedProjects.length % 2 === 1 && index === paginatedProjects.length - 1;
@@ -437,6 +509,7 @@ const Projects = () => {
                     tagTranslations={tagTranslations}
                     genreTranslations={genreTranslations}
                     navigate={navigate}
+                    synopsisClampClass={getSynopsisClampClass(project.id)}
                   />
                 );
 
@@ -500,6 +573,9 @@ const Projects = () => {
 };
 
 export default Projects;
+
+
+
 
 
 
