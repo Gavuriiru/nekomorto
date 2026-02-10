@@ -121,6 +121,9 @@ const HeroSection = () => {
     if (!api) {
       return;
     }
+    if (typeof document !== "undefined" && document.hidden) {
+      return;
+    }
     stopAutoplay();
     autoplayRef.current = window.setInterval(() => {
       api.scrollNext();
@@ -142,14 +145,29 @@ const HeroSection = () => {
       return;
     }
 
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        stopAutoplay();
+        if (resumeTimeoutRef.current !== null) {
+          window.clearTimeout(resumeTimeoutRef.current);
+          resumeTimeoutRef.current = null;
+        }
+        return;
+      }
+      startAutoplay();
+    };
+
     startAutoplay();
     api.on("pointerDown", scheduleAutoplayResume);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
 
     return () => {
       api.off("pointerDown", scheduleAutoplayResume);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
       stopAutoplay();
       if (resumeTimeoutRef.current !== null) {
         window.clearTimeout(resumeTimeoutRef.current);
+        resumeTimeoutRef.current = null;
       }
     };
   }, [api, scheduleAutoplayResume, startAutoplay, stopAutoplay]);

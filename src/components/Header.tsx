@@ -457,7 +457,7 @@ const Header = ({ variant = "fixed", leading, className }: HeaderProps) => {
             <DropdownMenu modal={false}>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="h-11 gap-2 rounded-full px-2">
-                  <Avatar className="h-8 w-8 border border-border/60">
+                  <Avatar className="h-8 w-8 border-0 shadow-[0_0_0_1px_rgba(255,255,255,0.08),0_2px_8px_rgba(0,0,0,0.18)]">
                     {currentUser.avatarUrl ? (
                       <AvatarImage src={currentUser.avatarUrl} alt={currentUser.name} />
                     ) : null}
