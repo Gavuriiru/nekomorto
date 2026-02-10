@@ -38,12 +38,9 @@ import CodeHighlightPrismPlugin from './plugins/CodeHighlightPrismPlugin';
 import CodeHighlightShikiPlugin from './plugins/CodeHighlightShikiPlugin';
 import CollapsiblePlugin from './plugins/CollapsiblePlugin';
 import ComponentPickerPlugin from './plugins/ComponentPickerPlugin';
-import DateTimePlugin from './plugins/DateTimePlugin';
 import DragDropPaste from './plugins/DragDropPastePlugin';
 import DraggableBlockPlugin from './plugins/DraggableBlockPlugin';
 import EmojiPickerPlugin from './plugins/EmojiPickerPlugin';
-import EmojisPlugin from './plugins/EmojisPlugin';
-import EquationsPlugin from './plugins/EquationsPlugin';
 import FloatingLinkEditorPlugin from './plugins/FloatingLinkEditorPlugin';
 import FloatingTextFormatToolbarPlugin from './plugins/FloatingTextFormatToolbarPlugin';
 import ImagesPlugin from './plugins/ImagesPlugin';
@@ -52,7 +49,6 @@ import {LayoutPlugin} from './plugins/LayoutPlugin/LayoutPlugin';
 import LinkPlugin from './plugins/LinkPlugin';
 import MarkdownShortcutPlugin from './plugins/MarkdownShortcutPlugin';
 import MentionsPlugin from './plugins/MentionsPlugin';
-import PageBreakPlugin from './plugins/PageBreakPlugin';
 import PollPlugin from './plugins/PollPlugin';
 import SpecialTextPlugin from './plugins/SpecialTextPlugin';
 import TabFocusPlugin from './plugins/TabFocusPlugin';
@@ -175,11 +171,9 @@ export default function Editor({
         {showEditingPlugins && <EmojiPickerPlugin />}
         {showEditingPlugins && <AutoEmbedPlugin />}
         {showEditingPlugins && <MentionsPlugin />}
-        {showEditingPlugins && <EmojisPlugin />}
         {showEditingPlugins && <HashtagPlugin />}
         {showEditingPlugins && <KeywordsPlugin />}
         {showEditingPlugins && <AutoLinkPlugin />}
-        {showEditingPlugins && <DateTimePlugin />}
         {isRichText ? (
           <>
             <HistoryPlugin externalHistoryState={historyState} />
@@ -224,11 +218,9 @@ export default function Editor({
             <YouTubePlugin />
             <ClickableLinkPlugin disabled={isEditable} />
             {showEditingPlugins && <HorizontalRulePlugin />}
-            {showEditingPlugins && <EquationsPlugin />}
             {showEditingPlugins && <TabFocusPlugin />}
             {showEditingPlugins && <TabIndentationPlugin maxIndent={7} />}
             {showEditingPlugins && <CollapsiblePlugin />}
-            {showEditingPlugins && <PageBreakPlugin />}
             {showEditingPlugins && <LayoutPlugin />}
             {showEditingPlugins && floatingAnchorElem && (
               <>

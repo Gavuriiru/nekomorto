@@ -172,12 +172,12 @@ const Post = () => {
               </section>
 
               <section className="grid gap-8 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
-                <article className="space-y-8">
+                <article className="min-w-0 space-y-8">
                   <Card className="border-border bg-card shadow-sm">
-                    <CardContent className="space-y-7 p-6 text-sm leading-relaxed text-muted-foreground">
+                    <CardContent className="min-w-0 space-y-7 p-6 text-sm leading-relaxed text-muted-foreground">
                       <LexicalViewer
                         value={post.content || ""}
-                        className="post-content reader-content space-y-4 text-muted-foreground"
+                        className="post-content reader-content min-w-0 w-full space-y-4 text-muted-foreground"
                         pollTarget={post?.slug ? { type: "post", slug: post.slug } : undefined}
                       />
                     </CardContent>
@@ -188,7 +188,7 @@ const Post = () => {
                   <CommentsSection targetType="post" targetId={post.slug} />
                 </article>
 
-                <aside className="space-y-6">
+                <aside className="min-w-0 space-y-6">
                   <LatestEpisodeCard />
                   <WorkStatusCard />
                   <DiscordInviteCard />

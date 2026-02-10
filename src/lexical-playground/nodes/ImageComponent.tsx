@@ -49,7 +49,6 @@ import {
 
 import {useSharedHistoryContext} from '../context/SharedHistoryContext';
 import brokenImage from '../images/image-broken.svg';
-import EmojisPlugin from '../plugins/EmojisPlugin';
 import KeywordsPlugin from '../plugins/KeywordsPlugin';
 import LinkPlugin from '../plugins/LinkPlugin';
 import MentionsPlugin from '../plugins/MentionsPlugin';
@@ -477,7 +476,6 @@ export default function ImageComponent({
               <DisableCaptionOnBlur setShowCaption={setShowCaption} />
               <MentionsPlugin />
               <LinkPlugin />
-              <EmojisPlugin />
               <HashtagPlugin />
               <KeywordsPlugin />
               <HistoryPlugin externalHistoryState={historyState} />

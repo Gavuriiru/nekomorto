@@ -1031,10 +1031,10 @@ const DashboardPosts = () => {
                       }))
                     }
                     placeholder="Escreva o conteúdo do post..."
-                    className="lexical-playground--stretch"
+                    className="lexical-playground--stretch min-w-0 w-full"
                   />
 
-                  <aside className="space-y-6">
+                  <aside className="min-w-0 space-y-6">
                     <Card className="border-border/60 bg-card/80">
                       <CardContent className="space-y-5 p-6">
                         <div className="space-y-2">

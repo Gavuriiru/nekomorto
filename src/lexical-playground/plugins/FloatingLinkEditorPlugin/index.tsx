@@ -15,6 +15,7 @@ import {
   $isLinkNode,
   TOGGLE_LINK_COMMAND,
 } from '@lexical/link';
+import {Check, Pencil, Trash2, X} from 'lucide-react';
 import {useLexicalComposerContext} from '@lexical/react/LexicalComposerContext';
 import {$findMatchingParent, mergeRegister} from '@lexical/utils';
 import {
@@ -294,24 +295,30 @@ function FloatingLinkEditor({
               monitorInputInteraction(event);
             }}
           />
-          <div>
-            <div
+          <div className="link-actions">
+            <button
               className="link-cancel"
+              type="button"
+              aria-label="Cancelar edição de link"
               role="button"
               tabIndex={0}
               onMouseDown={preventDefault}
               onClick={() => {
                 setIsLinkEditMode(false);
-              }}
-            />
+              }}>
+              <X size={16} />
+            </button>
 
-            <div
+            <button
               className="link-confirm"
+              type="button"
+              aria-label="Confirmar link"
               role="button"
               tabIndex={0}
               onMouseDown={preventDefault}
-              onClick={handleLinkSubmission}
-            />
+              onClick={handleLinkSubmission}>
+              <Check size={16} />
+            </button>
           </div>
         </>
       ) : (
@@ -322,8 +329,10 @@ function FloatingLinkEditor({
             rel="noopener noreferrer">
             {linkUrl}
           </a>
-          <div
+          <button
             className="link-edit"
+            type="button"
+            aria-label="Editar link"
             role="button"
             tabIndex={0}
             onMouseDown={preventDefault}
@@ -331,17 +340,21 @@ function FloatingLinkEditor({
               event.preventDefault();
               setEditedLinkUrl(linkUrl);
               setIsLinkEditMode(true);
-            }}
-          />
-          <div
+            }}>
+            <Pencil size={16} />
+          </button>
+          <button
             className="link-trash"
+            type="button"
+            aria-label="Remover link"
             role="button"
             tabIndex={0}
             onMouseDown={preventDefault}
             onClick={() => {
               editor.dispatchCommand(TOGGLE_LINK_COMMAND, null);
-            }}
-          />
+            }}>
+            <Trash2 size={16} />
+          </button>
         </div>
       )}
     </div>

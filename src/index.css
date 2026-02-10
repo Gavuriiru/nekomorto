@@ -147,7 +147,7 @@
   }
 
   .post-content img {
-    @apply rounded-lg;
+    @apply h-auto max-w-full rounded-lg;
   }
 
   .post-content h1 {
