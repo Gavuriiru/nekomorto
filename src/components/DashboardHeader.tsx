@@ -22,6 +22,8 @@ import { apiFetch } from "@/lib/api-client";
 import { cn } from "@/lib/utils";
 import { getNavbarIcon } from "@/lib/navbar-icons";
 import { resolveBranding } from "@/lib/branding";
+import { rankPosts, rankProjects, selectVisibleTags, sortAlphabeticallyPtBr } from "@/lib/search-ranking";
+import { useDynamicSynopsisClamp } from "@/hooks/use-dynamic-synopsis-clamp";
 
 type DashboardHeaderUser = {
   name?: string;
@@ -113,13 +115,17 @@ const DashboardHeader = ({
     .join("")
     .toUpperCase();
 
-  const projectItems = projects.map((project) => ({
-    label: project.title,
-    href: `/projeto/${project.id}`,
-    image: project.cover,
-    synopsis: project.synopsis,
-    tags: project.tags.map((tag) => tagTranslations[tag] || tag),
-  }));
+  const projectItems = useMemo(
+    () =>
+      projects.map((project) => ({
+        label: project.title,
+        href: `/projeto/${project.id}`,
+        image: project.cover,
+        synopsis: project.synopsis,
+        tags: selectVisibleTags(sortAlphabeticallyPtBr(project.tags.map((tag) => tagTranslations[tag] || tag)), 2, 18),
+      })),
+    [projects, tagTranslations],
+  );
 
   const postItems = useMemo(
     () =>
@@ -135,25 +141,36 @@ const DashboardHeader = ({
     if (!query.trim()) {
       return [];
     }
-    const lowerQuery = query.toLowerCase();
-    return projectItems.filter((item) => {
-      const searchableText = [item.label, item.synopsis, item.tags.join(" ")].join(" ").toLowerCase();
-      return searchableText.includes(lowerQuery);
-    });
+    return rankProjects(projectItems, query);
   }, [projectItems, query]);
 
   const filteredPosts = useMemo(() => {
     if (!query.trim()) {
       return [];
     }
-    const lowerQuery = query.toLowerCase();
-    return postItems.filter((item) =>
-      [item.label, item.excerpt].join(" ").toLowerCase().includes(lowerQuery),
-    );
+    return rankPosts(postItems, query);
   }, [postItems, query]);
-
   const showResults = isSearchOpen && query.trim().length > 0;
   const hasResults = filteredProjects.length > 0 || filteredPosts.length > 0;
+  const synopsisKeys = useMemo(() => filteredProjects.map((item) => item.href), [filteredProjects]);
+  const { rootRef: synopsisRootRef, lineByKey: synopsisLineByKey } = useDynamicSynopsisClamp({
+    enabled: showResults,
+    keys: synopsisKeys,
+    maxLines: 3,
+  });
+  const getSynopsisClampClass = (key: string) => {
+    const lines = synopsisLineByKey[key] ?? 2;
+    if (lines <= 0) {
+      return "hidden";
+    }
+    if (lines === 1) {
+      return "line-clamp-1";
+    }
+    if (lines === 2) {
+      return "line-clamp-2";
+    }
+    return "line-clamp-3";
+  };
 
   useEffect(() => {
     const handleOutsideClick = (event: MouseEvent) => {
@@ -345,7 +362,7 @@ const DashboardHeader = ({
             </div>
 
             {showResults && (
-              <div className="absolute right-0 top-12 w-80 rounded-xl border border-border/60 bg-background/95 p-4 shadow-lg backdrop-blur">
+              <div ref={synopsisRootRef} className="absolute right-0 top-12 w-80 rounded-xl border border-border/60 bg-background/95 p-4 shadow-lg backdrop-blur">
                 {filteredProjects.length > 0 && (
                   <div className="mb-4">
                     <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
@@ -368,17 +385,23 @@ const DashboardHeader = ({
                                 className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
                               />
                             </div>
-                            <div className="min-w-0">
-                              <p className="text-sm font-semibold text-foreground group-hover:text-primary">
+                            <div data-synopsis-role="column" data-synopsis-key={item.href} className="min-w-0 h-full flex flex-col">
+                              <p data-synopsis-role="title" className="line-clamp-1 shrink-0 text-sm font-semibold text-foreground group-hover:text-primary">
                                 {item.label}
                               </p>
-                              <p className="mt-1 text-xs text-muted-foreground line-clamp-1">
+                              <p
+                                className={cn(
+                                  "mt-1 overflow-hidden text-xs leading-snug text-muted-foreground",
+                                  getSynopsisClampClass(item.href),
+                                )}
+                                data-synopsis-role="synopsis"
+                              >
                                 {item.synopsis}
                               </p>
                               {item.tags.length > 0 && (
-                                <div className="mt-2 flex flex-wrap gap-1.5 overflow-hidden">
-                                  {item.tags.slice(0, 3).map((tag) => (
-                                    <Badge key={tag} variant="secondary" className="text-[9px] uppercase">
+                                <div data-synopsis-role="badges" className="mt-auto pt-2 flex min-w-0 flex-wrap gap-1.5">
+                                  {item.tags.map((tag) => (
+                                    <Badge key={tag} variant="secondary" className="text-[9px] uppercase whitespace-nowrap">
                                       {tag}
                                     </Badge>
                                   ))}
