@@ -787,8 +787,10 @@ const DashboardProjectsEditor = () => {
   const [episodeDragId, setEpisodeDragId] = useState<number | null>(null);
   const [relationDragIndex, setRelationDragIndex] = useState<number | null>(null);
   const [staffDragIndex, setStaffDragIndex] = useState<number | null>(null);
+  const [animeStaffDragIndex, setAnimeStaffDragIndex] = useState<number | null>(null);
   const [tagDragIndex, setTagDragIndex] = useState<number | null>(null);
   const [staffMemberInput, setStaffMemberInput] = useState<Record<number, string>>({});
+  const [animeStaffMemberInput, setAnimeStaffMemberInput] = useState<Record<number, string>>({});
   const [episodeDateDraft, setEpisodeDateDraft] = useState<Record<number, string>>({});
   const [episodeTimeDraft, setEpisodeTimeDraft] = useState<Record<number, string>>({});
   const [memberDirectory, setMemberDirectory] = useState<string[]>([]);
@@ -1229,6 +1231,7 @@ const DashboardProjectsEditor = () => {
     setEditorAccordionValue(["dados-principais"]);
     setEpisodeDateDraft({});
     setEpisodeTimeDraft({});
+    setAnimeStaffMemberInput({});
     editorInitialSnapshotRef.current = buildProjectEditorSnapshot(nextForm, "");
     setCollapsedEpisodes({});
     setIsEditorOpen(true);
@@ -1284,6 +1287,7 @@ const DashboardProjectsEditor = () => {
     setEditorAccordionValue(["dados-principais"]);
     setEpisodeDateDraft({});
     setEpisodeTimeDraft({});
+    setAnimeStaffMemberInput({});
     editorInitialSnapshotRef.current = buildProjectEditorSnapshot(nextForm, nextAniListInput);
     setCollapsedEpisodes(() => {
       const next: Record<number, boolean> = {};
@@ -1718,6 +1722,21 @@ const DashboardProjectsEditor = () => {
       return { ...prev, staff: next };
     });
     setStaffDragIndex(null);
+  };
+
+  const handleAnimeStaffDrop = (targetIndex: number) => {
+    if (animeStaffDragIndex === null || animeStaffDragIndex === targetIndex) {
+      setAnimeStaffDragIndex(null);
+      return;
+    }
+    setFormState((prev) => {
+      const next = [...prev.animeStaff];
+      const [removed] = next.splice(animeStaffDragIndex, 1);
+      next.splice(targetIndex, 0, removed);
+      return { ...prev, animeStaff: next };
+    });
+    setAnimeStaffMemberInput({});
+    setAnimeStaffDragIndex(null);
   };
 
   const handleEpisodeDrop = (targetIndex: number) => {
@@ -2647,6 +2666,130 @@ const DashboardProjectsEditor = () => {
                   </div>
                 ))}
               </div>
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
+
+              <AccordionItem value="staff-anime" className="rounded-2xl border border-border/60 bg-card/70 px-4">
+                <AccordionTrigger className="py-3 text-sm font-semibold hover:no-underline">
+                  <div className="flex w-full items-center justify-between gap-4 text-left">
+                    <span>Staff do anime</span>
+                    <span className="text-xs text-muted-foreground">{formState.animeStaff.length} funções</span>
+                  </div>
+                </AccordionTrigger>
+                <AccordionContent className="pb-4">
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-base">Staff do anime</Label>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={() =>
+                          setFormState((prev) => ({
+                            ...prev,
+                            animeStaff: [...prev.animeStaff, { role: "", members: [] }],
+                          }))
+                        }
+                      >
+                        Adicionar função
+                      </Button>
+                    </div>
+                    <div className="grid gap-3">
+                      {formState.animeStaff.map((role, index) => (
+                        <div
+                          key={`${role.role}-${index}`}
+                          className="rounded-2xl border border-border/60 bg-card/60 p-3"
+                          draggable
+                          onDragStart={() => setAnimeStaffDragIndex(index)}
+                          onDragOver={(event) => event.preventDefault()}
+                          onDrop={() => handleAnimeStaffDrop(index)}
+                        >
+                          <div className="grid gap-3 md:grid-cols-[1fr_auto]">
+                            <Input
+                              value={role.role || ""}
+                              onChange={(event) =>
+                                setFormState((prev) => {
+                                  const next = [...prev.animeStaff];
+                                  next[index] = { ...next[index], role: event.target.value };
+                                  return { ...prev, animeStaff: next };
+                                })
+                              }
+                              placeholder="Função"
+                            />
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              onClick={() => {
+                                setFormState((prev) => ({
+                                  ...prev,
+                                  animeStaff: prev.animeStaff.filter((_, idx) => idx !== index),
+                                }));
+                                setAnimeStaffMemberInput((prev) => shiftDraftAfterRemoval(prev, index));
+                              }}
+                            >
+                              Remover
+                            </Button>
+                          </div>
+                          <div className="mt-3 flex flex-wrap items-center gap-2">
+                            <Input
+                              list="staff-directory"
+                              value={animeStaffMemberInput[index] || ""}
+                              onChange={(event) =>
+                                setAnimeStaffMemberInput((prev) => ({ ...prev, [index]: event.target.value }))
+                              }
+                              placeholder="Adicionar membro"
+                            />
+                            <Button
+                              type="button"
+                              variant="outline"
+                              onClick={() => {
+                                const name = (animeStaffMemberInput[index] || "").trim();
+                                if (!name) {
+                                  return;
+                                }
+                                setFormState((prev) => {
+                                  const next = [...prev.animeStaff];
+                                  const members = next[index].members || [];
+                                  next[index] = {
+                                    ...next[index],
+                                    members: members.includes(name) ? members : [...members, name],
+                                  };
+                                  return { ...prev, animeStaff: next };
+                                });
+                                setAnimeStaffMemberInput((prev) => ({ ...prev, [index]: "" }));
+                              }}
+                            >
+                              Adicionar
+                            </Button>
+                          </div>
+                          <div className="mt-2 flex flex-wrap gap-2">
+                            {(role.members || []).map((member) => (
+                              <Badge key={member} variant="secondary" className="flex items-center gap-1">
+                                <span>{member}</span>
+                                <button
+                                  type="button"
+                                  className="rounded-sm p-0.5 text-muted-foreground transition hover:text-foreground"
+                                  onClick={() =>
+                                    setFormState((prev) => {
+                                      const next = [...prev.animeStaff];
+                                      next[index] = {
+                                        ...next[index],
+                                        members: (next[index].members || []).filter((item) => item !== member),
+                                      };
+                                      return { ...prev, animeStaff: next };
+                                    })
+                                  }
+                                  aria-label={`Remover ${member}`}
+                                >
+                                  x
+                                </button>
+                              </Badge>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 </AccordionContent>
               </AccordionItem>
