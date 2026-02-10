@@ -1837,7 +1837,7 @@ const DashboardProjectsEditor = () => {
                             <img
                               src={project.cover || "/placeholder.svg"}
                               alt={project.title}
-                              className="h-full w-full object-cover"
+                              className="h-full w-full object-cover object-center"
                               loading="lazy"
                             />
                             {project.tags[0] ? (
