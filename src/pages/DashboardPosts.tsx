@@ -42,6 +42,7 @@ import ProjectEmbedCard from "@/components/ProjectEmbedCard";
 import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
 import { formatDate, formatDateTimeShort } from "@/lib/date";
+import { buildTranslationMap, sortByTranslatedLabel, translateTag } from "@/lib/project-taxonomy";
 import { usePageMeta } from "@/hooks/use-page-meta";
 import { normalizeAssetUrl } from "@/lib/asset-url";
 import { Calendar } from "@/components/ui/calendar";
@@ -165,6 +166,16 @@ type UserRecord = {
   permissions: string[];
 };
 
+const getPostStatusLabel = (status: PostRecord["status"]): string => {
+  if (status === "published") {
+    return "Publicado";
+  }
+  if (status === "scheduled") {
+    return "Agendado";
+  }
+  return "Rascunho";
+};
+
 const DashboardPosts = () => {
   usePageMeta({ title: "Posts", noIndex: true });
   const navigate = useNavigate();
@@ -198,6 +209,7 @@ const DashboardPosts = () => {
   const [projectFilterQuery, setProjectFilterQuery] = useState("");
   const [deleteTarget, setDeleteTarget] = useState<PostRecord | null>(null);
   const [tagInput, setTagInput] = useState("");
+  const [tagTranslations, setTagTranslations] = useState<Record<string, string>>({});
   const tagInputRef = useRef<HTMLInputElement | null>(null);
   const [tagOrder, setTagOrder] = useState<string[]>([]);
   const [draggedTag, setDraggedTag] = useState<string | null>(null);
@@ -259,11 +271,12 @@ const DashboardPosts = () => {
     let isActive = true;
     const load = async () => {
       try {
-        const [postsRes, usersRes, meRes, projectsRes] = await Promise.all([
+        const [postsRes, usersRes, meRes, projectsRes, tagsRes] = await Promise.all([
           apiFetch(apiBase, "/api/posts", { auth: true }),
           apiFetch(apiBase, "/api/users", { auth: true }),
           apiFetch(apiBase, "/api/me", { auth: true }),
           apiFetch(apiBase, "/api/projects", { auth: true }),
+          apiFetch(apiBase, "/api/public/tag-translations", { cache: "no-store" }),
         ]);
 
         if (postsRes.ok) {
@@ -295,9 +308,19 @@ const DashboardPosts = () => {
             setProjects(Array.isArray(data.projects) ? data.projects : []);
           }
         }
+
+        if (tagsRes.ok) {
+          const data = await tagsRes.json();
+          if (isActive) {
+            setTagTranslations(data.tags || {});
+          }
+        } else if (isActive) {
+          setTagTranslations({});
+        }
       } catch {
         if (isActive) {
           setPosts([]);
+          setTagTranslations({});
         }
       } finally {
         if (isActive) {
@@ -497,6 +520,11 @@ const DashboardPosts = () => {
     }
     return projectMap.get(formState.projectId)?.tags || [];
   }, [formState.projectId, projectMap]);
+  const tagTranslationMap = useMemo(() => buildTranslationMap(tagTranslations), [tagTranslations]);
+  const displayTag = useCallback(
+    (tag: string) => translateTag(tag, tagTranslationMap),
+    [tagTranslationMap],
+  );
   useEffect(() => {
     const base = (formState.tags || []).filter(Boolean);
     const next = [...base];
@@ -564,8 +592,8 @@ const DashboardPosts = () => {
         }
       });
     });
-    return Array.from(collected).sort((a, b) => a.localeCompare(b, "pt-BR"));
-  }, [activePosts, projects]);
+    return sortByTranslatedLabel(Array.from(collected), (tag) => displayTag(tag));
+  }, [activePosts, displayTag, projects]);
   const mergedTags = useMemo(() => {
     if (tagOrder.length) {
       return tagOrder;
@@ -1321,7 +1349,7 @@ const DashboardPosts = () => {
                                     variant={isProjectTag ? "secondary" : "outline"}
                                     className="text-[10px] uppercase"
                                   >
-                                    {tag}
+                                    {displayTag(tag)}
                                     {isProjectTag ? null : (
                                       <span className="ml-2 text-[10px] text-muted-foreground group-hover:text-foreground">
                                         ×
@@ -1500,9 +1528,14 @@ const DashboardPosts = () => {
                         ...(Array.isArray(post.tags) ? post.tags : []),
                       ]),
                     );
+                    const sortedCardTags = sortByTranslatedLabel(tags, (tag) => displayTag(tag));
+                    const visibleCardTags = sortedCardTags.slice(0, 3);
+                    const extraTagCount = Math.max(0, sortedCardTags.length - visibleCardTags.length);
+                    const statusLabel = getPostStatusLabel(post.status);
                     return (
                       <Card
                         key={post.id}
+                        data-testid={`post-card-${post.id}`}
                         className={`${dashboardPageLayoutTokens.listCard} group cursor-pointer overflow-hidden transition hover:border-primary/40 animate-slide-up opacity-0`}
                         style={{ animationDelay: `${Math.min(index * 35, 210)}ms` }}
                         onClick={() => {
@@ -1512,8 +1545,8 @@ const DashboardPosts = () => {
                         }}
                       >
                         <CardContent className="p-0">
-                          <div className="grid gap-6 md:grid-cols-[220px_1fr]">
-                            <div className="relative h-44 w-full md:h-full">
+                          <div className="grid min-h-[360px] gap-0 md:h-[280px] md:min-h-0 md:grid-cols-[220px_1fr]">
+                            <div className="relative h-52 w-full md:h-full">
                               {post.coverImageUrl ? (
                                 <img
                                   src={normalizeAssetUrl(post.coverImageUrl)}
@@ -1530,86 +1563,118 @@ const DashboardPosts = () => {
                                 </div>
                               )}
                             </div>
-                        <div className="flex flex-1 flex-col gap-4 p-6">
-                              <div className="flex flex-wrap items-start justify-between gap-4">
-                                <div className="space-y-2">
-                                  <div className="flex flex-wrap items-center gap-2">
-                                    <Badge variant="outline" className="text-[10px] uppercase">
-                                      {post.status}
+                            <div className="grid h-full min-h-0 grid-rows-[auto_auto_minmax(0,1fr)_auto] gap-2 p-4 md:pb-5">
+                              <div data-slot="top" className="flex items-start justify-between gap-3">
+                                <div className="flex min-w-0 flex-wrap items-center gap-2">
+                                  <Badge variant="outline" className="text-[10px] uppercase">
+                                    {statusLabel}
+                                  </Badge>
+                                  {project ? (
+                                    <Badge variant="secondary" className="max-w-[15rem] truncate text-[10px] uppercase">
+                                      {project.title}
                                     </Badge>
-                                    {project ? (
-                                      <Badge variant="secondary" className="text-[10px] uppercase">
-                                        {project.title}
-                                      </Badge>
-                                    ) : null}
-                                  </div>
-                                  <h3 className="text-lg font-semibold text-foreground">{post.title}</h3>
-                                  <span className="text-xs text-muted-foreground">{formattedDate}</span>
+                                  ) : null}
                                 </div>
-                                <div className="flex items-center gap-2">
+                                <div className="flex shrink-0 items-center gap-1">
                                   <Button
                                     variant="ghost"
                                     size="icon"
                                     title="Visualizar"
+                                    className="h-8 w-8"
                                     onClick={(event) => event.stopPropagation()}
                                     asChild
                                   >
                                     <Link to={`/postagem/${post.slug}`}>
-                                      <Eye className="h-4 w-4" />
+                                      <Eye className="h-3.5 w-3.5" />
                                     </Link>
                                   </Button>
                                   <Button
                                     variant="ghost"
                                     size="icon"
                                     title="Copiar link"
+                                    className="h-8 w-8"
                                     onClick={(event) => {
                                       event.stopPropagation();
                                       handleCopyLink(post.slug);
                                     }}
                                   >
-                                    <Copy className="h-4 w-4" />
+                                    <Copy className="h-3.5 w-3.5" />
                                   </Button>
                                   {canManagePosts ? (
                                     <Button
                                       variant="ghost"
                                       size="icon"
                                       title="Excluir"
+                                      className="h-8 w-8"
                                       onClick={(event) => {
                                         event.stopPropagation();
                                         handleDeletePost(post);
                                       }}
                                     >
-                                      <Trash2 className="h-4 w-4 text-destructive" />
+                                      <Trash2 className="h-3.5 w-3.5 text-destructive" />
                                     </Button>
                                   ) : null}
                                 </div>
                               </div>
-                              <p className="text-sm text-muted-foreground line-clamp-3">
+
+                              <div data-slot="headline" className="min-h-[2.75rem]">
+                                <h3 className="line-clamp-2 text-lg font-semibold leading-tight text-foreground md:line-clamp-1">
+                                  {post.title}
+                                </h3>
+                                <span className="text-xs text-muted-foreground">{formattedDate}</span>
+                              </div>
+
+                              <p
+                                data-slot="excerpt"
+                                className="line-clamp-2 min-h-0 overflow-hidden text-sm text-muted-foreground md:line-clamp-1"
+                              >
                                 {post.excerpt || "Sem prévia cadastrada."}
                               </p>
-                              {tags.length > 0 ? (
-                                <div className="flex flex-wrap gap-2">
-                                  {tags.slice(0, 4).map((tag) => (
-                                    <Badge key={tag} variant="outline" className="text-[10px] uppercase">
-                                      {tag}
-                                    </Badge>
-                                  ))}
+
+                              <div className="flex min-h-0 flex-col gap-2">
+                                <div data-slot="tags" className="min-h-[1.5rem]">
+                                  {visibleCardTags.length > 0 ? (
+                                    <div className="flex min-w-0 items-center gap-2 overflow-hidden">
+                                      {visibleCardTags.map((tag) => (
+                                        <Badge
+                                          key={tag}
+                                          variant="secondary"
+                                          className="min-w-0 max-w-[8.5rem] overflow-hidden text-[10px] uppercase"
+                                        >
+                                          <span className="block min-w-0 truncate">{displayTag(tag)}</span>
+                                        </Badge>
+                                      ))}
+                                      {extraTagCount > 0 ? (
+                                        <Badge variant="secondary" className="text-[10px] uppercase">
+                                          +{extraTagCount}
+                                        </Badge>
+                                      ) : null}
+                                    </div>
+                                  ) : (
+                                    <span className="invisible text-[10px]">placeholder</span>
+                                  )}
                                 </div>
-                              ) : null}
-                              <div className="flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
-                                <span className="inline-flex items-center gap-2">
-                                  <UserRound className="h-4 w-4" />
-                                  {post.author || "Autor não definido"}
-                                </span>
-                                <span className="inline-flex items-center gap-2">
-                                  <Eye className="h-4 w-4" />
-                                  {post.views} visualizações
-                                </span>
-                                <span className="inline-flex items-center gap-2">
-                                  <MessageSquare className="h-4 w-4" />
-                                  {post.commentsCount} comentários
-                                </span>
-                                <span className="ml-auto text-xs text-muted-foreground">/{post.slug}</span>
+
+                                <div
+                                  data-slot="meta"
+                                  className="flex min-w-0 flex-nowrap items-center gap-3 text-xs text-muted-foreground"
+                                >
+                                  <span className="inline-flex min-w-0 items-center gap-2">
+                                    <UserRound className="h-4 w-4 shrink-0" />
+                                    <span className="truncate">{post.author || "Autor não definido"}</span>
+                                  </span>
+                                  <span className="inline-flex shrink-0 items-center gap-2">
+                                    <Eye className="h-4 w-4" />
+                                    {post.views} visualizações
+                                  </span>
+                                  <span className="inline-flex shrink-0 items-center gap-2">
+                                    <MessageSquare className="h-4 w-4" />
+                                    {post.commentsCount} comentários
+                                  </span>
+                                  <span className="ml-auto max-w-[11rem] truncate text-right text-xs text-muted-foreground">
+                                    /{post.slug}
+                                  </span>
+                                </div>
                               </div>
                             </div>
                           </div>

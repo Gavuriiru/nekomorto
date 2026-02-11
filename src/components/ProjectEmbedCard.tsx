@@ -1,9 +1,10 @@
-﻿import { useEffect, useState } from "react";
+﻿import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
+import { buildTranslationMap, sortByTranslatedLabel, translateTag } from "@/lib/project-taxonomy";
 import type { Project } from "@/data/projects";
 
 type ProjectEmbedCardProps = {
@@ -15,6 +16,11 @@ const ProjectEmbedCard = ({ projectId }: ProjectEmbedCardProps) => {
   const [project, setProject] = useState<Project | null>(null);
   const [hasLoaded, setHasLoaded] = useState(false);
   const [tagTranslations, setTagTranslations] = useState<Record<string, string>>({});
+  const tagTranslationMap = useMemo(() => buildTranslationMap(tagTranslations), [tagTranslations]);
+  const sortedTags = useMemo(() => {
+    const tags = Array.isArray(project?.tags) ? project.tags : [];
+    return sortByTranslatedLabel(tags, (tag) => translateTag(tag, tagTranslationMap));
+  }, [project?.tags, tagTranslationMap]);
 
   useEffect(() => {
     if (!projectId) {
@@ -117,9 +123,9 @@ const ProjectEmbedCard = ({ projectId }: ProjectEmbedCardProps) => {
             </div>
             {project?.tags?.length ? (
               <div className="flex flex-wrap gap-1.5">
-                {project.tags.slice(0, 4).map((tag) => (
+                {sortedTags.slice(0, 4).map((tag) => (
                   <Badge key={tag} variant="secondary" className="text-[9px] uppercase">
-                    {tagTranslations[tag] || tag}
+                    {translateTag(tag, tagTranslationMap)}
                   </Badge>
                 ))}
               </div>
@@ -133,7 +139,3 @@ const ProjectEmbedCard = ({ projectId }: ProjectEmbedCardProps) => {
 };
 
 export default ProjectEmbedCard;
-
-
-
-
