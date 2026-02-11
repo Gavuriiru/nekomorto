@@ -1913,6 +1913,18 @@ const DashboardProjectsEditor = () => {
     setEpisodeDragId(null);
   };
 
+  const editorSectionClassName =
+    "project-editor-section rounded-2xl border border-border/60 bg-card/70 px-4";
+  const editorSectionTriggerClassName =
+    "project-editor-section-trigger py-3 text-sm font-semibold hover:no-underline";
+  const editorSectionContentClassName = "project-editor-section-content pb-4 px-1";
+  const editorProjectLabel = editingProject ? "Projeto em edição" : "Novo projeto";
+  const editorProjectTitle = formState.title.trim() || "Sem título";
+  const editorProjectId = formState.id.trim() || "Será definido ao salvar";
+  const editorTypeLabel = formState.type || "Formato";
+  const editorStatusLabel = formState.status || "Status";
+  const editorEpisodeCount = formState.episodeDownloads.length;
+
   return (
     <>
       <DashboardShell
@@ -2199,7 +2211,7 @@ const DashboardProjectsEditor = () => {
 
       <Dialog open={isEditorOpen} onOpenChange={handleEditorOpenChange} modal={false}>
         <DialogContent
-          className={`max-w-5xl max-h-[92vh] overflow-y-auto no-scrollbar ${
+          className={`project-editor-dialog max-h-[94vh] max-w-[min(1120px,calc(100vw-1.5rem))] overflow-y-auto no-scrollbar p-0 ${
             isEditorDialogScrolled ? "editor-modal-scrolled" : ""
           }`}
           disableOutsidePointerEvents={false}
@@ -2228,28 +2240,64 @@ const DashboardProjectsEditor = () => {
             }
           }}
         >
-          <DialogHeader>
-            <DialogTitle>{editingProject ? "Editar projeto" : "Novo projeto"}</DialogTitle>
-            <DialogDescription>
-              Busque no AniList para preencher automaticamente ou edite tudo manualmente.
-            </DialogDescription>
-          </DialogHeader>
+          <div className="project-editor-top sticky top-0 z-20 border-b border-border/60 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
+            <DialogHeader className="space-y-0 px-4 pb-4 pt-5 text-left md:px-6">
+              <div className="flex flex-wrap items-start justify-between gap-4">
+                <div className="space-y-2">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Badge variant="secondary" className="text-[10px] uppercase tracking-[0.12em]">
+                      {editorProjectLabel}
+                    </Badge>
+                    {formState.anilistId ? (
+                      <Badge variant="outline" className="text-[10px] uppercase tracking-[0.12em]">
+                        AniList {formState.anilistId}
+                      </Badge>
+                    ) : null}
+                  </div>
+                  <DialogTitle className="text-xl md:text-2xl">
+                    {editingProject ? "Editar projeto" : "Novo projeto"}
+                  </DialogTitle>
+                  <DialogDescription className="max-w-2xl text-xs md:text-sm">
+                    Busque no AniList para preencher automaticamente ou ajuste todos os dados manualmente.
+                  </DialogDescription>
+                </div>
+                <div className="rounded-xl border border-border/60 bg-card/65 px-3 py-2 text-right">
+                  <p className="text-[11px] uppercase tracking-[0.12em] text-muted-foreground">Projeto</p>
+                  <p className="max-w-[210px] truncate text-sm font-medium text-foreground">{editorProjectTitle}</p>
+                </div>
+              </div>
+            </DialogHeader>
+            <div className="project-editor-status-bar flex flex-wrap items-center gap-2 border-t border-border/60 px-4 py-3 md:px-6">
+              <Badge variant="outline" className="text-[10px] uppercase tracking-[0.12em]">
+                ID {editorProjectId}
+              </Badge>
+              <Badge variant="secondary" className="text-[10px] uppercase tracking-[0.12em]">
+                {editorTypeLabel}
+              </Badge>
+              <Badge variant="secondary" className="text-[10px] uppercase tracking-[0.12em]">
+                {editorStatusLabel}
+              </Badge>
+              <span className="text-[11px] text-muted-foreground">
+                {editorEpisodeCount} {isChapterBased ? "capítulos" : "episódios"}
+              </span>
+            </div>
+          </div>
 
-          <div className="grid gap-6">
+          <div className="project-editor-layout grid gap-6 px-4 pb-5 pt-4 md:px-6 md:pb-7">
             <Accordion
               type="multiple"
               value={editorAccordionValue}
               onValueChange={setEditorAccordionValue}
-              className="space-y-3"
+              className="project-editor-accordion space-y-3"
             >
-              <AccordionItem value="importacao" className="rounded-2xl border border-border/60 bg-card/70 px-4">
-                <AccordionTrigger className="py-3 text-sm font-semibold hover:no-underline">
+              <AccordionItem value="importacao" className={editorSectionClassName}>
+                <AccordionTrigger className={editorSectionTriggerClassName}>
                   <div className="flex w-full items-center justify-between gap-4 text-left">
                     <span>Importação AniList</span>
                     <span className="text-xs text-muted-foreground">Preenchimento automático</span>
                   </div>
                 </AccordionTrigger>
-                <AccordionContent className="pb-4 px-1">
+                <AccordionContent className={editorSectionContentClassName}>
                   <div className="grid gap-4 md:grid-cols-[1fr_auto]">
                 <div className="space-y-2">
                   <Label>ID AniList</Label>
@@ -2266,14 +2314,14 @@ const DashboardProjectsEditor = () => {
                 </AccordionContent>
               </AccordionItem>
 
-              <AccordionItem value="dados-principais" className="rounded-2xl border border-border/60 bg-card/70 px-4">
-                <AccordionTrigger className="py-3 text-sm font-semibold hover:no-underline">
+              <AccordionItem value="dados-principais" className={editorSectionClassName}>
+                <AccordionTrigger className={editorSectionTriggerClassName}>
                   <div className="flex w-full items-center justify-between gap-4 text-left">
                     <span>Dados principais</span>
                     <span className="text-xs text-muted-foreground">{formState.title || "ID e títulos"}</span>
                   </div>
                 </AccordionTrigger>
-                <AccordionContent className="pb-4 px-1">
+                <AccordionContent className={editorSectionContentClassName}>
                   <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2">
                 <Label>ID do projeto</Label>
@@ -2343,8 +2391,8 @@ const DashboardProjectsEditor = () => {
                 </AccordionContent>
               </AccordionItem>
 
-              <AccordionItem value="midias" className="rounded-2xl border border-border/60 bg-card/70 px-4">
-                <AccordionTrigger className="py-3 text-sm font-semibold hover:no-underline">
+              <AccordionItem value="midias" className={editorSectionClassName}>
+                <AccordionTrigger className={editorSectionTriggerClassName}>
                   <div className="flex w-full items-center justify-between gap-4 text-left">
                     <span>Mídias</span>
                     <span className="text-xs text-muted-foreground">
@@ -2352,7 +2400,7 @@ const DashboardProjectsEditor = () => {
                     </span>
                   </div>
                 </AccordionTrigger>
-                <AccordionContent className="pb-4 px-1">
+                <AccordionContent className={editorSectionContentClassName}>
                   <div className="grid gap-3 md:grid-cols-3">
               <div className="space-y-2">
                 <Label>Imagem do carrossel</Label>
@@ -2425,8 +2473,8 @@ const DashboardProjectsEditor = () => {
                 </AccordionContent>
               </AccordionItem>
 
-              <AccordionItem value="metadados" className="rounded-2xl border border-border/60 bg-card/70 px-4">
-                <AccordionTrigger className="py-3 text-sm font-semibold hover:no-underline">
+              <AccordionItem value="metadados" className={editorSectionClassName}>
+                <AccordionTrigger className={editorSectionTriggerClassName}>
                   <div className="flex w-full items-center justify-between gap-4 text-left">
                     <span>Metadados</span>
                     <span className="text-xs text-muted-foreground">
@@ -2434,7 +2482,7 @@ const DashboardProjectsEditor = () => {
                     </span>
                   </div>
                 </AccordionTrigger>
-                <AccordionContent className="pb-4 px-1">
+                <AccordionContent className={editorSectionContentClassName}>
                   <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2">
                 <Label>Formato</Label>
@@ -2518,8 +2566,8 @@ const DashboardProjectsEditor = () => {
                 </AccordionContent>
               </AccordionItem>
 
-              <AccordionItem value="classificacao" className="rounded-2xl border border-border/60 bg-card/70 px-4">
-                <AccordionTrigger className="py-3 text-sm font-semibold hover:no-underline">
+              <AccordionItem value="classificacao" className={editorSectionClassName}>
+                <AccordionTrigger className={editorSectionTriggerClassName}>
                   <div className="flex w-full items-center justify-between gap-4 text-left">
                     <span>Classificação</span>
                     <span className="text-xs text-muted-foreground">
@@ -2527,7 +2575,7 @@ const DashboardProjectsEditor = () => {
                     </span>
                   </div>
                 </AccordionTrigger>
-                <AccordionContent className="pb-4 px-1">
+                <AccordionContent className={editorSectionContentClassName}>
                   <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2">
                 <Label>Tags</Label>
@@ -2630,17 +2678,16 @@ const DashboardProjectsEditor = () => {
                 </AccordionContent>
               </AccordionItem>
 
-              <AccordionItem value="relacoes" className="rounded-2xl border border-border/60 bg-card/70 px-4">
-                <AccordionTrigger className="py-3 text-sm font-semibold hover:no-underline">
+              <AccordionItem value="relacoes" className={editorSectionClassName}>
+                <AccordionTrigger className={editorSectionTriggerClassName}>
                   <div className="flex w-full items-center justify-between gap-4 text-left">
                     <span>Relações</span>
                     <span className="text-xs text-muted-foreground">{formState.relations.length} itens</span>
                   </div>
                 </AccordionTrigger>
-                <AccordionContent className="pb-4 px-1">
+                <AccordionContent className={editorSectionContentClassName}>
                   <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <Label className="text-base">Relações</Label>
+              <div className="flex items-center justify-end">
                 <Button
                   type="button"
                   size="sm"
@@ -2720,17 +2767,16 @@ const DashboardProjectsEditor = () => {
                 </AccordionContent>
               </AccordionItem>
 
-              <AccordionItem value="equipe" className="rounded-2xl border border-border/60 bg-card/70 px-4">
-                <AccordionTrigger className="py-3 text-sm font-semibold hover:no-underline">
+              <AccordionItem value="equipe" className={editorSectionClassName}>
+                <AccordionTrigger className={editorSectionTriggerClassName}>
                   <div className="flex w-full items-center justify-between gap-4 text-left">
                     <span>Equipe da fansub</span>
                     <span className="text-xs text-muted-foreground">{formState.staff.length} funções</span>
                   </div>
                 </AccordionTrigger>
-                <AccordionContent className="pb-4 px-1">
+                <AccordionContent className={editorSectionContentClassName}>
                   <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <Label className="text-base">Equipe da fansub</Label>
+              <div className="flex items-center justify-end">
                 <Button
                   type="button"
                   size="sm"
@@ -2838,17 +2884,16 @@ const DashboardProjectsEditor = () => {
                 </AccordionContent>
               </AccordionItem>
 
-              <AccordionItem value="staff-anime" className="rounded-2xl border border-border/60 bg-card/70 px-4">
-                <AccordionTrigger className="py-3 text-sm font-semibold hover:no-underline">
+              <AccordionItem value="staff-anime" className={editorSectionClassName}>
+                <AccordionTrigger className={editorSectionTriggerClassName}>
                   <div className="flex w-full items-center justify-between gap-4 text-left">
                     <span>Staff do anime</span>
                     <span className="text-xs text-muted-foreground">{formState.animeStaff.length} funções</span>
                   </div>
                 </AccordionTrigger>
-                <AccordionContent className="pb-4 px-1">
+                <AccordionContent className={editorSectionContentClassName}>
                   <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <Label className="text-base">Staff do anime</Label>
+                    <div className="flex items-center justify-end">
                       <Button
                         type="button"
                         size="sm"
@@ -2969,8 +3014,8 @@ const DashboardProjectsEditor = () => {
                 </AccordionContent>
               </AccordionItem>
 
-              <AccordionItem value="episodios" className="rounded-2xl border border-border/60 bg-card/70 px-4">
-                <AccordionTrigger className="py-3 text-sm font-semibold hover:no-underline">
+              <AccordionItem value="episodios" className={editorSectionClassName}>
+                <AccordionTrigger className={editorSectionTriggerClassName}>
                   <div className="flex w-full items-center justify-between gap-4 text-left">
                     <span>{isChapterBased ? "Capítulos" : "Episódios"}</span>
                     <span className="text-xs text-muted-foreground">
@@ -2978,10 +3023,9 @@ const DashboardProjectsEditor = () => {
                     </span>
                   </div>
                 </AccordionTrigger>
-                <AccordionContent className="pb-4 px-1">
+                <AccordionContent className={editorSectionContentClassName}>
                   <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <Label className="text-base">{isChapterBased ? "Capítulos" : "Episódios"}</Label>
+              <div className="flex items-center justify-end">
                 <Button
                   type="button"
                   size="sm"
@@ -3025,14 +3069,14 @@ const DashboardProjectsEditor = () => {
                     className="border-none"
                   >
                   <Card
-                    className="border-border/60 bg-card/70"
+                    className="project-editor-episode-card border-border/60 bg-card/70"
                     data-testid={`episode-card-${index}`}
                     onDragStart={() => setEpisodeDragId(null)}
                   >
-                    <CardContent className={`space-y-3 ${isEpisodeCollapsed ? "p-4" : "p-5"}`}>
-                      <div className="flex flex-wrap items-start justify-between gap-2">
+                    <CardContent className={`project-editor-episode-content space-y-3 ${isEpisodeCollapsed ? "p-4" : "p-5"}`}>
+                      <div className="project-editor-episode-header flex flex-wrap items-start justify-between gap-2">
                         <div className="min-w-0 flex-1">
-                          <AccordionTrigger className="py-0 text-left text-base font-semibold text-foreground hover:no-underline [&>svg]:mt-0.5 [&>svg]:shrink-0">
+                          <AccordionTrigger className="project-editor-episode-trigger py-0 text-left text-base font-semibold text-foreground hover:no-underline [&>svg]:mt-0.5 [&>svg]:shrink-0">
                             <div className="flex min-w-0 items-center gap-2">
                               <span className="rounded-full border border-border/60 bg-background/70 px-2 py-0.5 text-xs">
                                 {isChapterBased ? "Cap" : "Ep"} {episode.number || index + 1}
@@ -3096,8 +3140,8 @@ const DashboardProjectsEditor = () => {
                           </Button>
                         </div>
                       </div>
-                      <AccordionContent className="pt-3 pb-0 px-1">
-                          <div className="grid gap-3 md:grid-cols-[minmax(84px,0.7fr)_minmax(84px,0.7fr)_minmax(180px,1.4fr)_minmax(150px,1fr)_minmax(110px,0.8fr)_minmax(130px,0.9fr)]">
+                      <AccordionContent className="project-editor-episode-panel pt-3 pb-0 px-1">
+                          <div className="project-editor-episode-group project-editor-episode-basics grid gap-3 md:grid-cols-[minmax(84px,0.7fr)_minmax(84px,0.7fr)_minmax(180px,1.4fr)_minmax(150px,1fr)_minmax(110px,0.8fr)_minmax(130px,0.9fr)]">
                             <Input
                               type="number"
                               value={episode.number}
@@ -3268,7 +3312,7 @@ const DashboardProjectsEditor = () => {
                             ) : null}
                           </div>
                           {!episode.sources.some((source) => source.url) && !isChapterBased ? (
-                            <div className="mt-3 space-y-2">
+                            <div className="project-editor-episode-group mt-3 space-y-2">
                               <Label className="text-xs">Etapa atual</Label>
                               <div className="rounded-md border border-border/60 bg-background/70 px-3 py-2 text-xs text-muted-foreground">
                                 {stageOptions.find((stage) =>
@@ -3278,7 +3322,7 @@ const DashboardProjectsEditor = () => {
                               </div>
                             </div>
                           ) : null}
-                          <div className="mt-3 space-y-2">
+                          <div className="project-editor-episode-group mt-3 space-y-2">
                             <Label className="text-xs">
                               {isChapterBased ? "Capa do capítulo" : "Capa do episódio"}
                             </Label>
@@ -3307,7 +3351,7 @@ const DashboardProjectsEditor = () => {
                             </div>
                           </div>
                           {isLightNovel ? (
-                            <div className="mt-4">
+                            <div className="project-editor-episode-group mt-4">
                               <Label className="text-xs">Conteúdo do capítulo</Label>
                         <div
                           className="mt-3"
@@ -3337,7 +3381,7 @@ const DashboardProjectsEditor = () => {
                             </div>
                           ) : null}
                           {!episode.sources.some((source) => source.url) && !isChapterBased ? (
-                            <div className="mt-3">
+                            <div className="project-editor-episode-group mt-3">
                               <Label className="text-xs">Etapas concluídas</Label>
                               <div className="mt-2 flex flex-wrap gap-2">
                                 {stageOptions.map((stage) => {
@@ -3370,7 +3414,7 @@ const DashboardProjectsEditor = () => {
                             </div>
                           ) : null}
                           {!isLightNovel ? (
-                            <div className="mt-3 space-y-3">
+                            <div className="project-editor-episode-group mt-3 space-y-3">
                               <div>
                                 <Label className="text-xs">Arquivo do episódio</Label>
                                 <div className="mt-2 grid gap-2 md:grid-cols-2">
@@ -3594,13 +3638,12 @@ const DashboardProjectsEditor = () => {
                 <option key={name} value={name} />
               ))}
             </datalist>
-
-            <div className="flex justify-end gap-3">
-              <Button variant="ghost" onClick={requestCloseEditor}>
-                Cancelar
-              </Button>
-              <Button onClick={handleSave}>Salvar projeto</Button>
-            </div>
+          </div>
+          <div className="project-editor-footer sticky bottom-0 z-20 flex justify-end gap-3 border-t border-border/60 bg-background/95 px-4 py-3 backdrop-blur supports-[backdrop-filter]:bg-background/80 md:px-6 md:py-4">
+            <Button variant="ghost" onClick={requestCloseEditor}>
+              Cancelar
+            </Button>
+            <Button onClick={handleSave}>Salvar projeto</Button>
           </div>
         </DialogContent>
       </Dialog>
@@ -3681,13 +3724,5 @@ const DashboardProjectsEditor = () => {
 };
 
 export default DashboardProjectsEditor;
-
-
-
-
-
-
-
-
 
 
