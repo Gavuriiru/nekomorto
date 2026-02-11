@@ -95,7 +95,7 @@ const defaultRecruitment = {
 const Recruitment = () => {
   usePageMeta({ title: "Recrutamento" });
   const { settings } = useSiteSettings();
-  const discordUrl = settings.community.discordUrl || settings.navbar.recruitmentUrl || "#";
+  const discordUrl = settings.community.discordUrl || "#";
   const apiBase = getApiBase();
   const [recruitment, setRecruitment] = useState(defaultRecruitment);
 
@@ -158,17 +158,21 @@ const Recruitment = () => {
               return (
                 <Card
                   key={role.title}
-                  className="bg-card/70 animate-slide-up opacity-0"
+                  className="group bg-card/70 animate-fade-in opacity-0 transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:bg-card/90 hover:shadow-lg"
                   style={{ animationDelay: `${index * 80}ms` }}
                 >
                   <CardContent className="space-y-3 p-5">
                     <div className="flex items-center gap-3">
-                      <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/5 text-primary">
+                      <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/5 text-primary transition-all duration-300 group-hover:scale-105 group-hover:bg-primary/15">
                         <Icon className="h-5 w-5" />
                       </span>
-                      <h2 className="text-base font-semibold text-foreground">{role.title}</h2>
+                      <h2 className="text-base font-semibold text-foreground transition-colors duration-300 group-hover:text-primary">
+                        {role.title}
+                      </h2>
                     </div>
-                    <p className="text-sm text-muted-foreground">{role.description}</p>
+                    <p className="text-sm text-muted-foreground transition-colors duration-300 group-hover:text-foreground/80">
+                      {role.description}
+                    </p>
                   </CardContent>
                 </Card>
               );
@@ -178,15 +182,22 @@ const Recruitment = () => {
 
         <section className="mx-auto mt-12 w-full max-w-6xl">
           <Card
-            className="bg-card/70 animate-slide-up opacity-0"
+            className="group bg-card/70 animate-fade-in opacity-0 transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:bg-card/90 hover:shadow-lg"
             style={{ animationDelay: "0.4s" }}
           >
             <CardContent className="flex flex-col items-start justify-between gap-4 p-6 md:flex-row md:items-center">
               <div className="space-y-1">
-                <h2 className="text-lg font-semibold text-foreground">{recruitment.ctaTitle}</h2>
-                <p className="text-sm text-muted-foreground">{recruitment.ctaSubtitle}</p>
+                <h2 className="text-lg font-semibold text-foreground transition-colors duration-300 group-hover:text-primary">
+                  {recruitment.ctaTitle}
+                </h2>
+                <p className="text-sm text-muted-foreground transition-colors duration-300 group-hover:text-foreground/80">
+                  {recruitment.ctaSubtitle}
+                </p>
               </div>
-              <Button asChild className="bg-primary text-primary-foreground hover:bg-primary/90">
+              <Button
+                asChild
+                className="bg-primary text-primary-foreground transition-all duration-300 hover:-translate-y-0.5 hover:bg-primary/90 hover:shadow-md"
+              >
                 <a href={discordUrl} target="_blank" rel="noreferrer">
                   {recruitment.ctaButtonLabel}
                 </a>
@@ -200,5 +211,7 @@ const Recruitment = () => {
 };
 
 export default Recruitment;
+
+
 
 

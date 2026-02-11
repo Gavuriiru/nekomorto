@@ -30,6 +30,19 @@ type DashboardComment = {
   status: string;
 };
 
+type AnalyticsOverviewResponse = {
+  metrics?: {
+    views?: number;
+  };
+};
+
+type AnalyticsTimeseriesResponse = {
+  series?: Array<{
+    date: string;
+    value: number;
+  }>;
+};
+
 const Dashboard = () => {
   usePageMeta({ title: "Dashboard", noIndex: true });
 
@@ -46,6 +59,10 @@ const Dashboard = () => {
   const [posts, setPosts] = useState<DashboardPost[]>([]);
   const [recentComments, setRecentComments] = useState<DashboardComment[]>([]);
   const [pendingCommentsCount, setPendingCommentsCount] = useState(0);
+  const [analyticsSeries7d, setAnalyticsSeries7d] = useState<Array<{ date: string; value: number }>>([]);
+  const [analyticsTotalViews7d, setAnalyticsTotalViews7d] = useState(0);
+  const [analyticsProjectViews7d, setAnalyticsProjectViews7d] = useState(0);
+  const [analyticsPostViews7d, setAnalyticsPostViews7d] = useState(0);
   const apiBase = getApiBase();
 
   useEffect(() => {
@@ -66,6 +83,59 @@ const Dashboard = () => {
     };
 
     loadUser();
+  }, [apiBase]);
+
+  useEffect(() => {
+    let isActive = true;
+    const loadAnalytics = async () => {
+      try {
+        const [overviewAllRes, overviewProjectRes, overviewPostRes, seriesRes] = await Promise.all([
+          apiFetch(apiBase, "/api/analytics/overview?range=7d&type=all", { auth: true }),
+          apiFetch(apiBase, "/api/analytics/overview?range=7d&type=project", { auth: true }),
+          apiFetch(apiBase, "/api/analytics/overview?range=7d&type=post", { auth: true }),
+          apiFetch(apiBase, "/api/analytics/timeseries?range=7d&type=all&metric=views", { auth: true }),
+        ]);
+        if (!isActive) {
+          return;
+        }
+        if (!overviewAllRes.ok || !overviewProjectRes.ok || !overviewPostRes.ok || !seriesRes.ok) {
+          setAnalyticsTotalViews7d(0);
+          setAnalyticsProjectViews7d(0);
+          setAnalyticsPostViews7d(0);
+          setAnalyticsSeries7d([]);
+          return;
+        }
+        const [overviewAll, overviewProject, overviewPost, seriesData] = await Promise.all([
+          overviewAllRes.json(),
+          overviewProjectRes.json(),
+          overviewPostRes.json(),
+          seriesRes.json(),
+        ]);
+        if (!isActive) {
+          return;
+        }
+        setAnalyticsTotalViews7d(Number((overviewAll as AnalyticsOverviewResponse)?.metrics?.views || 0));
+        setAnalyticsProjectViews7d(Number((overviewProject as AnalyticsOverviewResponse)?.metrics?.views || 0));
+        setAnalyticsPostViews7d(Number((overviewPost as AnalyticsOverviewResponse)?.metrics?.views || 0));
+        setAnalyticsSeries7d(
+          Array.isArray((seriesData as AnalyticsTimeseriesResponse)?.series)
+            ? (seriesData as AnalyticsTimeseriesResponse).series || []
+            : [],
+        );
+      } catch {
+        if (!isActive) {
+          return;
+        }
+        setAnalyticsTotalViews7d(0);
+        setAnalyticsProjectViews7d(0);
+        setAnalyticsPostViews7d(0);
+        setAnalyticsSeries7d([]);
+      }
+    };
+    void loadAnalytics();
+    return () => {
+      isActive = false;
+    };
   }, [apiBase]);
 
   useEffect(() => {
@@ -182,9 +252,6 @@ const Dashboard = () => {
     return days;
   }, []);
 
-  const sumViewsForDays = (viewsDaily: Record<string, number> | undefined) =>
-    last7Days.reduce((sum, day) => sum + (viewsDaily?.[day] ?? 0), 0);
-
   const totalProjects = projects.length;
   const totalMedia = projects.reduce((sum, project) => sum + (project.episodeDownloads?.length || 0), 0);
   const activeProjects = projects.filter((project) => {
@@ -199,16 +266,13 @@ const Dashboard = () => {
   const totalProjectViews = projects.reduce((sum, project) => sum + (project.views ?? 0), 0);
   const totalPostViews = posts.reduce((sum, post) => sum + (post.views ?? 0), 0);
   const totalViews = totalProjectViews + totalPostViews;
-  const totalProjectViewsLast7 = projects.reduce(
-    (sum, project) => sum + sumViewsForDays(project.viewsDaily),
-    0,
-  );
-  const totalPostViewsLast7 = posts.reduce(
-    (sum, post) => sum + sumViewsForDays(post.viewsDaily),
-    0,
-  );
-  const totalViewsLast7 = totalProjectViewsLast7 + totalPostViewsLast7;
+  const totalProjectViewsLast7 = analyticsProjectViews7d;
+  const totalPostViewsLast7 = analyticsPostViews7d;
+  const totalViewsLast7 = analyticsTotalViews7d;
   const pendingPostsCount = posts.filter((post) => post.status !== "published").length;
+  const analyticsAllHref = "/dashboard/analytics?range=30d&type=all";
+  const analyticsProjectHref = "/dashboard/analytics?range=30d&type=project";
+  const analyticsPostHref = "/dashboard/analytics?range=30d&type=post";
 
   const rankedProjects = projects
     .map((project) => ({
@@ -220,12 +284,9 @@ const Dashboard = () => {
   const hasProjectViewData = rankedProjects.length > 0;
   const hasAnalyticsData = totalViewsLast7 > 0;
 
-  const dailyProjectTotals = useMemo(
-    () =>
-      last7Days.map((day) =>
-        projects.reduce((sum, project) => sum + (project.viewsDaily?.[day] ?? 0), 0),
-      ),
-    [last7Days, projects],
+  const dailyTotals = useMemo(
+    () => last7Days.map((day) => analyticsSeries7d.find((item) => item.date === day)?.value ?? 0),
+    [analyticsSeries7d, last7Days],
   );
 
   const recentPosts = useMemo(
@@ -244,7 +305,7 @@ const Dashboard = () => {
   const chartWidth = 100;
   const chartHeight = 40;
   const chartPoints = hasAnalyticsData
-    ? dailyProjectTotals
+    ? dailyTotals
         .map((value, index, items) => {
           const maxViews = Math.max(...items.map((item) => item));
           const x = (chartWidth / Math.max(items.length - 1, 1)) * index;
@@ -350,14 +411,17 @@ const Dashboard = () => {
               {currentUser ? (
                 <Button
                   variant="outline"
-                  className="border-white/15 bg-white/5"
+                  className="border-white/15 bg-white/5 px-4 text-muted-foreground hover:text-foreground"
                   onClick={handleExportReport}
                 >
                   Exportar relatório
                 </Button>
               ) : (
                 <Link to="/login">
-                  <Button variant="outline" className="border-white/15 bg-white/5">
+                  <Button
+                    variant="outline"
+                    className="border-white/15 bg-white/5 px-4 text-muted-foreground hover:text-foreground"
+                  >
                     Fazer login
                   </Button>
                 </Link>
@@ -424,6 +488,15 @@ const Dashboard = () => {
                         {totalProjectViewsLast7} em projetos • {totalPostViewsLast7} em posts
                       </p>
                     ) : null}
+                    <div className="mt-4">
+                      <Button
+                        variant="outline"
+                        className="border-white/15 bg-white/5 px-4 text-muted-foreground hover:text-foreground"
+                        asChild
+                      >
+                        <Link to={analyticsAllHref}>Ver analytics completos</Link>
+                      </Button>
+                    </div>
                   </div>
                   <div className="w-full max-w-xs">
                     <div className="h-32 rounded-2xl border border-white/10 bg-gradient-to-br from-white/5 to-white/0 p-4">
@@ -466,11 +539,11 @@ const Dashboard = () => {
                     <p className="text-sm text-muted-foreground">Ranking por projetos individuais</p>
                   </div>
                   <Button
-                    variant="ghost"
-                    className="text-muted-foreground hover:text-foreground"
+                    variant="outline"
+                    className="border-white/15 bg-white/5 px-4 text-muted-foreground hover:text-foreground"
                     asChild
                   >
-                    <Link to="/dashboard/projetos?sort=views">Ver detalhes</Link>
+                    <Link to={analyticsProjectHref}>Ver analytics de projetos</Link>
                   </Button>
                 </div>
                 {hasProjectViewData ? (
@@ -508,11 +581,11 @@ const Dashboard = () => {
                     <p className="text-sm text-muted-foreground">Publicações e visualizações</p>
                   </div>
                   <Button
-                    variant="ghost"
-                    className="text-muted-foreground hover:text-foreground"
+                    variant="outline"
+                    className="border-white/15 bg-white/5 px-4 text-muted-foreground hover:text-foreground"
                     asChild
                   >
-                    <Link to="/dashboard/posts">Gerenciar posts</Link>
+                    <Link to={analyticsPostHref}>Ver analytics de posts</Link>
                   </Button>
                 </div>
                 {recentPosts.length === 0 ? (

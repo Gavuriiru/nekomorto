@@ -234,18 +234,18 @@ const ProjectReading = () => {
           </div>
 
           <section className="mt-8 grid gap-8 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
-            <article className="space-y-6">
-              <Card className="border-border/60 bg-card/80 shadow-lg">
-                <CardContent className="space-y-6 p-6">
+            <article className="min-w-0 space-y-6">
+              <Card className="group border-border/60 bg-card/80 shadow-lg transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:bg-card/90 hover:shadow-lg">
+                <CardContent className="min-w-0 space-y-6 p-6">
                   {chapterContent?.synopsis || chapterData?.synopsis ? (
-                    <p className="text-sm text-muted-foreground">
+                    <p className="text-sm text-muted-foreground transition-colors duration-300 group-hover:text-foreground/80">
                       {chapterContent?.synopsis || chapterData?.synopsis}
                     </p>
                   ) : null}
                   {chapterContent?.content ? (
                     <LexicalViewer
                       value={chapterLexical}
-                      className="post-content reader-content space-y-4 text-sm text-muted-foreground"
+                      className="post-content reader-content min-w-0 w-full space-y-4 text-sm text-muted-foreground"
                       pollTarget={
                         project?.id && Number.isFinite(chapterNumber)
                           ? {
@@ -276,7 +276,7 @@ const ProjectReading = () => {
               </div>
             </article>
 
-            <aside className="space-y-6">
+            <aside className="min-w-0 space-y-6">
               <LatestEpisodeCard />
               <WorkStatusCard />
               <DiscordInviteCard />
@@ -289,6 +289,8 @@ const ProjectReading = () => {
 };
 
 export default ProjectReading;
+
+
 
 
 

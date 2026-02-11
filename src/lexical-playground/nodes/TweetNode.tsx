@@ -72,7 +72,9 @@ function TweetComponent({
   const createTweet = useCallback(async () => {
     try {
       // @ts-expect-error Twitter is attached to the window.
-      await window.twttr.widgets.createTweet(tweetID, containerRef.current);
+      await window.twttr.widgets.createTweet(tweetID, containerRef.current, {
+        theme: 'dark',
+      });
 
       setIsTweetLoading(false);
       isTwitterScriptLoading = false;
@@ -117,7 +119,7 @@ function TweetComponent({
       nodeKey={nodeKey}>
       {isTweetLoading ? loadingComponent : null}
       <div
-        style={{display: 'inline-block', width: '550px'}}
+        style={{display: 'inline-block', width: '100%', maxWidth: '550px'}}
         ref={containerRef}
       />
     </BlockWithAlignableContents>
@@ -201,7 +203,23 @@ export class TweetNode extends DecoratorBlockNode {
       <TweetComponent
         className={className}
         format={this.__format}
-        loadingComponent="Loading..."
+        loadingComponent={
+          <div className="tweet-skeleton" aria-label="Carregando tweet">
+            <div className="tweet-skeleton__header">
+              <div className="tweet-skeleton__avatar" />
+              <div className="tweet-skeleton__meta">
+                <div className="tweet-skeleton__line tweet-skeleton__line--short" />
+                <div className="tweet-skeleton__line tweet-skeleton__line--mid" />
+              </div>
+            </div>
+            <div className="tweet-skeleton__body">
+              <div className="tweet-skeleton__line" />
+              <div className="tweet-skeleton__line" />
+              <div className="tweet-skeleton__line tweet-skeleton__line--mid" />
+            </div>
+            <div className="tweet-skeleton__media" />
+          </div>
+        }
         nodeKey={this.getKey()}
         tweetID={this.__id}
       />

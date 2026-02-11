@@ -23,6 +23,7 @@ const titleForPath = (path: string) => {
     [/^\/dashboard\/posts\/?$/, "Posts"],
     [/^\/dashboard\/projetos\/?$/, "Projetos"],
     [/^\/dashboard\/comentarios\/?$/, "Comentários"],
+    [/^\/dashboard\/audit-log\/?$/, "Audit Log"],
     [/^\/dashboard\/paginas\/?$/, "Páginas"],
     [/^\/dashboard\/configuracoes\/?$/, "Configurações"],
     [/^\/dashboard\/?$/, "Dashboard"],

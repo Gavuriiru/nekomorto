@@ -13,7 +13,6 @@ import {
   getCodeLanguageOptions as getCodeLanguageOptionsPrism,
   normalizeCodeLanguage as normalizeCodeLanguagePrism,
 } from '@lexical/code';
-import {exportFile, importFile} from '@lexical/file';
 import {
   getCodeLanguageOptions as getCodeLanguageOptionsShiki,
   getCodeThemeOptions as getCodeThemeOptionsShiki,
@@ -84,8 +83,6 @@ import {
   useToolbarState,
 } from '../../context/ToolbarContext';
 import useModal from '../../hooks/useModal';
-import catTypingGif from '../../images/cat-typing.gif';
-import {$createStickyNode} from '../../nodes/StickyNode';
 import DropDown, {DropDownItem} from '../../ui/DropDown';
 import DropdownColorPicker from '../../ui/DropdownColorPicker';
 import Button from '../../ui/Button';
@@ -94,15 +91,10 @@ import {getSelectedNode} from '../../utils/getSelectedNode';
 import {sanitizeUrl} from '../../utils/url';
 import {EmbedConfigs} from '../AutoEmbedPlugin';
 import {INSERT_COLLAPSIBLE_COMMAND} from '../CollapsiblePlugin';
-import {INSERT_DATETIME_COMMAND} from '../DateTimePlugin';
-import {InsertEquationDialog} from '../EquationsPlugin';
 import {
-  INSERT_IMAGE_COMMAND,
   InsertImageDialog,
-  InsertImagePayload,
 } from '../ImagesPlugin';
 import InsertLayoutDialog from '../LayoutPlugin/InsertLayoutDialog';
-import {INSERT_PAGE_BREAK} from '../PageBreakPlugin';
 import {InsertPollDialog} from '../PollPlugin';
 import {InsertTableDialog} from '../TablePlugin';
 import FontSize, {parseFontSizeForToolbar} from './fontSize';
@@ -1054,10 +1046,6 @@ export default function ToolbarPlugin({
     },
     [activeEditor, selectedElementKey],
   );
-  const insertGifOnClick = (payload: InsertImagePayload) => {
-    activeEditor.dispatchCommand(INSERT_IMAGE_COMMAND, payload);
-  };
-
   const canViewerSeeInsertDropdown = !toolbarState.isImageCaption;
   const canViewerSeeInsertCodeButton = !toolbarState.isImageCaption;
 
@@ -1410,29 +1398,12 @@ export default function ToolbarPlugin({
                   <span className="text">Linha horizontal</span>
                 </DropDownItem>
                 <DropDownItem
-                  onClick={() => dispatchToolbarCommand(INSERT_PAGE_BREAK)}
-                  className="item">
-                  <i className="icon page-break" />
-                  <span className="text">Quebra de página</span>
-                </DropDownItem>
-                <DropDownItem
                   onClick={() => {
                     setIsImageLibraryOpen(true);
                   }}
                   className="item">
                   <i className="icon image" />
                   <span className="text">Imagem</span>
-                </DropDownItem>
-                <DropDownItem
-                  onClick={() =>
-                    insertGifOnClick({
-                      altText: 'Cat typing on a laptop',
-                      src: catTypingGif,
-                    })
-                  }
-                  className="item">
-                  <i className="icon gif" />
-                  <span className="text">GIF</span>
                 </DropDownItem>
                 <DropDownItem
                   onClick={() => {
@@ -1476,48 +1447,12 @@ export default function ToolbarPlugin({
                 </DropDownItem>
 
                 <DropDownItem
-                  onClick={() => {
-                    showModal('Insert Equation', (onClose) => (
-                      <InsertEquationDialog
-                        activeEditor={activeEditor}
-                        onClose={onClose}
-                      />
-                    ));
-                  }}
-                  className="item">
-                  <i className="icon equation" />
-                  <span className="text">Equação</span>
-                </DropDownItem>
-                <DropDownItem
-                  onClick={() => {
-                    editor.update(() => {
-                      $addUpdateTag(SKIP_SELECTION_FOCUS_TAG);
-                      const root = $getRoot();
-                      const stickyNode = $createStickyNode(0, 0);
-                      root.append(stickyNode);
-                    });
-                  }}
-                  className="item">
-                  <i className="icon sticky" />
-                  <span className="text">Nota adesiva</span>
-                </DropDownItem>
-                <DropDownItem
                   onClick={() =>
                     dispatchToolbarCommand(INSERT_COLLAPSIBLE_COMMAND)
                   }
                   className="item">
                   <i className="icon caret-right" />
                   <span className="text">Seção recolhível</span>
-                </DropDownItem>
-                <DropDownItem
-                  onClick={() => {
-                    const dateTime = new Date();
-                    dateTime.setHours(0, 0, 0, 0);
-                    dispatchToolbarCommand(INSERT_DATETIME_COMMAND, {dateTime});
-                  }}
-                  className="item">
-                  <i className="icon calendar" />
-                  <span className="text">Data</span>
                 </DropDownItem>
                 {EmbedConfigs.map((embedConfig) => (
                   <DropDownItem
@@ -1547,29 +1482,6 @@ export default function ToolbarPlugin({
       />
       <Divider />
       <div className="toolbar-group toolbar-group-right">
-        <button
-          disabled={!isEditable}
-          onClick={() => importFile(activeEditor)}
-          title="Importar"
-          type="button"
-          className="toolbar-item spaced"
-          aria-label="Importar editor">
-          <i className="format import" />
-        </button>
-        <button
-          disabled={!isEditable}
-          onClick={() =>
-            exportFile(activeEditor, {
-              fileName: `Playground ${new Date().toISOString()}`,
-              source: 'Playground',
-            })
-          }
-          title="Exportar"
-          type="button"
-          className="toolbar-item spaced"
-          aria-label="Exportar editor">
-          <i className="format export" />
-        </button>
         <button
           disabled={isEditorEmpty}
           onClick={() => {

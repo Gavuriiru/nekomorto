@@ -15,12 +15,41 @@ export const defaultSettings: SiteSettings = {
     accent: "#9667e0",
   },
   navbar: {
-    recruitmentUrl: "/recrutamento",
+    links: [
+      { label: "Início", href: "/", icon: "home" },
+      { label: "Projetos", href: "/projetos", icon: "folder-kanban" },
+      { label: "Equipe", href: "/equipe", icon: "users" },
+      { label: "Recrutamento", href: "/recrutamento", icon: "user-plus" },
+      { label: "Sobre", href: "/sobre", icon: "info" },
+    ],
   },
   community: {
     discordUrl: "https://discord.com/invite/BAHKhdX2ju",
+    inviteCard: {
+      title: "Entre no Discord",
+      subtitle: "Converse com a equipe e acompanhe novidades em tempo real.",
+      panelTitle: "Comunidade do Zuraaa!",
+      panelDescription:
+        "Receba alertas de lancamentos, participe de eventos e fale sobre os nossos projetos.",
+      ctaLabel: "Entrar no servidor",
+      ctaUrl: "https://discord.com/invite/BAHKhdX2ju",
+    },
   },
   branding: {
+    assets: {
+      symbolUrl: "",
+      wordmarkUrl: "",
+    },
+    overrides: {
+      navbarSymbolUrl: "",
+      footerSymbolUrl: "",
+      navbarWordmarkUrl: "",
+      footerWordmarkUrl: "",
+    },
+    display: {
+      navbar: "symbol-text",
+      footer: "symbol-text",
+    },
     wordmarkUrl: "",
     wordmarkUrlNavbar: "",
     wordmarkUrlFooter: "",

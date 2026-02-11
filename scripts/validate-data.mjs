@@ -212,6 +212,16 @@ const validateProjects = (projects, fileName) => {
       if (episode?.releaseDate && !isIsoDate(episode.releaseDate)) {
         addIssue("warning", fileName, `${epBase}.releaseDate`, "data invalida");
       }
+      if (episode?.hash !== undefined && typeof episode.hash !== "string") {
+        addIssue("warning", fileName, `${epBase}.hash`, "hash nao e string");
+      }
+      if (episode?.sizeBytes !== undefined) {
+        if (typeof episode.sizeBytes !== "number" || !Number.isFinite(episode.sizeBytes)) {
+          addIssue("warning", fileName, `${epBase}.sizeBytes`, "sizeBytes nao e numero");
+        } else if (episode.sizeBytes <= 0) {
+          addIssue("warning", fileName, `${epBase}.sizeBytes`, "sizeBytes deve ser positivo");
+        }
+      }
       ensureArray(episode?.sources).forEach((source, sIndex) => {
         if (source?.url && typeof source.url !== "string") {
           addIssue("warning", fileName, `${epBase}.sources[${sIndex}].url`, "url nao e string");

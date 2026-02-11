@@ -11,12 +11,38 @@ export type SiteSettings = {
     accent: string;
   };
   navbar: {
-    recruitmentUrl: string;
+    links: Array<{
+      label: string;
+      href: string;
+      icon?: string;
+    }>;
   };
   community: {
     discordUrl: string;
+    inviteCard: {
+      title: string;
+      subtitle: string;
+      panelTitle: string;
+      panelDescription: string;
+      ctaLabel: string;
+      ctaUrl: string;
+    };
   };
   branding: {
+    assets: {
+      symbolUrl: string;
+      wordmarkUrl: string;
+    };
+    overrides: {
+      navbarSymbolUrl: string;
+      footerSymbolUrl: string;
+      navbarWordmarkUrl: string;
+      footerWordmarkUrl: string;
+    };
+    display: {
+      navbar: "wordmark" | "symbol-text" | "symbol" | "text";
+      footer: "wordmark" | "symbol-text" | "text";
+    };
     wordmarkUrl: string;
     wordmarkUrlNavbar: string;
     wordmarkUrlFooter: string;

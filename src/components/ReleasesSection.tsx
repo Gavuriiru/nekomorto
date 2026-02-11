@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -26,6 +26,7 @@ const ReleasesSection = () => {
   const apiBase = getApiBase();
   const pageSize = 8;
   const [currentPage, setCurrentPage] = useState(1);
+  const postsSectionRef = useRef<HTMLDivElement | null>(null);
   const [posts, setPosts] = useState<
     Array<{
       id: string;
@@ -126,13 +127,33 @@ const ReleasesSection = () => {
     return posts.slice(startIndex, startIndex + pageSize);
   }, [currentPage, posts]);
   const showPagination = totalPages > 1;
+  const changePage = useCallback(
+    (nextPage: number) => {
+      const safePage = Math.min(Math.max(nextPage, 1), totalPages);
+      if (safePage === currentPage) {
+        return;
+      }
+      setCurrentPage(safePage);
+      window.requestAnimationFrame(() => {
+        const section = postsSectionRef.current;
+        if (!section) {
+          return;
+        }
+        const fixedHeader = document.querySelector("header.fixed.top-0") as HTMLElement | null;
+        const headerOffset = fixedHeader?.getBoundingClientRect().height ?? 0;
+        const targetTop = section.getBoundingClientRect().top + window.scrollY - headerOffset - 12;
+        window.scrollTo({ top: Math.max(targetTop, 0), behavior: "smooth" });
+      });
+    },
+    [currentPage, totalPages],
+  );
 
   return (
     <section className="py-16 px-6 md:px-12 bg-background reveal" data-reveal>
       <div className="max-w-7xl mx-auto">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Left side - Release cards (blog posts) */}
-          <div className="lg:col-span-2">
+          <div ref={postsSectionRef} className="lg:col-span-2">
             {isLoadingPosts ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
                 {Array.from({ length: 4 }).map((_, index) => (
@@ -168,7 +189,7 @@ const ReleasesSection = () => {
                       data-reveal
                       style={{ transitionDelay: `${index * 80}ms` }}
                     >
-                      <Card className="bg-card border-border hover:border-primary/50 transition-all h-full overflow-hidden">
+                      <Card className="bg-card border-border h-full overflow-hidden transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:bg-card/90 hover:shadow-lg">
                         <CardContent className="p-0 flex flex-col h-full">
                           <div className="relative w-full aspect-[3/2] overflow-hidden bg-secondary">
                             <img
@@ -214,7 +235,7 @@ const ReleasesSection = () => {
               </div>
             )}
             {showPagination ? (
-              <Pagination className="justify-start pt-4">
+              <Pagination className="justify-center pt-4">
                 <PaginationContent>
                   <PaginationItem>
                     <PaginationPrevious
@@ -223,9 +244,7 @@ const ReleasesSection = () => {
                       aria-disabled={currentPage === 1}
                       onClick={(event) => {
                         event.preventDefault();
-                        if (currentPage > 1) {
-                          setCurrentPage((page) => page - 1);
-                        }
+                        changePage(currentPage - 1);
                       }}
                     />
                   </PaginationItem>
@@ -240,7 +259,7 @@ const ReleasesSection = () => {
                           className="text-xs"
                           onClick={(event) => {
                             event.preventDefault();
-                            setCurrentPage(page);
+                            changePage(page);
                           }}
                         >
                           {page}
@@ -255,9 +274,7 @@ const ReleasesSection = () => {
                       aria-disabled={currentPage === totalPages}
                       onClick={(event) => {
                         event.preventDefault();
-                        if (currentPage < totalPages) {
-                          setCurrentPage((page) => page + 1);
-                        }
+                        changePage(currentPage + 1);
                       }}
                     />
                   </PaginationItem>
@@ -279,6 +296,8 @@ const ReleasesSection = () => {
 };
 
 export default ReleasesSection;
+
+
 
 
 

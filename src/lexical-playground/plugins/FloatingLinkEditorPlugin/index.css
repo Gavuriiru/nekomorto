@@ -39,3 +39,63 @@
   width: 20px;
   vertical-align: -0.25em;
 }
+
+.link-editor .link-edit,
+.link-editor .link-trash,
+.link-editor .link-cancel,
+.link-editor .link-confirm {
+  border: 0;
+  background: transparent;
+  color: hsl(var(--muted-foreground));
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 35px;
+  width: 35px;
+  padding: 0;
+  cursor: pointer;
+}
+
+.link-editor .link-edit:hover,
+.link-editor .link-trash:hover,
+.link-editor .link-cancel:hover,
+.link-editor .link-confirm:hover {
+  color: hsl(var(--foreground));
+}
+
+.link-editor .link-confirm {
+  color: hsl(145 63% 42%);
+}
+
+.link-editor .link-view {
+  position: relative;
+}
+
+.link-editor .link-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  margin-right: 8px;
+}
+
+.link-editor .link-edit {
+  position: absolute;
+  right: 30px;
+  top: 0;
+  bottom: 0;
+}
+
+.link-editor .link-trash {
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+}
+
+.link-editor .link-cancel {
+  position: static;
+}
+
+.link-editor .link-confirm {
+  position: static;
+}

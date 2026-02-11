@@ -1,5 +1,6 @@
-﻿import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent } from "react";
 import { useNavigate } from "react-router-dom";
+import DashboardAutosaveStatus from "@/components/DashboardAutosaveStatus";
 import DashboardShell from "@/components/DashboardShell";
 import ImageLibraryDialog from "@/components/ImageLibraryDialog";
 import { Button } from "@/components/ui/button";
@@ -8,7 +9,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { ColorPicker } from "@/components/ui/color-picker";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Switch } from "@/components/ui/switch";
 import {
   Select,
@@ -40,11 +40,19 @@ import {
   User,
   Video,
   HardDrive,
+  GripVertical,
   Cloud,
   Plus,
   Save,
   Trash2,
 } from "lucide-react";
+import {
+  autosaveRuntimeConfig,
+  autosaveStorageKeys,
+  readAutosavePreference,
+  writeAutosavePreference,
+} from "@/config/autosave";
+import { useAutosave, type AutosaveStatus } from "@/hooks/use-autosave";
 import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
 import { useSiteSettings } from "@/hooks/use-site-settings";
@@ -52,6 +60,8 @@ import { defaultSettings, mergeSettings } from "@/hooks/site-settings-context";
 import type { SiteSettings } from "@/types/site-settings";
 import { usePageMeta } from "@/hooks/use-page-meta";
 import ThemedSvgLogo from "@/components/ThemedSvgLogo";
+import { navbarIconOptions } from "@/lib/navbar-icons";
+import { resolveBranding } from "@/lib/branding";
 
 const roleIconOptions = [
   { id: "languages", label: "Languages" },
@@ -110,11 +120,223 @@ const normalizeLinkTypeId = (value: string) =>
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/(^-|-$)/g, "");
+
+const reorderItems = <T,>(items: T[], from: number, to: number) => {
+  if (from === to) {
+    return items;
+  }
+  if (from < 0 || to < 0 || from >= items.length || to >= items.length) {
+    return items;
+  }
+  const next = [...items];
+  const [moved] = next.splice(from, 1);
+  if (typeof moved === "undefined") {
+    return items;
+  }
+  next.splice(to, 0, moved);
+  return next;
+};
+
+type LogoLibraryTarget =
+  | "branding.assets.symbolUrl"
+  | "branding.assets.wordmarkUrl"
+  | "site.faviconUrl"
+  | "site.defaultShareImage"
+  | "branding.overrides.navbarWordmarkUrl"
+  | "branding.overrides.footerWordmarkUrl"
+  | "branding.overrides.navbarSymbolUrl"
+  | "branding.overrides.footerSymbolUrl";
+
+type NavbarBrandMode = SiteSettings["branding"]["display"]["navbar"];
+type FooterBrandMode = SiteSettings["branding"]["display"]["footer"];
+
+type SettingsTabKey =
+  | "geral"
+  | "downloads"
+  | "equipe"
+  | "footer"
+  | "navbar"
+  | "redes-usuarios"
+  | "traducoes";
+
+type LinkTypeItem = { id: string; label: string; icon: string };
+type TranslationsPayload = {
+  tags: Record<string, string>;
+  genres: Record<string, string>;
+  staffRoles: Record<string, string>;
+};
+
+const logoEditorFields: Array<{
+  target: LogoLibraryTarget;
+  label: string;
+  description: string;
+  frameClassName: string;
+  imageClassName: string;
+  optional?: boolean;
+}> = [
+  {
+    target: "branding.assets.symbolUrl",
+    label: "Símbolo da marca",
+    description: "Ativo principal usado como base para logo da marca.",
+    frameClassName: "h-16",
+    imageClassName: "h-10 w-10 rounded bg-black/10 object-contain",
+  },
+  {
+    target: "branding.assets.wordmarkUrl",
+    label: "Logotipo (wordmark)",
+    description: "Tipografia principal da marca usada como base para header e footer.",
+    frameClassName: "h-16",
+    imageClassName: "h-10 w-full object-contain",
+  },
+  {
+    target: "site.faviconUrl",
+    label: "Favicon",
+    description: "Ícone mostrado na aba do navegador.",
+    frameClassName: "h-16",
+    imageClassName: "h-8 w-8 rounded bg-black/10 object-contain",
+  },
+  {
+    target: "site.defaultShareImage",
+    label: "Imagem de compartilhamento",
+    description: "Imagem padrão de cards sociais quando a página não define uma própria.",
+    frameClassName: "h-20",
+    imageClassName: "h-full w-full rounded bg-black/10 object-cover",
+  },
+  {
+    target: "branding.overrides.navbarWordmarkUrl",
+    label: "Override de wordmark da navbar",
+    description: "Opcional. Se vazio, a navbar usa o logotipo principal.",
+    frameClassName: "h-16",
+    imageClassName: "h-10 w-full object-contain",
+    optional: true,
+  },
+  {
+    target: "branding.overrides.footerWordmarkUrl",
+    label: "Override de wordmark do footer",
+    description: "Opcional. Se vazio, o footer usa o logotipo principal.",
+    frameClassName: "h-16",
+    imageClassName: "h-10 w-full object-contain",
+    optional: true,
+  },
+  {
+    target: "branding.overrides.navbarSymbolUrl",
+    label: "Override de símbolo da navbar",
+    description: "Opcional. Se vazio, a navbar usa o símbolo principal.",
+    frameClassName: "h-16",
+    imageClassName: "h-10 w-10 rounded bg-black/10 object-contain",
+    optional: true,
+  },
+  {
+    target: "branding.overrides.footerSymbolUrl",
+    label: "Override de símbolo do footer",
+    description: "Opcional. Se vazio, o footer usa o símbolo principal.",
+    frameClassName: "h-16",
+    imageClassName: "h-10 w-10 rounded bg-black/10 object-contain",
+    optional: true,
+  },
+];
+
+const readLogoField = (nextSettings: SiteSettings, target: LogoLibraryTarget) => {
+  if (target === "branding.assets.symbolUrl") {
+    return nextSettings.branding.assets.symbolUrl || "";
+  }
+  if (target === "branding.assets.wordmarkUrl") {
+    return nextSettings.branding.assets.wordmarkUrl || "";
+  }
+  if (target === "site.faviconUrl") {
+    return nextSettings.site.faviconUrl || "";
+  }
+  if (target === "site.defaultShareImage") {
+    return nextSettings.site.defaultShareImage || "";
+  }
+  if (target === "branding.overrides.navbarWordmarkUrl") {
+    return nextSettings.branding.overrides.navbarWordmarkUrl || "";
+  }
+  if (target === "branding.overrides.footerWordmarkUrl") {
+    return nextSettings.branding.overrides.footerWordmarkUrl || "";
+  }
+  if (target === "branding.overrides.navbarSymbolUrl") {
+    return nextSettings.branding.overrides.navbarSymbolUrl || "";
+  }
+  if (target === "branding.overrides.footerSymbolUrl") {
+    return nextSettings.branding.overrides.footerSymbolUrl || "";
+  }
+  return "";
+};
+
+const writeLogoField = (nextSettings: SiteSettings, target: LogoLibraryTarget, url: string) => {
+  if (target === "branding.assets.symbolUrl") {
+    return {
+      ...nextSettings,
+      branding: {
+        ...nextSettings.branding,
+        assets: { ...nextSettings.branding.assets, symbolUrl: url },
+      },
+    };
+  }
+  if (target === "branding.assets.wordmarkUrl") {
+    return {
+      ...nextSettings,
+      branding: {
+        ...nextSettings.branding,
+        assets: { ...nextSettings.branding.assets, wordmarkUrl: url },
+      },
+    };
+  }
+  if (target === "site.faviconUrl") {
+    return { ...nextSettings, site: { ...nextSettings.site, faviconUrl: url } };
+  }
+  if (target === "site.defaultShareImage") {
+    return { ...nextSettings, site: { ...nextSettings.site, defaultShareImage: url } };
+  }
+  if (target === "branding.overrides.navbarWordmarkUrl") {
+    return {
+      ...nextSettings,
+      branding: {
+        ...nextSettings.branding,
+        overrides: { ...nextSettings.branding.overrides, navbarWordmarkUrl: url },
+      },
+    };
+  }
+  if (target === "branding.overrides.footerWordmarkUrl") {
+    return {
+      ...nextSettings,
+      branding: {
+        ...nextSettings.branding,
+        overrides: { ...nextSettings.branding.overrides, footerWordmarkUrl: url },
+      },
+    };
+  }
+  if (target === "branding.overrides.navbarSymbolUrl") {
+    return {
+      ...nextSettings,
+      branding: {
+        ...nextSettings.branding,
+        overrides: { ...nextSettings.branding.overrides, navbarSymbolUrl: url },
+      },
+    };
+  }
+  if (target === "branding.overrides.footerSymbolUrl") {
+    return {
+      ...nextSettings,
+      branding: {
+        ...nextSettings.branding,
+        overrides: { ...nextSettings.branding.overrides, footerSymbolUrl: url },
+      },
+    };
+  }
+  return nextSettings;
+};
+
 const DashboardSettings = () => {
   usePageMeta({ title: "Configurações", noIndex: true });
 
   const navigate = useNavigate();
   const apiBase = getApiBase();
+  const initialAutosaveEnabledRef = useRef(
+    autosaveRuntimeConfig.enabledByDefault &&
+      readAutosavePreference(autosaveStorageKeys.settings, true),
+  );
   const { settings: publicSettings, refresh } = useSiteSettings();
   const [settings, setSettings] = useState<SiteSettings>(publicSettings);
   const [currentUser, setCurrentUser] = useState<{
@@ -131,28 +353,21 @@ const DashboardSettings = () => {
   const [knownTags, setKnownTags] = useState<string[]>([]);
   const [knownGenres, setKnownGenres] = useState<string[]>([]);
   const [knownStaffRoles, setKnownStaffRoles] = useState<string[]>([]);
-  const [linkTypes, setLinkTypes] = useState<Array<{ id: string; label: string; icon: string }>>([]);
+  const [linkTypes, setLinkTypes] = useState<LinkTypeItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [isSaving, setIsSaving] = useState(false);
-  const [isSavingTranslations, setIsSavingTranslations] = useState(false);
-  const [isSavingLinkTypes, setIsSavingLinkTypes] = useState(false);
   const [isSyncingAniList, setIsSyncingAniList] = useState(false);
   const [uploadingKey, setUploadingKey] = useState<string | null>(null);
   const [isLibraryOpen, setIsLibraryOpen] = useState(false);
-  const [libraryTarget, setLibraryTarget] = useState<
-    | "site.logoUrl"
-    | "site.faviconUrl"
-    | "site.defaultShareImage"
-    | "footer.brandLogoUrl"
-    | "branding.wordmarkUrlNavbar"
-    | "branding.wordmarkUrlFooter"
-  >("site.logoUrl");
+  const [libraryTarget, setLibraryTarget] = useState<LogoLibraryTarget>("branding.assets.symbolUrl");
   const [tagQuery, setTagQuery] = useState("");
   const [genreQuery, setGenreQuery] = useState("");
   const [newTag, setNewTag] = useState("");
   const [newGenre, setNewGenre] = useState("");
   const [staffRoleQuery, setStaffRoleQuery] = useState("");
   const [newStaffRole, setNewStaffRole] = useState("");
+  const [activeTab, setActiveTab] = useState<SettingsTabKey>("geral");
+  const [footerSocialDragIndex, setFooterSocialDragIndex] = useState<number | null>(null);
+  const [footerSocialDragOverIndex, setFooterSocialDragOverIndex] = useState<number | null>(null);
   const hasSyncedAniList = useRef(false);
 
   useEffect(() => {
@@ -300,64 +515,62 @@ const DashboardSettings = () => {
     return value.startsWith("http") || value.startsWith("data:") || value.startsWith("/uploads/");
   };
 
-  const openLibrary = (target: typeof libraryTarget) => {
+  const clearFooterSocialDragState = () => {
+    setFooterSocialDragIndex(null);
+    setFooterSocialDragOverIndex(null);
+  };
+
+  const handleFooterSocialDragStart = (event: DragEvent<HTMLButtonElement>, index: number) => {
+    setFooterSocialDragIndex(index);
+    setFooterSocialDragOverIndex(index);
+    event.dataTransfer.effectAllowed = "move";
+    event.dataTransfer.setData("text/plain", String(index));
+  };
+
+  const handleFooterSocialDragOver = (event: DragEvent<HTMLDivElement>, index: number) => {
+    if (footerSocialDragIndex === null) {
+      return;
+    }
+    event.preventDefault();
+    event.dataTransfer.dropEffect = "move";
+    if (footerSocialDragOverIndex !== index) {
+      setFooterSocialDragOverIndex(index);
+    }
+  };
+
+  const handleFooterSocialDrop = (event: DragEvent<HTMLDivElement>, index: number) => {
+    event.preventDefault();
+    const from = footerSocialDragIndex;
+    if (from === null || from === index) {
+      clearFooterSocialDragState();
+      return;
+    }
+    setSettings((prev) => ({
+      ...prev,
+      footer: {
+        ...prev.footer,
+        socialLinks: reorderItems(prev.footer.socialLinks, from, index),
+      },
+    }));
+    clearFooterSocialDragState();
+  };
+
+  const openLibrary = (target: LogoLibraryTarget) => {
     setLibraryTarget(target);
     setIsLibraryOpen(true);
   };
 
   const applyLibraryImage = (url: string) => {
-    setSettings((prev) => {
-      if (libraryTarget === "site.logoUrl") {
-        return { ...prev, site: { ...prev.site, logoUrl: url } };
-      }
-      if (libraryTarget === "site.faviconUrl") {
-        return { ...prev, site: { ...prev.site, faviconUrl: url } };
-      }
-      if (libraryTarget === "site.defaultShareImage") {
-        return { ...prev, site: { ...prev.site, defaultShareImage: url } };
-      }
-      if (libraryTarget === "footer.brandLogoUrl") {
-        return { ...prev, footer: { ...prev.footer, brandLogoUrl: url } };
-      }
-      if (libraryTarget === "branding.wordmarkUrlNavbar") {
-        return { ...prev, branding: { ...prev.branding, wordmarkUrlNavbar: url } };
-      }
-      if (libraryTarget === "branding.wordmarkUrlFooter") {
-        return { ...prev, branding: { ...prev.branding, wordmarkUrlFooter: url } };
-      }
-      return prev;
-    });
+    setSettings((prev) => writeLogoField(prev, libraryTarget, url));
+  };
+
+  const clearLibraryImage = (target: LogoLibraryTarget) => {
+    setSettings((prev) => writeLogoField(prev, target, ""));
   };
 
   const currentLibrarySelection = useMemo(() => {
-    if (libraryTarget === "site.logoUrl") {
-      return settings.site.logoUrl || "";
-    }
-    if (libraryTarget === "site.faviconUrl") {
-      return settings.site.faviconUrl || "";
-    }
-    if (libraryTarget === "site.defaultShareImage") {
-      return settings.site.defaultShareImage || "";
-    }
-    if (libraryTarget === "footer.brandLogoUrl") {
-      return settings.footer.brandLogoUrl || "";
-    }
-    if (libraryTarget === "branding.wordmarkUrlNavbar") {
-      return settings.branding.wordmarkUrlNavbar || "";
-    }
-    if (libraryTarget === "branding.wordmarkUrlFooter") {
-      return settings.branding.wordmarkUrlFooter || "";
-    }
-    return "";
-  }, [
-    libraryTarget,
-    settings.branding.wordmarkUrlFooter,
-    settings.branding.wordmarkUrlNavbar,
-    settings.footer.brandLogoUrl,
-    settings.site.defaultShareImage,
-    settings.site.faviconUrl,
-    settings.site.logoUrl,
-  ]);
+    return readLogoField(settings, libraryTarget);
+  }, [libraryTarget, settings]);
 
 
 
@@ -401,81 +614,6 @@ const DashboardSettings = () => {
     }
   };
 
-  const handleSaveSettings = async () => {
-    setIsSaving(true);
-    try {
-      const nextSettings = { ...settings };
-      const socialDiscord = nextSettings.footer.socialLinks.find(
-        (link) => String(link.label || "").toLowerCase() === "discord",
-      );
-      if (socialDiscord?.href) {
-        nextSettings.community.discordUrl = socialDiscord.href;
-      }
-      nextSettings.navbar.recruitmentUrl = "/recrutamento";
-      const response = await apiFetch(apiBase, "/api/settings", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        auth: true,
-        body: JSON.stringify({ settings: nextSettings }),
-      });
-      if (!response.ok) {
-        throw new Error("save_failed");
-      }
-      const data = await response.json();
-      setSettings(mergeSettings(defaultSettings, data.settings || nextSettings));
-      await refresh();
-      await handleSaveLinkTypes({ silent: true });
-      toast({ title: "Configurações salvas" });
-    } catch {
-      toast({
-        title: "Falha ao salvar",
-        description: "Não foi possível salvar as configurações.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  const handleSaveTranslations = async () => {
-    setIsSavingTranslations(true);
-    try {
-      const response = await apiFetch(apiBase, "/api/tag-translations", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        auth: true,
-        body: JSON.stringify({
-          tags: tagTranslations,
-          genres: genreTranslations,
-          staffRoles: staffRoleTranslations,
-        }),
-      });
-      if (!response.ok) {
-        throw new Error("save_failed");
-      }
-      const data = await response.json().catch(() => null);
-      if (data?.tags) {
-        setTagTranslations(data.tags);
-      }
-      if (data?.genres) {
-        setGenreTranslations(data.genres);
-      }
-      if (data?.staffRoles) {
-        setStaffRoleTranslations(data.staffRoles);
-      }
-      toast({ title: "Traduções salvas" });
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      toast({
-        title: "Falha ao salvar",
-        description: `Não foi possível salvar as traduções. ${message ? `(${message})` : ""}`,
-        variant: "destructive",
-      });
-    } finally {
-      setIsSavingTranslations(false);
-    }
-  };
-
   const uploadLinkTypeIcon = async (file: File, index: number) => {
     setUploadingKey(`linktype-icon-${index}`);
     try {
@@ -514,13 +652,76 @@ const DashboardSettings = () => {
     }
   };
 
-  const handleSaveLinkTypes = async (options?: { silent?: boolean }) => {
-    setIsSavingLinkTypes(true);
-    try {
-      const normalizedItems = linkTypes.map((item) => ({
-        ...item,
-        id: item.id?.trim() ? item.id.trim() : normalizeLinkTypeId(item.label || ""),
-      }));
+  const saveSettingsResource = useCallback(
+    async (snapshot: SiteSettings) => {
+      const nextSettings = { ...snapshot };
+      const socialDiscord = nextSettings.footer.socialLinks.find(
+        (link) => String(link.label || "").toLowerCase() === "discord",
+      );
+      if (socialDiscord?.href) {
+        nextSettings.community.discordUrl = socialDiscord.href;
+      }
+      const response = await apiFetch(apiBase, "/api/settings", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        auth: true,
+        body: JSON.stringify({ settings: nextSettings }),
+      });
+      if (!response.ok) {
+        throw new Error("save_failed");
+      }
+      const data = await response.json().catch(() => null);
+      const normalizedSettings = mergeSettings(defaultSettings, data?.settings || nextSettings);
+      setSettings(normalizedSettings);
+      return normalizedSettings;
+    },
+    [apiBase],
+  );
+
+  const translationsValue = useMemo<TranslationsPayload>(
+    () => ({
+      tags: tagTranslations,
+      genres: genreTranslations,
+      staffRoles: staffRoleTranslations,
+    }),
+    [genreTranslations, staffRoleTranslations, tagTranslations],
+  );
+
+  const saveTranslationsResource = useCallback(
+    async (snapshot: TranslationsPayload) => {
+      const response = await apiFetch(apiBase, "/api/tag-translations", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        auth: true,
+        body: JSON.stringify(snapshot),
+      });
+      if (!response.ok) {
+        throw new Error("save_failed");
+      }
+      const data = await response.json().catch(() => null);
+      const normalizedTranslations: TranslationsPayload = {
+        tags: data?.tags || snapshot.tags,
+        genres: data?.genres || snapshot.genres,
+        staffRoles: data?.staffRoles || snapshot.staffRoles,
+      };
+      setTagTranslations(normalizedTranslations.tags);
+      setGenreTranslations(normalizedTranslations.genres);
+      setStaffRoleTranslations(normalizedTranslations.staffRoles);
+      return normalizedTranslations;
+    },
+    [apiBase],
+  );
+
+  const saveLinkTypesResource = useCallback(
+    async (snapshot: LinkTypeItem[]) => {
+      const normalizedItems = snapshot
+        .map((item) => ({
+          ...item,
+          id: item.id?.trim() ? item.id.trim() : normalizeLinkTypeId(item.label || ""),
+          label: String(item.label || "").trim(),
+          icon: String(item.icon || "globe").trim(),
+        }))
+        .filter((item) => item.id && item.label);
       setLinkTypes(normalizedItems);
       const response = await apiFetch(apiBase, "/api/link-types", {
         method: "PUT",
@@ -532,24 +733,214 @@ const DashboardSettings = () => {
         throw new Error("save_failed");
       }
       const data = await response.json().catch(() => null);
-      if (data?.items) {
-        setLinkTypes(data.items);
-      }
-      if (!options?.silent) {
-        toast({ title: "Redes sociais salvas" });
-      }
-    } catch {
-      if (!options?.silent) {
+      const resolvedItems = Array.isArray(data?.items) ? data.items : normalizedItems;
+      setLinkTypes(resolvedItems);
+      return resolvedItems;
+    },
+    [apiBase],
+  );
+
+  const settingsAutosave = useAutosave<SiteSettings>({
+    value: settings,
+    onSave: saveSettingsResource,
+    isReady: !isLoading,
+    enabled: initialAutosaveEnabledRef.current,
+    debounceMs: autosaveRuntimeConfig.debounceMs,
+    retryMax: autosaveRuntimeConfig.retryMax,
+    retryBaseMs: autosaveRuntimeConfig.retryBaseMs,
+    onError: (_error, payload) => {
+      if (payload.source === "auto" && payload.consecutiveErrors === 1) {
         toast({
-          title: "Falha ao salvar",
-          description: "Não foi possível salvar as redes sociais.",
+          title: "Falha no autosave de ajustes",
+          description: "As configurações gerais não foram salvas automaticamente.",
           variant: "destructive",
         });
       }
-    } finally {
-      setIsSavingLinkTypes(false);
+    },
+  });
+
+  const translationsAutosave = useAutosave<TranslationsPayload>({
+    value: translationsValue,
+    onSave: saveTranslationsResource,
+    isReady: !isLoading,
+    enabled: initialAutosaveEnabledRef.current,
+    debounceMs: autosaveRuntimeConfig.debounceMs,
+    retryMax: autosaveRuntimeConfig.retryMax,
+    retryBaseMs: autosaveRuntimeConfig.retryBaseMs,
+    onError: (_error, payload) => {
+      if (payload.source === "auto" && payload.consecutiveErrors === 1) {
+        toast({
+          title: "Falha no autosave de traduções",
+          description: "As traduções não foram salvas automaticamente.",
+          variant: "destructive",
+        });
+      }
+    },
+  });
+
+  const linkTypesAutosave = useAutosave<LinkTypeItem[]>({
+    value: linkTypes,
+    onSave: saveLinkTypesResource,
+    isReady: !isLoading,
+    enabled: initialAutosaveEnabledRef.current,
+    debounceMs: autosaveRuntimeConfig.debounceMs,
+    retryMax: autosaveRuntimeConfig.retryMax,
+    retryBaseMs: autosaveRuntimeConfig.retryBaseMs,
+    onError: (_error, payload) => {
+      if (payload.source === "auto" && payload.consecutiveErrors === 1) {
+        toast({
+          title: "Falha no autosave de redes",
+          description: "Os tipos de link não foram salvos automaticamente.",
+          variant: "destructive",
+        });
+      }
+    },
+  });
+
+  const handleAutosaveToggle = useCallback(
+    (nextEnabled: boolean) => {
+      if (!autosaveRuntimeConfig.enabledByDefault) {
+        return;
+      }
+      settingsAutosave.setEnabled(nextEnabled);
+      translationsAutosave.setEnabled(nextEnabled);
+      linkTypesAutosave.setEnabled(nextEnabled);
+    },
+    [linkTypesAutosave, settingsAutosave, translationsAutosave],
+  );
+
+  const autosaveEnabled =
+    settingsAutosave.enabled && translationsAutosave.enabled && linkTypesAutosave.enabled;
+
+  useEffect(() => {
+    writeAutosavePreference(autosaveStorageKeys.settings, autosaveEnabled);
+  }, [autosaveEnabled]);
+
+  const combinedAutosaveStatus = useMemo<AutosaveStatus>(() => {
+    const statuses: AutosaveStatus[] = [
+      settingsAutosave.status,
+      translationsAutosave.status,
+      linkTypesAutosave.status,
+    ];
+    if (statuses.includes("saving")) {
+      return "saving";
     }
-  };
+    if (statuses.includes("error")) {
+      return "error";
+    }
+    if (statuses.includes("pending")) {
+      return "pending";
+    }
+    if (statuses.includes("saved")) {
+      return "saved";
+    }
+    return "idle";
+  }, [linkTypesAutosave.status, settingsAutosave.status, translationsAutosave.status]);
+
+  const combinedLastSavedAt = useMemo(() => {
+    const points = [
+      settingsAutosave.lastSavedAt,
+      translationsAutosave.lastSavedAt,
+      linkTypesAutosave.lastSavedAt,
+    ].filter((point): point is number => Number.isFinite(point));
+    return points.length ? Math.max(...points) : null;
+  }, [
+    linkTypesAutosave.lastSavedAt,
+    settingsAutosave.lastSavedAt,
+    translationsAutosave.lastSavedAt,
+  ]);
+
+  const combinedAutosaveErrorMessage = useMemo(() => {
+    if (settingsAutosave.status === "error") {
+      return "Há falha no salvamento automático dos ajustes gerais.";
+    }
+    if (translationsAutosave.status === "error") {
+      return "Há falha no salvamento automático das traduções.";
+    }
+    if (linkTypesAutosave.status === "error") {
+      return "Há falha no salvamento automático das redes sociais.";
+    }
+    return null;
+  }, [linkTypesAutosave.status, settingsAutosave.status, translationsAutosave.status]);
+
+  const hasPendingChanges =
+    settingsAutosave.isDirty ||
+    translationsAutosave.isDirty ||
+    linkTypesAutosave.isDirty ||
+    settingsAutosave.status === "pending" ||
+    settingsAutosave.status === "saving" ||
+    translationsAutosave.status === "pending" ||
+    translationsAutosave.status === "saving" ||
+    linkTypesAutosave.status === "pending" ||
+    linkTypesAutosave.status === "saving";
+
+  useEffect(() => {
+    if (isLoading || !hasPendingChanges) {
+      return;
+    }
+    const handler = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [hasPendingChanges, isLoading]);
+
+  const flushAllAutosave = useCallback(() => {
+    if (settingsAutosave.enabled) {
+      void settingsAutosave.flushNow();
+    }
+    if (translationsAutosave.enabled) {
+      void translationsAutosave.flushNow();
+    }
+    if (linkTypesAutosave.enabled) {
+      void linkTypesAutosave.flushNow();
+    }
+  }, [linkTypesAutosave, settingsAutosave, translationsAutosave]);
+
+  const handleSaveSettings = useCallback(async () => {
+    const ok = await settingsAutosave.flushNow();
+    if (!ok) {
+      toast({
+        title: "Falha ao salvar",
+        description: "Não foi possível salvar as configurações.",
+        variant: "destructive",
+      });
+      return;
+    }
+    await refresh().catch(() => undefined);
+    toast({ title: "Configurações salvas" });
+  }, [refresh, settingsAutosave]);
+
+  const handleSaveTranslations = useCallback(async () => {
+    const ok = await translationsAutosave.flushNow();
+    if (!ok) {
+      toast({
+        title: "Falha ao salvar",
+        description: "Não foi possível salvar as traduções.",
+        variant: "destructive",
+      });
+      return;
+    }
+    toast({ title: "Traduções salvas" });
+  }, [translationsAutosave]);
+
+  const handleSaveLinkTypes = useCallback(async () => {
+    const ok = await linkTypesAutosave.flushNow();
+    if (!ok) {
+      toast({
+        title: "Falha ao salvar",
+        description: "Não foi possível salvar as redes sociais.",
+        variant: "destructive",
+      });
+      return;
+    }
+    toast({ title: "Redes sociais salvas" });
+  }, [linkTypesAutosave]);
+
+  const isSaving = settingsAutosave.status === "saving";
+  const isSavingTranslations = translationsAutosave.status === "saving";
+  const isSavingLinkTypes = linkTypesAutosave.status === "saving";
 
   const filteredTags = useMemo(() => {
     const query = tagQuery.trim().toLowerCase();
@@ -588,6 +979,105 @@ const DashboardSettings = () => {
     }
     return currentUser ? `@${currentUser.username}` : "OAuth Discord pendente";
   }, [currentUser, isLoadingUser]);
+
+  const siteNamePreview = (settings.site.name || "Nekomata").trim() || "Nekomata";
+
+  const branding = resolveBranding(settings);
+  const legacySiteSymbol = branding.legacy.siteSymbolUrl;
+  const legacyWordmark = branding.legacy.wordmarkUrl;
+  const legacyWordmarkNavbar = branding.legacy.navbarWordmarkUrl;
+  const legacyWordmarkFooter = branding.legacy.footerWordmarkUrl;
+  const symbolAssetDirect = branding.direct.symbolAssetUrl;
+  const wordmarkAssetDirect = branding.direct.wordmarkAssetUrl;
+  const navbarSymbolOverrideDirect = branding.direct.navbarSymbolOverrideUrl;
+  const footerSymbolOverrideDirect = branding.direct.footerSymbolOverrideUrl;
+  const navbarWordmarkOverrideDirect = branding.direct.navbarWordmarkOverrideUrl;
+  const footerWordmarkOverrideDirect = branding.direct.footerWordmarkOverrideUrl;
+  const faviconUrl = settings.site.faviconUrl?.trim() || "";
+  const shareImageUrl = settings.site.defaultShareImage?.trim() || "";
+
+  const symbolAssetUrl = branding.assets.symbolUrl;
+  const wordmarkAssetUrl = branding.assets.wordmarkUrl;
+  const resolvedNavbarSymbolUrl = branding.navbar.symbolUrl;
+  const resolvedFooterSymbolUrl = branding.footer.symbolUrl;
+  const resolvedNavbarWordmarkUrl = branding.navbar.wordmarkUrl;
+  const resolvedFooterWordmarkUrl = branding.footer.wordmarkUrl;
+  const navbarMode: NavbarBrandMode = branding.display.navbar;
+  const footerMode: FooterBrandMode = branding.display.footer;
+  const showWordmarkInNavbarPreview = branding.navbar.showWordmark;
+  const showWordmarkInFooterPreview = branding.footer.showWordmark;
+  const showNavbarSymbolPreview = navbarMode === "symbol-text" || navbarMode === "symbol";
+  const showNavbarTextPreview = navbarMode === "symbol-text" || navbarMode === "text";
+
+  const logoFieldState: Record<LogoLibraryTarget, { value: string; preview: string; status: string }> = {
+    "branding.assets.symbolUrl": {
+      value: symbolAssetDirect,
+      preview: symbolAssetUrl,
+      status: symbolAssetDirect
+        ? "Símbolo principal ativo."
+        : legacySiteSymbol
+          ? "Sem valor no modelo novo. Usando fallback legado."
+          : "Sem símbolo definido.",
+    },
+    "branding.assets.wordmarkUrl": {
+      value: wordmarkAssetDirect,
+      preview: wordmarkAssetUrl,
+      status: wordmarkAssetDirect
+        ? "Logotipo principal ativo."
+        : legacyWordmark || legacyWordmarkNavbar || legacyWordmarkFooter
+          ? "Sem valor no modelo novo. Usando fallback legado."
+          : "Sem logotipo definido.",
+    },
+    "site.faviconUrl": {
+      value: faviconUrl,
+      preview: faviconUrl,
+      status: faviconUrl ? "Favicon ativa na aba do navegador." : "Sem favicon definida.",
+    },
+    "site.defaultShareImage": {
+      value: shareImageUrl,
+      preview: shareImageUrl,
+      status: shareImageUrl
+        ? "Imagem padrão de compartilhamento ativa."
+        : "Sem imagem padrão de compartilhamento.",
+    },
+    "branding.overrides.navbarWordmarkUrl": {
+      value: navbarWordmarkOverrideDirect,
+      preview: resolvedNavbarWordmarkUrl,
+      status: navbarWordmarkOverrideDirect
+        ? "Override da navbar ativo."
+        : resolvedNavbarWordmarkUrl
+          ? "Sem override. Navbar usa o logotipo principal."
+          : "Sem imagem disponível para a wordmark da navbar.",
+    },
+    "branding.overrides.footerWordmarkUrl": {
+      value: footerWordmarkOverrideDirect,
+      preview: resolvedFooterWordmarkUrl,
+      status: footerWordmarkOverrideDirect
+        ? "Override do footer ativo."
+        : resolvedFooterWordmarkUrl
+          ? "Sem override. Footer usa o logotipo principal."
+          : "Sem imagem disponível para a wordmark do footer.",
+    },
+    "branding.overrides.navbarSymbolUrl": {
+      value: navbarSymbolOverrideDirect,
+      preview: resolvedNavbarSymbolUrl,
+      status: navbarSymbolOverrideDirect
+        ? "Override da navbar ativo."
+        : resolvedNavbarSymbolUrl
+          ? "Sem override. Navbar usa o símbolo principal."
+          : "Sem símbolo disponível para a navbar.",
+    },
+    "branding.overrides.footerSymbolUrl": {
+      value: footerSymbolOverrideDirect,
+      preview: resolvedFooterSymbolUrl,
+      status: footerSymbolOverrideDirect
+        ? "Override do footer ativo."
+        : resolvedFooterSymbolUrl
+          ? "Sem override. Footer usa o símbolo principal."
+          : "Sem símbolo disponível para o footer.",
+    },
+  };
+
   if (isLoading) {
     return (
       <DashboardShell
@@ -616,7 +1106,12 @@ const DashboardSettings = () => {
       userSubLabel={userSubLabel}
       onUserCardClick={() => navigate("/dashboard/usuarios?edit=me")}
     >
-      <main className="pt-24">
+      <main
+        className="pt-24"
+        onBlurCapture={() => {
+          flushAllAutosave();
+        }}
+      >
           <section className="mx-auto w-full max-w-6xl px-6 pb-20 md:px-10">
             <div className="flex flex-wrap items-center justify-between gap-4">
               <div>
@@ -631,24 +1126,36 @@ const DashboardSettings = () => {
                   Atualize identidade, traduções e links globais do site.
                 </p>
               </div>
-              <Button onClick={handleSaveSettings} disabled={isSaving} className="gap-2">
-                <Save className="h-4 w-4" />
-                {isSaving ? "Salvando..." : "Salvar ajustes"}
-              </Button>
+              <DashboardAutosaveStatus
+                title="Autosave das configurações"
+                status={combinedAutosaveStatus}
+                enabled={autosaveEnabled}
+                onEnabledChange={handleAutosaveToggle}
+                toggleDisabled={!autosaveRuntimeConfig.enabledByDefault}
+                lastSavedAt={combinedLastSavedAt}
+                errorMessage={combinedAutosaveErrorMessage}
+                onManualSave={() => {
+                  void handleSaveSettings();
+                }}
+                manualActionLabel={isSaving ? "Salvando..." : "Salvar ajustes"}
+                manualActionDisabled={isSaving}
+              />
             </div>
 
             <Tabs
-              defaultValue="geral"
+              value={activeTab}
+              onValueChange={(value) => setActiveTab(value as SettingsTabKey)}
               className="mt-8 animate-slide-up opacity-0"
               style={{ animationDelay: "0.2s" }}
             >
-              <TabsList className="grid w-full grid-cols-2 md:grid-cols-6">
+              <TabsList className="grid w-full grid-cols-2 md:grid-cols-7">
                 <TabsTrigger value="geral">Geral</TabsTrigger>
-                <TabsTrigger value="traducoes">Traduções</TabsTrigger>
                 <TabsTrigger value="downloads">Downloads</TabsTrigger>
-                <TabsTrigger value="redes-usuarios">Redes sociais</TabsTrigger>
                 <TabsTrigger value="equipe">Equipe</TabsTrigger>
                 <TabsTrigger value="footer">Footer</TabsTrigger>
+                <TabsTrigger value="navbar">Navbar</TabsTrigger>
+                <TabsTrigger value="redes-usuarios">Redes sociais</TabsTrigger>
+                <TabsTrigger value="traducoes">Traduções</TabsTrigger>
               </TabsList>
 
               <TabsContent value="geral" className="mt-6 space-y-6">
@@ -660,7 +1167,11 @@ const DashboardSettings = () => {
                         <Input
                           value={settings.site.name}
                           onChange={(event) =>
-                            setSettings((prev) => ({ ...prev, site: { ...prev.site, name: event.target.value } }))
+                            setSettings((prev) => ({
+                              ...prev,
+                              site: { ...prev.site, name: event.target.value },
+                              footer: { ...prev.footer, brandName: event.target.value },
+                            }))
                           }
                         />
                       </div>
@@ -714,97 +1225,317 @@ const DashboardSettings = () => {
                       </div>
                     </div>
 
-                    <div className="grid gap-4 md:grid-cols-3">
-                      <div className="flex h-full flex-col gap-2">
-                        <Label>Logo</Label>
-                        {settings.site.logoUrl ? (
-                          <div className="flex items-center gap-3">
-                            <img
-                              src={settings.site.logoUrl}
-                              alt="Logo"
-                              className="h-10 w-10 rounded bg-black/10 object-contain"
-                            />
-                          </div>
-                        ) : (
-                          <p className="text-xs text-muted-foreground">Sem logo definida.</p>
-                        )}
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          className="mt-auto"
-                          onClick={() => openLibrary("site.logoUrl")}
-                        >
-                          Biblioteca
-                        </Button>
+                    <div className="space-y-4 rounded-2xl border border-border/60 bg-background/50 p-4">
+                      <div>
+                        <h2 className="text-lg font-semibold">Card de comunidade</h2>
+                        <p className="text-xs text-muted-foreground">
+                          Configure os textos e o botao principal do card de Discord.
+                        </p>
                       </div>
-                      <div className="flex h-full flex-col gap-2">
-                        <Label>Favicon</Label>
-                        {settings.site.faviconUrl ? (
-                          <div className="flex items-center gap-3">
-                            <img
-                              src={settings.site.faviconUrl}
-                              alt="Favicon"
-                              className="h-8 w-8 rounded bg-black/10 object-contain"
-                            />
-                          </div>
-                        ) : (
-                          <p className="text-xs text-muted-foreground">Sem favicon definido.</p>
-                        )}
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          className="mt-auto"
-                          onClick={() => openLibrary("site.faviconUrl")}
-                        >
-                          Biblioteca
-                        </Button>
-                      </div>
-                      <div className="flex h-full flex-col gap-2">
-                        <Label>Imagem padrão de compartilhamento</Label>
-                        {settings.site.defaultShareImage ? (
-                          <div className="flex items-center gap-3">
-                            <img
-                              src={settings.site.defaultShareImage}
-                              alt="Imagem de compartilhamento"
-                              className="h-10 w-16 rounded bg-black/10 object-cover"
-                            />
-                          </div>
-                        ) : (
-                          <p className="text-xs text-muted-foreground">Sem imagem definida.</p>
-                        )}
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          className="mt-auto"
-                          onClick={() => openLibrary("site.defaultShareImage")}
-                        >
-                          Biblioteca
-                        </Button>
+
+                      <div className="grid gap-4 md:grid-cols-2">
+                        <div className="space-y-2">
+                          <Label htmlFor="community-card-title">Titulo do card</Label>
+                          <Input
+                            id="community-card-title"
+                            value={settings.community.inviteCard.title}
+                            onChange={(event) =>
+                              setSettings((prev) => ({
+                                ...prev,
+                                community: {
+                                  ...prev.community,
+                                  inviteCard: { ...prev.community.inviteCard, title: event.target.value },
+                                },
+                              }))
+                            }
+                          />
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label htmlFor="community-card-button-label">Texto do botao</Label>
+                          <Input
+                            id="community-card-button-label"
+                            value={settings.community.inviteCard.ctaLabel}
+                            onChange={(event) =>
+                              setSettings((prev) => ({
+                                ...prev,
+                                community: {
+                                  ...prev.community,
+                                  inviteCard: { ...prev.community.inviteCard, ctaLabel: event.target.value },
+                                },
+                              }))
+                            }
+                          />
+                        </div>
+
+                        <div className="space-y-2 md:col-span-2">
+                          <Label htmlFor="community-card-subtitle">Subtitulo</Label>
+                          <Textarea
+                            id="community-card-subtitle"
+                            value={settings.community.inviteCard.subtitle}
+                            onChange={(event) =>
+                              setSettings((prev) => ({
+                                ...prev,
+                                community: {
+                                  ...prev.community,
+                                  inviteCard: { ...prev.community.inviteCard, subtitle: event.target.value },
+                                },
+                              }))
+                            }
+                          />
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label htmlFor="community-card-panel-title">Titulo do bloco interno</Label>
+                          <Input
+                            id="community-card-panel-title"
+                            value={settings.community.inviteCard.panelTitle}
+                            onChange={(event) =>
+                              setSettings((prev) => ({
+                                ...prev,
+                                community: {
+                                  ...prev.community,
+                                  inviteCard: { ...prev.community.inviteCard, panelTitle: event.target.value },
+                                },
+                              }))
+                            }
+                          />
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label htmlFor="community-card-cta-url">URL do botao</Label>
+                          <Input
+                            id="community-card-cta-url"
+                            value={settings.community.inviteCard.ctaUrl}
+                            onChange={(event) =>
+                              setSettings((prev) => ({
+                                ...prev,
+                                community: {
+                                  ...prev.community,
+                                  inviteCard: { ...prev.community.inviteCard, ctaUrl: event.target.value },
+                                },
+                              }))
+                            }
+                            placeholder="https://discord.com/invite/..."
+                          />
+                        </div>
+
+                        <div className="space-y-2 md:col-span-2">
+                          <Label htmlFor="community-card-panel-description">Texto do bloco interno</Label>
+                          <Textarea
+                            id="community-card-panel-description"
+                            value={settings.community.inviteCard.panelDescription}
+                            onChange={(event) =>
+                              setSettings((prev) => ({
+                                ...prev,
+                                community: {
+                                  ...prev.community,
+                                  inviteCard: { ...prev.community.inviteCard, panelDescription: event.target.value },
+                                },
+                              }))
+                            }
+                          />
+                        </div>
                       </div>
                     </div>
 
-                    <div className="rounded-2xl border border-border/60 bg-background/50 p-4 space-y-3">
-                      <div className="flex items-center gap-2">
-                        <Checkbox
-                          id="wordmark-enabled"
-                          checked={settings.branding.wordmarkEnabled}
-                          onCheckedChange={(checked) =>
-                            setSettings((prev) => ({
-                              ...prev,
-                              branding: { ...prev.branding, wordmarkEnabled: checked === true },
-                            }))
-                          }
-                        />
-                        <Label htmlFor="wordmark-enabled" className="text-sm font-medium">
-                          Substituir texto pelo logo padrão no navbar e footer
-                        </Label>
+                    <div className="space-y-4">
+                      <div>
+                        <h2 className="text-lg font-semibold">Logos e ícones de marca</h2>
+                        <p className="text-xs text-muted-foreground">
+                          Todos os ativos visuais em um só lugar, com fallback e prévia rápida.
+                        </p>
                       </div>
-                      <p className="text-xs text-muted-foreground">
-                        Desmarque para manter o nome como está atualmente.
-                      </p>
+
+                      <div className="grid gap-4 lg:grid-cols-2">
+                        {logoEditorFields.map((field) => {
+                          const state = logoFieldState[field.target];
+                          const hasDirectValue = Boolean(state.value);
+                          return (
+                            <div
+                              key={field.target}
+                              className="rounded-2xl border border-border/60 bg-background/50 p-4 space-y-3"
+                            >
+                              <div>
+                                <p className="text-sm font-semibold">{field.label}</p>
+                                <p className="text-xs text-muted-foreground">{field.description}</p>
+                              </div>
+
+                              <div
+                                className={`flex items-center justify-center rounded-xl border border-border/60 bg-background/60 p-3 ${field.frameClassName}`}
+                              >
+                                {state.preview ? (
+                                  <img
+                                    src={state.preview}
+                                    alt={field.label}
+                                    className={field.imageClassName}
+                                  />
+                                ) : (
+                                  <span className="text-xs text-muted-foreground">Sem imagem definida</span>
+                                )}
+                              </div>
+
+                              <p className="text-[11px] text-muted-foreground">{state.status}</p>
+
+                              <div className="flex gap-2">
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  className="flex-1"
+                                  onClick={() => openLibrary(field.target)}
+                                >
+                                  Biblioteca
+                                </Button>
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  disabled={!hasDirectValue}
+                                  onClick={() => clearLibraryImage(field.target)}
+                                >
+                                  Limpar
+                                </Button>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+
+                      <div className="grid gap-4 md:grid-cols-2">
+                        <div className="rounded-2xl border border-border/60 bg-background/50 p-4 space-y-3">
+                          <Label>Exibição da marca na navbar</Label>
+                          <Select
+                            value={navbarMode}
+                            onValueChange={(value) =>
+                              setSettings((prev) => ({
+                                ...prev,
+                                branding: {
+                                  ...prev.branding,
+                                  display: {
+                                    ...prev.branding.display,
+                                    navbar: value as NavbarBrandMode,
+                                  },
+                                },
+                              }))
+                            }
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Selecione" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="wordmark">Wordmark</SelectItem>
+                              <SelectItem value="symbol-text">Símbolo + texto</SelectItem>
+                              <SelectItem value="symbol">Somente símbolo</SelectItem>
+                              <SelectItem value="text">Somente texto</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <p className="text-xs text-muted-foreground">
+                            Define como a identidade aparece no topo do site.
+                          </p>
+                        </div>
+
+                        <div className="rounded-2xl border border-border/60 bg-background/50 p-4 space-y-3">
+                          <Label>Exibição da marca no footer</Label>
+                          <Select
+                            value={footerMode}
+                            onValueChange={(value) =>
+                              setSettings((prev) => ({
+                                ...prev,
+                                branding: {
+                                  ...prev.branding,
+                                  display: {
+                                    ...prev.branding.display,
+                                    footer: value as FooterBrandMode,
+                                  },
+                                },
+                              }))
+                            }
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Selecione" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="wordmark">Wordmark</SelectItem>
+                              <SelectItem value="symbol-text">Símbolo + texto</SelectItem>
+                              <SelectItem value="text">Somente texto</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <p className="text-xs text-muted-foreground">
+                            Define como a identidade aparece no rodapé.
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="grid gap-4 md:grid-cols-2">
+                        <div className="rounded-2xl border border-border/60 bg-background/50 p-4">
+                          <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+                            Prévia navbar
+                          </p>
+                          <div className="mt-3 flex min-h-[68px] items-center gap-3 rounded-xl border border-white/10 bg-slate-950 px-4 py-3 text-white">
+                            {showWordmarkInNavbarPreview ? (
+                              <img
+                                src={resolvedNavbarWordmarkUrl}
+                                alt={siteNamePreview}
+                                className="h-9 w-auto max-w-[220px] object-contain"
+                              />
+                            ) : (
+                              <>
+                                {showNavbarSymbolPreview ? (
+                                  resolvedNavbarSymbolUrl ? (
+                                    <img
+                                      src={resolvedNavbarSymbolUrl}
+                                      alt="Logo principal"
+                                      className="h-9 w-9 rounded-full object-contain"
+                                    />
+                                  ) : (
+                                    <span className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/20 bg-white/10 text-xs font-semibold">
+                                      {siteNamePreview.slice(0, 1).toUpperCase()}
+                                    </span>
+                                  )
+                                ) : null}
+                                {showNavbarTextPreview ? (
+                                  <span className="text-sm font-semibold uppercase tracking-[0.2em]">
+                                    {siteNamePreview}
+                                  </span>
+                                ) : null}
+                              </>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="rounded-2xl border border-border/60 bg-background/50 p-4">
+                          <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+                            Prévia footer
+                          </p>
+                          <div className="mt-3 flex min-h-[68px] items-center gap-3 rounded-xl border border-border/60 bg-background/70 px-4 py-3">
+                            {showWordmarkInFooterPreview ? (
+                              <img
+                                src={resolvedFooterWordmarkUrl}
+                                alt={siteNamePreview}
+                                className="h-9 w-auto max-w-[220px] object-contain"
+                              />
+                            ) : footerMode === "text" ? (
+                              <span className="text-lg font-black tracking-widest text-gradient-rainbow">
+                                {siteNamePreview}
+                              </span>
+                            ) : (
+                              <>
+                                {resolvedFooterSymbolUrl ? (
+                                  <img
+                                    src={resolvedFooterSymbolUrl}
+                                    alt="Logo do footer"
+                                    className="h-9 w-9 rounded-full object-contain"
+                                  />
+                                ) : null}
+                                <span className="text-lg font-black tracking-widest text-gradient-rainbow">
+                                  {siteNamePreview}
+                                </span>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      </div>
                     </div>
 
                   </CardContent>
@@ -1512,48 +2243,113 @@ const DashboardSettings = () => {
                 </Card>
               </TabsContent>
 
+              <TabsContent value="navbar" className="mt-6 space-y-6">
+                <Card className="border-border/60 bg-card/80">
+                  <CardContent className="space-y-6 p-6">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <div>
+                        <h2 className="text-lg font-semibold">Links do menu</h2>
+                        <p className="text-xs text-muted-foreground">
+                          Ordem e URLs usados na navbar do site.
+                        </p>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() =>
+                          setSettings((prev) => ({
+                            ...prev,
+                            navbar: {
+                              ...prev.navbar,
+                              links: [...prev.navbar.links, { label: "Novo link", href: "/", icon: "link" }],
+                            },
+                          }))
+                        }
+                      >
+                        <Plus className="h-4 w-4" />
+                      </Button>
+                    </div>
+
+                    <div className="grid gap-3">
+                      {settings.navbar.links.map((link, index) => (
+                        <div key={`${link.label}-${index}`} className="grid gap-3 md:grid-cols-[0.85fr_1fr_1.6fr_auto]">
+                          <Select
+                            value={link.icon || "link"}
+                            onValueChange={(value) =>
+                              setSettings((prev) => {
+                                const nextLinks = [...prev.navbar.links];
+                                nextLinks[index] = { ...nextLinks[index], icon: value };
+                                return { ...prev, navbar: { ...prev.navbar, links: nextLinks } };
+                              })
+                            }
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Ícone" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {navbarIconOptions.map((option) => {
+                                const OptionIcon = option.icon;
+                                return (
+                                  <SelectItem key={option.id} value={option.id}>
+                                    <div className="flex items-center gap-2">
+                                      <OptionIcon className="h-4 w-4 text-muted-foreground" />
+                                      <span>{option.label}</span>
+                                    </div>
+                                  </SelectItem>
+                                );
+                              })}
+                            </SelectContent>
+                          </Select>
+                          <Input
+                            value={link.label}
+                            placeholder="Label"
+                            onChange={(event) =>
+                              setSettings((prev) => {
+                                const nextLinks = [...prev.navbar.links];
+                                nextLinks[index] = { ...nextLinks[index], label: event.target.value };
+                                return { ...prev, navbar: { ...prev.navbar, links: nextLinks } };
+                              })
+                            }
+                          />
+                          <Input
+                            value={link.href}
+                            placeholder="URL ou rota"
+                            onChange={(event) =>
+                              setSettings((prev) => {
+                                const nextLinks = [...prev.navbar.links];
+                                nextLinks[index] = { ...nextLinks[index], href: event.target.value };
+                                return { ...prev, navbar: { ...prev.navbar, links: nextLinks } };
+                              })
+                            }
+                          />
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            onClick={() =>
+                              setSettings((prev) => ({
+                                ...prev,
+                                navbar: {
+                                  ...prev.navbar,
+                                  links: prev.navbar.links.filter((_, idx) => idx !== index),
+                                },
+                              }))
+                            }
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+
               <TabsContent value="footer" className="mt-6 space-y-6">
                 <Card className="border-border/60 bg-card/80">
                   <CardContent className="space-y-6 p-6">
                     <div>
-                      <h2 className="text-lg font-semibold">Identidade do footer</h2>
-                      <p className="text-xs text-muted-foreground">Nome, logo e descricao.</p>
-                    </div>
-                    <div className="grid gap-4 md:grid-cols-2">
-                      <div className="space-y-2">
-                        <Label>Nome</Label>
-                        <Input
-                          value={settings.footer.brandName}
-                          onChange={(event) =>
-                            setSettings((prev) => ({
-                              ...prev,
-                              footer: { ...prev.footer, brandName: event.target.value },
-                            }))
-                          }
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label>Logo</Label>
-                        {settings.footer.brandLogoUrl ? (
-                          <div className="flex items-center gap-3">
-                            <img
-                              src={settings.footer.brandLogoUrl}
-                              alt="Logo do footer"
-                              className="h-10 w-10 rounded bg-black/10 object-contain"
-                            />
-                          </div>
-                        ) : (
-                          <p className="text-xs text-muted-foreground">Sem logo definida.</p>
-                        )}
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={() => openLibrary("footer.brandLogoUrl")}
-                        >
-                          Biblioteca
-                        </Button>
-                      </div>
+                      <h2 className="text-lg font-semibold">Conteúdo do footer</h2>
                     </div>
                     <div className="space-y-2">
                       <Label>Descrição</Label>
@@ -1729,7 +2525,27 @@ const DashboardSettings = () => {
 
                     <div className="grid gap-3">
                       {settings.footer.socialLinks.map((link, index) => (
-                        <div key={`${link.label}-${index}`} className="grid gap-3 md:grid-cols-[0.8fr_1.6fr_auto]">
+                        <div
+                          key={`${link.label}-${index}`}
+                          data-testid={`footer-social-row-${index}`}
+                          className={`grid items-center gap-3 rounded-xl border p-2 transition md:grid-cols-[auto_0.8fr_1.6fr_auto] ${
+                            footerSocialDragOverIndex === index
+                              ? "border-primary/40 bg-primary/5"
+                              : "border-transparent"
+                          }`}
+                          onDragOver={(event) => handleFooterSocialDragOver(event, index)}
+                          onDrop={(event) => handleFooterSocialDrop(event, index)}
+                        >
+                          <button
+                            type="button"
+                            draggable
+                            className="inline-flex h-9 w-9 cursor-grab items-center justify-center rounded-md border border-border/60 bg-background/60 text-muted-foreground transition hover:border-primary/40 hover:text-primary active:cursor-grabbing"
+                            aria-label={`Arrastar rede ${link.label || index + 1}`}
+                            onDragStart={(event) => handleFooterSocialDragStart(event, index)}
+                            onDragEnd={clearFooterSocialDragState}
+                          >
+                            <GripVertical className="h-4 w-4" />
+                          </button>
                           <Select
                             value={link.icon || "link"}
                             onValueChange={(value) =>

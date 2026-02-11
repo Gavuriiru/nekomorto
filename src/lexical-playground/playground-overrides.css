@@ -91,6 +91,24 @@
   overflow-y: hidden;
 }
 
+.lexical-playground.lexical-playground--modal .toolbar {
+  position: sticky;
+  top: -1.5rem;
+  z-index: 12;
+  margin-top: 0;
+  margin-bottom: 0.5rem;
+  border: 1px solid hsl(var(--border));
+  border-radius: 0.85rem;
+  background: hsl(var(--card) / 0.98);
+  backdrop-filter: none;
+  box-shadow: 0 8px 20px -18px rgba(0, 0, 0, 0.75);
+}
+
+.editor-modal-scrolled .lexical-playground.lexical-playground--modal .toolbar {
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+}
+
 .lexical-playground .toolbar.toolbar--compact {
   flex-wrap: wrap;
   height: auto;
@@ -377,10 +395,27 @@
   cursor: text;
   pointer-events: auto;
   height: 100%;
+  min-width: 0;
 }
 
 .lexical-playground .ContentEditable__placeholder {
   color: hsl(var(--muted-foreground));
+}
+
+.lexical-playground .ContentEditable__root :where(
+  p,
+  li,
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6,
+  blockquote,
+  a
+) {
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .lexical-playground .editor-shell.editor-shell--read-only .ContentEditable__root {
@@ -418,10 +453,116 @@
 .lexical-playground .PlaygroundEditorTheme__code {
   background-color: hsl(var(--muted) / 0.6);
   border: 1px solid hsl(var(--border));
+  max-width: 100%;
+  overflow-x: auto;
+  white-space: pre;
 }
 
 .lexical-playground .PlaygroundEditorTheme__table {
   border-color: hsl(var(--border));
+}
+
+.lexical-playground .PlaygroundEditorTheme__tableScrollableWrapper {
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+.lexical-playground .editor-shell span.editor-image {
+  display: block;
+  width: fit-content;
+  max-width: 100%;
+}
+
+.lexical-playground .editor-shell:not(.editor-shell--read-only) span.editor-image {
+  overflow: visible;
+}
+
+.lexical-playground .editor-shell span.editor-image > div {
+  max-width: 100%;
+}
+
+.lexical-playground .editor-shell .editor-image img {
+  display: block;
+  max-width: 100%;
+}
+
+.lexical-playground .editor-shell .editor-image .image-resizer {
+  z-index: 4;
+}
+
+.lexical-playground .editor-shell.editor-shell--read-only .editor-image img {
+  height: auto !important;
+}
+
+.lexical-playground .editor-shell.editor-shell--read-only span.editor-image {
+  width: 100%;
+}
+
+.lexical-playground .twitter-tweet,
+.lexical-playground .twitter-tweet-rendered {
+  max-width: 100% !important;
+}
+
+.lexical-playground .twitter-tweet iframe,
+.lexical-playground iframe[src*="twitter.com"] {
+  width: 100% !important;
+  max-width: 100% !important;
+}
+
+.lexical-playground .tweet-skeleton {
+  width: 100%;
+  max-width: 550px;
+  border: 1px solid hsl(var(--border));
+  border-radius: 12px;
+  background: hsl(var(--card));
+  padding: 12px;
+  box-sizing: border-box;
+}
+
+.lexical-playground .tweet-skeleton__header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.lexical-playground .tweet-skeleton__avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 9999px;
+  background: hsl(var(--muted));
+}
+
+.lexical-playground .tweet-skeleton__meta {
+  display: grid;
+  gap: 6px;
+  flex: 1;
+}
+
+.lexical-playground .tweet-skeleton__line {
+  height: 10px;
+  border-radius: 9999px;
+  background: hsl(var(--muted));
+}
+
+.lexical-playground .tweet-skeleton__line--short {
+  width: 42%;
+}
+
+.lexical-playground .tweet-skeleton__line--mid {
+  width: 68%;
+}
+
+.lexical-playground .tweet-skeleton__body {
+  margin-top: 12px;
+  display: grid;
+  gap: 8px;
+}
+
+.lexical-playground .tweet-skeleton__media {
+  margin-top: 12px;
+  border-radius: 10px;
+  background: hsl(var(--muted));
+  height: 180px;
 }
 
 .lexical-playground .PlaygroundEditorTheme__tableCell,

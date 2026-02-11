@@ -81,13 +81,14 @@ Este documento congela o schema atual para facilitar a migração para banco.
 ### projects.episodeDownloads[]
 - `number` (number | string)
 - `title` (string)
-- `synopsis` (string)
 - `duration` (string)
 - `releaseDate` (ISO string)
 - `volume` (number | string)
 - `content` (string)
 - `contentFormat` ("markdown" | "html")
 - `coverImageUrl` (string)
+- `hash` (string | undefined)
+- `sizeBytes` (number | undefined)
 - `sources` (array)
 
 ### projects.episodeDownloads[].sources[]

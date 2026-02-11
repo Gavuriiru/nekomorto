@@ -33,6 +33,7 @@ import {
   COMMAND_PRIORITY_LOW,
   createCommand,
   DRAGSTART_COMMAND,
+  HISTORY_PUSH_TAG,
   KEY_ENTER_COMMAND,
   KEY_ESCAPE_COMMAND,
   SELECTION_CHANGE_COMMAND,
@@ -49,7 +50,6 @@ import {
 
 import {useSharedHistoryContext} from '../context/SharedHistoryContext';
 import brokenImage from '../images/image-broken.svg';
-import EmojisPlugin from '../plugins/EmojisPlugin';
 import KeywordsPlugin from '../plugins/KeywordsPlugin';
 import LinkPlugin from '../plugins/LinkPlugin';
 import MentionsPlugin from '../plugins/MentionsPlugin';
@@ -437,7 +437,10 @@ export default function ImageComponent({
       if ($isImageNode(node)) {
         node.setWidthAndHeight(nextWidth, nextHeight);
       }
-    });
+    }, {tag: HISTORY_PUSH_TAG});
+
+    // Restore editor focus so keyboard undo (Ctrl+Z) applies immediately.
+    editor.focus();
   };
 
   const onResizeStart = () => {
@@ -477,7 +480,6 @@ export default function ImageComponent({
               <DisableCaptionOnBlur setShowCaption={setShowCaption} />
               <MentionsPlugin />
               <LinkPlugin />
-              <EmojisPlugin />
               <HashtagPlugin />
               <KeywordsPlugin />
               <HistoryPlugin externalHistoryState={historyState} />

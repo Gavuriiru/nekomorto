@@ -3,9 +3,11 @@ import { Link, useParams } from "react-router-dom";
 import {
   BookOpen,
   CalendarDays,
+  Clock3,
   Cloud,
   Download,
   Film,
+  Hash,
   HardDrive,
   Link2,
   PlayCircle,
@@ -25,6 +27,15 @@ import { getApiBase } from "@/lib/api-base";
 import { isChapterBasedType, isLightNovelType, isMangaType } from "@/lib/project-utils";
 import { formatDate } from "@/lib/date";
 import { apiFetch } from "@/lib/api-client";
+import {
+  buildTranslationMap,
+  sortByTranslatedLabel,
+  translateAnilistRole,
+  translateGenre,
+  translateRelation,
+  translateTag,
+} from "@/lib/project-taxonomy";
+import { formatBytesCompact } from "@/lib/file-size";
 import { useSiteSettings } from "@/hooks/use-site-settings";
 import { usePageMeta } from "@/hooks/use-page-meta";
 import { normalizeAssetUrl } from "@/lib/asset-url";
@@ -156,108 +167,19 @@ const ProjectPage = () => {
     ].filter((item) => String(item.value || "").trim().length > 0);
   }, [project]);
 
+  const tagTranslationMap = useMemo(() => buildTranslationMap(tagTranslations), [tagTranslations]);
+  const genreTranslationMap = useMemo(() => buildTranslationMap(genreTranslations), [genreTranslations]);
+  const staffRoleTranslationMap = useMemo(() => buildTranslationMap(staffRoleTranslations), [staffRoleTranslations]);
+
   const sortedTags = useMemo(() => {
-    const tags = Array.isArray(project?.tags) ? [...project.tags] : [];
-    return tags.sort((a, b) =>
-      (tagTranslations[a] || a).localeCompare(tagTranslations[b] || b, "pt-BR"),
-    );
-  }, [project?.tags, tagTranslations]);
+    const tags = Array.isArray(project?.tags) ? project.tags : [];
+    return sortByTranslatedLabel(tags, (tag) => translateTag(tag, tagTranslationMap));
+  }, [project?.tags, tagTranslationMap]);
 
   const sortedGenres = useMemo(() => {
-    const genres = Array.isArray(project?.genres) ? [...project.genres] : [];
-    return genres.sort((a, b) =>
-      (genreTranslations[a] || a).localeCompare(genreTranslations[b] || b, "pt-BR"),
-    );
-  }, [project?.genres, genreTranslations]);
-
-  const anilistRoleMap = useMemo(() => {
-    const entries: Array<[string, string]> = [
-      ["director", "Direção"],
-      ["chief director", "Diretor chefe"],
-      ["assistant director", "Direção assistente"],
-      ["action director", "Direção de ação"],
-      ["series composition", "Composição de série"],
-      ["script", "Roteiro"],
-      ["storyboard", "Storyboard"],
-      ["story", "História"],
-      ["episode director", "Direção de episódio"],
-      ["original story", "História original"],
-      ["original creator", "Autor original"],
-      ["original work assistance", "Assistência de obra original"],
-      ["character design", "Design de personagens"],
-      ["original character design", "Design original de personagens"],
-      ["original character design assistance", "Assistência de design original de personagens"],
-      ["chief character design", "Design-chefe de personagens"],
-      ["animation director", "Direção de animação"],
-      ["main animator", "Animador principal"],
-      ["chief animation director", "Direção-chefe de animação"],
-      ["key animation", "Animação-chave"],
-      ["in-between animation", "Intercalação"],
-      ["art director", "Direção de arte"],
-      ["art design", "Design de arte"],
-      ["background art", "Arte de fundo"],
-      ["color design", "Design de cor"],
-      ["color coordinator", "Coordenação de cor"],
-      ["director of photography", "Direção de fotografia"],
-      ["photography director", "Direção de fotografia"],
-      ["editing", "Edição"],
-      ["music", "Música"],
-      ["sound director", "Direção de som"],
-      ["sound effects", "Efeitos sonoros"],
-      ["sound design", "Design de som"],
-      ["theme song performance", "Performance da música tema"],
-      ["theme song performance (op)", "Performance da música tema (OP)"],
-      ["theme song performance (ed)", "Performance da música tema (ED)"],
-      ["producer", "Produção"],
-      ["assistant producer", "Produção assistente"],
-      ["production", "Produção"],
-      ["production assistant", "Assistência de produção"],
-      ["3d director", "Direção 3D"],
-      ["3d animation", "Animação 3D"],
-      ["3d modeling", "Modelagem 3D"],
-      ["cg director", "Direção de CG"],
-      ["mechanical design", "Design mecânico"],
-      ["prop design", "Design de props"],
-      ["design assistance", "Assistência de design"],
-      ["title logo design", "Design do logo do título"],
-      ["design works", "Design works"],
-      ["layout", "Layout"],
-      ["literary arts", "Artes literárias"],
-      ["special effects", "Efeitos especiais"],
-      ["cg", "CG"],
-      ["design", "Design"],
-      ["casting", "Casting"],
-      ["supervisor", "Supervisor"],
-      ["creative producer", "Produção criativa"],
-      ["illustration", "Ilustração"],
-    ];
-    return new Map(entries);
-  }, []);
-
-  const staffRoleTranslationMap = useMemo(() => {
-    const map = new Map<string, string>();
-    Object.entries(staffRoleTranslations || {}).forEach(([key, value]) => {
-      const normalized = String(key || "").trim();
-      if (!normalized) {
-        return;
-      }
-      map.set(normalized.toLowerCase(), String(value ?? ""));
-    });
-    return map;
-  }, [staffRoleTranslations]);
-
-  const translateAnilistRole = (role: string) => {
-    const normalized = String(role || "").trim();
-    if (!normalized) {
-      return role;
-    }
-    const key = normalized.toLowerCase();
-    const translated = staffRoleTranslationMap.get(key);
-    if (translated && translated.trim()) {
-      return translated;
-    }
-    return anilistRoleMap.get(key) || role;
-  };
+    const genres = Array.isArray(project?.genres) ? project.genres : [];
+    return sortByTranslatedLabel(genres, (genre) => translateGenre(genre, genreTranslationMap));
+  }, [project?.genres, genreTranslationMap]);
 
   const sourceThemeMap = useMemo(() => {
     const map = new Map<string, { color: string; icon?: string; tintIcon: boolean }>();
@@ -326,6 +248,18 @@ const ProjectPage = () => {
     return <Icon className="h-4 w-4" style={{ color }} />;
   };
 
+  const buildEpisodeMetadata = (episode: { sizeBytes?: number; hash?: string }) => {
+    const rawSize = Number(episode.sizeBytes);
+    const sizeLabel = Number.isFinite(rawSize) && rawSize > 0 ? formatBytesCompact(rawSize) : "";
+    const hashTitle = String(episode.hash || "").trim();
+    const hashLabel = hashTitle.length > 36 ? `${hashTitle.slice(0, 36)}...` : hashTitle;
+    return {
+      sizeLabel,
+      hashLabel,
+      hashTitle,
+    };
+  };
+
   const downloadableEpisodes = useMemo(
     () => (project?.episodeDownloads || []).filter((episode) => (episode.sources || []).length > 0),
     [project?.episodeDownloads],
@@ -379,6 +313,113 @@ const ProjectPage = () => {
   const isLightNovel = isLightNovelType(projectType);
   const isChapterBased = isChapterBasedType(projectType);
   type EpisodeItem = (typeof sortedDownloadableEpisodes)[number];
+
+  const renderEpisodeDownloadCard = (episode: EpisodeItem, key: string, showRawBadge: boolean) => {
+    const { sizeLabel, hashLabel, hashTitle } = buildEpisodeMetadata(episode);
+
+    return (
+      <Card
+        key={key}
+        className="group w-full overflow-hidden rounded-2xl border border-border/60 bg-gradient-card shadow-[0_24px_90px_-55px_rgba(0,0,0,0.75)] transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:shadow-[0_28px_100px_-50px_rgba(0,0,0,0.85)] md:h-[185px] md:w-[920px]"
+      >
+        <CardContent className="relative grid h-full gap-4 p-4 md:grid-cols-[272px_minmax(0,1fr)] md:items-start md:gap-4 md:p-4">
+          {showRawBadge ? (
+            <Badge
+              variant="outline"
+              className="absolute right-4 top-4 inline-flex items-center gap-1 rounded-full border-primary/25 bg-background/70 text-[10px] uppercase tracking-wide"
+            >
+              <HardDrive className="h-3 w-3" />
+              {episode.sourceType}
+            </Badge>
+          ) : null}
+          <div className="w-full overflow-hidden rounded-xl border border-border/60 bg-background/50 shadow-inner md:h-[153px] md:w-[272px]">
+            <img
+              src={episode.coverImageUrl || project.banner || project.cover || "/placeholder.svg"}
+              alt={`Preview de ${episode.title}`}
+              className="h-full w-full aspect-[16/9] object-cover object-center transition-transform duration-300 group-hover:scale-[1.03]"
+            />
+          </div>
+          <div className="relative h-full min-h-[153px] md:pr-0">
+            <div className="space-y-2.5 pb-12 md:pb-[52px]">
+              <div className="flex min-w-0 items-center gap-2 pr-20">
+                <Badge variant="secondary" className="rounded-full px-2.5 py-0.5 text-[10px] uppercase">
+                  {isManga
+                    ? `Cap ${episode.number}${episode.volume ? ` • Vol. ${episode.volume}` : ""}`
+                    : `EP ${episode.number}`}
+                </Badge>
+                <p className="truncate text-base font-semibold text-foreground md:text-lg">{episode.title}</p>
+              </div>
+              <div className="flex flex-col items-start gap-1.5 text-xs text-muted-foreground">
+                {episode.duration ? (
+                  <span className="inline-flex items-center gap-1">
+                    <Clock3 className="h-3.5 w-3.5 text-primary/70" />
+                    <span className="font-medium text-foreground/90">Duração:</span>
+                    {episode.duration}
+                  </span>
+                ) : null}
+                {episode.releaseDate ? (
+                  <span className="inline-flex items-center gap-1">
+                    <CalendarDays className="h-3.5 w-3.5 text-primary/70" />
+                    <span className="font-medium text-foreground/90">Data:</span>
+                    {formatDate(episode.releaseDate)}
+                  </span>
+                ) : null}
+                {sizeLabel ? (
+                  <span className="inline-flex items-center gap-1">
+                    <HardDrive className="h-3.5 w-3.5 text-primary/70" />
+                    <span className="font-medium text-foreground/90">Tamanho:</span>
+                    {sizeLabel}
+                  </span>
+                ) : null}
+                {hashTitle ? (
+                  <span className="inline-flex min-w-0 max-w-full items-center gap-1">
+                    <Hash className="h-3.5 w-3.5 shrink-0 text-primary/70" />
+                    <span className="shrink-0 font-medium text-foreground/90">Hash:</span>
+                    <span className="max-w-[260px] truncate" title={hashTitle}>
+                      {hashLabel}
+                    </span>
+                  </span>
+                ) : null}
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center justify-end gap-2 md:absolute md:bottom-[-0.5rem] md:left-0 md:right-0">
+              {episode.sources.map((source, sourceIndex) => {
+                const theme = sourceThemeMap.get(source.label.toLowerCase());
+                const color = theme?.color || "#4b5563";
+                const icon = renderSourceIcon(
+                  theme?.icon,
+                  color,
+                  source.label,
+                  theme?.tintIcon ?? true,
+                );
+                return (
+                  <Button
+                    key={`${key}-${source.label}-${sourceIndex}`}
+                    asChild
+                    variant="outline"
+                    size="sm"
+                    className="h-9 rounded-full bg-black/25 px-4 text-sm hover:bg-white/5"
+                    style={{ borderColor: `${color}99`, color }}
+                  >
+                    <a
+                      href={source.url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center gap-2"
+                    >
+                      {icon}
+                      {source.label}
+                    </a>
+                  </Button>
+                );
+              })}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  };
 
   const volumeGroups = useMemo(() => {
     const groups = new Map<string, { label: string; volume?: number; items: EpisodeItem[] }>();
@@ -469,38 +510,41 @@ const ProjectPage = () => {
           <div className="absolute inset-0 bg-black/20 backdrop-blur-[2px]" />
           <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent" />
 
-          <div className="relative mx-auto flex min-h-[420px] w-full max-w-6xl flex-col items-start gap-8 px-6 pb-16 pt-24 md:flex-row md:items-center md:px-10 lg:min-h-[520px]">
-            <div className="w-52 flex-shrink-0 overflow-hidden rounded-2xl bg-secondary shadow-2xl md:w-64">
+          <div className="relative mx-auto flex min-h-[420px] w-full max-w-6xl flex-col items-start gap-8 px-6 pb-16 pt-24 md:flex-row md:items-center md:px-10 lg:min-h-[520px] reveal" data-reveal>
+            <div className="w-52 flex-shrink-0 overflow-hidden rounded-2xl bg-secondary shadow-2xl animate-slide-up opacity-0 md:w-64">
               <img
                 src={project.cover}
                 alt={project.title}
-                className="h-full w-full object-cover aspect-[23/32]"
+                className="h-auto w-full object-contain"
               />
             </div>
             <div className="flex flex-1 flex-col gap-4">
-              <div className="flex flex-wrap items-center gap-3 text-xs uppercase tracking-[0.2em] text-primary/80">
+              <div className="flex flex-wrap items-center gap-3 text-xs uppercase tracking-[0.2em] text-primary/80 animate-fade-in">
                 <span>{project.type}</span>
                 <span className="text-muted-foreground">•</span>
                 <span>{project.status}</span>
               </div>
-              <h1 className="text-3xl font-semibold text-foreground md:text-4xl lg:text-5xl">
+              <h1 className="text-3xl font-semibold text-foreground md:text-4xl lg:text-5xl animate-slide-up">
                 {project.title}
               </h1>
-              <p className="max-w-2xl text-sm text-muted-foreground md:text-base">
+              <p
+                className="max-w-2xl text-sm text-muted-foreground md:text-base animate-slide-up opacity-0"
+                style={{ animationDelay: "0.2s" }}
+              >
                 {project.synopsis}
               </p>
               {project.tags?.length ? (
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap gap-2 animate-slide-up opacity-0" style={{ animationDelay: "0.3s" }}>
                   {sortedTags.map((tag) => (
                     <Link key={tag} to={`/projetos?tag=${encodeURIComponent(tag)}`} className="inline-flex">
                       <Badge variant="secondary" className="text-[10px] uppercase">
-                        {tagTranslations[tag] || tag}
+                        {translateTag(tag, tagTranslationMap)}
                       </Badge>
                     </Link>
                   ))}
                 </div>
               ) : null}
-              <div className="flex flex-wrap gap-3">
+              <div className="flex flex-wrap gap-3 animate-slide-up opacity-0" style={{ animationDelay: "0.4s" }}>
                 <Button asChild className="gap-2">
                   <a href="#downloads">
                     <Download className="h-4 w-4" />
@@ -520,10 +564,10 @@ const ProjectPage = () => {
           </div>
         </section>
 
-        <section className="mx-auto w-full max-w-6xl px-6 pb-12 pt-12 md:px-10">
+        <section className="mx-auto w-full max-w-6xl px-6 pb-12 pt-12 md:px-10 reveal" data-reveal>
           <div className="grid gap-8 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
             <div className="space-y-8">
-              <Card className="border-border/60 bg-card/80 shadow-lg">
+              <Card className="border-border/60 bg-card/80 shadow-lg transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:bg-card/90 hover:shadow-lg">
                 <CardContent className="space-y-4 p-6">
                     <div className="flex items-center gap-3 text-sm font-semibold uppercase tracking-widest text-muted-foreground">
                       {isChapterBased ? (
@@ -538,7 +582,7 @@ const ProjectPage = () => {
                       {sortedGenres.map((genre) => (
                         <Link key={genre} to={`/projetos?genero=${encodeURIComponent(genre)}`} className="inline-flex">
                           <Badge variant="outline" className="text-[10px] uppercase">
-                            {genreTranslations[genre] || genre}
+                            {translateGenre(genre, genreTranslationMap)}
                           </Badge>
                         </Link>
                       ))}
@@ -560,7 +604,7 @@ const ProjectPage = () => {
               </Card>
 
               {visibleRelations.length > 0 ? (
-                <Card className="border-border/60 bg-card/80 shadow-lg">
+                <Card className="border-border/60 bg-card/80 shadow-lg transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:bg-card/90 hover:shadow-lg">
                   <CardContent className="space-y-5 p-6">
                     <div className="flex items-center gap-3 text-sm font-semibold uppercase tracking-widest text-muted-foreground">
                       <Users className="h-4 w-4 text-primary" />
@@ -575,7 +619,7 @@ const ProjectPage = () => {
                           <Link
                             key={`${relation.relation}-${relation.title}`}
                             to={targetId ? `/projeto/${targetId}` : "#"}
-                            className="group flex gap-4 rounded-xl border border-border/50 bg-background/60 p-4 transition hover:border-primary/40 hover:bg-background/80"
+                            className="group flex gap-4 rounded-xl border border-border/50 bg-background/60 p-4 transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:bg-background/80 hover:shadow-lg"
                           >
                             <div className="w-16 flex-shrink-0 overflow-hidden rounded-lg bg-secondary aspect-[2/3]">
                               <img
@@ -586,7 +630,7 @@ const ProjectPage = () => {
                             </div>
                             <div className="min-w-0 space-y-2">
                               <p className="text-xs font-semibold uppercase tracking-widest text-primary/80">
-                                {relation.relation}
+                                {translateRelation(relation.relation)}
                               </p>
                               <p className="text-sm font-semibold text-foreground transition group-hover:text-primary">
                                 {relation.title}
@@ -606,7 +650,7 @@ const ProjectPage = () => {
 
             <div className="space-y-6">
               {project.staff?.length ? (
-                <Card className="border-border/60 bg-card/70 shadow-md">
+                <Card className="border-border/60 bg-card/70 shadow-md transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:bg-card/90 hover:shadow-lg">
                   <CardContent className="space-y-5 p-6">
                     <div className="flex items-center gap-3 text-sm font-semibold uppercase tracking-widest text-muted-foreground">
                       <Users className="h-4 w-4 text-primary" />
@@ -630,7 +674,7 @@ const ProjectPage = () => {
               ) : null}
 
               {project.animeStaff?.length ? (
-                <Card className="border-border/60 bg-card/70 shadow-md">
+                <Card className="border-border/60 bg-card/70 shadow-md transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:bg-card/90 hover:shadow-lg">
                   <CardContent className="space-y-5 p-6">
                     <div className="flex items-center gap-3 text-sm font-semibold uppercase tracking-widest text-muted-foreground">
                       <Users className="h-4 w-4 text-primary" />
@@ -643,7 +687,7 @@ const ProjectPage = () => {
                           className="rounded-xl border border-border/50 bg-background/60 px-4 py-3"
                         >
                           <p className="block text-xs font-semibold uppercase tracking-widest text-primary/80">
-                            {translateAnilistRole(staff.role)}
+                            {translateAnilistRole(staff.role, staffRoleTranslationMap)}
                           </p>
                           <p className="mt-1 text-sm text-foreground">{staff.members.join(", ")}</p>
                         </div>
@@ -658,7 +702,8 @@ const ProjectPage = () => {
 
         <section
           id="downloads"
-          className="mx-auto w-full max-w-6xl px-6 pb-20 pt-4 md:px-10"
+          className="mx-auto w-full max-w-6xl px-6 pb-20 pt-4 md:px-10 reveal"
+          data-reveal
         >
           <div className="flex flex-col gap-6">
               <div className="flex flex-wrap items-center justify-between gap-3">
@@ -687,7 +732,7 @@ const ProjectPage = () => {
               ) : (
                 <div className="grid gap-6">
                   {volumeGroups.map((group) => (
-                    <Card key={group.label} className="border-border/60 bg-card/80 shadow-lg">
+                    <Card key={group.label} className="border-border/60 bg-card/80 shadow-lg transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:bg-card/90 hover:shadow-lg">
                       <CardContent className="space-y-4 p-6">
                         <Accordion type="multiple" defaultValue={[group.label]}>
                           <AccordionItem value={group.label} className="border-none">
@@ -709,7 +754,7 @@ const ProjectPage = () => {
                               return (
                                 <Card
                                   key={`${chapter.number}-${chapter.volume || 0}`}
-                                  className="border-border/60 bg-background/60"
+                                  className="border-border/60 bg-background/60 transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:bg-background/80 hover:shadow-lg"
                                 >
                                   <CardContent className="space-y-3 p-4">
                                     <div className="flex flex-wrap items-start justify-between gap-4">
@@ -760,10 +805,10 @@ const ProjectPage = () => {
                 downloads aparecerão aqui.
               </div>
             ) : (
-              <div className="grid gap-6">
+              <div className="grid gap-6 justify-items-center">
                 {isManga
                   ? volumeGroups.map((group) => (
-                      <Card key={group.label} className="border-border/60 bg-card/80 shadow-lg">
+                      <Card key={group.label} className="border-border/60 bg-card/80 shadow-lg transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:bg-card/90 hover:shadow-lg">
                         <CardContent className="space-y-4 p-6">
                           <Accordion type="multiple" defaultValue={[group.label]}>
                             <AccordionItem value={group.label} className="border-none">
@@ -776,77 +821,14 @@ const ProjectPage = () => {
                                 </div>
                               </AccordionTrigger>
                               <AccordionContent className="pt-4">
-                                <div className="grid gap-6">
-                                  {group.items.map((episode) => (
-                                <Card
-                                  key={`${episode.number}-${episode.volume || 0}`}
-                                  className="border-border/60 bg-background/60 shadow-lg transition hover:border-primary/40"
-                                >
-                                  <CardContent className="relative grid gap-6 p-6 md:grid-cols-[240px_minmax(0,1fr)]">
-                                    <div className="overflow-hidden rounded-xl border border-border/50 bg-background/50 shadow-sm">
-                                      <img
-                                        src={episode.coverImageUrl || project.banner || project.cover || "/placeholder.svg"}
-                                        alt={`Preview de ${episode.title}`}
-                                        className="aspect-[16/9] w-full object-cover"
-                                      />
-                                    </div>
-                                    <div className="flex h-full flex-col gap-4 md:min-h-[135px]">
-                                      <div className="space-y-3">
-                                        <div className="flex flex-wrap items-center gap-3">
-                                          <Badge variant="secondary" className="text-xs uppercase">
-                                            {`Cap ${episode.number}${
-                                              episode.volume ? ` • Vol. ${episode.volume}` : ""
-                                            }`}
-                                          </Badge>
-                                          <p className="text-lg font-semibold text-foreground">
-                                            {episode.title}
-                                          </p>
-                                        </div>
-                                        <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
-                                          <span>{episode.duration}</span>
-                                          <span>
-                                            <CalendarDays className="mr-1 inline h-3 w-3 text-primary/70" />
-                                            {formatDate(episode.releaseDate)}
-                                          </span>
-                                        </div>
-                                        <p className="text-sm text-muted-foreground">{episode.synopsis}</p>
-                                      </div>
-                                      <div className="mt-auto flex flex-wrap gap-2 md:justify-end md:self-end">
-                                        {episode.sources.map((source, sourceIndex) => {
-                                          const theme = sourceThemeMap.get(source.label.toLowerCase());
-                                          const color = theme?.color || "#7C3AED";
-                                          const icon = renderSourceIcon(
-                                            theme?.icon,
-                                            color,
-                                            source.label,
-                                            theme?.tintIcon ?? true,
-                                          );
-                                          return (
-                                            <Button
-                                              key={`${source.label}-${sourceIndex}`}
-                                              asChild
-                                              variant="outline"
-                                              size="sm"
-                                              className="bg-black/35 hover:bg-white/5"
-                                              style={{ borderColor: `${color}99`, color }}
-                                            >
-                                              <a
-                                                href={source.url}
-                                                target="_blank"
-                                                rel="noreferrer"
-                                                className="inline-flex items-center gap-2"
-                                              >
-                                                {icon}
-                                                {source.label}
-                                              </a>
-                                            </Button>
-                                          );
-                                        })}
-                                      </div>
-                                    </div>
-                                  </CardContent>
-                                </Card>
-                              ))}
+                                <div className="grid gap-6 justify-items-center">
+                                  {group.items.map((episode) =>
+                                    renderEpisodeDownloadCard(
+                                      episode,
+                                      `${episode.number}-${episode.volume || 0}`,
+                                      false,
+                                    ),
+                                  )}
                                 </div>
                               </AccordionContent>
                             </AccordionItem>
@@ -854,77 +836,9 @@ const ProjectPage = () => {
                         </CardContent>
                       </Card>
                     ))
-                  : paginatedEpisodes.map((episode) => (
-                      <Card
-                        key={episode.number}
-                        className="border-border/60 bg-card/80 shadow-lg transition hover:border-primary/40"
-                      >
-                        <CardContent className="relative grid gap-6 p-6 md:grid-cols-[240px_minmax(0,1fr)]">
-                          {!isManga ? (
-                            <Badge className="absolute right-6 top-6 text-[10px] uppercase">
-                              RAW {episode.sourceType}
-                            </Badge>
-                          ) : null}
-                          <div className="overflow-hidden rounded-xl border border-border/50 bg-background/50 shadow-sm">
-                            <img
-                              src={episode.coverImageUrl || project.banner || project.cover || "/placeholder.svg"}
-                              alt={`Preview de ${episode.title}`}
-                              className="aspect-[16/9] w-full object-cover"
-                            />
-                          </div>
-                          <div className="flex h-full flex-col gap-4 md:min-h-[135px]">
-                            <div className="space-y-3">
-                              <div className="flex flex-wrap items-center gap-3">
-                                <Badge variant="secondary" className="text-xs uppercase">
-                                  {`EP ${episode.number}`}
-                                </Badge>
-                                <p className="text-lg font-semibold text-foreground">{episode.title}</p>
-                              </div>
-                              <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
-                                <span>{episode.duration}</span>
-                                <span>
-                                  <CalendarDays className="mr-1 inline h-3 w-3 text-primary/70" />
-                                  {formatDate(episode.releaseDate)}
-                                </span>
-                              </div>
-                              <p className="text-sm text-muted-foreground">{episode.synopsis}</p>
-                            </div>
-                            <div className="mt-auto flex flex-wrap gap-2 md:justify-end md:self-end">
-                              {episode.sources.map((source, sourceIndex) => {
-                                const theme = sourceThemeMap.get(source.label.toLowerCase());
-                                const color = theme?.color || "#7C3AED";
-                                const icon = renderSourceIcon(
-                                  theme?.icon,
-                                  color,
-                                  source.label,
-                                  theme?.tintIcon ?? true,
-                                );
-                                return (
-                                  <Button
-                                    key={`${source.label}-${sourceIndex}`}
-                                    asChild
-                                    variant="outline"
-                                    size="sm"
-                                    className="bg-black/35 hover:bg-white/5"
-                                    style={{ borderColor: `${color}99`, color }}
-                                  >
-                                    <a
-                                      href={source.url}
-                                      target="_blank"
-                                      rel="noreferrer"
-                                      className="inline-flex items-center gap-2"
-                                    >
-                                      {icon}
-                                      {source.label}
-                                    </a>
-                                  </Button>
-                                );
-                              })}
-                            </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))}
+                  : paginatedEpisodes.map((episode) =>
+                      renderEpisodeDownloadCard(episode, String(episode.number), true),
+                    )}
               </div>
             )}
 
@@ -954,9 +868,9 @@ const ProjectPage = () => {
           </div>
         </section>
 
-        <section className="mx-auto w-full max-w-6xl px-6 pb-24 pt-4 md:px-10">
+        <section className="mx-auto w-full max-w-6xl px-6 pb-24 pt-4 md:px-10 reveal" data-reveal>
           <div className="grid gap-6">
-            <Card className="border-border bg-card">
+            <Card className="border-border bg-card transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:bg-card/90 hover:shadow-lg">
               <CardHeader>
                 <CardTitle className="text-lg">Compartilhar</CardTitle>
               </CardHeader>
@@ -980,6 +894,8 @@ const ProjectPage = () => {
 };
 
 export default ProjectPage;
+
+
 
 
 

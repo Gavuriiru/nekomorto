@@ -1,11 +1,20 @@
 ﻿import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import DashboardShell from "@/components/DashboardShell";
+import DashboardPageContainer from "@/components/dashboard/DashboardPageContainer";
+import DashboardPageHeader from "@/components/dashboard/DashboardPageHeader";
+import { dashboardPageLayoutTokens } from "@/components/dashboard/dashboard-page-tokens";
 import ImageLibraryDialog from "@/components/ImageLibraryDialog";
 import ThemedSvgLogo from "@/components/ThemedSvgLogo";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 import {
   Dialog,
   DialogContent,
@@ -24,6 +33,14 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
+import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination";
 import { toast } from "@/components/ui/use-toast";
 import {
   Eye,
@@ -46,7 +63,16 @@ import {
 import { createSlug } from "@/lib/post-content";
 import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
+import {
+  buildTranslationMap,
+  sortByTranslatedLabel,
+  translateAnilistRole,
+  translateGenre,
+  translateRelation,
+  translateTag,
+} from "@/lib/project-taxonomy";
 import { isChapterBasedType, isLightNovelType, isMangaType } from "@/lib/project-utils";
+import { formatBytesCompact, parseHumanSizeToBytes } from "@/lib/file-size";
 import { usePageMeta } from "@/hooks/use-page-meta";
 import LexicalEditor, { type LexicalEditorHandle } from "@/components/lexical/LexicalEditor";
 import { useSiteSettings } from "@/hooks/use-site-settings";
@@ -75,12 +101,13 @@ type ProjectEpisode = {
   number: number;
   volume?: number;
   title: string;
-  synopsis: string;
   releaseDate: string;
   duration: string;
   coverImageUrl?: string;
   sourceType: "TV" | "Web" | "Blu-ray";
   sources: DownloadSource[];
+  hash?: string;
+  sizeBytes?: number;
   progressStage?: string;
   completedStages?: string[];
   content?: string;
@@ -308,29 +335,6 @@ const formatType = (format?: string | null) => {
   }
 };
 
-const relationLabel = (relation?: string | null) => {
-  switch (relation) {
-    case "ADAPTATION":
-      return "Adaptação";
-    case "PREQUEL":
-      return "Prequela";
-    case "SEQUEL":
-      return "Sequência";
-    case "PARENT":
-      return "Principal";
-    case "SIDE_STORY":
-      return "Side story";
-    case "SPIN_OFF":
-      return "Spin-off";
-    case "SOURCE":
-      return "Fonte";
-    case "COMPILATION":
-      return "Compilação";
-    default:
-      return relation || "Relacionamento";
-  }
-};
-
 const stripHtml = (value?: string | null) => {
   if (!value) {
     return "";
@@ -342,12 +346,300 @@ const stripHtml = (value?: string | null) => {
     .trim();
 };
 
+const digitsOnly = (value: string) => value.replace(/\D/g, "");
+
+const formatDateDigitsToDisplay = (digits: string) => {
+  const safe = digitsOnly(digits).slice(0, 8);
+  if (!safe) {
+    return "";
+  }
+  if (safe.length <= 2) {
+    return safe;
+  }
+  if (safe.length <= 4) {
+    return `${safe.slice(0, 2)}/${safe.slice(2)}`;
+  }
+  return `${safe.slice(0, 2)}/${safe.slice(2, 4)}/${safe.slice(4)}`;
+};
+
+const formatTimeDigitsToDisplay = (digits: string) => {
+  const safe = digitsOnly(digits).slice(0, 9);
+  if (!safe) {
+    return "";
+  }
+  if (safe.length <= 2) {
+    return safe;
+  }
+  if (safe.length <= 4) {
+    return `${safe.slice(0, safe.length - 2)}:${safe.slice(-2)}`;
+  }
+  return `${safe.slice(0, safe.length - 4)}:${safe.slice(-4, -2)}:${safe.slice(-2)}`;
+};
+
+const displayDateToIso = (value?: string | null) => {
+  const trimmed = String(value || "").trim();
+  if (!trimmed) {
+    return "";
+  }
+  const digits = digitsOnly(trimmed).slice(0, 8);
+  if (digits.length !== 8) {
+    return "";
+  }
+  const day = Number(digits.slice(0, 2));
+  const month = Number(digits.slice(2, 4));
+  const year = Number(digits.slice(4, 8));
+  if (!Number.isFinite(day) || !Number.isFinite(month) || !Number.isFinite(year)) {
+    return "";
+  }
+  if (month < 1 || month > 12 || day < 1 || day > 31 || year < 1000) {
+    return "";
+  }
+  const iso = `${String(year).padStart(4, "0")}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+  const parsed = new Date(`${iso}T00:00`);
+  if (
+    Number.isNaN(parsed.getTime()) ||
+    parsed.getFullYear() !== year ||
+    parsed.getMonth() + 1 !== month ||
+    parsed.getDate() !== day
+  ) {
+    return "";
+  }
+  return iso;
+};
+
+const isoToDisplayDate = (value?: string | null) => {
+  const trimmed = String(value || "").trim();
+  if (!trimmed) {
+    return "";
+  }
+  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+    return `${trimmed.slice(8, 10)}/${trimmed.slice(5, 7)}/${trimmed.slice(0, 4)}`;
+  }
+  if (/^\d{2}-\d{2}-\d{4}$/.test(trimmed)) {
+    return trimmed.replace(/-/g, "/");
+  }
+  if (/^\d{2}\/\d{2}\/\d{4}$/.test(trimmed)) {
+    return trimmed;
+  }
+  if (/^\d{4}-\d{2}-\d{2}[T\s]\d{2}:\d{2}/.test(trimmed)) {
+    return `${trimmed.slice(8, 10)}/${trimmed.slice(5, 7)}/${trimmed.slice(0, 4)}`;
+  }
+  const parsed = new Date(trimmed);
+  if (Number.isNaN(parsed.getTime())) {
+    return "";
+  }
+  const dd = String(parsed.getDate()).padStart(2, "0");
+  const mm = String(parsed.getMonth() + 1).padStart(2, "0");
+  const yyyy = String(parsed.getFullYear()).padStart(4, "0");
+  return `${dd}/${mm}/${yyyy}`;
+};
+
+const displayTimeToCanonical = (value?: string | null) => {
+  const trimmed = String(value || "").trim();
+  if (!trimmed) {
+    return "";
+  }
+  const digits = digitsOnly(trimmed).slice(0, 9);
+  if (digits.length < 3) {
+    return "";
+  }
+  let hours = 0;
+  let minutes = 0;
+  let seconds = 0;
+  if (digits.length <= 4) {
+    minutes = Number(digits.slice(0, digits.length - 2));
+    seconds = Number(digits.slice(-2));
+  } else {
+    hours = Number(digits.slice(0, digits.length - 4));
+    minutes = Number(digits.slice(-4, -2));
+    seconds = Number(digits.slice(-2));
+  }
+  if (!Number.isFinite(hours) || !Number.isFinite(minutes) || !Number.isFinite(seconds)) {
+    return "";
+  }
+  if (hours < 0 || minutes < 0 || minutes > 59 || seconds < 0 || seconds > 59) {
+    return "";
+  }
+  return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+};
+
+const canonicalToDisplayTime = (value?: string | null) => {
+  const trimmed = String(value || "").trim();
+  if (!trimmed) {
+    return "";
+  }
+  let canonical = "";
+  if (/^\d{1,}:\d{2}:\d{2}$/.test(trimmed)) {
+    const [hoursPart, minutesPart, secondsPart] = trimmed.split(":");
+    const hours = Number(hoursPart);
+    const minutes = Number(minutesPart);
+    const seconds = Number(secondsPart);
+    if (
+      Number.isFinite(hours) &&
+      Number.isFinite(minutes) &&
+      Number.isFinite(seconds) &&
+      hours >= 0 &&
+      minutes >= 0 &&
+      minutes <= 59 &&
+      seconds >= 0 &&
+      seconds <= 59
+    ) {
+      canonical = `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+    }
+  } else if (/^\d{1,}:\d{2}$/.test(trimmed)) {
+    const [hoursPart, minutesPart] = trimmed.split(":");
+    const hours = Number(hoursPart);
+    const minutes = Number(minutesPart);
+    if (Number.isFinite(hours) && Number.isFinite(minutes) && hours >= 0 && minutes >= 0 && minutes <= 59) {
+      canonical = `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:00`;
+    }
+  } else {
+    canonical = displayTimeToCanonical(trimmed);
+  }
+  if (!canonical) {
+    return "";
+  }
+  const [hoursPart, minutesPart, secondsPart] = canonical.split(":");
+  const hours = Number(hoursPart);
+  if (!Number.isFinite(hours)) {
+    return canonical;
+  }
+  if (hours === 0) {
+    return `${minutesPart}:${secondsPart}`;
+  }
+  return `${hours}:${minutesPart}:${secondsPart}`;
+};
+
+const normalizeIsoDateFromUnknown = (value?: string | null) => {
+  const trimmed = String(value || "").trim();
+  if (!trimmed) {
+    return "";
+  }
+  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+    return trimmed;
+  }
+  if (/^\d{2}-\d{2}-\d{4}$/.test(trimmed)) {
+    return displayDateToIso(trimmed);
+  }
+  if (/^\d{2}\/\d{2}\/\d{4}$/.test(trimmed)) {
+    return displayDateToIso(trimmed);
+  }
+  if (/^\d{4}-\d{2}-\d{2}[T\s]\d{2}:\d{2}/.test(trimmed)) {
+    return trimmed.slice(0, 10);
+  }
+  const parsed = new Date(trimmed);
+  if (Number.isNaN(parsed.getTime())) {
+    return "";
+  }
+  const yyyy = String(parsed.getFullYear()).padStart(4, "0");
+  const mm = String(parsed.getMonth() + 1).padStart(2, "0");
+  const dd = String(parsed.getDate()).padStart(2, "0");
+  return `${yyyy}-${mm}-${dd}`;
+};
+
+const normalizeCanonicalTimeFromUnknown = (value?: string | null) => {
+  const trimmed = String(value || "").trim();
+  if (!trimmed) {
+    return "";
+  }
+  if (/^\d{1,}:\d{2}:\d{2}$/.test(trimmed)) {
+    const [hoursPart, minutesPart, secondsPart] = trimmed.split(":");
+    const hours = Number(hoursPart);
+    const minutes = Number(minutesPart);
+    const seconds = Number(secondsPart);
+    if (
+      Number.isFinite(hours) &&
+      Number.isFinite(minutes) &&
+      Number.isFinite(seconds) &&
+      hours >= 0 &&
+      minutes >= 0 &&
+      minutes <= 59 &&
+      seconds >= 0 &&
+      seconds <= 59
+    ) {
+      return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+    }
+    return "";
+  }
+  if (/^\d{1,}:\d{2}$/.test(trimmed)) {
+    const [hoursPart, minutesPart] = trimmed.split(":");
+    const hours = Number(hoursPart);
+    const minutes = Number(minutesPart);
+    if (Number.isFinite(hours) && Number.isFinite(minutes) && hours >= 0 && minutes >= 0 && minutes <= 59) {
+      return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:00`;
+    }
+    return "";
+  }
+  return displayTimeToCanonical(trimmed);
+};
+
+const formatEpisodeReleaseDate = (dateValue?: string | null, timeValue?: string | null) => {
+  const date = normalizeIsoDateFromUnknown(dateValue);
+  if (!date) {
+    return String(dateValue || "");
+  }
+  const time = normalizeCanonicalTimeFromUnknown(timeValue);
+  const parsed = new Date(`${date}T00:00`);
+  if (Number.isNaN(parsed.getTime())) {
+    return date;
+  }
+  const dateLabel = new Intl.DateTimeFormat("pt-BR", { dateStyle: "short" }).format(parsed);
+  if (!time) {
+    return dateLabel;
+  }
+  const timeLabel = canonicalToDisplayTime(time);
+  if (!timeLabel) {
+    return dateLabel;
+  }
+  return `${dateLabel} · ${timeLabel}`;
+};
+
+const shiftDraftAfterRemoval = (draft: Record<number, string>, removedIndex: number) => {
+  const next: Record<number, string> = {};
+  Object.entries(draft).forEach(([key, value]) => {
+    const index = Number(key);
+    if (!Number.isFinite(index) || index === removedIndex) {
+      return;
+    }
+    next[index > removedIndex ? index - 1 : index] = value;
+  });
+  return next;
+};
+
+const shiftCollapsedEpisodesAfterRemoval = (collapsed: Record<number, boolean>, removedIndex: number) => {
+  const next: Record<number, boolean> = {};
+  Object.entries(collapsed).forEach(([key, value]) => {
+    const index = Number(key);
+    if (!Number.isFinite(index) || index === removedIndex) {
+      return;
+    }
+    next[index > removedIndex ? index - 1 : index] = Boolean(value);
+  });
+  return next;
+};
+
+const getEpisodeAccordionValue = (index: number) => `episode-${index}`;
+
 const generateLocalId = () => {
   const alpha = String.fromCharCode(97 + Math.floor(Math.random() * 26));
   const random = Math.random().toString(36).slice(2, 9);
   const stamp = Date.now().toString(36).slice(-3);
   return `${alpha}${random}${stamp}`;
 };
+
+const parsePageParam = (value: string | null) => {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed < 1) {
+    return 1;
+  }
+  return Math.floor(parsed);
+};
+
+const buildProjectEditorSnapshot = (form: ProjectForm, anilistIdInput: string) =>
+  JSON.stringify({
+    form,
+    anilistIdInput: anilistIdInput.trim(),
+  });
 
 type EpisodeContentEditorProps = {
   value: string;
@@ -375,6 +667,7 @@ const EpisodeContentEditor = ({
       value={value}
       onChange={onChange}
       placeholder="Escreva o capítulo..."
+      className="lexical-playground--modal"
     />
   );
 };
@@ -395,7 +688,7 @@ const DashboardProjectsEditor = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchParams, setSearchParams] = useSearchParams();
-  const [sortMode, setSortMode] = useState<"order" | "alpha" | "status" | "views" | "comments" | "recent">(() => {
+  const [sortMode, setSortMode] = useState<"alpha" | "status" | "views" | "comments" | "recent">(() => {
     const sortParam = searchParams.get("sort");
     if (
       sortParam === "alpha" ||
@@ -406,9 +699,11 @@ const DashboardProjectsEditor = () => {
     ) {
       return sortParam;
     }
-    return "order";
+    return "alpha";
   });
+  const [currentPage, setCurrentPage] = useState(() => parsePageParam(searchParams.get("page")));
   const [isEditorOpen, setIsEditorOpen] = useState(false);
+  const [isEditorDialogScrolled, setIsEditorDialogScrolled] = useState(false);
 
   const downloadSourceOptions = useMemo(() => {
     const sources =
@@ -490,13 +785,22 @@ const DashboardProjectsEditor = () => {
   const [tagInput, setTagInput] = useState("");
   const [genreInput, setGenreInput] = useState("");
   const [producerInput, setProducerInput] = useState("");
+  const [tagTranslations, setTagTranslations] = useState<Record<string, string>>({});
+  const [genreTranslations, setGenreTranslations] = useState<Record<string, string>>({});
+  const [staffRoleTranslations, setStaffRoleTranslations] = useState<Record<string, string>>({});
   const [episodeDragId, setEpisodeDragId] = useState<number | null>(null);
   const [relationDragIndex, setRelationDragIndex] = useState<number | null>(null);
   const [staffDragIndex, setStaffDragIndex] = useState<number | null>(null);
-  const [tagDragIndex, setTagDragIndex] = useState<number | null>(null);
+  const [animeStaffDragIndex, setAnimeStaffDragIndex] = useState<number | null>(null);
   const [staffMemberInput, setStaffMemberInput] = useState<Record<number, string>>({});
+  const [animeStaffMemberInput, setAnimeStaffMemberInput] = useState<Record<number, string>>({});
+  const [episodeDateDraft, setEpisodeDateDraft] = useState<Record<number, string>>({});
+  const [episodeTimeDraft, setEpisodeTimeDraft] = useState<Record<number, string>>({});
+  const [episodeSizeDrafts, setEpisodeSizeDrafts] = useState<Record<number, string>>({});
+  const [episodeSizeErrors, setEpisodeSizeErrors] = useState<Record<number, string>>({});
   const [memberDirectory, setMemberDirectory] = useState<string[]>([]);
   const [collapsedEpisodes, setCollapsedEpisodes] = useState<Record<number, boolean>>({});
+  const [editorAccordionValue, setEditorAccordionValue] = useState<string[]>(["dados-principais"]);
   const [isLibraryOpen, setIsLibraryOpen] = useState(false);
   const [libraryTarget, setLibraryTarget] = useState<
     "cover" | "banner" | "hero" | "episode-cover"
@@ -504,12 +808,77 @@ const DashboardProjectsEditor = () => {
   const [episodeCoverIndex, setEpisodeCoverIndex] = useState<number | null>(null);
   const [libraryFolder, setLibraryFolder] = useState<string>("");
   const chapterEditorsRef = useRef<Record<number, LexicalEditorHandle | null>>({});
+  const episodeSizeInputRefs = useRef<Record<number, HTMLInputElement | null>>({});
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [confirmTitle, setConfirmTitle] = useState("Sair da edição?");
+  const [confirmDescription, setConfirmDescription] = useState(
+    "Você tem alterações não salvas. Deseja continuar?",
+  );
+  const confirmActionRef = useRef<(() => void) | null>(null);
+  const confirmCancelRef = useRef<(() => void) | null>(null);
+  const editorInitialSnapshotRef = useRef<string>(buildProjectEditorSnapshot(emptyProject, ""));
+  const isDirty = useMemo(
+    () => buildProjectEditorSnapshot(formState, anilistIdInput) !== editorInitialSnapshotRef.current,
+    [anilistIdInput, formState],
+  );
+
   const handleEditorOpenChange = (next: boolean) => {
     if (!next && isLibraryOpen) {
       return;
     }
-    setIsEditorOpen(next);
+    if (!next) {
+      if (!isDirty) {
+        setIsEditorOpen(false);
+        setEditingProject(null);
+        return;
+      }
+      setConfirmTitle("Sair da edição?");
+      setConfirmDescription("Você tem alterações não salvas. Deseja continuar?");
+      confirmActionRef.current = () => {
+        setIsEditorOpen(false);
+        setEditingProject(null);
+      };
+      confirmCancelRef.current = () => {
+        setConfirmOpen(false);
+      };
+      setConfirmOpen(true);
+      return;
+    }
+    setIsEditorOpen(true);
   };
+
+  useEffect(() => {
+    if (!isEditorOpen) {
+      setIsEditorDialogScrolled(false);
+    }
+  }, [isEditorOpen]);
+
+  useEffect(() => {
+    const maxEpisodeIndex = formState.episodeDownloads.length - 1;
+
+    const pruneMap = (current: Record<number, string>) => {
+      let changed = false;
+      const next: Record<number, string> = {};
+      Object.entries(current).forEach(([key, value]) => {
+        const index = Number(key);
+        if (!Number.isFinite(index) || index < 0 || index > maxEpisodeIndex) {
+          changed = true;
+          return;
+        }
+        next[index] = value;
+      });
+      return changed ? next : current;
+    };
+
+    setEpisodeSizeDrafts((prev) => pruneMap(prev));
+    setEpisodeSizeErrors((prev) => pruneMap(prev));
+    Object.keys(episodeSizeInputRefs.current).forEach((key) => {
+      const index = Number(key);
+      if (!Number.isFinite(index) || index < 0 || index > maxEpisodeIndex) {
+        delete episodeSizeInputRefs.current[index];
+      }
+    });
+  }, [formState.episodeDownloads]);
 
   const staffRoleOptions = useMemo(() => {
     const labels = publicSettings.teamRoles.map((role) => role.label).filter(Boolean);
@@ -519,6 +888,20 @@ const DashboardProjectsEditor = () => {
     const fallback = formState.staff.map((item) => item.role).filter(Boolean);
     return Array.from(new Set(fallback));
   }, [publicSettings.teamRoles, formState.staff]);
+
+  const tagTranslationMap = useMemo(() => buildTranslationMap(tagTranslations), [tagTranslations]);
+  const genreTranslationMap = useMemo(() => buildTranslationMap(genreTranslations), [genreTranslations]);
+  const staffRoleTranslationMap = useMemo(() => buildTranslationMap(staffRoleTranslations), [staffRoleTranslations]);
+
+  const translatedSortedEditorTags = useMemo(
+    () => sortByTranslatedLabel(formState.tags, (tag) => translateTag(tag, tagTranslationMap)),
+    [formState.tags, tagTranslationMap],
+  );
+
+  const translatedSortedEditorGenres = useMemo(
+    () => sortByTranslatedLabel(formState.genres, (genre) => translateGenre(genre, genreTranslationMap)),
+    [formState.genres, genreTranslationMap],
+  );
 
   const knownTags = useMemo(() => {
     const set = new Set<string>();
@@ -573,8 +956,6 @@ const DashboardProjectsEditor = () => {
 
     loadUser();
   }, [apiBase]);
-  const listDragId = useRef<string | null>(null);
-
   useEffect(() => {
     const sortParam = searchParams.get("sort");
     const nextSort =
@@ -584,21 +965,35 @@ const DashboardProjectsEditor = () => {
       sortParam === "comments" ||
       sortParam === "recent"
         ? sortParam
-        : "order";
+        : "alpha";
     if (nextSort !== sortMode) {
       setSortMode(nextSort);
     }
   }, [searchParams, sortMode]);
 
   useEffect(() => {
+    const currentSortParam = searchParams.get("sort");
+    const currentSortMode = currentSortParam ?? "alpha";
+    if (currentSortMode === sortMode) {
+      return;
+    }
     const nextParams = new URLSearchParams(searchParams);
-    if (sortMode === "order") {
+    if (sortMode === "alpha") {
       nextParams.delete("sort");
     } else {
       nextParams.set("sort", sortMode);
     }
     setSearchParams(nextParams, { replace: true });
   }, [searchParams, setSearchParams, sortMode]);
+
+  useEffect(() => {
+    const nextPage = parsePageParam(searchParams.get("page"));
+    setCurrentPage((prev) => (prev === nextPage ? prev : nextPage));
+  }, [searchParams]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, sortMode]);
 
   const isManga = isMangaType(formState.type || "");
   const isLightNovel = isLightNovelType(formState.type || "");
@@ -619,6 +1014,26 @@ const DashboardProjectsEditor = () => {
         return (a.episode.volume || 0) - (b.episode.volume || 0);
       });
   }, [formState.episodeDownloads, isChapterBased]);
+
+  const episodeOpenValues = useMemo(
+    () =>
+      sortedEpisodeDownloads
+        .filter(({ index }) => !collapsedEpisodes[index])
+        .map(({ index }) => getEpisodeAccordionValue(index)),
+    [collapsedEpisodes, sortedEpisodeDownloads],
+  );
+
+  const handleEpisodeAccordionChange = useCallback(
+    (values: string[]) => {
+      const openValues = new Set(values);
+      const next: Record<number, boolean> = {};
+      sortedEpisodeDownloads.forEach(({ index }) => {
+        next[index] = !openValues.has(getEpisodeAccordionValue(index));
+      });
+      setCollapsedEpisodes(next);
+    },
+    [sortedEpisodeDownloads],
+  );
 
   useEffect(() => {
     if (!isChapterBased) {
@@ -695,9 +1110,10 @@ const DashboardProjectsEditor = () => {
     let isActive = true;
     const load = async () => {
       try {
-        const [projectsResult, usersResult] = await Promise.allSettled([
+        const [projectsResult, usersResult, translationsResult] = await Promise.allSettled([
           loadProjects(),
           apiFetch(apiBase, "/api/users", { auth: true }),
+          apiFetch(apiBase, "/api/public/tag-translations", { cache: "no-store" }),
         ]);
         if (usersResult.status === "fulfilled") {
           const response = usersResult.value;
@@ -717,9 +1133,23 @@ const DashboardProjectsEditor = () => {
         if (projectsResult.status === "rejected") {
           throw projectsResult.reason;
         }
+        if (translationsResult.status === "fulfilled") {
+          const response = translationsResult.value;
+          if (response.ok) {
+            const data = await response.json();
+            if (isActive) {
+              setTagTranslations(data?.tags || {});
+              setGenreTranslations(data?.genres || {});
+              setStaffRoleTranslations(data?.staffRoles || {});
+            }
+          }
+        }
       } catch {
         if (isActive) {
           setProjects([]);
+          setTagTranslations({});
+          setGenreTranslations({});
+          setStaffRoleTranslations({});
         }
       } finally {
         if (isActive) {
@@ -849,49 +1279,45 @@ const DashboardProjectsEditor = () => {
       );
       return next;
     }
-    next.sort((a, b) => a.order - b.order);
+    next.sort((a, b) => a.title.localeCompare(b.title, "pt-BR"));
     return next;
   }, [filteredProjects, sortMode]);
+  const projectsPerPage = 10;
+  const totalPages = Math.max(1, Math.ceil(sortedProjects.length / projectsPerPage));
+  const pageStart = (currentPage - 1) * projectsPerPage;
+  const paginatedProjects = sortedProjects.slice(pageStart, pageStart + projectsPerPage);
 
-  const handleListDragStart = (id: string) => {
-    listDragId.current = id;
-  };
+  useEffect(() => {
+    setCurrentPage((page) => Math.min(page, totalPages));
+  }, [totalPages]);
 
-  const handleListDrop = async (targetId: string) => {
-    if (sortMode !== "order") {
-      listDragId.current = null;
+  useEffect(() => {
+    const currentPageParam = parsePageParam(searchParams.get("page"));
+    if (currentPageParam === currentPage) {
       return;
     }
-    const dragId = listDragId.current;
-    if (!dragId || dragId === targetId) {
-      listDragId.current = null;
-      return;
+    const nextParams = new URLSearchParams(searchParams);
+    if (currentPage <= 1) {
+      nextParams.delete("page");
+    } else {
+      nextParams.set("page", String(currentPage));
     }
-    const ordered = [...projects];
-    const fromIndex = ordered.findIndex((item) => item.id === dragId);
-    const toIndex = ordered.findIndex((item) => item.id === targetId);
-    if (fromIndex === -1 || toIndex === -1) {
-      listDragId.current = null;
-      return;
-    }
-    const [removed] = ordered.splice(fromIndex, 1);
-    ordered.splice(toIndex, 0, removed);
-    const next = ordered.map((project, index) => ({ ...project, order: index }));
-    setProjects(next);
-    listDragId.current = null;
-
-    await apiFetch(apiBase, "/api/projects/reorder", {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      auth: true,
-      body: JSON.stringify({ orderedIds: next.map((project) => project.id) }),
-    });
-  };
+    setSearchParams(nextParams, { replace: true });
+  }, [currentPage, searchParams, setSearchParams]);
 
   const openCreate = () => {
+    const nextForm = { ...emptyProject };
     setEditingProject(null);
-    setFormState({ ...emptyProject });
+    setFormState(nextForm);
     setAnilistIdInput("");
+    setEditorAccordionValue(["importacao"]);
+    setEpisodeDateDraft({});
+    setEpisodeTimeDraft({});
+    setEpisodeSizeDrafts({});
+    setEpisodeSizeErrors({});
+    episodeSizeInputRefs.current = {};
+    setAnimeStaffMemberInput({});
+    editorInitialSnapshotRef.current = buildProjectEditorSnapshot(nextForm, "");
     setCollapsedEpisodes({});
     setIsEditorOpen(true);
   };
@@ -905,8 +1331,7 @@ const DashboardProjectsEditor = () => {
         }))
       : [];
     const mergedSynopsis = project.synopsis || project.description || "";
-    setEditingProject(project);
-    setFormState({
+    const nextForm = {
       id: project.id,
       anilistId: project.anilistId ?? null,
       title: project.title || "",
@@ -939,8 +1364,19 @@ const DashboardProjectsEditor = () => {
       forceHero: Boolean(project.forceHero),
       heroImageUrl: project.heroImageUrl || "",
       episodeDownloads: initialEpisodes,
-    });
-    setAnilistIdInput(project.anilistId ? String(project.anilistId) : "");
+    };
+    const nextAniListInput = project.anilistId ? String(project.anilistId) : "";
+    setEditingProject(project);
+    setFormState(nextForm);
+    setAnilistIdInput(nextAniListInput);
+    setEditorAccordionValue(["dados-principais"]);
+    setEpisodeDateDraft({});
+    setEpisodeTimeDraft({});
+    setEpisodeSizeDrafts({});
+    setEpisodeSizeErrors({});
+    episodeSizeInputRefs.current = {};
+    setAnimeStaffMemberInput({});
+    editorInitialSnapshotRef.current = buildProjectEditorSnapshot(nextForm, nextAniListInput);
     setCollapsedEpisodes(() => {
       const next: Record<number, boolean> = {};
       initialEpisodes.forEach((_, index) => {
@@ -956,12 +1392,91 @@ const DashboardProjectsEditor = () => {
     setEditingProject(null);
   };
 
+  const requestCloseEditor = () => {
+    if (!isDirty) {
+      closeEditor();
+      return;
+    }
+    setConfirmTitle("Sair da edição?");
+    setConfirmDescription("Você tem alterações não salvas. Deseja continuar?");
+    confirmActionRef.current = () => {
+      closeEditor();
+    };
+    confirmCancelRef.current = () => {
+      setConfirmOpen(false);
+    };
+    setConfirmOpen(true);
+  };
+
   const handleSave = async () => {
     const trimmedTitle = formState.title.trim();
     const baseId = formState.id.trim();
     if (!trimmedTitle) {
       return;
     }
+
+    const normalizedEpisodesForSave = formState.episodeDownloads.map((episode) => ({
+      ...episode,
+      sources: Array.isArray(episode.sources) ? episode.sources.map((source) => ({ ...source })) : [],
+    }));
+    const nextEpisodeSizeDrafts = { ...episodeSizeDrafts };
+    const nextEpisodeSizeErrors = { ...episodeSizeErrors };
+    let firstInvalidEpisodeSizeIndex: number | null = null;
+
+    Object.entries(episodeSizeDrafts).forEach(([key, draftValue]) => {
+      const episodeIndex = Number(key);
+      if (!Number.isFinite(episodeIndex)) {
+        delete nextEpisodeSizeDrafts[episodeIndex];
+        delete nextEpisodeSizeErrors[episodeIndex];
+        return;
+      }
+      const episode = normalizedEpisodesForSave[episodeIndex];
+      if (!episode) {
+        delete nextEpisodeSizeDrafts[episodeIndex];
+        delete nextEpisodeSizeErrors[episodeIndex];
+        return;
+      }
+      const trimmedSize = String(draftValue || "").trim();
+      if (!trimmedSize) {
+        episode.sizeBytes = undefined;
+        delete nextEpisodeSizeDrafts[episodeIndex];
+        delete nextEpisodeSizeErrors[episodeIndex];
+        return;
+      }
+      const parsedSize = parseHumanSizeToBytes(trimmedSize);
+      if (!parsedSize) {
+        nextEpisodeSizeErrors[episodeIndex] = "Use formatos como 700 MB ou 1.4 GB.";
+        if (firstInvalidEpisodeSizeIndex === null) {
+          firstInvalidEpisodeSizeIndex = episodeIndex;
+        }
+        return;
+      }
+      episode.sizeBytes = parsedSize;
+      delete nextEpisodeSizeDrafts[episodeIndex];
+      delete nextEpisodeSizeErrors[episodeIndex];
+    });
+
+    const sizeErrorIndexes = Object.keys(nextEpisodeSizeErrors)
+      .map((key) => Number(key))
+      .filter(
+        (index) =>
+          Number.isFinite(index) && String(nextEpisodeSizeErrors[index] || "").trim().length > 0,
+      );
+    if (sizeErrorIndexes.length > 0) {
+      const focusIndex =
+        firstInvalidEpisodeSizeIndex !== null ? firstInvalidEpisodeSizeIndex : sizeErrorIndexes[0];
+      setEpisodeSizeDrafts(nextEpisodeSizeDrafts);
+      setEpisodeSizeErrors(nextEpisodeSizeErrors);
+      toast({
+        title: "Corrija os tamanhos inválidos",
+        description: "Use valores como 700 MB ou 1.4 GB antes de salvar.",
+      });
+      episodeSizeInputRefs.current[focusIndex]?.focus();
+      return;
+    }
+
+    setEpisodeSizeDrafts(nextEpisodeSizeDrafts);
+    setEpisodeSizeErrors({});
 
     const nowIso = new Date().toISOString();
     const prevEpisodesMap = new Map<string, ProjectEpisode>();
@@ -1032,18 +1547,16 @@ const DashboardProjectsEditor = () => {
         }),
       staff: staffWithPending.filter((item) => item.role || item.members.length > 0),
       animeStaff: formState.animeStaff.filter((item) => item.role || item.members.length > 0),
-      episodeDownloads: formState.episodeDownloads.map((episode) => {
+      episodeDownloads: normalizedEpisodesForSave.map((episode) => {
         const key = `${episode.number}-${episode.volume || 0}`;
         const prev = prevEpisodesMap.get(key);
         const signature = [
           String(episode.title || ""),
-          String(episode.synopsis || ""),
           String(episode.releaseDate || ""),
           String(episode.content || "").trim(),
         ].join("||");
         const prevSignature = [
           String(prev?.title || ""),
-          String(prev?.synopsis || ""),
           String(prev?.releaseDate || ""),
           String(prev?.content || "").trim(),
         ].join("||");
@@ -1051,9 +1564,24 @@ const DashboardProjectsEditor = () => {
           isLightNovel &&
           String(episode.content || "").trim().length > 0 &&
           (!prev || signature !== prevSignature);
+        const hash = String(episode.hash || "").trim();
+        const parsedSize = Number(episode.sizeBytes);
+        const sizeBytes =
+          Number.isFinite(parsedSize) && parsedSize > 0 ? Math.round(parsedSize) : undefined;
         return {
           ...episode,
-          sources: episode.sources.filter((source) => source.url || source.label),
+          hash: hash || undefined,
+          sizeBytes,
+          sources: (episode.sources || [])
+            .map((source) => {
+              const label = String(source.label || "").trim();
+              const url = String(source.url || "").trim();
+              return {
+                label,
+                url,
+              };
+            })
+            .filter((source) => source.url || source.label),
           completedStages: episode.completedStages || [],
           progressStage: getProgressStage(formState.type || "", episode.completedStages),
           chapterUpdatedAt: shouldStamp
@@ -1084,6 +1612,7 @@ const DashboardProjectsEditor = () => {
     } else {
       setProjects((prev) => [...prev, data.project]);
     }
+    editorInitialSnapshotRef.current = buildProjectEditorSnapshot(payload as ProjectForm, anilistIdInput);
     closeEditor();
   };
 
@@ -1158,7 +1687,7 @@ const DashboardProjectsEditor = () => {
         seenRelationIds.add(relationKey);
       }
       acc.push({
-        relation: relationLabel(relationEdges[index]?.relationType || ""),
+        relation: translateRelation(relationEdges[index]?.relationType || ""),
         title: node.title?.romaji || "",
         format: formatType(node.format || ""),
         status: formatStatus(node.status || ""),
@@ -1317,20 +1846,6 @@ const DashboardProjectsEditor = () => {
     setProducerInput("");
   };
 
-  const handleTagDrop = (targetIndex: number) => {
-    if (tagDragIndex === null || tagDragIndex === targetIndex) {
-      setTagDragIndex(null);
-      return;
-    }
-    setFormState((prev) => {
-      const next = [...prev.tags];
-      const [removed] = next.splice(tagDragIndex, 1);
-      next.splice(targetIndex, 0, removed);
-      return { ...prev, tags: next };
-    });
-    setTagDragIndex(null);
-  };
-
   const handleRelationDrop = (targetIndex: number) => {
     if (relationDragIndex === null || relationDragIndex === targetIndex) {
       setRelationDragIndex(null);
@@ -1359,6 +1874,21 @@ const DashboardProjectsEditor = () => {
     setStaffDragIndex(null);
   };
 
+  const handleAnimeStaffDrop = (targetIndex: number) => {
+    if (animeStaffDragIndex === null || animeStaffDragIndex === targetIndex) {
+      setAnimeStaffDragIndex(null);
+      return;
+    }
+    setFormState((prev) => {
+      const next = [...prev.animeStaff];
+      const [removed] = next.splice(animeStaffDragIndex, 1);
+      next.splice(targetIndex, 0, removed);
+      return { ...prev, animeStaff: next };
+    });
+    setAnimeStaffMemberInput({});
+    setAnimeStaffDragIndex(null);
+  };
+
   const handleEpisodeDrop = (targetIndex: number) => {
     if (episodeDragId === null || episodeDragId === targetIndex) {
       setEpisodeDragId(null);
@@ -1383,37 +1913,39 @@ const DashboardProjectsEditor = () => {
     setEpisodeDragId(null);
   };
 
+  const editorSectionClassName =
+    "project-editor-section rounded-2xl border border-border/60 bg-card/70 px-4";
+  const editorSectionTriggerClassName =
+    "project-editor-section-trigger py-3 text-sm font-semibold hover:no-underline";
+  const editorSectionContentClassName = "project-editor-section-content pb-4 px-1";
+  const editorProjectLabel = editingProject ? "Projeto em edição" : "Novo projeto";
+  const editorProjectTitle = formState.title.trim() || "Sem título";
+  const editorProjectId = formState.id.trim() || "Será definido ao salvar";
+  const editorTypeLabel = formState.type || "Formato";
+  const editorStatusLabel = formState.status || "Status";
+  const editorEpisodeCount = formState.episodeDownloads.length;
+
   return (
     <>
       <DashboardShell
         currentUser={currentUser}
         onUserCardClick={() => navigate("/dashboard/usuarios?edit=me")}
       >
-          <main className="pt-24 px-6 pb-20 md:px-10">
-            <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
-              <div>
-                <Badge variant="secondary" className="text-xs uppercase tracking-widest animate-fade-in">
-                  Projetos
-                </Badge>
-                <h1 className="mt-4 text-3xl font-semibold text-foreground animate-slide-up">Gerenciar projetos</h1>
-                <p
-                  className="mt-2 text-sm text-muted-foreground animate-slide-up opacity-0"
-                  style={{ animationDelay: "0.2s" }}
-                >
-                  Crie, edite e organize os projetos visíveis no site.
-                </p>
-              </div>
-              <Button className="gap-2" onClick={openCreate}>
-                <Plus className="h-4 w-4" />
-                Novo projeto
-              </Button>
-            </div>
+          <DashboardPageContainer>
+            <DashboardPageHeader
+              badge="Projetos"
+              title="Gerenciar projetos"
+              description="Crie, edite e organize os projetos visíveis no site."
+              actions={(
+                <Button className="gap-2" onClick={openCreate}>
+                  <Plus className="h-4 w-4" />
+                  Novo projeto
+                </Button>
+              )}
+            />
 
-            <section className="mt-10 space-y-6">
-              <div
-                className="flex flex-wrap items-center justify-between gap-3 animate-slide-up opacity-0"
-                style={{ animationDelay: "120ms" }}
-              >
+            <section className="mt-8 space-y-6">
+              <div className="flex flex-wrap items-center justify-between gap-3 animate-slide-up opacity-0">
                 <div className="flex flex-1 flex-wrap items-center gap-3">
                   <div className="w-full max-w-sm">
                     <Input
@@ -1427,7 +1959,6 @@ const DashboardProjectsEditor = () => {
                       <SelectValue placeholder="Ordenar por" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="order">Ordem manual</SelectItem>
                       <SelectItem value="recent">Mais recentes</SelectItem>
                       <SelectItem value="alpha">Ordem alfabética</SelectItem>
                       <SelectItem value="status">Status</SelectItem>
@@ -1436,34 +1967,28 @@ const DashboardProjectsEditor = () => {
                     </SelectContent>
                   </Select>
                 </div>
-                <Badge variant="secondary" className="text-xs uppercase">
+                <Badge variant="secondary" className="text-xs uppercase animate-slide-up opacity-0">
                   {sortedProjects.length} projetos
                 </Badge>
               </div>
 
               {isLoading ? (
-                <div className="rounded-2xl border border-white/10 bg-white/5 px-6 py-10 text-sm text-muted-foreground">
+                <div className={`${dashboardPageLayoutTokens.surfaceDefault} px-6 py-10 text-sm text-muted-foreground`}>
                   Carregando projetos...
                 </div>
               ) : sortedProjects.length === 0 ? (
-                <div className="rounded-2xl border border-dashed border-white/10 bg-white/5 px-6 py-10 text-sm text-muted-foreground">
+                <div
+                  className={`${dashboardPageLayoutTokens.surfaceMuted} border-dashed px-6 py-10 text-sm text-muted-foreground`}
+                >
                   Nenhum projeto encontrado.
                 </div>
               ) : (
                 <div className="grid gap-6">
-                  {sortedProjects.map((project, index) => (
+                  {paginatedProjects.map((project, index) => (
                     <Card
                       key={project.id}
-                      className="group cursor-pointer overflow-hidden border-border/60 bg-card/80 shadow-lg transition hover:border-primary/40 animate-slide-up opacity-0"
-                      style={{ animationDelay: `${index * 60}ms` }}
-                      draggable={sortMode === "order"}
-                      onDragStart={() => handleListDragStart(project.id)}
-                      onDragOver={(event) => {
-                        if (sortMode === "order") {
-                          event.preventDefault();
-                        }
-                      }}
-                      onDrop={() => handleListDrop(project.id)}
+                      className={`${dashboardPageLayoutTokens.listCard} group cursor-pointer overflow-hidden transition hover:border-primary/40 animate-slide-up opacity-0`}
+                      style={{ animationDelay: `${Math.min(index * 35, 210)}ms` }}
                       onClick={() => openEdit(project)}
                     >
                       <CardContent className="p-0">
@@ -1472,12 +1997,17 @@ const DashboardProjectsEditor = () => {
                             <img
                               src={project.cover || "/placeholder.svg"}
                               alt={project.title}
-                              className="h-full w-full object-cover"
+                              className="h-full w-full object-cover object-center"
                               loading="lazy"
                             />
                             {project.tags[0] ? (
                               <Badge className="absolute right-3 top-3 text-[10px] uppercase bg-background/85 text-foreground">
-                                {project.tags[0]}
+                                {translateTag(
+                                  sortByTranslatedLabel(project.tags || [], (tag) =>
+                                    translateTag(tag, tagTranslationMap),
+                                  )[0] || "",
+                                  tagTranslationMap,
+                                )}
                               </Badge>
                             ) : null}
                           </div>
@@ -1546,9 +2076,26 @@ const DashboardProjectsEditor = () => {
 
                             {project.tags.length > 0 ? (
                               <div className="flex flex-wrap gap-2">
-                                {project.tags.slice(0, 4).map((tag) => (
-                                  <Badge key={tag} variant="outline" className="text-[10px] uppercase">
-                                    {tag}
+                                {sortByTranslatedLabel(project.tags || [], (tag) =>
+                                  translateTag(tag, tagTranslationMap),
+                                )
+                                  .slice(0, 4)
+                                  .map((tag) => (
+                                  <Badge key={tag} variant="secondary" className="text-[10px] uppercase">
+                                    {translateTag(tag, tagTranslationMap)}
+                                  </Badge>
+                                ))}
+                              </div>
+                            ) : null}
+                            {project.genres?.length ? (
+                              <div className="flex flex-wrap gap-2">
+                                {sortByTranslatedLabel(project.genres || [], (genre) =>
+                                  translateGenre(genre, genreTranslationMap),
+                                )
+                                  .slice(0, 4)
+                                  .map((genre) => (
+                                  <Badge key={genre} variant="outline" className="text-[10px] uppercase">
+                                    {translateGenre(genre, genreTranslationMap)}
                                   </Badge>
                                 ))}
                               </div>
@@ -1568,6 +2115,46 @@ const DashboardProjectsEditor = () => {
                   ))}
                 </div>
               )}
+              {sortedProjects.length > projectsPerPage ? (
+                <div className="mt-6 flex justify-center">
+                  <Pagination>
+                    <PaginationContent>
+                      <PaginationItem>
+                        <PaginationPrevious
+                          href="#"
+                          onClick={(event) => {
+                            event.preventDefault();
+                            setCurrentPage((page) => Math.max(1, page - 1));
+                          }}
+                        />
+                      </PaginationItem>
+                      {Array.from({ length: totalPages }, (_, index) => index + 1).map((page) => (
+                        <PaginationItem key={page}>
+                          <PaginationLink
+                            href="#"
+                            isActive={page === currentPage}
+                            onClick={(event) => {
+                              event.preventDefault();
+                              setCurrentPage(page);
+                            }}
+                          >
+                            {page}
+                          </PaginationLink>
+                        </PaginationItem>
+                      ))}
+                      <PaginationItem>
+                        <PaginationNext
+                          href="#"
+                          onClick={(event) => {
+                            event.preventDefault();
+                            setCurrentPage((page) => Math.min(totalPages, page + 1));
+                          }}
+                        />
+                      </PaginationItem>
+                    </PaginationContent>
+                  </Pagination>
+                </div>
+              ) : null}
               {trashedProjects.length > 0 ? (
                 <Card className="mt-8 border-border/60 bg-card/60">
                   <CardContent className="space-y-4 p-6">
@@ -1586,8 +2173,8 @@ const DashboardProjectsEditor = () => {
                       {trashedProjects.map((project, index) => (
                         <div
                           key={`trash-${project.id}`}
-                          className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 animate-slide-up opacity-0"
-                          style={{ animationDelay: `${index * 60}ms` }}
+                          className={`${dashboardPageLayoutTokens.surfaceDefault} flex flex-wrap items-center justify-between gap-3 px-4 py-3 animate-slide-up opacity-0`}
+                          style={{ animationDelay: `${Math.min(index * 35, 210)}ms` }}
                         >
                           <div className="min-w-0">
                             <p className="text-sm font-medium text-foreground">{project.title}</p>
@@ -1612,7 +2199,7 @@ const DashboardProjectsEditor = () => {
                 </Card>
               ) : null}
             </section>
-          </main>
+          </DashboardPageContainer>
       </DashboardShell>
 
       {isEditorOpen ? (
@@ -1624,8 +2211,14 @@ const DashboardProjectsEditor = () => {
 
       <Dialog open={isEditorOpen} onOpenChange={handleEditorOpenChange} modal={false}>
         <DialogContent
-          className="max-w-5xl max-h-[92vh] overflow-y-auto"
+          className={`project-editor-dialog max-h-[94vh] max-w-[min(1120px,calc(100vw-1.5rem))] overflow-y-auto no-scrollbar p-0 ${
+            isEditorDialogScrolled ? "editor-modal-scrolled" : ""
+          }`}
           disableOutsidePointerEvents={false}
+          onScroll={(event) => {
+            const nextScrolled = event.currentTarget.scrollTop > 0;
+            setIsEditorDialogScrolled((prev) => (prev === nextScrolled ? prev : nextScrolled));
+          }}
           onPointerDownOutside={(event) => {
             if (isLibraryOpen) {
               event.preventDefault();
@@ -1647,16 +2240,65 @@ const DashboardProjectsEditor = () => {
             }
           }}
         >
-          <DialogHeader>
-            <DialogTitle>{editingProject ? "Editar projeto" : "Novo projeto"}</DialogTitle>
-            <DialogDescription>
-              Busque no AniList para preencher automaticamente ou edite tudo manualmente.
-            </DialogDescription>
-          </DialogHeader>
+          <div className="project-editor-top sticky top-0 z-20 border-b border-border/60 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
+            <DialogHeader className="space-y-0 px-4 pb-4 pt-5 text-left md:px-6">
+              <div className="flex flex-wrap items-start justify-between gap-4">
+                <div className="space-y-2">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Badge variant="secondary" className="text-[10px] uppercase tracking-[0.12em]">
+                      {editorProjectLabel}
+                    </Badge>
+                    {formState.anilistId ? (
+                      <Badge variant="outline" className="text-[10px] uppercase tracking-[0.12em]">
+                        AniList {formState.anilistId}
+                      </Badge>
+                    ) : null}
+                  </div>
+                  <DialogTitle className="text-xl md:text-2xl">
+                    {editingProject ? "Editar projeto" : "Novo projeto"}
+                  </DialogTitle>
+                  <DialogDescription className="max-w-2xl text-xs md:text-sm">
+                    Busque no AniList para preencher automaticamente ou ajuste todos os dados manualmente.
+                  </DialogDescription>
+                </div>
+                <div className="rounded-xl border border-border/60 bg-card/65 px-3 py-2 text-right">
+                  <p className="text-[11px] uppercase tracking-[0.12em] text-muted-foreground">Projeto</p>
+                  <p className="max-w-[210px] truncate text-sm font-medium text-foreground">{editorProjectTitle}</p>
+                </div>
+              </div>
+            </DialogHeader>
+            <div className="project-editor-status-bar flex flex-wrap items-center gap-2 border-t border-border/60 px-4 py-3 md:px-6">
+              <Badge variant="outline" className="text-[10px] uppercase tracking-[0.12em]">
+                ID {editorProjectId}
+              </Badge>
+              <Badge variant="secondary" className="text-[10px] uppercase tracking-[0.12em]">
+                {editorTypeLabel}
+              </Badge>
+              <Badge variant="secondary" className="text-[10px] uppercase tracking-[0.12em]">
+                {editorStatusLabel}
+              </Badge>
+              <span className="text-[11px] text-muted-foreground">
+                {editorEpisodeCount} {isChapterBased ? "capítulos" : "episódios"}
+              </span>
+            </div>
+          </div>
 
-          <div className="grid gap-6">
-            <div className="rounded-2xl border border-border/60 bg-card/70 p-4">
-              <div className="grid gap-4 md:grid-cols-[1fr_auto]">
+          <div className="project-editor-layout grid gap-6 px-4 pb-5 pt-4 md:px-6 md:pb-7">
+            <Accordion
+              type="multiple"
+              value={editorAccordionValue}
+              onValueChange={setEditorAccordionValue}
+              className="project-editor-accordion space-y-3"
+            >
+              <AccordionItem value="importacao" className={editorSectionClassName}>
+                <AccordionTrigger className={editorSectionTriggerClassName}>
+                  <div className="flex w-full items-center justify-between gap-4 text-left">
+                    <span>Importação AniList</span>
+                    <span className="text-xs text-muted-foreground">Preenchimento automático</span>
+                  </div>
+                </AccordionTrigger>
+                <AccordionContent className={editorSectionContentClassName}>
+                  <div className="grid gap-4 md:grid-cols-[1fr_auto]">
                 <div className="space-y-2">
                   <Label>ID AniList</Label>
                   <Input
@@ -1668,10 +2310,19 @@ const DashboardProjectsEditor = () => {
                 <Button className="self-end" onClick={handleImportAniList}>
                   Importar do AniList
                 </Button>
-              </div>
-            </div>
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
 
-            <div className="grid gap-4 md:grid-cols-2">
+              <AccordionItem value="dados-principais" className={editorSectionClassName}>
+                <AccordionTrigger className={editorSectionTriggerClassName}>
+                  <div className="flex w-full items-center justify-between gap-4 text-left">
+                    <span>Dados principais</span>
+                    <span className="text-xs text-muted-foreground">{formState.title || "ID e títulos"}</span>
+                  </div>
+                </AccordionTrigger>
+                <AccordionContent className={editorSectionContentClassName}>
+                  <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2">
                 <Label>ID do projeto</Label>
                 <Input
@@ -1728,9 +2379,29 @@ const DashboardProjectsEditor = () => {
                   />
                 </div>
               </div>
-            </div>
+              <div className="space-y-2 md:col-span-2">
+                <Label>Sinopse</Label>
+                <Textarea
+                  value={formState.synopsis}
+                  onChange={(event) => setFormState((prev) => ({ ...prev, synopsis: event.target.value }))}
+                  rows={6}
+                />
+              </div>
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
 
-            <div className="grid gap-3 md:grid-cols-3">
+              <AccordionItem value="midias" className={editorSectionClassName}>
+                <AccordionTrigger className={editorSectionTriggerClassName}>
+                  <div className="flex w-full items-center justify-between gap-4 text-left">
+                    <span>Mídias</span>
+                    <span className="text-xs text-muted-foreground">
+                      {[formState.heroImageUrl, formState.cover, formState.banner].filter(Boolean).length}/3 selecionadas
+                    </span>
+                  </div>
+                </AccordionTrigger>
+                <AccordionContent className={editorSectionContentClassName}>
+                  <div className="grid gap-3 md:grid-cols-3">
               <div className="space-y-2">
                 <Label>Imagem do carrossel</Label>
                 <div className="flex items-center gap-3 rounded-2xl border border-border/60 bg-card/60 px-3 py-2">
@@ -1798,20 +2469,21 @@ const DashboardProjectsEditor = () => {
                   </Button>
                 </div>
               </div>
-            </div>
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
 
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="space-y-2 md:col-span-2">
-                <Label>Sinopse</Label>
-                <Textarea
-                  value={formState.synopsis}
-                  onChange={(event) => setFormState((prev) => ({ ...prev, synopsis: event.target.value }))}
-                  rows={6}
-                />
-              </div>
-            </div>
-
-            <div className="grid gap-4 md:grid-cols-2">
+              <AccordionItem value="metadados" className={editorSectionClassName}>
+                <AccordionTrigger className={editorSectionTriggerClassName}>
+                  <div className="flex w-full items-center justify-between gap-4 text-left">
+                    <span>Metadados</span>
+                    <span className="text-xs text-muted-foreground">
+                      {formState.type || "Formato"} • {formState.status || "Status"}
+                    </span>
+                  </div>
+                </AccordionTrigger>
+                <AccordionContent className={editorSectionContentClassName}>
+                  <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2">
                 <Label>Formato</Label>
                 <Select
@@ -1890,9 +2562,21 @@ const DashboardProjectsEditor = () => {
                   onChange={(event) => setFormState((prev) => ({ ...prev, source: event.target.value }))}
                 />
               </div>
-            </div>
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
 
-            <div className="grid gap-4 md:grid-cols-2">
+              <AccordionItem value="classificacao" className={editorSectionClassName}>
+                <AccordionTrigger className={editorSectionTriggerClassName}>
+                  <div className="flex w-full items-center justify-between gap-4 text-left">
+                    <span>Classificação</span>
+                    <span className="text-xs text-muted-foreground">
+                      {formState.tags.length} tags • {formState.genres.length} gêneros
+                    </span>
+                  </div>
+                </AccordionTrigger>
+                <AccordionContent className={editorSectionContentClassName}>
+                  <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2">
                 <Label>Tags</Label>
                 <div className="flex flex-wrap items-center gap-2">
@@ -1932,18 +2616,14 @@ const DashboardProjectsEditor = () => {
                   </div>
                 ) : null}
                 <div className="mt-2 flex flex-wrap gap-2">
-                  {formState.tags.map((tag, index) => (
+                  {translatedSortedEditorTags.map((tag, index) => (
                     <Badge
                       key={`${tag}-${index}`}
                       variant="secondary"
-                      draggable
-                      onDragStart={() => setTagDragIndex(index)}
-                      onDragOver={(event) => event.preventDefault()}
-                      onDrop={() => handleTagDrop(index)}
                       onClick={() => handleRemoveTag(tag)}
                       className="cursor-pointer"
                     >
-                      {tag}
+                      {translateTag(tag, tagTranslationMap)}
                     </Badge>
                   ))}
                 </div>
@@ -1987,18 +2667,27 @@ const DashboardProjectsEditor = () => {
                   </div>
                 ) : null}
                 <div className="mt-2 flex flex-wrap gap-2">
-                  {formState.genres.map((genre, index) => (
+                  {translatedSortedEditorGenres.map((genre, index) => (
                     <Badge key={`${genre}-${index}`} variant="secondary" onClick={() => handleRemoveGenre(genre)} className="cursor-pointer">
-                      {genre}
+                      {translateGenre(genre, genreTranslationMap)}
                     </Badge>
                   ))}
                 </div>
               </div>
-            </div>
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
 
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <Label className="text-base">Relações</Label>
+              <AccordionItem value="relacoes" className={editorSectionClassName}>
+                <AccordionTrigger className={editorSectionTriggerClassName}>
+                  <div className="flex w-full items-center justify-between gap-4 text-left">
+                    <span>Relações</span>
+                    <span className="text-xs text-muted-foreground">{formState.relations.length} itens</span>
+                  </div>
+                </AccordionTrigger>
+                <AccordionContent className={editorSectionContentClassName}>
+                  <div className="space-y-3">
+              <div className="flex items-center justify-end">
                 <Button
                   type="button"
                   size="sm"
@@ -2020,7 +2709,7 @@ const DashboardProjectsEditor = () => {
                 {formState.relations.map((relation, index) => (
                   <div
                     key={`${relation.title}-${index}`}
-                    className="grid gap-2 rounded-2xl border border-border/60 bg-card/60 p-3 md:grid-cols-[1.2fr_1fr_1fr_auto]"
+                    className="grid gap-2 rounded-2xl border border-border/60 bg-card/60 p-3 md:grid-cols-[1.35fr_1fr_1fr_auto]"
                     draggable
                     onDragStart={() => setRelationDragIndex(index)}
                     onDragOver={(event) => event.preventDefault()}
@@ -2074,11 +2763,20 @@ const DashboardProjectsEditor = () => {
                   </div>
                 ))}
               </div>
-            </div>
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
 
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <Label className="text-base">Equipe da fansub</Label>
+              <AccordionItem value="equipe" className={editorSectionClassName}>
+                <AccordionTrigger className={editorSectionTriggerClassName}>
+                  <div className="flex w-full items-center justify-between gap-4 text-left">
+                    <span>Equipe da fansub</span>
+                    <span className="text-xs text-muted-foreground">{formState.staff.length} funções</span>
+                  </div>
+                </AccordionTrigger>
+                <AccordionContent className={editorSectionContentClassName}>
+                  <div className="space-y-3">
+              <div className="flex items-center justify-end">
                 <Button
                   type="button"
                   size="sm"
@@ -2182,11 +2880,152 @@ const DashboardProjectsEditor = () => {
                   </div>
                 ))}
               </div>
-            </div>
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
 
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <Label className="text-base">{isChapterBased ? "Capítulos" : "Episódios"}</Label>
+              <AccordionItem value="staff-anime" className={editorSectionClassName}>
+                <AccordionTrigger className={editorSectionTriggerClassName}>
+                  <div className="flex w-full items-center justify-between gap-4 text-left">
+                    <span>Staff do anime</span>
+                    <span className="text-xs text-muted-foreground">{formState.animeStaff.length} funções</span>
+                  </div>
+                </AccordionTrigger>
+                <AccordionContent className={editorSectionContentClassName}>
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-end">
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={() =>
+                          setFormState((prev) => ({
+                            ...prev,
+                            animeStaff: [...prev.animeStaff, { role: "", members: [] }],
+                          }))
+                        }
+                      >
+                        Adicionar função
+                      </Button>
+                    </div>
+                    <div className="grid gap-3">
+                      {formState.animeStaff.map((role, index) => (
+                        <div
+                          key={`${role.role}-${index}`}
+                          className="rounded-2xl border border-border/60 bg-card/60 p-3"
+                          draggable
+                          onDragStart={() => setAnimeStaffDragIndex(index)}
+                          onDragOver={(event) => event.preventDefault()}
+                          onDrop={() => handleAnimeStaffDrop(index)}
+                        >
+                          <div className="grid gap-3 md:grid-cols-[1fr_auto]">
+                            <div className="space-y-1">
+                              <Input
+                                value={role.role || ""}
+                                onChange={(event) =>
+                                  setFormState((prev) => {
+                                    const next = [...prev.animeStaff];
+                                    next[index] = { ...next[index], role: event.target.value };
+                                    return { ...prev, animeStaff: next };
+                                  })
+                                }
+                                placeholder="Função"
+                              />
+                              {String(role.role || "").trim() ? (
+                                <p className="text-[11px] text-muted-foreground">
+                                  {translateAnilistRole(role.role, staffRoleTranslationMap)}
+                                </p>
+                              ) : null}
+                            </div>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              onClick={() => {
+                                setFormState((prev) => ({
+                                  ...prev,
+                                  animeStaff: prev.animeStaff.filter((_, idx) => idx !== index),
+                                }));
+                                setAnimeStaffMemberInput((prev) => shiftDraftAfterRemoval(prev, index));
+                              }}
+                            >
+                              Remover
+                            </Button>
+                          </div>
+                          <div className="mt-3 flex flex-wrap items-center gap-2">
+                            <Input
+                              list="staff-directory"
+                              value={animeStaffMemberInput[index] || ""}
+                              onChange={(event) =>
+                                setAnimeStaffMemberInput((prev) => ({ ...prev, [index]: event.target.value }))
+                              }
+                              placeholder="Adicionar membro"
+                            />
+                            <Button
+                              type="button"
+                              variant="outline"
+                              onClick={() => {
+                                const name = (animeStaffMemberInput[index] || "").trim();
+                                if (!name) {
+                                  return;
+                                }
+                                setFormState((prev) => {
+                                  const next = [...prev.animeStaff];
+                                  const members = next[index].members || [];
+                                  next[index] = {
+                                    ...next[index],
+                                    members: members.includes(name) ? members : [...members, name],
+                                  };
+                                  return { ...prev, animeStaff: next };
+                                });
+                                setAnimeStaffMemberInput((prev) => ({ ...prev, [index]: "" }));
+                              }}
+                            >
+                              Adicionar
+                            </Button>
+                          </div>
+                          <div className="mt-2 flex flex-wrap gap-2">
+                            {(role.members || []).map((member) => (
+                              <Badge key={member} variant="secondary" className="flex items-center gap-1">
+                                <span>{member}</span>
+                                <button
+                                  type="button"
+                                  className="rounded-sm p-0.5 text-muted-foreground transition hover:text-foreground"
+                                  onClick={() =>
+                                    setFormState((prev) => {
+                                      const next = [...prev.animeStaff];
+                                      next[index] = {
+                                        ...next[index],
+                                        members: (next[index].members || []).filter((item) => item !== member),
+                                      };
+                                      return { ...prev, animeStaff: next };
+                                    })
+                                  }
+                                  aria-label={`Remover ${member}`}
+                                >
+                                  x
+                                </button>
+                              </Badge>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
+
+              <AccordionItem value="episodios" className={editorSectionClassName}>
+                <AccordionTrigger className={editorSectionTriggerClassName}>
+                  <div className="flex w-full items-center justify-between gap-4 text-left">
+                    <span>{isChapterBased ? "Capítulos" : "Episódios"}</span>
+                    <span className="text-xs text-muted-foreground">
+                      {formState.episodeDownloads.length} {isChapterBased ? "capítulos" : "episódios"}
+                    </span>
+                  </div>
+                </AccordionTrigger>
+                <AccordionContent className={editorSectionContentClassName}>
+                  <div className="space-y-3">
+              <div className="flex items-center justify-end">
                 <Button
                   type="button"
                   size="sm"
@@ -2197,7 +3036,6 @@ const DashboardProjectsEditor = () => {
                         number: prev.episodeDownloads.length + 1,
                         volume: undefined,
                         title: "",
-                        synopsis: "",
                         releaseDate: "",
                         duration: "",
                         coverImageUrl: "",
@@ -2216,53 +3054,46 @@ const DashboardProjectsEditor = () => {
                   {isChapterBased ? "Adicionar capítulo" : "Adicionar episódio"}
                 </Button>
               </div>
-              <div className="grid gap-4">
-                {sortedEpisodeDownloads.map(({ episode, index }) => (
-                  <Card
+              <Accordion
+                type="multiple"
+                value={episodeOpenValues}
+                onValueChange={handleEpisodeAccordionChange}
+                className="space-y-4"
+              >
+                {sortedEpisodeDownloads.map(({ episode, index }) => {
+                  const isEpisodeCollapsed = collapsedEpisodes[index] ?? false;
+                  return (
+                  <AccordionItem
                     key={`${episode.number}-${index}`}
-                    className="border-border/60 bg-card/70"
-                    onDragStart={() => setEpisodeDragId(null)}
-                    onClick={(event) => {
-                      const target = event.target as HTMLElement | null;
-                      if (
-                        target?.closest(
-                          "button, a, input, textarea, select, option, [data-no-toggle], [contenteditable='true'], .lexical-playground",
-                        )
-                      ) {
-                        return;
-                      }
-                      const selection = window.getSelection();
-                      const anchorNode = selection?.anchorNode as HTMLElement | null;
-                      const focusNode = selection?.focusNode as HTMLElement | null;
-                      if (
-                        selection?.type === "Range" &&
-                        (anchorNode?.closest?.(".lexical-playground") || focusNode?.closest?.(".lexical-playground"))
-                      ) {
-                        return;
-                      }
-                      setCollapsedEpisodes((prev) => ({
-                        ...prev,
-                        [index]: !prev[index],
-                      }));
-                    }}
+                    value={getEpisodeAccordionValue(index)}
+                    className="border-none"
                   >
-                    <CardContent className={`space-y-3 ${collapsedEpisodes[index] ? "p-4" : "p-5"}`}>
-                      <div className="flex flex-wrap items-center justify-between gap-2">
-                        <div className="flex items-center gap-2 text-base font-semibold text-foreground">
-                          <span className="rounded-full border border-border/60 bg-background/70 px-2 py-0.5 text-xs">
-                            {isChapterBased ? "Cap" : "Ep"} {episode.number || index + 1}
-                          </span>
-                          {episode.title ? (
-                            <span className="line-clamp-1">{episode.title}</span>
-                          ) : null}
-                          {episode.releaseDate ? (
-                            <span className="rounded-full border border-border/60 bg-background/50 px-2 py-0.5 text-[10px] leading-none">
-                              {episode.releaseDate}
-                            </span>
-                          ) : null}
+                  <Card
+                    className="project-editor-episode-card border-border/60 bg-card/70"
+                    data-testid={`episode-card-${index}`}
+                    onDragStart={() => setEpisodeDragId(null)}
+                  >
+                    <CardContent className={`project-editor-episode-content space-y-3 ${isEpisodeCollapsed ? "p-4" : "p-5"}`}>
+                      <div className="project-editor-episode-header flex flex-wrap items-start justify-between gap-2">
+                        <div className="min-w-0 flex-1">
+                          <AccordionTrigger className="project-editor-episode-trigger py-0 text-left text-base font-semibold text-foreground hover:no-underline [&>svg]:mt-0.5 [&>svg]:shrink-0">
+                            <div className="flex min-w-0 items-center gap-2">
+                              <span className="rounded-full border border-border/60 bg-background/70 px-2 py-0.5 text-xs">
+                                {isChapterBased ? "Cap" : "Ep"} {episode.number || index + 1}
+                              </span>
+                              {episode.title ? (
+                                <span className="line-clamp-1">{episode.title}</span>
+                              ) : null}
+                              {episode.releaseDate ? (
+                                <span className="rounded-full border border-border/60 bg-background/50 px-2 py-0.5 text-[10px] leading-none">
+                                  {formatEpisodeReleaseDate(episode.releaseDate, episode.duration)}
+                                </span>
+                              ) : null}
+                            </div>
+                          </AccordionTrigger>
                         </div>
                         <div className="flex flex-wrap items-center gap-2">
-                          {collapsedEpisodes[index] ? (
+                          {isEpisodeCollapsed ? (
                             <div className="flex flex-wrap items-center gap-1">
                               {isLightNovel && String(episode.content || "").trim().length > 0 ? (
                                 <span className="rounded-full border border-primary/40 bg-primary/10 px-2 py-0.5 text-[10px] text-primary leading-none">
@@ -2292,19 +3123,25 @@ const DashboardProjectsEditor = () => {
                             className="h-7 px-2 text-[11px] text-destructive hover:text-destructive"
                             data-no-toggle
                             onClick={() =>
-                              setFormState((prev) => ({
-                                ...prev,
-                                episodeDownloads: prev.episodeDownloads.filter((_, idx) => idx !== index),
-                              }))
+                              {
+                                setFormState((prev) => ({
+                                  ...prev,
+                                  episodeDownloads: prev.episodeDownloads.filter((_, idx) => idx !== index),
+                                }));
+                                setEpisodeDateDraft((prev) => shiftDraftAfterRemoval(prev, index));
+                                setEpisodeTimeDraft((prev) => shiftDraftAfterRemoval(prev, index));
+                                setEpisodeSizeDrafts((prev) => shiftDraftAfterRemoval(prev, index));
+                                setEpisodeSizeErrors((prev) => shiftDraftAfterRemoval(prev, index));
+                                setCollapsedEpisodes((prev) => shiftCollapsedEpisodesAfterRemoval(prev, index));
+                              }
                             }
                           >
                             {isChapterBased ? "Remover capítulo" : "Remover episódio"}
                           </Button>
                         </div>
                       </div>
-                      {collapsedEpisodes[index] ? null : (
-                        <>
-                          <div className="grid gap-3 md:grid-cols-6">
+                      <AccordionContent className="project-editor-episode-panel pt-3 pb-0 px-1">
+                          <div className="project-editor-episode-group project-editor-episode-basics grid gap-3 md:grid-cols-[minmax(84px,0.7fr)_minmax(84px,0.7fr)_minmax(180px,1.4fr)_minmax(150px,1fr)_minmax(110px,0.8fr)_minmax(130px,0.9fr)]">
                             <Input
                               type="number"
                               value={episode.number}
@@ -2346,27 +3183,107 @@ const DashboardProjectsEditor = () => {
                               placeholder="Título"
                             />
                             <Input
-                              value={episode.releaseDate}
-                              onChange={(event) =>
-                                setFormState((prev) => {
-                                  const next = [...prev.episodeDownloads];
-                                  next[index] = { ...next[index], releaseDate: event.target.value };
-                                  return { ...prev, episodeDownloads: next };
-                                })
-                              }
-                              placeholder="Data"
+                              type="text"
+                              inputMode="numeric"
+                              value={episodeDateDraft[index] ?? isoToDisplayDate(episode.releaseDate)}
+                              onChange={(event) => {
+                                const masked = formatDateDigitsToDisplay(event.target.value);
+                                const digits = digitsOnly(masked);
+                                setEpisodeDateDraft((prev) => ({ ...prev, [index]: masked }));
+                                if (digits.length === 8) {
+                                  const iso = displayDateToIso(masked);
+                                  if (iso) {
+                                    setFormState((prev) => {
+                                      const next = [...prev.episodeDownloads];
+                                      next[index] = { ...next[index], releaseDate: iso };
+                                      return { ...prev, episodeDownloads: next };
+                                    });
+                                  }
+                                } else if (digits.length === 0) {
+                                  setFormState((prev) => {
+                                    const next = [...prev.episodeDownloads];
+                                    next[index] = { ...next[index], releaseDate: "" };
+                                    return { ...prev, episodeDownloads: next };
+                                  });
+                                }
+                              }}
+                              onBlur={(event) => {
+                                const masked = formatDateDigitsToDisplay(event.target.value);
+                                const digits = digitsOnly(masked);
+                                if (digits.length === 8) {
+                                  const iso = displayDateToIso(masked);
+                                  if (iso) {
+                                    setFormState((prev) => {
+                                      const next = [...prev.episodeDownloads];
+                                      next[index] = { ...next[index], releaseDate: iso };
+                                      return { ...prev, episodeDownloads: next };
+                                    });
+                                  }
+                                } else if (digits.length === 0) {
+                                  setFormState((prev) => {
+                                    const next = [...prev.episodeDownloads];
+                                    next[index] = { ...next[index], releaseDate: "" };
+                                    return { ...prev, episodeDownloads: next };
+                                  });
+                                }
+                                setEpisodeDateDraft((prev) => {
+                                  const next = { ...prev };
+                                  delete next[index];
+                                  return next;
+                                });
+                              }}
+                              placeholder="DD/MM/AAAA"
+                              className="md:min-w-[150px]"
                             />
                             {!isChapterBased ? (
                               <Input
-                                value={episode.duration}
-                                onChange={(event) =>
-                                  setFormState((prev) => {
-                                    const next = [...prev.episodeDownloads];
-                                    next[index] = { ...next[index], duration: event.target.value };
-                                    return { ...prev, episodeDownloads: next };
-                                  })
-                                }
-                                placeholder="Duração"
+                                type="text"
+                                inputMode="numeric"
+                                value={episodeTimeDraft[index] ?? canonicalToDisplayTime(episode.duration)}
+                                onChange={(event) => {
+                                  const masked = formatTimeDigitsToDisplay(event.target.value);
+                                  const digits = digitsOnly(masked);
+                                  setEpisodeTimeDraft((prev) => ({ ...prev, [index]: masked }));
+                                  const canonical = displayTimeToCanonical(masked);
+                                  if (canonical) {
+                                    setFormState((prev) => {
+                                      const next = [...prev.episodeDownloads];
+                                      next[index] = { ...next[index], duration: canonical };
+                                      return { ...prev, episodeDownloads: next };
+                                    });
+                                  } else if (digits.length === 0) {
+                                    setFormState((prev) => {
+                                      const next = [...prev.episodeDownloads];
+                                      next[index] = { ...next[index], duration: "" };
+                                      return { ...prev, episodeDownloads: next };
+                                    });
+                                  }
+                                }}
+                                onBlur={(event) => {
+                                  const masked = formatTimeDigitsToDisplay(event.target.value);
+                                  const digits = digitsOnly(masked);
+                                  const canonical = displayTimeToCanonical(masked);
+                                  if (canonical) {
+                                    setFormState((prev) => {
+                                      const next = [...prev.episodeDownloads];
+                                      next[index] = { ...next[index], duration: canonical };
+                                      return { ...prev, episodeDownloads: next };
+                                    });
+                                  } else if (digits.length === 0) {
+                                    setFormState((prev) => {
+                                      const next = [...prev.episodeDownloads];
+                                      next[index] = { ...next[index], duration: "" };
+                                      return { ...prev, episodeDownloads: next };
+                                    });
+                                  }
+                                  setEpisodeTimeDraft((prev) => {
+                                    const next = { ...prev };
+                                    delete next[index];
+                                    return next;
+                                  });
+                                }}
+                                placeholder="MM:SS ou H:MM:SS"
+                                className="md:min-w-[150px]"
                               />
                             ) : null}
                             {!isChapterBased ? (
@@ -2394,32 +3311,18 @@ const DashboardProjectsEditor = () => {
                               </Select>
                             ) : null}
                           </div>
-                          <div className="mt-3 grid gap-3 md:grid-cols-[1fr_1fr]">
-                            <Textarea
-                              value={episode.synopsis}
-                              onChange={(event) =>
-                                setFormState((prev) => {
-                                  const next = [...prev.episodeDownloads];
-                                  next[index] = { ...next[index], synopsis: event.target.value };
-                                  return { ...prev, episodeDownloads: next };
-                                })
-                              }
-                              placeholder={isChapterBased ? "Sinopse do capítulo" : "Sinopse do episódio"}
-                              rows={2}
-                            />
-                            {!episode.sources.some((source) => source.url) && !isChapterBased ? (
-                              <div className="space-y-2">
-                                <Label className="text-xs">Etapa atual</Label>
-                                <div className="rounded-md border border-border/60 bg-background/70 px-3 py-2 text-xs text-muted-foreground">
-                                  {stageOptions.find((stage) =>
-                                    stage.id ===
-                                    getProgressStage(formState.type || "", episode.completedStages),
-                                  )?.label || "Aguardando Raw"}
-                                </div>
+                          {!episode.sources.some((source) => source.url) && !isChapterBased ? (
+                            <div className="project-editor-episode-group mt-3 space-y-2">
+                              <Label className="text-xs">Etapa atual</Label>
+                              <div className="rounded-md border border-border/60 bg-background/70 px-3 py-2 text-xs text-muted-foreground">
+                                {stageOptions.find((stage) =>
+                                  stage.id ===
+                                  getProgressStage(formState.type || "", episode.completedStages),
+                                )?.label || "Aguardando Raw"}
                               </div>
-                            ) : null}
-                          </div>
-                          <div className="mt-3 space-y-2">
+                            </div>
+                          ) : null}
+                          <div className="project-editor-episode-group mt-3 space-y-2">
                             <Label className="text-xs">
                               {isChapterBased ? "Capa do capítulo" : "Capa do episódio"}
                             </Label>
@@ -2448,7 +3351,7 @@ const DashboardProjectsEditor = () => {
                             </div>
                           </div>
                           {isLightNovel ? (
-                            <div className="mt-4">
+                            <div className="project-editor-episode-group mt-4">
                               <Label className="text-xs">Conteúdo do capítulo</Label>
                         <div
                           className="mt-3"
@@ -2478,7 +3381,7 @@ const DashboardProjectsEditor = () => {
                             </div>
                           ) : null}
                           {!episode.sources.some((source) => source.url) && !isChapterBased ? (
-                            <div className="mt-3">
+                            <div className="project-editor-episode-group mt-3">
                               <Label className="text-xs">Etapas concluídas</Label>
                               <div className="mt-2 flex flex-wrap gap-2">
                                 {stageOptions.map((stage) => {
@@ -2511,122 +3414,268 @@ const DashboardProjectsEditor = () => {
                             </div>
                           ) : null}
                           {!isLightNovel ? (
-                            <div className="mt-3">
-                              <Label className="text-xs">Fontes de download</Label>
-                              <div className="mt-2 grid gap-2">
-                                {(episode.sources || []).map((source, sourceIndex) => (
-                                  <div
-                                    key={`${source.label}-${sourceIndex}`}
-                                    className="grid items-center gap-2 md:grid-cols-[1fr_2fr_auto]"
-                                  >
-                                    <Select
-                                      value={source.label}
-                                      onValueChange={(value) =>
-                                        setFormState((prev) => {
-                                          const next = [...prev.episodeDownloads];
-                                          const sources = [...(next[index].sources || [])];
-                                          sources[sourceIndex] = {
-                                            ...sources[sourceIndex],
-                                            label: value,
-                                          };
-                                          next[index] = { ...next[index], sources };
-                                          return { ...prev, episodeDownloads: next };
-                                        })
-                                      }
-                                    >
-                                      <SelectTrigger>
-                                        <SelectValue placeholder="Fonte" />
-                                      </SelectTrigger>
-                                      <SelectContent>
-                                        {downloadSourceOptions.map((option) => (
-                                          <SelectItem key={option.label} value={option.label}>
-                                            <span className="flex items-center gap-2">
-                                              {renderDownloadIcon(
-                                                option.icon,
-                                                option.color,
-                                                option.label,
-                                                option.tintIcon,
-                                              )}
-                                              <span>{option.label}</span>
-                                            </span>
-                                          </SelectItem>
-                                        ))}
-                                      </SelectContent>
-                                    </Select>
+                            <div className="project-editor-episode-group mt-3 space-y-3">
+                              <div>
+                                <Label className="text-xs">Arquivo do episódio</Label>
+                                <div className="mt-2 grid gap-2 md:grid-cols-2">
+                                  <div className="space-y-1">
                                     <Input
-                                      value={source.url}
-                                      onChange={(event) =>
+                                      ref={(node) => {
+                                        episodeSizeInputRefs.current[index] = node;
+                                      }}
+                                      value={
+                                        episodeSizeDrafts[index] ??
+                                        (episode.sizeBytes ? formatBytesCompact(episode.sizeBytes) : "")
+                                      }
+                                      onChange={(event) => {
+                                        const nextValue = event.target.value;
+                                        setEpisodeSizeDrafts((prev) => ({ ...prev, [index]: nextValue }));
+                                        setEpisodeSizeErrors((prev) => {
+                                          if (!prev[index]) {
+                                            return prev;
+                                          }
+                                          const next = { ...prev };
+                                          delete next[index];
+                                          return next;
+                                        });
+                                      }}
+                                      onBlur={(event) => {
+                                        const rawValue = episodeSizeDrafts[index] ?? event.target.value;
+                                        const trimmedSize = String(rawValue || "").trim();
+                                        if (!trimmedSize) {
+                                          setFormState((prev) => {
+                                            const next = [...prev.episodeDownloads];
+                                            next[index] = {
+                                              ...next[index],
+                                              sizeBytes: undefined,
+                                            };
+                                            return { ...prev, episodeDownloads: next };
+                                          });
+                                          setEpisodeSizeDrafts((prev) => {
+                                            const next = { ...prev };
+                                            delete next[index];
+                                            return next;
+                                          });
+                                          setEpisodeSizeErrors((prev) => {
+                                            const next = { ...prev };
+                                            delete next[index];
+                                            return next;
+                                          });
+                                          return;
+                                        }
+
+                                        const parsedSize = parseHumanSizeToBytes(trimmedSize);
+                                        if (!parsedSize) {
+                                          setEpisodeSizeErrors((prev) => ({
+                                            ...prev,
+                                            [index]: "Use formatos como 700 MB ou 1.4 GB.",
+                                          }));
+                                          setEpisodeSizeDrafts((prev) => ({ ...prev, [index]: rawValue }));
+                                          return;
+                                        }
+
                                         setFormState((prev) => {
                                           const next = [...prev.episodeDownloads];
-                                          const sources = [...(next[index].sources || [])];
-                                          sources[sourceIndex] = {
-                                            ...sources[sourceIndex],
-                                            url: event.target.value,
+                                          next[index] = {
+                                            ...next[index],
+                                            sizeBytes: parsedSize,
                                           };
-                                          next[index] = { ...next[index], sources };
                                           return { ...prev, episodeDownloads: next };
-                                        })
-                                      }
-                                      placeholder="URL"
+                                        });
+                                        setEpisodeSizeDrafts((prev) => {
+                                          const next = { ...prev };
+                                          delete next[index];
+                                          return next;
+                                        });
+                                        setEpisodeSizeErrors((prev) => {
+                                          const next = { ...prev };
+                                          delete next[index];
+                                          return next;
+                                        });
+                                      }}
+                                      placeholder="Tamanho (ex.: 700 MB ou 1.4 GB)"
                                     />
-                                    <Button
-                                      type="button"
-                                      variant="ghost"
-                                      size="icon"
-                                      className="h-9 w-9"
-                                      onClick={() =>
-                                        setFormState((prev) => {
-                                          const next = [...prev.episodeDownloads];
-                                          const sources = (next[index].sources || []).filter((_, idx) => idx !== sourceIndex);
-                                          next[index] = { ...next[index], sources };
-                                          return { ...prev, episodeDownloads: next };
-                                        })
-                                      }
-                                    >
-                                      <Trash2 className="h-4 w-4" />
-                                    </Button>
+                                    {episodeSizeErrors[index] ? (
+                                      <p className="text-[11px] text-destructive">{episodeSizeErrors[index]}</p>
+                                    ) : (
+                                      <p className="text-[11px] text-muted-foreground">
+                                        Campo opcional. Valor salvo em bytes.
+                                      </p>
+                                    )}
                                   </div>
-                                ))}
-                                <Button
-                                  type="button"
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() =>
-                                    setFormState((prev) => {
-                                      const next = [...prev.episodeDownloads];
-                                      const existingSources = next[index].sources || [];
-                                      next[index] = {
-                                        ...next[index],
-                                        sources: [...existingSources, { label: "", url: "" }],
-                                      };
-                                      return { ...prev, episodeDownloads: next };
-                                    })
-                                  }
-                                >
-                                  Adicionar fonte
-                                </Button>
+                                  <Input
+                                    value={episode.hash || ""}
+                                    onChange={(event) =>
+                                      setFormState((prev) => {
+                                        const next = [...prev.episodeDownloads];
+                                        next[index] = {
+                                          ...next[index],
+                                          hash: event.target.value,
+                                        };
+                                        return { ...prev, episodeDownloads: next };
+                                      })
+                                    }
+                                    placeholder="Hash (ex.: SHA-256: ...)"
+                                  />
+                                </div>
+                              </div>
+
+                              <div>
+                                <Label className="text-xs">Fontes de download</Label>
+                                <div className="mt-2 grid gap-2">
+                                  {(episode.sources || []).map((source, sourceIndex) => (
+                                    <div
+                                      key={`${source.label}-${sourceIndex}`}
+                                      className="rounded-xl border border-border/60 bg-background/40 p-3"
+                                    >
+                                      <div className="grid items-start gap-2 md:grid-cols-[minmax(180px,1fr)_minmax(240px,2fr)_auto]">
+                                        <Select
+                                          value={source.label}
+                                          onValueChange={(value) =>
+                                            setFormState((prev) => {
+                                              const next = [...prev.episodeDownloads];
+                                              const sources = [...(next[index].sources || [])];
+                                              sources[sourceIndex] = {
+                                                ...sources[sourceIndex],
+                                                label: value,
+                                              };
+                                              next[index] = { ...next[index], sources };
+                                              return { ...prev, episodeDownloads: next };
+                                            })
+                                          }
+                                        >
+                                          <SelectTrigger>
+                                            <SelectValue placeholder="Fonte" />
+                                          </SelectTrigger>
+                                          <SelectContent>
+                                            {downloadSourceOptions.map((option) => (
+                                              <SelectItem key={option.label} value={option.label}>
+                                                <span className="flex items-center gap-2">
+                                                  {renderDownloadIcon(
+                                                    option.icon,
+                                                    option.color,
+                                                    option.label,
+                                                    option.tintIcon,
+                                                  )}
+                                                  <span>{option.label}</span>
+                                                </span>
+                                              </SelectItem>
+                                            ))}
+                                          </SelectContent>
+                                        </Select>
+                                        <Input
+                                          value={source.url}
+                                          onChange={(event) =>
+                                            setFormState((prev) => {
+                                              const next = [...prev.episodeDownloads];
+                                              const sources = [...(next[index].sources || [])];
+                                              sources[sourceIndex] = {
+                                                ...sources[sourceIndex],
+                                                url: event.target.value,
+                                              };
+                                              next[index] = { ...next[index], sources };
+                                              return { ...prev, episodeDownloads: next };
+                                            })
+                                          }
+                                          placeholder="URL"
+                                        />
+                                        <Button
+                                          type="button"
+                                          variant="ghost"
+                                          size="icon"
+                                          className="h-9 w-9"
+                                          onClick={() => {
+                                            setFormState((prev) => {
+                                              const next = [...prev.episodeDownloads];
+                                              const sources = (next[index].sources || []).filter(
+                                                (_, idx) => idx !== sourceIndex,
+                                              );
+                                              next[index] = { ...next[index], sources };
+                                              return { ...prev, episodeDownloads: next };
+                                            });
+                                          }}
+                                        >
+                                          <Trash2 className="h-4 w-4" />
+                                        </Button>
+                                      </div>
+                                    </div>
+                                  ))}
+                                  <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() =>
+                                      setFormState((prev) => {
+                                        const next = [...prev.episodeDownloads];
+                                        const existingSources = next[index].sources || [];
+                                        next[index] = {
+                                          ...next[index],
+                                          sources: [...existingSources, { label: "", url: "" }],
+                                        };
+                                        return { ...prev, episodeDownloads: next };
+                                      })
+                                    }
+                                  >
+                                    Adicionar fonte
+                                  </Button>
+                                </div>
                               </div>
                             </div>
                           ) : null}
-                        </>
-                      )}
+                      </AccordionContent>
                     </CardContent>
                   </Card>
-                ))}
-              </div>
-            </div>
+                  </AccordionItem>
+                  );
+                })}
+              </Accordion>
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
+            </Accordion>
             <datalist id="staff-directory">
               {memberDirectory.map((name) => (
                 <option key={name} value={name} />
               ))}
             </datalist>
+          </div>
+          <div className="project-editor-footer sticky bottom-0 z-20 flex justify-end gap-3 border-t border-border/60 bg-background/95 px-4 py-3 backdrop-blur supports-[backdrop-filter]:bg-background/80 md:px-6 md:py-4">
+            <Button variant="ghost" onClick={requestCloseEditor}>
+              Cancelar
+            </Button>
+            <Button onClick={handleSave}>Salvar projeto</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
-            <div className="flex justify-end gap-3">
-              <Button variant="ghost" onClick={closeEditor}>
-                Cancelar
-              </Button>
-              <Button onClick={handleSave}>Salvar projeto</Button>
-            </div>
+      <Dialog
+        open={confirmOpen}
+        onOpenChange={setConfirmOpen}
+      >
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>{confirmTitle}</DialogTitle>
+            <DialogDescription>{confirmDescription}</DialogDescription>
+          </DialogHeader>
+          <div className="flex justify-end gap-3">
+            <Button
+              variant="ghost"
+              onClick={() => {
+                confirmCancelRef.current?.();
+                setConfirmOpen(false);
+              }}
+            >
+              Continuar editando
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => {
+                confirmActionRef.current?.();
+                setConfirmOpen(false);
+              }}
+            >
+              Sair
+            </Button>
           </div>
         </DialogContent>
       </Dialog>
@@ -2675,13 +3724,5 @@ const DashboardProjectsEditor = () => {
 };
 
 export default DashboardProjectsEditor;
-
-
-
-
-
-
-
-
 
 

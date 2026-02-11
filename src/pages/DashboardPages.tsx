@@ -1,5 +1,6 @@
-﻿import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import DashboardAutosaveStatus from "@/components/DashboardAutosaveStatus";
 import DashboardShell from "@/components/DashboardShell";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -48,8 +49,16 @@ import {
   Timer,
   ShieldCheck,
 } from "lucide-react";
+import {
+  autosaveRuntimeConfig,
+  autosaveStorageKeys,
+  readAutosavePreference,
+  writeAutosavePreference,
+} from "@/config/autosave";
+import { useAutosave } from "@/hooks/use-autosave";
 import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
+import { toast } from "@/components/ui/use-toast";
 import { usePageMeta } from "@/hooks/use-page-meta";
 
 type AboutHighlight = { label: string; text: string; icon: string };
@@ -457,6 +466,10 @@ const pageLabels: Record<string, string> = {
   recruitment: "Recrutamento",
 };
 
+const orderedPageTabs = Object.entries(pageLabels)
+  .sort(([, labelA], [, labelB]) => labelA.localeCompare(labelB, "pt-BR"))
+  .map(([key, label]) => ({ key, label }));
+
 const reorder = <T,>(items: T[], from: number, to: number) => {
   const next = [...items];
   const [removed] = next.splice(from, 1);
@@ -503,11 +516,12 @@ const DashboardPages = () => {
   usePageMeta({ title: "Páginas", noIndex: true });
   const apiBase = getApiBase();
   const navigate = useNavigate();
+  const initialAutosaveEnabledRef = useRef(
+    autosaveRuntimeConfig.enabledByDefault &&
+      readAutosavePreference(autosaveStorageKeys.pages, true),
+  );
   const [pages, setPages] = useState<PagesConfig>(defaultPages);
   const [isLoading, setIsLoading] = useState(true);
-  const [isSaving, setIsSaving] = useState(false);
-  const [pageOrder, setPageOrder] = useState<string[]>(["about", "donations", "faq", "team", "recruitment"]);
-  const [dragPageIndex, setDragPageIndex] = useState<number | null>(null);
   const [dragState, setDragState] = useState<{ list: string; index: number } | null>(null);
   const [currentUser, setCurrentUser] = useState<{
     id: string;
@@ -529,28 +543,6 @@ const DashboardPages = () => {
   }, [pages.donations.pixKey, pages.donations.qrCustomUrl]);
 
   useEffect(() => {
-    const loadOrder = () => {
-      try {
-        const stored = window.localStorage.getItem("dashboard.pages.order");
-        if (!stored) {
-          return;
-        }
-        const parsed = JSON.parse(stored);
-        if (!Array.isArray(parsed)) {
-          return;
-        }
-        const validKeys = Object.keys(pageLabels);
-        const next = parsed.filter((key) => validKeys.includes(key));
-        const normalized = [...next, ...validKeys.filter((key) => !next.includes(key))];
-        setPageOrder(normalized);
-      } catch {
-        // ignore
-      }
-    };
-    loadOrder();
-  }, []);
-
-  useEffect(() => {
     const load = async () => {
       try {
         const response = await apiFetch(apiBase, "/api/pages", { auth: true });
@@ -570,14 +562,6 @@ const DashboardPages = () => {
   }, [apiBase]);
 
   useEffect(() => {
-    try {
-      window.localStorage.setItem("dashboard.pages.order", JSON.stringify(pageOrder));
-    } catch {
-      // ignore
-    }
-  }, [pageOrder]);
-
-  useEffect(() => {
     const loadUser = async () => {
       try {
         const response = await apiFetch(apiBase, "/api/me", { auth: true });
@@ -594,19 +578,75 @@ const DashboardPages = () => {
     loadUser();
   }, [apiBase]);
 
-  const handleSave = async () => {
-    setIsSaving(true);
-    try {
-      await apiFetch(apiBase, "/api/pages", {
+  const savePages = useCallback(
+    async (nextPages: PagesConfig) => {
+      const response = await apiFetch(apiBase, "/api/pages", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         auth: true,
-        body: JSON.stringify({ pages }),
+        body: JSON.stringify({ pages: nextPages }),
       });
-    } finally {
-      setIsSaving(false);
+      if (!response.ok) {
+        throw new Error("save_failed");
+      }
+      const data = await response.json().catch(() => null);
+      const normalizedPages = { ...defaultPages, ...(data?.pages || nextPages) };
+      setPages(normalizedPages);
+      return normalizedPages;
+    },
+    [apiBase],
+  );
+
+  const pagesAutosave = useAutosave<PagesConfig>({
+    value: pages,
+    onSave: savePages,
+    isReady: !isLoading,
+    enabled: initialAutosaveEnabledRef.current,
+    debounceMs: autosaveRuntimeConfig.debounceMs,
+    retryMax: autosaveRuntimeConfig.retryMax,
+    retryBaseMs: autosaveRuntimeConfig.retryBaseMs,
+    onError: (_error, payload) => {
+      if (payload.source === "auto" && payload.consecutiveErrors === 1) {
+        toast({
+          title: "Falha no autosave",
+          description: "Não foi possível salvar as páginas automaticamente.",
+          variant: "destructive",
+        });
+      }
+    },
+  });
+
+  useEffect(() => {
+    writeAutosavePreference(autosaveStorageKeys.pages, pagesAutosave.enabled);
+  }, [pagesAutosave.enabled]);
+
+  const hasPendingChanges =
+    pagesAutosave.isDirty ||
+    pagesAutosave.status === "pending" ||
+    pagesAutosave.status === "saving";
+
+  useEffect(() => {
+    if (isLoading || !hasPendingChanges) {
+      return;
     }
-  };
+    const handler = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [hasPendingChanges, isLoading]);
+
+  const handleSave = useCallback(async () => {
+    const ok = await pagesAutosave.flushNow();
+    if (!ok) {
+      toast({
+        title: "Falha ao salvar",
+        description: "Não foi possível salvar as alterações agora.",
+        variant: "destructive",
+      });
+    }
+  }, [pagesAutosave]);
 
   const updateAbout = (patch: Partial<PagesConfig["about"]>) =>
     setPages((prev) => ({ ...prev, about: { ...prev.about, ...patch } }));
@@ -618,19 +658,6 @@ const DashboardPages = () => {
     setPages((prev) => ({ ...prev, team: { ...prev.team, ...patch } }));
   const updateRecruitment = (patch: Partial<PagesConfig["recruitment"]>) =>
     setPages((prev) => ({ ...prev, recruitment: { ...prev.recruitment, ...patch } }));
-
-  const handlePageDragStart = (index: number) => setDragPageIndex(index);
-  const handlePageDrop = (index: number) => {
-    if (dragPageIndex === null || dragPageIndex === index) {
-      setDragPageIndex(null);
-      return;
-    }
-    const next = [...pageOrder];
-    const [moved] = next.splice(dragPageIndex, 1);
-    next.splice(index, 0, moved);
-    setPageOrder(next);
-    setDragPageIndex(null);
-  };
 
   const handleDragStart = (list: string, index: number) => {
     setDragState({ list, index });
@@ -694,7 +721,14 @@ const DashboardPages = () => {
       currentUser={currentUser}
       onUserCardClick={() => navigate("/dashboard/usuarios?edit=me")}
     >
-        <main className="pt-24">
+        <main
+          className="pt-24"
+          onBlurCapture={() => {
+            if (pagesAutosave.enabled) {
+              void pagesAutosave.flushNow();
+            }
+          }}
+        >
           <section className="mx-auto w-full max-w-6xl px-6 pb-20 md:px-10">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
@@ -709,28 +743,42 @@ const DashboardPages = () => {
                   Edite textos, cards, badges e listas das páginas públicas.
                 </p>
               </div>
-              <Button onClick={handleSave} disabled={isSaving}>
-                {isSaving ? "Salvando..." : "Salvar alterações"}
-              </Button>
+              <DashboardAutosaveStatus
+                title="Autosave das páginas"
+                status={pagesAutosave.status}
+                enabled={pagesAutosave.enabled}
+                onEnabledChange={(nextEnabled) => {
+                  if (!autosaveRuntimeConfig.enabledByDefault) {
+                    return;
+                  }
+                  pagesAutosave.setEnabled(nextEnabled);
+                }}
+                toggleDisabled={!autosaveRuntimeConfig.enabledByDefault}
+                lastSavedAt={pagesAutosave.lastSavedAt}
+                errorMessage={
+                  pagesAutosave.status === "error"
+                    ? "As alterações continuam pendentes até um novo salvamento."
+                    : null
+                }
+                onManualSave={() => {
+                  void handleSave();
+                }}
+                manualActionLabel={
+                  pagesAutosave.status === "saving" ? "Salvando..." : "Salvar alterações"
+                }
+                manualActionDisabled={pagesAutosave.status === "saving"}
+              />
             </div>
 
             <Tabs
-              defaultValue={pageOrder[0] || "about"}
+              defaultValue={orderedPageTabs[0]?.key || "donations"}
               className="mt-8 animate-slide-up opacity-0"
               style={{ animationDelay: "0.2s" }}
             >
               <TabsList className="grid w-full grid-cols-5">
-                {pageOrder.map((key, index) => (
-                  <TabsTrigger
-                    key={key}
-                    value={key}
-                    draggable
-                    onDragStart={() => handlePageDragStart(index)}
-                    onDragOver={(event) => event.preventDefault()}
-                    onDrop={() => handlePageDrop(index)}
-                    className="relative"
-                  >
-                    <span className="pointer-events-none">{pageLabels[key] || key}</span>
+                {orderedPageTabs.map((tab) => (
+                  <TabsTrigger key={tab.key} value={tab.key}>
+                    <span>{tab.label}</span>
                   </TabsTrigger>
                 ))}
               </TabsList>

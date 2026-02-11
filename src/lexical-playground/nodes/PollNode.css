@@ -11,11 +11,13 @@
   border: 1px solid hsl(var(--border));
   background-color: hsl(var(--card));
   border-radius: 10px;
+  width: 100%;
   max-width: 600px;
-  min-width: 400px;
+  min-width: 0;
   color: hsl(var(--foreground));
   cursor: pointer;
   user-select: none;
+  box-sizing: border-box;
 }
 .PollNode__container.readonly {
   cursor: default;
@@ -35,26 +37,30 @@
   color: hsl(var(--foreground));
   text-align: center;
   font-size: 18px;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 .PollNode__optionContainer {
   display: flex;
   flex-direction: row;
   margin-bottom: 10px;
   align-items: center;
+  min-width: 0;
 }
 .PollNode__optionInputWrapper {
   display: flex;
-  flex: 10px;
+  flex: 1 1 auto;
   border: 1px solid hsl(var(--border));
   border-radius: 5px;
   position: relative;
   overflow: hidden;
   cursor: pointer;
   background-color: hsl(var(--background));
+  min-width: 0;
 }
 .PollNode__optionInput {
   display: flex;
-  flex: 1px;
+  flex: 1 1 auto;
   border: 0px;
   padding: 7px;
   color: hsl(var(--foreground));
@@ -62,6 +68,9 @@
   font-weight: bold;
   outline: 0px;
   z-index: 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 .PollNode__optionInput::placeholder {
   font-weight: normal;

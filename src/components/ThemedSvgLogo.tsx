@@ -30,6 +30,18 @@ const parseStyleValue = (style: string, key: string) => {
   return match ? match[1]?.trim() : "";
 };
 
+const parseSvgDimension = (value: string | null) => {
+  const normalized = String(value || "").trim();
+  if (!normalized || normalized.endsWith("%")) {
+    return null;
+  }
+  const parsed = Number.parseFloat(normalized);
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    return null;
+  }
+  return parsed;
+};
+
 const parseColor = (value: string) => {
   const normalized = value.replace(/\s+/g, "").toLowerCase();
   if (normalized.startsWith("#")) {
@@ -87,6 +99,19 @@ const getSvgSize = (svg: SVGSVGElement) => {
     return { width, height };
   }
   return null;
+};
+
+const ensureSvgViewBox = (svg: SVGSVGElement) => {
+  const existingViewBox = String(svg.getAttribute("viewBox") || "").trim();
+  if (existingViewBox) {
+    return;
+  }
+  const width = parseSvgDimension(svg.getAttribute("width"));
+  const height = parseSvgDimension(svg.getAttribute("height"));
+  if (!width || !height) {
+    return;
+  }
+  svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
 };
 
 const shouldRemoveRect = (rect: SVGRectElement, svgSize: { width: number; height: number } | null) => {
@@ -215,6 +240,7 @@ const normalizeSvg = (svgText: string) => {
 
   transparentShapes.forEach((el) => el.remove());
 
+  ensureSvgViewBox(svg);
   svg.removeAttribute("width");
   svg.removeAttribute("height");
   svg.setAttribute("focusable", "false");

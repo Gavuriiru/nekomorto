@@ -17,6 +17,9 @@ const FileStore = fileStoreFactory(session);
 
 const ownerIdsFilePath = path.join(__dirname, "data", "owner-ids.json");
 const auditLogFilePath = path.join(__dirname, "data", "audit-log.json");
+const analyticsEventsFilePath = path.join(__dirname, "data", "analytics-events.jsonl");
+const analyticsDailyFilePath = path.join(__dirname, "data", "analytics-daily.json");
+const analyticsMetaFilePath = path.join(__dirname, "data", "analytics-meta.json");
 const loadOwnerIds = () => {
   try {
     if (!fs.existsSync(ownerIdsFilePath)) {
@@ -42,6 +45,178 @@ const isPrimaryOwner = (id) => {
   return Boolean(primary && String(id) === String(primary));
 };
 
+const AUDIT_RETENTION_MS = 30 * 24 * 60 * 60 * 1000;
+const AUDIT_MAX_ENTRIES = 20000;
+const AUDIT_CSV_MAX_ROWS = 10000;
+const AUDIT_META_STRING_MAX = 256;
+const AUDIT_ENABLED_ACTION_PATTERN =
+  /(^|\.)(create|update|delete|restore|reorder|login|logout|denied|failed|rate_limited|bootstrap|rebuild|image|rename|success)(\.|_|$)/i;
+const AUDIT_DEFAULT_META_KEYS = [
+  "error",
+  "id",
+  "slug",
+  "resourceId",
+  "projectId",
+  "userId",
+  "ownerId",
+  "count",
+  "fileName",
+  "folder",
+  "url",
+  "wasOwner",
+];
+const AUDIT_META_ALLOWLIST = {
+  "auth.login.failed": ["error"],
+  "auth.login.success": ["userId"],
+  "auth.logout": [],
+  "auth.bootstrap.success": ["ownerId"],
+  "auth.bootstrap.denied": ["error"],
+  "auth.bootstrap.disabled": [],
+  "auth.bootstrap.rate_limited": [],
+  "users.delete": ["id", "wasOwner"],
+  "uploads.image": ["fileName", "folder", "url"],
+  "uploads.image_from_url": ["fileName", "folder", "url", "remoteUrl"],
+  "uploads.rename": ["oldUrl", "newUrl", "updatedReferences", "replacements"],
+  "uploads.delete": ["url"],
+};
+
+const parseAuditTs = (value) => {
+  const ts = new Date(value || 0).getTime();
+  return Number.isFinite(ts) ? ts : null;
+};
+
+const inferAuditStatus = (action) => {
+  const normalized = String(action || "").toLowerCase();
+  if (!normalized) {
+    return "success";
+  }
+  if (normalized.includes("denied")) {
+    return "denied";
+  }
+  if (normalized.includes("failed") || normalized.includes("rate_limited")) {
+    return "failed";
+  }
+  return "success";
+};
+
+const isAuditActionEnabled = (action) => {
+  const normalized = String(action || "").toLowerCase();
+  if (!normalized) {
+    return false;
+  }
+  if (normalized.includes(".read") || normalized.endsWith(".read") || normalized.includes("_read")) {
+    return false;
+  }
+  return AUDIT_ENABLED_ACTION_PATTERN.test(normalized);
+};
+
+const truncateAuditString = (value) => {
+  const text = String(value || "");
+  if (text.length <= AUDIT_META_STRING_MAX) {
+    return text;
+  }
+  return `${text.slice(0, AUDIT_META_STRING_MAX)}...`;
+};
+
+const redactSignedUrl = (value) => {
+  const text = String(value || "");
+  const hasSensitiveQuery = /[?&](token|signature|sig|x-amz-signature|x-goog-signature)=/i.test(text);
+  if (!hasSensitiveQuery) {
+    return null;
+  }
+  try {
+    const parsed = new URL(text, PRIMARY_APP_ORIGIN);
+    return `${parsed.origin}${parsed.pathname}?[redacted]`;
+  } catch {
+    return "[redacted_url]";
+  }
+};
+
+const isSensitiveAuditKey = (key) =>
+  /(token|secret|password|cookie|authorization|session|credential|jwt|signature|sig)/i.test(String(key || ""));
+
+const redactSensitiveFields = (value, key = "", depth = 0) => {
+  if (depth > 4) {
+    return "[max_depth]";
+  }
+  if (value === null || value === undefined) {
+    return value;
+  }
+  if (typeof value === "string") {
+    if (isSensitiveAuditKey(key)) {
+      return "[redacted]";
+    }
+    const redactedUrl = redactSignedUrl(value);
+    return redactedUrl || truncateAuditString(value);
+  }
+  if (typeof value === "number" || typeof value === "boolean") {
+    return value;
+  }
+  if (Array.isArray(value)) {
+    return value.slice(0, 20).map((item) => redactSensitiveFields(item, key, depth + 1));
+  }
+  if (typeof value === "object") {
+    const next = {};
+    Object.keys(value)
+      .slice(0, 30)
+      .forEach((entryKey) => {
+        if (isSensitiveAuditKey(entryKey)) {
+          next[entryKey] = "[redacted]";
+          return;
+        }
+        next[entryKey] = redactSensitiveFields(value[entryKey], entryKey, depth + 1);
+      });
+    return next;
+  }
+  return truncateAuditString(value);
+};
+
+const sanitizeAuditMeta = (meta, action) => {
+  if (!meta || typeof meta !== "object" || Array.isArray(meta)) {
+    return {};
+  }
+  const keys = AUDIT_META_ALLOWLIST[action] || AUDIT_DEFAULT_META_KEYS;
+  const next = {};
+  keys.forEach((key) => {
+    if (!(key in meta)) {
+      return;
+    }
+    next[key] = redactSensitiveFields(meta[key], key);
+  });
+  return next;
+};
+
+const compactAuditEntries = (entries, nowTs = Date.now()) => {
+  const cutoff = nowTs - AUDIT_RETENTION_MS;
+  const filtered = entries
+    .filter((item) => parseAuditTs(item?.ts) !== null)
+    .filter((item) => parseAuditTs(item.ts) >= cutoff)
+    .sort((a, b) => parseAuditTs(a.ts) - parseAuditTs(b.ts));
+  if (filtered.length <= AUDIT_MAX_ENTRIES) {
+    return filtered;
+  }
+  return filtered.slice(filtered.length - AUDIT_MAX_ENTRIES);
+};
+
+const normalizeAuditEntry = (item) => {
+  const normalizedAction = String(item?.action || "").trim();
+  return {
+    id: String(item?.id || crypto.randomUUID()),
+    ts: item?.ts || new Date().toISOString(),
+    actorId: String(item?.actorId || "anonymous"),
+    actorName: String(item?.actorName || "anonymous"),
+    ip: String(item?.ip || ""),
+    action: normalizedAction,
+    resource: String(item?.resource || ""),
+    resourceId: item?.resourceId ? String(item.resourceId) : null,
+    status: ["success", "failed", "denied"].includes(item?.status)
+      ? item.status
+      : inferAuditStatus(normalizedAction),
+    requestId: item?.requestId ? String(item.requestId) : null,
+    meta: sanitizeAuditMeta(item?.meta, normalizedAction),
+  };
+};
+
 const loadAuditLog = () => {
   try {
     if (!fs.existsSync(auditLogFilePath)) {
@@ -49,7 +224,7 @@ const loadAuditLog = () => {
     }
     const raw = fs.readFileSync(auditLogFilePath, "utf-8");
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [];
+    return Array.isArray(parsed) ? parsed.map(normalizeAuditEntry) : [];
   } catch {
     return [];
   }
@@ -57,37 +232,44 @@ const loadAuditLog = () => {
 
 const writeAuditLog = (entries) => {
   fs.mkdirSync(path.dirname(auditLogFilePath), { recursive: true });
-  fs.writeFileSync(auditLogFilePath, JSON.stringify(entries, null, 2));
+  const compacted = compactAuditEntries(Array.isArray(entries) ? entries : []);
+  fs.writeFileSync(auditLogFilePath, JSON.stringify(compacted, null, 2));
 };
 
 const appendAuditLog = (req, action, resource, meta = {}) => {
   try {
+    if (!isAuditActionEnabled(action)) {
+      return;
+    }
     const now = new Date();
-    const cutoff = now.getTime() - 30 * 24 * 60 * 60 * 1000;
     const ip = req.headers["x-forwarded-for"]?.split(",")[0]?.trim() || req.ip;
     const sessionUser = req.session?.user || null;
+    const sanitizedMeta = sanitizeAuditMeta(meta, action);
     const resourceId =
-      meta?.resourceId ||
-      meta?.id ||
-      meta?.slug ||
-      meta?.projectId ||
-      meta?.userId ||
+      sanitizedMeta?.resourceId ||
+      sanitizedMeta?.id ||
+      sanitizedMeta?.slug ||
+      sanitizedMeta?.projectId ||
+      sanitizedMeta?.userId ||
       null;
+    const actorNameRaw = sessionUser?.name || "anonymous";
+    const actorNameFixed =
+      typeof fixMojibakeText === "function" ? fixMojibakeText(actorNameRaw) : String(actorNameRaw);
+    const actorName = String(actorNameFixed || "anonymous").replace(/\uFFFD/g, "").trim() || "anonymous";
     const entry = {
       id: crypto.randomUUID(),
       ts: now.toISOString(),
       actorId: sessionUser?.id || "anonymous",
-      actorName: sessionUser?.name || "anonymous",
+      actorName,
       ip: String(ip || ""),
-      action,
-      resource,
+      action: String(action || ""),
+      resource: String(resource || ""),
       resourceId,
-      meta,
+      status: inferAuditStatus(action),
+      requestId: req.requestId ? String(req.requestId) : null,
+      meta: sanitizedMeta,
     };
-    const existing = loadAuditLog().filter((item) => {
-      const ts = new Date(item?.ts || 0).getTime();
-      return Number.isFinite(ts) && ts >= cutoff;
-    });
+    const existing = loadAuditLog();
     existing.push(entry);
     writeAuditLog(existing);
   } catch {
@@ -109,6 +291,9 @@ const {
   PORT = 8080,
   OWNER_IDS: OWNER_IDS_ENV = "",
   BOOTSTRAP_TOKEN,
+  ANALYTICS_IP_SALT = "",
+  ANALYTICS_RETENTION_DAYS: ANALYTICS_RETENTION_DAYS_ENV = "",
+  ANALYTICS_AGG_RETENTION_DAYS: ANALYTICS_AGG_RETENTION_DAYS_ENV = "",
 } = process.env;
 
 const isProduction = process.env.NODE_ENV === "production";
@@ -124,6 +309,421 @@ const EXTRA_ORIGINS = ADMIN_ORIGINS.split(",")
   .filter(Boolean);
 const ALLOWED_ORIGINS = Array.from(new Set([...APP_ORIGINS, ...EXTRA_ORIGINS]));
 const PRIMARY_APP_ORIGIN = APP_ORIGINS[0] || "http://127.0.0.1:5173";
+const PRIMARY_APP_HOST = (() => {
+  try {
+    return new URL(PRIMARY_APP_ORIGIN).host.toLowerCase();
+  } catch {
+    return "";
+  }
+})();
+
+const parseEnvInteger = (value, fallback, min, max) => {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) {
+    return fallback;
+  }
+  return Math.min(Math.max(Math.floor(parsed), min), max);
+};
+
+const ANALYTICS_SCHEMA_VERSION = 1;
+const ANALYTICS_RETENTION_DAYS = parseEnvInteger(ANALYTICS_RETENTION_DAYS_ENV, 90, 7, 3650);
+const ANALYTICS_AGG_RETENTION_DAYS = parseEnvInteger(ANALYTICS_AGG_RETENTION_DAYS_ENV, 365, 30, 3650);
+const ANALYTICS_RETENTION_MS = ANALYTICS_RETENTION_DAYS * 24 * 60 * 60 * 1000;
+const ANALYTICS_AGG_RETENTION_MS = ANALYTICS_AGG_RETENTION_DAYS * 24 * 60 * 60 * 1000;
+const ANALYTICS_EVENT_TYPE_SET = new Set(["view", "comment_created", "comment_approved"]);
+const ANALYTICS_VIEW_RESOURCE_SET = new Set(["post", "project"]);
+const ANALYTICS_VIEW_COOLDOWN_MS = 30 * 60 * 1000;
+const ANALYTICS_META_STRING_MAX = 180;
+const analyticsViewCooldown = new Map();
+
+const parseAnalyticsTs = (value) => {
+  const ts = new Date(value || 0).getTime();
+  return Number.isFinite(ts) ? ts : null;
+};
+
+const getDayKeyFromTs = (value) => {
+  const ts = Number(value);
+  if (!Number.isFinite(ts)) {
+    return new Date().toISOString().slice(0, 10);
+  }
+  return new Date(ts).toISOString().slice(0, 10);
+};
+
+const normalizeAnalyticsTypeFilter = (value) => {
+  const normalized = String(value || "").trim().toLowerCase();
+  if (["post", "project"].includes(normalized)) {
+    return normalized;
+  }
+  return "all";
+};
+
+const parseAnalyticsRangeDays = (value) => {
+  const normalized = String(value || "").trim().toLowerCase();
+  if (normalized === "7d") return 7;
+  if (normalized === "30d") return 30;
+  if (normalized === "90d") return 90;
+  return 30;
+};
+
+const sanitizeAnalyticsText = (value) => {
+  const text = String(value || "").trim();
+  if (!text) return "";
+  if (text.length <= ANALYTICS_META_STRING_MAX) {
+    return text;
+  }
+  return `${text.slice(0, ANALYTICS_META_STRING_MAX)}...`;
+};
+
+const sanitizeUtmValue = (value) =>
+  sanitizeAnalyticsText(value)
+    .toLowerCase()
+    .replace(/[^a-z0-9._-]/g, "_")
+    .slice(0, 64);
+
+const getRequestIp = (req) => req.headers["x-forwarded-for"]?.split(",")[0]?.trim() || req.ip || "";
+
+const getVisitorHash = (req) => {
+  const ip = getRequestIp(req);
+  if (!ip) {
+    return "anonymous";
+  }
+  const salt = ANALYTICS_IP_SALT || SESSION_SECRET || "dev-analytics-salt";
+  return crypto.createHash("sha256").update(`${salt}:${ip}`).digest("hex");
+};
+
+const getRequestAcquisition = (req) => {
+  const refererHeader = String(req.headers.referer || "");
+  const fallback = {
+    referrerHost: "(direct)",
+    utm: { source: "", medium: "", campaign: "" },
+  };
+  if (!refererHeader) {
+    return fallback;
+  }
+  try {
+    const parsed = new URL(refererHeader, PRIMARY_APP_ORIGIN);
+    const host = String(parsed.host || "").trim().toLowerCase();
+    const utm = {
+      source: sanitizeUtmValue(parsed.searchParams.get("utm_source") || ""),
+      medium: sanitizeUtmValue(parsed.searchParams.get("utm_medium") || ""),
+      campaign: sanitizeUtmValue(parsed.searchParams.get("utm_campaign") || ""),
+    };
+    if (!host) {
+      return { ...fallback, utm };
+    }
+    const referrerHost = host === PRIMARY_APP_HOST ? "(internal)" : host;
+    return { referrerHost, utm };
+  } catch {
+    return fallback;
+  }
+};
+
+const sanitizeAnalyticsMeta = (value) => {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return {};
+  }
+  const allowlist = ["targetType", "targetId", "status", "action", "resourceType", "resourceId"];
+  const output = {};
+  allowlist.forEach((key) => {
+    if (!(key in value)) {
+      return;
+    }
+    output[key] = sanitizeAnalyticsText(value[key]);
+  });
+  return output;
+};
+
+const normalizeAnalyticsEvent = (event) => {
+  const eventType = String(event?.eventType || "").trim().toLowerCase();
+  const normalizedType = ANALYTICS_EVENT_TYPE_SET.has(eventType) ? eventType : "view";
+  const resourceTypeRaw = String(event?.resourceType || "").trim().toLowerCase();
+  const resourceType = resourceTypeRaw || "post";
+  return {
+    id: String(event?.id || crypto.randomUUID()),
+    ts: event?.ts || new Date().toISOString(),
+    day: String(event?.day || getDayKeyFromTs(parseAnalyticsTs(event?.ts) || Date.now())),
+    eventType: normalizedType,
+    resourceType,
+    resourceId: String(event?.resourceId || "").trim(),
+    visitorHash: String(event?.visitorHash || "anonymous"),
+    referrerHost: sanitizeAnalyticsText(event?.referrerHost || "(direct)") || "(direct)",
+    utm: {
+      source: sanitizeUtmValue(event?.utm?.source || ""),
+      medium: sanitizeUtmValue(event?.utm?.medium || ""),
+      campaign: sanitizeUtmValue(event?.utm?.campaign || ""),
+    },
+    isAuthenticated: Boolean(event?.isAuthenticated),
+    meta: sanitizeAnalyticsMeta(event?.meta || {}),
+  };
+};
+
+const loadAnalyticsEvents = () => {
+  try {
+    if (!fs.existsSync(analyticsEventsFilePath)) {
+      return [];
+    }
+    const raw = fs.readFileSync(analyticsEventsFilePath, "utf-8");
+    return raw
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter(Boolean)
+      .map((line) => {
+        try {
+          return normalizeAnalyticsEvent(JSON.parse(line));
+        } catch {
+          return null;
+        }
+      })
+      .filter(Boolean);
+  } catch {
+    return [];
+  }
+};
+
+const writeAnalyticsEvents = (events) => {
+  fs.mkdirSync(path.dirname(analyticsEventsFilePath), { recursive: true });
+  const lines = (Array.isArray(events) ? events : [])
+    .map((event) => normalizeAnalyticsEvent(event))
+    .map((event) => JSON.stringify(event));
+  fs.writeFileSync(analyticsEventsFilePath, `${lines.join("\n")}${lines.length ? "\n" : ""}`);
+};
+
+const loadAnalyticsDaily = () => {
+  try {
+    if (!fs.existsSync(analyticsDailyFilePath)) {
+      return {
+        schemaVersion: ANALYTICS_SCHEMA_VERSION,
+        generatedAt: new Date().toISOString(),
+        days: {},
+      };
+    }
+    const raw = fs.readFileSync(analyticsDailyFilePath, "utf-8");
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object") {
+      throw new Error("invalid_analytics_daily");
+    }
+    return {
+      schemaVersion: Number(parsed.schemaVersion) || ANALYTICS_SCHEMA_VERSION,
+      generatedAt: String(parsed.generatedAt || new Date().toISOString()),
+      days: parsed.days && typeof parsed.days === "object" ? parsed.days : {},
+    };
+  } catch {
+    return {
+      schemaVersion: ANALYTICS_SCHEMA_VERSION,
+      generatedAt: new Date().toISOString(),
+      days: {},
+    };
+  }
+};
+
+const writeAnalyticsDaily = (data) => {
+  fs.mkdirSync(path.dirname(analyticsDailyFilePath), { recursive: true });
+  fs.writeFileSync(
+    analyticsDailyFilePath,
+    JSON.stringify(
+      {
+        schemaVersion: ANALYTICS_SCHEMA_VERSION,
+        generatedAt: data?.generatedAt || new Date().toISOString(),
+        days: data?.days && typeof data.days === "object" ? data.days : {},
+      },
+      null,
+      2,
+    ),
+  );
+};
+
+const writeAnalyticsMeta = (value) => {
+  fs.mkdirSync(path.dirname(analyticsMetaFilePath), { recursive: true });
+  const payload = {
+    schemaVersion: ANALYTICS_SCHEMA_VERSION,
+    retentionDays: ANALYTICS_RETENTION_DAYS,
+    aggregateRetentionDays: ANALYTICS_AGG_RETENTION_DAYS,
+    updatedAt: new Date().toISOString(),
+    ...(value && typeof value === "object" ? value : {}),
+  };
+  fs.writeFileSync(analyticsMetaFilePath, JSON.stringify(payload, null, 2));
+};
+
+const ensureAnalyticsDayBucket = (days, dayKey) => {
+  if (!days[dayKey]) {
+    days[dayKey] = {
+      totals: {
+        views: 0,
+        commentsCreated: 0,
+        commentsApproved: 0,
+      },
+      byResourceType: {
+        post: { views: 0 },
+        project: { views: 0 },
+      },
+      acquisition: {
+        referrerHost: {},
+        utmSource: {},
+        utmMedium: {},
+        utmCampaign: {},
+      },
+    };
+  }
+  return days[dayKey];
+};
+
+const incrementCounter = (target, key, amount = 1) => {
+  const normalizedKey = String(key || "").trim();
+  if (!normalizedKey) {
+    return;
+  }
+  target[normalizedKey] = Number(target[normalizedKey] || 0) + amount;
+};
+
+const buildAnalyticsDailyFromEvents = (events, nowTs = Date.now()) => {
+  const cutoff = nowTs - ANALYTICS_AGG_RETENTION_MS;
+  const days = {};
+  events.forEach((event) => {
+    const ts = parseAnalyticsTs(event.ts);
+    if (ts === null || ts < cutoff) {
+      return;
+    }
+    const dayKey = getDayKeyFromTs(ts);
+    const bucket = ensureAnalyticsDayBucket(days, dayKey);
+    if (event.eventType === "view") {
+      bucket.totals.views += 1;
+      if (event.resourceType === "post" || event.resourceType === "project") {
+        bucket.byResourceType[event.resourceType].views += 1;
+      }
+      incrementCounter(bucket.acquisition.referrerHost, event.referrerHost || "(direct)");
+      if (event.utm?.source) incrementCounter(bucket.acquisition.utmSource, event.utm.source);
+      if (event.utm?.medium) incrementCounter(bucket.acquisition.utmMedium, event.utm.medium);
+      if (event.utm?.campaign) incrementCounter(bucket.acquisition.utmCampaign, event.utm.campaign);
+    }
+    if (event.eventType === "comment_created") {
+      bucket.totals.commentsCreated += 1;
+    }
+    if (event.eventType === "comment_approved") {
+      bucket.totals.commentsApproved += 1;
+    }
+  });
+  return {
+    schemaVersion: ANALYTICS_SCHEMA_VERSION,
+    generatedAt: new Date().toISOString(),
+    days,
+  };
+};
+
+const compactAnalyticsData = (nowTs = Date.now()) => {
+  const cutoff = nowTs - ANALYTICS_RETENTION_MS;
+  const compacted = loadAnalyticsEvents()
+    .filter((event) => parseAnalyticsTs(event.ts) !== null)
+    .filter((event) => parseAnalyticsTs(event.ts) >= cutoff)
+    .sort((a, b) => (parseAnalyticsTs(a.ts) || 0) - (parseAnalyticsTs(b.ts) || 0));
+  writeAnalyticsEvents(compacted);
+  const daily = buildAnalyticsDailyFromEvents(compacted, nowTs);
+  writeAnalyticsDaily(daily);
+  writeAnalyticsMeta({
+    eventCount: compacted.length,
+    lastCompactionAt: new Date().toISOString(),
+  });
+  return { events: compacted, daily };
+};
+
+const shouldRegisterAnalyticsView = (visitorHash, resourceType, resourceId, nowTs = Date.now()) => {
+  const key = `${visitorHash}|${resourceType}|${resourceId}`;
+  const previous = analyticsViewCooldown.get(key);
+  if (Number.isFinite(previous) && nowTs - previous < ANALYTICS_VIEW_COOLDOWN_MS) {
+    return false;
+  }
+  analyticsViewCooldown.set(key, nowTs);
+  if (analyticsViewCooldown.size > 20000) {
+    const expirationTs = nowTs - ANALYTICS_VIEW_COOLDOWN_MS;
+    Array.from(analyticsViewCooldown.entries()).forEach(([entryKey, ts]) => {
+      if (ts < expirationTs) {
+        analyticsViewCooldown.delete(entryKey);
+      }
+    });
+  }
+  return true;
+};
+
+const appendAnalyticsEvent = (req, payload) => {
+  try {
+    const normalizedPayload = payload && typeof payload === "object" ? payload : {};
+    const eventType = String(normalizedPayload.eventType || "").trim().toLowerCase();
+    if (!ANALYTICS_EVENT_TYPE_SET.has(eventType)) {
+      return { ok: false, reason: "invalid_event_type" };
+    }
+    const resourceType = String(normalizedPayload.resourceType || "").trim().toLowerCase();
+    const resourceId = String(normalizedPayload.resourceId || "").trim();
+    if (!resourceType || !resourceId) {
+      return { ok: false, reason: "invalid_resource" };
+    }
+    const now = new Date();
+    const visitorHash = getVisitorHash(req);
+    if (
+      eventType === "view" &&
+      ANALYTICS_VIEW_RESOURCE_SET.has(resourceType) &&
+      !shouldRegisterAnalyticsView(visitorHash, resourceType, resourceId, now.getTime())
+    ) {
+      return { ok: false, reason: "cooldown" };
+    }
+    const acquisition = getRequestAcquisition(req);
+    const event = normalizeAnalyticsEvent({
+      id: crypto.randomUUID(),
+      ts: now.toISOString(),
+      day: getDayKeyFromTs(now.getTime()),
+      eventType,
+      resourceType,
+      resourceId,
+      visitorHash,
+      referrerHost: acquisition.referrerHost,
+      utm: acquisition.utm,
+      isAuthenticated: Boolean(req.session?.user),
+      meta: sanitizeAnalyticsMeta(normalizedPayload.meta || {}),
+    });
+    const events = loadAnalyticsEvents();
+    events.push(event);
+    writeAnalyticsEvents(events);
+    const daily = buildAnalyticsDailyFromEvents(events);
+    writeAnalyticsDaily(daily);
+    return { ok: true };
+  } catch {
+    return { ok: false, reason: "error" };
+  }
+};
+
+const buildAnalyticsRange = (rangeDays, nowTs = Date.now()) => {
+  const safeDays = Number.isFinite(rangeDays) ? Math.max(1, Math.floor(rangeDays)) : 30;
+  const endDate = new Date(nowTs);
+  endDate.setUTCHours(23, 59, 59, 999);
+  const startDate = new Date(endDate);
+  startDate.setUTCDate(endDate.getUTCDate() - (safeDays - 1));
+  startDate.setUTCHours(0, 0, 0, 0);
+  const keys = [];
+  for (let index = 0; index < safeDays; index += 1) {
+    const day = new Date(startDate);
+    day.setUTCDate(startDate.getUTCDate() + index);
+    keys.push(day.toISOString().slice(0, 10));
+  }
+  return {
+    rangeDays: safeDays,
+    fromTs: startDate.getTime(),
+    toTs: endDate.getTime(),
+    dayKeys: keys,
+  };
+};
+
+const filterAnalyticsEvents = (events, fromTs, toTs, type) =>
+  events.filter((event) => {
+    const ts = parseAnalyticsTs(event.ts);
+    if (ts === null || ts < fromTs || ts > toTs) {
+      return false;
+    }
+    if (type !== "all" && event.resourceType !== type) {
+      if (event.resourceType === "comment") {
+        return String(event.meta?.targetType || "").toLowerCase() === type;
+      }
+      return false;
+    }
+    return true;
+  });
 
 const clientRootDir = path.join(__dirname, "..");
 const clientDistDir = path.join(clientRootDir, "dist");
@@ -300,6 +900,8 @@ const buildPostMeta = (post) => {
 };
 const MAX_SVG_SIZE_BYTES = 256 * 1024;
 const MAX_UPLOAD_SIZE_BYTES = 15 * 1024 * 1024;
+const MAX_UPLOAD_IMAGE_DIMENSION = 8192;
+const MAX_UPLOAD_IMAGE_PIXELS = 33_554_432;
 const ALLOWED_UPLOAD_IMAGE_MIMES = new Set([
   "image/png",
   "image/jpeg",
@@ -371,6 +973,233 @@ const getUploadExtFromMime = (value) =>
   UPLOAD_MIME_TO_EXTENSION[String(value || "").toLowerCase()] || "png";
 const getUploadMimeFromExtension = (value) =>
   UPLOAD_EXTENSION_TO_MIME[String(value || "").toLowerCase()] || "";
+const normalizeUploadMime = (value) => {
+  const normalized = String(value || "").toLowerCase();
+  if (normalized === "image/jpg") {
+    return "image/jpeg";
+  }
+  return normalized;
+};
+const readUInt24LE = (buffer, offset) =>
+  buffer[offset] + (buffer[offset + 1] << 8) + (buffer[offset + 2] << 16);
+const detectUploadImageMimeFromBuffer = (buffer) => {
+  if (!Buffer.isBuffer(buffer) || buffer.length < 4) {
+    return "";
+  }
+  if (
+    buffer.length >= 8 &&
+    buffer[0] === 0x89 &&
+    buffer[1] === 0x50 &&
+    buffer[2] === 0x4e &&
+    buffer[3] === 0x47 &&
+    buffer[4] === 0x0d &&
+    buffer[5] === 0x0a &&
+    buffer[6] === 0x1a &&
+    buffer[7] === 0x0a
+  ) {
+    return "image/png";
+  }
+  if (buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff) {
+    return "image/jpeg";
+  }
+  if (buffer.length >= 6) {
+    const header = buffer.toString("ascii", 0, 6);
+    if (header === "GIF87a" || header === "GIF89a") {
+      return "image/gif";
+    }
+  }
+  if (
+    buffer.length >= 12 &&
+    buffer.toString("ascii", 0, 4) === "RIFF" &&
+    buffer.toString("ascii", 8, 12) === "WEBP"
+  ) {
+    return "image/webp";
+  }
+  const snippet = buffer.toString("utf-8", 0, Math.min(buffer.length, 4096)).replace(/^\uFEFF/, "");
+  if (/<svg[\s>]/i.test(snippet)) {
+    return "image/svg+xml";
+  }
+  return "";
+};
+const getPngDimensions = (buffer) => {
+  if (!Buffer.isBuffer(buffer) || buffer.length < 24) {
+    return null;
+  }
+  if (
+    buffer[0] !== 0x89 ||
+    buffer[1] !== 0x50 ||
+    buffer[2] !== 0x4e ||
+    buffer[3] !== 0x47 ||
+    buffer[4] !== 0x0d ||
+    buffer[5] !== 0x0a ||
+    buffer[6] !== 0x1a ||
+    buffer[7] !== 0x0a
+  ) {
+    return null;
+  }
+  return {
+    width: buffer.readUInt32BE(16),
+    height: buffer.readUInt32BE(20),
+  };
+};
+const getGifDimensions = (buffer) => {
+  if (!Buffer.isBuffer(buffer) || buffer.length < 10) {
+    return null;
+  }
+  const header = buffer.toString("ascii", 0, 6);
+  if (header !== "GIF87a" && header !== "GIF89a") {
+    return null;
+  }
+  return {
+    width: buffer.readUInt16LE(6),
+    height: buffer.readUInt16LE(8),
+  };
+};
+const getJpegDimensions = (buffer) => {
+  if (!Buffer.isBuffer(buffer) || buffer.length < 4) {
+    return null;
+  }
+  if (buffer[0] !== 0xff || buffer[1] !== 0xd8) {
+    return null;
+  }
+  let offset = 2;
+  while (offset + 9 < buffer.length) {
+    if (buffer[offset] !== 0xff) {
+      offset += 1;
+      continue;
+    }
+    const marker = buffer[offset + 1];
+    if (marker === 0xd8 || marker === 0xd9 || marker === 0x01 || (marker >= 0xd0 && marker <= 0xd7)) {
+      offset += 2;
+      continue;
+    }
+    if (offset + 4 > buffer.length) {
+      break;
+    }
+    const segmentLength = buffer.readUInt16BE(offset + 2);
+    if (segmentLength < 2) {
+      break;
+    }
+    const isStartOfFrame =
+      marker >= 0xc0 && marker <= 0xcf && marker !== 0xc4 && marker !== 0xc8 && marker !== 0xcc;
+    if (isStartOfFrame) {
+      if (offset + 9 >= buffer.length) {
+        break;
+      }
+      return {
+        height: buffer.readUInt16BE(offset + 5),
+        width: buffer.readUInt16BE(offset + 7),
+      };
+    }
+    offset += 2 + segmentLength;
+  }
+  return null;
+};
+const getWebpDimensions = (buffer) => {
+  if (!Buffer.isBuffer(buffer) || buffer.length < 12) {
+    return null;
+  }
+  if (buffer.toString("ascii", 0, 4) !== "RIFF" || buffer.toString("ascii", 8, 12) !== "WEBP") {
+    return null;
+  }
+  let offset = 12;
+  while (offset + 8 <= buffer.length) {
+    const chunkType = buffer.toString("ascii", offset, offset + 4);
+    const chunkSize = buffer.readUInt32LE(offset + 4);
+    const dataOffset = offset + 8;
+    if (dataOffset + chunkSize > buffer.length) {
+      break;
+    }
+    if (chunkType === "VP8X" && chunkSize >= 10) {
+      return {
+        width: 1 + readUInt24LE(buffer, dataOffset + 4),
+        height: 1 + readUInt24LE(buffer, dataOffset + 7),
+      };
+    }
+    if (chunkType === "VP8L" && chunkSize >= 5) {
+      if (buffer[dataOffset] !== 0x2f) {
+        return null;
+      }
+      const b0 = buffer[dataOffset + 1];
+      const b1 = buffer[dataOffset + 2];
+      const b2 = buffer[dataOffset + 3];
+      const b3 = buffer[dataOffset + 4];
+      return {
+        width: 1 + (((b1 & 0x3f) << 8) | b0),
+        height: 1 + (((b3 & 0x0f) << 10) | (b2 << 2) | ((b1 & 0xc0) >> 6)),
+      };
+    }
+    if (chunkType === "VP8 " && chunkSize >= 10) {
+      if (
+        buffer[dataOffset + 3] !== 0x9d ||
+        buffer[dataOffset + 4] !== 0x01 ||
+        buffer[dataOffset + 5] !== 0x2a
+      ) {
+        return null;
+      }
+      return {
+        width: buffer.readUInt16LE(dataOffset + 6) & 0x3fff,
+        height: buffer.readUInt16LE(dataOffset + 8) & 0x3fff,
+      };
+    }
+    offset = dataOffset + chunkSize + (chunkSize % 2);
+  }
+  return null;
+};
+const getUploadImageDimensions = (buffer, mime) => {
+  const normalizedMime = normalizeUploadMime(mime);
+  if (normalizedMime === "image/png") {
+    return getPngDimensions(buffer);
+  }
+  if (normalizedMime === "image/jpeg") {
+    return getJpegDimensions(buffer);
+  }
+  if (normalizedMime === "image/gif") {
+    return getGifDimensions(buffer);
+  }
+  if (normalizedMime === "image/webp") {
+    return getWebpDimensions(buffer);
+  }
+  return null;
+};
+const validateUploadImageBuffer = (buffer, requestedMime, options = {}) => {
+  const strictRequestedMime = options.strictRequestedMime === true;
+  const normalizedRequested = normalizeUploadMime(requestedMime);
+  const detectedMime = detectUploadImageMimeFromBuffer(buffer);
+  if (strictRequestedMime && detectedMime && normalizedRequested && detectedMime !== normalizedRequested) {
+    return { valid: false, error: "mime_mismatch" };
+  }
+  const mime = detectedMime || normalizedRequested;
+  if (!isSupportedUploadImageMime(mime)) {
+    return { valid: false, error: "unsupported_image_type" };
+  }
+  if (mime === "image/svg+xml") {
+    return { valid: true, mime, dimensions: null };
+  }
+  const dimensions = getUploadImageDimensions(buffer, mime);
+  if (!dimensions) {
+    return { valid: false, error: "invalid_image_data" };
+  }
+  const width = Number(dimensions.width);
+  const height = Number(dimensions.height);
+  if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) {
+    return { valid: false, error: "invalid_image_dimensions" };
+  }
+  if (width > MAX_UPLOAD_IMAGE_DIMENSION || height > MAX_UPLOAD_IMAGE_DIMENSION) {
+    return { valid: false, error: "image_dimensions_too_large" };
+  }
+  if (width * height > MAX_UPLOAD_IMAGE_PIXELS) {
+    return { valid: false, error: "image_pixel_count_too_large" };
+  }
+  return {
+    valid: true,
+    mime,
+    dimensions: {
+      width,
+      height,
+    },
+  };
+};
 const resolveRequestOrigin = (req) => {
   const originHeader = String(req.headers.origin || "");
   if (originHeader) {
@@ -519,6 +1348,16 @@ app.use(
     },
   }),
 );
+
+app.use((req, res, next) => {
+  const requestIdHeader = String(req.headers["x-request-id"] || "").trim();
+  const requestId = /^[a-zA-Z0-9._:-]{6,128}$/.test(requestIdHeader)
+    ? requestIdHeader
+    : crypto.randomUUID();
+  req.requestId = requestId;
+  res.setHeader("X-Request-Id", requestId);
+  return next();
+});
 
 const loadAllowedUsers = () => {
   const filePath = path.join(__dirname, "data", "allowed-users.json");
@@ -688,12 +1527,41 @@ const defaultSiteSettings = {
     accent: "#9667e0",
   },
   navbar: {
-    recruitmentUrl: "/recrutamento",
+    links: [
+      { label: "Início", href: "/", icon: "home" },
+      { label: "Projetos", href: "/projetos", icon: "folder-kanban" },
+      { label: "Equipe", href: "/equipe", icon: "users" },
+      { label: "Recrutamento", href: "/recrutamento", icon: "user-plus" },
+      { label: "Sobre", href: "/sobre", icon: "info" },
+    ],
   },
   community: {
     discordUrl: "https://discord.com/invite/BAHKhdX2ju",
+    inviteCard: {
+      title: "Entre no Discord",
+      subtitle: "Converse com a equipe e acompanhe novidades em tempo real.",
+      panelTitle: "Comunidade do Zuraaa!",
+      panelDescription:
+        "Receba alertas de lancamentos, participe de eventos e fale sobre os nossos projetos.",
+      ctaLabel: "Entrar no servidor",
+      ctaUrl: "https://discord.com/invite/BAHKhdX2ju",
+    },
   },
   branding: {
+    assets: {
+      symbolUrl: "",
+      wordmarkUrl: "",
+    },
+    overrides: {
+      navbarSymbolUrl: "",
+      footerSymbolUrl: "",
+      navbarWordmarkUrl: "",
+      footerWordmarkUrl: "",
+    },
+    display: {
+      navbar: "symbol-text",
+      footer: "symbol-text",
+    },
     wordmarkUrl: "",
     wordmarkUrlNavbar: "",
     wordmarkUrlFooter: "",
@@ -859,21 +1727,209 @@ const normalizeUploadsDeep = (value) => {
 
 const normalizeSiteSettings = (payload) => {
   const merged = fixMojibakeDeep(mergeSettings(defaultSiteSettings, payload || {}));
-  merged.navbar = { ...(merged.navbar || {}), recruitmentUrl: "/recrutamento" };
+  const resolveNavbarIcon = (label, href, icon) => {
+    const iconValue = String(icon || "").trim().toLowerCase();
+    if (iconValue) {
+      return iconValue;
+    }
+    const normalizedLabel = String(label || "").trim().toLowerCase();
+    const normalizedHref = String(href || "").trim();
+    const matchByHref = defaultSiteSettings.navbar.links.find((item) => String(item.href || "").trim() === normalizedHref);
+    if (matchByHref?.icon) {
+      return String(matchByHref.icon).trim().toLowerCase();
+    }
+    const matchByLabel = defaultSiteSettings.navbar.links.find(
+      (item) => String(item.label || "").trim().toLowerCase() === normalizedLabel,
+    );
+    if (matchByLabel?.icon) {
+      return String(matchByLabel.icon).trim().toLowerCase();
+    }
+    return "link";
+  };
+  const navbarLinks = Array.isArray(merged?.navbar?.links)
+    ? merged.navbar.links
+        .map((link) => ({
+          label: String(link?.label || "").trim(),
+          href: String(link?.href || "").trim(),
+          icon: resolveNavbarIcon(link?.label, link?.href, link?.icon),
+        }))
+        .filter((link) => link.label && link.href)
+    : [];
+  const normalizedNavbarLinks =
+    Array.isArray(merged?.navbar?.links)
+      ? navbarLinks
+      : defaultSiteSettings.navbar.links.map((link) => ({ ...link }));
+  merged.navbar = {
+    links: normalizedNavbarLinks,
+  };
   const allowedPlacements = new Set(["navbar", "footer", "both"]);
-  const placement = String(merged?.branding?.wordmarkPlacement || "both");
-  const legacyWordmarkUrl = String(merged?.branding?.wordmarkUrl || "");
-  const wordmarkUrlNavbar = String(merged?.branding?.wordmarkUrlNavbar || "");
-  const wordmarkUrlFooter = String(merged?.branding?.wordmarkUrlFooter || "");
+  const allowedNavbarModes = new Set(["wordmark", "symbol-text", "symbol", "text"]);
+  const allowedFooterModes = new Set(["wordmark", "symbol-text", "text"]);
+  const legacyPlacement = String(merged?.branding?.wordmarkPlacement || "both");
+  const normalizedLegacyPlacement = allowedPlacements.has(legacyPlacement) ? legacyPlacement : "both";
+  const legacyWordmarkEnabled = Boolean(merged?.branding?.wordmarkEnabled);
+  const legacyWordmarkUrl = String(merged?.branding?.wordmarkUrl || "").trim();
+  const legacyWordmarkUrlNavbar = String(merged?.branding?.wordmarkUrlNavbar || "").trim();
+  const legacyWordmarkUrlFooter = String(merged?.branding?.wordmarkUrlFooter || "").trim();
+  const legacySiteSymbol = String(merged?.site?.logoUrl || "").trim();
+  const legacyFooterSymbol = String(merged?.footer?.brandLogoUrl || "").trim();
+
+  const payloadBranding =
+    payload?.branding && typeof payload.branding === "object"
+      ? payload.branding
+      : null;
+  const hasAnyNewBrandingInput = Boolean(
+    payloadBranding &&
+      (typeof payloadBranding.assets === "object" ||
+        typeof payloadBranding.overrides === "object" ||
+        typeof payloadBranding.display === "object"),
+  );
+
+  const rawBrandAssets =
+    merged?.branding?.assets && typeof merged.branding.assets === "object"
+      ? merged.branding.assets
+      : {};
+  const rawBrandOverrides =
+    merged?.branding?.overrides && typeof merged.branding.overrides === "object"
+      ? merged.branding.overrides
+      : {};
+  const rawBrandDisplay =
+    merged?.branding?.display && typeof merged.branding.display === "object"
+      ? merged.branding.display
+      : {};
+
+  const symbolAssetUrl = String(
+    rawBrandAssets.symbolUrl || (!hasAnyNewBrandingInput ? legacySiteSymbol : "") || "",
+  ).trim();
+  const wordmarkAssetUrl = String(
+    rawBrandAssets.wordmarkUrl ||
+      (!hasAnyNewBrandingInput
+        ? legacyWordmarkUrl || legacyWordmarkUrlNavbar || legacyWordmarkUrlFooter
+        : "") ||
+      "",
+  ).trim();
+
+  const navbarSymbolOverride = String(rawBrandOverrides.navbarSymbolUrl || "").trim();
+  const footerSymbolOverride = String(
+    rawBrandOverrides.footerSymbolUrl || (!hasAnyNewBrandingInput ? legacyFooterSymbol : "") || "",
+  ).trim();
+  const navbarWordmarkOverride = String(
+    rawBrandOverrides.navbarWordmarkUrl || (!hasAnyNewBrandingInput ? legacyWordmarkUrlNavbar : "") || "",
+  ).trim();
+  const footerWordmarkOverride = String(
+    rawBrandOverrides.footerWordmarkUrl || (!hasAnyNewBrandingInput ? legacyWordmarkUrlFooter : "") || "",
+  ).trim();
+
+  const legacyNavbarMode =
+    legacyWordmarkEnabled &&
+    (normalizedLegacyPlacement === "navbar" || normalizedLegacyPlacement === "both")
+      ? "wordmark"
+      : "symbol-text";
+  const legacyFooterMode =
+    legacyWordmarkEnabled &&
+    (normalizedLegacyPlacement === "footer" || normalizedLegacyPlacement === "both")
+      ? "wordmark"
+      : "symbol-text";
+
+  const navbarModeCandidate = String(rawBrandDisplay.navbar || "").trim();
+  const footerModeCandidate = String(rawBrandDisplay.footer || "").trim();
+  const navbarMode = allowedNavbarModes.has(navbarModeCandidate)
+    ? navbarModeCandidate
+    : legacyNavbarMode;
+  const footerMode = allowedFooterModes.has(footerModeCandidate)
+    ? footerModeCandidate
+    : legacyFooterMode;
+
+  const resolvedNavbarWordmark = navbarWordmarkOverride || wordmarkAssetUrl;
+  const resolvedFooterWordmark = footerWordmarkOverride || wordmarkAssetUrl;
+  const resolvedFooterSymbol = footerSymbolOverride || symbolAssetUrl;
+
+  const usesWordmarkNavbar = navbarMode === "wordmark";
+  const usesWordmarkFooter = footerMode === "wordmark";
+  const compatPlacement = usesWordmarkNavbar && usesWordmarkFooter
+    ? "both"
+    : usesWordmarkNavbar
+      ? "navbar"
+      : usesWordmarkFooter
+        ? "footer"
+        : normalizedLegacyPlacement;
+  const compatWordmarkEnabled = usesWordmarkNavbar || usesWordmarkFooter;
+
   merged.branding = {
     ...(merged.branding || {}),
-    wordmarkUrl: legacyWordmarkUrl,
-    wordmarkUrlNavbar: wordmarkUrlNavbar || legacyWordmarkUrl,
-    wordmarkUrlFooter: wordmarkUrlFooter || legacyWordmarkUrl,
-    wordmarkPlacement: allowedPlacements.has(placement) ? placement : "both",
-    wordmarkEnabled: Boolean(merged?.branding?.wordmarkEnabled),
+    assets: {
+      symbolUrl: symbolAssetUrl,
+      wordmarkUrl: wordmarkAssetUrl,
+    },
+    overrides: {
+      navbarSymbolUrl: navbarSymbolOverride,
+      footerSymbolUrl: footerSymbolOverride,
+      navbarWordmarkUrl: navbarWordmarkOverride,
+      footerWordmarkUrl: footerWordmarkOverride,
+    },
+    display: {
+      navbar: navbarMode,
+      footer: footerMode,
+    },
+    wordmarkUrl: wordmarkAssetUrl,
+    wordmarkUrlNavbar: resolvedNavbarWordmark,
+    wordmarkUrlFooter: resolvedFooterWordmark,
+    wordmarkPlacement: compatPlacement,
+    wordmarkEnabled: compatWordmarkEnabled,
   };
-  const discordUrl = String(merged?.community?.discordUrl || "").trim();
+  const normalizedSiteName =
+    String(merged?.site?.name || defaultSiteSettings.site.name || "Nekomata").trim() ||
+    String(defaultSiteSettings.site.name || "Nekomata").trim() ||
+    "Nekomata";
+  merged.site = {
+    ...(merged.site || {}),
+    name: normalizedSiteName,
+    logoUrl: symbolAssetUrl,
+  };
+  merged.footer = {
+    ...(merged.footer || {}),
+    brandName: normalizedSiteName,
+    brandLogoUrl: resolvedFooterSymbol,
+  };
+  const discordUrl =
+    String(merged?.community?.discordUrl || defaultSiteSettings.community.discordUrl || "").trim() ||
+    String(defaultSiteSettings.community.discordUrl || "").trim();
+  const inviteCardPayload =
+    merged?.community?.inviteCard && typeof merged.community.inviteCard === "object"
+      ? merged.community.inviteCard
+      : {};
+  const inviteCardDefaults = defaultSiteSettings.community?.inviteCard || {};
+  const inviteCardTitle =
+    String(inviteCardPayload.title || inviteCardDefaults.title || "").trim() ||
+    String(inviteCardDefaults.title || "").trim();
+  const inviteCardSubtitle =
+    String(inviteCardPayload.subtitle || inviteCardDefaults.subtitle || "").trim() ||
+    String(inviteCardDefaults.subtitle || "").trim();
+  const inviteCardPanelTitle =
+    String(inviteCardPayload.panelTitle || inviteCardDefaults.panelTitle || "").trim() ||
+    String(inviteCardDefaults.panelTitle || "").trim();
+  const inviteCardPanelDescription =
+    String(inviteCardPayload.panelDescription || inviteCardDefaults.panelDescription || "").trim() ||
+    String(inviteCardDefaults.panelDescription || "").trim();
+  const inviteCardCtaLabel =
+    String(inviteCardPayload.ctaLabel || inviteCardDefaults.ctaLabel || "").trim() ||
+    String(inviteCardDefaults.ctaLabel || "").trim();
+  const inviteCardCtaUrlRaw = String(inviteCardPayload.ctaUrl || "").trim();
+  const inviteCardCtaUrl = inviteCardCtaUrlRaw || discordUrl;
+
+  merged.community = {
+    ...(merged.community || {}),
+    discordUrl,
+    inviteCard: {
+      title: inviteCardTitle,
+      subtitle: inviteCardSubtitle,
+      panelTitle: inviteCardPanelTitle,
+      panelDescription: inviteCardPanelDescription,
+      ctaLabel: inviteCardCtaLabel,
+      ctaUrl: inviteCardCtaUrl,
+    },
+  };
+
   if (discordUrl) {
     if (Array.isArray(merged.footer?.socialLinks)) {
       merged.footer.socialLinks = merged.footer.socialLinks.map((link) => {
@@ -891,6 +1947,47 @@ const normalizeSiteSettings = (payload) => {
     }));
   }
   return normalizeUploadsDeep(merged);
+};
+
+const LEGACY_BRANDING_STORAGE_KEYS = [
+  "wordmarkUrl",
+  "wordmarkUrlNavbar",
+  "wordmarkUrlFooter",
+  "wordmarkPlacement",
+  "wordmarkEnabled",
+];
+const LEGACY_SITE_STORAGE_KEYS = ["logoUrl"];
+const LEGACY_FOOTER_STORAGE_KEYS = ["brandLogoUrl"];
+
+const buildSiteSettingsStoragePayload = (settings) => {
+  const normalized = normalizeUploadsDeep(fixMojibakeDeep(settings || {}));
+  const next = { ...(normalized && typeof normalized === "object" ? normalized : {}) };
+
+  if (next.branding && typeof next.branding === "object") {
+    const branding = { ...next.branding };
+    LEGACY_BRANDING_STORAGE_KEYS.forEach((key) => {
+      delete branding[key];
+    });
+    next.branding = branding;
+  }
+
+  if (next.site && typeof next.site === "object") {
+    const site = { ...next.site };
+    LEGACY_SITE_STORAGE_KEYS.forEach((key) => {
+      delete site[key];
+    });
+    next.site = site;
+  }
+
+  if (next.footer && typeof next.footer === "object") {
+    const footer = { ...next.footer };
+    LEGACY_FOOTER_STORAGE_KEYS.forEach((key) => {
+      delete footer[key];
+    });
+    next.footer = footer;
+  }
+
+  return next;
 };
 
 const loadProjects = () => {
@@ -1136,8 +2233,9 @@ const loadSiteSettings = () => {
   try {
     if (!fs.existsSync(siteSettingsFilePath)) {
       const seeded = normalizeSiteSettings(defaultSiteSettings);
+      const seededStorage = buildSiteSettingsStoragePayload(seeded);
       fs.mkdirSync(path.dirname(siteSettingsFilePath), { recursive: true });
-      fs.writeFileSync(siteSettingsFilePath, JSON.stringify(seeded, null, 2));
+      fs.writeFileSync(siteSettingsFilePath, JSON.stringify(seededStorage, null, 2));
       return seeded;
     }
     const raw = fs.readFileSync(siteSettingsFilePath, "utf-8");
@@ -1156,8 +2254,9 @@ const loadSiteSettings = () => {
       }
     }
     const normalized = normalizeSiteSettings(parsed);
-    if (JSON.stringify(parsed) !== JSON.stringify(normalized)) {
-      fs.writeFileSync(siteSettingsFilePath, JSON.stringify(normalized, null, 2));
+    const storagePayload = buildSiteSettingsStoragePayload(normalized);
+    if (JSON.stringify(parsed) !== JSON.stringify(storagePayload)) {
+      fs.writeFileSync(siteSettingsFilePath, JSON.stringify(storagePayload, null, 2));
     }
     return normalized;
   } catch {
@@ -1166,8 +2265,10 @@ const loadSiteSettings = () => {
 };
 
 const writeSiteSettings = (settings) => {
+  const normalized = normalizeSiteSettings(settings);
+  const storagePayload = buildSiteSettingsStoragePayload(normalized);
   fs.mkdirSync(path.dirname(siteSettingsFilePath), { recursive: true });
-  fs.writeFileSync(siteSettingsFilePath, JSON.stringify(normalizeUploadsDeep(settings), null, 2));
+  fs.writeFileSync(siteSettingsFilePath, JSON.stringify(storagePayload, null, 2));
 };
 
 const normalizeEmail = (value) => String(value || "").trim().toLowerCase();
@@ -1408,6 +2509,53 @@ const normalizePosts = (posts) => {
 
 const normalizeProjects = (projects) =>
   projects.map((project, index) => {
+    const normalizedEpisodeDownloads = Array.isArray(project.episodeDownloads)
+      ? project.episodeDownloads.map((episode) => {
+          const episodeObject =
+            episode && typeof episode === "object" ? episode : {};
+          const { synopsis: _episodeSynopsis, ...episodeWithoutSynopsis } =
+            episodeObject;
+          const normalizedSources = Array.isArray(episode?.sources)
+            ? episode.sources.map((source) => {
+                const label = String(source?.label || "");
+                const url = String(source?.url || "");
+                return {
+                  label,
+                  url,
+                };
+              })
+            : [];
+          const legacyHash = Array.isArray(episode?.sources)
+            ? String(
+                episode.sources.find((source) => String(source?.hash || "").trim())?.hash || "",
+              ).trim()
+            : "";
+          const legacyRawSizeBytes = Array.isArray(episode?.sources)
+            ? Number(
+                episode.sources.find((source) => {
+                  const parsed = Number(source?.sizeBytes);
+                  return Number.isFinite(parsed) && parsed > 0;
+                })?.sizeBytes,
+              )
+            : Number.NaN;
+          const hash = String(episode?.hash || "").trim() || legacyHash;
+          const rawSizeBytes = Number(episode?.sizeBytes);
+          const resolvedRawSizeBytes =
+            Number.isFinite(rawSizeBytes) && rawSizeBytes > 0 ? rawSizeBytes : legacyRawSizeBytes;
+          const sizeBytes =
+            Number.isFinite(resolvedRawSizeBytes) && resolvedRawSizeBytes > 0
+              ? Math.round(resolvedRawSizeBytes)
+              : undefined;
+          return {
+            ...episodeWithoutSynopsis,
+            sources: normalizedSources,
+            hash: hash || undefined,
+            sizeBytes,
+            chapterUpdatedAt: episodeObject.chapterUpdatedAt || "",
+          };
+        })
+      : [];
+
     const normalized = {
     id: String(project.id || `project-${Date.now()}-${index}`),
     anilistId: project.anilistId ? Number(project.anilistId) : null,
@@ -1442,12 +2590,9 @@ const normalizeProjects = (projects) =>
         : [],
     animeStaff: Array.isArray(project.animeStaff) ? project.animeStaff : [],
     trailerUrl: project.trailerUrl || "",
-    episodeDownloads: Array.isArray(project.episodeDownloads)
-      ? project.episodeDownloads.map((episode) => ({
-          ...episode,
-          chapterUpdatedAt: episode.chapterUpdatedAt || "",
-        }))
-      : [],
+    forceHero: Boolean(project.forceHero),
+    heroImageUrl: String(project.heroImageUrl || ""),
+    episodeDownloads: normalizedEpisodeDownloads,
     views: Number.isFinite(project.views) ? project.views : 0,
     viewsDaily: project.viewsDaily && typeof project.viewsDaily === "object" ? project.viewsDaily : {},
     commentsCount: Number.isFinite(project.commentsCount) ? project.commentsCount : 0,
@@ -1587,13 +2732,11 @@ const collectEpisodeUpdates = (prevProject, nextProject) => {
       const chapterUpdatedAt = ep.chapterUpdatedAt || "";
       const prevSignature = [
         String(prev?.title || ""),
-        String(prev?.synopsis || ""),
         String(prev?.releaseDate || ""),
         prevContent,
       ].join("||");
       const nextSignature = [
         String(ep.title || ""),
-        String(ep.synopsis || ""),
         String(ep.releaseDate || ""),
         String(ep.content || "").trim(),
       ].join("||");
@@ -1842,6 +2985,295 @@ const requirePrimaryOwner = (req, res, next) => {
   }
   return next();
 };
+
+app.get("/api/audit-log", requireOwner, (req, res) => {
+  const pageRaw = Number(req.query.page);
+  const limitRaw = Number(req.query.limit);
+  const page = Number.isFinite(pageRaw) && pageRaw > 0 ? Math.floor(pageRaw) : 1;
+  const limit = Number.isFinite(limitRaw) && limitRaw > 0
+    ? Math.min(Math.max(Math.floor(limitRaw), 10), 100)
+    : 50;
+
+  const action = String(req.query.action || "").trim();
+  const resource = String(req.query.resource || "").trim();
+  const actorId = String(req.query.actorId || "").trim();
+  const status = String(req.query.status || "").trim().toLowerCase();
+  const q = String(req.query.q || "").trim().toLowerCase();
+  const format = String(req.query.format || "").trim().toLowerCase();
+  const dateFromRaw = String(req.query.dateFrom || "").trim();
+  const dateToRaw = String(req.query.dateTo || "").trim();
+  const dateFromTs = dateFromRaw ? parseAuditTs(dateFromRaw) : null;
+  const dateToTs = dateToRaw ? parseAuditTs(dateToRaw) : null;
+
+  let entries = loadAuditLog().map(normalizeAuditEntry);
+  entries = entries.filter((entry) => isAuditActionEnabled(entry.action));
+  if (action) {
+    entries = entries.filter((entry) => entry.action === action);
+  }
+  if (resource) {
+    entries = entries.filter((entry) => entry.resource === resource);
+  }
+  if (actorId) {
+    entries = entries.filter((entry) => entry.actorId === actorId);
+  }
+  if (status && ["success", "failed", "denied"].includes(status)) {
+    entries = entries.filter((entry) => entry.status === status);
+  }
+  if (dateFromTs !== null) {
+    entries = entries.filter((entry) => {
+      const ts = parseAuditTs(entry.ts);
+      return ts !== null && ts >= dateFromTs;
+    });
+  }
+  if (dateToTs !== null) {
+    entries = entries.filter((entry) => {
+      const ts = parseAuditTs(entry.ts);
+      return ts !== null && ts <= dateToTs;
+    });
+  }
+  if (q) {
+    entries = entries.filter((entry) => {
+      const haystack = [
+        entry.actorName,
+        entry.resourceId || "",
+        entry.ip,
+        entry.action,
+        entry.resource,
+        JSON.stringify(entry.meta || {}),
+      ]
+        .join(" ")
+        .toLowerCase();
+      return haystack.includes(q);
+    });
+  }
+
+  entries.sort((a, b) => (parseAuditTs(b.ts) || 0) - (parseAuditTs(a.ts) || 0));
+
+  if (format === "csv") {
+    const escapeCsv = (value) => {
+      const text = String(value ?? "");
+      if (text.includes("\"") || text.includes(",") || text.includes("\n")) {
+        return `"${text.replace(/"/g, "\"\"")}"`;
+      }
+      return text;
+    };
+
+    const exportEntries = entries.slice(0, AUDIT_CSV_MAX_ROWS);
+    const isTruncated = entries.length > exportEntries.length;
+    const rows = [];
+    rows.push("id,ts,actorId,actorName,action,resource,resourceId,status,ip,requestId,meta");
+    exportEntries.forEach((entry) => {
+      rows.push(
+        [
+          escapeCsv(entry.id),
+          escapeCsv(entry.ts),
+          escapeCsv(entry.actorId),
+          escapeCsv(entry.actorName),
+          escapeCsv(entry.action),
+          escapeCsv(entry.resource),
+          escapeCsv(entry.resourceId || ""),
+          escapeCsv(entry.status),
+          escapeCsv(entry.ip || ""),
+          escapeCsv(entry.requestId || ""),
+          escapeCsv(JSON.stringify(entry.meta || {})),
+        ].join(","),
+      );
+    });
+    const csv = `\uFEFF${rows.join("\n")}`;
+    const stamp = new Date().toISOString().slice(0, 10);
+    res.setHeader("Content-Type", "text/csv; charset=utf-8");
+    res.setHeader("Content-Disposition", `attachment; filename=\"audit-log-${stamp}.csv\"`);
+    res.setHeader("X-Audit-Export-Truncated", isTruncated ? "1" : "0");
+    res.setHeader("X-Audit-Export-Count", String(exportEntries.length));
+    res.setHeader("X-Audit-Export-Total", String(entries.length));
+    return res.status(200).send(csv);
+  }
+
+  const total = entries.length;
+  const start = (page - 1) * limit;
+  const paged = entries.slice(start, start + limit);
+
+  return res.json({
+    entries: paged,
+    page,
+    limit,
+    total,
+    filtersApplied: {
+      action,
+      resource,
+      actorId,
+      status: ["success", "failed", "denied"].includes(status) ? status : "",
+      q,
+      dateFrom: dateFromRaw,
+      dateTo: dateToRaw,
+    },
+  });
+});
+
+app.get("/api/analytics/overview", requireAuth, (req, res) => {
+  const rangeDays = parseAnalyticsRangeDays(req.query.range);
+  const type = normalizeAnalyticsTypeFilter(req.query.type);
+  const range = buildAnalyticsRange(rangeDays);
+  const events = filterAnalyticsEvents(loadAnalyticsEvents(), range.fromTs, range.toTs, type);
+  const viewEvents = events.filter((event) => event.eventType === "view");
+  const commentCreatedEvents = events.filter((event) => event.eventType === "comment_created");
+  const commentApprovedEvents = events.filter((event) => event.eventType === "comment_approved");
+  const uniqueVisitors = new Set(viewEvents.map((event) => event.visitorHash));
+
+  return res.json({
+    range: `${rangeDays}d`,
+    type,
+    from: new Date(range.fromTs).toISOString(),
+    to: new Date(range.toTs).toISOString(),
+    metrics: {
+      views: viewEvents.length,
+      uniqueViews: uniqueVisitors.size,
+      commentsCreated: commentCreatedEvents.length,
+      commentsApproved: commentApprovedEvents.length,
+    },
+  });
+});
+
+app.get("/api/analytics/timeseries", requireAuth, (req, res) => {
+  const rangeDays = parseAnalyticsRangeDays(req.query.range);
+  const type = normalizeAnalyticsTypeFilter(req.query.type);
+  const metricRaw = String(req.query.metric || "").trim().toLowerCase();
+  const metric = ["views", "unique_views", "comments"].includes(metricRaw) ? metricRaw : "views";
+  const range = buildAnalyticsRange(rangeDays);
+  const events = filterAnalyticsEvents(loadAnalyticsEvents(), range.fromTs, range.toTs, type);
+  const perDay = Object.fromEntries(
+    range.dayKeys.map((day) => [
+      day,
+      {
+        views: 0,
+        comments: 0,
+        uniqueVisitors: new Set(),
+      },
+    ]),
+  );
+  events.forEach((event) => {
+    const ts = parseAnalyticsTs(event.ts);
+    if (ts === null) {
+      return;
+    }
+    const dayKey = getDayKeyFromTs(ts);
+    if (!perDay[dayKey]) {
+      return;
+    }
+    if (event.eventType === "view") {
+      perDay[dayKey].views += 1;
+      perDay[dayKey].uniqueVisitors.add(event.visitorHash);
+      return;
+    }
+    if (event.eventType === "comment_created") {
+      perDay[dayKey].comments += 1;
+    }
+  });
+
+  return res.json({
+    range: `${rangeDays}d`,
+    type,
+    metric,
+    series: range.dayKeys.map((day) => ({
+      date: day,
+      value:
+        metric === "views"
+          ? perDay[day].views
+          : metric === "comments"
+            ? perDay[day].comments
+            : perDay[day].uniqueVisitors.size,
+    })),
+  });
+});
+
+app.get("/api/analytics/top-content", requireAuth, (req, res) => {
+  const rangeDays = parseAnalyticsRangeDays(req.query.range);
+  const type = normalizeAnalyticsTypeFilter(req.query.type);
+  const limitRaw = Number(req.query.limit);
+  const limit = Number.isFinite(limitRaw) ? Math.min(Math.max(Math.floor(limitRaw), 1), 50) : 10;
+  const range = buildAnalyticsRange(rangeDays);
+  const allEvents = filterAnalyticsEvents(loadAnalyticsEvents(), range.fromTs, range.toTs, type);
+  const viewEvents = allEvents.filter((event) => event.eventType === "view");
+  const grouped = new Map();
+  viewEvents.forEach((event) => {
+    const resourceType = event.resourceType === "project" ? "project" : "post";
+    const key = `${resourceType}:${event.resourceId}`;
+    const previous = grouped.get(key) || {
+      resourceType,
+      resourceId: event.resourceId,
+      views: 0,
+      uniqueVisitors: new Set(),
+    };
+    previous.views += 1;
+    previous.uniqueVisitors.add(event.visitorHash);
+    grouped.set(key, previous);
+  });
+
+  const postsBySlug = new Map(normalizePosts(loadPosts()).map((post) => [post.slug, post]));
+  const projectsById = new Map(normalizeProjects(loadProjects()).map((project) => [project.id, project]));
+
+  const entries = Array.from(grouped.values())
+    .map((item) => {
+      const title =
+        item.resourceType === "project"
+          ? projectsById.get(item.resourceId)?.title || `Projeto ${item.resourceId}`
+          : postsBySlug.get(item.resourceId)?.title || `Post ${item.resourceId}`;
+      return {
+        resourceType: item.resourceType,
+        resourceId: item.resourceId,
+        title,
+        views: item.views,
+        uniqueViews: item.uniqueVisitors.size,
+      };
+    })
+    .sort((a, b) => b.views - a.views)
+    .slice(0, limit);
+
+  return res.json({
+    range: `${rangeDays}d`,
+    type,
+    limit,
+    entries,
+  });
+});
+
+app.get("/api/analytics/acquisition", requireAuth, (req, res) => {
+  const rangeDays = parseAnalyticsRangeDays(req.query.range);
+  const type = normalizeAnalyticsTypeFilter(req.query.type);
+  const range = buildAnalyticsRange(rangeDays);
+  const events = filterAnalyticsEvents(loadAnalyticsEvents(), range.fromTs, range.toTs, type).filter(
+    (event) => event.eventType === "view",
+  );
+
+  const counters = {
+    referrerHost: {},
+    utmSource: {},
+    utmMedium: {},
+    utmCampaign: {},
+  };
+
+  events.forEach((event) => {
+    incrementCounter(counters.referrerHost, event.referrerHost || "(direct)");
+    if (event.utm?.source) incrementCounter(counters.utmSource, event.utm.source);
+    if (event.utm?.medium) incrementCounter(counters.utmMedium, event.utm.medium);
+    if (event.utm?.campaign) incrementCounter(counters.utmCampaign, event.utm.campaign);
+  });
+
+  const toSortedEntries = (target) =>
+    Object.entries(target)
+      .map(([key, value]) => ({ key, count: Number(value) || 0 }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 20);
+
+  return res.json({
+    range: `${rangeDays}d`,
+    type,
+    referrerHost: toSortedEntries(counters.referrerHost),
+    utmSource: toSortedEntries(counters.utmSource),
+    utmMedium: toSortedEntries(counters.utmMedium),
+    utmCampaign: toSortedEntries(counters.utmCampaign),
+  });
+});
 
 const normalizeUsers = (users) => {
   return users.map((user, index) =>
@@ -2255,6 +3687,16 @@ app.post("/api/public/posts/:slug/view", (req, res) => {
     return res.status(404).json({ error: "not_found" });
   }
   const updated = incrementPostViews(slug);
+  appendAnalyticsEvent(req, {
+    eventType: "view",
+    resourceType: "post",
+    resourceId: post.slug,
+    meta: {
+      action: "view",
+      resourceType: "post",
+      resourceId: post.slug,
+    },
+  });
   return res.json({ views: updated?.views ?? post.views ?? 0 });
 });
 
@@ -2443,6 +3885,28 @@ app.post("/api/public/comments", async (req, res) => {
 
   comments.push(newComment);
   writeComments(comments);
+  appendAnalyticsEvent(req, {
+    eventType: "comment_created",
+    resourceType: "comment",
+    resourceId: newComment.id,
+    meta: {
+      targetType: normalizedTargetType,
+      targetId: normalizedTargetId,
+      status: newComment.status,
+    },
+  });
+  if (newComment.status === "approved") {
+    appendAnalyticsEvent(req, {
+      eventType: "comment_approved",
+      resourceType: "comment",
+      resourceId: newComment.id,
+      meta: {
+        targetType: normalizedTargetType,
+        targetId: normalizedTargetId,
+        status: newComment.status,
+      },
+    });
+  }
   return res.json({ comment: { id: newComment.id, status: newComment.status } });
 });
 
@@ -2571,6 +4035,16 @@ app.post("/api/comments/:id/approve", requireAuth, (req, res) => {
     );
     writeProjects(updatedProjects);
   }
+  appendAnalyticsEvent(req, {
+    eventType: "comment_approved",
+    resourceType: "comment",
+    resourceId: existing.id,
+    meta: {
+      targetType: existing.targetType,
+      targetId: existing.targetId,
+      status: "approved",
+    },
+  });
 
   return res.json({ ok: true });
 });
@@ -3192,6 +4666,16 @@ app.post("/api/public/projects/:id/view", (req, res) => {
     return res.status(404).json({ error: "not_found" });
   }
   const updated = incrementProjectViews(id);
+  appendAnalyticsEvent(req, {
+    eventType: "view",
+    resourceType: "project",
+    resourceId: project.id,
+    meta: {
+      action: "view",
+      resourceType: "project",
+      resourceId: project.id,
+    },
+  });
   return res.json({ views: updated?.views ?? project.views ?? 0 });
 });
 
@@ -3227,7 +4711,6 @@ app.get("/api/public/projects/:id/chapters/:number", (req, res) => {
       number: chapter.number,
       volume: chapter.volume,
       title: chapter.title,
-      synopsis: chapter.synopsis,
       content: chapter.content || "",
       contentFormat: chapter.contentFormat || "markdown",
     },
@@ -3622,7 +5105,7 @@ app.post("/api/uploads/image", requireAuth, (req, res) => {
     return res.status(400).json({ error: "invalid_data_url" });
   }
 
-  const mime = match[1];
+  let mime = normalizeUploadMime(match[1]);
   if (!/^(image\/(png|jpe?g|gif|webp|svg\+xml))$/i.test(mime)) {
     return res.status(400).json({ error: "unsupported_image_type" });
   }
@@ -3633,10 +5116,15 @@ app.post("/api/uploads/image", requireAuth, (req, res) => {
   if (buffer.length > MAX_UPLOAD_SIZE_BYTES) {
     return res.status(400).json({ error: "file_too_large" });
   }
-  const ext = mime.toLowerCase() === "image/svg+xml" ? "svg" : mime.split("/")[1] || "png";
-  if (mime.toLowerCase() === "image/svg+xml" && buffer.length > MAX_SVG_SIZE_BYTES) {
+  const validation = validateUploadImageBuffer(buffer, mime, { strictRequestedMime: true });
+  if (!validation.valid) {
+    return res.status(400).json({ error: validation.error });
+  }
+  mime = validation.mime;
+  if (mime === "image/svg+xml" && buffer.length > MAX_SVG_SIZE_BYTES) {
     return res.status(400).json({ error: "svg_too_large" });
   }
+  const ext = getUploadExtFromMime(mime);
   const safeName = sanitizeUploadBaseName(filename || "upload");
   const safeSlot = sanitizeUploadSlot(slot);
   const uploadsDir = path.join(__dirname, "..", "public", "uploads");
@@ -3648,7 +5136,7 @@ app.post("/api/uploads/image", requireAuth, (req, res) => {
     ? `${safeSlot}.${ext}`
     : `${safeName || "imagem"}-${Date.now()}.${ext}`;
   const filePath = path.join(targetDir, fileName);
-  if (mime.toLowerCase() === "image/svg+xml") {
+  if (mime === "image/svg+xml") {
     const svgText = buffer.toString("utf-8");
     const sanitized = sanitizeSvg(svgText);
     fs.writeFileSync(filePath, sanitized);
@@ -3665,6 +5153,8 @@ app.post("/api/uploads/image", requireAuth, (req, res) => {
     folder: safeFolder || "",
     size: buffer.length,
     mime,
+    width: validation.dimensions?.width || null,
+    height: validation.dimensions?.height || null,
     createdAt: new Date().toISOString(),
   };
   const existingIndex = uploads.findIndex((item) => item.url === relativeUrl);
@@ -3860,14 +5350,11 @@ app.post("/api/uploads/image-from-url", requireAuth, async (req, res) => {
     }
 
     const contentTypeHeader = String(response.headers.get("content-type") || "");
-    const headerMime = contentTypeHeader.split(";")[0].trim().toLowerCase();
+    const headerMime = normalizeUploadMime(contentTypeHeader.split(";")[0].trim().toLowerCase());
     const extFromUrl = path.extname(parsedRemote.pathname || "").replace(".", "").toLowerCase();
     let mime = isSupportedUploadImageMime(headerMime)
       ? headerMime
       : getUploadMimeFromExtension(extFromUrl);
-    if (!isSupportedUploadImageMime(mime)) {
-      return res.status(400).json({ error: "unsupported_image_type" });
-    }
 
     const buffer = Buffer.from(await response.arrayBuffer());
     if (!buffer.length) {
@@ -3876,21 +5363,13 @@ app.post("/api/uploads/image-from-url", requireAuth, async (req, res) => {
     if (buffer.length > MAX_UPLOAD_SIZE_BYTES) {
       return res.status(400).json({ error: "file_too_large" });
     }
+    const validation = validateUploadImageBuffer(buffer, mime);
+    if (!validation.valid) {
+      return res.status(400).json({ error: validation.error });
+    }
+    mime = validation.mime;
     if (mime === "image/svg+xml" && buffer.length > MAX_SVG_SIZE_BYTES) {
       return res.status(400).json({ error: "svg_too_large" });
-    }
-
-    if (!isSupportedUploadImageMime(headerMime) && !extFromUrl) {
-      if (buffer[0] === 0x89 && buffer[1] === 0x50 && buffer[2] === 0x4e && buffer[3] === 0x47) {
-        mime = "image/png";
-      } else if (buffer[0] === 0xff && buffer[1] === 0xd8) {
-        mime = "image/jpeg";
-      } else if (buffer[0] === 0x47 && buffer[1] === 0x49 && buffer[2] === 0x46) {
-        mime = "image/gif";
-      }
-      if (!isSupportedUploadImageMime(mime)) {
-        return res.status(400).json({ error: "unsupported_image_type" });
-      }
     }
 
     const uploadsDir = path.join(__dirname, "..", "public", "uploads");
@@ -3919,6 +5398,8 @@ app.post("/api/uploads/image-from-url", requireAuth, async (req, res) => {
       folder: safeFolder || "",
       size: buffer.length,
       mime,
+      width: validation.dimensions?.width || null,
+      height: validation.dimensions?.height || null,
       createdAt: new Date().toISOString(),
     });
     writeUploads(uploads);
@@ -4535,5 +6016,11 @@ app.get("*", (req, res) => {
     return res.type("html").send(getIndexHtml());
   }
 });
+
+try {
+  compactAnalyticsData();
+} catch {
+  // ignore analytics compaction failures on boot
+}
 
 app.listen(Number(PORT));

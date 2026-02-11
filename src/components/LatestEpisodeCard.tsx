@@ -89,7 +89,7 @@ const LatestEpisodeCard = () => {
   }, [apiBase]);
 
   return (
-    <Card className="bg-card border-border overflow-hidden reveal" data-reveal>
+    <Card className="bg-card border-border overflow-hidden reveal transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:bg-card/90 hover:shadow-lg" data-reveal>
       <CardHeader className="px-4 pb-3 pt-4">
         <CardTitle className="text-lg font-semibold text-foreground flex items-center gap-2">
           <Sparkles className="w-4 h-4 text-primary" />
@@ -163,11 +163,11 @@ const LatestEpisodeCard = () => {
                     key={update.id}
                     to={`/projeto/${update.projectId}`}
                     style={{ "--card-h": "164px", "--card-pad": "16px" } as CSSProperties}
-                    className="group relative block h-[var(--card-h)] rounded-2xl bg-gradient-to-br from-background/70 via-background/40 to-background/70 shadow-none transition hover:-translate-y-0.5 hover:shadow-sm reveal"
+                    className="group relative block h-[var(--card-h)] rounded-2xl border border-border/60 bg-gradient-to-br from-background/70 via-background/40 to-background/70 shadow-none transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:shadow-lg reveal"
                     data-reveal
                   >
                     <div className="absolute inset-[var(--card-pad)] flex items-start gap-4">
-                      <div className="flex-shrink-0 overflow-hidden rounded-xl bg-secondary/60 h-full aspect-[23/32]">
+                      <div className="flex-shrink-0 overflow-hidden rounded-xl bg-secondary/60 h-full aspect-[46/65]">
                         <img
                           src={update.image || "/placeholder.svg"}
                           alt={update.projectTitle}
@@ -217,4 +217,6 @@ const LatestEpisodeCard = () => {
 };
 
 export default LatestEpisodeCard;
+
+
 

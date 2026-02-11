@@ -8,15 +8,21 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Menu } from "lucide-react";
+import { LogOut, Menu } from "lucide-react";
 import ThemedSvgLogo from "@/components/ThemedSvgLogo";
+import { dashboardMenuItems } from "@/components/dashboard-menu";
 import type { Project } from "@/data/projects";
 import { cn } from "@/lib/utils";
 import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
 import { useSiteSettings } from "@/hooks/use-site-settings";
+import { getNavbarIcon } from "@/lib/navbar-icons";
+import { resolveBranding } from "@/lib/branding";
+import { rankPosts, rankProjects, selectVisibleTags, sortAlphabeticallyPtBr } from "@/lib/search-ranking";
+import { useDynamicSynopsisClamp } from "@/hooks/use-dynamic-synopsis-clamp";
 
 type HeaderProps = {
   variant?: "fixed" | "static";
@@ -50,32 +56,56 @@ const Header = ({ variant = "fixed", leading, className }: HeaderProps) => {
 
   const siteNameRaw = settings.site.name || "Nekomata";
   const siteName = siteNameRaw.toUpperCase();
-  const logoUrl = settings.site.logoUrl?.trim();
-  const legacyWordmarkUrl = settings.branding.wordmarkUrl?.trim();
-  const wordmarkNavbarUrl =
-    settings.branding.wordmarkUrlNavbar?.trim() ||
-    settings.branding.wordmarkUrlFooter?.trim() ||
-    legacyWordmarkUrl ||
-    logoUrl ||
-    "";
-  const wordmarkPlacement = settings.branding.wordmarkPlacement || "both";
-  const showWordmarkInNavbar =
-    settings.branding.wordmarkEnabled &&
-    Boolean(wordmarkNavbarUrl) &&
-    (wordmarkPlacement === "navbar" || wordmarkPlacement === "both");
-  const recruitmentUrl = settings.navbar.recruitmentUrl || settings.community.discordUrl || "/recrutamento";
-  const isRecruitmentInternal = recruitmentUrl.startsWith("/") && !recruitmentUrl.startsWith("//");
+  const branding = resolveBranding(settings);
+  const navbarWordmarkUrl = branding.navbar.wordmarkUrl;
+  const navbarSymbolUrl = branding.navbar.symbolUrl;
+  const navbarMode = branding.navbar.mode;
+  const showWordmarkInNavbar = branding.navbar.showWordmark;
+  const showSymbolInNavbar = navbarMode === "symbol-text" || navbarMode === "symbol";
+  const showTextInNavbar = navbarMode === "symbol-text" || navbarMode === "text";
+  const navbarLinks = useMemo(() => {
+    return Array.isArray(settings.navbar.links)
+      ? settings.navbar.links
+          .map((link) => ({
+            label: String(link?.label || "").trim(),
+            href: String(link?.href || "").trim(),
+            icon: String(link?.icon || "").trim(),
+          }))
+          .filter((link) => link.label && link.href)
+      : [];
+  }, [settings.navbar.links]);
   const headerMenuContentClass =
     "border-white/25 bg-gradient-to-b from-black/40 via-black/25 to-black/10 text-white/90 shadow-xl backdrop-blur-sm";
   const headerMenuItemClass = "focus:bg-white/10 focus:text-white";
+  const isInternalHref = (href: string) => href.startsWith("/") && !href.startsWith("//");
+  const normalizePathname = (value: string) => {
+    const pathname = value.split(/[?#]/, 1)[0] || "/";
+    const withoutTrailingSlash = pathname.replace(/\/+$/, "");
+    return withoutTrailingSlash || "/";
+  };
+  const isNavbarLinkActive = (href: string) => {
+    if (!isInternalHref(href)) {
+      return false;
+    }
+    const currentPath = normalizePathname(location.pathname);
+    const targetPath = normalizePathname(href);
+    if (targetPath === "/") {
+      return currentPath === "/";
+    }
+    return currentPath === targetPath || currentPath.startsWith(`${targetPath}/`);
+  };
 
-  const projectItems = projects.map((project) => ({
-    label: project.title,
-    href: `/projeto/${project.id}`,
-    image: project.cover,
-    synopsis: project.synopsis,
-    tags: project.tags.map((tag) => tagTranslations[tag] || tag),
-  }));
+  const projectItems = useMemo(
+    () =>
+      projects.map((project) => ({
+        label: project.title,
+        href: `/projeto/${project.id}`,
+        image: project.cover,
+        synopsis: project.synopsis,
+        tags: selectVisibleTags(sortAlphabeticallyPtBr(project.tags.map((tag) => tagTranslations[tag] || tag)), 2, 18),
+      })),
+    [projects, tagTranslations],
+  );
 
   const postItems = useMemo(
     () =>
@@ -91,25 +121,39 @@ const Header = ({ variant = "fixed", leading, className }: HeaderProps) => {
     if (!query.trim()) {
       return [];
     }
-    const lowerQuery = query.toLowerCase();
-    return projectItems.filter((item) => {
-      const searchableText = [item.label, item.synopsis, item.tags.join(" ")].join(" ").toLowerCase();
-      return searchableText.includes(lowerQuery);
-    });
+    return rankProjects(projectItems, query);
   }, [projectItems, query]);
 
   const filteredPosts = useMemo(() => {
     if (!query.trim()) {
       return [];
     }
-    const lowerQuery = query.toLowerCase();
-    return postItems.filter((item) =>
-      [item.label, item.excerpt].join(" ").toLowerCase().includes(lowerQuery),
-    );
+    return rankPosts(postItems, query);
   }, [postItems, query]);
-
   const showResults = isSearchOpen && query.trim().length > 0;
   const hasResults = filteredProjects.length > 0 || filteredPosts.length > 0;
+  const synopsisKeys = useMemo(() => filteredProjects.map((item) => item.href), [filteredProjects]);
+  const { rootRef: synopsisRootRef, lineByKey: synopsisLineByKey } = useDynamicSynopsisClamp({
+    enabled: showResults,
+    keys: synopsisKeys,
+    maxLines: 4,
+  });
+  const getSynopsisClampClass = (key: string) => {
+    const lines = synopsisLineByKey[key] ?? 2;
+    if (lines <= 0) {
+      return "hidden";
+    }
+    if (lines === 1) {
+      return "line-clamp-1";
+    }
+    if (lines === 2) {
+      return "line-clamp-2";
+    }
+    if (lines === 3) {
+      return "line-clamp-3";
+    }
+    return "line-clamp-4";
+  };
 
   useEffect(() => {
     const handleOutsideClick = (event: MouseEvent) => {
@@ -227,7 +271,7 @@ const Header = ({ variant = "fixed", leading, className }: HeaderProps) => {
             {showWordmarkInNavbar ? (
               <>
                 <img
-                  src={wordmarkNavbarUrl}
+                  src={navbarWordmarkUrl}
                   alt={siteName}
                   className="h-8 md:h-10 w-auto max-w-[200px] md:max-w-[260px] object-contain"
                 />
@@ -235,14 +279,20 @@ const Header = ({ variant = "fixed", leading, className }: HeaderProps) => {
               </>
             ) : (
               <>
-                {logoUrl ? (
-                  <ThemedSvgLogo
-                    url={logoUrl}
-                    label={siteName}
-                    className="h-9 w-9 rounded-full object-cover shadow-sm text-primary"
-                  />
+                {showSymbolInNavbar ? (
+                  navbarSymbolUrl ? (
+                    <ThemedSvgLogo
+                      url={navbarSymbolUrl}
+                      label={siteName}
+                      className="h-9 w-9 rounded-full object-cover shadow-sm text-primary"
+                    />
+                  ) : (
+                    <span className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/20 bg-white/10 text-sm font-semibold">
+                      {siteName.slice(0, 1)}
+                    </span>
+                  )
                 ) : null}
-                <span>{siteName}</span>
+                {showTextInNavbar ? <span>{siteName}</span> : null}
               </>
             )}
           </Link>
@@ -250,67 +300,31 @@ const Header = ({ variant = "fixed", leading, className }: HeaderProps) => {
         
         <div className="flex items-center gap-3 md:gap-6">
           <div className="hidden md:flex items-center gap-6 text-sm font-medium text-white/80">
-            <Link
-              to="/"
-              className={`transition-colors ${
-                location.pathname === "/"
-                  ? "text-white font-semibold"
-                  : "text-white/80 hover:text-white"
-              }`}
-            >
-              Início
-            </Link>
-            <Link
-              to="/projetos"
-              className={`transition-colors ${
-                location.pathname.startsWith("/projetos")
-                  ? "text-white font-semibold"
-                  : "text-white/80 hover:text-white"
-              }`}
-            >
-              Projetos
-            </Link>
-            <Link
-              to="/equipe"
-              className={`transition-colors ${
-                location.pathname.startsWith("/equipe")
-                  ? "text-white font-semibold"
-                  : "text-white/80 hover:text-white"
-              }`}
-            >
-              Equipe
-            </Link>
-            {isRecruitmentInternal ? (
-              <Link
-                to={recruitmentUrl}
-                className={`transition-colors ${
-                  location.pathname.startsWith("/recrutamento")
-                    ? "text-white font-semibold"
-                    : "text-white/80 hover:text-white"
-                }`}
-              >
-                Recrutamento
-              </Link>
-            ) : (
-              <a
-                href={recruitmentUrl}
-                className="text-white/80 hover:text-white transition-colors"
-                target="_blank"
-                rel="noreferrer"
-              >
-                Recrutamento
-              </a>
-            )}
-            <Link
-              to="/sobre"
-              className={`transition-colors ${
-                location.pathname.startsWith("/sobre")
-                  ? "text-white font-semibold"
-                  : "text-white/80 hover:text-white"
-              }`}
-            >
-              Sobre
-            </Link>
+            {navbarLinks.map((item) => {
+              const isInternal = isInternalHref(item.href);
+              const isActive = isNavbarLinkActive(item.href);
+              const className = `transition-colors ${
+                isActive ? "text-white font-semibold" : "text-white/80 hover:text-white"
+              }`;
+              if (isInternal) {
+                return (
+                  <Link key={`${item.label}-${item.href}`} to={item.href} className={className}>
+                    {item.label}
+                  </Link>
+                );
+              }
+              return (
+                <a
+                  key={`${item.label}-${item.href}`}
+                  href={item.href}
+                  className="text-white/80 hover:text-white transition-colors"
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  {item.label}
+                </a>
+              );
+            })}
           </div>
 
           <div className="relative flex items-center gap-3" ref={searchRef}>
@@ -350,13 +364,16 @@ const Header = ({ variant = "fixed", leading, className }: HeaderProps) => {
             </div>
 
             {showResults && (
-              <div className="absolute right-0 top-12 w-80 rounded-xl border border-border/60 bg-background/95 p-4 shadow-lg backdrop-blur">
+              <div
+                ref={synopsisRootRef}
+                className="search-popover-enter absolute right-0 top-12 max-h-[78vh] w-80 overflow-hidden rounded-xl border border-border/60 bg-background/95 p-4 shadow-lg backdrop-blur"
+              >
                 {filteredProjects.length > 0 && (
                   <div className="mb-4">
                     <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                       Projetos
                     </p>
-                    <ul className="mt-3 space-y-3">
+                    <ul className="no-scrollbar mt-3 max-h-[44vh] space-y-3 overflow-y-auto overscroll-contain pr-1">
                       {filteredProjects.map((item) => (
                         <li key={item.href}>
                           <Link
@@ -365,7 +382,7 @@ const Header = ({ variant = "fixed", leading, className }: HeaderProps) => {
                           >
                             <div
                               className="w-20 flex-shrink-0 self-start overflow-hidden rounded-lg bg-secondary"
-                              style={{ aspectRatio: "23 / 32" }}
+                              style={{ aspectRatio: "46 / 65" }}
                             >
                               <img
                                 src={item.image}
@@ -373,17 +390,23 @@ const Header = ({ variant = "fixed", leading, className }: HeaderProps) => {
                                 className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
                               />
                             </div>
-                            <div className="min-w-0">
-                              <p className="text-sm font-semibold text-foreground group-hover:text-primary">
+                            <div data-synopsis-role="column" data-synopsis-key={item.href} className="min-w-0 h-full flex flex-col">
+                              <p data-synopsis-role="title" className="line-clamp-1 shrink-0 text-sm font-semibold text-foreground group-hover:text-primary">
                                 {item.label}
                               </p>
-                              <p className="mt-1 text-xs text-muted-foreground line-clamp-1">
+                              <p
+                                className={cn(
+                                  "mt-1 overflow-hidden text-xs leading-snug text-muted-foreground",
+                                  getSynopsisClampClass(item.href),
+                                )}
+                                data-synopsis-role="synopsis"
+                              >
                                 {item.synopsis}
                               </p>
                               {item.tags.length > 0 && (
-                                <div className="mt-2 flex flex-wrap gap-1.5 overflow-hidden">
-                                  {item.tags.slice(0, 3).map((tag) => (
-                                    <Badge key={tag} variant="secondary" className="text-[9px] uppercase">
+                                <div data-synopsis-role="badges" className="mt-auto pt-2 flex min-w-0 flex-wrap gap-1.5">
+                                  {item.tags.map((tag) => (
+                                    <Badge key={tag} variant="secondary" className="text-[9px] uppercase whitespace-nowrap">
                                       {tag}
                                     </Badge>
                                   ))}
@@ -402,7 +425,7 @@ const Header = ({ variant = "fixed", leading, className }: HeaderProps) => {
                     <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                       Posts
                     </p>
-                    <ul className="mt-2 space-y-2">
+                    <ul className="no-scrollbar mt-2 max-h-[26vh] space-y-2 overflow-y-auto overscroll-contain pr-1">
                       {filteredPosts.map((item) => (
                         <li key={item.href}>
                           <Link
@@ -438,27 +461,24 @@ const Header = ({ variant = "fixed", leading, className }: HeaderProps) => {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className={`w-48 ${headerMenuContentClass}`}>
-              <DropdownMenuItem asChild className={headerMenuItemClass}>
-                <Link to="/">Início</Link>
-              </DropdownMenuItem>
-              <DropdownMenuItem asChild className={headerMenuItemClass}>
-                <Link to="/projetos">Projetos</Link>
-              </DropdownMenuItem>
-              <DropdownMenuItem asChild className={headerMenuItemClass}>
-                <Link to="/equipe">Equipe</Link>
-              </DropdownMenuItem>
-              <DropdownMenuItem asChild className={headerMenuItemClass}>
-                {isRecruitmentInternal ? (
-                  <Link to={recruitmentUrl}>Recrutamento</Link>
-                ) : (
-                  <a href={recruitmentUrl} target="_blank" rel="noreferrer">
-                    Recrutamento
-                  </a>
-                )}
-              </DropdownMenuItem>
-              <DropdownMenuItem asChild className={headerMenuItemClass}>
-                <Link to="/sobre">Sobre</Link>
-              </DropdownMenuItem>
+              {navbarLinks.map((item) => {
+                const ItemIcon = getNavbarIcon(item.icon);
+                return (
+                  <DropdownMenuItem key={`${item.label}-${item.href}`} asChild className={headerMenuItemClass}>
+                    {isInternalHref(item.href) ? (
+                      <Link to={item.href} className="flex items-center gap-2">
+                        <ItemIcon className="h-4 w-4" />
+                        {item.label}
+                      </Link>
+                    ) : (
+                      <a href={item.href} target="_blank" rel="noreferrer" className="flex items-center gap-2">
+                        <ItemIcon className="h-4 w-4" />
+                        {item.label}
+                      </a>
+                    )}
+                  </DropdownMenuItem>
+                );
+              })}
             </DropdownMenuContent>
           </DropdownMenu>
 
@@ -466,7 +486,7 @@ const Header = ({ variant = "fixed", leading, className }: HeaderProps) => {
             <DropdownMenu modal={false}>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="h-11 gap-2 rounded-full px-2">
-                  <Avatar className="h-8 w-8 border border-border/60">
+                  <Avatar className="h-8 w-8 border-0 shadow-[0_0_0_1px_rgba(255,255,255,0.08),0_2px_8px_rgba(0,0,0,0.18)]">
                     {currentUser.avatarUrl ? (
                       <AvatarImage src={currentUser.avatarUrl} alt={currentUser.name} />
                     ) : null}
@@ -479,10 +499,21 @@ const Header = ({ variant = "fixed", leading, className }: HeaderProps) => {
                   </span>
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className={`w-44 ${headerMenuContentClass}`}>
-                <DropdownMenuItem asChild className={headerMenuItemClass}>
-                  <Link to="/dashboard">Dashboard</Link>
-                </DropdownMenuItem>
+              <DropdownMenuContent align="end" className={`w-56 ${headerMenuContentClass}`}>
+                {dashboardMenuItems
+                  .filter((item) => item.enabled)
+                  .map((item) => {
+                    const ItemIcon = item.icon;
+                    return (
+                      <DropdownMenuItem key={item.href} asChild className={headerMenuItemClass}>
+                        <Link to={item.href} className="flex items-center gap-2">
+                          <ItemIcon className="h-4 w-4" />
+                          {item.label}
+                        </Link>
+                      </DropdownMenuItem>
+                    );
+                  })}
+                <DropdownMenuSeparator className="bg-white/10" />
                 <DropdownMenuItem
                   className={headerMenuItemClass}
                   onClick={async () => {
@@ -493,6 +524,7 @@ const Header = ({ variant = "fixed", leading, className }: HeaderProps) => {
                     window.location.href = "/";
                   }}
                 >
+                  <LogOut className="h-4 w-4" />
                   Sair
                 </DropdownMenuItem>
               </DropdownMenuContent>

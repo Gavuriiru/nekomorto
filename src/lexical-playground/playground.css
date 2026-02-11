@@ -482,7 +482,7 @@
 }
 
 .lexical-playground i.figma {
-  background-image: url(images/icons/figma.svg);
+  background-image: url(images/icons/gear.svg);
 }
 
 .lexical-playground i.poll {
@@ -1088,7 +1088,7 @@
 .lexical-playground .editor-shell .editor-image .image-edit-button {
   border: 1px solid rgba(0, 0, 0, 0.3);
   border-radius: 5px;
-  background-image: url(/src/images/icons/pencil-fill.svg);
+  background-image: url(images/icons/pencil-fill.svg);
   background-size: 16px;
   background-position: center;
   background-repeat: no-repeat;

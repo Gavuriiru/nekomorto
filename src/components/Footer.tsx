@@ -2,6 +2,7 @@ import { Facebook, Instagram, Twitter, MessageCircle, Youtube, X, Globe } from "
 import { Link } from "react-router-dom";
 import { useSiteSettings } from "@/hooks/use-site-settings";
 import ThemedSvgLogo from "@/components/ThemedSvgLogo";
+import { resolveBranding } from "@/lib/branding";
 
 const Footer = () => {
   const { settings } = useSiteSettings();
@@ -9,18 +10,13 @@ const Footer = () => {
   const footerColumns = footer.columns || [];
   const socialLinks = footer.socialLinks || [];
   const disclaimer = footer.disclaimer || [];
-  const legacyWordmarkUrl = settings.branding.wordmarkUrl?.trim();
-  const wordmarkFooterUrl =
-    settings.branding.wordmarkUrlFooter?.trim() ||
-    settings.branding.wordmarkUrlNavbar?.trim() ||
-    legacyWordmarkUrl ||
-    footer.brandLogoUrl ||
-    "";
-  const wordmarkPlacement = settings.branding.wordmarkPlacement || "both";
-  const showWordmarkInFooter =
-    settings.branding.wordmarkEnabled &&
-    Boolean(wordmarkFooterUrl) &&
-    (wordmarkPlacement === "footer" || wordmarkPlacement === "both");
+  const brandName = (settings.site.name || footer.brandName || "Nekomata").trim() || "Nekomata";
+  const brandNameUpper = brandName.toUpperCase();
+  const branding = resolveBranding(settings);
+  const footerWordmarkUrl = branding.footer.wordmarkUrl;
+  const footerSymbolUrl = branding.footer.symbolUrl;
+  const footerMode = branding.footer.mode;
+  const showWordmarkInFooter = branding.footer.showWordmark;
   const renderCopyright = () => {
     const text = footer.copyright || "";
     const marker = "©";
@@ -64,23 +60,27 @@ const Footer = () => {
               {showWordmarkInFooter ? (
                 <>
                   <img
-                    src={wordmarkFooterUrl}
-                    alt={footer.brandName}
+                    src={footerWordmarkUrl}
+                    alt={brandName}
                     className="h-9 md:h-12 w-auto max-w-[220px] md:max-w-[280px] object-contain"
                   />
-                  <span className="sr-only">{footer.brandName}</span>
+                  <span className="sr-only">{brandName}</span>
                 </>
+              ) : footerMode === "text" ? (
+                <p className="text-3xl font-black tracking-widest text-gradient-rainbow">
+                  {brandNameUpper}
+                </p>
               ) : (
                 <>
-                  {footer.brandLogoUrl ? (
+                  {footerSymbolUrl ? (
                     <ThemedSvgLogo
-                      url={footer.brandLogoUrl}
-                      label={footer.brandName}
+                      url={footerSymbolUrl}
+                      label={brandName}
                       className="h-10 w-10 rounded-full object-cover shadow-sm text-primary"
                     />
                   ) : null}
                   <p className="text-3xl font-black tracking-widest text-gradient-rainbow">
-                    {footer.brandName}
+                    {brandNameUpper}
                   </p>
                 </>
               )}
