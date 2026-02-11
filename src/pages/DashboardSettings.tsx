@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import DashboardAutosaveStatus from "@/components/DashboardAutosaveStatus";
 import DashboardShell from "@/components/DashboardShell";
@@ -40,6 +40,7 @@ import {
   User,
   Video,
   HardDrive,
+  GripVertical,
   Cloud,
   Plus,
   Save,
@@ -119,6 +120,22 @@ const normalizeLinkTypeId = (value: string) =>
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/(^-|-$)/g, "");
+
+const reorderItems = <T,>(items: T[], from: number, to: number) => {
+  if (from === to) {
+    return items;
+  }
+  if (from < 0 || to < 0 || from >= items.length || to >= items.length) {
+    return items;
+  }
+  const next = [...items];
+  const [moved] = next.splice(from, 1);
+  if (typeof moved === "undefined") {
+    return items;
+  }
+  next.splice(to, 0, moved);
+  return next;
+};
 
 type LogoLibraryTarget =
   | "branding.assets.symbolUrl"
@@ -349,6 +366,8 @@ const DashboardSettings = () => {
   const [staffRoleQuery, setStaffRoleQuery] = useState("");
   const [newStaffRole, setNewStaffRole] = useState("");
   const [activeTab, setActiveTab] = useState<SettingsTabKey>("geral");
+  const [footerSocialDragIndex, setFooterSocialDragIndex] = useState<number | null>(null);
+  const [footerSocialDragOverIndex, setFooterSocialDragOverIndex] = useState<number | null>(null);
   const hasSyncedAniList = useRef(false);
 
   useEffect(() => {
@@ -494,6 +513,46 @@ const DashboardSettings = () => {
   const isIconUrl = (value?: string | null) => {
     if (!value) return false;
     return value.startsWith("http") || value.startsWith("data:") || value.startsWith("/uploads/");
+  };
+
+  const clearFooterSocialDragState = () => {
+    setFooterSocialDragIndex(null);
+    setFooterSocialDragOverIndex(null);
+  };
+
+  const handleFooterSocialDragStart = (event: DragEvent<HTMLButtonElement>, index: number) => {
+    setFooterSocialDragIndex(index);
+    setFooterSocialDragOverIndex(index);
+    event.dataTransfer.effectAllowed = "move";
+    event.dataTransfer.setData("text/plain", String(index));
+  };
+
+  const handleFooterSocialDragOver = (event: DragEvent<HTMLDivElement>, index: number) => {
+    if (footerSocialDragIndex === null) {
+      return;
+    }
+    event.preventDefault();
+    event.dataTransfer.dropEffect = "move";
+    if (footerSocialDragOverIndex !== index) {
+      setFooterSocialDragOverIndex(index);
+    }
+  };
+
+  const handleFooterSocialDrop = (event: DragEvent<HTMLDivElement>, index: number) => {
+    event.preventDefault();
+    const from = footerSocialDragIndex;
+    if (from === null || from === index) {
+      clearFooterSocialDragState();
+      return;
+    }
+    setSettings((prev) => ({
+      ...prev,
+      footer: {
+        ...prev.footer,
+        socialLinks: reorderItems(prev.footer.socialLinks, from, index),
+      },
+    }));
+    clearFooterSocialDragState();
   };
 
   const openLibrary = (target: LogoLibraryTarget) => {
@@ -2466,7 +2525,27 @@ const DashboardSettings = () => {
 
                     <div className="grid gap-3">
                       {settings.footer.socialLinks.map((link, index) => (
-                        <div key={`${link.label}-${index}`} className="grid gap-3 md:grid-cols-[0.8fr_1.6fr_auto]">
+                        <div
+                          key={`${link.label}-${index}`}
+                          data-testid={`footer-social-row-${index}`}
+                          className={`grid items-center gap-3 rounded-xl border p-2 transition md:grid-cols-[auto_0.8fr_1.6fr_auto] ${
+                            footerSocialDragOverIndex === index
+                              ? "border-primary/40 bg-primary/5"
+                              : "border-transparent"
+                          }`}
+                          onDragOver={(event) => handleFooterSocialDragOver(event, index)}
+                          onDrop={(event) => handleFooterSocialDrop(event, index)}
+                        >
+                          <button
+                            type="button"
+                            draggable
+                            className="inline-flex h-9 w-9 cursor-grab items-center justify-center rounded-md border border-border/60 bg-background/60 text-muted-foreground transition hover:border-primary/40 hover:text-primary active:cursor-grabbing"
+                            aria-label={`Arrastar rede ${link.label || index + 1}`}
+                            onDragStart={(event) => handleFooterSocialDragStart(event, index)}
+                            onDragEnd={clearFooterSocialDragState}
+                          >
+                            <GripVertical className="h-4 w-4" />
+                          </button>
                           <Select
                             value={link.icon || "link"}
                             onValueChange={(value) =>

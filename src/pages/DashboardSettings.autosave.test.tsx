@@ -216,5 +216,45 @@ describe("DashboardSettings autosave", () => {
 
     addEventListenerSpy.mockRestore();
   });
+
+  it("reordena redes sociais do footer via drag-and-drop e salva a nova ordem", async () => {
+    render(<DashboardSettings />);
+    await screen.findByRole("heading", { name: /Painel/i });
+
+    fireEvent.mouseDown(screen.getByRole("tab", { name: /Footer/i }));
+    await screen.findByRole("heading", { name: /Redes sociais/i });
+
+    apiFetchMock.mockClear();
+
+    const dataTransfer = {
+      effectAllowed: "move",
+      dropEffect: "move",
+      setData: vi.fn(),
+      getData: vi.fn(),
+      clearData: vi.fn(),
+    };
+
+    const dragHandle = await screen.findByRole("button", { name: /Arrastar rede Discord/i });
+    const topRow = await screen.findByTestId("footer-social-row-0");
+
+    fireEvent.dragStart(dragHandle, { dataTransfer });
+    fireEvent.dragOver(topRow, { dataTransfer });
+    fireEvent.drop(topRow, { dataTransfer });
+    fireEvent.dragEnd(dragHandle, { dataTransfer });
+
+    await act(async () => {
+      await waitMs(1300);
+      await flushMicrotasks();
+    });
+
+    const putCalls = getPutCalls();
+    expect(putCalls).toHaveLength(1);
+    expect(putCalls[0][1]).toBe("/api/settings");
+    const payload = JSON.parse(String(((putCalls[0][2] || {}) as RequestInit).body || "{}"));
+    const socialLabels = (payload?.settings?.footer?.socialLinks || []).map((item: { label: string }) =>
+      String(item?.label || ""),
+    );
+    expect(socialLabels[0]).toBe("Discord");
+  });
 });
 
