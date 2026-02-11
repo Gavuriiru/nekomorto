@@ -72,6 +72,7 @@ import {
   translateTag,
 } from "@/lib/project-taxonomy";
 import { isChapterBasedType, isLightNovelType, isMangaType } from "@/lib/project-utils";
+import { formatBytesCompact, parseHumanSizeToBytes } from "@/lib/file-size";
 import { usePageMeta } from "@/hooks/use-page-meta";
 import LexicalEditor, { type LexicalEditorHandle } from "@/components/lexical/LexicalEditor";
 import { useSiteSettings } from "@/hooks/use-site-settings";
@@ -106,6 +107,8 @@ type ProjectEpisode = {
   coverImageUrl?: string;
   sourceType: "TV" | "Web" | "Blu-ray";
   sources: DownloadSource[];
+  hash?: string;
+  sizeBytes?: number;
   progressStage?: string;
   completedStages?: string[];
   content?: string;
@@ -780,6 +783,8 @@ const DashboardProjectsEditor = () => {
   const [animeStaffMemberInput, setAnimeStaffMemberInput] = useState<Record<number, string>>({});
   const [episodeDateDraft, setEpisodeDateDraft] = useState<Record<number, string>>({});
   const [episodeTimeDraft, setEpisodeTimeDraft] = useState<Record<number, string>>({});
+  const [episodeSizeDrafts, setEpisodeSizeDrafts] = useState<Record<number, string>>({});
+  const [episodeSizeErrors, setEpisodeSizeErrors] = useState<Record<number, string>>({});
   const [memberDirectory, setMemberDirectory] = useState<string[]>([]);
   const [collapsedEpisodes, setCollapsedEpisodes] = useState<Record<number, boolean>>({});
   const [editorAccordionValue, setEditorAccordionValue] = useState<string[]>(["dados-principais"]);
@@ -790,6 +795,7 @@ const DashboardProjectsEditor = () => {
   const [episodeCoverIndex, setEpisodeCoverIndex] = useState<number | null>(null);
   const [libraryFolder, setLibraryFolder] = useState<string>("");
   const chapterEditorsRef = useRef<Record<number, LexicalEditorHandle | null>>({});
+  const episodeSizeInputRefs = useRef<Record<number, HTMLInputElement | null>>({});
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [confirmTitle, setConfirmTitle] = useState("Sair da edição?");
   const [confirmDescription, setConfirmDescription] = useState(
@@ -833,6 +839,33 @@ const DashboardProjectsEditor = () => {
       setIsEditorDialogScrolled(false);
     }
   }, [isEditorOpen]);
+
+  useEffect(() => {
+    const maxEpisodeIndex = formState.episodeDownloads.length - 1;
+
+    const pruneMap = (current: Record<number, string>) => {
+      let changed = false;
+      const next: Record<number, string> = {};
+      Object.entries(current).forEach(([key, value]) => {
+        const index = Number(key);
+        if (!Number.isFinite(index) || index < 0 || index > maxEpisodeIndex) {
+          changed = true;
+          return;
+        }
+        next[index] = value;
+      });
+      return changed ? next : current;
+    };
+
+    setEpisodeSizeDrafts((prev) => pruneMap(prev));
+    setEpisodeSizeErrors((prev) => pruneMap(prev));
+    Object.keys(episodeSizeInputRefs.current).forEach((key) => {
+      const index = Number(key);
+      if (!Number.isFinite(index) || index < 0 || index > maxEpisodeIndex) {
+        delete episodeSizeInputRefs.current[index];
+      }
+    });
+  }, [formState.episodeDownloads]);
 
   const staffRoleOptions = useMemo(() => {
     const labels = publicSettings.teamRoles.map((role) => role.label).filter(Boolean);
@@ -1247,6 +1280,9 @@ const DashboardProjectsEditor = () => {
     setEditorAccordionValue(["importacao"]);
     setEpisodeDateDraft({});
     setEpisodeTimeDraft({});
+    setEpisodeSizeDrafts({});
+    setEpisodeSizeErrors({});
+    episodeSizeInputRefs.current = {};
     setAnimeStaffMemberInput({});
     editorInitialSnapshotRef.current = buildProjectEditorSnapshot(nextForm, "");
     setCollapsedEpisodes({});
@@ -1303,6 +1339,9 @@ const DashboardProjectsEditor = () => {
     setEditorAccordionValue(["dados-principais"]);
     setEpisodeDateDraft({});
     setEpisodeTimeDraft({});
+    setEpisodeSizeDrafts({});
+    setEpisodeSizeErrors({});
+    episodeSizeInputRefs.current = {};
     setAnimeStaffMemberInput({});
     editorInitialSnapshotRef.current = buildProjectEditorSnapshot(nextForm, nextAniListInput);
     setCollapsedEpisodes(() => {
@@ -1342,6 +1381,69 @@ const DashboardProjectsEditor = () => {
     if (!trimmedTitle) {
       return;
     }
+
+    const normalizedEpisodesForSave = formState.episodeDownloads.map((episode) => ({
+      ...episode,
+      sources: Array.isArray(episode.sources) ? episode.sources.map((source) => ({ ...source })) : [],
+    }));
+    const nextEpisodeSizeDrafts = { ...episodeSizeDrafts };
+    const nextEpisodeSizeErrors = { ...episodeSizeErrors };
+    let firstInvalidEpisodeSizeIndex: number | null = null;
+
+    Object.entries(episodeSizeDrafts).forEach(([key, draftValue]) => {
+      const episodeIndex = Number(key);
+      if (!Number.isFinite(episodeIndex)) {
+        delete nextEpisodeSizeDrafts[episodeIndex];
+        delete nextEpisodeSizeErrors[episodeIndex];
+        return;
+      }
+      const episode = normalizedEpisodesForSave[episodeIndex];
+      if (!episode) {
+        delete nextEpisodeSizeDrafts[episodeIndex];
+        delete nextEpisodeSizeErrors[episodeIndex];
+        return;
+      }
+      const trimmedSize = String(draftValue || "").trim();
+      if (!trimmedSize) {
+        episode.sizeBytes = undefined;
+        delete nextEpisodeSizeDrafts[episodeIndex];
+        delete nextEpisodeSizeErrors[episodeIndex];
+        return;
+      }
+      const parsedSize = parseHumanSizeToBytes(trimmedSize);
+      if (!parsedSize) {
+        nextEpisodeSizeErrors[episodeIndex] = "Use formatos como 700 MB ou 1.4 GB.";
+        if (firstInvalidEpisodeSizeIndex === null) {
+          firstInvalidEpisodeSizeIndex = episodeIndex;
+        }
+        return;
+      }
+      episode.sizeBytes = parsedSize;
+      delete nextEpisodeSizeDrafts[episodeIndex];
+      delete nextEpisodeSizeErrors[episodeIndex];
+    });
+
+    const sizeErrorIndexes = Object.keys(nextEpisodeSizeErrors)
+      .map((key) => Number(key))
+      .filter(
+        (index) =>
+          Number.isFinite(index) && String(nextEpisodeSizeErrors[index] || "").trim().length > 0,
+      );
+    if (sizeErrorIndexes.length > 0) {
+      const focusIndex =
+        firstInvalidEpisodeSizeIndex !== null ? firstInvalidEpisodeSizeIndex : sizeErrorIndexes[0];
+      setEpisodeSizeDrafts(nextEpisodeSizeDrafts);
+      setEpisodeSizeErrors(nextEpisodeSizeErrors);
+      toast({
+        title: "Corrija os tamanhos inválidos",
+        description: "Use valores como 700 MB ou 1.4 GB antes de salvar.",
+      });
+      episodeSizeInputRefs.current[focusIndex]?.focus();
+      return;
+    }
+
+    setEpisodeSizeDrafts(nextEpisodeSizeDrafts);
+    setEpisodeSizeErrors({});
 
     const nowIso = new Date().toISOString();
     const prevEpisodesMap = new Map<string, ProjectEpisode>();
@@ -1412,7 +1514,7 @@ const DashboardProjectsEditor = () => {
         }),
       staff: staffWithPending.filter((item) => item.role || item.members.length > 0),
       animeStaff: formState.animeStaff.filter((item) => item.role || item.members.length > 0),
-      episodeDownloads: formState.episodeDownloads.map((episode) => {
+      episodeDownloads: normalizedEpisodesForSave.map((episode) => {
         const key = `${episode.number}-${episode.volume || 0}`;
         const prev = prevEpisodesMap.get(key);
         const signature = [
@@ -1431,9 +1533,24 @@ const DashboardProjectsEditor = () => {
           isLightNovel &&
           String(episode.content || "").trim().length > 0 &&
           (!prev || signature !== prevSignature);
+        const hash = String(episode.hash || "").trim();
+        const parsedSize = Number(episode.sizeBytes);
+        const sizeBytes =
+          Number.isFinite(parsedSize) && parsedSize > 0 ? Math.round(parsedSize) : undefined;
         return {
           ...episode,
-          sources: episode.sources.filter((source) => source.url || source.label),
+          hash: hash || undefined,
+          sizeBytes,
+          sources: (episode.sources || [])
+            .map((source) => {
+              const label = String(source.label || "").trim();
+              const url = String(source.url || "").trim();
+              return {
+                label,
+                url,
+              };
+            })
+            .filter((source) => source.url || source.label),
           completedStages: episode.completedStages || [],
           progressStage: getProgressStage(formState.type || "", episode.completedStages),
           chapterUpdatedAt: shouldStamp
@@ -2946,6 +3063,8 @@ const DashboardProjectsEditor = () => {
                                 }));
                                 setEpisodeDateDraft((prev) => shiftDraftAfterRemoval(prev, index));
                                 setEpisodeTimeDraft((prev) => shiftDraftAfterRemoval(prev, index));
+                                setEpisodeSizeDrafts((prev) => shiftDraftAfterRemoval(prev, index));
+                                setEpisodeSizeErrors((prev) => shiftDraftAfterRemoval(prev, index));
                               }
                             }
                           >
@@ -3242,100 +3361,211 @@ const DashboardProjectsEditor = () => {
                             </div>
                           ) : null}
                           {!isLightNovel ? (
-                            <div className="mt-3">
-                              <Label className="text-xs">Fontes de download</Label>
-                              <div className="mt-2 grid gap-2">
-                                {(episode.sources || []).map((source, sourceIndex) => (
-                                  <div
-                                    key={`${source.label}-${sourceIndex}`}
-                                    className="grid items-center gap-2 md:grid-cols-[1fr_2fr_auto]"
-                                  >
-                                    <Select
-                                      value={source.label}
-                                      onValueChange={(value) =>
-                                        setFormState((prev) => {
-                                          const next = [...prev.episodeDownloads];
-                                          const sources = [...(next[index].sources || [])];
-                                          sources[sourceIndex] = {
-                                            ...sources[sourceIndex],
-                                            label: value,
-                                          };
-                                          next[index] = { ...next[index], sources };
-                                          return { ...prev, episodeDownloads: next };
-                                        })
-                                      }
-                                    >
-                                      <SelectTrigger>
-                                        <SelectValue placeholder="Fonte" />
-                                      </SelectTrigger>
-                                      <SelectContent>
-                                        {downloadSourceOptions.map((option) => (
-                                          <SelectItem key={option.label} value={option.label}>
-                                            <span className="flex items-center gap-2">
-                                              {renderDownloadIcon(
-                                                option.icon,
-                                                option.color,
-                                                option.label,
-                                                option.tintIcon,
-                                              )}
-                                              <span>{option.label}</span>
-                                            </span>
-                                          </SelectItem>
-                                        ))}
-                                      </SelectContent>
-                                    </Select>
+                            <div className="mt-3 space-y-3">
+                              <div>
+                                <Label className="text-xs">Arquivo do episódio</Label>
+                                <div className="mt-2 grid gap-2 md:grid-cols-2">
+                                  <div className="space-y-1">
                                     <Input
-                                      value={source.url}
-                                      onChange={(event) =>
+                                      ref={(node) => {
+                                        episodeSizeInputRefs.current[index] = node;
+                                      }}
+                                      value={
+                                        episodeSizeDrafts[index] ??
+                                        (episode.sizeBytes ? formatBytesCompact(episode.sizeBytes) : "")
+                                      }
+                                      onChange={(event) => {
+                                        const nextValue = event.target.value;
+                                        setEpisodeSizeDrafts((prev) => ({ ...prev, [index]: nextValue }));
+                                        setEpisodeSizeErrors((prev) => {
+                                          if (!prev[index]) {
+                                            return prev;
+                                          }
+                                          const next = { ...prev };
+                                          delete next[index];
+                                          return next;
+                                        });
+                                      }}
+                                      onBlur={(event) => {
+                                        const rawValue = episodeSizeDrafts[index] ?? event.target.value;
+                                        const trimmedSize = String(rawValue || "").trim();
+                                        if (!trimmedSize) {
+                                          setFormState((prev) => {
+                                            const next = [...prev.episodeDownloads];
+                                            next[index] = {
+                                              ...next[index],
+                                              sizeBytes: undefined,
+                                            };
+                                            return { ...prev, episodeDownloads: next };
+                                          });
+                                          setEpisodeSizeDrafts((prev) => {
+                                            const next = { ...prev };
+                                            delete next[index];
+                                            return next;
+                                          });
+                                          setEpisodeSizeErrors((prev) => {
+                                            const next = { ...prev };
+                                            delete next[index];
+                                            return next;
+                                          });
+                                          return;
+                                        }
+
+                                        const parsedSize = parseHumanSizeToBytes(trimmedSize);
+                                        if (!parsedSize) {
+                                          setEpisodeSizeErrors((prev) => ({
+                                            ...prev,
+                                            [index]: "Use formatos como 700 MB ou 1.4 GB.",
+                                          }));
+                                          setEpisodeSizeDrafts((prev) => ({ ...prev, [index]: rawValue }));
+                                          return;
+                                        }
+
                                         setFormState((prev) => {
                                           const next = [...prev.episodeDownloads];
-                                          const sources = [...(next[index].sources || [])];
-                                          sources[sourceIndex] = {
-                                            ...sources[sourceIndex],
-                                            url: event.target.value,
+                                          next[index] = {
+                                            ...next[index],
+                                            sizeBytes: parsedSize,
                                           };
-                                          next[index] = { ...next[index], sources };
                                           return { ...prev, episodeDownloads: next };
-                                        })
-                                      }
-                                      placeholder="URL"
+                                        });
+                                        setEpisodeSizeDrafts((prev) => {
+                                          const next = { ...prev };
+                                          delete next[index];
+                                          return next;
+                                        });
+                                        setEpisodeSizeErrors((prev) => {
+                                          const next = { ...prev };
+                                          delete next[index];
+                                          return next;
+                                        });
+                                      }}
+                                      placeholder="Tamanho (ex.: 700 MB ou 1.4 GB)"
                                     />
-                                    <Button
-                                      type="button"
-                                      variant="ghost"
-                                      size="icon"
-                                      className="h-9 w-9"
-                                      onClick={() =>
-                                        setFormState((prev) => {
-                                          const next = [...prev.episodeDownloads];
-                                          const sources = (next[index].sources || []).filter((_, idx) => idx !== sourceIndex);
-                                          next[index] = { ...next[index], sources };
-                                          return { ...prev, episodeDownloads: next };
-                                        })
-                                      }
-                                    >
-                                      <Trash2 className="h-4 w-4" />
-                                    </Button>
+                                    {episodeSizeErrors[index] ? (
+                                      <p className="text-[11px] text-destructive">{episodeSizeErrors[index]}</p>
+                                    ) : (
+                                      <p className="text-[11px] text-muted-foreground">
+                                        Campo opcional. Valor salvo em bytes.
+                                      </p>
+                                    )}
                                   </div>
-                                ))}
-                                <Button
-                                  type="button"
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() =>
-                                    setFormState((prev) => {
-                                      const next = [...prev.episodeDownloads];
-                                      const existingSources = next[index].sources || [];
-                                      next[index] = {
-                                        ...next[index],
-                                        sources: [...existingSources, { label: "", url: "" }],
-                                      };
-                                      return { ...prev, episodeDownloads: next };
-                                    })
-                                  }
-                                >
-                                  Adicionar fonte
-                                </Button>
+                                  <Input
+                                    value={episode.hash || ""}
+                                    onChange={(event) =>
+                                      setFormState((prev) => {
+                                        const next = [...prev.episodeDownloads];
+                                        next[index] = {
+                                          ...next[index],
+                                          hash: event.target.value,
+                                        };
+                                        return { ...prev, episodeDownloads: next };
+                                      })
+                                    }
+                                    placeholder="Hash (ex.: SHA-256: ...)"
+                                  />
+                                </div>
+                              </div>
+
+                              <div>
+                                <Label className="text-xs">Fontes de download</Label>
+                                <div className="mt-2 grid gap-2">
+                                  {(episode.sources || []).map((source, sourceIndex) => (
+                                    <div
+                                      key={`${source.label}-${sourceIndex}`}
+                                      className="rounded-xl border border-border/60 bg-background/40 p-3"
+                                    >
+                                      <div className="grid items-start gap-2 md:grid-cols-[minmax(180px,1fr)_minmax(240px,2fr)_auto]">
+                                        <Select
+                                          value={source.label}
+                                          onValueChange={(value) =>
+                                            setFormState((prev) => {
+                                              const next = [...prev.episodeDownloads];
+                                              const sources = [...(next[index].sources || [])];
+                                              sources[sourceIndex] = {
+                                                ...sources[sourceIndex],
+                                                label: value,
+                                              };
+                                              next[index] = { ...next[index], sources };
+                                              return { ...prev, episodeDownloads: next };
+                                            })
+                                          }
+                                        >
+                                          <SelectTrigger>
+                                            <SelectValue placeholder="Fonte" />
+                                          </SelectTrigger>
+                                          <SelectContent>
+                                            {downloadSourceOptions.map((option) => (
+                                              <SelectItem key={option.label} value={option.label}>
+                                                <span className="flex items-center gap-2">
+                                                  {renderDownloadIcon(
+                                                    option.icon,
+                                                    option.color,
+                                                    option.label,
+                                                    option.tintIcon,
+                                                  )}
+                                                  <span>{option.label}</span>
+                                                </span>
+                                              </SelectItem>
+                                            ))}
+                                          </SelectContent>
+                                        </Select>
+                                        <Input
+                                          value={source.url}
+                                          onChange={(event) =>
+                                            setFormState((prev) => {
+                                              const next = [...prev.episodeDownloads];
+                                              const sources = [...(next[index].sources || [])];
+                                              sources[sourceIndex] = {
+                                                ...sources[sourceIndex],
+                                                url: event.target.value,
+                                              };
+                                              next[index] = { ...next[index], sources };
+                                              return { ...prev, episodeDownloads: next };
+                                            })
+                                          }
+                                          placeholder="URL"
+                                        />
+                                        <Button
+                                          type="button"
+                                          variant="ghost"
+                                          size="icon"
+                                          className="h-9 w-9"
+                                          onClick={() => {
+                                            setFormState((prev) => {
+                                              const next = [...prev.episodeDownloads];
+                                              const sources = (next[index].sources || []).filter(
+                                                (_, idx) => idx !== sourceIndex,
+                                              );
+                                              next[index] = { ...next[index], sources };
+                                              return { ...prev, episodeDownloads: next };
+                                            });
+                                          }}
+                                        >
+                                          <Trash2 className="h-4 w-4" />
+                                        </Button>
+                                      </div>
+                                    </div>
+                                  ))}
+                                  <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() =>
+                                      setFormState((prev) => {
+                                        const next = [...prev.episodeDownloads];
+                                        const existingSources = next[index].sources || [];
+                                        next[index] = {
+                                          ...next[index],
+                                          sources: [...existingSources, { label: "", url: "" }],
+                                        };
+                                        return { ...prev, episodeDownloads: next };
+                                      })
+                                    }
+                                  >
+                                    Adicionar fonte
+                                  </Button>
+                                </div>
                               </div>
                             </div>
                           ) : null}

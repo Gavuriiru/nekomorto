@@ -2509,6 +2509,49 @@ const normalizePosts = (posts) => {
 
 const normalizeProjects = (projects) =>
   projects.map((project, index) => {
+    const normalizedEpisodeDownloads = Array.isArray(project.episodeDownloads)
+      ? project.episodeDownloads.map((episode) => {
+          const normalizedSources = Array.isArray(episode?.sources)
+            ? episode.sources.map((source) => {
+                const label = String(source?.label || "");
+                const url = String(source?.url || "");
+                return {
+                  label,
+                  url,
+                };
+              })
+            : [];
+          const legacyHash = Array.isArray(episode?.sources)
+            ? String(
+                episode.sources.find((source) => String(source?.hash || "").trim())?.hash || "",
+              ).trim()
+            : "";
+          const legacyRawSizeBytes = Array.isArray(episode?.sources)
+            ? Number(
+                episode.sources.find((source) => {
+                  const parsed = Number(source?.sizeBytes);
+                  return Number.isFinite(parsed) && parsed > 0;
+                })?.sizeBytes,
+              )
+            : Number.NaN;
+          const hash = String(episode?.hash || "").trim() || legacyHash;
+          const rawSizeBytes = Number(episode?.sizeBytes);
+          const resolvedRawSizeBytes =
+            Number.isFinite(rawSizeBytes) && rawSizeBytes > 0 ? rawSizeBytes : legacyRawSizeBytes;
+          const sizeBytes =
+            Number.isFinite(resolvedRawSizeBytes) && resolvedRawSizeBytes > 0
+              ? Math.round(resolvedRawSizeBytes)
+              : undefined;
+          return {
+            ...episode,
+            sources: normalizedSources,
+            hash: hash || undefined,
+            sizeBytes,
+            chapterUpdatedAt: episode.chapterUpdatedAt || "",
+          };
+        })
+      : [];
+
     const normalized = {
     id: String(project.id || `project-${Date.now()}-${index}`),
     anilistId: project.anilistId ? Number(project.anilistId) : null,
@@ -2545,12 +2588,7 @@ const normalizeProjects = (projects) =>
     trailerUrl: project.trailerUrl || "",
     forceHero: Boolean(project.forceHero),
     heroImageUrl: String(project.heroImageUrl || ""),
-    episodeDownloads: Array.isArray(project.episodeDownloads)
-      ? project.episodeDownloads.map((episode) => ({
-          ...episode,
-          chapterUpdatedAt: episode.chapterUpdatedAt || "",
-        }))
-      : [],
+    episodeDownloads: normalizedEpisodeDownloads,
     views: Number.isFinite(project.views) ? project.views : 0,
     viewsDaily: project.viewsDaily && typeof project.viewsDaily === "object" ? project.viewsDaily : {},
     commentsCount: Number.isFinite(project.commentsCount) ? project.commentsCount : 0,

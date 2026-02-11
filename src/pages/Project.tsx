@@ -3,9 +3,11 @@ import { Link, useParams } from "react-router-dom";
 import {
   BookOpen,
   CalendarDays,
+  Clock3,
   Cloud,
   Download,
   Film,
+  Hash,
   HardDrive,
   Link2,
   PlayCircle,
@@ -33,6 +35,7 @@ import {
   translateRelation,
   translateTag,
 } from "@/lib/project-taxonomy";
+import { formatBytesCompact } from "@/lib/file-size";
 import { useSiteSettings } from "@/hooks/use-site-settings";
 import { usePageMeta } from "@/hooks/use-page-meta";
 import { normalizeAssetUrl } from "@/lib/asset-url";
@@ -245,6 +248,18 @@ const ProjectPage = () => {
     return <Icon className="h-4 w-4" style={{ color }} />;
   };
 
+  const buildEpisodeMetadata = (episode: { sizeBytes?: number; hash?: string }) => {
+    const rawSize = Number(episode.sizeBytes);
+    const sizeLabel = Number.isFinite(rawSize) && rawSize > 0 ? formatBytesCompact(rawSize) : "";
+    const hashTitle = String(episode.hash || "").trim();
+    const hashLabel = hashTitle.length > 36 ? `${hashTitle.slice(0, 36)}...` : hashTitle;
+    return {
+      sizeLabel,
+      hashLabel,
+      hashTitle,
+    };
+  };
+
   const downloadableEpisodes = useMemo(
     () => (project?.episodeDownloads || []).filter((episode) => (episode.sources || []).length > 0),
     [project?.episodeDownloads],
@@ -298,6 +313,113 @@ const ProjectPage = () => {
   const isLightNovel = isLightNovelType(projectType);
   const isChapterBased = isChapterBasedType(projectType);
   type EpisodeItem = (typeof sortedDownloadableEpisodes)[number];
+
+  const renderEpisodeDownloadCard = (episode: EpisodeItem, key: string, showRawBadge: boolean) => {
+    const { sizeLabel, hashLabel, hashTitle } = buildEpisodeMetadata(episode);
+
+    return (
+      <Card
+        key={key}
+        className="group w-full overflow-hidden rounded-2xl border border-border/60 bg-gradient-card shadow-[0_24px_90px_-55px_rgba(0,0,0,0.75)] transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:shadow-[0_28px_100px_-50px_rgba(0,0,0,0.85)] md:h-[185px] md:w-[920px]"
+      >
+        <CardContent className="relative grid h-full gap-4 p-4 md:grid-cols-[272px_minmax(0,1fr)] md:items-start md:gap-4 md:p-4">
+          {showRawBadge ? (
+            <Badge
+              variant="outline"
+              className="absolute right-4 top-4 inline-flex items-center gap-1 rounded-full border-primary/25 bg-background/70 text-[10px] uppercase tracking-wide"
+            >
+              <HardDrive className="h-3 w-3" />
+              {episode.sourceType}
+            </Badge>
+          ) : null}
+          <div className="w-full overflow-hidden rounded-xl border border-border/60 bg-background/50 shadow-inner md:h-[153px] md:w-[272px]">
+            <img
+              src={episode.coverImageUrl || project.banner || project.cover || "/placeholder.svg"}
+              alt={`Preview de ${episode.title}`}
+              className="h-full w-full aspect-[16/9] object-cover object-center transition-transform duration-300 group-hover:scale-[1.03]"
+            />
+          </div>
+          <div className="relative h-full min-h-[153px] md:pr-0">
+            <div className="space-y-2.5 pb-12 md:pb-[52px]">
+              <div className="flex min-w-0 items-center gap-2 pr-20">
+                <Badge variant="secondary" className="rounded-full px-2.5 py-0.5 text-[10px] uppercase">
+                  {isManga
+                    ? `Cap ${episode.number}${episode.volume ? ` • Vol. ${episode.volume}` : ""}`
+                    : `EP ${episode.number}`}
+                </Badge>
+                <p className="truncate text-base font-semibold text-foreground md:text-lg">{episode.title}</p>
+              </div>
+              <div className="flex flex-col items-start gap-1.5 text-xs text-muted-foreground">
+                {episode.duration ? (
+                  <span className="inline-flex items-center gap-1">
+                    <Clock3 className="h-3.5 w-3.5 text-primary/70" />
+                    <span className="font-medium text-foreground/90">Duração:</span>
+                    {episode.duration}
+                  </span>
+                ) : null}
+                {episode.releaseDate ? (
+                  <span className="inline-flex items-center gap-1">
+                    <CalendarDays className="h-3.5 w-3.5 text-primary/70" />
+                    <span className="font-medium text-foreground/90">Data:</span>
+                    {formatDate(episode.releaseDate)}
+                  </span>
+                ) : null}
+                {sizeLabel ? (
+                  <span className="inline-flex items-center gap-1">
+                    <HardDrive className="h-3.5 w-3.5 text-primary/70" />
+                    <span className="font-medium text-foreground/90">Tamanho:</span>
+                    {sizeLabel}
+                  </span>
+                ) : null}
+                {hashTitle ? (
+                  <span className="inline-flex min-w-0 max-w-full items-center gap-1">
+                    <Hash className="h-3.5 w-3.5 shrink-0 text-primary/70" />
+                    <span className="shrink-0 font-medium text-foreground/90">Hash:</span>
+                    <span className="max-w-[260px] truncate" title={hashTitle}>
+                      {hashLabel}
+                    </span>
+                  </span>
+                ) : null}
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center justify-end gap-2 md:absolute md:bottom-[-0.5rem] md:left-0 md:right-0">
+              {episode.sources.map((source, sourceIndex) => {
+                const theme = sourceThemeMap.get(source.label.toLowerCase());
+                const color = theme?.color || "#4b5563";
+                const icon = renderSourceIcon(
+                  theme?.icon,
+                  color,
+                  source.label,
+                  theme?.tintIcon ?? true,
+                );
+                return (
+                  <Button
+                    key={`${key}-${source.label}-${sourceIndex}`}
+                    asChild
+                    variant="outline"
+                    size="sm"
+                    className="h-9 rounded-full bg-black/25 px-4 text-sm hover:bg-white/5"
+                    style={{ borderColor: `${color}99`, color }}
+                  >
+                    <a
+                      href={source.url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center gap-2"
+                    >
+                      {icon}
+                      {source.label}
+                    </a>
+                  </Button>
+                );
+              })}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  };
 
   const volumeGroups = useMemo(() => {
     const groups = new Map<string, { label: string; volume?: number; items: EpisodeItem[] }>();
@@ -683,7 +805,7 @@ const ProjectPage = () => {
                 downloads aparecerão aqui.
               </div>
             ) : (
-              <div className="grid gap-6">
+              <div className="grid gap-6 justify-items-center">
                 {isManga
                   ? volumeGroups.map((group) => (
                       <Card key={group.label} className="border-border/60 bg-card/80 shadow-lg transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:bg-card/90 hover:shadow-lg">
@@ -699,77 +821,14 @@ const ProjectPage = () => {
                                 </div>
                               </AccordionTrigger>
                               <AccordionContent className="pt-4">
-                                <div className="grid gap-6">
-                                  {group.items.map((episode) => (
-                                <Card
-                                  key={`${episode.number}-${episode.volume || 0}`}
-                                  className="border-border/60 bg-background/60 shadow-lg transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:bg-background/80 hover:shadow-lg"
-                                >
-                                  <CardContent className="relative grid gap-6 p-6 md:grid-cols-[240px_minmax(0,1fr)]">
-                                    <div className="overflow-hidden rounded-xl border border-border/50 bg-background/50 shadow-sm">
-                                      <img
-                                        src={episode.coverImageUrl || project.banner || project.cover || "/placeholder.svg"}
-                                        alt={`Preview de ${episode.title}`}
-                                        className="aspect-[16/9] w-full object-cover"
-                                      />
-                                    </div>
-                                    <div className="flex h-full flex-col gap-4 md:min-h-[135px]">
-                                      <div className="space-y-3">
-                                        <div className="flex flex-wrap items-center gap-3">
-                                          <Badge variant="secondary" className="text-xs uppercase">
-                                            {`Cap ${episode.number}${
-                                              episode.volume ? ` • Vol. ${episode.volume}` : ""
-                                            }`}
-                                          </Badge>
-                                          <p className="text-lg font-semibold text-foreground">
-                                            {episode.title}
-                                          </p>
-                                        </div>
-                                        <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
-                                          <span>{episode.duration}</span>
-                                          <span>
-                                            <CalendarDays className="mr-1 inline h-3 w-3 text-primary/70" />
-                                            {formatDate(episode.releaseDate)}
-                                          </span>
-                                        </div>
-                                        <p className="text-sm text-muted-foreground">{episode.synopsis}</p>
-                                      </div>
-                                      <div className="mt-auto flex flex-wrap gap-2 md:justify-end md:self-end">
-                                        {episode.sources.map((source, sourceIndex) => {
-                                          const theme = sourceThemeMap.get(source.label.toLowerCase());
-                                          const color = theme?.color || "#7C3AED";
-                                          const icon = renderSourceIcon(
-                                            theme?.icon,
-                                            color,
-                                            source.label,
-                                            theme?.tintIcon ?? true,
-                                          );
-                                          return (
-                                            <Button
-                                              key={`${source.label}-${sourceIndex}`}
-                                              asChild
-                                              variant="outline"
-                                              size="sm"
-                                              className="bg-black/35 hover:bg-white/5"
-                                              style={{ borderColor: `${color}99`, color }}
-                                            >
-                                              <a
-                                                href={source.url}
-                                                target="_blank"
-                                                rel="noreferrer"
-                                                className="inline-flex items-center gap-2"
-                                              >
-                                                {icon}
-                                                {source.label}
-                                              </a>
-                                            </Button>
-                                          );
-                                        })}
-                                      </div>
-                                    </div>
-                                  </CardContent>
-                                </Card>
-                              ))}
+                                <div className="grid gap-6 justify-items-center">
+                                  {group.items.map((episode) =>
+                                    renderEpisodeDownloadCard(
+                                      episode,
+                                      `${episode.number}-${episode.volume || 0}`,
+                                      false,
+                                    ),
+                                  )}
                                 </div>
                               </AccordionContent>
                             </AccordionItem>
@@ -777,77 +836,9 @@ const ProjectPage = () => {
                         </CardContent>
                       </Card>
                     ))
-                  : paginatedEpisodes.map((episode) => (
-                      <Card
-                        key={episode.number}
-                        className="border-border/60 bg-card/80 shadow-lg transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:bg-card/90 hover:shadow-lg"
-                      >
-                        <CardContent className="relative grid gap-6 p-6 md:grid-cols-[240px_minmax(0,1fr)]">
-                          {!isManga ? (
-                            <Badge className="absolute right-6 top-6 text-[10px] uppercase">
-                              RAW {episode.sourceType}
-                            </Badge>
-                          ) : null}
-                          <div className="overflow-hidden rounded-xl border border-border/50 bg-background/50 shadow-sm">
-                            <img
-                              src={episode.coverImageUrl || project.banner || project.cover || "/placeholder.svg"}
-                              alt={`Preview de ${episode.title}`}
-                              className="aspect-[16/9] w-full object-cover"
-                            />
-                          </div>
-                          <div className="flex h-full flex-col gap-4 md:min-h-[135px]">
-                            <div className="space-y-3">
-                              <div className="flex flex-wrap items-center gap-3">
-                                <Badge variant="secondary" className="text-xs uppercase">
-                                  {`EP ${episode.number}`}
-                                </Badge>
-                                <p className="text-lg font-semibold text-foreground">{episode.title}</p>
-                              </div>
-                              <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
-                                <span>{episode.duration}</span>
-                                <span>
-                                  <CalendarDays className="mr-1 inline h-3 w-3 text-primary/70" />
-                                  {formatDate(episode.releaseDate)}
-                                </span>
-                              </div>
-                              <p className="text-sm text-muted-foreground">{episode.synopsis}</p>
-                            </div>
-                            <div className="mt-auto flex flex-wrap gap-2 md:justify-end md:self-end">
-                              {episode.sources.map((source, sourceIndex) => {
-                                const theme = sourceThemeMap.get(source.label.toLowerCase());
-                                const color = theme?.color || "#7C3AED";
-                                const icon = renderSourceIcon(
-                                  theme?.icon,
-                                  color,
-                                  source.label,
-                                  theme?.tintIcon ?? true,
-                                );
-                                return (
-                                  <Button
-                                    key={`${source.label}-${sourceIndex}`}
-                                    asChild
-                                    variant="outline"
-                                    size="sm"
-                                    className="bg-black/35 hover:bg-white/5"
-                                    style={{ borderColor: `${color}99`, color }}
-                                  >
-                                    <a
-                                      href={source.url}
-                                      target="_blank"
-                                      rel="noreferrer"
-                                      className="inline-flex items-center gap-2"
-                                    >
-                                      {icon}
-                                      {source.label}
-                                    </a>
-                                  </Button>
-                                );
-                              })}
-                            </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))}
+                  : paginatedEpisodes.map((episode) =>
+                      renderEpisodeDownloadCard(episode, String(episode.number), true),
+                    )}
               </div>
             )}
 

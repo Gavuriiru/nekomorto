@@ -13,6 +13,8 @@ export type ProjectEpisode = {
   coverImageUrl?: string;
   sourceType: "TV" | "Web" | "Blu-ray";
   sources: DownloadSource[];
+  hash?: string;
+  sizeBytes?: number;
   progressStage?: string;
   completedStages?: string[];
   content?: string;
