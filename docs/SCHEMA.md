@@ -81,7 +81,6 @@ Este documento congela o schema atual para facilitar a migração para banco.
 ### projects.episodeDownloads[]
 - `number` (number | string)
 - `title` (string)
-- `synopsis` (string)
 - `duration` (string)
 - `releaseDate` (ISO string)
 - `volume` (number | string)

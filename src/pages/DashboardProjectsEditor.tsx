@@ -101,7 +101,6 @@ type ProjectEpisode = {
   number: number;
   volume?: number;
   title: string;
-  synopsis: string;
   releaseDate: string;
   duration: string;
   coverImageUrl?: string;
@@ -607,6 +606,20 @@ const shiftDraftAfterRemoval = (draft: Record<number, string>, removedIndex: num
   return next;
 };
 
+const shiftCollapsedEpisodesAfterRemoval = (collapsed: Record<number, boolean>, removedIndex: number) => {
+  const next: Record<number, boolean> = {};
+  Object.entries(collapsed).forEach(([key, value]) => {
+    const index = Number(key);
+    if (!Number.isFinite(index) || index === removedIndex) {
+      return;
+    }
+    next[index > removedIndex ? index - 1 : index] = Boolean(value);
+  });
+  return next;
+};
+
+const getEpisodeAccordionValue = (index: number) => `episode-${index}`;
+
 const generateLocalId = () => {
   const alpha = String.fromCharCode(97 + Math.floor(Math.random() * 26));
   const random = Math.random().toString(36).slice(2, 9);
@@ -1001,6 +1014,26 @@ const DashboardProjectsEditor = () => {
         return (a.episode.volume || 0) - (b.episode.volume || 0);
       });
   }, [formState.episodeDownloads, isChapterBased]);
+
+  const episodeOpenValues = useMemo(
+    () =>
+      sortedEpisodeDownloads
+        .filter(({ index }) => !collapsedEpisodes[index])
+        .map(({ index }) => getEpisodeAccordionValue(index)),
+    [collapsedEpisodes, sortedEpisodeDownloads],
+  );
+
+  const handleEpisodeAccordionChange = useCallback(
+    (values: string[]) => {
+      const openValues = new Set(values);
+      const next: Record<number, boolean> = {};
+      sortedEpisodeDownloads.forEach(({ index }) => {
+        next[index] = !openValues.has(getEpisodeAccordionValue(index));
+      });
+      setCollapsedEpisodes(next);
+    },
+    [sortedEpisodeDownloads],
+  );
 
   useEffect(() => {
     if (!isChapterBased) {
@@ -1519,13 +1552,11 @@ const DashboardProjectsEditor = () => {
         const prev = prevEpisodesMap.get(key);
         const signature = [
           String(episode.title || ""),
-          String(episode.synopsis || ""),
           String(episode.releaseDate || ""),
           String(episode.content || "").trim(),
         ].join("||");
         const prevSignature = [
           String(prev?.title || ""),
-          String(prev?.synopsis || ""),
           String(prev?.releaseDate || ""),
           String(prev?.content || "").trim(),
         ].join("||");
@@ -2218,7 +2249,7 @@ const DashboardProjectsEditor = () => {
                     <span className="text-xs text-muted-foreground">Preenchimento automático</span>
                   </div>
                 </AccordionTrigger>
-                <AccordionContent className="pb-4">
+                <AccordionContent className="pb-4 px-1">
                   <div className="grid gap-4 md:grid-cols-[1fr_auto]">
                 <div className="space-y-2">
                   <Label>ID AniList</Label>
@@ -2242,7 +2273,7 @@ const DashboardProjectsEditor = () => {
                     <span className="text-xs text-muted-foreground">{formState.title || "ID e títulos"}</span>
                   </div>
                 </AccordionTrigger>
-                <AccordionContent className="pb-4">
+                <AccordionContent className="pb-4 px-1">
                   <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2">
                 <Label>ID do projeto</Label>
@@ -2321,7 +2352,7 @@ const DashboardProjectsEditor = () => {
                     </span>
                   </div>
                 </AccordionTrigger>
-                <AccordionContent className="pb-4">
+                <AccordionContent className="pb-4 px-1">
                   <div className="grid gap-3 md:grid-cols-3">
               <div className="space-y-2">
                 <Label>Imagem do carrossel</Label>
@@ -2403,7 +2434,7 @@ const DashboardProjectsEditor = () => {
                     </span>
                   </div>
                 </AccordionTrigger>
-                <AccordionContent className="pb-4">
+                <AccordionContent className="pb-4 px-1">
                   <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2">
                 <Label>Formato</Label>
@@ -2496,7 +2527,7 @@ const DashboardProjectsEditor = () => {
                     </span>
                   </div>
                 </AccordionTrigger>
-                <AccordionContent className="pb-4">
+                <AccordionContent className="pb-4 px-1">
                   <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2">
                 <Label>Tags</Label>
@@ -2606,7 +2637,7 @@ const DashboardProjectsEditor = () => {
                     <span className="text-xs text-muted-foreground">{formState.relations.length} itens</span>
                   </div>
                 </AccordionTrigger>
-                <AccordionContent className="pb-4">
+                <AccordionContent className="pb-4 px-1">
                   <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <Label className="text-base">Relações</Label>
@@ -2696,7 +2727,7 @@ const DashboardProjectsEditor = () => {
                     <span className="text-xs text-muted-foreground">{formState.staff.length} funções</span>
                   </div>
                 </AccordionTrigger>
-                <AccordionContent className="pb-4">
+                <AccordionContent className="pb-4 px-1">
                   <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <Label className="text-base">Equipe da fansub</Label>
@@ -2814,7 +2845,7 @@ const DashboardProjectsEditor = () => {
                     <span className="text-xs text-muted-foreground">{formState.animeStaff.length} funções</span>
                   </div>
                 </AccordionTrigger>
-                <AccordionContent className="pb-4">
+                <AccordionContent className="pb-4 px-1">
                   <div className="space-y-3">
                     <div className="flex items-center justify-between">
                       <Label className="text-base">Staff do anime</Label>
@@ -2947,7 +2978,7 @@ const DashboardProjectsEditor = () => {
                     </span>
                   </div>
                 </AccordionTrigger>
-                <AccordionContent className="pb-4">
+                <AccordionContent className="pb-4 px-1">
                   <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <Label className="text-base">{isChapterBased ? "Capítulos" : "Episódios"}</Label>
@@ -2961,7 +2992,6 @@ const DashboardProjectsEditor = () => {
                         number: prev.episodeDownloads.length + 1,
                         volume: undefined,
                         title: "",
-                        synopsis: "",
                         releaseDate: "",
                         duration: "",
                         coverImageUrl: "",
@@ -2980,53 +3010,46 @@ const DashboardProjectsEditor = () => {
                   {isChapterBased ? "Adicionar capítulo" : "Adicionar episódio"}
                 </Button>
               </div>
-              <div className="grid gap-4">
-                {sortedEpisodeDownloads.map(({ episode, index }) => (
-                  <Card
+              <Accordion
+                type="multiple"
+                value={episodeOpenValues}
+                onValueChange={handleEpisodeAccordionChange}
+                className="space-y-4"
+              >
+                {sortedEpisodeDownloads.map(({ episode, index }) => {
+                  const isEpisodeCollapsed = collapsedEpisodes[index] ?? false;
+                  return (
+                  <AccordionItem
                     key={`${episode.number}-${index}`}
-                    className="border-border/60 bg-card/70"
-                    onDragStart={() => setEpisodeDragId(null)}
-                    onClick={(event) => {
-                      const target = event.target as HTMLElement | null;
-                      if (
-                        target?.closest(
-                          "button, a, input, textarea, select, option, [data-no-toggle], [contenteditable='true'], .lexical-playground",
-                        )
-                      ) {
-                        return;
-                      }
-                      const selection = window.getSelection();
-                      const anchorNode = selection?.anchorNode as HTMLElement | null;
-                      const focusNode = selection?.focusNode as HTMLElement | null;
-                      if (
-                        selection?.type === "Range" &&
-                        (anchorNode?.closest?.(".lexical-playground") || focusNode?.closest?.(".lexical-playground"))
-                      ) {
-                        return;
-                      }
-                      setCollapsedEpisodes((prev) => ({
-                        ...prev,
-                        [index]: !prev[index],
-                      }));
-                    }}
+                    value={getEpisodeAccordionValue(index)}
+                    className="border-none"
                   >
-                    <CardContent className={`space-y-3 ${collapsedEpisodes[index] ? "p-4" : "p-5"}`}>
-                      <div className="flex flex-wrap items-center justify-between gap-2">
-                        <div className="flex items-center gap-2 text-base font-semibold text-foreground">
-                          <span className="rounded-full border border-border/60 bg-background/70 px-2 py-0.5 text-xs">
-                            {isChapterBased ? "Cap" : "Ep"} {episode.number || index + 1}
-                          </span>
-                          {episode.title ? (
-                            <span className="line-clamp-1">{episode.title}</span>
-                          ) : null}
-                          {episode.releaseDate ? (
-                            <span className="rounded-full border border-border/60 bg-background/50 px-2 py-0.5 text-[10px] leading-none">
-                              {formatEpisodeReleaseDate(episode.releaseDate, episode.duration)}
-                            </span>
-                          ) : null}
+                  <Card
+                    className="border-border/60 bg-card/70"
+                    data-testid={`episode-card-${index}`}
+                    onDragStart={() => setEpisodeDragId(null)}
+                  >
+                    <CardContent className={`space-y-3 ${isEpisodeCollapsed ? "p-4" : "p-5"}`}>
+                      <div className="flex flex-wrap items-start justify-between gap-2">
+                        <div className="min-w-0 flex-1">
+                          <AccordionTrigger className="py-0 text-left text-base font-semibold text-foreground hover:no-underline [&>svg]:mt-0.5 [&>svg]:shrink-0">
+                            <div className="flex min-w-0 items-center gap-2">
+                              <span className="rounded-full border border-border/60 bg-background/70 px-2 py-0.5 text-xs">
+                                {isChapterBased ? "Cap" : "Ep"} {episode.number || index + 1}
+                              </span>
+                              {episode.title ? (
+                                <span className="line-clamp-1">{episode.title}</span>
+                              ) : null}
+                              {episode.releaseDate ? (
+                                <span className="rounded-full border border-border/60 bg-background/50 px-2 py-0.5 text-[10px] leading-none">
+                                  {formatEpisodeReleaseDate(episode.releaseDate, episode.duration)}
+                                </span>
+                              ) : null}
+                            </div>
+                          </AccordionTrigger>
                         </div>
                         <div className="flex flex-wrap items-center gap-2">
-                          {collapsedEpisodes[index] ? (
+                          {isEpisodeCollapsed ? (
                             <div className="flex flex-wrap items-center gap-1">
                               {isLightNovel && String(episode.content || "").trim().length > 0 ? (
                                 <span className="rounded-full border border-primary/40 bg-primary/10 px-2 py-0.5 text-[10px] text-primary leading-none">
@@ -3065,6 +3088,7 @@ const DashboardProjectsEditor = () => {
                                 setEpisodeTimeDraft((prev) => shiftDraftAfterRemoval(prev, index));
                                 setEpisodeSizeDrafts((prev) => shiftDraftAfterRemoval(prev, index));
                                 setEpisodeSizeErrors((prev) => shiftDraftAfterRemoval(prev, index));
+                                setCollapsedEpisodes((prev) => shiftCollapsedEpisodesAfterRemoval(prev, index));
                               }
                             }
                           >
@@ -3072,8 +3096,7 @@ const DashboardProjectsEditor = () => {
                           </Button>
                         </div>
                       </div>
-                      {collapsedEpisodes[index] ? null : (
-                        <>
+                      <AccordionContent className="pt-3 pb-0 px-1">
                           <div className="grid gap-3 md:grid-cols-[minmax(84px,0.7fr)_minmax(84px,0.7fr)_minmax(180px,1.4fr)_minmax(150px,1fr)_minmax(110px,0.8fr)_minmax(130px,0.9fr)]">
                             <Input
                               type="number"
@@ -3244,31 +3267,17 @@ const DashboardProjectsEditor = () => {
                               </Select>
                             ) : null}
                           </div>
-                          <div className="mt-3 grid gap-3 md:grid-cols-[1fr_1fr]">
-                            <Textarea
-                              value={episode.synopsis}
-                              onChange={(event) =>
-                                setFormState((prev) => {
-                                  const next = [...prev.episodeDownloads];
-                                  next[index] = { ...next[index], synopsis: event.target.value };
-                                  return { ...prev, episodeDownloads: next };
-                                })
-                              }
-                              placeholder={isChapterBased ? "Sinopse do capítulo" : "Sinopse do episódio"}
-                              rows={2}
-                            />
-                            {!episode.sources.some((source) => source.url) && !isChapterBased ? (
-                              <div className="space-y-2">
-                                <Label className="text-xs">Etapa atual</Label>
-                                <div className="rounded-md border border-border/60 bg-background/70 px-3 py-2 text-xs text-muted-foreground">
-                                  {stageOptions.find((stage) =>
-                                    stage.id ===
-                                    getProgressStage(formState.type || "", episode.completedStages),
-                                  )?.label || "Aguardando Raw"}
-                                </div>
+                          {!episode.sources.some((source) => source.url) && !isChapterBased ? (
+                            <div className="mt-3 space-y-2">
+                              <Label className="text-xs">Etapa atual</Label>
+                              <div className="rounded-md border border-border/60 bg-background/70 px-3 py-2 text-xs text-muted-foreground">
+                                {stageOptions.find((stage) =>
+                                  stage.id ===
+                                  getProgressStage(formState.type || "", episode.completedStages),
+                                )?.label || "Aguardando Raw"}
                               </div>
-                            ) : null}
-                          </div>
+                            </div>
+                          ) : null}
                           <div className="mt-3 space-y-2">
                             <Label className="text-xs">
                               {isChapterBased ? "Capa do capítulo" : "Capa do episódio"}
@@ -3569,12 +3578,13 @@ const DashboardProjectsEditor = () => {
                               </div>
                             </div>
                           ) : null}
-                        </>
-                      )}
+                      </AccordionContent>
                     </CardContent>
                   </Card>
-                ))}
-              </div>
+                  </AccordionItem>
+                  );
+                })}
+              </Accordion>
                   </div>
                 </AccordionContent>
               </AccordionItem>

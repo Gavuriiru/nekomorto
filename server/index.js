@@ -2511,6 +2511,10 @@ const normalizeProjects = (projects) =>
   projects.map((project, index) => {
     const normalizedEpisodeDownloads = Array.isArray(project.episodeDownloads)
       ? project.episodeDownloads.map((episode) => {
+          const episodeObject =
+            episode && typeof episode === "object" ? episode : {};
+          const { synopsis: _episodeSynopsis, ...episodeWithoutSynopsis } =
+            episodeObject;
           const normalizedSources = Array.isArray(episode?.sources)
             ? episode.sources.map((source) => {
                 const label = String(source?.label || "");
@@ -2543,11 +2547,11 @@ const normalizeProjects = (projects) =>
               ? Math.round(resolvedRawSizeBytes)
               : undefined;
           return {
-            ...episode,
+            ...episodeWithoutSynopsis,
             sources: normalizedSources,
             hash: hash || undefined,
             sizeBytes,
-            chapterUpdatedAt: episode.chapterUpdatedAt || "",
+            chapterUpdatedAt: episodeObject.chapterUpdatedAt || "",
           };
         })
       : [];
@@ -2728,13 +2732,11 @@ const collectEpisodeUpdates = (prevProject, nextProject) => {
       const chapterUpdatedAt = ep.chapterUpdatedAt || "";
       const prevSignature = [
         String(prev?.title || ""),
-        String(prev?.synopsis || ""),
         String(prev?.releaseDate || ""),
         prevContent,
       ].join("||");
       const nextSignature = [
         String(ep.title || ""),
-        String(ep.synopsis || ""),
         String(ep.releaseDate || ""),
         String(ep.content || "").trim(),
       ].join("||");
@@ -4709,7 +4711,6 @@ app.get("/api/public/projects/:id/chapters/:number", (req, res) => {
       number: chapter.number,
       volume: chapter.volume,
       title: chapter.title,
-      synopsis: chapter.synopsis,
       content: chapter.content || "",
       contentFormat: chapter.contentFormat || "markdown",
     },
