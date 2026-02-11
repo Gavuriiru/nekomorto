@@ -8,6 +8,7 @@ import cors from "cors";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
+import { resolvePostStatus } from "./lib/post-status.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -2463,12 +2464,7 @@ const normalizePosts = (posts) => {
     const slug = String(post.slug || createSlug(title) || id);
     const publishedAt = post.publishedAt || post.createdAt || new Date().toISOString();
     const scheduledAt = post.scheduledAt || null;
-    const status =
-      post.status === "draft" || post.status === "scheduled" || post.status === "published"
-        ? post.status
-        : new Date(publishedAt).getTime() > now
-          ? "scheduled"
-          : "published";
+    const status = resolvePostStatus(post.status, publishedAt, now);
     const normalized = {
       id,
       title,
@@ -4117,15 +4113,17 @@ app.post("/api/posts", requireAuth, (req, res) => {
     return res.status(409).json({ error: "slug_exists" });
   }
 
-  const now = new Date().toISOString();
-  const normalizedStatus =
+  const nowMs = Date.now();
+  const now = new Date(nowMs).toISOString();
+  const requestedStatus =
     status === "draft" || status === "scheduled" || status === "published" ? status : "draft";
   const normalizedPublishedAt =
-    normalizedStatus === "published"
+    requestedStatus === "published"
       ? publishedAt || now
-      : normalizedStatus === "scheduled"
+      : requestedStatus === "scheduled"
         ? publishedAt || scheduledAt || now
         : publishedAt || now;
+  const normalizedStatus = resolvePostStatus(requestedStatus, normalizedPublishedAt, nowMs);
   const newPost = {
     id: crypto.randomUUID(),
     title: String(title),
@@ -4194,8 +4192,10 @@ app.put("/api/posts/:id", requireAuth, (req, res) => {
   }
 
   const existing = posts[index];
-  const normalizedStatus =
+  const statusCandidate =
     status === "draft" || status === "scheduled" || status === "published" ? status : existing.status;
+  const nextPublishedAt = publishedAt || existing.publishedAt;
+  const normalizedStatus = resolvePostStatus(statusCandidate, nextPublishedAt, Date.now());
   const updated = {
     ...existing,
     title: title ? String(title) : existing.title,
@@ -4213,7 +4213,7 @@ app.put("/api/posts/:id", requireAuth, (req, res) => {
             ? "lexical"
             : existing.contentFormat,
     author: typeof author === "string" ? author : existing.author,
-    publishedAt: publishedAt || existing.publishedAt,
+    publishedAt: nextPublishedAt,
     scheduledAt: scheduledAt || existing.scheduledAt,
     status: normalizedStatus,
     seoTitle: typeof seoTitle === "string" ? seoTitle : existing.seoTitle,
