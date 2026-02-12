@@ -36,6 +36,7 @@ import {
   UserRound,
 } from "lucide-react";
 import { createSlug, getLexicalText } from "@/lib/post-content";
+import { getImageFileNameFromUrl, resolvePostCoverPreview } from "@/lib/post-cover";
 import LexicalEditor, { type LexicalEditorHandle } from "@/components/lexical/LexicalEditor";
 import type { Project } from "@/data/projects";
 import ProjectEmbedCard from "@/components/ProjectEmbedCard";
@@ -249,6 +250,21 @@ const DashboardPosts = () => {
   const isDirty = useMemo(
     () => buildPostEditorSnapshot(formState) !== editorInitialSnapshotRef.current,
     [formState],
+  );
+  const editorResolvedCover = useMemo(
+    () =>
+      resolvePostCoverPreview({
+        coverImageUrl: formState.coverImageUrl,
+        coverAlt: formState.coverAlt,
+        content: formState.contentLexical,
+        contentFormat: "lexical",
+        title: formState.title,
+      }),
+    [formState.contentLexical, formState.coverAlt, formState.coverImageUrl, formState.title],
+  );
+  const editorCoverFileName = useMemo(
+    () => getImageFileNameFromUrl(editorResolvedCover.coverImageUrl),
+    [editorResolvedCover.coverImageUrl],
   );
 
   const allowPopRef = useRef(false);
@@ -1203,16 +1219,26 @@ const DashboardPosts = () => {
                       <CardContent className="space-y-4 p-6">
                         <div className="space-y-2">
                           <Label>Capa</Label>
-                          {formState.coverImageUrl ? (
-                            <div className="flex items-center gap-3">
-                              <img
-                                src={normalizeAssetUrl(formState.coverImageUrl)}
-                                alt={formState.coverAlt || formState.title || "Capa"}
-                                className="h-14 w-14 rounded-lg object-cover"
-                              />
-                              <span className="text-xs text-muted-foreground break-all">
-                                {formState.coverImageUrl}
-                              </span>
+                          {editorResolvedCover.coverImageUrl ? (
+                            <div className="space-y-2">
+                              <div className="overflow-hidden rounded-lg border border-border bg-muted/20">
+                                <img
+                                  src={normalizeAssetUrl(editorResolvedCover.coverImageUrl)}
+                                  alt={editorResolvedCover.coverAlt}
+                                  className="aspect-3/2 w-full object-cover"
+                                />
+                              </div>
+                              <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
+                                <span className="min-w-0 truncate">
+                                  {editorCoverFileName || "Imagem"}
+                                </span>
+                                <Badge
+                                  variant={editorResolvedCover.source === "manual" ? "secondary" : "outline"}
+                                  className="shrink-0 text-[10px] uppercase"
+                                >
+                                  {editorResolvedCover.source === "manual" ? "Manual" : "Automática"}
+                                </Badge>
+                              </div>
                             </div>
                           ) : (
                             <p className="text-xs text-muted-foreground">Sem capa definida.</p>
@@ -1462,6 +1488,13 @@ const DashboardPosts = () => {
                     const visibleCardTags = sortedCardTags.slice(0, 3);
                     const extraTagCount = Math.max(0, sortedCardTags.length - visibleCardTags.length);
                     const statusLabel = getPostStatusLabel(post.status);
+                    const resolvedCardCover = resolvePostCoverPreview({
+                      coverImageUrl: post.coverImageUrl,
+                      coverAlt: post.coverAlt,
+                      content: post.content,
+                      contentFormat: post.contentFormat || "lexical",
+                      title: post.title,
+                    });
                     return (
                       <Card
                         key={post.id}
@@ -1477,10 +1510,10 @@ const DashboardPosts = () => {
                         <CardContent className="p-0">
                           <div className="grid min-h-[360px] gap-0 md:h-[280px] md:min-h-0 md:grid-cols-[220px_1fr]">
                             <div className="relative h-52 w-full md:h-full">
-                              {post.coverImageUrl ? (
+                              {resolvedCardCover.coverImageUrl ? (
                                 <img
-                                  src={normalizeAssetUrl(post.coverImageUrl)}
-                                  alt={post.coverAlt || post.title}
+                                  src={normalizeAssetUrl(resolvedCardCover.coverImageUrl)}
+                                  alt={resolvedCardCover.coverAlt || post.title}
                                   className="h-full w-full object-cover"
                                   loading="lazy"
                                   onError={(event) => {
