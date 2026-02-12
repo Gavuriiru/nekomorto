@@ -232,6 +232,7 @@ const DashboardPosts = () => {
   const confirmCancelRef = useRef<(() => void) | null>(null);
   const editorRef = useRef<LexicalEditorHandle | null>(null);
   const editorInitialSnapshotRef = useRef<string>(buildPostEditorSnapshot(emptyForm));
+  const autoEditHandledRef = useRef<string | null>(null);
 
   const currentUserRecord = currentUser
     ? users.find((user) => user.id === currentUser.id) || null
@@ -486,6 +487,33 @@ const DashboardPosts = () => {
     editorInitialSnapshotRef.current = buildPostEditorSnapshot(nextForm);
     setIsEditorOpen(true);
   };
+
+  useEffect(() => {
+    const editTarget = (searchParams.get("edit") || "").trim();
+    if (!editTarget) {
+      autoEditHandledRef.current = null;
+      return;
+    }
+    if (autoEditHandledRef.current === editTarget) {
+      return;
+    }
+    if (isLoading) {
+      return;
+    }
+    autoEditHandledRef.current = editTarget;
+
+    const nextParams = new URLSearchParams(searchParams);
+    nextParams.delete("edit");
+    const target = canManagePosts
+      ? posts.find((post) => post.id === editTarget || post.slug === editTarget) || null
+      : null;
+    if (target) {
+      openEdit(target);
+    }
+    if (nextParams.toString() !== searchParams.toString()) {
+      setSearchParams(nextParams, { replace: true });
+    }
+  }, [canManagePosts, isLoading, openEdit, posts, searchParams, setSearchParams]);
 
   const closeEditor = () => {
     setIsEditorOpen(false);

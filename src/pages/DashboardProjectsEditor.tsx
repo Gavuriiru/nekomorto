@@ -683,7 +683,9 @@ const DashboardProjectsEditor = () => {
     name: string;
     username: string;
     avatarUrl?: string | null;
+    permissions?: string[];
   } | null>(null);
+  const [hasLoadedCurrentUser, setHasLoadedCurrentUser] = useState(false);
   const [projects, setProjects] = useState<ProjectRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
@@ -816,11 +818,16 @@ const DashboardProjectsEditor = () => {
   );
   const confirmActionRef = useRef<(() => void) | null>(null);
   const confirmCancelRef = useRef<(() => void) | null>(null);
+  const autoEditHandledRef = useRef<string | null>(null);
   const editorInitialSnapshotRef = useRef<string>(buildProjectEditorSnapshot(emptyProject, ""));
   const isDirty = useMemo(
     () => buildProjectEditorSnapshot(formState, anilistIdInput) !== editorInitialSnapshotRef.current,
     [anilistIdInput, formState],
   );
+  const canManageProjects = useMemo(() => {
+    const permissions = Array.isArray(currentUser?.permissions) ? currentUser.permissions : [];
+    return permissions.includes("*") || permissions.includes("projetos");
+  }, [currentUser]);
 
   const handleEditorOpenChange = (next: boolean) => {
     if (!next && isLibraryOpen) {
@@ -951,6 +958,8 @@ const DashboardProjectsEditor = () => {
         setCurrentUser(data);
       } catch {
         setCurrentUser(null);
+      } finally {
+        setHasLoadedCurrentUser(true);
       }
     };
 
@@ -1386,6 +1395,41 @@ const DashboardProjectsEditor = () => {
     });
     setIsEditorOpen(true);
   };
+
+  useEffect(() => {
+    const editTarget = (searchParams.get("edit") || "").trim();
+    if (!editTarget) {
+      autoEditHandledRef.current = null;
+      return;
+    }
+    if (autoEditHandledRef.current === editTarget) {
+      return;
+    }
+    if (isLoading || !hasLoadedCurrentUser) {
+      return;
+    }
+    autoEditHandledRef.current = editTarget;
+
+    const nextParams = new URLSearchParams(searchParams);
+    nextParams.delete("edit");
+    const target = canManageProjects
+      ? projects.find((project) => project.id === editTarget) || null
+      : null;
+    if (target) {
+      openEdit(target);
+    }
+    if (nextParams.toString() !== searchParams.toString()) {
+      setSearchParams(nextParams, { replace: true });
+    }
+  }, [
+    canManageProjects,
+    hasLoadedCurrentUser,
+    isLoading,
+    openEdit,
+    projects,
+    searchParams,
+    setSearchParams,
+  ]);
 
   const closeEditor = () => {
     setIsEditorOpen(false);

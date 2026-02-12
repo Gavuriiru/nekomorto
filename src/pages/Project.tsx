@@ -51,6 +51,7 @@ const ProjectPage = () => {
   const [tagTranslations, setTagTranslations] = useState<Record<string, string>>({});
   const [genreTranslations, setGenreTranslations] = useState<Record<string, string>>({});
   const [staffRoleTranslations, setStaffRoleTranslations] = useState<Record<string, string>>({});
+  const [currentUser, setCurrentUser] = useState<{ permissions?: string[] } | null>(null);
   const [episodePage, setEpisodePage] = useState(1);
   const { settings } = useSiteSettings();
   const trackedViewsRef = useRef<Set<string>>(new Set());
@@ -144,6 +145,34 @@ const ProjectPage = () => {
     };
 
     loadMeta();
+    return () => {
+      isActive = false;
+    };
+  }, [apiBase]);
+
+  useEffect(() => {
+    let isActive = true;
+    const loadCurrentUser = async () => {
+      try {
+        const response = await apiFetch(apiBase, "/api/public/me", { auth: true });
+        if (!response.ok) {
+          if (isActive) {
+            setCurrentUser(null);
+          }
+          return;
+        }
+        const data = await response.json();
+        if (isActive) {
+          setCurrentUser(data?.user ?? null);
+        }
+      } catch {
+        if (isActive) {
+          setCurrentUser(null);
+        }
+      }
+    };
+
+    loadCurrentUser();
     return () => {
       isActive = false;
     };
@@ -312,6 +341,10 @@ const ProjectPage = () => {
   const isManga = isMangaType(projectType);
   const isLightNovel = isLightNovelType(projectType);
   const isChapterBased = isChapterBasedType(projectType);
+  const canEditProject = useMemo(() => {
+    const permissions = Array.isArray(currentUser?.permissions) ? currentUser.permissions : [];
+    return permissions.includes("*") || permissions.includes("projetos");
+  }, [currentUser]);
   type EpisodeItem = (typeof sortedDownloadableEpisodes)[number];
 
   const renderEpisodeDownloadCard = (episode: EpisodeItem, key: string, showRawBadge: boolean) => {
@@ -557,6 +590,13 @@ const ProjectPage = () => {
                       <PlayCircle className="h-4 w-4" />
                       Assistir trailer
                     </a>
+                  </Button>
+                ) : null}
+                {canEditProject ? (
+                  <Button asChild variant="secondary" className="gap-2">
+                    <Link to={`/dashboard/projetos?edit=${encodeURIComponent(project.id)}`}>
+                      Editar projeto
+                    </Link>
                   </Button>
                 ) : null}
               </div>
