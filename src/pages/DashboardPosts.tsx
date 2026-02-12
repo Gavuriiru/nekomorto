@@ -940,6 +940,18 @@ const DashboardPosts = () => {
       return;
     }
 
+    const data = await response.json();
+    const savedPostSlug = typeof data?.post?.slug === "string" ? data.post.slug : "";
+    if (!editingPost) {
+      const baseSlug = createSlug(payload.slug || payload.title);
+      if (savedPostSlug && savedPostSlug !== baseSlug) {
+        toast({
+          title: "Link ajustado automaticamente",
+          description: `Conflito detectado. O post foi salvo com /${savedPostSlug}.`,
+        });
+      }
+    }
+
     await loadPosts();
     const nextFormAfterSave = {
       ...formState,

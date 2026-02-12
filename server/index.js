@@ -9,6 +9,7 @@ import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 import { resolvePostStatus } from "./lib/post-status.js";
+import { createSlug, createUniqueSlug } from "./lib/post-slug.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -2582,11 +2583,6 @@ const canRegisterPollVote = (ip) => {
   pollVoteRateLimit.set(ip, entry);
   return entry.count <= maxPerWindow;
 };
-const createSlug = (value) =>
-  String(value || "")
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
 const DELETE_RETENTION_MS = 3 * 24 * 60 * 60 * 1000;
 const isWithinRestoreWindow = (deletedAt) => {
   if (!deletedAt) {
@@ -4263,13 +4259,11 @@ app.post("/api/posts", requireAuth, (req, res) => {
   }
 
   let posts = normalizePosts(loadPosts());
-  const normalizedSlug = createSlug(slug || title);
-  if (!normalizedSlug) {
+  const baseSlug = createSlug(slug || title);
+  if (!baseSlug) {
     return res.status(400).json({ error: "slug_required" });
   }
-  if (posts.some((post) => post.slug === normalizedSlug)) {
-    return res.status(409).json({ error: "slug_exists" });
-  }
+  const normalizedSlug = createUniqueSlug(baseSlug, posts.map((post) => post.slug));
 
   const nowMs = Date.now();
   const now = new Date(nowMs).toISOString();
