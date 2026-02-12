@@ -32,6 +32,17 @@ type CommentsSectionProps = {
   volume?: number;
 };
 
+type FetchCommentsOptions = {
+  showLoading?: boolean;
+};
+
+type SubmitCommentResponse = {
+  comment?: {
+    id?: string;
+    status?: string;
+  };
+};
+
 const buildCommentTree = (comments: PublicComment[]) => {
   const map = new Map<string, CommentNode>();
   comments.forEach((comment) => {
@@ -78,9 +89,12 @@ const CommentsSection = ({ targetType, targetId, chapterNumber, volume }: Commen
   const location = useLocation();
   const lastScrolledRef = useRef<string | null>(null);
 
-  const fetchComments = useCallback(async () => {
+  const fetchComments = useCallback(async (options: FetchCommentsOptions = {}) => {
+    const { showLoading = true } = options;
     try {
-      setIsLoading(true);
+      if (showLoading) {
+        setIsLoading(true);
+      }
       const params = new URLSearchParams({
         type: targetType,
         id: targetId,
@@ -93,15 +107,21 @@ const CommentsSection = ({ targetType, targetId, chapterNumber, volume }: Commen
       }
       const response = await apiFetch(apiBase, `/api/public/comments?${params.toString()}`);
       if (!response.ok) {
-        setComments([]);
+        if (showLoading) {
+          setComments([]);
+        }
         return;
       }
       const data = await response.json();
       setComments(Array.isArray(data.comments) ? data.comments : []);
     } catch {
-      setComments([]);
+      if (showLoading) {
+        setComments([]);
+      }
     } finally {
-      setIsLoading(false);
+      if (showLoading) {
+        setIsLoading(false);
+      }
     }
   }, [apiBase, chapterNumber, targetId, targetType, volume]);
 
@@ -204,9 +224,17 @@ const CommentsSection = ({ targetType, targetId, chapterNumber, volume }: Commen
         setNotice("Não foi possível enviar o comentário. Tente novamente.");
         return;
       }
+      const data = (await response.json()) as SubmitCommentResponse;
+      const status = String(data?.comment?.status || "").toLowerCase();
+      const isApproved = status === "approved";
       setForm({ name: "", email: "", content: "", website: "" });
       setReplyTo(null);
-      setNotice("Comentário enviado! Ele ficará visível após aprovação.");
+      if (isApproved) {
+        await fetchComments({ showLoading: false });
+        setNotice("Comentário publicado.");
+      } else {
+        setNotice("Comentário enviado! Ele ficará visível após aprovação.");
+      }
     } catch {
       setNotice("Não foi possível enviar o comentário. Tente novamente.");
     } finally {
