@@ -1106,8 +1106,11 @@ const ImageLibraryDialog = ({
             </div>
           </div>
 
-          <div className="mt-4 flex justify-end gap-2">
-            <Button type="button" onClick={handleSave}>
+          <div className="mt-4 flex flex-col-reverse justify-end gap-2 sm:flex-row">
+            <Button type="button" variant="outline" className="w-full sm:w-auto" onClick={() => onOpenChange(false)}>
+              Cancelar
+            </Button>
+            <Button type="button" className="w-full sm:w-auto" onClick={handleSave}>
               Salvar
             </Button>
           </div>
