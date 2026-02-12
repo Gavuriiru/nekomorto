@@ -202,11 +202,11 @@ const Post = () => {
                   </div>
                 </div>
 
-                <div className="relative overflow-hidden rounded-2xl border border-border bg-card shadow-xs">
+                <div className="relative aspect-3/2 overflow-hidden rounded-2xl border border-border bg-card shadow-xs">
                   <img
                     src={coverUrl || "/placeholder.svg"}
                     alt={post.coverAlt || `Capa do post: ${post.title}`}
-                    className="aspect-3/2 w-full object-cover"
+                    className="absolute inset-0 block h-full w-full object-cover object-center"
                     loading="lazy"
                   />
                 </div>

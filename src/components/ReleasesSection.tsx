@@ -195,7 +195,7 @@ const ReleasesSection = () => {
                             <img
                               src={normalizeAssetUrl(release.coverImageUrl) || "/placeholder.svg"}
                               alt={release.title}
-                              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                              className="absolute inset-0 block h-full w-full object-cover object-center transition-transform duration-300 group-hover:scale-105"
                               loading="lazy"
                             />
                             {displayTag ? (
