@@ -1371,6 +1371,12 @@ const DashboardPosts = () => {
                               <Edit3 className="h-4 w-4" />
                               Salvar
                             </Button>
+                            {formState.status === "draft" ? (
+                              <Button onClick={() => handleSave("published")} className="gap-2">
+                                <Plus className="h-4 w-4" />
+                                Publicar agora
+                              </Button>
+                            ) : null}
                           </>
                         ) : (
                           <>
