@@ -4,7 +4,7 @@ import DashboardShell from "@/components/DashboardShell";
 import DashboardPageContainer from "@/components/dashboard/DashboardPageContainer";
 import DashboardPageHeader from "@/components/dashboard/DashboardPageHeader";
 import { dashboardPageLayoutTokens } from "@/components/dashboard/dashboard-page-tokens";
-import ImageLibraryDialog from "@/components/ImageLibraryDialog";
+import ImageLibraryDialog, { type ImageLibraryOptions } from "@/components/ImageLibraryDialog";
 import ThemedSvgLogo from "@/components/ThemedSvgLogo";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -619,6 +619,16 @@ const shiftCollapsedEpisodesAfterRemoval = (collapsed: Record<number, boolean>, 
 };
 
 const getEpisodeAccordionValue = (index: number) => `episode-${index}`;
+const resolveProjectImageFolders = (projectId: string, projectTitle: string) => {
+  const normalizedId = String(projectId || "").trim();
+  const normalizedSlug = createSlug(String(projectTitle || "").trim());
+  const projectKey = normalizedId || normalizedSlug || "draft";
+  const projectRootFolder = `projects/${projectKey}`;
+  return {
+    projectRootFolder,
+    projectEpisodesFolder: `${projectRootFolder}/episodes`,
+  };
+};
 
 const generateLocalId = () => {
   const alpha = String.fromCharCode(97 + Math.floor(Math.random() * 26));
@@ -645,12 +655,14 @@ type EpisodeContentEditorProps = {
   value: string;
   onChange: (value: string) => void;
   onRegister?: (handlers: LexicalEditorHandle | null) => void;
+  imageLibraryOptions?: ImageLibraryOptions;
 };
 
 const EpisodeContentEditor = ({
   value,
   onChange,
   onRegister,
+  imageLibraryOptions,
 }: EpisodeContentEditorProps) => {
   const editorRef = useRef<LexicalEditorHandle | null>(null);
 
@@ -668,6 +680,7 @@ const EpisodeContentEditor = ({
       onChange={onChange}
       placeholder="Escreva o capítulo..."
       className="lexical-playground--modal"
+      imageLibraryOptions={imageLibraryOptions}
     />
   );
 };
@@ -808,7 +821,6 @@ const DashboardProjectsEditor = () => {
     "cover" | "banner" | "hero" | "episode-cover"
   >("cover");
   const [episodeCoverIndex, setEpisodeCoverIndex] = useState<number | null>(null);
-  const [libraryFolder, setLibraryFolder] = useState<string>("");
   const chapterEditorsRef = useRef<Record<number, LexicalEditorHandle | null>>({});
   const episodeSizeInputRefs = useRef<Record<number, HTMLInputElement | null>>({});
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -1008,6 +1020,40 @@ const DashboardProjectsEditor = () => {
   const isLightNovel = isLightNovelType(formState.type || "");
   const isChapterBased = isChapterBasedType(formState.type || "");
   const stageOptions = isChapterBased ? mangaStages : animeStages;
+  const { projectRootFolder, projectEpisodesFolder } = useMemo(
+    () => resolveProjectImageFolders(formState.id, formState.title),
+    [formState.id, formState.title],
+  );
+  const scopedProjectImageIds = useMemo(() => {
+    const normalizedProjectId = String(formState.id || "").trim();
+    return normalizedProjectId ? [normalizedProjectId] : [];
+  }, [formState.id]);
+  const projectAssetLibraryOptions = useMemo(
+    () =>
+      ({
+        uploadFolder: projectRootFolder,
+        listFolders: [projectRootFolder, projectEpisodesFolder, "shared"],
+        listAll: false,
+        includeProjectImages: true,
+        projectImageProjectIds: scopedProjectImageIds,
+      }) satisfies ImageLibraryOptions,
+    [projectEpisodesFolder, projectRootFolder, scopedProjectImageIds],
+  );
+  const episodeAssetLibraryOptions = useMemo(
+    () =>
+      ({
+        uploadFolder: projectEpisodesFolder,
+        listFolders: [projectEpisodesFolder, projectRootFolder, "shared"],
+        listAll: false,
+        includeProjectImages: true,
+        projectImageProjectIds: scopedProjectImageIds,
+      }) satisfies ImageLibraryOptions,
+    [projectEpisodesFolder, projectRootFolder, scopedProjectImageIds],
+  );
+  const activeLibraryOptions = useMemo(
+    () => (libraryTarget === "episode-cover" ? episodeAssetLibraryOptions : projectAssetLibraryOptions),
+    [episodeAssetLibraryOptions, libraryTarget, projectAssetLibraryOptions],
+  );
 
   const sortedEpisodeDownloads = useMemo(() => {
     if (!isChapterBased) {
@@ -1092,15 +1138,11 @@ const DashboardProjectsEditor = () => {
   };
 
   const openLibraryForProjectImage = (target: "cover" | "banner" | "hero") => {
-    const projectSlug = formState.id?.trim() || createSlug(formState.title.trim());
-    setLibraryFolder(projectSlug ? `projects/${projectSlug}` : "projects");
     setLibraryTarget(target);
     setIsLibraryOpen(true);
   };
 
   const openLibraryForEpisodeCover = (index: number) => {
-    const projectSlug = formState.id?.trim() || createSlug(formState.title.trim());
-    setLibraryFolder(projectSlug ? `projects/${projectSlug}/episodes` : "projects/episodes");
     setEpisodeCoverIndex(index);
     setLibraryTarget("episode-cover");
     setIsLibraryOpen(true);
@@ -1174,7 +1216,6 @@ const DashboardProjectsEditor = () => {
 
   useEffect(() => {
     if (!isLibraryOpen) {
-      setLibraryFolder("");
       setLibraryTarget("cover");
       setEpisodeCoverIndex(null);
     }
@@ -3410,6 +3451,7 @@ const DashboardProjectsEditor = () => {
                         >
                           <EpisodeContentEditor
                             value={episode.content || ""}
+                            imageLibraryOptions={episodeAssetLibraryOptions}
                             onRegister={(handlers) => {
                               chapterEditorsRef.current[index] = handlers;
                             }}
@@ -3755,8 +3797,11 @@ const DashboardProjectsEditor = () => {
         onOpenChange={setIsLibraryOpen}
         apiBase={apiBase}
         description="Envie novas imagens ou selecione uma existente para usar no projeto."
-        uploadFolder={libraryFolder || undefined}
-        listFolders={[""]}
+        uploadFolder={activeLibraryOptions.uploadFolder}
+        listFolders={activeLibraryOptions.listFolders}
+        listAll={activeLibraryOptions.listAll}
+        includeProjectImages={activeLibraryOptions.includeProjectImages}
+        projectImageProjectIds={activeLibraryOptions.projectImageProjectIds}
         allowDeselect
         mode="single"
         currentSelectionUrls={currentLibrarySelection ? [currentLibrarySelection] : []}

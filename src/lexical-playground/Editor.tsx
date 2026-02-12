@@ -7,6 +7,7 @@
  */
 
 import type {JSX} from 'react';
+import type {ImageLibraryOptions} from '@/components/ImageLibraryDialog';
 
 import {AutoFocusPlugin} from '@lexical/react/LexicalAutoFocusPlugin';
 import {CheckListPlugin} from '@lexical/react/LexicalCheckListPlugin';
@@ -64,9 +65,11 @@ import ContentEditable from './ui/ContentEditable';
 export default function Editor({
   hideToolbar = false,
   placeholder: placeholderOverride,
+  imageLibraryOptions,
 }: {
   hideToolbar?: boolean;
   placeholder?: string;
+  imageLibraryOptions?: ImageLibraryOptions;
 }): JSX.Element {
   const {historyState} = useSharedHistoryContext();
   const {
@@ -159,6 +162,7 @@ export default function Editor({
           activeEditor={activeEditor}
           setActiveEditor={setActiveEditor}
           setIsLinkEditMode={setIsLinkEditMode}
+          imageLibraryOptions={imageLibraryOptions}
         />
       )}
       <div
@@ -167,7 +171,7 @@ export default function Editor({
         {showEditingPlugins && <AutoFocusPlugin />}
         {selectionAlwaysOnDisplay && <SelectionAlwaysOnDisplay />}
         {showEditingPlugins && <ClearEditorPlugin />}
-        {showEditingPlugins && <ComponentPickerPlugin />}
+        {showEditingPlugins && <ComponentPickerPlugin imageLibraryOptions={imageLibraryOptions} />}
         {showEditingPlugins && <EmojiPickerPlugin />}
         {showEditingPlugins && <AutoEmbedPlugin />}
         {showEditingPlugins && <MentionsPlugin />}
@@ -211,7 +215,7 @@ export default function Editor({
             />
             {showEditingPlugins && <TableCellResizer />}
             <TableScrollShadowPlugin />
-            {showEditingPlugins && <ImagesPlugin />}
+            {showEditingPlugins && <ImagesPlugin imageLibraryOptions={imageLibraryOptions} />}
             <LinkPlugin hasLinkAttributes={hasLinkAttributes} />
             {showEditingPlugins && <PollPlugin />}
             <TwitterPlugin />

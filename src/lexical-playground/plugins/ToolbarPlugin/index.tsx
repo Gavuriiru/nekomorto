@@ -7,6 +7,7 @@
  */
 
 import type {JSX} from 'react';
+import type {ImageLibraryOptions} from '@/components/ImageLibraryDialog';
 
 import {
   $isCodeNode,
@@ -596,11 +597,13 @@ export default function ToolbarPlugin({
   activeEditor,
   setActiveEditor,
   setIsLinkEditMode,
+  imageLibraryOptions,
 }: {
   editor: LexicalEditor;
   activeEditor: LexicalEditor;
   setActiveEditor: Dispatch<LexicalEditor>;
   setIsLinkEditMode: Dispatch<boolean>;
+  imageLibraryOptions?: ImageLibraryOptions;
 }): JSX.Element {
   const [selectedElementKey, setSelectedElementKey] = useState<NodeKey | null>(
     null,
@@ -1502,6 +1505,7 @@ export default function ToolbarPlugin({
         <InsertImageDialog
           activeEditor={activeEditor}
           onClose={() => setIsImageLibraryOpen(false)}
+          imageLibraryOptions={imageLibraryOptions}
         />
       ) : null}
     </div>

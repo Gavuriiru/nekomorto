@@ -40,6 +40,13 @@ export type ImageLibrarySavePayload = {
   items: LibraryImageItem[];
 };
 
+export type ImageLibraryOptions = {
+  uploadFolder?: string;
+  listFolders?: string[];
+  listAll?: boolean;
+  includeProjectImages?: boolean;
+  projectImageProjectIds?: string[];
+};
 
 type ImageLibraryDialogProps = {
   open: boolean;
@@ -50,6 +57,8 @@ type ImageLibraryDialogProps = {
   uploadFolder?: string;
   listFolders?: string[];
   listAll?: boolean;
+  includeProjectImages?: boolean;
+  projectImageProjectIds?: string[];
   mode?: "single" | "multiple";
   allowDeselect?: boolean;
   showUrlImport?: boolean;
@@ -352,6 +361,8 @@ const ImageLibraryDialog = ({
   uploadFolder,
   listFolders,
   listAll = true,
+  includeProjectImages = true,
+  projectImageProjectIds = [],
   mode = "single",
   allowDeselect = true,
   showUrlImport = true,
@@ -377,6 +388,15 @@ const ImageLibraryDialog = ({
   const [isDeleting, setIsDeleting] = useState(false);
   const [isApplyingCrop, setIsApplyingCrop] = useState(false);
   const [isCropDialogOpen, setIsCropDialogOpen] = useState(false);
+  const allowedProjectImageIdSet = useMemo(
+    () =>
+      new Set(
+        (Array.isArray(projectImageProjectIds) ? projectImageProjectIds : [])
+          .map((id) => String(id || "").trim())
+          .filter(Boolean),
+      ),
+    [projectImageProjectIds],
+  );
 
   const folders = useMemo(() => {
     const set = new Set<string>();
@@ -491,6 +511,10 @@ const ImageLibraryDialog = ({
   }, [apiBase, folders]);
 
   const loadProjectImages = useCallback(async () => {
+    if (!includeProjectImages) {
+      setProjectImages([]);
+      return;
+    }
     try {
       const response = await apiFetch(apiBase, "/api/uploads/project-images", { auth: true });
       if (!response.ok) {
@@ -525,15 +549,19 @@ const ImageLibraryDialog = ({
               canDelete: false,
             }) as LibraryImageItem,
         );
+      const filtered =
+        allowedProjectImageIdSet.size > 0
+          ? mapped.filter((item) => item.projectId && allowedProjectImageIdSet.has(item.projectId))
+          : mapped;
       const unique = new Map<string, LibraryImageItem>();
-      mapped.forEach((item: LibraryImageItem) => {
+      filtered.forEach((item: LibraryImageItem) => {
         unique.set(item.url, item);
       });
       setProjectImages(Array.from(unique.values()));
     } catch {
       setProjectImages([]);
     }
-  }, [apiBase]);
+  }, [allowedProjectImageIdSet, apiBase, includeProjectImages]);
 
   const loadLibrary = useCallback(async () => {
     await Promise.all([loadUploads(), loadProjectImages()]);
@@ -1067,12 +1095,14 @@ const ImageLibraryDialog = ({
             </div>
             <div>
               <h3 className="text-sm font-semibold text-foreground">Imagens dos projetos</h3>
-              {renderGrid(
-                filteredProjectImages,
-                normalizedSearch
-                  ? "Nenhuma imagem de projeto encontrada para essa pesquisa."
-                  : "Nenhuma imagem de projeto encontrada.",
-              )}
+              {includeProjectImages
+                ? renderGrid(
+                    filteredProjectImages,
+                    normalizedSearch
+                      ? "Nenhuma imagem de projeto encontrada para essa pesquisa."
+                      : "Nenhuma imagem de projeto encontrada.",
+                  )
+                : <p className="mt-3 text-xs text-muted-foreground">Imagens de projeto ocultas neste contexto.</p>}
             </div>
           </div>
 

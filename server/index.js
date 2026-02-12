@@ -10,6 +10,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 import { resolvePostStatus } from "./lib/post-status.js";
 import { createSlug, createUniqueSlug } from "./lib/post-slug.js";
+import { runUploadsReorganization } from "./lib/uploads-reorganizer.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -52,7 +53,7 @@ const AUDIT_MAX_ENTRIES = 20000;
 const AUDIT_CSV_MAX_ROWS = 10000;
 const AUDIT_META_STRING_MAX = 256;
 const AUDIT_ENABLED_ACTION_PATTERN =
-  /(^|\.)(create|update|delete|restore|reorder|login|logout|denied|failed|rate_limited|bootstrap|rebuild|image|rename|success)(\.|_|$)/i;
+  /(^|\.)(create|update|delete|restore|reorder|login|logout|denied|failed|rate_limited|bootstrap|rebuild|image|rename|success|reorganize)(\.|_|$)/i;
 const AUDIT_DEFAULT_META_KEYS = [
   "error",
   "id",
@@ -66,6 +67,11 @@ const AUDIT_DEFAULT_META_KEYS = [
   "folder",
   "url",
   "wasOwner",
+  "trigger",
+  "moves",
+  "rewrites",
+  "failures",
+  "durationMs",
 ];
 const AUDIT_META_ALLOWLIST = {
   "auth.login.failed": ["error"],
@@ -80,6 +86,10 @@ const AUDIT_META_ALLOWLIST = {
   "uploads.image_from_url": ["fileName", "folder", "url", "remoteUrl"],
   "uploads.rename": ["oldUrl", "newUrl", "updatedReferences", "replacements"],
   "uploads.delete": ["url"],
+  "uploads.auto_reorganize.startup": ["trigger", "moves", "rewrites", "failures", "durationMs"],
+  "uploads.auto_reorganize.post_save": ["trigger", "moves", "rewrites", "failures", "durationMs"],
+  "uploads.auto_reorganize.project_save": ["trigger", "moves", "rewrites", "failures", "durationMs"],
+  "uploads.auto_reorganize.failed": ["trigger", "moves", "rewrites", "failures", "durationMs", "error"],
 };
 
 const parseAuditTs = (value) => {
@@ -296,9 +306,13 @@ const {
   ANALYTICS_IP_SALT = "",
   ANALYTICS_RETENTION_DAYS: ANALYTICS_RETENTION_DAYS_ENV = "",
   ANALYTICS_AGG_RETENTION_DAYS: ANALYTICS_AGG_RETENTION_DAYS_ENV = "",
+  AUTO_UPLOAD_REORGANIZE = "true",
 } = process.env;
 
 const isProduction = process.env.NODE_ENV === "production";
+const isAutoUploadReorganizationEnabled = !["0", "false", "no", "off"].includes(
+  String(AUTO_UPLOAD_REORGANIZE || "").trim().toLowerCase(),
+);
 const OWNER_IDS = (OWNER_IDS_ENV || (isProduction ? "" : "380305493391966208"))
   .split(",")
   .map((id) => id.trim())
@@ -318,6 +332,96 @@ const PRIMARY_APP_HOST = (() => {
     return "";
   }
 })();
+const REPO_ROOT_DIR = path.join(__dirname, "..");
+
+const AUTO_REORGANIZE_TRIGGER_TO_ACTION = {
+  startup: "uploads.auto_reorganize.startup",
+  "post-save": "uploads.auto_reorganize.post_save",
+  "project-save": "uploads.auto_reorganize.project_save",
+};
+
+let autoUploadReorganizationInFlight = null;
+const pendingAutoReorganizationTriggers = new Set();
+
+const createSystemAuditReq = () => ({
+  headers: {},
+  ip: "127.0.0.1",
+  session: {
+    user: {
+      id: "system",
+      name: "System",
+    },
+  },
+  requestId: `auto-reorg-${crypto.randomUUID()}`,
+});
+
+const normalizeAutoReorganizationTrigger = (value) =>
+  value === "startup" || value === "post-save" || value === "project-save" ? value : "post-save";
+
+const buildAutoReorganizationMeta = ({ trigger, report, durationMs, error }) => ({
+  trigger,
+  moves: Number(report?.appliedMovesCount || 0),
+  rewrites: Number(report?.totalRewrites || 0),
+  failures: Number(report?.moveFailuresCount || 0) + (error ? 1 : 0),
+  durationMs: Number(durationMs || 0),
+  ...(error ? { error: String(error?.message || error) } : {}),
+});
+
+const runAutoUploadReorganization = async ({ trigger, req } = {}) => {
+  if (!isAutoUploadReorganizationEnabled) {
+    return { ok: false, skipped: true, reason: "disabled" };
+  }
+
+  const normalizedTrigger = normalizeAutoReorganizationTrigger(trigger);
+  pendingAutoReorganizationTriggers.add(normalizedTrigger);
+
+  if (autoUploadReorganizationInFlight) {
+    return autoUploadReorganizationInFlight;
+  }
+
+  const runner = async () => {
+    let latestResult = { ok: true, skipped: true };
+    while (pendingAutoReorganizationTriggers.size > 0) {
+      const batch = Array.from(pendingAutoReorganizationTriggers);
+      pendingAutoReorganizationTriggers.clear();
+      const triggerForRun = batch.includes("startup")
+        ? "startup"
+        : batch.includes("project-save")
+          ? "project-save"
+          : "post-save";
+      const startedAt = Date.now();
+      try {
+        const report = runUploadsReorganization({
+          rootDir: REPO_ROOT_DIR,
+          applyChanges: true,
+        });
+        const durationMs = Date.now() - startedAt;
+        const action = AUTO_REORGANIZE_TRIGGER_TO_ACTION[triggerForRun];
+        appendAuditLog(req || createSystemAuditReq(), action, "uploads", buildAutoReorganizationMeta({
+          trigger: triggerForRun,
+          report,
+          durationMs,
+        }));
+        latestResult = { ok: true, trigger: triggerForRun, report, durationMs };
+      } catch (error) {
+        const durationMs = Date.now() - startedAt;
+        appendAuditLog(req || createSystemAuditReq(), "uploads.auto_reorganize.failed", "uploads", buildAutoReorganizationMeta({
+          trigger: triggerForRun,
+          durationMs,
+          error,
+        }));
+        latestResult = { ok: false, trigger: triggerForRun, error, durationMs };
+      }
+    }
+    return latestResult;
+  };
+
+  autoUploadReorganizationInFlight = runner().finally(() => {
+    autoUploadReorganizationInFlight = null;
+  });
+
+  return autoUploadReorganizationInFlight;
+};
 
 const parseEnvInteger = (value, fallback, min, max) => {
   const parsed = Number(value);
@@ -4231,7 +4335,7 @@ app.delete("/api/comments/:id", requireAuth, (req, res) => {
   return res.json({ ok: true });
 });
 
-app.post("/api/posts", requireAuth, (req, res) => {
+app.post("/api/posts", requireAuth, async (req, res) => {
   const sessionUser = req.session.user;
   if (!canManagePosts(sessionUser?.id)) {
     return res.status(403).json({ error: "forbidden" });
@@ -4304,11 +4408,13 @@ app.post("/api/posts", requireAuth, (req, res) => {
 
   posts.push(newPost);
   writePosts(posts);
+  await runAutoUploadReorganization({ trigger: "post-save", req });
+  const persistedPost = normalizePosts(loadPosts()).find((post) => post.id === newPost.id) || newPost;
   appendAuditLog(req, "posts.create", "posts", { id: newPost.id, slug: newPost.slug });
-  return res.json({ post: newPost });
+  return res.json({ post: persistedPost });
 });
 
-app.put("/api/posts/:id", requireAuth, (req, res) => {
+app.put("/api/posts/:id", requireAuth, async (req, res) => {
   const sessionUser = req.session.user;
   if (!canManagePosts(sessionUser?.id)) {
     return res.status(403).json({ error: "forbidden" });
@@ -4377,8 +4483,10 @@ app.put("/api/posts/:id", requireAuth, (req, res) => {
 
   posts[index] = updated;
   writePosts(posts);
+  await runAutoUploadReorganization({ trigger: "post-save", req });
+  const persistedPost = normalizePosts(loadPosts()).find((post) => post.id === updated.id) || updated;
   appendAuditLog(req, "posts.update", "posts", { id: updated.id, slug: updated.slug });
-  return res.json({ post: updated });
+  return res.json({ post: persistedPost });
 });
 
 app.delete("/api/posts/:id", requireAuth, (req, res) => {
@@ -4452,7 +4560,7 @@ app.get("/api/projects", requireAuth, (req, res) => {
   res.json({ projects });
 });
 
-app.post("/api/projects", requireAuth, (req, res) => {
+app.post("/api/projects", requireAuth, async (req, res) => {
   const sessionUser = req.session.user;
   if (!canManageProjects(sessionUser?.id)) {
     return res.status(403).json({ error: "forbidden" });
@@ -4532,10 +4640,14 @@ app.post("/api/projects", requireAuth, (req, res) => {
     }
   }
 
-  return res.status(201).json({ project: nextProject });
+  await runAutoUploadReorganization({ trigger: "project-save", req });
+  const persistedProject =
+    normalizeProjects(loadProjects()).find((project) => project.id === nextProject.id) || nextProject;
+
+  return res.status(201).json({ project: persistedProject });
 });
 
-app.put("/api/projects/:id", requireAuth, (req, res) => {
+app.put("/api/projects/:id", requireAuth, async (req, res) => {
   const sessionUser = req.session.user;
   if (!canManageProjects(sessionUser?.id)) {
     return res.status(403).json({ error: "forbidden" });
@@ -4612,7 +4724,9 @@ app.put("/api/projects/:id", requireAuth, (req, res) => {
     }
   }
 
-  return res.json({ project: merged });
+  await runAutoUploadReorganization({ trigger: "project-save", req });
+  const persistedProject = normalizeProjects(loadProjects()).find((project) => project.id === merged.id) || merged;
+  return res.json({ project: persistedProject });
 });
 
 app.delete("/api/projects/:id", requireAuth, (req, res) => {
@@ -6173,6 +6287,12 @@ try {
   compactAnalyticsData();
 } catch {
   // ignore analytics compaction failures on boot
+}
+
+try {
+  await runAutoUploadReorganization({ trigger: "startup" });
+} catch {
+  // ignore auto-reorganization failures on boot
 }
 
 app.listen(Number(PORT));

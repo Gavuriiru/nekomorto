@@ -567,6 +567,16 @@ const DashboardPosts = () => {
     () => new Map(projects.map((project) => [project.id, project])),
     [projects],
   );
+  const postImageLibraryOptions = useMemo(
+    () => ({
+      uploadFolder: "posts",
+      listFolders: ["posts", "shared"],
+      listAll: false,
+      includeProjectImages: Boolean(formState.projectId),
+      projectImageProjectIds: formState.projectId ? [formState.projectId] : [],
+    }),
+    [formState.projectId],
+  );
   const projectTags = useMemo(() => {
     if (!formState.projectId) {
       return [];
@@ -1155,6 +1165,7 @@ const DashboardPosts = () => {
                     }
                     placeholder="Escreva o conteúdo do post..."
                     className="lexical-playground--stretch lexical-playground--modal min-w-0 w-full"
+                    imageLibraryOptions={postImageLibraryOptions}
                   />
 
                   <aside className="min-w-0 space-y-6">
@@ -1786,7 +1797,11 @@ const DashboardPosts = () => {
         onOpenChange={setIsLibraryOpen}
         apiBase={apiBase}
         description="Escolha uma imagem ja enviada ou use capas/banners de projetos."
-        listFolders={[""]}
+        uploadFolder={postImageLibraryOptions.uploadFolder}
+        listFolders={postImageLibraryOptions.listFolders}
+        listAll={postImageLibraryOptions.listAll}
+        includeProjectImages={postImageLibraryOptions.includeProjectImages}
+        projectImageProjectIds={postImageLibraryOptions.projectImageProjectIds}
         allowDeselect
         mode="single"
         currentSelectionUrls={formState.coverImageUrl ? [formState.coverImageUrl] : []}

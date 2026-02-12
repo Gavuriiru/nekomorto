@@ -3,6 +3,7 @@ import { LexicalComposer } from "@lexical/react/LexicalComposer";
 import { OnChangePlugin } from "@lexical/react/LexicalOnChangePlugin";
 import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
 import { $createParagraphNode, $getRoot, $setSelection } from "lexical";
+import type { ImageLibraryOptions } from "@/components/ImageLibraryDialog";
 
 import Editor from "@/lexical-playground/Editor";
 import PlaygroundNodes from "@/lexical-playground/nodes/PlaygroundNodes";
@@ -28,6 +29,7 @@ type LexicalEditorProps = {
   placeholder?: string;
   className?: string;
   readOnly?: boolean;
+  imageLibraryOptions?: ImageLibraryOptions;
 };
 
 const blurEditorRoot = (editor: ReturnType<typeof useLexicalComposerContext>[0]) => {
@@ -209,7 +211,7 @@ const EditablePlugin = ({ readOnly }: { readOnly?: boolean }) => {
 };
 
 const LexicalEditor = React.forwardRef<LexicalEditorHandle, LexicalEditorProps>(
-  ({ value, onChange, placeholder, className, readOnly }, ref) => {
+  ({ value, onChange, placeholder, className, readOnly, imageLibraryOptions }, ref) => {
     const initialConfig = React.useRef({
       namespace: "RainbowLexicalPlayground",
       theme: PlaygroundEditorTheme,
@@ -234,6 +236,7 @@ const LexicalEditor = React.forwardRef<LexicalEditorHandle, LexicalEditorProps>(
                         <Editor
                           hideToolbar={Boolean(readOnly)}
                           placeholder={placeholder}
+                          imageLibraryOptions={imageLibraryOptions}
                         />
                       </div>
                     </div>

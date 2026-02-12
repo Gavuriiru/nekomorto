@@ -44,6 +44,7 @@ import {useEffect} from 'react';
 import * as React from 'react';
 
 import ImageLibraryDialog from '@/components/ImageLibraryDialog';
+import type {ImageLibraryOptions} from '@/components/ImageLibraryDialog';
 import {getApiBase} from '@/lib/api-base';
 import {
   $createImageNode,
@@ -60,9 +61,11 @@ export const INSERT_IMAGE_COMMAND: LexicalCommand<InsertImagePayload> =
 export function InsertImageDialog({
   activeEditor,
   onClose,
+  imageLibraryOptions,
 }: {
   activeEditor: LexicalEditor;
   onClose: () => void;
+  imageLibraryOptions?: ImageLibraryOptions;
 }): JSX.Element {
   const apiBase = getApiBase();
 
@@ -77,7 +80,11 @@ export function InsertImageDialog({
       apiBase={apiBase}
       title="Inserir imagens"
       description="Selecione e confirme em Salvar para inserir no editor."
-      listFolders={['']}
+      uploadFolder={imageLibraryOptions?.uploadFolder}
+      listFolders={imageLibraryOptions?.listFolders ?? ['']}
+      listAll={imageLibraryOptions?.listAll}
+      includeProjectImages={imageLibraryOptions?.includeProjectImages}
+      projectImageProjectIds={imageLibraryOptions?.projectImageProjectIds}
       mode="multiple"
       allowDeselect
       onSave={({items}) => {
@@ -94,8 +101,10 @@ export function InsertImageDialog({
 
 export default function ImagesPlugin({
   captionsEnabled,
+  imageLibraryOptions: _imageLibraryOptions,
 }: {
   captionsEnabled?: boolean;
+  imageLibraryOptions?: ImageLibraryOptions;
 }): JSX.Element | null {
   const [editor] = useLexicalComposerContext();
 
