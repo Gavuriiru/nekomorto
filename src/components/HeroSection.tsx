@@ -333,22 +333,22 @@ const HeroSection = () => {
               <div className="relative min-h-screen flex items-end overflow-hidden">
                 {/* Background Image - positioned to show character on the right */}
                 <div
-                  className="absolute inset-0 bg-cover bg-right-top md:bg-center bg-no-repeat scale-105"
+                  className="absolute inset-0 bg-cover bg-top-right md:bg-center bg-no-repeat scale-105"
                   style={{ backgroundImage: `url(${slide.image})` }}
                 />
 
                 {/* Gradient Overlay - darker on the left for text readability */}
-                <div className="absolute inset-0 bg-gradient-to-r from-background via-background/80 to-transparent" />
+                <div className="absolute inset-0 bg-linear-to-r from-background via-background/80 to-transparent" />
 
                 {/* Bottom gradient for smooth transition */}
-                <div className="absolute inset-0 bg-gradient-to-t from-background via-background/30 to-transparent" />
+                <div className="absolute inset-0 bg-linear-to-t from-background via-background/30 to-transparent" />
 
                 {/* Content */}
                 <div className="relative z-10 w-full px-6 md:px-12 pb-16 md:pb-24">
                   <div className="max-w-3xl">
                     <div className="mb-3 flex flex-wrap items-center gap-3 text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
                       {slide.id === latestSlideId ? (
-                        <span className="inline-block px-3 py-1 rounded-full animate-fade-in border bg-[color:var(--hero-badge-bg,hsl(var(--primary)/0.2))] text-[color:var(--hero-badge-text,hsl(var(--primary)))] border-[color:var(--hero-badge-border,hsl(var(--primary)/0.3)))]">
+                        <span className="inline-block px-3 py-1 rounded-full animate-fade-in border bg-(--hero-badge-bg,hsl(var(--primary)/0.2)) text-(--hero-badge-text,hsl(var(--primary))) border-(--hero-badge-border,hsl(var(--primary)/0.3))">
                           Último Lançamento
                         </span>
                       ) : null}
@@ -374,7 +374,7 @@ const HeroSection = () => {
                     >
                       <Link
                         to={`/projeto/${slide.projectId}`}
-                        className="inline-flex items-center gap-2 px-6 py-3 font-semibold rounded-lg transition-all hover:scale-105 hover:brightness-110 bg-[color:var(--hero-accent,hsl(var(--primary)))] text-[color:var(--hero-accent-foreground,hsl(var(--primary-foreground)))]"
+                        className="inline-flex items-center gap-2 px-6 py-3 font-semibold rounded-lg transition-all hover:scale-105 hover:brightness-110 bg-(--hero-accent,hsl(var(--primary))) text-(--hero-accent-foreground,hsl(var(--primary-foreground)))"
                       >
                         <Globe className="h-4 w-4" />
                         Acessar Página

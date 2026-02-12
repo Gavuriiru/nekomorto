@@ -784,7 +784,7 @@ const DashboardUsers = () => {
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent
           className="w-[92vw] max-h-[90vh] max-w-xl overflow-y-auto"
-          overlayClassName="backdrop-blur-sm"
+          overlayClassName="backdrop-blur-xs"
         >
           <DialogHeader>
             <DialogTitle>{editingUser ? "Editar usuário" : "Adicionar usuário"}</DialogTitle>

@@ -75,7 +75,7 @@ const Header = ({ variant = "fixed", leading, className }: HeaderProps) => {
       : [];
   }, [settings.navbar.links]);
   const headerMenuContentClass =
-    "border-white/25 bg-gradient-to-b from-black/40 via-black/25 to-black/10 text-white/90 shadow-xl backdrop-blur-sm";
+    "border-white/25 bg-linear-to-b from-black/40 via-black/25 to-black/10 text-white/90 shadow-xl backdrop-blur-xs";
   const headerMenuItemClass = "focus:bg-white/10 focus:text-white";
   const isInternalHref = (href: string) => href.startsWith("/") && !href.startsWith("//");
   const normalizePathname = (value: string) => {
@@ -256,11 +256,11 @@ const Header = ({ variant = "fixed", leading, className }: HeaderProps) => {
   return (
     <header
       className={cn(
-        "left-0 right-0 px-6 py-4 text-white transition-all duration-300 md:px-12 after:pointer-events-none after:absolute after:inset-0 after:bg-gradient-to-b after:from-black/25 after:via-black/10 after:to-transparent",
+        "left-0 right-0 px-6 py-4 text-white transition-all duration-300 md:px-12 after:pointer-events-none after:absolute after:inset-0 after:bg-linear-to-b after:from-black/25 after:via-black/10 after:to-transparent",
         variant === "fixed" ? "fixed top-0" : "relative",
         isScrolled && variant === "fixed" ? "bg-background/70 backdrop-blur-xl" : "bg-transparent",
         leading ? "z-10" : "z-50",
-        leading ? "md:pl-[var(--sidebar-offset)]" : "",
+        leading ? "md:pl-(--sidebar-offset)" : "",
         className,
       )}
     >
@@ -284,7 +284,7 @@ const Header = ({ variant = "fixed", leading, className }: HeaderProps) => {
                     <ThemedSvgLogo
                       url={navbarSymbolUrl}
                       label={siteName}
-                      className="h-9 w-9 rounded-full object-cover shadow-sm text-primary"
+                      className="h-9 w-9 rounded-full object-cover shadow-xs text-primary"
                     />
                   ) : (
                     <span className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/20 bg-white/10 text-sm font-semibold">
@@ -358,7 +358,7 @@ const Header = ({ variant = "fixed", leading, className }: HeaderProps) => {
                   value={query}
                   onChange={(event) => setQuery(event.target.value)}
                   placeholder="Pesquisar projetos e posts"
-                  className="w-full bg-transparent text-sm text-white outline-none placeholder:text-white/60"
+                  className="w-full bg-transparent text-sm text-white outline-hidden placeholder:text-white/60"
                 />
               )}
             </div>
@@ -366,7 +366,7 @@ const Header = ({ variant = "fixed", leading, className }: HeaderProps) => {
             {showResults && (
               <div
                 ref={synopsisRootRef}
-                className="search-popover-enter absolute right-0 top-12 max-h-[78vh] w-80 overflow-hidden rounded-xl border border-border/60 bg-background/95 p-4 shadow-lg backdrop-blur"
+                className="search-popover-enter absolute right-0 top-12 max-h-[78vh] w-80 overflow-hidden rounded-xl border border-border/60 bg-background/95 p-4 shadow-lg backdrop-blur-sm"
               >
                 {filteredProjects.length > 0 && (
                   <div className="mb-4">
@@ -378,10 +378,10 @@ const Header = ({ variant = "fixed", leading, className }: HeaderProps) => {
                         <li key={item.href}>
                           <Link
                             to={item.href}
-                            className="group flex h-[9rem] items-start gap-4 overflow-hidden rounded-xl border border-border/60 bg-gradient-card p-4 transition hover:border-primary/40 hover:bg-primary/5"
+                            className="group flex h-36 items-start gap-4 overflow-hidden rounded-xl border border-border/60 bg-gradient-card p-4 transition hover:border-primary/40 hover:bg-primary/5"
                           >
                             <div
-                              className="w-20 flex-shrink-0 self-start overflow-hidden rounded-lg bg-secondary"
+                              className="w-20 shrink-0 self-start overflow-hidden rounded-lg bg-secondary"
                               style={{ aspectRatio: "46 / 65" }}
                             >
                               <img

@@ -336,7 +336,7 @@ const ProjectPage = () => {
             <img
               src={episode.coverImageUrl || project.banner || project.cover || "/placeholder.svg"}
               alt={`Preview de ${episode.title}`}
-              className="h-full w-full aspect-[16/9] object-cover object-center transition-transform duration-300 group-hover:scale-[1.03]"
+              className="h-full w-full aspect-video object-cover object-center transition-transform duration-300 group-hover:scale-[1.03]"
             />
           </div>
           <div className="relative h-full min-h-[153px] md:pr-0">
@@ -383,7 +383,7 @@ const ProjectPage = () => {
               </div>
             </div>
 
-            <div className="flex flex-wrap items-center justify-end gap-2 md:absolute md:bottom-[-0.5rem] md:left-0 md:right-0">
+            <div className="flex flex-wrap items-center justify-end gap-2 md:absolute md:-bottom-2 md:left-0 md:right-0">
               {episode.sources.map((source, sourceIndex) => {
                 const theme = sourceThemeMap.get(source.label.toLowerCase());
                 const color = theme?.color || "#4b5563";
@@ -508,10 +508,10 @@ const ProjectPage = () => {
             style={{ backgroundImage: `url(${project.banner})` }}
           />
           <div className="absolute inset-0 bg-black/20 backdrop-blur-[2px]" />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent" />
+          <div className="absolute inset-0 bg-linear-to-t from-black/70 via-black/30 to-transparent" />
 
           <div className="relative mx-auto flex min-h-[420px] w-full max-w-6xl flex-col items-start gap-8 px-6 pb-16 pt-24 md:flex-row md:items-center md:px-10 lg:min-h-[520px] reveal" data-reveal>
-            <div className="w-52 flex-shrink-0 overflow-hidden rounded-2xl bg-secondary shadow-2xl animate-slide-up opacity-0 md:w-64">
+            <div className="w-52 shrink-0 overflow-hidden rounded-2xl bg-secondary shadow-2xl animate-slide-up opacity-0 md:w-64">
               <img
                 src={project.cover}
                 alt={project.title}
@@ -621,7 +621,7 @@ const ProjectPage = () => {
                             to={targetId ? `/projeto/${targetId}` : "#"}
                             className="group flex gap-4 rounded-xl border border-border/50 bg-background/60 p-4 transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:bg-background/80 hover:shadow-lg"
                           >
-                            <div className="w-16 flex-shrink-0 overflow-hidden rounded-lg bg-secondary aspect-[2/3]">
+                            <div className="w-16 shrink-0 overflow-hidden rounded-lg bg-secondary aspect-2/3">
                               <img
                                 src={relation.image}
                                 alt={relation.title}

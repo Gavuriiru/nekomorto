@@ -105,7 +105,7 @@ const FAQ = () => {
 
       <main>
         <section className="relative overflow-hidden border-b border-border/60">
-          <div className="absolute inset-0 bg-gradient-to-b from-primary/15 via-background to-background" />
+          <div className="absolute inset-0 bg-linear-to-b from-primary/15 via-background to-background" />
           <div className="absolute -left-24 top-10 h-64 w-64 rounded-full bg-primary/20 blur-[120px]" />
           <div className="absolute -right-24 bottom-10 h-64 w-64 rounded-full bg-accent/20 blur-[120px]" />
           <div className="relative mx-auto flex w-full max-w-6xl flex-col gap-6 px-6 pb-16 pt-20 md:px-10 reveal" data-reveal>

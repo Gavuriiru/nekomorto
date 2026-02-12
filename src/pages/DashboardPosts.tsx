@@ -1056,7 +1056,7 @@ const DashboardPosts = () => {
             {isEditorOpen && canManagePosts ? (
               <>
                 <div
-                  className="pointer-events-auto fixed inset-0 z-40 bg-black/80 backdrop-blur-sm"
+                  className="pointer-events-auto fixed inset-0 z-40 bg-black/80 backdrop-blur-xs"
                   aria-hidden="true"
                 />
                 <Dialog open={isEditorOpen} onOpenChange={handleEditorOpenChange} modal={false}>
@@ -1570,7 +1570,7 @@ const DashboardPosts = () => {
                                     {statusLabel}
                                   </Badge>
                                   {project ? (
-                                    <Badge variant="secondary" className="max-w-[15rem] truncate text-[10px] uppercase">
+                                    <Badge variant="secondary" className="max-w-60 truncate text-[10px] uppercase">
                                       {project.title}
                                     </Badge>
                                   ) : null}
@@ -1617,7 +1617,7 @@ const DashboardPosts = () => {
                                 </div>
                               </div>
 
-                              <div data-slot="headline" className="min-h-[2.75rem]">
+                              <div data-slot="headline" className="min-h-11">
                                 <h3 className="line-clamp-2 text-lg font-semibold leading-tight text-foreground md:line-clamp-1">
                                   {post.title}
                                 </h3>
@@ -1632,14 +1632,14 @@ const DashboardPosts = () => {
                               </p>
 
                               <div className="flex min-h-0 flex-col gap-2">
-                                <div data-slot="tags" className="min-h-[1.5rem]">
+                                <div data-slot="tags" className="min-h-6">
                                   {visibleCardTags.length > 0 ? (
                                     <div className="flex min-w-0 items-center gap-2 overflow-hidden">
                                       {visibleCardTags.map((tag) => (
                                         <Badge
                                           key={tag}
                                           variant="secondary"
-                                          className="min-w-0 max-w-[8.5rem] overflow-hidden text-[10px] uppercase"
+                                          className="min-w-0 max-w-34 overflow-hidden text-[10px] uppercase"
                                         >
                                           <span className="block min-w-0 truncate">{displayTag(tag)}</span>
                                         </Badge>
@@ -1671,7 +1671,7 @@ const DashboardPosts = () => {
                                     <MessageSquare className="h-4 w-4" />
                                     {post.commentsCount} comentários
                                   </span>
-                                  <span className="ml-auto max-w-[11rem] truncate text-right text-xs text-muted-foreground">
+                                  <span className="ml-auto max-w-44 truncate text-right text-xs text-muted-foreground">
                                     /{post.slug}
                                   </span>
                                 </div>

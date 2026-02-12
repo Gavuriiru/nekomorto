@@ -161,11 +161,11 @@ const Post = () => {
                   </div>
                 </div>
 
-                <div className="relative overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
+                <div className="relative overflow-hidden rounded-2xl border border-border bg-card shadow-xs">
                   <img
                     src={coverUrl || "/placeholder.svg"}
                     alt={post.coverAlt || `Capa do post: ${post.title}`}
-                    className="aspect-[3/2] w-full object-cover"
+                    className="aspect-3/2 w-full object-cover"
                     loading="lazy"
                   />
                 </div>
@@ -173,7 +173,7 @@ const Post = () => {
 
               <section className="grid gap-8 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
                 <article className="min-w-0 space-y-8">
-                  <Card className="border-border bg-card shadow-sm">
+                  <Card className="border-border bg-card shadow-xs">
                     <CardContent className="min-w-0 space-y-7 p-6 text-sm leading-relaxed text-muted-foreground">
                       <LexicalViewer
                         value={post.content || ""}

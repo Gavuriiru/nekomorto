@@ -906,7 +906,7 @@ const ImageLibraryDialog = ({
                   </div>
                 </button>
               </ContextMenuTrigger>
-              <ContextMenuContent className="w-56 z-[230]">
+              <ContextMenuContent className="w-56 z-230">
                 <ContextMenuLabel>{item.source === "upload" ? "Upload do servidor" : "Imagem de projeto"}</ContextMenuLabel>
                 <ContextMenuSeparator />
                 {cropAvatar && mode === "single" ? (
@@ -966,8 +966,8 @@ const ImageLibraryDialog = ({
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent
-          className="flex h-[90vh] w-[92vw] max-w-5xl flex-col overflow-hidden z-[200] data-[state=open]:animate-none data-[state=closed]:animate-none [&>button]:hidden"
-          overlayClassName="z-[190] data-[state=open]:animate-none data-[state=closed]:animate-none"
+          className="flex h-[90vh] w-[92vw] max-w-5xl flex-col overflow-hidden z-200 data-[state=open]:animate-none data-[state=closed]:animate-none [&>button]:hidden"
+          overlayClassName="z-190 data-[state=open]:animate-none data-[state=closed]:animate-none"
           onEscapeKeyDown={(event) => event.preventDefault()}
         >
           <DialogHeader>
@@ -1095,8 +1095,8 @@ const ImageLibraryDialog = ({
         }}
       >
         <DialogContent
-          className="max-h-[92vh] max-w-5xl overflow-auto z-[240] data-[state=open]:animate-none data-[state=closed]:animate-none"
-          overlayClassName="z-[230] data-[state=open]:animate-none data-[state=closed]:animate-none"
+          className="max-h-[92vh] max-w-5xl overflow-auto z-240 data-[state=open]:animate-none data-[state=closed]:animate-none"
+          overlayClassName="z-230 data-[state=open]:animate-none data-[state=closed]:animate-none"
         >
           <DialogHeader>
             <DialogTitle>Editor de avatar</DialogTitle>
@@ -1119,7 +1119,7 @@ const ImageLibraryDialog = ({
         </DialogContent>
       </Dialog>
       <Dialog open={Boolean(deleteTarget)} onOpenChange={(next) => !next && setDeleteTarget(null)}>
-        <DialogContent className="max-w-md z-[240]" overlayClassName="z-[230]">
+        <DialogContent className="max-w-md z-240" overlayClassName="z-230">
           <DialogHeader>
             <DialogTitle>Excluir imagem?</DialogTitle>
             <DialogDescription>
@@ -1153,7 +1153,7 @@ const ImageLibraryDialog = ({
       </Dialog>
 
       <Dialog open={Boolean(renameTarget)} onOpenChange={(next) => !next && setRenameTarget(null)}>
-        <DialogContent className="max-w-md z-[240]" overlayClassName="z-[230]">
+        <DialogContent className="max-w-md z-240" overlayClassName="z-230">
           <DialogHeader>
             <DialogTitle>Renomear imagem</DialogTitle>
             <DialogDescription>

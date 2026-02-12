@@ -139,7 +139,7 @@ const DashboardAutosaveStatus = ({
         <Button
           type="button"
           variant="default"
-          className="relative h-9 w-[10.5rem] justify-center overflow-hidden whitespace-nowrap rounded-lg px-3 text-sm font-semibold shadow-md shadow-primary/20 hover:shadow-primary/30"
+          className="relative h-9 w-42 justify-center overflow-hidden whitespace-nowrap rounded-lg px-3 text-sm font-semibold shadow-md shadow-primary/20 hover:shadow-primary/30"
           onClick={onManualSave}
           disabled={manualActionDisabled || (enabled && status === "saving")}
         >

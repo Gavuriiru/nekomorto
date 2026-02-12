@@ -121,9 +121,9 @@ const ProjectCard = ({
   return (
     <Link
       to={`/projeto/${project.id}`}
-      className="group flex min-h-[12.5rem] w-full items-start gap-5 overflow-hidden rounded-2xl border border-border/60 bg-gradient-card p-5 shadow-[0_28px_120px_-60px_rgba(0,0,0,0.55)] transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:shadow-lg md:h-[15rem]"
+      className="group flex min-h-50 w-full items-start gap-5 overflow-hidden rounded-2xl border border-border/60 bg-gradient-card p-5 shadow-[0_28px_120px_-60px_rgba(0,0,0,0.55)] transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:shadow-lg md:h-60"
     >
-      <div className="h-[9.75rem] w-28 flex-shrink-0 overflow-hidden rounded-xl bg-secondary shadow-inner md:h-[12.5rem] md:w-36">
+      <div className="h-39 w-28 shrink-0 overflow-hidden rounded-xl bg-secondary shadow-inner md:h-50 md:w-36">
         <img
           src={project.cover}
           alt={project.title}
@@ -192,7 +192,7 @@ const ProjectCard = ({
                 <Badge
                   key={`extra-${project.id}`}
                   variant="secondary"
-                  className="inline-flex h-5 w-[2.25rem] shrink-0 justify-center whitespace-nowrap px-2 text-[9px] uppercase leading-none"
+                  className="inline-flex h-5 w-9 shrink-0 justify-center whitespace-nowrap px-2 text-[9px] uppercase leading-none"
                   title={`+${extraCount} tags`}
                 >
                   +{extraCount}
@@ -223,7 +223,7 @@ const ProjectCard = ({
             ) : null}
             {project.studio ? (
               <span
-                className="hidden shrink-0 max-w-[9rem] rounded-full bg-background/50 px-3 py-1 truncate lg:inline-flex lg:max-w-[12rem]"
+                className="hidden shrink-0 max-w-36 rounded-full bg-background/50 px-3 py-1 truncate lg:inline-flex lg:max-w-48"
                 title={project.studio}
               >
                 {project.studio}
@@ -405,10 +405,10 @@ const Projects = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-background via-[hsl(var(--primary)/0.12)] to-background text-foreground">
+    <div className="min-h-screen bg-linear-to-b from-background via-[hsl(var(--primary)/0.12)] to-background text-foreground">
       <main className="pt-28">
         <section className="mx-auto w-full max-w-6xl px-6 pb-20 md:px-10 reveal" data-reveal>
-          <div className="grid gap-4 rounded-2xl bg-card/70 p-6 shadow-lg md:grid-cols-[repeat(4,minmax(0,1fr))]">
+          <div className="grid gap-4 rounded-2xl bg-card/70 p-6 shadow-lg md:grid-cols-4">
             <div className="flex flex-col gap-2">
               <span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
                 A-Z

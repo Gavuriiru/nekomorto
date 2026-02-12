@@ -1209,7 +1209,7 @@ const DashboardSettings = () => {
                           <ColorPicker
                             label=""
                             showSwatch
-                            buttonClassName="inline-flex h-9 w-9 items-center justify-center rounded-md border border-border/60 bg-background/60 shadow-sm transition hover:border-primary/40"
+                            buttonClassName="inline-flex h-9 w-9 items-center justify-center rounded-md border border-border/60 bg-background/60 shadow-xs transition hover:border-primary/40"
                             value={settings.theme.accent || "#000000"}
                             onChange={(color) =>
                               setSettings((prev) => ({
@@ -1939,7 +1939,7 @@ const DashboardSettings = () => {
                               <ColorPicker
                                 label=""
                                 showSwatch
-                                buttonClassName="inline-flex h-9 w-9 items-center justify-center rounded-md border border-border/60 bg-background/60 shadow-sm transition hover:border-primary/40"
+                                buttonClassName="inline-flex h-9 w-9 items-center justify-center rounded-md border border-border/60 bg-background/60 shadow-xs transition hover:border-primary/40"
                                 value={source.color}
                                 onChange={(color) =>
                                   setSettings((prev) => {

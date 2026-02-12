@@ -127,7 +127,7 @@ const DashboardShell = ({
                 }
               }}
             >
-              <Avatar className="h-8 w-8 border border-sidebar-border shadow-sm">
+              <Avatar className="h-8 w-8 border border-sidebar-border shadow-xs">
                 {currentUser?.avatarUrl ? <AvatarImage src={currentUser.avatarUrl} alt={userName} /> : null}
                 <AvatarFallback className="bg-sidebar-primary/10 text-[10px] text-sidebar-foreground">
                   {initials}
@@ -194,7 +194,7 @@ const DashboardShell = ({
           </SidebarFooter>
         </Sidebar>
 
-        <SidebarInset className="flex min-h-screen flex-col bg-gradient-to-b from-background via-[hsl(var(--primary)/0.12)] to-background text-foreground md:peer-data-[variant=inset]:shadow-none md:peer-data-[variant=inset]:rounded-none">
+        <SidebarInset className="flex min-h-screen flex-col bg-linear-to-b from-background via-[hsl(var(--primary)/0.12)] to-background text-foreground md:peer-data-[variant=inset]:shadow-none md:peer-data-[variant=inset]:rounded-none">
           <DashboardHeader currentUser={currentUser} menuItems={menuItems} />
           <div className="flex-1">{children}</div>
           <Footer />

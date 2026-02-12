@@ -474,7 +474,7 @@ const DashboardAuditLog = () => {
                       entries.map((entry) => (
                         <TableRow key={entry.id}>
                           <TableCell>{formatDateTime(entry.ts)}</TableCell>
-                          <TableCell className="max-w-[11rem]">
+                          <TableCell className="max-w-44">
                             <div className="truncate">{entry.actorName || "anonymous"}</div>
                             <div className="truncate text-xs text-muted-foreground">{entry.actorId}</div>
                           </TableCell>

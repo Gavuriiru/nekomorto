@@ -181,7 +181,7 @@ describe("DashboardPosts tags translation", () => {
     expect(translatedTag.className).toContain("truncate");
     const translatedTagBadge = translatedTag.parentElement as HTMLDivElement | null;
     expect(translatedTagBadge).not.toBeNull();
-    expect(translatedTagBadge?.className).toContain("max-w-[8.5rem]");
+    expect(translatedTagBadge?.className).toContain("max-w-34");
     expect(translatedTagBadge?.className).toContain("overflow-hidden");
     const extraTag = within(card).getByText("+1");
     expect(`${extraTag.className} ${extraTag.parentElement?.className || ""}`).toContain("bg-secondary");

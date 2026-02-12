@@ -167,7 +167,7 @@ const WorkStatusCard = () => {
                   </div>
                   <Badge
                     variant="outline"
-                    className={`flex-shrink-0 flex items-center gap-1 ${currentStage.badge}`}
+                    className={`shrink-0 flex items-center gap-1 ${currentStage.badge}`}
                   >
                     {currentStage.label}
                   </Badge>

@@ -167,7 +167,7 @@ const Donations = () => {
 
       <main>
         <section className="relative overflow-hidden border-b border-border/60">
-          <div className="absolute inset-0 bg-gradient-to-b from-primary/15 via-background to-background" />
+          <div className="absolute inset-0 bg-linear-to-b from-primary/15 via-background to-background" />
           <div className="absolute -left-24 top-10 h-64 w-64 rounded-full bg-primary/20 blur-[120px]" />
           <div className="absolute -right-24 bottom-10 h-64 w-64 rounded-full bg-accent/20 blur-[120px]" />
           <div className="relative mx-auto flex w-full max-w-6xl flex-col gap-6 px-6 pb-16 pt-20 md:px-10 reveal" data-reveal>
@@ -235,13 +235,13 @@ const Donations = () => {
                   <span className="text-xs text-muted-foreground">Chave e QR Code</span>
                 </div>
                 <div className="mt-4 grid gap-4 md:grid-cols-[0.8fr_1.2fr] md:items-center">
-                  <div className="mx-auto w-full max-w-[220px] rounded-3xl border border-primary/20 bg-gradient-to-br from-primary/10 via-background to-background p-3 shadow-[0_12px_40px_-20px_hsl(var(--primary))] md:mx-0">
+                  <div className="mx-auto w-full max-w-[220px] rounded-3xl border border-primary/20 bg-linear-to-br from-primary/10 via-background to-background p-3 shadow-[0_12px_40px_-20px_hsl(var(--primary))] md:mx-0">
                     <div className="overflow-hidden rounded-2xl border border-border/60 bg-white p-2">
                       <img src={qrUrl} alt="QR Code PIX" className="aspect-square w-full rounded-lg object-cover" />
                     </div>
                   </div>
                   <div className="space-y-3">
-                    <div className="rounded-2xl border border-border/60 bg-background/70 px-4 py-3 text-center font-mono text-sm text-primary shadow-sm">
+                    <div className="rounded-2xl border border-border/60 bg-background/70 px-4 py-3 text-center font-mono text-sm text-primary shadow-xs">
                       {donations.pixKey}
                     </div>
                     <div className="flex flex-wrap items-center gap-3 md:justify-center">

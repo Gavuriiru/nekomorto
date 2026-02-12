@@ -1993,7 +1993,7 @@ const DashboardProjectsEditor = () => {
                     >
                       <CardContent className="p-0">
                         <div className="grid gap-6 md:grid-cols-[220px_1fr]">
-                        <div className="relative aspect-[2/3] w-full">
+                        <div className="relative aspect-2/3 w-full">
                             <img
                               src={project.cover || "/placeholder.svg"}
                               alt={project.title}
@@ -2204,7 +2204,7 @@ const DashboardProjectsEditor = () => {
 
       {isEditorOpen ? (
         <div
-          className="pointer-events-auto fixed inset-0 z-40 bg-black/80 backdrop-blur-sm"
+          className="pointer-events-auto fixed inset-0 z-40 bg-black/80 backdrop-blur-xs"
           aria-hidden="true"
         />
       ) : null}
@@ -2240,7 +2240,7 @@ const DashboardProjectsEditor = () => {
             }
           }}
         >
-          <div className="project-editor-top sticky top-0 z-20 border-b border-border/60 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
+          <div className="project-editor-top sticky top-0 z-20 border-b border-border/60 bg-background/95 backdrop-blur-sm supports-backdrop-filter:bg-background/80">
             <DialogHeader className="space-y-0 px-4 pb-4 pt-5 text-left md:px-6">
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <div className="space-y-2">
@@ -3639,7 +3639,7 @@ const DashboardProjectsEditor = () => {
               ))}
             </datalist>
           </div>
-          <div className="project-editor-footer sticky bottom-0 z-20 flex justify-end gap-3 border-t border-border/60 bg-background/95 px-4 py-3 backdrop-blur supports-[backdrop-filter]:bg-background/80 md:px-6 md:py-4">
+          <div className="project-editor-footer sticky bottom-0 z-20 flex justify-end gap-3 border-t border-border/60 bg-background/95 px-4 py-3 backdrop-blur-sm supports-backdrop-filter:bg-background/80 md:px-6 md:py-4">
             <Button variant="ghost" onClick={requestCloseEditor}>
               Cancelar
             </Button>

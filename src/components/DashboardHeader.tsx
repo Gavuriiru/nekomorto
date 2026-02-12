@@ -87,7 +87,7 @@ const DashboardHeader = ({
       : [];
   }, [settings.navbar.links]);
   const headerMenuContentClass =
-    "border-white/25 bg-gradient-to-b from-black/40 via-black/25 to-black/10 text-white/90 shadow-xl backdrop-blur-sm";
+    "border-white/25 bg-linear-to-b from-black/40 via-black/25 to-black/10 text-white/90 shadow-xl backdrop-blur-xs";
   const headerMenuItemClass = "focus:bg-white/10 focus:text-white";
   const isInternalHref = (href: string) => href.startsWith("/") && !href.startsWith("//");
   const normalizePathname = (value: string) => {
@@ -270,7 +270,7 @@ const DashboardHeader = ({
         className,
       )}
     >
-      <div className="flex h-[4.75rem] items-center justify-between px-3 sm:px-4 lg:px-6 2xl:px-8">
+      <div className="flex h-19 items-center justify-between px-3 sm:px-4 lg:px-6 2xl:px-8">
         <div className="flex min-w-0 items-center gap-2 lg:gap-3">
           <SidebarTrigger className="h-9 w-9 rounded-lg border border-white/15 bg-white/5 text-white/80 hover:bg-white/10 hover:text-white" />
           <Link
@@ -288,7 +288,7 @@ const DashboardHeader = ({
                 {siteName.slice(0, 1)}
               </span>
             )}
-            <span className="max-w-[11rem] truncate text-[11px] font-semibold uppercase tracking-[0.2em]">
+            <span className="max-w-44 truncate text-[11px] font-semibold uppercase tracking-[0.2em]">
               {siteName}
             </span>
           </Link>
@@ -359,7 +359,7 @@ const DashboardHeader = ({
                   value={query}
                   onChange={(event) => setQuery(event.target.value)}
                   placeholder="Pesquisar projetos e posts"
-                  className="w-full bg-transparent text-sm text-white outline-none placeholder:text-white/60"
+                  className="w-full bg-transparent text-sm text-white outline-hidden placeholder:text-white/60"
                 />
               )}
             </div>
@@ -367,7 +367,7 @@ const DashboardHeader = ({
             {showResults && (
               <div
                 ref={synopsisRootRef}
-                className="search-popover-enter absolute right-0 top-12 max-h-[78vh] w-80 overflow-hidden rounded-xl border border-border/60 bg-background/95 p-4 shadow-lg backdrop-blur"
+                className="search-popover-enter absolute right-0 top-12 max-h-[78vh] w-80 overflow-hidden rounded-xl border border-border/60 bg-background/95 p-4 shadow-lg backdrop-blur-sm"
               >
                 {filteredProjects.length > 0 && (
                   <div className="mb-4">
@@ -379,10 +379,10 @@ const DashboardHeader = ({
                         <li key={item.href}>
                           <Link
                             to={item.href}
-                            className="group flex h-[9rem] items-start gap-4 overflow-hidden rounded-xl border border-border/60 bg-gradient-card p-4 transition hover:border-primary/40 hover:bg-primary/5"
+                            className="group flex h-36 items-start gap-4 overflow-hidden rounded-xl border border-border/60 bg-gradient-card p-4 transition hover:border-primary/40 hover:bg-primary/5"
                           >
                             <div
-                              className="w-20 flex-shrink-0 self-start overflow-hidden rounded-lg bg-secondary"
+                              className="w-20 shrink-0 self-start overflow-hidden rounded-lg bg-secondary"
                               style={{ aspectRatio: "46 / 65" }}
                             >
                               <img
@@ -493,14 +493,14 @@ const DashboardHeader = ({
                   {currentUser?.avatarUrl ? <AvatarImage src={currentUser.avatarUrl} alt={userName} /> : null}
                   <AvatarFallback className="bg-white/10 text-xs text-white">{userInitials}</AvatarFallback>
                 </Avatar>
-                <span className="hidden max-w-[10rem] truncate text-sm font-medium text-white xl:inline">
+                <span className="hidden max-w-40 truncate text-sm font-medium text-white xl:inline">
                   {userName}
                 </span>
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent
               align="end"
-              className="w-56 border-white/15 bg-sidebar/95 text-white shadow-xl backdrop-blur-sm"
+              className="w-56 border-white/15 bg-sidebar/95 text-white shadow-xl backdrop-blur-xs"
             >
               {menuItems
                 .filter((item) => item.enabled)
