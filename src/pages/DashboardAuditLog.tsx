@@ -395,7 +395,7 @@ const DashboardAuditLog = () => {
                   Eventos mutáveis e de segurança dos últimos 30 dias.
                 </p>
               </div>
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-3 animate-slide-up opacity-0" style={{ animationDelay: "0.24s" }}>
                 <Badge className="bg-white/10 text-muted-foreground">{formattedTotal} eventos</Badge>
                 <Button variant="outline" onClick={() => void handleExportCsv()} disabled={isExporting || forbidden}>
                   {isExporting ? "Exportando..." : "Exportar CSV"}
@@ -406,7 +406,7 @@ const DashboardAuditLog = () => {
               </div>
             </header>
 
-            <div className="mt-8 rounded-2xl border border-white/10 bg-white/5 p-4 md:p-5">
+            <div className="mt-8 rounded-2xl border border-white/10 bg-white/5 p-4 md:p-5 animate-slide-up opacity-0" style={{ animationDelay: "0.28s" }}>
               <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
                 <div className="grid gap-2">
                   <Label htmlFor="audit-q">Busca</Label>
@@ -515,7 +515,7 @@ const DashboardAuditLog = () => {
               </div>
             </div>
 
-            <div className="mt-6 rounded-2xl border border-white/10 bg-white/5 p-2 md:p-4">
+            <div className="mt-6 rounded-2xl border border-white/10 bg-white/5 p-2 md:p-4 animate-slide-up opacity-0" style={{ animationDelay: "0.32s" }}>
               {forbidden ? (
                 <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-6 text-sm text-amber-100">
                   Acesso negado. Apenas o dono pode visualizar o audit log.
@@ -541,7 +541,7 @@ const DashboardAuditLog = () => {
                   <TableBody>
                     {isLoading ? (
                       <TableRow>
-                        <TableCell colSpan={8} className="text-center text-muted-foreground">
+                        <TableCell colSpan={8} className="text-center text-muted-foreground animate-pulse">
                           Carregando audit log...
                         </TableCell>
                       </TableRow>
@@ -584,7 +584,7 @@ const DashboardAuditLog = () => {
             </div>
 
             {!forbidden && !error ? (
-              <div className="mt-4 flex items-center justify-between gap-3">
+              <div className="mt-4 flex items-center justify-between gap-3 animate-slide-up opacity-0" style={{ animationDelay: "0.36s" }}>
                 <p className="text-sm text-muted-foreground">
                   Página {page} de {totalPages}
                 </p>

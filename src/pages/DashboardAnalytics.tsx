@@ -237,15 +237,21 @@ const DashboardAnalytics = () => {
         <section className="mx-auto w-full max-w-6xl px-6 pb-20 md:px-10 space-y-6">
           <header className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div>
-              <div className="inline-flex items-center gap-3 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs uppercase tracking-[0.3em] text-muted-foreground">
+              <div className="inline-flex items-center gap-3 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs uppercase tracking-[0.3em] text-muted-foreground animate-fade-in">
                 Analytics
               </div>
-              <h1 className="mt-3 text-3xl font-semibold lg:text-4xl">Performance e aquisição</h1>
-              <p className="mt-2 text-sm text-muted-foreground">
+              <h1 className="mt-3 text-3xl font-semibold lg:text-4xl animate-slide-up">Performance e aquisição</h1>
+              <p
+                className="mt-2 text-sm text-muted-foreground animate-slide-up opacity-0"
+                style={{ animationDelay: "0.2s" }}
+              >
                 Dados de audiência separados do audit log, com foco em conteúdo e comentários.
               </p>
             </div>
-            <div className="flex flex-wrap items-center gap-3">
+            <div
+              className="flex flex-wrap items-center gap-3 animate-slide-up opacity-0"
+              style={{ animationDelay: "0.24s" }}
+            >
               <Select value={range} onValueChange={(value) => setRangeFilter(value as RangeValue)}>
                 <SelectTrigger className="w-[130px]">
                   <SelectValue placeholder="Período" />
@@ -273,43 +279,55 @@ const DashboardAnalytics = () => {
           </header>
 
           {error ? (
-            <div className="rounded-2xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-200">{error}</div>
+            <div className="rounded-2xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-200 animate-slide-up opacity-0" style={{ animationDelay: "0.28s" }}>
+              {error}
+            </div>
           ) : null}
 
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-            <Card>
+            <Card className="animate-slide-up opacity-0" style={{ animationDelay: "40ms" }}>
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm text-muted-foreground">Views</CardTitle>
               </CardHeader>
-              <CardContent className="text-3xl font-semibold">{isLoading ? "-" : formatInt(metrics.views || 0)}</CardContent>
+              <CardContent className={`text-3xl font-semibold ${isLoading ? "animate-pulse" : ""}`}>
+                {isLoading ? "-" : formatInt(metrics.views || 0)}
+              </CardContent>
             </Card>
-            <Card>
+            <Card className="animate-slide-up opacity-0" style={{ animationDelay: "80ms" }}>
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm text-muted-foreground">Views únicas</CardTitle>
               </CardHeader>
-              <CardContent className="text-3xl font-semibold">{isLoading ? "-" : formatInt(metrics.uniqueViews || 0)}</CardContent>
+              <CardContent className={`text-3xl font-semibold ${isLoading ? "animate-pulse" : ""}`}>
+                {isLoading ? "-" : formatInt(metrics.uniqueViews || 0)}
+              </CardContent>
             </Card>
-            <Card>
+            <Card className="animate-slide-up opacity-0" style={{ animationDelay: "120ms" }}>
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm text-muted-foreground">Comentários criados</CardTitle>
               </CardHeader>
-              <CardContent className="text-3xl font-semibold">{isLoading ? "-" : formatInt(metrics.commentsCreated || 0)}</CardContent>
+              <CardContent className={`text-3xl font-semibold ${isLoading ? "animate-pulse" : ""}`}>
+                {isLoading ? "-" : formatInt(metrics.commentsCreated || 0)}
+              </CardContent>
             </Card>
-            <Card>
+            <Card className="animate-slide-up opacity-0" style={{ animationDelay: "160ms" }}>
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm text-muted-foreground">Comentários aprovados</CardTitle>
               </CardHeader>
-              <CardContent className="text-3xl font-semibold">{isLoading ? "-" : formatInt(metrics.commentsApproved || 0)}</CardContent>
+              <CardContent className={`text-3xl font-semibold ${isLoading ? "animate-pulse" : ""}`}>
+                {isLoading ? "-" : formatInt(metrics.commentsApproved || 0)}
+              </CardContent>
             </Card>
           </div>
 
           <div className="grid gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
-            <Card>
+            <Card className="animate-slide-up opacity-0" style={{ animationDelay: "200ms" }}>
               <CardHeader>
                 <CardTitle>Views por dia</CardTitle>
               </CardHeader>
               <CardContent>
-                {chartData.length ? (
+                {isLoading ? (
+                  <p className="text-sm text-muted-foreground animate-pulse">Carregando série temporal...</p>
+                ) : chartData.length ? (
                   <ChartContainer
                     className="h-[280px] w-full"
                     config={{ views: { label: "Views", color: "hsl(var(--accent))" } }}
@@ -328,12 +346,14 @@ const DashboardAnalytics = () => {
               </CardContent>
             </Card>
 
-            <Card>
+            <Card className="animate-slide-up opacity-0" style={{ animationDelay: "240ms" }}>
               <CardHeader>
                 <CardTitle>Aquisição (origens)</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
-                {referrerEntries.length ? (
+                {isLoading ? (
+                  <p className="text-sm text-muted-foreground animate-pulse">Carregando origens...</p>
+                ) : referrerEntries.length ? (
                   referrerEntries.slice(0, 8).map((entry) => (
                     <div key={entry.key} className="flex items-center justify-between text-sm">
                       <span className="truncate text-muted-foreground">{formatAcquisitionLabel(entry.key)}</span>
@@ -347,12 +367,14 @@ const DashboardAnalytics = () => {
             </Card>
           </div>
 
-          <Card>
+          <Card className="animate-slide-up opacity-0" style={{ animationDelay: "280ms" }}>
             <CardHeader>
               <CardTitle>Top conteúdos</CardTitle>
             </CardHeader>
             <CardContent>
-              {topEntries.length ? (
+              {isLoading ? (
+                <p className="text-sm text-muted-foreground animate-pulse">Carregando conteúdos...</p>
+              ) : topEntries.length ? (
                 <Table>
                   <TableHeader>
                     <TableRow>
