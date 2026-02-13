@@ -99,6 +99,7 @@ describe("DashboardUsers image library context", () => {
     const imageLibraryProps = imageLibraryPropsSpy.mock.calls.at(-1)?.[0] as {
       uploadFolder?: string;
       listFolders?: string[];
+      listAll?: boolean;
       includeProjectImages?: boolean;
       projectImagesView?: "flat" | "by-project";
       cropAvatar?: boolean;
@@ -107,6 +108,7 @@ describe("DashboardUsers image library context", () => {
 
     expect(imageLibraryProps.uploadFolder).toBe("users");
     expect(imageLibraryProps.listFolders).toEqual(["users"]);
+    expect(imageLibraryProps.listAll).toBe(false);
     expect(imageLibraryProps.includeProjectImages).toBeUndefined();
     expect(imageLibraryProps.projectImagesView).toBeUndefined();
     expect(imageLibraryProps.cropAvatar).toBe(true);

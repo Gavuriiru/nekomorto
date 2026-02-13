@@ -876,6 +876,7 @@ const DashboardUsers = () => {
         description="Selecione uma imagem já enviada para reutilizar ou envie um novo arquivo."
         uploadFolder="users"
         listFolders={avatarLibraryFolders}
+        listAll={false}
         allowDeselect
         mode="single"
         cropAvatar
