@@ -32,7 +32,7 @@
           if (loc && loc.hostname && loc.hostname !== "localhost" && loc.hostname !== "127.0.0.1") {
             return loc.protocol + "//" + loc.hostname + ":8080";
           }
-          return "https://rainbow-dashboard-public-site.onrender.com";
+          return "http://127.0.0.1:8080";
         };
         fetch(getApiBase() + "/api/public/settings")
           .then(function (res) {
