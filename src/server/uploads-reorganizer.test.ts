@@ -149,6 +149,32 @@ describe("uploads reorganizer helpers", () => {
 });
 
 describe("uploads reorganizer apply", () => {
+  it("mantem shared/relations sticky mesmo com uso em um unico projeto", () => {
+    const rootDir = createTempRepo(
+      {
+        "projects.json": [
+          {
+            id: "proj-1",
+            title: "Projeto Um",
+            cover: "",
+            banner: "",
+            heroImageUrl: "",
+            relations: [{ image: "/uploads/shared/relations/relation-777.png" }],
+            episodeDownloads: [],
+          },
+        ],
+      },
+      [{ relativePath: "shared/relations/relation-777.png" }],
+    );
+
+    const report = runUploadsReorganization({ rootDir, applyChanges: true });
+    expect(report.mappings).toEqual([]);
+
+    const projects = readJson(rootDir, "server/data/projects.json");
+    expect(projects[0].relations[0].image).toBe("/uploads/shared/relations/relation-777.png");
+    expect(fs.existsSync(path.join(rootDir, "public/uploads/shared/relations/relation-777.png"))).toBe(true);
+  });
+
   it("move para pasta de projeto e reescreve referencias de post", () => {
     const rootDir = createTempRepo(
       {
@@ -261,4 +287,3 @@ describe("uploads reorganizer apply", () => {
     expect(fs.existsSync(path.join(rootDir, "public/uploads/posts/cover.png"))).toBe(true);
   });
 });
-

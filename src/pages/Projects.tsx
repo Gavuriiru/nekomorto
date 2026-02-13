@@ -247,16 +247,16 @@ const Projects = () => {
   const apiBase = getApiBase();
   const hasMountedRef = useRef(false);
   const [projects, setProjects] = useState<Project[]>([]);
-  const [selectedTag, setSelectedTag] = useState("Todas");
   const [selectedLetter, setSelectedLetter] = useState("Todas");
   const [selectedType, setSelectedType] = useState("Todos");
-  const [selectedGenre, setSelectedGenre] = useState("Todos");
   const [currentPage, setCurrentPage] = useState(1);
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   const [tagTranslations, setTagTranslations] = useState<Record<string, string>>({});
   const [genreTranslations, setGenreTranslations] = useState<Record<string, string>>({});
   const projectsPerPage = 16;
+  const selectedTag = searchParams.get("tag") || "Todas";
+  const selectedGenre = searchParams.get("genero") || searchParams.get("genre") || "Todos";
 
   useEffect(() => {
     let isActive = true;
@@ -310,15 +310,40 @@ const Projects = () => {
   }, [apiBase]);
 
   useEffect(() => {
-    const tag = searchParams.get("tag");
-    const genre = searchParams.get("genero") || searchParams.get("genre");
-    if (tag) {
-      setSelectedTag(tag);
+    const legacyGenre = searchParams.get("genre");
+    if (!legacyGenre) {
+      return;
     }
-    if (genre) {
-      setSelectedGenre(genre);
+    const nextParams = new URLSearchParams(searchParams);
+    if (!searchParams.get("genero")) {
+      nextParams.set("genero", legacyGenre);
     }
-  }, [searchParams]);
+    nextParams.delete("genre");
+    if (nextParams.toString() !== searchParams.toString()) {
+      setSearchParams(nextParams, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
+
+  const updateFilterQuery = (tag: string, genre: string) => {
+    const nextParams = new URLSearchParams(searchParams);
+    if (tag === "Todas") {
+      nextParams.delete("tag");
+    } else {
+      nextParams.set("tag", tag);
+    }
+
+    if (genre === "Todos") {
+      nextParams.delete("genero");
+      nextParams.delete("genre");
+    } else {
+      nextParams.set("genero", genre);
+      nextParams.delete("genre");
+    }
+
+    if (nextParams.toString() !== searchParams.toString()) {
+      setSearchParams(nextParams, { replace: true });
+    }
+  };
 
   const tagOptions = useMemo(() => {
     const tags = projects.flatMap((project) => project.tags);
@@ -398,10 +423,9 @@ const Projects = () => {
   };
 
   const resetFilters = () => {
-    setSelectedTag("Todas");
     setSelectedLetter("Todas");
     setSelectedType("Todos");
-    setSelectedGenre("Todos");
+    updateFilterQuery("Todas", "Todos");
   };
 
   return (
@@ -431,7 +455,7 @@ const Projects = () => {
               <span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
                 Tags
               </span>
-              <Select value={selectedTag} onValueChange={setSelectedTag}>
+              <Select value={selectedTag} onValueChange={(value) => updateFilterQuery(value, selectedGenre)}>
                 <SelectTrigger className="bg-background/60">
                   <SelectValue placeholder="Todas as tags" />
                 </SelectTrigger>
@@ -449,7 +473,7 @@ const Projects = () => {
               <span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
                 Gêneros
               </span>
-              <Select value={selectedGenre} onValueChange={setSelectedGenre}>
+              <Select value={selectedGenre} onValueChange={(value) => updateFilterQuery(selectedTag, value)}>
                 <SelectTrigger className="bg-background/60">
                   <SelectValue placeholder="Todos os gêneros" />
                 </SelectTrigger>

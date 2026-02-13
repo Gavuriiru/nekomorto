@@ -323,17 +323,18 @@ const HeroSection = () => {
     const trimmed = lastSpace > 0 ? slice.slice(0, lastSpace) : slice;
     return `${trimmed}...`;
   }, []);
+  const heroViewportClass = "min-h-[78vh] md:min-h-screen";
 
   return (
-    <section className="relative min-h-screen overflow-hidden">
-      <Carousel opts={{ loop: true }} setApi={setApi} className="min-h-screen">
+    <section className={`relative overflow-hidden ${heroViewportClass}`}>
+      <Carousel opts={{ loop: true }} setApi={setApi} className={heroViewportClass}>
         <CarouselContent className="ml-0">
           {visibleSlides.map((slide) => (
             <CarouselItem key={slide.id} className="pl-0">
-              <div className="relative min-h-screen flex items-end overflow-hidden">
-                {/* Background Image - positioned to show character on the right */}
+              <div className={`relative flex items-end overflow-hidden ${heroViewportClass}`}>
+                {/* Background Image - full coverage with centered framing */}
                 <div
-                  className="absolute inset-0 bg-cover bg-top-right md:bg-center bg-no-repeat scale-105"
+                  className="absolute inset-0 bg-cover bg-center bg-no-repeat"
                   style={{ backgroundImage: `url(${slide.image})` }}
                 />
 

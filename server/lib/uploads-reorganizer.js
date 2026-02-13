@@ -331,7 +331,13 @@ const collectUsage = (posts, projects) => {
   return { usageByUrl, projectFoldersById };
 };
 
-export const classifyTargetFolder = (usage, projectFoldersById) => {
+export const classifyTargetFolder = (usage, projectFoldersById, sourceRelative = "") => {
+  const normalizedSource = toPosix(String(sourceRelative || "")).replace(/^\/+/, "");
+  if (normalizedSource.startsWith("shared/relations/")) {
+    const stickyFolder = path.posix.dirname(normalizedSource);
+    return stickyFolder === "." ? "shared/relations" : stickyFolder;
+  }
+
   const postsCount = usage.posts.size;
   const projectsCount = usage.projectIds.size;
 
@@ -463,13 +469,13 @@ export const runUploadsReorganization = ({
 
   referencedUploadUrls.forEach((oldUrl) => {
     const usage = usageByUrl.get(oldUrl);
-    const targetFolder = classifyTargetFolder(usage, projectFoldersById);
+    const sourceRelative = getUploadRelativePath(oldUrl);
+    const targetFolder = classifyTargetFolder(usage, projectFoldersById, sourceRelative);
     if (!targetFolder) {
       skipped.push({ type: "unclassified", url: oldUrl });
       return;
     }
 
-    const sourceRelative = getUploadRelativePath(oldUrl);
     const sourceRoot = getUploadRootSegment(sourceRelative);
     if (isPrivateFolder(sourceRelative, privateFoldersSet)) {
       skipped.push({ type: "private_folder_skipped", url: oldUrl, path: sourceRelative, root: sourceRoot });
@@ -614,4 +620,3 @@ export const __testing = {
   ensureUniqueTargetRelative,
   getUploadRootSegment,
 };
-

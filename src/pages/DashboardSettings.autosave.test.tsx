@@ -217,6 +217,16 @@ describe("DashboardSettings autosave", () => {
     addEventListenerSpy.mockRestore();
   });
 
+  it("renderiza a prÃ©via do footer com nome em uppercase", async () => {
+    render(<DashboardSettings />);
+    await screen.findByRole("heading", { name: /Painel/i });
+
+    const siteNameInput = await screen.findByDisplayValue(defaultSettings.site.name);
+    fireEvent.change(siteNameInput, { target: { value: "Neko Teste" } });
+
+    expect(await screen.findByText("NEKO TESTE")).toBeInTheDocument();
+  });
+
   it("reordena redes sociais do footer via drag-and-drop e salva a nova ordem", async () => {
     render(<DashboardSettings />);
     await screen.findByRole("heading", { name: /Painel/i });

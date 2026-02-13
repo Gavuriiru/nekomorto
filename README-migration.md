@@ -77,3 +77,36 @@ Cria um snapshot de `server/data` e `public/uploads` em `backups/`.
 ```
 node scripts/backup-data.mjs
 ```
+
+## Localizar Imagens Remotas de Projetos
+
+Converte imagens remotas em campos estruturados de projetos para `/uploads/...`.
+
+Dry-run (sem baixar/escrever):
+```
+node scripts/localize-project-images.mjs
+```
+
+Aplicar em todos os projetos:
+```
+node scripts/localize-project-images.mjs --apply
+```
+
+Aplicar em um projeto especifico:
+```
+node scripts/localize-project-images.mjs --apply --project 21878
+```
+
+## Localizacao de Imagens de Projetos (politica atual)
+
+- Campos principais (`cover`, `banner`, `heroImageUrl`) sao localizados em `/uploads/projects/<projectId>/`.
+- Capas de episodios (`episodeDownloads[].coverImageUrl`) sao localizadas em `/uploads/projects/<projectId>/episodes/`.
+- Imagens de `relations[].image` usam pasta compartilhada `/uploads/shared/relations/` com nome deterministico (`relation-<anilistId>` ou hash da URL).
+
+Backfill legado (dry-run e apply):
+
+```bash
+node scripts/localize-project-images.mjs
+node scripts/localize-project-images.mjs --apply
+node scripts/localize-project-images.mjs --apply --project 21878
+```

@@ -10,6 +10,8 @@ import path from "path";
 import { fileURLToPath } from "url";
 import { resolvePostStatus } from "./lib/post-status.js";
 import { createSlug, createUniqueSlug } from "./lib/post-slug.js";
+import { importRemoteImageFile } from "./lib/remote-image-import.js";
+import { localizeProjectImageFields } from "./lib/project-image-localizer.js";
 import { runUploadsReorganization } from "./lib/uploads-reorganizer.js";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -2355,6 +2357,51 @@ const writeUploads = (uploads) => {
   fs.writeFileSync(uploadsFilePath, JSON.stringify(uploads, null, 2));
 };
 
+const upsertUploadEntries = (incomingEntries) => {
+  if (!Array.isArray(incomingEntries) || incomingEntries.length === 0) {
+    return { changed: false, uploads: loadUploads() };
+  }
+  const existingUploads = loadUploads();
+  const byUrl = new Map(
+    existingUploads
+      .filter((item) => item?.url)
+      .map((item) => [String(item.url), item]),
+  );
+  let changed = false;
+  incomingEntries.forEach((entry) => {
+    const nextUrl = String(entry?.url || "").trim();
+    if (!nextUrl || !nextUrl.startsWith("/uploads/")) {
+      return;
+    }
+    const current = byUrl.get(nextUrl);
+    const next = {
+      ...(current || {}),
+      ...entry,
+      id: current?.id || entry?.id || crypto.randomUUID(),
+      url: nextUrl,
+      fileName: String(entry?.fileName || current?.fileName || ""),
+      folder: String(entry?.folder || current?.folder || ""),
+      size: Number.isFinite(entry?.size) ? Number(entry.size) : current?.size ?? null,
+      mime: String(entry?.mime || current?.mime || ""),
+      width: Number.isFinite(entry?.width) ? Number(entry.width) : current?.width ?? null,
+      height: Number.isFinite(entry?.height) ? Number(entry.height) : current?.height ?? null,
+      createdAt: String(entry?.createdAt || current?.createdAt || new Date().toISOString()),
+    };
+    if (JSON.stringify(current || null) !== JSON.stringify(next)) {
+      changed = true;
+    }
+    byUrl.set(nextUrl, next);
+  });
+  if (!changed) {
+    return { changed: false, uploads: existingUploads };
+  }
+  const nextUploads = Array.from(byUrl.values()).sort((a, b) =>
+    String(a.url || "").localeCompare(String(b.url || ""), "en"),
+  );
+  writeUploads(nextUploads);
+  return { changed: true, uploads: nextUploads };
+};
+
 const PRIVATE_UPLOAD_FOLDERS = new Set(["downloads", "socials", "users"]);
 
 const getUploadRootSegment = (value) => {
@@ -4579,7 +4626,7 @@ app.post("/api/projects", requireAuth, async (req, res) => {
   }
 
   const now = new Date().toISOString();
-  const nextProject = normalizeProjects([
+  const nextProjectRaw = normalizeProjects([
     {
       ...payload,
       id,
@@ -4589,10 +4636,27 @@ app.post("/api/projects", requireAuth, async (req, res) => {
       order: projects.length,
     },
   ])[0];
+  const localizedCreate = await localizeProjectImageFields({
+    project: nextProjectRaw,
+    importRemoteImage: ({ remoteUrl, folder, ...options }) =>
+      importRemoteImageFile({
+        remoteUrl,
+        folder,
+        ...options,
+        uploadsDir: path.join(__dirname, "..", "public", "uploads"),
+      }),
+    maxConcurrent: 4,
+  });
+  const nextProject = normalizeProjects([localizedCreate.project])[0];
+  upsertUploadEntries(localizedCreate.uploadsToUpsert);
 
   projects.push(nextProject);
   writeProjects(projects);
-  appendAuditLog(req, "projects.create", "projects", { id: nextProject.id });
+  appendAuditLog(req, "projects.create", "projects", {
+    id: nextProject.id,
+    count: localizedCreate.summary.downloaded,
+    failures: localizedCreate.summary.failed,
+  });
 
   const updates = loadUpdates();
   const episodeUpdates = collectEpisodeUpdates(null, nextProject);
@@ -4663,7 +4727,7 @@ app.put("/api/projects/:id", requireAuth, async (req, res) => {
   const existing = projects[index];
   const payload = req.body || {};
   const now = new Date().toISOString();
-  const merged = normalizeProjects([
+  const mergedRaw = normalizeProjects([
     {
       ...existing,
       ...payload,
@@ -4671,10 +4735,27 @@ app.put("/api/projects/:id", requireAuth, async (req, res) => {
       updatedAt: now,
     },
   ])[0];
+  const localizedUpdate = await localizeProjectImageFields({
+    project: mergedRaw,
+    importRemoteImage: ({ remoteUrl, folder, ...options }) =>
+      importRemoteImageFile({
+        remoteUrl,
+        folder,
+        ...options,
+        uploadsDir: path.join(__dirname, "..", "public", "uploads"),
+      }),
+    maxConcurrent: 4,
+  });
+  const merged = normalizeProjects([localizedUpdate.project])[0];
+  upsertUploadEntries(localizedUpdate.uploadsToUpsert);
 
   projects[index] = merged;
   writeProjects(projects);
-  appendAuditLog(req, "projects.update", "projects", { id: merged.id });
+  appendAuditLog(req, "projects.update", "projects", {
+    id: merged.id,
+    count: localizedUpdate.summary.downloaded,
+    failures: localizedUpdate.summary.failed,
+  });
 
   const updates = loadUpdates();
   const episodeUpdates = collectEpisodeUpdates(existing, merged);
@@ -5588,96 +5669,34 @@ app.post("/api/uploads/image-from-url", requireAuth, async (req, res) => {
   }
 
   const remoteUrl = String(req.body?.url || "").trim();
-  const safeFolder = sanitizeUploadFolder(req.body?.folder || "");
-  if (!remoteUrl) {
-    return res.status(400).json({ error: "url_required" });
-  }
-  let parsedRemote;
-  try {
-    parsedRemote = new URL(remoteUrl);
-    if (parsedRemote.protocol !== "http:" && parsedRemote.protocol !== "https:") {
+  const importResult = await importRemoteImageFile({
+    remoteUrl,
+    folder: req.body?.folder || "",
+    uploadsDir: path.join(__dirname, "..", "public", "uploads"),
+    timeoutMs: 20_000,
+  });
+  if (!importResult.ok) {
+    const code = String(importResult.error?.code || "fetch_failed");
+    if (code === "url_required") {
+      return res.status(400).json({ error: "url_required" });
+    }
+    if (code === "invalid_url") {
       return res.status(400).json({ error: "invalid_url" });
     }
-  } catch {
-    return res.status(400).json({ error: "invalid_url" });
-  }
-
-  try {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 20_000);
-    const response = await fetch(parsedRemote.toString(), {
-      method: "GET",
-      redirect: "follow",
-      signal: controller.signal,
-    });
-    clearTimeout(timeout);
-    if (!response.ok) {
+    const fetchLikeErrors = new Set(["fetch_failed", "fetch_unavailable"]);
+    if (fetchLikeErrors.has(code)) {
       return res.status(502).json({ error: "fetch_failed" });
     }
-
-    const contentTypeHeader = String(response.headers.get("content-type") || "");
-    const headerMime = normalizeUploadMime(contentTypeHeader.split(";")[0].trim().toLowerCase());
-    const extFromUrl = path.extname(parsedRemote.pathname || "").replace(".", "").toLowerCase();
-    let mime = isSupportedUploadImageMime(headerMime)
-      ? headerMime
-      : getUploadMimeFromExtension(extFromUrl);
-
-    const buffer = Buffer.from(await response.arrayBuffer());
-    if (!buffer.length) {
-      return res.status(400).json({ error: "empty_upload" });
-    }
-    if (buffer.length > MAX_UPLOAD_SIZE_BYTES) {
-      return res.status(400).json({ error: "file_too_large" });
-    }
-    const validation = validateUploadImageBuffer(buffer, mime);
-    if (!validation.valid) {
-      return res.status(400).json({ error: validation.error });
-    }
-    mime = validation.mime;
-    if (mime === "image/svg+xml" && buffer.length > MAX_SVG_SIZE_BYTES) {
-      return res.status(400).json({ error: "svg_too_large" });
-    }
-
-    const uploadsDir = path.join(__dirname, "..", "public", "uploads");
-    const targetDir = safeFolder ? path.join(uploadsDir, safeFolder) : uploadsDir;
-    fs.mkdirSync(targetDir, { recursive: true });
-
-    const parsedName = decodeURIComponent(path.basename(parsedRemote.pathname || "") || "upload");
-    const safeBase = sanitizeUploadBaseName(parsedName || "upload");
-    const ext = getUploadExtFromMime(mime);
-    const fileName = `${safeBase || "imagem"}-${Date.now()}.${ext}`;
-    const filePath = path.join(targetDir, fileName);
-
-    if (mime === "image/svg+xml") {
-      const sanitized = sanitizeSvg(buffer.toString("utf-8"));
-      fs.writeFileSync(filePath, sanitized);
-    } else {
-      fs.writeFileSync(filePath, buffer);
-    }
-
-    const relativeUrl = `/uploads/${safeFolder ? `${safeFolder}/` : ""}${fileName}`;
-    const uploads = loadUploads();
-    uploads.push({
-      id: crypto.randomUUID(),
-      url: relativeUrl,
-      fileName,
-      folder: safeFolder || "",
-      size: buffer.length,
-      mime,
-      width: validation.dimensions?.width || null,
-      height: validation.dimensions?.height || null,
-      createdAt: new Date().toISOString(),
-    });
-    writeUploads(uploads);
-    appendAuditLog(req, "uploads.image_from_url", "uploads", {
-      url: relativeUrl,
-      remoteUrl: parsedRemote.toString(),
-      folder: safeFolder || "",
-    });
-    return res.json({ url: relativeUrl, fileName });
-  } catch {
-    return res.status(502).json({ error: "fetch_failed" });
+    return res.status(400).json({ error: code });
   }
+  const entry = importResult.entry;
+  upsertUploadEntries([entry]);
+  appendAuditLog(req, "uploads.image_from_url", "uploads", {
+    url: entry.url,
+    remoteUrl,
+    folder: entry.folder || "",
+  });
+  return res.json({ url: entry.url, fileName: entry.fileName });
 });
 
 const toUploadPath = (value) => {

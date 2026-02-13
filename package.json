@@ -10,6 +10,7 @@
     "build:dev": "vite build --mode development",
     "lint": "eslint .",
     "preview": "vite preview",
+    "uploads:localize-project-images": "node scripts/localize-project-images.mjs",
     "test": "vitest run",
     "test:watch": "vitest"
   },
