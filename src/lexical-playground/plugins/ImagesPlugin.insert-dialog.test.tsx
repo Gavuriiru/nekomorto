@@ -75,14 +75,14 @@ describe("InsertImageDialog", () => {
     props.onSave({
       urls: [
         "/uploads/posts/a.png",
-        "http://localhost:8080/uploads/posts/a.png?cache=1",
+        "https://rainbow-dashboard-public-site.onrender.com/uploads/posts/a.png?cache=1",
         "/uploads/posts/b.png",
       ],
       items: [
         { source: "upload", url: "/uploads/posts/a.png", name: "Imagem A" },
         {
           source: "upload",
-          url: "http://localhost:8080/uploads/posts/a.png?cache=1",
+          url: "https://rainbow-dashboard-public-site.onrender.com/uploads/posts/a.png?cache=1",
           name: "Imagem A equivalente",
         },
         { source: "upload", url: "/uploads/posts/b.png", name: "Imagem B" },
