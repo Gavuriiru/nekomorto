@@ -1,4 +1,4 @@
-const LOCAL_API_BASE = "http://127.0.0.1:8080";
+const LOCAL_API_BASE = "https://rainbow-dashboard-public-site.onrender.com";
 
 export const getApiBase = () => {
   const envBase = import.meta.env.VITE_API_BASE;

@@ -98,7 +98,7 @@ describe("ImageLibraryDialog selection state", () => {
   });
 
   it("considera URL absoluta equivalente como selecionada", async () => {
-    renderDialog(["http://localhost:8080/uploads/posts/a.png?x=1"]);
+    renderDialog(["https://rainbow-dashboard-public-site.onrender.com/uploads/posts/a.png?x=1"]);
 
     const imageButton = await getImageButton("Imagem A");
 
@@ -176,7 +176,7 @@ describe("ImageLibraryDialog selection state", () => {
         projectImageProjectIds={["project-1"]}
         allowDeselect
         mode="single"
-        currentSelectionUrls={["http://localhost:8080/uploads/posts/a.png?cache=1"]}
+        currentSelectionUrls={["https://rainbow-dashboard-public-site.onrender.com/uploads/posts/a.png?cache=1"]}
         onSave={() => undefined}
       />,
     );
