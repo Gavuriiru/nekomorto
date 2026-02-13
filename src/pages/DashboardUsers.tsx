@@ -214,6 +214,7 @@ const DashboardUsers = () => {
     ],
     [],
   );
+  const avatarLibraryFolders = useMemo(() => ["users"], []);
 
 
   const currentUserRecord = currentUser
@@ -771,7 +772,10 @@ const DashboardUsers = () => {
         onOpenChange={setIsLibraryOpen}
         apiBase={apiBase}
         description="Selecione uma imagem já enviada para reutilizar ou envie um novo arquivo."
-        listFolders={[""]}
+        uploadFolder="users"
+        listFolders={avatarLibraryFolders}
+        includeProjectImages
+        projectImagesView="by-project"
         allowDeselect
         mode="single"
         cropAvatar

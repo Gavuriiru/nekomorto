@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ImageCropper, ImageCropperProvider, useImageCropper, type MediaSize } from "@wordpress/image-cropper";
 
 import {
@@ -9,6 +9,7 @@ import {
   ContextMenuSeparator,
   ContextMenuTrigger,
 } from "@/components/ui/context-menu";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -46,6 +47,8 @@ export type ImageLibraryOptions = {
   listAll?: boolean;
   includeProjectImages?: boolean;
   projectImageProjectIds?: string[];
+  projectImagesView?: "flat" | "by-project";
+  currentSelectionUrls?: string[];
 };
 
 type ImageLibraryDialogProps = {
@@ -64,6 +67,7 @@ type ImageLibraryDialogProps = {
   showUrlImport?: boolean;
   currentSelectionUrls?: string[];
   currentSelectionUrl?: string;
+  projectImagesView?: "flat" | "by-project";
   cropAvatar?: boolean;
   cropTargetFolder?: string;
   cropSlot?: string;
@@ -187,6 +191,131 @@ const fileToDataUrl = (file: File) =>
   });
 
 const toEffectiveName = (item: LibraryImageItem) => item.name || item.fileName || item.label || "Imagem";
+
+const stripUrlQueryAndHash = (value: string) => value.split(/[?#]/)[0] || "";
+
+const normalizeComparableUploadUrl = (value: string | null | undefined) => {
+  const trimmed = String(value || "").trim();
+  if (!trimmed) {
+    return "";
+  }
+  if (trimmed.startsWith("/uploads/")) {
+    return stripUrlQueryAndHash(trimmed);
+  }
+  try {
+    const parsed = new URL(trimmed);
+    if (parsed.pathname.startsWith("/uploads/")) {
+      return parsed.pathname;
+    }
+  } catch {
+    // Ignore invalid absolute URLs and keep original value.
+  }
+  return trimmed;
+};
+
+const toComparableSelectionKey = (value: string | null | undefined) => {
+  const normalized = normalizeComparableUploadUrl(value);
+  return normalized || String(value || "").trim();
+};
+
+const dedupeUrlsByComparableKey = (urls: string[]) => {
+  const unique: string[] = [];
+  const seen = new Set<string>();
+  urls.forEach((url) => {
+    const trimmed = String(url || "").trim();
+    if (!trimmed) {
+      return;
+    }
+    const key = toComparableSelectionKey(trimmed);
+    if (seen.has(key)) {
+      return;
+    }
+    seen.add(key);
+    unique.push(trimmed);
+  });
+  return unique;
+};
+
+const areSelectionsSemanticallyEqual = (left: string[], right: string[]) => {
+  if (left.length !== right.length) {
+    return false;
+  }
+  for (let index = 0; index < left.length; index += 1) {
+    if (toComparableSelectionKey(left[index]) !== toComparableSelectionKey(right[index])) {
+      return false;
+    }
+  }
+  return true;
+};
+
+const toSelectionSignature = (urls: string[]) => urls.map((url) => toComparableSelectionKey(url)).join("\u0001");
+
+const normalizeProjectIdList = (value: unknown) => {
+  const seen = new Set<string>();
+  return (Array.isArray(value) ? value : [])
+    .map((item) => String(item ?? "").trim())
+    .filter((item) => {
+      if (!item || seen.has(item)) {
+        return false;
+      }
+      seen.add(item);
+      return true;
+    });
+};
+
+const normalizeFolderList = (value: unknown) => {
+  const seen = new Set<string>();
+  return (Array.isArray(value) ? value : [])
+    .map((item) => String(item ?? "").trim())
+    .filter((item) => {
+      if (seen.has(item)) {
+        return false;
+      }
+      seen.add(item);
+      return true;
+    });
+};
+
+const toStableProjectIdSignature = (value: unknown) => normalizeProjectIdList(value).join("\u0001");
+
+const toStableFolderSignature = (value: unknown) => JSON.stringify(normalizeFolderList(value));
+
+const parseStableFolderSignature = (value: string) => {
+  if (!value) {
+    return [] as string[];
+  }
+  try {
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed) ? parsed.map((item) => String(item ?? "")) : [];
+  } catch {
+    return [] as string[];
+  }
+};
+
+const buildSelectionSeed = ({
+  currentSelectionUrls,
+  currentSelectionUrl,
+  mode,
+}: {
+  currentSelectionUrls?: string[];
+  currentSelectionUrl?: string;
+  mode: "single" | "multiple";
+}) => {
+  const fromArray =
+    Array.isArray(currentSelectionUrls) && currentSelectionUrls.length > 0 ? currentSelectionUrls : undefined;
+  const baseUrls = fromArray ?? (currentSelectionUrl ? [currentSelectionUrl] : []);
+  const deduped = dedupeUrlsByComparableKey(baseUrls);
+  if (mode === "multiple") {
+    return deduped;
+  }
+  return deduped.length > 0 ? [deduped[0]] : [];
+};
+
+type ProjectImageGroup = {
+  key: string;
+  title: string;
+  items: LibraryImageItem[];
+};
 
 type AvatarCropWorkspaceProps = {
   src: string;
@@ -362,12 +491,13 @@ const ImageLibraryDialog = ({
   listFolders,
   listAll = true,
   includeProjectImages = true,
-  projectImageProjectIds = [],
+  projectImageProjectIds,
   mode = "single",
   allowDeselect = true,
   showUrlImport = true,
   currentSelectionUrls,
   currentSelectionUrl,
+  projectImagesView = "flat",
   cropAvatar = false,
   cropTargetFolder,
   cropSlot,
@@ -388,25 +518,25 @@ const ImageLibraryDialog = ({
   const [isDeleting, setIsDeleting] = useState(false);
   const [isApplyingCrop, setIsApplyingCrop] = useState(false);
   const [isCropDialogOpen, setIsCropDialogOpen] = useState(false);
-  const allowedProjectImageIdSet = useMemo(
-    () =>
-      new Set(
-        (Array.isArray(projectImageProjectIds) ? projectImageProjectIds : [])
-          .map((id) => String(id || "").trim())
-          .filter(Boolean),
-      ),
+  const [isLibraryHydratedForOpen, setIsLibraryHydratedForOpen] = useState(false);
+  const projectImageProjectIdsSignature = useMemo(
+    () => toStableProjectIdSignature(projectImageProjectIds),
     [projectImageProjectIds],
+  );
+  const normalizedProjectImageProjectIds = useMemo(
+    () => (projectImageProjectIdsSignature ? projectImageProjectIdsSignature.split("\u0001") : []),
+    [projectImageProjectIdsSignature],
+  );
+  const listFoldersSignature = useMemo(() => toStableFolderSignature(listFolders), [listFolders]);
+  const normalizedListFolders = useMemo(() => parseStableFolderSignature(listFoldersSignature), [listFoldersSignature]);
+  const allowedProjectImageIdSet = useMemo(
+    () => new Set(normalizedProjectImageProjectIds),
+    [normalizedProjectImageProjectIds],
   );
 
   const folders = useMemo(() => {
     const set = new Set<string>();
-    if (Array.isArray(listFolders) && listFolders.length > 0) {
-      listFolders.forEach((folder) => {
-        if (folder != null) {
-          set.add(String(folder));
-        }
-      });
-    }
+    normalizedListFolders.forEach((folder) => set.add(folder));
     if (uploadFolder) {
       set.add(uploadFolder);
     }
@@ -417,7 +547,7 @@ const ImageLibraryDialog = ({
       set.add("");
     }
     return Array.from(set);
-  }, [listAll, listFolders, uploadFolder]);
+  }, [listAll, normalizedListFolders, uploadFolder]);
 
   const allItems = useMemo(() => {
     const map = new Map<string, LibraryImageItem>();
@@ -431,6 +561,22 @@ const ImageLibraryDialog = ({
     });
     return map;
   }, [projectImages, uploads]);
+
+  const allItemsByComparableKey = useMemo(() => {
+    const map = new Map<string, LibraryImageItem>();
+    allItems.forEach((item) => {
+      const key = toComparableSelectionKey(item.url);
+      if (!map.has(key)) {
+        map.set(key, item);
+      }
+    });
+    return map;
+  }, [allItems]);
+
+  const selectedComparableKeySet = useMemo(
+    () => new Set(selectedUrls.map((url) => toComparableSelectionKey(url)).filter(Boolean)),
+    [selectedUrls],
+  );
 
   const primarySelectedUrl = selectedUrls[0] || "";
   const normalizedSearch = searchQuery.trim().toLowerCase();
@@ -462,6 +608,66 @@ const ImageLibraryDialog = ({
     () => projectImages.filter(matchesSearch),
     [matchesSearch, projectImages],
   );
+
+  const selectionSeed = useMemo(
+    () =>
+      buildSelectionSeed({
+        currentSelectionUrls,
+        currentSelectionUrl,
+        mode,
+      }),
+    [currentSelectionUrl, currentSelectionUrls, mode],
+  );
+  const selectionSeedSignature = useMemo(() => toSelectionSignature(selectionSeed), [selectionSeed]);
+  const selectionSeedRef = useRef<string[]>(selectionSeed);
+
+  useEffect(() => {
+    selectionSeedRef.current = selectionSeed;
+  }, [selectionSeed, selectionSeedSignature]);
+
+  const reconcileSelectionWithLibrary = useCallback(
+    (urls: string[]) => {
+      const reconciled: string[] = [];
+      const seen = new Set<string>();
+      urls.forEach((url) => {
+        const key = toComparableSelectionKey(url);
+        const matched = allItemsByComparableKey.get(key);
+        if (!matched) {
+          return;
+        }
+        const matchedKey = toComparableSelectionKey(matched.url);
+        if (seen.has(matchedKey)) {
+          return;
+        }
+        seen.add(matchedKey);
+        reconciled.push(matched.url);
+      });
+      if (mode === "multiple") {
+        return reconciled;
+      }
+      return reconciled.length > 0 ? [reconciled[0]] : [];
+    },
+    [allItemsByComparableKey, mode],
+  );
+
+  const projectImageGroups = useMemo<ProjectImageGroup[]>(() => {
+    const groupMap = new Map<string, ProjectImageGroup>();
+    filteredProjectImages.forEach((item) => {
+      const projectId = String(item.projectId || "").trim();
+      const projectTitle = String(item.projectTitle || "").trim();
+      const key = projectId
+        ? `project:${projectId}`
+        : projectTitle
+          ? `title:${projectTitle.toLowerCase()}`
+          : "__no-project__";
+      const title = projectTitle || (projectId ? `Projeto ${projectId}` : "Sem projeto");
+      if (!groupMap.has(key)) {
+        groupMap.set(key, { key, title, items: [] });
+      }
+      groupMap.get(key)?.items.push(item);
+    });
+    return Array.from(groupMap.values()).sort((a, b) => a.title.localeCompare(b.title, "pt-BR"));
+  }, [filteredProjectImages]);
 
   const loadUploads = useCallback(async () => {
     setIsLoading(true);
@@ -568,10 +774,24 @@ const ImageLibraryDialog = ({
   }, [loadProjectImages, loadUploads]);
 
   useEffect(() => {
+    let isActive = true;
     if (!open) {
+      setIsLibraryHydratedForOpen(false);
       return;
     }
-    void loadLibrary();
+    setIsLibraryHydratedForOpen(false);
+    void (async () => {
+      try {
+        await loadLibrary();
+      } finally {
+        if (isActive) {
+          setIsLibraryHydratedForOpen(true);
+        }
+      }
+    })();
+    return () => {
+      isActive = false;
+    };
   }, [loadLibrary, open]);
 
   useEffect(() => {
@@ -579,38 +799,42 @@ const ImageLibraryDialog = ({
       setIsDragActive(false);
       return;
     }
-    const fromArray =
-      Array.isArray(currentSelectionUrls) && currentSelectionUrls.length > 0 ? currentSelectionUrls : undefined;
-    const baseUrls = fromArray ?? (currentSelectionUrl ? [currentSelectionUrl] : []);
-    if (mode === "multiple") {
-      setSelectedUrls(baseUrls.filter(Boolean));
-    } else {
-      setSelectedUrls(baseUrls.length > 0 ? [baseUrls[0]] : []);
-    }
+    setSelectedUrls((prev) => {
+      const nextSeed = selectionSeedRef.current;
+      return areSelectionsSemanticallyEqual(prev, nextSeed) ? prev : nextSeed;
+    });
     setIsCropDialogOpen(false);
-  }, [currentSelectionUrl, currentSelectionUrls, mode, open]);
+  }, [open, selectionSeedSignature]);
 
   useEffect(() => {
     if (!open) {
       return;
     }
+    if (!isLibraryHydratedForOpen) {
+      return;
+    }
     if (cropAvatar && mode === "single") {
       return;
     }
-    setSelectedUrls((prev) => prev.filter((url) => allItems.has(url)));
-  }, [allItems, cropAvatar, mode, open]);
+    setSelectedUrls((prev) => {
+      const reconciled = reconcileSelectionWithLibrary(prev);
+      return areSelectionsSemanticallyEqual(prev, reconciled) ? prev : reconciled;
+    });
+  }, [cropAvatar, isLibraryHydratedForOpen, mode, open, reconcileSelectionWithLibrary]);
 
   const setSelection = useCallback(
     (url: string, options?: { openCrop?: boolean }) => {
       let isSameSelection = false;
+      const selectedKey = toComparableSelectionKey(url);
       setSelectedUrls((prev) => {
         if (mode === "multiple") {
-          if (prev.includes(url)) {
-            return prev.filter((item) => item !== url);
+          const hasUrl = prev.some((item) => toComparableSelectionKey(item) === selectedKey);
+          if (hasUrl) {
+            return prev.filter((item) => toComparableSelectionKey(item) !== selectedKey);
           }
           return [...prev, url];
         }
-        isSameSelection = prev[0] === url;
+        isSameSelection = toComparableSelectionKey(prev[0] || "") === selectedKey;
         if (cropAvatar) {
           return [url];
         }
@@ -791,7 +1015,8 @@ const ImageLibraryDialog = ({
           toast({ title: "N\u00E3o foi poss\u00EDvel excluir a imagem." });
           return;
         }
-        setSelectedUrls((prev) => prev.filter((url) => url !== item.url));
+        const itemKey = toComparableSelectionKey(item.url);
+        setSelectedUrls((prev) => prev.filter((url) => toComparableSelectionKey(url) !== itemKey));
         await loadUploads();
       } finally {
         setIsDeleting(false);
@@ -832,7 +1057,12 @@ const ImageLibraryDialog = ({
       const oldUrl = String(data.oldUrl || renameTarget.url);
       const newUrl = String(data.newUrl || "");
       if (newUrl) {
-        setSelectedUrls((prev) => prev.map((url) => (url === oldUrl ? newUrl : url)));
+        const oldKey = toComparableSelectionKey(oldUrl);
+        setSelectedUrls((prev) =>
+          dedupeUrlsByComparableKey(
+            prev.map((url) => (toComparableSelectionKey(url) === oldKey ? newUrl : url)),
+          ),
+        );
       }
       setRenameTarget(null);
       setRenameValue("");
@@ -844,7 +1074,7 @@ const ImageLibraryDialog = ({
 
   const handleSave = () => {
     const items = selectedUrls
-      .map((url) => allItems.get(url))
+      .map((url) => allItems.get(url) ?? allItemsByComparableKey.get(toComparableSelectionKey(url)))
       .filter((item): item is LibraryImageItem => Boolean(item));
     onSave({
       urls: selectedUrls,
@@ -911,7 +1141,7 @@ const ImageLibraryDialog = ({
     return (
       <div className="mt-3 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
         {items.map((item) => {
-          const isSelected = selectedUrls.includes(item.url);
+          const isSelected = selectedComparableKeySet.has(toComparableSelectionKey(item.url));
           const canRename = item.source === "upload";
           const canDelete = item.source === "upload" && Boolean(item.canDelete);
           return (
@@ -987,6 +1217,32 @@ const ImageLibraryDialog = ({
           );
         })}
       </div>
+    );
+  };
+
+  const renderProjectGroups = (groups: ProjectImageGroup[], emptyText: string) => {
+    if (isLoading) {
+      return <p className="mt-3 text-xs text-muted-foreground">Carregando...</p>;
+    }
+    if (groups.length === 0) {
+      return <p className="mt-3 text-xs text-muted-foreground">{emptyText}</p>;
+    }
+    return (
+      <Accordion type="multiple" className="mt-3 overflow-hidden rounded-xl border border-border/60 bg-card/40 px-3">
+        {groups.map((group) => (
+          <AccordionItem key={group.key} value={group.key} className="border-border/50">
+            <AccordionTrigger className="py-3 text-sm hover:no-underline">
+              <span className="flex items-center gap-2">
+                <span className="font-medium text-foreground">{group.title}</span>
+                <span className="text-xs text-muted-foreground">{group.items.length}</span>
+              </span>
+            </AccordionTrigger>
+            <AccordionContent className="[&>div]:mt-0">
+              {renderGrid(group.items, "Nenhuma imagem disponível neste projeto.")}
+            </AccordionContent>
+          </AccordionItem>
+        ))}
+      </Accordion>
     );
   };
 
@@ -1096,12 +1352,19 @@ const ImageLibraryDialog = ({
             <div>
               <h3 className="text-sm font-semibold text-foreground">Imagens dos projetos</h3>
               {includeProjectImages
-                ? renderGrid(
-                    filteredProjectImages,
-                    normalizedSearch
-                      ? "Nenhuma imagem de projeto encontrada para essa pesquisa."
-                      : "Nenhuma imagem de projeto encontrada.",
-                  )
+                ? projectImagesView === "by-project"
+                  ? renderProjectGroups(
+                      projectImageGroups,
+                      normalizedSearch
+                        ? "Nenhuma imagem de projeto encontrada para essa pesquisa."
+                        : "Nenhuma imagem de projeto encontrada.",
+                    )
+                  : renderGrid(
+                      filteredProjectImages,
+                      normalizedSearch
+                        ? "Nenhuma imagem de projeto encontrada para essa pesquisa."
+                        : "Nenhuma imagem de projeto encontrada.",
+                    )
                 : <p className="mt-3 text-xs text-muted-foreground">Imagens de projeto ocultas neste contexto.</p>}
             </div>
           </div>

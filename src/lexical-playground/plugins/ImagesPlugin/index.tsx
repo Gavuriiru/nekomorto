@@ -58,6 +58,25 @@ export type InsertImagePayload = Readonly<ImagePayload>;
 export const INSERT_IMAGE_COMMAND: LexicalCommand<InsertImagePayload> =
   createCommand('INSERT_IMAGE_COMMAND');
 
+const normalizeComparableUploadUrl = (value: string | null | undefined) => {
+  const trimmed = String(value || '').trim();
+  if (!trimmed) {
+    return '';
+  }
+  if (trimmed.startsWith('/uploads/')) {
+    return trimmed.split(/[?#]/)[0] || '';
+  }
+  try {
+    const parsed = new URL(trimmed);
+    if (parsed.pathname.startsWith('/uploads/')) {
+      return parsed.pathname;
+    }
+  } catch {
+    // Keep non-URL values as-is.
+  }
+  return trimmed;
+};
+
 export function InsertImageDialog({
   activeEditor,
   onClose,
@@ -68,6 +87,15 @@ export function InsertImageDialog({
   imageLibraryOptions?: ImageLibraryOptions;
 }): JSX.Element {
   const apiBase = getApiBase();
+  const initialSelectionComparableSet = React.useMemo(
+    () =>
+      new Set(
+        (Array.isArray(imageLibraryOptions?.currentSelectionUrls) ? imageLibraryOptions.currentSelectionUrls : [])
+          .map((url) => normalizeComparableUploadUrl(url))
+          .filter(Boolean),
+      ),
+    [imageLibraryOptions?.currentSelectionUrls],
+  );
 
   return (
     <ImageLibraryDialog
@@ -85,10 +113,24 @@ export function InsertImageDialog({
       listAll={imageLibraryOptions?.listAll}
       includeProjectImages={imageLibraryOptions?.includeProjectImages}
       projectImageProjectIds={imageLibraryOptions?.projectImageProjectIds}
+      projectImagesView={imageLibraryOptions?.projectImagesView}
+      currentSelectionUrls={imageLibraryOptions?.currentSelectionUrls}
       mode="multiple"
       allowDeselect
       onSave={({items}) => {
+        const insertedComparableSet = new Set<string>();
         items.forEach((item) => {
+          const comparable = normalizeComparableUploadUrl(item.url);
+          if (!comparable) {
+            return;
+          }
+          if (initialSelectionComparableSet.has(comparable)) {
+            return;
+          }
+          if (insertedComparableSet.has(comparable)) {
+            return;
+          }
+          insertedComparableSet.add(comparable);
           activeEditor.dispatchCommand(INSERT_IMAGE_COMMAND, {
             altText: String(item.name || item.label || item.url || 'Imagem'),
             src: item.url,

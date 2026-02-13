@@ -369,6 +369,7 @@ const DashboardSettings = () => {
   const [footerSocialDragIndex, setFooterSocialDragIndex] = useState<number | null>(null);
   const [footerSocialDragOverIndex, setFooterSocialDragOverIndex] = useState<number | null>(null);
   const hasSyncedAniList = useRef(false);
+  const rootLibraryFolders = useMemo(() => [""], []);
 
   useEffect(() => {
     const loadUser = async () => {
@@ -2735,7 +2736,7 @@ const DashboardSettings = () => {
           apiBase={apiBase}
           description="Selecione uma imagem ja enviada para reutilizar ou exclua itens que nao estejam em uso."
           uploadFolder="branding"
-          listFolders={[""]}
+          listFolders={rootLibraryFolders}
           showUrlImport={false}
           allowDeselect
           mode="single"

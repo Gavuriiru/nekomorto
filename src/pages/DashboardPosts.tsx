@@ -148,6 +148,93 @@ const parseSortParam = (
   return "recent";
 };
 
+const normalizeComparableCoverUrl = (value?: string | null) => {
+  const trimmed = String(value || "").trim();
+  if (!trimmed) {
+    return "";
+  }
+  if (trimmed.startsWith("/uploads/")) {
+    return trimmed.split(/[?#]/)[0] || trimmed;
+  }
+  try {
+    const parsed = new URL(trimmed);
+    if (parsed.pathname.startsWith("/uploads/")) {
+      return parsed.pathname;
+    }
+  } catch {
+    // Keep non-URL values as-is.
+  }
+  return trimmed;
+};
+
+const areCoverUrlsEquivalent = (left?: string | null, right?: string | null) =>
+  normalizeComparableCoverUrl(left) === normalizeComparableCoverUrl(right);
+
+const getUploadFolderFromCoverUrl = (value?: string | null) => {
+  const normalized = normalizeComparableCoverUrl(value);
+  if (!normalized.startsWith("/uploads/")) {
+    return null;
+  }
+  const relativePath = normalized.slice("/uploads/".length);
+  if (!relativePath) {
+    return "";
+  }
+  const slashIndex = relativePath.lastIndexOf("/");
+  if (slashIndex <= 0) {
+    return "";
+  }
+  return relativePath.slice(0, slashIndex);
+};
+
+const extractLexicalImageUploadUrls = (content?: string | null) => {
+  const raw = String(content || "").trim();
+  if (!raw) {
+    return [];
+  }
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    return [];
+  }
+  const urls: string[] = [];
+  const seen = new Set<string>();
+  const visit = (node: unknown) => {
+    if (!node) {
+      return;
+    }
+    if (Array.isArray(node)) {
+      node.forEach(visit);
+      return;
+    }
+    if (typeof node !== "object") {
+      return;
+    }
+    const lexicalNode = node as Record<string, unknown>;
+    const type = typeof lexicalNode.type === "string" ? lexicalNode.type.toLowerCase() : "";
+    if (type === "image") {
+      const src = typeof lexicalNode.src === "string" ? lexicalNode.src : "";
+      const normalized = normalizeComparableCoverUrl(src);
+      if (normalized.startsWith("/uploads/") && !seen.has(normalized)) {
+        seen.add(normalized);
+        urls.push(normalized);
+      }
+    }
+    if (Array.isArray(lexicalNode.children)) {
+      lexicalNode.children.forEach(visit);
+    }
+    Object.entries(lexicalNode).forEach(([key, value]) => {
+      if (key === "children" || key === "src" || key === "altText" || key === "type") {
+        return;
+      }
+      visit(value);
+    });
+  };
+  const root = (parsed as { root?: unknown })?.root;
+  visit(root ?? parsed);
+  return urls;
+};
+
 type PostRecord = {
   id: string;
   title: string;
@@ -567,15 +654,54 @@ const DashboardPosts = () => {
     () => new Map(projects.map((project) => [project.id, project])),
     [projects],
   );
+  const embeddedUploadUrls = useMemo(
+    () => extractLexicalImageUploadUrls(formState.contentLexical),
+    [formState.contentLexical],
+  );
+  const embeddedUploadFolders = useMemo(() => {
+    const folders: string[] = [];
+    const seen = new Set<string>();
+    embeddedUploadUrls.forEach((url) => {
+      const folder = getUploadFolderFromCoverUrl(url);
+      if (folder === null || seen.has(folder)) {
+        return;
+      }
+      seen.add(folder);
+      folders.push(folder);
+    });
+    return folders;
+  }, [embeddedUploadUrls]);
+  const resolvedCoverFolder = useMemo(
+    () => getUploadFolderFromCoverUrl(editorResolvedCover.coverImageUrl),
+    [editorResolvedCover.coverImageUrl],
+  );
+  const postImageLibraryFolders = useMemo(() => {
+    const folders: string[] = [];
+    const seen = new Set<string>();
+    const pushFolder = (folder: string | null) => {
+      if (folder === null || seen.has(folder)) {
+        return;
+      }
+      seen.add(folder);
+      folders.push(folder);
+    };
+    pushFolder("posts");
+    pushFolder("shared");
+    pushFolder(resolvedCoverFolder);
+    embeddedUploadFolders.forEach((folder) => pushFolder(folder));
+    return folders;
+  }, [embeddedUploadFolders, resolvedCoverFolder]);
   const postImageLibraryOptions = useMemo(
     () => ({
       uploadFolder: "posts",
-      listFolders: ["posts", "shared"],
+      listFolders: postImageLibraryFolders,
       listAll: false,
-      includeProjectImages: Boolean(formState.projectId),
-      projectImageProjectIds: formState.projectId ? [formState.projectId] : [],
+      includeProjectImages: true,
+      projectImageProjectIds: [],
+      projectImagesView: "by-project" as const,
+      currentSelectionUrls: embeddedUploadUrls,
     }),
-    [formState.projectId],
+    [embeddedUploadUrls, postImageLibraryFolders],
   );
   const projectTags = useMemo(() => {
     if (!formState.projectId) {
@@ -879,13 +1005,24 @@ const DashboardPosts = () => {
     setIsLibraryOpen(true);
   };
 
-  const handleLibrarySelect = useCallback((url: string, altText?: string) => {
-    setFormState((prev) => ({
-      ...prev,
-      coverImageUrl: url,
-      coverAlt: prev.coverAlt || altText || prev.title || "Capa",
-    }));
-  }, []);
+  const handleLibrarySelect = useCallback(
+    (url: string, altText?: string) => {
+      const nextUrl = String(url || "").trim();
+      setFormState((prev) => {
+        const hasManualCover = Boolean(String(prev.coverImageUrl || "").trim());
+        const shouldKeepAutomatic =
+          !hasManualCover &&
+          editorResolvedCover.source === "content" &&
+          areCoverUrlsEquivalent(nextUrl, editorResolvedCover.coverImageUrl);
+        return {
+          ...prev,
+          coverImageUrl: shouldKeepAutomatic ? "" : nextUrl,
+          coverAlt: prev.coverAlt || altText || prev.title || "Capa",
+        };
+      });
+    },
+    [editorResolvedCover.coverImageUrl, editorResolvedCover.source],
+  );
 
 
 
@@ -1802,9 +1939,10 @@ const DashboardPosts = () => {
         listAll={postImageLibraryOptions.listAll}
         includeProjectImages={postImageLibraryOptions.includeProjectImages}
         projectImageProjectIds={postImageLibraryOptions.projectImageProjectIds}
+        projectImagesView={postImageLibraryOptions.projectImagesView}
         allowDeselect
         mode="single"
-        currentSelectionUrls={formState.coverImageUrl ? [formState.coverImageUrl] : []}
+        currentSelectionUrls={editorResolvedCover.coverImageUrl ? [editorResolvedCover.coverImageUrl] : []}
         onSave={({ urls }) => handleLibrarySelect(urls[0] || "")}
       />
 

@@ -75,7 +75,7 @@ const mockJsonResponse = (ok: boolean, payload: unknown, status = ok ? 200 : 500
     json: async () => payload,
   }) as Response;
 
-const setupApiMock = () => {
+const setupApiMock = (config?: { posts?: Array<Record<string, unknown>> }) => {
   apiFetchMock.mockReset();
   imageLibraryPropsSpy.mockReset();
   lexicalPropsSpy.mockReset();
@@ -83,7 +83,7 @@ const setupApiMock = () => {
     const method = String(options?.method || "GET").toUpperCase();
     if (path === "/api/posts" && method === "GET") {
       return mockJsonResponse(true, {
-        posts: [],
+        posts: config?.posts ?? [],
       });
     }
     if (path === "/api/users" && method === "GET") {
@@ -132,14 +132,18 @@ describe("DashboardPosts image library context", () => {
         listAll?: boolean;
         includeProjectImages?: boolean;
         projectImageProjectIds?: string[];
+        projectImagesView?: "flat" | "by-project";
+        currentSelectionUrls?: string[];
       };
     };
     expect(lexicalProps.imageLibraryOptions).toEqual({
       uploadFolder: "posts",
       listFolders: ["posts", "shared"],
       listAll: false,
-      includeProjectImages: false,
+      includeProjectImages: true,
       projectImageProjectIds: [],
+      projectImagesView: "by-project",
+      currentSelectionUrls: [],
     });
 
     const imageLibraryProps = imageLibraryPropsSpy.mock.calls.at(-1)?.[0] as {
@@ -152,7 +156,89 @@ describe("DashboardPosts image library context", () => {
     expect(imageLibraryProps.uploadFolder).toBe("posts");
     expect(imageLibraryProps.listFolders).toEqual(["posts", "shared"]);
     expect(imageLibraryProps.listAll).toBe(false);
-    expect(imageLibraryProps.includeProjectImages).toBe(false);
+    expect(imageLibraryProps.includeProjectImages).toBe(true);
     expect(imageLibraryProps.projectImageProjectIds).toEqual([]);
+  });
+
+  it("inclui pasta derivada da capa resolvida quando a imagem vem de outra pasta de upload", async () => {
+    setupApiMock({
+      posts: [
+        {
+          id: "post-1",
+          title: "Post com capa derivada",
+          slug: "post-com-capa-derivada",
+          coverImageUrl: null,
+          coverAlt: "",
+          excerpt: "Resumo",
+          content: JSON.stringify({
+            root: {
+              type: "root",
+              version: 1,
+              children: [
+                {
+                  type: "paragraph",
+                  version: 1,
+                  children: [{ type: "text", version: 1, text: "Conteudo" }],
+                },
+                {
+                  type: "image",
+                  version: 1,
+                  src: "/uploads/projects/project-1/capa.png",
+                  altText: "Capa derivada",
+                },
+              ],
+            },
+          }),
+          contentFormat: "lexical",
+          author: "Admin",
+          publishedAt: "2026-02-10T12:00:00.000Z",
+          status: "published",
+          projectId: "",
+          tags: [],
+          views: 0,
+          commentsCount: 0,
+        },
+      ],
+    });
+
+    render(
+      <MemoryRouter initialEntries={["/dashboard/posts"]}>
+        <DashboardPosts />
+      </MemoryRouter>,
+    );
+
+    fireEvent.click(await screen.findByText("Post com capa derivada"));
+    await screen.findByRole("heading", { name: "Editar postagem" });
+
+    await waitFor(() => {
+      expect(lexicalPropsSpy).toHaveBeenCalled();
+      expect(imageLibraryPropsSpy).toHaveBeenCalled();
+    });
+
+    const lexicalProps = lexicalPropsSpy.mock.calls.at(-1)?.[0] as {
+      imageLibraryOptions?: {
+        listFolders?: string[];
+        projectImagesView?: "flat" | "by-project";
+        currentSelectionUrls?: string[];
+      };
+    };
+    expect(lexicalProps.imageLibraryOptions?.listFolders).toEqual([
+      "posts",
+      "shared",
+      "projects/project-1",
+    ]);
+    expect(lexicalProps.imageLibraryOptions?.projectImagesView).toBe("by-project");
+    expect(lexicalProps.imageLibraryOptions?.currentSelectionUrls).toEqual([
+      "/uploads/projects/project-1/capa.png",
+    ]);
+
+    const imageLibraryProps = imageLibraryPropsSpy.mock.calls.at(-1)?.[0] as {
+      listFolders?: string[];
+    };
+    expect(imageLibraryProps.listFolders).toEqual([
+      "posts",
+      "shared",
+      "projects/project-1",
+    ]);
   });
 });
