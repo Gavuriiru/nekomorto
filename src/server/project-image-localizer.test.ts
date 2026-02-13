@@ -33,7 +33,7 @@ const createImporterMock = () =>
   });
 
 describe("localizeProjectImageFields", () => {
-  it("localiza campos principais por projeto, episodios por projeto/episodes e relations em shared", async () => {
+  it("localiza campos principais e relations por projeto, e episodios em projeto/episodes", async () => {
     const project = {
       ...buildBaseProject(),
       cover: "https://cdn.exemplo.com/cover.jpg",
@@ -53,7 +53,7 @@ describe("localizeProjectImageFields", () => {
     expect(result.project.cover).toBe("/uploads/projects/project-1/cover.jpg");
     expect(result.project.banner).toBe("/uploads/projects/project-1/banner.jpg");
     expect(result.project.heroImageUrl).toBe("/uploads/projects/project-1/hero.jpg");
-    expect(result.project.relations[0].image).toBe("/uploads/shared/relations/relation.jpg");
+    expect(result.project.relations[0].image).toBe("/uploads/projects/project-1/relation.jpg");
     expect(result.project.episodeDownloads[0].coverImageUrl).toBe("/uploads/projects/project-1/episodes/episode.jpg");
     expect(result.summary.attempted).toBe(5);
     expect(result.summary.downloaded).toBe(5);
@@ -63,7 +63,7 @@ describe("localizeProjectImageFields", () => {
     expect(importer).toHaveBeenCalledWith(
       expect.objectContaining({
         remoteUrl: "https://cdn.exemplo.com/relation.jpg",
-        folder: "shared/relations",
+        folder: "projects/project-1",
         deterministic: true,
         onExisting: "reuse",
         fileBaseOverride: "relation-777",
@@ -148,8 +148,8 @@ describe("localizeProjectImageFields", () => {
     });
 
     expect(importer).toHaveBeenCalledTimes(1);
-    expect(result.project.relations[0].image).toBe("/uploads/shared/relations/relation-777.jpg");
-    expect(result.project.relations[1].image).toBe("/uploads/shared/relations/relation-777.jpg");
+    expect(result.project.relations[0].image).toBe("/uploads/projects/project-1/relation-777.jpg");
+    expect(result.project.relations[1].image).toBe("/uploads/projects/project-1/relation-777.jpg");
     expect(result.summary.attempted).toBe(2);
     expect(result.summary.downloaded).toBe(2);
     expect(result.uploadsToUpsert).toHaveLength(1);

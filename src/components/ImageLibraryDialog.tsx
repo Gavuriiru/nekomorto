@@ -490,7 +490,7 @@ const ImageLibraryDialog = ({
   uploadFolder,
   listFolders,
   listAll = true,
-  includeProjectImages = true,
+  includeProjectImages = false,
   projectImageProjectIds,
   mode = "single",
   allowDeselect = true,
@@ -733,7 +733,6 @@ const ImageLibraryDialog = ({
         return;
       }
       const mapped = data.items
-        .filter((item: { url?: string }) => Boolean(item?.url))
         .map(
           (item: {
             url: string;
@@ -742,23 +741,31 @@ const ImageLibraryDialog = ({
             projectTitle?: string;
             kind?: string;
             source?: string;
-          }) =>
-            ({
+          }) => {
+            const normalizedProjectUrl = normalizeComparableUploadUrl(item?.url);
+            if (!normalizedProjectUrl.startsWith("/uploads/projects/")) {
+              return null;
+            }
+            return {
               source: "project",
-              url: String(item.url),
-              name: String(item.label || item.url),
-              label: String(item.label || item.url),
+              url: normalizedProjectUrl,
+              name: String(item.label || normalizedProjectUrl),
+              label: String(item.label || normalizedProjectUrl),
               projectId: item.projectId ? String(item.projectId) : "",
               projectTitle: item.projectTitle ? String(item.projectTitle) : "",
               kind: item.kind ? String(item.kind) : "",
               inUse: true,
               canDelete: false,
-            }) as LibraryImageItem,
+            } as LibraryImageItem;
+          },
         );
       const filtered =
         allowedProjectImageIdSet.size > 0
-          ? mapped.filter((item) => item.projectId && allowedProjectImageIdSet.has(item.projectId))
-          : mapped;
+          ? mapped.filter(
+              (item): item is LibraryImageItem =>
+                Boolean(item?.projectId) && allowedProjectImageIdSet.has(String(item.projectId)),
+            )
+          : mapped.filter((item): item is LibraryImageItem => Boolean(item));
       const unique = new Map<string, LibraryImageItem>();
       filtered.forEach((item: LibraryImageItem) => {
         unique.set(item.url, item);

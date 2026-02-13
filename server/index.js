@@ -438,11 +438,20 @@ const ANALYTICS_RETENTION_DAYS = parseEnvInteger(ANALYTICS_RETENTION_DAYS_ENV, 9
 const ANALYTICS_AGG_RETENTION_DAYS = parseEnvInteger(ANALYTICS_AGG_RETENTION_DAYS_ENV, 365, 30, 3650);
 const ANALYTICS_RETENTION_MS = ANALYTICS_RETENTION_DAYS * 24 * 60 * 60 * 1000;
 const ANALYTICS_AGG_RETENTION_MS = ANALYTICS_AGG_RETENTION_DAYS * 24 * 60 * 60 * 1000;
-const ANALYTICS_EVENT_TYPE_SET = new Set(["view", "comment_created", "comment_approved"]);
-const ANALYTICS_VIEW_RESOURCE_SET = new Set(["post", "project"]);
+const ANALYTICS_EVENT_TYPE_SET = new Set([
+  "view",
+  "chapter_view",
+  "download_click",
+  "comment_created",
+  "comment_approved",
+]);
+const ANALYTICS_COOLDOWN_EVENT_TYPE_SET = new Set(["view", "chapter_view"]);
+const ANALYTICS_COOLDOWN_RESOURCE_SET = new Set(["post", "project", "chapter"]);
 const ANALYTICS_VIEW_COOLDOWN_MS = 30 * 60 * 1000;
 const ANALYTICS_META_STRING_MAX = 180;
 const analyticsViewCooldown = new Map();
+const PUBLIC_ANALYTICS_EVENT_TYPE_SET = new Set(["chapter_view", "download_click"]);
+const PUBLIC_ANALYTICS_RESOURCE_TYPE_SET = new Set(["chapter"]);
 
 const parseAnalyticsTs = (value) => {
   const ts = new Date(value || 0).getTime();
@@ -530,7 +539,18 @@ const sanitizeAnalyticsMeta = (value) => {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
     return {};
   }
-  const allowlist = ["targetType", "targetId", "status", "action", "resourceType", "resourceId"];
+  const allowlist = [
+    "targetType",
+    "targetId",
+    "status",
+    "action",
+    "resourceType",
+    "resourceId",
+    "projectId",
+    "chapterNumber",
+    "volume",
+    "sourceLabel",
+  ];
   const output = {};
   allowlist.forEach((key) => {
     if (!(key in value)) {
@@ -657,6 +677,8 @@ const ensureAnalyticsDayBucket = (days, dayKey) => {
     days[dayKey] = {
       totals: {
         views: 0,
+        chapterViews: 0,
+        downloadClicks: 0,
         commentsCreated: 0,
         commentsApproved: 0,
       },
@@ -702,6 +724,12 @@ const buildAnalyticsDailyFromEvents = (events, nowTs = Date.now()) => {
       if (event.utm?.source) incrementCounter(bucket.acquisition.utmSource, event.utm.source);
       if (event.utm?.medium) incrementCounter(bucket.acquisition.utmMedium, event.utm.medium);
       if (event.utm?.campaign) incrementCounter(bucket.acquisition.utmCampaign, event.utm.campaign);
+    }
+    if (event.eventType === "chapter_view") {
+      bucket.totals.chapterViews += 1;
+    }
+    if (event.eventType === "download_click") {
+      bucket.totals.downloadClicks += 1;
     }
     if (event.eventType === "comment_created") {
       bucket.totals.commentsCreated += 1;
@@ -766,8 +794,8 @@ const appendAnalyticsEvent = (req, payload) => {
     const now = new Date();
     const visitorHash = getVisitorHash(req);
     if (
-      eventType === "view" &&
-      ANALYTICS_VIEW_RESOURCE_SET.has(resourceType) &&
+      ANALYTICS_COOLDOWN_EVENT_TYPE_SET.has(eventType) &&
+      ANALYTICS_COOLDOWN_RESOURCE_SET.has(resourceType) &&
       !shouldRegisterAnalyticsView(visitorHash, resourceType, resourceId, now.getTime())
     ) {
       return { ok: false, reason: "cooldown" };
@@ -827,6 +855,9 @@ const filterAnalyticsEvents = (events, fromTs, toTs, type) =>
     if (type !== "all" && event.resourceType !== type) {
       if (event.resourceType === "comment") {
         return String(event.meta?.targetType || "").toLowerCase() === type;
+      }
+      if (event.resourceType === "chapter" && type === "project") {
+        return true;
       }
       return false;
     }
@@ -3413,6 +3444,8 @@ app.get("/api/analytics/overview", requireAuth, (req, res) => {
   const range = buildAnalyticsRange(rangeDays);
   const events = filterAnalyticsEvents(loadAnalyticsEvents(), range.fromTs, range.toTs, type);
   const viewEvents = events.filter((event) => event.eventType === "view");
+  const chapterViewEvents = events.filter((event) => event.eventType === "chapter_view");
+  const downloadClickEvents = events.filter((event) => event.eventType === "download_click");
   const commentCreatedEvents = events.filter((event) => event.eventType === "comment_created");
   const commentApprovedEvents = events.filter((event) => event.eventType === "comment_approved");
   const uniqueVisitors = new Set(viewEvents.map((event) => event.visitorHash));
@@ -3425,6 +3458,8 @@ app.get("/api/analytics/overview", requireAuth, (req, res) => {
     metrics: {
       views: viewEvents.length,
       uniqueViews: uniqueVisitors.size,
+      chapterViews: chapterViewEvents.length,
+      downloadClicks: downloadClickEvents.length,
       commentsCreated: commentCreatedEvents.length,
       commentsApproved: commentApprovedEvents.length,
     },
@@ -3435,7 +3470,9 @@ app.get("/api/analytics/timeseries", requireAuth, (req, res) => {
   const rangeDays = parseAnalyticsRangeDays(req.query.range);
   const type = normalizeAnalyticsTypeFilter(req.query.type);
   const metricRaw = String(req.query.metric || "").trim().toLowerCase();
-  const metric = ["views", "unique_views", "comments"].includes(metricRaw) ? metricRaw : "views";
+  const metric = ["views", "unique_views", "comments", "chapter_views", "download_clicks"].includes(metricRaw)
+    ? metricRaw
+    : "views";
   const range = buildAnalyticsRange(rangeDays);
   const events = filterAnalyticsEvents(loadAnalyticsEvents(), range.fromTs, range.toTs, type);
   const perDay = Object.fromEntries(
@@ -3443,6 +3480,8 @@ app.get("/api/analytics/timeseries", requireAuth, (req, res) => {
       day,
       {
         views: 0,
+        chapterViews: 0,
+        downloadClicks: 0,
         comments: 0,
         uniqueVisitors: new Set(),
       },
@@ -3464,8 +3503,24 @@ app.get("/api/analytics/timeseries", requireAuth, (req, res) => {
     }
     if (event.eventType === "comment_created") {
       perDay[dayKey].comments += 1;
+      return;
+    }
+    if (event.eventType === "chapter_view") {
+      perDay[dayKey].chapterViews += 1;
+      return;
+    }
+    if (event.eventType === "download_click") {
+      perDay[dayKey].downloadClicks += 1;
     }
   });
+
+  const pickMetricValue = (day) => {
+    if (metric === "views") return perDay[day].views;
+    if (metric === "comments") return perDay[day].comments;
+    if (metric === "chapter_views") return perDay[day].chapterViews;
+    if (metric === "download_clicks") return perDay[day].downloadClicks;
+    return perDay[day].uniqueVisitors.size;
+  };
 
   return res.json({
     range: `${rangeDays}d`,
@@ -3473,12 +3528,7 @@ app.get("/api/analytics/timeseries", requireAuth, (req, res) => {
     metric,
     series: range.dayKeys.map((day) => ({
       date: day,
-      value:
-        metric === "views"
-          ? perDay[day].views
-          : metric === "comments"
-            ? perDay[day].comments
-            : perDay[day].uniqueVisitors.size,
+      value: pickMetricValue(day),
     })),
   });
 });
@@ -5024,6 +5074,40 @@ app.post("/api/public/projects/:id/view", (req, res) => {
     },
   });
   return res.json({ views: updated?.views ?? project.views ?? 0 });
+});
+
+app.post("/api/public/analytics/event", (req, res) => {
+  const ip = req.headers["x-forwarded-for"]?.split(",")[0]?.trim() || req.ip;
+  if (!canRegisterView(ip)) {
+    return res.status(429).json({ error: "rate_limited" });
+  }
+  const payload = req.body && typeof req.body === "object" ? req.body : {};
+  const eventType = String(payload.eventType || "")
+    .trim()
+    .toLowerCase();
+  const resourceType = String(payload.resourceType || "")
+    .trim()
+    .toLowerCase();
+  const resourceId = String(payload.resourceId || "").trim();
+  if (!PUBLIC_ANALYTICS_EVENT_TYPE_SET.has(eventType)) {
+    return res.status(400).json({ error: "invalid_event_type" });
+  }
+  if (!PUBLIC_ANALYTICS_RESOURCE_TYPE_SET.has(resourceType)) {
+    return res.status(400).json({ error: "invalid_resource_type" });
+  }
+  if (!resourceId) {
+    return res.status(400).json({ error: "invalid_resource_id" });
+  }
+  const result = appendAnalyticsEvent(req, {
+    eventType,
+    resourceType,
+    resourceId,
+    meta: payload.meta && typeof payload.meta === "object" && !Array.isArray(payload.meta) ? payload.meta : {},
+  });
+  if (result.ok || result.reason === "cooldown") {
+    return res.json({ ok: true, deduped: result.reason === "cooldown" });
+  }
+  return res.status(500).json({ error: "event_write_failed" });
 });
 
 app.get("/api/public/projects/:id/chapters/:number", (req, res) => {

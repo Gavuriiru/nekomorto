@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, type DragEvent } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import DashboardShell from "@/components/DashboardShell";
 import ImageLibraryDialog from "@/components/ImageLibraryDialog";
@@ -40,6 +40,7 @@ import {
   X,
   Youtube,
   MessageCircle,
+  GripVertical,
 } from "lucide-react";
 import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
@@ -157,6 +158,46 @@ const isIconUrl = (value?: string | null) => {
   return value.startsWith("http") || value.startsWith("data:") || value.startsWith("/uploads/");
 };
 
+const addAvatarCacheBust = (avatarUrl: string | null | undefined, cacheVersion: number) => {
+  const trimmed = String(avatarUrl || "").trim();
+  if (!trimmed) {
+    return "";
+  }
+
+  if (trimmed.startsWith("/uploads/")) {
+    const parsed = new URL(trimmed, "http://localhost");
+    parsed.searchParams.set("v", String(cacheVersion));
+    return `${parsed.pathname}${parsed.search}${parsed.hash}`;
+  }
+
+  try {
+    const parsed = new URL(trimmed);
+    if (!parsed.pathname.startsWith("/uploads/")) {
+      return trimmed;
+    }
+    parsed.searchParams.set("v", String(cacheVersion));
+    return parsed.toString();
+  } catch {
+    return trimmed;
+  }
+};
+
+const reorderItems = <T,>(items: T[], from: number, to: number) => {
+  if (from === to) {
+    return items;
+  }
+  if (from < 0 || to < 0 || from >= items.length || to >= items.length) {
+    return items;
+  }
+  const next = [...items];
+  const [moved] = next.splice(from, 1);
+  if (typeof moved === "undefined") {
+    return items;
+  }
+  next.splice(to, 0, moved);
+  return next;
+};
+
 const roleIconRegistry: Record<string, typeof Globe> = {
   languages: Languages,
   check: Check,
@@ -197,12 +238,15 @@ const DashboardUsers = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [dragId, setDragId] = useState<string | null>(null);
   const [dragGroup, setDragGroup] = useState<"active" | "retired" | null>(null);
+  const [socialDragIndex, setSocialDragIndex] = useState<number | null>(null);
+  const [socialDragOverIndex, setSocialDragOverIndex] = useState<number | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<UserRecord | null>(null);
   const [formState, setFormState] = useState(emptyForm);
   const [ownerToggle, setOwnerToggle] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<UserRecord | null>(null);
   const [isLibraryOpen, setIsLibraryOpen] = useState(false);
+  const [avatarCacheVersion, setAvatarCacheVersion] = useState(0);
   const [linkTypes, setLinkTypes] = useState<Array<{ id: string; label: string; icon: string }>>([]);
   const fallbackLinkTypes = useMemo(
     () => [
@@ -223,6 +267,26 @@ const DashboardUsers = () => {
   const canManageUsers = currentUser?.id ? ownerIds.includes(currentUser.id) : false;
   const primaryOwnerId = ownerIds[0] || "";
   const canManageOwners = Boolean(currentUser?.id && primaryOwnerId && currentUser.id === primaryOwnerId);
+  const clearSocialDragState = useCallback(() => {
+    setSocialDragIndex(null);
+    setSocialDragOverIndex(null);
+  }, []);
+  const bumpAvatarCacheVersion = useCallback(() => {
+    setAvatarCacheVersion((prev) => prev + 1);
+  }, []);
+  const toAvatarRenderUrl = useCallback(
+    (avatarUrl: string | null | undefined) => addAvatarCacheBust(avatarUrl, avatarCacheVersion),
+    [avatarCacheVersion],
+  );
+  const handleLibraryOpenChange = useCallback(
+    (nextOpen: boolean) => {
+      setIsLibraryOpen(nextOpen);
+      if (!nextOpen) {
+        bumpAvatarCacheVersion();
+      }
+    },
+    [bumpAvatarCacheVersion],
+  );
   const openLibrary = () => {
     setIsLibraryOpen(true);
   };
@@ -252,8 +316,9 @@ const DashboardUsers = () => {
       roles: normalizedRoles ? [...normalizedRoles] : [],
     });
     setOwnerToggle(ownerIds.includes(user.id));
+    clearSocialDragState();
     setIsDialogOpen(true);
-  }, [ownerIds]);
+  }, [clearSocialDragState, ownerIds]);
   const canManageBadges =
     canManageUsers ||
     (currentUserRecord
@@ -332,6 +397,7 @@ const DashboardUsers = () => {
     setEditingUser(null);
     setFormState({ ...emptyForm });
     setOwnerToggle(false);
+    clearSocialDragState();
     setIsDialogOpen(true);
   };
 
@@ -418,6 +484,7 @@ const DashboardUsers = () => {
       } else {
         setUsers((prev) => [...prev, data.user]);
       }
+      bumpAvatarCacheVersion();
       setIsDialogOpen(false);
     }
   };
@@ -493,6 +560,41 @@ const DashboardUsers = () => {
         roles: hasRole ? prev.roles.filter((item) => item !== role) : [...prev.roles, role],
       };
     });
+  };
+
+  const handleSocialDragStart = (event: DragEvent<HTMLButtonElement>, index: number) => {
+    if (rolesOnlyEdit) {
+      return;
+    }
+    setSocialDragIndex(index);
+    setSocialDragOverIndex(index);
+    event.dataTransfer.effectAllowed = "move";
+    event.dataTransfer.setData("text/plain", String(index));
+  };
+
+  const handleSocialDragOver = (event: DragEvent<HTMLDivElement>, index: number) => {
+    if (rolesOnlyEdit || socialDragIndex === null) {
+      return;
+    }
+    event.preventDefault();
+    event.dataTransfer.dropEffect = "move";
+    if (socialDragOverIndex !== index) {
+      setSocialDragOverIndex(index);
+    }
+  };
+
+  const handleSocialDrop = (event: DragEvent<HTMLDivElement>, index: number) => {
+    event.preventDefault();
+    const from = socialDragIndex;
+    if (rolesOnlyEdit || from === null || from === index) {
+      clearSocialDragState();
+      return;
+    }
+    setFormState((prev) => ({
+      ...prev,
+      socials: reorderItems(prev.socials, from, index),
+    }));
+    clearSocialDragState();
   };
 
   const reorderUsers = (orderedActiveIds: string[], orderedRetiredIds: string[]) => {
@@ -644,7 +746,7 @@ const DashboardUsers = () => {
                         <div className="flex items-start justify-between gap-4">
                           <div className="flex gap-4">
                             <DashboardAvatar
-                              avatarUrl={user.avatarUrl}
+                              avatarUrl={toAvatarRenderUrl(user.avatarUrl)}
                               name={user.name}
                               sizeClassName="h-14 w-14"
                               frameClassName="border border-white/10 bg-white/5"
@@ -723,7 +825,7 @@ const DashboardUsers = () => {
                         <div className="flex items-start justify-between gap-4">
                           <div className="flex gap-4">
                             <DashboardAvatar
-                              avatarUrl={user.avatarUrl}
+                              avatarUrl={toAvatarRenderUrl(user.avatarUrl)}
                               name={user.name}
                               sizeClassName="h-14 w-14"
                               frameClassName="border border-white/10 bg-white/5"
@@ -769,13 +871,11 @@ const DashboardUsers = () => {
       </DashboardShell>
       <ImageLibraryDialog
         open={isLibraryOpen}
-        onOpenChange={setIsLibraryOpen}
+        onOpenChange={handleLibraryOpenChange}
         apiBase={apiBase}
         description="Selecione uma imagem já enviada para reutilizar ou envie um novo arquivo."
         uploadFolder="users"
         listFolders={avatarLibraryFolders}
-        includeProjectImages
-        projectImagesView="by-project"
         allowDeselect
         mode="single"
         cropAvatar
@@ -850,7 +950,7 @@ const DashboardUsers = () => {
               <div className="flex flex-wrap items-center gap-3">
                 {formState.avatarUrl ? (
                   <DashboardAvatar
-                    avatarUrl={formState.avatarUrl}
+                    avatarUrl={toAvatarRenderUrl(formState.avatarUrl)}
                     name={formState.name || "Avatar"}
                     sizeClassName="h-12 w-12"
                     frameClassName="border border-border/60 bg-card/60"
@@ -882,8 +982,24 @@ const DashboardUsers = () => {
                 {formState.socials.map((social, index) => (
                   <div
                     key={`${social.label}-${index}`}
-                    className="grid gap-2 md:grid-cols-[1fr_2fr_auto]"
+                    data-testid={`user-social-row-${index}`}
+                    className={`grid items-center gap-2 rounded-xl border p-2 transition md:grid-cols-[auto_1fr_2fr_auto] ${
+                      socialDragOverIndex === index ? "border-primary/40 bg-primary/5" : "border-transparent"
+                    }`}
+                    onDragOver={(event) => handleSocialDragOver(event, index)}
+                    onDrop={(event) => handleSocialDrop(event, index)}
                   >
+                    <button
+                      type="button"
+                      draggable={!rolesOnlyEdit}
+                      className="inline-flex h-9 w-9 cursor-grab items-center justify-center rounded-md border border-border/60 bg-background/60 text-muted-foreground transition hover:border-primary/40 hover:text-primary active:cursor-grabbing disabled:cursor-not-allowed disabled:opacity-50"
+                      aria-label={`Arrastar rede ${social.label || index + 1}`}
+                      onDragStart={(event) => handleSocialDragStart(event, index)}
+                      onDragEnd={clearSocialDragState}
+                      disabled={rolesOnlyEdit}
+                    >
+                      <GripVertical className="h-4 w-4" />
+                    </button>
                     <Select
                       value={social.label}
                       onValueChange={(value) =>

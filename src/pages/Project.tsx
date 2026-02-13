@@ -347,6 +347,47 @@ const ProjectPage = () => {
   }, [currentUser]);
   type EpisodeItem = (typeof sortedDownloadableEpisodes)[number];
 
+  const trackDownloadClick = (episode: EpisodeItem, sourceLabel: string) => {
+    if (!project?.id) {
+      return;
+    }
+    const chapterNumber = Number(episode.number);
+    const volumeNumber = Number(episode.volume);
+    const resourceId = `${project.id}:${Number.isFinite(chapterNumber) ? chapterNumber : 0}:${
+      Number.isFinite(volumeNumber) ? volumeNumber : 0
+    }`;
+    const payload: {
+      eventType: "download_click";
+      resourceType: "chapter";
+      resourceId: string;
+      meta: {
+        projectId: string;
+        sourceLabel: string;
+        chapterNumber?: number;
+        volume?: number;
+      };
+    } = {
+      eventType: "download_click",
+      resourceType: "chapter",
+      resourceId,
+      meta: {
+        projectId: project.id,
+        sourceLabel: String(sourceLabel || "").trim(),
+      },
+    };
+    if (Number.isFinite(chapterNumber)) {
+      payload.meta.chapterNumber = chapterNumber;
+    }
+    if (Number.isFinite(volumeNumber)) {
+      payload.meta.volume = volumeNumber;
+    }
+    void apiFetch(apiBase, "/api/public/analytics/event", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+  };
+
   const renderEpisodeDownloadCard = (episode: EpisodeItem, key: string, showRawBadge: boolean) => {
     const { sizeLabel, hashLabel, hashTitle } = buildEpisodeMetadata(episode);
 
@@ -440,6 +481,7 @@ const ProjectPage = () => {
                       target="_blank"
                       rel="noreferrer"
                       className="inline-flex items-center gap-2"
+                      onClick={() => trackDownloadClick(episode, source.label)}
                     >
                       {icon}
                       {source.label}

@@ -347,15 +347,25 @@ const HeroSection = () => {
                 {/* Content */}
                 <div className="relative z-10 w-full px-6 md:px-12 pb-16 md:pb-24">
                   <div className="max-w-3xl">
-                    <div className="mb-3 flex flex-wrap items-center gap-3 text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                    <div
+                      data-testid={`hero-slide-meta-${slide.id}`}
+                      className="mb-3 flex flex-col items-start gap-2 text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground md:flex-row md:flex-wrap md:items-center md:gap-3"
+                    >
                       {slide.id === latestSlideId ? (
-                        <span className="inline-block px-3 py-1 rounded-full animate-fade-in border bg-(--hero-badge-bg,hsl(var(--primary)/0.2)) text-(--hero-badge-text,hsl(var(--primary))) border-(--hero-badge-border,hsl(var(--primary)/0.3))">
+                        <span
+                          data-testid={`hero-slide-latest-${slide.id}`}
+                          className="inline-block px-3 py-1 rounded-full animate-fade-in border bg-(--hero-badge-bg,hsl(var(--primary)/0.2)) text-(--hero-badge-text,hsl(var(--primary))) border-(--hero-badge-border,hsl(var(--primary)/0.3))"
+                        >
                           Último Lançamento
                         </span>
                       ) : null}
-                      {slide.format ? <span>{slide.format}</span> : null}
-                      {slide.format && slide.status ? <span className="opacity-50">•</span> : null}
-                      {slide.status ? <span>{slide.status}</span> : null}
+                      {slide.format || slide.status ? (
+                        <div data-testid={`hero-slide-type-status-${slide.id}`} className="flex flex-wrap items-center gap-3">
+                          {slide.format ? <span>{slide.format}</span> : null}
+                          {slide.format && slide.status ? <span className="opacity-50">•</span> : null}
+                          {slide.status ? <span>{slide.status}</span> : null}
+                        </div>
+                      ) : null}
                     </div>
 
                     <h1 className="text-2xl md:text-4xl lg:text-5xl xl:text-6xl 2xl:text-7xl font-black mb-6 animate-slide-up text-foreground leading-tight">

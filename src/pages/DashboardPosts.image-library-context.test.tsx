@@ -160,7 +160,7 @@ describe("DashboardPosts image library context", () => {
     expect(imageLibraryProps.projectImageProjectIds).toEqual([]);
   });
 
-  it("inclui pasta derivada da capa resolvida quando a imagem vem de outra pasta de upload", async () => {
+  it("mantem listFolders fixo em posts/shared mesmo quando a capa vem de pasta de projeto", async () => {
     setupApiMock({
       posts: [
         {
@@ -222,11 +222,7 @@ describe("DashboardPosts image library context", () => {
         currentSelectionUrls?: string[];
       };
     };
-    expect(lexicalProps.imageLibraryOptions?.listFolders).toEqual([
-      "posts",
-      "shared",
-      "projects/project-1",
-    ]);
+    expect(lexicalProps.imageLibraryOptions?.listFolders).toEqual(["posts", "shared"]);
     expect(lexicalProps.imageLibraryOptions?.projectImagesView).toBe("by-project");
     expect(lexicalProps.imageLibraryOptions?.currentSelectionUrls).toEqual([
       "/uploads/projects/project-1/capa.png",
@@ -235,10 +231,6 @@ describe("DashboardPosts image library context", () => {
     const imageLibraryProps = imageLibraryPropsSpy.mock.calls.at(-1)?.[0] as {
       listFolders?: string[];
     };
-    expect(imageLibraryProps.listFolders).toEqual([
-      "posts",
-      "shared",
-      "projects/project-1",
-    ]);
+    expect(imageLibraryProps.listFolders).toEqual(["posts", "shared"]);
   });
 });

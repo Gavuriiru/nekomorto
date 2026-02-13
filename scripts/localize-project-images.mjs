@@ -3,9 +3,9 @@ import path from "path";
 import crypto from "crypto";
 import { importRemoteImageFile } from "../server/lib/remote-image-import.js";
 import {
-  RELATIONS_SHARED_FOLDER,
   buildRelationImageFileBase,
   localizeProjectImageFields,
+  resolveProjectImageFolders,
 } from "../server/lib/project-image-localizer.js";
 
 const APPLY_FLAG = "--apply";
@@ -135,8 +135,8 @@ const toUploadRelativePath = (uploadUrl) =>
     .replace(/^\/+/, "")
     .replace(/\\/g, "/");
 
-const isRelationSharedUpload = (uploadUrl) =>
-  String(uploadUrl || "").startsWith(`/uploads/${RELATIONS_SHARED_FOLDER}/`);
+const isRelationInProjectFolder = (uploadUrl, projectFolder) =>
+  String(uploadUrl || "").startsWith(`/uploads/${String(projectFolder || "").replace(/^\/+/, "")}/`);
 
 const normalizeExtension = (value) => {
   const raw = String(value || "").trim().toLowerCase().replace(/^\./, "");
@@ -154,19 +154,9 @@ const getMimeFromFileName = (fileName) => {
   return MIME_BY_EXTENSION[ext] || "";
 };
 
-const moveFile = (sourcePath, targetPath) => {
+const copyFile = (sourcePath, targetPath) => {
   fs.mkdirSync(path.dirname(targetPath), { recursive: true });
-  try {
-    fs.renameSync(sourcePath, targetPath);
-    return;
-  } catch {
-    fs.copyFileSync(sourcePath, targetPath);
-    try {
-      fs.unlinkSync(sourcePath);
-    } catch {
-      // ignore source cleanup failure when fallback copy succeeds
-    }
-  }
+  fs.copyFileSync(sourcePath, targetPath);
 };
 
 const buildUploadEntryFromDisk = (uploadUrl, diskPath) => {
@@ -185,6 +175,7 @@ const buildUploadEntryFromDisk = (uploadUrl, diskPath) => {
 };
 
 const migrateLocalRelationUploads = ({ project, uploadsDirPath, apply }) => {
+  const { projectFolder } = resolveProjectImageFolders(project || {});
   const nextProject = {
     ...project,
     relations: Array.isArray(project?.relations) ? project.relations.map((item) => ({ ...item })) : [],
@@ -194,7 +185,7 @@ const migrateLocalRelationUploads = ({ project, uploadsDirPath, apply }) => {
     migrated: 0,
     reused: 0,
     failed: 0,
-    alreadyShared: 0,
+    alreadyLocalized: 0,
     dryRunEligible: 0,
   };
   const failures = [];
@@ -211,8 +202,8 @@ const migrateLocalRelationUploads = ({ project, uploadsDirPath, apply }) => {
       return;
     }
 
-    if (isRelationSharedUpload(normalizedLocal)) {
-      summary.alreadyShared += 1;
+    if (isRelationInProjectFolder(normalizedLocal, projectFolder)) {
+      summary.alreadyLocalized += 1;
       if (apply && normalizedLocal !== rawImage) {
         nextProject.relations[index] = {
           ...nextProject.relations[index],
@@ -228,7 +219,7 @@ const migrateLocalRelationUploads = ({ project, uploadsDirPath, apply }) => {
     const sourceExt = normalizeExtension(path.extname(sourceRelative));
     const relationBase = buildRelationImageFileBase({ relation, sourceUrl: normalizedLocal });
     const targetExt = sourceExt || "png";
-    const targetRelative = `${RELATIONS_SHARED_FOLDER}/${relationBase}.${targetExt}`;
+    const targetRelative = `${projectFolder}/${relationBase}.${targetExt}`;
     const targetUrl = `/uploads/${targetRelative}`;
 
     if (!apply) {
@@ -244,7 +235,7 @@ const migrateLocalRelationUploads = ({ project, uploadsDirPath, apply }) => {
       if (fs.existsSync(targetPath)) {
         reused = true;
       } else if (fs.existsSync(sourcePath)) {
-        moveFile(sourcePath, targetPath);
+        copyFile(sourcePath, targetPath);
       } else {
         throw new Error("missing_source_file");
       }

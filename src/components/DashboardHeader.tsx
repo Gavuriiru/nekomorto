@@ -270,9 +270,35 @@ const DashboardHeader = ({
         className,
       )}
     >
-      <div className="flex h-19 items-center justify-between px-3 sm:px-4 lg:px-6 2xl:px-8">
-        <div className="flex min-w-0 items-center gap-2 lg:gap-3">
+      <div className="relative flex h-19 items-center justify-between gap-2 px-3 sm:px-4 lg:px-6 2xl:px-8">
+        <div
+          data-testid="dashboard-header-left-cluster"
+          className={cn(
+            "flex min-w-0 items-center gap-2 transition-all duration-300 lg:gap-3",
+            isSearchOpen
+              ? "opacity-0 invisible pointer-events-none xl:opacity-100 xl:visible xl:pointer-events-auto"
+              : "opacity-100 visible pointer-events-auto",
+          )}
+        >
           <SidebarTrigger className="h-9 w-9 rounded-lg border border-white/15 bg-white/5 text-white/80 hover:bg-white/10 hover:text-white" />
+          <Link
+            to="/dashboard"
+            data-testid="dashboard-header-mobile-logo"
+            className="flex h-9 w-9 items-center justify-center rounded-lg border border-white/10 bg-white/5 text-white/85 transition hover:bg-white/10 xl:hidden"
+          >
+            {logoUrl ? (
+              <ThemedSvgLogo
+                url={logoUrl}
+                label={siteName}
+                className="h-6 w-6 rounded-full object-cover text-primary"
+              />
+            ) : (
+              <span className="flex h-6 w-6 items-center justify-center rounded-full border border-white/15 bg-white/10 text-[11px] font-semibold">
+                {siteName.slice(0, 1)}
+              </span>
+            )}
+            <span className="sr-only">{siteName}</span>
+          </Link>
           <Link
             to="/dashboard"
             className="hidden items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-2.5 py-1.5 text-white/85 transition hover:bg-white/10 xl:flex"
@@ -300,7 +326,147 @@ const DashboardHeader = ({
           </div>
         </div>
 
-        <div className="flex items-center gap-2 sm:gap-3 lg:gap-4">
+        <div
+          ref={searchRef}
+          data-testid="dashboard-header-search-cluster"
+          className={cn(
+            "relative z-20 flex shrink-0 items-center gap-2 transition-all duration-300",
+            isSearchOpen
+              ? "absolute inset-x-0 top-1/2 z-30 mx-auto w-[min(22rem,calc(100vw-1rem))] -translate-y-1/2 xl:static xl:w-auto xl:translate-y-0"
+              : "w-auto",
+          )}
+        >
+          <div
+            className={`flex items-center gap-2 rounded-full border border-transparent bg-secondary/30 px-3 py-2 transition-all duration-300 ${
+              isSearchOpen ? "w-full border-border bg-secondary/70 xl:w-52 2xl:w-64" : "w-11"
+            }`}
+          >
+            <button
+              type="button"
+              aria-label="Abrir pesquisa"
+              onClick={() => setIsSearchOpen((prev) => !prev)}
+              className="text-white transition-colors hover:text-primary"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="h-4 w-4"
+              >
+                <circle cx="11" cy="11" r="8" />
+                <path d="m21 21-4.3-4.3" />
+              </svg>
+            </button>
+            {isSearchOpen && (
+              <input
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder="Pesquisar projetos e posts"
+                className="w-full bg-transparent text-sm text-white outline-hidden placeholder:text-white/60"
+              />
+            )}
+          </div>
+
+          {showResults && (
+            <div
+              ref={synopsisRootRef}
+              data-testid="dashboard-header-results"
+              className="search-popover-enter absolute top-12 left-0 right-0 mx-auto max-h-[78vh] w-[min(24rem,calc(100vw-1rem))] overflow-hidden rounded-xl border border-border/60 bg-background/95 p-4 shadow-lg backdrop-blur-sm xl:left-auto xl:right-0 xl:mx-0 xl:w-80"
+            >
+              {filteredProjects.length > 0 && (
+                <div className="mb-4">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    Projetos
+                  </p>
+                  <ul className="no-scrollbar mt-3 max-h-[44vh] space-y-3 overflow-y-auto overscroll-contain pr-1">
+                    {filteredProjects.map((item) => (
+                      <li key={item.href}>
+                        <Link
+                          to={item.href}
+                          className="group flex h-36 items-start gap-4 overflow-hidden rounded-xl border border-border/60 bg-gradient-card p-4 transition hover:border-primary/40 hover:bg-primary/5"
+                        >
+                          <div
+                            className="w-20 shrink-0 self-start overflow-hidden rounded-lg bg-secondary"
+                            style={{ aspectRatio: "46 / 65" }}
+                          >
+                            <img
+                              src={item.image}
+                              alt={item.label}
+                              className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                            />
+                          </div>
+                          <div data-synopsis-role="column" data-synopsis-key={item.href} className="min-w-0 h-full flex flex-col">
+                            <p data-synopsis-role="title" className="line-clamp-1 shrink-0 text-sm font-semibold text-foreground group-hover:text-primary">
+                              {item.label}
+                            </p>
+                            <p
+                              className={cn(
+                                "mt-1 overflow-hidden text-xs leading-snug text-muted-foreground",
+                                getSynopsisClampClass(item.href),
+                              )}
+                              data-synopsis-role="synopsis"
+                            >
+                              {item.synopsis}
+                            </p>
+                            {item.tags.length > 0 && (
+                              <div data-synopsis-role="badges" className="mt-auto pt-2 flex min-w-0 flex-wrap gap-1.5">
+                                {item.tags.map((tag) => (
+                                  <Badge key={tag} variant="secondary" className="text-[9px] uppercase whitespace-nowrap">
+                                    {tag}
+                                  </Badge>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {filteredPosts.length > 0 && (
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    Posts
+                  </p>
+                  <ul className="no-scrollbar mt-2 max-h-[26vh] space-y-2 overflow-y-auto overscroll-contain pr-1">
+                    {filteredPosts.map((item) => (
+                      <li key={item.href}>
+                        <Link
+                          to={item.href}
+                          className="text-sm text-foreground transition-colors hover:text-primary"
+                        >
+                          {item.label}
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {!hasResults && (
+                <p className="text-sm text-muted-foreground">
+                  Nenhum resultado encontrado para a sua pesquisa.
+                </p>
+              )}
+            </div>
+          )}
+        </div>
+
+        <div
+          data-testid="dashboard-header-actions-cluster"
+          className={cn(
+            "flex shrink-0 items-center gap-2 transition-all duration-300 sm:gap-3 lg:gap-4",
+            isSearchOpen
+              ? "opacity-0 invisible pointer-events-none xl:opacity-100 xl:visible xl:pointer-events-auto"
+              : "opacity-100 visible pointer-events-auto",
+          )}
+        >
           <div className="hidden 2xl:flex items-center gap-5 text-sm font-medium text-white/80">
             {navbarLinks.map((item) => {
               const isInternal = isInternalHref(item.href);
@@ -327,127 +493,6 @@ const DashboardHeader = ({
                 </a>
               );
             })}
-          </div>
-          <div className="relative hidden items-center gap-2 xl:flex" ref={searchRef}>
-            <div
-              className={`flex items-center gap-2 rounded-full border border-transparent bg-secondary/30 px-3 py-2 transition-all duration-300 ${
-                isSearchOpen ? "w-52 2xl:w-64 border-border bg-secondary/70" : "w-11"
-              }`}
-            >
-              <button
-                type="button"
-                aria-label="Abrir pesquisa"
-                onClick={() => setIsSearchOpen((prev) => !prev)}
-                className="text-white transition-colors hover:text-primary"
-              >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  className="h-4 w-4"
-                >
-                  <circle cx="11" cy="11" r="8" />
-                  <path d="m21 21-4.3-4.3" />
-                </svg>
-              </button>
-              {isSearchOpen && (
-                <input
-                  value={query}
-                  onChange={(event) => setQuery(event.target.value)}
-                  placeholder="Pesquisar projetos e posts"
-                  className="w-full bg-transparent text-sm text-white outline-hidden placeholder:text-white/60"
-                />
-              )}
-            </div>
-
-            {showResults && (
-              <div
-                ref={synopsisRootRef}
-                className="search-popover-enter absolute right-0 top-12 max-h-[78vh] w-80 overflow-hidden rounded-xl border border-border/60 bg-background/95 p-4 shadow-lg backdrop-blur-sm"
-              >
-                {filteredProjects.length > 0 && (
-                  <div className="mb-4">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                      Projetos
-                    </p>
-                    <ul className="no-scrollbar mt-3 max-h-[44vh] space-y-3 overflow-y-auto overscroll-contain pr-1">
-                      {filteredProjects.map((item) => (
-                        <li key={item.href}>
-                          <Link
-                            to={item.href}
-                            className="group flex h-36 items-start gap-4 overflow-hidden rounded-xl border border-border/60 bg-gradient-card p-4 transition hover:border-primary/40 hover:bg-primary/5"
-                          >
-                            <div
-                              className="w-20 shrink-0 self-start overflow-hidden rounded-lg bg-secondary"
-                              style={{ aspectRatio: "46 / 65" }}
-                            >
-                              <img
-                                src={item.image}
-                                alt={item.label}
-                                className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
-                              />
-                            </div>
-                            <div data-synopsis-role="column" data-synopsis-key={item.href} className="min-w-0 h-full flex flex-col">
-                              <p data-synopsis-role="title" className="line-clamp-1 shrink-0 text-sm font-semibold text-foreground group-hover:text-primary">
-                                {item.label}
-                              </p>
-                              <p
-                                className={cn(
-                                  "mt-1 overflow-hidden text-xs leading-snug text-muted-foreground",
-                                  getSynopsisClampClass(item.href),
-                                )}
-                                data-synopsis-role="synopsis"
-                              >
-                                {item.synopsis}
-                              </p>
-                              {item.tags.length > 0 && (
-                                <div data-synopsis-role="badges" className="mt-auto pt-2 flex min-w-0 flex-wrap gap-1.5">
-                                  {item.tags.map((tag) => (
-                                    <Badge key={tag} variant="secondary" className="text-[9px] uppercase whitespace-nowrap">
-                                      {tag}
-                                    </Badge>
-                                  ))}
-                                </div>
-                              )}
-                            </div>
-                          </Link>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-
-                {filteredPosts.length > 0 && (
-                  <div>
-                    <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                      Posts
-                    </p>
-                    <ul className="no-scrollbar mt-2 max-h-[26vh] space-y-2 overflow-y-auto overscroll-contain pr-1">
-                      {filteredPosts.map((item) => (
-                        <li key={item.href}>
-                          <Link
-                            to={item.href}
-                            className="text-sm text-foreground transition-colors hover:text-primary"
-                          >
-                            {item.label}
-                          </Link>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-
-                {!hasResults && (
-                  <p className="text-sm text-muted-foreground">
-                    Nenhum resultado encontrado para a sua pesquisa.
-                  </p>
-                )}
-              </div>
-            )}
           </div>
 
           <DropdownMenu>

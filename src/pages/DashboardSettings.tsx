@@ -2739,6 +2739,7 @@ const DashboardSettings = () => {
           description="Selecione uma imagem ja enviada para reutilizar ou exclua itens que nao estejam em uso."
           uploadFolder="branding"
           listFolders={rootLibraryFolders}
+          includeProjectImages={false}
           showUrlImport={false}
           allowDeselect
           mode="single"

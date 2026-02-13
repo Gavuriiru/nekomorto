@@ -192,7 +192,6 @@ describe("DashboardProjectsEditor image library context", () => {
     expect(imageLibraryProps.listFolders).toEqual([
       "projects/project-1",
       "projects/project-1/episodes",
-      "shared",
     ]);
     expect(imageLibraryProps.listAll).toBe(false);
     expect(imageLibraryProps.includeProjectImages).toBe(true);
@@ -217,7 +216,7 @@ describe("DashboardProjectsEditor image library context", () => {
     expect(lexicalWithEpisodeContext).toBeTruthy();
     expect(lexicalWithEpisodeContext?.imageLibraryOptions).toEqual({
       uploadFolder: "projects/project-1/episodes",
-      listFolders: ["projects/project-1/episodes", "projects/project-1", "shared"],
+      listFolders: ["projects/project-1/episodes", "projects/project-1"],
       listAll: false,
       includeProjectImages: true,
       projectImageProjectIds: ["project-1"],

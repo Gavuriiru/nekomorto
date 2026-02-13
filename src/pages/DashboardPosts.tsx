@@ -170,22 +170,6 @@ const normalizeComparableCoverUrl = (value?: string | null) => {
 const areCoverUrlsEquivalent = (left?: string | null, right?: string | null) =>
   normalizeComparableCoverUrl(left) === normalizeComparableCoverUrl(right);
 
-const getUploadFolderFromCoverUrl = (value?: string | null) => {
-  const normalized = normalizeComparableCoverUrl(value);
-  if (!normalized.startsWith("/uploads/")) {
-    return null;
-  }
-  const relativePath = normalized.slice("/uploads/".length);
-  if (!relativePath) {
-    return "";
-  }
-  const slashIndex = relativePath.lastIndexOf("/");
-  if (slashIndex <= 0) {
-    return "";
-  }
-  return relativePath.slice(0, slashIndex);
-};
-
 const extractLexicalImageUploadUrls = (content?: string | null) => {
   const raw = String(content || "").trim();
   if (!raw) {
@@ -658,50 +642,17 @@ const DashboardPosts = () => {
     () => extractLexicalImageUploadUrls(formState.contentLexical),
     [formState.contentLexical],
   );
-  const embeddedUploadFolders = useMemo(() => {
-    const folders: string[] = [];
-    const seen = new Set<string>();
-    embeddedUploadUrls.forEach((url) => {
-      const folder = getUploadFolderFromCoverUrl(url);
-      if (folder === null || seen.has(folder)) {
-        return;
-      }
-      seen.add(folder);
-      folders.push(folder);
-    });
-    return folders;
-  }, [embeddedUploadUrls]);
-  const resolvedCoverFolder = useMemo(
-    () => getUploadFolderFromCoverUrl(editorResolvedCover.coverImageUrl),
-    [editorResolvedCover.coverImageUrl],
-  );
-  const postImageLibraryFolders = useMemo(() => {
-    const folders: string[] = [];
-    const seen = new Set<string>();
-    const pushFolder = (folder: string | null) => {
-      if (folder === null || seen.has(folder)) {
-        return;
-      }
-      seen.add(folder);
-      folders.push(folder);
-    };
-    pushFolder("posts");
-    pushFolder("shared");
-    pushFolder(resolvedCoverFolder);
-    embeddedUploadFolders.forEach((folder) => pushFolder(folder));
-    return folders;
-  }, [embeddedUploadFolders, resolvedCoverFolder]);
   const postImageLibraryOptions = useMemo(
     () => ({
       uploadFolder: "posts",
-      listFolders: postImageLibraryFolders,
+      listFolders: ["posts", "shared"],
       listAll: false,
       includeProjectImages: true,
       projectImageProjectIds: [],
       projectImagesView: "by-project" as const,
       currentSelectionUrls: embeddedUploadUrls,
     }),
-    [embeddedUploadUrls, postImageLibraryFolders],
+    [embeddedUploadUrls],
   );
   const projectTags = useMemo(() => {
     if (!formState.projectId) {

@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -107,5 +107,33 @@ describe("HeroSection cover fit", () => {
     const slideWrapper = backgroundLayer?.parentElement;
     expect(slideWrapper).not.toBeNull();
     expect(slideWrapper).toHaveClass("min-h-[78vh]", "md:min-h-screen");
+  });
+
+  it("mantem badge de ultimo lancamento acima de tipo/status no mobile", async () => {
+    setupApiMock();
+
+    render(
+      <MemoryRouter>
+        <HeroSection />
+      </MemoryRouter>,
+    );
+
+    await screen.findByRole("heading", { name: "Projeto com Hero" });
+
+    const meta = await screen.findByTestId("hero-slide-meta-project-1");
+    expect(meta).toHaveClass("flex-col", "md:flex-row");
+
+    const latest = screen.getByTestId("hero-slide-latest-project-1");
+    const typeStatus = screen.getByTestId("hero-slide-type-status-project-1");
+    expect(latest).toBeInTheDocument();
+    expect(typeStatus).toBeInTheDocument();
+
+    const children = Array.from(meta.children);
+    expect(children.indexOf(latest)).toBeGreaterThanOrEqual(0);
+    expect(children.indexOf(typeStatus)).toBeGreaterThanOrEqual(0);
+    expect(children.indexOf(latest)).toBeLessThan(children.indexOf(typeStatus));
+
+    expect(within(typeStatus).getByText("Anime")).toBeInTheDocument();
+    expect(within(typeStatus).getByText("Em andamento")).toBeInTheDocument();
   });
 });

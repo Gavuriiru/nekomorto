@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { CartesianGrid, Line, LineChart, XAxis, YAxis } from "recharts";
 
@@ -15,17 +15,21 @@ import { usePageMeta } from "@/hooks/use-page-meta";
 
 type RangeValue = "7d" | "30d" | "90d";
 type TypeValue = "all" | "post" | "project";
+type MetricValue = "views" | "unique_views" | "chapter_views" | "download_clicks";
 
 type OverviewResponse = {
   metrics?: {
     views?: number;
     uniqueViews?: number;
+    chapterViews?: number;
+    downloadClicks?: number;
     commentsCreated?: number;
     commentsApproved?: number;
   };
 };
 
 type TimeseriesResponse = {
+  metric?: MetricValue;
   series?: Array<{ date: string; value: number }>;
 };
 
@@ -49,6 +53,7 @@ type AcquisitionResponse = {
 };
 
 const formatInt = (value: number) => Number(value || 0).toLocaleString("pt-BR");
+const formatPercent = (value: number) => `${(value * 100).toFixed(1).replace(".", ",")}%`;
 const formatResourceType = (value: string) => {
   const normalized = String(value || "").toLowerCase();
   if (normalized === "project") return "Projeto";
@@ -61,10 +66,20 @@ const formatAcquisitionLabel = (value: string) => {
   if (normalized === "(direct)") return "(direto)";
   return value;
 };
+const formatMetricLabel = (value: MetricValue) => {
+  if (value === "unique_views") return "Views únicas";
+  if (value === "chapter_views") return "Leituras de capítulos";
+  if (value === "download_clicks") return "Cliques em downloads";
+  return "Views";
+};
 const parseRange = (value: string | null): RangeValue =>
   value === "7d" || value === "30d" || value === "90d" ? value : "30d";
 const parseType = (value: string | null): TypeValue =>
   value === "post" || value === "project" || value === "all" ? value : "all";
+const parseMetric = (value: string | null): MetricValue =>
+  value === "unique_views" || value === "chapter_views" || value === "download_clicks" || value === "views"
+    ? value
+    : "views";
 
 const DashboardAnalytics = () => {
   usePageMeta({ title: "Analytics", noIndex: true });
@@ -74,6 +89,7 @@ const DashboardAnalytics = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const range = parseRange(searchParams.get("range"));
   const type = parseType(searchParams.get("type"));
+  const metric = parseMetric(searchParams.get("metric"));
   const [overview, setOverview] = useState<OverviewResponse>({});
   const [timeseries, setTimeseries] = useState<TimeseriesResponse>({ series: [] });
   const [topContent, setTopContent] = useState<TopContentResponse>({ entries: [] });
@@ -118,7 +134,7 @@ const DashboardAnalytics = () => {
       try {
         const [overviewRes, timeseriesRes, topRes, acquisitionRes] = await Promise.all([
           apiFetch(apiBase, `/api/analytics/overview?${params.toString()}`, { auth: true }),
-          apiFetch(apiBase, `/api/analytics/timeseries?${params.toString()}&metric=views`, { auth: true }),
+          apiFetch(apiBase, `/api/analytics/timeseries?${params.toString()}&metric=${metric}`, { auth: true }),
           apiFetch(apiBase, `/api/analytics/top-content?${params.toString()}&limit=10`, { auth: true }),
           apiFetch(apiBase, `/api/analytics/acquisition?${params.toString()}`, { auth: true }),
         ]);
@@ -160,7 +176,7 @@ const DashboardAnalytics = () => {
     return () => {
       isActive = false;
     };
-  }, [apiBase, range, type]);
+  }, [apiBase, range, type, metric]);
 
   const chartData = useMemo(
     () => (Array.isArray(timeseries.series) ? timeseries.series.map((item) => ({ ...item })) : []),
@@ -172,10 +188,15 @@ const DashboardAnalytics = () => {
   const referrerEntries = Array.isArray(acquisition.referrerHost) ? acquisition.referrerHost : [];
   const sourceEntries = Array.isArray(acquisition.utmSource) ? acquisition.utmSource : [];
 
+  const commentsCreated = Number(metrics.commentsCreated || 0);
+  const commentsApproved = Number(metrics.commentsApproved || 0);
+  const commentsApprovalRate = commentsCreated > 0 ? commentsApproved / commentsCreated : null;
+
   const setRangeFilter = (value: RangeValue) => {
     const next = new URLSearchParams(searchParams);
     next.set("range", value);
     next.set("type", type);
+    next.set("metric", metric);
     setSearchParams(next);
   };
 
@@ -183,6 +204,15 @@ const DashboardAnalytics = () => {
     const next = new URLSearchParams(searchParams);
     next.set("range", range);
     next.set("type", value);
+    next.set("metric", metric);
+    setSearchParams(next);
+  };
+
+  const setMetricFilter = (value: MetricValue) => {
+    const next = new URLSearchParams(searchParams);
+    next.set("range", range);
+    next.set("type", type);
+    next.set("metric", value);
     setSearchParams(next);
   };
 
@@ -191,8 +221,10 @@ const DashboardAnalytics = () => {
     lines.push("section,key,value");
     lines.push(`kpi,views,${Number(metrics.views || 0)}`);
     lines.push(`kpi,unique_views,${Number(metrics.uniqueViews || 0)}`);
-    lines.push(`kpi,comments_created,${Number(metrics.commentsCreated || 0)}`);
-    lines.push(`kpi,comments_approved,${Number(metrics.commentsApproved || 0)}`);
+    lines.push(`kpi,chapter_views,${Number(metrics.chapterViews || 0)}`);
+    lines.push(`kpi,download_clicks,${Number(metrics.downloadClicks || 0)}`);
+    lines.push(`kpi,comments_created,${commentsCreated}`);
+    lines.push(`kpi,comments_approved,${commentsApproved}`);
 
     lines.push("timeseries,date,value");
     chartData.forEach((item) => lines.push(`timeseries,${item.date},${Number(item.value || 0)}`));
@@ -234,24 +266,21 @@ const DashboardAnalytics = () => {
       onUserCardClick={() => navigate("/dashboard/usuarios?edit=me")}
     >
       <main className="pt-24">
-        <section className="mx-auto w-full max-w-6xl px-6 pb-20 md:px-10 space-y-6">
+        <section className="mx-auto w-full max-w-6xl space-y-6 px-6 pb-20 md:px-10">
           <header className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div>
-              <div className="inline-flex items-center gap-3 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs uppercase tracking-[0.3em] text-muted-foreground animate-fade-in">
+              <div className="inline-flex animate-fade-in items-center gap-3 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs uppercase tracking-[0.3em] text-muted-foreground">
                 Analytics
               </div>
-              <h1 className="mt-3 text-3xl font-semibold lg:text-4xl animate-slide-up">Performance e aquisição</h1>
+              <h1 className="mt-3 animate-slide-up text-3xl font-semibold lg:text-4xl">Performance e aquisição</h1>
               <p
-                className="mt-2 text-sm text-muted-foreground animate-slide-up opacity-0"
+                className="mt-2 animate-slide-up text-sm text-muted-foreground opacity-0"
                 style={{ animationDelay: "0.2s" }}
               >
-                Dados de audiência separados do audit log, com foco em conteúdo e comentários.
+                Foco em consumo de conteúdo, retenção e tendências de audiência.
               </p>
             </div>
-            <div
-              className="flex flex-wrap items-center gap-3 animate-slide-up opacity-0"
-              style={{ animationDelay: "0.24s" }}
-            >
+            <div className="flex flex-wrap items-center gap-3 animate-slide-up opacity-0" style={{ animationDelay: "0.24s" }}>
               <Select value={range} onValueChange={(value) => setRangeFilter(value as RangeValue)}>
                 <SelectTrigger className="w-[130px]">
                   <SelectValue placeholder="Período" />
@@ -272,6 +301,17 @@ const DashboardAnalytics = () => {
                   <SelectItem value="project">Projetos</SelectItem>
                 </SelectContent>
               </Select>
+              <Select value={metric} onValueChange={(value) => setMetricFilter(value as MetricValue)}>
+                <SelectTrigger className="w-[210px]">
+                  <SelectValue placeholder="Métrica do gráfico" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="views">Views</SelectItem>
+                  <SelectItem value="unique_views">Views únicas</SelectItem>
+                  <SelectItem value="chapter_views">Leituras de capítulos</SelectItem>
+                  <SelectItem value="download_clicks">Cliques em downloads</SelectItem>
+                </SelectContent>
+              </Select>
               <Button variant="outline" onClick={exportCsv}>
                 Exportar CSV
               </Button>
@@ -279,7 +319,10 @@ const DashboardAnalytics = () => {
           </header>
 
           {error ? (
-            <div className="rounded-2xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-200 animate-slide-up opacity-0" style={{ animationDelay: "0.28s" }}>
+            <div
+              className="animate-slide-up rounded-2xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-200 opacity-0"
+              style={{ animationDelay: "0.28s" }}
+            >
               {error}
             </div>
           ) : null}
@@ -303,41 +346,67 @@ const DashboardAnalytics = () => {
             </Card>
             <Card className="animate-slide-up opacity-0" style={{ animationDelay: "120ms" }}>
               <CardHeader className="pb-2">
-                <CardTitle className="text-sm text-muted-foreground">Comentários criados</CardTitle>
+                <CardTitle className="text-sm text-muted-foreground">Leituras de capítulos</CardTitle>
               </CardHeader>
               <CardContent className={`text-3xl font-semibold ${isLoading ? "animate-pulse" : ""}`}>
-                {isLoading ? "-" : formatInt(metrics.commentsCreated || 0)}
+                {isLoading ? "-" : formatInt(metrics.chapterViews || 0)}
               </CardContent>
             </Card>
             <Card className="animate-slide-up opacity-0" style={{ animationDelay: "160ms" }}>
               <CardHeader className="pb-2">
-                <CardTitle className="text-sm text-muted-foreground">Comentários aprovados</CardTitle>
+                <CardTitle className="text-sm text-muted-foreground">Cliques em downloads</CardTitle>
               </CardHeader>
               <CardContent className={`text-3xl font-semibold ${isLoading ? "animate-pulse" : ""}`}>
-                {isLoading ? "-" : formatInt(metrics.commentsApproved || 0)}
+                {isLoading ? "-" : formatInt(metrics.downloadClicks || 0)}
               </CardContent>
             </Card>
           </div>
 
+          <Card className="animate-slide-up opacity-0" style={{ animationDelay: "190ms" }}>
+            <CardHeader>
+              <CardTitle>Comunidade e moderação</CardTitle>
+            </CardHeader>
+            <CardContent className="grid gap-4 md:grid-cols-3">
+              <div className="rounded-xl border border-white/10 bg-white/5 p-4">
+                <p className="text-xs uppercase tracking-wide text-muted-foreground">Comentários criados</p>
+                <p className={`mt-2 text-2xl font-semibold ${isLoading ? "animate-pulse" : ""}`}>
+                  {isLoading ? "-" : formatInt(commentsCreated)}
+                </p>
+              </div>
+              <div className="rounded-xl border border-white/10 bg-white/5 p-4">
+                <p className="text-xs uppercase tracking-wide text-muted-foreground">Comentários aprovados</p>
+                <p className={`mt-2 text-2xl font-semibold ${isLoading ? "animate-pulse" : ""}`}>
+                  {isLoading ? "-" : formatInt(commentsApproved)}
+                </p>
+              </div>
+              <div className="rounded-xl border border-white/10 bg-white/5 p-4">
+                <p className="text-xs uppercase tracking-wide text-muted-foreground">Taxa de aprovação</p>
+                <p className={`mt-2 text-2xl font-semibold ${isLoading ? "animate-pulse" : ""}`}>
+                  {isLoading ? "-" : commentsApprovalRate === null ? "0,0%" : formatPercent(commentsApprovalRate)}
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+
           <div className="grid gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
-            <Card className="animate-slide-up opacity-0" style={{ animationDelay: "200ms" }}>
+            <Card className="animate-slide-up opacity-0" style={{ animationDelay: "220ms" }}>
               <CardHeader>
-                <CardTitle>Views por dia</CardTitle>
+                <CardTitle>Série temporal ({formatMetricLabel(metric)})</CardTitle>
               </CardHeader>
               <CardContent>
                 {isLoading ? (
-                  <p className="text-sm text-muted-foreground animate-pulse">Carregando série temporal...</p>
+                  <p className="animate-pulse text-sm text-muted-foreground">Carregando série temporal...</p>
                 ) : chartData.length ? (
                   <ChartContainer
                     className="h-[280px] w-full"
-                    config={{ views: { label: "Views", color: "hsl(var(--accent))" } }}
+                    config={{ metric: { label: formatMetricLabel(metric), color: "hsl(var(--accent))" } }}
                   >
                     <LineChart data={chartData} margin={{ left: 12, right: 12, top: 12, bottom: 8 }}>
                       <CartesianGrid vertical={false} />
                       <XAxis dataKey="date" tickLine={false} axisLine={false} minTickGap={24} />
                       <YAxis tickLine={false} axisLine={false} width={40} />
                       <ChartTooltip content={<ChartTooltipContent />} />
-                      <Line type="monotone" dataKey="value" stroke="var(--color-views)" strokeWidth={2} dot={false} />
+                      <Line type="monotone" dataKey="value" stroke="var(--color-metric)" strokeWidth={2} dot={false} />
                     </LineChart>
                   </ChartContainer>
                 ) : (
@@ -346,13 +415,13 @@ const DashboardAnalytics = () => {
               </CardContent>
             </Card>
 
-            <Card className="animate-slide-up opacity-0" style={{ animationDelay: "240ms" }}>
+            <Card className="animate-slide-up opacity-0" style={{ animationDelay: "260ms" }}>
               <CardHeader>
                 <CardTitle>Aquisição (origens)</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
                 {isLoading ? (
-                  <p className="text-sm text-muted-foreground animate-pulse">Carregando origens...</p>
+                  <p className="animate-pulse text-sm text-muted-foreground">Carregando origens...</p>
                 ) : referrerEntries.length ? (
                   referrerEntries.slice(0, 8).map((entry) => (
                     <div key={entry.key} className="flex items-center justify-between text-sm">
@@ -367,13 +436,13 @@ const DashboardAnalytics = () => {
             </Card>
           </div>
 
-          <Card className="animate-slide-up opacity-0" style={{ animationDelay: "280ms" }}>
+          <Card className="animate-slide-up opacity-0" style={{ animationDelay: "300ms" }}>
             <CardHeader>
               <CardTitle>Top conteúdos</CardTitle>
             </CardHeader>
             <CardContent>
               {isLoading ? (
-                <p className="text-sm text-muted-foreground animate-pulse">Carregando conteúdos...</p>
+                <p className="animate-pulse text-sm text-muted-foreground">Carregando conteúdos...</p>
               ) : topEntries.length ? (
                 <Table>
                   <TableHeader>

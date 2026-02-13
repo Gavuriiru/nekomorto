@@ -1,5 +1,6 @@
 ﻿import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import type { MouseEvent as ReactMouseEvent } from "react";
 import DashboardShell from "@/components/DashboardShell";
 import DashboardPageContainer from "@/components/dashboard/DashboardPageContainer";
 import DashboardPageHeader from "@/components/dashboard/DashboardPageHeader";
@@ -619,6 +620,26 @@ const shiftCollapsedEpisodesAfterRemoval = (collapsed: Record<number, boolean>, 
 };
 
 const getEpisodeAccordionValue = (index: number) => `episode-${index}`;
+const episodeHeaderNoToggleSelector = [
+  "[data-no-toggle]",
+  "button",
+  "a",
+  "input",
+  "select",
+  "textarea",
+  "label",
+  '[role="button"]',
+  '[role="link"]',
+  '[contenteditable="true"]',
+].join(", ");
+
+const shouldSkipEpisodeHeaderToggle = (target: EventTarget | null) => {
+  if (!(target instanceof Element)) {
+    return false;
+  }
+  return Boolean(target.closest(episodeHeaderNoToggleSelector));
+};
+
 const resolveProjectImageFolders = (projectId: string, projectTitle: string) => {
   const normalizedId = String(projectId || "").trim();
   const normalizedSlug = createSlug(String(projectTitle || "").trim());
@@ -1032,7 +1053,7 @@ const DashboardProjectsEditor = () => {
     () =>
       ({
         uploadFolder: projectRootFolder,
-        listFolders: [projectRootFolder, projectEpisodesFolder, "shared"],
+        listFolders: [projectRootFolder, projectEpisodesFolder],
         listAll: false,
         includeProjectImages: true,
         projectImageProjectIds: scopedProjectImageIds,
@@ -1043,7 +1064,7 @@ const DashboardProjectsEditor = () => {
     () =>
       ({
         uploadFolder: projectEpisodesFolder,
-        listFolders: [projectEpisodesFolder, projectRootFolder, "shared"],
+        listFolders: [projectEpisodesFolder, projectRootFolder],
         listAll: false,
         includeProjectImages: true,
         projectImageProjectIds: scopedProjectImageIds,
@@ -1088,6 +1109,27 @@ const DashboardProjectsEditor = () => {
       setCollapsedEpisodes(next);
     },
     [sortedEpisodeDownloads],
+  );
+
+  const toggleEpisodeCollapsed = useCallback((index: number) => {
+    setCollapsedEpisodes((prev) => ({
+      ...prev,
+      [index]: !(prev[index] ?? false),
+    }));
+  }, []);
+
+  const handleEpisodeHeaderClick = useCallback(
+    (index: number, event: ReactMouseEvent<HTMLDivElement>) => {
+      const target = event.target as Element | null;
+      if (target?.closest("[data-episode-accordion-trigger]")) {
+        return;
+      }
+      if (shouldSkipEpisodeHeaderToggle(target)) {
+        return;
+      }
+      toggleEpisodeCollapsed(index);
+    },
+    [toggleEpisodeCollapsed],
   );
 
   useEffect(() => {
@@ -3159,9 +3201,16 @@ const DashboardProjectsEditor = () => {
                     onDragStart={() => setEpisodeDragId(null)}
                   >
                     <CardContent className={`project-editor-episode-content space-y-3 ${isEpisodeCollapsed ? "p-4" : "p-5"}`}>
-                      <div className="project-editor-episode-header flex flex-wrap items-start justify-between gap-2">
+                      <div
+                        className="project-editor-episode-header flex flex-wrap items-start justify-between gap-2"
+                        data-testid={`episode-header-${index}`}
+                        onClick={(event) => handleEpisodeHeaderClick(index, event)}
+                      >
                         <div className="min-w-0 flex-1">
-                          <AccordionTrigger className="project-editor-episode-trigger py-0 text-left text-base font-semibold text-foreground hover:no-underline [&>svg]:mt-0.5 [&>svg]:shrink-0">
+                          <AccordionTrigger
+                            data-episode-accordion-trigger
+                            className="project-editor-episode-trigger py-0 text-left text-base font-semibold text-foreground hover:no-underline [&>svg]:mt-0.5 [&>svg]:shrink-0"
+                          >
                             <div className="flex min-w-0 items-center gap-2">
                               <span className="rounded-full border border-border/60 bg-background/70 px-2 py-0.5 text-xs">
                                 {isChapterBased ? "Cap" : "Ep"} {episode.number || index + 1}

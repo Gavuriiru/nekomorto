@@ -49,7 +49,7 @@ const mockJsonResponse = (ok: boolean, payload: unknown, status = ok ? 200 : 500
   }) as Response;
 
 describe("DashboardUsers image library context", () => {
-  it("passa contexto de avatar com pasta users e agrupamento por projeto", async () => {
+  it("passa contexto de avatar com pasta users e sem imagens de projeto", async () => {
     apiFetchMock.mockReset();
     imageLibraryPropsSpy.mockReset();
     apiFetchMock.mockImplementation(async (_base: string, path: string, options?: RequestInit) => {
@@ -107,8 +107,8 @@ describe("DashboardUsers image library context", () => {
 
     expect(imageLibraryProps.uploadFolder).toBe("users");
     expect(imageLibraryProps.listFolders).toEqual(["users"]);
-    expect(imageLibraryProps.includeProjectImages).toBe(true);
-    expect(imageLibraryProps.projectImagesView).toBe("by-project");
+    expect(imageLibraryProps.includeProjectImages).toBeUndefined();
+    expect(imageLibraryProps.projectImagesView).toBeUndefined();
     expect(imageLibraryProps.cropAvatar).toBe(true);
     expect(imageLibraryProps.cropTargetFolder).toBe("users");
   });

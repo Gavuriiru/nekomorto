@@ -1,7 +1,6 @@
 import crypto from "crypto";
 
 const DEFAULT_MAX_CONCURRENT = 4;
-export const RELATIONS_SHARED_FOLDER = "shared/relations";
 
 const sanitizeSlug = (value) =>
   String(value || "")
@@ -15,6 +14,16 @@ const toProjectKey = (project) => {
   const id = String(project?.id || "").trim();
   const titleSlug = sanitizeSlug(project?.title || "");
   return id || titleSlug || "draft";
+};
+
+export const resolveProjectImageFolders = (project) => {
+  const projectKey = toProjectKey(project);
+  const projectFolder = `projects/${projectKey}`;
+  return {
+    projectKey,
+    projectFolder,
+    episodeFolder: `${projectFolder}/episodes`,
+  };
 };
 
 const toTrimmedString = (value) => String(value || "").trim();
@@ -123,9 +132,7 @@ export const localizeProjectImageFields = async ({
   maxConcurrent = DEFAULT_MAX_CONCURRENT,
 } = {}) => {
   const nextProject = cloneProjectForLocalization(project || {});
-  const projectKey = toProjectKey(nextProject);
-  const projectFolder = `projects/${projectKey}`;
-  const episodeFolder = `${projectFolder}/episodes`;
+  const { projectFolder, episodeFolder } = resolveProjectImageFolders(nextProject);
 
   const summary = {
     attempted: 0,
@@ -194,7 +201,7 @@ export const localizeProjectImageFields = async ({
         };
       },
       {
-        folder: RELATIONS_SHARED_FOLDER,
+        folder: projectFolder,
         buildImportOptions: (remoteUrl) => ({
           deterministic: true,
           onExisting: "reuse",

@@ -11,6 +11,7 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "uploads:localize-project-images": "node scripts/localize-project-images.mjs",
+    "uploads:isolate-project-images": "node scripts/isolate-project-images.mjs",
     "test": "vitest run",
     "test:watch": "vitest"
   },
