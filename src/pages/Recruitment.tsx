@@ -185,7 +185,7 @@ const Recruitment = () => {
             className="group bg-card/70 animate-fade-in opacity-0 transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:bg-card/90 hover:shadow-lg"
             style={{ animationDelay: "0.4s" }}
           >
-            <CardContent className="flex flex-col items-start justify-between gap-4 p-6 md:flex-row md:items-center">
+            <CardContent className="flex flex-col items-stretch justify-between gap-4 p-6 md:flex-row md:items-center">
               <div className="space-y-1">
                 <h2 className="text-lg font-semibold text-foreground transition-colors duration-300 group-hover:text-primary">
                   {recruitment.ctaTitle}
@@ -196,7 +196,7 @@ const Recruitment = () => {
               </div>
               <Button
                 asChild
-                className="bg-primary text-primary-foreground transition-all duration-300 hover:-translate-y-0.5 hover:bg-primary/90 hover:shadow-md"
+                className="w-full bg-primary text-primary-foreground transition-all duration-300 hover:-translate-y-0.5 hover:bg-primary/90 hover:shadow-md md:w-auto"
               >
                 <a href={discordUrl} target="_blank" rel="noreferrer">
                   {recruitment.ctaButtonLabel}

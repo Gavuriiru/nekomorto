@@ -108,7 +108,9 @@ describe("Header mobile search layout", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Abrir pesquisa" }));
 
-    expect(await screen.findByPlaceholderText("Pesquisar projetos e posts")).toBeInTheDocument();
+    const searchInput = await screen.findByPlaceholderText("Pesquisar projetos e posts");
+    expect(searchInput).toBeInTheDocument();
+    expect(searchInput).toHaveFocus();
     expect(classTokens(leftCluster)).toContain("opacity-0");
     expect(classTokens(leftCluster)).toContain("invisible");
     expect(classTokens(leftCluster)).toContain("pointer-events-none");
@@ -119,7 +121,7 @@ describe("Header mobile search layout", () => {
     expect(classTokens(searchCluster)).toContain("inset-x-0");
     expect(classTokens(searchCluster)).toContain("w-[min(22rem,calc(100vw-1rem))]");
 
-    fireEvent.change(screen.getByPlaceholderText("Pesquisar projetos e posts"), {
+    fireEvent.change(searchInput, {
       target: { value: "teste" },
     });
 
@@ -165,5 +167,33 @@ describe("Header mobile search layout", () => {
 
     expect(aboutLink.compareDocumentPosition(searchCluster) & Node.DOCUMENT_POSITION_FOLLOWING).not.toBe(0);
     expect(searchCluster.compareDocumentPosition(actionsCluster) & Node.DOCUMENT_POSITION_FOLLOWING).not.toBe(0);
+  });
+
+  it("usa breakpoint lg para navbar completa, hamburguer e nome do usuario", async () => {
+    render(
+      <MemoryRouter initialEntries={["/"]}>
+        <Header />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(apiFetchMock).toHaveBeenCalledTimes(4);
+    });
+
+    const aboutLink = screen.getByRole("link", { name: "Sobre" });
+    const navLinksContainer = aboutLink.parentElement as HTMLElement | null;
+    expect(navLinksContainer).not.toBeNull();
+    expect(classTokens(navLinksContainer as HTMLElement)).toContain("hidden");
+    expect(classTokens(navLinksContainer as HTMLElement)).toContain("lg:flex");
+    expect(classTokens(navLinksContainer as HTMLElement)).not.toContain("md:flex");
+
+    const menuButton = screen.getByRole("button", { name: "Abrir menu" });
+    expect(classTokens(menuButton)).toContain("lg:hidden");
+    expect(classTokens(menuButton)).not.toContain("md:hidden");
+
+    const userName = screen.getByText("Admin");
+    expect(classTokens(userName)).toContain("hidden");
+    expect(classTokens(userName)).toContain("lg:inline");
+    expect(classTokens(userName)).not.toContain("md:inline");
   });
 });

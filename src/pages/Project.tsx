@@ -585,31 +585,31 @@ const ProjectPage = () => {
           <div className="absolute inset-0 bg-black/20 backdrop-blur-[2px]" />
           <div className="absolute inset-0 bg-linear-to-t from-black/70 via-black/30 to-transparent" />
 
-          <div className="relative mx-auto flex min-h-[420px] w-full max-w-6xl flex-col items-start gap-8 px-6 pb-16 pt-24 md:flex-row md:items-center md:px-10 lg:min-h-[520px] reveal" data-reveal>
-            <div className="w-52 shrink-0 overflow-hidden rounded-2xl bg-secondary shadow-2xl animate-slide-up opacity-0 md:w-64">
+          <div className="relative mx-auto flex min-h-[420px] w-full max-w-6xl flex-col items-center gap-8 px-6 pb-16 pt-24 md:flex-row md:items-center md:px-10 lg:min-h-[520px] reveal" data-reveal>
+            <div className="mx-auto w-52 shrink-0 overflow-hidden rounded-2xl bg-secondary shadow-2xl animate-slide-up opacity-0 md:mx-0 md:w-64">
               <img
                 src={project.cover}
                 alt={project.title}
                 className="h-auto w-full object-contain"
               />
             </div>
-            <div className="flex flex-1 flex-col gap-4">
-              <div className="flex flex-wrap items-center gap-3 text-xs uppercase tracking-[0.2em] text-primary/80 animate-fade-in">
+            <div className="flex w-full flex-1 flex-col items-center gap-4 text-center md:items-start md:text-left">
+              <div className="flex w-full flex-wrap items-center justify-center gap-3 text-center text-xs uppercase tracking-[0.2em] text-primary/80 animate-fade-in md:w-auto md:justify-start md:text-left">
                 <span>{project.type}</span>
                 <span className="text-muted-foreground">•</span>
                 <span>{project.status}</span>
               </div>
-              <h1 className="text-3xl font-semibold text-foreground md:text-4xl lg:text-5xl animate-slide-up">
+              <h1 className="text-center text-3xl font-semibold text-foreground md:text-left md:text-4xl lg:text-5xl animate-slide-up">
                 {project.title}
               </h1>
               <p
-                className="max-w-2xl text-sm text-muted-foreground md:text-base animate-slide-up opacity-0"
+                className="max-w-2xl text-center text-sm text-muted-foreground md:text-left md:text-base animate-slide-up opacity-0"
                 style={{ animationDelay: "0.2s" }}
               >
                 {project.synopsis}
               </p>
               {project.tags?.length ? (
-                <div className="flex flex-wrap gap-2 animate-slide-up opacity-0" style={{ animationDelay: "0.3s" }}>
+                <div className="flex w-full flex-wrap justify-center gap-2 animate-slide-up opacity-0 md:justify-start" style={{ animationDelay: "0.3s" }}>
                   {sortedTags.map((tag) => (
                     <Link key={tag} to={`/projetos?tag=${encodeURIComponent(tag)}`} className="inline-flex">
                       <Badge variant="secondary" className="text-[10px] uppercase">
@@ -619,7 +619,7 @@ const ProjectPage = () => {
                   ))}
                 </div>
               ) : null}
-              <div className="flex flex-wrap gap-3 animate-slide-up opacity-0" style={{ animationDelay: "0.4s" }}>
+              <div className="flex w-full flex-wrap justify-center gap-3 animate-slide-up opacity-0 md:justify-start" style={{ animationDelay: "0.4s" }}>
                 <Button asChild className="gap-2">
                   <a href="#downloads">
                     <Download className="h-4 w-4" />

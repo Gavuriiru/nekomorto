@@ -111,14 +111,29 @@
     scroll-behavior: smooth;
   }
 
-  .reactEasyCrop_Image,
-  .reactEasyCrop_Video {
-    max-width: none;
-    max-height: none;
+  .avatar-croppie-shell {
+    display: flex;
+    height: 100%;
+    align-items: center;
+    justify-content: center;
   }
 
-  .avatar-cropper-preview .image-cropper__crop-area,
-  .avatar-cropper-preview .reactEasyCrop_CropArea {
+  .avatar-croppie-root {
+    width: 100%;
+    height: 100%;
+  }
+
+  .avatar-cropper-preview .croppie-container {
+    width: 100%;
+    height: 100%;
+  }
+
+  .avatar-cropper-preview .croppie-container .cr-boundary {
+    margin: 0 auto;
+    background-color: transparent;
+  }
+
+  .avatar-cropper-preview .croppie-container .cr-viewport {
     border-radius: 9999px;
     border: 2px solid hsl(0 0% 100% / 0.92) !important;
     box-shadow: 0 0 0 9999px hsl(0 0% 0% / 0.42);

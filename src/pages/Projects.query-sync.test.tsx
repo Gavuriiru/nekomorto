@@ -153,4 +153,20 @@ describe("Projects query sync", () => {
       expect(params.get("foo")).toBe("1");
     });
   });
+
+  it("mantem card de projeto com altura fixa no mobile e oculta badges de tags/generos", async () => {
+    render(
+      <MemoryRouter initialEntries={["/projetos"]}>
+        <Projects />
+      </MemoryRouter>,
+    );
+
+    const projectCard = await screen.findByRole("link", { name: /Projeto Teste/i });
+    expect(projectCard).toHaveClass("h-50", "md:h-60");
+    expect(projectCard).not.toHaveClass("min-h-50");
+
+    const badgesRow = projectCard.querySelector('[data-synopsis-role="badges"] .flex-nowrap');
+    expect(badgesRow).not.toBeNull();
+    expect(badgesRow).toHaveClass("hidden", "sm:flex");
+  });
 });

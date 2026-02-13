@@ -115,7 +115,9 @@ describe("DashboardHeader mobile search layout", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Abrir pesquisa" }));
 
-    expect(await screen.findByPlaceholderText("Pesquisar projetos e posts")).toBeInTheDocument();
+    const searchInput = await screen.findByPlaceholderText("Pesquisar projetos e posts");
+    expect(searchInput).toBeInTheDocument();
+    expect(searchInput).toHaveFocus();
     expect(classTokens(leftCluster)).toContain("opacity-0");
     expect(classTokens(leftCluster)).toContain("invisible");
     expect(classTokens(leftCluster)).toContain("pointer-events-none");
@@ -126,7 +128,7 @@ describe("DashboardHeader mobile search layout", () => {
     expect(classTokens(searchCluster)).toContain("inset-x-0");
     expect(classTokens(searchCluster)).toContain("w-[min(22rem,calc(100vw-1rem))]");
 
-    fireEvent.change(screen.getByPlaceholderText("Pesquisar projetos e posts"), {
+    fireEvent.change(searchInput, {
       target: { value: "dashboard" },
     });
 

@@ -1,4 +1,3 @@
-import type { ReactNode } from "react";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -7,23 +6,6 @@ import ImageLibraryDialog from "@/components/ImageLibraryDialog";
 const { apiFetchMock } = vi.hoisted(() => ({
   apiFetchMock: vi.fn(),
 }));
-
-vi.mock("@wordpress/image-cropper", async () => {
-  const React = await vi.importActual<typeof import("react")>("react");
-  return {
-    ImageCropper: () => null,
-    ImageCropperProvider: ({ children }: { children: ReactNode }) => <>{children}</>,
-    useImageCropper: () => ({
-      cropperState: {
-        croppedAreaPixels: null,
-        rotation: 0,
-        flip: { horizontal: false, vertical: false },
-      },
-      setResetState: () => undefined,
-      reset: () => undefined,
-    }),
-  };
-});
 
 vi.mock("@/lib/api-client", () => ({
   apiFetch: (...args: unknown[]) => apiFetchMock(...args),

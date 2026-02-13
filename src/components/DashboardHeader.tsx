@@ -391,6 +391,7 @@ const DashboardHeader = ({
               </button>
               {isSearchOpen && (
                 <input
+                  autoFocus
                   value={query}
                   onChange={(event) => setQuery(event.target.value)}
                   placeholder="Pesquisar projetos e posts"

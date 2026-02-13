@@ -320,7 +320,7 @@ const Header = ({ variant = "fixed", leading, className }: HeaderProps) => {
           </Link>
         </div>
         <div className="flex shrink-0 items-center gap-3 md:gap-6">
-          <div className="hidden md:flex items-center gap-6 text-sm font-medium text-white/80">
+          <div className="hidden lg:flex items-center gap-6 text-sm font-medium text-white/80">
             {navbarLinks.map((item) => {
               const isInternal = isInternalHref(item.href);
               const isActive = isNavbarLinkActive(item.href);
@@ -384,6 +384,7 @@ const Header = ({ variant = "fixed", leading, className }: HeaderProps) => {
               </button>
               {isSearchOpen && (
                 <input
+                  autoFocus
                   value={query}
                   onChange={(event) => setQuery(event.target.value)}
                   placeholder="Pesquisar projetos e posts"
@@ -494,7 +495,7 @@ const Header = ({ variant = "fixed", leading, className }: HeaderProps) => {
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="md:hidden h-10 w-10 rounded-full border border-white/10 bg-white/5 text-white/80 hover:text-white"
+                  className="lg:hidden h-10 w-10 rounded-full border border-white/10 bg-white/5 text-white/80 hover:text-white"
                   aria-label="Abrir menu"
                 >
                   <Menu className="h-5 w-5" />
@@ -534,7 +535,7 @@ const Header = ({ variant = "fixed", leading, className }: HeaderProps) => {
                         {(currentUser.name || "").slice(0, 2).toUpperCase()}
                       </AvatarFallback>
                     </Avatar>
-                    <span className="hidden text-sm font-medium text-white md:inline">
+                    <span className="hidden text-sm font-medium text-white lg:inline">
                       {currentUser.name || ""}
                     </span>
                   </Button>

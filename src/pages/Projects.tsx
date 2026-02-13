@@ -121,7 +121,7 @@ const ProjectCard = ({
   return (
     <Link
       to={`/projeto/${project.id}`}
-      className="group flex min-h-50 w-full items-start gap-5 overflow-hidden rounded-2xl border border-border/60 bg-gradient-card p-5 shadow-[0_28px_120px_-60px_rgba(0,0,0,0.55)] transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:shadow-lg md:h-60"
+      className="group flex h-50 w-full items-start gap-5 overflow-hidden rounded-2xl border border-border/60 bg-gradient-card p-5 shadow-[0_28px_120px_-60px_rgba(0,0,0,0.55)] transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:shadow-lg md:h-60"
     >
       <div className="h-39 w-28 shrink-0 overflow-hidden rounded-xl bg-secondary shadow-inner md:h-50 md:w-36">
         <img
@@ -156,7 +156,7 @@ const ProjectCard = ({
 
         <div data-synopsis-role="badges" className="relative mt-auto flex shrink-0 flex-col gap-2 pt-3">
           {visibleItems.length > 0 || extraCount > 0 ? (
-            <div ref={badgesRowRef} className="flex min-w-0 flex-nowrap items-center gap-1 overflow-hidden">
+            <div ref={badgesRowRef} className="hidden min-w-0 flex-nowrap items-center gap-1 overflow-hidden sm:flex">
               {visibleItems.map((item) =>
                 item.href ? (
                   <button

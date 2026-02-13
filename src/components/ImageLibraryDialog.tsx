@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ImageCropper, ImageCropperProvider, useImageCropper, type MediaSize } from "@wordpress/image-cropper";
+import Croppie from "croppie";
+import "croppie/croppie.css";
 
 import {
   ContextMenu,
@@ -75,112 +76,9 @@ type ImageLibraryDialogProps = {
 };
 
 const CROPPER_PREVIEW_SIZE = 320;
-const CROPPER_EDGE_PADDING = 0;
-const CROPPER_CROP_SIZE = CROPPER_PREVIEW_SIZE - CROPPER_EDGE_PADDING * 2;
-const CROPPER_MIN_ZOOM = 1.05;
+const CROPPER_BOUNDARY_SIZE = 360;
 const CROPPER_MAX_ZOOM = 5;
-const CROPPER_INITIAL_ZOOM_OFFSET = 0.2;
-const CROPPER_SCROLL_ZOOM_SPEED = 0.18;
-
-const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
-
-type PixelCrop = { x: number; y: number; width: number; height: number };
-type CropFlip = { horizontal: boolean; vertical: boolean };
-
-const createImageElement = (url: string) =>
-  new Promise<HTMLImageElement>((resolve, reject) => {
-    const image = new Image();
-    image.crossOrigin = "anonymous";
-    image.onload = () => resolve(image);
-    image.onerror = () => reject(new Error("image_load_failed"));
-    image.src = url;
-  });
-
-const getRadianAngle = (degreeValue: number) => (degreeValue * Math.PI) / 180;
-
-const rotateSize = (width: number, height: number, rotation: number) => {
-  const rotRad = getRadianAngle(rotation);
-  return {
-    width: Math.abs(Math.cos(rotRad) * width) + Math.abs(Math.sin(rotRad) * height),
-    height: Math.abs(Math.sin(rotRad) * width) + Math.abs(Math.cos(rotRad) * height),
-  };
-};
-
-const renderCircularCropDataUrl = async ({
-  src,
-  pixelCrop,
-  rotation = 0,
-  flip = { horizontal: false, vertical: false },
-}: {
-  src: string;
-  pixelCrop: PixelCrop;
-  rotation?: number;
-  flip?: CropFlip;
-}) => {
-  try {
-    const image = await createImageElement(src);
-    const rotRad = getRadianAngle(rotation);
-    const { width: boundingBoxWidth, height: boundingBoxHeight } = rotateSize(image.width, image.height, rotation);
-
-    const sourceCanvas = document.createElement("canvas");
-    const sourceCtx = sourceCanvas.getContext("2d");
-    if (!sourceCtx) {
-      return null;
-    }
-
-    sourceCanvas.width = Math.max(1, Math.round(boundingBoxWidth));
-    sourceCanvas.height = Math.max(1, Math.round(boundingBoxHeight));
-    sourceCtx.translate(sourceCanvas.width / 2, sourceCanvas.height / 2);
-    sourceCtx.rotate(rotRad);
-    sourceCtx.scale(flip.horizontal ? -1 : 1, flip.vertical ? -1 : 1);
-    sourceCtx.translate(-image.width / 2, -image.height / 2);
-    sourceCtx.drawImage(image, 0, 0);
-
-    const cropWidth = Math.max(1, Math.round(pixelCrop.width));
-    const cropHeight = Math.max(1, Math.round(pixelCrop.height));
-    const croppedCanvas = document.createElement("canvas");
-    const croppedCtx = croppedCanvas.getContext("2d");
-    if (!croppedCtx) {
-      return null;
-    }
-
-    croppedCanvas.width = cropWidth;
-    croppedCanvas.height = cropHeight;
-    croppedCtx.imageSmoothingEnabled = true;
-    croppedCtx.imageSmoothingQuality = "high";
-    croppedCtx.drawImage(
-      sourceCanvas,
-      Math.round(pixelCrop.x),
-      Math.round(pixelCrop.y),
-      cropWidth,
-      cropHeight,
-      0,
-      0,
-      cropWidth,
-      cropHeight,
-    );
-
-    const outputCanvas = document.createElement("canvas");
-    const outputCtx = outputCanvas.getContext("2d");
-    if (!outputCtx) {
-      return null;
-    }
-
-    outputCanvas.width = cropWidth;
-    outputCanvas.height = cropHeight;
-    outputCtx.imageSmoothingEnabled = true;
-    outputCtx.imageSmoothingQuality = "high";
-    outputCtx.beginPath();
-    outputCtx.arc(cropWidth / 2, cropHeight / 2, Math.min(cropWidth, cropHeight) / 2, 0, Math.PI * 2);
-    outputCtx.closePath();
-    outputCtx.clip();
-    outputCtx.drawImage(croppedCanvas, 0, 0);
-
-    return outputCanvas.toDataURL("image/png");
-  } catch {
-    return null;
-  }
-};
+const CROPPER_OUTPUT_SIZE = 512;
 
 const fileToDataUrl = (file: File) =>
   new Promise<string>((resolve, reject) => {
@@ -317,6 +215,8 @@ type ProjectImageGroup = {
   items: LibraryImageItem[];
 };
 
+type CroppieResultType = Awaited<ReturnType<Croppie["result"]>>;
+
 type AvatarCropWorkspaceProps = {
   src: string;
   isApplyingCrop: boolean;
@@ -324,109 +224,97 @@ type AvatarCropWorkspaceProps = {
   onApplyCrop: (dataUrl: string) => Promise<void>;
 };
 
-type ImageCropperRuntimeProps = {
-  src: string;
-  minZoom?: number;
-  maxZoom?: number;
-  onLoad?: (mediaSize: MediaSize) => void;
-  cropSize?: { width: number; height: number };
-  zoomWithScroll?: boolean;
-  zoomSpeed?: number;
-  restrictPosition?: boolean;
-  objectFit?: "contain" | "cover" | "horizontal-cover" | "vertical-cover";
-};
-
-const RuntimeImageCropper = ImageCropper as unknown as (props: ImageCropperRuntimeProps) => ReturnType<typeof ImageCropper>;
-
-type CropperObjectFit = "horizontal-cover" | "vertical-cover";
-
-const resolveObjectFit = (mediaSize: MediaSize): CropperObjectFit => {
-  const width = mediaSize.naturalWidth || mediaSize.width;
-  const height = mediaSize.naturalHeight || mediaSize.height;
-  return width >= height ? "vertical-cover" : "horizontal-cover";
-};
-
-const computeAdaptiveMinZoom = (mediaSize: MediaSize) => {
-  const width = mediaSize.naturalWidth || mediaSize.width;
-  const height = mediaSize.naturalHeight || mediaSize.height;
-  if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) {
-    return CROPPER_MIN_ZOOM;
-  }
-  const longByShort = width >= height ? width / height : height / width;
-  const safetyBoost = Math.min(0.18, Math.max(0, (longByShort - 1) * 0.06));
-  return clamp(CROPPER_MIN_ZOOM + safetyBoost, CROPPER_MIN_ZOOM, CROPPER_MAX_ZOOM - 0.1);
-};
-
-const computeInitialZoom = (minZoom: number) =>
-  clamp(minZoom + CROPPER_INITIAL_ZOOM_OFFSET, minZoom, CROPPER_MAX_ZOOM);
-
 const AvatarCropWorkspace = ({ src, isApplyingCrop, onCancel, onApplyCrop }: AvatarCropWorkspaceProps) => {
-  const { cropperState, setResetState, reset } = useImageCropper();
+  const croppieContainerRef = useRef<HTMLDivElement | null>(null);
+  const croppieRef = useRef<Croppie | null>(null);
   const [isCropReady, setIsCropReady] = useState(false);
-  const [cropMinZoom, setCropMinZoom] = useState(CROPPER_MIN_ZOOM);
-  const [cropObjectFit, setCropObjectFit] = useState<CropperObjectFit>("horizontal-cover");
+  const [cropperRevision, setCropperRevision] = useState(0);
 
   useEffect(() => {
+    let active = true;
+    let frameId: number | null = null;
     setIsCropReady(false);
-    setCropMinZoom(CROPPER_MIN_ZOOM);
-    setCropObjectFit("horizontal-cover");
-    setResetState({
-      crop: { x: 0, y: 0, width: 100, height: 100 },
-      zoom: computeInitialZoom(CROPPER_MIN_ZOOM),
-      rotation: 0,
-      aspectRatio: 1,
-      flip: { horizontal: false, vertical: false },
-    });
-  }, [setResetState, src]);
 
-  const handleCropperLoad = useCallback(
-    (mediaSize: MediaSize) => {
-      const nextMinZoom = computeAdaptiveMinZoom(mediaSize);
-      const nextObjectFit = resolveObjectFit(mediaSize);
+    frameId = window.requestAnimationFrame(() => {
+      if (!active) {
+        return;
+      }
+      const container = croppieContainerRef.current;
+      if (!container) {
+        return;
+      }
 
-      setCropMinZoom(nextMinZoom);
-      setCropObjectFit(nextObjectFit);
-      setResetState({
-        crop: { x: 0, y: 0, width: 100, height: 100 },
-        zoom: computeInitialZoom(nextMinZoom),
-        rotation: 0,
-        aspectRatio: 1,
-        flip: { horizontal: false, vertical: false },
+      const croppie = new Croppie(container, {
+        viewport: { width: CROPPER_PREVIEW_SIZE, height: CROPPER_PREVIEW_SIZE, type: "circle" },
+        boundary: { width: CROPPER_BOUNDARY_SIZE, height: CROPPER_BOUNDARY_SIZE },
+        enableZoom: true,
+        enforceBoundary: true,
+        maxZoom: CROPPER_MAX_ZOOM,
+        mouseWheelZoom: true,
+        showZoomer: false,
       });
-      setIsCropReady(true);
-    },
-    [setResetState],
-  );
+      croppieRef.current = croppie;
+
+      void croppie
+        .bind({ url: src })
+        .then(() => {
+          if (!active || croppieRef.current !== croppie) {
+            return;
+          }
+          setIsCropReady(true);
+        })
+        .catch(() => {
+          if (!active) {
+            return;
+          }
+          toast({
+            title: "N\u00E3o foi poss\u00EDvel carregar a imagem para recorte.",
+            description: "Tente selecionar outra imagem.",
+          });
+        });
+    });
+
+    return () => {
+      active = false;
+      if (frameId !== null) {
+        window.cancelAnimationFrame(frameId);
+      }
+      if (croppieRef.current) {
+        croppieRef.current.destroy();
+        croppieRef.current = null;
+      }
+    };
+  }, [cropperRevision, src]);
+
+  const handleReset = useCallback(() => {
+    setCropperRevision((prev) => prev + 1);
+  }, []);
 
   const handleApply = useCallback(async () => {
-    if (!isCropReady) {
+    const croppie = croppieRef.current;
+    if (!croppie || !isCropReady) {
       return;
     }
-    const pixelCrop = cropperState.croppedAreaPixels;
-    if (!pixelCrop) {
+
+    try {
+      const cropResult = (await croppie.result({
+        type: "base64",
+        format: "png",
+        size: { width: CROPPER_OUTPUT_SIZE, height: CROPPER_OUTPUT_SIZE },
+        circle: true,
+      })) as CroppieResultType;
+      const normalizedDataUrl = String(cropResult || "").trim();
+      if (!normalizedDataUrl) {
+        throw new Error("empty_crop_result");
+      }
+      await onApplyCrop(normalizedDataUrl);
+    } catch {
       toast({
         title: "N\u00E3o foi poss\u00EDvel gerar a imagem recortada.",
         description: "Tente novamente em alguns segundos.",
       });
-      return;
     }
-
-    const dataUrl = await renderCircularCropDataUrl({
-      src,
-      pixelCrop,
-      rotation: cropperState.rotation,
-      flip: cropperState.flip,
-    });
-    if (!dataUrl) {
-      toast({
-        title: "N\u00E3o foi poss\u00EDvel gerar a imagem recortada.",
-        description: "Tente novamente em alguns segundos.",
-      });
-      return;
-    }
-
-    await onApplyCrop(dataUrl);
-  }, [cropperState.croppedAreaPixels, cropperState.flip, cropperState.rotation, isCropReady, onApplyCrop, src]);
+  }, [isCropReady, onApplyCrop]);
 
   return (
     <>
@@ -436,19 +324,11 @@ const AvatarCropWorkspace = ({ src, isApplyingCrop, onCancel, onApplyCrop }: Ava
           <p className="mb-3 text-xs text-muted-foreground">Mova e ajuste o enquadramento direto na imagem.</p>
           <div
             className="avatar-cropper-preview relative mx-auto overflow-hidden rounded-xl bg-black/20"
-            style={{ width: CROPPER_PREVIEW_SIZE, height: CROPPER_PREVIEW_SIZE }}
+            style={{ width: CROPPER_BOUNDARY_SIZE, height: CROPPER_BOUNDARY_SIZE }}
           >
-            <RuntimeImageCropper
-              src={src}
-              minZoom={cropMinZoom}
-              maxZoom={CROPPER_MAX_ZOOM}
-              cropSize={{ width: CROPPER_CROP_SIZE, height: CROPPER_CROP_SIZE }}
-              zoomWithScroll
-              zoomSpeed={CROPPER_SCROLL_ZOOM_SPEED}
-              restrictPosition
-              objectFit={cropObjectFit}
-              onLoad={handleCropperLoad}
-            />
+            <div className="avatar-croppie-shell">
+              <div ref={croppieContainerRef} className="avatar-croppie-root" />
+            </div>
           </div>
         </div>
         <div className="space-y-3 rounded-xl border border-border/60 bg-card/60 p-4">
@@ -465,12 +345,7 @@ const AvatarCropWorkspace = ({ src, isApplyingCrop, onCancel, onApplyCrop }: Ava
         <Button type="button" variant="outline" onClick={onCancel}>
           Cancelar
         </Button>
-        <Button
-          type="button"
-          variant="outline"
-          onClick={reset}
-          disabled={!isCropReady}
-        >
+        <Button type="button" variant="outline" onClick={handleReset} disabled={!isCropReady}>
           Resetar
         </Button>
         <Button type="button" onClick={() => void handleApply()} disabled={isApplyingCrop || !isCropReady}>
@@ -573,10 +448,21 @@ const ImageLibraryDialog = ({
     return map;
   }, [allItems]);
 
-  const selectedComparableKeySet = useMemo(
-    () => new Set(selectedUrls.map((url) => toComparableSelectionKey(url)).filter(Boolean)),
-    [selectedUrls],
-  );
+  const selectedResolvedUrlSet = useMemo(() => {
+    const set = new Set<string>();
+    selectedUrls.forEach((url) => {
+      const trimmed = String(url || "").trim();
+      if (!trimmed) {
+        return;
+      }
+      const matchedItem = allItems.get(trimmed) ?? allItemsByComparableKey.get(toComparableSelectionKey(trimmed));
+      if (!matchedItem?.url) {
+        return;
+      }
+      set.add(matchedItem.url);
+    });
+    return set;
+  }, [allItems, allItemsByComparableKey, selectedUrls]);
 
   const primarySelectedUrl = selectedUrls[0] || "";
   const normalizedSearch = searchQuery.trim().toLowerCase();
@@ -630,8 +516,11 @@ const ImageLibraryDialog = ({
       const reconciled: string[] = [];
       const seen = new Set<string>();
       urls.forEach((url) => {
-        const key = toComparableSelectionKey(url);
-        const matched = allItemsByComparableKey.get(key);
+        const trimmed = String(url || "").trim();
+        if (!trimmed) {
+          return;
+        }
+        const matched = allItems.get(trimmed) ?? allItemsByComparableKey.get(toComparableSelectionKey(trimmed));
         if (!matched) {
           return;
         }
@@ -647,7 +536,7 @@ const ImageLibraryDialog = ({
       }
       return reconciled.length > 0 ? [reconciled[0]] : [];
     },
-    [allItemsByComparableKey, mode],
+    [allItems, allItemsByComparableKey, mode],
   );
 
   const projectImageGroups = useMemo<ProjectImageGroup[]>(() => {
@@ -806,10 +695,7 @@ const ImageLibraryDialog = ({
       setIsDragActive(false);
       return;
     }
-    setSelectedUrls((prev) => {
-      const nextSeed = selectionSeedRef.current;
-      return areSelectionsSemanticallyEqual(prev, nextSeed) ? prev : nextSeed;
-    });
+    setSelectedUrls([...selectionSeedRef.current]);
     setIsCropDialogOpen(false);
   }, [open, selectionSeedSignature]);
 
@@ -820,14 +706,11 @@ const ImageLibraryDialog = ({
     if (!isLibraryHydratedForOpen) {
       return;
     }
-    if (cropAvatar && mode === "single") {
-      return;
-    }
     setSelectedUrls((prev) => {
       const reconciled = reconcileSelectionWithLibrary(prev);
       return areSelectionsSemanticallyEqual(prev, reconciled) ? prev : reconciled;
     });
-  }, [cropAvatar, isLibraryHydratedForOpen, mode, open, reconcileSelectionWithLibrary]);
+  }, [isLibraryHydratedForOpen, open, reconcileSelectionWithLibrary]);
 
   const setSelection = useCallback(
     (url: string, options?: { openCrop?: boolean }) => {
@@ -1099,10 +982,13 @@ const ImageLibraryDialog = ({
       });
       return;
     }
-    if (cropAvatar && (!cropSlot || !cropSlot.trim())) {
+    const normalizedCropSlot = String(cropSlot || "").trim();
+    if (cropAvatar && !normalizedCropSlot) {
       toast({ title: "Preencha o ID do usu\u00E1rio antes de aplicar o recorte." });
       return;
     }
+    const targetFolder = cropAvatar ? (cropTargetFolder || "users") : (cropTargetFolder || uploadFolder || undefined);
+    const targetFilename = cropAvatar ? `${normalizedCropSlot}.png` : `avatar-crop-${Date.now()}.png`;
 
     setIsApplyingCrop(true);
     try {
@@ -1112,9 +998,9 @@ const ImageLibraryDialog = ({
         auth: true,
         body: JSON.stringify({
           dataUrl: nextDataUrl,
-          filename: cropSlot ? `${cropSlot}.png` : `avatar-crop-${Date.now()}.png`,
-          folder: cropTargetFolder || uploadFolder || undefined,
-          slot: cropSlot || undefined,
+          filename: targetFilename,
+          folder: targetFolder,
+          slot: cropAvatar ? normalizedCropSlot : undefined,
         }),
       });
       if (!response.ok) {
@@ -1126,6 +1012,7 @@ const ImageLibraryDialog = ({
         throw new Error("apply_crop_upload_missing_url");
       }
 
+      await loadUploads();
       setSelectedUrls([nextUrl]);
       setIsCropDialogOpen(false);
     } catch {
@@ -1136,7 +1023,7 @@ const ImageLibraryDialog = ({
     } finally {
       setIsApplyingCrop(false);
     }
-  }, [apiBase, cropAvatar, cropSlot, cropTargetFolder, uploadFolder]);
+  }, [apiBase, cropAvatar, cropSlot, cropTargetFolder, loadUploads, uploadFolder]);
 
   const renderGrid = (items: LibraryImageItem[], emptyText: string) => {
     if (isLoading) {
@@ -1148,7 +1035,7 @@ const ImageLibraryDialog = ({
     return (
       <div className="mt-3 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
         {items.map((item) => {
-          const isSelected = selectedComparableKeySet.has(toComparableSelectionKey(item.url));
+          const isSelected = selectedResolvedUrlSet.has(item.url);
           const canRename = item.source === "upload";
           const canDelete = item.source === "upload" && Boolean(item.canDelete);
           return (
@@ -1408,14 +1295,13 @@ const ImageLibraryDialog = ({
             </DialogDescription>
           </DialogHeader>
           {primarySelectedUrl ? (
-            <ImageCropperProvider key={primarySelectedUrl}>
-              <AvatarCropWorkspace
-                src={primarySelectedUrl}
-                isApplyingCrop={isApplyingCrop}
-                onCancel={() => setIsCropDialogOpen(false)}
-                onApplyCrop={applyCrop}
-              />
-            </ImageCropperProvider>
+            <AvatarCropWorkspace
+              key={primarySelectedUrl}
+              src={primarySelectedUrl}
+              isApplyingCrop={isApplyingCrop}
+              onCancel={() => setIsCropDialogOpen(false)}
+              onApplyCrop={applyCrop}
+            />
           ) : (
             <p className="text-sm text-muted-foreground">Selecione um avatar na biblioteca antes de abrir o editor.</p>
           )}
@@ -1482,3 +1368,4 @@ const ImageLibraryDialog = ({
 };
 
 export default ImageLibraryDialog;
+

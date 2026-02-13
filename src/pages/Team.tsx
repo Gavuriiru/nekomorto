@@ -280,16 +280,21 @@ const Team = () => {
                       className="group overflow-visible border-border/60 bg-card/80 shadow-lg transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:bg-card/90 hover:shadow-lg"
                     >
                       <CardContent className="relative p-8 sm:p-9">
-                        <div className="flex flex-col gap-6 sm:flex-row sm:items-stretch">
-                          <div className="relative sm:w-56 md:w-72 lg:w-80">
-                            <div className="relative h-64 sm:h-full">
+                        <div className="flex flex-col gap-6 lg:flex-row lg:items-stretch">
+                          <div className="relative lg:w-80">
+                            <div className="relative h-64 sm:h-72 md:h-80 lg:h-full">
                               {renderMemberAvatar(member, imageSrc)}
                             </div>
                           </div>
 
-                          <div className="relative mt-10 flex flex-1 flex-col gap-5 rounded-2xl bg-secondary/60 p-7 sm:mt-0 sm:px-8 sm:py-8">
+                          <div className="relative mt-10 flex flex-1 flex-col gap-5 rounded-2xl bg-secondary/60 p-7 lg:mt-0 lg:px-8 lg:py-8">
+                            <div className="min-w-0 flex items-center justify-between gap-2 lg:pr-44">
+                              <h3 className="break-words text-base font-semibold text-foreground">
+                                {member.name}
+                              </h3>
+                            </div>
                             {socials.length > 0 && (
-                              <div className="absolute right-6 top-6 flex items-center gap-2">
+                              <div className="flex flex-wrap items-center justify-start gap-3 lg:absolute lg:right-6 lg:top-6 lg:mt-0 lg:justify-end">
                                 {socials.map((social) => {
                                   const type = linkTypeMap.get(social.label);
                                   const iconKey = type?.icon || social.label;
@@ -322,9 +327,6 @@ const Team = () => {
                                 })}
                               </div>
                             )}
-                            <div className="flex items-center justify-between gap-2">
-                              <h3 className="text-base font-semibold text-foreground">{member.name}</h3>
-                            </div>
                             <p className="text-xs italic text-muted-foreground/80">
                               {member.phrase ? `"${member.phrase}"` : "-"}
                             </p>
@@ -406,16 +408,21 @@ const Team = () => {
                           }`}
                         >
                           <CardContent className="relative p-8 sm:p-9">
-                            <div className="flex flex-col gap-6 sm:flex-row sm:items-stretch">
-                              <div className="relative sm:w-56 md:w-72 lg:w-80">
-                                <div className="relative h-64 sm:h-full">
+                            <div className="flex flex-col gap-6 lg:flex-row lg:items-stretch">
+                              <div className="relative lg:w-80">
+                                <div className="relative h-64 sm:h-72 md:h-80 lg:h-full">
                                   {renderMemberAvatar(member, imageSrc)}
                                 </div>
                               </div>
 
-                              <div className="relative mt-10 flex flex-1 flex-col gap-5 rounded-2xl bg-secondary/60 p-7 sm:mt-0 sm:px-8 sm:py-8">
+                              <div className="relative mt-10 flex flex-1 flex-col gap-5 rounded-2xl bg-secondary/60 p-7 lg:mt-0 lg:px-8 lg:py-8">
+                                <div className="min-w-0 flex items-center justify-between gap-2 lg:pr-44">
+                                  <h3 className="break-words text-base font-semibold text-foreground">
+                                    {member.name}
+                                  </h3>
+                                </div>
                                 {socials.length > 0 && (
-                                  <div className="absolute right-6 top-6 flex items-center gap-2">
+                                  <div className="flex flex-wrap items-center justify-start gap-3 lg:absolute lg:right-6 lg:top-6 lg:mt-0 lg:justify-end">
                                     {socials.map((social) => {
                                       const type = linkTypeMap.get(social.label);
                                       const iconKey = type?.icon || social.label;
@@ -448,9 +455,6 @@ const Team = () => {
                                     })}
                                   </div>
                                 )}
-                                <div className="flex items-center justify-between gap-2">
-                                  <h3 className="text-base font-semibold text-foreground">{member.name}</h3>
-                                </div>
                                 <p className="text-xs italic text-muted-foreground/80">
                                   {member.phrase ? `"${member.phrase}"` : "-"}
                                 </p>

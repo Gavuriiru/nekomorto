@@ -244,8 +244,12 @@ const Donations = () => {
                     <div className="rounded-2xl border border-border/60 bg-background/70 px-4 py-3 text-center font-mono text-sm text-primary shadow-xs">
                       {donations.pixKey}
                     </div>
-                    <div className="flex flex-wrap items-center gap-3 md:justify-center">
-                      <Button className="gap-2" onClick={handleCopy} disabled={!donations.pixKey?.trim()}>
+                    <div className="flex w-full flex-wrap items-center gap-3 md:justify-center">
+                      <Button
+                        className="w-full gap-2 md:w-auto"
+                        onClick={handleCopy}
+                        disabled={!donations.pixKey?.trim()}
+                      >
                         {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
                         {copied ? "Copiado" : "Copiar chave PIX"}
                       </Button>
