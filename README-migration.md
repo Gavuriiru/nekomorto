@@ -130,3 +130,38 @@ Aplicar em um projeto especifico:
 ```bash
 node scripts/isolate-project-images.mjs --apply --project 21878
 ```
+
+## RBAC V2
+
+### Flags de rollout
+
+Backend:
+```bash
+RBAC_V2_ENABLED=false
+RBAC_V2_ACCEPT_LEGACY_STAR=true
+```
+
+Frontend:
+```bash
+VITE_RBAC_V2_ENABLED=false
+```
+
+### Migracao de permissoes (`users.json`)
+
+Dry-run:
+```bash
+node scripts/migrate-permissions-v2.mjs --dry-run
+```
+
+Aplicar:
+```bash
+node scripts/migrate-permissions-v2.mjs --apply
+```
+
+O script:
+- converte `*` para permissoes explicitas;
+- preenche `accessRole`;
+- remove `Dono` persistido em `roles`;
+- preserva permissoes desconhecidas em storage;
+- reconcilia `owner-ids.json`;
+- grava backup em `backups/` e auditoria em `server/data/audit-log.json`.

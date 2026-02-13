@@ -98,17 +98,33 @@ Este documento congela o schema atual para facilitar a migração para banco.
 ## users
 - `id` (string)
 - `name` (string)
-- `username` (string)
-- `email` (string)
 - `avatarUrl` (string | null)
-- `coverImageUrl` (string | null)
+- `avatarDisplay` ({ `x`: number, `y`: number, `zoom`: number, `rotation`: number })
 - `phrase` (string)
 - `bio` (string)
-- `socials` (array)
+- `socials` ({ `label`: string, `href`: string }[])
 - `status` ("active" | "retired")
 - `permissions` (string[])
+: RBAC V2 usa catalogo explicito (`posts`, `projetos`, `comentarios`, `paginas`, `uploads`, `analytics`, `usuarios_basico`, `usuarios_acesso`, `configuracoes`, `audit_log`, `integracoes`).
 - `roles` (string[])
+: exclusivo para funcoes de equipe. `Dono` nao deve ser persistido em `roles`.
+- `accessRole` ("normal" | "admin" | "owner_secondary" | "owner_primary")
 - `order` (number)
+
+## owner-ids
+- arquivo: `server/data/owner-ids.json`
+- tipo: `string[]`
+: governanca de donos. O primeiro item e o owner primario.
+
+## auth payloads
+- `GET /api/me` adiciona:
+  - `accessRole`
+  - `ownerIds`
+  - `primaryOwnerId`
+  - `grants` (mapa booleano por permissao RBAC V2)
+- `GET /api/users` adiciona:
+  - `accessRole` e `grants` por usuario
+  - `ownerIds` e `primaryOwnerId` no payload da lista
 
 ## comments
 - `id` (string)

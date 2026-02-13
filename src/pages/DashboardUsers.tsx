@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, type DragEvent } from "react";
+﻿import { useCallback, useEffect, useMemo, useState, type DragEvent } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import DashboardShell from "@/components/DashboardShell";
 import ImageLibraryDialog from "@/components/ImageLibraryDialog";
@@ -48,6 +48,7 @@ import { usePageMeta } from "@/hooks/use-page-meta";
 import { useSiteSettings } from "@/hooks/use-site-settings";
 import { toast } from "@/components/ui/use-toast";
 import ThemedSvgLogo from "@/components/ThemedSvgLogo";
+import { type AccessRole, permissionIds } from "@/lib/access-control";
 
 type UserRecord = {
   id: string;
@@ -59,6 +60,8 @@ type UserRecord = {
   status: "active" | "retired";
   permissions: string[];
   roles?: string[];
+  accessRole?: AccessRole;
+  grants?: Partial<Record<string, boolean>>;
   order: number;
 };
 
@@ -112,21 +115,32 @@ const emptyForm = {
   avatarUrl: "",
   socials: [] as Array<{ label: string; href: string }>,
   status: "active" as "active" | "retired",
+  accessRole: "normal" as AccessRole,
   permissions: [] as string[],
   roles: [] as string[],
 };
 
-const permissionOptions = [
+const permissionOptions: Array<{ id: (typeof permissionIds)[number]; label: string }> = [
   { id: "posts", label: "Posts" },
   { id: "projetos", label: "Projetos" },
   { id: "comentarios", label: "Comentários" },
-  { id: "usuarios", label: "Usuários" },
   { id: "paginas", label: "Páginas" },
+  { id: "uploads", label: "Uploads" },
+  { id: "analytics", label: "Analytics" },
+  { id: "usuarios_basico", label: "Usuários (básico)" },
+  { id: "usuarios_acesso", label: "Usuários (acesso)" },
   { id: "configuracoes", label: "Configurações" },
+  { id: "audit_log", label: "Audit Log" },
+  { id: "integracoes", label: "Integrações" },
 ];
 
 const stripOwnerRole = (roles: string[]) =>
   roles.filter((role) => role.trim().toLowerCase() !== "dono");
+
+const accessRoleOptions: Array<{ id: AccessRole; label: string }> = [
+  { id: "normal", label: "Normal" },
+  { id: "admin", label: "Admin" },
+];
 
 const defaultRoleOptions = [
   "Tradutor",
@@ -234,6 +248,11 @@ const DashboardUsers = () => {
     name: string;
     username: string;
     avatarUrl?: string | null;
+    accessRole?: AccessRole;
+    grants?: Partial<Record<string, boolean>>;
+    permissions?: string[];
+    ownerIds?: string[];
+    primaryOwnerId?: string | null;
   } | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [dragId, setDragId] = useState<string | null>(null);
@@ -259,14 +278,53 @@ const DashboardUsers = () => {
     [],
   );
   const avatarLibraryFolders = useMemo(() => ["users"], []);
-
-
+  const primaryOwnerId = useMemo(
+    () => String(currentUser?.primaryOwnerId || ownerIds[0] || ""),
+    [currentUser?.primaryOwnerId, ownerIds],
+  );
+  const resolveUserAccessRole = useCallback(
+    (user: UserRecord | null | undefined): AccessRole => {
+      if (!user) {
+        return "normal";
+      }
+      if (user.id === primaryOwnerId) {
+        return "owner_primary";
+      }
+      if (ownerIds.includes(user.id)) {
+        return "owner_secondary";
+      }
+      return user.accessRole === "admin" ? "admin" : "normal";
+    },
+    [ownerIds, primaryOwnerId],
+  );
+  const actorAccessRole: AccessRole = useMemo(() => {
+    if (!currentUser) {
+      return "normal";
+    }
+    if (currentUser.id === primaryOwnerId) {
+      return "owner_primary";
+    }
+    if (ownerIds.includes(currentUser.id)) {
+      return "owner_secondary";
+    }
+    return currentUser.accessRole === "admin" ? "admin" : "normal";
+  }, [currentUser, ownerIds, primaryOwnerId]);
+  const isPrimaryOwnerActor = actorAccessRole === "owner_primary";
+  const isSecondaryOwnerActor = actorAccessRole === "owner_secondary";
+  const isAdminActor = actorAccessRole === "admin";
+  const actorCanUsersBasic = currentUser?.grants?.usuarios_basico === true;
+  const actorCanUsersAccess = currentUser?.grants?.usuarios_acesso === true;
+  const canManageUsers = (isPrimaryOwnerActor || isSecondaryOwnerActor) && actorCanUsersAccess;
+  const canManageOwners = isPrimaryOwnerActor;
+  const isOwnerUser = useCallback((user: UserRecord | null | undefined) => {
+    if (!user) {
+      return false;
+    }
+    return ownerIds.includes(user.id);
+  }, [ownerIds]);
   const currentUserRecord = currentUser
     ? users.find((user) => user.id === currentUser.id) || null
     : null;
-  const canManageUsers = currentUser?.id ? ownerIds.includes(currentUser.id) : false;
-  const primaryOwnerId = ownerIds[0] || "";
-  const canManageOwners = Boolean(currentUser?.id && primaryOwnerId && currentUser.id === primaryOwnerId);
   const clearSocialDragState = useCallback(() => {
     setSocialDragIndex(null);
     setSocialDragOverIndex(null);
@@ -299,10 +357,15 @@ const DashboardUsers = () => {
   }, []);
   const currentLibrarySelection = formState.avatarUrl;
   const openEditDialog = useCallback((user: UserRecord) => {
-    const normalizedPermissions = user.permissions.includes("*")
-      ? permissionOptions.map((permission) => permission.id)
-      : [...user.permissions];
-    const normalizedRoles = ownerIds.includes(user.id) ? user.roles : stripOwnerRole(user.roles);
+    const normalizedPermissions = Array.from(
+      new Set(
+        (Array.isArray(user.permissions) ? user.permissions : [])
+          .map((permission) => String(permission || "").trim())
+          .filter((permission) => permissionOptions.some((option) => option.id === permission)),
+      ),
+    ) as Array<(typeof permissionIds)[number]>;
+    const normalizedRoles = stripOwnerRole(Array.isArray(user.roles) ? user.roles : []);
+    const userAccessRole = resolveUserAccessRole(user);
     setEditingUser(user);
     setFormState({
       id: user.id,
@@ -312,18 +375,17 @@ const DashboardUsers = () => {
       avatarUrl: user.avatarUrl || "",
       socials: user.socials ? [...user.socials] : [],
       status: user.status,
+      accessRole:
+        userAccessRole === "admin"
+          ? "admin"
+          : "normal",
       permissions: normalizedPermissions,
       roles: normalizedRoles ? [...normalizedRoles] : [],
     });
-    setOwnerToggle(ownerIds.includes(user.id));
+    setOwnerToggle(isOwnerUser(user));
     clearSocialDragState();
     setIsDialogOpen(true);
-  }, [clearSocialDragState, ownerIds]);
-  const canManageBadges =
-    canManageUsers ||
-    (currentUserRecord
-      ? currentUserRecord.permissions.includes("usuarios") || currentUserRecord.permissions.includes("*")
-      : false);
+  }, [clearSocialDragState, isOwnerUser, resolveUserAccessRole]);
 
   const activeUsers = useMemo(
     () => users.filter((user) => user.status === "active").sort((a, b) => a.order - b.order),
@@ -333,22 +395,28 @@ const DashboardUsers = () => {
     () => users.filter((user) => user.status === "retired").sort((a, b) => a.order - b.order),
     [users],
   );
-  const isOwnerRecord = editingUser ? ownerIds.includes(editingUser.id) : false;
+  const isOwnerRecord = editingUser ? isOwnerUser(editingUser) : false;
   const isPrimaryOwnerRecord = editingUser ? editingUser.id === primaryOwnerId : false;
   const effectivePermissions = useMemo(() => {
-    if (formState.permissions.includes("*")) {
-      return permissionOptions.map((permission) => permission.id);
-    }
-    return formState.permissions;
+    return Array.from(new Set(formState.permissions)) as Array<(typeof permissionIds)[number]>;
   }, [formState.permissions]);
-  const isAdminRecord = (user: UserRecord) =>
-    user.permissions.includes("*") ||
-    permissionOptions.every((permission) => user.permissions.includes(permission.id));
-  const isAdminForm =
-    effectivePermissions.includes("*") ||
-    permissionOptions.every((permission) => effectivePermissions.includes(permission.id));
-  const rolesOnlyEdit =
-    Boolean(editingUser) && canManageBadges && !canManageUsers && currentUser?.id !== editingUser.id;
+  const isAdminRecord = (user: UserRecord) => resolveUserAccessRole(user) === "admin";
+  const isAdminForm = formState.accessRole === "admin";
+  const isEditingSelf = Boolean(editingUser && currentUser && editingUser.id === currentUser.id);
+  const canCreateUsers = canManageUsers;
+  const canEditBasicFields = !editingUser
+    ? canCreateUsers
+    : isEditingSelf ||
+      (actorCanUsersBasic &&
+        (isPrimaryOwnerActor || (isSecondaryOwnerActor && !isOwnerRecord) || (isAdminActor && !isOwnerRecord)));
+  const canEditRoles = !editingUser
+    ? canCreateUsers
+    : actorCanUsersAccess && (isPrimaryOwnerActor || (isSecondaryOwnerActor && !isOwnerRecord));
+  const canEditAccessControls = !editingUser
+    ? canCreateUsers
+    : actorCanUsersAccess && (isPrimaryOwnerActor || (isSecondaryOwnerActor && !isOwnerRecord));
+  const canEditStatus = canEditAccessControls && !isEditingSelf && !isPrimaryOwnerRecord;
+  const basicProfileOnlyEdit = Boolean(editingUser && canEditBasicFields && !canEditAccessControls);
 
   useEffect(() => {
     const load = async () => {
@@ -395,14 +463,33 @@ const DashboardUsers = () => {
 
   const openNewDialog = () => {
     setEditingUser(null);
-    setFormState({ ...emptyForm });
+    setFormState({ ...emptyForm, accessRole: "normal", permissions: [] });
     setOwnerToggle(false);
     clearSocialDragState();
     setIsDialogOpen(true);
   };
 
-  const canOpenEdit = (user: UserRecord) =>
-    Boolean(canManageBadges || canManageUsers || currentUser?.id === user.id);
+  const canOpenEdit = (user: UserRecord) => {
+    if (!currentUser) {
+      return false;
+    }
+    if (currentUser.id === user.id) {
+      return true;
+    }
+    if (!actorCanUsersBasic) {
+      return false;
+    }
+    if (isPrimaryOwnerActor) {
+      return true;
+    }
+    if (isSecondaryOwnerActor) {
+      return !isOwnerUser(user);
+    }
+    if (isAdminActor) {
+      return !isOwnerUser(user);
+    }
+    return false;
+  };
 
   const handleUserCardClick = (user: UserRecord) => {
     if (!canOpenEdit(user)) {
@@ -412,6 +499,15 @@ const DashboardUsers = () => {
   };
 
   const handleSave = async () => {
+    if (!canEditBasicFields) {
+      return;
+    }
+    const normalizedPermissions = Array.from(new Set(formState.permissions));
+    const normalizedAccessRole: AccessRole = ownerToggle
+      ? "owner_secondary"
+      : formState.accessRole === "admin"
+        ? "admin"
+        : "normal";
     const basePayload = {
       id: formState.id.trim(),
       name: formState.name.trim(),
@@ -419,22 +515,35 @@ const DashboardUsers = () => {
       bio: formState.bio.trim(),
       avatarUrl: formState.avatarUrl.trim() || null,
       socials: formState.socials.filter((item) => item.label.trim() && item.href.trim()),
-      status: formState.status,
-      permissions: formState.permissions,
-      roles: ownerToggle ? formState.roles : stripOwnerRole(formState.roles),
+      roles: stripOwnerRole(formState.roles),
+      accessRole: normalizedAccessRole,
+      status: canEditStatus ? formState.status : "active",
+      permissions: canEditAccessControls ? normalizedPermissions : [],
     };
-    const payload =
-      editingUser && !canManageUsers && canManageBadges
-        ? { roles: formState.roles }
-        : basePayload;
+    const payload = (() => {
+      if (!editingUser) {
+        return basePayload;
+      }
+      if (canEditAccessControls) {
+        return basePayload;
+      }
+      return {
+        name: basePayload.name,
+        phrase: basePayload.phrase,
+        bio: basePayload.bio,
+        avatarUrl: basePayload.avatarUrl,
+        socials: basePayload.socials,
+      };
+    })();
 
     if (!editingUser && (!basePayload.id || !basePayload.name)) {
       return;
     }
 
     const method = editingUser ? "PUT" : "POST";
+    const canUseUsersByIdEndpoint = isPrimaryOwnerActor || isSecondaryOwnerActor || isAdminActor;
     const path = editingUser
-      ? canManageUsers
+      ? canUseUsersByIdEndpoint
         ? `/api/users/${editingUser.id}`
         : "/api/users/self"
       : "/api/users";
@@ -448,8 +557,8 @@ const DashboardUsers = () => {
     if (response.ok) {
       const data = await response.json();
       const targetId = editingUser ? editingUser.id : data.user?.id || basePayload.id;
-      const shouldKeepOwner =
-        ownerToggle && (!editingUser || !ownerIds.includes(editingUser.id) || isAdminForm);
+      const wasOwner = Boolean(editingUser && ownerIds.includes(editingUser.id));
+      const shouldKeepOwner = Boolean(ownerToggle);
       if (canManageOwners && targetId) {
         const nextOwnerIds = shouldKeepOwner
           ? Array.from(new Set([...ownerIds, targetId]))
@@ -467,54 +576,37 @@ const DashboardUsers = () => {
             if (!shouldKeepOwner) {
               setOwnerToggle(false);
             }
-          } else if (!shouldKeepOwner) {
-            toast({ title: "Não foi possível rebaixar o dono" });
+          } else {
+            toast({
+              title: shouldKeepOwner ? "Não foi possível promover para dono" : "Não foi possível rebaixar o dono",
+            });
           }
         }
       }
-      const sanitizedPermissions = formState.permissions.includes("*")
-        ? permissionOptions.map((permission) => permission.id)
-        : formState.permissions;
-      const updatedUser =
-        !shouldKeepOwner && editingUser
-          ? { ...data.user, permissions: sanitizedPermissions }
-          : data.user;
       if (editingUser) {
-        setUsers((prev) => prev.map((user) => (user.id === editingUser.id ? updatedUser : user)));
+        setUsers((prev) => prev.map((user) => (user.id === editingUser.id ? data.user : user)));
       } else {
         setUsers((prev) => [...prev, data.user]);
       }
+      if (wasOwner && !shouldKeepOwner) {
+        setFormState((prev) => ({
+          ...prev,
+          accessRole: "normal",
+        }));
+      }
       bumpAvatarCacheVersion();
       setIsDialogOpen(false);
-    }
-  };
-
-  const handleStatusToggle = async (user: UserRecord) => {
-    if (ownerIds.includes(user.id)) {
       return;
     }
-    const nextStatus = user.status === "active" ? "retired" : "active";
-    const response = await apiFetch(apiBase, `/api/users/${user.id}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      auth: true,
-      body: JSON.stringify({ status: nextStatus }),
-    });
-
-    if (response.ok) {
-      const data = await response.json();
-      setUsers((prev) => prev.map((item) => (item.id === user.id ? data.user : item)));
-    }
+    toast({ title: "Não foi possível salvar o usuário", variant: "destructive" });
   };
 
-  const togglePermission = (permissionId: string) => {
-    if (!canManageUsers) {
+  const togglePermission = (permissionId: (typeof permissionIds)[number]) => {
+    if (!canEditAccessControls) {
       return;
     }
     setFormState((prev) => {
-      const basePermissions = prev.permissions.includes("*")
-        ? permissionOptions.map((permission) => permission.id)
-        : prev.permissions;
+      const basePermissions = prev.permissions;
       const hasPermission = basePermissions.includes(permissionId);
       return {
         ...prev,
@@ -550,7 +642,7 @@ const DashboardUsers = () => {
   };
 
   const toggleRole = (role: string) => {
-    if (!canManageBadges) {
+    if (!canEditRoles) {
       return;
     }
     setFormState((prev) => {
@@ -563,7 +655,7 @@ const DashboardUsers = () => {
   };
 
   const handleSocialDragStart = (event: DragEvent<HTMLButtonElement>, index: number) => {
-    if (rolesOnlyEdit) {
+    if (!canEditBasicFields) {
       return;
     }
     setSocialDragIndex(index);
@@ -573,7 +665,7 @@ const DashboardUsers = () => {
   };
 
   const handleSocialDragOver = (event: DragEvent<HTMLDivElement>, index: number) => {
-    if (rolesOnlyEdit || socialDragIndex === null) {
+    if (!canEditBasicFields || socialDragIndex === null) {
       return;
     }
     event.preventDefault();
@@ -586,7 +678,7 @@ const DashboardUsers = () => {
   const handleSocialDrop = (event: DragEvent<HTMLDivElement>, index: number) => {
     event.preventDefault();
     const from = socialDragIndex;
-    if (rolesOnlyEdit || from === null || from === index) {
+    if (!canEditBasicFields || from === null || from === index) {
       clearSocialDragState();
       return;
     }
@@ -708,7 +800,7 @@ const DashboardUsers = () => {
 
               {isLoading ? (
                 <div className="mt-6 rounded-2xl border border-white/10 bg-white/5 px-4 py-8 text-sm text-muted-foreground">
-                  Carregando Usuários...
+                  Carregando usuários...
                 </div>
               ) : activeUsers.length === 0 ? (
                 <div className="mt-6 rounded-2xl border border-dashed border-white/10 bg-white/5 px-4 py-8 text-sm text-muted-foreground">
@@ -899,9 +991,9 @@ const DashboardUsers = () => {
                 : "Cadastre um novo usuário autorizado."}
             </DialogDescription>
           </DialogHeader>
-          {rolesOnlyEdit && (
+          {basicProfileOnlyEdit && (
             <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-xs text-muted-foreground">
-              Você só pode alterar as funções deste usuário.
+              Você só pode alterar informações básicas deste usuário.
             </div>
           )}
           <div className="grid gap-4">
@@ -912,7 +1004,7 @@ const DashboardUsers = () => {
                 value={formState.id}
                 onChange={(event) => setFormState((prev) => ({ ...prev, id: event.target.value }))}
                 placeholder="Ex.: 380305493391966208"
-                disabled={Boolean(editingUser) || rolesOnlyEdit}
+                disabled={Boolean(editingUser) || !canManageUsers}
               />
             </div>
             <div className="grid gap-2">
@@ -922,7 +1014,7 @@ const DashboardUsers = () => {
                 value={formState.name}
                 onChange={(event) => setFormState((prev) => ({ ...prev, name: event.target.value }))}
                 placeholder="Nome exibido"
-                disabled={rolesOnlyEdit}
+                disabled={!canEditBasicFields}
               />
             </div>
             <div className="grid gap-2">
@@ -932,7 +1024,7 @@ const DashboardUsers = () => {
                 value={formState.phrase}
                 onChange={(event) => setFormState((prev) => ({ ...prev, phrase: event.target.value }))}
                 placeholder="Frase curta"
-                disabled={rolesOnlyEdit}
+                disabled={!canEditBasicFields}
               />
             </div>
             <div className="grid gap-2">
@@ -943,7 +1035,7 @@ const DashboardUsers = () => {
                 onChange={(event) => setFormState((prev) => ({ ...prev, bio: event.target.value }))}
                 placeholder="Texto da bio"
                 rows={4}
-                disabled={rolesOnlyEdit}
+                disabled={!canEditBasicFields}
               />
             </div>
             <div className="grid gap-2">
@@ -968,7 +1060,7 @@ const DashboardUsers = () => {
                   size="sm"
                   variant="outline"
                   onClick={openLibrary}
-                  disabled={rolesOnlyEdit}
+                  disabled={!canEditBasicFields}
                 >
                   Biblioteca
                 </Button>
@@ -992,12 +1084,12 @@ const DashboardUsers = () => {
                   >
                     <button
                       type="button"
-                      draggable={!rolesOnlyEdit}
+                      draggable={canEditBasicFields}
                       className="inline-flex h-9 w-9 cursor-grab items-center justify-center rounded-md border border-border/60 bg-background/60 text-muted-foreground transition hover:border-primary/40 hover:text-primary active:cursor-grabbing disabled:cursor-not-allowed disabled:opacity-50"
                       aria-label={`Arrastar rede ${social.label || index + 1}`}
                       onDragStart={(event) => handleSocialDragStart(event, index)}
                       onDragEnd={clearSocialDragState}
-                      disabled={rolesOnlyEdit}
+                      disabled={!canEditBasicFields}
                     >
                       <GripVertical className="h-4 w-4" />
                     </button>
@@ -1010,7 +1102,7 @@ const DashboardUsers = () => {
                           return { ...prev, socials: next };
                         })
                       }
-                      disabled={rolesOnlyEdit}
+                      disabled={!canEditBasicFields}
                     >
                       <SelectTrigger className="bg-background/60 justify-start text-left">
                         <SelectValue placeholder="Selecione a rede" />
@@ -1052,7 +1144,7 @@ const DashboardUsers = () => {
                         })
                       }
                       placeholder="https://"
-                      disabled={rolesOnlyEdit}
+                      disabled={!canEditBasicFields}
                     />
                     <Button
                       type="button"
@@ -1064,7 +1156,7 @@ const DashboardUsers = () => {
                           socials: prev.socials.filter((_, idx) => idx !== index),
                         }))
                       }
-                      disabled={rolesOnlyEdit}
+                      disabled={!canEditBasicFields}
                     >
                       Remover
                     </Button>
@@ -1079,7 +1171,7 @@ const DashboardUsers = () => {
                       socials: [...prev.socials, { label: "", href: "" }],
                     }))
                   }
-                  disabled={rolesOnlyEdit}
+                  disabled={!canEditBasicFields}
                 >
                   Adicionar link
                 </Button>
@@ -1087,8 +1179,10 @@ const DashboardUsers = () => {
             </div>
             <div className="grid gap-2">
               <Label>Funções</Label>
-              {!canManageBadges && (
-                <p className="text-xs text-muted-foreground">Apenas dono ou admin podem alterar Funções.</p>
+              {!canEditRoles && (
+                <p className="text-xs text-muted-foreground">
+                  Apenas donos com permissão de acesso podem alterar funções de equipe.
+                </p>
               )}
               <div className="flex flex-wrap gap-2">
                 {roleOptions.map((role) => {
@@ -1102,7 +1196,7 @@ const DashboardUsers = () => {
                       variant={isSelected ? "default" : "outline"}
                       className={isSelected ? "bg-primary text-primary-foreground hover:bg-primary/90" : ""}
                       onClick={() => toggleRole(role)}
-                      disabled={!canManageBadges}
+                      disabled={!canEditRoles}
                     >
                       {RoleIcon ? <RoleIcon className="h-4 w-4" /> : null}
                       {role}
@@ -1113,6 +1207,51 @@ const DashboardUsers = () => {
               {isOwnerRecord && (
                 <p className="text-xs text-muted-foreground">A badge de dono é automática.</p>
               )}
+            </div>
+            <div className="grid gap-2">
+              <Label>Papel de acesso</Label>
+              <Select
+                value={formState.accessRole}
+                onValueChange={(value) =>
+                  setFormState((prev) => ({
+                    ...prev,
+                    accessRole: value === "admin" ? "admin" : "normal",
+                    permissions:
+                      value === "admin"
+                        ? permissionOptions
+                            .filter((option) =>
+                              [
+                                "posts",
+                                "projetos",
+                                "comentarios",
+                                "paginas",
+                                "uploads",
+                                "analytics",
+                                "usuarios_basico",
+                              ].includes(option.id),
+                            )
+                            .map((option) => option.id)
+                        : prev.permissions,
+                  }))
+                }
+                disabled={!canEditAccessControls || isOwnerRecord}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione um papel" />
+                </SelectTrigger>
+                <SelectContent>
+                  {accessRoleOptions.map((option) => (
+                    <SelectItem key={option.id} value={option.id}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {isOwnerRecord ? (
+                <p className="text-xs text-muted-foreground">
+                  O papel de dono é definido pela governança de owners.
+                </p>
+              ) : null}
             </div>
             <div className="grid gap-2">
               <Label>Permissões</Label>
@@ -1130,15 +1269,17 @@ const DashboardUsers = () => {
                       variant={isSelected ? "default" : "outline"}
                       className={isSelected ? "bg-primary text-primary-foreground hover:bg-primary/90" : ""}
                       onClick={() => togglePermission(permission.id)}
-                      disabled={!canManageUsers || isOwnerRecord || rolesOnlyEdit}
+                      disabled={!canEditAccessControls || isOwnerRecord}
                     >
                       {permission.label}
                     </Button>
                   );
                 })}
               </div>
-              {!canManageUsers && (
-                <p className="text-xs text-muted-foreground">Apenas o dono pode alterar permissões.</p>
+              {!canEditAccessControls && (
+                <p className="text-xs text-muted-foreground">
+                  Apenas donos com permissão de acesso podem alterar permissões de acesso.
+                </p>
               )}
             </div>
             {canManageUsers ? (
@@ -1151,7 +1292,7 @@ const DashboardUsers = () => {
                   <Switch
                     checked={ownerToggle}
                     onCheckedChange={setOwnerToggle}
-                    disabled={!canManageOwners || rolesOnlyEdit || isPrimaryOwnerRecord}
+                    disabled={!canManageOwners || isPrimaryOwnerRecord}
                   />
                 </div>
                 {!canManageOwners ? (
@@ -1177,7 +1318,7 @@ const DashboardUsers = () => {
                   onCheckedChange={(checked) =>
                     setFormState((prev) => ({ ...prev, status: checked ? "active" : "retired" }))
                   }
-                  disabled={!canManageUsers || isOwnerRecord || rolesOnlyEdit}
+                  disabled={!canEditStatus}
                 />
               </div>
             </div>
@@ -1186,7 +1327,12 @@ const DashboardUsers = () => {
                 <Button
                   variant="destructive"
                   onClick={() => setDeleteTarget(editingUser)}
-                  disabled={!canManageUsers || isPrimaryOwnerRecord || editingUser.id === currentUser?.id}
+                  disabled={
+                    !canManageUsers ||
+                    isPrimaryOwnerRecord ||
+                    editingUser.id === currentUser?.id ||
+                    (isOwnerRecord && !canManageOwners)
+                  }
                 >
                   Excluir
                 </Button>
@@ -1231,4 +1377,6 @@ const DashboardUsers = () => {
 };
 
 export default DashboardUsers;
+
+
 

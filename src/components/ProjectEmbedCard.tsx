@@ -94,9 +94,9 @@ const ProjectEmbedCard = ({ projectId }: ProjectEmbedCardProps) => {
     >
       <Card className="border-border bg-card shadow-xs transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:bg-card/90 hover:shadow-lg">
         <CardContent className="space-y-4 p-4">
-          <div className="group flex flex-col gap-4 sm:flex-row sm:items-start">
+          <div className="group flex items-start gap-4">
             <div
-              className="w-full overflow-hidden rounded-xl border border-border transition sm:w-32 group-hover:border-primary/40"
+              className="w-32 shrink-0 overflow-hidden rounded-xl border border-border transition group-hover:border-primary/40"
               style={{ aspectRatio: "46 / 65" }}
             >
               <img
@@ -106,30 +106,42 @@ const ProjectEmbedCard = ({ projectId }: ProjectEmbedCardProps) => {
                 style={{ aspectRatio: "46 / 65" }}
               />
             </div>
-            <div className="flex flex-1 flex-col gap-2.5">
+            <div className="flex min-w-0 flex-1 flex-col gap-2.5">
               <div className="space-y-1">
                 <p className="text-[10px] uppercase tracking-[0.2em] text-primary/80">
                   {project?.type || ""}
                 </p>
-              <span className="text-lg font-semibold text-foreground transition group-hover:text-primary">
-                {project?.title || "Projeto"}
-              </span>
-              <p className="text-sm text-muted-foreground line-clamp-2">{project?.synopsis || ""}</p>
-            </div>
-            <div className="flex flex-wrap items-center gap-2 text-xs">
-              {project?.status ? <Badge variant="outline">{project.status}</Badge> : null}
-              {project?.studio ? <Badge variant="outline">{project.studio}</Badge> : null}
-              {project?.episodes ? <Badge variant="outline">{project.episodes}</Badge> : null}
-            </div>
-            {project?.tags?.length ? (
-              <div className="flex flex-wrap gap-1.5">
-                {sortedTags.slice(0, 4).map((tag) => (
-                  <Badge key={tag} variant="secondary" className="text-[9px] uppercase">
-                    {translateTag(tag, tagTranslationMap)}
-                  </Badge>
-                ))}
+                <span className="line-clamp-3 text-lg font-semibold text-foreground transition group-hover:text-primary sm:line-clamp-none">
+                  {project?.title || "Projeto"}
+                </span>
+                <p className="text-sm text-muted-foreground line-clamp-2">{project?.synopsis || ""}</p>
               </div>
-            ) : null}
+              <div data-testid="project-embed-primary-badges" className="flex flex-nowrap items-center gap-2 overflow-hidden text-xs sm:flex-wrap">
+                {project?.status ? (
+                  <Badge data-testid="project-embed-status-badge" variant="outline" className="max-w-[8.5rem] truncate">
+                    {project.status}
+                  </Badge>
+                ) : null}
+                {project?.studio ? (
+                  <Badge data-testid="project-embed-studio-badge" variant="outline" className="max-w-[8.5rem] truncate">
+                    {project.studio}
+                  </Badge>
+                ) : null}
+                {project?.episodes ? (
+                  <Badge data-testid="project-embed-episodes-badge" variant="outline" className="hidden sm:inline-flex">
+                    {project.episodes}
+                  </Badge>
+                ) : null}
+              </div>
+              {project?.tags?.length ? (
+                <div data-testid="project-embed-tags" className="hidden flex-wrap gap-1.5 sm:flex">
+                  {sortedTags.slice(0, 4).map((tag) => (
+                    <Badge key={tag} variant="secondary" className="text-[9px] uppercase">
+                      {translateTag(tag, tagTranslationMap)}
+                    </Badge>
+                  ))}
+                </div>
+              ) : null}
             </div>
           </div>
         </CardContent>

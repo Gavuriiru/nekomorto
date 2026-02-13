@@ -23,6 +23,7 @@ import { getNavbarIcon } from "@/lib/navbar-icons";
 import { resolveBranding } from "@/lib/branding";
 import { rankPosts, rankProjects, selectVisibleTags, sortAlphabeticallyPtBr } from "@/lib/search-ranking";
 import { useDynamicSynopsisClamp } from "@/hooks/use-dynamic-synopsis-clamp";
+import { buildDashboardMenuFromGrants, resolveGrants } from "@/lib/access-control";
 
 type HeaderProps = {
   variant?: "fixed" | "static";
@@ -39,6 +40,11 @@ const Header = ({ variant = "fixed", leading, className }: HeaderProps) => {
     name: string;
     username: string;
     avatarUrl?: string | null;
+    accessRole?: string;
+    permissions?: string[];
+    ownerIds?: string[];
+    primaryOwnerId?: string | null;
+    grants?: Partial<Record<string, boolean>>;
   } | null>(null);
   const [projects, setProjects] = useState<Project[]>([]);
   const [posts, setPosts] = useState<
@@ -252,6 +258,14 @@ const Header = ({ variant = "fixed", leading, className }: HeaderProps) => {
 
     loadUser();
   }, [apiBase]);
+
+  const dashboardMenuForUser = useMemo(() => {
+    if (!currentUser) {
+      return [];
+    }
+    const grants = resolveGrants(currentUser);
+    return buildDashboardMenuFromGrants(dashboardMenuItems, grants);
+  }, [currentUser]);
 
   return (
     <header
@@ -525,8 +539,7 @@ const Header = ({ variant = "fixed", leading, className }: HeaderProps) => {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className={`w-56 ${headerMenuContentClass}`}>
-                {dashboardMenuItems
-                  .filter((item) => item.enabled)
+                {dashboardMenuForUser
                   .map((item) => {
                     const ItemIcon = item.icon;
                     return (

@@ -13,6 +13,23 @@ import { createSlug, createUniqueSlug } from "./lib/post-slug.js";
 import { importRemoteImageFile } from "./lib/remote-image-import.js";
 import { localizeProjectImageFields } from "./lib/project-image-localizer.js";
 import { runUploadsReorganization } from "./lib/uploads-reorganizer.js";
+import {
+  AccessRole,
+  BASIC_PROFILE_FIELDS,
+  PermissionId,
+  addOwnerRoleLabel,
+  can,
+  computeEffectiveAccessRole,
+  computeGrants,
+  defaultPermissionsForRole,
+  expandLegacyPermissions,
+  isBasicProfileField,
+  isTruthyEnv,
+  normalizeAccessRole,
+  pickBasicProfilePatch,
+  removeOwnerRoleLabel,
+  sanitizePermissionsForStorage,
+} from "./lib/authz.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -65,10 +82,16 @@ const AUDIT_DEFAULT_META_KEYS = [
   "userId",
   "ownerId",
   "count",
+  "targetId",
+  "fromPrimaryId",
+  "toPrimaryId",
   "fileName",
   "folder",
   "url",
   "wasOwner",
+  "before",
+  "after",
+  "changes",
   "trigger",
   "moves",
   "rewrites",
@@ -92,6 +115,12 @@ const AUDIT_META_ALLOWLIST = {
   "uploads.auto_reorganize.post_save": ["trigger", "moves", "rewrites", "failures", "durationMs"],
   "uploads.auto_reorganize.project_save": ["trigger", "moves", "rewrites", "failures", "durationMs"],
   "uploads.auto_reorganize.failed": ["trigger", "moves", "rewrites", "failures", "durationMs", "error"],
+  "users.create": ["id", "after"],
+  "users.update": ["id", "before", "after", "changes"],
+  "users.update_self": ["id", "before", "after", "changes"],
+  "users.delete": ["id", "wasOwner", "before"],
+  "owners.update": ["count", "before", "after"],
+  "owners.transfer_primary": ["targetId", "fromPrimaryId", "toPrimaryId", "before", "after", "changes"],
 };
 
 const parseAuditTs = (value) => {
@@ -309,9 +338,13 @@ const {
   ANALYTICS_RETENTION_DAYS: ANALYTICS_RETENTION_DAYS_ENV = "",
   ANALYTICS_AGG_RETENTION_DAYS: ANALYTICS_AGG_RETENTION_DAYS_ENV = "",
   AUTO_UPLOAD_REORGANIZE = "true",
+  RBAC_V2_ENABLED: RBAC_V2_ENABLED_ENV = "false",
+  RBAC_V2_ACCEPT_LEGACY_STAR: RBAC_V2_ACCEPT_LEGACY_STAR_ENV = "true",
 } = process.env;
 
 const isProduction = process.env.NODE_ENV === "production";
+const isRbacV2Enabled = isTruthyEnv(RBAC_V2_ENABLED_ENV, false);
+const isRbacV2AcceptLegacyStar = isTruthyEnv(RBAC_V2_ACCEPT_LEGACY_STAR_ENV, true);
 const isAutoUploadReorganizationEnabled = !["0", "false", "no", "off"].includes(
   String(AUTO_UPLOAD_REORGANIZE || "").trim().toLowerCase(),
 );
@@ -3269,10 +3302,31 @@ const buildUserPayload = (sessionUser) => {
   ensureOwnerUser(sessionUser);
   const users = normalizeUsers(loadUsers());
   const matched = users.find((user) => user.id === String(sessionUser.id));
+  const ownerIds = loadOwnerIds().map((id) => String(id));
+  const primaryOwnerId = ownerIds[0] ? String(ownerIds[0]) : null;
+  const accessRole = computeEffectiveAccessRole({
+    userId: sessionUser?.id,
+    accessRole: matched?.accessRole || AccessRole.NORMAL,
+    ownerIds,
+    primaryOwnerId,
+  });
+  const grants = computeGrants({
+    userId: sessionUser?.id,
+    accessRole,
+    permissions: matched?.permissions,
+    ownerIds,
+    primaryOwnerId,
+    acceptLegacyStar: isRbacV2AcceptLegacyStar,
+  });
+  const roles = addOwnerRoleLabel(matched?.roles || [], ownerIds.includes(String(sessionUser?.id || "")));
   return {
     ...sessionUser,
-    permissions: matched?.permissions || [],
-    roles: matched?.roles || [],
+    permissions: permissionsForRead(matched?.permissions || []),
+    roles,
+    accessRole,
+    ownerIds,
+    primaryOwnerId,
+    grants,
     avatarDisplay: normalizeAvatarDisplay(matched?.avatarDisplay),
   };
 };
@@ -3314,7 +3368,11 @@ const requirePrimaryOwner = (req, res, next) => {
   return next();
 };
 
-app.get("/api/audit-log", requireOwner, (req, res) => {
+app.get("/api/audit-log", requireAuth, (req, res) => {
+  const userId = req.session?.user?.id;
+  if (!canViewAuditLog(userId)) {
+    return res.status(403).json({ error: "forbidden" });
+  }
   const pageRaw = Number(req.query.page);
   const limitRaw = Number(req.query.limit);
   const page = Number.isFinite(pageRaw) && pageRaw > 0 ? Math.floor(pageRaw) : 1;
@@ -3439,6 +3497,9 @@ app.get("/api/audit-log", requireOwner, (req, res) => {
 });
 
 app.get("/api/analytics/overview", requireAuth, (req, res) => {
+  if (!canViewAnalytics(req.session?.user?.id)) {
+    return res.status(403).json({ error: "forbidden" });
+  }
   const rangeDays = parseAnalyticsRangeDays(req.query.range);
   const type = normalizeAnalyticsTypeFilter(req.query.type);
   const range = buildAnalyticsRange(rangeDays);
@@ -3467,6 +3528,9 @@ app.get("/api/analytics/overview", requireAuth, (req, res) => {
 });
 
 app.get("/api/analytics/timeseries", requireAuth, (req, res) => {
+  if (!canViewAnalytics(req.session?.user?.id)) {
+    return res.status(403).json({ error: "forbidden" });
+  }
   const rangeDays = parseAnalyticsRangeDays(req.query.range);
   const type = normalizeAnalyticsTypeFilter(req.query.type);
   const metricRaw = String(req.query.metric || "").trim().toLowerCase();
@@ -3534,6 +3598,9 @@ app.get("/api/analytics/timeseries", requireAuth, (req, res) => {
 });
 
 app.get("/api/analytics/top-content", requireAuth, (req, res) => {
+  if (!canViewAnalytics(req.session?.user?.id)) {
+    return res.status(403).json({ error: "forbidden" });
+  }
   const rangeDays = parseAnalyticsRangeDays(req.query.range);
   const type = normalizeAnalyticsTypeFilter(req.query.type);
   const limitRaw = Number(req.query.limit);
@@ -3585,6 +3652,9 @@ app.get("/api/analytics/top-content", requireAuth, (req, res) => {
 });
 
 app.get("/api/analytics/acquisition", requireAuth, (req, res) => {
+  if (!canViewAnalytics(req.session?.user?.id)) {
+    return res.status(403).json({ error: "forbidden" });
+  }
   const rangeDays = parseAnalyticsRangeDays(req.query.range);
   const type = normalizeAnalyticsTypeFilter(req.query.type);
   const range = buildAnalyticsRange(rangeDays);
@@ -3622,47 +3692,7 @@ app.get("/api/analytics/acquisition", requireAuth, (req, res) => {
   });
 });
 
-const normalizeUsers = (users) => {
-  return users.map((user, index) =>
-    normalizeUploadsDeep({
-    id: String(user.id),
-    name: user.name || "Sem nome",
-    phrase: user.phrase || "",
-    bio: user.bio || "",
-    avatarUrl: user.avatarUrl || null,
-    socials: Array.isArray(user.socials) ? user.socials.filter(Boolean) : [],
-    status: user.status === "retired" ? "retired" : "active",
-    permissions: Array.isArray(user.permissions) ? user.permissions : [],
-    roles: Array.isArray(user.roles) ? user.roles.filter(Boolean) : [],
-    avatarDisplay: normalizeAvatarDisplay(user.avatarDisplay),
-    order: typeof user.order === "number" ? user.order : index,
-  }),
-  );
-};
-
-const applyOwnerRole = (user) => {
-  if (!isOwner(user.id)) {
-    return user;
-  }
-  const roles = user.roles || [];
-  if (roles.includes("Dono")) {
-    return user;
-  }
-  return { ...user, roles: ["Dono", ...roles] };
-};
-
-const isAdminUser = (user) => {
-  if (!user) {
-    return false;
-  }
-  if (isOwner(user.id)) {
-    return true;
-  }
-  const permissions = Array.isArray(user.permissions) ? user.permissions : [];
-  return permissions.includes("*") || permissions.includes("usuarios");
-};
-
-const adminBadgePermissions = [
+const legacyAdminBadgePermissions = [
   "posts",
   "projetos",
   "comentarios",
@@ -3671,20 +3701,161 @@ const adminBadgePermissions = [
   "configuracoes",
 ];
 
+const inferLegacyAccessRole = (user) => {
+  const permissions = Array.isArray(user?.permissions) ? user.permissions.map((item) => String(item || "")) : [];
+  if (permissions.includes("*")) {
+    return AccessRole.ADMIN;
+  }
+  if (permissions.includes("usuarios")) {
+    return AccessRole.ADMIN;
+  }
+  return AccessRole.NORMAL;
+};
+
+const normalizePermissionsRaw = (permissions) => {
+  if (!Array.isArray(permissions)) {
+    return [];
+  }
+  const next = [];
+  permissions.forEach((permissionRaw) => {
+    const permission = String(permissionRaw || "").trim();
+    if (!permission) {
+      return;
+    }
+    if (!next.includes(permission)) {
+      next.push(permission);
+    }
+  });
+  return next;
+};
+
+const normalizeUsers = (users) => {
+  const ownerIds = loadOwnerIds().map((id) => String(id));
+  const primaryOwnerId = ownerIds[0] ? String(ownerIds[0]) : null;
+  return users.map((user, index) => {
+    const normalizedId = String(user.id || "");
+    const legacyRole = inferLegacyAccessRole(user);
+    const accessRole = computeEffectiveAccessRole({
+      userId: normalizedId,
+      accessRole: normalizeAccessRole(user.accessRole, legacyRole),
+      ownerIds,
+      primaryOwnerId,
+    });
+    return normalizeUploadsDeep({
+      id: normalizedId,
+      name: user.name || "Sem nome",
+      phrase: user.phrase || "",
+      bio: user.bio || "",
+      avatarUrl: user.avatarUrl || null,
+      socials: Array.isArray(user.socials) ? user.socials.filter(Boolean) : [],
+      status: user.status === "retired" ? "retired" : "active",
+      permissions: normalizePermissionsRaw(user.permissions),
+      roles: removeOwnerRoleLabel(Array.isArray(user.roles) ? user.roles.filter(Boolean) : []),
+      avatarDisplay: normalizeAvatarDisplay(user.avatarDisplay),
+      accessRole,
+      order: typeof user.order === "number" ? user.order : index,
+    });
+  });
+};
+
+const applyOwnerRole = (user) => {
+  const isOwnerUser = isOwner(user.id);
+  return {
+    ...user,
+    roles: addOwnerRoleLabel(user.roles || [], isOwnerUser),
+  };
+};
+
+const getUserAccessContextById = (userId, usersInput = null) => {
+  const normalizedId = String(userId || "");
+  if (!normalizedId) {
+    return {
+      user: null,
+      accessRole: AccessRole.NORMAL,
+      grants: computeGrants(),
+      isOwner: false,
+      isPrimaryOwner: false,
+      ownerIds: loadOwnerIds().map((id) => String(id)),
+      primaryOwnerId: getPrimaryOwnerId() ? String(getPrimaryOwnerId()) : null,
+    };
+  }
+  const users = Array.isArray(usersInput) ? usersInput : normalizeUsers(loadUsers());
+  const user = users.find((item) => item.id === normalizedId) || null;
+  const ownerIds = loadOwnerIds().map((id) => String(id));
+  const primaryOwnerId = ownerIds[0] ? String(ownerIds[0]) : null;
+  const accessRole = computeEffectiveAccessRole({
+    userId: normalizedId,
+    accessRole: user?.accessRole || AccessRole.NORMAL,
+    ownerIds,
+    primaryOwnerId,
+  });
+  const grants = computeGrants({
+    userId: normalizedId,
+    accessRole,
+    permissions: user?.permissions,
+    ownerIds,
+    primaryOwnerId,
+    acceptLegacyStar: isRbacV2AcceptLegacyStar,
+  });
+  return {
+    user,
+    accessRole,
+    grants,
+    isOwner: ownerIds.includes(normalizedId),
+    isPrimaryOwner: Boolean(primaryOwnerId && normalizedId === primaryOwnerId),
+    ownerIds,
+    primaryOwnerId,
+  };
+};
+
+const hasPermissionByUserId = (userId, permissionId) => {
+  const context = getUserAccessContextById(userId);
+  return can({ grants: context.grants, permissionId });
+};
+
+const isAdminUser = (user) => {
+  if (!user?.id) {
+    return false;
+  }
+  if (isRbacV2Enabled) {
+    const context = getUserAccessContextById(user.id);
+    return (
+      context.accessRole === AccessRole.OWNER_PRIMARY ||
+      context.accessRole === AccessRole.OWNER_SECONDARY ||
+      context.accessRole === AccessRole.ADMIN
+    );
+  }
+  if (isOwner(user.id)) {
+    return true;
+  }
+  const permissions = Array.isArray(user.permissions) ? user.permissions : [];
+  return permissions.includes("*") || permissions.includes("usuarios");
+};
+
 const isAdminBadgeUser = (user) => {
   if (!user) {
     return false;
+  }
+  if (isRbacV2Enabled) {
+    const context = getUserAccessContextById(user.id);
+    return (
+      !context.isOwner &&
+      (context.accessRole === AccessRole.ADMIN || context.accessRole === AccessRole.OWNER_SECONDARY)
+    );
   }
   const permissions = Array.isArray(user.permissions) ? user.permissions : [];
   if (permissions.includes("*")) {
     return true;
   }
-  return adminBadgePermissions.every((permission) => permissions.includes(permission));
+  return legacyAdminBadgePermissions.every((permission) => permissions.includes(permission));
 };
 
 const canManagePosts = (userId) => {
   if (!userId) {
     return false;
+  }
+  if (isRbacV2Enabled) {
+    return hasPermissionByUserId(userId, PermissionId.POSTS);
   }
   if (isOwner(userId)) {
     return true;
@@ -3698,6 +3869,9 @@ const canManageProjects = (userId) => {
   if (!userId) {
     return false;
   }
+  if (isRbacV2Enabled) {
+    return hasPermissionByUserId(userId, PermissionId.PROJETOS);
+  }
   if (isOwner(userId)) {
     return true;
   }
@@ -3709,6 +3883,9 @@ const canManageProjects = (userId) => {
 const canManageComments = (userId) => {
   if (!userId) {
     return false;
+  }
+  if (isRbacV2Enabled) {
+    return hasPermissionByUserId(userId, PermissionId.COMENTARIOS);
   }
   if (isOwner(userId)) {
     return true;
@@ -3727,6 +3904,9 @@ const canManagePages = (userId) => {
   if (!userId) {
     return false;
   }
+  if (isRbacV2Enabled) {
+    return hasPermissionByUserId(userId, PermissionId.PAGINAS);
+  }
   if (isOwner(userId)) {
     return true;
   }
@@ -3738,6 +3918,9 @@ const canManagePages = (userId) => {
 const canManageSettings = (userId) => {
   if (!userId) {
     return false;
+  }
+  if (isRbacV2Enabled) {
+    return hasPermissionByUserId(userId, PermissionId.CONFIGURACOES);
   }
   if (isOwner(userId)) {
     return true;
@@ -3751,6 +3934,9 @@ const canManageUploads = (userId) => {
   if (!userId) {
     return false;
   }
+  if (isRbacV2Enabled) {
+    return hasPermissionByUserId(userId, PermissionId.UPLOADS);
+  }
   if (isOwner(userId)) {
     return true;
   }
@@ -3762,6 +3948,168 @@ const canManageUploads = (userId) => {
     permissions.includes("projetos") ||
     permissions.includes("configuracoes")
   );
+};
+
+const canViewAnalytics = (userId) => {
+  if (!userId) {
+    return false;
+  }
+  if (isRbacV2Enabled) {
+    return hasPermissionByUserId(userId, PermissionId.ANALYTICS);
+  }
+  return canManagePosts(userId) || canManageProjects(userId) || canManageComments(userId);
+};
+
+const canViewAuditLog = (userId) => {
+  if (!userId) {
+    return false;
+  }
+  if (isRbacV2Enabled) {
+    return hasPermissionByUserId(userId, PermissionId.AUDIT_LOG);
+  }
+  return isOwner(userId);
+};
+
+const canManageIntegrations = (userId) => {
+  if (!userId) {
+    return false;
+  }
+  if (isRbacV2Enabled) {
+    return hasPermissionByUserId(userId, PermissionId.INTEGRACOES);
+  }
+  return canManageProjects(userId) || canManageSettings(userId);
+};
+
+const canManageUsersBasic = (userId) => {
+  if (!userId) {
+    return false;
+  }
+  if (isRbacV2Enabled) {
+    return hasPermissionByUserId(userId, PermissionId.USUARIOS_BASICO);
+  }
+  if (isOwner(userId)) {
+    return true;
+  }
+  const user = normalizeUsers(loadUsers()).find((item) => item.id === String(userId));
+  const permissions = Array.isArray(user?.permissions) ? user.permissions : [];
+  return permissions.includes("*") || permissions.includes("usuarios");
+};
+
+const canManageUsersAccess = (userId) => {
+  if (!userId) {
+    return false;
+  }
+  if (isRbacV2Enabled) {
+    return hasPermissionByUserId(userId, PermissionId.USUARIOS_ACESSO);
+  }
+  if (isOwner(userId)) {
+    return true;
+  }
+  const user = normalizeUsers(loadUsers()).find((item) => item.id === String(userId));
+  const permissions = Array.isArray(user?.permissions) ? user.permissions : [];
+  return permissions.includes("*") || permissions.includes("usuarios");
+};
+
+const enforceUserAccessInvariants = (usersInput) => {
+  const ownerIds = loadOwnerIds().map((id) => String(id));
+  const primaryOwnerId = ownerIds[0] ? String(ownerIds[0]) : null;
+  return normalizeUsers(usersInput).map((user) => {
+    const effectiveAccessRole = computeEffectiveAccessRole({
+      userId: user.id,
+      accessRole: user.accessRole,
+      ownerIds,
+      primaryOwnerId,
+    });
+
+    if (isRbacV2Enabled) {
+      const sanitizedPermissions = sanitizePermissionsForStorage(user.permissions, {
+        acceptLegacyStar: false,
+        keepUnknown: true,
+      });
+      if (effectiveAccessRole === AccessRole.OWNER_PRIMARY) {
+        return {
+          ...user,
+          status: "active",
+          accessRole: AccessRole.OWNER_PRIMARY,
+          permissions: [...defaultPermissionsForRole(AccessRole.OWNER_PRIMARY)],
+        };
+      }
+      if (effectiveAccessRole === AccessRole.OWNER_SECONDARY) {
+        return {
+          ...user,
+          status: "active",
+          accessRole: AccessRole.OWNER_SECONDARY,
+          permissions: sanitizedPermissions,
+        };
+      }
+      return {
+        ...user,
+        accessRole: effectiveAccessRole,
+        permissions: sanitizedPermissions,
+      };
+    }
+
+    if (ownerIds.includes(user.id)) {
+      return { ...user, status: "active", permissions: ["*"], accessRole: effectiveAccessRole };
+    }
+    return { ...user, accessRole: effectiveAccessRole };
+  });
+};
+
+const permissionsForRead = (permissions) => {
+  if (!isRbacV2Enabled) {
+    return normalizePermissionsRaw(permissions);
+  }
+  const expanded = expandLegacyPermissions(permissions, {
+    acceptLegacyStar: isRbacV2AcceptLegacyStar,
+    keepUnknown: true,
+  });
+  return [...expanded.knownPermissions, ...expanded.unknownPermissions];
+};
+
+const userWithAccessForResponse = (user, ownerIdsInput = null) => {
+  const ownerIds = Array.isArray(ownerIdsInput) ? ownerIdsInput.map((id) => String(id)) : loadOwnerIds().map((id) => String(id));
+  const primaryOwnerId = ownerIds[0] ? String(ownerIds[0]) : null;
+  const accessRole = computeEffectiveAccessRole({
+    userId: user.id,
+    accessRole: user.accessRole,
+    ownerIds,
+    primaryOwnerId,
+  });
+  const grants = computeGrants({
+    userId: user.id,
+    accessRole,
+    permissions: user.permissions,
+    ownerIds,
+    primaryOwnerId,
+    acceptLegacyStar: isRbacV2AcceptLegacyStar,
+  });
+  return {
+    ...user,
+    accessRole,
+    permissions: permissionsForRead(user.permissions),
+    grants,
+  };
+};
+
+const toUserApiResponse = (user, ownerIdsInput = null) => applyOwnerRole(userWithAccessForResponse(user, ownerIdsInput));
+
+const diffUserFields = (beforeUser, afterUser, fields) => {
+  const before = beforeUser || {};
+  const after = afterUser || {};
+  const keys = Array.isArray(fields) ? fields : [];
+  const changes = {};
+  keys.forEach((field) => {
+    const beforeValue = before[field];
+    const afterValue = after[field];
+    if (JSON.stringify(beforeValue) !== JSON.stringify(afterValue)) {
+      changes[field] = {
+        from: beforeValue,
+        to: afterValue,
+      };
+    }
+  });
+  return changes;
 };
 const syncAllowedUsers = (users) => {
   const activeIds = users.filter((user) => user.status === "active").map((user) => user.id);
@@ -3775,6 +4123,14 @@ const ensureOwnerUser = (sessionUser) => {
   }
 
   let users = normalizeUsers(loadUsers());
+  const ownerIds = loadOwnerIds().map((id) => String(id));
+  const primaryOwnerId = ownerIds[0] ? String(ownerIds[0]) : null;
+  const targetAccessRole = computeEffectiveAccessRole({
+    userId: sessionUser.id,
+    accessRole: AccessRole.OWNER_SECONDARY,
+    ownerIds,
+    primaryOwnerId,
+  });
   if (!users.some((user) => user.id === String(sessionUser.id))) {
     users.push({
       id: String(sessionUser.id),
@@ -3785,16 +4141,15 @@ const ensureOwnerUser = (sessionUser) => {
       avatarDisplay: normalizeAvatarDisplay(null),
       socials: [],
       status: "active",
-      permissions: ["*"],
+      permissions: isRbacV2Enabled
+        ? [...defaultPermissionsForRole(targetAccessRole)]
+        : ["*"],
+      accessRole: targetAccessRole,
       order: users.length,
     });
   }
 
-  users = normalizeUsers(users).map((user) =>
-    isOwner(user.id)
-      ? { ...user, status: "active", permissions: ["*"] }
-      : user,
-  );
+  users = enforceUserAccessInvariants(users);
   users.sort((a, b) => a.order - b.order);
   writeUsers(users);
   syncAllowedUsers(users);
@@ -3802,39 +4157,31 @@ const ensureOwnerUser = (sessionUser) => {
 
 app.get("/api/users", requireAuth, (req, res) => {
   const sessionUser = req.session.user;
-  ensureOwnerUser(sessionUser);
-  let users = normalizeUsers(loadUsers());
-
-  if (sessionUser?.id && isOwner(sessionUser.id) && !users.some((user) => user.id === String(sessionUser.id))) {
-    users.push({
-      id: String(sessionUser.id),
-      name: sessionUser.name,
-      phrase: "",
-      bio: "",
-      avatarUrl: sessionUser.avatarUrl || null,
-      avatarDisplay: normalizeAvatarDisplay(null),
-      socials: [],
-      status: "active",
-      permissions: ["*"],
-      order: users.length,
-    });
+  if (isRbacV2Enabled) {
+    const canReadUsers = canManageUsersBasic(sessionUser?.id) || canManageUsersAccess(sessionUser?.id);
+    if (!canReadUsers) {
+      return res.status(403).json({ error: "forbidden" });
+    }
   }
-
-  users = normalizeUsers(users).map((user) =>
-    isOwner(user.id)
-      ? { ...user, status: "active", permissions: ["*"] }
-      : user,
-  );
+  ensureOwnerUser(sessionUser);
+  let users = enforceUserAccessInvariants(normalizeUsers(loadUsers()));
   users.sort((a, b) => a.order - b.order);
   writeUsers(users);
   syncAllowedUsers(users);
+  const ownerIds = loadOwnerIds().map((id) => String(id));
+  const responseUsers = users.map((user) => applyOwnerRole(userWithAccessForResponse(user, ownerIds)));
   appendAuditLog(req, "users.read", "users", {});
-  res.json({ users: users.map(applyOwnerRole), ownerIds: loadOwnerIds() });
+  res.json({
+    users: responseUsers,
+    ownerIds,
+    primaryOwnerId: ownerIds[0] || null,
+  });
 });
 
-app.get("/api/owners", requireOwner, (req, res) => {
+app.get("/api/owners", requirePrimaryOwner, (req, res) => {
   appendAuditLog(req, "owners.read", "owners", {});
-  return res.json({ ownerIds: loadOwnerIds() });
+  const ownerIds = loadOwnerIds().map((id) => String(id));
+  return res.json({ ownerIds, primaryOwnerId: ownerIds[0] || null });
 });
 
 app.put("/api/owners", requirePrimaryOwner, (req, res) => {
@@ -3842,6 +4189,7 @@ app.put("/api/owners", requirePrimaryOwner, (req, res) => {
   if (!Array.isArray(ownerIds)) {
     return res.status(400).json({ error: "owner_ids_required" });
   }
+  const previousOwnerIds = loadOwnerIds().map((id) => String(id));
   const primaryOwnerId = getPrimaryOwnerId();
   const nextIds = Array.isArray(ownerIds) ? ownerIds.map((id) => String(id)) : [];
   const unique = Array.from(new Set(nextIds.filter(Boolean)));
@@ -3851,10 +4199,86 @@ app.put("/api/owners", requirePrimaryOwner, (req, res) => {
     unique.length = 0;
     unique.push(normalizedPrimary, ...filtered);
   }
+  const users = normalizeUsers(loadUsers());
+  const activeUserIds = new Set(users.filter((user) => user.status === "active").map((user) => user.id));
+  const unknownOrInactiveIds = unique.filter((id) => !activeUserIds.has(id));
+  if (unknownOrInactiveIds.length > 0) {
+    return res.status(400).json({ error: "owner_ids_must_be_active_users", ids: unknownOrInactiveIds });
+  }
   writeOwnerIds(unique);
-  syncAllowedUsers(normalizeUsers(loadUsers()));
-  appendAuditLog(req, "owners.update", "owners", { count: unique.length });
-  return res.json({ ownerIds: loadOwnerIds() });
+  const promotedOwnerIds = unique.filter((id) => !previousOwnerIds.includes(id));
+  const usersWithPromotedDefaults = users.map((user) => {
+    if (!promotedOwnerIds.includes(user.id)) {
+      return user;
+    }
+    return {
+      ...user,
+      status: "active",
+      accessRole: AccessRole.OWNER_SECONDARY,
+      permissions: [...defaultPermissionsForRole(AccessRole.OWNER_SECONDARY)],
+    };
+  });
+  const normalizedUsers = enforceUserAccessInvariants(usersWithPromotedDefaults);
+  writeUsers(normalizedUsers);
+  syncAllowedUsers(normalizedUsers);
+  appendAuditLog(req, "owners.update", "owners", {
+    count: unique.length,
+    before: previousOwnerIds,
+    after: unique,
+  });
+  return res.json({ ownerIds: loadOwnerIds(), primaryOwnerId: loadOwnerIds()[0] || null });
+});
+
+app.post("/api/owners/transfer-primary", requirePrimaryOwner, (req, res) => {
+  const targetId = String(req.body?.targetId || "").trim();
+  const confirmTargetId = String(req.body?.confirmTargetId || "").trim();
+  const confirmTransfer = req.body?.confirmTransfer === true;
+  if (!targetId) {
+    return res.status(400).json({ error: "target_id_required" });
+  }
+  if (!confirmTransfer || confirmTargetId !== targetId) {
+    return res.status(400).json({ error: "transfer_confirmation_required" });
+  }
+  const ownerIds = loadOwnerIds().map((id) => String(id));
+  const previousPrimaryOwnerId = ownerIds[0] ? String(ownerIds[0]) : null;
+  if (!ownerIds.includes(targetId)) {
+    return res.status(404).json({ error: "target_owner_not_found" });
+  }
+  const users = normalizeUsers(loadUsers());
+  const targetUser = users.find((user) => user.id === targetId);
+  if (!targetUser || targetUser.status !== "active") {
+    return res.status(400).json({ error: "target_owner_must_be_active" });
+  }
+  if (previousPrimaryOwnerId && targetId === previousPrimaryOwnerId) {
+    return res.json({
+      ok: true,
+      ownerIds,
+      primaryOwnerId: previousPrimaryOwnerId,
+    });
+  }
+  const nextOwnerIds = [targetId, ...ownerIds.filter((id) => id !== targetId)];
+  writeOwnerIds(nextOwnerIds);
+  const normalizedUsers = enforceUserAccessInvariants(users);
+  writeUsers(normalizedUsers);
+  syncAllowedUsers(normalizedUsers);
+  appendAuditLog(req, "owners.transfer_primary", "owners", {
+    targetId,
+    fromPrimaryId: previousPrimaryOwnerId,
+    toPrimaryId: targetId,
+    before: ownerIds,
+    after: nextOwnerIds,
+    changes: {
+      primaryOwnerId: {
+        from: previousPrimaryOwnerId,
+        to: targetId,
+      },
+    },
+  });
+  return res.json({
+    ok: true,
+    ownerIds: nextOwnerIds,
+    primaryOwnerId: targetId,
+  });
 });
 
 app.post("/api/bootstrap-owner", requireAuth, (req, res) => {
@@ -3884,15 +4308,21 @@ app.post("/api/bootstrap-owner", requireAuth, (req, res) => {
   }
   writeOwnerIds([sessionUser.id]);
   ensureOwnerUser(sessionUser);
-  syncAllowedUsers(normalizeUsers(loadUsers()));
+  const users = enforceUserAccessInvariants(normalizeUsers(loadUsers()));
+  writeUsers(users);
+  syncAllowedUsers(users);
   appendAuditLog(req, "auth.bootstrap.success", "owners", { ownerId: sessionUser.id });
-  return res.json({ ok: true, ownerIds: loadOwnerIds() });
+  const ownerIds = loadOwnerIds().map((id) => String(id));
+  return res.json({ ok: true, ownerIds, primaryOwnerId: ownerIds[0] || null });
 });
 
 app.get("/api/public/users", (req, res) => {
+  const ownerIds = loadOwnerIds().map((id) => String(id));
   const users = normalizeUsers(loadUsers())
     .sort((a, b) => a.order - b.order)
-    .map((user) => ({
+    .map((user) => {
+      const withAccess = userWithAccessForResponse(user, ownerIds);
+      return {
       id: user.id,
       name: user.name,
       phrase: user.phrase,
@@ -3901,9 +4331,11 @@ app.get("/api/public/users", (req, res) => {
       avatarDisplay: normalizeAvatarDisplay(user.avatarDisplay),
       socials: user.socials,
       roles: applyOwnerRole(user).roles,
-      isAdmin: !isOwner(user.id) && isAdminBadgeUser(user),
+      accessRole: withAccess.accessRole,
+      isAdmin: withAccess.accessRole === AccessRole.ADMIN,
       status: user.status,
-    }));
+      };
+    });
 
   res.json({ users });
 });
@@ -3913,7 +4345,10 @@ app.get("/api/link-types", (req, res) => {
   res.json({ items });
 });
 
-app.put("/api/link-types", requireOwner, (req, res) => {
+app.put("/api/link-types", requireAuth, (req, res) => {
+  if (!canManageSettings(req.session?.user?.id)) {
+    return res.status(403).json({ error: "forbidden" });
+  }
   const { items } = req.body || {};
   if (!Array.isArray(items)) {
     return res.status(400).json({ error: "items_required" });
@@ -5254,7 +5689,7 @@ app.get("/api/public/tag-translations", (req, res) => {
 
 app.post("/api/tag-translations/anilist-sync", requireAuth, async (req, res) => {
   const sessionUser = req.session.user;
-  if (!canManageSettings(sessionUser?.id)) {
+  if (!canManageIntegrations(sessionUser?.id)) {
     return res.status(403).json({ error: "forbidden" });
   }
   try {
@@ -5361,7 +5796,7 @@ app.put("/api/pages", requireAuth, (req, res) => {
 
 app.post("/api/tag-translations/sync", requireAuth, (req, res) => {
   const sessionUser = req.session.user;
-  if (!canManageProjects(sessionUser?.id)) {
+  if (!canManageIntegrations(sessionUser?.id)) {
     return res.status(403).json({ error: "forbidden" });
   }
   const { tags, genres, staffRoles } = req.body || {};
@@ -5437,7 +5872,7 @@ app.put("/api/tag-translations", requireAuth, (req, res) => {
 
 app.get("/api/anilist/:id", requireAuth, async (req, res) => {
   const sessionUser = req.session.user;
-  if (!canManageProjects(sessionUser?.id)) {
+  if (!canManageIntegrations(sessionUser?.id)) {
     return res.status(403).json({ error: "forbidden" });
   }
   const id = Number(req.params.id);
@@ -6111,51 +6546,155 @@ app.delete("/api/uploads/delete", requireAuth, (req, res) => {
   }
 });
 
-app.post("/api/users", requireOwner, (req, res) => {
-  const { id, name, phrase, bio, avatarUrl, avatarDisplay, socials, status, permissions, roles } = req.body || {};
+app.post("/api/users", requireAuth, (req, res) => {
+  const sessionUser = req.session.user;
+  const { id, name, phrase, bio, avatarUrl, avatarDisplay, socials, status, permissions, roles, accessRole } = req.body || {};
   if (!id || !name) {
     return res.status(400).json({ error: "id_and_name_required" });
   }
 
+  if (!isRbacV2Enabled) {
+    if (!isOwner(sessionUser?.id)) {
+      return res.status(403).json({ error: "forbidden" });
+    }
+    let users = normalizeUsers(loadUsers());
+    if (users.some((user) => user.id === String(id))) {
+      return res.status(409).json({ error: "user_exists" });
+    }
+
+    const newUser = {
+      id: String(id),
+      name,
+      phrase: phrase || "",
+      bio: bio || "",
+      avatarUrl: avatarUrl || null,
+      avatarDisplay: normalizeAvatarDisplay(avatarDisplay),
+      socials: Array.isArray(socials) ? socials.filter(Boolean) : [],
+      status: status === "retired" ? "retired" : "active",
+      permissions: Array.isArray(permissions) ? permissions : [],
+      roles: Array.isArray(roles) ? roles.filter(Boolean) : [],
+      order: users.length,
+    };
+
+    users.push(newUser);
+    users = normalizeUsers(users).map((user) =>
+      isOwner(user.id)
+        ? { ...user, status: "active", permissions: ["*"] }
+        : user,
+    );
+    writeUsers(users);
+    syncAllowedUsers(users);
+    appendAuditLog(req, "users.create", "users", { id: newUser.id });
+    return res.status(201).json({ user: newUser });
+  }
+
+  const actorContext = getUserAccessContextById(sessionUser?.id);
+  const canCreateUsers =
+    (actorContext.accessRole === AccessRole.OWNER_PRIMARY ||
+      actorContext.accessRole === AccessRole.OWNER_SECONDARY) &&
+    can({ grants: actorContext.grants, permissionId: PermissionId.USUARIOS_ACESSO });
+  if (!canCreateUsers) {
+    return res.status(403).json({ error: "forbidden" });
+  }
+
   let users = normalizeUsers(loadUsers());
-  if (users.some((user) => user.id === String(id))) {
+  const targetId = String(id);
+  if (users.some((user) => user.id === targetId)) {
     return res.status(409).json({ error: "user_exists" });
   }
 
+  const normalizedAccessRole = normalizeAccessRole(accessRole, AccessRole.NORMAL);
+  if (normalizedAccessRole === AccessRole.OWNER_PRIMARY || normalizedAccessRole === AccessRole.OWNER_SECONDARY) {
+    return res.status(403).json({ error: "owner_role_requires_owner_governance" });
+  }
+
+  const nextAccessRole = normalizedAccessRole === AccessRole.ADMIN ? AccessRole.ADMIN : AccessRole.NORMAL;
+  const sanitizedPermissions = Array.isArray(permissions)
+    ? sanitizePermissionsForStorage(permissions, {
+        acceptLegacyStar: false,
+        keepUnknown: true,
+      })
+    : [...defaultPermissionsForRole(nextAccessRole)];
+
   const newUser = {
-    id: String(id),
-    name,
+    id: targetId,
+    name: String(name || "Sem nome"),
     phrase: phrase || "",
     bio: bio || "",
     avatarUrl: avatarUrl || null,
     avatarDisplay: normalizeAvatarDisplay(avatarDisplay),
     socials: Array.isArray(socials) ? socials.filter(Boolean) : [],
     status: status === "retired" ? "retired" : "active",
-    permissions: Array.isArray(permissions) ? permissions : [],
-    roles: Array.isArray(roles) ? roles.filter(Boolean) : [],
+    permissions: sanitizedPermissions,
+    roles: removeOwnerRoleLabel(Array.isArray(roles) ? roles.filter(Boolean) : []),
+    accessRole: nextAccessRole,
     order: users.length,
   };
 
   users.push(newUser);
-  users = normalizeUsers(users).map((user) =>
-    isOwner(user.id)
-      ? { ...user, status: "active", permissions: ["*"] }
-      : user,
-  );
+  users = enforceUserAccessInvariants(users);
+  users.sort((a, b) => a.order - b.order);
   writeUsers(users);
   syncAllowedUsers(users);
-  appendAuditLog(req, "users.create", "users", { id: newUser.id });
-  return res.status(201).json({ user: newUser });
+  const ownerIds = loadOwnerIds().map((entry) => String(entry));
+  const createdUser = users.find((user) => user.id === targetId) || newUser;
+  appendAuditLog(req, "users.create", "users", {
+    id: createdUser.id,
+    after: toUserApiResponse(createdUser, ownerIds),
+  });
+  return res.status(201).json({ user: toUserApiResponse(createdUser, ownerIds) });
 });
 
 app.put("/api/users/reorder", requireAuth, (req, res) => {
   const sessionUser = req.session.user;
-  if (!isAdminUser(sessionUser)) {
-    return res.status(403).json({ error: "forbidden" });
-  }
   const { orderedIds, retiredIds } = req.body || {};
   if (!Array.isArray(orderedIds) && !Array.isArray(retiredIds)) {
     return res.status(400).json({ error: "orderedIds_required" });
+  }
+
+  if (!isRbacV2Enabled) {
+    if (!isAdminUser(sessionUser)) {
+      return res.status(403).json({ error: "forbidden" });
+    }
+    let users = normalizeUsers(loadUsers());
+    const activeUsers = users.filter((user) => user.status === "active").sort((a, b) => a.order - b.order);
+    const retiredUsers = users.filter((user) => user.status === "retired").sort((a, b) => a.order - b.order);
+
+    const activeOrder = Array.isArray(orderedIds) ? orderedIds.map(String) : activeUsers.map((user) => user.id);
+    const retiredOrder = Array.isArray(retiredIds) ? retiredIds.map(String) : retiredUsers.map((user) => user.id);
+
+    const activeOrderMap = new Map(activeOrder.map((id, index) => [String(id), index]));
+    const retiredOrderMap = new Map(retiredOrder.map((id, index) => [String(id), index]));
+
+    users = users.map((user) => {
+      if (user.status === "active" && activeOrderMap.has(user.id)) {
+        return { ...user, order: activeOrderMap.get(user.id) };
+      }
+      if (user.status === "retired" && retiredOrderMap.has(user.id)) {
+        return { ...user, order: activeOrder.length + retiredOrderMap.get(user.id) };
+      }
+      return user;
+    });
+
+    users = normalizeUsers(users).map((user) =>
+      isOwner(user.id)
+        ? { ...user, status: "active", permissions: ["*"] }
+        : user,
+    );
+    users.sort((a, b) => a.order - b.order);
+    writeUsers(users);
+    syncAllowedUsers(users);
+    appendAuditLog(req, "users.reorder", "users", {});
+    return res.json({ ok: true });
+  }
+
+  const actorContext = getUserAccessContextById(sessionUser?.id);
+  const canReorderUsers =
+    (actorContext.accessRole === AccessRole.OWNER_PRIMARY ||
+      actorContext.accessRole === AccessRole.OWNER_SECONDARY) &&
+    can({ grants: actorContext.grants, permissionId: PermissionId.USUARIOS_ACESSO });
+  if (!canReorderUsers) {
+    return res.status(403).json({ error: "forbidden" });
   }
 
   let users = normalizeUsers(loadUsers());
@@ -6178,11 +6717,21 @@ app.put("/api/users/reorder", requireAuth, (req, res) => {
     return user;
   });
 
-  users = normalizeUsers(users).map((user) =>
-    isOwner(user.id)
-      ? { ...user, status: "active", permissions: ["*"] }
-      : user,
-  );
+  if (actorContext.accessRole === AccessRole.OWNER_SECONDARY) {
+    const ownerIds = new Set(loadOwnerIds().map((id) => String(id)));
+    const previousOrderById = new Map(normalizeUsers(loadUsers()).map((user) => [user.id, user.order]));
+    const changedOwnerOrder = users.some((user) => {
+      if (!ownerIds.has(user.id)) {
+        return false;
+      }
+      return user.order !== previousOrderById.get(user.id);
+    });
+    if (changedOwnerOrder) {
+      return res.status(403).json({ error: "owner_reorder_forbidden" });
+    }
+  }
+
+  users = enforceUserAccessInvariants(users);
   users.sort((a, b) => a.order - b.order);
   writeUsers(users);
   syncAllowedUsers(users);
@@ -6205,50 +6754,182 @@ app.put("/api/users/:id", (req, res) => {
   const sessionUser = req.session.user;
   const update = req.body || {};
   const existing = users[index];
-  const isOwnerRequest = isOwner(sessionUser.id);
-  const canManageBadges = isAdminUser(sessionUser);
 
-  if (!isOwnerRequest && !canManageBadges) {
+  if (!isRbacV2Enabled) {
+    const isOwnerRequest = isOwner(sessionUser.id);
+    const canManageBadges = isAdminUser(sessionUser);
+
+    if (!isOwnerRequest && !canManageBadges) {
+      return res.status(403).json({ error: "forbidden" });
+    }
+
+    if (!isOwnerRequest && canManageBadges) {
+      const onlyRoles =
+        Object.keys(update).length === 1 && Array.isArray(update.roles);
+      if (!onlyRoles) {
+        return res.status(403).json({ error: "roles_only" });
+      }
+    }
+
+    const updated = {
+      ...existing,
+      name: update.name ?? existing.name,
+      phrase: update.phrase ?? existing.phrase,
+      bio: update.bio ?? existing.bio,
+      avatarUrl: update.avatarUrl ?? existing.avatarUrl,
+      avatarDisplay:
+        update.avatarDisplay !== undefined
+          ? normalizeAvatarDisplay(update.avatarDisplay)
+          : normalizeAvatarDisplay(existing.avatarDisplay),
+      socials: Array.isArray(update.socials) ? update.socials : existing.socials,
+      status: update.status === "retired" ? "retired" : "active",
+      permissions: Array.isArray(update.permissions) ? update.permissions : existing.permissions,
+      roles: Array.isArray(update.roles) ? update.roles : existing.roles,
+    };
+
+    users[index] = updated;
+    users = normalizeUsers(users).map((user) =>
+      isOwner(user.id)
+        ? { ...user, status: "active", permissions: ["*"] }
+        : user,
+    );
+    writeUsers(users);
+    syncAllowedUsers(users);
+    appendAuditLog(req, "users.update", "users", { id: targetId });
+    return res.json({ user: applyOwnerRole(updated) });
+  }
+
+  const ownerIds = loadOwnerIds().map((id) => String(id));
+  const actorContext = getUserAccessContextById(sessionUser.id, users);
+  const targetContext = getUserAccessContextById(targetId, users);
+  const updateKeys = Object.keys(update);
+  const actorIsPrimary = actorContext.accessRole === AccessRole.OWNER_PRIMARY;
+  const actorIsSecondary = actorContext.accessRole === AccessRole.OWNER_SECONDARY;
+  const actorIsAdmin = actorContext.accessRole === AccessRole.ADMIN;
+  const actorCanUsersBasic = can({ grants: actorContext.grants, permissionId: PermissionId.USUARIOS_BASICO });
+  const actorCanUsersAccess = can({ grants: actorContext.grants, permissionId: PermissionId.USUARIOS_ACESSO });
+  const touchesBasicFields = updateKeys.some((field) => isBasicProfileField(field));
+  const touchesAccessFields = updateKeys.some((field) => !isBasicProfileField(field));
+
+  if (!actorIsPrimary && !actorIsSecondary && !actorIsAdmin) {
     return res.status(403).json({ error: "forbidden" });
   }
 
-  if (!isOwnerRequest && canManageBadges) {
-    const onlyRoles =
-      Object.keys(update).length === 1 && Array.isArray(update.roles);
-    if (!onlyRoles) {
-      return res.status(403).json({ error: "roles_only" });
+  if (targetContext.isOwner && !actorIsPrimary) {
+    return res.status(403).json({ error: "owner_update_forbidden" });
+  }
+
+  if (actorIsAdmin) {
+    if (!actorCanUsersBasic) {
+      return res.status(403).json({ error: "users_basic_permission_required" });
+    }
+    const invalidAdminFields = updateKeys.filter((field) => !isBasicProfileField(field));
+    if (invalidAdminFields.length > 0) {
+      return res.status(403).json({ error: "basic_fields_only" });
     }
   }
 
+  if ((actorIsPrimary || actorIsSecondary) && touchesBasicFields && !actorCanUsersBasic) {
+    return res.status(403).json({ error: "users_basic_permission_required" });
+  }
+
+  if ((actorIsPrimary || actorIsSecondary) && touchesAccessFields && !actorCanUsersAccess) {
+    return res.status(403).json({ error: "users_access_permission_required" });
+  }
+
+  if (targetContext.isPrimaryOwner) {
+    const immutableFields = ["permissions", "status", "accessRole"].filter((field) =>
+      Object.prototype.hasOwnProperty.call(update, field),
+    );
+    if (immutableFields.length > 0) {
+      return res.status(403).json({ error: "primary_owner_immutable" });
+    }
+  }
+
+  if (
+    Object.prototype.hasOwnProperty.call(update, "accessRole") &&
+    (String(update.accessRole || "").includes("owner"))
+  ) {
+    return res.status(403).json({ error: "owner_role_requires_owner_governance" });
+  }
+
+  const basicPatch = pickBasicProfilePatch(update);
   const updated = {
     ...existing,
-    name: update.name ?? existing.name,
-    phrase: update.phrase ?? existing.phrase,
-    bio: update.bio ?? existing.bio,
-    avatarUrl: update.avatarUrl ?? existing.avatarUrl,
+    ...basicPatch,
     avatarDisplay:
-      update.avatarDisplay !== undefined
-        ? normalizeAvatarDisplay(update.avatarDisplay)
+      basicPatch.avatarDisplay !== undefined
+        ? normalizeAvatarDisplay(basicPatch.avatarDisplay)
         : normalizeAvatarDisplay(existing.avatarDisplay),
-    socials: Array.isArray(update.socials) ? update.socials : existing.socials,
-    status: update.status === "retired" ? "retired" : "active",
-    permissions: Array.isArray(update.permissions) ? update.permissions : existing.permissions,
-    roles: Array.isArray(update.roles) ? update.roles : existing.roles,
+    socials: Array.isArray(basicPatch.socials) ? basicPatch.socials : existing.socials,
+    roles: Array.isArray(update.roles) ? removeOwnerRoleLabel(update.roles) : existing.roles,
+    status:
+      update.status === "retired"
+        ? "retired"
+        : update.status === "active"
+          ? "active"
+          : existing.status,
+    accessRole: Object.prototype.hasOwnProperty.call(update, "accessRole")
+      ? normalizeAccessRole(update.accessRole, existing.accessRole || AccessRole.NORMAL)
+      : existing.accessRole || AccessRole.NORMAL,
+    permissions: Array.isArray(update.permissions)
+      ? sanitizePermissionsForStorage(update.permissions, {
+          acceptLegacyStar: false,
+          keepUnknown: true,
+        })
+      : existing.permissions,
   };
 
+  if (
+    Object.prototype.hasOwnProperty.call(update, "accessRole") &&
+    !Array.isArray(update.permissions) &&
+    !targetContext.isOwner
+  ) {
+    updated.permissions = [...defaultPermissionsForRole(updated.accessRole)];
+  }
+
+  if (actorIsSecondary && targetContext.isOwner) {
+    return res.status(403).json({ error: "owner_update_forbidden" });
+  }
+
+  if ((actorIsPrimary || actorIsSecondary) && targetContext.isOwner) {
+    updated.accessRole = existing.accessRole;
+  }
+
+  if (updated.accessRole === AccessRole.OWNER_PRIMARY || updated.accessRole === AccessRole.OWNER_SECONDARY) {
+    updated.accessRole = existing.accessRole;
+  }
+  if (!actorIsPrimary && !actorIsSecondary) {
+    updated.permissions = existing.permissions;
+    updated.accessRole = existing.accessRole;
+    updated.status = existing.status;
+    updated.roles = existing.roles;
+  }
+
+  const beforeSnapshot = toUserApiResponse(existing, ownerIds);
   users[index] = updated;
-  users = normalizeUsers(users).map((user) =>
-    isOwner(user.id)
-      ? { ...user, status: "active", permissions: ["*"] }
-      : user,
-  );
+  users = enforceUserAccessInvariants(users);
+  users.sort((a, b) => a.order - b.order);
   writeUsers(users);
   syncAllowedUsers(users);
-  appendAuditLog(req, "users.update", "users", { id: targetId });
-  return res.json({ user: applyOwnerRole(updated) });
+  const persisted = users.find((user) => user.id === targetId) || updated;
+  const afterSnapshot = toUserApiResponse(persisted, ownerIds);
+  appendAuditLog(req, "users.update", "users", {
+    id: targetId,
+    before: beforeSnapshot,
+    after: afterSnapshot,
+    changes: diffUserFields(beforeSnapshot, afterSnapshot, [
+      ...BASIC_PROFILE_FIELDS,
+      "status",
+      "permissions",
+      "roles",
+      "accessRole",
+    ]),
+  });
+  return res.json({ user: afterSnapshot });
 });
 
-app.delete("/api/users/:id", requireOwner, (req, res) => {
+app.delete("/api/users/:id", requireAuth, (req, res) => {
   const sessionUser = req.session.user;
   const targetId = String(req.params.id || "");
   const primaryOwnerId = getPrimaryOwnerId();
@@ -6259,11 +6940,53 @@ app.delete("/api/users/:id", requireOwner, (req, res) => {
   if (sessionUser?.id && String(sessionUser.id) === targetId) {
     return res.status(400).json({ error: "cannot_delete_self" });
   }
-  if (primaryOwnerId && String(primaryOwnerId) === targetId) {
-    return res.status(403).json({ error: "cannot_delete_primary_owner" });
-  }
-  if (isOwner(targetId) && !isPrimaryOwner(sessionUser?.id)) {
-    return res.status(403).json({ error: "owner_delete_forbidden" });
+  if (!isRbacV2Enabled) {
+    if (!isOwner(sessionUser?.id)) {
+      return res.status(403).json({ error: "forbidden" });
+    }
+    if (primaryOwnerId && String(primaryOwnerId) === targetId) {
+      return res.status(403).json({ error: "cannot_delete_primary_owner" });
+    }
+    if (isOwner(targetId) && !isPrimaryOwner(sessionUser?.id)) {
+      return res.status(403).json({ error: "owner_delete_forbidden" });
+    }
+
+    let users = normalizeUsers(loadUsers());
+    const index = users.findIndex((user) => user.id === targetId);
+    if (index === -1) {
+      return res.status(404).json({ error: "not_found" });
+    }
+
+    const removed = users[index];
+    users = users.filter((user) => user.id !== targetId);
+
+    const activeUsers = users.filter((user) => user.status === "active").sort((a, b) => a.order - b.order);
+    const retiredUsers = users.filter((user) => user.status === "retired").sort((a, b) => a.order - b.order);
+    let orderIndex = 0;
+    const reordered = [
+      ...activeUsers.map((user) => ({ ...user, order: orderIndex++ })),
+      ...retiredUsers.map((user) => ({ ...user, order: orderIndex++ })),
+    ];
+
+    let nextOwnerIds = loadOwnerIds();
+    if (nextOwnerIds.includes(targetId)) {
+      nextOwnerIds = nextOwnerIds.filter((id) => id !== targetId);
+      if (nextOwnerIds.length === 0 && primaryOwnerId) {
+        nextOwnerIds = [String(primaryOwnerId)];
+      }
+      writeOwnerIds(nextOwnerIds);
+    }
+
+    const normalizedUsers = normalizeUsers(reordered).map((user) =>
+      isOwner(user.id)
+        ? { ...user, status: "active", permissions: ["*"] }
+        : user,
+    );
+    normalizedUsers.sort((a, b) => a.order - b.order);
+    writeUsers(normalizedUsers);
+    syncAllowedUsers(normalizedUsers);
+    appendAuditLog(req, "users.delete", "users", { id: targetId, wasOwner: isOwner(removed.id) });
+    return res.json({ ok: true, ownerIds: loadOwnerIds() });
   }
 
   let users = normalizeUsers(loadUsers());
@@ -6271,8 +6994,22 @@ app.delete("/api/users/:id", requireOwner, (req, res) => {
   if (index === -1) {
     return res.status(404).json({ error: "not_found" });
   }
-
   const removed = users[index];
+  const actorContext = getUserAccessContextById(sessionUser?.id, users);
+  const targetContext = getUserAccessContextById(targetId, users);
+  const actorIsPrimary = actorContext.accessRole === AccessRole.OWNER_PRIMARY;
+  const actorIsSecondary = actorContext.accessRole === AccessRole.OWNER_SECONDARY;
+  const actorCanUsersAccess = can({ grants: actorContext.grants, permissionId: PermissionId.USUARIOS_ACESSO });
+  if ((!actorIsPrimary && !actorIsSecondary) || !actorCanUsersAccess) {
+    return res.status(403).json({ error: "forbidden" });
+  }
+  if (targetContext.isPrimaryOwner || (primaryOwnerId && String(primaryOwnerId) === targetId)) {
+    return res.status(403).json({ error: "cannot_delete_primary_owner" });
+  }
+  if (targetContext.isOwner && !actorIsPrimary) {
+    return res.status(403).json({ error: "owner_delete_forbidden" });
+  }
+
   users = users.filter((user) => user.id !== targetId);
 
   const activeUsers = users.filter((user) => user.status === "active").sort((a, b) => a.order - b.order);
@@ -6283,7 +7020,7 @@ app.delete("/api/users/:id", requireOwner, (req, res) => {
     ...retiredUsers.map((user) => ({ ...user, order: orderIndex++ })),
   ];
 
-  let nextOwnerIds = loadOwnerIds();
+  let nextOwnerIds = loadOwnerIds().map((id) => String(id));
   if (nextOwnerIds.includes(targetId)) {
     nextOwnerIds = nextOwnerIds.filter((id) => id !== targetId);
     if (nextOwnerIds.length === 0 && primaryOwnerId) {
@@ -6292,16 +7029,20 @@ app.delete("/api/users/:id", requireOwner, (req, res) => {
     writeOwnerIds(nextOwnerIds);
   }
 
-  const normalizedUsers = normalizeUsers(reordered).map((user) =>
-    isOwner(user.id)
-      ? { ...user, status: "active", permissions: ["*"] }
-      : user,
-  );
+  const normalizedUsers = enforceUserAccessInvariants(reordered);
   normalizedUsers.sort((a, b) => a.order - b.order);
   writeUsers(normalizedUsers);
   syncAllowedUsers(normalizedUsers);
-  appendAuditLog(req, "users.delete", "users", { id: targetId, wasOwner: isOwner(removed.id) });
-  return res.json({ ok: true, ownerIds: loadOwnerIds() });
+  appendAuditLog(req, "users.delete", "users", {
+    id: targetId,
+    wasOwner: targetContext.isOwner,
+    before: toUserApiResponse(removed, nextOwnerIds),
+  });
+  return res.json({
+    ok: true,
+    ownerIds: loadOwnerIds().map((id) => String(id)),
+    primaryOwnerId: getPrimaryOwnerId() || null,
+  });
 });
 
 app.put("/api/users/self", requireAuth, (req, res) => {
@@ -6314,29 +7055,41 @@ app.put("/api/users/self", requireAuth, (req, res) => {
 
   const update = req.body || {};
   const existing = users[index];
+  const basicPatch = pickBasicProfilePatch(update);
   const updated = {
     ...existing,
-    name: update.name ?? existing.name,
-    phrase: update.phrase ?? existing.phrase,
-    bio: update.bio ?? existing.bio,
-    avatarUrl: update.avatarUrl ?? existing.avatarUrl,
+    name: basicPatch.name ?? existing.name,
+    phrase: basicPatch.phrase ?? existing.phrase,
+    bio: basicPatch.bio ?? existing.bio,
+    avatarUrl: basicPatch.avatarUrl ?? existing.avatarUrl,
     avatarDisplay:
-      update.avatarDisplay !== undefined
-        ? normalizeAvatarDisplay(update.avatarDisplay)
+      basicPatch.avatarDisplay !== undefined
+        ? normalizeAvatarDisplay(basicPatch.avatarDisplay)
         : normalizeAvatarDisplay(existing.avatarDisplay),
-    socials: Array.isArray(update.socials) ? update.socials : existing.socials,
+    socials: Array.isArray(basicPatch.socials) ? basicPatch.socials : existing.socials,
   };
 
+  const ownerIds = loadOwnerIds().map((id) => String(id));
+  const beforeSnapshot = toUserApiResponse(existing, ownerIds);
   users[index] = updated;
-  users = normalizeUsers(users).map((user) =>
-    isOwner(user.id)
-      ? { ...user, status: "active", permissions: ["*"] }
-      : user,
-  );
+  users = isRbacV2Enabled
+    ? enforceUserAccessInvariants(users)
+    : normalizeUsers(users).map((user) =>
+        isOwner(user.id)
+          ? { ...user, status: "active", permissions: ["*"] }
+          : user,
+      );
   writeUsers(users);
   syncAllowedUsers(users);
-  appendAuditLog(req, "users.update_self", "users", { id: sessionUser.id });
-  return res.json({ user: updated });
+  const persisted = users.find((user) => user.id === String(sessionUser.id)) || updated;
+  const afterSnapshot = toUserApiResponse(persisted, ownerIds);
+  appendAuditLog(req, "users.update_self", "users", {
+    id: sessionUser.id,
+    before: beforeSnapshot,
+    after: afterSnapshot,
+    changes: diffUserFields(beforeSnapshot, afterSnapshot, BASIC_PROFILE_FIELDS),
+  });
+  return res.json({ user: afterSnapshot });
 });
 
 app.post("/api/logout", (req, res) => {

@@ -1,4 +1,4 @@
-import type { MouseEvent, ReactNode } from "react";
+import { useMemo, type MouseEvent, type ReactNode } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { Home, LayoutDashboard } from "lucide-react";
 import DashboardHeader from "@/components/DashboardHeader";
@@ -17,18 +17,25 @@ import {
   SidebarSeparator,
 } from "@/components/ui/sidebar";
 import { dashboardMenuItems, type DashboardMenuItem } from "@/components/dashboard-menu";
+import { buildDashboardMenuFromGrants, resolveGrants } from "@/lib/access-control";
 
 type DashboardUser = {
+  id?: string;
   name?: string;
   username?: string;
   avatarUrl?: string | null;
+  accessRole?: string;
+  permissions?: string[];
+  ownerIds?: string[];
+  primaryOwnerId?: string | null;
+  grants?: Partial<Record<string, boolean>>;
 };
 
 type DashboardShellProps = {
   children: ReactNode;
   currentUser?: DashboardUser | null;
   isLoadingUser?: boolean;
-  menuItems?: DashboardMenuItem[];
+  menuItems?: DashboardMenuItem[] | null;
   onUserCardClick?: () => void;
   userLabel?: string;
   userSubLabel?: string;
@@ -42,13 +49,20 @@ const DashboardShell = ({
   children,
   currentUser,
   isLoadingUser = false,
-  menuItems = dashboardMenuItems,
+  menuItems = null,
   onUserCardClick,
   userLabel,
   userSubLabel,
   onMenuItemClick,
 }: DashboardShellProps) => {
   const location = useLocation();
+  const resolvedMenuItems = useMemo(() => {
+    if (Array.isArray(menuItems)) {
+      return menuItems.filter((item) => item.enabled);
+    }
+    const grants = resolveGrants(currentUser || null);
+    return buildDashboardMenuFromGrants(dashboardMenuItems, grants);
+  }, [currentUser, menuItems]);
   const userName =
     userLabel ?? (isLoadingUser ? "Carregando usuario..." : currentUser?.name ?? "Usuario");
   const userHandle =
@@ -140,7 +154,7 @@ const DashboardShell = ({
 
           <SidebarContent className="px-2 pb-2">
             <SidebarMenu className="gap-1.5">
-              {menuItems.map((item) => {
+              {resolvedMenuItems.map((item) => {
                 const isActive =
                   location.pathname === item.href ||
                   (item.href !== "/dashboard" && location.pathname.startsWith(`${item.href}/`));
@@ -195,7 +209,7 @@ const DashboardShell = ({
         </Sidebar>
 
         <SidebarInset className="flex min-h-screen flex-col bg-linear-to-b from-background via-[hsl(var(--primary)/0.12)] to-background text-foreground md:peer-data-[variant=inset]:shadow-none md:peer-data-[variant=inset]:rounded-none">
-          <DashboardHeader currentUser={currentUser} menuItems={menuItems} />
+          <DashboardHeader currentUser={currentUser} menuItems={resolvedMenuItems} />
           <div className="flex-1">{children}</div>
           <Footer />
         </SidebarInset>
