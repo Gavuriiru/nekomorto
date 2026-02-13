@@ -359,7 +359,7 @@ const EXTRA_ORIGINS = ADMIN_ORIGINS.split(",")
   .map((origin) => origin.trim())
   .filter(Boolean);
 const ALLOWED_ORIGINS = Array.from(new Set([...APP_ORIGINS, ...EXTRA_ORIGINS]));
-const PRIMARY_APP_ORIGIN = APP_ORIGINS[0] || "https://rainbow-dashboard-public-site.vercel.app/";
+const PRIMARY_APP_ORIGIN = APP_ORIGINS[0] || "http://127.0.0.1:5173";
 const PRIMARY_APP_HOST = (() => {
   try {
     return new URL(PRIMARY_APP_ORIGIN).host.toLowerCase();
