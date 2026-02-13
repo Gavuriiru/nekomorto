@@ -326,147 +326,7 @@ const DashboardHeader = ({
           </div>
         </div>
 
-        <div
-          ref={searchRef}
-          data-testid="dashboard-header-search-cluster"
-          className={cn(
-            "relative z-20 flex shrink-0 items-center gap-2 transition-all duration-300",
-            isSearchOpen
-              ? "absolute inset-x-0 top-1/2 z-30 mx-auto w-[min(22rem,calc(100vw-1rem))] -translate-y-1/2 xl:static xl:w-auto xl:translate-y-0"
-              : "w-auto",
-          )}
-        >
-          <div
-            className={`flex items-center gap-2 rounded-full border border-transparent bg-secondary/30 px-3 py-2 transition-all duration-300 ${
-              isSearchOpen ? "w-full border-border bg-secondary/70 xl:w-52 2xl:w-64" : "w-11"
-            }`}
-          >
-            <button
-              type="button"
-              aria-label="Abrir pesquisa"
-              onClick={() => setIsSearchOpen((prev) => !prev)}
-              className="text-white transition-colors hover:text-primary"
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                className="h-4 w-4"
-              >
-                <circle cx="11" cy="11" r="8" />
-                <path d="m21 21-4.3-4.3" />
-              </svg>
-            </button>
-            {isSearchOpen && (
-              <input
-                value={query}
-                onChange={(event) => setQuery(event.target.value)}
-                placeholder="Pesquisar projetos e posts"
-                className="w-full bg-transparent text-sm text-white outline-hidden placeholder:text-white/60"
-              />
-            )}
-          </div>
-
-          {showResults && (
-            <div
-              ref={synopsisRootRef}
-              data-testid="dashboard-header-results"
-              className="search-popover-enter absolute top-12 left-0 right-0 mx-auto max-h-[78vh] w-[min(24rem,calc(100vw-1rem))] overflow-hidden rounded-xl border border-border/60 bg-background/95 p-4 shadow-lg backdrop-blur-sm xl:left-auto xl:right-0 xl:mx-0 xl:w-80"
-            >
-              {filteredProjects.length > 0 && (
-                <div className="mb-4">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                    Projetos
-                  </p>
-                  <ul className="no-scrollbar mt-3 max-h-[44vh] space-y-3 overflow-y-auto overscroll-contain pr-1">
-                    {filteredProjects.map((item) => (
-                      <li key={item.href}>
-                        <Link
-                          to={item.href}
-                          className="group flex h-36 items-start gap-4 overflow-hidden rounded-xl border border-border/60 bg-gradient-card p-4 transition hover:border-primary/40 hover:bg-primary/5"
-                        >
-                          <div
-                            className="w-20 shrink-0 self-start overflow-hidden rounded-lg bg-secondary"
-                            style={{ aspectRatio: "46 / 65" }}
-                          >
-                            <img
-                              src={item.image}
-                              alt={item.label}
-                              className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
-                            />
-                          </div>
-                          <div data-synopsis-role="column" data-synopsis-key={item.href} className="min-w-0 h-full flex flex-col">
-                            <p data-synopsis-role="title" className="line-clamp-1 shrink-0 text-sm font-semibold text-foreground group-hover:text-primary">
-                              {item.label}
-                            </p>
-                            <p
-                              className={cn(
-                                "mt-1 overflow-hidden text-xs leading-snug text-muted-foreground",
-                                getSynopsisClampClass(item.href),
-                              )}
-                              data-synopsis-role="synopsis"
-                            >
-                              {item.synopsis}
-                            </p>
-                            {item.tags.length > 0 && (
-                              <div data-synopsis-role="badges" className="mt-auto pt-2 flex min-w-0 flex-wrap gap-1.5">
-                                {item.tags.map((tag) => (
-                                  <Badge key={tag} variant="secondary" className="text-[9px] uppercase whitespace-nowrap">
-                                    {tag}
-                                  </Badge>
-                                ))}
-                              </div>
-                            )}
-                          </div>
-                        </Link>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-
-              {filteredPosts.length > 0 && (
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                    Posts
-                  </p>
-                  <ul className="no-scrollbar mt-2 max-h-[26vh] space-y-2 overflow-y-auto overscroll-contain pr-1">
-                    {filteredPosts.map((item) => (
-                      <li key={item.href}>
-                        <Link
-                          to={item.href}
-                          className="text-sm text-foreground transition-colors hover:text-primary"
-                        >
-                          {item.label}
-                        </Link>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-
-              {!hasResults && (
-                <p className="text-sm text-muted-foreground">
-                  Nenhum resultado encontrado para a sua pesquisa.
-                </p>
-              )}
-            </div>
-          )}
-        </div>
-
-        <div
-          data-testid="dashboard-header-actions-cluster"
-          className={cn(
-            "flex shrink-0 items-center gap-2 transition-all duration-300 sm:gap-3 lg:gap-4",
-            isSearchOpen
-              ? "opacity-0 invisible pointer-events-none xl:opacity-100 xl:visible xl:pointer-events-auto"
-              : "opacity-100 visible pointer-events-auto",
-          )}
-        >
+        <div className="flex shrink-0 items-center gap-2 sm:gap-3 lg:gap-4">
           <div className="hidden 2xl:flex items-center gap-5 text-sm font-medium text-white/80">
             {navbarLinks.map((item) => {
               const isInternal = isInternalHref(item.href);
@@ -494,83 +354,225 @@ const DashboardHeader = ({
               );
             })}
           </div>
-
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-10 w-10 rounded-full border border-white/10 bg-white/5 text-white/80 hover:text-white 2xl:hidden"
-                aria-label="Abrir menu"
-              >
-                <Menu className="h-5 w-5" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className={`w-48 ${headerMenuContentClass}`}>
-              {navbarLinks.map((item) => {
-                const ItemIcon = getNavbarIcon(item.icon);
-                return (
-                  <DropdownMenuItem key={`${item.label}-${item.href}`} asChild className={headerMenuItemClass}>
-                    {isInternalHref(item.href) ? (
-                      <Link to={item.href} className="flex items-center gap-2">
-                        <ItemIcon className="h-4 w-4" />
-                        {item.label}
-                      </Link>
-                    ) : (
-                      <a href={item.href} target="_blank" rel="noreferrer" className="flex items-center gap-2">
-                        <ItemIcon className="h-4 w-4" />
-                        {item.label}
-                      </a>
-                    )}
-                  </DropdownMenuItem>
-                );
-              })}
-            </DropdownMenuContent>
-          </DropdownMenu>
-
-          <DropdownMenu modal={false}>
-            <DropdownMenuTrigger asChild>
-              <Button
-                variant="ghost"
-                className="h-10 rounded-full border border-white/10 bg-white/5 px-2 text-white hover:bg-white/10"
-              >
-                <Avatar className="h-8 w-8 border border-white/20">
-                  {currentUser?.avatarUrl ? <AvatarImage src={currentUser.avatarUrl} alt={userName} /> : null}
-                  <AvatarFallback className="bg-white/10 text-xs text-white">{userInitials}</AvatarFallback>
-                </Avatar>
-                <span className="hidden max-w-40 truncate text-sm font-medium text-white xl:inline">
-                  {userName}
-                </span>
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent
-              align="end"
-              className="w-56 border-white/15 bg-sidebar/95 text-white shadow-xl backdrop-blur-xs"
+          <div
+            ref={searchRef}
+            data-testid="dashboard-header-search-cluster"
+            className={cn(
+              "relative z-20 flex shrink-0 items-center gap-2 transition-all duration-300",
+              isSearchOpen
+                ? "absolute inset-x-0 top-1/2 z-30 mx-auto w-[min(22rem,calc(100vw-1rem))] -translate-y-1/2 xl:static xl:w-auto xl:translate-y-0"
+                : "w-auto",
+            )}
+          >
+            <div
+              className={`flex items-center gap-2 rounded-full border border-transparent bg-secondary/30 px-3 py-2 transition-all duration-300 ${
+                isSearchOpen ? "w-full border-border bg-secondary/70 xl:w-52 2xl:w-64" : "w-11"
+              }`}
             >
-              {menuItems
-                .filter((item) => item.enabled)
-                .map((item) => {
-                  const ItemIcon = item.icon;
+              <button
+                type="button"
+                aria-label="Abrir pesquisa"
+                onClick={() => setIsSearchOpen((prev) => !prev)}
+                className="text-white transition-colors hover:text-primary"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="h-4 w-4"
+                >
+                  <circle cx="11" cy="11" r="8" />
+                  <path d="m21 21-4.3-4.3" />
+                </svg>
+              </button>
+              {isSearchOpen && (
+                <input
+                  value={query}
+                  onChange={(event) => setQuery(event.target.value)}
+                  placeholder="Pesquisar projetos e posts"
+                  className="w-full bg-transparent text-sm text-white outline-hidden placeholder:text-white/60"
+                />
+              )}
+            </div>
+
+            {showResults && (
+              <div
+                ref={synopsisRootRef}
+                data-testid="dashboard-header-results"
+                className="search-popover-enter absolute top-12 left-0 right-0 mx-auto max-h-[78vh] w-[min(24rem,calc(100vw-1rem))] overflow-hidden rounded-xl border border-border/60 bg-background/95 p-4 shadow-lg backdrop-blur-sm xl:left-auto xl:right-0 xl:mx-0 xl:w-80"
+              >
+                {filteredProjects.length > 0 && (
+                  <div className="mb-4">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                      Projetos
+                    </p>
+                    <ul className="no-scrollbar mt-3 max-h-[44vh] space-y-3 overflow-y-auto overscroll-contain pr-1">
+                      {filteredProjects.map((item) => (
+                        <li key={item.href}>
+                          <Link
+                            to={item.href}
+                            className="group flex h-36 items-start gap-4 overflow-hidden rounded-xl border border-border/60 bg-gradient-card p-4 transition hover:border-primary/40 hover:bg-primary/5"
+                          >
+                            <div
+                              className="w-20 shrink-0 self-start overflow-hidden rounded-lg bg-secondary"
+                              style={{ aspectRatio: "46 / 65" }}
+                            >
+                              <img
+                                src={item.image}
+                                alt={item.label}
+                                className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                              />
+                            </div>
+                            <div data-synopsis-role="column" data-synopsis-key={item.href} className="min-w-0 h-full flex flex-col">
+                              <p data-synopsis-role="title" className="line-clamp-1 shrink-0 text-sm font-semibold text-foreground group-hover:text-primary">
+                                {item.label}
+                              </p>
+                              <p
+                                className={cn(
+                                  "mt-1 overflow-hidden text-xs leading-snug text-muted-foreground",
+                                  getSynopsisClampClass(item.href),
+                                )}
+                                data-synopsis-role="synopsis"
+                              >
+                                {item.synopsis}
+                              </p>
+                              {item.tags.length > 0 && (
+                                <div data-synopsis-role="badges" className="mt-auto pt-2 flex min-w-0 flex-wrap gap-1.5">
+                                  {item.tags.map((tag) => (
+                                    <Badge key={tag} variant="secondary" className="text-[9px] uppercase whitespace-nowrap">
+                                      {tag}
+                                    </Badge>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          </Link>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                {filteredPosts.length > 0 && (
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                      Posts
+                    </p>
+                    <ul className="no-scrollbar mt-2 max-h-[26vh] space-y-2 overflow-y-auto overscroll-contain pr-1">
+                      {filteredPosts.map((item) => (
+                        <li key={item.href}>
+                          <Link
+                            to={item.href}
+                            className="text-sm text-foreground transition-colors hover:text-primary"
+                          >
+                            {item.label}
+                          </Link>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                {!hasResults && (
+                  <p className="text-sm text-muted-foreground">
+                    Nenhum resultado encontrado para a sua pesquisa.
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+
+          <div
+            data-testid="dashboard-header-actions-cluster"
+            className={cn(
+              "flex shrink-0 items-center gap-2 transition-all duration-300 sm:gap-3 lg:gap-4",
+              isSearchOpen
+                ? "opacity-0 invisible pointer-events-none xl:opacity-100 xl:visible xl:pointer-events-auto"
+                : "opacity-100 visible pointer-events-auto",
+            )}
+          >
+
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-10 w-10 rounded-full border border-white/10 bg-white/5 text-white/80 hover:text-white 2xl:hidden"
+                  aria-label="Abrir menu"
+                >
+                  <Menu className="h-5 w-5" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className={`w-48 ${headerMenuContentClass}`}>
+                {navbarLinks.map((item) => {
+                  const ItemIcon = getNavbarIcon(item.icon);
                   return (
-                    <DropdownMenuItem key={item.href} asChild className="focus:bg-white/10 focus:text-white">
-                      <Link to={item.href} className="flex items-center gap-2">
-                        <ItemIcon className="h-4 w-4" />
-                        {item.label}
-                      </Link>
+                    <DropdownMenuItem key={`${item.label}-${item.href}`} asChild className={headerMenuItemClass}>
+                      {isInternalHref(item.href) ? (
+                        <Link to={item.href} className="flex items-center gap-2">
+                          <ItemIcon className="h-4 w-4" />
+                          {item.label}
+                        </Link>
+                      ) : (
+                        <a href={item.href} target="_blank" rel="noreferrer" className="flex items-center gap-2">
+                          <ItemIcon className="h-4 w-4" />
+                          {item.label}
+                        </a>
+                      )}
                     </DropdownMenuItem>
                   );
                 })}
-              <DropdownMenuSeparator className="bg-white/10" />
-              <DropdownMenuItem
-                onClick={handleLogout}
-                disabled={isLoggingOut}
-                className="focus:bg-white/10 focus:text-white"
+              </DropdownMenuContent>
+            </DropdownMenu>
+
+            <DropdownMenu modal={false}>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  className="h-10 rounded-full border border-white/10 bg-white/5 px-2 text-white hover:bg-white/10"
+                >
+                  <Avatar className="h-8 w-8 border border-white/20">
+                    {currentUser?.avatarUrl ? <AvatarImage src={currentUser.avatarUrl} alt={userName} /> : null}
+                    <AvatarFallback className="bg-white/10 text-xs text-white">{userInitials}</AvatarFallback>
+                  </Avatar>
+                  <span className="hidden max-w-40 truncate text-sm font-medium text-white xl:inline">
+                    {userName}
+                  </span>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent
+                align="end"
+                className="w-56 border-white/15 bg-sidebar/95 text-white shadow-xl backdrop-blur-xs"
               >
-                <LogOut className="h-4 w-4" />
-                {isLoggingOut ? "Saindo..." : "Sair"}
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+                {menuItems
+                  .filter((item) => item.enabled)
+                  .map((item) => {
+                    const ItemIcon = item.icon;
+                    return (
+                      <DropdownMenuItem key={item.href} asChild className="focus:bg-white/10 focus:text-white">
+                        <Link to={item.href} className="flex items-center gap-2">
+                          <ItemIcon className="h-4 w-4" />
+                          {item.label}
+                        </Link>
+                      </DropdownMenuItem>
+                    );
+                  })}
+                <DropdownMenuSeparator className="bg-white/10" />
+                <DropdownMenuItem
+                  onClick={handleLogout}
+                  disabled={isLoggingOut}
+                  className="focus:bg-white/10 focus:text-white"
+                >
+                  <LogOut className="h-4 w-4" />
+                  {isLoggingOut ? "Saindo..." : "Sair"}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         </div>
       </div>
     </header>

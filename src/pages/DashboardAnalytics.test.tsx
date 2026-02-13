@@ -115,6 +115,8 @@ describe("DashboardAnalytics", () => {
     renderPage();
 
     await screen.findByText("Performance e aquisição");
+    expect(screen.getByRole("button", { name: "Exportar" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Exportar CSV" })).not.toBeInTheDocument();
     expect(screen.getAllByText("Views").length).toBeGreaterThan(0);
     expect(screen.getByText("Views únicas")).toBeInTheDocument();
     expect(screen.getByText("Leituras de capítulos")).toBeInTheDocument();

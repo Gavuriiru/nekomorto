@@ -154,4 +154,29 @@ describe("DashboardHeader mobile search layout", () => {
     expect(classTokens(actionsCluster)).not.toContain("invisible");
     expect(classTokens(searchCluster)).not.toContain("absolute");
   });
+
+  it("mantem a ordem no desktop com links antes da busca e busca antes das acoes", async () => {
+    render(
+      <MemoryRouter initialEntries={["/dashboard"]}>
+        <DashboardHeader
+          currentUser={{
+            name: "Admin",
+            username: "admin",
+            avatarUrl: null,
+          }}
+        />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(apiFetchMock).toHaveBeenCalledTimes(3);
+    });
+
+    const aboutLink = screen.getByRole("link", { name: "Sobre" });
+    const searchCluster = screen.getByTestId("dashboard-header-search-cluster");
+    const actionsCluster = screen.getByTestId("dashboard-header-actions-cluster");
+
+    expect(aboutLink.compareDocumentPosition(searchCluster) & Node.DOCUMENT_POSITION_FOLLOWING).not.toBe(0);
+    expect(searchCluster.compareDocumentPosition(actionsCluster) & Node.DOCUMENT_POSITION_FOLLOWING).not.toBe(0);
+  });
 });

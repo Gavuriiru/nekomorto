@@ -188,8 +188,8 @@ const CommentsSection = ({ targetType, targetId, chapterNumber, volume }: Commen
   }, [apiBase]);
 
   const handleSubmit = async () => {
-    if (!form.name.trim() || !form.email.trim() || !form.content.trim()) {
-      setNotice("Preencha nome, e-mail e comentário.");
+    if (!form.name.trim() || !form.content.trim()) {
+      setNotice("Preencha nome e comentário.");
       return;
     }
     setIsSubmitting(true);
@@ -199,9 +199,12 @@ const CommentsSection = ({ targetType, targetId, chapterNumber, volume }: Commen
         targetType,
         targetId,
         name: form.name.trim(),
-        email: form.email.trim(),
         content: form.content.trim(),
       };
+      const normalizedEmail = form.email.trim();
+      if (normalizedEmail) {
+        payload.email = normalizedEmail;
+      }
       if (replyTo) {
         payload.parentId = replyTo.id;
       }
@@ -316,7 +319,7 @@ const CommentsSection = ({ targetType, targetId, chapterNumber, volume }: Commen
               : "Os comentários passam por aprovação antes de aparecerem."}
           </div>
           <span className="text-xs text-muted-foreground">
-            Avatar via Gravatar (baseado no e-mail).
+            Avatar via Gravatar (quando e-mail for informado).
           </span>
         </div>
         <Separator />
@@ -344,7 +347,7 @@ const CommentsSection = ({ targetType, targetId, chapterNumber, volume }: Commen
             />
             <Input
               type="email"
-              placeholder="Seu e-mail (usado para o Gravatar)"
+              placeholder="Seu e-mail (opcional, usado para o Gravatar)"
               value={form.email}
               onChange={(event) => setForm((prev) => ({ ...prev, email: event.target.value }))}
               disabled={canModerate}

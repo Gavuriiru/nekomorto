@@ -280,7 +280,11 @@ const DashboardAnalytics = () => {
                 Foco em consumo de conteúdo, retenção e tendências de audiência.
               </p>
             </div>
-            <div className="flex flex-wrap items-center gap-3 animate-slide-up opacity-0" style={{ animationDelay: "0.24s" }}>
+            <div
+              className="flex flex-col gap-3 animate-slide-up opacity-0 lg:flex-row lg:items-center"
+              style={{ animationDelay: "0.24s" }}
+            >
+              <div className="flex flex-wrap items-center gap-3 lg:flex-nowrap">
               <Select value={range} onValueChange={(value) => setRangeFilter(value as RangeValue)}>
                 <SelectTrigger className="w-[130px]">
                   <SelectValue placeholder="Período" />
@@ -312,8 +316,9 @@ const DashboardAnalytics = () => {
                   <SelectItem value="download_clicks">Cliques em downloads</SelectItem>
                 </SelectContent>
               </Select>
-              <Button variant="outline" onClick={exportCsv}>
-                Exportar CSV
+              </div>
+              <Button className="self-start lg:ml-auto lg:self-auto" variant="outline" onClick={exportCsv}>
+                Exportar
               </Button>
             </div>
           </header>

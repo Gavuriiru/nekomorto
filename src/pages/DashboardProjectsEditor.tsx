@@ -852,6 +852,7 @@ const DashboardProjectsEditor = () => {
   const confirmActionRef = useRef<(() => void) | null>(null);
   const confirmCancelRef = useRef<(() => void) | null>(null);
   const autoEditHandledRef = useRef<string | null>(null);
+  const isApplyingSearchParamsRef = useRef(false);
   const editorInitialSnapshotRef = useRef<string>(buildProjectEditorSnapshot(emptyProject, ""));
   const isDirty = useMemo(
     () => buildProjectEditorSnapshot(formState, anilistIdInput) !== editorInitialSnapshotRef.current,
@@ -1008,30 +1009,40 @@ const DashboardProjectsEditor = () => {
       sortParam === "recent"
         ? sortParam
         : "alpha";
-    if (nextSort !== sortMode) {
-      setSortMode(nextSort);
-    }
-  }, [searchParams, sortMode]);
-
-  useEffect(() => {
-    const currentSortParam = searchParams.get("sort");
-    const currentSortMode = currentSortParam ?? "alpha";
-    if (currentSortMode === sortMode) {
+    const nextPage = parsePageParam(searchParams.get("page"));
+    const shouldApply = sortMode !== nextSort || currentPage !== nextPage;
+    if (!shouldApply) {
       return;
     }
+    isApplyingSearchParamsRef.current = true;
+    setSortMode((prev) => (prev === nextSort ? prev : nextSort));
+    setCurrentPage((prev) => (prev === nextPage ? prev : nextPage));
+  }, [searchParams]);
+
+  useEffect(() => {
     const nextParams = new URLSearchParams(searchParams);
     if (sortMode === "alpha") {
       nextParams.delete("sort");
     } else {
       nextParams.set("sort", sortMode);
     }
-    setSearchParams(nextParams, { replace: true });
-  }, [searchParams, setSearchParams, sortMode]);
-
-  useEffect(() => {
-    const nextPage = parsePageParam(searchParams.get("page"));
-    setCurrentPage((prev) => (prev === nextPage ? prev : nextPage));
-  }, [searchParams]);
+    if (currentPage <= 1) {
+      nextParams.delete("page");
+    } else {
+      nextParams.set("page", String(currentPage));
+    }
+    const currentQuery = searchParams.toString();
+    const nextQuery = nextParams.toString();
+    if (isApplyingSearchParamsRef.current) {
+      if (nextQuery === currentQuery) {
+        isApplyingSearchParamsRef.current = false;
+      }
+      return;
+    }
+    if (nextQuery !== currentQuery) {
+      setSearchParams(nextParams, { replace: true });
+    }
+  }, [currentPage, searchParams, setSearchParams, sortMode]);
 
   useEffect(() => {
     setCurrentPage(1);
@@ -1380,22 +1391,11 @@ const DashboardProjectsEditor = () => {
   const paginatedProjects = sortedProjects.slice(pageStart, pageStart + projectsPerPage);
 
   useEffect(() => {
-    setCurrentPage((page) => Math.min(page, totalPages));
-  }, [totalPages]);
-
-  useEffect(() => {
-    const currentPageParam = parsePageParam(searchParams.get("page"));
-    if (currentPageParam === currentPage) {
+    if (isLoading) {
       return;
     }
-    const nextParams = new URLSearchParams(searchParams);
-    if (currentPage <= 1) {
-      nextParams.delete("page");
-    } else {
-      nextParams.set("page", String(currentPage));
-    }
-    setSearchParams(nextParams, { replace: true });
-  }, [currentPage, searchParams, setSearchParams]);
+    setCurrentPage((page) => Math.min(page, totalPages));
+  }, [isLoading, totalPages]);
 
   const openCreate = () => {
     const nextForm = { ...emptyProject };

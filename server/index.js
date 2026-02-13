@@ -4553,7 +4553,7 @@ app.get("/api/public/comments", (req, res) => {
       name: comment.name,
       content: comment.content,
       createdAt: comment.createdAt,
-      avatarUrl: comment.avatarUrl || buildGravatarUrl(comment.emailHash || ""),
+      avatarUrl: comment.avatarUrl || (comment.emailHash ? buildGravatarUrl(comment.emailHash) : ""),
     }));
 
   return res.json({ comments });
@@ -4587,7 +4587,7 @@ app.post("/api/public/comments", async (req, res) => {
   if (!normalizedName || !normalizedContent) {
     return res.status(400).json({ error: "fields_required" });
   }
-  if (!isStaff && (!normalizedEmail || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(normalizedEmail))) {
+  if (!isStaff && normalizedEmail && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(normalizedEmail)) {
     return res.status(400).json({ error: "invalid_email" });
   }
   if (normalizedContent.length > 2000) {
@@ -4643,10 +4643,12 @@ app.post("/api/public/comments", async (req, res) => {
     }
   }
 
-  const emailHash = createGravatarHash(normalizedEmail);
+  const emailHash = normalizedEmail ? createGravatarHash(normalizedEmail) : "";
   const avatarUrl = isStaff
     ? String(sessionUser?.avatarUrl || "")
-    : await resolveGravatarAvatarUrl(emailHash);
+    : emailHash
+      ? await resolveGravatarAvatarUrl(emailHash)
+      : "";
   const now = new Date().toISOString();
   const newComment = {
     id: crypto.randomUUID(),
@@ -4746,7 +4748,7 @@ app.get("/api/comments/pending", requireAuth, (req, res) => {
         name: comment.name,
         content: comment.content,
         createdAt: comment.createdAt,
-        avatarUrl: comment.avatarUrl || buildGravatarUrl(comment.emailHash || ""),
+        avatarUrl: comment.avatarUrl || (comment.emailHash ? buildGravatarUrl(comment.emailHash) : ""),
         targetLabel: target.label,
         targetUrl: target.url,
       };
@@ -4779,7 +4781,7 @@ app.get("/api/comments/recent", requireAuth, (req, res) => {
         name: comment.name,
         content: comment.content,
         createdAt: comment.createdAt,
-        avatarUrl: comment.avatarUrl || buildGravatarUrl(comment.emailHash || ""),
+        avatarUrl: comment.avatarUrl || (comment.emailHash ? buildGravatarUrl(comment.emailHash) : ""),
         targetLabel: target.label,
         targetUrl: target.url,
       };

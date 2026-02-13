@@ -78,14 +78,14 @@ describe("CommentsSection auto-refresh", () => {
       </MemoryRouter>,
     );
 
-    await screen.findByText("Como staff, seus comentários aparecem imediatamente.");
+    await screen.findByText(/Como staff, seus coment/i);
 
-    fireEvent.change(screen.getByPlaceholderText("Escreva seu comentário"), {
+    fireEvent.change(screen.getByPlaceholderText(/Escreva seu coment/i), {
       target: { value: "Comentario da staff" },
     });
-    fireEvent.click(screen.getByRole("button", { name: "Publicar comentário" }));
+    fireEvent.click(screen.getByRole("button", { name: /Publicar/i }));
 
-    expect(await screen.findByText("Comentário publicado.")).toBeInTheDocument();
+    expect(await screen.findByText(/publicado\./i)).toBeInTheDocument();
     expect(await screen.findByText("Comentario da staff")).toBeInTheDocument();
     await waitFor(() => {
       expect(countPublicCommentsListGets()).toBe(2);
@@ -93,6 +93,7 @@ describe("CommentsSection auto-refresh", () => {
   });
 
   it("nao recarrega lista apos envio pendente de usuario comum", async () => {
+    let submittedPayload: Record<string, unknown> | null = null;
     apiFetchMock.mockImplementation(async (_base: string, path: string, options?: RequestInit) => {
       const method = String(options?.method || "GET").toUpperCase();
 
@@ -110,6 +111,8 @@ describe("CommentsSection auto-refresh", () => {
         });
       }
       if (path === "/api/public/comments" && method === "POST") {
+        const rawBody = typeof options?.body === "string" ? options.body : "";
+        submittedPayload = rawBody ? (JSON.parse(rawBody) as Record<string, unknown>) : {};
         return mockJsonResponse(true, { comment: { id: "comment-2", status: "pending" } });
       }
       return mockJsonResponse(false, { error: "not_found" }, 404);
@@ -121,23 +124,24 @@ describe("CommentsSection auto-refresh", () => {
       </MemoryRouter>,
     );
 
-    await screen.findByText("Os comentários passam por aprovação antes de aparecerem.");
+    await screen.findByText(/passam por aprova/i);
+    expect(screen.getByPlaceholderText("Seu e-mail (opcional, usado para o Gravatar)")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /Publicar/i }));
+    expect(await screen.findByText(/Preencha nome e coment/i)).toBeInTheDocument();
 
     fireEvent.change(screen.getByPlaceholderText("Seu nome"), {
       target: { value: "Visitor" },
     });
-    fireEvent.change(screen.getByPlaceholderText("Seu e-mail (usado para o Gravatar)"), {
-      target: { value: "visitor@example.com" },
-    });
-    fireEvent.change(screen.getByPlaceholderText("Escreva seu comentário"), {
+    fireEvent.change(screen.getByPlaceholderText(/Escreva seu coment/i), {
       target: { value: "Comentario pendente" },
     });
-    fireEvent.click(screen.getByRole("button", { name: "Publicar comentário" }));
+    fireEvent.click(screen.getByRole("button", { name: /Publicar/i }));
 
-    expect(
-      await screen.findByText("Comentário enviado! Ele ficará visível após aprovação."),
-    ).toBeInTheDocument();
-    expect(screen.getByText("Ainda não há comentários aprovados.")).toBeInTheDocument();
+    expect(await screen.findByText(/enviado!.*aprova/i)).toBeInTheDocument();
+    expect(screen.getByText(/Ainda n.o h. coment.rios aprovados\./i)).toBeInTheDocument();
     expect(countPublicCommentsListGets()).toBe(1);
+    expect(submittedPayload).not.toBeNull();
+    expect(submittedPayload).not.toHaveProperty("email");
   });
 });

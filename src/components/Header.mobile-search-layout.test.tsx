@@ -147,4 +147,23 @@ describe("Header mobile search layout", () => {
     expect(classTokens(actionsCluster)).not.toContain("invisible");
     expect(classTokens(searchCluster)).not.toContain("absolute");
   });
+
+  it("mantem a ordem no desktop com links antes da busca e busca antes das acoes", async () => {
+    render(
+      <MemoryRouter initialEntries={["/"]}>
+        <Header />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(apiFetchMock).toHaveBeenCalledTimes(4);
+    });
+
+    const aboutLink = screen.getByRole("link", { name: "Sobre" });
+    const searchCluster = screen.getByTestId("public-header-search-cluster");
+    const actionsCluster = screen.getByTestId("public-header-actions-cluster");
+
+    expect(aboutLink.compareDocumentPosition(searchCluster) & Node.DOCUMENT_POSITION_FOLLOWING).not.toBe(0);
+    expect(searchCluster.compareDocumentPosition(actionsCluster) & Node.DOCUMENT_POSITION_FOLLOWING).not.toBe(0);
+  });
 });

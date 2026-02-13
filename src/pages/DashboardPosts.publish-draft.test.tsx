@@ -173,4 +173,32 @@ describe("DashboardPosts publish draft", () => {
       expect(within(dialog).queryByRole("button", { name: "Publicar agora" })).not.toBeInTheDocument();
     },
   );
+
+  it("mantem publishedAt original ao salvar post publicado sem alterar a data", async () => {
+    setupApiMock("published");
+
+    render(
+      <MemoryRouter>
+        <DashboardPosts />
+      </MemoryRouter>,
+    );
+
+    await screen.findByRole("heading", { name: "Gerenciar posts" });
+    fireEvent.click(screen.getByText("Post published"));
+
+    const dialog = await screen.findByRole("dialog");
+    fireEvent.click(within(dialog).getByRole("button", { name: "Salvar" }));
+
+    await waitFor(() => {
+      const putCall = apiFetchMock.mock.calls.find((call) => {
+        const path = call[1];
+        const options = (call[2] || {}) as RequestInit;
+        return path === "/api/posts/post-1" && String(options.method || "GET").toUpperCase() === "PUT";
+      });
+      expect(putCall).toBeDefined();
+      const payload = JSON.parse(String(((putCall as unknown[])[2] as RequestInit).body || "{}"));
+      expect(payload.status).toBe("published");
+      expect(payload.publishedAt).toBe("2026-02-10T12:00:00.000Z");
+    });
+  });
 });

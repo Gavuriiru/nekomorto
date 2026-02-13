@@ -304,6 +304,7 @@ const DashboardPosts = () => {
   const editorRef = useRef<LexicalEditorHandle | null>(null);
   const editorInitialSnapshotRef = useRef<string>(buildPostEditorSnapshot(emptyForm));
   const autoEditHandledRef = useRef<string | null>(null);
+  const isApplyingSearchParamsRef = useRef(false);
 
   const currentUserRecord = currentUser
     ? users.find((user) => user.id === currentUser.id) || null
@@ -814,14 +815,26 @@ const DashboardPosts = () => {
   const paginatedPosts = sortedPosts.slice(pageStart, pageStart + postsPerPage);
 
   useEffect(() => {
+    if (isLoading) {
+      return;
+    }
     setCurrentPage((page) => Math.min(page, totalPages));
-  }, [totalPages]);
+  }, [isLoading, totalPages]);
 
   useEffect(() => {
     const nextSortMode = parseSortParam(searchParams.get("sort"));
     const nextSearchQuery = searchParams.get("q") || "";
     const nextProjectFilterId = searchParams.get("project") || "all";
     const nextPage = parsePageParam(searchParams.get("page"));
+    const shouldApply =
+      sortMode !== nextSortMode ||
+      searchQuery !== nextSearchQuery ||
+      projectFilterId !== nextProjectFilterId ||
+      currentPage !== nextPage;
+    if (!shouldApply) {
+      return;
+    }
+    isApplyingSearchParamsRef.current = true;
     setSortMode((prev) => (prev === nextSortMode ? prev : nextSortMode));
     setSearchQuery((prev) => (prev === nextSearchQuery ? prev : nextSearchQuery));
     setProjectFilterId((prev) => (prev === nextProjectFilterId ? prev : nextProjectFilterId));
@@ -851,7 +864,15 @@ const DashboardPosts = () => {
     } else {
       nextParams.set("page", String(currentPage));
     }
-    if (nextParams.toString() !== searchParams.toString()) {
+    const currentQuery = searchParams.toString();
+    const nextQuery = nextParams.toString();
+    if (isApplyingSearchParamsRef.current) {
+      if (nextQuery === currentQuery) {
+        isApplyingSearchParamsRef.current = false;
+      }
+      return;
+    }
+    if (nextQuery !== currentQuery) {
       setSearchParams(nextParams, { replace: true });
     }
   }, [sortMode, searchQuery, projectFilterId, currentPage, searchParams, setSearchParams]);
@@ -989,16 +1010,31 @@ const DashboardPosts = () => {
 
   const handleSave = async (overrideStatus?: "draft" | "scheduled" | "published") => {
     const resolvedStatus = overrideStatus || formState.status;
-    const publishAtValue = formState.publishAt ? new Date(formState.publishAt).toISOString() : null;
-    if (resolvedStatus === "scheduled" && !publishAtValue) {
+    const parsedPublishAtMs = formState.publishAt ? new Date(formState.publishAt).getTime() : null;
+    const publishAtValue =
+      parsedPublishAtMs !== null && Number.isFinite(parsedPublishAtMs)
+        ? new Date(parsedPublishAtMs).toISOString()
+        : null;
+    const nowIso = new Date().toISOString();
+    const originalPublishAtLocal = editingPost ? toLocalDateTimeFromIso(editingPost.publishedAt) : "";
+    const didPublishAtChange = Boolean(editingPost) && formState.publishAt !== originalPublishAtLocal;
+    let resolvedPublishedAt = editingPost?.publishedAt || nowIso;
+    if (overrideStatus === "published") {
+      resolvedPublishedAt = nowIso;
+    } else if (editingPost && !didPublishAtChange) {
+      resolvedPublishedAt = editingPost.publishedAt || nowIso;
+    } else if (publishAtValue) {
+      resolvedPublishedAt = publishAtValue;
+    }
+    const scheduledDateSource = editingPost && !didPublishAtChange ? editingPost.publishedAt : publishAtValue;
+    const hasScheduledDate = resolvedStatus !== "scheduled" || Boolean(scheduledDateSource);
+    if (!hasScheduledDate) {
       toast({
         title: "Defina uma data de publicação",
         description: "Posts agendados precisam de uma data.",
       });
       return;
     }
-    const resolvedPublishedAt =
-      resolvedStatus === "published" ? new Date().toISOString() : publishAtValue;
     const lexicalText = getLexicalText(formState.contentLexical);
     const seoDescription = lexicalText.trim().slice(0, 150);
     const coverImageUrl = formState.coverImageUrl.trim() || null;
@@ -1104,9 +1140,10 @@ const DashboardPosts = () => {
         tagInputRef.current.value = "";
       }
     }
-    if (resolvedStatus === "published" || resolvedStatus === "scheduled") {
+    if (editingPost) {
       closeEditor();
-      navigate("/dashboard/posts");
+    } else if (resolvedStatus === "published" || resolvedStatus === "scheduled") {
+      closeEditor();
     }
   };
 
