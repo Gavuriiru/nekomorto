@@ -29,7 +29,7 @@ const randomSecret = () => crypto.randomBytes(32).toString("hex");
 const main = async () => {
   const nodeEnv = prod ? "production" : await ask("NODE_ENV", "development");
   const port = await ask("PORT", "8080");
-  const appOrigin = await ask("APP_ORIGIN", "http://127.0.0.1:https://rainbow-dashboard-public-site.vercel.app/");
+  const appOrigin = await ask("APP_ORIGIN", "https://rainbow-dashboard-public-site.vercel.app/");
   const redirectUri = await ask("DISCORD_REDIRECT_URI", "https://rainbow-dashboard-public-site.onrender.com/login");
   const discordClientId = await ask("DISCORD_CLIENT_ID");
   const discordClientSecret = await ask("DISCORD_CLIENT_SECRET");
