@@ -57,10 +57,10 @@ const Login = () => {
   })();
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-background via-[hsl(var(--primary)/0.12)] to-background text-foreground">
+    <div className="min-h-screen bg-linear-to-b from-background via-[hsl(var(--primary)/0.12)] to-background text-foreground">
       <main className="pt-28">
         <section className="mx-auto w-full max-w-3xl px-6 pb-20 md:px-10">
-          <div className="relative overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-white/10 via-white/5 to-transparent p-1 shadow-[0_40px_120px_-70px_rgba(0,0,0,0.9)]">
+          <div className="relative overflow-hidden rounded-3xl border border-white/10 bg-linear-to-br from-white/10 via-white/5 to-transparent p-1 shadow-[0_40px_120px_-70px_rgba(0,0,0,0.9)]">
             <div className="pointer-events-none absolute inset-0">
               <div className="absolute inset-[-60%] animate-spin-slow bg-[conic-gradient(from_0deg,transparent_0deg,hsl(var(--primary)/0.22)_120deg,transparent_210deg,hsl(var(--accent)/0.22)_300deg,transparent_360deg)] opacity-35 blur-2xl" />
               <div className="absolute inset-6 rounded-[18px] bg-black/15" />
@@ -69,7 +69,7 @@ const Login = () => {
               <div className="absolute -left-16 top-8 h-56 w-56 rounded-full bg-primary/25 blur-[120px]" />
               <div className="absolute right-6 top-24 h-64 w-64 rounded-full bg-accent/20 blur-[140px]" />
             </div>
-            <div className="relative rounded-[22px] border border-white/10 bg-black/25 p-8 backdrop-blur md:p-10">
+            <div className="relative rounded-[22px] border border-white/10 bg-black/25 p-8 backdrop-blur-sm md:p-10">
               <div className="flex flex-col gap-6">
                 <div className="flex flex-wrap items-center gap-2">
                   <Badge className="bg-white/10 text-muted-foreground">Acesso restrito</Badge>

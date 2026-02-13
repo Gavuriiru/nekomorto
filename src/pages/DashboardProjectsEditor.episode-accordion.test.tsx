@@ -179,6 +179,18 @@ describe("DashboardProjectsEditor episode accordion", () => {
     expect(screen.getByDisplayValue("Primeiro episodio")).toBeInTheDocument();
   });
 
+  it("abre e fecha ao clicar no topo do card fora do trigger", async () => {
+    await openEpisodeEditor();
+
+    expect(screen.queryByDisplayValue("Primeiro episodio")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByTestId("episode-header-0"));
+    expect(screen.getByDisplayValue("Primeiro episodio")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByTestId("episode-header-0"));
+    expect(screen.queryByDisplayValue("Primeiro episodio")).not.toBeInTheDocument();
+  });
+
   it("abre e fecha ao clicar no topo (trigger)", async () => {
     await openEpisodeEditor();
 
@@ -214,6 +226,20 @@ describe("DashboardProjectsEditor episode accordion", () => {
     const remainingTrigger = screen.getByRole("button", { name: /Ep 2/i });
     fireEvent.click(remainingTrigger);
     expect(screen.queryByDisplayValue("Segundo episodio")).not.toBeInTheDocument();
+    fireEvent.click(remainingTrigger);
+    expect(screen.getByDisplayValue("Segundo episodio")).toBeInTheDocument();
+  });
+
+  it("botao remover nao dispara toggle do accordion", async () => {
+    await openEpisodeEditor();
+
+    expect(screen.queryByDisplayValue("Segundo episodio")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getAllByRole("button", { name: /Remover epis/i })[0]);
+    expect(screen.queryByRole("button", { name: /Ep 1/i })).not.toBeInTheDocument();
+    expect(screen.queryByDisplayValue("Segundo episodio")).not.toBeInTheDocument();
+
+    const remainingTrigger = screen.getByRole("button", { name: /Ep 2/i });
     fireEvent.click(remainingTrigger);
     expect(screen.getByDisplayValue("Segundo episodio")).toBeInTheDocument();
   });

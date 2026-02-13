@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { ImageCropper, ImageCropperProvider, useImageCropper, type MediaSize } from "@wordpress/image-cropper";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { CircleStencil, Cropper, type CropperRef } from "react-advanced-cropper";
+import "react-advanced-cropper/dist/style.css";
 
 import {
   ContextMenu,
@@ -9,6 +10,7 @@ import {
   ContextMenuSeparator,
   ContextMenuTrigger,
 } from "@/components/ui/context-menu";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -40,6 +42,15 @@ export type ImageLibrarySavePayload = {
   items: LibraryImageItem[];
 };
 
+export type ImageLibraryOptions = {
+  uploadFolder?: string;
+  listFolders?: string[];
+  listAll?: boolean;
+  includeProjectImages?: boolean;
+  projectImageProjectIds?: string[];
+  projectImagesView?: "flat" | "by-project";
+  currentSelectionUrls?: string[];
+};
 
 type ImageLibraryDialogProps = {
   open: boolean;
@@ -50,124 +61,22 @@ type ImageLibraryDialogProps = {
   uploadFolder?: string;
   listFolders?: string[];
   listAll?: boolean;
+  includeProjectImages?: boolean;
+  projectImageProjectIds?: string[];
   mode?: "single" | "multiple";
   allowDeselect?: boolean;
   showUrlImport?: boolean;
   currentSelectionUrls?: string[];
   currentSelectionUrl?: string;
+  projectImagesView?: "flat" | "by-project";
   cropAvatar?: boolean;
   cropTargetFolder?: string;
   cropSlot?: string;
   onSave: (payload: ImageLibrarySavePayload) => void;
 };
 
-const CROPPER_PREVIEW_SIZE = 320;
-const CROPPER_EDGE_PADDING = 0;
-const CROPPER_CROP_SIZE = CROPPER_PREVIEW_SIZE - CROPPER_EDGE_PADDING * 2;
-const CROPPER_MIN_ZOOM = 1.05;
-const CROPPER_MAX_ZOOM = 5;
-const CROPPER_INITIAL_ZOOM_OFFSET = 0.2;
-const CROPPER_SCROLL_ZOOM_SPEED = 0.18;
-
-const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
-
-type PixelCrop = { x: number; y: number; width: number; height: number };
-type CropFlip = { horizontal: boolean; vertical: boolean };
-
-const createImageElement = (url: string) =>
-  new Promise<HTMLImageElement>((resolve, reject) => {
-    const image = new Image();
-    image.crossOrigin = "anonymous";
-    image.onload = () => resolve(image);
-    image.onerror = () => reject(new Error("image_load_failed"));
-    image.src = url;
-  });
-
-const getRadianAngle = (degreeValue: number) => (degreeValue * Math.PI) / 180;
-
-const rotateSize = (width: number, height: number, rotation: number) => {
-  const rotRad = getRadianAngle(rotation);
-  return {
-    width: Math.abs(Math.cos(rotRad) * width) + Math.abs(Math.sin(rotRad) * height),
-    height: Math.abs(Math.sin(rotRad) * width) + Math.abs(Math.cos(rotRad) * height),
-  };
-};
-
-const renderCircularCropDataUrl = async ({
-  src,
-  pixelCrop,
-  rotation = 0,
-  flip = { horizontal: false, vertical: false },
-}: {
-  src: string;
-  pixelCrop: PixelCrop;
-  rotation?: number;
-  flip?: CropFlip;
-}) => {
-  try {
-    const image = await createImageElement(src);
-    const rotRad = getRadianAngle(rotation);
-    const { width: boundingBoxWidth, height: boundingBoxHeight } = rotateSize(image.width, image.height, rotation);
-
-    const sourceCanvas = document.createElement("canvas");
-    const sourceCtx = sourceCanvas.getContext("2d");
-    if (!sourceCtx) {
-      return null;
-    }
-
-    sourceCanvas.width = Math.max(1, Math.round(boundingBoxWidth));
-    sourceCanvas.height = Math.max(1, Math.round(boundingBoxHeight));
-    sourceCtx.translate(sourceCanvas.width / 2, sourceCanvas.height / 2);
-    sourceCtx.rotate(rotRad);
-    sourceCtx.scale(flip.horizontal ? -1 : 1, flip.vertical ? -1 : 1);
-    sourceCtx.translate(-image.width / 2, -image.height / 2);
-    sourceCtx.drawImage(image, 0, 0);
-
-    const cropWidth = Math.max(1, Math.round(pixelCrop.width));
-    const cropHeight = Math.max(1, Math.round(pixelCrop.height));
-    const croppedCanvas = document.createElement("canvas");
-    const croppedCtx = croppedCanvas.getContext("2d");
-    if (!croppedCtx) {
-      return null;
-    }
-
-    croppedCanvas.width = cropWidth;
-    croppedCanvas.height = cropHeight;
-    croppedCtx.imageSmoothingEnabled = true;
-    croppedCtx.imageSmoothingQuality = "high";
-    croppedCtx.drawImage(
-      sourceCanvas,
-      Math.round(pixelCrop.x),
-      Math.round(pixelCrop.y),
-      cropWidth,
-      cropHeight,
-      0,
-      0,
-      cropWidth,
-      cropHeight,
-    );
-
-    const outputCanvas = document.createElement("canvas");
-    const outputCtx = outputCanvas.getContext("2d");
-    if (!outputCtx) {
-      return null;
-    }
-
-    outputCanvas.width = cropWidth;
-    outputCanvas.height = cropHeight;
-    outputCtx.imageSmoothingEnabled = true;
-    outputCtx.imageSmoothingQuality = "high";
-    outputCtx.beginPath();
-    outputCtx.arc(cropWidth / 2, cropHeight / 2, Math.min(cropWidth, cropHeight) / 2, 0, Math.PI * 2);
-    outputCtx.closePath();
-    outputCtx.clip();
-    outputCtx.drawImage(croppedCanvas, 0, 0);
-
-    return outputCanvas.toDataURL("image/png");
-  } catch {
-    return null;
-  }
-};
+const CROPPER_BOUNDARY_SIZE = 360;
+const CROPPER_OUTPUT_SIZE = 512;
 
 const fileToDataUrl = (file: File) =>
   new Promise<string>((resolve, reject) => {
@@ -179,6 +88,178 @@ const fileToDataUrl = (file: File) =>
 
 const toEffectiveName = (item: LibraryImageItem) => item.name || item.fileName || item.label || "Imagem";
 
+const stripUrlQueryAndHash = (value: string) => value.split(/[?#]/)[0] || "";
+
+const normalizeComparableUploadUrl = (value: string | null | undefined) => {
+  const trimmed = String(value || "").trim();
+  if (!trimmed) {
+    return "";
+  }
+  if (trimmed.startsWith("/uploads/")) {
+    return stripUrlQueryAndHash(trimmed);
+  }
+  try {
+    const parsed = new URL(trimmed);
+    if (parsed.pathname.startsWith("/uploads/")) {
+      return parsed.pathname;
+    }
+  } catch {
+    // Ignore invalid absolute URLs and keep original value.
+  }
+  return trimmed;
+};
+
+const sanitizeUploadFolderForComparison = (value: string | null | undefined) => {
+  if (typeof value !== "string" || !value.trim()) {
+    return "";
+  }
+  return value
+    .trim()
+    .replace(/[^a-z0-9/_-]+/gi, "-")
+    .replace(/\/{2,}/g, "/")
+    .replace(/^\/+/, "")
+    .replace(/\/+$/, "");
+};
+
+const sanitizeUploadSlotForComparison = (value: string | null | undefined) =>
+  String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+
+const escapeRegexPattern = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+const isAvatarSlotSelection = ({
+  url,
+  folder,
+  slot,
+}: {
+  url: string;
+  folder: string;
+  slot: string;
+}) => {
+  const normalizedUrl = normalizeComparableUploadUrl(url);
+  if (!normalizedUrl.startsWith("/uploads/")) {
+    return false;
+  }
+  const safeSlot = sanitizeUploadSlotForComparison(slot);
+  if (!safeSlot) {
+    return false;
+  }
+  const safeFolder = sanitizeUploadFolderForComparison(folder);
+  const relativePrefix = safeFolder ? `${safeFolder}/` : "";
+  const pattern = new RegExp(
+    `^/uploads/${escapeRegexPattern(relativePrefix)}${escapeRegexPattern(safeSlot)}\\.[a-z0-9]+$`,
+    "i",
+  );
+  return pattern.test(normalizedUrl);
+};
+
+const toComparableSelectionKey = (value: string | null | undefined) => {
+  const normalized = normalizeComparableUploadUrl(value);
+  return normalized || String(value || "").trim();
+};
+
+const dedupeUrlsByComparableKey = (urls: string[]) => {
+  const unique: string[] = [];
+  const seen = new Set<string>();
+  urls.forEach((url) => {
+    const trimmed = String(url || "").trim();
+    if (!trimmed) {
+      return;
+    }
+    const key = toComparableSelectionKey(trimmed);
+    if (seen.has(key)) {
+      return;
+    }
+    seen.add(key);
+    unique.push(trimmed);
+  });
+  return unique;
+};
+
+const areSelectionsSemanticallyEqual = (left: string[], right: string[]) => {
+  if (left.length !== right.length) {
+    return false;
+  }
+  for (let index = 0; index < left.length; index += 1) {
+    if (toComparableSelectionKey(left[index]) !== toComparableSelectionKey(right[index])) {
+      return false;
+    }
+  }
+  return true;
+};
+
+const toSelectionSignature = (urls: string[]) => urls.map((url) => toComparableSelectionKey(url)).join("\u0001");
+
+const normalizeProjectIdList = (value: unknown) => {
+  const seen = new Set<string>();
+  return (Array.isArray(value) ? value : [])
+    .map((item) => String(item ?? "").trim())
+    .filter((item) => {
+      if (!item || seen.has(item)) {
+        return false;
+      }
+      seen.add(item);
+      return true;
+    });
+};
+
+const normalizeFolderList = (value: unknown) => {
+  const seen = new Set<string>();
+  return (Array.isArray(value) ? value : [])
+    .map((item) => String(item ?? "").trim())
+    .filter((item) => {
+      if (seen.has(item)) {
+        return false;
+      }
+      seen.add(item);
+      return true;
+    });
+};
+
+const toStableProjectIdSignature = (value: unknown) => normalizeProjectIdList(value).join("\u0001");
+
+const toStableFolderSignature = (value: unknown) => JSON.stringify(normalizeFolderList(value));
+
+const parseStableFolderSignature = (value: string) => {
+  if (!value) {
+    return [] as string[];
+  }
+  try {
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed) ? parsed.map((item) => String(item ?? "")) : [];
+  } catch {
+    return [] as string[];
+  }
+};
+
+const buildSelectionSeed = ({
+  currentSelectionUrls,
+  currentSelectionUrl,
+  mode,
+}: {
+  currentSelectionUrls?: string[];
+  currentSelectionUrl?: string;
+  mode: "single" | "multiple";
+}) => {
+  const fromArray =
+    Array.isArray(currentSelectionUrls) && currentSelectionUrls.length > 0 ? currentSelectionUrls : undefined;
+  const baseUrls = fromArray ?? (currentSelectionUrl ? [currentSelectionUrl] : []);
+  const deduped = dedupeUrlsByComparableKey(baseUrls);
+  if (mode === "multiple") {
+    return deduped;
+  }
+  return deduped.length > 0 ? [deduped[0]] : [];
+};
+
+type ProjectImageGroup = {
+  key: string;
+  title: string;
+  items: LibraryImageItem[];
+};
+
 type AvatarCropWorkspaceProps = {
   src: string;
   isApplyingCrop: boolean;
@@ -186,109 +267,42 @@ type AvatarCropWorkspaceProps = {
   onApplyCrop: (dataUrl: string) => Promise<void>;
 };
 
-type ImageCropperRuntimeProps = {
-  src: string;
-  minZoom?: number;
-  maxZoom?: number;
-  onLoad?: (mediaSize: MediaSize) => void;
-  cropSize?: { width: number; height: number };
-  zoomWithScroll?: boolean;
-  zoomSpeed?: number;
-  restrictPosition?: boolean;
-  objectFit?: "contain" | "cover" | "horizontal-cover" | "vertical-cover";
-};
-
-const RuntimeImageCropper = ImageCropper as unknown as (props: ImageCropperRuntimeProps) => ReturnType<typeof ImageCropper>;
-
-type CropperObjectFit = "horizontal-cover" | "vertical-cover";
-
-const resolveObjectFit = (mediaSize: MediaSize): CropperObjectFit => {
-  const width = mediaSize.naturalWidth || mediaSize.width;
-  const height = mediaSize.naturalHeight || mediaSize.height;
-  return width >= height ? "vertical-cover" : "horizontal-cover";
-};
-
-const computeAdaptiveMinZoom = (mediaSize: MediaSize) => {
-  const width = mediaSize.naturalWidth || mediaSize.width;
-  const height = mediaSize.naturalHeight || mediaSize.height;
-  if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) {
-    return CROPPER_MIN_ZOOM;
-  }
-  const longByShort = width >= height ? width / height : height / width;
-  const safetyBoost = Math.min(0.18, Math.max(0, (longByShort - 1) * 0.06));
-  return clamp(CROPPER_MIN_ZOOM + safetyBoost, CROPPER_MIN_ZOOM, CROPPER_MAX_ZOOM - 0.1);
-};
-
-const computeInitialZoom = (minZoom: number) =>
-  clamp(minZoom + CROPPER_INITIAL_ZOOM_OFFSET, minZoom, CROPPER_MAX_ZOOM);
-
 const AvatarCropWorkspace = ({ src, isApplyingCrop, onCancel, onApplyCrop }: AvatarCropWorkspaceProps) => {
-  const { cropperState, setResetState, reset } = useImageCropper();
+  const cropperRef = useRef<CropperRef | null>(null);
   const [isCropReady, setIsCropReady] = useState(false);
-  const [cropMinZoom, setCropMinZoom] = useState(CROPPER_MIN_ZOOM);
-  const [cropObjectFit, setCropObjectFit] = useState<CropperObjectFit>("horizontal-cover");
+  const [cropperRevision, setCropperRevision] = useState(0);
 
   useEffect(() => {
     setIsCropReady(false);
-    setCropMinZoom(CROPPER_MIN_ZOOM);
-    setCropObjectFit("horizontal-cover");
-    setResetState({
-      crop: { x: 0, y: 0, width: 100, height: 100 },
-      zoom: computeInitialZoom(CROPPER_MIN_ZOOM),
-      rotation: 0,
-      aspectRatio: 1,
-      flip: { horizontal: false, vertical: false },
-    });
-  }, [setResetState, src]);
+  }, [cropperRevision, src]);
 
-  const handleCropperLoad = useCallback(
-    (mediaSize: MediaSize) => {
-      const nextMinZoom = computeAdaptiveMinZoom(mediaSize);
-      const nextObjectFit = resolveObjectFit(mediaSize);
-
-      setCropMinZoom(nextMinZoom);
-      setCropObjectFit(nextObjectFit);
-      setResetState({
-        crop: { x: 0, y: 0, width: 100, height: 100 },
-        zoom: computeInitialZoom(nextMinZoom),
-        rotation: 0,
-        aspectRatio: 1,
-        flip: { horizontal: false, vertical: false },
-      });
-      setIsCropReady(true);
-    },
-    [setResetState],
-  );
+  const handleReset = useCallback(() => {
+    setCropperRevision((prev) => prev + 1);
+  }, []);
 
   const handleApply = useCallback(async () => {
-    if (!isCropReady) {
+    const cropper = cropperRef.current;
+    if (!cropper || !isCropReady) {
       return;
     }
-    const pixelCrop = cropperState.croppedAreaPixels;
-    if (!pixelCrop) {
+
+    try {
+      const canvas = cropper.getCanvas({
+        width: CROPPER_OUTPUT_SIZE,
+        height: CROPPER_OUTPUT_SIZE,
+      });
+      const normalizedDataUrl = String(canvas?.toDataURL("image/png") || "").trim();
+      if (!normalizedDataUrl) {
+        throw new Error("empty_crop_result");
+      }
+      await onApplyCrop(normalizedDataUrl);
+    } catch {
       toast({
         title: "N\u00E3o foi poss\u00EDvel gerar a imagem recortada.",
         description: "Tente novamente em alguns segundos.",
       });
-      return;
     }
-
-    const dataUrl = await renderCircularCropDataUrl({
-      src,
-      pixelCrop,
-      rotation: cropperState.rotation,
-      flip: cropperState.flip,
-    });
-    if (!dataUrl) {
-      toast({
-        title: "N\u00E3o foi poss\u00EDvel gerar a imagem recortada.",
-        description: "Tente novamente em alguns segundos.",
-      });
-      return;
-    }
-
-    await onApplyCrop(dataUrl);
-  }, [cropperState.croppedAreaPixels, cropperState.flip, cropperState.rotation, isCropReady, onApplyCrop, src]);
+  }, [isCropReady, onApplyCrop]);
 
   return (
     <>
@@ -298,19 +312,35 @@ const AvatarCropWorkspace = ({ src, isApplyingCrop, onCancel, onApplyCrop }: Ava
           <p className="mb-3 text-xs text-muted-foreground">Mova e ajuste o enquadramento direto na imagem.</p>
           <div
             className="avatar-cropper-preview relative mx-auto overflow-hidden rounded-xl bg-black/20"
-            style={{ width: CROPPER_PREVIEW_SIZE, height: CROPPER_PREVIEW_SIZE }}
+            style={{ width: CROPPER_BOUNDARY_SIZE, height: CROPPER_BOUNDARY_SIZE }}
           >
-            <RuntimeImageCropper
-              src={src}
-              minZoom={cropMinZoom}
-              maxZoom={CROPPER_MAX_ZOOM}
-              cropSize={{ width: CROPPER_CROP_SIZE, height: CROPPER_CROP_SIZE }}
-              zoomWithScroll
-              zoomSpeed={CROPPER_SCROLL_ZOOM_SPEED}
-              restrictPosition
-              objectFit={cropObjectFit}
-              onLoad={handleCropperLoad}
-            />
+            <div className="avatar-cropper-shell">
+              <Cropper
+                key={`${src}:${cropperRevision}`}
+                ref={cropperRef}
+                src={src}
+                className="avatar-cropper-root"
+                stencilComponent={CircleStencil}
+                imageRestriction="stencil"
+                autoZoom
+                transitions={false}
+                resizeImage
+                moveImage
+                onReady={() => setIsCropReady(true)}
+                onError={() => {
+                  setIsCropReady(false);
+                  toast({
+                    title: "N\u00E3o foi poss\u00EDvel carregar a imagem para recorte.",
+                    description: "Tente selecionar outra imagem.",
+                  });
+                }}
+                stencilProps={{
+                  movable: true,
+                  resizable: true,
+                  grid: false,
+                }}
+              />
+            </div>
           </div>
         </div>
         <div className="space-y-3 rounded-xl border border-border/60 bg-card/60 p-4">
@@ -319,6 +349,7 @@ const AvatarCropWorkspace = ({ src, isApplyingCrop, onCancel, onApplyCrop }: Ava
             <p>Arraste a imagem para posicionar o avatar.</p>
             <p>Use o scroll para aproximar ou afastar.</p>
             <p>Quando estiver satisfeito com o enquadramento, clique em Aplicar avatar.</p>
+            <p>Para confirmar a troca, salvar sem aplicar recorte n\u00E3o \u00E9 permitido.</p>
           </div>
         </div>
       </div>
@@ -327,12 +358,7 @@ const AvatarCropWorkspace = ({ src, isApplyingCrop, onCancel, onApplyCrop }: Ava
         <Button type="button" variant="outline" onClick={onCancel}>
           Cancelar
         </Button>
-        <Button
-          type="button"
-          variant="outline"
-          onClick={reset}
-          disabled={!isCropReady}
-        >
+        <Button type="button" variant="outline" onClick={handleReset} disabled={!isCropReady}>
           Resetar
         </Button>
         <Button type="button" onClick={() => void handleApply()} disabled={isApplyingCrop || !isCropReady}>
@@ -352,11 +378,14 @@ const ImageLibraryDialog = ({
   uploadFolder,
   listFolders,
   listAll = true,
+  includeProjectImages = false,
+  projectImageProjectIds,
   mode = "single",
   allowDeselect = true,
   showUrlImport = true,
   currentSelectionUrls,
   currentSelectionUrl,
+  projectImagesView = "flat",
   cropAvatar = false,
   cropTargetFolder,
   cropSlot,
@@ -377,16 +406,25 @@ const ImageLibraryDialog = ({
   const [isDeleting, setIsDeleting] = useState(false);
   const [isApplyingCrop, setIsApplyingCrop] = useState(false);
   const [isCropDialogOpen, setIsCropDialogOpen] = useState(false);
+  const [isLibraryHydratedForOpen, setIsLibraryHydratedForOpen] = useState(false);
+  const projectImageProjectIdsSignature = useMemo(
+    () => toStableProjectIdSignature(projectImageProjectIds),
+    [projectImageProjectIds],
+  );
+  const normalizedProjectImageProjectIds = useMemo(
+    () => (projectImageProjectIdsSignature ? projectImageProjectIdsSignature.split("\u0001") : []),
+    [projectImageProjectIdsSignature],
+  );
+  const listFoldersSignature = useMemo(() => toStableFolderSignature(listFolders), [listFolders]);
+  const normalizedListFolders = useMemo(() => parseStableFolderSignature(listFoldersSignature), [listFoldersSignature]);
+  const allowedProjectImageIdSet = useMemo(
+    () => new Set(normalizedProjectImageProjectIds),
+    [normalizedProjectImageProjectIds],
+  );
 
   const folders = useMemo(() => {
     const set = new Set<string>();
-    if (Array.isArray(listFolders) && listFolders.length > 0) {
-      listFolders.forEach((folder) => {
-        if (folder != null) {
-          set.add(String(folder));
-        }
-      });
-    }
+    normalizedListFolders.forEach((folder) => set.add(folder));
     if (uploadFolder) {
       set.add(uploadFolder);
     }
@@ -397,7 +435,7 @@ const ImageLibraryDialog = ({
       set.add("");
     }
     return Array.from(set);
-  }, [listAll, listFolders, uploadFolder]);
+  }, [listAll, normalizedListFolders, uploadFolder]);
 
   const allItems = useMemo(() => {
     const map = new Map<string, LibraryImageItem>();
@@ -411,6 +449,33 @@ const ImageLibraryDialog = ({
     });
     return map;
   }, [projectImages, uploads]);
+
+  const allItemsByComparableKey = useMemo(() => {
+    const map = new Map<string, LibraryImageItem>();
+    allItems.forEach((item) => {
+      const key = toComparableSelectionKey(item.url);
+      if (!map.has(key)) {
+        map.set(key, item);
+      }
+    });
+    return map;
+  }, [allItems]);
+
+  const selectedResolvedUrlSet = useMemo(() => {
+    const set = new Set<string>();
+    selectedUrls.forEach((url) => {
+      const trimmed = String(url || "").trim();
+      if (!trimmed) {
+        return;
+      }
+      const matchedItem = allItems.get(trimmed) ?? allItemsByComparableKey.get(toComparableSelectionKey(trimmed));
+      if (!matchedItem?.url) {
+        return;
+      }
+      set.add(matchedItem.url);
+    });
+    return set;
+  }, [allItems, allItemsByComparableKey, selectedUrls]);
 
   const primarySelectedUrl = selectedUrls[0] || "";
   const normalizedSearch = searchQuery.trim().toLowerCase();
@@ -442,6 +507,69 @@ const ImageLibraryDialog = ({
     () => projectImages.filter(matchesSearch),
     [matchesSearch, projectImages],
   );
+
+  const selectionSeed = useMemo(
+    () =>
+      buildSelectionSeed({
+        currentSelectionUrls,
+        currentSelectionUrl,
+        mode,
+      }),
+    [currentSelectionUrl, currentSelectionUrls, mode],
+  );
+  const selectionSeedSignature = useMemo(() => toSelectionSignature(selectionSeed), [selectionSeed]);
+  const selectionSeedRef = useRef<string[]>(selectionSeed);
+
+  useEffect(() => {
+    selectionSeedRef.current = selectionSeed;
+  }, [selectionSeed, selectionSeedSignature]);
+
+  const reconcileSelectionWithLibrary = useCallback(
+    (urls: string[]) => {
+      const reconciled: string[] = [];
+      const seen = new Set<string>();
+      urls.forEach((url) => {
+        const trimmed = String(url || "").trim();
+        if (!trimmed) {
+          return;
+        }
+        const matched = allItems.get(trimmed) ?? allItemsByComparableKey.get(toComparableSelectionKey(trimmed));
+        if (!matched) {
+          return;
+        }
+        const matchedKey = toComparableSelectionKey(matched.url);
+        if (seen.has(matchedKey)) {
+          return;
+        }
+        seen.add(matchedKey);
+        reconciled.push(matched.url);
+      });
+      if (mode === "multiple") {
+        return reconciled;
+      }
+      return reconciled.length > 0 ? [reconciled[0]] : [];
+    },
+    [allItems, allItemsByComparableKey, mode],
+  );
+
+  const projectImageGroups = useMemo<ProjectImageGroup[]>(() => {
+    const groupMap = new Map<string, ProjectImageGroup>();
+    filteredProjectImages.forEach((item) => {
+      const projectId = String(item.projectId || "").trim();
+      const projectTitle = String(item.projectTitle || "").trim();
+      const key = projectId
+        ? `project:${projectId}`
+        : projectTitle
+          ? `title:${projectTitle.toLowerCase()}`
+          : "__no-project__";
+      const title = projectTitle || (projectId ? `Projeto ${projectId}` : "Sem projeto");
+      if (!groupMap.has(key)) {
+        groupMap.set(key, { key, title, items: [] });
+      }
+      groupMap.get(key)?.items.push(item);
+    });
+    return Array.from(groupMap.values()).sort((a, b) => a.title.localeCompare(b.title, "pt-BR"));
+  }, [filteredProjectImages]);
 
   const loadUploads = useCallback(async () => {
     setIsLoading(true);
@@ -491,6 +619,10 @@ const ImageLibraryDialog = ({
   }, [apiBase, folders]);
 
   const loadProjectImages = useCallback(async () => {
+    if (!includeProjectImages) {
+      setProjectImages([]);
+      return;
+    }
     try {
       const response = await apiFetch(apiBase, "/api/uploads/project-images", { auth: true });
       if (!response.ok) {
@@ -503,7 +635,6 @@ const ImageLibraryDialog = ({
         return;
       }
       const mapped = data.items
-        .filter((item: { url?: string }) => Boolean(item?.url))
         .map(
           (item: {
             url: string;
@@ -512,38 +643,64 @@ const ImageLibraryDialog = ({
             projectTitle?: string;
             kind?: string;
             source?: string;
-          }) =>
-            ({
+          }) => {
+            const normalizedProjectUrl = normalizeComparableUploadUrl(item?.url);
+            if (!normalizedProjectUrl.startsWith("/uploads/projects/")) {
+              return null;
+            }
+            return {
               source: "project",
-              url: String(item.url),
-              name: String(item.label || item.url),
-              label: String(item.label || item.url),
+              url: normalizedProjectUrl,
+              name: String(item.label || normalizedProjectUrl),
+              label: String(item.label || normalizedProjectUrl),
               projectId: item.projectId ? String(item.projectId) : "",
               projectTitle: item.projectTitle ? String(item.projectTitle) : "",
               kind: item.kind ? String(item.kind) : "",
               inUse: true,
               canDelete: false,
-            }) as LibraryImageItem,
+            } as LibraryImageItem;
+          },
         );
+      const filtered =
+        allowedProjectImageIdSet.size > 0
+          ? mapped.filter(
+              (item): item is LibraryImageItem =>
+                Boolean(item?.projectId) && allowedProjectImageIdSet.has(String(item.projectId)),
+            )
+          : mapped.filter((item): item is LibraryImageItem => Boolean(item));
       const unique = new Map<string, LibraryImageItem>();
-      mapped.forEach((item: LibraryImageItem) => {
+      filtered.forEach((item: LibraryImageItem) => {
         unique.set(item.url, item);
       });
       setProjectImages(Array.from(unique.values()));
     } catch {
       setProjectImages([]);
     }
-  }, [apiBase]);
+  }, [allowedProjectImageIdSet, apiBase, includeProjectImages]);
 
   const loadLibrary = useCallback(async () => {
     await Promise.all([loadUploads(), loadProjectImages()]);
   }, [loadProjectImages, loadUploads]);
 
   useEffect(() => {
+    let isActive = true;
     if (!open) {
+      setIsLibraryHydratedForOpen(false);
       return;
     }
-    void loadLibrary();
+    setIsLibraryHydratedForOpen(false);
+    void (async () => {
+      try {
+        await loadLibrary();
+      } finally {
+        if (isActive) {
+          setIsLibraryHydratedForOpen(true);
+        }
+      }
+    })();
+    return () => {
+      isActive = false;
+    };
   }, [loadLibrary, open]);
 
   useEffect(() => {
@@ -551,38 +708,36 @@ const ImageLibraryDialog = ({
       setIsDragActive(false);
       return;
     }
-    const fromArray =
-      Array.isArray(currentSelectionUrls) && currentSelectionUrls.length > 0 ? currentSelectionUrls : undefined;
-    const baseUrls = fromArray ?? (currentSelectionUrl ? [currentSelectionUrl] : []);
-    if (mode === "multiple") {
-      setSelectedUrls(baseUrls.filter(Boolean));
-    } else {
-      setSelectedUrls(baseUrls.length > 0 ? [baseUrls[0]] : []);
-    }
+    setSelectedUrls([...selectionSeedRef.current]);
     setIsCropDialogOpen(false);
-  }, [currentSelectionUrl, currentSelectionUrls, mode, open]);
+  }, [open, selectionSeedSignature]);
 
   useEffect(() => {
     if (!open) {
       return;
     }
-    if (cropAvatar && mode === "single") {
+    if (!isLibraryHydratedForOpen) {
       return;
     }
-    setSelectedUrls((prev) => prev.filter((url) => allItems.has(url)));
-  }, [allItems, cropAvatar, mode, open]);
+    setSelectedUrls((prev) => {
+      const reconciled = reconcileSelectionWithLibrary(prev);
+      return areSelectionsSemanticallyEqual(prev, reconciled) ? prev : reconciled;
+    });
+  }, [isLibraryHydratedForOpen, open, reconcileSelectionWithLibrary]);
 
   const setSelection = useCallback(
     (url: string, options?: { openCrop?: boolean }) => {
       let isSameSelection = false;
+      const selectedKey = toComparableSelectionKey(url);
       setSelectedUrls((prev) => {
         if (mode === "multiple") {
-          if (prev.includes(url)) {
-            return prev.filter((item) => item !== url);
+          const hasUrl = prev.some((item) => toComparableSelectionKey(item) === selectedKey);
+          if (hasUrl) {
+            return prev.filter((item) => toComparableSelectionKey(item) !== selectedKey);
           }
           return [...prev, url];
         }
-        isSameSelection = prev[0] === url;
+        isSameSelection = toComparableSelectionKey(prev[0] || "") === selectedKey;
         if (cropAvatar) {
           return [url];
         }
@@ -763,7 +918,8 @@ const ImageLibraryDialog = ({
           toast({ title: "N\u00E3o foi poss\u00EDvel excluir a imagem." });
           return;
         }
-        setSelectedUrls((prev) => prev.filter((url) => url !== item.url));
+        const itemKey = toComparableSelectionKey(item.url);
+        setSelectedUrls((prev) => prev.filter((url) => toComparableSelectionKey(url) !== itemKey));
         await loadUploads();
       } finally {
         setIsDeleting(false);
@@ -804,7 +960,12 @@ const ImageLibraryDialog = ({
       const oldUrl = String(data.oldUrl || renameTarget.url);
       const newUrl = String(data.newUrl || "");
       if (newUrl) {
-        setSelectedUrls((prev) => prev.map((url) => (url === oldUrl ? newUrl : url)));
+        const oldKey = toComparableSelectionKey(oldUrl);
+        setSelectedUrls((prev) =>
+          dedupeUrlsByComparableKey(
+            prev.map((url) => (toComparableSelectionKey(url) === oldKey ? newUrl : url)),
+          ),
+        );
       }
       setRenameTarget(null);
       setRenameValue("");
@@ -815,8 +976,29 @@ const ImageLibraryDialog = ({
   }, [apiBase, loadLibrary, renameTarget, renameValue]);
 
   const handleSave = () => {
+    if (cropAvatar && selectedUrls.length > 0) {
+      const normalizedCropSlot = String(cropSlot || "").trim();
+      if (!normalizedCropSlot) {
+        toast({ title: "Preencha o ID do usu\u00E1rio antes de salvar o avatar." });
+        return;
+      }
+      const selectedUrl = String(selectedUrls[0] || "").trim();
+      const matchesAvatarSlot = isAvatarSlotSelection({
+        url: selectedUrl,
+        slot: normalizedCropSlot,
+        folder: cropTargetFolder || "users",
+      });
+      if (!matchesAvatarSlot) {
+        toast({
+          title: "Aplique o recorte do avatar antes de salvar.",
+          description: "Clique em Editar avatar e depois em Aplicar avatar.",
+        });
+        return;
+      }
+    }
+
     const items = selectedUrls
-      .map((url) => allItems.get(url))
+      .map((url) => allItems.get(url) ?? allItemsByComparableKey.get(toComparableSelectionKey(url)))
       .filter((item): item is LibraryImageItem => Boolean(item));
     onSave({
       urls: selectedUrls,
@@ -834,10 +1016,13 @@ const ImageLibraryDialog = ({
       });
       return;
     }
-    if (cropAvatar && (!cropSlot || !cropSlot.trim())) {
+    const normalizedCropSlot = String(cropSlot || "").trim();
+    if (cropAvatar && !normalizedCropSlot) {
       toast({ title: "Preencha o ID do usu\u00E1rio antes de aplicar o recorte." });
       return;
     }
+    const targetFolder = cropAvatar ? (cropTargetFolder || "users") : (cropTargetFolder || uploadFolder || undefined);
+    const targetFilename = cropAvatar ? `${normalizedCropSlot}.png` : `avatar-crop-${Date.now()}.png`;
 
     setIsApplyingCrop(true);
     try {
@@ -847,9 +1032,9 @@ const ImageLibraryDialog = ({
         auth: true,
         body: JSON.stringify({
           dataUrl: nextDataUrl,
-          filename: cropSlot ? `${cropSlot}.png` : `avatar-crop-${Date.now()}.png`,
-          folder: cropTargetFolder || uploadFolder || undefined,
-          slot: cropSlot || undefined,
+          filename: targetFilename,
+          folder: targetFolder,
+          slot: cropAvatar ? normalizedCropSlot : undefined,
         }),
       });
       if (!response.ok) {
@@ -861,6 +1046,7 @@ const ImageLibraryDialog = ({
         throw new Error("apply_crop_upload_missing_url");
       }
 
+      await loadUploads();
       setSelectedUrls([nextUrl]);
       setIsCropDialogOpen(false);
     } catch {
@@ -871,7 +1057,7 @@ const ImageLibraryDialog = ({
     } finally {
       setIsApplyingCrop(false);
     }
-  }, [apiBase, cropAvatar, cropSlot, cropTargetFolder, uploadFolder]);
+  }, [apiBase, cropAvatar, cropSlot, cropTargetFolder, loadUploads, uploadFolder]);
 
   const renderGrid = (items: LibraryImageItem[], emptyText: string) => {
     if (isLoading) {
@@ -883,7 +1069,7 @@ const ImageLibraryDialog = ({
     return (
       <div className="mt-3 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
         {items.map((item) => {
-          const isSelected = selectedUrls.includes(item.url);
+          const isSelected = selectedResolvedUrlSet.has(item.url);
           const canRename = item.source === "upload";
           const canDelete = item.source === "upload" && Boolean(item.canDelete);
           return (
@@ -906,7 +1092,7 @@ const ImageLibraryDialog = ({
                   </div>
                 </button>
               </ContextMenuTrigger>
-              <ContextMenuContent className="w-56 z-[230]">
+              <ContextMenuContent className="w-56 z-230">
                 <ContextMenuLabel>{item.source === "upload" ? "Upload do servidor" : "Imagem de projeto"}</ContextMenuLabel>
                 <ContextMenuSeparator />
                 {cropAvatar && mode === "single" ? (
@@ -962,12 +1148,38 @@ const ImageLibraryDialog = ({
     );
   };
 
+  const renderProjectGroups = (groups: ProjectImageGroup[], emptyText: string) => {
+    if (isLoading) {
+      return <p className="mt-3 text-xs text-muted-foreground">Carregando...</p>;
+    }
+    if (groups.length === 0) {
+      return <p className="mt-3 text-xs text-muted-foreground">{emptyText}</p>;
+    }
+    return (
+      <Accordion type="multiple" className="mt-3 overflow-hidden rounded-xl border border-border/60 bg-card/40 px-3">
+        {groups.map((group) => (
+          <AccordionItem key={group.key} value={group.key} className="border-border/50">
+            <AccordionTrigger className="py-3 text-sm hover:no-underline">
+              <span className="flex items-center gap-2">
+                <span className="font-medium text-foreground">{group.title}</span>
+                <span className="text-xs text-muted-foreground">{group.items.length}</span>
+              </span>
+            </AccordionTrigger>
+            <AccordionContent className="[&>div]:mt-0">
+              {renderGrid(group.items, "Nenhuma imagem disponível neste projeto.")}
+            </AccordionContent>
+          </AccordionItem>
+        ))}
+      </Accordion>
+    );
+  };
+
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent
-          className="flex h-[90vh] w-[92vw] max-w-5xl flex-col overflow-hidden z-[200] data-[state=open]:animate-none data-[state=closed]:animate-none [&>button]:hidden"
-          overlayClassName="z-[190] data-[state=open]:animate-none data-[state=closed]:animate-none"
+          className="flex h-[90vh] w-[92vw] max-w-5xl flex-col overflow-hidden z-200 data-[state=open]:animate-none data-[state=closed]:animate-none [&>button]:hidden"
+          overlayClassName="z-190 data-[state=open]:animate-none data-[state=closed]:animate-none"
           onEscapeKeyDown={(event) => event.preventDefault()}
         >
           <DialogHeader>
@@ -1067,17 +1279,29 @@ const ImageLibraryDialog = ({
             </div>
             <div>
               <h3 className="text-sm font-semibold text-foreground">Imagens dos projetos</h3>
-              {renderGrid(
-                filteredProjectImages,
-                normalizedSearch
-                  ? "Nenhuma imagem de projeto encontrada para essa pesquisa."
-                  : "Nenhuma imagem de projeto encontrada.",
-              )}
+              {includeProjectImages
+                ? projectImagesView === "by-project"
+                  ? renderProjectGroups(
+                      projectImageGroups,
+                      normalizedSearch
+                        ? "Nenhuma imagem de projeto encontrada para essa pesquisa."
+                        : "Nenhuma imagem de projeto encontrada.",
+                    )
+                  : renderGrid(
+                      filteredProjectImages,
+                      normalizedSearch
+                        ? "Nenhuma imagem de projeto encontrada para essa pesquisa."
+                        : "Nenhuma imagem de projeto encontrada.",
+                    )
+                : <p className="mt-3 text-xs text-muted-foreground">Imagens de projeto ocultas neste contexto.</p>}
             </div>
           </div>
 
-          <div className="mt-4 flex justify-end gap-2">
-            <Button type="button" onClick={handleSave}>
+          <div className="mt-4 flex flex-col-reverse justify-end gap-2 sm:flex-row">
+            <Button type="button" variant="outline" className="w-full sm:w-auto" onClick={() => onOpenChange(false)}>
+              Cancelar
+            </Button>
+            <Button type="button" className="w-full sm:w-auto" onClick={handleSave}>
               Salvar
             </Button>
           </div>
@@ -1095,31 +1319,30 @@ const ImageLibraryDialog = ({
         }}
       >
         <DialogContent
-          className="max-h-[92vh] max-w-5xl overflow-auto z-[240] data-[state=open]:animate-none data-[state=closed]:animate-none"
-          overlayClassName="z-[230] data-[state=open]:animate-none data-[state=closed]:animate-none"
+          className="max-h-[92vh] max-w-5xl overflow-auto z-240 data-[state=open]:animate-none data-[state=closed]:animate-none"
+          overlayClassName="z-230 data-[state=open]:animate-none data-[state=closed]:animate-none"
         >
           <DialogHeader>
             <DialogTitle>Editor de avatar</DialogTitle>
             <DialogDescription>
-              Defina o enquadramento final do avatar e clique em Aplicar avatar.
+              Defina o enquadramento final do avatar e clique em Aplicar avatar para liberar o salvamento.
             </DialogDescription>
           </DialogHeader>
           {primarySelectedUrl ? (
-            <ImageCropperProvider key={primarySelectedUrl}>
-              <AvatarCropWorkspace
-                src={primarySelectedUrl}
-                isApplyingCrop={isApplyingCrop}
-                onCancel={() => setIsCropDialogOpen(false)}
-                onApplyCrop={applyCrop}
-              />
-            </ImageCropperProvider>
+            <AvatarCropWorkspace
+              key={primarySelectedUrl}
+              src={primarySelectedUrl}
+              isApplyingCrop={isApplyingCrop}
+              onCancel={() => setIsCropDialogOpen(false)}
+              onApplyCrop={applyCrop}
+            />
           ) : (
             <p className="text-sm text-muted-foreground">Selecione um avatar na biblioteca antes de abrir o editor.</p>
           )}
         </DialogContent>
       </Dialog>
       <Dialog open={Boolean(deleteTarget)} onOpenChange={(next) => !next && setDeleteTarget(null)}>
-        <DialogContent className="max-w-md z-[240]" overlayClassName="z-[230]">
+        <DialogContent className="max-w-md z-240" overlayClassName="z-230">
           <DialogHeader>
             <DialogTitle>Excluir imagem?</DialogTitle>
             <DialogDescription>
@@ -1153,7 +1376,7 @@ const ImageLibraryDialog = ({
       </Dialog>
 
       <Dialog open={Boolean(renameTarget)} onOpenChange={(next) => !next && setRenameTarget(null)}>
-        <DialogContent className="max-w-md z-[240]" overlayClassName="z-[230]">
+        <DialogContent className="max-w-md z-240" overlayClassName="z-230">
           <DialogHeader>
             <DialogTitle>Renomear imagem</DialogTitle>
             <DialogDescription>
@@ -1179,3 +1402,4 @@ const ImageLibraryDialog = ({
 };
 
 export default ImageLibraryDialog;
+

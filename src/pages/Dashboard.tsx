@@ -431,7 +431,7 @@ const Dashboard = () => {
 
           <div className="mt-10 grid gap-4 md:grid-cols-2 lg:grid-cols-4">
             <div
-              className="rounded-2xl border border-white/10 bg-gradient-to-br from-white/5 to-white/0 p-5 animate-slide-up opacity-0"
+              className="rounded-2xl border border-white/10 bg-linear-to-br from-white/5 to-white/0 p-5 animate-slide-up opacity-0"
               style={{ animationDelay: "0ms" }}
             >
               <p className="text-sm text-muted-foreground">Projetos cadastrados</p>
@@ -439,7 +439,7 @@ const Dashboard = () => {
               <p className="mt-2 text-xs text-muted-foreground">Catálogo completo do site.</p>
             </div>
             <div
-              className="rounded-2xl border border-white/10 bg-gradient-to-br from-white/5 to-white/0 p-5 animate-slide-up opacity-0"
+              className="rounded-2xl border border-white/10 bg-linear-to-br from-white/5 to-white/0 p-5 animate-slide-up opacity-0"
               style={{ animationDelay: "80ms" }}
             >
               <p className="text-sm text-muted-foreground">Mídias disponíveis</p>
@@ -447,7 +447,7 @@ const Dashboard = () => {
               <p className="mt-2 text-xs text-muted-foreground">Downloads ativos nos projetos.</p>
             </div>
             <div
-              className="rounded-2xl border border-white/10 bg-gradient-to-br from-white/5 to-white/0 p-5 animate-slide-up opacity-0"
+              className="rounded-2xl border border-white/10 bg-linear-to-br from-white/5 to-white/0 p-5 animate-slide-up opacity-0"
               style={{ animationDelay: "160ms" }}
             >
               <p className="text-sm text-muted-foreground">Projetos ativos</p>
@@ -455,7 +455,7 @@ const Dashboard = () => {
               <p className="mt-2 text-xs text-muted-foreground">Em andamento ou produção.</p>
             </div>
             <div
-              className="rounded-2xl border border-white/10 bg-gradient-to-br from-white/5 to-white/0 p-5 animate-slide-up opacity-0"
+              className="rounded-2xl border border-white/10 bg-linear-to-br from-white/5 to-white/0 p-5 animate-slide-up opacity-0"
               style={{ animationDelay: "240ms" }}
             >
               <p className="text-sm text-muted-foreground">Projetos finalizados</p>
@@ -499,7 +499,7 @@ const Dashboard = () => {
                     </div>
                   </div>
                   <div className="w-full max-w-xs">
-                    <div className="h-32 rounded-2xl border border-white/10 bg-gradient-to-br from-white/5 to-white/0 p-4">
+                    <div className="h-32 rounded-2xl border border-white/10 bg-linear-to-br from-white/5 to-white/0 p-4">
                       {hasAnalyticsData ? (
                         <svg viewBox="0 0 100 40" className="h-full w-full">
                           <defs>

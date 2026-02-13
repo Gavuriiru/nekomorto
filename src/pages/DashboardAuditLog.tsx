@@ -14,6 +14,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  MuiBrazilDateField,
+  MuiBrazilTimeField,
+  MuiDateTimeFieldsProvider,
+} from "@/components/ui/mui-date-time-fields";
 import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
 import { formatDateTime } from "@/lib/date";
@@ -54,19 +59,44 @@ type FilterForm = {
   limit: string;
 };
 
+type FilterDateField = "dateFrom" | "dateTo";
+
+const pad = (value: number) => String(value).padStart(2, "0");
+
+const toLocalDateValue = (value: Date) =>
+  `${value.getFullYear()}-${pad(value.getMonth() + 1)}-${pad(value.getDate())}`;
+
 const toDateTimeInputValue = (value: string) => {
   if (!value) return "";
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) {
     return "";
   }
-  const pad = (num: number) => String(num).padStart(2, "0");
-  const year = date.getFullYear();
-  const month = pad(date.getMonth() + 1);
-  const day = pad(date.getDate());
-  const hours = pad(date.getHours());
-  const minutes = pad(date.getMinutes());
-  return `${year}-${month}-${day}T${hours}:${minutes}`;
+  return `${toLocalDateValue(date)}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+};
+
+const parseLocalDateTimeValue = (value: string) => {
+  const [datePart, timePart] = value.split("T");
+  if (!datePart) {
+    return { date: null as Date | null, time: "" };
+  }
+  const [year, month, day] = datePart.split("-").map((chunk) => Number(chunk));
+  if (!year || !month || !day) {
+    return { date: null as Date | null, time: "" };
+  }
+  return {
+    date: new Date(year, month - 1, day),
+    time: timePart || "",
+  };
+};
+
+const toTimeFieldValue = (time: string, fallback = "00:00") => {
+  const [hoursPart, minutesPart] = (time || fallback).split(":");
+  const hours = Number(hoursPart);
+  const minutes = Number(minutesPart);
+  const next = new Date();
+  next.setHours(Number.isFinite(hours) ? hours : 0, Number.isFinite(minutes) ? minutes : 0, 0, 0);
+  return next;
 };
 
 const parsePage = (value: string | null) => {
@@ -127,6 +157,41 @@ const DashboardAuditLog = () => {
   const page = parsePage(searchParams.get("page"));
   const limit = parseLimit(searchParams.get("limit"));
   const totalPages = Math.max(1, Math.ceil(total / Math.max(limit, 1)));
+  const dateFromParts = parseLocalDateTimeValue(form.dateFrom);
+  const dateToParts = parseLocalDateTimeValue(form.dateTo);
+  const dateFromTimeValue = toTimeFieldValue(dateFromParts.time || "00:00");
+  const dateToTimeValue = toTimeFieldValue(dateToParts.time || "00:00");
+
+  const handleFilterDateChange = (field: FilterDateField, nextDate: Date | null) => {
+    setForm((prev) => {
+      if (!nextDate) {
+        return { ...prev, [field]: "" };
+      }
+      const { time } = parseLocalDateTimeValue(prev[field]);
+      const timePart = time || "00:00";
+      return {
+        ...prev,
+        [field]: `${toLocalDateValue(nextDate)}T${timePart}`,
+      };
+    });
+  };
+
+  const handleFilterTimeChange = (field: FilterDateField, nextTime: Date | null) => {
+    if (!nextTime || Number.isNaN(nextTime.getTime())) {
+      return;
+    }
+    const nextTimePart = `${pad(nextTime.getHours())}:${pad(nextTime.getMinutes())}`;
+    setForm((prev) => {
+      const { date } = parseLocalDateTimeValue(prev[field]);
+      if (!date) {
+        return prev;
+      }
+      return {
+        ...prev,
+        [field]: `${toLocalDateValue(date)}T${nextTimePart}`,
+      };
+    });
+  };
 
   useEffect(() => {
     setForm({
@@ -330,7 +395,7 @@ const DashboardAuditLog = () => {
                   Eventos mutáveis e de segurança dos últimos 30 dias.
                 </p>
               </div>
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-3 animate-slide-up opacity-0" style={{ animationDelay: "0.24s" }}>
                 <Badge className="bg-white/10 text-muted-foreground">{formattedTotal} eventos</Badge>
                 <Button variant="outline" onClick={() => void handleExportCsv()} disabled={isExporting || forbidden}>
                   {isExporting ? "Exportando..." : "Exportar CSV"}
@@ -341,7 +406,7 @@ const DashboardAuditLog = () => {
               </div>
             </header>
 
-            <div className="mt-8 rounded-2xl border border-white/10 bg-white/5 p-4 md:p-5">
+            <div className="mt-8 rounded-2xl border border-white/10 bg-white/5 p-4 md:p-5 animate-slide-up opacity-0" style={{ animationDelay: "0.28s" }}>
               <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
                 <div className="grid gap-2">
                   <Label htmlFor="audit-q">Busca</Label>
@@ -395,21 +460,39 @@ const DashboardAuditLog = () => {
                 </div>
                 <div className="grid gap-2">
                   <Label htmlFor="audit-date-from">Data inicial</Label>
-                  <Input
-                    id="audit-date-from"
-                    type="datetime-local"
-                    value={form.dateFrom}
-                    onChange={(event) => setForm((prev) => ({ ...prev, dateFrom: event.target.value }))}
-                  />
+                  <MuiDateTimeFieldsProvider>
+                    <div className="grid gap-2 sm:grid-cols-2">
+                      <MuiBrazilDateField
+                        id="audit-date-from"
+                        value={dateFromParts.date}
+                        onChange={(nextDate) => handleFilterDateChange("dateFrom", nextDate)}
+                      />
+                      <MuiBrazilTimeField
+                        id="audit-date-from-time"
+                        value={dateFromTimeValue}
+                        onChange={(nextTime) => handleFilterTimeChange("dateFrom", nextTime)}
+                        disabled={!form.dateFrom}
+                      />
+                    </div>
+                  </MuiDateTimeFieldsProvider>
                 </div>
                 <div className="grid gap-2">
                   <Label htmlFor="audit-date-to">Data final</Label>
-                  <Input
-                    id="audit-date-to"
-                    type="datetime-local"
-                    value={form.dateTo}
-                    onChange={(event) => setForm((prev) => ({ ...prev, dateTo: event.target.value }))}
-                  />
+                  <MuiDateTimeFieldsProvider>
+                    <div className="grid gap-2 sm:grid-cols-2">
+                      <MuiBrazilDateField
+                        id="audit-date-to"
+                        value={dateToParts.date}
+                        onChange={(nextDate) => handleFilterDateChange("dateTo", nextDate)}
+                      />
+                      <MuiBrazilTimeField
+                        id="audit-date-to-time"
+                        value={dateToTimeValue}
+                        onChange={(nextTime) => handleFilterTimeChange("dateTo", nextTime)}
+                        disabled={!form.dateTo}
+                      />
+                    </div>
+                  </MuiDateTimeFieldsProvider>
                 </div>
                 <div className="grid gap-2">
                   <Label>Itens por página</Label>
@@ -432,7 +515,7 @@ const DashboardAuditLog = () => {
               </div>
             </div>
 
-            <div className="mt-6 rounded-2xl border border-white/10 bg-white/5 p-2 md:p-4">
+            <div className="mt-6 rounded-2xl border border-white/10 bg-white/5 p-2 md:p-4 animate-slide-up opacity-0" style={{ animationDelay: "0.32s" }}>
               {forbidden ? (
                 <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-6 text-sm text-amber-100">
                   Acesso negado. Apenas o dono pode visualizar o audit log.
@@ -458,7 +541,7 @@ const DashboardAuditLog = () => {
                   <TableBody>
                     {isLoading ? (
                       <TableRow>
-                        <TableCell colSpan={8} className="text-center text-muted-foreground">
+                        <TableCell colSpan={8} className="text-center text-muted-foreground animate-pulse">
                           Carregando audit log...
                         </TableCell>
                       </TableRow>
@@ -474,7 +557,7 @@ const DashboardAuditLog = () => {
                       entries.map((entry) => (
                         <TableRow key={entry.id}>
                           <TableCell>{formatDateTime(entry.ts)}</TableCell>
-                          <TableCell className="max-w-[11rem]">
+                          <TableCell className="max-w-44">
                             <div className="truncate">{entry.actorName || "anonymous"}</div>
                             <div className="truncate text-xs text-muted-foreground">{entry.actorId}</div>
                           </TableCell>
@@ -501,7 +584,7 @@ const DashboardAuditLog = () => {
             </div>
 
             {!forbidden && !error ? (
-              <div className="mt-4 flex items-center justify-between gap-3">
+              <div className="mt-4 flex items-center justify-between gap-3 animate-slide-up opacity-0" style={{ animationDelay: "0.36s" }}>
                 <p className="text-sm text-muted-foreground">
                   Página {page} de {totalPages}
                 </p>

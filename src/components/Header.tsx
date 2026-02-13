@@ -23,6 +23,7 @@ import { getNavbarIcon } from "@/lib/navbar-icons";
 import { resolveBranding } from "@/lib/branding";
 import { rankPosts, rankProjects, selectVisibleTags, sortAlphabeticallyPtBr } from "@/lib/search-ranking";
 import { useDynamicSynopsisClamp } from "@/hooks/use-dynamic-synopsis-clamp";
+import { buildDashboardMenuFromGrants, resolveGrants } from "@/lib/access-control";
 
 type HeaderProps = {
   variant?: "fixed" | "static";
@@ -39,6 +40,11 @@ const Header = ({ variant = "fixed", leading, className }: HeaderProps) => {
     name: string;
     username: string;
     avatarUrl?: string | null;
+    accessRole?: string;
+    permissions?: string[];
+    ownerIds?: string[];
+    primaryOwnerId?: string | null;
+    grants?: Partial<Record<string, boolean>>;
   } | null>(null);
   const [projects, setProjects] = useState<Project[]>([]);
   const [posts, setPosts] = useState<
@@ -75,7 +81,7 @@ const Header = ({ variant = "fixed", leading, className }: HeaderProps) => {
       : [];
   }, [settings.navbar.links]);
   const headerMenuContentClass =
-    "border-white/25 bg-gradient-to-b from-black/40 via-black/25 to-black/10 text-white/90 shadow-xl backdrop-blur-sm";
+    "border-white/25 bg-linear-to-b from-black/40 via-black/25 to-black/10 text-white/90 shadow-xl backdrop-blur-xs";
   const headerMenuItemClass = "focus:bg-white/10 focus:text-white";
   const isInternalHref = (href: string) => href.startsWith("/") && !href.startsWith("//");
   const normalizePathname = (value: string) => {
@@ -253,19 +259,35 @@ const Header = ({ variant = "fixed", leading, className }: HeaderProps) => {
     loadUser();
   }, [apiBase]);
 
+  const dashboardMenuForUser = useMemo(() => {
+    if (!currentUser) {
+      return [];
+    }
+    const grants = resolveGrants(currentUser);
+    return buildDashboardMenuFromGrants(dashboardMenuItems, grants);
+  }, [currentUser]);
+
   return (
     <header
       className={cn(
-        "left-0 right-0 px-6 py-4 text-white transition-all duration-300 md:px-12 after:pointer-events-none after:absolute after:inset-0 after:bg-gradient-to-b after:from-black/25 after:via-black/10 after:to-transparent",
+        "left-0 right-0 px-6 py-4 text-white transition-all duration-300 md:px-12 after:pointer-events-none after:absolute after:inset-0 after:bg-linear-to-b after:from-black/25 after:via-black/10 after:to-transparent",
         variant === "fixed" ? "fixed top-0" : "relative",
         isScrolled && variant === "fixed" ? "bg-background/70 backdrop-blur-xl" : "bg-transparent",
         leading ? "z-10" : "z-50",
-        leading ? "md:pl-[var(--sidebar-offset)]" : "",
+        leading ? "md:pl-(--sidebar-offset)" : "",
         className,
       )}
     >
-      <nav className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
+      <nav className="relative flex items-center justify-between gap-3">
+        <div
+          data-testid="public-header-left-cluster"
+          className={cn(
+            "flex min-w-0 items-center gap-3 transition-all duration-300",
+            isSearchOpen
+              ? "opacity-0 invisible pointer-events-none md:opacity-100 md:visible md:pointer-events-auto"
+              : "opacity-100 visible pointer-events-auto",
+          )}
+        >
           {leading}
           <Link to="/" className="flex items-center gap-3 text-2xl md:text-3xl font-black tracking-wider text-white">
             {showWordmarkInNavbar ? (
@@ -284,7 +306,7 @@ const Header = ({ variant = "fixed", leading, className }: HeaderProps) => {
                     <ThemedSvgLogo
                       url={navbarSymbolUrl}
                       label={siteName}
-                      className="h-9 w-9 rounded-full object-cover shadow-sm text-primary"
+                      className="h-9 w-9 rounded-full object-cover shadow-xs text-primary"
                     />
                   ) : (
                     <span className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/20 bg-white/10 text-sm font-semibold">
@@ -297,9 +319,8 @@ const Header = ({ variant = "fixed", leading, className }: HeaderProps) => {
             )}
           </Link>
         </div>
-        
-        <div className="flex items-center gap-3 md:gap-6">
-          <div className="hidden md:flex items-center gap-6 text-sm font-medium text-white/80">
+        <div className="flex shrink-0 items-center gap-3 md:gap-6">
+          <div className="hidden lg:flex items-center gap-6 text-sm font-medium text-white/80">
             {navbarLinks.map((item) => {
               const isInternal = isInternalHref(item.href);
               const isActive = isNavbarLinkActive(item.href);
@@ -326,11 +347,19 @@ const Header = ({ variant = "fixed", leading, className }: HeaderProps) => {
               );
             })}
           </div>
-
-          <div className="relative flex items-center gap-3" ref={searchRef}>
+          <div
+            ref={searchRef}
+            data-testid="public-header-search-cluster"
+            className={cn(
+              "relative z-20 flex shrink-0 items-center gap-3 transition-all duration-300",
+              isSearchOpen
+                ? "absolute inset-x-0 top-1/2 z-30 mx-auto w-[min(22rem,calc(100vw-1rem))] -translate-y-1/2 md:static md:w-auto md:translate-y-0"
+                : "w-auto",
+            )}
+          >
             <div
               className={`flex items-center gap-2 rounded-full border border-transparent bg-secondary/30 px-3 py-2 transition-all duration-300 ${
-                isSearchOpen ? "w-60 md:w-72 border-border bg-secondary/70" : "w-11"
+                isSearchOpen ? "w-full border-border bg-secondary/70 md:w-72" : "w-11"
               }`}
             >
               <button
@@ -355,10 +384,11 @@ const Header = ({ variant = "fixed", leading, className }: HeaderProps) => {
               </button>
               {isSearchOpen && (
                 <input
+                  autoFocus
                   value={query}
                   onChange={(event) => setQuery(event.target.value)}
                   placeholder="Pesquisar projetos e posts"
-                  className="w-full bg-transparent text-sm text-white outline-none placeholder:text-white/60"
+                  className="w-full bg-transparent text-sm text-white outline-hidden placeholder:text-white/60"
                 />
               )}
             </div>
@@ -366,7 +396,8 @@ const Header = ({ variant = "fixed", leading, className }: HeaderProps) => {
             {showResults && (
               <div
                 ref={synopsisRootRef}
-                className="search-popover-enter absolute right-0 top-12 max-h-[78vh] w-80 overflow-hidden rounded-xl border border-border/60 bg-background/95 p-4 shadow-lg backdrop-blur"
+                data-testid="public-header-results"
+                className="search-popover-enter absolute top-12 left-0 right-0 mx-auto max-h-[78vh] w-[min(24rem,calc(100vw-1rem))] overflow-hidden rounded-xl border border-border/60 bg-background/95 p-4 shadow-lg backdrop-blur-sm md:left-auto md:right-0 md:mx-0 md:w-80"
               >
                 {filteredProjects.length > 0 && (
                   <div className="mb-4">
@@ -378,10 +409,10 @@ const Header = ({ variant = "fixed", leading, className }: HeaderProps) => {
                         <li key={item.href}>
                           <Link
                             to={item.href}
-                            className="group flex h-[9rem] items-start gap-4 overflow-hidden rounded-xl border border-border/60 bg-gradient-card p-4 transition hover:border-primary/40 hover:bg-primary/5"
+                            className="group flex h-36 items-start gap-4 overflow-hidden rounded-xl border border-border/60 bg-gradient-card p-4 transition hover:border-primary/40 hover:bg-primary/5"
                           >
                             <div
-                              className="w-20 flex-shrink-0 self-start overflow-hidden rounded-lg bg-secondary"
+                              className="w-20 shrink-0 self-start overflow-hidden rounded-lg bg-secondary"
                               style={{ aspectRatio: "46 / 65" }}
                             >
                               <img
@@ -449,87 +480,97 @@ const Header = ({ variant = "fixed", leading, className }: HeaderProps) => {
             )}
           </div>
 
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="md:hidden h-10 w-10 rounded-full border border-white/10 bg-white/5 text-white/80 hover:text-white"
-                aria-label="Abrir menu"
-              >
-                <Menu className="h-5 w-5" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className={`w-48 ${headerMenuContentClass}`}>
-              {navbarLinks.map((item) => {
-                const ItemIcon = getNavbarIcon(item.icon);
-                return (
-                  <DropdownMenuItem key={`${item.label}-${item.href}`} asChild className={headerMenuItemClass}>
-                    {isInternalHref(item.href) ? (
-                      <Link to={item.href} className="flex items-center gap-2">
-                        <ItemIcon className="h-4 w-4" />
-                        {item.label}
-                      </Link>
-                    ) : (
-                      <a href={item.href} target="_blank" rel="noreferrer" className="flex items-center gap-2">
-                        <ItemIcon className="h-4 w-4" />
-                        {item.label}
-                      </a>
-                    )}
-                  </DropdownMenuItem>
-                );
-              })}
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <div
+            data-testid="public-header-actions-cluster"
+            className={cn(
+              "flex shrink-0 items-center gap-3 transition-all duration-300 md:gap-6",
+              isSearchOpen
+                ? "opacity-0 invisible pointer-events-none md:opacity-100 md:visible md:pointer-events-auto"
+                : "opacity-100 visible pointer-events-auto",
+            )}
+          >
 
-          {currentUser && (
-            <DropdownMenu modal={false}>
+            <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="h-11 gap-2 rounded-full px-2">
-                  <Avatar className="h-8 w-8 border-0 shadow-[0_0_0_1px_rgba(255,255,255,0.08),0_2px_8px_rgba(0,0,0,0.18)]">
-                    {currentUser.avatarUrl ? (
-                      <AvatarImage src={currentUser.avatarUrl} alt={currentUser.name} />
-                    ) : null}
-                    <AvatarFallback className="bg-secondary text-xs text-foreground">
-                      {(currentUser.name || "").slice(0, 2).toUpperCase()}
-                    </AvatarFallback>
-                  </Avatar>
-                  <span className="hidden text-sm font-medium text-white md:inline">
-                    {currentUser.name || ""}
-                  </span>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="lg:hidden h-10 w-10 rounded-full border border-white/10 bg-white/5 text-white/80 hover:text-white"
+                  aria-label="Abrir menu"
+                >
+                  <Menu className="h-5 w-5" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className={`w-56 ${headerMenuContentClass}`}>
-                {dashboardMenuItems
-                  .filter((item) => item.enabled)
-                  .map((item) => {
-                    const ItemIcon = item.icon;
-                    return (
-                      <DropdownMenuItem key={item.href} asChild className={headerMenuItemClass}>
+              <DropdownMenuContent align="end" className={`w-48 ${headerMenuContentClass}`}>
+                {navbarLinks.map((item) => {
+                  const ItemIcon = getNavbarIcon(item.icon);
+                  return (
+                    <DropdownMenuItem key={`${item.label}-${item.href}`} asChild className={headerMenuItemClass}>
+                      {isInternalHref(item.href) ? (
                         <Link to={item.href} className="flex items-center gap-2">
                           <ItemIcon className="h-4 w-4" />
                           {item.label}
                         </Link>
-                      </DropdownMenuItem>
-                    );
-                  })}
-                <DropdownMenuSeparator className="bg-white/10" />
-                <DropdownMenuItem
-                  className={headerMenuItemClass}
-                  onClick={async () => {
-                    await apiFetch(apiBase, "/api/logout", {
-                      method: "POST",
-                      auth: true,
-                    });
-                    window.location.href = "/";
-                  }}
-                >
-                  <LogOut className="h-4 w-4" />
-                  Sair
-                </DropdownMenuItem>
+                      ) : (
+                        <a href={item.href} target="_blank" rel="noreferrer" className="flex items-center gap-2">
+                          <ItemIcon className="h-4 w-4" />
+                          {item.label}
+                        </a>
+                      )}
+                    </DropdownMenuItem>
+                  );
+                })}
               </DropdownMenuContent>
             </DropdownMenu>
-          )}
+
+            {currentUser && (
+              <DropdownMenu modal={false}>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" className="h-11 gap-2 rounded-full px-2">
+                    <Avatar className="h-8 w-8 border-0 shadow-[0_0_0_1px_rgba(255,255,255,0.08),0_2px_8px_rgba(0,0,0,0.18)]">
+                      {currentUser.avatarUrl ? (
+                        <AvatarImage src={currentUser.avatarUrl} alt={currentUser.name} />
+                      ) : null}
+                      <AvatarFallback className="bg-secondary text-xs text-foreground">
+                        {(currentUser.name || "").slice(0, 2).toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
+                    <span className="hidden text-sm font-medium text-white lg:inline">
+                      {currentUser.name || ""}
+                    </span>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className={`w-56 ${headerMenuContentClass}`}>
+                  {dashboardMenuForUser
+                    .map((item) => {
+                      const ItemIcon = item.icon;
+                      return (
+                        <DropdownMenuItem key={item.href} asChild className={headerMenuItemClass}>
+                          <Link to={item.href} className="flex items-center gap-2">
+                            <ItemIcon className="h-4 w-4" />
+                            {item.label}
+                          </Link>
+                        </DropdownMenuItem>
+                      );
+                    })}
+                  <DropdownMenuSeparator className="bg-white/10" />
+                  <DropdownMenuItem
+                    className={headerMenuItemClass}
+                    onClick={async () => {
+                      await apiFetch(apiBase, "/api/logout", {
+                        method: "POST",
+                        auth: true,
+                      });
+                      window.location.href = "/";
+                    }}
+                  >
+                    <LogOut className="h-4 w-4" />
+                    Sair
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
+          </div>
         </div>
       </nav>
     </header>

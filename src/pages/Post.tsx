@@ -1,5 +1,5 @@
 ﻿import { useEffect, useMemo, useRef, useState } from "react";
-import { useParams } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import { CalendarDays, Clock, User } from "lucide-react";
 
 import DiscordInviteCard from "@/components/DiscordInviteCard";
@@ -8,6 +8,7 @@ import WorkStatusCard from "@/components/WorkStatusCard";
 import ProjectEmbedCard from "@/components/ProjectEmbedCard";
 import CommentsSection from "@/components/CommentsSection";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { estimateReadTime } from "@/lib/post-content";
 import LexicalViewer from "@/components/lexical/LexicalViewer";
@@ -40,6 +41,7 @@ const Post = () => {
   } | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
+  const [currentUser, setCurrentUser] = useState<{ permissions?: string[] } | null>(null);
   const trackedViewsRef = useRef<Set<string>>(new Set());
   const { settings } = useSiteSettings();
 
@@ -83,6 +85,34 @@ const Post = () => {
   }, [apiBase, slug]);
 
   useEffect(() => {
+    let isActive = true;
+    const loadCurrentUser = async () => {
+      try {
+        const response = await apiFetch(apiBase, "/api/public/me", { auth: true });
+        if (!response.ok) {
+          if (isActive) {
+            setCurrentUser(null);
+          }
+          return;
+        }
+        const data = await response.json();
+        if (isActive) {
+          setCurrentUser(data?.user ?? null);
+        }
+      } catch {
+        if (isActive) {
+          setCurrentUser(null);
+        }
+      }
+    };
+
+    loadCurrentUser();
+    return () => {
+      isActive = false;
+    };
+  }, [apiBase]);
+
+  useEffect(() => {
     if (!post?.slug) {
       return;
     }
@@ -119,6 +149,10 @@ const Post = () => {
     return estimateReadTime(post.content || "");
   }, [post]);
   const coverUrl = useMemo(() => normalizeAssetUrl(post?.coverImageUrl), [post?.coverImageUrl]);
+  const canEditPost = useMemo(() => {
+    const permissions = Array.isArray(currentUser?.permissions) ? currentUser.permissions : [];
+    return permissions.includes("*") || permissions.includes("posts");
+  }, [currentUser]);
 
   return (
     <div className="min-h-screen bg-background">
@@ -157,15 +191,22 @@ const Post = () => {
                       <Badge variant="outline" className="text-xs uppercase tracking-wide">
                         Postagem
                       </Badge>
+                      {canEditPost ? (
+                        <Button asChild size="sm" variant="outline" className="h-7 px-2.5 text-[10px] uppercase">
+                          <Link to={`/dashboard/posts?edit=${encodeURIComponent(post.id)}`}>
+                            Editar postagem
+                          </Link>
+                        </Button>
+                      ) : null}
                     </div>
                   </div>
                 </div>
 
-                <div className="relative overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
+                <div className="relative aspect-3/2 overflow-hidden rounded-2xl border border-border bg-card shadow-xs">
                   <img
                     src={coverUrl || "/placeholder.svg"}
                     alt={post.coverAlt || `Capa do post: ${post.title}`}
-                    className="aspect-[3/2] w-full object-cover"
+                    className="absolute inset-0 block h-full w-full object-cover object-center"
                     loading="lazy"
                   />
                 </div>
@@ -173,7 +214,7 @@ const Post = () => {
 
               <section className="grid gap-8 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
                 <article className="min-w-0 space-y-8">
-                  <Card className="border-border bg-card shadow-sm">
+                  <Card className="border-border bg-card shadow-xs">
                     <CardContent className="min-w-0 space-y-7 p-6 text-sm leading-relaxed text-muted-foreground">
                       <LexicalViewer
                         value={post.content || ""}

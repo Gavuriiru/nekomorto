@@ -163,11 +163,11 @@ const LatestEpisodeCard = () => {
                     key={update.id}
                     to={`/projeto/${update.projectId}`}
                     style={{ "--card-h": "164px", "--card-pad": "16px" } as CSSProperties}
-                    className="group relative block h-[var(--card-h)] rounded-2xl border border-border/60 bg-gradient-to-br from-background/70 via-background/40 to-background/70 shadow-none transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:shadow-lg reveal"
+                    className="group relative block h-(--card-h) rounded-2xl border border-border/60 bg-linear-to-br from-background/70 via-background/40 to-background/70 shadow-none transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:shadow-lg reveal"
                     data-reveal
                   >
-                    <div className="absolute inset-[var(--card-pad)] flex items-start gap-4">
-                      <div className="flex-shrink-0 overflow-hidden rounded-xl bg-secondary/60 h-full aspect-[46/65]">
+                    <div className="absolute inset-(--card-pad) flex items-start gap-4">
+                      <div className="shrink-0 overflow-hidden rounded-xl bg-secondary/60 h-full aspect-46/65">
                         <img
                           src={update.image || "/placeholder.svg"}
                           alt={update.projectTitle}

@@ -1,5 +1,5 @@
 ﻿import type { ReactNode } from "react";
-import { act, fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import DashboardSettings from "@/pages/DashboardSettings";
 import { defaultSettings } from "@/hooks/site-settings-context";
@@ -70,6 +70,7 @@ const waitMs = (delayMs: number) =>
   new Promise<void>((resolve) => {
     setTimeout(resolve, delayMs);
   });
+const classTokens = (element: HTMLElement) => String(element.className).split(/\s+/).filter(Boolean);
 
 describe("DashboardSettings autosave", () => {
   beforeEach(() => {
@@ -136,6 +137,24 @@ describe("DashboardSettings autosave", () => {
         return mockJsonResponse(true, { items: body.items || [] });
       }
       return mockJsonResponse(false, { error: "not_found" }, 404);
+    });
+  });
+
+  it("usa tablist com scroll horizontal invisivel no mobile e triggers sem compressao", async () => {
+    render(<DashboardSettings />);
+    await screen.findByRole("heading", { name: /Painel/i });
+
+    const tablist = screen.getByRole("tablist");
+    const tablistClasses = classTokens(tablist);
+    expect(tablistClasses).toContain("no-scrollbar");
+    expect(tablistClasses).toContain("overflow-x-auto");
+    expect(tablistClasses).toContain("md:grid");
+    expect(tablistClasses).toContain("md:grid-cols-7");
+
+    const tabs = within(tablist).getAllByRole("tab");
+    expect(tabs.length).toBeGreaterThan(0);
+    tabs.forEach((tab) => {
+      expect(classTokens(tab)).toContain("shrink-0");
     });
   });
 
@@ -215,6 +234,16 @@ describe("DashboardSettings autosave", () => {
     ).toBe(true);
 
     addEventListenerSpy.mockRestore();
+  });
+
+  it("renderiza a prÃ©via do footer com nome em uppercase", async () => {
+    render(<DashboardSettings />);
+    await screen.findByRole("heading", { name: /Painel/i });
+
+    const siteNameInput = await screen.findByDisplayValue(defaultSettings.site.name);
+    fireEvent.change(siteNameInput, { target: { value: "Neko Teste" } });
+
+    expect(await screen.findByText("NEKO TESTE")).toBeInTheDocument();
   });
 
   it("reordena redes sociais do footer via drag-and-drop e salva a nova ordem", async () => {

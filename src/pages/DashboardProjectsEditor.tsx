@@ -1,10 +1,11 @@
 ﻿import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import type { MouseEvent as ReactMouseEvent } from "react";
 import DashboardShell from "@/components/DashboardShell";
 import DashboardPageContainer from "@/components/dashboard/DashboardPageContainer";
 import DashboardPageHeader from "@/components/dashboard/DashboardPageHeader";
 import { dashboardPageLayoutTokens } from "@/components/dashboard/dashboard-page-tokens";
-import ImageLibraryDialog from "@/components/ImageLibraryDialog";
+import ImageLibraryDialog, { type ImageLibraryOptions } from "@/components/ImageLibraryDialog";
 import ThemedSvgLogo from "@/components/ThemedSvgLogo";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -619,6 +620,36 @@ const shiftCollapsedEpisodesAfterRemoval = (collapsed: Record<number, boolean>, 
 };
 
 const getEpisodeAccordionValue = (index: number) => `episode-${index}`;
+const episodeHeaderNoToggleSelector = [
+  "[data-no-toggle]",
+  "button",
+  "a",
+  "input",
+  "select",
+  "textarea",
+  "label",
+  '[role="button"]',
+  '[role="link"]',
+  '[contenteditable="true"]',
+].join(", ");
+
+const shouldSkipEpisodeHeaderToggle = (target: EventTarget | null) => {
+  if (!(target instanceof Element)) {
+    return false;
+  }
+  return Boolean(target.closest(episodeHeaderNoToggleSelector));
+};
+
+const resolveProjectImageFolders = (projectId: string, projectTitle: string) => {
+  const normalizedId = String(projectId || "").trim();
+  const normalizedSlug = createSlug(String(projectTitle || "").trim());
+  const projectKey = normalizedId || normalizedSlug || "draft";
+  const projectRootFolder = `projects/${projectKey}`;
+  return {
+    projectRootFolder,
+    projectEpisodesFolder: `${projectRootFolder}/episodes`,
+  };
+};
 
 const generateLocalId = () => {
   const alpha = String.fromCharCode(97 + Math.floor(Math.random() * 26));
@@ -645,12 +676,14 @@ type EpisodeContentEditorProps = {
   value: string;
   onChange: (value: string) => void;
   onRegister?: (handlers: LexicalEditorHandle | null) => void;
+  imageLibraryOptions?: ImageLibraryOptions;
 };
 
 const EpisodeContentEditor = ({
   value,
   onChange,
   onRegister,
+  imageLibraryOptions,
 }: EpisodeContentEditorProps) => {
   const editorRef = useRef<LexicalEditorHandle | null>(null);
 
@@ -668,6 +701,7 @@ const EpisodeContentEditor = ({
       onChange={onChange}
       placeholder="Escreva o capítulo..."
       className="lexical-playground--modal"
+      imageLibraryOptions={imageLibraryOptions}
     />
   );
 };
@@ -683,7 +717,9 @@ const DashboardProjectsEditor = () => {
     name: string;
     username: string;
     avatarUrl?: string | null;
+    permissions?: string[];
   } | null>(null);
+  const [hasLoadedCurrentUser, setHasLoadedCurrentUser] = useState(false);
   const [projects, setProjects] = useState<ProjectRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
@@ -806,7 +842,6 @@ const DashboardProjectsEditor = () => {
     "cover" | "banner" | "hero" | "episode-cover"
   >("cover");
   const [episodeCoverIndex, setEpisodeCoverIndex] = useState<number | null>(null);
-  const [libraryFolder, setLibraryFolder] = useState<string>("");
   const chapterEditorsRef = useRef<Record<number, LexicalEditorHandle | null>>({});
   const episodeSizeInputRefs = useRef<Record<number, HTMLInputElement | null>>({});
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -816,11 +851,17 @@ const DashboardProjectsEditor = () => {
   );
   const confirmActionRef = useRef<(() => void) | null>(null);
   const confirmCancelRef = useRef<(() => void) | null>(null);
+  const autoEditHandledRef = useRef<string | null>(null);
+  const isApplyingSearchParamsRef = useRef(false);
   const editorInitialSnapshotRef = useRef<string>(buildProjectEditorSnapshot(emptyProject, ""));
   const isDirty = useMemo(
     () => buildProjectEditorSnapshot(formState, anilistIdInput) !== editorInitialSnapshotRef.current,
     [anilistIdInput, formState],
   );
+  const canManageProjects = useMemo(() => {
+    const permissions = Array.isArray(currentUser?.permissions) ? currentUser.permissions : [];
+    return permissions.includes("*") || permissions.includes("projetos");
+  }, [currentUser]);
 
   const handleEditorOpenChange = (next: boolean) => {
     if (!next && isLibraryOpen) {
@@ -951,6 +992,8 @@ const DashboardProjectsEditor = () => {
         setCurrentUser(data);
       } catch {
         setCurrentUser(null);
+      } finally {
+        setHasLoadedCurrentUser(true);
       }
     };
 
@@ -966,30 +1009,40 @@ const DashboardProjectsEditor = () => {
       sortParam === "recent"
         ? sortParam
         : "alpha";
-    if (nextSort !== sortMode) {
-      setSortMode(nextSort);
-    }
-  }, [searchParams, sortMode]);
-
-  useEffect(() => {
-    const currentSortParam = searchParams.get("sort");
-    const currentSortMode = currentSortParam ?? "alpha";
-    if (currentSortMode === sortMode) {
+    const nextPage = parsePageParam(searchParams.get("page"));
+    const shouldApply = sortMode !== nextSort || currentPage !== nextPage;
+    if (!shouldApply) {
       return;
     }
+    isApplyingSearchParamsRef.current = true;
+    setSortMode((prev) => (prev === nextSort ? prev : nextSort));
+    setCurrentPage((prev) => (prev === nextPage ? prev : nextPage));
+  }, [searchParams]);
+
+  useEffect(() => {
     const nextParams = new URLSearchParams(searchParams);
     if (sortMode === "alpha") {
       nextParams.delete("sort");
     } else {
       nextParams.set("sort", sortMode);
     }
-    setSearchParams(nextParams, { replace: true });
-  }, [searchParams, setSearchParams, sortMode]);
-
-  useEffect(() => {
-    const nextPage = parsePageParam(searchParams.get("page"));
-    setCurrentPage((prev) => (prev === nextPage ? prev : nextPage));
-  }, [searchParams]);
+    if (currentPage <= 1) {
+      nextParams.delete("page");
+    } else {
+      nextParams.set("page", String(currentPage));
+    }
+    const currentQuery = searchParams.toString();
+    const nextQuery = nextParams.toString();
+    if (isApplyingSearchParamsRef.current) {
+      if (nextQuery === currentQuery) {
+        isApplyingSearchParamsRef.current = false;
+      }
+      return;
+    }
+    if (nextQuery !== currentQuery) {
+      setSearchParams(nextParams, { replace: true });
+    }
+  }, [currentPage, searchParams, setSearchParams, sortMode]);
 
   useEffect(() => {
     setCurrentPage(1);
@@ -999,6 +1052,40 @@ const DashboardProjectsEditor = () => {
   const isLightNovel = isLightNovelType(formState.type || "");
   const isChapterBased = isChapterBasedType(formState.type || "");
   const stageOptions = isChapterBased ? mangaStages : animeStages;
+  const { projectRootFolder, projectEpisodesFolder } = useMemo(
+    () => resolveProjectImageFolders(formState.id, formState.title),
+    [formState.id, formState.title],
+  );
+  const scopedProjectImageIds = useMemo(() => {
+    const normalizedProjectId = String(formState.id || "").trim();
+    return normalizedProjectId ? [normalizedProjectId] : [];
+  }, [formState.id]);
+  const projectAssetLibraryOptions = useMemo(
+    () =>
+      ({
+        uploadFolder: projectRootFolder,
+        listFolders: [projectRootFolder, projectEpisodesFolder],
+        listAll: false,
+        includeProjectImages: true,
+        projectImageProjectIds: scopedProjectImageIds,
+      }) satisfies ImageLibraryOptions,
+    [projectEpisodesFolder, projectRootFolder, scopedProjectImageIds],
+  );
+  const episodeAssetLibraryOptions = useMemo(
+    () =>
+      ({
+        uploadFolder: projectEpisodesFolder,
+        listFolders: [projectEpisodesFolder, projectRootFolder],
+        listAll: false,
+        includeProjectImages: true,
+        projectImageProjectIds: scopedProjectImageIds,
+      }) satisfies ImageLibraryOptions,
+    [projectEpisodesFolder, projectRootFolder, scopedProjectImageIds],
+  );
+  const activeLibraryOptions = useMemo(
+    () => (libraryTarget === "episode-cover" ? episodeAssetLibraryOptions : projectAssetLibraryOptions),
+    [episodeAssetLibraryOptions, libraryTarget, projectAssetLibraryOptions],
+  );
 
   const sortedEpisodeDownloads = useMemo(() => {
     if (!isChapterBased) {
@@ -1033,6 +1120,27 @@ const DashboardProjectsEditor = () => {
       setCollapsedEpisodes(next);
     },
     [sortedEpisodeDownloads],
+  );
+
+  const toggleEpisodeCollapsed = useCallback((index: number) => {
+    setCollapsedEpisodes((prev) => ({
+      ...prev,
+      [index]: !(prev[index] ?? false),
+    }));
+  }, []);
+
+  const handleEpisodeHeaderClick = useCallback(
+    (index: number, event: ReactMouseEvent<HTMLDivElement>) => {
+      const target = event.target as Element | null;
+      if (target?.closest("[data-episode-accordion-trigger]")) {
+        return;
+      }
+      if (shouldSkipEpisodeHeaderToggle(target)) {
+        return;
+      }
+      toggleEpisodeCollapsed(index);
+    },
+    [toggleEpisodeCollapsed],
   );
 
   useEffect(() => {
@@ -1083,15 +1191,11 @@ const DashboardProjectsEditor = () => {
   };
 
   const openLibraryForProjectImage = (target: "cover" | "banner" | "hero") => {
-    const projectSlug = formState.id?.trim() || createSlug(formState.title.trim());
-    setLibraryFolder(projectSlug ? `projects/${projectSlug}` : "projects");
     setLibraryTarget(target);
     setIsLibraryOpen(true);
   };
 
   const openLibraryForEpisodeCover = (index: number) => {
-    const projectSlug = formState.id?.trim() || createSlug(formState.title.trim());
-    setLibraryFolder(projectSlug ? `projects/${projectSlug}/episodes` : "projects/episodes");
     setEpisodeCoverIndex(index);
     setLibraryTarget("episode-cover");
     setIsLibraryOpen(true);
@@ -1165,7 +1269,6 @@ const DashboardProjectsEditor = () => {
 
   useEffect(() => {
     if (!isLibraryOpen) {
-      setLibraryFolder("");
       setLibraryTarget("cover");
       setEpisodeCoverIndex(null);
     }
@@ -1288,22 +1391,11 @@ const DashboardProjectsEditor = () => {
   const paginatedProjects = sortedProjects.slice(pageStart, pageStart + projectsPerPage);
 
   useEffect(() => {
-    setCurrentPage((page) => Math.min(page, totalPages));
-  }, [totalPages]);
-
-  useEffect(() => {
-    const currentPageParam = parsePageParam(searchParams.get("page"));
-    if (currentPageParam === currentPage) {
+    if (isLoading) {
       return;
     }
-    const nextParams = new URLSearchParams(searchParams);
-    if (currentPage <= 1) {
-      nextParams.delete("page");
-    } else {
-      nextParams.set("page", String(currentPage));
-    }
-    setSearchParams(nextParams, { replace: true });
-  }, [currentPage, searchParams, setSearchParams]);
+    setCurrentPage((page) => Math.min(page, totalPages));
+  }, [isLoading, totalPages]);
 
   const openCreate = () => {
     const nextForm = { ...emptyProject };
@@ -1386,6 +1478,41 @@ const DashboardProjectsEditor = () => {
     });
     setIsEditorOpen(true);
   };
+
+  useEffect(() => {
+    const editTarget = (searchParams.get("edit") || "").trim();
+    if (!editTarget) {
+      autoEditHandledRef.current = null;
+      return;
+    }
+    if (autoEditHandledRef.current === editTarget) {
+      return;
+    }
+    if (isLoading || !hasLoadedCurrentUser) {
+      return;
+    }
+    autoEditHandledRef.current = editTarget;
+
+    const nextParams = new URLSearchParams(searchParams);
+    nextParams.delete("edit");
+    const target = canManageProjects
+      ? projects.find((project) => project.id === editTarget) || null
+      : null;
+    if (target) {
+      openEdit(target);
+    }
+    if (nextParams.toString() !== searchParams.toString()) {
+      setSearchParams(nextParams, { replace: true });
+    }
+  }, [
+    canManageProjects,
+    hasLoadedCurrentUser,
+    isLoading,
+    openEdit,
+    projects,
+    searchParams,
+    setSearchParams,
+  ]);
 
   const closeEditor = () => {
     setIsEditorOpen(false);
@@ -1993,7 +2120,7 @@ const DashboardProjectsEditor = () => {
                     >
                       <CardContent className="p-0">
                         <div className="grid gap-6 md:grid-cols-[220px_1fr]">
-                        <div className="relative aspect-[2/3] w-full">
+                        <div className="relative aspect-2/3 w-full">
                             <img
                               src={project.cover || "/placeholder.svg"}
                               alt={project.title}
@@ -2204,7 +2331,7 @@ const DashboardProjectsEditor = () => {
 
       {isEditorOpen ? (
         <div
-          className="pointer-events-auto fixed inset-0 z-40 bg-black/80 backdrop-blur-sm"
+          className="pointer-events-auto fixed inset-0 z-40 bg-black/80 backdrop-blur-xs"
           aria-hidden="true"
         />
       ) : null}
@@ -2240,7 +2367,7 @@ const DashboardProjectsEditor = () => {
             }
           }}
         >
-          <div className="project-editor-top sticky top-0 z-20 border-b border-border/60 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
+          <div className="project-editor-top sticky top-0 z-20 border-b border-border/60 bg-background/95 backdrop-blur-sm supports-backdrop-filter:bg-background/80">
             <DialogHeader className="space-y-0 px-4 pb-4 pt-5 text-left md:px-6">
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <div className="space-y-2">
@@ -3074,9 +3201,16 @@ const DashboardProjectsEditor = () => {
                     onDragStart={() => setEpisodeDragId(null)}
                   >
                     <CardContent className={`project-editor-episode-content space-y-3 ${isEpisodeCollapsed ? "p-4" : "p-5"}`}>
-                      <div className="project-editor-episode-header flex flex-wrap items-start justify-between gap-2">
+                      <div
+                        className="project-editor-episode-header flex flex-wrap items-start justify-between gap-2"
+                        data-testid={`episode-header-${index}`}
+                        onClick={(event) => handleEpisodeHeaderClick(index, event)}
+                      >
                         <div className="min-w-0 flex-1">
-                          <AccordionTrigger className="project-editor-episode-trigger py-0 text-left text-base font-semibold text-foreground hover:no-underline [&>svg]:mt-0.5 [&>svg]:shrink-0">
+                          <AccordionTrigger
+                            data-episode-accordion-trigger
+                            className="project-editor-episode-trigger py-0 text-left text-base font-semibold text-foreground hover:no-underline [&>svg]:mt-0.5 [&>svg]:shrink-0"
+                          >
                             <div className="flex min-w-0 items-center gap-2">
                               <span className="rounded-full border border-border/60 bg-background/70 px-2 py-0.5 text-xs">
                                 {isChapterBased ? "Cap" : "Ep"} {episode.number || index + 1}
@@ -3366,6 +3500,7 @@ const DashboardProjectsEditor = () => {
                         >
                           <EpisodeContentEditor
                             value={episode.content || ""}
+                            imageLibraryOptions={episodeAssetLibraryOptions}
                             onRegister={(handlers) => {
                               chapterEditorsRef.current[index] = handlers;
                             }}
@@ -3639,7 +3774,7 @@ const DashboardProjectsEditor = () => {
               ))}
             </datalist>
           </div>
-          <div className="project-editor-footer sticky bottom-0 z-20 flex justify-end gap-3 border-t border-border/60 bg-background/95 px-4 py-3 backdrop-blur supports-[backdrop-filter]:bg-background/80 md:px-6 md:py-4">
+          <div className="project-editor-footer sticky bottom-0 z-20 flex justify-end gap-3 border-t border-border/60 bg-background/95 px-4 py-3 backdrop-blur-sm supports-backdrop-filter:bg-background/80 md:px-6 md:py-4">
             <Button variant="ghost" onClick={requestCloseEditor}>
               Cancelar
             </Button>
@@ -3711,8 +3846,11 @@ const DashboardProjectsEditor = () => {
         onOpenChange={setIsLibraryOpen}
         apiBase={apiBase}
         description="Envie novas imagens ou selecione uma existente para usar no projeto."
-        uploadFolder={libraryFolder || undefined}
-        listFolders={[""]}
+        uploadFolder={activeLibraryOptions.uploadFolder}
+        listFolders={activeLibraryOptions.listFolders}
+        listAll={activeLibraryOptions.listAll}
+        includeProjectImages={activeLibraryOptions.includeProjectImages}
+        projectImageProjectIds={activeLibraryOptions.projectImageProjectIds}
         allowDeselect
         mode="single"
         currentSelectionUrls={currentLibrarySelection ? [currentLibrarySelection] : []}

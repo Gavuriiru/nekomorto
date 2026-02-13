@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useState } from "react";
+﻿import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 import { ChevronLeft, BookOpen } from "lucide-react";
 
@@ -31,6 +31,7 @@ const ProjectReading = () => {
     contentFormat?: "lexical";
   } | null>(null);
   const [hasLoaded, setHasLoaded] = useState(false);
+  const trackedChapterViewsRef = useRef<Set<string>>(new Set());
 
   const pageTitle = useMemo(() => {
     if (!project) {
@@ -167,6 +168,44 @@ const ProjectReading = () => {
       isActive = false;
     };
   }, [apiBase, project, chapterNumber, volumeParam]);
+  useEffect(() => {
+    if (!project?.id || !Number.isFinite(chapterContent?.number)) {
+      return;
+    }
+    const chapterValue = Number(chapterContent.number);
+    const volumeValue = Number(chapterContent.volume);
+    const resourceId = `${project.id}:${chapterValue}:${Number.isFinite(volumeValue) ? volumeValue : 0}`;
+    if (trackedChapterViewsRef.current.has(resourceId)) {
+      return;
+    }
+    trackedChapterViewsRef.current.add(resourceId);
+    const payload: {
+      eventType: "chapter_view";
+      resourceType: "chapter";
+      resourceId: string;
+      meta: {
+        projectId: string;
+        chapterNumber: number;
+        volume?: number;
+      };
+    } = {
+      eventType: "chapter_view",
+      resourceType: "chapter",
+      resourceId,
+      meta: {
+        projectId: project.id,
+        chapterNumber: chapterValue,
+      },
+    };
+    if (Number.isFinite(volumeValue)) {
+      payload.meta.volume = volumeValue;
+    }
+    void apiFetch(apiBase, "/api/public/analytics/event", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+  }, [apiBase, project?.id, chapterContent?.number, chapterContent?.volume]);
 
   const chapterLexical = chapterContent?.content || "";
 
@@ -289,11 +328,5 @@ const ProjectReading = () => {
 };
 
 export default ProjectReading;
-
-
-
-
-
-
 
 

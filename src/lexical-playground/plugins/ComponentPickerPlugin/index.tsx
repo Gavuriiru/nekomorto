@@ -7,6 +7,7 @@
  */
 
 import type {JSX} from 'react';
+import type {ImageLibraryOptions} from '@/components/ImageLibraryDialog';
 
 import {$createCodeNode} from '@lexical/code';
 import {
@@ -287,7 +288,11 @@ export function getBaseOptions(
   ];
 }
 
-export default function ComponentPickerMenuPlugin(): JSX.Element {
+export default function ComponentPickerMenuPlugin({
+  imageLibraryOptions,
+}: {
+  imageLibraryOptions?: ImageLibraryOptions;
+}): JSX.Element {
   const [editor] = useLexicalComposerContext();
   const [modal, showModal] = useModal();
   const [queryString, setQueryString] = useState<string | null>(null);
@@ -340,6 +345,7 @@ export default function ComponentPickerMenuPlugin(): JSX.Element {
         <InsertImageDialog
           activeEditor={editor}
           onClose={() => setIsImageLibraryOpen(false)}
+          imageLibraryOptions={imageLibraryOptions}
         />
       ) : null}
       {!isImageLibraryOpen ? (

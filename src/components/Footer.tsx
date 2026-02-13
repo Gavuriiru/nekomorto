@@ -76,7 +76,7 @@ const Footer = () => {
                     <ThemedSvgLogo
                       url={footerSymbolUrl}
                       label={brandName}
-                      className="h-10 w-10 rounded-full object-cover shadow-sm text-primary"
+                      className="h-10 w-10 rounded-full object-cover shadow-xs text-primary"
                     />
                   ) : null}
                   <p className="text-3xl font-black tracking-widest text-gradient-rainbow">

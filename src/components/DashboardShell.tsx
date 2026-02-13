@@ -1,4 +1,4 @@
-import type { MouseEvent, ReactNode } from "react";
+import { useMemo, type MouseEvent, type ReactNode } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { Home, LayoutDashboard } from "lucide-react";
 import DashboardHeader from "@/components/DashboardHeader";
@@ -17,18 +17,25 @@ import {
   SidebarSeparator,
 } from "@/components/ui/sidebar";
 import { dashboardMenuItems, type DashboardMenuItem } from "@/components/dashboard-menu";
+import { buildDashboardMenuFromGrants, resolveGrants } from "@/lib/access-control";
 
 type DashboardUser = {
+  id?: string;
   name?: string;
   username?: string;
   avatarUrl?: string | null;
+  accessRole?: string;
+  permissions?: string[];
+  ownerIds?: string[];
+  primaryOwnerId?: string | null;
+  grants?: Partial<Record<string, boolean>>;
 };
 
 type DashboardShellProps = {
   children: ReactNode;
   currentUser?: DashboardUser | null;
   isLoadingUser?: boolean;
-  menuItems?: DashboardMenuItem[];
+  menuItems?: DashboardMenuItem[] | null;
   onUserCardClick?: () => void;
   userLabel?: string;
   userSubLabel?: string;
@@ -42,13 +49,20 @@ const DashboardShell = ({
   children,
   currentUser,
   isLoadingUser = false,
-  menuItems = dashboardMenuItems,
+  menuItems = null,
   onUserCardClick,
   userLabel,
   userSubLabel,
   onMenuItemClick,
 }: DashboardShellProps) => {
   const location = useLocation();
+  const resolvedMenuItems = useMemo(() => {
+    if (Array.isArray(menuItems)) {
+      return menuItems.filter((item) => item.enabled);
+    }
+    const grants = resolveGrants(currentUser || null);
+    return buildDashboardMenuFromGrants(dashboardMenuItems, grants);
+  }, [currentUser, menuItems]);
   const userName =
     userLabel ?? (isLoadingUser ? "Carregando usuario..." : currentUser?.name ?? "Usuario");
   const userHandle =
@@ -68,7 +82,7 @@ const DashboardShell = ({
     "hidden items-center justify-center rounded-xl border border-sidebar-border/80 bg-sidebar-accent/20 p-2 transition hover:border-sidebar-ring/40 hover:bg-sidebar-accent/35 group-data-[collapsible=icon]:flex";
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
+    <div className="min-h-screen overflow-x-hidden bg-background text-foreground">
       <SidebarProvider defaultOpen>
         <Sidebar variant="inset" collapsible="icon">
           <SidebarHeader className="gap-3 px-2 pb-2 pt-3 transition-all duration-200 ease-linear group-data-[collapsible=icon]:gap-2 group-data-[collapsible=icon]:items-center">
@@ -127,7 +141,7 @@ const DashboardShell = ({
                 }
               }}
             >
-              <Avatar className="h-8 w-8 border border-sidebar-border shadow-sm">
+              <Avatar className="h-8 w-8 border border-sidebar-border shadow-xs">
                 {currentUser?.avatarUrl ? <AvatarImage src={currentUser.avatarUrl} alt={userName} /> : null}
                 <AvatarFallback className="bg-sidebar-primary/10 text-[10px] text-sidebar-foreground">
                   {initials}
@@ -140,7 +154,7 @@ const DashboardShell = ({
 
           <SidebarContent className="px-2 pb-2">
             <SidebarMenu className="gap-1.5">
-              {menuItems.map((item) => {
+              {resolvedMenuItems.map((item) => {
                 const isActive =
                   location.pathname === item.href ||
                   (item.href !== "/dashboard" && location.pathname.startsWith(`${item.href}/`));
@@ -194,9 +208,9 @@ const DashboardShell = ({
           </SidebarFooter>
         </Sidebar>
 
-        <SidebarInset className="flex min-h-screen flex-col bg-gradient-to-b from-background via-[hsl(var(--primary)/0.12)] to-background text-foreground md:peer-data-[variant=inset]:shadow-none md:peer-data-[variant=inset]:rounded-none">
-          <DashboardHeader currentUser={currentUser} menuItems={menuItems} />
-          <div className="flex-1">{children}</div>
+        <SidebarInset className="min-w-0 overflow-x-hidden flex min-h-screen flex-col bg-linear-to-b from-background via-[hsl(var(--primary)/0.12)] to-background text-foreground md:peer-data-[variant=inset]:shadow-none md:peer-data-[variant=inset]:rounded-none">
+          <DashboardHeader currentUser={currentUser} menuItems={resolvedMenuItems} />
+          <div className="min-w-0 w-full flex-1">{children}</div>
           <Footer />
         </SidebarInset>
       </SidebarProvider>

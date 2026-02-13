@@ -51,6 +51,7 @@ const ProjectPage = () => {
   const [tagTranslations, setTagTranslations] = useState<Record<string, string>>({});
   const [genreTranslations, setGenreTranslations] = useState<Record<string, string>>({});
   const [staffRoleTranslations, setStaffRoleTranslations] = useState<Record<string, string>>({});
+  const [currentUser, setCurrentUser] = useState<{ permissions?: string[] } | null>(null);
   const [episodePage, setEpisodePage] = useState(1);
   const { settings } = useSiteSettings();
   const trackedViewsRef = useRef<Set<string>>(new Set());
@@ -144,6 +145,34 @@ const ProjectPage = () => {
     };
 
     loadMeta();
+    return () => {
+      isActive = false;
+    };
+  }, [apiBase]);
+
+  useEffect(() => {
+    let isActive = true;
+    const loadCurrentUser = async () => {
+      try {
+        const response = await apiFetch(apiBase, "/api/public/me", { auth: true });
+        if (!response.ok) {
+          if (isActive) {
+            setCurrentUser(null);
+          }
+          return;
+        }
+        const data = await response.json();
+        if (isActive) {
+          setCurrentUser(data?.user ?? null);
+        }
+      } catch {
+        if (isActive) {
+          setCurrentUser(null);
+        }
+      }
+    };
+
+    loadCurrentUser();
     return () => {
       isActive = false;
     };
@@ -312,7 +341,52 @@ const ProjectPage = () => {
   const isManga = isMangaType(projectType);
   const isLightNovel = isLightNovelType(projectType);
   const isChapterBased = isChapterBasedType(projectType);
+  const canEditProject = useMemo(() => {
+    const permissions = Array.isArray(currentUser?.permissions) ? currentUser.permissions : [];
+    return permissions.includes("*") || permissions.includes("projetos");
+  }, [currentUser]);
   type EpisodeItem = (typeof sortedDownloadableEpisodes)[number];
+
+  const trackDownloadClick = (episode: EpisodeItem, sourceLabel: string) => {
+    if (!project?.id) {
+      return;
+    }
+    const chapterNumber = Number(episode.number);
+    const volumeNumber = Number(episode.volume);
+    const resourceId = `${project.id}:${Number.isFinite(chapterNumber) ? chapterNumber : 0}:${
+      Number.isFinite(volumeNumber) ? volumeNumber : 0
+    }`;
+    const payload: {
+      eventType: "download_click";
+      resourceType: "chapter";
+      resourceId: string;
+      meta: {
+        projectId: string;
+        sourceLabel: string;
+        chapterNumber?: number;
+        volume?: number;
+      };
+    } = {
+      eventType: "download_click",
+      resourceType: "chapter",
+      resourceId,
+      meta: {
+        projectId: project.id,
+        sourceLabel: String(sourceLabel || "").trim(),
+      },
+    };
+    if (Number.isFinite(chapterNumber)) {
+      payload.meta.chapterNumber = chapterNumber;
+    }
+    if (Number.isFinite(volumeNumber)) {
+      payload.meta.volume = volumeNumber;
+    }
+    void apiFetch(apiBase, "/api/public/analytics/event", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+  };
 
   const renderEpisodeDownloadCard = (episode: EpisodeItem, key: string, showRawBadge: boolean) => {
     const { sizeLabel, hashLabel, hashTitle } = buildEpisodeMetadata(episode);
@@ -336,7 +410,7 @@ const ProjectPage = () => {
             <img
               src={episode.coverImageUrl || project.banner || project.cover || "/placeholder.svg"}
               alt={`Preview de ${episode.title}`}
-              className="h-full w-full aspect-[16/9] object-cover object-center transition-transform duration-300 group-hover:scale-[1.03]"
+              className="h-full w-full aspect-video object-cover object-center transition-transform duration-300 group-hover:scale-[1.03]"
             />
           </div>
           <div className="relative h-full min-h-[153px] md:pr-0">
@@ -383,7 +457,7 @@ const ProjectPage = () => {
               </div>
             </div>
 
-            <div className="flex flex-wrap items-center justify-end gap-2 md:absolute md:bottom-[-0.5rem] md:left-0 md:right-0">
+            <div className="flex flex-wrap items-center justify-end gap-2 md:absolute md:-bottom-2 md:left-0 md:right-0">
               {episode.sources.map((source, sourceIndex) => {
                 const theme = sourceThemeMap.get(source.label.toLowerCase());
                 const color = theme?.color || "#4b5563";
@@ -407,6 +481,7 @@ const ProjectPage = () => {
                       target="_blank"
                       rel="noreferrer"
                       className="inline-flex items-center gap-2"
+                      onClick={() => trackDownloadClick(episode, source.label)}
                     >
                       {icon}
                       {source.label}
@@ -508,33 +583,33 @@ const ProjectPage = () => {
             style={{ backgroundImage: `url(${project.banner})` }}
           />
           <div className="absolute inset-0 bg-black/20 backdrop-blur-[2px]" />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent" />
+          <div className="absolute inset-0 bg-linear-to-t from-black/70 via-black/30 to-transparent" />
 
-          <div className="relative mx-auto flex min-h-[420px] w-full max-w-6xl flex-col items-start gap-8 px-6 pb-16 pt-24 md:flex-row md:items-center md:px-10 lg:min-h-[520px] reveal" data-reveal>
-            <div className="w-52 flex-shrink-0 overflow-hidden rounded-2xl bg-secondary shadow-2xl animate-slide-up opacity-0 md:w-64">
+          <div className="relative mx-auto flex min-h-[420px] w-full max-w-6xl flex-col items-center gap-8 px-6 pb-16 pt-24 md:flex-row md:items-center md:px-10 lg:min-h-[520px] reveal" data-reveal>
+            <div className="mx-auto w-52 shrink-0 overflow-hidden rounded-2xl bg-secondary shadow-2xl animate-slide-up opacity-0 md:mx-0 md:w-64">
               <img
                 src={project.cover}
                 alt={project.title}
                 className="h-auto w-full object-contain"
               />
             </div>
-            <div className="flex flex-1 flex-col gap-4">
-              <div className="flex flex-wrap items-center gap-3 text-xs uppercase tracking-[0.2em] text-primary/80 animate-fade-in">
+            <div className="flex w-full flex-1 flex-col items-center gap-4 text-center md:items-start md:text-left">
+              <div className="flex w-full flex-wrap items-center justify-center gap-3 text-center text-xs uppercase tracking-[0.2em] text-primary/80 animate-fade-in md:w-auto md:justify-start md:text-left">
                 <span>{project.type}</span>
                 <span className="text-muted-foreground">•</span>
                 <span>{project.status}</span>
               </div>
-              <h1 className="text-3xl font-semibold text-foreground md:text-4xl lg:text-5xl animate-slide-up">
+              <h1 className="text-center text-3xl font-semibold text-foreground md:text-left md:text-4xl lg:text-5xl animate-slide-up">
                 {project.title}
               </h1>
               <p
-                className="max-w-2xl text-sm text-muted-foreground md:text-base animate-slide-up opacity-0"
+                className="max-w-2xl text-center text-sm text-muted-foreground md:text-left md:text-base animate-slide-up opacity-0"
                 style={{ animationDelay: "0.2s" }}
               >
                 {project.synopsis}
               </p>
               {project.tags?.length ? (
-                <div className="flex flex-wrap gap-2 animate-slide-up opacity-0" style={{ animationDelay: "0.3s" }}>
+                <div className="flex w-full flex-wrap justify-center gap-2 animate-slide-up opacity-0 md:justify-start" style={{ animationDelay: "0.3s" }}>
                   {sortedTags.map((tag) => (
                     <Link key={tag} to={`/projetos?tag=${encodeURIComponent(tag)}`} className="inline-flex">
                       <Badge variant="secondary" className="text-[10px] uppercase">
@@ -544,7 +619,7 @@ const ProjectPage = () => {
                   ))}
                 </div>
               ) : null}
-              <div className="flex flex-wrap gap-3 animate-slide-up opacity-0" style={{ animationDelay: "0.4s" }}>
+              <div className="flex w-full flex-wrap justify-center gap-3 animate-slide-up opacity-0 md:justify-start" style={{ animationDelay: "0.4s" }}>
                 <Button asChild className="gap-2">
                   <a href="#downloads">
                     <Download className="h-4 w-4" />
@@ -557,6 +632,13 @@ const ProjectPage = () => {
                       <PlayCircle className="h-4 w-4" />
                       Assistir trailer
                     </a>
+                  </Button>
+                ) : null}
+                {canEditProject ? (
+                  <Button asChild variant="secondary" className="gap-2">
+                    <Link to={`/dashboard/projetos?edit=${encodeURIComponent(project.id)}`}>
+                      Editar projeto
+                    </Link>
                   </Button>
                 ) : null}
               </div>
@@ -621,7 +703,7 @@ const ProjectPage = () => {
                             to={targetId ? `/projeto/${targetId}` : "#"}
                             className="group flex gap-4 rounded-xl border border-border/50 bg-background/60 p-4 transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:bg-background/80 hover:shadow-lg"
                           >
-                            <div className="w-16 flex-shrink-0 overflow-hidden rounded-lg bg-secondary aspect-[2/3]">
+                            <div className="w-16 shrink-0 overflow-hidden rounded-lg bg-secondary aspect-2/3">
                               <img
                                 src={relation.image}
                                 alt={relation.title}

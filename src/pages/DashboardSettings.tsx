@@ -369,6 +369,7 @@ const DashboardSettings = () => {
   const [footerSocialDragIndex, setFooterSocialDragIndex] = useState<number | null>(null);
   const [footerSocialDragOverIndex, setFooterSocialDragOverIndex] = useState<number | null>(null);
   const hasSyncedAniList = useRef(false);
+  const rootLibraryFolders = useMemo(() => [""], []);
 
   useEffect(() => {
     const loadUser = async () => {
@@ -981,6 +982,8 @@ const DashboardSettings = () => {
   }, [currentUser, isLoadingUser]);
 
   const siteNamePreview = (settings.site.name || "Nekomata").trim() || "Nekomata";
+  const footerBrandNamePreview = (settings.site.name || settings.footer.brandName || "Nekomata").trim() || "Nekomata";
+  const footerBrandNameUpperPreview = footerBrandNamePreview.toUpperCase();
 
   const branding = resolveBranding(settings);
   const legacySiteSymbol = branding.legacy.siteSymbolUrl;
@@ -1148,14 +1151,28 @@ const DashboardSettings = () => {
               className="mt-8 animate-slide-up opacity-0"
               style={{ animationDelay: "0.2s" }}
             >
-              <TabsList className="grid w-full grid-cols-2 md:grid-cols-7">
-                <TabsTrigger value="geral">Geral</TabsTrigger>
-                <TabsTrigger value="downloads">Downloads</TabsTrigger>
-                <TabsTrigger value="equipe">Equipe</TabsTrigger>
-                <TabsTrigger value="footer">Footer</TabsTrigger>
-                <TabsTrigger value="navbar">Navbar</TabsTrigger>
-                <TabsTrigger value="redes-usuarios">Redes sociais</TabsTrigger>
-                <TabsTrigger value="traducoes">Traduções</TabsTrigger>
+              <TabsList className="no-scrollbar flex w-full flex-nowrap justify-start overflow-x-auto overscroll-x-contain md:grid md:grid-cols-7 md:overflow-visible">
+                <TabsTrigger value="geral" className="shrink-0 md:w-full">
+                  Geral
+                </TabsTrigger>
+                <TabsTrigger value="downloads" className="shrink-0 md:w-full">
+                  Downloads
+                </TabsTrigger>
+                <TabsTrigger value="equipe" className="shrink-0 md:w-full">
+                  Equipe
+                </TabsTrigger>
+                <TabsTrigger value="footer" className="shrink-0 md:w-full">
+                  Footer
+                </TabsTrigger>
+                <TabsTrigger value="navbar" className="shrink-0 md:w-full">
+                  Navbar
+                </TabsTrigger>
+                <TabsTrigger value="redes-usuarios" className="shrink-0 md:w-full">
+                  Redes sociais
+                </TabsTrigger>
+                <TabsTrigger value="traducoes" className="shrink-0 md:w-full">
+                  Traduções
+                </TabsTrigger>
               </TabsList>
 
               <TabsContent value="geral" className="mt-6 space-y-6">
@@ -1209,7 +1226,7 @@ const DashboardSettings = () => {
                           <ColorPicker
                             label=""
                             showSwatch
-                            buttonClassName="inline-flex h-9 w-9 items-center justify-center rounded-md border border-border/60 bg-background/60 shadow-sm transition hover:border-primary/40"
+                            buttonClassName="inline-flex h-9 w-9 items-center justify-center rounded-md border border-border/60 bg-background/60 shadow-xs transition hover:border-primary/40"
                             value={settings.theme.accent || "#000000"}
                             onChange={(color) =>
                               setSettings((prev) => ({
@@ -1512,12 +1529,12 @@ const DashboardSettings = () => {
                             {showWordmarkInFooterPreview ? (
                               <img
                                 src={resolvedFooterWordmarkUrl}
-                                alt={siteNamePreview}
+                                alt={footerBrandNamePreview}
                                 className="h-9 w-auto max-w-[220px] object-contain"
                               />
                             ) : footerMode === "text" ? (
                               <span className="text-lg font-black tracking-widest text-gradient-rainbow">
-                                {siteNamePreview}
+                                {footerBrandNameUpperPreview}
                               </span>
                             ) : (
                               <>
@@ -1529,7 +1546,7 @@ const DashboardSettings = () => {
                                   />
                                 ) : null}
                                 <span className="text-lg font-black tracking-widest text-gradient-rainbow">
-                                  {siteNamePreview}
+                                  {footerBrandNameUpperPreview}
                                 </span>
                               </>
                             )}
@@ -1939,7 +1956,7 @@ const DashboardSettings = () => {
                               <ColorPicker
                                 label=""
                                 showSwatch
-                                buttonClassName="inline-flex h-9 w-9 items-center justify-center rounded-md border border-border/60 bg-background/60 shadow-sm transition hover:border-primary/40"
+                                buttonClassName="inline-flex h-9 w-9 items-center justify-center rounded-md border border-border/60 bg-background/60 shadow-xs transition hover:border-primary/40"
                                 value={source.color}
                                 onChange={(color) =>
                                   setSettings((prev) => {
@@ -2735,7 +2752,8 @@ const DashboardSettings = () => {
           apiBase={apiBase}
           description="Selecione uma imagem ja enviada para reutilizar ou exclua itens que nao estejam em uso."
           uploadFolder="branding"
-          listFolders={[""]}
+          listFolders={rootLibraryFolders}
+          includeProjectImages={false}
           showUrlImport={false}
           allowDeselect
           mode="single"

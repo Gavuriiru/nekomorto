@@ -15,7 +15,7 @@ const NotFound = () => {
 
       <main>
         <section className="relative min-h-screen overflow-hidden border-b border-border/60">
-          <div className="absolute inset-0 bg-gradient-to-b from-primary/15 via-background to-background" />
+          <div className="absolute inset-0 bg-linear-to-b from-primary/15 via-background to-background" />
           <div className="absolute -left-24 top-10 h-64 w-64 rounded-full bg-primary/20 blur-[120px]" />
           <div className="absolute -right-24 bottom-10 h-64 w-64 rounded-full bg-accent/20 blur-[120px]" />
 

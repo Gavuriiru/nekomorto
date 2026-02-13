@@ -36,16 +36,21 @@ import {
   UserRound,
 } from "lucide-react";
 import { createSlug, getLexicalText } from "@/lib/post-content";
+import { getImageFileNameFromUrl, resolvePostCoverPreview } from "@/lib/post-cover";
 import LexicalEditor, { type LexicalEditorHandle } from "@/components/lexical/LexicalEditor";
 import type { Project } from "@/data/projects";
 import ProjectEmbedCard from "@/components/ProjectEmbedCard";
 import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
-import { formatDate, formatDateTimeShort } from "@/lib/date";
+import { formatDateTimeShort } from "@/lib/date";
+import { buildTranslationMap, sortByTranslatedLabel, translateTag } from "@/lib/project-taxonomy";
 import { usePageMeta } from "@/hooks/use-page-meta";
 import { normalizeAssetUrl } from "@/lib/asset-url";
-import { Calendar } from "@/components/ui/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  MuiBrazilDateField,
+  MuiBrazilTimeField,
+  MuiDateTimeFieldsProvider,
+} from "@/components/ui/mui-date-time-fields";
 import {
   Pagination,
   PaginationContent,
@@ -94,8 +99,14 @@ const parseLocalDateTimeValue = (value: string) => {
 const toLocalDateTimeFromIso = (value?: string | null) =>
   value ? toLocalDateTimeValue(new Date(value)) : "";
 
-const buildNumberOptions = (count: number) =>
-  Array.from({ length: count }, (_, index) => pad(index));
+const toTimeFieldValue = (time: string, fallback = "12:00") => {
+  const [hoursPart, minutesPart] = (time || fallback).split(":");
+  const hours = Number(hoursPart);
+  const minutes = Number(minutesPart);
+  const next = new Date();
+  next.setHours(Number.isFinite(hours) ? hours : 12, Number.isFinite(minutes) ? minutes : 0, 0, 0);
+  return next;
+};
 
 const buildPostEditorSnapshot = (form: typeof emptyForm) =>
   JSON.stringify({
@@ -137,6 +148,77 @@ const parseSortParam = (
   return "recent";
 };
 
+const normalizeComparableCoverUrl = (value?: string | null) => {
+  const trimmed = String(value || "").trim();
+  if (!trimmed) {
+    return "";
+  }
+  if (trimmed.startsWith("/uploads/")) {
+    return trimmed.split(/[?#]/)[0] || trimmed;
+  }
+  try {
+    const parsed = new URL(trimmed);
+    if (parsed.pathname.startsWith("/uploads/")) {
+      return parsed.pathname;
+    }
+  } catch {
+    // Keep non-URL values as-is.
+  }
+  return trimmed;
+};
+
+const areCoverUrlsEquivalent = (left?: string | null, right?: string | null) =>
+  normalizeComparableCoverUrl(left) === normalizeComparableCoverUrl(right);
+
+const extractLexicalImageUploadUrls = (content?: string | null) => {
+  const raw = String(content || "").trim();
+  if (!raw) {
+    return [];
+  }
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    return [];
+  }
+  const urls: string[] = [];
+  const seen = new Set<string>();
+  const visit = (node: unknown) => {
+    if (!node) {
+      return;
+    }
+    if (Array.isArray(node)) {
+      node.forEach(visit);
+      return;
+    }
+    if (typeof node !== "object") {
+      return;
+    }
+    const lexicalNode = node as Record<string, unknown>;
+    const type = typeof lexicalNode.type === "string" ? lexicalNode.type.toLowerCase() : "";
+    if (type === "image") {
+      const src = typeof lexicalNode.src === "string" ? lexicalNode.src : "";
+      const normalized = normalizeComparableCoverUrl(src);
+      if (normalized.startsWith("/uploads/") && !seen.has(normalized)) {
+        seen.add(normalized);
+        urls.push(normalized);
+      }
+    }
+    if (Array.isArray(lexicalNode.children)) {
+      lexicalNode.children.forEach(visit);
+    }
+    Object.entries(lexicalNode).forEach(([key, value]) => {
+      if (key === "children" || key === "src" || key === "altText" || key === "type") {
+        return;
+      }
+      visit(value);
+    });
+  };
+  const root = (parsed as { root?: unknown })?.root;
+  visit(root ?? parsed);
+  return urls;
+};
+
 type PostRecord = {
   id: string;
   title: string;
@@ -163,6 +245,16 @@ type PostRecord = {
 type UserRecord = {
   id: string;
   permissions: string[];
+};
+
+const getPostStatusLabel = (status: PostRecord["status"]): string => {
+  if (status === "published") {
+    return "Publicado";
+  }
+  if (status === "scheduled") {
+    return "Agendado";
+  }
+  return "Rascunho";
 };
 
 const DashboardPosts = () => {
@@ -198,6 +290,7 @@ const DashboardPosts = () => {
   const [projectFilterQuery, setProjectFilterQuery] = useState("");
   const [deleteTarget, setDeleteTarget] = useState<PostRecord | null>(null);
   const [tagInput, setTagInput] = useState("");
+  const [tagTranslations, setTagTranslations] = useState<Record<string, string>>({});
   const tagInputRef = useRef<HTMLInputElement | null>(null);
   const [tagOrder, setTagOrder] = useState<string[]>([]);
   const [draggedTag, setDraggedTag] = useState<string | null>(null);
@@ -210,6 +303,8 @@ const DashboardPosts = () => {
   const confirmCancelRef = useRef<(() => void) | null>(null);
   const editorRef = useRef<LexicalEditorHandle | null>(null);
   const editorInitialSnapshotRef = useRef<string>(buildPostEditorSnapshot(emptyForm));
+  const autoEditHandledRef = useRef<string | null>(null);
+  const isApplyingSearchParamsRef = useRef(false);
 
   const currentUserRecord = currentUser
     ? users.find((user) => user.id === currentUser.id) || null
@@ -228,6 +323,21 @@ const DashboardPosts = () => {
   const isDirty = useMemo(
     () => buildPostEditorSnapshot(formState) !== editorInitialSnapshotRef.current,
     [formState],
+  );
+  const editorResolvedCover = useMemo(
+    () =>
+      resolvePostCoverPreview({
+        coverImageUrl: formState.coverImageUrl,
+        coverAlt: formState.coverAlt,
+        content: formState.contentLexical,
+        contentFormat: "lexical",
+        title: formState.title,
+      }),
+    [formState.contentLexical, formState.coverAlt, formState.coverImageUrl, formState.title],
+  );
+  const editorCoverFileName = useMemo(
+    () => getImageFileNameFromUrl(editorResolvedCover.coverImageUrl),
+    [editorResolvedCover.coverImageUrl],
   );
 
   const allowPopRef = useRef(false);
@@ -259,11 +369,12 @@ const DashboardPosts = () => {
     let isActive = true;
     const load = async () => {
       try {
-        const [postsRes, usersRes, meRes, projectsRes] = await Promise.all([
+        const [postsRes, usersRes, meRes, projectsRes, tagsRes] = await Promise.all([
           apiFetch(apiBase, "/api/posts", { auth: true }),
           apiFetch(apiBase, "/api/users", { auth: true }),
           apiFetch(apiBase, "/api/me", { auth: true }),
           apiFetch(apiBase, "/api/projects", { auth: true }),
+          apiFetch(apiBase, "/api/public/tag-translations", { cache: "no-store" }),
         ]);
 
         if (postsRes.ok) {
@@ -295,9 +406,19 @@ const DashboardPosts = () => {
             setProjects(Array.isArray(data.projects) ? data.projects : []);
           }
         }
+
+        if (tagsRes.ok) {
+          const data = await tagsRes.json();
+          if (isActive) {
+            setTagTranslations(data.tags || {});
+          }
+        } else if (isActive) {
+          setTagTranslations({});
+        }
       } catch {
         if (isActive) {
           setPosts([]);
+          setTagTranslations({});
         }
       } finally {
         if (isActive) {
@@ -439,6 +560,33 @@ const DashboardPosts = () => {
     setIsEditorOpen(true);
   };
 
+  useEffect(() => {
+    const editTarget = (searchParams.get("edit") || "").trim();
+    if (!editTarget) {
+      autoEditHandledRef.current = null;
+      return;
+    }
+    if (autoEditHandledRef.current === editTarget) {
+      return;
+    }
+    if (isLoading) {
+      return;
+    }
+    autoEditHandledRef.current = editTarget;
+
+    const nextParams = new URLSearchParams(searchParams);
+    nextParams.delete("edit");
+    const target = canManagePosts
+      ? posts.find((post) => post.id === editTarget || post.slug === editTarget) || null
+      : null;
+    if (target) {
+      openEdit(target);
+    }
+    if (nextParams.toString() !== searchParams.toString()) {
+      setSearchParams(nextParams, { replace: true });
+    }
+  }, [canManagePosts, isLoading, openEdit, posts, searchParams, setSearchParams]);
+
   const closeEditor = () => {
     setIsEditorOpen(false);
     setEditingPost(null);
@@ -491,12 +639,33 @@ const DashboardPosts = () => {
     () => new Map(projects.map((project) => [project.id, project])),
     [projects],
   );
+  const embeddedUploadUrls = useMemo(
+    () => extractLexicalImageUploadUrls(formState.contentLexical),
+    [formState.contentLexical],
+  );
+  const postImageLibraryOptions = useMemo(
+    () => ({
+      uploadFolder: "posts",
+      listFolders: ["posts", "shared"],
+      listAll: false,
+      includeProjectImages: true,
+      projectImageProjectIds: [],
+      projectImagesView: "by-project" as const,
+      currentSelectionUrls: embeddedUploadUrls,
+    }),
+    [embeddedUploadUrls],
+  );
   const projectTags = useMemo(() => {
     if (!formState.projectId) {
       return [];
     }
     return projectMap.get(formState.projectId)?.tags || [];
   }, [formState.projectId, projectMap]);
+  const tagTranslationMap = useMemo(() => buildTranslationMap(tagTranslations), [tagTranslations]);
+  const displayTag = useCallback(
+    (tag: string) => translateTag(tag, tagTranslationMap),
+    [tagTranslationMap],
+  );
   useEffect(() => {
     const base = (formState.tags || []).filter(Boolean);
     const next = [...base];
@@ -564,8 +733,8 @@ const DashboardPosts = () => {
         }
       });
     });
-    return Array.from(collected).sort((a, b) => a.localeCompare(b, "pt-BR"));
-  }, [activePosts, projects]);
+    return sortByTranslatedLabel(Array.from(collected), (tag) => displayTag(tag));
+  }, [activePosts, displayTag, projects]);
   const mergedTags = useMemo(() => {
     if (tagOrder.length) {
       return tagOrder;
@@ -646,14 +815,26 @@ const DashboardPosts = () => {
   const paginatedPosts = sortedPosts.slice(pageStart, pageStart + postsPerPage);
 
   useEffect(() => {
+    if (isLoading) {
+      return;
+    }
     setCurrentPage((page) => Math.min(page, totalPages));
-  }, [totalPages]);
+  }, [isLoading, totalPages]);
 
   useEffect(() => {
     const nextSortMode = parseSortParam(searchParams.get("sort"));
     const nextSearchQuery = searchParams.get("q") || "";
     const nextProjectFilterId = searchParams.get("project") || "all";
     const nextPage = parsePageParam(searchParams.get("page"));
+    const shouldApply =
+      sortMode !== nextSortMode ||
+      searchQuery !== nextSearchQuery ||
+      projectFilterId !== nextProjectFilterId ||
+      currentPage !== nextPage;
+    if (!shouldApply) {
+      return;
+    }
+    isApplyingSearchParamsRef.current = true;
     setSortMode((prev) => (prev === nextSortMode ? prev : nextSortMode));
     setSearchQuery((prev) => (prev === nextSearchQuery ? prev : nextSearchQuery));
     setProjectFilterId((prev) => (prev === nextProjectFilterId ? prev : nextProjectFilterId));
@@ -683,12 +864,20 @@ const DashboardPosts = () => {
     } else {
       nextParams.set("page", String(currentPage));
     }
-    if (nextParams.toString() !== searchParams.toString()) {
+    const currentQuery = searchParams.toString();
+    const nextQuery = nextParams.toString();
+    if (isApplyingSearchParamsRef.current) {
+      if (nextQuery === currentQuery) {
+        isApplyingSearchParamsRef.current = false;
+      }
+      return;
+    }
+    if (nextQuery !== currentQuery) {
       setSearchParams(nextParams, { replace: true });
     }
   }, [sortMode, searchQuery, projectFilterId, currentPage, searchParams, setSearchParams]);
 
-  const handlePublishDateChange = (nextDate?: Date) => {
+  const handlePublishDateChange = (nextDate: Date | null) => {
     if (!nextDate) {
       setFormState((prev) => ({ ...prev, publishAt: "" }));
       return;
@@ -699,55 +888,25 @@ const DashboardPosts = () => {
     setFormState((prev) => ({ ...prev, publishAt: nextValue }));
   };
 
-  const handlePublishTimeChange = (nextTime: string) => {
+  const handlePublishTimeChange = (nextTime: Date | null) => {
+    if (!nextTime || Number.isNaN(nextTime.getTime())) {
+      return;
+    }
+    const nextTimePart = `${pad(nextTime.getHours())}:${pad(nextTime.getMinutes())}`;
     const { date } = parseLocalDateTimeValue(formState.publishAt || "");
     const baseDate = date || new Date();
     const datePart = toLocalDateTimeValue(baseDate).slice(0, 10);
-    setFormState((prev) => ({ ...prev, publishAt: `${datePart}T${nextTime}` }));
+    setFormState((prev) => ({ ...prev, publishAt: `${datePart}T${nextTimePart}` }));
   };
 
-  const timeParts = parseLocalDateTimeValue(formState.publishAt || "");
-  const hours = buildNumberOptions(24);
-  const minutes = buildNumberOptions(60);
-  const timeTypeBuffer = useRef<{ hours: string; minutes: string }>({ hours: "", minutes: "" });
-  const timeTypeTimer = useRef<{ hours?: number; minutes?: number }>({});
-  const currentHour = (timeParts.time || "12:00").split(":")[0];
-  const currentMinute = (timeParts.time || "12:00").split(":")[1];
-
-  const setTimeFromTyping = (target: "hours" | "minutes", digit: string) => {
-    const existing = timeTypeBuffer.current[target] + digit;
-    const limited = existing.slice(-2);
-    timeTypeBuffer.current[target] = limited;
-    if (timeTypeTimer.current[target]) {
-      window.clearTimeout(timeTypeTimer.current[target]);
-    }
-    timeTypeTimer.current[target] = window.setTimeout(() => {
-      timeTypeBuffer.current[target] = "";
-    }, 900);
-    const numeric = Number(limited);
-    if (Number.isNaN(numeric)) {
-      return;
-    }
-    if (target === "hours") {
-      const nextHour = pad(Math.max(0, Math.min(23, numeric)));
-      handlePublishTimeChange(`${nextHour}:${currentMinute}`);
-    } else {
-      const nextMinute = pad(Math.max(0, Math.min(59, numeric)));
-      handlePublishTimeChange(`${currentHour}:${nextMinute}`);
-    }
-  };
-
-  const handleTimeType = (target: "hours" | "minutes") => (event: React.KeyboardEvent) => {
-    if (event.key.length === 1 && /\d/.test(event.key)) {
-      event.preventDefault();
-      setTimeFromTyping(target, event.key);
-    }
-  };
+  const publishDateParts = parseLocalDateTimeValue(formState.publishAt || "");
+  const publishDateValue = publishDateParts.date;
+  const publishTimeValue = toTimeFieldValue(publishDateParts.time || "12:00");
 
   const handleSetNow = () => {
     const now = new Date();
     handlePublishDateChange(now);
-    handlePublishTimeChange(`${pad(now.getHours())}:${pad(now.getMinutes())}`);
+    handlePublishTimeChange(now);
   };
 
   const handleAddTag = () => {
@@ -818,13 +977,24 @@ const DashboardPosts = () => {
     setIsLibraryOpen(true);
   };
 
-  const handleLibrarySelect = useCallback((url: string, altText?: string) => {
-    setFormState((prev) => ({
-      ...prev,
-      coverImageUrl: url,
-      coverAlt: prev.coverAlt || altText || prev.title || "Capa",
-    }));
-  }, []);
+  const handleLibrarySelect = useCallback(
+    (url: string, altText?: string) => {
+      const nextUrl = String(url || "").trim();
+      setFormState((prev) => {
+        const hasManualCover = Boolean(String(prev.coverImageUrl || "").trim());
+        const shouldKeepAutomatic =
+          !hasManualCover &&
+          editorResolvedCover.source === "content" &&
+          areCoverUrlsEquivalent(nextUrl, editorResolvedCover.coverImageUrl);
+        return {
+          ...prev,
+          coverImageUrl: shouldKeepAutomatic ? "" : nextUrl,
+          coverAlt: prev.coverAlt || altText || prev.title || "Capa",
+        };
+      });
+    },
+    [editorResolvedCover.coverImageUrl, editorResolvedCover.source],
+  );
 
 
 
@@ -840,16 +1010,31 @@ const DashboardPosts = () => {
 
   const handleSave = async (overrideStatus?: "draft" | "scheduled" | "published") => {
     const resolvedStatus = overrideStatus || formState.status;
-    const publishAtValue = formState.publishAt ? new Date(formState.publishAt).toISOString() : null;
-    if (resolvedStatus === "scheduled" && !publishAtValue) {
+    const parsedPublishAtMs = formState.publishAt ? new Date(formState.publishAt).getTime() : null;
+    const publishAtValue =
+      parsedPublishAtMs !== null && Number.isFinite(parsedPublishAtMs)
+        ? new Date(parsedPublishAtMs).toISOString()
+        : null;
+    const nowIso = new Date().toISOString();
+    const originalPublishAtLocal = editingPost ? toLocalDateTimeFromIso(editingPost.publishedAt) : "";
+    const didPublishAtChange = Boolean(editingPost) && formState.publishAt !== originalPublishAtLocal;
+    let resolvedPublishedAt = editingPost?.publishedAt || nowIso;
+    if (overrideStatus === "published") {
+      resolvedPublishedAt = nowIso;
+    } else if (editingPost && !didPublishAtChange) {
+      resolvedPublishedAt = editingPost.publishedAt || nowIso;
+    } else if (publishAtValue) {
+      resolvedPublishedAt = publishAtValue;
+    }
+    const scheduledDateSource = editingPost && !didPublishAtChange ? editingPost.publishedAt : publishAtValue;
+    const hasScheduledDate = resolvedStatus !== "scheduled" || Boolean(scheduledDateSource);
+    if (!hasScheduledDate) {
       toast({
         title: "Defina uma data de publicação",
         description: "Posts agendados precisam de uma data.",
       });
       return;
     }
-    const resolvedPublishedAt =
-      resolvedStatus === "published" ? new Date().toISOString() : publishAtValue;
     const lexicalText = getLexicalText(formState.contentLexical);
     const seoDescription = lexicalText.trim().slice(0, 150);
     const coverImageUrl = formState.coverImageUrl.trim() || null;
@@ -917,6 +1102,18 @@ const DashboardPosts = () => {
       return;
     }
 
+    const data = await response.json();
+    const savedPostSlug = typeof data?.post?.slug === "string" ? data.post.slug : "";
+    if (!editingPost) {
+      const baseSlug = createSlug(payload.slug || payload.title);
+      if (savedPostSlug && savedPostSlug !== baseSlug) {
+        toast({
+          title: "Link ajustado automaticamente",
+          description: `Conflito detectado. O post foi salvo com /${savedPostSlug}.`,
+        });
+      }
+    }
+
     await loadPosts();
     const nextFormAfterSave = {
       ...formState,
@@ -943,9 +1140,10 @@ const DashboardPosts = () => {
         tagInputRef.current.value = "";
       }
     }
-    if (resolvedStatus === "published" || resolvedStatus === "scheduled") {
+    if (editingPost) {
       closeEditor();
-      navigate("/dashboard/posts");
+    } else if (resolvedStatus === "published" || resolvedStatus === "scheduled") {
+      closeEditor();
     }
   };
 
@@ -1028,7 +1226,7 @@ const DashboardPosts = () => {
             {isEditorOpen && canManagePosts ? (
               <>
                 <div
-                  className="pointer-events-auto fixed inset-0 z-40 bg-black/80 backdrop-blur-sm"
+                  className="pointer-events-auto fixed inset-0 z-40 bg-black/80 backdrop-blur-xs"
                   aria-hidden="true"
                 />
                 <Dialog open={isEditorOpen} onOpenChange={handleEditorOpenChange} modal={false}>
@@ -1092,6 +1290,7 @@ const DashboardPosts = () => {
                     }
                     placeholder="Escreva o conteúdo do post..."
                     className="lexical-playground--stretch lexical-playground--modal min-w-0 w-full"
+                    imageLibraryOptions={postImageLibraryOptions}
                   />
 
                   <aside className="min-w-0 space-y-6">
@@ -1162,81 +1361,32 @@ const DashboardPosts = () => {
                         </div>
                         <div className="space-y-2">
                           <Label htmlFor="post-date">Publicação</Label>
-                          <div className="grid gap-3 md:grid-cols-[1.2fr_0.8fr]">
-                            <Popover>
-                              <PopoverTrigger asChild>
-                                <Button
-                                  id="post-date"
-                                  variant="outline"
-                                  className="justify-start text-left font-normal"
-                                >
-                                  {formState.publishAt
-                                    ? formatDate(formState.publishAt)
-                                    : "Selecionar data"}
-                                </Button>
-                              </PopoverTrigger>
-                              <PopoverContent align="start" className="w-auto p-0">
-                                <Calendar
-                                  mode="single"
-                                  selected={parseLocalDateTimeValue(formState.publishAt || "").date ?? undefined}
-                                  onSelect={(date) => handlePublishDateChange(date ?? undefined)}
-                                  initialFocus
+                          <MuiDateTimeFieldsProvider>
+                            <div className="grid gap-3 md:grid-cols-[1.2fr_0.8fr]">
+                              <MuiBrazilDateField
+                                id="post-date"
+                                value={publishDateValue}
+                                onChange={handlePublishDateChange}
+                              />
+                              <div className="flex items-center gap-2">
+                                <MuiBrazilTimeField
+                                  id="post-time"
+                                  value={publishTimeValue}
+                                  onChange={handlePublishTimeChange}
+                                  className="flex-1"
                                 />
-                              </PopoverContent>
-                            </Popover>
-                            <div className="flex items-center gap-1">
-                              <Select
-                                value={currentHour}
-                                onValueChange={(value) =>
-                                  handlePublishTimeChange(`${value}:${currentMinute}`)
-                                }
-                              >
-                                <SelectTrigger
-                                  className="w-14 justify-center px-2 [&>svg]:hidden"
-                                  onKeyDown={handleTimeType("hours")}
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  variant="ghost"
+                                  className="h-8 px-2 text-xs"
+                                  onClick={handleSetNow}
                                 >
-                                  <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {hours.map((hour) => (
-                                    <SelectItem key={hour} value={hour}>
-                                      {hour}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                              <span className="text-xs text-muted-foreground">:</span>
-                              <Select
-                                value={currentMinute}
-                                onValueChange={(value) =>
-                                  handlePublishTimeChange(`${currentHour}:${value}`)
-                                }
-                              >
-                                <SelectTrigger
-                                  className="w-14 justify-center px-2 [&>svg]:hidden"
-                                  onKeyDown={handleTimeType("minutes")}
-                                >
-                                  <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {minutes.map((minute) => (
-                                    <SelectItem key={minute} value={minute}>
-                                      {minute}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                              <Button
-                                type="button"
-                                size="sm"
-                                variant="ghost"
-                                className="h-8 px-2 text-xs"
-                                onClick={handleSetNow}
-                              >
-                                Agora
-                              </Button>
+                                  Agora
+                                </Button>
+                              </div>
                             </div>
-                          </div>
+                          </MuiDateTimeFieldsProvider>
                         </div>
                       </CardContent>
                     </Card>
@@ -1245,16 +1395,26 @@ const DashboardPosts = () => {
                       <CardContent className="space-y-4 p-6">
                         <div className="space-y-2">
                           <Label>Capa</Label>
-                          {formState.coverImageUrl ? (
-                            <div className="flex items-center gap-3">
-                              <img
-                                src={normalizeAssetUrl(formState.coverImageUrl)}
-                                alt={formState.coverAlt || formState.title || "Capa"}
-                                className="h-14 w-14 rounded-lg object-cover"
-                              />
-                              <span className="text-xs text-muted-foreground break-all">
-                                {formState.coverImageUrl}
-                              </span>
+                          {editorResolvedCover.coverImageUrl ? (
+                            <div className="space-y-2">
+                              <div className="overflow-hidden rounded-lg border border-border bg-muted/20">
+                                <img
+                                  src={normalizeAssetUrl(editorResolvedCover.coverImageUrl)}
+                                  alt={editorResolvedCover.coverAlt}
+                                  className="aspect-3/2 w-full object-cover"
+                                />
+                              </div>
+                              <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
+                                <span className="min-w-0 truncate">
+                                  {editorCoverFileName || "Imagem"}
+                                </span>
+                                <Badge
+                                  variant={editorResolvedCover.source === "manual" ? "secondary" : "outline"}
+                                  className="shrink-0 text-[10px] uppercase"
+                                >
+                                  {editorResolvedCover.source === "manual" ? "Manual" : "Automática"}
+                                </Badge>
+                              </div>
                             </div>
                           ) : (
                             <p className="text-xs text-muted-foreground">Sem capa definida.</p>
@@ -1321,7 +1481,7 @@ const DashboardPosts = () => {
                                     variant={isProjectTag ? "secondary" : "outline"}
                                     className="text-[10px] uppercase"
                                   >
-                                    {tag}
+                                    {displayTag(tag)}
                                     {isProjectTag ? null : (
                                       <span className="ml-2 text-[10px] text-muted-foreground group-hover:text-foreground">
                                         ×
@@ -1387,6 +1547,12 @@ const DashboardPosts = () => {
                               <Edit3 className="h-4 w-4" />
                               Salvar
                             </Button>
+                            {formState.status === "draft" ? (
+                              <Button onClick={() => handleSave("published")} className="gap-2">
+                                <Plus className="h-4 w-4" />
+                                Publicar agora
+                              </Button>
+                            ) : null}
                           </>
                         ) : (
                           <>
@@ -1500,9 +1666,21 @@ const DashboardPosts = () => {
                         ...(Array.isArray(post.tags) ? post.tags : []),
                       ]),
                     );
+                    const sortedCardTags = sortByTranslatedLabel(tags, (tag) => displayTag(tag));
+                    const visibleCardTags = sortedCardTags.slice(0, 3);
+                    const extraTagCount = Math.max(0, sortedCardTags.length - visibleCardTags.length);
+                    const statusLabel = getPostStatusLabel(post.status);
+                    const resolvedCardCover = resolvePostCoverPreview({
+                      coverImageUrl: post.coverImageUrl,
+                      coverAlt: post.coverAlt,
+                      content: post.content,
+                      contentFormat: post.contentFormat || "lexical",
+                      title: post.title,
+                    });
                     return (
                       <Card
                         key={post.id}
+                        data-testid={`post-card-${post.id}`}
                         className={`${dashboardPageLayoutTokens.listCard} group cursor-pointer overflow-hidden transition hover:border-primary/40 animate-slide-up opacity-0`}
                         style={{ animationDelay: `${Math.min(index * 35, 210)}ms` }}
                         onClick={() => {
@@ -1512,12 +1690,12 @@ const DashboardPosts = () => {
                         }}
                       >
                         <CardContent className="p-0">
-                          <div className="grid gap-6 md:grid-cols-[220px_1fr]">
-                            <div className="relative h-44 w-full md:h-full">
-                              {post.coverImageUrl ? (
+                          <div className="grid min-h-[360px] gap-0 lg:h-[280px] lg:min-h-0 lg:grid-cols-[220px_1fr]">
+                            <div className="relative h-52 w-full lg:h-full">
+                              {resolvedCardCover.coverImageUrl ? (
                                 <img
-                                  src={normalizeAssetUrl(post.coverImageUrl)}
-                                  alt={post.coverAlt || post.title}
+                                  src={normalizeAssetUrl(resolvedCardCover.coverImageUrl)}
+                                  alt={resolvedCardCover.coverAlt || post.title}
                                   className="h-full w-full object-cover"
                                   loading="lazy"
                                   onError={(event) => {
@@ -1530,86 +1708,118 @@ const DashboardPosts = () => {
                                 </div>
                               )}
                             </div>
-                        <div className="flex flex-1 flex-col gap-4 p-6">
-                              <div className="flex flex-wrap items-start justify-between gap-4">
-                                <div className="space-y-2">
-                                  <div className="flex flex-wrap items-center gap-2">
-                                    <Badge variant="outline" className="text-[10px] uppercase">
-                                      {post.status}
+                            <div className="grid h-full min-h-0 grid-rows-[auto_auto_minmax(0,1fr)_auto] gap-2 p-4 lg:pb-5">
+                              <div data-slot="top" className="flex items-start justify-between gap-3">
+                                <div className="flex min-w-0 flex-wrap items-center gap-2">
+                                  <Badge variant="outline" className="text-[10px] uppercase">
+                                    {statusLabel}
+                                  </Badge>
+                                  {project ? (
+                                    <Badge variant="secondary" className="max-w-60 truncate text-[10px] uppercase">
+                                      {project.title}
                                     </Badge>
-                                    {project ? (
-                                      <Badge variant="secondary" className="text-[10px] uppercase">
-                                        {project.title}
-                                      </Badge>
-                                    ) : null}
-                                  </div>
-                                  <h3 className="text-lg font-semibold text-foreground">{post.title}</h3>
-                                  <span className="text-xs text-muted-foreground">{formattedDate}</span>
+                                  ) : null}
                                 </div>
-                                <div className="flex items-center gap-2">
+                                <div className="flex shrink-0 items-center gap-1">
                                   <Button
                                     variant="ghost"
                                     size="icon"
                                     title="Visualizar"
+                                    className="h-8 w-8"
                                     onClick={(event) => event.stopPropagation()}
                                     asChild
                                   >
                                     <Link to={`/postagem/${post.slug}`}>
-                                      <Eye className="h-4 w-4" />
+                                      <Eye className="h-3.5 w-3.5" />
                                     </Link>
                                   </Button>
                                   <Button
                                     variant="ghost"
                                     size="icon"
                                     title="Copiar link"
+                                    className="h-8 w-8"
                                     onClick={(event) => {
                                       event.stopPropagation();
                                       handleCopyLink(post.slug);
                                     }}
                                   >
-                                    <Copy className="h-4 w-4" />
+                                    <Copy className="h-3.5 w-3.5" />
                                   </Button>
                                   {canManagePosts ? (
                                     <Button
                                       variant="ghost"
                                       size="icon"
                                       title="Excluir"
+                                      className="h-8 w-8"
                                       onClick={(event) => {
                                         event.stopPropagation();
                                         handleDeletePost(post);
                                       }}
                                     >
-                                      <Trash2 className="h-4 w-4 text-destructive" />
+                                      <Trash2 className="h-3.5 w-3.5 text-destructive" />
                                     </Button>
                                   ) : null}
                                 </div>
                               </div>
-                              <p className="text-sm text-muted-foreground line-clamp-3">
+
+                              <div data-slot="headline" className="min-h-11">
+                                <h3 className="line-clamp-2 text-lg font-semibold leading-tight text-foreground lg:line-clamp-1">
+                                  {post.title}
+                                </h3>
+                                <span className="text-xs text-muted-foreground">{formattedDate}</span>
+                              </div>
+
+                              <p
+                                data-slot="excerpt"
+                                className="line-clamp-2 min-h-0 overflow-hidden text-sm text-muted-foreground lg:line-clamp-1"
+                              >
                                 {post.excerpt || "Sem prévia cadastrada."}
                               </p>
-                              {tags.length > 0 ? (
-                                <div className="flex flex-wrap gap-2">
-                                  {tags.slice(0, 4).map((tag) => (
-                                    <Badge key={tag} variant="outline" className="text-[10px] uppercase">
-                                      {tag}
-                                    </Badge>
-                                  ))}
+
+                              <div className="flex min-h-0 flex-col gap-2">
+                                <div data-slot="tags" className="min-h-6">
+                                  {visibleCardTags.length > 0 ? (
+                                    <div className="flex min-w-0 items-center gap-2 overflow-hidden">
+                                      {visibleCardTags.map((tag) => (
+                                        <Badge
+                                          key={tag}
+                                          variant="secondary"
+                                          className="min-w-0 max-w-34 overflow-hidden text-[10px] uppercase"
+                                        >
+                                          <span className="block min-w-0 truncate">{displayTag(tag)}</span>
+                                        </Badge>
+                                      ))}
+                                      {extraTagCount > 0 ? (
+                                        <Badge variant="secondary" className="text-[10px] uppercase">
+                                          +{extraTagCount}
+                                        </Badge>
+                                      ) : null}
+                                    </div>
+                                  ) : (
+                                    <span className="invisible text-[10px]">placeholder</span>
+                                  )}
                                 </div>
-                              ) : null}
-                              <div className="flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
-                                <span className="inline-flex items-center gap-2">
-                                  <UserRound className="h-4 w-4" />
-                                  {post.author || "Autor não definido"}
-                                </span>
-                                <span className="inline-flex items-center gap-2">
-                                  <Eye className="h-4 w-4" />
-                                  {post.views} visualizações
-                                </span>
-                                <span className="inline-flex items-center gap-2">
-                                  <MessageSquare className="h-4 w-4" />
-                                  {post.commentsCount} comentários
-                                </span>
-                                <span className="ml-auto text-xs text-muted-foreground">/{post.slug}</span>
+
+                                <div
+                                  data-slot="meta"
+                                  className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground lg:flex-nowrap lg:gap-y-0"
+                                >
+                                  <span className="inline-flex min-w-0 max-w-full items-center gap-2">
+                                    <UserRound className="h-4 w-4 shrink-0" />
+                                    <span className="truncate">{post.author || "Autor não definido"}</span>
+                                  </span>
+                                  <span className="inline-flex shrink-0 items-center gap-2 whitespace-nowrap">
+                                    <Eye className="h-4 w-4" />
+                                    {post.views} visualizações
+                                  </span>
+                                  <span className="inline-flex shrink-0 items-center gap-2 whitespace-nowrap">
+                                    <MessageSquare className="h-4 w-4" />
+                                    {post.commentsCount} comentários
+                                  </span>
+                                  <span className="ml-auto hidden max-w-44 truncate text-right text-xs text-muted-foreground lg:block">
+                                    /{post.slug}
+                                  </span>
+                                </div>
                               </div>
                             </div>
                           </div>
@@ -1712,10 +1922,15 @@ const DashboardPosts = () => {
         onOpenChange={setIsLibraryOpen}
         apiBase={apiBase}
         description="Escolha uma imagem ja enviada ou use capas/banners de projetos."
-        listFolders={[""]}
+        uploadFolder={postImageLibraryOptions.uploadFolder}
+        listFolders={postImageLibraryOptions.listFolders}
+        listAll={postImageLibraryOptions.listAll}
+        includeProjectImages={postImageLibraryOptions.includeProjectImages}
+        projectImageProjectIds={postImageLibraryOptions.projectImageProjectIds}
+        projectImagesView={postImageLibraryOptions.projectImagesView}
         allowDeselect
         mode="single"
-        currentSelectionUrls={formState.coverImageUrl ? [formState.coverImageUrl] : []}
+        currentSelectionUrls={editorResolvedCover.coverImageUrl ? [editorResolvedCover.coverImageUrl] : []}
         onSave={({ urls }) => handleLibrarySelect(urls[0] || "")}
       />
 

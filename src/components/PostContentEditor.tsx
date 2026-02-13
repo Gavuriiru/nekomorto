@@ -184,7 +184,7 @@ const PostContentEditor = ({
               }}
               trigger={<Type className="h-4 w-4" />}
               showSwatch={false}
-              buttonClassName="inline-flex h-9 w-9 items-center justify-center rounded-md border border-border/60 bg-secondary/40 text-primary transition hover:border-primary/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+              buttonClassName="inline-flex h-9 w-9 items-center justify-center rounded-md border border-border/60 bg-secondary/40 text-primary transition hover:border-primary/60 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
             />
             <ColorPicker
               label="Cor de fundo"
@@ -196,7 +196,7 @@ const PostContentEditor = ({
               }}
               trigger={<PaintBucket className="h-4 w-4" />}
               showSwatch={false}
-              buttonClassName="inline-flex h-9 w-9 items-center justify-center rounded-md border border-border/60 bg-secondary/40 text-primary transition hover:border-primary/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+              buttonClassName="inline-flex h-9 w-9 items-center justify-center rounded-md border border-border/60 bg-secondary/40 text-primary transition hover:border-primary/60 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
             />
             <Popover>
               <PopoverTrigger asChild>
@@ -205,7 +205,7 @@ const PostContentEditor = ({
                   variant="outline"
                   size="icon"
                   title="Gradiente"
-                  className="border-border/60 bg-gradient-to-br from-primary/20 via-background to-accent/20 text-primary hover:border-primary/60"
+                  className="border-border/60 bg-linear-to-br from-primary/20 via-background to-accent/20 text-primary hover:border-primary/60"
                 >
                   <Palette className="h-4 w-4" />
                 </Button>
@@ -316,7 +316,7 @@ const PostContentEditor = ({
             <img
               src={normalizeAssetUrl(coverImageUrl) || "/placeholder.svg"}
               alt={coverAlt || title || "Capa"}
-              className="aspect-[3/2] w-full object-cover"
+              className="aspect-3/2 w-full object-cover"
             />
           </div>
           <div

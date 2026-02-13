@@ -158,7 +158,7 @@ const ReleasesSection = () => {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
                 {Array.from({ length: 4 }).map((_, index) => (
                   <div key={`release-skeleton-${index}`} className="rounded-2xl border border-white/10 bg-white/5 p-5">
-                    <Skeleton className="aspect-[3/2] w-full rounded-lg" />
+                    <Skeleton className="aspect-3/2 w-full rounded-lg" />
                     <Skeleton className="mt-4 h-4 w-3/4" />
                     <Skeleton className="mt-2 h-3 w-full" />
                     <Skeleton className="mt-2 h-3 w-5/6" />
@@ -191,18 +191,18 @@ const ReleasesSection = () => {
                     >
                       <Card className="bg-card border-border h-full overflow-hidden transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:bg-card/90 hover:shadow-lg">
                         <CardContent className="p-0 flex flex-col h-full">
-                          <div className="relative w-full aspect-[3/2] overflow-hidden bg-secondary">
+                          <div className="relative w-full aspect-3/2 overflow-hidden bg-secondary">
                             <img
                               src={normalizeAssetUrl(release.coverImageUrl) || "/placeholder.svg"}
                               alt={release.title}
-                              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                              className="absolute inset-0 block h-full w-full object-cover object-center transition-transform duration-300 group-hover:scale-105"
                               loading="lazy"
                             />
                             {displayTag ? (
                               <div className="absolute right-3 top-3 flex flex-wrap gap-2">
                                 <Badge
                                   variant="secondary"
-                                  className="text-[10px] uppercase tracking-wide bg-background/85 text-foreground shadow-sm"
+                                  className="text-[10px] uppercase tracking-wide bg-background/85 text-foreground shadow-xs"
                                 >
                                   {displayTag}
                                 </Badge>

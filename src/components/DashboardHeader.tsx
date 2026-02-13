@@ -87,7 +87,7 @@ const DashboardHeader = ({
       : [];
   }, [settings.navbar.links]);
   const headerMenuContentClass =
-    "border-white/25 bg-gradient-to-b from-black/40 via-black/25 to-black/10 text-white/90 shadow-xl backdrop-blur-sm";
+    "border-white/25 bg-linear-to-b from-black/40 via-black/25 to-black/10 text-white/90 shadow-xl backdrop-blur-xs";
   const headerMenuItemClass = "focus:bg-white/10 focus:text-white";
   const isInternalHref = (href: string) => href.startsWith("/") && !href.startsWith("//");
   const normalizePathname = (value: string) => {
@@ -270,9 +270,35 @@ const DashboardHeader = ({
         className,
       )}
     >
-      <div className="flex h-[4.75rem] items-center justify-between px-3 sm:px-4 lg:px-6 2xl:px-8">
-        <div className="flex min-w-0 items-center gap-2 lg:gap-3">
+      <div className="relative flex h-19 items-center justify-between gap-2 px-3 sm:px-4 lg:px-6 2xl:px-8">
+        <div
+          data-testid="dashboard-header-left-cluster"
+          className={cn(
+            "flex min-w-0 items-center gap-2 transition-all duration-300 lg:gap-3",
+            isSearchOpen
+              ? "opacity-0 invisible pointer-events-none xl:opacity-100 xl:visible xl:pointer-events-auto"
+              : "opacity-100 visible pointer-events-auto",
+          )}
+        >
           <SidebarTrigger className="h-9 w-9 rounded-lg border border-white/15 bg-white/5 text-white/80 hover:bg-white/10 hover:text-white" />
+          <Link
+            to="/dashboard"
+            data-testid="dashboard-header-mobile-logo"
+            className="flex h-9 w-9 items-center justify-center rounded-lg border border-white/10 bg-white/5 text-white/85 transition hover:bg-white/10 xl:hidden"
+          >
+            {logoUrl ? (
+              <ThemedSvgLogo
+                url={logoUrl}
+                label={siteName}
+                className="h-6 w-6 rounded-full object-cover text-primary"
+              />
+            ) : (
+              <span className="flex h-6 w-6 items-center justify-center rounded-full border border-white/15 bg-white/10 text-[11px] font-semibold">
+                {siteName.slice(0, 1)}
+              </span>
+            )}
+            <span className="sr-only">{siteName}</span>
+          </Link>
           <Link
             to="/dashboard"
             className="hidden items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-2.5 py-1.5 text-white/85 transition hover:bg-white/10 xl:flex"
@@ -288,7 +314,7 @@ const DashboardHeader = ({
                 {siteName.slice(0, 1)}
               </span>
             )}
-            <span className="max-w-[11rem] truncate text-[11px] font-semibold uppercase tracking-[0.2em]">
+            <span className="max-w-44 truncate text-[11px] font-semibold uppercase tracking-[0.2em]">
               {siteName}
             </span>
           </Link>
@@ -300,7 +326,7 @@ const DashboardHeader = ({
           </div>
         </div>
 
-        <div className="flex items-center gap-2 sm:gap-3 lg:gap-4">
+        <div className="flex shrink-0 items-center gap-2 sm:gap-3 lg:gap-4">
           <div className="hidden 2xl:flex items-center gap-5 text-sm font-medium text-white/80">
             {navbarLinks.map((item) => {
               const isInternal = isInternalHref(item.href);
@@ -328,10 +354,19 @@ const DashboardHeader = ({
               );
             })}
           </div>
-          <div className="relative hidden items-center gap-2 xl:flex" ref={searchRef}>
+          <div
+            ref={searchRef}
+            data-testid="dashboard-header-search-cluster"
+            className={cn(
+              "relative z-20 flex shrink-0 items-center gap-2 transition-all duration-300",
+              isSearchOpen
+                ? "absolute inset-x-0 top-1/2 z-30 mx-auto w-[min(22rem,calc(100vw-1rem))] -translate-y-1/2 xl:static xl:w-auto xl:translate-y-0"
+                : "w-auto",
+            )}
+          >
             <div
               className={`flex items-center gap-2 rounded-full border border-transparent bg-secondary/30 px-3 py-2 transition-all duration-300 ${
-                isSearchOpen ? "w-52 2xl:w-64 border-border bg-secondary/70" : "w-11"
+                isSearchOpen ? "w-full border-border bg-secondary/70 xl:w-52 2xl:w-64" : "w-11"
               }`}
             >
               <button
@@ -356,10 +391,11 @@ const DashboardHeader = ({
               </button>
               {isSearchOpen && (
                 <input
+                  autoFocus
                   value={query}
                   onChange={(event) => setQuery(event.target.value)}
                   placeholder="Pesquisar projetos e posts"
-                  className="w-full bg-transparent text-sm text-white outline-none placeholder:text-white/60"
+                  className="w-full bg-transparent text-sm text-white outline-hidden placeholder:text-white/60"
                 />
               )}
             </div>
@@ -367,7 +403,8 @@ const DashboardHeader = ({
             {showResults && (
               <div
                 ref={synopsisRootRef}
-                className="search-popover-enter absolute right-0 top-12 max-h-[78vh] w-80 overflow-hidden rounded-xl border border-border/60 bg-background/95 p-4 shadow-lg backdrop-blur"
+                data-testid="dashboard-header-results"
+                className="search-popover-enter absolute top-12 left-0 right-0 mx-auto max-h-[78vh] w-[min(24rem,calc(100vw-1rem))] overflow-hidden rounded-xl border border-border/60 bg-background/95 p-4 shadow-lg backdrop-blur-sm xl:left-auto xl:right-0 xl:mx-0 xl:w-80"
               >
                 {filteredProjects.length > 0 && (
                   <div className="mb-4">
@@ -379,10 +416,10 @@ const DashboardHeader = ({
                         <li key={item.href}>
                           <Link
                             to={item.href}
-                            className="group flex h-[9rem] items-start gap-4 overflow-hidden rounded-xl border border-border/60 bg-gradient-card p-4 transition hover:border-primary/40 hover:bg-primary/5"
+                            className="group flex h-36 items-start gap-4 overflow-hidden rounded-xl border border-border/60 bg-gradient-card p-4 transition hover:border-primary/40 hover:bg-primary/5"
                           >
                             <div
-                              className="w-20 flex-shrink-0 self-start overflow-hidden rounded-lg bg-secondary"
+                              className="w-20 shrink-0 self-start overflow-hidden rounded-lg bg-secondary"
                               style={{ aspectRatio: "46 / 65" }}
                             >
                               <img
@@ -450,82 +487,93 @@ const DashboardHeader = ({
             )}
           </div>
 
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-10 w-10 rounded-full border border-white/10 bg-white/5 text-white/80 hover:text-white 2xl:hidden"
-                aria-label="Abrir menu"
-              >
-                <Menu className="h-5 w-5" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className={`w-48 ${headerMenuContentClass}`}>
-              {navbarLinks.map((item) => {
-                const ItemIcon = getNavbarIcon(item.icon);
-                return (
-                  <DropdownMenuItem key={`${item.label}-${item.href}`} asChild className={headerMenuItemClass}>
-                    {isInternalHref(item.href) ? (
-                      <Link to={item.href} className="flex items-center gap-2">
-                        <ItemIcon className="h-4 w-4" />
-                        {item.label}
-                      </Link>
-                    ) : (
-                      <a href={item.href} target="_blank" rel="noreferrer" className="flex items-center gap-2">
-                        <ItemIcon className="h-4 w-4" />
-                        {item.label}
-                      </a>
-                    )}
-                  </DropdownMenuItem>
-                );
-              })}
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <div
+            data-testid="dashboard-header-actions-cluster"
+            className={cn(
+              "flex shrink-0 items-center gap-2 transition-all duration-300 sm:gap-3 lg:gap-4",
+              isSearchOpen
+                ? "opacity-0 invisible pointer-events-none xl:opacity-100 xl:visible xl:pointer-events-auto"
+                : "opacity-100 visible pointer-events-auto",
+            )}
+          >
 
-          <DropdownMenu modal={false}>
-            <DropdownMenuTrigger asChild>
-              <Button
-                variant="ghost"
-                className="h-10 rounded-full border border-white/10 bg-white/5 px-2 text-white hover:bg-white/10"
-              >
-                <Avatar className="h-8 w-8 border border-white/20">
-                  {currentUser?.avatarUrl ? <AvatarImage src={currentUser.avatarUrl} alt={userName} /> : null}
-                  <AvatarFallback className="bg-white/10 text-xs text-white">{userInitials}</AvatarFallback>
-                </Avatar>
-                <span className="hidden max-w-[10rem] truncate text-sm font-medium text-white xl:inline">
-                  {userName}
-                </span>
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent
-              align="end"
-              className="w-56 border-white/15 bg-sidebar/95 text-white shadow-xl backdrop-blur-sm"
-            >
-              {menuItems
-                .filter((item) => item.enabled)
-                .map((item) => {
-                  const ItemIcon = item.icon;
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-10 w-10 rounded-full border border-white/10 bg-white/5 text-white/80 hover:text-white 2xl:hidden"
+                  aria-label="Abrir menu"
+                >
+                  <Menu className="h-5 w-5" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className={`w-48 ${headerMenuContentClass}`}>
+                {navbarLinks.map((item) => {
+                  const ItemIcon = getNavbarIcon(item.icon);
                   return (
-                    <DropdownMenuItem key={item.href} asChild className="focus:bg-white/10 focus:text-white">
-                      <Link to={item.href} className="flex items-center gap-2">
-                        <ItemIcon className="h-4 w-4" />
-                        {item.label}
-                      </Link>
+                    <DropdownMenuItem key={`${item.label}-${item.href}`} asChild className={headerMenuItemClass}>
+                      {isInternalHref(item.href) ? (
+                        <Link to={item.href} className="flex items-center gap-2">
+                          <ItemIcon className="h-4 w-4" />
+                          {item.label}
+                        </Link>
+                      ) : (
+                        <a href={item.href} target="_blank" rel="noreferrer" className="flex items-center gap-2">
+                          <ItemIcon className="h-4 w-4" />
+                          {item.label}
+                        </a>
+                      )}
                     </DropdownMenuItem>
                   );
                 })}
-              <DropdownMenuSeparator className="bg-white/10" />
-              <DropdownMenuItem
-                onClick={handleLogout}
-                disabled={isLoggingOut}
-                className="focus:bg-white/10 focus:text-white"
+              </DropdownMenuContent>
+            </DropdownMenu>
+
+            <DropdownMenu modal={false}>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  className="h-10 rounded-full border border-white/10 bg-white/5 px-2 text-white hover:bg-white/10"
+                >
+                  <Avatar className="h-8 w-8 border border-white/20">
+                    {currentUser?.avatarUrl ? <AvatarImage src={currentUser.avatarUrl} alt={userName} /> : null}
+                    <AvatarFallback className="bg-white/10 text-xs text-white">{userInitials}</AvatarFallback>
+                  </Avatar>
+                  <span className="hidden max-w-40 truncate text-sm font-medium text-white xl:inline">
+                    {userName}
+                  </span>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent
+                align="end"
+                className="w-56 border-white/15 bg-sidebar/95 text-white shadow-xl backdrop-blur-xs"
               >
-                <LogOut className="h-4 w-4" />
-                {isLoggingOut ? "Saindo..." : "Sair"}
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+                {menuItems
+                  .filter((item) => item.enabled)
+                  .map((item) => {
+                    const ItemIcon = item.icon;
+                    return (
+                      <DropdownMenuItem key={item.href} asChild className="focus:bg-white/10 focus:text-white">
+                        <Link to={item.href} className="flex items-center gap-2">
+                          <ItemIcon className="h-4 w-4" />
+                          {item.label}
+                        </Link>
+                      </DropdownMenuItem>
+                    );
+                  })}
+                <DropdownMenuSeparator className="bg-white/10" />
+                <DropdownMenuItem
+                  onClick={handleLogout}
+                  disabled={isLoggingOut}
+                  className="focus:bg-white/10 focus:text-white"
+                >
+                  <LogOut className="h-4 w-4" />
+                  {isLoggingOut ? "Saindo..." : "Sair"}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         </div>
       </div>
     </header>

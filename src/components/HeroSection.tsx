@@ -323,38 +323,49 @@ const HeroSection = () => {
     const trimmed = lastSpace > 0 ? slice.slice(0, lastSpace) : slice;
     return `${trimmed}...`;
   }, []);
+  const heroViewportClass = "min-h-[78vh] md:min-h-screen";
 
   return (
-    <section className="relative min-h-screen overflow-hidden">
-      <Carousel opts={{ loop: true }} setApi={setApi} className="min-h-screen">
+    <section className={`relative overflow-hidden ${heroViewportClass}`}>
+      <Carousel opts={{ loop: true }} setApi={setApi} className={heroViewportClass}>
         <CarouselContent className="ml-0">
           {visibleSlides.map((slide) => (
             <CarouselItem key={slide.id} className="pl-0">
-              <div className="relative min-h-screen flex items-end overflow-hidden">
-                {/* Background Image - positioned to show character on the right */}
+              <div className={`relative flex items-end overflow-hidden ${heroViewportClass}`}>
+                {/* Background Image - full coverage with centered framing */}
                 <div
-                  className="absolute inset-0 bg-cover bg-right-top md:bg-center bg-no-repeat scale-105"
+                  className="absolute inset-0 bg-cover bg-center bg-no-repeat"
                   style={{ backgroundImage: `url(${slide.image})` }}
                 />
 
                 {/* Gradient Overlay - darker on the left for text readability */}
-                <div className="absolute inset-0 bg-gradient-to-r from-background via-background/80 to-transparent" />
+                <div className="absolute inset-0 bg-linear-to-r from-background via-background/80 to-transparent" />
 
                 {/* Bottom gradient for smooth transition */}
-                <div className="absolute inset-0 bg-gradient-to-t from-background via-background/30 to-transparent" />
+                <div className="absolute inset-0 bg-linear-to-t from-background via-background/30 to-transparent" />
 
                 {/* Content */}
                 <div className="relative z-10 w-full px-6 md:px-12 pb-16 md:pb-24">
                   <div className="max-w-3xl">
-                    <div className="mb-3 flex flex-wrap items-center gap-3 text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                    <div
+                      data-testid={`hero-slide-meta-${slide.id}`}
+                      className="mb-3 flex flex-col items-start gap-2 text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground md:flex-row md:flex-wrap md:items-center md:gap-3"
+                    >
                       {slide.id === latestSlideId ? (
-                        <span className="inline-block px-3 py-1 rounded-full animate-fade-in border bg-[color:var(--hero-badge-bg,hsl(var(--primary)/0.2))] text-[color:var(--hero-badge-text,hsl(var(--primary)))] border-[color:var(--hero-badge-border,hsl(var(--primary)/0.3)))]">
+                        <span
+                          data-testid={`hero-slide-latest-${slide.id}`}
+                          className="inline-block px-3 py-1 rounded-full animate-fade-in border bg-(--hero-badge-bg,hsl(var(--primary)/0.2)) text-(--hero-badge-text,hsl(var(--primary))) border-(--hero-badge-border,hsl(var(--primary)/0.3))"
+                        >
                           Último Lançamento
                         </span>
                       ) : null}
-                      {slide.format ? <span>{slide.format}</span> : null}
-                      {slide.format && slide.status ? <span className="opacity-50">•</span> : null}
-                      {slide.status ? <span>{slide.status}</span> : null}
+                      {slide.format || slide.status ? (
+                        <div data-testid={`hero-slide-type-status-${slide.id}`} className="flex flex-wrap items-center gap-3">
+                          {slide.format ? <span>{slide.format}</span> : null}
+                          {slide.format && slide.status ? <span className="opacity-50">•</span> : null}
+                          {slide.status ? <span>{slide.status}</span> : null}
+                        </div>
+                      ) : null}
                     </div>
 
                     <h1 className="text-2xl md:text-4xl lg:text-5xl xl:text-6xl 2xl:text-7xl font-black mb-6 animate-slide-up text-foreground leading-tight">
@@ -374,7 +385,7 @@ const HeroSection = () => {
                     >
                       <Link
                         to={`/projeto/${slide.projectId}`}
-                        className="inline-flex items-center gap-2 px-6 py-3 font-semibold rounded-lg transition-all hover:scale-105 hover:brightness-110 bg-[color:var(--hero-accent,hsl(var(--primary)))] text-[color:var(--hero-accent-foreground,hsl(var(--primary-foreground)))]"
+                        className="inline-flex items-center gap-2 px-6 py-3 font-semibold rounded-lg transition-all hover:scale-105 hover:brightness-110 bg-(--hero-accent,hsl(var(--primary))) text-(--hero-accent-foreground,hsl(var(--primary-foreground)))"
                       >
                         <Globe className="h-4 w-4" />
                         Acessar Página
