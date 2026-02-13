@@ -30,7 +30,7 @@
           }
           var loc = window.location;
           if (loc && loc.hostname && loc.hostname !== "localhost" && loc.hostname !== "127.0.0.1") {
-            return loc.protocol + "//" + loc.hostname + ":8080";
+            return loc.protocol + "//" + loc.hostname;
           }
           return "https://rainbow-dashboard-public-site.onrender.com";
         };
