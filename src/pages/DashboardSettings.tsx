@@ -982,6 +982,8 @@ const DashboardSettings = () => {
   }, [currentUser, isLoadingUser]);
 
   const siteNamePreview = (settings.site.name || "Nekomata").trim() || "Nekomata";
+  const footerBrandNamePreview = (settings.site.name || settings.footer.brandName || "Nekomata").trim() || "Nekomata";
+  const footerBrandNameUpperPreview = footerBrandNamePreview.toUpperCase();
 
   const branding = resolveBranding(settings);
   const legacySiteSymbol = branding.legacy.siteSymbolUrl;
@@ -1513,12 +1515,12 @@ const DashboardSettings = () => {
                             {showWordmarkInFooterPreview ? (
                               <img
                                 src={resolvedFooterWordmarkUrl}
-                                alt={siteNamePreview}
+                                alt={footerBrandNamePreview}
                                 className="h-9 w-auto max-w-[220px] object-contain"
                               />
                             ) : footerMode === "text" ? (
                               <span className="text-lg font-black tracking-widest text-gradient-rainbow">
-                                {siteNamePreview}
+                                {footerBrandNameUpperPreview}
                               </span>
                             ) : (
                               <>
@@ -1530,7 +1532,7 @@ const DashboardSettings = () => {
                                   />
                                 ) : null}
                                 <span className="text-lg font-black tracking-widest text-gradient-rainbow">
-                                  {siteNamePreview}
+                                  {footerBrandNameUpperPreview}
                                 </span>
                               </>
                             )}
