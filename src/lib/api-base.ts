@@ -11,7 +11,7 @@ export const getApiBase = () => {
     }
     const { protocol, hostname } = window.location;
     if (hostname && hostname !== "localhost" && hostname !== "127.0.0.1") {
-      return `${protocol}//${hostname}:8080`;
+      return `${protocol}//${hostname}`;
     }
   }
   return LOCAL_API_BASE;

@@ -328,10 +328,9 @@ const {
   DISCORD_CLIENT_ID,
   DISCORD_CLIENT_SECRET,
   DISCORD_REDIRECT_URI = "https://rainbow-dashboard-public-site.onrender.com/login",
-  APP_ORIGIN = "https://rainbow-dashboard-public-site.vercel.app/",
+  APP_ORIGIN = "https://rainbow-dashboard-public-site.vercel.app",
   ADMIN_ORIGINS = "",
   SESSION_SECRET,
-  PORT = 8080,
   OWNER_IDS: OWNER_IDS_ENV = "",
   BOOTSTRAP_TOKEN,
   ANALYTICS_IP_SALT = "",
@@ -359,7 +358,7 @@ const EXTRA_ORIGINS = ADMIN_ORIGINS.split(",")
   .map((origin) => origin.trim())
   .filter(Boolean);
 const ALLOWED_ORIGINS = Array.from(new Set([...APP_ORIGINS, ...EXTRA_ORIGINS]));
-const PRIMARY_APP_ORIGIN = APP_ORIGINS[0] || "https://rainbow-dashboard-public-site.vercel.app/";
+const PRIMARY_APP_ORIGIN = APP_ORIGINS[0] || "https://rainbow-dashboard-public-site.vercel.app";
 const PRIMARY_APP_HOST = (() => {
   try {
     return new URL(PRIMARY_APP_ORIGIN).host.toLowerCase();
