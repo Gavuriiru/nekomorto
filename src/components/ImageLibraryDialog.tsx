@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import Croppie from "croppie";
-import "croppie/croppie.css";
+import { CircleStencil, Cropper, type CropperRef } from "react-advanced-cropper";
+import "react-advanced-cropper/dist/style.css";
 
 import {
   ContextMenu,
@@ -75,9 +75,7 @@ type ImageLibraryDialogProps = {
   onSave: (payload: ImageLibrarySavePayload) => void;
 };
 
-const CROPPER_PREVIEW_SIZE = 320;
 const CROPPER_BOUNDARY_SIZE = 360;
-const CROPPER_MAX_ZOOM = 5;
 const CROPPER_OUTPUT_SIZE = 512;
 
 const fileToDataUrl = (file: File) =>
@@ -109,6 +107,53 @@ const normalizeComparableUploadUrl = (value: string | null | undefined) => {
     // Ignore invalid absolute URLs and keep original value.
   }
   return trimmed;
+};
+
+const sanitizeUploadFolderForComparison = (value: string | null | undefined) => {
+  if (typeof value !== "string" || !value.trim()) {
+    return "";
+  }
+  return value
+    .trim()
+    .replace(/[^a-z0-9/_-]+/gi, "-")
+    .replace(/\/{2,}/g, "/")
+    .replace(/^\/+/, "")
+    .replace(/\/+$/, "");
+};
+
+const sanitizeUploadSlotForComparison = (value: string | null | undefined) =>
+  String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+
+const escapeRegexPattern = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+const isAvatarSlotSelection = ({
+  url,
+  folder,
+  slot,
+}: {
+  url: string;
+  folder: string;
+  slot: string;
+}) => {
+  const normalizedUrl = normalizeComparableUploadUrl(url);
+  if (!normalizedUrl.startsWith("/uploads/")) {
+    return false;
+  }
+  const safeSlot = sanitizeUploadSlotForComparison(slot);
+  if (!safeSlot) {
+    return false;
+  }
+  const safeFolder = sanitizeUploadFolderForComparison(folder);
+  const relativePrefix = safeFolder ? `${safeFolder}/` : "";
+  const pattern = new RegExp(
+    `^/uploads/${escapeRegexPattern(relativePrefix)}${escapeRegexPattern(safeSlot)}\\.[a-z0-9]+$`,
+    "i",
+  );
+  return pattern.test(normalizedUrl);
 };
 
 const toComparableSelectionKey = (value: string | null | undefined) => {
@@ -215,8 +260,6 @@ type ProjectImageGroup = {
   items: LibraryImageItem[];
 };
 
-type CroppieResultType = Awaited<ReturnType<Croppie["result"]>>;
-
 type AvatarCropWorkspaceProps = {
   src: string;
   isApplyingCrop: boolean;
@@ -225,65 +268,12 @@ type AvatarCropWorkspaceProps = {
 };
 
 const AvatarCropWorkspace = ({ src, isApplyingCrop, onCancel, onApplyCrop }: AvatarCropWorkspaceProps) => {
-  const croppieContainerRef = useRef<HTMLDivElement | null>(null);
-  const croppieRef = useRef<Croppie | null>(null);
+  const cropperRef = useRef<CropperRef | null>(null);
   const [isCropReady, setIsCropReady] = useState(false);
   const [cropperRevision, setCropperRevision] = useState(0);
 
   useEffect(() => {
-    let active = true;
-    let frameId: number | null = null;
     setIsCropReady(false);
-
-    frameId = window.requestAnimationFrame(() => {
-      if (!active) {
-        return;
-      }
-      const container = croppieContainerRef.current;
-      if (!container) {
-        return;
-      }
-
-      const croppie = new Croppie(container, {
-        viewport: { width: CROPPER_PREVIEW_SIZE, height: CROPPER_PREVIEW_SIZE, type: "circle" },
-        boundary: { width: CROPPER_BOUNDARY_SIZE, height: CROPPER_BOUNDARY_SIZE },
-        enableZoom: true,
-        enforceBoundary: true,
-        maxZoom: CROPPER_MAX_ZOOM,
-        mouseWheelZoom: true,
-        showZoomer: false,
-      });
-      croppieRef.current = croppie;
-
-      void croppie
-        .bind({ url: src })
-        .then(() => {
-          if (!active || croppieRef.current !== croppie) {
-            return;
-          }
-          setIsCropReady(true);
-        })
-        .catch(() => {
-          if (!active) {
-            return;
-          }
-          toast({
-            title: "N\u00E3o foi poss\u00EDvel carregar a imagem para recorte.",
-            description: "Tente selecionar outra imagem.",
-          });
-        });
-    });
-
-    return () => {
-      active = false;
-      if (frameId !== null) {
-        window.cancelAnimationFrame(frameId);
-      }
-      if (croppieRef.current) {
-        croppieRef.current.destroy();
-        croppieRef.current = null;
-      }
-    };
   }, [cropperRevision, src]);
 
   const handleReset = useCallback(() => {
@@ -291,19 +281,17 @@ const AvatarCropWorkspace = ({ src, isApplyingCrop, onCancel, onApplyCrop }: Ava
   }, []);
 
   const handleApply = useCallback(async () => {
-    const croppie = croppieRef.current;
-    if (!croppie || !isCropReady) {
+    const cropper = cropperRef.current;
+    if (!cropper || !isCropReady) {
       return;
     }
 
     try {
-      const cropResult = (await croppie.result({
-        type: "base64",
-        format: "png",
-        size: { width: CROPPER_OUTPUT_SIZE, height: CROPPER_OUTPUT_SIZE },
-        circle: true,
-      })) as CroppieResultType;
-      const normalizedDataUrl = String(cropResult || "").trim();
+      const canvas = cropper.getCanvas({
+        width: CROPPER_OUTPUT_SIZE,
+        height: CROPPER_OUTPUT_SIZE,
+      });
+      const normalizedDataUrl = String(canvas?.toDataURL("image/png") || "").trim();
       if (!normalizedDataUrl) {
         throw new Error("empty_crop_result");
       }
@@ -326,8 +314,32 @@ const AvatarCropWorkspace = ({ src, isApplyingCrop, onCancel, onApplyCrop }: Ava
             className="avatar-cropper-preview relative mx-auto overflow-hidden rounded-xl bg-black/20"
             style={{ width: CROPPER_BOUNDARY_SIZE, height: CROPPER_BOUNDARY_SIZE }}
           >
-            <div className="avatar-croppie-shell">
-              <div ref={croppieContainerRef} className="avatar-croppie-root" />
+            <div className="avatar-cropper-shell">
+              <Cropper
+                key={`${src}:${cropperRevision}`}
+                ref={cropperRef}
+                src={src}
+                className="avatar-cropper-root"
+                stencilComponent={CircleStencil}
+                imageRestriction="stencil"
+                autoZoom
+                transitions={false}
+                resizeImage
+                moveImage
+                onReady={() => setIsCropReady(true)}
+                onError={() => {
+                  setIsCropReady(false);
+                  toast({
+                    title: "N\u00E3o foi poss\u00EDvel carregar a imagem para recorte.",
+                    description: "Tente selecionar outra imagem.",
+                  });
+                }}
+                stencilProps={{
+                  movable: true,
+                  resizable: true,
+                  grid: false,
+                }}
+              />
             </div>
           </div>
         </div>
@@ -337,6 +349,7 @@ const AvatarCropWorkspace = ({ src, isApplyingCrop, onCancel, onApplyCrop }: Ava
             <p>Arraste a imagem para posicionar o avatar.</p>
             <p>Use o scroll para aproximar ou afastar.</p>
             <p>Quando estiver satisfeito com o enquadramento, clique em Aplicar avatar.</p>
+            <p>Para confirmar a troca, salvar sem aplicar recorte n\u00E3o \u00E9 permitido.</p>
           </div>
         </div>
       </div>
@@ -963,6 +976,27 @@ const ImageLibraryDialog = ({
   }, [apiBase, loadLibrary, renameTarget, renameValue]);
 
   const handleSave = () => {
+    if (cropAvatar && selectedUrls.length > 0) {
+      const normalizedCropSlot = String(cropSlot || "").trim();
+      if (!normalizedCropSlot) {
+        toast({ title: "Preencha o ID do usu\u00E1rio antes de salvar o avatar." });
+        return;
+      }
+      const selectedUrl = String(selectedUrls[0] || "").trim();
+      const matchesAvatarSlot = isAvatarSlotSelection({
+        url: selectedUrl,
+        slot: normalizedCropSlot,
+        folder: cropTargetFolder || "users",
+      });
+      if (!matchesAvatarSlot) {
+        toast({
+          title: "Aplique o recorte do avatar antes de salvar.",
+          description: "Clique em Editar avatar e depois em Aplicar avatar.",
+        });
+        return;
+      }
+    }
+
     const items = selectedUrls
       .map((url) => allItems.get(url) ?? allItemsByComparableKey.get(toComparableSelectionKey(url)))
       .filter((item): item is LibraryImageItem => Boolean(item));
@@ -1291,7 +1325,7 @@ const ImageLibraryDialog = ({
           <DialogHeader>
             <DialogTitle>Editor de avatar</DialogTitle>
             <DialogDescription>
-              Defina o enquadramento final do avatar e clique em Aplicar avatar.
+              Defina o enquadramento final do avatar e clique em Aplicar avatar para liberar o salvamento.
             </DialogDescription>
           </DialogHeader>
           {primarySelectedUrl ? (

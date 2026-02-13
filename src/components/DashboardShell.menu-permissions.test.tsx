@@ -19,7 +19,11 @@ vi.mock("@/components/ui/sidebar", () => ({
   SidebarHeader: ({ children }: { children: ReactNode }) => <div>{children}</div>,
   SidebarContent: ({ children }: { children: ReactNode }) => <div>{children}</div>,
   SidebarFooter: ({ children }: { children: ReactNode }) => <div>{children}</div>,
-  SidebarInset: ({ children }: { children: ReactNode }) => <main>{children}</main>,
+  SidebarInset: ({ children, className }: { children: ReactNode; className?: string }) => (
+    <main data-testid="sidebar-inset" className={className}>
+      {children}
+    </main>
+  ),
   SidebarMenu: ({ children }: { children: ReactNode }) => <div>{children}</div>,
   SidebarMenuItem: ({ children }: { children: ReactNode }) => <div>{children}</div>,
   SidebarMenuButton: ({ children }: { children: ReactNode; asChild?: boolean }) => <div>{children}</div>,
@@ -74,6 +78,8 @@ describe("DashboardShell menu permissions", () => {
     expect(screen.getByText("Início")).toBeInTheDocument();
     expect(screen.getByText("Analytics")).toBeInTheDocument();
     expect(screen.getByText("Postagens")).toBeInTheDocument();
+    expect(screen.getByTestId("sidebar-inset").className).toContain("min-w-0");
+    expect(screen.getByTestId("sidebar-inset").className).toContain("overflow-x-hidden");
     expect(screen.queryByText("Usuários")).not.toBeInTheDocument();
     expect(screen.queryByText("Configurações")).not.toBeInTheDocument();
   });

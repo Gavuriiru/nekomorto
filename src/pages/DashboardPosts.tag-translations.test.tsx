@@ -153,14 +153,14 @@ describe("DashboardPosts tags translation", () => {
     await screen.findByRole("heading", { name: "Gerenciar posts" });
     const card = await screen.findByTestId("post-card-post-1");
     const cardLayoutContainer = Array.from(card.querySelectorAll("div")).find((element) =>
-      element.className.includes("md:h-[280px]"),
+      element.className.includes("lg:h-[280px]"),
     );
     expect(cardLayoutContainer).toBeDefined();
     const rightContentColumn = Array.from(card.querySelectorAll("div")).find((element) =>
       element.className.includes("grid-rows-[auto_auto_minmax(0,1fr)_auto]"),
     );
     expect(rightContentColumn).toBeDefined();
-    expect(rightContentColumn?.className).toContain("md:pb-5");
+    expect(rightContentColumn?.className).toContain("lg:pb-5");
     expect(within(card).getByText("Publicado")).toBeInTheDocument();
     expect(within(card).queryByText("published")).not.toBeInTheDocument();
     expect(within(card).getByText("AAA")).toBeInTheDocument();
@@ -170,12 +170,24 @@ describe("DashboardPosts tags translation", () => {
     expect(within(card).getByText("Admin")).toBeInTheDocument();
     expect(within(card).getByText("10 visualizações")).toBeInTheDocument();
     expect(within(card).getByText("2 comentários")).toBeInTheDocument();
-    expect(within(card).getByText("/post-de-teste")).toBeInTheDocument();
     expect(card.querySelector('[data-slot="top"]')).not.toBeNull();
     expect(card.querySelector('[data-slot="headline"]')).not.toBeNull();
     expect(card.querySelector('[data-slot="excerpt"]')).not.toBeNull();
     expect(card.querySelector('[data-slot="tags"]')).not.toBeNull();
-    expect(card.querySelector('[data-slot="meta"]')).not.toBeNull();
+    const metaSlot = card.querySelector('[data-slot="meta"]') as HTMLDivElement | null;
+    expect(metaSlot).not.toBeNull();
+    const metaTokens = String(metaSlot?.className || "")
+      .split(/\s+/)
+      .filter(Boolean);
+    expect(metaTokens).toContain("flex-wrap");
+    expect(metaTokens).toContain("lg:flex-nowrap");
+    expect(metaTokens).not.toContain("flex-nowrap");
+    const slugElement = within(card).getByText("/post-de-teste");
+    const slugTokens = String(slugElement.className)
+      .split(/\s+/)
+      .filter(Boolean);
+    expect(slugTokens).toContain("hidden");
+    expect(slugTokens).toContain("lg:block");
     const translatedTag = within(card).getByText("AAA");
     expect(`${translatedTag.className} ${translatedTag.parentElement?.className || ""}`).toContain("bg-secondary");
     expect(translatedTag.className).toContain("truncate");

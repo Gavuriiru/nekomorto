@@ -1690,8 +1690,8 @@ const DashboardPosts = () => {
                         }}
                       >
                         <CardContent className="p-0">
-                          <div className="grid min-h-[360px] gap-0 md:h-[280px] md:min-h-0 md:grid-cols-[220px_1fr]">
-                            <div className="relative h-52 w-full md:h-full">
+                          <div className="grid min-h-[360px] gap-0 lg:h-[280px] lg:min-h-0 lg:grid-cols-[220px_1fr]">
+                            <div className="relative h-52 w-full lg:h-full">
                               {resolvedCardCover.coverImageUrl ? (
                                 <img
                                   src={normalizeAssetUrl(resolvedCardCover.coverImageUrl)}
@@ -1708,7 +1708,7 @@ const DashboardPosts = () => {
                                 </div>
                               )}
                             </div>
-                            <div className="grid h-full min-h-0 grid-rows-[auto_auto_minmax(0,1fr)_auto] gap-2 p-4 md:pb-5">
+                            <div className="grid h-full min-h-0 grid-rows-[auto_auto_minmax(0,1fr)_auto] gap-2 p-4 lg:pb-5">
                               <div data-slot="top" className="flex items-start justify-between gap-3">
                                 <div className="flex min-w-0 flex-wrap items-center gap-2">
                                   <Badge variant="outline" className="text-[10px] uppercase">
@@ -1763,7 +1763,7 @@ const DashboardPosts = () => {
                               </div>
 
                               <div data-slot="headline" className="min-h-11">
-                                <h3 className="line-clamp-2 text-lg font-semibold leading-tight text-foreground md:line-clamp-1">
+                                <h3 className="line-clamp-2 text-lg font-semibold leading-tight text-foreground lg:line-clamp-1">
                                   {post.title}
                                 </h3>
                                 <span className="text-xs text-muted-foreground">{formattedDate}</span>
@@ -1771,7 +1771,7 @@ const DashboardPosts = () => {
 
                               <p
                                 data-slot="excerpt"
-                                className="line-clamp-2 min-h-0 overflow-hidden text-sm text-muted-foreground md:line-clamp-1"
+                                className="line-clamp-2 min-h-0 overflow-hidden text-sm text-muted-foreground lg:line-clamp-1"
                               >
                                 {post.excerpt || "Sem prévia cadastrada."}
                               </p>
@@ -1802,21 +1802,21 @@ const DashboardPosts = () => {
 
                                 <div
                                   data-slot="meta"
-                                  className="flex min-w-0 flex-nowrap items-center gap-3 text-xs text-muted-foreground"
+                                  className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground lg:flex-nowrap lg:gap-y-0"
                                 >
-                                  <span className="inline-flex min-w-0 items-center gap-2">
+                                  <span className="inline-flex min-w-0 max-w-full items-center gap-2">
                                     <UserRound className="h-4 w-4 shrink-0" />
                                     <span className="truncate">{post.author || "Autor não definido"}</span>
                                   </span>
-                                  <span className="inline-flex shrink-0 items-center gap-2">
+                                  <span className="inline-flex shrink-0 items-center gap-2 whitespace-nowrap">
                                     <Eye className="h-4 w-4" />
                                     {post.views} visualizações
                                   </span>
-                                  <span className="inline-flex shrink-0 items-center gap-2">
+                                  <span className="inline-flex shrink-0 items-center gap-2 whitespace-nowrap">
                                     <MessageSquare className="h-4 w-4" />
                                     {post.commentsCount} comentários
                                   </span>
-                                  <span className="ml-auto max-w-44 truncate text-right text-xs text-muted-foreground">
+                                  <span className="ml-auto hidden max-w-44 truncate text-right text-xs text-muted-foreground lg:block">
                                     /{post.slug}
                                   </span>
                                 </div>

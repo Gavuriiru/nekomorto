@@ -775,9 +775,9 @@ const DashboardPages = () => {
               className="mt-8 animate-slide-up opacity-0"
               style={{ animationDelay: "0.2s" }}
             >
-              <TabsList className="grid w-full grid-cols-5">
+              <TabsList className="no-scrollbar flex w-full flex-nowrap justify-start overflow-x-auto overscroll-x-contain md:grid md:grid-cols-5 md:overflow-visible">
                 {orderedPageTabs.map((tab) => (
-                  <TabsTrigger key={tab.key} value={tab.key}>
+                  <TabsTrigger key={tab.key} value={tab.key} className="shrink-0 md:w-full">
                     <span>{tab.label}</span>
                   </TabsTrigger>
                 ))}

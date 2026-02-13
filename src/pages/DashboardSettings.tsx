@@ -1151,14 +1151,28 @@ const DashboardSettings = () => {
               className="mt-8 animate-slide-up opacity-0"
               style={{ animationDelay: "0.2s" }}
             >
-              <TabsList className="grid w-full grid-cols-2 md:grid-cols-7">
-                <TabsTrigger value="geral">Geral</TabsTrigger>
-                <TabsTrigger value="downloads">Downloads</TabsTrigger>
-                <TabsTrigger value="equipe">Equipe</TabsTrigger>
-                <TabsTrigger value="footer">Footer</TabsTrigger>
-                <TabsTrigger value="navbar">Navbar</TabsTrigger>
-                <TabsTrigger value="redes-usuarios">Redes sociais</TabsTrigger>
-                <TabsTrigger value="traducoes">Traduções</TabsTrigger>
+              <TabsList className="no-scrollbar flex w-full flex-nowrap justify-start overflow-x-auto overscroll-x-contain md:grid md:grid-cols-7 md:overflow-visible">
+                <TabsTrigger value="geral" className="shrink-0 md:w-full">
+                  Geral
+                </TabsTrigger>
+                <TabsTrigger value="downloads" className="shrink-0 md:w-full">
+                  Downloads
+                </TabsTrigger>
+                <TabsTrigger value="equipe" className="shrink-0 md:w-full">
+                  Equipe
+                </TabsTrigger>
+                <TabsTrigger value="footer" className="shrink-0 md:w-full">
+                  Footer
+                </TabsTrigger>
+                <TabsTrigger value="navbar" className="shrink-0 md:w-full">
+                  Navbar
+                </TabsTrigger>
+                <TabsTrigger value="redes-usuarios" className="shrink-0 md:w-full">
+                  Redes sociais
+                </TabsTrigger>
+                <TabsTrigger value="traducoes" className="shrink-0 md:w-full">
+                  Traduções
+                </TabsTrigger>
               </TabsList>
 
               <TabsContent value="geral" className="mt-6 space-y-6">

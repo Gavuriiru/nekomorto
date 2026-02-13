@@ -4,26 +4,43 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import ImageLibraryDialog from "@/components/ImageLibraryDialog";
 
-const { apiFetchMock, toastMock, croppieCtorMock, croppieBindMock, croppieDestroyMock, croppieResultMock } =
+const { apiFetchMock, toastMock, cropperRenderMock, cropperGetCanvasMock, cropperToDataUrlMock } =
   vi.hoisted(() => ({
     apiFetchMock: vi.fn(),
     toastMock: vi.fn(),
-    croppieCtorMock: vi.fn(),
-    croppieBindMock: vi.fn(),
-    croppieDestroyMock: vi.fn(),
-    croppieResultMock: vi.fn(),
+    cropperRenderMock: vi.fn(),
+    cropperGetCanvasMock: vi.fn(),
+    cropperToDataUrlMock: vi.fn(),
   }));
 
-vi.mock("croppie", () => ({
-  default: function CroppieMock(container: unknown, options: unknown) {
-    croppieCtorMock(container, options);
-    return {
-      bind: croppieBindMock,
-      result: croppieResultMock,
-      destroy: croppieDestroyMock,
+vi.mock("react-advanced-cropper", async () => {
+  const React = await vi.importActual<typeof import("react")>("react");
+  const Cropper = React.forwardRef((props: Record<string, unknown>, ref: React.ForwardedRef<unknown>) => {
+    cropperRenderMock(props);
+    const cropperApi = {
+      getCanvas: (...args: unknown[]) => cropperGetCanvasMock(...args),
     };
-  },
-}));
+    if (typeof ref === "function") {
+      ref(cropperApi);
+    } else if (ref && typeof ref === "object") {
+      (ref as { current: unknown }).current = cropperApi;
+    }
+    React.useEffect(() => {
+      const onReady = props.onReady;
+      if (typeof onReady === "function") {
+        const timeout = window.setTimeout(() => onReady(cropperApi), 0);
+        return () => window.clearTimeout(timeout);
+      }
+      return undefined;
+    }, [props.onReady, props.src]);
+    return React.createElement("div", { "data-testid": "advanced-cropper-mock" });
+  });
+
+  return {
+    Cropper,
+    CircleStencil: () => null,
+  };
+});
 
 vi.mock("@/components/ui/use-toast", () => ({
   toast: (...args: unknown[]) => toastMock(...args),
@@ -57,12 +74,13 @@ describe("ImageLibraryDialog avatar crop flow", () => {
   beforeEach(() => {
     apiFetchMock.mockReset();
     toastMock.mockReset();
-    croppieCtorMock.mockReset();
-    croppieBindMock.mockReset();
-    croppieDestroyMock.mockReset();
-    croppieResultMock.mockReset();
-    croppieBindMock.mockResolvedValue(undefined);
-    croppieResultMock.mockResolvedValue("data:image/png;base64,cropped-avatar");
+    cropperRenderMock.mockReset();
+    cropperGetCanvasMock.mockReset();
+    cropperToDataUrlMock.mockReset();
+    cropperToDataUrlMock.mockReturnValue("data:image/png;base64,cropped-avatar");
+    cropperGetCanvasMock.mockReturnValue({
+      toDataURL: cropperToDataUrlMock,
+    } as unknown as HTMLCanvasElement);
   });
 
   it("abre editor de avatar somente quando cropAvatar estiver habilitado", async () => {
@@ -112,10 +130,9 @@ describe("ImageLibraryDialog avatar crop flow", () => {
     expect(await screen.findByRole("heading", { name: "Editor de avatar" })).toBeInTheDocument();
 
     await waitFor(() => {
-      expect(croppieCtorMock).toHaveBeenCalled();
+      expect(cropperRenderMock).toHaveBeenCalled();
     });
-    const croppieOptions = croppieCtorMock.mock.calls.at(-1)?.[1] as { showZoomer?: boolean };
-    expect(croppieOptions?.showZoomer).toBe(false);
+    expect(screen.getByTestId("advanced-cropper-mock")).toBeInTheDocument();
   });
 
   it("aplica crop e envia upload com slot deterministico do usuario", async () => {
@@ -172,6 +189,13 @@ describe("ImageLibraryDialog avatar crop flow", () => {
     fireEvent.click(applyButton);
 
     await waitFor(() => {
+      expect(cropperGetCanvasMock).toHaveBeenCalledWith({
+        width: 512,
+        height: 512,
+      });
+    });
+
+    await waitFor(() => {
       const cropCall = apiFetchMock.mock.calls.find((call) => String(call[1] || "") === "/api/uploads/image");
       expect(cropCall).toBeTruthy();
       const request = cropCall?.[2] as { body?: string };
@@ -187,6 +211,51 @@ describe("ImageLibraryDialog avatar crop flow", () => {
     await waitFor(() => {
       expect(screen.getByText("Selecionadas: 1")).toBeInTheDocument();
     });
+  });
+
+  it("bloqueia salvar no fluxo de avatar quando a selecao nao e o slot final recortado", async () => {
+    apiFetchMock.mockImplementation(async (_base: string, path: string) => {
+      if (path.startsWith("/api/uploads/list")) {
+        return buildUploadListResponse([baseUploadItem]);
+      }
+      if (path === "/api/uploads/project-images") {
+        return mockJsonResponse(true, { items: [] });
+      }
+      return mockJsonResponse(false, { error: "not_found" }, 404);
+    });
+
+    const onSaveMock = vi.fn();
+
+    render(
+      <ImageLibraryDialog
+        open
+        onOpenChange={() => undefined}
+        apiBase="http://api.local"
+        uploadFolder="users"
+        listFolders={["users"]}
+        listAll={false}
+        mode="single"
+        cropAvatar
+        cropTargetFolder="users"
+        cropSlot="avatar-user-1"
+        onSave={onSaveMock}
+      />,
+    );
+
+    fireEvent.click(await screen.findByRole("button", { name: /Avatar Base/i }));
+
+    const cropDialog = await screen.findByRole("dialog", { name: "Editor de avatar" });
+    fireEvent.click(within(cropDialog).getByRole("button", { name: "Cancelar" }));
+
+    fireEvent.click(screen.getByRole("button", { name: "Salvar" }));
+
+    await waitFor(() => {
+      const hasMandatoryCropToast = toastMock.mock.calls.some((call) =>
+        String((call[0] as { title?: string })?.title || "").includes("Aplique o recorte do avatar"),
+      );
+      expect(hasMandatoryCropToast).toBe(true);
+    });
+    expect(onSaveMock).not.toHaveBeenCalled();
   });
 
   it("impede aplicar crop sem cropSlot e nao envia upload", async () => {

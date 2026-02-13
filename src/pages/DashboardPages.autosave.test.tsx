@@ -1,5 +1,5 @@
 ﻿import type { ReactNode } from "react";
-import { act, fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import DashboardPages from "@/pages/DashboardPages";
 
@@ -54,6 +54,7 @@ const waitMs = (delayMs: number) =>
   new Promise<void>((resolve) => {
     setTimeout(resolve, delayMs);
   });
+const classTokens = (element: HTMLElement) => String(element.className).split(/\s+/).filter(Boolean);
 
 describe("DashboardPages autosave", () => {
   beforeEach(() => {
@@ -91,6 +92,24 @@ describe("DashboardPages autosave", () => {
         return mockJsonResponse(true, { pages: body.pages || {} });
       }
       return mockJsonResponse(false, { error: "not_found" }, 404);
+    });
+  });
+
+  it("usa tablist com scroll horizontal invisivel no mobile e triggers sem compressao", async () => {
+    render(<DashboardPages />);
+    await screen.findByRole("heading", { name: /Gerenciar/i });
+
+    const tablist = screen.getByRole("tablist");
+    const tablistClasses = classTokens(tablist);
+    expect(tablistClasses).toContain("no-scrollbar");
+    expect(tablistClasses).toContain("overflow-x-auto");
+    expect(tablistClasses).toContain("md:grid");
+    expect(tablistClasses).toContain("md:grid-cols-5");
+
+    const tabs = within(tablist).getAllByRole("tab");
+    expect(tabs.length).toBeGreaterThan(0);
+    tabs.forEach((tab) => {
+      expect(classTokens(tab)).toContain("shrink-0");
     });
   });
 

@@ -72,6 +72,17 @@ const formatMetricLabel = (value: MetricValue) => {
   if (value === "download_clicks") return "Cliques em downloads";
   return "Views";
 };
+const formatChartDateLabel = (value: string) => {
+  const parts = String(value || "").split("-");
+  if (parts.length !== 3) {
+    return value;
+  }
+  const [, month, day] = parts;
+  if (!month || !day) {
+    return value;
+  }
+  return `${day}/${month}`;
+};
 const parseRange = (value: string | null): RangeValue =>
   value === "7d" || value === "30d" || value === "90d" ? value : "30d";
 const parseType = (value: string | null): TypeValue =>
@@ -393,23 +404,31 @@ const DashboardAnalytics = () => {
             </CardContent>
           </Card>
 
-          <div className="grid gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
-            <Card className="animate-slide-up opacity-0" style={{ animationDelay: "220ms" }}>
+          <div className="grid min-w-0 gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+            <Card className="min-w-0 animate-slide-up opacity-0" style={{ animationDelay: "220ms" }}>
               <CardHeader>
                 <CardTitle>Série temporal ({formatMetricLabel(metric)})</CardTitle>
               </CardHeader>
-              <CardContent>
+              <CardContent className="min-w-0">
                 {isLoading ? (
                   <p className="animate-pulse text-sm text-muted-foreground">Carregando série temporal...</p>
                 ) : chartData.length ? (
                   <ChartContainer
-                    className="h-[280px] w-full"
+                    className="min-w-0 w-full max-w-full h-52 sm:h-60 lg:h-[280px]"
                     config={{ metric: { label: formatMetricLabel(metric), color: "hsl(var(--accent))" } }}
                   >
                     <LineChart data={chartData} margin={{ left: 12, right: 12, top: 12, bottom: 8 }}>
                       <CartesianGrid vertical={false} />
-                      <XAxis dataKey="date" tickLine={false} axisLine={false} minTickGap={24} />
-                      <YAxis tickLine={false} axisLine={false} width={40} />
+                      <XAxis
+                        dataKey="date"
+                        tickLine={false}
+                        axisLine={false}
+                        tickFormatter={formatChartDateLabel}
+                        interval="preserveStartEnd"
+                        minTickGap={18}
+                        tickMargin={8}
+                      />
+                      <YAxis tickLine={false} axisLine={false} width={32} tickMargin={8} />
                       <ChartTooltip content={<ChartTooltipContent />} />
                       <Line type="monotone" dataKey="value" stroke="var(--color-metric)" strokeWidth={2} dot={false} />
                     </LineChart>
@@ -420,18 +439,25 @@ const DashboardAnalytics = () => {
               </CardContent>
             </Card>
 
-            <Card className="animate-slide-up opacity-0" style={{ animationDelay: "260ms" }}>
+            <Card className="min-w-0 animate-slide-up opacity-0" style={{ animationDelay: "260ms" }}>
               <CardHeader>
                 <CardTitle>Aquisição (origens)</CardTitle>
               </CardHeader>
-              <CardContent className="space-y-3">
+              <CardContent className="min-w-0 space-y-3">
                 {isLoading ? (
                   <p className="animate-pulse text-sm text-muted-foreground">Carregando origens...</p>
                 ) : referrerEntries.length ? (
                   referrerEntries.slice(0, 8).map((entry) => (
-                    <div key={entry.key} className="flex items-center justify-between text-sm">
-                      <span className="truncate text-muted-foreground">{formatAcquisitionLabel(entry.key)}</span>
-                      <Badge variant="secondary">{formatInt(entry.count)}</Badge>
+                    <div key={entry.key} className="flex min-w-0 items-center gap-2 text-sm">
+                      <span
+                        title={formatAcquisitionLabel(entry.key)}
+                        className="min-w-0 flex-1 truncate text-muted-foreground"
+                      >
+                        {formatAcquisitionLabel(entry.key)}
+                      </span>
+                      <Badge variant="secondary" className="shrink-0">
+                        {formatInt(entry.count)}
+                      </Badge>
                     </div>
                   ))
                 ) : (
