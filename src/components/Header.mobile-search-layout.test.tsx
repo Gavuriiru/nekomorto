@@ -219,14 +219,14 @@ describe("Header mobile search layout", () => {
     expect(classTokens(userName)).not.toContain("md:inline");
   });
 
-  it("renderiza seletor de tema no header", async () => {
+  it("renderiza toggle de tema no header", async () => {
     render(
       <MemoryRouter initialEntries={["/"]}>
         <Header />
       </MemoryRouter>,
     );
 
-    expect(screen.getByRole("button", { name: /Alterar tema/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Alternar para tema/i })).toBeInTheDocument();
     expect(setThemePreferenceMock).not.toHaveBeenCalled();
   });
 

@@ -119,7 +119,7 @@ describe("DashboardPages autosave", () => {
     });
   });
 
-  it("edita campo e dispara PUT /api/pages apÃ³s debounce", async () => {
+  it("edita campo e dispara PUT /api/pages após debounce", async () => {
     render(<DashboardPages />);
     await screen.findByRole("heading", { name: /Gerenciar/i });
 
@@ -134,7 +134,7 @@ describe("DashboardPages autosave", () => {
     expect(getPutPageCalls()).toHaveLength(1);
   });
 
-  it("toggle desligado bloqueia autosave, mas botÃ£o manual continua salvando", async () => {
+  it("toggle desligado bloqueia autosave, mas botão manual continua salvando", async () => {
     render(<DashboardPages />);
     await screen.findByRole("heading", { name: /Gerenciar/i });
 

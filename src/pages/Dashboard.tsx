@@ -229,9 +229,9 @@ const Dashboard = () => {
 
   const userLabel = useMemo(() => {
     if (isLoadingUser) {
-      return "Carregando usu·rio...";
+      return "Carregando usu√°rio...";
     }
-    return currentUser?.name ?? "Usu·rio n„o conectado";
+    return currentUser?.name ?? "Usu√°rio n√£o conectado";
   }, [currentUser, isLoadingUser]);
 
   const userSubLabel = useMemo(() => {
@@ -328,7 +328,7 @@ const Dashboard = () => {
     const rows: string[] = [];
     rows.push("Resumo");
     rows.push(`Total de projetos,${totalProjects}`);
-    rows.push(`Total de mÌdias,${totalMedia}`);
+    rows.push(`Total de m√≠dias,${totalMedia}`);
     rows.push(`Projetos ativos,${activeProjects}`);
     rows.push(`Projetos finalizados,${finishedProjects}`);
     rows.push(`Acessos em projetos,${totalProjectViews}`);
@@ -402,8 +402,8 @@ const Dashboard = () => {
                 className="max-w-2xl text-sm text-muted-foreground animate-slide-up opacity-0"
                 style={{ animationDelay: "0.2s" }}
               >
-                Vis„o geral dos projetos e do conte˙do. Assim que as integraÁıes de analytics e
-                coment·rios estiverem ativas, os dados aparecem aqui automaticamente.
+                Vis√£o geral dos projetos e do conte√∫do. Assim que as integra√ß√µes de analytics e
+                coment√°rios estiverem ativas, os dados aparecem aqui automaticamente.
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-3">
@@ -414,7 +414,7 @@ const Dashboard = () => {
                   className="border-border/70 bg-card/60 px-4 text-muted-foreground hover:text-foreground"
                   onClick={handleExportReport}
                 >
-                  Exportar relatÛrio
+                  Exportar relat√≥rio
                 </Button>
               ) : (
                 <Link to="/login">
@@ -436,13 +436,13 @@ const Dashboard = () => {
             >
               <p className="text-sm text-muted-foreground">Projetos cadastrados</p>
               <div className="mt-3 text-2xl font-semibold">{totalProjects}</div>
-              <p className="mt-2 text-xs text-muted-foreground">Cat·logo completo do site.</p>
+              <p className="mt-2 text-xs text-muted-foreground">Cat√°logo completo do site.</p>
             </div>
             <div
               className="rounded-2xl border border-border/60 bg-linear-to-br from-card/70 to-background/60 p-5 animate-slide-up opacity-0"
               style={{ animationDelay: "80ms" }}
             >
-              <p className="text-sm text-muted-foreground">MÌdias disponÌveis</p>
+              <p className="text-sm text-muted-foreground">M√≠dias dispon√≠veis</p>
               <div className="mt-3 text-2xl font-semibold">{totalMedia}</div>
               <p className="mt-2 text-xs text-muted-foreground">Downloads ativos nos projetos.</p>
             </div>
@@ -452,7 +452,7 @@ const Dashboard = () => {
             >
               <p className="text-sm text-muted-foreground">Projetos ativos</p>
               <div className="mt-3 text-2xl font-semibold">{activeProjects}</div>
-              <p className="mt-2 text-xs text-muted-foreground">Em andamento ou produÁ„o.</p>
+              <p className="mt-2 text-xs text-muted-foreground">Em andamento ou produ√ß√£o.</p>
             </div>
             <div
               className="rounded-2xl border border-border/60 bg-linear-to-br from-card/70 to-background/60 p-5 animate-slide-up opacity-0"
@@ -460,7 +460,7 @@ const Dashboard = () => {
             >
               <p className="text-sm text-muted-foreground">Projetos finalizados</p>
               <div className="mt-3 text-2xl font-semibold">{finishedProjects}</div>
-              <p className="mt-2 text-xs text-muted-foreground">Completo ou lanÁado.</p>
+              <p className="mt-2 text-xs text-muted-foreground">Completo ou lan√ßado.</p>
             </div>
           </div>
 
@@ -476,7 +476,7 @@ const Dashboard = () => {
                     {hasAnalyticsData ? (
                       <div className="mt-3 flex items-center gap-3">
                         <span className="text-3xl font-semibold">{totalViewsLast7}</span>
-                        <Badge className="bg-card/80 text-muted-foreground">⁄ltimos 7 dias</Badge>
+                        <Badge className="bg-card/80 text-muted-foreground">√öltimos 7 dias</Badge>
                       </div>
                     ) : (
                       <p className="mt-3 text-sm text-muted-foreground">
@@ -485,7 +485,7 @@ const Dashboard = () => {
                     )}
                     {hasAnalyticsData ? (
                       <p className="mt-2 text-xs text-muted-foreground">
-                        {totalProjectViewsLast7} em projetos ï {totalPostViewsLast7} em posts
+                        {totalProjectViewsLast7} em projetos e {totalPostViewsLast7} em posts
                       </p>
                     ) : null}
                     <div className="mt-4">
@@ -520,7 +520,7 @@ const Dashboard = () => {
                         </svg>
                       ) : (
                         <div className="flex h-full flex-col items-center justify-center text-center text-xs text-muted-foreground">
-                          <span>Gr·fico indisponÌvel</span>
+                          <span>Gr√°fico indispon√≠vel</span>
                           <span>Sem dados de projetos ainda</span>
                         </div>
                       )}
@@ -578,7 +578,7 @@ const Dashboard = () => {
                 <div className="flex items-center justify-between">
                   <div>
                     <h2 className="text-lg font-semibold">Posts mais recentes</h2>
-                    <p className="text-sm text-muted-foreground">PublicaÁıes e visualizaÁıes</p>
+                    <p className="text-sm text-muted-foreground">Publica√ß√µes e visualiza√ß√µes</p>
                   </div>
                   <Button
                     variant="outline"
@@ -606,7 +606,7 @@ const Dashboard = () => {
                         </div>
                         <div className="flex items-center gap-3 text-sm">
                           <span className="text-muted-foreground">
-                            {post.views} visualizaÁıes
+                            {post.views} visualiza√ß√µes
                           </span>
                           <Badge className="bg-card/80 text-muted-foreground">
                             {formatDateTime(post.updatedAt || post.publishedAt)}
@@ -626,8 +626,8 @@ const Dashboard = () => {
               >
                 <div className="flex items-center justify-between">
                   <div>
-                    <h2 className="text-lg font-semibold">Coment·rios recentes</h2>
-                    <p className="text-sm text-muted-foreground">Sistema por p·gina</p>
+                    <h2 className="text-lg font-semibold">Coment√°rios recentes</h2>
+                    <p className="text-sm text-muted-foreground">Sistema por p√°gina</p>
                   </div>
                   <Badge className="bg-card/80 text-muted-foreground">
                     {pendingCommentsCount} pendentes
@@ -635,7 +635,7 @@ const Dashboard = () => {
                 </div>
                 {recentComments.length === 0 ? (
                   <div className="mt-6 rounded-2xl border border-dashed border-border/60 bg-card/60 px-4 py-8 text-center text-sm text-muted-foreground">
-                    Nenhum coment·rio registrado ainda.
+                    Nenhum coment√°rio registrado ainda.
                   </div>
                 ) : (
                   <div className="mt-6 space-y-4">
@@ -662,7 +662,7 @@ const Dashboard = () => {
                 style={{ animationDelay: "440ms" }}
               >
                 <h2 className="text-lg font-semibold">Projetos cadastrados</h2>
-                <p className="text-sm text-muted-foreground">Acesso r·pido ao cat·logo.</p>
+                <p className="text-sm text-muted-foreground">Acesso r√°pido ao cat√°logo.</p>
                 <div className="mt-5 space-y-3">
                   {projects.slice(0, 3).map((project) => (
                     <Link

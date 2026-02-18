@@ -204,7 +204,7 @@ describe("DashboardHeader mobile search layout", () => {
     expect(searchCluster.compareDocumentPosition(actionsCluster) & Node.DOCUMENT_POSITION_FOLLOWING).not.toBe(0);
   });
 
-  it("nÃƒÂ£o redireciona e exibe toast quando logout falha", async () => {
+  it("não redireciona e exibe toast quando logout falha", async () => {
     setupApiMock({ logoutOk: false });
 
     render(
@@ -237,7 +237,7 @@ describe("DashboardHeader mobile search layout", () => {
       );
     });
   });
-  it("renders theme switcher in dashboard header", async () => {
+  it("renderiza toggle de tema no dashboard header", async () => {
     render(
       <MemoryRouter initialEntries={["/dashboard"]}>
         <DashboardHeader
@@ -250,7 +250,7 @@ describe("DashboardHeader mobile search layout", () => {
       </MemoryRouter>,
     );
 
-    expect(screen.getByRole("button", { name: /Alterar tema/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Alternar para tema/i })).toBeInTheDocument();
     expect(setThemePreferenceMock).not.toHaveBeenCalled();
   });
 });

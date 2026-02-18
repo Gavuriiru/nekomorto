@@ -89,8 +89,8 @@ describe("DashboardSettings autosave", () => {
       }
       if (path === "/api/public/tag-translations" && method === "GET") {
         return mockJsonResponse(true, {
-          tags: { Action: "AÃ§Ã£o" },
-          genres: { Comedy: "ComÃ©dia" },
+          tags: { Action: "Ação" },
+          genres: { Comedy: "Comédia" },
           staffRoles: { Director: "Diretor" },
         });
       }
@@ -115,8 +115,8 @@ describe("DashboardSettings autosave", () => {
       }
       if (path === "/api/tag-translations/anilist-sync" && method === "POST") {
         return mockJsonResponse(true, {
-          tags: { Action: "AÃ§Ã£o" },
-          genres: { Comedy: "ComÃ©dia" },
+          tags: { Action: "Ação" },
+          genres: { Comedy: "Comédia" },
           staffRoles: { Director: "Diretor" },
         });
       }
@@ -196,7 +196,7 @@ describe("DashboardSettings autosave", () => {
     expect(payload?.settings?.theme?.mode).toBe("dark");
   });
 
-  it("editar traduÃ§Ã£o dispara apenas PUT /api/tag-translations", async () => {
+  it("editar tradução dispara apenas PUT /api/tag-translations", async () => {
     render(<DashboardSettings />);
     await screen.findByRole("heading", { name: /Painel/i });
 
@@ -237,7 +237,7 @@ describe("DashboardSettings autosave", () => {
     expect(putCalls[0][1]).toBe("/api/link-types");
   });
 
-  it("registra beforeunload quando hÃ¡ alteraÃ§Ã£o pendente", async () => {
+  it("registra beforeunload quando há alteração pendente", async () => {
     const addEventListenerSpy = vi.spyOn(window, "addEventListener");
     render(<DashboardSettings />);
     await screen.findByRole("heading", { name: /Painel/i });
@@ -256,7 +256,7 @@ describe("DashboardSettings autosave", () => {
     addEventListenerSpy.mockRestore();
   });
 
-  it("renderiza a prÃ©via do footer com nome em uppercase", async () => {
+  it("renderiza a prévia do footer com nome em uppercase", async () => {
     render(<DashboardSettings />);
     await screen.findByRole("heading", { name: /Painel/i });
 
