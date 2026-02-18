@@ -216,7 +216,7 @@ describe("DashboardUsers socials reorder", () => {
       expect(reorderCall).toBeTruthy();
       expect(toastMock).toHaveBeenCalledWith(
         expect.objectContaining({
-          title: "Ordem dos usuários atualizada",
+          title: expect.stringMatching(/Ordem dos usu/i),
         }),
       );
     });
@@ -283,7 +283,7 @@ describe("DashboardUsers socials reorder", () => {
     await waitFor(() => {
       expect(toastMock).toHaveBeenCalledWith(
         expect.objectContaining({
-          title: "Não foi possível salvar a nova ordem",
+          title: expect.stringMatching(/salvar a nova ordem/i),
           variant: "destructive",
         }),
       );

@@ -738,7 +738,7 @@ const DashboardPages = () => {
           <section className="mx-auto w-full max-w-6xl px-6 pb-20 md:px-10">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
-                <div className="inline-flex items-center gap-3 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs uppercase tracking-[0.3em] text-muted-foreground animate-fade-in">
+                <div className="inline-flex items-center gap-3 rounded-full border border-border/60 bg-card/60 px-4 py-2 text-xs uppercase tracking-[0.3em] text-muted-foreground animate-fade-in">
                   Páginas
                 </div>
                 <h1 className="mt-4 text-3xl font-semibold lg:text-4xl animate-slide-up">Gerenciar páginas</h1>
@@ -1830,6 +1830,7 @@ const DashboardPages = () => {
 };
 
 export default DashboardPages;
+
 
 
 

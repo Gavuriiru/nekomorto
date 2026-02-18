@@ -280,7 +280,7 @@ const DashboardAnalytics = () => {
         <section className="mx-auto w-full max-w-6xl space-y-6 px-6 pb-20 md:px-10">
           <header className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div>
-              <div className="inline-flex animate-fade-in items-center gap-3 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs uppercase tracking-[0.3em] text-muted-foreground">
+              <div className="inline-flex animate-fade-in items-center gap-3 rounded-full border border-border/60 bg-card/60 px-4 py-2 text-xs uppercase tracking-[0.3em] text-muted-foreground">
                 Analytics
               </div>
               <h1 className="mt-3 animate-slide-up text-3xl font-semibold lg:text-4xl">Performance e aquisição</h1>
@@ -383,19 +383,19 @@ const DashboardAnalytics = () => {
               <CardTitle>Comunidade e moderação</CardTitle>
             </CardHeader>
             <CardContent className="grid gap-4 md:grid-cols-3">
-              <div className="rounded-xl border border-white/10 bg-white/5 p-4">
+              <div className="rounded-xl border border-border/60 bg-card/60 p-4">
                 <p className="text-xs uppercase tracking-wide text-muted-foreground">Comentários criados</p>
                 <p className={`mt-2 text-2xl font-semibold ${isLoading ? "animate-pulse" : ""}`}>
                   {isLoading ? "-" : formatInt(commentsCreated)}
                 </p>
               </div>
-              <div className="rounded-xl border border-white/10 bg-white/5 p-4">
+              <div className="rounded-xl border border-border/60 bg-card/60 p-4">
                 <p className="text-xs uppercase tracking-wide text-muted-foreground">Comentários aprovados</p>
                 <p className={`mt-2 text-2xl font-semibold ${isLoading ? "animate-pulse" : ""}`}>
                   {isLoading ? "-" : formatInt(commentsApproved)}
                 </p>
               </div>
-              <div className="rounded-xl border border-white/10 bg-white/5 p-4">
+              <div className="rounded-xl border border-border/60 bg-card/60 p-4">
                 <p className="text-xs uppercase tracking-wide text-muted-foreground">Taxa de aprovação</p>
                 <p className={`mt-2 text-2xl font-semibold ${isLoading ? "animate-pulse" : ""}`}>
                   {isLoading ? "-" : commentsApprovalRate === null ? "0,0%" : formatPercent(commentsApprovalRate)}
@@ -507,3 +507,4 @@ const DashboardAnalytics = () => {
 };
 
 export default DashboardAnalytics;
+

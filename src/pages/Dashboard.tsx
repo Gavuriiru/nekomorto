@@ -1,4 +1,4 @@
-Ôªøimport { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useEffect, useMemo, useState } from "react";
 import DashboardShell from "@/components/DashboardShell";
 import { Badge } from "@/components/ui/badge";
@@ -229,9 +229,9 @@ const Dashboard = () => {
 
   const userLabel = useMemo(() => {
     if (isLoadingUser) {
-      return "Carregando usu√°rio...";
+      return "Carregando usu·rio...";
     }
-    return currentUser?.name ?? "Usu√°rio n√£o conectado";
+    return currentUser?.name ?? "Usu·rio n„o conectado";
   }, [currentUser, isLoadingUser]);
 
   const userSubLabel = useMemo(() => {
@@ -328,7 +328,7 @@ const Dashboard = () => {
     const rows: string[] = [];
     rows.push("Resumo");
     rows.push(`Total de projetos,${totalProjects}`);
-    rows.push(`Total de m√≠dias,${totalMedia}`);
+    rows.push(`Total de mÌdias,${totalMedia}`);
     rows.push(`Projetos ativos,${activeProjects}`);
     rows.push(`Projetos finalizados,${finishedProjects}`);
     rows.push(`Acessos em projetos,${totalProjectViews}`);
@@ -392,7 +392,7 @@ const Dashboard = () => {
           <section className="mx-auto w-full max-w-6xl px-6 pb-20 md:px-10 reveal" data-reveal>
             <header className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
               <div className="space-y-3">
-                <div className="inline-flex items-center gap-3 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs uppercase tracking-[0.3em] text-muted-foreground animate-fade-in">
+                <div className="inline-flex items-center gap-3 rounded-full border border-border/60 bg-card/60 px-4 py-2 text-xs uppercase tracking-[0.3em] text-muted-foreground animate-fade-in">
                   Dashboard Interna
               </div>
               <h1 className="text-3xl font-semibold lg:text-4xl animate-slide-up">
@@ -402,25 +402,25 @@ const Dashboard = () => {
                 className="max-w-2xl text-sm text-muted-foreground animate-slide-up opacity-0"
                 style={{ animationDelay: "0.2s" }}
               >
-                Vis√£o geral dos projetos e do conte√∫do. Assim que as integra√ß√µes de analytics e
-                coment√°rios estiverem ativas, os dados aparecem aqui automaticamente.
+                Vis„o geral dos projetos e do conte˙do. Assim que as integraÁıes de analytics e
+                coment·rios estiverem ativas, os dados aparecem aqui automaticamente.
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-3">
-              <Badge className="bg-white/10 text-muted-foreground">Acesso restrito</Badge>
+              <Badge className="bg-card/80 text-muted-foreground">Acesso restrito</Badge>
               {currentUser ? (
                 <Button
                   variant="outline"
-                  className="border-white/15 bg-white/5 px-4 text-muted-foreground hover:text-foreground"
+                  className="border-border/70 bg-card/60 px-4 text-muted-foreground hover:text-foreground"
                   onClick={handleExportReport}
                 >
-                  Exportar relat√≥rio
+                  Exportar relatÛrio
                 </Button>
               ) : (
                 <Link to="/login">
                   <Button
                     variant="outline"
-                    className="border-white/15 bg-white/5 px-4 text-muted-foreground hover:text-foreground"
+                    className="border-border/70 bg-card/60 px-4 text-muted-foreground hover:text-foreground"
                   >
                     Fazer login
                   </Button>
@@ -431,43 +431,43 @@ const Dashboard = () => {
 
           <div className="mt-10 grid gap-4 md:grid-cols-2 lg:grid-cols-4">
             <div
-              className="rounded-2xl border border-white/10 bg-linear-to-br from-white/5 to-white/0 p-5 animate-slide-up opacity-0"
+              className="rounded-2xl border border-border/60 bg-linear-to-br from-card/70 to-background/60 p-5 animate-slide-up opacity-0"
               style={{ animationDelay: "0ms" }}
             >
               <p className="text-sm text-muted-foreground">Projetos cadastrados</p>
               <div className="mt-3 text-2xl font-semibold">{totalProjects}</div>
-              <p className="mt-2 text-xs text-muted-foreground">Cat√°logo completo do site.</p>
+              <p className="mt-2 text-xs text-muted-foreground">Cat·logo completo do site.</p>
             </div>
             <div
-              className="rounded-2xl border border-white/10 bg-linear-to-br from-white/5 to-white/0 p-5 animate-slide-up opacity-0"
+              className="rounded-2xl border border-border/60 bg-linear-to-br from-card/70 to-background/60 p-5 animate-slide-up opacity-0"
               style={{ animationDelay: "80ms" }}
             >
-              <p className="text-sm text-muted-foreground">M√≠dias dispon√≠veis</p>
+              <p className="text-sm text-muted-foreground">MÌdias disponÌveis</p>
               <div className="mt-3 text-2xl font-semibold">{totalMedia}</div>
               <p className="mt-2 text-xs text-muted-foreground">Downloads ativos nos projetos.</p>
             </div>
             <div
-              className="rounded-2xl border border-white/10 bg-linear-to-br from-white/5 to-white/0 p-5 animate-slide-up opacity-0"
+              className="rounded-2xl border border-border/60 bg-linear-to-br from-card/70 to-background/60 p-5 animate-slide-up opacity-0"
               style={{ animationDelay: "160ms" }}
             >
               <p className="text-sm text-muted-foreground">Projetos ativos</p>
               <div className="mt-3 text-2xl font-semibold">{activeProjects}</div>
-              <p className="mt-2 text-xs text-muted-foreground">Em andamento ou produ√ß√£o.</p>
+              <p className="mt-2 text-xs text-muted-foreground">Em andamento ou produÁ„o.</p>
             </div>
             <div
-              className="rounded-2xl border border-white/10 bg-linear-to-br from-white/5 to-white/0 p-5 animate-slide-up opacity-0"
+              className="rounded-2xl border border-border/60 bg-linear-to-br from-card/70 to-background/60 p-5 animate-slide-up opacity-0"
               style={{ animationDelay: "240ms" }}
             >
               <p className="text-sm text-muted-foreground">Projetos finalizados</p>
               <div className="mt-3 text-2xl font-semibold">{finishedProjects}</div>
-              <p className="mt-2 text-xs text-muted-foreground">Completo ou lan√ßado.</p>
+              <p className="mt-2 text-xs text-muted-foreground">Completo ou lanÁado.</p>
             </div>
           </div>
 
           <section className="mt-10 grid gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] reveal" data-reveal>
             <div className="space-y-6">
               <div
-                className="rounded-3xl border border-white/10 bg-white/5 p-6 shadow-[0_20px_60px_-40px_rgba(0,0,0,0.8)] animate-slide-up opacity-0"
+                className="rounded-3xl border border-border/60 bg-card/60 p-6 shadow-[0_20px_60px_-40px_rgba(0,0,0,0.8)] animate-slide-up opacity-0"
                 style={{ animationDelay: "120ms" }}
               >
                 <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
@@ -476,7 +476,7 @@ const Dashboard = () => {
                     {hasAnalyticsData ? (
                       <div className="mt-3 flex items-center gap-3">
                         <span className="text-3xl font-semibold">{totalViewsLast7}</span>
-                        <Badge className="bg-white/10 text-muted-foreground">√öltimos 7 dias</Badge>
+                        <Badge className="bg-card/80 text-muted-foreground">⁄ltimos 7 dias</Badge>
                       </div>
                     ) : (
                       <p className="mt-3 text-sm text-muted-foreground">
@@ -485,13 +485,13 @@ const Dashboard = () => {
                     )}
                     {hasAnalyticsData ? (
                       <p className="mt-2 text-xs text-muted-foreground">
-                        {totalProjectViewsLast7} em projetos ‚Ä¢ {totalPostViewsLast7} em posts
+                        {totalProjectViewsLast7} em projetos ï {totalPostViewsLast7} em posts
                       </p>
                     ) : null}
                     <div className="mt-4">
                       <Button
                         variant="outline"
-                        className="border-white/15 bg-white/5 px-4 text-muted-foreground hover:text-foreground"
+                        className="border-border/70 bg-card/60 px-4 text-muted-foreground hover:text-foreground"
                         asChild
                       >
                         <Link to={analyticsAllHref}>Ver analytics completos</Link>
@@ -499,7 +499,7 @@ const Dashboard = () => {
                     </div>
                   </div>
                   <div className="w-full max-w-xs">
-                    <div className="h-32 rounded-2xl border border-white/10 bg-linear-to-br from-white/5 to-white/0 p-4">
+                    <div className="h-32 rounded-2xl border border-border/60 bg-linear-to-br from-card/70 to-background/60 p-4">
                       {hasAnalyticsData ? (
                         <svg viewBox="0 0 100 40" className="h-full w-full">
                           <defs>
@@ -520,7 +520,7 @@ const Dashboard = () => {
                         </svg>
                       ) : (
                         <div className="flex h-full flex-col items-center justify-center text-center text-xs text-muted-foreground">
-                          <span>Gr√°fico indispon√≠vel</span>
+                          <span>Gr·fico indisponÌvel</span>
                           <span>Sem dados de projetos ainda</span>
                         </div>
                       )}
@@ -530,7 +530,7 @@ const Dashboard = () => {
               </div>
 
               <div
-                className="rounded-3xl border border-white/10 bg-white/5 p-6 animate-slide-up opacity-0"
+                className="rounded-3xl border border-border/60 bg-card/60 p-6 animate-slide-up opacity-0"
                 style={{ animationDelay: "200ms" }}
               >
                 <div className="flex items-center justify-between">
@@ -540,7 +540,7 @@ const Dashboard = () => {
                   </div>
                   <Button
                     variant="outline"
-                    className="border-white/15 bg-white/5 px-4 text-muted-foreground hover:text-foreground"
+                    className="border-border/70 bg-card/60 px-4 text-muted-foreground hover:text-foreground"
                     asChild
                   >
                     <Link to={analyticsProjectHref}>Ver analytics de projetos</Link>
@@ -552,44 +552,44 @@ const Dashboard = () => {
                       <Link
                         key={project.id}
                         to={`/projeto/${project.id}`}
-                        className="block rounded-2xl border border-white/10 bg-white/5 p-4 transition hover:border-primary/40 hover:bg-primary/5"
+                        className="block rounded-2xl border border-border/60 bg-card/60 p-4 transition hover:border-primary/40 hover:bg-primary/5"
                       >
                         <div className="flex items-center justify-between">
                           <span className="text-sm font-medium">{project.title}</span>
                           <div className="flex items-center gap-3 text-sm text-muted-foreground">
                             <span>{project.views} acessos</span>
-                            <Badge className="bg-white/10 text-muted-foreground">{project.status}</Badge>
+                            <Badge className="bg-card/80 text-muted-foreground">{project.status}</Badge>
                           </div>
                         </div>
                       </Link>
                     ))}
                   </div>
                 ) : (
-                  <div className="mt-6 rounded-2xl border border-dashed border-white/10 bg-white/5 px-4 py-8 text-center text-sm text-muted-foreground">
+                  <div className="mt-6 rounded-2xl border border-dashed border-border/60 bg-card/60 px-4 py-8 text-center text-sm text-muted-foreground">
                     Conecte o backend de analytics para ver o ranking de acesso por projeto.
                   </div>
                 )}
               </div>
 
               <div
-                className="rounded-3xl border border-white/10 bg-white/5 p-6 animate-slide-up opacity-0"
+                className="rounded-3xl border border-border/60 bg-card/60 p-6 animate-slide-up opacity-0"
                 style={{ animationDelay: "280ms" }}
               >
                 <div className="flex items-center justify-between">
                   <div>
                     <h2 className="text-lg font-semibold">Posts mais recentes</h2>
-                    <p className="text-sm text-muted-foreground">Publica√ß√µes e visualiza√ß√µes</p>
+                    <p className="text-sm text-muted-foreground">PublicaÁıes e visualizaÁıes</p>
                   </div>
                   <Button
                     variant="outline"
-                    className="border-white/15 bg-white/5 px-4 text-muted-foreground hover:text-foreground"
+                    className="border-border/70 bg-card/60 px-4 text-muted-foreground hover:text-foreground"
                     asChild
                   >
                     <Link to={analyticsPostHref}>Ver analytics de posts</Link>
                   </Button>
                 </div>
                 {recentPosts.length === 0 ? (
-                  <div className="mt-6 rounded-2xl border border-dashed border-white/10 bg-white/5 px-4 py-8 text-center text-sm text-muted-foreground">
+                  <div className="mt-6 rounded-2xl border border-dashed border-border/60 bg-card/60 px-4 py-8 text-center text-sm text-muted-foreground">
                     Nenhum post publicado ainda.
                   </div>
                 ) : (
@@ -598,7 +598,7 @@ const Dashboard = () => {
                       <Link
                         key={post.id}
                         to={`/postagem/${post.slug}`}
-                        className="flex flex-col gap-3 rounded-2xl border border-white/10 bg-white/5 p-4 transition hover:border-primary/40 hover:bg-primary/5 md:flex-row md:items-center md:justify-between"
+                        className="flex flex-col gap-3 rounded-2xl border border-border/60 bg-card/60 p-4 transition hover:border-primary/40 hover:bg-primary/5 md:flex-row md:items-center md:justify-between"
                       >
                         <div>
                           <p className="font-medium">{post.title}</p>
@@ -606,9 +606,9 @@ const Dashboard = () => {
                         </div>
                         <div className="flex items-center gap-3 text-sm">
                           <span className="text-muted-foreground">
-                            {post.views} visualiza√ß√µes
+                            {post.views} visualizaÁıes
                           </span>
-                          <Badge className="bg-white/10 text-muted-foreground">
+                          <Badge className="bg-card/80 text-muted-foreground">
                             {formatDateTime(post.updatedAt || post.publishedAt)}
                           </Badge>
                         </div>
@@ -621,21 +621,21 @@ const Dashboard = () => {
 
             <aside className="space-y-6">
               <div
-                className="rounded-3xl border border-white/10 bg-white/5 p-6 animate-slide-up opacity-0"
+                className="rounded-3xl border border-border/60 bg-card/60 p-6 animate-slide-up opacity-0"
                 style={{ animationDelay: "360ms" }}
               >
                 <div className="flex items-center justify-between">
                   <div>
-                    <h2 className="text-lg font-semibold">Coment√°rios recentes</h2>
-                    <p className="text-sm text-muted-foreground">Sistema por p√°gina</p>
+                    <h2 className="text-lg font-semibold">Coment·rios recentes</h2>
+                    <p className="text-sm text-muted-foreground">Sistema por p·gina</p>
                   </div>
-                  <Badge className="bg-white/10 text-muted-foreground">
+                  <Badge className="bg-card/80 text-muted-foreground">
                     {pendingCommentsCount} pendentes
                   </Badge>
                 </div>
                 {recentComments.length === 0 ? (
-                  <div className="mt-6 rounded-2xl border border-dashed border-white/10 bg-white/5 px-4 py-8 text-center text-sm text-muted-foreground">
-                    Nenhum coment√°rio registrado ainda.
+                  <div className="mt-6 rounded-2xl border border-dashed border-border/60 bg-card/60 px-4 py-8 text-center text-sm text-muted-foreground">
+                    Nenhum coment·rio registrado ainda.
                   </div>
                 ) : (
                   <div className="mt-6 space-y-4">
@@ -643,7 +643,7 @@ const Dashboard = () => {
                       <a
                         key={comment.id}
                         href={comment.url}
-                        className="block rounded-2xl border border-white/10 bg-white/5 p-4 transition hover:border-primary/40 hover:bg-primary/5"
+                        className="block rounded-2xl border border-border/60 bg-card/60 p-4 transition hover:border-primary/40 hover:bg-primary/5"
                       >
                         <div className="flex items-center justify-between text-xs text-muted-foreground">
                           <span>{comment.author}</span>
@@ -658,26 +658,26 @@ const Dashboard = () => {
               </div>
 
               <div
-                className="rounded-3xl border border-white/10 bg-white/5 p-6 overflow-hidden animate-slide-up opacity-0"
+                className="rounded-3xl border border-border/60 bg-card/60 p-6 overflow-hidden animate-slide-up opacity-0"
                 style={{ animationDelay: "440ms" }}
               >
                 <h2 className="text-lg font-semibold">Projetos cadastrados</h2>
-                <p className="text-sm text-muted-foreground">Acesso r√°pido ao cat√°logo.</p>
+                <p className="text-sm text-muted-foreground">Acesso r·pido ao cat·logo.</p>
                 <div className="mt-5 space-y-3">
                   {projects.slice(0, 3).map((project) => (
                     <Link
                       key={project.id}
                       to={`/projeto/${project.id}`}
-                      className="flex items-center justify-between rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm transition hover:border-primary/40 hover:bg-primary/5"
+                      className="flex items-center justify-between rounded-2xl border border-border/60 bg-card/60 px-4 py-3 text-sm transition hover:border-primary/40 hover:bg-primary/5"
                     >
                       <span className="font-medium">{project.title}</span>
-                      <Badge className="bg-white/10 text-muted-foreground">{project.status}</Badge>
+                      <Badge className="bg-card/80 text-muted-foreground">{project.status}</Badge>
                     </Link>
                   ))}
                   {projects.length > 3 && (
                     <Link
                       to="/projetos"
-                      className="block w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-center text-sm text-muted-foreground transition hover:border-primary/40 hover:bg-primary/5 hover:text-foreground"
+                      className="block w-full rounded-xl border border-border/60 bg-card/60 px-4 py-3 text-center text-sm text-muted-foreground transition hover:border-primary/40 hover:bg-primary/5 hover:text-foreground"
                     >
                       Ver todos os projetos
                     </Link>
@@ -693,4 +693,5 @@ const Dashboard = () => {
 };
 
 export default Dashboard;
+
 

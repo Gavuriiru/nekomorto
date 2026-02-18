@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
 import { useLayoutEffect } from "react";
 import { SiteSettingsProvider } from "@/hooks/site-settings-provider";
+import { ThemeModeProvider } from "@/hooks/theme-mode-provider";
 import { useReveal } from "@/hooks/use-reveal";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
@@ -153,13 +154,15 @@ const App = ({
 }) => (
   <QueryClientProvider client={queryClient}>
     <SiteSettingsProvider initialSettings={initialSettings} initiallyLoaded={initiallyLoaded}>
-      <TooltipProvider>
-        <Sonner />
-        <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
-          <ScrollToTop />
-          <RouterShell />
-        </BrowserRouter>
-      </TooltipProvider>
+      <ThemeModeProvider>
+        <TooltipProvider>
+          <Sonner />
+          <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+            <ScrollToTop />
+            <RouterShell />
+          </BrowserRouter>
+        </TooltipProvider>
+      </ThemeModeProvider>
     </SiteSettingsProvider>
   </QueryClientProvider>
 );

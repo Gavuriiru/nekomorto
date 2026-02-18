@@ -176,6 +176,26 @@ describe("DashboardSettings autosave", () => {
     expect(putCalls[0][1]).toBe("/api/settings");
   });
 
+  it("envia theme.mode no payload de configuracoes", async () => {
+    render(<DashboardSettings />);
+    await screen.findByRole("heading", { name: /Painel/i });
+
+    apiFetchMock.mockClear();
+    const communityCardTitleInput = await screen.findByLabelText(/Titulo do card/i);
+    fireEvent.change(communityCardTitleInput, { target: { value: "Tema no payload" } });
+
+    await act(async () => {
+      await waitMs(1300);
+      await flushMicrotasks();
+    });
+
+    const putCalls = getPutCalls();
+    expect(putCalls).toHaveLength(1);
+    expect(putCalls[0][1]).toBe("/api/settings");
+    const payload = JSON.parse(String(((putCalls[0][2] || {}) as RequestInit).body || "{}"));
+    expect(payload?.settings?.theme?.mode).toBe("dark");
+  });
+
   it("editar traduÃ§Ã£o dispara apenas PUT /api/tag-translations", async () => {
     render(<DashboardSettings />);
     await screen.findByRole("heading", { name: /Painel/i });

@@ -9,6 +9,7 @@ export type SiteSettings = {
   };
   theme: {
     accent: string;
+    mode: "dark" | "light";
   };
   navbar: {
     links: Array<{

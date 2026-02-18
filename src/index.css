@@ -30,6 +30,7 @@
 
 @layer base {
   :root {
+    color-scheme: dark;
     --background: 220 12% 7%;
     --foreground: 0 0% 100%;
 
@@ -85,8 +86,62 @@
   }
 
   .dark {
+    color-scheme: dark;
     --background: 220 12% 7%;
     --foreground: 0 0% 100%;
+  }
+
+  :root[data-theme-mode="light"] {
+    color-scheme: light;
+    --background: 210 33% 98%;
+    --foreground: 224 41% 12%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 224 41% 12%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 224 41% 12%;
+
+    --primary: 263 66% 56%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 212 40% 95%;
+    --secondary-foreground: 224 41% 16%;
+
+    --muted: 212 30% 92%;
+    --muted-foreground: 220 18% 42%;
+
+    --accent: 266 72% 94%;
+    --accent-foreground: 224 41% 14%;
+
+    --destructive: 0 76% 52%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 216 24% 84%;
+    --input: 216 24% 90%;
+    --ring: 263 66% 56%;
+
+    --gradient-hero: linear-gradient(180deg, hsl(210 33% 98% / 0.35) 0%, hsl(210 33% 98% / 0.97) 100%);
+    --gradient-rainbow: linear-gradient(135deg,
+      hsl(0 80% 56%) 0%,
+      hsl(30 84% 56%) 14%,
+      hsl(60 82% 50%) 28%,
+      hsl(120 68% 44%) 42%,
+      hsl(180 64% 44%) 56%,
+      hsl(240 72% 56%) 70%,
+      hsl(280 72% 58%) 84%,
+      hsl(320 76% 58%) 100%
+    );
+    --gradient-card: linear-gradient(135deg, hsl(0 0% 100%) 0%, hsl(212 36% 94%) 100%);
+
+    --sidebar-background: 212 50% 96%;
+    --sidebar-foreground: 224 41% 12%;
+    --sidebar-primary: 263 66% 56%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 212 36% 91%;
+    --sidebar-accent-foreground: 224 41% 12%;
+    --sidebar-border: 216 24% 82%;
+    --sidebar-ring: 263 66% 56%;
   }
 }
 

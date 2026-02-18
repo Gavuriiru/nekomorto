@@ -1,4 +1,4 @@
-ï»¿import { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { usePageMeta } from "@/hooks/use-page-meta";
 import { useSiteSettings } from "@/hooks/use-site-settings";
 import { Button } from "@/components/ui/button";
@@ -39,31 +39,31 @@ const defaultRecruitment = {
   heroBadge: "Recrutamento",
   heroTitle: "Venha fazer parte da equipe",
   heroSubtitle:
-    "Buscamos pessoas comprometidas e curiosas. Se vocÃª gosta de traduÃ§Ãµes, ediÃ§Ã£o ou produÃ§Ã£o visual, hÃ¡ um lugar para vocÃª aqui.",
+    "Buscamos pessoas comprometidas e curiosas. Se você gosta de traduções, edição ou produção visual, há um lugar para você aqui.",
   roles: [
     {
       title: "Tradutor",
-      description: "Adapta o texto original para portuguÃªs mantendo tom, contexto e naturalidade.",
+      description: "Adapta o texto original para português mantendo tom, contexto e naturalidade.",
       icon: "Languages",
     },
     {
       title: "Revisor",
-      description: "Garante coerÃªncia, gramÃ¡tica e fluidez do texto antes da etapa visual.",
+      description: "Garante coerência, gramática e fluidez do texto antes da etapa visual.",
       icon: "ScanText",
     },
     {
       title: "Typesetter",
-      description: "Integra o texto Ã  arte, ajustando tipografia, efeitos e legibilidade.",
+      description: "Integra o texto à arte, ajustando tipografia, efeitos e legibilidade.",
       icon: "PenTool",
     },
     {
       title: "Quality Check",
-      description: "Revisa o resultado final buscando erros visuais, timing e consistÃªncia.",
+      description: "Revisa o resultado final buscando erros visuais, timing e consistência.",
       icon: "ShieldCheck",
     },
     {
       title: "Encoder",
-      description: "ResponsÃ¡vel por exportaÃ§Ã£o e ajustes finais de qualidade do vÃ­deo/arquivo.",
+      description: "Responsável por exportação e ajustes finais de qualidade do vídeo/arquivo.",
       icon: "Video",
     },
     {
@@ -73,17 +73,17 @@ const defaultRecruitment = {
     },
     {
       title: "Redrawer",
-      description: "ReconstrÃ³i partes da arte removidas pelo cleaning para preservar o visual.",
+      description: "Reconstrói partes da arte removidas pelo cleaning para preservar o visual.",
       icon: "Layers",
     },
     {
       title: "Timer",
-      description: "Sincroniza falas com o tempo, garantindo leitura confortÃ¡vel e precisa.",
+      description: "Sincroniza falas com o tempo, garantindo leitura confortável e precisa.",
       icon: "Timer",
     },
     {
       title: "Karaoke/FX",
-      description: "Cria efeitos especiais e animaÃ§Ãµes para openings/endings quando necessÃ¡rio.",
+      description: "Cria efeitos especiais e animações para openings/endings quando necessário.",
       icon: "Sparkles",
     },
   ] as RecruitmentRole[],
@@ -163,7 +163,7 @@ const Recruitment = () => {
                 >
                   <CardContent className="space-y-3 p-5">
                     <div className="flex items-center gap-3">
-                      <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/5 text-primary transition-all duration-300 group-hover:scale-105 group-hover:bg-primary/15">
+                      <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-card/60 text-primary transition-all duration-300 group-hover:scale-105 group-hover:bg-primary/15">
                         <Icon className="h-5 w-5" />
                       </span>
                       <h2 className="text-base font-semibold text-foreground transition-colors duration-300 group-hover:text-primary">
@@ -211,6 +211,7 @@ const Recruitment = () => {
 };
 
 export default Recruitment;
+
 
 
 

@@ -23,6 +23,32 @@
     <link rel="icon" href="/favicon.ico" />
     <script>
       (function () {
+        var THEME_STORAGE_KEY = "nekomata:theme-mode-preference";
+        var normalizeThemeMode = function (value) {
+          return String(value || "").toLowerCase() === "light" ? "light" : "dark";
+        };
+        var applyThemeMode = function (mode) {
+          var resolved = normalizeThemeMode(mode);
+          var root = document.documentElement;
+          root.dataset.themeMode = resolved;
+          root.style.colorScheme = resolved;
+          if (resolved === "dark") {
+            root.classList.add("dark");
+            return;
+          }
+          root.classList.remove("dark");
+        };
+        var readLocalThemePreference = function () {
+          try {
+            var value = window.localStorage.getItem(THEME_STORAGE_KEY);
+            if (value === "light" || value === "dark") {
+              return value;
+            }
+          } catch (error) {
+            // ignore localStorage failures
+          }
+          return "global";
+        };
         var getApiBase = function () {
           var envBase = window.__VITE_API_BASE__;
           if (typeof envBase === "string" && envBase.trim()) {
@@ -34,6 +60,12 @@
           }
           return "http://127.0.0.1:8080";
         };
+        var localThemePreference = readLocalThemePreference();
+        if (localThemePreference === "light" || localThemePreference === "dark") {
+          applyThemeMode(localThemePreference);
+        } else {
+          applyThemeMode("dark");
+        }
         fetch(getApiBase() + "/api/public/settings")
           .then(function (res) {
             return res.ok ? res.json() : null;
@@ -44,6 +76,11 @@
             var name = (data.settings.site && data.settings.site.name) || "";
             if (name) {
               document.title = name;
+            }
+            if (localThemePreference === "global") {
+              var globalMode =
+                data.settings && data.settings.theme ? data.settings.theme.mode : "dark";
+              applyThemeMode(globalMode);
             }
           })
           .catch(function () {});

@@ -157,7 +157,7 @@ const ReleasesSection = () => {
             {isLoadingPosts ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
                 {Array.from({ length: 4 }).map((_, index) => (
-                  <div key={`release-skeleton-${index}`} className="rounded-2xl border border-white/10 bg-white/5 p-5">
+                  <div key={`release-skeleton-${index}`} className="rounded-2xl border border-border/60 bg-card/60 p-5">
                     <Skeleton className="aspect-3/2 w-full rounded-lg" />
                     <Skeleton className="mt-4 h-4 w-3/4" />
                     <Skeleton className="mt-2 h-3 w-full" />
@@ -166,7 +166,7 @@ const ReleasesSection = () => {
                 ))}
               </div>
             ) : pagedReleases.length === 0 ? (
-              <div className="rounded-2xl border border-dashed border-white/10 bg-white/5 px-6 py-10 text-sm text-muted-foreground">
+              <div className="rounded-2xl border border-dashed border-border/60 bg-card/60 px-6 py-10 text-sm text-muted-foreground">
                 Nenhuma postagem publicada ainda.
               </div>
             ) : (
@@ -296,6 +296,7 @@ const ReleasesSection = () => {
 };
 
 export default ReleasesSection;
+
 
 
 

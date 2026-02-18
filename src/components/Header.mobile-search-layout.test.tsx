@@ -9,6 +9,7 @@ import type { SiteSettings } from "@/types/site-settings";
 const apiFetchMock = vi.hoisted(() => vi.fn());
 const useSiteSettingsMock = vi.hoisted(() => vi.fn());
 const toastMock = vi.hoisted(() => vi.fn());
+const setThemePreferenceMock = vi.hoisted(() => vi.fn());
 
 vi.mock("@/lib/api-base", () => ({
   getApiBase: () => "http://api.local",
@@ -24,6 +25,16 @@ vi.mock("@/components/ui/use-toast", () => ({
 
 vi.mock("@/hooks/use-site-settings", () => ({
   useSiteSettings: () => useSiteSettingsMock(),
+}));
+
+vi.mock("@/hooks/use-theme-mode", () => ({
+  useThemeMode: () => ({
+    globalMode: "dark",
+    effectiveMode: "dark",
+    preference: "global",
+    isOverridden: false,
+    setPreference: setThemePreferenceMock,
+  }),
 }));
 
 vi.mock("@/hooks/use-dynamic-synopsis-clamp", () => ({
@@ -97,6 +108,7 @@ describe("Header mobile search layout", () => {
   beforeEach(() => {
     setupApiMock();
     toastMock.mockReset();
+    setThemePreferenceMock.mockReset();
     useSiteSettingsMock.mockReset();
     useSiteSettingsMock.mockReturnValue({
       settings: createSettings(),
@@ -205,6 +217,17 @@ describe("Header mobile search layout", () => {
     expect(classTokens(userName)).toContain("hidden");
     expect(classTokens(userName)).toContain("lg:inline");
     expect(classTokens(userName)).not.toContain("md:inline");
+  });
+
+  it("renderiza seletor de tema no header", async () => {
+    render(
+      <MemoryRouter initialEntries={["/"]}>
+        <Header />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByRole("button", { name: /Alterar tema/i })).toBeInTheDocument();
+    expect(setThemePreferenceMock).not.toHaveBeenCalled();
   });
 
   it("nÃ£o redireciona e exibe toast quando logout falha", async () => {

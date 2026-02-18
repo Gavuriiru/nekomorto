@@ -1,14 +1,14 @@
-import { useTheme } from "next-themes";
 import { Toaster as Sonner } from "sonner";
+import { useThemeMode } from "@/hooks/use-theme-mode";
 
 type ToasterProps = React.ComponentProps<typeof Sonner>;
 
 const Toaster = ({ ...props }: ToasterProps) => {
-  const { theme = "system" } = useTheme();
+  const { effectiveMode } = useThemeMode();
 
   return (
     <Sonner
-      theme={theme as ToasterProps["theme"]}
+      theme={effectiveMode}
       closeButton
       richColors
       duration={4200}

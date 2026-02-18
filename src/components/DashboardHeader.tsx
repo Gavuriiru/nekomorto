@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { LogOut, Menu } from "lucide-react";
 import ThemedSvgLogo from "@/components/ThemedSvgLogo";
+import ThemeModeSwitcher from "@/components/ThemeModeSwitcher";
 import { dashboardMenuItems as defaultMenuItems, type DashboardMenuItem } from "@/components/dashboard-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -88,8 +89,8 @@ const DashboardHeader = ({
       : [];
   }, [settings.navbar.links]);
   const headerMenuContentClass =
-    "border-white/25 bg-linear-to-b from-black/40 via-black/25 to-black/10 text-white/90 shadow-xl backdrop-blur-xs";
-  const headerMenuItemClass = "focus:bg-white/10 focus:text-white";
+    "border-border/70 bg-popover/95 text-popover-foreground shadow-xl backdrop-blur-xs";
+  const headerMenuItemClass = "focus:bg-accent focus:text-accent-foreground";
   const isInternalHref = (href: string) => href.startsWith("/") && !href.startsWith("//");
   const normalizePathname = (value: string) => {
     const pathname = value.split(/[?#]/, 1)[0] || "/";
@@ -296,11 +297,11 @@ const DashboardHeader = ({
               : "opacity-100 visible pointer-events-auto",
           )}
         >
-          <SidebarTrigger className="h-9 w-9 rounded-lg border border-white/15 bg-white/5 text-white/80 hover:bg-white/10 hover:text-white" />
+          <SidebarTrigger className="h-9 w-9 rounded-lg border border-border/60 bg-card/60 text-foreground/80 hover:bg-accent hover:text-accent-foreground" />
           <Link
             to="/dashboard"
             data-testid="dashboard-header-mobile-logo"
-            className="flex h-9 w-9 items-center justify-center rounded-lg border border-white/10 bg-white/5 text-white/85 transition hover:bg-white/10 xl:hidden"
+            className="flex h-9 w-9 items-center justify-center rounded-lg border border-border/60 bg-card/60 text-foreground/85 transition hover:bg-accent xl:hidden"
           >
             {logoUrl ? (
               <ThemedSvgLogo
@@ -309,7 +310,7 @@ const DashboardHeader = ({
                 className="h-6 w-6 rounded-full object-cover text-primary"
               />
             ) : (
-              <span className="flex h-6 w-6 items-center justify-center rounded-full border border-white/15 bg-white/10 text-[11px] font-semibold">
+              <span className="flex h-6 w-6 items-center justify-center rounded-full border border-border/70 bg-card/70 text-[11px] font-semibold">
                 {siteName.slice(0, 1)}
               </span>
             )}
@@ -317,7 +318,7 @@ const DashboardHeader = ({
           </Link>
           <Link
             to="/dashboard"
-            className="hidden items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-2.5 py-1.5 text-white/85 transition hover:bg-white/10 xl:flex"
+            className="hidden items-center gap-2 rounded-lg border border-border/60 bg-card/60 px-2.5 py-1.5 text-foreground/85 transition hover:bg-accent xl:flex"
           >
             {logoUrl ? (
               <ThemedSvgLogo
@@ -326,7 +327,7 @@ const DashboardHeader = ({
                 className="h-6 w-6 rounded-full object-cover text-primary"
               />
             ) : (
-              <span className="flex h-6 w-6 items-center justify-center rounded-full border border-white/15 bg-white/10 text-[11px] font-semibold">
+              <span className="flex h-6 w-6 items-center justify-center rounded-full border border-border/70 bg-card/70 text-[11px] font-semibold">
                 {siteName.slice(0, 1)}
               </span>
             )}
@@ -335,20 +336,20 @@ const DashboardHeader = ({
             </span>
           </Link>
           <div className="min-w-0 hidden lg:block">
-            <p className="text-[10px] uppercase tracking-[0.28em] text-white/50">Painel interno</p>
-            <p className="truncate text-sm font-semibold text-white">
+            <p className="text-[10px] uppercase tracking-[0.28em] text-muted-foreground">Painel interno</p>
+            <p className="truncate text-sm font-semibold text-foreground">
               {activeMenuItem?.label || "Dashboard"}
             </p>
           </div>
         </div>
 
         <div className="flex shrink-0 items-center gap-2 sm:gap-3 lg:gap-4">
-          <div className="hidden 2xl:flex items-center gap-5 text-sm font-medium text-white/80">
+          <div className="hidden 2xl:flex items-center gap-5 text-sm font-medium text-foreground/80">
             {navbarLinks.map((item) => {
               const isInternal = isInternalHref(item.href);
               const isActive = isNavbarLinkActive(item.href);
               const className = `transition-colors ${
-                isActive ? "text-white font-semibold" : "text-white/80 hover:text-white"
+                isActive ? "text-foreground font-semibold" : "text-foreground/80 hover:text-foreground"
               }`;
               if (isInternal) {
                 return (
@@ -361,7 +362,7 @@ const DashboardHeader = ({
                 <a
                   key={`${item.label}-${item.href}`}
                   href={item.href}
-                  className="text-white/80 transition-colors hover:text-white"
+                  className="text-foreground/80 transition-colors hover:text-foreground"
                   target="_blank"
                   rel="noreferrer"
                 >
@@ -389,7 +390,7 @@ const DashboardHeader = ({
                 type="button"
                 aria-label="Abrir pesquisa"
                 onClick={() => setIsSearchOpen((prev) => !prev)}
-                className="text-white transition-colors hover:text-primary"
+                className="text-foreground transition-colors hover:text-primary"
               >
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
@@ -411,7 +412,7 @@ const DashboardHeader = ({
                   value={query}
                   onChange={(event) => setQuery(event.target.value)}
                   placeholder="Pesquisar projetos e posts"
-                  className="w-full bg-transparent text-sm text-white outline-hidden placeholder:text-white/60"
+                  className="w-full bg-transparent text-sm text-foreground outline-hidden placeholder:text-muted-foreground"
                 />
               )}
             </div>
@@ -513,12 +514,13 @@ const DashboardHeader = ({
             )}
           >
 
+            <ThemeModeSwitcher />
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-10 w-10 rounded-full border border-white/10 bg-white/5 text-white/80 hover:text-white 2xl:hidden"
+                  className="h-10 w-10 rounded-full border border-border/60 bg-card/50 text-foreground/85 hover:bg-accent hover:text-accent-foreground 2xl:hidden"
                   aria-label="Abrir menu"
                 >
                   <Menu className="h-5 w-5" />
@@ -550,27 +552,27 @@ const DashboardHeader = ({
               <DropdownMenuTrigger asChild>
                 <Button
                   variant="ghost"
-                  className="h-10 rounded-full border border-white/10 bg-white/5 px-2 text-white hover:bg-white/10"
+                  className="h-10 rounded-full border border-border/60 bg-card/50 px-2 text-foreground hover:bg-accent"
                 >
-                  <Avatar className="h-8 w-8 border border-white/20">
+                  <Avatar className="h-8 w-8 border border-border/70">
                     {currentUser?.avatarUrl ? <AvatarImage src={currentUser.avatarUrl} alt={userName} /> : null}
-                    <AvatarFallback className="bg-white/10 text-xs text-white">{userInitials}</AvatarFallback>
+                    <AvatarFallback className="bg-card/80 text-xs text-foreground">{userInitials}</AvatarFallback>
                   </Avatar>
-                  <span className="hidden max-w-40 truncate text-sm font-medium text-white xl:inline">
+                  <span className="hidden max-w-40 truncate text-sm font-medium text-foreground xl:inline">
                     {userName}
                   </span>
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent
                 align="end"
-                className="w-56 border-white/15 bg-sidebar/95 text-white shadow-xl backdrop-blur-xs"
+                className="w-56 border-border/70 bg-popover/95 text-popover-foreground shadow-xl backdrop-blur-xs"
               >
                 {menuItems
                   .filter((item) => item.enabled)
                   .map((item) => {
                     const ItemIcon = item.icon;
                     return (
-                      <DropdownMenuItem key={item.href} asChild className="focus:bg-white/10 focus:text-white">
+                      <DropdownMenuItem key={item.href} asChild className="focus:bg-accent focus:text-accent-foreground">
                         <Link to={item.href} className="flex items-center gap-2">
                           <ItemIcon className="h-4 w-4" />
                           {item.label}
@@ -578,11 +580,11 @@ const DashboardHeader = ({
                       </DropdownMenuItem>
                     );
                   })}
-                <DropdownMenuSeparator className="bg-white/10" />
+                <DropdownMenuSeparator className="bg-border/70" />
                 <DropdownMenuItem
                   onClick={handleLogout}
                   disabled={isLoggingOut}
-                  className="focus:bg-white/10 focus:text-white"
+                  className="focus:bg-accent focus:text-accent-foreground"
                 >
                   <LogOut className="h-4 w-4" />
                   {isLoggingOut ? "Saindo..." : "Sair"}

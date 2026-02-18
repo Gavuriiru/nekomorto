@@ -14,6 +14,7 @@ import {
 import { toast } from "@/components/ui/use-toast";
 import { LogOut, Menu } from "lucide-react";
 import ThemedSvgLogo from "@/components/ThemedSvgLogo";
+import ThemeModeSwitcher from "@/components/ThemeModeSwitcher";
 import { dashboardMenuItems } from "@/components/dashboard-menu";
 import type { Project } from "@/data/projects";
 import { cn } from "@/lib/utils";
@@ -83,8 +84,8 @@ const Header = ({ variant = "fixed", leading, className }: HeaderProps) => {
       : [];
   }, [settings.navbar.links]);
   const headerMenuContentClass =
-    "border-white/25 bg-linear-to-b from-black/40 via-black/25 to-black/10 text-white/90 shadow-xl backdrop-blur-xs";
-  const headerMenuItemClass = "focus:bg-white/10 focus:text-white";
+    "border-border/70 bg-popover/95 text-popover-foreground shadow-xl backdrop-blur-xs";
+  const headerMenuItemClass = "focus:bg-accent focus:text-accent-foreground";
   const isInternalHref = (href: string) => href.startsWith("/") && !href.startsWith("//");
   const normalizePathname = (value: string) => {
     const pathname = value.split(/[?#]/, 1)[0] || "/";
@@ -302,7 +303,7 @@ const Header = ({ variant = "fixed", leading, className }: HeaderProps) => {
   return (
     <header
       className={cn(
-        "left-0 right-0 px-6 py-4 text-white transition-all duration-300 md:px-12 after:pointer-events-none after:absolute after:inset-0 after:bg-linear-to-b after:from-black/25 after:via-black/10 after:to-transparent",
+        "left-0 right-0 px-6 py-4 text-foreground transition-all duration-300 md:px-12 after:pointer-events-none after:absolute after:inset-0 after:bg-linear-to-b after:from-background/70 after:via-background/25 after:to-transparent",
         variant === "fixed" ? "fixed top-0" : "relative",
         isScrolled && variant === "fixed" ? "bg-background/70 backdrop-blur-xl" : "bg-transparent",
         leading ? "z-10" : "z-50",
@@ -321,7 +322,7 @@ const Header = ({ variant = "fixed", leading, className }: HeaderProps) => {
           )}
         >
           {leading}
-          <Link to="/" className="flex items-center gap-3 text-2xl md:text-3xl font-black tracking-wider text-white">
+          <Link to="/" className="flex items-center gap-3 text-2xl md:text-3xl font-black tracking-wider text-foreground">
             {showWordmarkInNavbar ? (
               <>
                 <img
@@ -341,7 +342,7 @@ const Header = ({ variant = "fixed", leading, className }: HeaderProps) => {
                       className="h-9 w-9 rounded-full object-cover shadow-xs text-primary"
                     />
                   ) : (
-                    <span className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/20 bg-white/10 text-sm font-semibold">
+                    <span className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-border/70 bg-card/70 text-sm font-semibold">
                       {siteName.slice(0, 1)}
                     </span>
                   )
@@ -352,12 +353,12 @@ const Header = ({ variant = "fixed", leading, className }: HeaderProps) => {
           </Link>
         </div>
         <div className="flex shrink-0 items-center gap-3 md:gap-6">
-          <div className="hidden lg:flex items-center gap-6 text-sm font-medium text-white/80">
+          <div className="hidden lg:flex items-center gap-6 text-sm font-medium text-foreground/80">
             {navbarLinks.map((item) => {
               const isInternal = isInternalHref(item.href);
               const isActive = isNavbarLinkActive(item.href);
               const className = `transition-colors ${
-                isActive ? "text-white font-semibold" : "text-white/80 hover:text-white"
+                isActive ? "text-foreground font-semibold" : "text-foreground/80 hover:text-foreground"
               }`;
               if (isInternal) {
                 return (
@@ -370,7 +371,7 @@ const Header = ({ variant = "fixed", leading, className }: HeaderProps) => {
                 <a
                   key={`${item.label}-${item.href}`}
                   href={item.href}
-                  className="text-white/80 hover:text-white transition-colors"
+                  className="text-foreground/80 hover:text-foreground transition-colors"
                   target="_blank"
                   rel="noreferrer"
                 >
@@ -398,7 +399,7 @@ const Header = ({ variant = "fixed", leading, className }: HeaderProps) => {
                 type="button"
                 aria-label="Abrir pesquisa"
                 onClick={() => setIsSearchOpen((prev) => !prev)}
-                className="text-white transition-colors hover:text-primary"
+                className="text-foreground transition-colors hover:text-primary"
               >
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
@@ -420,7 +421,7 @@ const Header = ({ variant = "fixed", leading, className }: HeaderProps) => {
                   value={query}
                   onChange={(event) => setQuery(event.target.value)}
                   placeholder="Pesquisar projetos e posts"
-                  className="w-full bg-transparent text-sm text-white outline-hidden placeholder:text-white/60"
+                  className="w-full bg-transparent text-sm text-foreground outline-hidden placeholder:text-muted-foreground"
                 />
               )}
             </div>
@@ -522,12 +523,13 @@ const Header = ({ variant = "fixed", leading, className }: HeaderProps) => {
             )}
           >
 
+            <ThemeModeSwitcher />
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="lg:hidden h-10 w-10 rounded-full border border-white/10 bg-white/5 text-white/80 hover:text-white"
+                  className="lg:hidden h-10 w-10 rounded-full border border-border/60 bg-card/50 text-foreground/85 hover:bg-accent hover:text-accent-foreground"
                   aria-label="Abrir menu"
                 >
                   <Menu className="h-5 w-5" />
@@ -559,7 +561,7 @@ const Header = ({ variant = "fixed", leading, className }: HeaderProps) => {
               <DropdownMenu modal={false}>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" className="h-11 gap-2 rounded-full px-2">
-                    <Avatar className="h-8 w-8 border-0 shadow-[0_0_0_1px_rgba(255,255,255,0.08),0_2px_8px_rgba(0,0,0,0.18)]">
+                    <Avatar className="h-8 w-8 border border-border/70 shadow-[0_10px_24px_-18px_hsl(var(--foreground)/0.65)]">
                       {currentUser.avatarUrl ? (
                         <AvatarImage src={currentUser.avatarUrl} alt={currentUser.name} />
                       ) : null}
@@ -567,7 +569,7 @@ const Header = ({ variant = "fixed", leading, className }: HeaderProps) => {
                         {(currentUser.name || "").slice(0, 2).toUpperCase()}
                       </AvatarFallback>
                     </Avatar>
-                    <span className="hidden text-sm font-medium text-white lg:inline">
+                    <span className="hidden text-sm font-medium text-foreground lg:inline">
                       {currentUser.name || ""}
                     </span>
                   </Button>
@@ -585,7 +587,7 @@ const Header = ({ variant = "fixed", leading, className }: HeaderProps) => {
                         </DropdownMenuItem>
                       );
                     })}
-                  <DropdownMenuSeparator className="bg-white/10" />
+                  <DropdownMenuSeparator className="bg-border/70" />
                   <DropdownMenuItem
                     className={headerMenuItemClass}
                     onClick={handleLogout}

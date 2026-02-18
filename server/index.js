@@ -1851,6 +1851,7 @@ const defaultSiteSettings = {
   },
   theme: {
     accent: "#9667e0",
+    mode: "dark",
   },
   navbar: {
     links: [
@@ -2053,6 +2054,18 @@ const normalizeUploadsDeep = (value) => {
 
 const normalizeSiteSettings = (payload) => {
   const merged = fixMojibakeDeep(mergeSettings(defaultSiteSettings, payload || {}));
+  const normalizeThemeMode = (value) => {
+    const normalized = String(value || "").trim().toLowerCase();
+    return normalized === "light" ? "light" : "dark";
+  };
+  const accentValue =
+    String(merged?.theme?.accent || defaultSiteSettings.theme.accent || "").trim() ||
+    defaultSiteSettings.theme.accent;
+  merged.theme = {
+    ...(merged.theme || {}),
+    accent: accentValue,
+    mode: normalizeThemeMode(merged?.theme?.mode),
+  };
   const resolveNavbarIcon = (label, href, icon) => {
     const iconValue = String(icon || "").trim().toLowerCase();
     if (iconValue) {

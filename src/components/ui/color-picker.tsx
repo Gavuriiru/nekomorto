@@ -196,7 +196,7 @@ export const ColorPicker = ({
             ) : (
               <>
                 {showSwatch ? (
-                  <ColorSwatch className="h-5 w-5 rounded-md border border-white/20 shadow-inner" />
+                  <ColorSwatch className="h-5 w-5 rounded-md border border-border/70 shadow-inner" />
                 ) : null}
                 <span className="truncate">{label}</span>
               </>
@@ -210,3 +210,4 @@ export const ColorPicker = ({
     </AriaColorPicker>
   );
 };
+

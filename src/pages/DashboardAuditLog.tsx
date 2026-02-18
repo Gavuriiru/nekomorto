@@ -404,7 +404,7 @@ const DashboardAuditLog = () => {
           <section className="mx-auto w-full max-w-7xl px-6 pb-20 md:px-10">
             <header className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
               <div>
-                <div className="inline-flex items-center gap-3 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs uppercase tracking-[0.3em] text-muted-foreground animate-fade-in">
+                <div className="inline-flex items-center gap-3 rounded-full border border-border/60 bg-card/60 px-4 py-2 text-xs uppercase tracking-[0.3em] text-muted-foreground animate-fade-in">
                   Audit Log
                 </div>
                 <h1 className="mt-4 text-3xl font-semibold lg:text-4xl animate-slide-up">Registro de Auditoria</h1>
@@ -413,7 +413,7 @@ const DashboardAuditLog = () => {
                 </p>
               </div>
               <div className="flex items-center gap-3 animate-slide-up opacity-0" style={{ animationDelay: "0.24s" }}>
-                <Badge className="bg-white/10 text-muted-foreground">{formattedTotal} eventos</Badge>
+                <Badge className="bg-card/80 text-muted-foreground">{formattedTotal} eventos</Badge>
                 <Button variant="outline" onClick={() => void handleExportCsv()} disabled={isExporting || forbidden}>
                   {isExporting ? "Exportando..." : "Exportar CSV"}
                 </Button>
@@ -423,7 +423,7 @@ const DashboardAuditLog = () => {
               </div>
             </header>
 
-            <div className="mt-8 rounded-2xl border border-white/10 bg-white/5 p-4 md:p-5 animate-slide-up opacity-0" style={{ animationDelay: "0.28s" }}>
+            <div className="mt-8 rounded-2xl border border-border/60 bg-card/60 p-4 md:p-5 animate-slide-up opacity-0" style={{ animationDelay: "0.28s" }}>
               <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
                 <div className="grid gap-2">
                   <Label htmlFor="audit-q">Busca</Label>
@@ -532,7 +532,7 @@ const DashboardAuditLog = () => {
               </div>
             </div>
 
-            <div className="mt-6 rounded-2xl border border-white/10 bg-white/5 p-2 md:p-4 animate-slide-up opacity-0" style={{ animationDelay: "0.32s" }}>
+            <div className="mt-6 rounded-2xl border border-border/60 bg-card/60 p-2 md:p-4 animate-slide-up opacity-0" style={{ animationDelay: "0.32s" }}>
               {forbidden ? (
                 <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-6 text-sm text-amber-100">
                   Acesso negado. Apenas o dono pode visualizar o audit log.
@@ -634,7 +634,7 @@ const DashboardAuditLog = () => {
           </DialogHeader>
           {selectedEntry ? (
             <div className="space-y-3">
-              <div className="grid gap-2 rounded-xl border border-white/10 bg-white/5 p-4 text-sm md:grid-cols-2">
+              <div className="grid gap-2 rounded-xl border border-border/60 bg-card/60 p-4 text-sm md:grid-cols-2">
                 <div>
                   <p className="text-muted-foreground">Ator</p>
                   <p>{selectedEntry.actorName} ({selectedEntry.actorId})</p>
@@ -652,7 +652,7 @@ const DashboardAuditLog = () => {
                   <Badge className={statusBadgeClass(selectedEntry.status)}>{selectedEntry.status}</Badge>
                 </div>
               </div>
-              <div className="rounded-xl border border-white/10 bg-black/30 p-4">
+              <div className="rounded-xl border border-border/60 bg-card/80 p-4">
                 <p className="mb-2 text-sm text-muted-foreground">Meta</p>
                 <pre className="max-h-[45vh] overflow-auto text-xs leading-relaxed text-foreground">
                   {JSON.stringify(selectedEntry.meta || {}, null, 2)}
@@ -667,3 +667,4 @@ const DashboardAuditLog = () => {
 };
 
 export default DashboardAuditLog;
+

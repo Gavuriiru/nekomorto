@@ -473,7 +473,7 @@ const ProjectPage = () => {
                     asChild
                     variant="outline"
                     size="sm"
-                    className="h-9 rounded-full bg-black/25 px-4 text-sm hover:bg-white/5"
+                    className="h-9 rounded-full bg-card/70 px-4 text-sm hover:bg-primary/10"
                     style={{ borderColor: `${color}99`, color }}
                   >
                     <a
@@ -582,8 +582,8 @@ const ProjectPage = () => {
             className="absolute inset-0 bg-cover bg-center"
             style={{ backgroundImage: `url(${project.banner})` }}
           />
-          <div className="absolute inset-0 bg-black/20 backdrop-blur-[2px]" />
-          <div className="absolute inset-0 bg-linear-to-t from-black/70 via-black/30 to-transparent" />
+          <div className="absolute inset-0 bg-background/30 backdrop-blur-[2px]" />
+          <div className="absolute inset-0 bg-linear-to-t from-background/85 via-background/45 to-transparent" />
 
           <div className="relative mx-auto flex min-h-[420px] w-full max-w-6xl flex-col items-center gap-8 px-6 pb-16 pt-24 md:flex-row md:items-center md:px-10 lg:min-h-[520px] reveal" data-reveal>
             <div className="mx-auto w-52 shrink-0 overflow-hidden rounded-2xl bg-secondary shadow-2xl animate-slide-up opacity-0 md:mx-0 md:w-64">
@@ -976,6 +976,8 @@ const ProjectPage = () => {
 };
 
 export default ProjectPage;
+
+
 
 
 

@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+﻿import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -9,6 +9,7 @@ import type { SiteSettings } from "@/types/site-settings";
 const apiFetchMock = vi.hoisted(() => vi.fn());
 const useSiteSettingsMock = vi.hoisted(() => vi.fn());
 const toastMock = vi.hoisted(() => vi.fn());
+const setThemePreferenceMock = vi.hoisted(() => vi.fn());
 
 vi.mock("@/lib/api-base", () => ({
   getApiBase: () => "http://api.local",
@@ -24,6 +25,16 @@ vi.mock("@/components/ui/use-toast", () => ({
 
 vi.mock("@/hooks/use-site-settings", () => ({
   useSiteSettings: () => useSiteSettingsMock(),
+}));
+
+vi.mock("@/hooks/use-theme-mode", () => ({
+  useThemeMode: () => ({
+    globalMode: "dark",
+    effectiveMode: "dark",
+    preference: "global",
+    isOverridden: false,
+    setPreference: setThemePreferenceMock,
+  }),
 }));
 
 vi.mock("@/hooks/use-dynamic-synopsis-clamp", () => ({
@@ -95,6 +106,7 @@ describe("DashboardHeader mobile search layout", () => {
   beforeEach(() => {
     setupApiMock();
     toastMock.mockReset();
+    setThemePreferenceMock.mockReset();
     useSiteSettingsMock.mockReset();
     useSiteSettingsMock.mockReturnValue({
       settings: createSettings(),
@@ -192,7 +204,7 @@ describe("DashboardHeader mobile search layout", () => {
     expect(searchCluster.compareDocumentPosition(actionsCluster) & Node.DOCUMENT_POSITION_FOLLOWING).not.toBe(0);
   });
 
-  it("nÃ£o redireciona e exibe toast quando logout falha", async () => {
+  it("nÃƒÂ£o redireciona e exibe toast quando logout falha", async () => {
     setupApiMock({ logoutOk: false });
 
     render(
@@ -224,6 +236,22 @@ describe("DashboardHeader mobile search layout", () => {
         }),
       );
     });
+  });
+  it("renders theme switcher in dashboard header", async () => {
+    render(
+      <MemoryRouter initialEntries={["/dashboard"]}>
+        <DashboardHeader
+          currentUser={{
+            name: "Admin",
+            username: "admin",
+            avatarUrl: null,
+          }}
+        />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByRole("button", { name: /Alterar tema/i })).toBeInTheDocument();
+    expect(setThemePreferenceMock).not.toHaveBeenCalled();
   });
 });
 

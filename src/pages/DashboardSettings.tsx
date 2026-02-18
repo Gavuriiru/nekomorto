@@ -180,7 +180,7 @@ const logoEditorFields: Array<{
     label: "Símbolo da marca",
     description: "Ativo principal usado como base para logo da marca.",
     frameClassName: "h-16",
-    imageClassName: "h-10 w-10 rounded bg-black/10 object-contain",
+    imageClassName: "h-10 w-10 rounded bg-card/70 object-contain",
   },
   {
     target: "branding.assets.wordmarkUrl",
@@ -194,14 +194,14 @@ const logoEditorFields: Array<{
     label: "Favicon",
     description: "Ícone mostrado na aba do navegador.",
     frameClassName: "h-16",
-    imageClassName: "h-8 w-8 rounded bg-black/10 object-contain",
+    imageClassName: "h-8 w-8 rounded bg-card/70 object-contain",
   },
   {
     target: "site.defaultShareImage",
     label: "Imagem de compartilhamento",
     description: "Imagem padrão de cards sociais quando a página não define uma própria.",
     frameClassName: "h-20",
-    imageClassName: "h-full w-full rounded bg-black/10 object-cover",
+    imageClassName: "h-full w-full rounded bg-card/70 object-cover",
   },
   {
     target: "branding.overrides.navbarWordmarkUrl",
@@ -224,7 +224,7 @@ const logoEditorFields: Array<{
     label: "Override de símbolo da navbar",
     description: "Opcional. Se vazio, a navbar usa o símbolo principal.",
     frameClassName: "h-16",
-    imageClassName: "h-10 w-10 rounded bg-black/10 object-contain",
+    imageClassName: "h-10 w-10 rounded bg-card/70 object-contain",
     optional: true,
   },
   {
@@ -232,7 +232,7 @@ const logoEditorFields: Array<{
     label: "Override de símbolo do footer",
     description: "Opcional. Se vazio, o footer usa o símbolo principal.",
     frameClassName: "h-16",
-    imageClassName: "h-10 w-10 rounded bg-black/10 object-contain",
+    imageClassName: "h-10 w-10 rounded bg-card/70 object-contain",
     optional: true,
   },
 ];
@@ -1011,6 +1011,13 @@ const DashboardSettings = () => {
   const showWordmarkInFooterPreview = branding.footer.showWordmark;
   const showNavbarSymbolPreview = navbarMode === "symbol-text" || navbarMode === "symbol";
   const showNavbarTextPreview = navbarMode === "symbol-text" || navbarMode === "text";
+  const isNavbarPreviewLight = settings.theme.mode === "light";
+  const navbarPreviewShellClass = isNavbarPreviewLight
+    ? "border-border/70 bg-card/95 text-foreground"
+    : "border-border/70 bg-sidebar text-sidebar-foreground";
+  const navbarPreviewFallbackClass = isNavbarPreviewLight
+    ? "border-border/70 bg-card text-foreground"
+    : "border-border/70 bg-sidebar-accent/45 text-sidebar-foreground";
 
   const logoFieldState: Record<LogoLibraryTarget, { value: string; preview: string; status: string }> = {
     "branding.assets.symbolUrl": {
@@ -1118,7 +1125,7 @@ const DashboardSettings = () => {
           <section className="mx-auto w-full max-w-6xl px-6 pb-20 md:px-10">
             <div className="flex flex-wrap items-center justify-between gap-4">
               <div>
-                <div className="inline-flex items-center gap-3 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs uppercase tracking-[0.3em] text-muted-foreground animate-fade-in">
+                <div className="inline-flex items-center gap-3 rounded-full border border-border/60 bg-card/60 px-4 py-2 text-xs uppercase tracking-[0.3em] text-muted-foreground animate-fade-in">
                   Configurações
                 </div>
                 <h1 className="mt-4 text-3xl font-semibold text-foreground animate-slide-up">Painel de ajustes</h1>
@@ -1238,6 +1245,32 @@ const DashboardSettings = () => {
                         </div>
                         <p className="text-xs text-muted-foreground">
                           Atualiza a cor principal e o accent do site.
+                        </p>
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Tema padrão do site</Label>
+                        <Select
+                          value={settings.theme.mode || "dark"}
+                          onValueChange={(value) =>
+                            setSettings((prev) => ({
+                              ...prev,
+                              theme: {
+                                ...prev.theme,
+                                mode: value === "light" ? "light" : "dark",
+                              },
+                            }))
+                          }
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Selecione o tema padrão" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="dark">Escuro</SelectItem>
+                            <SelectItem value="light">Claro</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <p className="text-xs text-muted-foreground">
+                          Define o tema padrão global. Cada usuário pode sobrescrever no cabeçalho.
                         </p>
                       </div>
                     </div>
@@ -1489,7 +1522,7 @@ const DashboardSettings = () => {
                           <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
                             Prévia navbar
                           </p>
-                          <div className="mt-3 flex min-h-[68px] items-center gap-3 rounded-xl border border-white/10 bg-slate-950 px-4 py-3 text-white">
+                          <div className={`mt-3 flex min-h-[68px] items-center gap-3 rounded-xl border px-4 py-3 ${navbarPreviewShellClass}`}>
                             {showWordmarkInNavbarPreview ? (
                               <img
                                 src={resolvedNavbarWordmarkUrl}
@@ -1506,7 +1539,7 @@ const DashboardSettings = () => {
                                       className="h-9 w-9 rounded-full object-contain"
                                     />
                                   ) : (
-                                    <span className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/20 bg-white/10 text-xs font-semibold">
+                                    <span className={`inline-flex h-9 w-9 items-center justify-center rounded-full border text-xs font-semibold ${navbarPreviewFallbackClass}`}>
                                       {siteNamePreview.slice(0, 1).toUpperCase()}
                                     </span>
                                   )
@@ -1989,18 +2022,18 @@ const DashboardSettings = () => {
                                   <ThemedSvgLogo
                                     url={source.icon}
                                     label={`Ícone ${source.label}`}
-                                    className="h-6 w-6 rounded bg-white/90 p-1"
+                                    className="h-6 w-6 rounded bg-card/90 p-1"
                                     color={source.color}
                                   />
                                 ) : (
                                   <img
                                     src={source.icon}
                                     alt={`Ícone ${source.label}`}
-                                    className="h-6 w-6 rounded bg-white/90 p-1"
+                                    className="h-6 w-6 rounded bg-card/90 p-1"
                                   />
                                 )
                               ) : (
-                                <span className="inline-flex h-6 w-6 items-center justify-center rounded bg-white/10 text-[10px]">
+                                <span className="inline-flex h-6 w-6 items-center justify-center rounded bg-card/80 text-[10px]">
                                   SVG
                                 </span>
                               )}
@@ -2213,7 +2246,7 @@ const DashboardSettings = () => {
                                   className="h-6 w-6 text-primary"
                                 />
                               ) : (
-                                <span className="inline-flex h-6 w-6 items-center justify-center rounded bg-white/10 text-[10px]">
+                                <span className="inline-flex h-6 w-6 items-center justify-center rounded bg-card/80 text-[10px]">
                                   SVG
                                 </span>
                               )}
@@ -2765,6 +2798,7 @@ const DashboardSettings = () => {
 };
 
 export default DashboardSettings;
+
 
 
 

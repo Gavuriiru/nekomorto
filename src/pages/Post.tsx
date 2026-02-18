@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { CalendarDays, Clock, User } from "lucide-react";
 
@@ -160,12 +160,12 @@ const Post = () => {
       <main className="px-6 pb-20 pt-14 md:px-12">
         <div className="mx-auto flex max-w-6xl flex-col gap-10">
           {isLoading ? (
-            <div className="rounded-2xl border border-white/10 bg-white/5 px-6 py-10 text-sm text-muted-foreground">
+            <div className="rounded-2xl border border-border/60 bg-card/60 px-6 py-10 text-sm text-muted-foreground">
               Carregando postagem...
             </div>
           ) : loadError || !post ? (
-            <div className="rounded-2xl border border-dashed border-white/10 bg-white/5 px-6 py-10 text-sm text-muted-foreground">
-              Postagem não encontrada.
+            <div className="rounded-2xl border border-dashed border-border/60 bg-card/60 px-6 py-10 text-sm text-muted-foreground">
+              Postagem n�o encontrada.
             </div>
           ) : (
             <>
@@ -244,6 +244,7 @@ const Post = () => {
 };
 
 export default Post;
+
 
 
 

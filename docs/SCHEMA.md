@@ -153,6 +153,7 @@ Este documento congela o schema atual para facilitar a migração para banco.
 
 ## site-settings
 - `site` (object)
+- `theme` (object)
 - `navbar` (object)
 - `community` (object)
 - `downloads` (object)

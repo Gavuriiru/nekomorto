@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -85,11 +85,11 @@ const Team = () => {
   const [linkTypes, setLinkTypes] = useState<Array<{ id: string; label: string; icon: string }>>([]);
   const [pageCopy, setPageCopy] = useState({
     heroBadge: "Equipe",
-    heroTitle: "ConheÃ§a quem faz o projeto acontecer",
+    heroTitle: "Conheça quem faz o projeto acontecer",
     heroSubtitle:
-      "Os perfis e redes sociais serÃ£o gerenciados pela dashboard. Este layout antecipa como a equipe aparecerÃ¡ para o pÃºblico.",
+      "Os perfis e redes sociais serão gerenciados pela dashboard. Este layout antecipa como a equipe aparecerá para o público.",
     retiredTitle: "Membros aposentados",
-    retiredSubtitle: "Agradecemos por todas as contribuiÃ§Ãµes.",
+    retiredSubtitle: "Agradecemos por todas as contribuições.",
   });
   const socialIcons = useMemo(
     () => ({
@@ -253,12 +253,12 @@ const Team = () => {
 
         <section className="mx-auto w-full max-w-6xl px-6 pb-20 pt-6 md:px-10 reveal" data-reveal>
           {isLoading ? (
-            <div className="mt-10 rounded-2xl border border-white/10 bg-white/5 px-6 py-10 text-sm text-muted-foreground">
+            <div className="mt-10 rounded-2xl border border-border/60 bg-card/60 px-6 py-10 text-sm text-muted-foreground">
               Carregando equipe...
             </div>
           ) : members.length === 0 ? (
-            <div className="mt-10 rounded-2xl border border-dashed border-white/10 bg-white/5 px-6 py-10 text-sm text-muted-foreground">
-              Nenhum membro disponÃ­vel no momento.
+            <div className="mt-10 rounded-2xl border border-dashed border-border/60 bg-card/60 px-6 py-10 text-sm text-muted-foreground">
+              Nenhum membro disponível no momento.
             </div>
           ) : (
             <>
@@ -519,6 +519,7 @@ const Team = () => {
 };
 
 export default Team;
+
 
 
 
