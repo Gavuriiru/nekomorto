@@ -58,6 +58,7 @@ import {
 import { useAutosave } from "@/hooks/use-autosave";
 import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
+import { applyBeforeUnloadCompatibility } from "@/lib/before-unload";
 import { toast } from "@/components/ui/use-toast";
 import { usePageMeta } from "@/hooks/use-page-meta";
 
@@ -630,8 +631,7 @@ const DashboardPages = () => {
       return;
     }
     const handler = (event: BeforeUnloadEvent) => {
-      event.preventDefault();
-      event.returnValue = "";
+      applyBeforeUnloadCompatibility(event);
     };
     window.addEventListener("beforeunload", handler);
     return () => window.removeEventListener("beforeunload", handler);
@@ -645,7 +645,13 @@ const DashboardPages = () => {
         description: "Não foi possível salvar as alterações agora.",
         variant: "destructive",
       });
+      return;
     }
+    toast({
+      title: "Páginas salvas",
+      description: "As alterações foram aplicadas com sucesso.",
+      intent: "success",
+    });
   }, [pagesAutosave]);
 
   const updateAbout = (patch: Partial<PagesConfig["about"]>) =>

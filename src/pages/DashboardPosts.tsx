@@ -42,6 +42,7 @@ import type { Project } from "@/data/projects";
 import ProjectEmbedCard from "@/components/ProjectEmbedCard";
 import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
+import { applyBeforeUnloadCompatibility } from "@/lib/before-unload";
 import { formatDateTimeShort } from "@/lib/date";
 import { buildTranslationMap, sortByTranslatedLabel, translateTag } from "@/lib/project-taxonomy";
 import { usePageMeta } from "@/hooks/use-page-meta";
@@ -438,12 +439,11 @@ const DashboardPosts = () => {
       return;
     }
     const handler = (event: BeforeUnloadEvent) => {
-      event.preventDefault();
-      event.returnValue = "";
+      applyBeforeUnloadCompatibility(event);
     };
     window.addEventListener("beforeunload", handler);
     return () => window.removeEventListener("beforeunload", handler);
-  }, [isEditorOpen, isDirty, navigate]);
+  }, [isEditorOpen, isDirty]);
 
   useEffect(() => {
     if (!isEditorOpen || !isDirty) {

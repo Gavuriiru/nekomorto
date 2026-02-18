@@ -1,5 +1,5 @@
-﻿import type { ReactNode } from "react";
-import { act, fireEvent, render, screen, within } from "@testing-library/react";
+import type { ReactNode } from "react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import DashboardPages from "@/pages/DashboardPages";
 
@@ -7,6 +7,7 @@ const { apiFetchMock, navigateMock } = vi.hoisted(() => ({
   apiFetchMock: vi.fn(),
   navigateMock: vi.fn(),
 }));
+const toastMock = vi.hoisted(() => vi.fn());
 
 vi.mock("@/components/DashboardShell", () => ({
   default: ({ children }: { children: ReactNode }) => <div>{children}</div>,
@@ -22,6 +23,10 @@ vi.mock("@/lib/api-base", () => ({
 
 vi.mock("@/lib/api-client", () => ({
   apiFetch: (...args: unknown[]) => apiFetchMock(...args),
+}));
+
+vi.mock("@/components/ui/use-toast", () => ({
+  toast: (...args: unknown[]) => toastMock(...args),
 }));
 
 vi.mock("react-router-dom", async () => {
@@ -61,6 +66,7 @@ describe("DashboardPages autosave", () => {
     window.localStorage.clear();
     apiFetchMock.mockReset();
     navigateMock.mockReset();
+    toastMock.mockReset();
     apiFetchMock.mockImplementation(async (_base, path, options) => {
       const method = String((options as RequestInit | undefined)?.method || "GET").toUpperCase();
       if (path === "/api/me") {
@@ -151,6 +157,69 @@ describe("DashboardPages autosave", () => {
     });
 
     expect(getPutPageCalls()).toHaveLength(1);
+    expect(toastMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: "Páginas salvas",
+      }),
+    );
+  });
+
+  it("save manual com falha exibe toast destrutivo", async () => {
+    apiFetchMock.mockImplementation(async (_base, path, options) => {
+      const method = String((options as RequestInit | undefined)?.method || "GET").toUpperCase();
+      if (path === "/api/me") {
+        return mockJsonResponse(true, { id: "1", name: "Admin", username: "admin" });
+      }
+      if (path === "/api/pages" && method === "GET") {
+        return mockJsonResponse(true, {
+          pages: {
+            donations: {
+              heroTitle: "",
+              heroSubtitle: "",
+              costs: [],
+              reasonTitle: "",
+              reasonIcon: "HeartHandshake",
+              reasonText: "",
+              reasonNote: "",
+              pixKey: "PIX-INIT",
+              pixNote: "",
+              qrCustomUrl: "",
+              pixIcon: "QrCode",
+              donorsIcon: "PiggyBank",
+              donors: [],
+            },
+          },
+        });
+      }
+      if (path === "/api/pages" && method === "PUT") {
+        return mockJsonResponse(false, { error: "save_failed" }, 500);
+      }
+      return mockJsonResponse(false, { error: "not_found" }, 404);
+    });
+
+    render(<DashboardPages />);
+    await screen.findByRole("heading", { name: /Gerenciar/i });
+
+    const pixInput = await screen.findByDisplayValue("PIX-INIT");
+    fireEvent.change(pixInput, { target: { value: "falha-manual" } });
+
+    const manualButton = screen.getByRole("button", { name: /Salvar altera/i });
+    await act(async () => {
+      fireEvent.click(manualButton);
+      await flushMicrotasks();
+    });
+
+    await waitFor(
+      () => {
+        expect(toastMock).toHaveBeenCalledWith(
+          expect.objectContaining({
+            title: expect.stringMatching(/Falha ao salvar/i),
+            variant: "destructive",
+          }),
+        );
+      },
+      { timeout: 7000 },
+    );
   });
 });
 

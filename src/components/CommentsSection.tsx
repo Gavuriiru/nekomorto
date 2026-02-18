@@ -5,9 +5,20 @@ import { useLocation } from "react-router-dom";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
+import { toast } from "@/components/ui/use-toast";
 import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
 import { formatDateTime } from "@/lib/date";
@@ -84,6 +95,8 @@ const CommentsSection = ({ targetType, targetId, chapterNumber, volume }: Commen
     null,
   );
   const [canModerate, setCanModerate] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<PublicComment | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const commentTree = useMemo(() => buildCommentTree(comments), [comments]);
   const location = useLocation();
@@ -225,6 +238,10 @@ const CommentsSection = ({ targetType, targetId, chapterNumber, volume }: Commen
       });
       if (!response.ok) {
         setNotice("Não foi possível enviar o comentário. Tente novamente.");
+        toast({
+          title: "Não foi possível enviar o comentário",
+          variant: "destructive",
+        });
         return;
       }
       const data = (await response.json()) as SubmitCommentResponse;
@@ -235,23 +252,66 @@ const CommentsSection = ({ targetType, targetId, chapterNumber, volume }: Commen
       if (isApproved) {
         await fetchComments({ showLoading: false });
         setNotice("Comentário publicado.");
+        toast({
+          title: "Comentário publicado",
+          description: "Seu comentário já está visível na página.",
+          intent: "success",
+        });
       } else {
         setNotice("Comentário enviado! Ele ficará visível após aprovação.");
+        toast({
+          title: "Comentário enviado",
+          description: "Ele ficará visível após aprovação da equipe.",
+          intent: "success",
+        });
       }
     } catch {
       setNotice("Não foi possível enviar o comentário. Tente novamente.");
+      toast({
+        title: "Não foi possível enviar o comentário",
+        variant: "destructive",
+      });
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const handleDelete = async (id: string) => {
-    const response = await apiFetch(apiBase, `/api/comments/${id}`, {
-      method: "DELETE",
-      auth: true,
-    });
-    if (response.ok) {
-      setComments((prev) => prev.filter((comment) => comment.id !== id));
+  const handleDelete = (comment: PublicComment) => {
+    setDeleteTarget(comment);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!deleteTarget || isDeleting) {
+      return;
+    }
+    const id = deleteTarget.id;
+    setIsDeleting(true);
+    try {
+      const response = await apiFetch(apiBase, `/api/comments/${id}`, {
+        method: "DELETE",
+        auth: true,
+      });
+      if (response.ok) {
+        setComments((prev) => prev.filter((comment) => comment.id !== id));
+        setDeleteTarget(null);
+        toast({
+          title: "Comentário excluído",
+          description: "O comentário foi removido com sucesso.",
+          intent: "success",
+        });
+      } else {
+        toast({
+          title: "Não foi possível excluir o comentário",
+          variant: "destructive",
+        });
+      }
+    } catch {
+      toast({
+        title: "Não foi possível excluir o comentário",
+        variant: "destructive",
+      });
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -289,7 +349,7 @@ const CommentsSection = ({ targetType, targetId, chapterNumber, volume }: Commen
                 variant="ghost"
                 size="sm"
                 className="h-auto px-2 text-xs text-red-400"
-                onClick={() => handleDelete(comment.id)}
+                onClick={() => handleDelete(comment)}
               >
                 Excluir
               </Button>
@@ -306,7 +366,8 @@ const CommentsSection = ({ targetType, targetId, chapterNumber, volume }: Commen
   );
 
   return (
-    <Card className="border-border bg-card">
+    <>
+      <Card className="border-border bg-card">
       <CardHeader>
         <CardTitle className="text-lg">Comentários</CardTitle>
       </CardHeader>
@@ -386,7 +447,38 @@ const CommentsSection = ({ targetType, targetId, chapterNumber, volume }: Commen
         <div className="space-y-6">{commentTree.map((comment) => renderComment(comment))}</div>
         )}
       </CardContent>
-    </Card>
+      </Card>
+      <AlertDialog
+        open={Boolean(deleteTarget)}
+        onOpenChange={(open) => {
+          if (!open && !isDeleting) {
+            setDeleteTarget(null);
+          }
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir comentário?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta ação remove o comentário permanentemente.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={isDeleting}
+              onClick={(event) => {
+                event.preventDefault();
+                void handleConfirmDelete();
+              }}
+            >
+              {isDeleting ? "Excluindo..." : "Excluir"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 };
 

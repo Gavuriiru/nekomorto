@@ -8,6 +8,7 @@ import type { SiteSettings } from "@/types/site-settings";
 
 const apiFetchMock = vi.hoisted(() => vi.fn());
 const useSiteSettingsMock = vi.hoisted(() => vi.fn());
+const toastMock = vi.hoisted(() => vi.fn());
 
 vi.mock("@/lib/api-base", () => ({
   getApiBase: () => "http://api.local",
@@ -15,6 +16,10 @@ vi.mock("@/lib/api-base", () => ({
 
 vi.mock("@/lib/api-client", () => ({
   apiFetch: (...args: unknown[]) => apiFetchMock(...args),
+}));
+
+vi.mock("@/components/ui/use-toast", () => ({
+  toast: (...args: unknown[]) => toastMock(...args),
 }));
 
 vi.mock("@/hooks/use-site-settings", () => ({
@@ -39,7 +44,8 @@ const createSettings = (override: Partial<SiteSettings> = {}) => mergeSettings(d
 
 const classTokens = (element: HTMLElement) => String(element.className).split(/\s+/).filter(Boolean);
 
-const setupApiMock = () => {
+const setupApiMock = (options?: { logoutOk?: boolean }) => {
+  const { logoutOk = true } = options || {};
   apiFetchMock.mockReset();
   apiFetchMock.mockImplementation(async (_apiBase: string, endpoint: string, options?: RequestInit) => {
     const method = String(options?.method || "GET").toUpperCase();
@@ -80,6 +86,9 @@ const setupApiMock = () => {
         },
       });
     }
+    if (endpoint === "/api/logout" && method === "POST") {
+      return mockJsonResponse(logoutOk, logoutOk ? { ok: true } : { error: "logout_failed" }, logoutOk ? 200 : 500);
+    }
     return mockJsonResponse(false, { error: "not_found" }, 404);
   });
 };
@@ -87,6 +96,7 @@ const setupApiMock = () => {
 describe("Header mobile search layout", () => {
   beforeEach(() => {
     setupApiMock();
+    toastMock.mockReset();
     useSiteSettingsMock.mockReset();
     useSiteSettingsMock.mockReturnValue({
       settings: createSettings(),
@@ -196,4 +206,33 @@ describe("Header mobile search layout", () => {
     expect(classTokens(userName)).toContain("lg:inline");
     expect(classTokens(userName)).not.toContain("md:inline");
   });
+
+  it("nÃ£o redireciona e exibe toast quando logout falha", async () => {
+    setupApiMock({ logoutOk: false });
+
+    render(
+      <MemoryRouter initialEntries={["/"]}>
+        <Header />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(apiFetchMock).toHaveBeenCalledTimes(4);
+    });
+
+    const profileButton = screen.getByText("Admin").closest("button");
+    expect(profileButton).toBeTruthy();
+    fireEvent.keyDown(profileButton as HTMLButtonElement, { key: "ArrowDown" });
+    fireEvent.click(await screen.findByRole("menuitem", { name: /Sair/i }));
+
+    await waitFor(() => {
+      expect(toastMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          title: expect.stringMatching(/sair/i),
+          variant: "destructive",
+        }),
+      );
+    });
+  });
 });
+

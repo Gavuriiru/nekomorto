@@ -1539,6 +1539,11 @@ const DashboardProjectsEditor = () => {
     const trimmedTitle = formState.title.trim();
     const baseId = formState.id.trim();
     if (!trimmedTitle) {
+      toast({
+        title: "Preencha o título do projeto",
+        description: "O título é obrigatório para salvar.",
+        variant: "destructive",
+      });
       return;
     }
 
@@ -1729,6 +1734,37 @@ const DashboardProjectsEditor = () => {
     );
 
     if (!response.ok) {
+      const data = await response.json().catch(() => null);
+      const code = typeof data?.error === "string" ? data.error : "";
+      if (code === "title_and_id_required") {
+        toast({
+          title: "Campos obrigatórios ausentes",
+          description: "Informe título e identificador do projeto.",
+          variant: "destructive",
+        });
+        return;
+      }
+      if (code === "id_exists") {
+        toast({
+          title: "Identificador já existe",
+          description: "Use outro ID para criar o projeto.",
+          variant: "destructive",
+        });
+        return;
+      }
+      if (code === "forbidden") {
+        toast({
+          title: "Acesso negado",
+          description: "Você não tem permissão para salvar projetos.",
+          variant: "destructive",
+        });
+        return;
+      }
+      toast({
+        title: "Não foi possível salvar o projeto",
+        description: "Tente novamente em instantes.",
+        variant: "destructive",
+      });
       return;
     }
     const data = await response.json();
@@ -1740,6 +1776,11 @@ const DashboardProjectsEditor = () => {
       setProjects((prev) => [...prev, data.project]);
     }
     editorInitialSnapshotRef.current = buildProjectEditorSnapshot(payload as ProjectForm, anilistIdInput);
+    toast({
+      title: editingProject ? "Projeto atualizado" : "Projeto criado",
+      description: "As alterações foram salvas com sucesso.",
+      intent: "success",
+    });
     closeEditor();
   };
 
@@ -1752,7 +1793,10 @@ const DashboardProjectsEditor = () => {
       auth: true,
     });
     if (!response.ok) {
-      toast({ title: "Não foi possível excluir o projeto" });
+      toast({
+        title: "Não foi possível excluir o projeto",
+        variant: "destructive",
+      });
       return;
     }
     await loadProjects();
@@ -1774,7 +1818,7 @@ const DashboardProjectsEditor = () => {
         await loadProjects();
         return;
       }
-      toast({ title: "Não foi possível restaurar o projeto" });
+      toast({ title: "Não foi possível restaurar o projeto", variant: "destructive" });
       return;
     }
     const data = await response.json();
@@ -1915,18 +1959,64 @@ const DashboardProjectsEditor = () => {
   const handleImportAniList = async () => {
     const id = Number(anilistIdInput);
     if (!Number.isFinite(id)) {
+      toast({
+        title: "ID do AniList inválido",
+        description: "Informe um número válido antes de importar.",
+        variant: "destructive",
+      });
       return;
     }
     const response = await apiFetch(apiBase, `/api/anilist/${id}`, { auth: true });
     if (!response.ok) {
+      const data = await response.json().catch(() => null);
+      const code = typeof data?.error === "string" ? data.error : "";
+      if (code === "invalid_id") {
+        toast({
+          title: "ID do AniList inválido",
+          description: "Não foi possível buscar esse identificador.",
+          variant: "destructive",
+        });
+        return;
+      }
+      if (code === "forbidden") {
+        toast({
+          title: "Acesso negado",
+          description: "Você não tem permissão para usar a integração do AniList.",
+          variant: "destructive",
+        });
+        return;
+      }
+      if (code === "anilist_failed") {
+        toast({
+          title: "Falha ao importar do AniList",
+          description: "A API externa não respondeu como esperado.",
+          variant: "destructive",
+        });
+        return;
+      }
+      toast({
+        title: "Não foi possível importar do AniList",
+        description: "Tente novamente em alguns instantes.",
+        variant: "destructive",
+      });
       return;
     }
     const data = await response.json();
     const media = data?.data?.Media as AniListMedia | undefined;
     if (!media) {
+      toast({
+        title: "AniList sem resultados",
+        description: "Nenhuma mídia foi encontrada para esse ID.",
+        variant: "destructive",
+      });
       return;
     }
     mapAniListToForm(media);
+    toast({
+      title: "Dados importados do AniList",
+      description: "Campos do projeto foram preenchidos automaticamente.",
+      intent: "success",
+    });
   };
 
   const handleAddTag = () => {

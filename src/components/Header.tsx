@@ -11,6 +11,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { toast } from "@/components/ui/use-toast";
 import { LogOut, Menu } from "lucide-react";
 import ThemedSvgLogo from "@/components/ThemedSvgLogo";
 import { dashboardMenuItems } from "@/components/dashboard-menu";
@@ -35,6 +36,7 @@ const Header = ({ variant = "fixed", leading, className }: HeaderProps) => {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [isScrolled, setIsScrolled] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [currentUser, setCurrentUser] = useState<{
     id: string;
     name: string;
@@ -266,6 +268,36 @@ const Header = ({ variant = "fixed", leading, className }: HeaderProps) => {
     const grants = resolveGrants(currentUser);
     return buildDashboardMenuFromGrants(dashboardMenuItems, grants);
   }, [currentUser]);
+
+  const handleLogout = async () => {
+    if (isLoggingOut) {
+      return;
+    }
+    setIsLoggingOut(true);
+    try {
+      const response = await apiFetch(apiBase, "/api/logout", {
+        method: "POST",
+        auth: true,
+      });
+      if (!response.ok) {
+        toast({
+          title: "Não foi possível sair",
+          description: "Tente novamente em alguns instantes.",
+          variant: "destructive",
+        });
+        return;
+      }
+      window.location.href = "/";
+    } catch {
+      toast({
+        title: "Não foi possível sair",
+        description: "Ocorreu um erro inesperado ao encerrar a sessão.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoggingOut(false);
+    }
+  };
 
   return (
     <header
@@ -556,16 +588,11 @@ const Header = ({ variant = "fixed", leading, className }: HeaderProps) => {
                   <DropdownMenuSeparator className="bg-white/10" />
                   <DropdownMenuItem
                     className={headerMenuItemClass}
-                    onClick={async () => {
-                      await apiFetch(apiBase, "/api/logout", {
-                        method: "POST",
-                        auth: true,
-                      });
-                      window.location.href = "/";
-                    }}
+                    onClick={handleLogout}
+                    disabled={isLoggingOut}
                   >
                     <LogOut className="h-4 w-4" />
-                    Sair
+                    {isLoggingOut ? "Saindo..." : "Sair"}
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>

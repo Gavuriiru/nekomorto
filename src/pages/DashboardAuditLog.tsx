@@ -348,6 +348,11 @@ const DashboardAuditLog = () => {
       const response = await apiFetch(apiBase, `/api/audit-log?${params.toString()}`, { auth: true });
       if (!response.ok) {
         setError("Não foi possível exportar o CSV.");
+        toast({
+          title: "Falha ao exportar CSV",
+          description: "Não foi possível gerar o arquivo no momento.",
+          variant: "destructive",
+        });
         return;
       }
       const isTruncated = response.headers.get("X-Audit-Export-Truncated") === "1";
@@ -369,8 +374,20 @@ const DashboardAuditLog = () => {
       anchor.click();
       document.body.removeChild(anchor);
       window.URL.revokeObjectURL(url);
+      if (!isTruncated) {
+        toast({
+          title: "CSV exportado",
+          description: "O arquivo foi gerado com sucesso.",
+          intent: "success",
+        });
+      }
     } catch {
       setError("Erro ao exportar CSV.");
+      toast({
+        title: "Falha ao exportar CSV",
+        description: "Ocorreu um erro inesperado durante a exportação.",
+        variant: "destructive",
+      });
     } finally {
       setIsExporting(false);
     }

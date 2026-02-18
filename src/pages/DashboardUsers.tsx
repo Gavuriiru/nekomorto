@@ -212,6 +212,34 @@ const reorderItems = <T,>(items: T[], from: number, to: number) => {
   return next;
 };
 
+const getOrderedUserBuckets = (items: UserRecord[]) => {
+  const activeIds = items
+    .filter((user) => user.status === "active")
+    .sort((a, b) => a.order - b.order)
+    .map((user) => user.id);
+  const retiredIds = items
+    .filter((user) => user.status === "retired")
+    .sort((a, b) => a.order - b.order)
+    .map((user) => user.id);
+  return { activeIds, retiredIds };
+};
+
+const didUserOrderChange = (before: UserRecord[], after: UserRecord[]) => {
+  const beforeBuckets = getOrderedUserBuckets(before);
+  const afterBuckets = getOrderedUserBuckets(after);
+  if (beforeBuckets.activeIds.length !== afterBuckets.activeIds.length) {
+    return true;
+  }
+  if (beforeBuckets.retiredIds.length !== afterBuckets.retiredIds.length) {
+    return true;
+  }
+  const activeChanged = beforeBuckets.activeIds.some((id, index) => id !== afterBuckets.activeIds[index]);
+  if (activeChanged) {
+    return true;
+  }
+  return beforeBuckets.retiredIds.some((id, index) => id !== afterBuckets.retiredIds[index]);
+};
+
 const roleIconRegistry: Record<string, typeof Globe> = {
   languages: Languages,
   check: Check,
@@ -257,6 +285,7 @@ const DashboardUsers = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [dragId, setDragId] = useState<string | null>(null);
   const [dragGroup, setDragGroup] = useState<"active" | "retired" | null>(null);
+  const [dragUsersSnapshot, setDragUsersSnapshot] = useState<UserRecord[] | null>(null);
   const [socialDragIndex, setSocialDragIndex] = useState<number | null>(null);
   const [socialDragOverIndex, setSocialDragOverIndex] = useState<number | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -578,6 +607,7 @@ const DashboardUsers = () => {
           } else {
             toast({
               title: shouldKeepOwner ? "Não foi possível promover para dono" : "Não foi possível rebaixar o dono",
+              variant: "destructive",
             });
           }
         }
@@ -595,6 +625,11 @@ const DashboardUsers = () => {
       }
       bumpAvatarCacheVersion();
       setIsDialogOpen(false);
+      toast({
+        title: editingUser ? "Usuário atualizado" : "Usuário criado",
+        description: "As alterações foram salvas com sucesso.",
+        intent: "success",
+      });
       return;
     }
     toast({ title: "Não foi possível salvar o usuário", variant: "destructive" });
@@ -625,7 +660,7 @@ const DashboardUsers = () => {
       auth: true,
     });
     if (!response.ok) {
-      toast({ title: "Não foi possível excluir o usuário" });
+      toast({ title: "Não foi possível excluir o usuário", variant: "destructive" });
       return;
     }
     const data = await response.json();
@@ -748,18 +783,55 @@ const DashboardUsers = () => {
     if (!canManageUsers) {
       setDragId(null);
       setDragGroup(null);
+      setDragUsersSnapshot(null);
+      return;
+    }
+    const snapshot = dragUsersSnapshot;
+    const changed = snapshot ? didUserOrderChange(snapshot, users) : false;
+    if (!changed) {
+      setDragId(null);
+      setDragGroup(null);
+      setDragUsersSnapshot(null);
       return;
     }
     const orderedIds = activeUsers.map((user) => user.id);
     const retiredIds = retiredUsers.map((user) => user.id);
-    await apiFetch(apiBase, "/api/users/reorder", {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      auth: true,
-      body: JSON.stringify({ orderedIds, retiredIds }),
-    });
+    try {
+      const response = await apiFetch(apiBase, "/api/users/reorder", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        auth: true,
+        body: JSON.stringify({ orderedIds, retiredIds }),
+      });
+      if (!response.ok) {
+        if (snapshot) {
+          setUsers(snapshot);
+        }
+        toast({
+          title: "Não foi possível salvar a nova ordem",
+          description: "A lista foi restaurada para a ordem anterior.",
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Ordem dos usuários atualizada",
+          description: "A nova ordenação foi salva.",
+          intent: "success",
+        });
+      }
+    } catch {
+      if (snapshot) {
+        setUsers(snapshot);
+      }
+      toast({
+        title: "Não foi possível salvar a nova ordem",
+        description: "A lista foi restaurada para a ordem anterior.",
+        variant: "destructive",
+      });
+    }
     setDragId(null);
     setDragGroup(null);
+    setDragUsersSnapshot(null);
   };
 
   return (
@@ -819,6 +891,9 @@ const DashboardUsers = () => {
                       style={{ animationDelay: `${index * 60}ms` }}
                       draggable={canManageUsers}
                       onDragStart={() => {
+                        setDragUsersSnapshot((prev) =>
+                          prev ? prev : users.map((userItem) => ({ ...userItem })),
+                        );
                         setDragId(user.id);
                         setDragGroup("active");
                       }}
@@ -898,6 +973,9 @@ const DashboardUsers = () => {
                         style={{ animationDelay: `${index * 60}ms` }}
                         draggable={canManageUsers}
                         onDragStart={() => {
+                          setDragUsersSnapshot((prev) =>
+                            prev ? prev : users.map((userItem) => ({ ...userItem })),
+                          );
                           setDragId(user.id);
                           setDragGroup("retired");
                         }}

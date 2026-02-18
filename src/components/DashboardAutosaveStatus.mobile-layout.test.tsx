@@ -26,7 +26,9 @@ describe("DashboardAutosaveStatus mobile layout", () => {
 
     const rootTokens = classTokens(root as HTMLElement);
     expect(rootTokens).toContain("flex-col");
+    expect(rootTokens).toContain("w-full");
     expect(rootTokens).toContain("max-w-full");
+    expect(rootTokens).toContain("sm:w-auto");
     expect(rootTokens).toContain("sm:flex-row");
   });
 
@@ -50,7 +52,70 @@ describe("DashboardAutosaveStatus mobile layout", () => {
 
     const manualButton = screen.getByRole("button", { name: /Salvar ajustes|Salvo/i });
     const buttonTokens = classTokens(manualButton);
-    expect(buttonTokens).toContain("w-auto");
+    expect(buttonTokens).toContain("w-full");
     expect(buttonTokens).toContain("sm:w-42");
+  });
+
+  it("usa tom discreto no mobile quando autosave esta ativo e sem erro", () => {
+    const onToggleMock = vi.fn();
+    const onManualSaveMock = vi.fn();
+    render(
+      <DashboardAutosaveStatus
+        title="Autosave das configuracoes"
+        status="saved"
+        enabled
+        onEnabledChange={onToggleMock}
+        lastSavedAt={Date.now()}
+        onManualSave={onManualSaveMock}
+        manualActionLabel="Salvar ajustes"
+      />,
+    );
+
+    const manualButton = screen.getByRole("button", { name: /Salvar ajustes|Salvo/i });
+    const buttonTokens = classTokens(manualButton);
+    expect(buttonTokens).toContain("bg-secondary");
+    expect(buttonTokens).toContain("shadow-none");
+  });
+
+  it("destaca o botao no mobile quando status esta em erro", () => {
+    const onToggleMock = vi.fn();
+    const onManualSaveMock = vi.fn();
+    render(
+      <DashboardAutosaveStatus
+        title="Autosave das configuracoes"
+        status="error"
+        enabled
+        onEnabledChange={onToggleMock}
+        lastSavedAt={Date.now()}
+        onManualSave={onManualSaveMock}
+        manualActionLabel="Salvar ajustes"
+      />,
+    );
+
+    const manualButton = screen.getByRole("button", { name: /Salvar ajustes|Salvo/i });
+    const buttonTokens = classTokens(manualButton);
+    expect(buttonTokens).not.toContain("bg-secondary");
+    expect(buttonTokens).toContain("shadow-md");
+  });
+
+  it("destaca o botao no mobile quando autosave esta desativado", () => {
+    const onToggleMock = vi.fn();
+    const onManualSaveMock = vi.fn();
+    render(
+      <DashboardAutosaveStatus
+        title="Autosave das configuracoes"
+        status="idle"
+        enabled={false}
+        onEnabledChange={onToggleMock}
+        lastSavedAt={Date.now()}
+        onManualSave={onManualSaveMock}
+        manualActionLabel="Salvar ajustes"
+      />,
+    );
+
+    const manualButton = screen.getByRole("button", { name: /Salvar ajustes|Salvo/i });
+    const buttonTokens = classTokens(manualButton);
+    expect(buttonTokens).not.toContain("bg-secondary");
+    expect(buttonTokens).toContain("shadow-md");
   });
 });

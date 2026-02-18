@@ -3,9 +3,20 @@ import { useNavigate } from "react-router-dom";
 import { CheckCircle2, Trash2, ExternalLink } from "lucide-react";
 
 import DashboardShell from "@/components/DashboardShell";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { toast } from "@/components/ui/use-toast";
 import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
 import { formatDateTime } from "@/lib/date";
@@ -37,6 +48,9 @@ const DashboardComments = () => {
     username: string;
     avatarUrl?: string | null;
   } | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<PendingComment | null>(null);
+  const [pendingActionById, setPendingActionById] = useState<Record<string, "approve" | "delete">>({});
+  const [isDeleteConfirmLoading, setIsDeleteConfirmLoading] = useState(false);
 
   const loadComments = useCallback(async () => {
     try {
@@ -78,22 +92,84 @@ const DashboardComments = () => {
   }, [apiBase]);
 
   const handleApprove = async (id: string) => {
-    const response = await apiFetch(apiBase, `/api/comments/${id}/approve`, {
-      method: "POST",
-      auth: true,
-    });
-    if (response.ok) {
-      setComments((prev) => prev.filter((comment) => comment.id !== id));
+    if (pendingActionById[id]) {
+      return;
+    }
+    setPendingActionById((prev) => ({ ...prev, [id]: "approve" }));
+    try {
+      const response = await apiFetch(apiBase, `/api/comments/${id}/approve`, {
+        method: "POST",
+        auth: true,
+      });
+      if (response.ok) {
+        setComments((prev) => prev.filter((comment) => comment.id !== id));
+        toast({
+          title: "Comentário aprovado",
+          description: "O comentário já está visível publicamente.",
+          intent: "success",
+        });
+      } else {
+        toast({
+          title: "Não foi possível aprovar o comentário",
+          variant: "destructive",
+        });
+      }
+    } catch {
+      toast({
+        title: "Não foi possível aprovar o comentário",
+        variant: "destructive",
+      });
+    } finally {
+      setPendingActionById((prev) => {
+        const next = { ...prev };
+        delete next[id];
+        return next;
+      });
     }
   };
 
-  const handleDelete = async (id: string) => {
-    const response = await apiFetch(apiBase, `/api/comments/${id}`, {
-      method: "DELETE",
-      auth: true,
-    });
-    if (response.ok) {
-      setComments((prev) => prev.filter((comment) => comment.id !== id));
+  const handleDelete = (comment: PendingComment) => {
+    setDeleteTarget(comment);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!deleteTarget || isDeleteConfirmLoading) {
+      return;
+    }
+    const id = deleteTarget.id;
+    setPendingActionById((prev) => ({ ...prev, [id]: "delete" }));
+    setIsDeleteConfirmLoading(true);
+    try {
+      const response = await apiFetch(apiBase, `/api/comments/${id}`, {
+        method: "DELETE",
+        auth: true,
+      });
+      if (response.ok) {
+        setComments((prev) => prev.filter((comment) => comment.id !== id));
+        toast({
+          title: "Comentário excluído",
+          description: "O comentário foi removido da moderação.",
+          intent: "success",
+        });
+        setDeleteTarget(null);
+      } else {
+        toast({
+          title: "Não foi possível excluir o comentário",
+          variant: "destructive",
+        });
+      }
+    } catch {
+      toast({
+        title: "Não foi possível excluir o comentário",
+        variant: "destructive",
+      });
+    } finally {
+      setPendingActionById((prev) => {
+        const next = { ...prev };
+        delete next[id];
+        return next;
+      });
+      setIsDeleteConfirmLoading(false);
     }
   };
 
@@ -154,14 +230,20 @@ const DashboardComments = () => {
                           <Button
                             size="sm"
                             variant="secondary"
+                            disabled={Boolean(pendingActionById[comment.id])}
                             onClick={() => handleApprove(comment.id)}
                           >
                             <CheckCircle2 className="mr-2 h-4 w-4" />
-                            Aprovar
+                            {pendingActionById[comment.id] === "approve" ? "Aprovando..." : "Aprovar"}
                           </Button>
-                          <Button size="sm" variant="destructive" onClick={() => handleDelete(comment.id)}>
+                          <Button
+                            size="sm"
+                            variant="destructive"
+                            disabled={Boolean(pendingActionById[comment.id])}
+                            onClick={() => handleDelete(comment)}
+                          >
                             <Trash2 className="mr-2 h-4 w-4" />
-                            Excluir
+                            {pendingActionById[comment.id] === "delete" ? "Excluindo..." : "Excluir"}
                           </Button>
                           <Button size="sm" variant="outline" asChild>
                             <a href={comment.targetUrl} target="_blank" rel="noreferrer">
@@ -181,6 +263,36 @@ const DashboardComments = () => {
             )}
           </div>
         </main>
+      <AlertDialog
+        open={Boolean(deleteTarget)}
+        onOpenChange={(open) => {
+          if (!open && !isDeleteConfirmLoading) {
+            setDeleteTarget(null);
+          }
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir comentário?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta ação remove o comentário permanentemente.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleteConfirmLoading}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={isDeleteConfirmLoading}
+              onClick={(event) => {
+                event.preventDefault();
+                void handleConfirmDelete();
+              }}
+            >
+              {isDeleteConfirmLoading ? "Excluindo..." : "Excluir"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </DashboardShell>
   );
 };

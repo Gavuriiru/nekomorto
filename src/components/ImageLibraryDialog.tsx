@@ -852,6 +852,14 @@ const ImageLibraryDialog = ({
           } else {
             setSelectedUrls([uploadedUrls[uploadedUrls.length - 1]]);
           }
+          toast({
+            title: uploadedUrls.length === 1 ? "Imagem enviada" : `${uploadedUrls.length} imagens enviadas`,
+            description:
+              uploadedUrls.length === 1
+                ? "Upload concluído com sucesso."
+                : "Os uploads foram concluídos com sucesso.",
+            intent: "success",
+          });
         }
       } catch {
         toast({ title: "N\u00E3o foi poss\u00EDvel enviar a imagem." });
@@ -894,6 +902,11 @@ const ImageLibraryDialog = ({
       } else {
         setSelectedUrls([createdUrl]);
       }
+      toast({
+        title: "Imagem importada",
+        description: "A imagem foi importada por URL com sucesso.",
+        intent: "success",
+      });
     } finally {
       setIsUploading(false);
     }
@@ -963,6 +976,11 @@ const ImageLibraryDialog = ({
         const itemKey = toComparableSelectionKey(item.url);
         setSelectedUrls((prev) => prev.filter((url) => toComparableSelectionKey(url) !== itemKey));
         await loadUploads();
+        toast({
+          title: "Imagem excluída",
+          description: "A imagem foi removida com sucesso.",
+          intent: "success",
+        });
       } finally {
         setIsDeleting(false);
       }
@@ -1012,6 +1030,11 @@ const ImageLibraryDialog = ({
       setRenameTarget(null);
       setRenameValue("");
       await loadLibrary();
+      toast({
+        title: "Imagem renomeada",
+        description: "O arquivo foi renomeado com sucesso.",
+        intent: "success",
+      });
     } finally {
       setIsRenaming(false);
     }
@@ -1091,6 +1114,11 @@ const ImageLibraryDialog = ({
       await loadUploads();
       setSelectedUrls([nextUrl]);
       setIsCropDialogOpen(false);
+      toast({
+        title: "Avatar atualizado",
+        description: "A imagem recortada foi aplicada com sucesso.",
+        intent: "success",
+      });
     } catch {
       toast({
         title: "N\u00E3o foi poss\u00EDvel gerar a imagem recortada.",
@@ -1426,8 +1454,12 @@ const ImageLibraryDialog = ({
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
-            <Label>Novo nome do arquivo</Label>
-            <Input value={renameValue} onChange={(event) => setRenameValue(event.target.value)} />
+            <Label htmlFor="rename-image-file-name">Novo nome do arquivo</Label>
+            <Input
+              id="rename-image-file-name"
+              value={renameValue}
+              onChange={(event) => setRenameValue(event.target.value)}
+            />
             <div className="flex justify-end gap-2">
               <Button type="button" variant="outline" onClick={() => setRenameTarget(null)}>
                 Cancelar

@@ -93,13 +93,21 @@ const DashboardAutosaveStatus = ({
 
   const showErrorState = enabled && status === "error";
   const errorFeedbackText = errorMessage?.trim() || "Falha ao salvar";
+  const isManualActionCritical = !enabled || status === "pending" || status === "error";
+
+  const manualButtonToneClass = useMemo(() => {
+    if (isManualActionCritical) {
+      return "shadow-md shadow-primary/20 hover:shadow-primary/30";
+    }
+    return "bg-secondary text-secondary-foreground hover:bg-secondary/80 shadow-none hover:shadow-none sm:bg-primary sm:text-primary-foreground sm:hover:bg-primary/90 sm:shadow-md sm:shadow-primary/20 sm:hover:shadow-primary/30";
+  }, [isManualActionCritical]);
 
   void lastSavedAt;
 
   return (
     <div
       className={cn(
-        "relative inline-flex max-w-full flex-col gap-2.5 self-start overflow-hidden rounded-xl border bg-card/70 px-3 py-2 transition-[border-color,box-shadow,background-color] duration-200 sm:flex-row sm:items-center sm:self-end",
+        "relative flex w-full max-w-full flex-col gap-2 self-start overflow-hidden rounded-xl border bg-card/70 px-3 py-2.5 transition-[border-color,box-shadow,background-color] duration-200 sm:inline-flex sm:w-auto sm:flex-row sm:items-center sm:gap-2.5 sm:self-end",
         showErrorState ? "border-destructive/70 ring-1 ring-destructive/35" : "border-border/60",
       )}
     >
@@ -138,67 +146,72 @@ const DashboardAutosaveStatus = ({
       </div>
 
       {onManualSave ? (
-        <Button
-          type="button"
-          variant="default"
-          className="relative h-9 w-auto self-start justify-center overflow-hidden whitespace-nowrap rounded-lg px-3 text-sm font-semibold shadow-md shadow-primary/20 hover:shadow-primary/30 sm:w-42"
-          onClick={onManualSave}
-          disabled={manualActionDisabled || (enabled && status === "saving")}
-        >
-          <span className="relative inline-grid h-5 items-center justify-items-center">
-            <span
-              className="invisible col-start-1 row-start-1 inline-flex items-center justify-center gap-2 whitespace-nowrap"
-              aria-hidden="true"
-            >
-              <Save className="h-4 w-4" />
-              {manualActionLabel}
+        <div className="w-full sm:w-auto">
+          <Button
+            type="button"
+            variant="default"
+            className={cn(
+              "relative h-9 w-full justify-center overflow-hidden whitespace-nowrap rounded-lg px-3 text-sm font-semibold sm:w-42",
+              manualButtonToneClass,
+            )}
+            onClick={onManualSave}
+            disabled={manualActionDisabled || (enabled && status === "saving")}
+          >
+            <span className="relative inline-grid h-5 items-center justify-items-center">
+              <span
+                className="invisible col-start-1 row-start-1 inline-flex items-center justify-center gap-2 whitespace-nowrap"
+                aria-hidden="true"
+              >
+                <Save className="h-4 w-4" />
+                {manualActionLabel}
+              </span>
+              <span
+                className="invisible col-start-1 row-start-1 inline-flex items-center justify-center gap-2 whitespace-nowrap"
+                aria-hidden="true"
+              >
+                <Loader2 className="h-4 w-4" />
+                Salvando...
+              </span>
+              <span
+                className="invisible col-start-1 row-start-1 inline-flex items-center justify-center gap-2 whitespace-nowrap"
+                aria-hidden="true"
+              >
+                <CheckCircle2 className="h-4 w-4" />
+                Salvo
+              </span>
+              <span
+                className={cn(
+                  "col-start-1 row-start-1 inline-flex items-center justify-center gap-2 transition-opacity duration-150",
+                  buttonMode === "default" ? "opacity-100" : "opacity-0",
+                )}
+                aria-hidden={buttonMode !== "default"}
+              >
+                <Save className="h-4 w-4" />
+                {manualActionLabel}
+              </span>
+              <span
+                className={cn(
+                  "col-start-1 row-start-1 inline-flex items-center justify-center gap-2 transition-opacity duration-150",
+                  buttonMode === "saving" ? "opacity-100" : "opacity-0",
+                )}
+                aria-hidden={buttonMode !== "saving"}
+              >
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Salvando...
+              </span>
+              <span
+                className={cn(
+                  "col-start-1 row-start-1 inline-flex items-center justify-center gap-2 transition-opacity duration-150",
+                  buttonMode === "saved" ? "opacity-100" : "opacity-0",
+                )}
+                aria-hidden={buttonMode !== "saved"}
+              >
+                <CheckCircle2 className="h-4 w-4" />
+                Salvo
+              </span>
             </span>
-            <span
-              className="invisible col-start-1 row-start-1 inline-flex items-center justify-center gap-2 whitespace-nowrap"
-              aria-hidden="true"
-            >
-              <Loader2 className="h-4 w-4" />
-              Salvando...
-            </span>
-            <span
-              className="invisible col-start-1 row-start-1 inline-flex items-center justify-center gap-2 whitespace-nowrap"
-              aria-hidden="true"
-            >
-              <CheckCircle2 className="h-4 w-4" />
-              Salvo
-            </span>
-            <span
-              className={cn(
-                "col-start-1 row-start-1 inline-flex items-center justify-center gap-2 transition-opacity duration-150",
-                buttonMode === "default" ? "opacity-100" : "opacity-0",
-              )}
-              aria-hidden={buttonMode !== "default"}
-            >
-              <Save className="h-4 w-4" />
-              {manualActionLabel}
-            </span>
-            <span
-              className={cn(
-                "col-start-1 row-start-1 inline-flex items-center justify-center gap-2 transition-opacity duration-150",
-                buttonMode === "saving" ? "opacity-100" : "opacity-0",
-              )}
-              aria-hidden={buttonMode !== "saving"}
-            >
-              <Loader2 className="h-4 w-4 animate-spin" />
-              Salvando...
-            </span>
-            <span
-              className={cn(
-                "col-start-1 row-start-1 inline-flex items-center justify-center gap-2 transition-opacity duration-150",
-                buttonMode === "saved" ? "opacity-100" : "opacity-0",
-              )}
-              aria-hidden={buttonMode !== "saved"}
-            >
-              <CheckCircle2 className="h-4 w-4" />
-              Salvo
-            </span>
-          </span>
-        </Button>
+          </Button>
+        </div>
       ) : null}
     </div>
   );

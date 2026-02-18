@@ -71,8 +71,63 @@ const baseUploadItem = {
 const buildUploadListResponse = (files: Array<Record<string, unknown>>) =>
   mockJsonResponse(true, { files });
 
+const ensureDomRectFromRect = () => {
+  const globalScope = globalThis as typeof globalThis & { DOMRect?: typeof DOMRect };
+  const windowScope = window as Window & typeof globalThis & { DOMRect?: typeof DOMRect };
+
+  if (!windowScope.DOMRect && !globalScope.DOMRect) {
+    class DOMRectPolyfill {
+      x: number;
+      y: number;
+      width: number;
+      height: number;
+      top: number;
+      right: number;
+      bottom: number;
+      left: number;
+
+      constructor(x = 0, y = 0, width = 0, height = 0) {
+        this.x = x;
+        this.y = y;
+        this.width = width;
+        this.height = height;
+        this.top = y;
+        this.left = x;
+        this.right = x + width;
+        this.bottom = y + height;
+      }
+
+      static fromRect(rect?: { x?: number; y?: number; width?: number; height?: number }) {
+        return new DOMRectPolyfill(rect?.x || 0, rect?.y || 0, rect?.width || 0, rect?.height || 0);
+      }
+    }
+
+    windowScope.DOMRect = DOMRectPolyfill as unknown as typeof DOMRect;
+    globalScope.DOMRect = DOMRectPolyfill as unknown as typeof DOMRect;
+    return;
+  }
+
+  const domRectCtor = windowScope.DOMRect || globalScope.DOMRect;
+  if (!domRectCtor) {
+    return;
+  }
+
+  if (typeof (domRectCtor as { fromRect?: unknown }).fromRect !== "function") {
+    Object.defineProperty(domRectCtor, "fromRect", {
+      configurable: true,
+      writable: true,
+      value: (rect?: { x?: number; y?: number; width?: number; height?: number }) =>
+        new domRectCtor(rect?.x || 0, rect?.y || 0, rect?.width || 0, rect?.height || 0),
+    });
+  }
+
+  windowScope.DOMRect = domRectCtor;
+  globalScope.DOMRect = domRectCtor;
+};
+
 describe("ImageLibraryDialog avatar crop flow", () => {
   beforeEach(() => {
+    ensureDomRectFromRect();
     apiFetchMock.mockReset();
     toastMock.mockReset();
     cropperRenderMock.mockReset();
@@ -253,6 +308,221 @@ describe("ImageLibraryDialog avatar crop flow", () => {
       expect(screen.getByText("Selecionadas: 1")).toBeInTheDocument();
       expect(screen.queryByText("Avatar Final")).not.toBeInTheDocument();
     });
+    expect(toastMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: "Avatar atualizado",
+      }),
+    );
+  });
+
+  it("exibe toast de sucesso ao importar imagem por URL", async () => {
+    let listCalls = 0;
+    apiFetchMock.mockImplementation(async (_base: string, path: string) => {
+      if (path.startsWith("/api/uploads/list")) {
+        listCalls += 1;
+        if (listCalls > 1) {
+          return buildUploadListResponse([
+            {
+              ...baseUploadItem,
+              name: "imported.png",
+              label: "Importada",
+              fileName: "imported.png",
+              url: "/uploads/users/imported.png",
+            },
+          ]);
+        }
+        return buildUploadListResponse([]);
+      }
+      if (path === "/api/uploads/image-from-url") {
+        return mockJsonResponse(true, { url: "/uploads/users/imported.png" });
+      }
+      if (path === "/api/uploads/project-images") {
+        return mockJsonResponse(true, { items: [] });
+      }
+      return mockJsonResponse(false, { error: "not_found" }, 404);
+    });
+
+    render(
+      <ImageLibraryDialog
+        open
+        onOpenChange={() => undefined}
+        apiBase="http://api.local"
+        uploadFolder="users"
+        listFolders={["users"]}
+        listAll={false}
+        mode="single"
+        onSave={() => undefined}
+      />,
+    );
+
+    const urlInput = await screen.findByPlaceholderText("https://site.com/imagem.png");
+    fireEvent.change(urlInput, { target: { value: "https://cdn.site/avatar.png" } });
+    fireEvent.click(screen.getByRole("button", { name: "Importar URL" }));
+
+    await waitFor(() => {
+      expect(toastMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          title: "Imagem importada",
+        }),
+      );
+    });
+  });
+
+  it("exibe toast de sucesso ao enviar imagem por arquivo", async () => {
+    let listCalls = 0;
+    apiFetchMock.mockImplementation(async (_base: string, path: string) => {
+      if (path.startsWith("/api/uploads/list")) {
+        listCalls += 1;
+        if (listCalls > 1) {
+          return buildUploadListResponse([
+            {
+              ...baseUploadItem,
+              name: "uploaded.png",
+              label: "Upload novo",
+              fileName: "uploaded.png",
+              url: "/uploads/users/uploaded.png",
+            },
+          ]);
+        }
+        return buildUploadListResponse([]);
+      }
+      if (path === "/api/uploads/image") {
+        return mockJsonResponse(true, { url: "/uploads/users/uploaded.png" });
+      }
+      if (path === "/api/uploads/project-images") {
+        return mockJsonResponse(true, { items: [] });
+      }
+      return mockJsonResponse(false, { error: "not_found" }, 404);
+    });
+
+    render(
+      <ImageLibraryDialog
+        open
+        onOpenChange={() => undefined}
+        apiBase="http://api.local"
+        uploadFolder="users"
+        listFolders={["users"]}
+        listAll={false}
+        mode="single"
+        onSave={() => undefined}
+      />,
+    );
+
+    const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement | null;
+    expect(fileInput).toBeTruthy();
+    const file = new File(["avatar"], "avatar.png", { type: "image/png" });
+    fireEvent.change(fileInput as HTMLInputElement, { target: { files: [file] } });
+
+    await waitFor(() => {
+      expect(toastMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          title: "Imagem enviada",
+        }),
+      );
+    });
+  });
+
+  it("exibe toast de sucesso ao renomear imagem", async () => {
+    let listCalls = 0;
+    apiFetchMock.mockImplementation(async (_base: string, path: string) => {
+      if (path.startsWith("/api/uploads/list")) {
+        listCalls += 1;
+        if (listCalls > 1) {
+          return buildUploadListResponse([
+            {
+              ...baseUploadItem,
+              name: "avatar-renamed.png",
+              label: "Avatar Renomeado",
+              fileName: "avatar-renamed.png",
+              url: "/uploads/users/avatar-renamed.png",
+            },
+          ]);
+        }
+        return buildUploadListResponse([baseUploadItem]);
+      }
+      if (path === "/api/uploads/rename") {
+        return mockJsonResponse(true, {
+          oldUrl: "/uploads/users/base-avatar.png",
+          newUrl: "/uploads/users/avatar-renamed.png",
+        });
+      }
+      if (path === "/api/uploads/project-images") {
+        return mockJsonResponse(true, { items: [] });
+      }
+      return mockJsonResponse(false, { error: "not_found" }, 404);
+    });
+
+    render(
+      <ImageLibraryDialog
+        open
+        onOpenChange={() => undefined}
+        apiBase="http://api.local"
+        uploadFolder="users"
+        listFolders={["users"]}
+        listAll={false}
+        mode="single"
+        onSave={() => undefined}
+      />,
+    );
+
+    const imageButton = (await screen.findByText("Avatar Base")).closest("button");
+    expect(imageButton).toBeTruthy();
+    fireEvent.contextMenu(imageButton as HTMLButtonElement);
+    fireEvent.click(await screen.findByRole("menuitem", { name: "Renomear" }));
+    fireEvent.change(await screen.findByLabelText("Novo nome do arquivo"), {
+      target: { value: "avatar-renamed.png" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Renomear" }));
+
+    await waitFor(() => {
+      expect(toastMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          title: "Imagem renomeada",
+        }),
+      );
+    });
+  });
+
+  it("exibe toast de sucesso ao excluir imagem", async () => {
+    apiFetchMock.mockImplementation(async (_base: string, path: string) => {
+      if (path.startsWith("/api/uploads/list")) {
+        return buildUploadListResponse([baseUploadItem]);
+      }
+      if (path === "/api/uploads/delete") {
+        return mockJsonResponse(true, { ok: true });
+      }
+      if (path === "/api/uploads/project-images") {
+        return mockJsonResponse(true, { items: [] });
+      }
+      return mockJsonResponse(false, { error: "not_found" }, 404);
+    });
+
+    render(
+      <ImageLibraryDialog
+        open
+        onOpenChange={() => undefined}
+        apiBase="http://api.local"
+        uploadFolder="users"
+        listFolders={["users"]}
+        listAll={false}
+        mode="single"
+        onSave={() => undefined}
+      />,
+    );
+
+    const imageButton = (await screen.findByText("Avatar Base")).closest("button");
+    expect(imageButton).toBeTruthy();
+    fireEvent.contextMenu(imageButton as HTMLButtonElement);
+    fireEvent.click(await screen.findByRole("menuitem", { name: "Excluir" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Excluir" }));
+
+    await waitFor(() => {
+      expect(toastMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          title: expect.stringMatching(/Imagem exclu/i),
+        }),
+      );
+    });
   });
 
   it("bloqueia salvar no fluxo de avatar quando a selecao nao e o slot final recortado", async () => {
@@ -336,7 +606,7 @@ describe("ImageLibraryDialog avatar crop flow", () => {
     await waitFor(() => {
       expect(toastMock).toHaveBeenCalled();
       const hasMissingSlotToast = toastMock.mock.calls.some((call) =>
-        String((call[0] as { title?: string })?.title || "").includes("Preencha o ID do usuário"),
+        /Preencha o ID do usu/i.test(String((call[0] as { title?: string })?.title || "")),
       );
       expect(hasMissingSlotToast).toBe(true);
     });
@@ -454,3 +724,4 @@ describe("ImageLibraryDialog avatar crop flow", () => {
     });
   });
 });
+

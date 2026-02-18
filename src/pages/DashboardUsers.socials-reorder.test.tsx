@@ -5,8 +5,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import DashboardUsers from "@/pages/DashboardUsers";
 
-const { apiFetchMock } = vi.hoisted(() => ({
+const { apiFetchMock, toastMock } = vi.hoisted(() => ({
   apiFetchMock: vi.fn(),
+  toastMock: vi.fn(),
 }));
 
 vi.mock("@/components/DashboardShell", () => ({
@@ -37,6 +38,10 @@ vi.mock("@/lib/api-client", () => ({
   apiFetch: (...args: unknown[]) => apiFetchMock(...args),
 }));
 
+vi.mock("@/components/ui/use-toast", () => ({
+  toast: (...args: unknown[]) => toastMock(...args),
+}));
+
 const mockJsonResponse = (ok: boolean, payload: unknown, status = ok ? 200 : 500) =>
   ({
     ok,
@@ -63,6 +68,7 @@ const userFixture = {
 describe("DashboardUsers socials reorder", () => {
   beforeEach(() => {
     apiFetchMock.mockReset();
+    toastMock.mockReset();
     apiFetchMock.mockImplementation(async (_base: string, path: string, options?: RequestInit) => {
       const method = String(options?.method || "GET").toUpperCase();
       if (path === "/api/users" && method === "GET") {
@@ -140,6 +146,156 @@ describe("DashboardUsers socials reorder", () => {
       const payload = (putCall?.[2] as { json?: { socials?: Array<{ label: string; href: string }> } }).json;
       expect(payload?.socials?.[0]?.label).toBe("discord");
       expect(payload?.socials?.[0]?.href).toBe("https://discord.gg/admin");
+    });
+  });
+
+  it("salva reordenação de cards com toast de sucesso", async () => {
+    const alphaUser = {
+      ...userFixture,
+      id: "user-alpha",
+      name: "Alpha",
+      order: 0,
+    };
+    const betaUser = {
+      ...userFixture,
+      id: "user-beta",
+      name: "Beta",
+      order: 1,
+    };
+    apiFetchMock.mockImplementation(async (_base: string, path: string, options?: RequestInit) => {
+      const method = String(options?.method || "GET").toUpperCase();
+      if (path === "/api/users" && method === "GET") {
+        return mockJsonResponse(true, {
+          users: [alphaUser, betaUser],
+          ownerIds: ["user-alpha"],
+        });
+      }
+      if (path === "/api/me" && method === "GET") {
+        return mockJsonResponse(true, {
+          id: "user-alpha",
+          name: "Alpha",
+          username: "alpha",
+          grants: { usuarios_acesso: true, usuarios_basico: true },
+        });
+      }
+      if (path === "/api/link-types" && method === "GET") {
+        return mockJsonResponse(true, { items: [] });
+      }
+      if (path === "/api/users/reorder" && method === "PUT") {
+        return mockJsonResponse(true, { ok: true });
+      }
+      return mockJsonResponse(false, { error: "not_found" }, 404);
+    });
+
+    render(
+      <MemoryRouter initialEntries={["/dashboard/usuarios"]}>
+        <DashboardUsers />
+      </MemoryRouter>,
+    );
+
+    const alphaCard = await screen.findByRole("button", { name: /Alpha/i });
+    const betaCard = await screen.findByRole("button", { name: /Beta/i });
+    const dataTransfer = {
+      effectAllowed: "move",
+      dropEffect: "move",
+      setData: vi.fn(),
+      getData: vi.fn(),
+      clearData: vi.fn(),
+    };
+
+    fireEvent.dragStart(betaCard, { dataTransfer });
+    fireEvent.dragOver(alphaCard, { dataTransfer });
+    fireEvent.dragEnd(betaCard, { dataTransfer });
+
+    await waitFor(() => {
+      const reorderCall = apiFetchMock.mock.calls.find((call) => {
+        const path = call[1];
+        const method = String((call[2] as RequestInit | undefined)?.method || "GET").toUpperCase();
+        return path === "/api/users/reorder" && method === "PUT";
+      });
+      expect(reorderCall).toBeTruthy();
+      expect(toastMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          title: "Ordem dos usuários atualizada",
+        }),
+      );
+    });
+  });
+
+  it("restaura ordem anterior e mostra erro quando reordenação falha", async () => {
+    const alphaUser = {
+      ...userFixture,
+      id: "user-alpha",
+      name: "Alpha",
+      order: 0,
+    };
+    const betaUser = {
+      ...userFixture,
+      id: "user-beta",
+      name: "Beta",
+      order: 1,
+    };
+    apiFetchMock.mockImplementation(async (_base: string, path: string, options?: RequestInit) => {
+      const method = String(options?.method || "GET").toUpperCase();
+      if (path === "/api/users" && method === "GET") {
+        return mockJsonResponse(true, {
+          users: [alphaUser, betaUser],
+          ownerIds: ["user-alpha"],
+        });
+      }
+      if (path === "/api/me" && method === "GET") {
+        return mockJsonResponse(true, {
+          id: "user-alpha",
+          name: "Alpha",
+          username: "alpha",
+          grants: { usuarios_acesso: true, usuarios_basico: true },
+        });
+      }
+      if (path === "/api/link-types" && method === "GET") {
+        return mockJsonResponse(true, { items: [] });
+      }
+      if (path === "/api/users/reorder" && method === "PUT") {
+        return mockJsonResponse(false, { error: "forbidden" }, 403);
+      }
+      return mockJsonResponse(false, { error: "not_found" }, 404);
+    });
+
+    render(
+      <MemoryRouter initialEntries={["/dashboard/usuarios"]}>
+        <DashboardUsers />
+      </MemoryRouter>,
+    );
+
+    const alphaCard = await screen.findByRole("button", { name: /Alpha/i });
+    const betaCard = await screen.findByRole("button", { name: /Beta/i });
+    const dataTransfer = {
+      effectAllowed: "move",
+      dropEffect: "move",
+      setData: vi.fn(),
+      getData: vi.fn(),
+      clearData: vi.fn(),
+    };
+
+    fireEvent.dragStart(betaCard, { dataTransfer });
+    fireEvent.dragOver(alphaCard, { dataTransfer });
+    fireEvent.dragEnd(betaCard, { dataTransfer });
+
+    await waitFor(() => {
+      expect(toastMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          title: "Não foi possível salvar a nova ordem",
+          variant: "destructive",
+        }),
+      );
+    });
+
+    await waitFor(() => {
+      const userHeadings = screen.getAllByRole("heading", { level: 3 }).map((node) => node.textContent || "");
+      const alphaIndex = userHeadings.findIndex((text) => text.includes("Alpha"));
+      const betaIndex = userHeadings.findIndex((text) => text.includes("Beta"));
+      expect(alphaIndex).toBeGreaterThanOrEqual(0);
+      expect(betaIndex).toBeGreaterThanOrEqual(0);
+      expect(alphaIndex).toBeLessThan(betaIndex);
     });
   });
 });

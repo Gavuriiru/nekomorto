@@ -13,6 +13,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { toast } from "@/components/ui/use-toast";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { useSiteSettings } from "@/hooks/use-site-settings";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -249,12 +250,27 @@ const DashboardHeader = ({
     }
     setIsLoggingOut(true);
     try {
-      await apiFetch(apiBase, "/api/logout", {
+      const response = await apiFetch(apiBase, "/api/logout", {
         method: "POST",
         auth: true,
       });
-    } finally {
+      if (!response.ok) {
+        toast({
+          title: "Não foi possível sair",
+          description: "Tente novamente em alguns instantes.",
+          variant: "destructive",
+        });
+        return;
+      }
       window.location.href = "/";
+    } catch {
+      toast({
+        title: "Não foi possível sair",
+        description: "Ocorreu um erro inesperado ao encerrar a sessão.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoggingOut(false);
     }
   };
 

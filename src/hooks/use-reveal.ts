@@ -15,18 +15,21 @@ export const useReveal = (selector = DEFAULT_SELECTOR) => {
     };
 
     const tracked = new Set<HTMLElement>();
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (!entry.isIntersecting) {
-            return;
-          }
-          showElement(entry.target as HTMLElement);
-          observer.unobserve(entry.target);
-        });
-      },
-      { rootMargin: "0px 0px -10% 0px", threshold: 0.15 },
-    );
+    const observer =
+      typeof window.IntersectionObserver === "function"
+        ? new IntersectionObserver(
+            (entries) => {
+              entries.forEach((entry) => {
+                if (!entry.isIntersecting) {
+                  return;
+                }
+                showElement(entry.target as HTMLElement);
+                observer?.unobserve(entry.target);
+              });
+            },
+            { rootMargin: "0px 0px -10% 0px", threshold: 0.15 },
+          )
+        : null;
 
     const revealIfVisible = (el: HTMLElement) => {
       if (el.classList.contains("reveal-visible")) {
@@ -37,7 +40,7 @@ export const useReveal = (selector = DEFAULT_SELECTOR) => {
       if (rect.top < window.innerHeight * 0.9) {
         window.requestAnimationFrame(() => {
           showElement(el);
-          observer.unobserve(el);
+          observer?.unobserve(el);
         });
         return true;
       }
@@ -54,6 +57,10 @@ export const useReveal = (selector = DEFAULT_SELECTOR) => {
         }
         tracked.add(el);
         if (prefersReducedMotion) {
+          showElement(el);
+          return;
+        }
+        if (!observer) {
           showElement(el);
           return;
         }
@@ -93,14 +100,14 @@ export const useReveal = (selector = DEFAULT_SELECTOR) => {
     const fallbackTimer = window.setTimeout(() => {
       tracked.forEach((el) => {
         showElement(el);
-        observer.unobserve(el);
+        observer?.unobserve(el);
       });
     }, 700);
 
     return () => {
       window.clearTimeout(fallbackTimer);
       mutationObserver.disconnect();
-      observer.disconnect();
+      observer?.disconnect();
     };
   }, [location.pathname, selector]);
 };

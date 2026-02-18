@@ -55,6 +55,7 @@ import {
 import { useAutosave, type AutosaveStatus } from "@/hooks/use-autosave";
 import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
+import { applyBeforeUnloadCompatibility } from "@/lib/before-unload";
 import { useSiteSettings } from "@/hooks/use-site-settings";
 import { defaultSettings, mergeSettings } from "@/hooks/site-settings-context";
 import type { SiteSettings } from "@/types/site-settings";
@@ -880,8 +881,7 @@ const DashboardSettings = () => {
       return;
     }
     const handler = (event: BeforeUnloadEvent) => {
-      event.preventDefault();
-      event.returnValue = "";
+      applyBeforeUnloadCompatibility(event);
     };
     window.addEventListener("beforeunload", handler);
     return () => window.removeEventListener("beforeunload", handler);

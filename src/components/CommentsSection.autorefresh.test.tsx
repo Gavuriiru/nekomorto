@@ -1,10 +1,11 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import CommentsSection from "@/components/CommentsSection";
 
 const apiFetchMock = vi.hoisted(() => vi.fn());
+const toastMock = vi.hoisted(() => vi.fn());
 
 vi.mock("@/lib/api-base", () => ({
   getApiBase: () => "http://api.local",
@@ -12,6 +13,10 @@ vi.mock("@/lib/api-base", () => ({
 
 vi.mock("@/lib/api-client", () => ({
   apiFetch: (...args: unknown[]) => apiFetchMock(...args),
+}));
+
+vi.mock("@/components/ui/use-toast", () => ({
+  toast: (...args: unknown[]) => toastMock(...args),
 }));
 
 const mockJsonResponse = (ok: boolean, payload: unknown, status = ok ? 200 : 500) =>
@@ -32,6 +37,7 @@ const countPublicCommentsListGets = () =>
 describe("CommentsSection auto-refresh", () => {
   beforeEach(() => {
     apiFetchMock.mockReset();
+    toastMock.mockReset();
   });
 
   it("recarrega comentarios automaticamente apos envio aprovado de staff", async () => {
@@ -90,6 +96,11 @@ describe("CommentsSection auto-refresh", () => {
     await waitFor(() => {
       expect(countPublicCommentsListGets()).toBe(2);
     });
+    expect(toastMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: "Comentário publicado",
+      }),
+    );
   });
 
   it("nao recarrega lista apos envio pendente de usuario comum", async () => {
@@ -143,5 +154,77 @@ describe("CommentsSection auto-refresh", () => {
     expect(countPublicCommentsListGets()).toBe(1);
     expect(submittedPayload).not.toBeNull();
     expect(submittedPayload).not.toHaveProperty("email");
+    expect(toastMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: "Comentário enviado",
+      }),
+    );
+  });
+
+  it("moderador confirma exclusão antes de chamar DELETE e recebe toast", async () => {
+    apiFetchMock.mockImplementation(async (_base: string, path: string, options?: RequestInit) => {
+      const method = String(options?.method || "GET").toUpperCase();
+
+      if (path.startsWith("/api/public/comments?") && method === "GET") {
+        return mockJsonResponse(true, {
+          comments: [
+            {
+              id: "comment-1",
+              parentId: null,
+              name: "Visitor",
+              content: "Comentario para excluir",
+              createdAt: "2026-02-12T01:00:00.000Z",
+            },
+          ],
+        });
+      }
+      if (path === "/api/public/me" && method === "GET") {
+        return mockJsonResponse(true, {
+          user: {
+            id: "user-1",
+            name: "Admin",
+            email: "admin@example.com",
+            permissions: ["comentarios"],
+          },
+        });
+      }
+      if (path === "/api/comments/comment-1" && method === "DELETE") {
+        return mockJsonResponse(true, { ok: true });
+      }
+      return mockJsonResponse(false, { error: "not_found" }, 404);
+    });
+
+    render(
+      <MemoryRouter initialEntries={["/postagem/post-teste"]}>
+        <CommentsSection targetType="post" targetId="post-teste" />
+      </MemoryRouter>,
+    );
+
+    await screen.findByText("Comentario para excluir");
+    fireEvent.click(screen.getByRole("button", { name: "Excluir" }));
+
+    const deleteCallsBeforeConfirm = apiFetchMock.mock.calls.filter((call) => {
+      const path = String(call[1] || "");
+      const method = String((call[2] as RequestInit | undefined)?.method || "GET").toUpperCase();
+      return path === "/api/comments/comment-1" && method === "DELETE";
+    });
+    expect(deleteCallsBeforeConfirm).toHaveLength(0);
+
+    const alertDialog = await screen.findByRole("alertdialog");
+    fireEvent.click(within(alertDialog).getByRole("button", { name: "Excluir" }));
+
+    await waitFor(() => {
+      const deleteCallsAfterConfirm = apiFetchMock.mock.calls.filter((call) => {
+        const path = String(call[1] || "");
+        const method = String((call[2] as RequestInit | undefined)?.method || "GET").toUpperCase();
+        return path === "/api/comments/comment-1" && method === "DELETE";
+      });
+      expect(deleteCallsAfterConfirm).toHaveLength(1);
+      expect(toastMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          title: "Comentário excluído",
+        }),
+      );
+    });
   });
 });
