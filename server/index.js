@@ -14,6 +14,10 @@ import { importRemoteImageFile } from "./lib/remote-image-import.js";
 import { localizeProjectImageFields } from "./lib/project-image-localizer.js";
 import { runUploadsReorganization } from "./lib/uploads-reorganizer.js";
 import {
+  applySecurityHeaders,
+  injectNonceIntoHtmlScripts,
+} from "./lib/security-headers.js";
+import {
   AccessRole,
   BASIC_PROFILE_FIELDS,
   PermissionId,
@@ -35,6 +39,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
+app.disable("x-powered-by");
 const FileStore = fileStoreFactory(session);
 
 const ownerIdsFilePath = path.join(__dirname, "data", "owner-ids.json");
@@ -991,6 +996,12 @@ const renderMetaHtml = ({
   return html;
 };
 
+const sendHtml = (res, html) => {
+  const nonce = typeof res.locals?.cspNonce === "string" ? res.locals.cspNonce : "";
+  const body = nonce ? injectNonceIntoHtmlScripts(html, nonce) : html;
+  return res.type("html").send(body);
+};
+
 const stripHtml = (value) => String(value || "").replace(/<[^>]*>/g, "").replace(/\s+/g, " ").trim();
 
 const isValidPostCoverImageUrl = (value) => {
@@ -1599,13 +1610,9 @@ app.use((req, res, next) => {
   if (!isProduction) {
     return next();
   }
-  res.setHeader("X-Content-Type-Options", "nosniff");
-  res.setHeader("X-Frame-Options", "DENY");
-  res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
-  res.setHeader(
-    "Permissions-Policy",
-    "camera=(), microphone=(), geolocation=(), payment=(), usb=(), interest-cohort=()",
-  );
+  const cspNonce = crypto.randomBytes(16).toString("base64");
+  res.locals.cspNonce = cspNonce;
+  applySecurityHeaders(res, cspNonce);
   return next();
 });
 
@@ -7120,18 +7127,18 @@ app.get(["/", "/projeto/:id", "/projeto/:id/leitura/:chapter", "/postagem/:slug"
       const slug = String(req.params.slug || "");
       const post = normalizePosts(loadPosts()).find((item) => item.slug === slug);
       const meta = post ? buildPostMeta(post) : buildSiteMeta();
-      return res.type("html").send(renderMetaHtml({ ...meta, url: `${PRIMARY_APP_ORIGIN}${req.path}` }));
+      return sendHtml(res, renderMetaHtml({ ...meta, url: `${PRIMARY_APP_ORIGIN}${req.path}` }));
     }
     if (req.path.startsWith("/projeto/")) {
       const id = String(req.params.id || "");
       const project = normalizeProjects(loadProjects()).find((item) => String(item.id) === id);
       const meta = project ? buildProjectMeta(project) : buildSiteMeta();
-      return res.type("html").send(renderMetaHtml({ ...meta, url: `${PRIMARY_APP_ORIGIN}${req.path}` }));
+      return sendHtml(res, renderMetaHtml({ ...meta, url: `${PRIMARY_APP_ORIGIN}${req.path}` }));
     }
     const meta = buildSiteMeta();
-    return res.type("html").send(renderMetaHtml({ ...meta, url: `${PRIMARY_APP_ORIGIN}${req.path}` }));
+    return sendHtml(res, renderMetaHtml({ ...meta, url: `${PRIMARY_APP_ORIGIN}${req.path}` }));
   } catch {
-    return res.type("html").send(getIndexHtml());
+    return sendHtml(res, getIndexHtml());
   }
 });
 
@@ -7146,11 +7153,9 @@ app.get("*", (req, res) => {
     const separator = settings.site?.titleSeparator ?? "";
     const pageTitle = getPageTitleFromPath(req.path);
     const title = pageTitle ? `${pageTitle}${separator}${siteName}` : siteName;
-    return res
-      .type("html")
-      .send(renderMetaHtml({ ...meta, title, url: `${PRIMARY_APP_ORIGIN}${req.path}` }));
+    return sendHtml(res, renderMetaHtml({ ...meta, title, url: `${PRIMARY_APP_ORIGIN}${req.path}` }));
   } catch {
-    return res.type("html").send(getIndexHtml());
+    return sendHtml(res, getIndexHtml());
   }
 });
 
