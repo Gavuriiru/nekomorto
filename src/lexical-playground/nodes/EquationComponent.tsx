@@ -126,7 +126,12 @@ export default function EquationComponent({
           ref={inputRef}
         />
       ) : (
-        <ErrorBoundary onError={(e) => editor._onError(e)} fallback={null}>
+        <ErrorBoundary
+          onError={(error) =>
+            editor._onError(error instanceof Error ? error : new Error(String(error)))
+          }
+          fallback={null}
+        >
           <KatexRenderer
             equation={equationValue}
             inline={inline}

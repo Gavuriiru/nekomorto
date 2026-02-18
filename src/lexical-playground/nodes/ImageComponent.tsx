@@ -61,6 +61,10 @@ type ImageStatus =
   | {error: true}
   | {error: false; width: number; height: number};
 
+const hasResolvedImageDimensions = (
+  status: ImageStatus,
+): status is {error: false; width: number; height: number} => !status.error;
+
 const imageCache = new Map<string, Promise<ImageStatus> | ImageStatus>();
 
 export const RIGHT_CLICK_IMAGE_COMMAND: LexicalCommand<MouseEvent> =
@@ -151,6 +155,14 @@ function LazyImage({
   // Calculate final dimensions with proper scaling
   const calculateDimensions = () => {
     if (!isSVGImage) {
+      return {
+        height,
+        maxWidth,
+        width,
+      };
+    }
+
+    if (!hasResolvedImageDimensions(status)) {
       return {
         height,
         maxWidth,

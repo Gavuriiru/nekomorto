@@ -39,31 +39,31 @@ const defaultRecruitment = {
   heroBadge: "Recrutamento",
   heroTitle: "Venha fazer parte da equipe",
   heroSubtitle:
-    "Buscamos pessoas comprometidas e curiosas. Se você gosta de traduções, edição ou produção visual, há um lugar para você aqui.",
+    "Buscamos pessoas comprometidas e curiosas. Se vocÃª gosta de traduÃ§Ãµes, ediÃ§Ã£o ou produÃ§Ã£o visual, hÃ¡ um lugar para vocÃª aqui.",
   roles: [
     {
       title: "Tradutor",
-      description: "Adapta o texto original para português mantendo tom, contexto e naturalidade.",
+      description: "Adapta o texto original para portuguÃªs mantendo tom, contexto e naturalidade.",
       icon: "Languages",
     },
     {
       title: "Revisor",
-      description: "Garante coerência, gramática e fluidez do texto antes da etapa visual.",
+      description: "Garante coerÃªncia, gramÃ¡tica e fluidez do texto antes da etapa visual.",
       icon: "ScanText",
     },
     {
       title: "Typesetter",
-      description: "Integra o texto à arte, ajustando tipografia, efeitos e legibilidade.",
+      description: "Integra o texto Ã  arte, ajustando tipografia, efeitos e legibilidade.",
       icon: "PenTool",
     },
     {
       title: "Quality Check",
-      description: "Revisa o resultado final buscando erros visuais, timing e consistência.",
+      description: "Revisa o resultado final buscando erros visuais, timing e consistÃªncia.",
       icon: "ShieldCheck",
     },
     {
       title: "Encoder",
-      description: "Responsável por exportação e ajustes finais de qualidade do vídeo/arquivo.",
+      description: "ResponsÃ¡vel por exportaÃ§Ã£o e ajustes finais de qualidade do vÃ­deo/arquivo.",
       icon: "Video",
     },
     {
@@ -73,17 +73,17 @@ const defaultRecruitment = {
     },
     {
       title: "Redrawer",
-      description: "Reconstrói partes da arte removidas pelo cleaning para preservar o visual.",
+      description: "ReconstrÃ³i partes da arte removidas pelo cleaning para preservar o visual.",
       icon: "Layers",
     },
     {
       title: "Timer",
-      description: "Sincroniza falas com o tempo, garantindo leitura confortável e precisa.",
+      description: "Sincroniza falas com o tempo, garantindo leitura confortÃ¡vel e precisa.",
       icon: "Timer",
     },
     {
       title: "Karaoke/FX",
-      description: "Cria efeitos especiais e animações para openings/endings quando necessário.",
+      description: "Cria efeitos especiais e animaÃ§Ãµes para openings/endings quando necessÃ¡rio.",
       icon: "Sparkles",
     },
   ] as RecruitmentRole[],
@@ -211,6 +211,7 @@ const Recruitment = () => {
 };
 
 export default Recruitment;
+
 
 
 

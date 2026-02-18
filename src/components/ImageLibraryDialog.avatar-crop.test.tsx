@@ -17,9 +17,12 @@ vi.mock("react-advanced-cropper", async () => {
   const React = await vi.importActual<typeof import("react")>("react");
   const FixedCropper = React.forwardRef((props: Record<string, unknown>, ref: React.ForwardedRef<unknown>) => {
     cropperRenderMock(props);
-    const cropperApi = {
-      getCanvas: (...args: unknown[]) => cropperGetCanvasMock(...args),
-    };
+    const cropperApi = React.useMemo(
+      () => ({
+        getCanvas: (...args: unknown[]) => cropperGetCanvasMock(...args),
+      }),
+      [],
+    );
     if (typeof ref === "function") {
       ref(cropperApi);
     } else if (ref && typeof ref === "object") {
@@ -32,7 +35,7 @@ vi.mock("react-advanced-cropper", async () => {
         return () => window.clearTimeout(timeout);
       }
       return undefined;
-    }, [props.onReady, props.src]);
+    }, [cropperApi, props.onReady, props.src]);
     return React.createElement("div", { "data-testid": "advanced-cropper-mock" });
   });
 
@@ -202,8 +205,7 @@ describe("ImageLibraryDialog avatar crop flow", () => {
       | Record<string, unknown>
       | undefined;
     expect(cropperProps).toBeTruthy();
-    expect(cropperProps?.moveImage).toBe(true);
-    expect(cropperProps?.resizeImage).toBe(true);
+    expect(cropperProps?.imageRestriction).toBe("stencil");
     expect(cropperProps?.stencilProps).toMatchObject({
       movable: false,
       resizable: false,

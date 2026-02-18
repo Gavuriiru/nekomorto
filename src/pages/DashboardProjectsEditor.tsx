@@ -1,4 +1,4 @@
-﻿import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import type { MouseEvent as ReactMouseEvent } from "react";
 import DashboardShell from "@/components/DashboardShell";
@@ -853,6 +853,10 @@ const DashboardProjectsEditor = () => {
   const confirmCancelRef = useRef<(() => void) | null>(null);
   const autoEditHandledRef = useRef<string | null>(null);
   const isApplyingSearchParamsRef = useRef(false);
+  const queryStateRef = useRef({
+    sortMode,
+    currentPage,
+  });
   const editorInitialSnapshotRef = useRef<string>(buildProjectEditorSnapshot(emptyProject, ""));
   const isDirty = useMemo(
     () => buildProjectEditorSnapshot(formState, anilistIdInput) !== editorInitialSnapshotRef.current,
@@ -1000,6 +1004,13 @@ const DashboardProjectsEditor = () => {
     loadUser();
   }, [apiBase]);
   useEffect(() => {
+    queryStateRef.current = {
+      sortMode,
+      currentPage,
+    };
+  }, [currentPage, sortMode]);
+
+  useEffect(() => {
     const sortParam = searchParams.get("sort");
     const nextSort =
       sortParam === "alpha" ||
@@ -1010,7 +1021,8 @@ const DashboardProjectsEditor = () => {
         ? sortParam
         : "alpha";
     const nextPage = parsePageParam(searchParams.get("page"));
-    const shouldApply = sortMode !== nextSort || currentPage !== nextPage;
+    const { sortMode: currentSortMode, currentPage: currentCurrentPage } = queryStateRef.current;
+    const shouldApply = currentSortMode !== nextSort || currentCurrentPage !== nextPage;
     if (!shouldApply) {
       return;
     }
@@ -1414,9 +1426,9 @@ const DashboardProjectsEditor = () => {
     setIsEditorOpen(true);
   };
 
-  const openEdit = (project: ProjectRecord) => {
-    const initialEpisodes = Array.isArray(project.episodeDownloads)
-      ? project.episodeDownloads.map((episode) => ({
+  const openEdit = useCallback((project: ProjectRecord) => {
+    const initialEpisodes: ProjectEpisode[] = Array.isArray(project.episodeDownloads)
+      ? project.episodeDownloads.map((episode): ProjectEpisode => ({
           ...episode,
           content: episode.content || "",
           contentFormat: "lexical",
@@ -1446,7 +1458,7 @@ const DashboardProjectsEditor = () => {
       country: project.country || "",
       source: project.source || "",
       producers: Array.isArray(project.producers) ? project.producers : [],
-      score: null,
+      score: project.score ?? null,
       startDate: project.startDate || "",
       endDate: project.endDate || "",
       relations: Array.isArray(project.relations) ? project.relations : [],
@@ -1477,7 +1489,7 @@ const DashboardProjectsEditor = () => {
       return next;
     });
     setIsEditorOpen(true);
-  };
+  }, []);
 
   useEffect(() => {
     const editTarget = (searchParams.get("edit") || "").trim();
@@ -1936,7 +1948,10 @@ const DashboardProjectsEditor = () => {
       country: media.countryOfOrigin || prev.country,
       source: media.source || prev.source,
       producers,
-      score: null,
+      score:
+        typeof media.averageScore === "number" && Number.isFinite(media.averageScore)
+          ? media.averageScore
+          : (prev.score ?? null),
       startDate,
       endDate,
       relations: relations.length ? relations : prev.relations,
@@ -2431,7 +2446,6 @@ const DashboardProjectsEditor = () => {
           className={`project-editor-dialog max-h-[94vh] max-w-[min(1120px,calc(100vw-1.5rem))] overflow-y-auto no-scrollbar p-0 ${
             isEditorDialogScrolled ? "editor-modal-scrolled" : ""
           }`}
-          disableOutsidePointerEvents={false}
           onScroll={(event) => {
             const nextScrolled = event.currentTarget.scrollTop > 0;
             setIsEditorDialogScrolled((prev) => (prev === nextScrolled ? prev : nextScrolled));

@@ -62,6 +62,9 @@ const applyBlockType = (editor: ReturnType<typeof useLexicalComposerContext>[0],
   });
 };
 
+const toSupportedBlockType = (tag: string): BlockType =>
+  tag === "h1" || tag === "h2" || tag === "h3" ? tag : "paragraph";
+
 const LexicalToolbar = ({ onRequestImage, onRequestLink, onRequestVideo, onRequestTable }: LexicalToolbarProps) => {
   const [editor] = useLexicalComposerContext();
   const [blockType, setBlockType] = React.useState<BlockType>("paragraph");
@@ -115,7 +118,7 @@ const LexicalToolbar = ({ onRequestImage, onRequestLink, onRequestVideo, onReque
           : anchorNode.getParentOrThrow();
         const topLevel = element.getTopLevelElementOrThrow();
         if ($isHeadingNode(topLevel)) {
-          setBlockType(topLevel.getTag());
+          setBlockType(toSupportedBlockType(topLevel.getTag()));
           return;
         }
         if ($isQuoteNode(topLevel)) {
@@ -146,7 +149,7 @@ const LexicalToolbar = ({ onRequestImage, onRequestLink, onRequestVideo, onReque
             : anchorNode.getParentOrThrow();
           const topLevel = element.getTopLevelElementOrThrow();
           if ($isHeadingNode(topLevel)) {
-            setBlockType(topLevel.getTag());
+            setBlockType(toSupportedBlockType(topLevel.getTag()));
             return;
           }
           if ($isQuoteNode(topLevel)) {

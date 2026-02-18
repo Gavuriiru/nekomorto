@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from "react";
 
-type UseDynamicSynopsisClampParams = {
+type UseDynamicSynopsisClampParams<T extends HTMLElement = HTMLDivElement> = {
   enabled: boolean;
   keys: string[];
   maxLines?: number;
-  scopeRef?: RefObject<HTMLElement | null>;
+  scopeRef?: RefObject<T | null>;
   selectors?: {
     column?: string;
     title?: string;
@@ -30,15 +30,15 @@ const mapsAreEqual = (a: Record<string, number>, b: Record<string, number>) => {
   return aKeys.every((key) => a[key] === b[key]);
 };
 
-export const useDynamicSynopsisClamp = ({
+export const useDynamicSynopsisClamp = <T extends HTMLElement = HTMLDivElement>({
   enabled,
   keys,
   maxLines = 3,
   scopeRef,
   selectors,
   resizeDebounceMs = 80,
-}: UseDynamicSynopsisClampParams) => {
-  const internalRef = useRef<HTMLElement | null>(null);
+}: UseDynamicSynopsisClampParams<T>) => {
+  const internalRef = useRef<T | null>(null);
   const rootRef = scopeRef ?? internalRef;
   const frameRef = useRef<number | null>(null);
   const [lineByKey, setLineByKey] = useState<Record<string, number>>({});

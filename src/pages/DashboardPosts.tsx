@@ -1,4 +1,4 @@
-﻿import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import DashboardShell from "@/components/DashboardShell";
 import DashboardPageContainer from "@/components/dashboard/DashboardPageContainer";
@@ -306,6 +306,12 @@ const DashboardPosts = () => {
   const editorInitialSnapshotRef = useRef<string>(buildPostEditorSnapshot(emptyForm));
   const autoEditHandledRef = useRef<string | null>(null);
   const isApplyingSearchParamsRef = useRef(false);
+  const queryStateRef = useRef({
+    sortMode,
+    searchQuery,
+    projectFilterId,
+    currentPage,
+  });
 
   const currentUserRecord = currentUser
     ? users.find((user) => user.id === currentUser.id) || null
@@ -539,7 +545,7 @@ const DashboardPosts = () => {
     setIsEditorOpen(true);
   };
 
-  const openEdit = (post: PostRecord) => {
+  const openEdit = useCallback((post: PostRecord) => {
     const nextForm = {
       title: post.title || "",
       slug: post.slug || "",
@@ -558,7 +564,7 @@ const DashboardPosts = () => {
     setFormState(nextForm);
     editorInitialSnapshotRef.current = buildPostEditorSnapshot(nextForm);
     setIsEditorOpen(true);
-  };
+  }, []);
 
   useEffect(() => {
     const editTarget = (searchParams.get("edit") || "").trim();
@@ -822,15 +828,30 @@ const DashboardPosts = () => {
   }, [isLoading, totalPages]);
 
   useEffect(() => {
+    queryStateRef.current = {
+      sortMode,
+      searchQuery,
+      projectFilterId,
+      currentPage,
+    };
+  }, [currentPage, projectFilterId, searchQuery, sortMode]);
+
+  useEffect(() => {
     const nextSortMode = parseSortParam(searchParams.get("sort"));
     const nextSearchQuery = searchParams.get("q") || "";
     const nextProjectFilterId = searchParams.get("project") || "all";
     const nextPage = parsePageParam(searchParams.get("page"));
+    const {
+      sortMode: currentSortMode,
+      searchQuery: currentSearchQuery,
+      projectFilterId: currentProjectFilterId,
+      currentPage: currentCurrentPage,
+    } = queryStateRef.current;
     const shouldApply =
-      sortMode !== nextSortMode ||
-      searchQuery !== nextSearchQuery ||
-      projectFilterId !== nextProjectFilterId ||
-      currentPage !== nextPage;
+      currentSortMode !== nextSortMode ||
+      currentSearchQuery !== nextSearchQuery ||
+      currentProjectFilterId !== nextProjectFilterId ||
+      currentCurrentPage !== nextPage;
     if (!shouldApply) {
       return;
     }
@@ -1234,7 +1255,6 @@ const DashboardPosts = () => {
                     className={`max-w-6xl max-h-[92vh] overflow-y-auto no-scrollbar ${
                       isEditorDialogScrolled ? "editor-modal-scrolled" : ""
                     }`}
-                    disableOutsidePointerEvents={false}
                     onScroll={(event) => {
                       const nextScrolled = event.currentTarget.scrollTop > 0;
                       setIsEditorDialogScrolled((prev) =>

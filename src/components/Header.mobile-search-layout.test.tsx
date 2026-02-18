@@ -1,4 +1,5 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -118,6 +119,7 @@ describe("Header mobile search layout", () => {
   });
 
   it("oculta clusters, centraliza busca e restaura estado ao fechar no mobile", async () => {
+    const user = userEvent.setup();
     render(
       <MemoryRouter initialEntries={["/"]}>
         <Header />
@@ -128,7 +130,7 @@ describe("Header mobile search layout", () => {
     const searchCluster = screen.getByTestId("public-header-search-cluster");
     const actionsCluster = screen.getByTestId("public-header-actions-cluster");
 
-    fireEvent.click(screen.getByRole("button", { name: "Abrir pesquisa" }));
+    await user.click(screen.getByRole("button", { name: "Abrir pesquisa" }));
 
     const searchInput = await screen.findByPlaceholderText("Pesquisar projetos e posts");
     expect(searchInput).toBeInTheDocument();
@@ -143,9 +145,7 @@ describe("Header mobile search layout", () => {
     expect(classTokens(searchCluster)).toContain("inset-x-0");
     expect(classTokens(searchCluster)).toContain("w-[min(22rem,calc(100vw-1rem))]");
 
-    fireEvent.change(searchInput, {
-      target: { value: "teste" },
-    });
+    await user.type(searchInput, "teste");
 
     expect(await screen.findByText("Projeto Teste")).toBeInTheDocument();
     expect(await screen.findByText("Post Teste")).toBeInTheDocument();
@@ -156,7 +156,7 @@ describe("Header mobile search layout", () => {
     expect(classTokens(results)).toContain("left-0");
     expect(classTokens(results)).toContain("right-0");
 
-    fireEvent.mouseDown(document.body);
+    await user.click(document.body);
 
     await waitFor(() => {
       expect(screen.queryByPlaceholderText("Pesquisar projetos e posts")).not.toBeInTheDocument();
@@ -226,11 +226,15 @@ describe("Header mobile search layout", () => {
       </MemoryRouter>,
     );
 
+    await waitFor(() => {
+      expect(apiFetchMock).toHaveBeenCalledTimes(4);
+    });
     expect(screen.getByRole("button", { name: /Alternar para tema/i })).toBeInTheDocument();
     expect(setThemePreferenceMock).not.toHaveBeenCalled();
   });
 
-  it("nÃ£o redireciona e exibe toast quando logout falha", async () => {
+  it("não redireciona e exibe toast quando logout falha", async () => {
+    const user = userEvent.setup();
     setupApiMock({ logoutOk: false });
 
     render(
@@ -245,8 +249,8 @@ describe("Header mobile search layout", () => {
 
     const profileButton = screen.getByText("Admin").closest("button");
     expect(profileButton).toBeTruthy();
-    fireEvent.keyDown(profileButton as HTMLButtonElement, { key: "ArrowDown" });
-    fireEvent.click(await screen.findByRole("menuitem", { name: /Sair/i }));
+    await user.click(profileButton as HTMLButtonElement);
+    await user.click(await screen.findByRole("menuitem", { name: /Sair/i }));
 
     await waitFor(() => {
       expect(toastMock).toHaveBeenCalledWith(

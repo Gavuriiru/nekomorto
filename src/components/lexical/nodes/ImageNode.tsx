@@ -94,7 +94,7 @@ export class ImageNode extends DecoratorNode<JSX.Element> {
             }),
           };
         },
-        priority: 0,
+        priority: 0 as const,
       }),
     };
   }

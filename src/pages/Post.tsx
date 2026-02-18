@@ -165,7 +165,7 @@ const Post = () => {
             </div>
           ) : loadError || !post ? (
             <div className="rounded-2xl border border-dashed border-border/60 bg-card/60 px-6 py-10 text-sm text-muted-foreground">
-              Postagem n„o encontrada.
+              Postagem n√£o encontrada.
             </div>
           ) : (
             <>
@@ -244,6 +244,7 @@ const Post = () => {
 };
 
 export default Post;
+
 
 
 

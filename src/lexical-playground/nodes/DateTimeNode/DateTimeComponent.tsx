@@ -199,7 +199,6 @@ export default function DateTimeComponent({
                 {...getFloatingProps()}>
                 <DayPicker
                   captionLayout="dropdown"
-                  navLayout="after"
                   fixedWeeks={false}
                   showOutsideDays={false}
                   mode="single"
@@ -207,8 +206,8 @@ export default function DateTimeComponent({
                   required={true}
                   // timeZone="BST" TODO: Support time zone selection
                   onSelect={handleDaySelect}
-                  startMonth={new Date(1925, 0)}
-                  endMonth={new Date(2042, 7)}
+                  fromMonth={new Date(1925, 0)}
+                  toMonth={new Date(2042, 7)}
                 />
                 <form style={{marginBlockEnd: '1em'}}>
                   <div

@@ -1,4 +1,4 @@
-﻿import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -250,6 +250,9 @@ describe("DashboardHeader mobile search layout", () => {
       </MemoryRouter>,
     );
 
+    await waitFor(() => {
+      expect(apiFetchMock).toHaveBeenCalledTimes(3);
+    });
     expect(screen.getByRole("button", { name: /Alternar para tema/i })).toBeInTheDocument();
     expect(setThemePreferenceMock).not.toHaveBeenCalled();
   });

@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import type { GrantMap } from "@/lib/access-control";
 
 const loadAccessControl = async (enabled: boolean) => {
   vi.resetModules();
@@ -15,7 +16,7 @@ describe("access-control RBAC V2", () => {
     const access = await loadAccessControl(true);
     const grants = Object.fromEntries(
       access.permissionIds.map((id) => [id, false]),
-    ) as Record<string, boolean>;
+    ) as GrantMap;
     grants.posts = true;
 
     expect(access.isDashboardHrefAllowed("/dashboard/posts", grants)).toBe(true);

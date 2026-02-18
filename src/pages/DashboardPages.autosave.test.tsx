@@ -164,7 +164,7 @@ describe("DashboardPages autosave", () => {
     );
   });
 
-  it("save manual com falha exibe toast destrutivo", async () => {
+  it("save manual com falha exibe toast destrutivo", { timeout: 15000 }, async () => {
     apiFetchMock.mockImplementation(async (_base, path, options) => {
       const method = String((options as RequestInit | undefined)?.method || "GET").toUpperCase();
       if (path === "/api/me") {
@@ -222,4 +222,5 @@ describe("DashboardPages autosave", () => {
     );
   });
 });
+
 

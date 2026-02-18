@@ -1,5 +1,6 @@
-﻿import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { CircleStencil, FixedCropper, type FixedCropperRef } from "react-advanced-cropper";
+import { ImageRestriction } from "advanced-cropper";
 import "react-advanced-cropper/dist/style.css";
 
 import {
@@ -336,7 +337,7 @@ const AvatarCropWorkspace = ({ src, isApplyingCrop, onCancel, onApplyCrop }: Ava
     <>
       <div className="grid gap-4">
         <div className="rounded-xl border border-border/60 bg-card/60 p-3">
-          <p className="mb-1 text-sm font-medium text-foreground">Ãrea de recorte</p>
+          <p className="mb-1 text-sm font-medium text-foreground">Área de recorte</p>
           <p className="mb-3 text-xs text-muted-foreground">Arraste a imagem e use scroll para ajustar o zoom.</p>
           <div
             className="avatar-cropper-preview relative mx-auto overflow-hidden rounded-xl bg-background/40"
@@ -353,11 +354,8 @@ const AvatarCropWorkspace = ({ src, isApplyingCrop, onCancel, onApplyCrop }: Ava
                   width: CROPPER_BOUNDARY_SIZE,
                   height: CROPPER_BOUNDARY_SIZE,
                 })}
-                imageRestriction="stencil"
-                autoZoom
+                imageRestriction={ImageRestriction.stencil}
                 transitions={false}
-                resizeImage
-                moveImage
                 onReady={() => setIsCropReady(true)}
                 onError={() => {
                   setIsCropReady(false);
@@ -856,8 +854,8 @@ const ImageLibraryDialog = ({
             title: uploadedUrls.length === 1 ? "Imagem enviada" : `${uploadedUrls.length} imagens enviadas`,
             description:
               uploadedUrls.length === 1
-                ? "Upload concluÃ­do com sucesso."
-                : "Os uploads foram concluÃ­dos com sucesso.",
+                ? "Upload concluído com sucesso."
+                : "Os uploads foram concluídos com sucesso.",
             intent: "success",
           });
         }
@@ -977,7 +975,7 @@ const ImageLibraryDialog = ({
         setSelectedUrls((prev) => prev.filter((url) => toComparableSelectionKey(url) !== itemKey));
         await loadUploads();
         toast({
-          title: "Imagem excluÃ­da",
+          title: "Imagem excluída",
           description: "A imagem foi removida com sucesso.",
           intent: "success",
         });
@@ -1236,7 +1234,7 @@ const ImageLibraryDialog = ({
               </span>
             </AccordionTrigger>
             <AccordionContent className="[&>div]:mt-0">
-              {renderGrid(group.items, "Nenhuma imagem disponÃ­vel neste projeto.")}
+              {renderGrid(group.items, "Nenhuma imagem disponível neste projeto.")}
             </AccordionContent>
           </AccordionItem>
         ))}
@@ -1311,7 +1309,7 @@ const ImageLibraryDialog = ({
                   </div>
                 </div>
               ) : (
-                <p className="text-sm text-muted-foreground">ImportaÃ§Ã£o por URL desativada.</p>
+                <p className="text-sm text-muted-foreground">Importação por URL desativada.</p>
               )}
               <p className="text-xs text-muted-foreground">
                 {mode === "multiple"
@@ -1336,7 +1334,7 @@ const ImageLibraryDialog = ({
                   />
                   {allowDeselect ? (
                     <Button type="button" size="sm" variant="outline" onClick={() => setSelectedUrls([])}>
-                      Limpar seleÃ§Ã£o
+                      Limpar seleção
                     </Button>
                   ) : null}
                 </div>

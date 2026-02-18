@@ -66,7 +66,7 @@ export default function DraggableBlockPlugin({
   } | null>(null);
 
   const options = useMemo(() => {
-    const baseOptions = getBaseOptions(editor, showModal);
+    const baseOptions = getBaseOptions(editor, showModal, () => undefined);
 
     if (!queryString) {
       return baseOptions;

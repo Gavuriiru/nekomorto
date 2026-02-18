@@ -45,6 +45,14 @@ describe("Recruitment mobile CTA layout", () => {
       settings: createSettings({
         community: {
           discordUrl: "https://discord.gg/recruitment-test",
+          inviteCard: {
+            title: "Comunidade",
+            subtitle: "Junte-se",
+            panelTitle: "Discord",
+            panelDescription: "Canal principal",
+            ctaLabel: "Entrar",
+            ctaUrl: "https://discord.gg/recruitment-test",
+          },
         },
       }),
       isLoading: false,
