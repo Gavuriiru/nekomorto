@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { CircleStencil, Cropper, type CropperRef } from "react-advanced-cropper";
+import { CircleStencil, FixedCropper, type FixedCropperRef } from "react-advanced-cropper";
 import "react-advanced-cropper/dist/style.css";
 
 import {
@@ -75,7 +75,7 @@ type ImageLibraryDialogProps = {
   onSave: (payload: ImageLibrarySavePayload) => void;
 };
 
-const CROPPER_BOUNDARY_SIZE = 360;
+const CROPPER_BOUNDARY_SIZE = 320;
 const CROPPER_OUTPUT_SIZE = 512;
 
 const fileToDataUrl = (file: File) =>
@@ -268,7 +268,7 @@ type AvatarCropWorkspaceProps = {
 };
 
 const AvatarCropWorkspace = ({ src, isApplyingCrop, onCancel, onApplyCrop }: AvatarCropWorkspaceProps) => {
-  const cropperRef = useRef<CropperRef | null>(null);
+  const cropperRef = useRef<FixedCropperRef | null>(null);
   const [isCropReady, setIsCropReady] = useState(false);
   const [cropperRevision, setCropperRevision] = useState(0);
 
@@ -306,21 +306,25 @@ const AvatarCropWorkspace = ({ src, isApplyingCrop, onCancel, onApplyCrop }: Ava
 
   return (
     <>
-      <div className="grid gap-4 lg:grid-cols-[1.4fr_0.9fr]">
+      <div className="grid gap-4">
         <div className="rounded-xl border border-border/60 bg-card/60 p-3">
           <p className="mb-1 text-sm font-medium text-foreground">Área de recorte</p>
-          <p className="mb-3 text-xs text-muted-foreground">Mova e ajuste o enquadramento direto na imagem.</p>
+          <p className="mb-3 text-xs text-muted-foreground">Arraste a imagem e use scroll para ajustar o zoom.</p>
           <div
             className="avatar-cropper-preview relative mx-auto overflow-hidden rounded-xl bg-black/20"
             style={{ width: CROPPER_BOUNDARY_SIZE, height: CROPPER_BOUNDARY_SIZE }}
           >
             <div className="avatar-cropper-shell">
-              <Cropper
+              <FixedCropper
                 key={`${src}:${cropperRevision}`}
                 ref={cropperRef}
                 src={src}
                 className="avatar-cropper-root"
                 stencilComponent={CircleStencil}
+                stencilSize={() => ({
+                  width: CROPPER_BOUNDARY_SIZE,
+                  height: CROPPER_BOUNDARY_SIZE,
+                })}
                 imageRestriction="stencil"
                 autoZoom
                 transitions={false}
@@ -335,21 +339,24 @@ const AvatarCropWorkspace = ({ src, isApplyingCrop, onCancel, onApplyCrop }: Ava
                   });
                 }}
                 stencilProps={{
-                  movable: true,
-                  resizable: true,
+                  movable: false,
+                  resizable: false,
                   grid: false,
+                  handlers: {
+                    eastNorth: false,
+                    westNorth: false,
+                    westSouth: false,
+                    eastSouth: false,
+                  },
+                  lines: {
+                    west: false,
+                    north: false,
+                    east: false,
+                    south: false,
+                  },
                 }}
               />
             </div>
-          </div>
-        </div>
-        <div className="space-y-3 rounded-xl border border-border/60 bg-card/60 p-4">
-          <p className="text-sm font-medium text-foreground">Como ajustar</p>
-          <div className="space-y-2 text-sm text-muted-foreground">
-            <p>Arraste a imagem para posicionar o avatar.</p>
-            <p>Use o scroll para aproximar ou afastar.</p>
-            <p>Quando estiver satisfeito com o enquadramento, clique em Aplicar avatar.</p>
-            <p>Para confirmar a troca, salvar sem aplicar recorte n\u00E3o \u00E9 permitido.</p>
           </div>
         </div>
       </div>
@@ -1319,7 +1326,7 @@ const ImageLibraryDialog = ({
         }}
       >
         <DialogContent
-          className="max-h-[92vh] max-w-5xl overflow-auto z-240 data-[state=open]:animate-none data-[state=closed]:animate-none"
+          className="max-h-[92vh] max-w-xl overflow-auto z-240 data-[state=open]:animate-none data-[state=closed]:animate-none"
           overlayClassName="z-230 data-[state=open]:animate-none data-[state=closed]:animate-none"
         >
           <DialogHeader>

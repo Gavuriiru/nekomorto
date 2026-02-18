@@ -15,7 +15,7 @@ const { apiFetchMock, toastMock, cropperRenderMock, cropperGetCanvasMock, croppe
 
 vi.mock("react-advanced-cropper", async () => {
   const React = await vi.importActual<typeof import("react")>("react");
-  const Cropper = React.forwardRef((props: Record<string, unknown>, ref: React.ForwardedRef<unknown>) => {
+  const FixedCropper = React.forwardRef((props: Record<string, unknown>, ref: React.ForwardedRef<unknown>) => {
     cropperRenderMock(props);
     const cropperApi = {
       getCanvas: (...args: unknown[]) => cropperGetCanvasMock(...args),
@@ -37,7 +37,8 @@ vi.mock("react-advanced-cropper", async () => {
   });
 
   return {
-    Cropper,
+    Cropper: FixedCropper,
+    FixedCropper,
     CircleStencil: () => null,
   };
 });
@@ -133,6 +134,46 @@ describe("ImageLibraryDialog avatar crop flow", () => {
       expect(cropperRenderMock).toHaveBeenCalled();
     });
     expect(screen.getByTestId("advanced-cropper-mock")).toBeInTheDocument();
+    expect(screen.queryByText("Como ajustar")).not.toBeInTheDocument();
+
+    const cropperPreview = document.querySelector(".avatar-cropper-preview") as HTMLElement | null;
+    expect(cropperPreview).not.toBeNull();
+    expect(cropperPreview).toHaveStyle({
+      width: "320px",
+      height: "320px",
+    });
+
+    const cropperProps = cropperRenderMock.mock.calls[cropperRenderMock.mock.calls.length - 1]?.[0] as
+      | Record<string, unknown>
+      | undefined;
+    expect(cropperProps).toBeTruthy();
+    expect(cropperProps?.moveImage).toBe(true);
+    expect(cropperProps?.resizeImage).toBe(true);
+    expect(cropperProps?.stencilProps).toMatchObject({
+      movable: false,
+      resizable: false,
+      grid: false,
+      handlers: {
+        eastNorth: false,
+        westNorth: false,
+        westSouth: false,
+        eastSouth: false,
+      },
+      lines: {
+        west: false,
+        north: false,
+        east: false,
+        south: false,
+      },
+    });
+    expect(typeof cropperProps?.stencilSize).toBe("function");
+    const stencilSizeResult = (cropperProps?.stencilSize as (state: unknown) => { width: number; height: number })({
+      boundary: { width: 220, height: 320 },
+    });
+    expect(stencilSizeResult).toEqual({
+      width: 320,
+      height: 320,
+    });
   });
 
   it("aplica crop e envia upload com slot deterministico do usuario", async () => {
