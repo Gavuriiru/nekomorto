@@ -355,7 +355,6 @@ const DashboardUsers = () => {
       avatarUrl: url,
     }));
   }, []);
-  const currentLibrarySelection = formState.avatarUrl;
   const openEditDialog = useCallback((user: UserRecord) => {
     const normalizedPermissions = Array.from(
       new Set(
@@ -974,7 +973,6 @@ const DashboardUsers = () => {
         cropAvatar
         cropTargetFolder="users"
         cropSlot={formState.id ? `avatar-${formState.id}` : undefined}
-        currentSelectionUrls={currentLibrarySelection ? [currentLibrarySelection] : []}
         onSave={({ urls }) => handleLibrarySave({ urls })}
       />
 

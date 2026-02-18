@@ -248,9 +248,10 @@ describe("ImageLibraryDialog avatar crop flow", () => {
       });
     });
 
-    expect(await screen.findByText("Avatar Final")).toBeInTheDocument();
+    expect(await screen.findByText("Avatar Base")).toBeInTheDocument();
     await waitFor(() => {
       expect(screen.getByText("Selecionadas: 1")).toBeInTheDocument();
+      expect(screen.queryByText("Avatar Final")).not.toBeInTheDocument();
     });
   });
 
@@ -371,6 +372,9 @@ describe("ImageLibraryDialog avatar crop flow", () => {
       if (path.startsWith("/api/uploads/list")) {
         return buildUploadListResponse(uploadFiles);
       }
+      if (path === "/api/uploads/image") {
+        return mockJsonResponse(true, { url: "/uploads/users/avatar-user-1.png" });
+      }
       if (path === "/api/uploads/project-images") {
         return mockJsonResponse(true, { items: [] });
       }
@@ -381,7 +385,7 @@ describe("ImageLibraryDialog avatar crop flow", () => {
 
     const Harness = () => {
       const [open, setOpen] = useState(true);
-      const [selection, setSelection] = useState<string[]>(["/uploads/users/base-avatar.png"]);
+      const [selection, setSelection] = useState<string[]>([]);
       return (
         <>
           <button type="button" onClick={() => setOpen(true)}>
@@ -410,13 +414,22 @@ describe("ImageLibraryDialog avatar crop flow", () => {
 
     render(<Harness />);
 
-    const avatarFinalLabel = await screen.findByText("Avatar Final");
-    const avatarFinalButton = avatarFinalLabel.closest("button");
-    expect(avatarFinalButton).toBeTruthy();
-    fireEvent.click(avatarFinalButton as HTMLButtonElement);
+    const baseButtonBeforeSave = (await screen.findByText("Avatar Base")).closest("button");
+    expect(baseButtonBeforeSave).toBeTruthy();
+    expect(screen.queryByText("Avatar Final")).not.toBeInTheDocument();
+    expect(screen.queryByText("Avatar Final Cache")).not.toBeInTheDocument();
+    fireEvent.click(baseButtonBeforeSave as HTMLButtonElement);
 
-    const cropDialog = await screen.findByRole("dialog", { name: "Editor de avatar" });
-    fireEvent.click(within(cropDialog).getByRole("button", { name: "Cancelar" }));
+    await screen.findByRole("heading", { name: "Editor de avatar" });
+    const applyButton = screen.getByRole("button", { name: "Aplicar avatar" });
+    await waitFor(() => expect(applyButton).toBeEnabled());
+    fireEvent.click(applyButton);
+
+    await waitFor(() => {
+      expect(screen.getByText("Selecionadas: 1")).toBeInTheDocument();
+      expect(screen.queryByText("Avatar Final")).not.toBeInTheDocument();
+      expect(screen.queryByText("Avatar Final Cache")).not.toBeInTheDocument();
+    });
 
     fireEvent.click(screen.getByRole("button", { name: "Salvar" }));
 
@@ -431,17 +444,13 @@ describe("ImageLibraryDialog avatar crop flow", () => {
     fireEvent.click(screen.getByRole("button", { name: "Abrir biblioteca mock" }));
 
     const baseButton = (await screen.findByText("Avatar Base")).closest("button");
-    const finalButton = (await screen.findByText("Avatar Final")).closest("button");
-    const cacheButton = (await screen.findByText("Avatar Final Cache")).closest("button");
     expect(baseButton).toBeTruthy();
-    expect(finalButton).toBeTruthy();
-    expect(cacheButton).toBeTruthy();
+    expect(screen.queryByText("Avatar Final")).not.toBeInTheDocument();
+    expect(screen.queryByText("Avatar Final Cache")).not.toBeInTheDocument();
 
     await waitFor(() => {
       expect(screen.getByText("Selecionadas: 1")).toBeInTheDocument();
       expect(baseButton as HTMLButtonElement).not.toHaveClass("ring-2");
-      expect(finalButton as HTMLButtonElement).toHaveClass("ring-2");
-      expect(cacheButton as HTMLButtonElement).not.toHaveClass("ring-2");
     });
   });
 });

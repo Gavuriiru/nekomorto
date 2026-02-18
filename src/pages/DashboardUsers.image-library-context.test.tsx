@@ -62,7 +62,7 @@ describe("DashboardUsers image library context", () => {
               name: "Admin",
               phrase: "",
               bio: "",
-              avatarUrl: "",
+              avatarUrl: "/uploads/users/avatar-user-1.png",
               socials: [],
               status: "active",
               permissions: ["*"],
@@ -104,6 +104,7 @@ describe("DashboardUsers image library context", () => {
       projectImagesView?: "flat" | "by-project";
       cropAvatar?: boolean;
       cropTargetFolder?: string;
+      currentSelectionUrls?: string[];
     };
 
     expect(imageLibraryProps.uploadFolder).toBe("users");
@@ -113,5 +114,6 @@ describe("DashboardUsers image library context", () => {
     expect(imageLibraryProps.projectImagesView).toBeUndefined();
     expect(imageLibraryProps.cropAvatar).toBe(true);
     expect(imageLibraryProps.cropTargetFolder).toBe("users");
+    expect(imageLibraryProps.currentSelectionUrls).toBeUndefined();
   });
 });

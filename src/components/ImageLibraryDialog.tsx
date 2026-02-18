@@ -129,6 +129,34 @@ const sanitizeUploadSlotForComparison = (value: string | null | undefined) =>
     .replace(/^-+|-+$/g, "");
 
 const escapeRegexPattern = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+const AVATAR_UPLOAD_FILENAME_PATTERN = /^avatar-[a-z0-9-]+\.(png|jpe?g|gif|webp|svg)$/i;
+
+const getUploadRootSegment = (value: string | null | undefined) => {
+  const normalizedFolder = sanitizeUploadFolderForComparison(value);
+  return String(normalizedFolder.split("/")[0] || "").toLowerCase();
+};
+
+const parseUploadUrlPath = (value: string | null | undefined) => {
+  const normalizedUrl = normalizeComparableUploadUrl(value);
+  if (!normalizedUrl.startsWith("/uploads/")) {
+    return { folder: "", fileName: "" };
+  }
+  const relativePath = normalizedUrl.replace(/^\/uploads\//, "");
+  const segments = relativePath.split("/").filter(Boolean);
+  const fileName = segments.length > 0 ? segments[segments.length - 1] : "";
+  const folder = segments.length > 1 ? segments.slice(0, -1).join("/") : "";
+  return { folder, fileName };
+};
+
+const isAvatarGeneratedUsersUpload = (item: LibraryImageItem) => {
+  const parsedPath = parseUploadUrlPath(item.url);
+  const folder = sanitizeUploadFolderForComparison(item.folder) || parsedPath.folder;
+  if (getUploadRootSegment(folder) !== "users") {
+    return false;
+  }
+  const fileName = String(item.fileName || "").trim() || parsedPath.fileName;
+  return AVATAR_UPLOAD_FILENAME_PATTERN.test(fileName);
+};
 
 const isAvatarSlotSelection = ({
   url,
@@ -509,7 +537,14 @@ const ImageLibraryDialog = ({
     [normalizedSearch],
   );
 
-  const filteredUploads = useMemo(() => uploads.filter(matchesSearch), [matchesSearch, uploads]);
+  const visibleUploads = useMemo(() => {
+    if (!cropAvatar) {
+      return uploads;
+    }
+    return uploads.filter((item) => !isAvatarGeneratedUsersUpload(item));
+  }, [cropAvatar, uploads]);
+
+  const filteredUploads = useMemo(() => visibleUploads.filter(matchesSearch), [matchesSearch, visibleUploads]);
   const filteredProjectImages = useMemo(
     () => projectImages.filter(matchesSearch),
     [matchesSearch, projectImages],

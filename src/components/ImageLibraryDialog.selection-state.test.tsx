@@ -186,4 +186,44 @@ describe("ImageLibraryDialog selection state", () => {
       expect(imageButton).not.toHaveClass("ring-2");
     });
   });
+
+  it("nao oculta arquivos avatar fora do fluxo de crop de avatar", async () => {
+    apiFetchMock.mockImplementation(async (_base: string, path: string) => {
+      if (path.startsWith("/api/uploads/list")) {
+        return mockJsonResponse(true, {
+          files: [
+            {
+              name: "avatar-user-1.png",
+              label: "Avatar Final",
+              fileName: "avatar-user-1.png",
+              folder: "users",
+              mime: "image/png",
+              size: 1200,
+              url: "/uploads/users/avatar-user-1.png",
+            },
+          ],
+        });
+      }
+      if (path === "/api/uploads/project-images") {
+        return mockJsonResponse(true, { items: [] });
+      }
+      return mockJsonResponse(false, { error: "not_found" }, 404);
+    });
+
+    render(
+      <ImageLibraryDialog
+        open
+        onOpenChange={() => undefined}
+        apiBase="http://api.local"
+        listFolders={["users"]}
+        listAll={false}
+        includeProjectImages={false}
+        allowDeselect
+        mode="single"
+        onSave={() => undefined}
+      />,
+    );
+
+    expect(await screen.findByText("Avatar Final")).toBeInTheDocument();
+  });
 });
