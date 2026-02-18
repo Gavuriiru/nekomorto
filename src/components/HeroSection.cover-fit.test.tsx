@@ -6,6 +6,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import HeroSection from "@/components/HeroSection";
 
 const apiFetchMock = vi.hoisted(() => vi.fn());
+const themeModeState = vi.hoisted(() => ({
+  effectiveMode: "dark" as "light" | "dark",
+}));
 
 vi.mock("@/lib/api-base", () => ({
   getApiBase: () => "",
@@ -13,6 +16,16 @@ vi.mock("@/lib/api-base", () => ({
 
 vi.mock("@/lib/api-client", () => ({
   apiFetch: (...args: unknown[]) => apiFetchMock(...args),
+}));
+
+vi.mock("@/hooks/use-theme-mode", () => ({
+  useThemeMode: () => ({
+    globalMode: "dark",
+    effectiveMode: themeModeState.effectiveMode,
+    preference: "global",
+    isOverridden: false,
+    setPreference: vi.fn(),
+  }),
 }));
 
 vi.mock("@/components/ui/carousel", () => {
@@ -82,6 +95,7 @@ const setupApiMock = () => {
 describe("HeroSection cover fit", () => {
   beforeEach(() => {
     apiFetchMock.mockReset();
+    themeModeState.effectiveMode = "dark";
   });
 
   it("renderiza o slide com altura responsiva e cover central sem classes antigas de corte", async () => {
@@ -135,5 +149,33 @@ describe("HeroSection cover fit", () => {
 
     expect(within(typeStatus).getByText("Anime")).toBeInTheDocument();
     expect(within(typeStatus).getByText("Em andamento")).toBeInTheDocument();
+  });
+
+  it("renderiza overlay superior para contraste da navbar no tema claro", async () => {
+    themeModeState.effectiveMode = "light";
+    setupApiMock();
+
+    render(
+      <MemoryRouter>
+        <HeroSection />
+      </MemoryRouter>,
+    );
+
+    await screen.findByRole("heading", { name: "Projeto com Hero" });
+    expect(screen.getByTestId("hero-navbar-overlay")).toBeInTheDocument();
+  });
+
+  it("nao renderiza overlay superior no tema escuro", async () => {
+    themeModeState.effectiveMode = "dark";
+    setupApiMock();
+
+    render(
+      <MemoryRouter>
+        <HeroSection />
+      </MemoryRouter>,
+    );
+
+    await screen.findByRole("heading", { name: "Projeto com Hero" });
+    expect(screen.queryByTestId("hero-navbar-overlay")).not.toBeInTheDocument();
   });
 });

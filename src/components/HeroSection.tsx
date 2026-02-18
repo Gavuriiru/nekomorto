@@ -13,6 +13,7 @@ import {
 import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
 import type { Project } from "@/data/projects";
+import { useThemeMode } from "@/hooks/use-theme-mode";
 
 type HeroSlide = {
   id: string;
@@ -87,6 +88,7 @@ const HeroSection = () => {
   const [projectsCount, setProjectsCount] = React.useState<number | null>(null);
   const [hasLoaded, setHasLoaded] = React.useState(false);
   const apiBase = getApiBase();
+  const { effectiveMode } = useThemeMode();
   const visibleSlides = React.useMemo(() => {
     if (heroSlides.length > 0) {
       return heroSlides;
@@ -324,6 +326,9 @@ const HeroSection = () => {
     return `${trimmed}...`;
   }, []);
   const heroViewportClass = "min-h-[78vh] md:min-h-screen";
+  const shouldRenderNavbarOverlay = effectiveMode === "light";
+  const navbarOverlayClass =
+    "pointer-events-none absolute inset-x-0 top-0 h-28 bg-linear-to-b from-background/95 via-background/70 to-transparent md:h-36";
 
   return (
     <section className={`relative overflow-hidden ${heroViewportClass}`}>
@@ -343,6 +348,10 @@ const HeroSection = () => {
 
                 {/* Bottom gradient for smooth transition */}
                 <div className="absolute inset-0 bg-linear-to-t from-background via-background/30 to-transparent" />
+
+                {shouldRenderNavbarOverlay ? (
+                  <div data-testid="hero-navbar-overlay" className={navbarOverlayClass} />
+                ) : null}
 
                 {/* Content */}
                 <div className="relative z-10 w-full px-6 md:px-12 pb-16 md:pb-24">
