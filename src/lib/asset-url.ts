@@ -12,13 +12,14 @@ export const normalizeAssetUrl = (rawUrl?: string | null) => {
   if (trimmed.startsWith("/")) {
     return `${window.location.origin}${trimmed}`;
   }
-  if (/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?\//i.test(trimmed)) {
-    try {
-      const parsed = new URL(trimmed);
+  try {
+    const parsed = new URL(trimmed);
+    const isHttpUrl = parsed.protocol === "http:" || parsed.protocol === "https:";
+    if (isHttpUrl && parsed.pathname.startsWith("/uploads/")) {
       return `${window.location.origin}${parsed.pathname}${parsed.search}${parsed.hash}`;
-    } catch {
-      return trimmed;
     }
+  } catch {
+    return trimmed;
   }
   return trimmed;
 };

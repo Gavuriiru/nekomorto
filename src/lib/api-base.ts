@@ -1,18 +1,29 @@
-const LOCAL_API_BASE = "http://127.0.0.1:8080";
-
-export const getApiBase = () => {
-  const envBase = import.meta.env.VITE_API_BASE;
-  if (typeof envBase === "string" && envBase.trim()) {
-    return envBase;
-  }
-  if (typeof window !== "undefined") {
-    if (import.meta.env.PROD) {
-      return window.location.origin;
-    }
-    const { protocol, hostname } = window.location;
-    if (hostname && hostname !== "localhost" && hostname !== "127.0.0.1") {
-      return `${protocol}//${hostname}:8080`;
-    }
-  }
-  return LOCAL_API_BASE;
+export const normalizeApiBase = (value: unknown) => {
+  const normalized = String(value || "").trim().replace(/\/+$/, "");
+  return normalized;
 };
+
+export const resolveApiBase = ({
+  envBase,
+  locationOrigin,
+}: {
+  envBase?: unknown;
+  locationOrigin?: unknown;
+}) => {
+  const normalizedEnvBase = normalizeApiBase(envBase);
+  if (normalizedEnvBase) {
+    return normalizedEnvBase;
+  }
+  const normalizedLocationOrigin = normalizeApiBase(locationOrigin);
+  if (normalizedLocationOrigin) {
+    return normalizedLocationOrigin;
+  }
+  return "";
+};
+
+export const getApiBase = () =>
+  resolveApiBase({
+    envBase: import.meta.env.VITE_API_BASE,
+    locationOrigin:
+      typeof window !== "undefined" && window.location ? window.location.origin : "",
+  });

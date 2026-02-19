@@ -5,7 +5,8 @@ Este documento resume ajustes necessários para migrar o site e operar em múlti
 ## Variáveis de Ambiente
 
 ### `APP_ORIGIN`
-Lista de origens públicas permitidas (separadas por vírgula).
+Lista de origens publicas permitidas (separadas por virgula).
+Em `NODE_ENV=production`, esta variavel e obrigatoria e deve conter ao menos uma origem `http(s)` valida.
 Exemplo:
 ```
 APP_ORIGIN=https://meusite.com,https://www.meusite.com
@@ -19,10 +20,18 @@ ADMIN_ORIGINS=https://admin.meusite.com
 ```
 
 ### `DISCORD_REDIRECT_URI`
-Se for `auto`, o redirect do Discord usa a origem atual.
-Caso contrário, defina o URL completo:
+Se for `auto`, o redirect do Discord usa a origem da requisicao (quando permitida) e fallback para `APP_ORIGIN` primario.
+Caso contrario, defina um URL absoluto `http(s)` completo:
 ```
 DISCORD_REDIRECT_URI=https://meusite.com/login
+```
+
+### `VITE_API_BASE`
+Opcional no frontend. Sem valor, o app usa chamadas same-origin (`window.location.origin`).
+Use apenas quando frontend e API estiverem em dominios diferentes.
+Exemplo:
+```
+VITE_API_BASE=https://api.meusite.com
 ```
 
 ## Paginação nas APIs Públicas

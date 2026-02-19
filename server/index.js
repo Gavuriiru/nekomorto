@@ -21,6 +21,11 @@ import {
 } from "./lib/url-safety.js";
 import { establishAuthenticatedSession } from "./lib/session-auth.js";
 import {
+  buildOriginConfig,
+  isAllowedOrigin as isAllowedOriginByConfig,
+  resolveDiscordRedirectUri as resolveDiscordRedirectUriByConfig,
+} from "./lib/origin-config.js";
+import {
   applySecurityHeaders,
   injectNonceIntoHtmlScripts,
 } from "./lib/security-headers.js";
@@ -347,8 +352,8 @@ const SCOPES = ["identify", "email"];
 const {
   DISCORD_CLIENT_ID,
   DISCORD_CLIENT_SECRET,
-  DISCORD_REDIRECT_URI = "http://127.0.0.1:8080/login",
-  APP_ORIGIN = "http://127.0.0.1:5173",
+  DISCORD_REDIRECT_URI = "auto",
+  APP_ORIGIN = "",
   ADMIN_ORIGINS = "",
   SESSION_SECRET,
   PORT = 8080,
@@ -372,21 +377,16 @@ const OWNER_IDS = (OWNER_IDS_ENV || (isProduction ? "" : "380305493391966208"))
   .split(",")
   .map((id) => id.trim())
   .filter(Boolean);
-const APP_ORIGINS = APP_ORIGIN.split(",")
-  .map((origin) => origin.trim())
-  .filter(Boolean);
-const EXTRA_ORIGINS = ADMIN_ORIGINS.split(",")
-  .map((origin) => origin.trim())
-  .filter(Boolean);
-const ALLOWED_ORIGINS = Array.from(new Set([...APP_ORIGINS, ...EXTRA_ORIGINS]));
-const PRIMARY_APP_ORIGIN = APP_ORIGINS[0] || "http://127.0.0.1:5173";
-const PRIMARY_APP_HOST = (() => {
-  try {
-    return new URL(PRIMARY_APP_ORIGIN).host.toLowerCase();
-  } catch {
-    return "";
-  }
-})();
+const originConfig = buildOriginConfig({
+  appOriginEnv: APP_ORIGIN,
+  adminOriginsEnv: ADMIN_ORIGINS,
+  discordRedirectUriEnv: DISCORD_REDIRECT_URI,
+  isProduction,
+});
+const ALLOWED_ORIGINS = originConfig.allowedOrigins;
+const PRIMARY_APP_ORIGIN = originConfig.primaryAppOrigin;
+const PRIMARY_APP_HOST = originConfig.primaryAppHost;
+const CONFIGURED_DISCORD_REDIRECT_URI = originConfig.configuredDiscordRedirectUri;
 const REPO_ROOT_DIR = path.join(__dirname, "..");
 
 const AUTO_REORGANIZE_TRIGGER_TO_ACTION = {
@@ -1552,64 +1552,20 @@ const validateUploadImageBuffer = (buffer, requestedMime, options = {}) => {
     },
   };
 };
-const resolveRequestOrigin = (req) => {
-  const originHeader = String(req.headers.origin || "");
-  if (originHeader) {
-    return originHeader;
-  }
-  const refererHeader = String(req.headers.referer || "");
-  if (refererHeader) {
-    try {
-      return new URL(refererHeader).origin;
-    } catch {
-      return "";
-    }
-  }
-  if (req.headers.host) {
-    const proto = req.protocol || "http";
-    return `${proto}://${req.headers.host}`;
-  }
-  return "";
-};
 const resolveDiscordRedirectUri = (req) => {
-  if (DISCORD_REDIRECT_URI && DISCORD_REDIRECT_URI !== "auto") {
-    return DISCORD_REDIRECT_URI;
-  }
-  const candidate = resolveRequestOrigin(req);
-  if (candidate && isAllowedOrigin(candidate)) {
-    return `${candidate}/login`;
-  }
-  return `${PRIMARY_APP_ORIGIN}/login`;
+  return resolveDiscordRedirectUriByConfig({
+    req,
+    configuredDiscordRedirectUri: CONFIGURED_DISCORD_REDIRECT_URI,
+    primaryAppOrigin: PRIMARY_APP_ORIGIN,
+    isAllowedOriginFn: isAllowedOrigin,
+  });
 };
 const isAllowedOrigin = (origin) => {
-  if (!origin) {
-    return !isProduction;
-  }
-  if (ALLOWED_ORIGINS.includes(origin)) {
-    return true;
-  }
-  if (isProduction) {
-    return false;
-  }
-  try {
-    const { hostname } = new URL(origin);
-    if (!hostname) {
-      return false;
-    }
-    if (hostname === "localhost" || hostname === "127.0.0.1") {
-      return true;
-    }
-    if (
-      /^10\.\d+\.\d+\.\d+$/.test(hostname) ||
-      /^192\.168\.\d+\.\d+$/.test(hostname) ||
-      /^172\.(1[6-9]|2\d|3[0-1])\.\d+\.\d+$/.test(hostname)
-    ) {
-      return true;
-    }
-  } catch {
-    return false;
-  }
-  return false;
+  return isAllowedOriginByConfig({
+    origin,
+    allowedOrigins: ALLOWED_ORIGINS,
+    isProduction,
+  });
 };
 
 if (!DISCORD_CLIENT_ID || !DISCORD_CLIENT_SECRET || !SESSION_SECRET) {
@@ -3390,25 +3346,25 @@ app.get("/login", async (req, res) => {
   }
 
   try {
-  const redirectUri = req.session?.discordRedirectUri || DISCORD_REDIRECT_URI || resolveDiscordRedirectUri(req);
-  if (req.session) {
-    req.session.discordRedirectUri = null;
-  }
+    const redirectUri = req.session?.discordRedirectUri || resolveDiscordRedirectUri(req);
+    if (req.session) {
+      req.session.discordRedirectUri = null;
+    }
 
-  const tokenResponse = await fetch(`${DISCORD_API}/oauth2/token`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/x-www-form-urlencoded",
-    },
-    body: new URLSearchParams({
-      client_id: DISCORD_CLIENT_ID || "",
-      client_secret: DISCORD_CLIENT_SECRET || "",
-      grant_type: "authorization_code",
-      code,
-      redirect_uri: redirectUri,
-      scope: SCOPES.join(" "),
-    }),
-  });
+    const tokenResponse = await fetch(`${DISCORD_API}/oauth2/token`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      body: new URLSearchParams({
+        client_id: DISCORD_CLIENT_ID || "",
+        client_secret: DISCORD_CLIENT_SECRET || "",
+        grant_type: "authorization_code",
+        code,
+        redirect_uri: redirectUri,
+        scope: SCOPES.join(" "),
+      }),
+    });
 
     if (!tokenResponse.ok) {
       appendAuditLog(req, "auth.login.failed", "auth", { error: "token_exchange_failed" });

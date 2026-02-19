@@ -57,35 +57,7 @@ const emptyDonations = {
   donors: [],
 };
 
-const seedDonations = {
-  heroTitle: "Ajude a Nekomata a seguir no ar",
-  heroSubtitle:
-    "Cada doa??o mant?m o site vivo, fortalece nossos lan?amentos e garante qualidade no que entregamos. Se quiser apoiar, qualquer valor faz diferen?a.",
-  costs: [
-    { title: "Hospedagem e dom?nio", description: "Manter o site no ar com estabilidade.", icon: "Server" },
-    { title: "Armazenamento", description: "Arquivos, backups e infraestrutura dos projetos.", icon: "PiggyBank" },
-    { title: "Incentivo por projeto", description: "Apoio pontual para demandas espec?ficas.", icon: "Sparkles" },
-  ],
-  reasonTitle: "Por que doar?",
-  reasonIcon: "HeartHandshake",
-  reasonText:
-    "Somos um projeto feito por f?s, sem fins lucrativos. Doa??es ajudam com custos reais e permitem que a equipe invista tempo e cuidado em cada etapa.",
-  reasonNote: "Toda ajuda ? bem-vinda. Se quiser apoiar, fa?a isso por gostar do nosso trabalho.",
-  pixKey: "707e9869-0160-4a88-8332-31eac7cee73f",
-  pixNote: "Cole a chave no app do seu banco.",
-  qrCustomUrl: "",
-  pixIcon: "QrCode",
-  donorsIcon: "PiggyBank",
-  donors: [
-    { name: "IgorBKRY", amount: "R$ 10,00", goal: "Fansub Geral", date: "Mar/2024" },
-    { name: "An?nimo", amount: "R$ 25,00", goal: "Fansub Geral", date: "Mar/2024" },
-    { name: "An?nimo", amount: "R$ 60,00", goal: "Fansub Geral", date: "Mar/2024" },
-    { name: "Fabiana A.", amount: "R$ 40,00", goal: "Fansub Geral", date: "Abr/2024" },
-    { name: "Rafa Chaves", amount: "R$ 120,00", goal: "Projeto especial", date: "Mai/2024" },
-  ],
-};
-
-const defaultDonations = import.meta.env.DEV ? seedDonations : emptyDonations;
+const defaultDonations = emptyDonations;
 
 const Donations = () => {
   usePageMeta({ title: "Doações" });
