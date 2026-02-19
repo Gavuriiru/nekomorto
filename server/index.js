@@ -26,6 +26,11 @@ import {
   resolveDiscordRedirectUri as resolveDiscordRedirectUriByConfig,
 } from "./lib/origin-config.js";
 import {
+  createViteDevServer,
+  resolveClientIndexPath,
+} from "./lib/frontend-runtime.js";
+import { buildCorsOptionsForRequest } from "./lib/cors-policy.js";
+import {
   applySecurityHeaders,
   injectNonceIntoHtmlScripts,
 } from "./lib/security-headers.js";
@@ -919,16 +924,22 @@ const filterAnalyticsEvents = (events, fromTs, toTs, type) =>
 
 const clientRootDir = path.join(__dirname, "..");
 const clientDistDir = path.join(clientRootDir, "dist");
-const clientIndexPath = fs.existsSync(path.join(clientDistDir, "index.html"))
-  ? path.join(clientDistDir, "index.html")
-  : path.join(clientRootDir, "index.html");
+const clientIndexPath = resolveClientIndexPath({
+  clientRootDir,
+  clientDistDir,
+  isProduction,
+});
+const viteDevServer = await createViteDevServer({ isProduction });
 let cachedIndexHtml = null;
 
 const getIndexHtml = () => {
-  if (!cachedIndexHtml) {
-    cachedIndexHtml = fs.readFileSync(clientIndexPath, "utf-8");
+  if (isProduction) {
+    if (!cachedIndexHtml) {
+      cachedIndexHtml = fs.readFileSync(clientIndexPath, "utf-8");
+    }
+    return cachedIndexHtml;
   }
-  return cachedIndexHtml;
+  return fs.readFileSync(clientIndexPath, "utf-8");
 };
 
 const escapeHtml = (value) =>
@@ -1011,9 +1022,13 @@ const renderMetaHtml = ({
   return html;
 };
 
-const sendHtml = (res, html) => {
+const sendHtml = async (req, res, html) => {
+  let nextHtml = html;
+  if (viteDevServer) {
+    nextHtml = await viteDevServer.transformIndexHtml(req.originalUrl || req.url || "/", nextHtml);
+  }
   const nonce = typeof res.locals?.cspNonce === "string" ? res.locals.cspNonce : "";
-  const body = nonce ? injectNonceIntoHtmlScripts(html, nonce) : html;
+  const body = nonce ? injectNonceIntoHtmlScripts(nextHtml, nonce) : nextHtml;
   return res.type("html").send(body);
 };
 
@@ -1590,15 +1605,18 @@ app.use((req, res, next) => {
 app.use(express.json({ limit: "10mb" }));
 app.use(cookieParser());
 app.use(
-  cors({
-    origin: (origin, callback) => {
-      if (isAllowedOrigin(origin)) {
-        callback(null, true);
-        return;
-      }
-      callback(new Error("Not allowed by CORS"));
-    },
-    credentials: true,
+  cors((req, callback) => {
+    const corsOptions = buildCorsOptionsForRequest({
+      origin: req.headers.origin,
+      method: req.method,
+      isProduction,
+      isAllowedOriginFn: isAllowedOrigin,
+    });
+    if (corsOptions) {
+      callback(null, corsOptions);
+      return;
+    }
+    callback(new Error("Not allowed by CORS"));
   }),
 );
 
@@ -1662,6 +1680,15 @@ app.use((req, res, next) => {
   res.setHeader("X-Request-Id", requestId);
   return next();
 });
+
+const uploadsPublicDir = path.join(clientRootDir, "public", "uploads");
+app.use("/uploads", express.static(uploadsPublicDir));
+if (isProduction) {
+  app.use(express.static(clientDistDir, { index: false }));
+}
+if (viteDevServer) {
+  app.use(viteDevServer.middlewares);
+}
 
 const loadAllowedUsers = () => {
   const filePath = path.join(__dirname, "data", "allowed-users.json");
@@ -7230,28 +7257,28 @@ app.post("/api/logout", (req, res) => {
   res.json({ ok: true });
 });
 
-app.get(["/", "/projeto/:id", "/projeto/:id/leitura/:chapter", "/postagem/:slug"], (req, res) => {
+app.get(["/", "/projeto/:id", "/projeto/:id/leitura/:chapter", "/postagem/:slug"], async (req, res) => {
   try {
     if (req.path.startsWith("/postagem/")) {
       const slug = String(req.params.slug || "");
       const post = normalizePosts(loadPosts()).find((item) => item.slug === slug);
       const meta = post ? buildPostMeta(post) : buildSiteMeta();
-      return sendHtml(res, renderMetaHtml({ ...meta, url: `${PRIMARY_APP_ORIGIN}${req.path}` }));
+      return await sendHtml(req, res, renderMetaHtml({ ...meta, url: `${PRIMARY_APP_ORIGIN}${req.path}` }));
     }
     if (req.path.startsWith("/projeto/")) {
       const id = String(req.params.id || "");
       const project = normalizeProjects(loadProjects()).find((item) => String(item.id) === id);
       const meta = project ? buildProjectMeta(project) : buildSiteMeta();
-      return sendHtml(res, renderMetaHtml({ ...meta, url: `${PRIMARY_APP_ORIGIN}${req.path}` }));
+      return await sendHtml(req, res, renderMetaHtml({ ...meta, url: `${PRIMARY_APP_ORIGIN}${req.path}` }));
     }
     const meta = buildSiteMeta();
-    return sendHtml(res, renderMetaHtml({ ...meta, url: `${PRIMARY_APP_ORIGIN}${req.path}` }));
+    return await sendHtml(req, res, renderMetaHtml({ ...meta, url: `${PRIMARY_APP_ORIGIN}${req.path}` }));
   } catch {
-    return sendHtml(res, getIndexHtml());
+    return await sendHtml(req, res, getIndexHtml());
   }
 });
 
-app.get("*", (req, res) => {
+app.get("*", async (req, res) => {
   if (req.path.startsWith("/api") || req.path.startsWith("/auth")) {
     return res.status(404).json({ error: "not_found" });
   }
@@ -7262,9 +7289,9 @@ app.get("*", (req, res) => {
     const separator = settings.site?.titleSeparator ?? "";
     const pageTitle = getPageTitleFromPath(req.path);
     const title = pageTitle ? `${pageTitle}${separator}${siteName}` : siteName;
-    return sendHtml(res, renderMetaHtml({ ...meta, title, url: `${PRIMARY_APP_ORIGIN}${req.path}` }));
+    return await sendHtml(req, res, renderMetaHtml({ ...meta, title, url: `${PRIMARY_APP_ORIGIN}${req.path}` }));
   } catch {
-    return sendHtml(res, getIndexHtml());
+    return await sendHtml(req, res, getIndexHtml());
   }
 });
 

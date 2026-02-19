@@ -26,7 +26,7 @@ import { apiFetch } from "@/lib/api-client";
 import { isIconUrlSource, sanitizeIconSource, sanitizePublicHref } from "@/lib/url-safety";
 import { usePageMeta } from "@/hooks/use-page-meta";
 import { useSiteSettings } from "@/hooks/use-site-settings";
-import ThemedSvgLogo from "@/components/ThemedSvgLogo";
+import ThemedSvgMaskIcon from "@/components/ThemedSvgMaskIcon";
 
 type PublicUser = {
   id: string;
@@ -330,10 +330,10 @@ const Team = () => {
                                       aria-label={resolved.label}
                                     >
                                       {resolved.customIcon ? (
-                                        <ThemedSvgLogo
+                                        <ThemedSvgMaskIcon
                                           url={resolved.iconSource}
                                           label={resolved.label}
-                                          className="h-4 w-4 text-primary"
+                                          className="h-4 w-4"
                                         />
                                       ) : (
                                         <resolved.Icon className="h-4 w-4" />
@@ -454,10 +454,10 @@ const Team = () => {
                                           aria-label={resolved.label}
                                         >
                                           {resolved.customIcon ? (
-                                            <ThemedSvgLogo
+                                            <ThemedSvgMaskIcon
                                               url={resolved.iconSource}
                                               label={resolved.label}
-                                              className="h-4 w-4 text-primary"
+                                              className="h-4 w-4"
                                             />
                                           ) : (
                                             <resolved.Icon className="h-4 w-4" />

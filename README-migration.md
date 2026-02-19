@@ -2,6 +2,38 @@
 
 Este documento resume ajustes necessários para migrar o site e operar em múltiplos domínios, além de exemplos de paginação das APIs públicas.
 
+## Fluxo Integrado (Frontend + Backend)
+
+### Desenvolvimento
+Um comando sobe API + frontend no mesmo origin:
+
+```bash
+npm run dev
+```
+
+URL padrão:
+```text
+http://localhost:8080
+```
+
+Comandos opcionais de diagnóstico:
+```bash
+npm run dev:server
+npm run dev:client
+```
+
+### Produção
+Build + start integrados:
+
+```bash
+npm run build
+npm run start
+```
+
+`npm run start` exige `dist/index.html` gerado no build.
+Em produção, CORS aceita apenas origens da allowlist configurada.
+Requests sem header `Origin` são aceitos somente em `GET`/`HEAD`/`OPTIONS`.
+
 ## Variáveis de Ambiente
 
 ### `APP_ORIGIN`

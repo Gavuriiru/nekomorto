@@ -2,6 +2,7 @@ import { Facebook, Instagram, Twitter, MessageCircle, Youtube, X, Globe } from "
 import { Link } from "react-router-dom";
 import { useSiteSettings } from "@/hooks/use-site-settings";
 import ThemedSvgLogo from "@/components/ThemedSvgLogo";
+import ThemedSvgMaskIcon from "@/components/ThemedSvgMaskIcon";
 import { resolveBranding } from "@/lib/branding";
 import { isIconUrlSource, sanitizeIconSource, sanitizePublicHref } from "@/lib/url-safety";
 
@@ -146,10 +147,10 @@ const Footer = () => {
                   >
                     <span className="flex h-8 w-8 items-center justify-center rounded-full border border-border/60 bg-secondary/70 text-primary/80 transition group-hover:border-primary/40 group-hover:text-primary">
                       {renderCustomIcon ? (
-                        <ThemedSvgLogo
+                        <ThemedSvgMaskIcon
                           url={iconValue}
                           label={link.label}
-                          className="h-4 w-4 text-primary"
+                          className="h-4 w-4"
                         />
                       ) : (
                         <Icon className="h-4 w-4" aria-hidden="true" />
