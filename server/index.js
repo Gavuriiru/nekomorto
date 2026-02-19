@@ -14,6 +14,13 @@ import { importRemoteImageFile } from "./lib/remote-image-import.js";
 import { localizeProjectImageFields } from "./lib/project-image-localizer.js";
 import { runUploadsReorganization } from "./lib/uploads-reorganizer.js";
 import {
+  sanitizeAssetUrl,
+  sanitizeIconSource,
+  sanitizePublicHref,
+  sanitizeSocials,
+} from "./lib/url-safety.js";
+import { establishAuthenticatedSession } from "./lib/session-auth.js";
+import {
   applySecurityHeaders,
   injectNonceIntoHtmlScripts,
 } from "./lib/security-headers.js";
@@ -102,6 +109,9 @@ const AUDIT_DEFAULT_META_KEYS = [
   "rewrites",
   "failures",
   "durationMs",
+  "usersSocialsDropped",
+  "linkTypeIconsDropped",
+  "siteLinksDropped",
 ];
 const AUDIT_META_ALLOWLIST = {
   "auth.login.failed": ["error"],
@@ -126,6 +136,11 @@ const AUDIT_META_ALLOWLIST = {
   "users.delete": ["id", "wasOwner", "before"],
   "owners.update": ["count", "before", "after"],
   "owners.transfer_primary": ["targetId", "fromPrimaryId", "toPrimaryId", "before", "after", "changes"],
+  "security.update.sanitization_startup": [
+    "usersSocialsDropped",
+    "linkTypeIconsDropped",
+    "siteLinksDropped",
+  ],
 };
 
 const parseAuditTs = (value) => {
@@ -1729,12 +1744,36 @@ const writeUsers = (users) => {
   fs.writeFileSync(filePath, JSON.stringify(normalizeUploadsDeep(users), null, 2));
 };
 
+const normalizeLinkTypes = (items) => {
+  const source = Array.isArray(items) ? items : [];
+  const dedupe = new Set();
+  const normalized = [];
+  source.forEach((item) => {
+    const id = String(item?.id || "").trim();
+    const label = String(item?.label || "").trim();
+    if (!id || !label || dedupe.has(id)) {
+      return;
+    }
+    dedupe.add(id);
+    normalized.push({
+      id,
+      label,
+      icon: sanitizeIconSource(item?.icon) || "globe",
+    });
+  });
+  return normalized;
+};
+
 const loadLinkTypes = () => {
   const filePath = path.join(__dirname, "data", "link-types.json");
   try {
     const raw = fs.readFileSync(filePath, "utf-8");
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [];
+    const normalized = normalizeLinkTypes(parsed);
+    if (JSON.stringify(parsed) !== JSON.stringify(normalized)) {
+      writeLinkTypes(normalized);
+    }
+    return normalized;
   } catch {
     return [];
   }
@@ -1742,7 +1781,7 @@ const loadLinkTypes = () => {
 
 const writeLinkTypes = (items) => {
   const filePath = path.join(__dirname, "data", "link-types.json");
-  fs.writeFileSync(filePath, JSON.stringify(items, null, 2));
+  fs.writeFileSync(filePath, JSON.stringify(normalizeLinkTypes(items), null, 2));
 };
 
 const loadPosts = () => {
@@ -2096,7 +2135,7 @@ const normalizeSiteSettings = (payload) => {
     ? merged.navbar.links
         .map((link) => ({
           label: String(link?.label || "").trim(),
-          href: String(link?.href || "").trim(),
+          href: sanitizePublicHref(String(link?.href || "").trim()) || "",
           icon: resolveNavbarIcon(link?.label, link?.href, link?.icon),
         }))
         .filter((link) => link.label && link.href)
@@ -2144,27 +2183,27 @@ const normalizeSiteSettings = (payload) => {
       ? merged.branding.display
       : {};
 
-  const symbolAssetUrl = String(
-    rawBrandAssets.symbolUrl || (!hasAnyNewBrandingInput ? legacySiteSymbol : "") || "",
-  ).trim();
-  const wordmarkAssetUrl = String(
-    rawBrandAssets.wordmarkUrl ||
-      (!hasAnyNewBrandingInput
-        ? legacyWordmarkUrl || legacyWordmarkUrlNavbar || legacyWordmarkUrlFooter
-        : "") ||
-      "",
-  ).trim();
+  const symbolAssetUrl =
+    sanitizeAssetUrl(rawBrandAssets.symbolUrl || (!hasAnyNewBrandingInput ? legacySiteSymbol : "") || "") || "";
+  const wordmarkAssetUrl =
+    sanitizeAssetUrl(
+      rawBrandAssets.wordmarkUrl ||
+        (!hasAnyNewBrandingInput
+          ? legacyWordmarkUrl || legacyWordmarkUrlNavbar || legacyWordmarkUrlFooter
+          : "") ||
+        "",
+    ) || "";
 
-  const navbarSymbolOverride = String(rawBrandOverrides.navbarSymbolUrl || "").trim();
-  const footerSymbolOverride = String(
-    rawBrandOverrides.footerSymbolUrl || (!hasAnyNewBrandingInput ? legacyFooterSymbol : "") || "",
-  ).trim();
-  const navbarWordmarkOverride = String(
-    rawBrandOverrides.navbarWordmarkUrl || (!hasAnyNewBrandingInput ? legacyWordmarkUrlNavbar : "") || "",
-  ).trim();
-  const footerWordmarkOverride = String(
-    rawBrandOverrides.footerWordmarkUrl || (!hasAnyNewBrandingInput ? legacyWordmarkUrlFooter : "") || "",
-  ).trim();
+  const navbarSymbolOverride = sanitizeAssetUrl(rawBrandOverrides.navbarSymbolUrl || "") || "";
+  const footerSymbolOverride =
+    sanitizeAssetUrl(rawBrandOverrides.footerSymbolUrl || (!hasAnyNewBrandingInput ? legacyFooterSymbol : "") || "") ||
+    "";
+  const navbarWordmarkOverride =
+    sanitizeAssetUrl(rawBrandOverrides.navbarWordmarkUrl || (!hasAnyNewBrandingInput ? legacyWordmarkUrlNavbar : "") || "") ||
+    "";
+  const footerWordmarkOverride =
+    sanitizeAssetUrl(rawBrandOverrides.footerWordmarkUrl || (!hasAnyNewBrandingInput ? legacyWordmarkUrlFooter : "") || "") ||
+    "";
 
   const legacyNavbarMode =
     legacyWordmarkEnabled &&
@@ -2227,10 +2266,16 @@ const normalizeSiteSettings = (payload) => {
     String(merged?.site?.name || defaultSiteSettings.site.name || "Nekomata").trim() ||
     String(defaultSiteSettings.site.name || "Nekomata").trim() ||
     "Nekomata";
+  const siteFaviconUrl = sanitizeAssetUrl(merged?.site?.faviconUrl || defaultSiteSettings.site.faviconUrl || "") || "";
+  const siteDefaultShareImage =
+    sanitizeAssetUrl(merged?.site?.defaultShareImage || defaultSiteSettings.site.defaultShareImage || "") ||
+    defaultSiteSettings.site.defaultShareImage;
   merged.site = {
     ...(merged.site || {}),
     name: normalizedSiteName,
     logoUrl: symbolAssetUrl,
+    faviconUrl: siteFaviconUrl,
+    defaultShareImage: siteDefaultShareImage,
   };
   merged.footer = {
     ...(merged.footer || {}),
@@ -2238,8 +2283,11 @@ const normalizeSiteSettings = (payload) => {
     brandLogoUrl: resolvedFooterSymbol,
   };
   const discordUrl =
-    String(merged?.community?.discordUrl || defaultSiteSettings.community.discordUrl || "").trim() ||
-    String(defaultSiteSettings.community.discordUrl || "").trim();
+    sanitizePublicHref(
+      String(merged?.community?.discordUrl || defaultSiteSettings.community.discordUrl || "").trim(),
+    ) ||
+    sanitizePublicHref(String(defaultSiteSettings.community.discordUrl || "").trim()) ||
+    "";
   const inviteCardPayload =
     merged?.community?.inviteCard && typeof merged.community.inviteCard === "object"
       ? merged.community.inviteCard
@@ -2260,7 +2308,7 @@ const normalizeSiteSettings = (payload) => {
   const inviteCardCtaLabel =
     String(inviteCardPayload.ctaLabel || inviteCardDefaults.ctaLabel || "").trim() ||
     String(inviteCardDefaults.ctaLabel || "").trim();
-  const inviteCardCtaUrlRaw = String(inviteCardPayload.ctaUrl || "").trim();
+  const inviteCardCtaUrlRaw = sanitizePublicHref(String(inviteCardPayload.ctaUrl || "").trim()) || "";
   const inviteCardCtaUrl = inviteCardCtaUrlRaw || discordUrl;
 
   merged.community = {
@@ -2291,6 +2339,15 @@ const normalizeSiteSettings = (payload) => {
       ...source,
       tintIcon: source?.tintIcon !== false,
     }));
+  }
+  if (Array.isArray(merged?.footer?.socialLinks)) {
+    merged.footer.socialLinks = merged.footer.socialLinks
+      .map((link) => ({
+        ...link,
+        label: String(link?.label || "").trim(),
+        href: sanitizePublicHref(link?.href) || "",
+      }))
+      .filter((link) => link.label && link.href);
   }
   return normalizeUploadsDeep(merged);
 };
@@ -2660,6 +2717,92 @@ const writeSiteSettings = (settings) => {
   const storagePayload = buildSiteSettingsStoragePayload(normalized);
   fs.mkdirSync(path.dirname(siteSettingsFilePath), { recursive: true });
   fs.writeFileSync(siteSettingsFilePath, JSON.stringify(storagePayload, null, 2));
+};
+
+const readJsonFileSafe = (filePath, fallback) => {
+  try {
+    if (!fs.existsSync(filePath)) {
+      return fallback;
+    }
+    const raw = fs.readFileSync(filePath, "utf-8");
+    const parsed = JSON.parse(raw);
+    return parsed;
+  } catch {
+    return fallback;
+  }
+};
+
+const countDroppedUserSocials = (usersInput) => {
+  const users = Array.isArray(usersInput) ? usersInput : [];
+  return users.reduce((total, user) => {
+    const socials = Array.isArray(user?.socials) ? user.socials.filter(Boolean) : [];
+    const sanitized = sanitizeSocials(socials);
+    return total + Math.max(0, socials.length - sanitized.length);
+  }, 0);
+};
+
+const countDroppedLinkTypeIcons = (itemsInput) => {
+  const items = Array.isArray(itemsInput) ? itemsInput : [];
+  return items.reduce((total, item) => {
+    const iconRaw = String(item?.icon || "").trim();
+    if (!iconRaw) {
+      return total;
+    }
+    return sanitizeIconSource(iconRaw) ? total : total + 1;
+  }, 0);
+};
+
+const countDroppedSiteLinks = (settingsInput) => {
+  const settings = settingsInput && typeof settingsInput === "object" ? settingsInput : {};
+  let total = 0;
+  const navbarLinks = Array.isArray(settings?.navbar?.links) ? settings.navbar.links : [];
+  navbarLinks.forEach((link) => {
+    const href = String(link?.href || "").trim();
+    if (href && !sanitizePublicHref(href)) {
+      total += 1;
+    }
+  });
+  const footerLinks = Array.isArray(settings?.footer?.socialLinks) ? settings.footer.socialLinks : [];
+  footerLinks.forEach((link) => {
+    const href = String(link?.href || "").trim();
+    if (href && !sanitizePublicHref(href)) {
+      total += 1;
+    }
+  });
+  const communityDiscordUrl = String(settings?.community?.discordUrl || "").trim();
+  if (communityDiscordUrl && !sanitizePublicHref(communityDiscordUrl)) {
+    total += 1;
+  }
+  const inviteCardCtaUrl = String(settings?.community?.inviteCard?.ctaUrl || "").trim();
+  if (inviteCardCtaUrl && !sanitizePublicHref(inviteCardCtaUrl)) {
+    total += 1;
+  }
+  return total;
+};
+
+const runStartupSecuritySanitization = () => {
+  const usersFilePath = path.join(__dirname, "data", "users.json");
+  const linkTypesFilePath = path.join(__dirname, "data", "link-types.json");
+  const rawUsers = readJsonFileSafe(usersFilePath, []);
+  const rawLinkTypes = readJsonFileSafe(linkTypesFilePath, []);
+  const rawSiteSettings = readJsonFileSafe(siteSettingsFilePath, {});
+  const usersSocialsDropped = countDroppedUserSocials(rawUsers);
+  const linkTypeIconsDropped = countDroppedLinkTypeIcons(rawLinkTypes);
+  const siteLinksDropped = countDroppedSiteLinks(rawSiteSettings);
+
+  // Trigger normalization and persistence for legacy data.
+  loadUsers();
+  loadLinkTypes();
+  loadSiteSettings();
+
+  const totalDropped = usersSocialsDropped + linkTypeIconsDropped + siteLinksDropped;
+  if (totalDropped > 0) {
+    appendAuditLog(createSystemAuditReq(), "security.update.sanitization_startup", "security", {
+      usersSocialsDropped,
+      linkTypeIconsDropped,
+      siteLinksDropped,
+    });
+  }
 };
 
 const normalizeEmail = (value) => String(value || "").trim().toLowerCase();
@@ -3297,20 +3440,30 @@ app.get("/login", async (req, res) => {
       return res.redirect(`${PRIMARY_APP_ORIGIN}/login?error=unauthorized`);
     }
 
-    req.session.user = {
+    const next = req.session?.loginNext;
+    const authenticatedUser = {
       id: discordUser.id,
       name: discordUser.global_name || discordUser.username,
       username: discordUser.username,
       email: discordUser.email || null,
       avatarUrl: createDiscordAvatarUrl(discordUser),
     };
-    ensureOwnerUser(req.session.user);
-    appendAuditLog(req, "auth.login.success", "auth", { userId: discordUser.id });
-
-    const next = req.session?.loginNext;
+    try {
+      await establishAuthenticatedSession({
+        req,
+        user: authenticatedUser,
+      });
+    } catch {
+      appendAuditLog(req, "auth.login.failed", "auth", { error: "session_regenerate_failed" });
+      return res.redirect(`${PRIMARY_APP_ORIGIN}/login?error=server_error`);
+    }
     if (req.session) {
+      req.session.oauthState = null;
+      req.session.discordRedirectUri = null;
       req.session.loginNext = null;
     }
+    ensureOwnerUser(authenticatedUser);
+    appendAuditLog(req, "auth.login.success", "auth", { userId: discordUser.id });
     return res.redirect(next ? `${PRIMARY_APP_ORIGIN}${next}` : `${PRIMARY_APP_ORIGIN}/dashboard`);
   } catch {
     appendAuditLog(req, "auth.login.failed", "auth", { error: "server_error" });
@@ -3767,7 +3920,7 @@ const normalizeUsers = (users) => {
       phrase: user.phrase || "",
       bio: user.bio || "",
       avatarUrl: user.avatarUrl || null,
-      socials: Array.isArray(user.socials) ? user.socials.filter(Boolean) : [],
+      socials: sanitizeSocials(user.socials),
       status: user.status === "retired" ? "retired" : "active",
       permissions: normalizePermissionsRaw(user.permissions),
       roles: removeOwnerRoleLabel(Array.isArray(user.roles) ? user.roles.filter(Boolean) : []),
@@ -4375,13 +4528,7 @@ app.put("/api/link-types", requireAuth, (req, res) => {
   }
   const previousLinkTypes = loadLinkTypes();
   const previousIcons = collectLinkTypeIconUploads(previousLinkTypes);
-  const normalized = items
-    .map((item) => ({
-      id: String(item.id || "").trim(),
-      label: String(item.label || "").trim(),
-      icon: String(item.icon || "globe").trim(),
-    }))
-    .filter((item) => item.id && item.label);
+  const normalized = normalizeLinkTypes(items);
   writeLinkTypes(normalized);
   const nextIcons = collectLinkTypeIconUploads(normalized);
   const removedIcons = Array.from(previousIcons).filter((url) => !nextIcons.has(url));
@@ -6221,8 +6368,14 @@ app.post("/api/uploads/image-from-url", requireAuth, async (req, res) => {
     if (code === "url_required") {
       return res.status(400).json({ error: "url_required" });
     }
-    if (code === "invalid_url") {
+    if (code === "invalid_url" || code === "invalid_url_credentials") {
       return res.status(400).json({ error: "invalid_url" });
+    }
+    if (code === "host_not_allowed") {
+      return res.status(400).json({ error: "host_not_allowed" });
+    }
+    if (code === "redirect_not_allowed") {
+      return res.status(400).json({ error: "redirect_not_allowed" });
     }
     const fetchLikeErrors = new Set(["fetch_failed", "fetch_unavailable"]);
     if (fetchLikeErrors.has(code)) {
@@ -6591,7 +6744,7 @@ app.post("/api/users", requireAuth, (req, res) => {
       bio: bio || "",
       avatarUrl: avatarUrl || null,
       avatarDisplay: normalizeAvatarDisplay(avatarDisplay),
-      socials: Array.isArray(socials) ? socials.filter(Boolean) : [],
+      socials: sanitizeSocials(socials),
       status: status === "retired" ? "retired" : "active",
       permissions: Array.isArray(permissions) ? permissions : [],
       roles: Array.isArray(roles) ? roles.filter(Boolean) : [],
@@ -6645,7 +6798,7 @@ app.post("/api/users", requireAuth, (req, res) => {
     bio: bio || "",
     avatarUrl: avatarUrl || null,
     avatarDisplay: normalizeAvatarDisplay(avatarDisplay),
-    socials: Array.isArray(socials) ? socials.filter(Boolean) : [],
+    socials: sanitizeSocials(socials),
     status: status === "retired" ? "retired" : "active",
     permissions: sanitizedPermissions,
     roles: removeOwnerRoleLabel(Array.isArray(roles) ? roles.filter(Boolean) : []),
@@ -6803,7 +6956,7 @@ app.put("/api/users/:id", (req, res) => {
         update.avatarDisplay !== undefined
           ? normalizeAvatarDisplay(update.avatarDisplay)
           : normalizeAvatarDisplay(existing.avatarDisplay),
-      socials: Array.isArray(update.socials) ? update.socials : existing.socials,
+      socials: Array.isArray(update.socials) ? sanitizeSocials(update.socials) : existing.socials,
       status: update.status === "retired" ? "retired" : "active",
       permissions: Array.isArray(update.permissions) ? update.permissions : existing.permissions,
       roles: Array.isArray(update.roles) ? update.roles : existing.roles,
@@ -6883,7 +7036,7 @@ app.put("/api/users/:id", (req, res) => {
       basicPatch.avatarDisplay !== undefined
         ? normalizeAvatarDisplay(basicPatch.avatarDisplay)
         : normalizeAvatarDisplay(existing.avatarDisplay),
-    socials: Array.isArray(basicPatch.socials) ? basicPatch.socials : existing.socials,
+    socials: Array.isArray(basicPatch.socials) ? sanitizeSocials(basicPatch.socials) : existing.socials,
     roles: Array.isArray(update.roles) ? removeOwnerRoleLabel(update.roles) : existing.roles,
     status:
       update.status === "retired"
@@ -7088,7 +7241,7 @@ app.put("/api/users/self", requireAuth, (req, res) => {
       basicPatch.avatarDisplay !== undefined
         ? normalizeAvatarDisplay(basicPatch.avatarDisplay)
         : normalizeAvatarDisplay(existing.avatarDisplay),
-    socials: Array.isArray(basicPatch.socials) ? basicPatch.socials : existing.socials,
+    socials: Array.isArray(basicPatch.socials) ? sanitizeSocials(basicPatch.socials) : existing.socials,
   };
 
   const ownerIds = loadOwnerIds().map((id) => String(id));
@@ -7158,6 +7311,12 @@ app.get("*", (req, res) => {
     return sendHtml(res, getIndexHtml());
   }
 });
+
+try {
+  runStartupSecuritySanitization();
+} catch {
+  // ignore startup sanitization failures on boot
+}
 
 try {
   compactAnalyticsData();

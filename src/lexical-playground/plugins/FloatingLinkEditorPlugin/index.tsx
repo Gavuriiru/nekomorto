@@ -47,6 +47,23 @@ function preventDefault(
   event.preventDefault();
 }
 
+function toSafeHttpUrl(value: string): string | null {
+  const normalized = String(value || '').trim();
+  if (!normalized) {
+    return null;
+  }
+  try {
+    const parsed = new URL(normalized, window.location.origin);
+    const protocol = String(parsed.protocol || '').toLowerCase();
+    if (protocol === 'http:' || protocol === 'https:') {
+      return parsed.toString();
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 function FloatingLinkEditor({
   editor,
   isLink,
@@ -442,7 +459,11 @@ function useFloatingLinkEditorToolbar(
             const node = getSelectedNode(selection);
             const linkNode = $findMatchingParent(node, $isLinkNode);
             if ($isLinkNode(linkNode) && (payload.metaKey || payload.ctrlKey)) {
-              window.open(linkNode.getURL(), '_blank');
+              const safeUrl = toSafeHttpUrl(linkNode.getURL());
+              if (!safeUrl) {
+                return true;
+              }
+              window.open(safeUrl, '_blank', 'noopener,noreferrer');
               return true;
             }
           }

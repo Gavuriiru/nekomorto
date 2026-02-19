@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { useSiteSettings } from "@/hooks/use-site-settings";
 import ThemedSvgLogo from "@/components/ThemedSvgLogo";
 import { resolveBranding } from "@/lib/branding";
+import { isIconUrlSource, sanitizeIconSource, sanitizePublicHref } from "@/lib/url-safety";
 
 const Footer = () => {
   const { settings } = useSiteSettings();
@@ -48,9 +49,6 @@ const Footer = () => {
     globe: Globe,
     site: Globe,
   };
-  const isIconUrl = (value?: string | null) =>
-    Boolean(value && (value.startsWith("http") || value.startsWith("data:") || value.startsWith("/uploads/")));
-
   return (
     <footer className="mt-16 border-t border-border/60 bg-card/60">
       <div className="mx-auto max-w-7xl px-6 md:px-12 py-14">
@@ -96,25 +94,31 @@ const Footer = () => {
                 {column.title}
               </p>
               <ul className="space-y-2 text-sm">
-                {column.links.map((link, linkIndex) => (
-                  <li key={`${link.label}-${link.href}-${linkIndex}`}>
-                    {isInternalLink(link.href) ? (
-                      <Link
-                        to={link.href}
-                        className="text-foreground/80 transition-colors hover:text-primary"
-                      >
-                        {link.label}
-                      </Link>
-                    ) : (
-                      <a
-                        href={link.href}
-                        className="text-foreground/80 transition-colors hover:text-primary"
-                      >
-                        {link.label}
-                      </a>
-                    )}
-                  </li>
-                ))}
+                {column.links.map((link, linkIndex) => {
+                  const safeHref = sanitizePublicHref(link.href);
+                  if (!safeHref) {
+                    return null;
+                  }
+                  return (
+                    <li key={`${link.label}-${link.href}-${linkIndex}`}>
+                      {isInternalLink(safeHref) ? (
+                        <Link
+                          to={safeHref}
+                          className="text-foreground/80 transition-colors hover:text-primary"
+                        >
+                          {link.label}
+                        </Link>
+                      ) : (
+                        <a
+                          href={safeHref}
+                          className="text-foreground/80 transition-colors hover:text-primary"
+                        >
+                          {link.label}
+                        </a>
+                      )}
+                    </li>
+                  );
+                })}
               </ul>
             </div>
           ))}
@@ -125,17 +129,20 @@ const Footer = () => {
             </p>
             <div className="space-y-2">
               {socialLinks.map((link, linkIndex) => {
-                const iconKey = link.icon || link.label;
-                const iconValue = String(iconKey || "");
+                const safeHref = sanitizePublicHref(link.href);
+                if (!safeHref) {
+                  return null;
+                }
+                const iconValue = sanitizeIconSource(link.icon || "") || "globe";
                 const Icon = iconMap[iconValue.toLowerCase()] || Globe;
-                const renderCustomIcon = isIconUrl(iconValue);
+                const renderCustomIcon = isIconUrlSource(iconValue);
                 return (
                   <a
                     key={`${link.label}-${link.href}-${linkIndex}`}
-                    href={link.href}
+                    href={safeHref}
                     className="group flex items-center gap-3 text-sm text-foreground/80 transition-colors hover:text-primary"
                     target="_blank"
-                    rel="noreferrer"
+                    rel="noopener noreferrer"
                   >
                     <span className="flex h-8 w-8 items-center justify-center rounded-full border border-border/60 bg-secondary/70 text-primary/80 transition group-hover:border-primary/40 group-hover:text-primary">
                       {renderCustomIcon ? (

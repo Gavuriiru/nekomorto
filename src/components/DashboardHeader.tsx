@@ -26,6 +26,7 @@ import { getNavbarIcon } from "@/lib/navbar-icons";
 import { resolveBranding } from "@/lib/branding";
 import { rankPosts, rankProjects, selectVisibleTags, sortAlphabeticallyPtBr } from "@/lib/search-ranking";
 import { useDynamicSynopsisClamp } from "@/hooks/use-dynamic-synopsis-clamp";
+import { sanitizePublicHref } from "@/lib/url-safety";
 
 type DashboardHeaderUser = {
   name?: string;
@@ -82,7 +83,7 @@ const DashboardHeader = ({
       ? settings.navbar.links
           .map((link) => ({
             label: String(link?.label || "").trim(),
-            href: String(link?.href || "").trim(),
+            href: sanitizePublicHref(link?.href) || "",
             icon: String(link?.icon || "").trim(),
           }))
           .filter((link) => link.label && link.href)
@@ -364,7 +365,7 @@ const DashboardHeader = ({
                   href={item.href}
                   className="text-foreground/80 transition-colors hover:text-foreground"
                   target="_blank"
-                  rel="noreferrer"
+                  rel="noopener noreferrer"
                 >
                   {item.label}
                 </a>
@@ -537,7 +538,7 @@ const DashboardHeader = ({
                           {item.label}
                         </Link>
                       ) : (
-                        <a href={item.href} target="_blank" rel="noreferrer" className="flex items-center gap-2">
+                        <a href={item.href} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2">
                           <ItemIcon className="h-4 w-4" />
                           {item.label}
                         </a>

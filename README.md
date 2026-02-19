@@ -36,6 +36,19 @@ npm i
 npm run dev
 ```
 
+Quality checks:
+
+```sh
+# Lint (Biome)
+npm run lint
+
+# Format
+npm run format
+
+# Tests
+npm run test
+```
+
 **Edit a file directly in GitHub**
 
 - Navigate to the desired file(s).

@@ -8,7 +8,9 @@
     "dev:server": "node server/index.js",
     "build": "vite build",
     "build:dev": "vite build --mode development",
-    "lint": "eslint .",
+    "lint": "biome check . --formatter-enabled=false --organize-imports-enabled=false",
+    "format": "biome format --write .",
+    "format:check": "biome format .",
     "preview": "vite preview",
     "uploads:localize-project-images": "node scripts/localize-project-images.mjs",
     "uploads:isolate-project-images": "node scripts/isolate-project-images.mjs",
@@ -110,7 +112,7 @@
     "zod": "^3.25.76"
   },
   "devDependencies": {
-    "@eslint/js": "^9.39.2",
+    "@biomejs/biome": "^1.9.4",
     "@tailwindcss/typography": "^0.5.16",
     "@tailwindcss/vite": "^4.1.18",
     "@testing-library/jest-dom": "^6.6.0",
@@ -120,15 +122,10 @@
     "@types/react": "^18.3.23",
     "@types/react-dom": "^18.3.7",
     "@vitejs/plugin-react-swc": "^3.11.0",
-    "eslint": "^9.39.2",
-    "eslint-plugin-react-hooks": "^5.2.0",
-    "eslint-plugin-react-refresh": "^0.4.20",
-    "globals": "^15.15.0",
     "jsdom": "^20.0.3",
     "lovable-tagger": "^1.1.13",
     "tailwindcss": "^4.1.18",
     "typescript": "^5.9.3",
-    "typescript-eslint": "^8.56.0",
     "vite": "^7.3.1",
     "vitest": "^3.2.4"
   }

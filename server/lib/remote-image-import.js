@@ -1,4 +1,6 @@
 import fs from "fs";
+import dns from "dns/promises";
+import net from "net";
 import path from "path";
 
 const MAX_SVG_SIZE_BYTES = 256 * 1024;
@@ -36,6 +38,96 @@ const SUPPORTED_UPLOAD_EXTENSIONS = Array.from(
   ]),
 );
 const DEFAULT_UPLOAD_FILE_BASE = "imagem";
+const MAX_REDIRECTS = 5;
+const PRIVATE_HOSTNAMES = new Set(["localhost", "localhost.localdomain"]);
+
+const isPrivateIpv4 = (value) => {
+  const normalized = String(value || "").trim();
+  if (!net.isIP(normalized) || net.isIP(normalized) !== 4) {
+    return false;
+  }
+  const octets = normalized.split(".").map((chunk) => Number(chunk));
+  if (octets.length !== 4 || octets.some((octet) => !Number.isInteger(octet) || octet < 0 || octet > 255)) {
+    return false;
+  }
+  const [a, b] = octets;
+  if (a === 10 || a === 127) return true;
+  if (a === 169 && b === 254) return true;
+  if (a === 172 && b >= 16 && b <= 31) return true;
+  if (a === 192 && b === 168) return true;
+  return false;
+};
+
+const isPrivateIpv6 = (value) => {
+  const normalized = String(value || "").trim().toLowerCase().replace(/%.+$/, "");
+  if (!net.isIP(normalized) || net.isIP(normalized) !== 6) {
+    return false;
+  }
+  if (normalized === "::1" || normalized === "0:0:0:0:0:0:0:1") {
+    return true;
+  }
+  if (normalized.startsWith("::ffff:")) {
+    return isPrivateIpv4(normalized.slice("::ffff:".length));
+  }
+  if (normalized.startsWith("fc") || normalized.startsWith("fd")) {
+    return true;
+  }
+  if (
+    normalized.startsWith("fe8") ||
+    normalized.startsWith("fe9") ||
+    normalized.startsWith("fea") ||
+    normalized.startsWith("feb")
+  ) {
+    return true;
+  }
+  return false;
+};
+
+const isPrivateHost = (host) => {
+  const normalized = String(host || "").trim().toLowerCase();
+  if (!normalized) {
+    return true;
+  }
+  if (PRIVATE_HOSTNAMES.has(normalized) || normalized.endsWith(".localhost")) {
+    return true;
+  }
+  if (net.isIP(normalized)) {
+    return isPrivateIpv4(normalized) || isPrivateIpv6(normalized);
+  }
+  return false;
+};
+
+const resolveHostAddresses = async (host) => {
+  try {
+    const records = await dns.lookup(host, { all: true, verbatim: true });
+    return Array.isArray(records)
+      ? records.map((record) => String(record?.address || "").trim()).filter(Boolean)
+      : [];
+  } catch {
+    return [];
+  }
+};
+
+const validateRemoteTarget = async (target) => {
+  if (!target || !(target instanceof URL)) {
+    return toFailureResult("invalid_url", "Invalid URL.");
+  }
+  if (target.protocol !== "http:" && target.protocol !== "https:") {
+    return toFailureResult("invalid_url", "Only HTTP/HTTPS URLs are allowed.");
+  }
+  if (target.username || target.password) {
+    return toFailureResult("invalid_url_credentials", "URL credentials are not allowed.");
+  }
+  const host = String(target.hostname || "").trim().toLowerCase();
+  if (isPrivateHost(host)) {
+    return toFailureResult("host_not_allowed", "Remote host is not allowed.");
+  }
+  const resolvedAddresses = await resolveHostAddresses(host);
+  if (resolvedAddresses.some((address) => isPrivateHost(address))) {
+    return toFailureResult("host_not_allowed", "Remote host is not allowed.");
+  }
+  return { ok: true };
+};
 
 const sanitizeUploadFolder = (value) => {
   if (typeof value !== "string" || !value.trim()) {
@@ -331,6 +423,62 @@ const toSuccessResult = (entry) => ({
   entry,
 });
 
+const fetchWithSafeRedirects = async ({ fetchImpl, initialUrl, timeoutMs }) => {
+  let current = initialUrl;
+  for (let redirectCount = 0; redirectCount <= MAX_REDIRECTS; redirectCount += 1) {
+    let parsedCurrent;
+    try {
+      parsedCurrent = new URL(current);
+    } catch {
+      return toFailureResult("redirect_not_allowed", "Invalid redirect target.");
+    }
+
+    const targetValidation = await validateRemoteTarget(parsedCurrent);
+    if (!targetValidation.ok) {
+      return targetValidation;
+    }
+
+    const controller = new AbortController();
+    const timeoutHandle = setTimeout(() => controller.abort(), Math.max(1, Number(timeoutMs) || 20_000));
+    let response;
+    try {
+      response = await fetchImpl(parsedCurrent.toString(), {
+        method: "GET",
+        redirect: "manual",
+        signal: controller.signal,
+      });
+    } catch (error) {
+      if (error?.name === "AbortError") {
+        return toFailureResult("fetch_failed", "Request timed out.", { reason: "timeout" });
+      }
+      return toFailureResult("fetch_failed", "Failed to fetch remote image.");
+    } finally {
+      clearTimeout(timeoutHandle);
+    }
+
+    const status = Number(response?.status || 0);
+    if (status >= 300 && status < 400) {
+      const location = String(response.headers?.get?.("location") || "").trim();
+      if (!location) {
+        return toFailureResult("redirect_not_allowed", "Redirect location is invalid.");
+      }
+      if (redirectCount >= MAX_REDIRECTS) {
+        return toFailureResult("redirect_not_allowed", "Too many redirects.");
+      }
+      try {
+        current = new URL(location, parsedCurrent).toString();
+      } catch {
+        return toFailureResult("redirect_not_allowed", "Redirect location is invalid.");
+      }
+      continue;
+    }
+
+    return { ok: true, response };
+  }
+
+  return toFailureResult("redirect_not_allowed", "Too many redirects.");
+};
+
 const resolveUrlBaseName = (parsedRemote) => {
   const rawBaseName = path.basename(parsedRemote.pathname || "") || "upload";
   try {
@@ -447,11 +595,12 @@ export const importRemoteImageFile = async ({
     let parsedRemote;
     try {
       parsedRemote = new URL(rawUrl);
-      if (parsedRemote.protocol !== "http:" && parsedRemote.protocol !== "https:") {
-        return toFailureResult("invalid_url", "Only HTTP/HTTPS URLs are allowed.");
-      }
     } catch {
       return toFailureResult("invalid_url", "Invalid URL.");
+    }
+    const targetValidation = await validateRemoteTarget(parsedRemote);
+    if (!targetValidation.ok) {
+      return targetValidation;
     }
 
     if (typeof fetchImpl !== "function") {
@@ -485,23 +634,15 @@ export const importRemoteImageFile = async ({
       }
     }
 
-    const controller = new AbortController();
-    const timeoutHandle = setTimeout(() => controller.abort(), Math.max(1, Number(timeoutMs) || 20_000));
-    let response;
-    try {
-      response = await fetchImpl(parsedRemote.toString(), {
-        method: "GET",
-        redirect: "follow",
-        signal: controller.signal,
-      });
-    } catch (error) {
-      if (error?.name === "AbortError") {
-        return toFailureResult("fetch_failed", "Request timed out.", { reason: "timeout" });
-      }
-      return toFailureResult("fetch_failed", "Failed to fetch remote image.");
-    } finally {
-      clearTimeout(timeoutHandle);
+    const fetchResult = await fetchWithSafeRedirects({
+      fetchImpl,
+      initialUrl: parsedRemote.toString(),
+      timeoutMs,
+    });
+    if (!fetchResult.ok) {
+      return fetchResult;
     }
+    const response = fetchResult.response;
 
     if (!response?.ok) {
       return toFailureResult("fetch_failed", "Remote server responded with error.", {
@@ -509,9 +650,18 @@ export const importRemoteImageFile = async ({
       });
     }
 
+    let finalRemote = parsedRemote;
+    try {
+      if (response.url) {
+        finalRemote = new URL(response.url);
+      }
+    } catch {
+      finalRemote = parsedRemote;
+    }
+
     const contentTypeHeader = String(response.headers?.get?.("content-type") || "");
     const headerMime = normalizeUploadMime(contentTypeHeader.split(";")[0].trim().toLowerCase());
-    const extFromUrl = path.extname(parsedRemote.pathname || "").replace(".", "").toLowerCase();
+    const extFromUrl = path.extname(finalRemote.pathname || "").replace(".", "").toLowerCase();
     let mime = isSupportedUploadImageMime(headerMime) ? headerMime : getUploadMimeFromExtension(extFromUrl);
 
     const buffer = Buffer.from(await response.arrayBuffer());

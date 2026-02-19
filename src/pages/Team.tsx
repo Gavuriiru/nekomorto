@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
+import { isIconUrlSource, sanitizeIconSource, sanitizePublicHref } from "@/lib/url-safety";
 import { usePageMeta } from "@/hooks/use-page-meta";
 import { useSiteSettings } from "@/hooks/use-site-settings";
 import ThemedSvgLogo from "@/components/ThemedSvgLogo";
@@ -106,10 +107,6 @@ const Team = () => {
     }),
     [],
   );
-  const isIconUrl = (value?: string | null) => {
-    if (!value) return false;
-    return value.startsWith("http") || value.startsWith("data:") || value.startsWith("/uploads/");
-  };
   const roleIconRegistry = useMemo(
     () => ({
       languages: Languages,
@@ -154,6 +151,29 @@ const Team = () => {
 
   const renderMemberAvatar = (member: PublicUser, imageSrc: string) => {
     return <TeamMemberAvatar imageSrc={imageSrc} name={member.name} />;
+  };
+
+  const resolveSocialLink = (
+    social: { label?: string; href?: string },
+    linkTypeMap: Map<string, { id: string; label: string; icon: string }>,
+  ) => {
+    const safeHref = sanitizePublicHref(social?.href);
+    if (!safeHref) {
+      return null;
+    }
+    const type = linkTypeMap.get(String(social?.label || ""));
+    const label = String(type?.label || social?.label || "").trim() || "Link";
+    const safeIconSource = sanitizeIconSource(type?.icon || "");
+    const customIcon = isIconUrlSource(safeIconSource);
+    const iconKey = customIcon ? "" : String(safeIconSource || "").toLowerCase();
+    const Icon = socialIcons[iconKey] || Globe;
+    return {
+      href: safeHref,
+      label,
+      customIcon,
+      iconSource: safeIconSource || "",
+      Icon,
+    };
   };
 
   useEffect(() => {
@@ -296,31 +316,27 @@ const Team = () => {
                             {socials.length > 0 && (
                               <div className="flex flex-wrap items-center justify-start gap-3 lg:absolute lg:right-6 lg:top-6 lg:mt-0 lg:justify-end">
                                 {socials.map((social) => {
-                                  const type = linkTypeMap.get(social.label);
-                                  const iconKey = type?.icon || social.label;
-                                  const label = type?.label || social.label;
-                                  const isCustomIcon = isIconUrl(iconKey);
-                                  const Icon =
-                                    !isCustomIcon
-                                      ? socialIcons[iconKey?.toLowerCase?.() || iconKey] || Globe
-                                      : null;
+                                  const resolved = resolveSocialLink(social, linkTypeMap);
+                                  if (!resolved) {
+                                    return null;
+                                  }
                                   return (
                                     <a
                                       key={`${member.id}-${social.href}`}
-                                      href={social.href}
+                                      href={resolved.href}
                                       target="_blank"
-                                      rel="noreferrer"
+                                      rel="noopener noreferrer"
                                       className="flex h-8 w-8 items-center justify-center rounded-full border border-primary/20 bg-background/70 text-primary/80 transition hover:border-primary/50 hover:text-primary"
-                                      aria-label={label}
+                                      aria-label={resolved.label}
                                     >
-                                      {isCustomIcon ? (
+                                      {resolved.customIcon ? (
                                         <ThemedSvgLogo
-                                          url={iconKey}
-                                          label={label}
+                                          url={resolved.iconSource}
+                                          label={resolved.label}
                                           className="h-4 w-4 text-primary"
                                         />
                                       ) : (
-                                        <Icon className="h-4 w-4" />
+                                        <resolved.Icon className="h-4 w-4" />
                                       )}
                                     </a>
                                   );
@@ -424,31 +440,27 @@ const Team = () => {
                                 {socials.length > 0 && (
                                   <div className="flex flex-wrap items-center justify-start gap-3 lg:absolute lg:right-6 lg:top-6 lg:mt-0 lg:justify-end">
                                     {socials.map((social) => {
-                                      const type = linkTypeMap.get(social.label);
-                                      const iconKey = type?.icon || social.label;
-                                      const label = type?.label || social.label;
-                                      const isCustomIcon = isIconUrl(iconKey);
-                                      const Icon =
-                                        !isCustomIcon
-                                          ? socialIcons[iconKey?.toLowerCase?.() || iconKey] || Globe
-                                          : null;
+                                      const resolved = resolveSocialLink(social, linkTypeMap);
+                                      if (!resolved) {
+                                        return null;
+                                      }
                                       return (
                                         <a
                                           key={`${member.id}-${social.href}`}
-                                          href={social.href}
+                                          href={resolved.href}
                                           target="_blank"
-                                          rel="noreferrer"
+                                          rel="noopener noreferrer"
                                           className="flex h-8 w-8 items-center justify-center rounded-full border border-primary/20 bg-background/70 text-primary/80 transition hover:border-primary/50 hover:text-primary"
-                                          aria-label={label}
+                                          aria-label={resolved.label}
                                         >
-                                          {isCustomIcon ? (
+                                          {resolved.customIcon ? (
                                             <ThemedSvgLogo
-                                              url={iconKey}
-                                              label={label}
+                                              url={resolved.iconSource}
+                                              label={resolved.label}
                                               className="h-4 w-4 text-primary"
                                             />
                                           ) : (
-                                            <Icon className="h-4 w-4" />
+                                            <resolved.Icon className="h-4 w-4" />
                                           )}
                                         </a>
                                       );

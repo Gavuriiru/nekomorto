@@ -121,6 +121,63 @@ describe("importRemoteImageFile", () => {
     expect(result.error.code).toBe("invalid_url");
   });
 
+  it("bloqueia host privado/local para evitar SSRF", async () => {
+    const fetchMock = vi.fn();
+    const result = await importRemoteImageFile({
+      remoteUrl: "http://127.0.0.1:8080/private.png",
+      uploadsDir: createTempUploadsDir(),
+      fetchImpl: fetchMock as unknown as typeof fetch,
+    });
+
+    expect(result.ok).toBe(false);
+    if (result.ok) {
+      return;
+    }
+    expect(result.error.code).toBe("host_not_allowed");
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("bloqueia URL com credenciais embutidas", async () => {
+    const fetchMock = vi.fn();
+    const result = await importRemoteImageFile({
+      remoteUrl: "https://user:pass@cdn.exemplo.com/capa.png",
+      uploadsDir: createTempUploadsDir(),
+      fetchImpl: fetchMock as unknown as typeof fetch,
+    });
+
+    expect(result.ok).toBe(false);
+    if (result.ok) {
+      return;
+    }
+    expect(result.error.code).toBe("invalid_url_credentials");
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("bloqueia redirecionamento para host interno", async () => {
+    const uploadsDir = createTempUploadsDir();
+    const fetchMock = vi.fn(async () =>
+      new Response(null, {
+        status: 302,
+        headers: {
+          Location: "http://127.0.0.1/private.png",
+        },
+      }),
+    );
+
+    const result = await importRemoteImageFile({
+      remoteUrl: "https://cdn.exemplo.com/imagens/capa.png",
+      uploadsDir,
+      fetchImpl: fetchMock as unknown as typeof fetch,
+    });
+
+    expect(result.ok).toBe(false);
+    if (result.ok) {
+      return;
+    }
+    expect(result.error.code).toBe("host_not_allowed");
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
   it("retorna erro tipado para payload nao suportado", async () => {
     const uploadsDir = createTempUploadsDir();
     const fetchMock = vi.fn(async () =>
