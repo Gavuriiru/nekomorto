@@ -693,12 +693,22 @@ const EpisodeContentEditor = ({
   onRegister,
   imageLibraryOptions,
 }: EpisodeContentEditorProps) => {
-  const editorRef = useRef<Suspense fallback={<LexicalEditorFallback />}>
+  const editorRef = useRef<LexicalEditorHandle | null>(null);
+
+  useEffect(() => {
+    if (!onRegister) {
+      return;
+    }
+    onRegister(editorRef.current);
+  }, [onRegister]);
+
+  return (
+    <Suspense fallback={<LexicalEditorFallback />}>
       <LexicalEditor
         ref={editorRef}
         value={value}
         onChange={onChange}
-        placeholder="Escreva o capítulo..."
+        placeholder="Escreva o capÃ­tulo..."
         className="lexical-playground--modal"
         imageLibraryOptions={imageLibraryOptions}
       />
@@ -3966,6 +3976,5 @@ const DashboardProjectsEditor = () => {
 };
 
 export default DashboardProjectsEditor;
-
 
 

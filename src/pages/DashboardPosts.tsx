@@ -310,7 +310,1004 @@ const DashboardPosts = () => {
   );
   const confirmActionRef = useRef<(() => void) | null>(null);
   const confirmCancelRef = useRef<(() => void) | null>(null);
-  const editorRef = useRef<Suspense fallback={<LexicalEditorFallback />}>
+  const editorRef = useRef<LexicalEditorHandle | null>(null);
+  const editorInitialSnapshotRef = useRef<string>(buildPostEditorSnapshot(emptyForm));
+  const autoEditHandledRef = useRef<string | null>(null);
+  const isApplyingSearchParamsRef = useRef(false);
+  const queryStateRef = useRef({
+    sortMode,
+    searchQuery,
+    projectFilterId,
+    currentPage,
+  });
+
+  const currentUserRecord = currentUser
+    ? users.find((user) => user.id === currentUser.id) || null
+    : null;
+  const canManagePosts = useMemo(() => {
+    if (!currentUser) {
+      return false;
+    }
+    if (ownerIds.includes(currentUser.id)) {
+      return true;
+    }
+    const permissions = currentUserRecord?.permissions || [];
+    return permissions.includes("*") || permissions.includes("posts");
+  }, [currentUser, currentUserRecord, ownerIds]);
+
+  const isDirty = useMemo(
+    () => buildPostEditorSnapshot(formState) !== editorInitialSnapshotRef.current,
+    [formState],
+  );
+  const editorResolvedCover = useMemo(
+    () =>
+      resolvePostCoverPreview({
+        coverImageUrl: formState.coverImageUrl,
+        coverAlt: formState.coverAlt,
+        content: formState.contentLexical,
+        contentFormat: "lexical",
+        title: formState.title,
+      }),
+    [formState.contentLexical, formState.coverAlt, formState.coverImageUrl, formState.title],
+  );
+  const editorCoverFileName = useMemo(
+    () => getImageFileNameFromUrl(editorResolvedCover.coverImageUrl),
+    [editorResolvedCover.coverImageUrl],
+  );
+
+  const allowPopRef = useRef(false);
+  const hasPushedBlockRef = useRef(false);
+
+  useEffect(() => {
+    if (!isSlugCustom) {
+      setFormState((prev) => ({ ...prev, slug: createSlug(prev.title) }));
+    }
+  }, [formState.title, isSlugCustom]);
+
+  useEffect(() => {
+    if (!isEditorOpen) {
+      setIsEditorDialogScrolled(false);
+    }
+  }, [isEditorOpen]);
+
+  const loadPosts = async () => {
+    const response = await apiFetch(apiBase, "/api/posts", { auth: true });
+    if (!response.ok) {
+      throw new Error("posts_load_failed");
+    }
+    const data = await response.json();
+    const nextPosts = Array.isArray(data.posts) ? data.posts : [];
+    setPosts(nextPosts);
+  };
+
+  useEffect(() => {
+    let isActive = true;
+    const load = async () => {
+      try {
+        const [postsRes, usersRes, meRes, projectsRes, tagsRes] = await Promise.all([
+          apiFetch(apiBase, "/api/posts", { auth: true }),
+          apiFetch(apiBase, "/api/users", { auth: true }),
+          apiFetch(apiBase, "/api/me", { auth: true }),
+          apiFetch(apiBase, "/api/projects", { auth: true }),
+          apiFetch(apiBase, "/api/public/tag-translations", { cache: "no-store" }),
+        ]);
+
+        if (postsRes.ok) {
+          const data = await postsRes.json();
+          if (isActive) {
+            const nextPosts = Array.isArray(data.posts) ? data.posts : [];
+            setPosts(nextPosts);
+          }
+        }
+
+        if (usersRes.ok) {
+          const data = await usersRes.json();
+          if (isActive) {
+            setUsers(Array.isArray(data.users) ? data.users : []);
+            setOwnerIds(Array.isArray(data.ownerIds) ? data.ownerIds : []);
+          }
+        }
+
+        if (meRes.ok) {
+          const data = await meRes.json();
+          if (isActive) {
+            setCurrentUser(data);
+          }
+        }
+
+        if (projectsRes.ok) {
+          const data = await projectsRes.json();
+          if (isActive) {
+            setProjects(Array.isArray(data.projects) ? data.projects : []);
+          }
+        }
+
+        if (tagsRes.ok) {
+          const data = await tagsRes.json();
+          if (isActive) {
+            setTagTranslations(data.tags || {});
+          }
+        } else if (isActive) {
+          setTagTranslations({});
+        }
+      } catch {
+        if (isActive) {
+          setPosts([]);
+          setTagTranslations({});
+        }
+      } finally {
+        if (isActive) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    load();
+    return () => {
+      isActive = false;
+    };
+  }, [apiBase]);
+
+  useEffect(() => {
+    if (!isEditorOpen || !isDirty) {
+      return;
+    }
+    const handler = (event: BeforeUnloadEvent) => {
+      applyBeforeUnloadCompatibility(event);
+    };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [isEditorOpen, isDirty]);
+
+  useEffect(() => {
+    if (!isEditorOpen || !isDirty) {
+      return;
+    }
+    if (!hasPushedBlockRef.current) {
+      window.history.pushState(null, document.title, window.location.href);
+      hasPushedBlockRef.current = true;
+    }
+    const handlePopState = () => {
+      if (allowPopRef.current) {
+        allowPopRef.current = false;
+        return;
+      }
+      window.history.pushState(null, document.title, window.location.href);
+      setConfirmTitle("Sair da edição?");
+      setConfirmDescription("Você tem alterações não salvas. Deseja continuar?");
+      confirmActionRef.current = () => {
+        allowPopRef.current = true;
+        closeEditor();
+        navigate(-1);
+      };
+      confirmCancelRef.current = () => {
+        allowPopRef.current = false;
+      };
+      setConfirmOpen(true);
+    };
+    window.addEventListener("popstate", handlePopState);
+    return () => {
+      window.removeEventListener("popstate", handlePopState);
+      hasPushedBlockRef.current = false;
+    };
+  }, [isEditorOpen, isDirty, navigate]);
+
+  useEffect(() => {
+    if (!isEditorOpen || !isDirty) {
+      return;
+    }
+    const handleClick = (event: MouseEvent) => {
+      const target = event.target as HTMLElement | null;
+      const anchor = target?.closest("a");
+      if (!anchor) {
+        return;
+      }
+      const href = anchor.getAttribute("href");
+      if (!href || href.startsWith("#") || anchor.getAttribute("target") === "_blank") {
+        return;
+      }
+      event.preventDefault();
+      setConfirmTitle("Sair da edição?");
+      setConfirmDescription("Você tem alterações não salvas. Deseja continuar?");
+      confirmActionRef.current = () => {
+        const url = new URL(anchor.href, window.location.href);
+        if (url.origin === window.location.origin) {
+          navigate(`${url.pathname}${url.search}${url.hash}`);
+        } else {
+          window.location.href = url.href;
+        }
+      };
+      confirmCancelRef.current = () => {
+        setConfirmOpen(false);
+      };
+      setConfirmOpen(true);
+    };
+    document.addEventListener("click", handleClick);
+    return () => document.removeEventListener("click", handleClick);
+  }, [isEditorOpen, isDirty, navigate]);
+
+  const openCreate = () => {
+    const nextForm = {
+      ...emptyForm,
+      author: currentUser?.name || "",
+      publishAt: toLocalDateTimeValue(new Date()),
+    };
+    if (isEditorOpen && isDirty) {
+      setConfirmTitle("Criar nova postagem?");
+      setConfirmDescription("Há alterações não salvas. Deseja descartar e criar uma nova postagem?");
+      confirmActionRef.current = () => {
+        setEditingPost(null);
+        setIsSlugCustom(false);
+        setFormState(nextForm);
+        editorInitialSnapshotRef.current = buildPostEditorSnapshot(nextForm);
+        setIsEditorOpen(true);
+      };
+      confirmCancelRef.current = null;
+      setConfirmOpen(true);
+      return;
+    }
+    setEditingPost(null);
+    setIsSlugCustom(false);
+    setFormState(nextForm);
+    editorInitialSnapshotRef.current = buildPostEditorSnapshot(nextForm);
+    setIsEditorOpen(true);
+  };
+
+  const openEdit = useCallback((post: PostRecord) => {
+    const nextForm = {
+      title: post.title || "",
+      slug: post.slug || "",
+      excerpt: post.excerpt || "",
+      contentLexical: post.content || "",
+      author: post.author || "",
+      coverImageUrl: post.coverImageUrl || "",
+      coverAlt: post.coverAlt || "",
+      status: post.status || "draft",
+      publishAt: toLocalDateTimeFromIso(post.publishedAt),
+      projectId: post.projectId || "",
+      tags: Array.isArray(post.tags) ? post.tags : [],
+    };
+    setEditingPost(post);
+    setIsSlugCustom(true);
+    setFormState(nextForm);
+    editorInitialSnapshotRef.current = buildPostEditorSnapshot(nextForm);
+    setIsEditorOpen(true);
+  }, []);
+
+  useEffect(() => {
+    const editTarget = (searchParams.get("edit") || "").trim();
+    if (!editTarget) {
+      autoEditHandledRef.current = null;
+      return;
+    }
+    if (autoEditHandledRef.current === editTarget) {
+      return;
+    }
+    if (isLoading) {
+      return;
+    }
+    autoEditHandledRef.current = editTarget;
+
+    const nextParams = new URLSearchParams(searchParams);
+    nextParams.delete("edit");
+    const target = canManagePosts
+      ? posts.find((post) => post.id === editTarget || post.slug === editTarget) || null
+      : null;
+    if (target) {
+      openEdit(target);
+    }
+    if (nextParams.toString() !== searchParams.toString()) {
+      setSearchParams(nextParams, { replace: true });
+    }
+  }, [canManagePosts, isLoading, openEdit, posts, searchParams, setSearchParams]);
+
+  const closeEditor = () => {
+    setIsEditorOpen(false);
+    setEditingPost(null);
+  };
+
+  const requestCloseEditor = () => {
+    if (!isEditorOpen || !isDirty) {
+      closeEditor();
+      return;
+    }
+    setConfirmTitle("Sair da edição?");
+    setConfirmDescription("Você tem alterações não salvas. Deseja continuar?");
+    confirmActionRef.current = () => {
+      closeEditor();
+    };
+    confirmCancelRef.current = () => {
+      setConfirmOpen(false);
+    };
+    setConfirmOpen(true);
+  };
+
+  const handleEditorOpenChange = (next: boolean) => {
+    if (!next && isLibraryOpen) {
+      return;
+    }
+    if (!next) {
+      requestCloseEditor();
+      return;
+    }
+    setIsEditorOpen(true);
+  };
+
+  const handleRouteNavigate = (href: string) => {
+    if (!isEditorOpen || !isDirty) {
+      navigate(href);
+      return;
+    }
+    setConfirmTitle("Sair da edição?");
+    setConfirmDescription("Você tem alterações não salvas. Deseja continuar?");
+    confirmActionRef.current = () => {
+      navigate(href);
+    };
+    confirmCancelRef.current = () => {
+      setConfirmOpen(false);
+    };
+    setConfirmOpen(true);
+  };
+
+  const projectMap = useMemo(
+    () => new Map(projects.map((project) => [project.id, project])),
+    [projects],
+  );
+  const embeddedUploadUrls = useMemo(
+    () => extractLexicalImageUploadUrls(formState.contentLexical),
+    [formState.contentLexical],
+  );
+  const postImageLibraryOptions = useMemo(
+    () => ({
+      uploadFolder: "posts",
+      listFolders: ["posts", "shared"],
+      listAll: false,
+      includeProjectImages: true,
+      projectImageProjectIds: [],
+      projectImagesView: "by-project" as const,
+      currentSelectionUrls: embeddedUploadUrls,
+    }),
+    [embeddedUploadUrls],
+  );
+  const projectTags = useMemo(() => {
+    if (!formState.projectId) {
+      return [];
+    }
+    return projectMap.get(formState.projectId)?.tags || [];
+  }, [formState.projectId, projectMap]);
+  const tagTranslationMap = useMemo(() => buildTranslationMap(tagTranslations), [tagTranslations]);
+  const displayTag = useCallback(
+    (tag: string) => translateTag(tag, tagTranslationMap),
+    [tagTranslationMap],
+  );
+  useEffect(() => {
+    const base = (formState.tags || []).filter(Boolean);
+    const next = [...base];
+    projectTags.forEach((tag) => {
+      if (tag && !next.includes(tag)) {
+        next.push(tag);
+      }
+    });
+    setTagOrder((prev) => {
+      if (prev.length === 0) {
+        return next;
+      }
+      const ordered = prev.filter((tag) => next.includes(tag));
+      next.forEach((tag) => {
+        if (!ordered.includes(tag)) {
+          ordered.push(tag);
+        }
+      });
+      return ordered;
+    });
+  }, [projectTags, formState.tags]);
+  const isRestorable = useCallback((post: PostRecord) => {
+    if (!post.deletedAt) {
+      return false;
+    }
+    const ts = new Date(post.deletedAt).getTime();
+    if (!Number.isFinite(ts)) {
+      return false;
+    }
+    return Date.now() - ts <= restoreWindowMs;
+  }, [restoreWindowMs]);
+  const getRestoreRemainingLabel = (post: PostRecord) => {
+    if (!post.deletedAt) {
+      return "";
+    }
+    const ts = new Date(post.deletedAt).getTime();
+    if (!Number.isFinite(ts)) {
+      return "";
+    }
+    const remainingMs = restoreWindowMs - (Date.now() - ts);
+    const remainingDays = Math.max(0, Math.ceil(remainingMs / (24 * 60 * 60 * 1000)));
+    if (remainingDays <= 1) {
+      return "1 dia";
+    }
+    return `${remainingDays} dias`;
+  };
+  const activePosts = useMemo(() => posts.filter((post) => !post.deletedAt), [posts]);
+  const trashedPosts = useMemo(
+    () => posts.filter((post) => post.deletedAt && isRestorable(post)),
+    [isRestorable, posts],
+  );
+  const availableTags = useMemo(() => {
+    const collected = new Set<string>();
+    projects.forEach((project) => {
+      (project.tags || []).forEach((tag) => {
+        if (tag) {
+          collected.add(tag);
+        }
+      });
+    });
+    activePosts.forEach((post) => {
+      (post.tags || []).forEach((tag) => {
+        if (tag) {
+          collected.add(tag);
+        }
+      });
+    });
+    return sortByTranslatedLabel(Array.from(collected), (tag) => displayTag(tag));
+  }, [activePosts, displayTag, projects]);
+  const mergedTags = useMemo(() => {
+    if (tagOrder.length) {
+      return tagOrder;
+    }
+    const combined = [...projectTags, ...(formState.tags || [])];
+    return Array.from(new Set(combined.filter(Boolean)));
+  }, [projectTags, formState.tags, tagOrder]);
+
+  const filteredPosts = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
+    if (!query) {
+      if (sortMode === "projects" && projectFilterId !== "all") {
+        return activePosts.filter((post) => post.projectId === projectFilterId);
+      }
+      return activePosts;
+    }
+    return activePosts.filter((post) => {
+      if (sortMode === "projects" && projectFilterId !== "all" && post.projectId !== projectFilterId) {
+        return false;
+      }
+      const project = post.projectId ? projectMap.get(post.projectId) : null;
+      const projectTitle = project?.title || "";
+      const projectTags = project?.tags?.join(" ") || "";
+      const postTags = Array.isArray(post.tags) ? post.tags.join(" ") : "";
+      const haystack = [
+        post.title,
+        post.slug,
+        post.excerpt,
+        post.author,
+        projectTitle,
+        projectTags,
+        postTags,
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+      return haystack.includes(query);
+    });
+  }, [activePosts, projectFilterId, projectMap, searchQuery, sortMode]);
+
+  const sortedPosts = useMemo(() => {
+    const next = [...filteredPosts];
+    next.sort((a, b) => {
+      if (sortMode === "alpha") {
+        return a.title.localeCompare(b.title, "pt-BR");
+      }
+      if (sortMode === "tags") {
+        const tagsA = [
+          ...(a.projectId ? projectMap.get(a.projectId)?.tags || [] : []),
+          ...(Array.isArray(a.tags) ? a.tags : []),
+        ];
+        const tagsB = [
+          ...(b.projectId ? projectMap.get(b.projectId)?.tags || [] : []),
+          ...(Array.isArray(b.tags) ? b.tags : []),
+        ];
+        return tagsA.join(",").localeCompare(tagsB.join(","), "pt-BR");
+      }
+      if (sortMode === "projects") {
+        return new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime();
+      }
+      if (sortMode === "status") {
+        return a.status.localeCompare(b.status, "pt-BR");
+      }
+      if (sortMode === "views") {
+        return (b.views || 0) - (a.views || 0);
+      }
+      if (sortMode === "comments") {
+        return (b.commentsCount || 0) - (a.commentsCount || 0);
+      }
+      return new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime();
+    });
+    return next;
+  }, [filteredPosts, projectMap, sortMode]);
+
+  const postsPerPage = 10;
+  const totalPages = Math.max(1, Math.ceil(sortedPosts.length / postsPerPage));
+  const pageStart = (currentPage - 1) * postsPerPage;
+  const paginatedPosts = sortedPosts.slice(pageStart, pageStart + postsPerPage);
+
+  useEffect(() => {
+    if (isLoading) {
+      return;
+    }
+    setCurrentPage((page) => Math.min(page, totalPages));
+  }, [isLoading, totalPages]);
+
+  useEffect(() => {
+    queryStateRef.current = {
+      sortMode,
+      searchQuery,
+      projectFilterId,
+      currentPage,
+    };
+  }, [currentPage, projectFilterId, searchQuery, sortMode]);
+
+  useEffect(() => {
+    const nextSortMode = parseSortParam(searchParams.get("sort"));
+    const nextSearchQuery = searchParams.get("q") || "";
+    const nextProjectFilterId = searchParams.get("project") || "all";
+    const nextPage = parsePageParam(searchParams.get("page"));
+    const {
+      sortMode: currentSortMode,
+      searchQuery: currentSearchQuery,
+      projectFilterId: currentProjectFilterId,
+      currentPage: currentCurrentPage,
+    } = queryStateRef.current;
+    const shouldApply =
+      currentSortMode !== nextSortMode ||
+      currentSearchQuery !== nextSearchQuery ||
+      currentProjectFilterId !== nextProjectFilterId ||
+      currentCurrentPage !== nextPage;
+    if (!shouldApply) {
+      return;
+    }
+    isApplyingSearchParamsRef.current = true;
+    setSortMode((prev) => (prev === nextSortMode ? prev : nextSortMode));
+    setSearchQuery((prev) => (prev === nextSearchQuery ? prev : nextSearchQuery));
+    setProjectFilterId((prev) => (prev === nextProjectFilterId ? prev : nextProjectFilterId));
+    setCurrentPage((prev) => (prev === nextPage ? prev : nextPage));
+  }, [searchParams]);
+
+  useEffect(() => {
+    const nextParams = new URLSearchParams(searchParams);
+    if (sortMode === "recent") {
+      nextParams.delete("sort");
+    } else {
+      nextParams.set("sort", sortMode);
+    }
+    const trimmedQuery = searchQuery.trim();
+    if (trimmedQuery) {
+      nextParams.set("q", trimmedQuery);
+    } else {
+      nextParams.delete("q");
+    }
+    if (projectFilterId && projectFilterId !== "all") {
+      nextParams.set("project", projectFilterId);
+    } else {
+      nextParams.delete("project");
+    }
+    if (currentPage <= 1) {
+      nextParams.delete("page");
+    } else {
+      nextParams.set("page", String(currentPage));
+    }
+    const currentQuery = searchParams.toString();
+    const nextQuery = nextParams.toString();
+    if (isApplyingSearchParamsRef.current) {
+      if (nextQuery === currentQuery) {
+        isApplyingSearchParamsRef.current = false;
+      }
+      return;
+    }
+    if (nextQuery !== currentQuery) {
+      setSearchParams(nextParams, { replace: true });
+    }
+  }, [sortMode, searchQuery, projectFilterId, currentPage, searchParams, setSearchParams]);
+
+  const handlePublishDateChange = (nextDate: Date | null) => {
+    if (!nextDate) {
+      setFormState((prev) => ({ ...prev, publishAt: "" }));
+      return;
+    }
+    const { time } = parseLocalDateTimeValue(formState.publishAt || "");
+    const timePart = time || "12:00";
+    const nextValue = `${toLocalDateTimeValue(nextDate).slice(0, 10)}T${timePart}`;
+    setFormState((prev) => ({ ...prev, publishAt: nextValue }));
+  };
+
+  const handlePublishTimeChange = (nextTime: Date | null) => {
+    if (!nextTime || Number.isNaN(nextTime.getTime())) {
+      return;
+    }
+    const nextTimePart = `${pad(nextTime.getHours())}:${pad(nextTime.getMinutes())}`;
+    const { date } = parseLocalDateTimeValue(formState.publishAt || "");
+    const baseDate = date || new Date();
+    const datePart = toLocalDateTimeValue(baseDate).slice(0, 10);
+    setFormState((prev) => ({ ...prev, publishAt: `${datePart}T${nextTimePart}` }));
+  };
+
+  const publishDateParts = parseLocalDateTimeValue(formState.publishAt || "");
+  const publishDateValue = publishDateParts.date;
+  const publishTimeValue = toTimeFieldValue(publishDateParts.time || "12:00");
+
+  const handleSetNow = () => {
+    const now = new Date();
+    handlePublishDateChange(now);
+    handlePublishTimeChange(now);
+  };
+
+  const handleAddTag = () => {
+    const nextTag = tagInput.trim();
+    if (!nextTag) {
+      return;
+    }
+    const tagsToAdd = nextTag
+      .split(",")
+      .map((tag) => tag.trim())
+      .filter(Boolean);
+    if (tagsToAdd.length === 0) {
+      setTagInput("");
+      return;
+    }
+    setFormState((prev) => {
+      const current = prev.tags || [];
+      const combined = [...current, ...tagsToAdd.filter((tag) => !projectTags.includes(tag))];
+      return { ...prev, tags: Array.from(new Set(combined)) };
+    });
+    setTagOrder((prev) => {
+      const next = [...prev];
+      tagsToAdd.forEach((tag) => {
+        if (!next.includes(tag)) {
+          next.push(tag);
+        }
+      });
+      return next;
+    });
+    setTagInput("");
+    if (tagInputRef.current) {
+      tagInputRef.current.value = "";
+    }
+  };
+
+  const handleRemoveTag = (tag: string) => {
+    setFormState((prev) => ({
+      ...prev,
+      tags: (prev.tags || []).filter((item) => item !== tag),
+    }));
+    setTagOrder((prev) => prev.filter((item) => item !== tag));
+  };
+
+  const handleTagDragStart = (tag: string) => {
+    setDraggedTag(tag);
+  };
+
+  const handleTagDrop = (targetTag: string) => {
+    if (!draggedTag || draggedTag === targetTag) {
+      setDraggedTag(null);
+      return;
+    }
+    setTagOrder((prev) => {
+      const tags = [...prev];
+      const fromIndex = tags.indexOf(draggedTag);
+      const toIndex = tags.indexOf(targetTag);
+      if (fromIndex === -1 || toIndex === -1) {
+        return prev;
+      }
+      tags.splice(fromIndex, 1);
+      tags.splice(toIndex, 0, draggedTag);
+      return tags;
+    });
+    setDraggedTag(null);
+  };
+
+  const openLibrary = () => {
+    setIsLibraryOpen(true);
+  };
+
+  const handleLibrarySelect = useCallback(
+    (url: string, altText?: string) => {
+      const nextUrl = String(url || "").trim();
+      setFormState((prev) => {
+        const hasManualCover = Boolean(String(prev.coverImageUrl || "").trim());
+        const shouldKeepAutomatic =
+          !hasManualCover &&
+          editorResolvedCover.source === "content" &&
+          areCoverUrlsEquivalent(nextUrl, editorResolvedCover.coverImageUrl);
+        return {
+          ...prev,
+          coverImageUrl: shouldKeepAutomatic ? "" : nextUrl,
+          coverAlt: prev.coverAlt || altText || prev.title || "Capa",
+        };
+      });
+    },
+    [editorResolvedCover.coverImageUrl, editorResolvedCover.source],
+  );
+
+
+
+  const handleCopyLink = async (slug: string) => {
+    const url = `${window.location.origin}/postagem/${slug}`;
+    try {
+      await navigator.clipboard.writeText(url);
+      toast({ title: "Link copiado", description: url });
+    } catch {
+      toast({ title: "Não foi possível copiar o link" });
+    }
+  };
+
+  const handleSave = async (overrideStatus?: "draft" | "scheduled" | "published") => {
+    const resolvedStatus = overrideStatus || formState.status;
+    const parsedPublishAtMs = formState.publishAt ? new Date(formState.publishAt).getTime() : null;
+    const publishAtValue =
+      parsedPublishAtMs !== null && Number.isFinite(parsedPublishAtMs)
+        ? new Date(parsedPublishAtMs).toISOString()
+        : null;
+    const nowIso = new Date().toISOString();
+    const originalPublishAtLocal = editingPost ? toLocalDateTimeFromIso(editingPost.publishedAt) : "";
+    const didPublishAtChange = Boolean(editingPost) && formState.publishAt !== originalPublishAtLocal;
+    let resolvedPublishedAt = editingPost?.publishedAt || nowIso;
+    if (overrideStatus === "published") {
+      resolvedPublishedAt = nowIso;
+    } else if (editingPost && !didPublishAtChange) {
+      resolvedPublishedAt = editingPost.publishedAt || nowIso;
+    } else if (publishAtValue) {
+      resolvedPublishedAt = publishAtValue;
+    }
+    const scheduledDateSource = editingPost && !didPublishAtChange ? editingPost.publishedAt : publishAtValue;
+    const hasScheduledDate = resolvedStatus !== "scheduled" || Boolean(scheduledDateSource);
+    if (!hasScheduledDate) {
+      toast({
+        title: "Defina uma data de publicação",
+        description: "Posts agendados precisam de uma data.",
+      });
+      return;
+    }
+    const lexicalText = getLexicalText(formState.contentLexical);
+    const seoDescription = lexicalText.trim().slice(0, 150);
+    const coverImageUrl = formState.coverImageUrl.trim() || null;
+    const coverAlt = formState.coverAlt.trim() || "";
+    const excerpt = formState.excerpt.trim() || lexicalText.trim().slice(0, 160);
+    const rawTagInput = tagInputRef.current?.value ?? tagInput;
+    const pendingTags = rawTagInput
+      .split(",")
+      .map((tag) => tag.trim())
+      .filter(Boolean);
+    const tagsToSave = (() => {
+      const ordered: string[] = [];
+      const pushUnique = (tag: string) => {
+        if (tag && !ordered.includes(tag)) {
+          ordered.push(tag);
+        }
+      };
+      tagOrder.forEach(pushUnique);
+      (formState.tags || []).forEach(pushUnique);
+      projectTags.forEach(pushUnique);
+      pendingTags.forEach(pushUnique);
+      return ordered;
+    })();
+    const payload = {
+      title: formState.title.trim(),
+      slug: formState.slug.trim(),
+      coverImageUrl,
+      coverAlt,
+      excerpt,
+      content: formState.contentLexical,
+      contentFormat: "lexical",
+      author: formState.author.trim(),
+      publishedAt: resolvedPublishedAt,
+      status: resolvedStatus,
+      seoTitle: formState.title.trim(),
+      seoDescription,
+      projectId: formState.projectId || "",
+      tags: tagsToSave,
+    };
+
+    if (!payload.title || !payload.slug) {
+      toast({
+        title: "Preencha os campos obrigatórios",
+        description: "Título e slug são necessários para criar a postagem.",
+      });
+      return;
+    }
+
+    const response = await apiFetch(
+      apiBase,
+      `/api/posts${editingPost ? `/${editingPost.id}` : ""}`,
+      {
+        method: editingPost ? "PUT" : "POST",
+        headers: { "Content-Type": "application/json" },
+        auth: true,
+        body: JSON.stringify(payload),
+      },
+    );
+
+    if (!response.ok) {
+      toast({
+        title: "Não foi possível salvar",
+        description: "Verifique as permissões ou tente novamente.",
+      });
+      return;
+    }
+
+    const data = await response.json();
+    const savedPostSlug = typeof data?.post?.slug === "string" ? data.post.slug : "";
+    if (!editingPost) {
+      const baseSlug = createSlug(payload.slug || payload.title);
+      if (savedPostSlug && savedPostSlug !== baseSlug) {
+        toast({
+          title: "Link ajustado automaticamente",
+          description: `Conflito detectado. O post foi salvo com /${savedPostSlug}.`,
+        });
+      }
+    }
+
+    await loadPosts();
+    const nextFormAfterSave = {
+      ...formState,
+      status: resolvedStatus,
+      publishAt: resolvedPublishedAt ? toLocalDateTimeFromIso(resolvedPublishedAt) : "",
+      excerpt,
+      coverImageUrl: coverImageUrl || "",
+      coverAlt,
+      tags: tagsToSave.filter((tag) => !projectTags.includes(tag)),
+    };
+    editorInitialSnapshotRef.current = buildPostEditorSnapshot(nextFormAfterSave);
+    setFormState((prev) => ({
+      ...prev,
+      ...nextFormAfterSave,
+    }));
+    setTagOrder(tagsToSave);
+    toast({
+      title: editingPost ? "Postagem atualizada" : "Postagem criada",
+      description: "As alterações já estão na dashboard.",
+    });
+    if (pendingTags.length) {
+      setTagInput("");
+      if (tagInputRef.current) {
+        tagInputRef.current.value = "";
+      }
+    }
+    if (editingPost) {
+      closeEditor();
+    } else if (resolvedStatus === "published" || resolvedStatus === "scheduled") {
+      closeEditor();
+    }
+  };
+
+  const handleDelete = () => {
+    if (!editingPost) {
+      return;
+    }
+    setDeleteTarget(editingPost);
+  };
+
+  const handleDeletePost = async (post: PostRecord) => {
+    setDeleteTarget(post);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!deleteTarget) {
+      return;
+    }
+    const response = await apiFetch(apiBase, `/api/posts/${deleteTarget.id}`, {
+      method: "DELETE",
+      auth: true,
+    });
+    if (!response.ok) {
+      toast({ title: "Não foi possível excluir a postagem" });
+      return;
+    }
+    await loadPosts();
+    setDeleteTarget(null);
+    if (editingPost && deleteTarget.id === editingPost.id) {
+      closeEditor();
+    }
+    toast({ title: "Postagem movida para a lixeira", description: "Você pode restaurar por 3 dias." });
+  };
+  const handleRestorePost = async (post: PostRecord) => {
+    const response = await apiFetch(apiBase, `/api/posts/${post.id}/restore`, {
+      method: "POST",
+      auth: true,
+    });
+    if (!response.ok) {
+      if (response.status === 410) {
+        toast({ title: "Janela de restauração expirou" });
+        await loadPosts();
+        return;
+      }
+      toast({ title: "Não foi possível restaurar a postagem" });
+      return;
+    }
+    const data = await response.json();
+    setPosts((prev) => prev.map((item) => (item.id === post.id ? data.post : item)));
+    toast({ title: "Postagem restaurada" });
+  };
+
+
+  return (
+    <>
+      <DashboardShell
+        currentUser={currentUser}
+        onUserCardClick={() => navigate("/dashboard/usuarios?edit=me")}
+        onMenuItemClick={(item, event) => {
+          if (!item.enabled || !isEditorOpen || !isDirty) {
+            return;
+          }
+          event.preventDefault();
+          handleRouteNavigate(item.href);
+        }}
+      >
+        <DashboardPageContainer>
+            <DashboardPageHeader
+              badge="Postagens"
+              title="Gerenciar posts"
+              description="Visualize, edite e publique os posts mais recentes do site."
+              actions={canManagePosts ? (
+                <Button className="gap-2" onClick={openCreate}>
+                  <Plus className="h-4 w-4" />
+                  Nova postagem
+                </Button>
+              ) : undefined}
+            />
+
+            {isEditorOpen && canManagePosts ? (
+              <>
+                <div
+                  className="pointer-events-auto fixed inset-0 z-40 bg-black/80 backdrop-blur-xs"
+                  aria-hidden="true"
+                />
+                <Dialog open={isEditorOpen} onOpenChange={handleEditorOpenChange} modal={false}>
+                  <DialogContent
+                    className={`max-w-6xl max-h-[92vh] overflow-y-auto no-scrollbar ${
+                      isEditorDialogScrolled ? "editor-modal-scrolled" : ""
+                    }`}
+                    onScroll={(event) => {
+                      const nextScrolled = event.currentTarget.scrollTop > 0;
+                      setIsEditorDialogScrolled((prev) =>
+                        prev === nextScrolled ? prev : nextScrolled,
+                      );
+                    }}
+                    onPointerDownOutside={(event) => {
+                      if (isLibraryOpen) {
+                        event.preventDefault();
+                        return;
+                      }
+                      const target = event.target as HTMLElement | null;
+                      if (target?.closest(".lexical-playground")) {
+                        event.preventDefault();
+                      }
+                    }}
+                    onInteractOutside={(event) => {
+                      if (isLibraryOpen) {
+                        event.preventDefault();
+                        return;
+                      }
+                      const target = event.target as HTMLElement | null;
+                      if (target?.closest(".lexical-playground")) {
+                        event.preventDefault();
+                      }
+                    }}
+                  >
+                    <DialogHeader>
+                      <DialogTitle>{editingPost ? "Editar postagem" : "Nova postagem"}</DialogTitle>
+                      <DialogDescription>
+                        Crie, edite e publique conteúdos sem sair da listagem.
+                      </DialogDescription>
+                    </DialogHeader>
+                    <div
+                      className="mt-2 space-y-8"
+                      onFocusCapture={(event) => {
+                        const target = event.target as HTMLElement | null;
+                        if (target?.closest(".lexical-playground")) {
+                          return;
+                        }
+                        editorRef.current?.blur();
+                      }}
+                    >
+                <div className="grid gap-8 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+                  <Suspense fallback={<LexicalEditorFallback />}>
                     <LexicalEditor
                       ref={editorRef}
                       value={formState.contentLexical}
@@ -320,7 +1317,7 @@ const DashboardPosts = () => {
                           contentLexical: value,
                         }))
                       }
-                      placeholder="Escreva o conte�do do post..."
+                      placeholder="Escreva o conteúdo do post..."
                       className="lexical-playground--stretch lexical-playground--modal min-w-0 w-full"
                       imageLibraryOptions={postImageLibraryOptions}
                     />
@@ -1025,7 +2022,6 @@ const DashboardPosts = () => {
 };
 
 export default DashboardPosts;
-
 
 
 

@@ -11,13 +11,20 @@ import WorkStatusCard from "@/components/WorkStatusCard";
 import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
 import { isLightNovelType } from "@/lib/project-utils";
-
 import CommentsSection from "@/components/CommentsSection";
 import { usePageMeta } from "@/hooks/use-page-meta";
 import NotFound from "./NotFound";
 import type { Project } from "@/data/projects";
 
-const LexicalViewer = lazy(() => import("@/components/lexical/LexicalViewer"));`r`n`r`nconst LexicalViewerFallback = () => (`r`n  <div className="min-h-[320px] w-full rounded-xl border border-border/60 bg-background/60 p-6 text-sm text-muted-foreground">`r`n    Carregando conteúdo...`r`n  </div>`r`n);`r`n`r`nconst ProjectReading = () => {
+const LexicalViewer = lazy(() => import("@/components/lexical/LexicalViewer"));
+
+const LexicalViewerFallback = () => (
+  <div className="min-h-[320px] w-full rounded-xl border border-border/60 bg-background/60 p-6 text-sm text-muted-foreground">
+    Carregando conteÃºdo...
+  </div>
+);
+
+const ProjectReading = () => {
   const { slug, chapter } = useParams<{ slug: string; chapter: string }>();
   const [searchParams] = useSearchParams();
   const apiBase = getApiBase();
@@ -38,7 +45,7 @@ const LexicalViewer = lazy(() => import("@/components/lexical/LexicalViewer"));`
       return "Leitura";
     }
     const chapterNumber = chapterContent?.number ?? chapter;
-    const chapterLabel = chapterNumber ? `Capítulo ${chapterNumber}` : "Capítulo";
+    const chapterLabel = chapterNumber ? `CapÃ­tulo ${chapterNumber}` : "CapÃ­tulo";
     const titlePart = chapterContent?.title ? `${chapterLabel} - ${chapterContent.title}` : chapterLabel;
     return `${titlePart} - ${project.title}`;
   }, [chapter, chapterContent?.number, chapterContent?.title, project]);
@@ -241,7 +248,7 @@ const LexicalViewer = lazy(() => import("@/components/lexical/LexicalViewer"));`
                         previousChapter.volume ? `?volume=${previousChapter.volume}` : ""
                       }`}
                     >
-                      Capítulo anterior
+                      CapÃ­tulo anterior
                     </Link>
                   </Button>
                 ) : null}
@@ -252,7 +259,7 @@ const LexicalViewer = lazy(() => import("@/components/lexical/LexicalViewer"));`
                         nextChapter.volume ? `?volume=${nextChapter.volume}` : ""
                       }`}
                     >
-                      Próximo capítulo
+                      PrÃ³ximo capÃ­tulo
                     </Link>
                   </Button>
                 ) : null}
@@ -261,13 +268,13 @@ const LexicalViewer = lazy(() => import("@/components/lexical/LexicalViewer"));`
             <div className="space-y-2">
               <Badge variant="secondary" className="text-xs uppercase">
                 Cap {chapterData?.number ?? chapterNumber}
-                {chapterData?.volume ? ` • Vol. ${chapterData.volume}` : ""}
+                {chapterData?.volume ? ` â€¢ Vol. ${chapterData.volume}` : ""}
               </Badge>
               <h1 className="text-2xl font-semibold text-foreground md:text-3xl">
                 {chapterContent?.title || chapterData?.title || project.title}
               </h1>
               <p className="text-sm text-muted-foreground">
-                {project.title} • Leitura de Light Novel
+                {project.title} â€¢ Leitura de Light Novel
               </p>
             </div>
           </div>
@@ -300,7 +307,7 @@ const LexicalViewer = lazy(() => import("@/components/lexical/LexicalViewer"));`
                     </Suspense>
                   ) : (
                     <div className="rounded-xl border border-dashed border-border/60 bg-background/60 p-6 text-center text-sm text-muted-foreground">
-                      Conteúdo ainda não disponível.
+                      ConteÃºdo ainda nÃ£o disponÃ­vel.
                     </div>
                   )}
                 </CardContent>
@@ -313,7 +320,7 @@ const LexicalViewer = lazy(() => import("@/components/lexical/LexicalViewer"));`
               />
               <div className="flex items-center gap-2 text-xs text-muted-foreground">
                 <BookOpen className="h-4 w-4 text-primary/70" />
-                Capítulos publicados diretamente no site.
+                CapÃ­tulos publicados diretamente no site.
               </div>
             </article>
 
@@ -330,7 +337,5 @@ const LexicalViewer = lazy(() => import("@/components/lexical/LexicalViewer"));`
 };
 
 export default ProjectReading;
-
-
 
 
