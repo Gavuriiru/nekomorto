@@ -18,7 +18,6 @@ export const DEFAULT_SETTINGS = {
   hasNestedTables: true,
   isAutocomplete: true,
   isCodeHighlighted: true,
-  isCodeShiki: false,
   isRichText: true,
   listStrictIndent: false,
   selectionAlwaysOnDisplay: false,

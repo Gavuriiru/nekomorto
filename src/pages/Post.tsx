@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, lazy, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { CalendarDays, Clock, User } from "lucide-react";
 
@@ -11,13 +11,20 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { estimateReadTime } from "@/lib/post-content";
-import LexicalViewer from "@/components/lexical/LexicalViewer";
 import { normalizeAssetUrl } from "@/lib/asset-url";
 import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
 import { usePageMeta } from "@/hooks/use-page-meta";
 import { useSiteSettings } from "@/hooks/use-site-settings";
 import { formatDateTime } from "@/lib/date";
+
+const LexicalViewer = lazy(() => import("@/components/lexical/LexicalViewer"));
+
+const LexicalViewerFallback = () => (
+  <div className="min-h-[320px] w-full rounded-xl border border-border/60 bg-background/60 p-6 text-sm text-muted-foreground">
+    Carregando conteúdo...
+  </div>
+);
 
 const Post = () => {
   const { slug } = useParams();
@@ -216,11 +223,13 @@ const Post = () => {
                 <article className="min-w-0 space-y-8">
                   <Card className="border-border bg-card shadow-xs">
                     <CardContent className="min-w-0 space-y-7 p-6 text-sm leading-relaxed text-muted-foreground">
-                      <LexicalViewer
-                        value={post.content || ""}
-                        className="post-content reader-content min-w-0 w-full space-y-4 text-muted-foreground"
-                        pollTarget={post?.slug ? { type: "post", slug: post.slug } : undefined}
-                      />
+                      <Suspense fallback={<LexicalViewerFallback />}>
+                        <LexicalViewer
+                          value={post.content || ""}
+                          className="post-content reader-content min-w-0 w-full space-y-4 text-muted-foreground"
+                          pollTarget={post?.slug ? { type: "post", slug: post.slug } : undefined}
+                        />
+                      </Suspense>
                     </CardContent>
                   </Card>
 

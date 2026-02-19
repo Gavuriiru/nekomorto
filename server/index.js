@@ -5,6 +5,7 @@ import session from "express-session";
 import fileStoreFactory from "session-file-store";
 import cookieParser from "cookie-parser";
 import cors from "cors";
+import compression from "compression";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -58,6 +59,31 @@ const __dirname = path.dirname(__filename);
 const app = express();
 app.disable("x-powered-by");
 const FileStore = fileStoreFactory(session);
+
+const HTML_CACHE_CONTROL = "no-store";
+const STATIC_DEFAULT_CACHE_CONTROL = "public, max-age=0, must-revalidate";
+const STATIC_IMMUTABLE_CACHE_CONTROL = "public, max-age=31536000, immutable";
+
+const hasHashedAssetName = (filePath) => {
+  const fileName = path.basename(String(filePath || ""));
+  return /-[A-Za-z0-9_-]{6,}\./.test(fileName);
+};
+
+const setStaticCacheHeaders = (res, filePath) => {
+  const normalizedPath = String(filePath || "");
+  if (normalizedPath.endsWith(".html")) {
+    res.setHeader("Cache-Control", HTML_CACHE_CONTROL);
+    return;
+  }
+  if (
+    normalizedPath.includes(`${path.sep}assets${path.sep}`) &&
+    hasHashedAssetName(normalizedPath)
+  ) {
+    res.setHeader("Cache-Control", STATIC_IMMUTABLE_CACHE_CONTROL);
+    return;
+  }
+  res.setHeader("Cache-Control", STATIC_DEFAULT_CACHE_CONTROL);
+};
 
 const ownerIdsFilePath = path.join(__dirname, "data", "owner-ids.json");
 const auditLogFilePath = path.join(__dirname, "data", "audit-log.json");
@@ -1029,6 +1055,7 @@ const sendHtml = async (req, res, html) => {
   }
   const nonce = typeof res.locals?.cspNonce === "string" ? res.locals.cspNonce : "";
   const body = nonce ? injectNonceIntoHtmlScripts(nextHtml, nonce) : nextHtml;
+  res.setHeader("Cache-Control", HTML_CACHE_CONTROL);
   return res.type("html").send(body);
 };
 
@@ -1602,6 +1629,7 @@ app.use((req, res, next) => {
   return next();
 });
 
+app.use(compression());
 app.use(express.json({ limit: "10mb" }));
 app.use(cookieParser());
 app.use(
@@ -1682,9 +1710,21 @@ app.use((req, res, next) => {
 });
 
 const uploadsPublicDir = path.join(clientRootDir, "public", "uploads");
-app.use("/uploads", express.static(uploadsPublicDir));
+app.use(
+  "/uploads",
+  express.static(uploadsPublicDir, {
+    setHeaders: (res) => {
+      res.setHeader("Cache-Control", STATIC_DEFAULT_CACHE_CONTROL);
+    },
+  }),
+);
 if (isProduction) {
-  app.use(express.static(clientDistDir, { index: false }));
+  app.use(
+    express.static(clientDistDir, {
+      index: false,
+      setHeaders: setStaticCacheHeaders,
+    }),
+  );
 }
 if (viteDevServer) {
   app.use(viteDevServer.middlewares);

@@ -1,4 +1,4 @@
-ï»¿import { useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, lazy, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 import { ChevronLeft, BookOpen } from "lucide-react";
 
@@ -11,13 +11,13 @@ import WorkStatusCard from "@/components/WorkStatusCard";
 import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
 import { isLightNovelType } from "@/lib/project-utils";
-import LexicalViewer from "@/components/lexical/LexicalViewer";
+
 import CommentsSection from "@/components/CommentsSection";
 import { usePageMeta } from "@/hooks/use-page-meta";
 import NotFound from "./NotFound";
 import type { Project } from "@/data/projects";
 
-const ProjectReading = () => {
+const LexicalViewer = lazy(() => import("@/components/lexical/LexicalViewer"));`r`n`r`nconst LexicalViewerFallback = () => (`r`n  <div className="min-h-[320px] w-full rounded-xl border border-border/60 bg-background/60 p-6 text-sm text-muted-foreground">`r`n    Carregando conteúdo...`r`n  </div>`r`n);`r`n`r`nconst ProjectReading = () => {
   const { slug, chapter } = useParams<{ slug: string; chapter: string }>();
   const [searchParams] = useSearchParams();
   const apiBase = getApiBase();
@@ -38,7 +38,7 @@ const ProjectReading = () => {
       return "Leitura";
     }
     const chapterNumber = chapterContent?.number ?? chapter;
-    const chapterLabel = chapterNumber ? `CapÃ­tulo ${chapterNumber}` : "CapÃ­tulo";
+    const chapterLabel = chapterNumber ? `Capítulo ${chapterNumber}` : "Capítulo";
     const titlePart = chapterContent?.title ? `${chapterLabel} - ${chapterContent.title}` : chapterLabel;
     return `${titlePart} - ${project.title}`;
   }, [chapter, chapterContent?.number, chapterContent?.title, project]);
@@ -241,7 +241,7 @@ const ProjectReading = () => {
                         previousChapter.volume ? `?volume=${previousChapter.volume}` : ""
                       }`}
                     >
-                      CapÃ­tulo anterior
+                      Capítulo anterior
                     </Link>
                   </Button>
                 ) : null}
@@ -252,7 +252,7 @@ const ProjectReading = () => {
                         nextChapter.volume ? `?volume=${nextChapter.volume}` : ""
                       }`}
                     >
-                      PrÃ³ximo capÃ­tulo
+                      Próximo capítulo
                     </Link>
                   </Button>
                 ) : null}
@@ -261,13 +261,13 @@ const ProjectReading = () => {
             <div className="space-y-2">
               <Badge variant="secondary" className="text-xs uppercase">
                 Cap {chapterData?.number ?? chapterNumber}
-                {chapterData?.volume ? ` â€¢ Vol. ${chapterData.volume}` : ""}
+                {chapterData?.volume ? ` • Vol. ${chapterData.volume}` : ""}
               </Badge>
               <h1 className="text-2xl font-semibold text-foreground md:text-3xl">
                 {chapterContent?.title || chapterData?.title || project.title}
               </h1>
               <p className="text-sm text-muted-foreground">
-                {project.title} â€¢ Leitura de Light Novel
+                {project.title} • Leitura de Light Novel
               </p>
             </div>
           </div>
@@ -282,23 +282,25 @@ const ProjectReading = () => {
                     </p>
                   ) : null}
                   {chapterContent?.content ? (
-                    <LexicalViewer
-                      value={chapterLexical}
-                      className="post-content reader-content min-w-0 w-full space-y-4 text-sm text-muted-foreground"
-                      pollTarget={
-                        project?.id && Number.isFinite(chapterNumber)
-                          ? {
-                              type: "chapter",
-                              projectId: project.id,
-                              chapterNumber: chapterData?.number ?? chapterNumber,
-                              volume: chapterData?.volume ?? (Number.isFinite(volumeParam) ? volumeParam : undefined),
-                            }
-                          : undefined
-                      }
-                    />
+                    <Suspense fallback={<LexicalViewerFallback />}>
+                      <LexicalViewer
+                        value={chapterLexical}
+                        className="post-content reader-content min-w-0 w-full space-y-4 text-sm text-muted-foreground"
+                        pollTarget={
+                          project?.id && Number.isFinite(chapterNumber)
+                            ? {
+                                type: "chapter",
+                                projectId: project.id,
+                                chapterNumber: chapterData?.number ?? chapterNumber,
+                                volume: chapterData?.volume ?? (Number.isFinite(volumeParam) ? volumeParam : undefined),
+                              }
+                            : undefined
+                        }
+                      />
+                    </Suspense>
                   ) : (
                     <div className="rounded-xl border border-dashed border-border/60 bg-background/60 p-6 text-center text-sm text-muted-foreground">
-                      ConteÃºdo ainda nÃ£o disponÃ­vel.
+                      Conteúdo ainda não disponível.
                     </div>
                   )}
                 </CardContent>
@@ -311,7 +313,7 @@ const ProjectReading = () => {
               />
               <div className="flex items-center gap-2 text-xs text-muted-foreground">
                 <BookOpen className="h-4 w-4 text-primary/70" />
-                CapÃ­tulos publicados diretamente no site.
+                Capítulos publicados diretamente no site.
               </div>
             </article>
 
@@ -328,5 +330,7 @@ const ProjectReading = () => {
 };
 
 export default ProjectReading;
+
+
 
 

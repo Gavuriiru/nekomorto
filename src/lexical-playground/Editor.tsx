@@ -36,7 +36,6 @@ import AutoEmbedPlugin from './plugins/AutoEmbedPlugin';
 import AutoLinkPlugin from './plugins/AutoLinkPlugin';
 import CodeActionMenuPlugin from './plugins/CodeActionMenuPlugin';
 import CodeHighlightPrismPlugin from './plugins/CodeHighlightPrismPlugin';
-import CodeHighlightShikiPlugin from './plugins/CodeHighlightShikiPlugin';
 import CollapsiblePlugin from './plugins/CollapsiblePlugin';
 import ComponentPickerPlugin from './plugins/ComponentPickerPlugin';
 import DragDropPaste from './plugins/DragDropPastePlugin';
@@ -75,7 +74,6 @@ export default function Editor({
   const {
     settings: {
       isCodeHighlighted,
-      isCodeShiki,
       isAutocomplete,
       hasLinkAttributes,
       hasNestedTables,
@@ -197,12 +195,7 @@ export default function Editor({
               ErrorBoundary={LexicalErrorBoundary}
             />
             {showEditingPlugins && <MarkdownShortcutPlugin />}
-            {isCodeHighlighted &&
-              (isCodeShiki ? (
-                <CodeHighlightShikiPlugin />
-              ) : (
-                <CodeHighlightPrismPlugin />
-              ))}
+            {isCodeHighlighted && <CodeHighlightPrismPlugin />}
             <ListPlugin
               hasStrictIndent={listStrictIndent}
             />

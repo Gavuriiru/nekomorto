@@ -14,11 +14,6 @@ import {
   getCodeLanguageOptions as getCodeLanguageOptionsPrism,
   normalizeCodeLanguage as normalizeCodeLanguagePrism,
 } from '@lexical/code';
-import {
-  getCodeLanguageOptions as getCodeLanguageOptionsShiki,
-  getCodeThemeOptions as getCodeThemeOptionsShiki,
-  normalizeCodeLanguage as normalizeCodeLanguageShiki,
-} from '@lexical/code-shiki';
 import {$isLinkNode, TOGGLE_LINK_COMMAND} from '@lexical/link';
 import {$isListNode, ListNode} from '@lexical/list';
 import {INSERT_EMBED_COMMAND} from '@lexical/react/LexicalAutoEmbedPlugin';
@@ -139,52 +134,6 @@ const CODE_LANGUAGE_OPTIONS_PRISM: [string, string][] =
       'swift',
       'typescript',
       'xml',
-    ].includes(option[0]),
-  );
-
-const CODE_LANGUAGE_OPTIONS_SHIKI: [string, string][] =
-  getCodeLanguageOptionsShiki().filter((option) =>
-    [
-      'c',
-      'clike',
-      'cpp',
-      'css',
-      'html',
-      'java',
-      'js',
-      'javascript',
-      'markdown',
-      'objc',
-      'objective-c',
-      'plain',
-      'powershell',
-      'py',
-      'python',
-      'rust',
-      'sql',
-      'typescript',
-      'xml',
-    ].includes(option[0]),
-  );
-
-const CODE_THEME_OPTIONS_SHIKI: [string, string][] =
-  getCodeThemeOptionsShiki().filter((option) =>
-    [
-      'catppuccin-latte',
-      'everforest-light',
-      'github-light',
-      'gruvbox-light-medium',
-      'kanagawa-lotus',
-      'dark-plus',
-      'light-plus',
-      'material-theme-lighter',
-      'min-light',
-      'one-light',
-      'rose-pine-dawn',
-      'slack-ochin',
-      'snazzy-light',
-      'solarized-light',
-      'vitesse-light',
     ].includes(option[0]),
   );
 
@@ -685,7 +634,7 @@ export default function ToolbarPlugin({
   );
 
   const {
-    settings: {isCodeHighlighted, isCodeShiki},
+    settings: {isCodeHighlighted},
   } = useSettings();
 
   const $handleCodeNode = useCallback(
@@ -695,11 +644,9 @@ export default function ToolbarPlugin({
         updateToolbarState(
           'codeLanguage',
           language
-            ? (isCodeHighlighted &&
-                (isCodeShiki
-                  ? normalizeCodeLanguageShiki(language)
-                  : normalizeCodeLanguagePrism(language))) ||
-                language
+            ? (isCodeHighlighted
+                ? normalizeCodeLanguagePrism(language)
+                : language)
             : '',
         );
         const theme = element.getTheme();
@@ -707,7 +654,7 @@ export default function ToolbarPlugin({
         return;
       }
     },
-    [updateToolbarState, isCodeHighlighted, isCodeShiki],
+    [updateToolbarState, isCodeHighlighted],
   );
 
   const $updateToolbar = useCallback(() => {
@@ -1036,19 +983,6 @@ export default function ToolbarPlugin({
     },
     [activeEditor, selectedElementKey],
   );
-  const onCodeThemeSelect = useCallback(
-    (value: string) => {
-      activeEditor.update(() => {
-        if (selectedElementKey !== null) {
-          const node = $getNodeByKey(selectedElementKey);
-          if ($isCodeNode(node)) {
-            node.setTheme(value);
-          }
-        }
-      });
-    },
-    [activeEditor, selectedElementKey],
-  );
   const canViewerSeeInsertDropdown = !toolbarState.isImageCaption;
   const canViewerSeeInsertCodeButton = !toolbarState.isImageCaption;
 
@@ -1092,87 +1026,31 @@ export default function ToolbarPlugin({
           </>
         )}
       {toolbarState.blockType === 'code' && isCodeHighlighted ? (
-        <>
-          {!isCodeShiki && (
-            <DropDown
-              disabled={!isEditable}
-              buttonClassName="toolbar-item code-language"
-              dropDownClassName="code-language-dropdown"
-              buttonLabel={
-                (CODE_LANGUAGE_OPTIONS_PRISM.find(
-                  (opt) =>
-                    opt[0] ===
-                    normalizeCodeLanguagePrism(toolbarState.codeLanguage),
-                ) || ['', ''])[1]
-              }
-              buttonAriaLabel="Selecionar linguagem">
-              {CODE_LANGUAGE_OPTIONS_PRISM.map(([value, name]) => {
-                return (
-                  <DropDownItem
-                    className={`item ${dropDownActiveClass(
-                      value === toolbarState.codeLanguage,
-                    )}`}
-                    onClick={() => onCodeLanguageSelect(value)}
-                    key={value}>
-                    <span className="text">{name}</span>
-                  </DropDownItem>
-                );
-              })}
-            </DropDown>
-          )}
-          {isCodeShiki && (
-            <>
-              <DropDown
-                disabled={!isEditable}
-                buttonClassName="toolbar-item code-language"
-                dropDownClassName="code-language-dropdown"
-                buttonLabel={
-                  (CODE_LANGUAGE_OPTIONS_SHIKI.find(
-                    (opt) =>
-                      opt[0] ===
-                      normalizeCodeLanguageShiki(toolbarState.codeLanguage),
-                  ) || ['', ''])[1]
-                }
-                buttonAriaLabel="Selecionar linguagem">
-                {CODE_LANGUAGE_OPTIONS_SHIKI.map(([value, name]) => {
-                  return (
-                    <DropDownItem
-                      className={`item ${dropDownActiveClass(
-                        value === toolbarState.codeLanguage,
-                      )}`}
-                      onClick={() => onCodeLanguageSelect(value)}
-                      key={value}>
-                      <span className="text">{name}</span>
-                    </DropDownItem>
-                  );
-                })}
-              </DropDown>
-              <DropDown
-                disabled={!isEditable}
-                buttonClassName="toolbar-item code-language"
-                dropDownClassName="code-language-dropdown"
-                buttonLabel={
-                  (CODE_THEME_OPTIONS_SHIKI.find(
-                    (opt) => opt[0] === toolbarState.codeTheme,
-                  ) || ['', ''])[1]
-                }
-                buttonAriaLabel="Selecionar tema">
-                {CODE_THEME_OPTIONS_SHIKI.map(([value, name]) => {
-                  return (
-                    <DropDownItem
-                      className={`item ${dropDownActiveClass(
-                        value === toolbarState.codeTheme,
-                      )}`}
-                      onClick={() => onCodeThemeSelect(value)}
-                      key={value}>
-                      <span className="text">{name}</span>
-                    </DropDownItem>
-                  );
-                })}
-              </DropDown>
-            </>
-          )}
-        </>
+        <DropDown
+          disabled={!isEditable}
+          buttonClassName="toolbar-item code-language"
+          dropDownClassName="code-language-dropdown"
+          buttonLabel={
+            (CODE_LANGUAGE_OPTIONS_PRISM.find(
+              (opt) =>
+                opt[0] ===
+                normalizeCodeLanguagePrism(toolbarState.codeLanguage),
+            ) || ['', ''])[1]
+          }
+          buttonAriaLabel="Selecionar linguagem">
+          {CODE_LANGUAGE_OPTIONS_PRISM.map(([value, name]) => {
+            return (
+              <DropDownItem
+                className={`item ${dropDownActiveClass(
+                  value === toolbarState.codeLanguage,
+                )}`}
+                onClick={() => onCodeLanguageSelect(value)}
+                key={value}>
+                <span className="text">{name}</span>
+              </DropDownItem>
+            );
+          })}
+        </DropDown>
       ) : (
         <>
           <button

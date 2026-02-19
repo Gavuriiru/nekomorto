@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import type { MouseEvent as ReactMouseEvent } from "react";
 import DashboardShell from "@/components/DashboardShell";
@@ -75,8 +75,16 @@ import {
 import { isChapterBasedType, isLightNovelType, isMangaType } from "@/lib/project-utils";
 import { formatBytesCompact, parseHumanSizeToBytes } from "@/lib/file-size";
 import { usePageMeta } from "@/hooks/use-page-meta";
-import LexicalEditor, { type LexicalEditorHandle } from "@/components/lexical/LexicalEditor";
+import type { LexicalEditorHandle } from "@/components/lexical/LexicalEditor";
 import { useSiteSettings } from "@/hooks/use-site-settings";
+
+const LexicalEditor = lazy(() => import("@/components/lexical/LexicalEditor"));
+
+const LexicalEditorFallback = () => (
+  <div className="min-h-[380px] w-full rounded-2xl border border-border/60 bg-card/60 p-4 text-sm text-muted-foreground">
+    Carregando editor...
+  </div>
+);
 
 type ProjectRelation = {
   relation: string;
@@ -685,24 +693,16 @@ const EpisodeContentEditor = ({
   onRegister,
   imageLibraryOptions,
 }: EpisodeContentEditorProps) => {
-  const editorRef = useRef<LexicalEditorHandle | null>(null);
-
-  useEffect(() => {
-    if (!onRegister) {
-      return;
-    }
-    onRegister(editorRef.current);
-  }, [onRegister]);
-
-  return (
-    <LexicalEditor
-      ref={editorRef}
-      value={value}
-      onChange={onChange}
-      placeholder="Escreva o capÃ­tulo..."
-      className="lexical-playground--modal"
-      imageLibraryOptions={imageLibraryOptions}
-    />
+  const editorRef = useRef<Suspense fallback={<LexicalEditorFallback />}>
+      <LexicalEditor
+        ref={editorRef}
+        value={value}
+        onChange={onChange}
+        placeholder="Escreva o capítulo..."
+        className="lexical-playground--modal"
+        imageLibraryOptions={imageLibraryOptions}
+      />
+    </Suspense>
   );
 };
 
@@ -3966,5 +3966,6 @@ const DashboardProjectsEditor = () => {
 };
 
 export default DashboardProjectsEditor;
+
 
 
