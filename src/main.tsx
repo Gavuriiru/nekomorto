@@ -1,7 +1,9 @@
 import { createRoot } from "react-dom/client";
-import App from "./App.tsx";
+import App, { queryClient } from "./App.tsx";
 import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
+import { PUBLIC_BOOTSTRAP_QUERY_KEY } from "@/hooks/use-public-bootstrap";
+import type { PublicBootstrapPayload } from "@/types/public-bootstrap";
 import "./index.css";
 
 const titleForPath = (path: string) => {
@@ -38,12 +40,37 @@ const setBootstrapTitle = (siteName: string, separator: string) => {
   document.title = pageTitle ? `${pageTitle}${separator}${siteName}` : siteName;
 };
 
+const asBootstrapPayload = (value: unknown): PublicBootstrapPayload | null => {
+  if (!value || typeof value !== "object") {
+    return null;
+  }
+  const candidate = value as Partial<PublicBootstrapPayload>;
+  if (!Array.isArray(candidate.projects) || !Array.isArray(candidate.posts)) {
+    return null;
+  }
+  return candidate as PublicBootstrapPayload;
+};
+
 const bootstrap = async () => {
   const apiBase = getApiBase();
-  let initialSettings: unknown = (window as { __BOOTSTRAP_SETTINGS__?: unknown })
-    .__BOOTSTRAP_SETTINGS__;
+  const globalWindow = window as Window & {
+    __BOOTSTRAP_SETTINGS__?: unknown;
+    __BOOTSTRAP_PUBLIC__?: unknown;
+  };
+  let initialSettings: unknown = globalWindow.__BOOTSTRAP_SETTINGS__;
+  let initialBootstrap = asBootstrapPayload(globalWindow.__BOOTSTRAP_PUBLIC__);
+
   try {
-    if (!initialSettings) {
+    if (!initialBootstrap) {
+      const response = await apiFetch(apiBase, "/api/public/bootstrap");
+      if (response.ok) {
+        initialBootstrap = asBootstrapPayload(await response.json());
+      }
+    }
+    if (initialBootstrap) {
+      queryClient.setQueryData(PUBLIC_BOOTSTRAP_QUERY_KEY, initialBootstrap);
+      initialSettings = initialBootstrap.settings || initialSettings;
+    } else if (!initialSettings) {
       const response = await apiFetch(apiBase, "/api/public/settings");
       if (response.ok) {
         const data = await response.json();
@@ -51,7 +78,8 @@ const bootstrap = async () => {
       }
     }
   } catch {
-    initialSettings = undefined;
+    initialBootstrap = null;
+    initialSettings = initialSettings || undefined;
   }
 
   const settings = (initialSettings as { site?: { name?: string; titleSeparator?: string } }) || {};
@@ -65,7 +93,10 @@ const bootstrap = async () => {
     return;
   }
   createRoot(root).render(
-    <App initialSettings={initialSettings as Parameters<typeof App>[0]["initialSettings"]} initiallyLoaded={!!initialSettings} />,
+    <App
+      initialSettings={initialSettings as Parameters<typeof App>[0]["initialSettings"]}
+      initiallyLoaded={!!initialSettings}
+    />,
   );
 };
 

@@ -1,6 +1,6 @@
 import { render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import ProjectEmbedCard from "@/components/ProjectEmbedCard";
 
 const apiFetchMock = vi.hoisted(() => vi.fn());
@@ -16,6 +16,18 @@ vi.mock("@/lib/api-client", () => ({
 describe("ProjectEmbedCard", () => {
   beforeEach(() => {
     apiFetchMock.mockReset();
+    vi.stubGlobal(
+      "ResizeObserver",
+      class {
+        observe() {}
+        unobserve() {}
+        disconnect() {}
+      },
+    );
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
   });
 
   it("ordena tags por traducao exibida e faz fallback para tag original", async () => {
@@ -62,7 +74,7 @@ describe("ProjectEmbedCard", () => {
       return { ok: false, json: async () => ({}) };
     });
 
-    render(
+    const { container } = render(
       <MemoryRouter>
         <ProjectEmbedCard projectId="project-1" />
       </MemoryRouter>,
@@ -75,9 +87,15 @@ describe("ProjectEmbedCard", () => {
     const tagsWrapper = screen.getByTestId("project-embed-tags");
     const episodesBadge = screen.getByTestId("project-embed-episodes-badge");
     const badgesRow = screen.getByTestId("project-embed-primary-badges");
+    const badgesSection = badgesRow.parentElement;
     const statusBadge = screen.getByTestId("project-embed-status-badge");
     const studioBadge = screen.getByTestId("project-embed-studio-badge");
     const title = screen.getByText("Projeto Embed");
+    const synopsis = screen.getByText("Sinopse");
+    const synopsisColumn = container.querySelector('[data-synopsis-role="column"]');
+    const synopsisTitle = container.querySelector('[data-synopsis-role="title"]');
+    const synopsisText = container.querySelector('[data-synopsis-role="synopsis"]');
+    const synopsisBadges = container.querySelector('[data-synopsis-role="badges"]');
 
     expect(acao.compareDocumentPosition(comedia) & Node.DOCUMENT_POSITION_FOLLOWING).not.toBe(0);
     expect(comedia.compareDocumentPosition(drama) & Node.DOCUMENT_POSITION_FOLLOWING).not.toBe(0);
@@ -85,9 +103,29 @@ describe("ProjectEmbedCard", () => {
     expect(tagsWrapper).toHaveClass("hidden", "sm:flex");
     expect(episodesBadge).toHaveClass("hidden", "sm:inline-flex");
     expect(badgesRow).toHaveClass("flex-nowrap", "overflow-hidden", "sm:flex-wrap");
+    expect(badgesSection).toHaveClass("mt-auto");
     expect(statusBadge).toHaveClass("max-w-[8.5rem]", "truncate");
     expect(studioBadge).toHaveClass("max-w-[8.5rem]", "truncate");
-    expect(title).toHaveClass("line-clamp-3", "sm:line-clamp-none");
+    expect(title).toHaveClass("line-clamp-2");
+    expect(title).not.toHaveClass("sm:line-clamp-none");
+    expect(synopsis).toHaveClass("break-normal", "[overflow-wrap:normal]", "[word-break:normal]");
+    expect(synopsis).toHaveAttribute("data-synopsis-lines", "2");
+    expect(String(synopsis.getAttribute("style") || "")).toMatch(/display:\s*-webkit-box/i);
+    expect(String(synopsis.getAttribute("style") || "")).toMatch(/overflow:\s*hidden/i);
+    expect(synopsisColumn).toHaveAttribute("data-synopsis-role", "column");
+    expect(synopsisColumn).toHaveAttribute("data-synopsis-key", "project-1");
+    expect(synopsisTitle).toHaveAttribute("data-synopsis-role", "title");
+    expect(synopsisText).toHaveAttribute("data-synopsis-role", "synopsis");
+    expect(synopsisBadges).toHaveAttribute("data-synopsis-role", "badges");
+    expect(synopsisTitle).not.toBeNull();
+    expect(synopsisText).not.toBeNull();
+    expect(synopsisBadges).not.toBeNull();
+    if (!synopsisTitle || !synopsisText || !synopsisBadges) {
+      throw new Error("Estrutura de synopsis/title/badges nao encontrada");
+    }
+    expect(synopsisTitle).not.toContainElement(synopsisText);
+    expect(synopsisTitle.compareDocumentPosition(synopsisText) & Node.DOCUMENT_POSITION_FOLLOWING).not.toBe(0);
+    expect(synopsisText.compareDocumentPosition(synopsisBadges) & Node.DOCUMENT_POSITION_FOLLOWING).not.toBe(0);
   });
 
   it("mantem thumbnail lateral fixa no mobile sem ocupar largura total", async () => {
@@ -132,17 +170,24 @@ describe("ProjectEmbedCard", () => {
 
     const row = container.querySelector("div.group");
     expect(row).not.toBeNull();
-    expect(row).toHaveClass("flex", "items-start", "gap-4");
+    expect(row).toHaveClass("flex", "items-stretch", "gap-4");
+    expect(row).toHaveStyle({ height: "calc(8rem * 65 / 46)" });
+    expect(row).not.toHaveClass("items-start");
     expect(row).not.toHaveClass("flex-col");
 
     const contentColumn = row?.querySelector("div.min-w-0.flex-1");
     expect(contentColumn).not.toBeNull();
-    expect(contentColumn).toHaveClass("min-w-0");
+    expect(contentColumn).toHaveClass("min-h-0", "min-w-0", "self-stretch", "overflow-hidden");
+    expect(contentColumn).toHaveAttribute("data-synopsis-role", "column");
+    expect(contentColumn).toHaveAttribute("data-synopsis-key", "project-1");
 
     const coverImage = screen.getByRole("img", { name: "Projeto Embed" });
     const coverWrapper = coverImage.parentElement;
     expect(coverWrapper).not.toBeNull();
-    expect(coverWrapper).toHaveClass("w-32", "shrink-0");
+    expect(coverWrapper).toHaveClass("h-full", "w-32", "shrink-0", "self-start");
     expect(coverWrapper).not.toHaveClass("w-full");
+    expect(coverWrapper).not.toHaveClass("border", "border-border", "group-hover:border-primary/40");
+    expect(String(coverWrapper?.getAttribute("style") || "")).not.toMatch(/aspect-ratio/i);
+    expect(String(coverImage.getAttribute("style") || "")).not.toMatch(/aspect-ratio/i);
   });
 });

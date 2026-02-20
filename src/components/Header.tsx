@@ -16,11 +16,11 @@ import { LogOut, Menu } from "lucide-react";
 import ThemedSvgLogo from "@/components/ThemedSvgLogo";
 import ThemeModeSwitcher from "@/components/ThemeModeSwitcher";
 import { dashboardMenuItems } from "@/components/dashboard-menu";
-import type { Project } from "@/data/projects";
 import { cn } from "@/lib/utils";
 import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
 import { useSiteSettings } from "@/hooks/use-site-settings";
+import { usePublicBootstrap } from "@/hooks/use-public-bootstrap";
 import { getNavbarIcon } from "@/lib/navbar-icons";
 import { resolveBranding } from "@/lib/branding";
 import { rankPosts, rankProjects, selectVisibleTags, sortAlphabeticallyPtBr } from "@/lib/search-ranking";
@@ -50,19 +50,14 @@ const Header = ({ variant = "fixed", leading, className }: HeaderProps) => {
     primaryOwnerId?: string | null;
     grants?: Partial<Record<string, boolean>>;
   } | null>(null);
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [posts, setPosts] = useState<
-    Array<{
-      title: string;
-      slug: string;
-      excerpt?: string | null;
-    }>
-  >([]);
-  const [tagTranslations, setTagTranslations] = useState<Record<string, string>>({});
   const searchRef = useRef<HTMLDivElement | null>(null);
   const location = useLocation();
   const apiBase = getApiBase();
   const { settings } = useSiteSettings();
+  const { data: bootstrapData } = usePublicBootstrap();
+  const projects = bootstrapData?.projects || [];
+  const posts = bootstrapData?.posts || [];
+  const tagTranslations = bootstrapData?.tagTranslations?.tags || {};
 
   const siteNameRaw = settings.site.name || "Nekomata";
   const siteName = siteNameRaw.toUpperCase();
@@ -194,56 +189,6 @@ const Header = ({ variant = "fixed", leading, className }: HeaderProps) => {
       window.removeEventListener("scroll", handleScroll);
     };
   }, []);
-
-  useEffect(() => {
-    const loadProjects = async () => {
-      try {
-        const response = await apiFetch(apiBase, "/api/public/projects");
-        if (!response.ok) {
-          return;
-        }
-        const data = await response.json();
-        setProjects(Array.isArray(data.projects) ? data.projects : []);
-      } catch {
-        setProjects([]);
-      }
-    };
-
-    loadProjects();
-  }, [apiBase]);
-
-  useEffect(() => {
-    const loadPosts = async () => {
-      try {
-        const response = await apiFetch(apiBase, "/api/public/posts");
-        if (!response.ok) {
-          return;
-        }
-        const data = await response.json();
-        setPosts(Array.isArray(data.posts) ? data.posts : []);
-      } catch {
-        setPosts([]);
-      }
-    };
-
-    loadPosts();
-  }, [apiBase]);
-
-  useEffect(() => {
-    const loadTranslations = async () => {
-      try {
-        const response = await apiFetch(apiBase, "/api/public/tag-translations", { cache: "no-store" });
-        if (!response.ok) {
-          return;
-        }
-        const data = await response.json();
-        setTagTranslations(data.tags || {});
-      } catch {
-        setTagTranslations({});
-      }
-    };
-    loadTranslations();
-  }, [apiBase]);
 
   useEffect(() => {
     const loadUser = async () => {

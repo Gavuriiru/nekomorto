@@ -9,6 +9,7 @@ import type { SiteSettings } from "@/types/site-settings";
 
 const apiFetchMock = vi.hoisted(() => vi.fn());
 const useSiteSettingsMock = vi.hoisted(() => vi.fn());
+const usePublicBootstrapMock = vi.hoisted(() => vi.fn());
 const toastMock = vi.hoisted(() => vi.fn());
 const setThemePreferenceMock = vi.hoisted(() => vi.fn());
 
@@ -26,6 +27,10 @@ vi.mock("@/components/ui/use-toast", () => ({
 
 vi.mock("@/hooks/use-site-settings", () => ({
   useSiteSettings: () => useSiteSettingsMock(),
+}));
+
+vi.mock("@/hooks/use-public-bootstrap", () => ({
+  usePublicBootstrap: () => usePublicBootstrapMock(),
 }));
 
 vi.mock("@/hooks/use-theme-mode", () => ({
@@ -61,33 +66,6 @@ const setupApiMock = (options?: { logoutOk?: boolean }) => {
   apiFetchMock.mockReset();
   apiFetchMock.mockImplementation(async (_apiBase: string, endpoint: string, options?: RequestInit) => {
     const method = String(options?.method || "GET").toUpperCase();
-    if (endpoint === "/api/public/projects" && method === "GET") {
-      return mockJsonResponse(true, {
-        projects: [
-          {
-            id: "project-1",
-            title: "Projeto Teste",
-            synopsis: "Sinopse do projeto",
-            tags: ["acao"],
-            cover: "/placeholder.svg",
-          },
-        ],
-      });
-    }
-    if (endpoint === "/api/public/posts" && method === "GET") {
-      return mockJsonResponse(true, {
-        posts: [
-          {
-            title: "Post Teste",
-            slug: "post-teste",
-            excerpt: "Resumo do post",
-          },
-        ],
-      });
-    }
-    if (endpoint === "/api/public/tag-translations" && method === "GET") {
-      return mockJsonResponse(true, { tags: { acao: "Acao" } });
-    }
     if (endpoint === "/api/public/me" && method === "GET") {
       return mockJsonResponse(true, {
         user: {
@@ -111,10 +89,34 @@ describe("Header mobile search layout", () => {
     toastMock.mockReset();
     setThemePreferenceMock.mockReset();
     useSiteSettingsMock.mockReset();
+    usePublicBootstrapMock.mockReset();
     useSiteSettingsMock.mockReturnValue({
       settings: createSettings(),
       isLoading: false,
       refresh: vi.fn(async () => undefined),
+    });
+    usePublicBootstrapMock.mockReturnValue({
+      data: {
+        projects: [
+          {
+            id: "project-1",
+            title: "Projeto Teste",
+            synopsis: "Sinopse do projeto",
+            tags: ["acao"],
+            cover: "/placeholder.svg",
+          },
+        ],
+        posts: [
+          {
+            title: "Post Teste",
+            slug: "post-teste",
+            excerpt: "Resumo do post",
+          },
+        ],
+        tagTranslations: {
+          tags: { acao: "Acao" },
+        },
+      },
     });
   });
 
@@ -180,7 +182,7 @@ describe("Header mobile search layout", () => {
     );
 
     await waitFor(() => {
-      expect(apiFetchMock).toHaveBeenCalledTimes(4);
+      expect(apiFetchMock).toHaveBeenCalledTimes(1);
     });
 
     const aboutLink = screen.getByRole("link", { name: "Sobre" });
@@ -199,7 +201,7 @@ describe("Header mobile search layout", () => {
     );
 
     await waitFor(() => {
-      expect(apiFetchMock).toHaveBeenCalledTimes(4);
+      expect(apiFetchMock).toHaveBeenCalledTimes(1);
     });
 
     const aboutLink = screen.getByRole("link", { name: "Sobre" });
@@ -227,7 +229,7 @@ describe("Header mobile search layout", () => {
     );
 
     await waitFor(() => {
-      expect(apiFetchMock).toHaveBeenCalledTimes(4);
+      expect(apiFetchMock).toHaveBeenCalledTimes(1);
     });
     expect(screen.getByRole("button", { name: /Alternar para tema/i })).toBeInTheDocument();
     expect(setThemePreferenceMock).not.toHaveBeenCalled();
@@ -244,7 +246,7 @@ describe("Header mobile search layout", () => {
     );
 
     await waitFor(() => {
-      expect(apiFetchMock).toHaveBeenCalledTimes(4);
+      expect(apiFetchMock).toHaveBeenCalledTimes(1);
     });
 
     const profileButton = screen.getByText("Admin").closest("button");

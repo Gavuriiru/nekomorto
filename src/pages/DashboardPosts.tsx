@@ -4,7 +4,6 @@ import DashboardShell from "@/components/DashboardShell";
 import DashboardPageContainer from "@/components/dashboard/DashboardPageContainer";
 import DashboardPageHeader from "@/components/dashboard/DashboardPageHeader";
 import { dashboardPageLayoutTokens } from "@/components/dashboard/dashboard-page-tokens";
-import ImageLibraryDialog from "@/components/ImageLibraryDialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -249,6 +248,7 @@ type UserRecord = {
 };
 
 const LexicalEditor = lazy(() => import("@/components/lexical/LexicalEditor"));
+const ImageLibraryDialog = lazy(() => import("@/components/ImageLibraryDialog"));
 
 const LexicalEditorFallback = () => (
   <div className="min-h-[460px] w-full rounded-2xl border border-border/60 bg-card/60 p-6 text-sm text-muted-foreground">
@@ -1947,22 +1947,24 @@ const DashboardPosts = () => {
       </DashboardShell>
 
 
-      <ImageLibraryDialog
-        open={isLibraryOpen}
-        onOpenChange={setIsLibraryOpen}
-        apiBase={apiBase}
-        description="Escolha uma imagem ja enviada ou use capas/banners de projetos."
-        uploadFolder={postImageLibraryOptions.uploadFolder}
-        listFolders={postImageLibraryOptions.listFolders}
-        listAll={postImageLibraryOptions.listAll}
-        includeProjectImages={postImageLibraryOptions.includeProjectImages}
-        projectImageProjectIds={postImageLibraryOptions.projectImageProjectIds}
-        projectImagesView={postImageLibraryOptions.projectImagesView}
-        allowDeselect
-        mode="single"
-        currentSelectionUrls={editorResolvedCover.coverImageUrl ? [editorResolvedCover.coverImageUrl] : []}
-        onSave={({ urls }) => handleLibrarySelect(urls[0] || "")}
-      />
+      <Suspense fallback={null}>
+        <ImageLibraryDialog
+          open={isLibraryOpen}
+          onOpenChange={setIsLibraryOpen}
+          apiBase={apiBase}
+          description="Escolha uma imagem ja enviada ou use capas/banners de projetos."
+          uploadFolder={postImageLibraryOptions.uploadFolder}
+          listFolders={postImageLibraryOptions.listFolders}
+          listAll={postImageLibraryOptions.listAll}
+          includeProjectImages={postImageLibraryOptions.includeProjectImages}
+          projectImageProjectIds={postImageLibraryOptions.projectImageProjectIds}
+          projectImagesView={postImageLibraryOptions.projectImagesView}
+          allowDeselect
+          mode="single"
+          currentSelectionUrls={editorResolvedCover.coverImageUrl ? [editorResolvedCover.coverImageUrl] : []}
+          onSave={({ urls }) => handleLibrarySelect(urls[0] || "")}
+        />
+      </Suspense>
 
       <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
         <DialogContent className="max-w-md">

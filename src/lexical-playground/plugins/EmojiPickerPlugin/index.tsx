@@ -19,8 +19,9 @@ import {
   TextNode,
 } from 'lexical';
 import * as React from 'react';
-import {useCallback, useEffect, useMemo, useState} from 'react';
+import {useCallback, useMemo} from 'react';
 import * as ReactDOM from 'react-dom';
+import emojiList from '../../utils/emoji-list';
 
 class EmojiOption extends MenuOption {
   title: string;
@@ -90,24 +91,19 @@ const MAX_EMOJI_SUGGESTION_COUNT = 10;
 
 export default function EmojiPickerPlugin() {
   const [editor] = useLexicalComposerContext();
-  const [queryString, setQueryString] = useState<string | null>(null);
-  const [emojis, setEmojis] = useState<Array<Emoji>>([]);
-
-  useEffect(() => {
-    import('../../utils/emoji-list').then((file) => setEmojis(file.default));
-  }, []);
+  const [queryString, setQueryString] = React.useState<string | null>(null);
 
   const emojiOptions = useMemo(
     () =>
-      emojis != null
-        ? emojis.map(
+      emojiList != null
+        ? (emojiList as Array<Emoji>).map(
             ({emoji, aliases, tags}) =>
               new EmojiOption(aliases[0], emoji, {
                 keywords: [...aliases, ...tags],
               }),
           )
         : [],
-    [emojis],
+    [],
   );
 
   const checkForTriggerMatch = useBasicTypeaheadTriggerMatch(':', {

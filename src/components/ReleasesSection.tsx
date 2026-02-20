@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -15,111 +15,20 @@ import LatestEpisodeCard from "./LatestEpisodeCard";
 import WorkStatusCard from "./WorkStatusCard";
 import DiscordInviteCard from "./DiscordInviteCard";
 import { CalendarDays, User } from "lucide-react";
-import { getApiBase } from "@/lib/api-base";
-import { apiFetch } from "@/lib/api-client";
-import type { Project } from "@/data/projects";
+import { usePublicBootstrap } from "@/hooks/use-public-bootstrap";
 import { normalizeAssetUrl } from "@/lib/asset-url";
 import { formatDate } from "@/lib/date";
 import { cn } from "@/lib/utils";
 
 const ReleasesSection = () => {
-  const apiBase = getApiBase();
   const pageSize = 8;
   const [currentPage, setCurrentPage] = useState(1);
   const postsSectionRef = useRef<HTMLDivElement | null>(null);
-  const [posts, setPosts] = useState<
-    Array<{
-      id: string;
-      slug: string;
-      title: string;
-      excerpt: string;
-      author: string;
-      publishedAt: string;
-      coverImageUrl?: string | null;
-      projectId?: string;
-      tags?: string[];
-    }>
-  >([]);
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [isLoadingPosts, setIsLoadingPosts] = useState(true);
-  const [tagTranslations, setTagTranslations] = useState<Record<string, string>>({});
-
-  useEffect(() => {
-    let isActive = true;
-    const load = async () => {
-      try {
-        const response = await apiFetch(apiBase, "/api/public/posts");
-        if (!response.ok) {
-          return;
-        }
-        const data = await response.json();
-        if (isActive) {
-          setPosts(Array.isArray(data.posts) ? data.posts : []);
-        }
-      } catch {
-        if (isActive) {
-          setPosts([]);
-        }
-      } finally {
-        if (isActive) {
-          setIsLoadingPosts(false);
-        }
-      }
-    };
-
-    load();
-    return () => {
-      isActive = false;
-    };
-  }, [apiBase]);
-
-  useEffect(() => {
-    let isActive = true;
-    const loadProjects = async () => {
-      try {
-        const response = await apiFetch(apiBase, "/api/public/projects");
-        if (!response.ok) {
-          return;
-        }
-        const data = await response.json();
-        if (isActive) {
-          setProjects(Array.isArray(data.projects) ? data.projects : []);
-        }
-      } catch {
-        if (isActive) {
-          setProjects([]);
-        }
-      }
-    };
-    loadProjects();
-    return () => {
-      isActive = false;
-    };
-  }, [apiBase]);
-
-  useEffect(() => {
-    let isActive = true;
-    const loadTranslations = async () => {
-      try {
-        const response = await apiFetch(apiBase, "/api/public/tag-translations", { cache: "no-store" });
-        if (!response.ok) {
-          return;
-        }
-        const data = await response.json();
-        if (isActive) {
-          setTagTranslations(data.tags || {});
-        }
-      } catch {
-        if (isActive) {
-          setTagTranslations({});
-        }
-      }
-    };
-    loadTranslations();
-    return () => {
-      isActive = false;
-    };
-  }, [apiBase]);
+  const { data: bootstrapData, isLoading } = usePublicBootstrap();
+  const posts = bootstrapData?.posts || [];
+  const projects = bootstrapData?.projects || [];
+  const isLoadingPosts = isLoading && !bootstrapData;
+  const tagTranslations = bootstrapData?.tagTranslations?.tags || {};
 
   const totalPages = Math.ceil(posts.length / pageSize) || 1;
   const pagedReleases = useMemo(() => {

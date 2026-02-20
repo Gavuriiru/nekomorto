@@ -2,6 +2,8 @@
 
 Este documento resume ajustes necessários para migrar o site e operar em múltiplos domínios, além de exemplos de paginação das APIs públicas.
 
+Runbook completo de execucao: `docs/DB_MIGRATION_RUNBOOK.md`.
+
 ## Fluxo Integrado (Frontend + Backend)
 
 ### Desenvolvimento
@@ -64,6 +66,28 @@ Use apenas quando frontend e API estiverem em dominios diferentes.
 Exemplo:
 ```
 VITE_API_BASE=https://api.meusite.com
+```
+
+### `DATABASE_URL`
+Obrigatoria quando `DATA_SOURCE=db`.
+Exemplo:
+```
+DATABASE_URL=postgresql://user:password@localhost:5432/nekomata
+```
+
+### `DATA_SOURCE`
+Seleciona a fonte de dados da API.
+Valores:
+```
+DATA_SOURCE=json
+DATA_SOURCE=db
+```
+
+### `MAINTENANCE_MODE`
+Quando `true`, bloqueia requests mutaveis em `/api` (`POST`, `PUT`, `PATCH`, `DELETE`).
+Use no cutover para janela curta.
+```
+MAINTENANCE_MODE=true
 ```
 
 ## Paginação nas APIs Públicas
@@ -206,3 +230,155 @@ O script:
 - preserva permissoes desconhecidas em storage;
 - reconcilia `owner-ids.json`;
 - grava backup em `backups/` e auditoria em `server/data/audit-log.json`.
+
+## Preflight de Migracao para DB
+
+Executa validacao e gera relatorio em `reports/`:
+```bash
+npm run db:preflight
+```
+
+Dry-run da migracao JSON -> DB:
+```bash
+npm run db:migrate:json:dry-run
+```
+
+Aplicar migracao JSON -> DB:
+```bash
+npm run db:migrate:json:apply
+```
+
+Verificar paridade entre JSON e DB:
+```bash
+npm run db:verify:parity
+```
+
+Gerar hash de snapshot de `server/data`:
+```bash
+npm run db:hash:snapshot
+```
+
+## Cutover (Janela Curta)
+
+1. Ative manutencao para escrita:
+```bash
+MAINTENANCE_MODE=true
+```
+2. Faça backup e hash:
+```bash
+node scripts/backup-data.mjs
+npm run db:hash:snapshot
+```
+3. Aplique migration SQL e gere client:
+```bash
+npm run prisma:generate
+npm run prisma:migrate:deploy
+```
+4. Migre os dados e valide:
+```bash
+npm run db:migrate:json:apply
+npm run db:verify:parity
+```
+5. Troque para DB e reinicie:
+```bash
+DATA_SOURCE=db
+```
+6. Rode smoke tests da API:
+```bash
+npm run api:smoke
+```
+
+## PostgreSQL Staging (Self-hosted com Docker Compose)
+
+Arquivos de infraestrutura:
+
+```text
+ops/postgres/docker-compose.staging.yml
+ops/postgres/env.staging.example
+ops/postgres/backup.sh
+ops/postgres/restore.sh
+ops/postgres/README.md
+```
+
+### Subir o banco de staging
+
+1. Copie o env de exemplo:
+```bash
+cp ops/postgres/env.staging.example ops/postgres/.env.staging
+```
+2. Defina `POSTGRES_PASSWORD` forte em `ops/postgres/.env.staging`.
+3. Suba o Postgres:
+```bash
+docker compose --env-file ops/postgres/.env.staging -f ops/postgres/docker-compose.staging.yml up -d
+```
+
+O compose cria DB `nekomorto` e usuario `nekomorto_app`.
+
+### DATABASE_URL para a aplicacao
+
+```text
+DATABASE_URL=postgresql://nekomorto_app:<POSTGRES_PASSWORD>@<db-host>:5432/nekomorto
+```
+
+Durante preparo, mantenha:
+
+```text
+DATA_SOURCE=json
+MAINTENANCE_MODE=false
+```
+
+### Backup diario (pg_dump + retencao)
+
+```bash
+chmod +x ops/postgres/backup.sh ops/postgres/restore.sh
+./ops/postgres/backup.sh
+```
+
+O script aplica retencao de 7 dias por padrao (`RETENTION_DAYS=7`).
+Exemplo de cron diario (03:10 UTC):
+
+```bash
+10 3 * * * cd /srv/nekomorto && /srv/nekomorto/ops/postgres/backup.sh >> /var/log/nekomorto-pg-backup.log 2>&1
+```
+
+### Restore
+
+```bash
+./ops/postgres/restore.sh ops/postgres/backups/nekomorto_YYYYMMDDTHHMMSSZ.sql.gz
+```
+
+## Orquestracao de Cutover (scripts novos)
+
+Comando base:
+
+```bash
+npm run db:cutover -- <stage>
+```
+
+Stages disponiveis:
+
+- `preflight`: roda `db:preflight` + `db:migrate:json:dry-run`
+- `prepare-schema`: roda `prisma:generate` + `prisma:migrate:deploy` + `prisma migrate status`
+- `cutover`: roda backup/hash + `db:migrate:json:apply` + `db:verify:parity`
+- `smoke`: roda `api:smoke`
+- `health-db-maintenance`: valida `/api/health` com `dataSource=db` e `maintenanceMode=true`
+- `health-db-open`: valida `/api/health` com `dataSource=db` e `maintenanceMode=false`
+- `staging-all`: executa `preflight` + `prepare-schema` + `cutover` + `smoke`
+
+Atalhos em `package.json`:
+
+```bash
+npm run db:staging:precutover
+npm run db:staging:prepare-schema
+npm run db:staging:cutover
+npm run db:staging:smoke -- --base=https://staging.example.com
+npm run db:staging:health:maintenance -- --base=https://staging.example.com
+npm run db:staging:health:open -- --base=https://staging.example.com
+npm run db:staging:all -- --base=https://staging.example.com
+```
+
+Observacoes importantes:
+
+- `db:staging:cutover` exige `DATABASE_URL` e, por seguranca, `MAINTENANCE_MODE=true`.
+- O script nao altera `.env` automaticamente. A troca `DATA_SOURCE=json -> db` continua sendo controlada pelo deploy.
+- Para bypass da checagem de manutencao (nao recomendado), use `--allow-no-maintenance`.

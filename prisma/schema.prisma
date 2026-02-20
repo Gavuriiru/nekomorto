@@ -1,0 +1,204 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model PostRecord {
+  id          String    @id
+  position    Int       @default(0)
+  slug        String    @unique
+  projectId   String    @default("")
+  status      String    @default("draft")
+  publishedAt DateTime?
+  deletedAt   DateTime?
+  data        Json
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([position])
+  @@index([status])
+  @@map("posts")
+}
+
+model ProjectRecord {
+  id        String    @id
+  position  Int       @default(0)
+  deletedAt DateTime?
+  data      Json
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@index([position])
+  @@map("projects")
+}
+
+model UserRecord {
+  id         String   @id
+  position   Int      @default(0)
+  accessRole String?
+  status     String?
+  data       Json
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([position])
+  @@index([accessRole])
+  @@map("users")
+}
+
+model CommentRecord {
+  id         String    @id
+  position   Int       @default(0)
+  targetType String
+  targetId   String
+  status     String
+  createdAt  DateTime?
+  data       Json
+  updatedAt  DateTime  @updatedAt
+
+  @@index([position])
+  @@index([targetType, targetId])
+  @@map("comments")
+}
+
+model UpdateRecord {
+  id        String    @id
+  position  Int       @default(0)
+  projectId String
+  updatedAt DateTime?
+  data      Json
+
+  @@index([position])
+  @@index([projectId])
+  @@map("updates")
+}
+
+model UploadRecord {
+  id        String    @id
+  position  Int       @default(0)
+  url       String    @unique
+  folder    String
+  createdAt DateTime?
+  data      Json
+  updatedAt DateTime  @updatedAt
+
+  @@index([position])
+  @@index([folder])
+  @@map("uploads")
+}
+
+model LinkTypeRecord {
+  id       String   @id
+  position Int      @default(0)
+  label    String
+  icon     String
+  data     Json
+  updatedAt DateTime @updatedAt
+
+  @@index([position])
+  @@map("link_types")
+}
+
+model OwnerIdRecord {
+  userId   String @id
+  position Int    @unique
+
+  @@index([position])
+  @@map("owner_ids")
+}
+
+model AllowedUserRecord {
+  userId   String @id
+  position Int    @default(0)
+
+  @@index([position])
+  @@map("allowed_users")
+}
+
+model SiteSettingsRecord {
+  id        Int      @id @default(1)
+  data      Json
+  updatedAt DateTime @updatedAt
+
+  @@map("site_settings")
+}
+
+model PagesRecord {
+  id        Int      @id @default(1)
+  data      Json
+  updatedAt DateTime @updatedAt
+
+  @@map("pages")
+}
+
+model TagTranslationsRecord {
+  id        Int      @id @default(1)
+  data      Json
+  updatedAt DateTime @updatedAt
+
+  @@map("tag_translations")
+}
+
+model AuditLogRecord {
+  id        String   @id
+  position  Int      @default(0)
+  ts        DateTime
+  actorId   String
+  actorName String
+  ip        String
+  action    String
+  resource  String
+  resourceId String?
+  status    String
+  requestId String?
+  data      Json
+
+  @@index([position])
+  @@index([ts])
+  @@index([action])
+  @@map("audit_logs")
+}
+
+model AnalyticsEventRecord {
+  id              String   @id
+  position        Int      @default(0)
+  ts              DateTime
+  day             String
+  eventType       String
+  resourceType    String
+  resourceId      String
+  visitorHash     String
+  referrerHost    String
+  isAuthenticated Boolean  @default(false)
+  data            Json
+
+  @@index([position])
+  @@index([day])
+  @@index([resourceType, resourceId])
+  @@index([ts])
+  @@map("analytics_events")
+}
+
+model AnalyticsDailyRecord {
+  id            Int      @id @default(1)
+  schemaVersion Int
+  generatedAt   DateTime
+  data          Json
+  updatedAt     DateTime @updatedAt
+
+  @@map("analytics_daily")
+}
+
+model AnalyticsMetaRecord {
+  id                   Int      @id @default(1)
+  schemaVersion        Int
+  retentionDays        Int
+  aggregateRetentionDays Int
+  updatedAt            DateTime
+  data                 Json
+
+  @@map("analytics_meta")
+}

@@ -5,7 +5,7 @@ import DashboardShell from "@/components/DashboardShell";
 import DashboardPageContainer from "@/components/dashboard/DashboardPageContainer";
 import DashboardPageHeader from "@/components/dashboard/DashboardPageHeader";
 import { dashboardPageLayoutTokens } from "@/components/dashboard/dashboard-page-tokens";
-import ImageLibraryDialog, { type ImageLibraryOptions } from "@/components/ImageLibraryDialog";
+import type { ImageLibraryOptions } from "@/components/ImageLibraryDialog";
 import ThemedSvgLogo from "@/components/ThemedSvgLogo";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -79,6 +79,7 @@ import type { LexicalEditorHandle } from "@/components/lexical/LexicalEditor";
 import { useSiteSettings } from "@/hooks/use-site-settings";
 
 const LexicalEditor = lazy(() => import("@/components/lexical/LexicalEditor"));
+const ImageLibraryDialog = lazy(() => import("@/components/ImageLibraryDialog"));
 
 const LexicalEditorFallback = () => (
   <div className="min-h-[380px] w-full rounded-2xl border border-border/60 bg-card/60 p-4 text-sm text-muted-foreground">
@@ -3955,21 +3956,23 @@ const DashboardProjectsEditor = () => {
         </DialogContent>
       </Dialog>
 
-      <ImageLibraryDialog
-        open={isLibraryOpen}
-        onOpenChange={setIsLibraryOpen}
-        apiBase={apiBase}
-        description="Envie novas imagens ou selecione uma existente para usar no projeto."
-        uploadFolder={activeLibraryOptions.uploadFolder}
-        listFolders={activeLibraryOptions.listFolders}
-        listAll={activeLibraryOptions.listAll}
-        includeProjectImages={activeLibraryOptions.includeProjectImages}
-        projectImageProjectIds={activeLibraryOptions.projectImageProjectIds}
-        allowDeselect
-        mode="single"
-        currentSelectionUrls={currentLibrarySelection ? [currentLibrarySelection] : []}
-        onSave={({ urls }) => applyLibraryImage(urls[0] || "")}
-      />
+      <Suspense fallback={null}>
+        <ImageLibraryDialog
+          open={isLibraryOpen}
+          onOpenChange={setIsLibraryOpen}
+          apiBase={apiBase}
+          description="Envie novas imagens ou selecione uma existente para usar no projeto."
+          uploadFolder={activeLibraryOptions.uploadFolder}
+          listFolders={activeLibraryOptions.listFolders}
+          listAll={activeLibraryOptions.listAll}
+          includeProjectImages={activeLibraryOptions.includeProjectImages}
+          projectImageProjectIds={activeLibraryOptions.projectImageProjectIds}
+          allowDeselect
+          mode="single"
+          currentSelectionUrls={currentLibrarySelection ? [currentLibrarySelection] : []}
+          onSave={({ urls }) => applyLibraryImage(urls[0] || "")}
+        />
+      </Suspense>
 
     </>
   );

@@ -1,95 +1,32 @@
-﻿import { useEffect, useState } from "react";
+import { useMemo } from "react";
 import type { CSSProperties } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Clock, Sparkles } from "lucide-react";
 import { Link } from "react-router-dom";
-import { getApiBase } from "@/lib/api-base";
-import { apiFetch } from "@/lib/api-client";
+import { usePublicBootstrap } from "@/hooks/use-public-bootstrap";
 import { formatDate } from "@/lib/date";
 
-type UpdateRecord = {
-  id: string;
-  projectId: string;
-  projectTitle: string;
-  episodeNumber: number;
-  kind: string;
-  reason: string;
-  updatedAt: string;
-  image: string;
-  unit?: string;
-};
-
 const LatestEpisodeCard = () => {
-  const apiBase = getApiBase();
-  const [recentUpdates, setRecentUpdates] = useState<UpdateRecord[]>([]);
-  const [projectTypes, setProjectTypes] = useState<Record<string, string>>({});
-  const [isLoadingUpdates, setIsLoadingUpdates] = useState(true);
-
-  useEffect(() => {
-    let isActive = true;
-    const load = async () => {
-      try {
-        const response = await apiFetch(apiBase, "/api/public/updates");
-        if (!response.ok) {
-          return;
-        }
-        const data = await response.json();
-        if (isActive) {
-          setRecentUpdates(Array.isArray(data.updates) ? data.updates : []);
-        }
-      } catch {
-        if (isActive) {
-          setRecentUpdates([]);
-        }
-      } finally {
-        if (isActive) {
-          setIsLoadingUpdates(false);
-        }
+  const { data: bootstrapData, isLoading } = usePublicBootstrap();
+  const recentUpdates = bootstrapData?.updates || [];
+  const isLoadingUpdates = isLoading && !bootstrapData;
+  const projectTypes = useMemo(() => {
+    const map: Record<string, string> = {};
+    (bootstrapData?.projects || []).forEach((project) => {
+      if (project?.id) {
+        map[String(project.id)] = String(project.type || "");
       }
-    };
-
-    load();
-    return () => {
-      isActive = false;
-    };
-  }, [apiBase]);
-
-  useEffect(() => {
-    let isActive = true;
-    const loadProjects = async () => {
-      try {
-        const response = await apiFetch(apiBase, "/api/public/projects");
-        if (!response.ok) {
-          return;
-        }
-        const data = await response.json();
-        const map: Record<string, string> = {};
-        if (Array.isArray(data.projects)) {
-          data.projects.forEach((project) => {
-            if (project?.id) {
-              map[String(project.id)] = String(project.type || "");
-            }
-          });
-        }
-        if (isActive) {
-          setProjectTypes(map);
-        }
-      } catch {
-        if (isActive) {
-          setProjectTypes({});
-        }
-      }
-    };
-    loadProjects();
-    return () => {
-      isActive = false;
-    };
-  }, [apiBase]);
+    });
+    return map;
+  }, [bootstrapData?.projects]);
 
   return (
-    <Card className="bg-card border-border overflow-hidden reveal transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:bg-card/90 hover:shadow-lg" data-reveal>
+    <Card
+      className="bg-card border-border overflow-hidden reveal transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:bg-card/90 hover:shadow-lg"
+      data-reveal
+    >
       <CardHeader className="px-4 pb-3 pt-4">
         <CardTitle className="text-lg font-semibold text-foreground flex items-center gap-2">
           <Sparkles className="w-4 h-4 text-primary" />
@@ -138,9 +75,7 @@ const LatestEpisodeCard = () => {
                   typeLabel.includes("light") ||
                   typeLabel.includes("novel") ||
                   hasChapterHint;
-                const unitLabel =
-                  update.unit ||
-                  (isChapterBased ? "Capítulo" : "Episódio");
+                const unitLabel = update.unit || (isChapterBased ? "Capítulo" : "Episódio");
                 const unitShort = unitLabel === "Capítulo" ? "Cap" : "Ep";
                 const normalizedReason =
                   unitLabel === "Capítulo"
@@ -154,10 +89,10 @@ const LatestEpisodeCard = () => {
                   update.kind === "Lançamento"
                     ? "Lançamento"
                     : update.kind === "Ajuste"
-                    ? "Ajuste"
-                    : update.kind === "Atualização"
-                    ? "Ajuste"
-                    : update.kind;
+                      ? "Ajuste"
+                      : update.kind === "Atualização"
+                        ? "Ajuste"
+                        : update.kind;
                 return (
                   <Link
                     key={update.id}
@@ -185,8 +120,8 @@ const LatestEpisodeCard = () => {
                               kindLabel === "Lançamento"
                                 ? "border-primary/50 text-primary"
                                 : kindLabel === "Ajuste"
-                                ? "border-amber-500/50 text-amber-400"
-                                : "border-border/60 text-muted-foreground"
+                                  ? "border-amber-500/50 text-amber-400"
+                                  : "border-border/60 text-muted-foreground"
                             }`}
                           >
                             {kindLabel}
@@ -217,6 +152,3 @@ const LatestEpisodeCard = () => {
 };
 
 export default LatestEpisodeCard;
-
-
-

@@ -1,7 +1,15 @@
-import { useCallback, useEffect, useMemo, useState, type DragEvent } from "react";
+﻿import {
+  Suspense,
+  lazy,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  type DragEvent,
+} from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import DashboardShell from "@/components/DashboardShell";
-import ImageLibraryDialog from "@/components/ImageLibraryDialog";
+
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -49,6 +57,8 @@ import { useSiteSettings } from "@/hooks/use-site-settings";
 import { toast } from "@/components/ui/use-toast";
 import ThemedSvgLogo from "@/components/ThemedSvgLogo";
 import { type AccessRole, permissionIds } from "@/lib/access-control";
+
+const ImageLibraryDialog = lazy(() => import("@/components/ImageLibraryDialog"));
 
 type UserRecord = {
   id: string;
@@ -1038,21 +1048,23 @@ const DashboardUsers = () => {
           </section>
         </main>
       </DashboardShell>
-      <ImageLibraryDialog
-        open={isLibraryOpen}
-        onOpenChange={handleLibraryOpenChange}
-        apiBase={apiBase}
-        description="Selecione uma imagem já enviada para reutilizar ou envie um novo arquivo."
-        uploadFolder="users"
-        listFolders={avatarLibraryFolders}
-        listAll={false}
-        allowDeselect
-        mode="single"
-        cropAvatar
-        cropTargetFolder="users"
-        cropSlot={formState.id ? `avatar-${formState.id}` : undefined}
-        onSave={({ urls }) => handleLibrarySave({ urls })}
-      />
+      <Suspense fallback={null}>
+        <ImageLibraryDialog
+          open={isLibraryOpen}
+          onOpenChange={handleLibraryOpenChange}
+          apiBase={apiBase}
+          description="Selecione uma imagem já enviada para reutilizar ou envie um novo arquivo."
+          uploadFolder="users"
+          listFolders={avatarLibraryFolders}
+          listAll={false}
+          allowDeselect
+          mode="single"
+          cropAvatar
+          cropTargetFolder="users"
+          cropSlot={formState.id ? `avatar-${formState.id}` : undefined}
+          onSave={({ urls }) => handleLibrarySave({ urls })}
+        />
+      </Suspense>
 
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent
@@ -1453,6 +1465,7 @@ const DashboardUsers = () => {
 };
 
 export default DashboardUsers;
+
 
 
 

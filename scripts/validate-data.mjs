@@ -163,7 +163,7 @@ const validatePosts = (posts, fileName) => {
     if (post?.status && !["draft", "scheduled", "published"].includes(post.status)) {
       addIssue("warning", fileName, `${base}.status`, `status invalido: ${post.status}`);
     }
-    if (post?.contentFormat && !["markdown", "html"].includes(post.contentFormat)) {
+    if (post?.contentFormat && !["markdown", "html", "lexical"].includes(post.contentFormat)) {
       addIssue("warning", fileName, `${base}.contentFormat`, `contentFormat invalido: ${post.contentFormat}`);
     }
     if (normalizeUploadsAbsolute(post?.coverImageUrl)) {
@@ -212,6 +212,17 @@ const validateProjects = (projects, fileName) => {
       if (episode?.releaseDate && !isIsoDate(episode.releaseDate)) {
         addIssue("warning", fileName, `${epBase}.releaseDate`, "data invalida");
       }
+      if (
+        episode?.contentFormat &&
+        !["markdown", "html", "lexical"].includes(String(episode.contentFormat))
+      ) {
+        addIssue(
+          "warning",
+          fileName,
+          `${epBase}.contentFormat`,
+          `contentFormat invalido: ${episode.contentFormat}`,
+        );
+      }
       if (episode?.hash !== undefined && typeof episode.hash !== "string") {
         addIssue("warning", fileName, `${epBase}.hash`, "hash nao e string");
       }
@@ -256,8 +267,14 @@ const validateUsers = (users, fileName) => {
     "projetos",
     "comentarios",
     "usuarios",
+    "usuarios_basico",
+    "usuarios_acesso",
     "paginas",
+    "uploads",
+    "analytics",
     "configuracoes",
+    "audit_log",
+    "integracoes",
   ]);
   users.forEach((user, index) => {
     const base = `[${index}]`;

@@ -5,17 +5,13 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import HeroSection from "@/components/HeroSection";
 
-const apiFetchMock = vi.hoisted(() => vi.fn());
 const themeModeState = vi.hoisted(() => ({
   effectiveMode: "dark" as "light" | "dark",
 }));
+const usePublicBootstrapMock = vi.hoisted(() => vi.fn());
 
-vi.mock("@/lib/api-base", () => ({
-  getApiBase: () => "",
-}));
-
-vi.mock("@/lib/api-client", () => ({
-  apiFetch: (...args: unknown[]) => apiFetchMock(...args),
+vi.mock("@/hooks/use-public-bootstrap", () => ({
+  usePublicBootstrap: () => usePublicBootstrapMock(),
 }));
 
 vi.mock("@/hooks/use-theme-mode", () => ({
@@ -30,14 +26,26 @@ vi.mock("@/hooks/use-theme-mode", () => ({
 
 vi.mock("@/components/ui/carousel", () => {
   const Carousel = ({ children }: { children: ReactNode }) => <div>{children}</div>;
-  const CarouselContent = ({ children, className }: { children: ReactNode; className?: string }) => (
-    <div className={className}>{children}</div>
+  const CarouselContent = ({
+    children,
+    className,
+  }: {
+    children: ReactNode;
+    className?: string;
+  }) => <div className={className}>{children}</div>;
+  const CarouselItem = ({
+    children,
+    className,
+  }: {
+    children: ReactNode;
+    className?: string;
+  }) => <div className={className}>{children}</div>;
+  const CarouselPrevious = ({ className }: { className?: string }) => (
+    <button type="button" className={className} />
   );
-  const CarouselItem = ({ children, className }: { children: ReactNode; className?: string }) => (
-    <div className={className}>{children}</div>
+  const CarouselNext = ({ className }: { className?: string }) => (
+    <button type="button" className={className} />
   );
-  const CarouselPrevious = ({ className }: { className?: string }) => <button type="button" className={className} />;
-  const CarouselNext = ({ className }: { className?: string }) => <button type="button" className={className} />;
   return {
     Carousel,
     CarouselContent,
@@ -47,59 +55,44 @@ vi.mock("@/components/ui/carousel", () => {
   };
 });
 
-const mockJsonResponse = (ok: boolean, payload: unknown, status = ok ? 200 : 500) =>
-  ({
-    ok,
-    status,
-    json: async () => payload,
-  }) as Response;
-
-const setupApiMock = () => {
-  apiFetchMock.mockReset();
-  apiFetchMock.mockImplementation(async (_apiBase: string, endpoint: string, options?: RequestInit) => {
-    const method = String(options?.method || "GET").toUpperCase();
-
-    if (endpoint === "/api/public/projects" && method === "GET") {
-      return mockJsonResponse(true, {
-        projects: [
-          {
-            id: "project-1",
-            title: "Projeto com Hero",
-            synopsis: "Sinopse de teste",
-            description: "Descricao de teste",
-            type: "Anime",
-            status: "Em andamento",
-            heroImageUrl: "/uploads/hero-fit.jpg",
-            banner: "",
-            cover: "",
-            trailerUrl: "",
-          },
-        ],
-      });
-    }
-    if (endpoint === "/api/public/updates" && method === "GET") {
-      return mockJsonResponse(true, {
-        updates: [
-          {
-            projectId: "project-1",
-            kind: "lancamento",
-            updatedAt: "2026-02-10T12:00:00.000Z",
-          },
-        ],
-      });
-    }
-    return mockJsonResponse(false, { error: "not_found" }, 404);
+const setupBootstrapMock = () => {
+  usePublicBootstrapMock.mockReturnValue({
+    isFetched: true,
+    data: {
+      projects: [
+        {
+          id: "project-1",
+          title: "Projeto com Hero",
+          synopsis: "Sinopse de teste",
+          description: "Descricao de teste",
+          type: "Anime",
+          status: "Em andamento",
+          heroImageUrl: "/uploads/hero-fit.jpg",
+          banner: "",
+          cover: "",
+          trailerUrl: "",
+          forceHero: true,
+        },
+      ],
+      updates: [
+        {
+          projectId: "project-1",
+          kind: "lancamento",
+          updatedAt: "2026-02-10T12:00:00.000Z",
+        },
+      ],
+    },
   });
 };
 
 describe("HeroSection cover fit", () => {
   beforeEach(() => {
-    apiFetchMock.mockReset();
+    usePublicBootstrapMock.mockReset();
     themeModeState.effectiveMode = "dark";
   });
 
-  it("renderiza o slide com altura responsiva e cover central sem classes antigas de corte", async () => {
-    setupApiMock();
+  it("renderiza o slide com altura responsiva e imagem em cover central", async () => {
+    setupBootstrapMock();
 
     const { container } = render(
       <MemoryRouter>
@@ -113,18 +106,22 @@ describe("HeroSection cover fit", () => {
     expect(heroSection).not.toBeNull();
     expect(heroSection).toHaveClass("min-h-[78vh]", "md:min-h-screen");
 
-    const backgroundLayer = container.querySelector("div[style*=\"background-image\"]");
-    expect(backgroundLayer).not.toBeNull();
-    expect(backgroundLayer).toHaveClass("bg-cover", "bg-center", "bg-no-repeat");
-    expect(backgroundLayer).not.toHaveClass("bg-top-right", "scale-105");
-
-    const slideWrapper = backgroundLayer?.parentElement;
-    expect(slideWrapper).not.toBeNull();
-    expect(slideWrapper).toHaveClass("min-h-[78vh]", "md:min-h-screen");
+    const backgroundImage = container.querySelector(
+      "img[aria-hidden='true']",
+    ) as HTMLImageElement | null;
+    expect(backgroundImage).not.toBeNull();
+    expect(backgroundImage).toHaveClass(
+      "h-full",
+      "w-full",
+      "object-cover",
+      "object-center",
+    );
+    expect(backgroundImage?.getAttribute("fetchpriority")).toBe("high");
+    expect(backgroundImage?.getAttribute("loading")).toBe("eager");
   });
 
   it("mantem badge de ultimo lancamento acima de tipo/status no mobile", async () => {
-    setupApiMock();
+    setupBootstrapMock();
 
     render(
       <MemoryRouter>
@@ -153,7 +150,7 @@ describe("HeroSection cover fit", () => {
 
   it("renderiza overlay superior para contraste da navbar no tema claro", async () => {
     themeModeState.effectiveMode = "light";
-    setupApiMock();
+    setupBootstrapMock();
 
     render(
       <MemoryRouter>
@@ -167,7 +164,7 @@ describe("HeroSection cover fit", () => {
 
   it("nao renderiza overlay superior no tema escuro", async () => {
     themeModeState.effectiveMode = "dark";
-    setupApiMock();
+    setupBootstrapMock();
 
     render(
       <MemoryRouter>

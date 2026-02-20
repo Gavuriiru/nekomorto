@@ -1,8 +1,16 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent } from "react";
+import {
+  Suspense,
+  lazy,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type DragEvent,
+} from "react";
 import { useNavigate } from "react-router-dom";
 import DashboardAutosaveStatus from "@/components/DashboardAutosaveStatus";
 import DashboardShell from "@/components/DashboardShell";
-import ImageLibraryDialog from "@/components/ImageLibraryDialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -63,6 +71,8 @@ import { usePageMeta } from "@/hooks/use-page-meta";
 import ThemedSvgLogo from "@/components/ThemedSvgLogo";
 import { navbarIconOptions } from "@/lib/navbar-icons";
 import { resolveBranding } from "@/lib/branding";
+
+const ImageLibraryDialog = lazy(() => import("@/components/ImageLibraryDialog"));
 
 const roleIconOptions = [
   { id: "languages", label: "Languages" },
@@ -2779,20 +2789,22 @@ const DashboardSettings = () => {
             </Tabs>
           </section>
         </main>
-        <ImageLibraryDialog
-          open={isLibraryOpen}
-          onOpenChange={setIsLibraryOpen}
-          apiBase={apiBase}
-          description="Selecione uma imagem ja enviada para reutilizar ou exclua itens que nao estejam em uso."
-          uploadFolder="branding"
-          listFolders={rootLibraryFolders}
-          includeProjectImages={false}
-          showUrlImport={false}
-          allowDeselect
-          mode="single"
-          currentSelectionUrls={currentLibrarySelection ? [currentLibrarySelection] : []}
-          onSave={({ urls }) => applyLibraryImage(urls[0] || "")}
-        />
+        <Suspense fallback={null}>
+          <ImageLibraryDialog
+            open={isLibraryOpen}
+            onOpenChange={setIsLibraryOpen}
+            apiBase={apiBase}
+            description="Selecione uma imagem ja enviada para reutilizar ou exclua itens que nao estejam em uso."
+            uploadFolder="branding"
+            listFolders={rootLibraryFolders}
+            includeProjectImages={false}
+            showUrlImport={false}
+            allowDeselect
+            mode="single"
+            currentSelectionUrls={currentLibrarySelection ? [currentLibrarySelection] : []}
+            onSave={({ urls }) => applyLibraryImage(urls[0] || "")}
+          />
+        </Suspense>
     </DashboardShell>
   );
 };

@@ -57,23 +57,20 @@ const Login = () => {
   })();
 
   return (
-    <div className="min-h-screen bg-linear-to-b from-background via-[hsl(var(--primary)/0.12)] to-background text-foreground">
-      <main className="pt-28">
+    <div className="login-shell text-foreground">
+      <div aria-hidden className="login-backdrop" />
+      <main className="relative pt-28">
         <section className="mx-auto w-full max-w-3xl px-6 pb-20 md:px-10">
-          <div className="relative overflow-hidden rounded-3xl border border-border/60 bg-linear-to-br from-card/90 via-card/70 to-background/60 p-1 shadow-[0_40px_120px_-70px_hsl(var(--foreground)/0.35)]">
-            <div className="pointer-events-none absolute inset-0">
-              <div className="absolute inset-[-60%] animate-spin-slow bg-[conic-gradient(from_0deg,transparent_0deg,hsl(var(--primary)/0.22)_120deg,transparent_210deg,hsl(var(--accent)/0.22)_300deg,transparent_360deg)] opacity-35 blur-2xl" />
-              <div className="absolute inset-6 rounded-[18px] bg-background/35" />
-            </div>
-            <div className="pointer-events-none absolute inset-0">
-              <div className="absolute -left-16 top-8 h-56 w-56 rounded-full bg-primary/25 blur-[120px]" />
-              <div className="absolute right-6 top-24 h-64 w-64 rounded-full bg-accent/20 blur-[140px]" />
-            </div>
-            <div className="relative rounded-[22px] border border-border/60 bg-card/70 p-8 backdrop-blur-sm md:p-10">
+          <div className="login-card animate-fade-in">
+            <div className="login-card-content animate-slide-up">
               <div className="flex flex-col gap-6">
                 <div className="flex flex-wrap items-center gap-2">
-                  <Badge className="bg-card/80 text-muted-foreground">Acesso restrito</Badge>
-                  <Badge className="bg-primary/20 text-primary">Discord</Badge>
+                  <Badge className="border border-border/65 bg-card/75 text-muted-foreground">
+                    Acesso restrito
+                  </Badge>
+                  <Badge className="border border-primary/30 bg-primary/18 text-primary">
+                    Discord
+                  </Badge>
                 </div>
                 <div className="space-y-2">
                   <h1 className="text-3xl font-semibold lg:text-4xl">
@@ -85,14 +82,14 @@ const Login = () => {
                 </div>
 
                 {errorMessage && (
-                  <div className="rounded-2xl border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-destructive">
+                  <div role="alert" aria-live="polite" className="login-alert">
                     {errorMessage}
                   </div>
                 )}
 
-                <div className="flex flex-wrap items-center gap-4">
+                <div className="login-actions">
                   <Button
-                    className="bg-primary text-primary-foreground hover:bg-primary/90"
+                    className="w-full bg-primary text-primary-foreground shadow-[0_16px_34px_-24px_hsl(var(--primary)/0.85)] hover:bg-primary/90 sm:w-auto"
                     onClick={() => {
                       const target = next
                         ? `${apiBase}/auth/discord?next=${encodeURIComponent(next)}`

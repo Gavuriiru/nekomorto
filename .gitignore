@@ -47,6 +47,7 @@ server/data/uploads.json
 
 # Backups
 backups/
+ops/postgres/backups/
 
 # Local tooling / generated assets
 temp_block.txt

@@ -162,7 +162,10 @@ export const SiteSettingsProvider = ({
   }, [apiBase]);
 
   useEffect(() => {
-    refresh(!initiallyLoaded);
+    if (initiallyLoaded) {
+      return;
+    }
+    refresh(true);
   }, [initiallyLoaded, refresh]);
 
   useEffect(() => {

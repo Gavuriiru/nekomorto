@@ -1,0 +1,218 @@
+## validate-data
+
+AVISOS (51)
+- references:[0].targetId: comentario aponta para projeto inexistente: 78399
+- references:[1].targetId: comentario aponta para projeto inexistente: 78399
+- uploads-orphans:/uploads/avatar/.prettierrc: arquivo sem referencia
+- uploads-orphans:/uploads/avatar/package.json: arquivo sem referencia
+- uploads-orphans:/uploads/avatar/public/index.html: arquivo sem referencia
+- uploads-orphans:/uploads/avatar/src/index.js: arquivo sem referencia
+- uploads-orphans:/uploads/avatar/src/styles.css: arquivo sem referencia
+- uploads-orphans:/uploads/branding/blue-and-purple-gradient-media-logo-1770570733365.png: arquivo sem referencia
+- uploads-orphans:/uploads/downloads/fonte-1770413735534.svg: arquivo sem referencia
+- uploads-orphans:/uploads/easy/.prettierrc: arquivo sem referencia
+- uploads-orphans:/uploads/easy/package.json: arquivo sem referencia
+- uploads-orphans:/uploads/easy/public/index.html: arquivo sem referencia
+- uploads-orphans:/uploads/easy/src/canvasUtils.js: arquivo sem referencia
+- uploads-orphans:/uploads/easy/src/ImgDialog.js: arquivo sem referencia
+- uploads-orphans:/uploads/easy/src/index.js: arquivo sem referencia
+- uploads-orphans:/uploads/easy/src/styles.js: arquivo sem referencia
+- uploads-orphans:/uploads/image-crop-and-zoom-master/.gitignore: arquivo sem referencia
+- uploads-orphans:/uploads/image-crop-and-zoom-master/package-lock.json: arquivo sem referencia
+- uploads-orphans:/uploads/image-crop-and-zoom-master/package.json: arquivo sem referencia
+- uploads-orphans:/uploads/image-crop-and-zoom-master/public/favicon.ico: arquivo sem referencia
+- uploads-orphans:/uploads/image-crop-and-zoom-master/public/index.html: arquivo sem referencia
+- uploads-orphans:/uploads/image-crop-and-zoom-master/public/manifest.json: arquivo sem referencia
+- uploads-orphans:/uploads/image-crop-and-zoom-master/public/robots.txt: arquivo sem referencia
+- uploads-orphans:/uploads/image-crop-and-zoom-master/README.md: arquivo sem referencia
+- uploads-orphans:/uploads/image-crop-and-zoom-master/src/App.css: arquivo sem referencia
+- uploads-orphans:/uploads/image-crop-and-zoom-master/src/App.jsx: arquivo sem referencia
+- uploads-orphans:/uploads/image-crop-and-zoom-master/src/index.css: arquivo sem referencia
+- uploads-orphans:/uploads/image-crop-and-zoom-master/src/index.js: arquivo sem referencia
+- uploads-orphans:/uploads/image-crop-and-zoom-master/src/utils/cropImage.js: arquivo sem referencia
+- uploads-orphans:/uploads/image-crop-and-zoom-master/src/utils/dataURLtoFile.js: arquivo sem referencia
+- uploads-orphans:/uploads/projects/150672/150672-iswoa0es722h-1770948233139.jpeg: arquivo sem referencia
+- uploads-orphans:/uploads/projects/17637/269291-1-jpg-1770172082940.jpeg: arquivo sem referencia
+- uploads-orphans:/uploads/projects/20496/275628-3-jpg-1770179559433.jpeg: arquivo sem referencia
+- uploads-orphans:/uploads/projects/86864/episodes/dq3svekxgaqulp3-png-1770095977168.png: arquivo sem referencia
+- uploads-orphans:/uploads/socials/nova-1770342820526.svg: arquivo sem referencia
+- uploads-orphans:/uploads/socials/nova-1770342851688.svg: arquivo sem referencia
+- uploads-orphans:/uploads/socials/nova-1770342879216.svg: arquivo sem referencia
+- uploads-orphans:/uploads/socials/nova-1770342927120.svg: arquivo sem referencia
+- uploads-orphans:/uploads/socials/nova-1770343028620.svg: arquivo sem referencia
+- uploads-orphans:/uploads/socials/nova-1770343062271.svg: arquivo sem referencia
+- uploads-orphans:/uploads/socials/nova-1770343062399.svg: arquivo sem referencia
+- uploads-orphans:/uploads/socials/nova-1770343071599.svg: arquivo sem referencia
+- uploads-orphans:/uploads/socials/nova-1770343190284.svg: arquivo sem referencia
+- uploads-orphans:/uploads/socials/nova-1770773299269.svg: arquivo sem referencia
+- uploads-orphans:/uploads/socials/site.svg: arquivo sem referencia
+- uploads-orphans:/uploads/socials/x.svg: arquivo sem referencia
+- uploads-orphans:/uploads/socials/youtube.svg: arquivo sem referencia
+- uploads-orphans:/uploads/tumblr-ac95f359f5801c4bb9cd59603dfe42ef-fa4db966-1280-jpg-1770093565827.jpeg: arquivo sem referencia
+- uploads-orphans:/uploads/users/1769705536-png-1770175622025.png: arquivo sem referencia
+- uploads-orphans:/uploads/users/yande-re-609444-gabriel-dropout-kurumizawa-satanichia-mcdowell-namori-resort-ukami-shiraha-raphiel-ainsworth-tenma-gabriel-white-tsukinose-vignette-april-1770479064164.jpeg: arquivo sem referencia
+- uploads-orphans:/uploads/yande-re-609444-gabriel-dropout-kurumizawa-satanichia-mcdowell-namori-resort-ukami-shiraha-raphiel-ainsworth-tenma-gabriel-white-tsukinose-vignette-april-1770491371008.jpeg: arquivo sem referencia
+
+exit_code=0
+
+
+## hash-data-snapshot
+
+{
+  "generatedAt": "2026-02-20T03:04:07.906Z",
+  "aggregateHash": "9adb6a1459c72110db089eec0174d138741397713abae4041a8a07c1e4bb32e4",
+  "files": [
+    {
+      "file": "server/data/allowed-users.example.json",
+      "size": 53,
+      "mtime": "2026-02-03T05:39:58.579Z",
+      "sha256": "306f360cebcbc78c76a79e8d5e3838998848f0a1c1c670e145ef78a243e0442e"
+    },
+    {
+      "file": "server/data/allowed-users.json",
+      "size": 148,
+      "mtime": "2026-02-19T21:03:13.435Z",
+      "sha256": "fa1c8423aafde7a2c353384418fdae2871c128113415121b79fd8ceb14697e5b"
+    },
+    {
+      "file": "server/data/analytics-daily.json",
+      "size": 1582,
+      "mtime": "2026-02-20T01:53:19.905Z",
+      "sha256": "66252959d9f7aa1f38817447dadd978f97a72aea7363f3f6e0743279c6b9ab5b"
+    },
+    {
+      "file": "server/data/analytics-events.jsonl",
+      "size": 17575,
+      "mtime": "2026-02-20T01:53:19.904Z",
+      "sha256": "416d03207045470a9f6cf1f8c8458927f535587cee36f8c5e7be0708752b10ce"
+    },
+    {
+      "file": "server/data/analytics-meta.json",
+      "size": 191,
+      "mtime": "2026-02-20T01:53:19.905Z",
+      "sha256": "91f82a0b3b0dec2f649e7989b39bf15b314a13aff47042238cfd9a61f7d9749d"
+    },
+    {
+      "file": "server/data/audit-log.json",
+      "size": 881103,
+      "mtime": "2026-02-19T21:29:13.368Z",
+      "sha256": "d0059d41ec3fa92a99754e879fc862f0ea89bb2c3fd5e7f76b8aae37c656e648"
+    },
+    {
+      "file": "server/data/comments.example.json",
+      "size": 823,
+      "mtime": "2026-02-03T05:39:58.589Z",
+      "sha256": "54cf44afe58165ae673dc85a7778dd11a3f7c1aade455c98e406428b9072f3c3"
+    },
+    {
+      "file": "server/data/comments.json",
+      "size": 6323,
+      "mtime": "2026-02-19T21:31:22.924Z",
+      "sha256": "10468cea2d8eb44409e2e6ef2daee5a78776c7d4648cf43db31f5c212bdeac38"
+    },
+    {
+      "file": "server/data/link-types.example.json",
+      "size": 271,
+      "mtime": "2026-02-03T05:39:58.596Z",
+      "sha256": "1e084f3ac38b446a868fd148e52cc3e52c470fbae6e8b884a03c0e832ed0cb7e"
+    },
+    {
+      "file": "server/data/link-types.json",
+      "size": 353,
+      "mtime": "2026-02-11T01:28:28.146Z",
+      "sha256": "5730bd153cf3e5ab67376b2c83a337a2fcd018ab6659ddddfc8c9760e9f3f4c9"
+    },
+    {
+      "file": "server/data/owner-ids.json",
+      "size": 124,
+      "mtime": "2026-02-13T12:10:02.278Z",
+      "sha256": "951139b485631f79c6ac740de095249834d671ca1ec90e511e6316a057252d50"
+    },
+    {
+      "file": "server/data/pages.example.json",
+      "size": 8343,
+      "mtime": "2026-02-03T21:36:23.084Z",
+      "sha256": "ca180c99ba3a6427cc39afad93ee708c55a48c31735ce505f09c901ba744f985"
+    },
+    {
+      "file": "server/data/pages.json",
+      "size": 10065,
+      "mtime": "2026-02-08T20:26:31.478Z",
+      "sha256": "b8673c06d80b80361143fd60faa31af5a41eae661ced70af8a40676d2e4debb0"
+    },
+    {
+      "file": "server/data/posts.example.json",
+      "size": 11580,
+      "mtime": "2026-02-04T05:47:59.820Z",
+      "sha256": "d55af846e00ed91d63129966d498064362f3a12fc793c3a897aca5281d8c807b"
+    },
+    {
+      "file": "server/data/posts.json",
+      "size": 41452,
+      "mtime": "2026-02-19T22:00:37.155Z",
+      "sha256": "c447612520bcbc82c21927b7b520511e4174100eb760c451f3bbbbf40a3ee970"
+    },
+    {
+      "file": "server/data/projects.example.json",
+      "size": 13117,
+      "mtime": "2026-02-03T05:39:58.624Z",
+      "sha256": "50c12a27bff71ea343e44dc095030e869fe96ba048158ed600e0aacbc529f782"
+    },
+    {
+      "file": "server/data/projects.json",
+      "size": 182438,
+      "mtime": "2026-02-19T21:40:09.306Z",
+      "sha256": "e873fe3d47cec1fbaba519ae2bd41b2013107cde8b9e8652fd81020f8a82dfd6"
+    },
+    {
+      "file": "server/data/site-settings.example.json",
+      "size": 4520,
+      "mtime": "2026-02-18T11:22:06.100Z",
+      "sha256": "15f5f7bf8c8f47ea19359d9dce0663bed7ab0715c520c67743385c2bfa879f49"
+    },
+    {
+      "file": "server/data/site-settings.json",
+      "size": 6587,
+      "mtime": "2026-02-19T00:25:59.033Z",
+      "sha256": "bbc690f96536847be21dfffc3e73190e16a3df6f88ac4069e2662b7ca606c651"
+    },
+    {
+      "file": "server/data/tag-translations.json",
+      "size": 13335,
+      "mtime": "2026-02-19T00:27:04.997Z",
+      "sha256": "258fc640b456f0f9070c4e64d4f44405c96f61dd52035e5351161ab7c87b795e"
+    },
+    {
+      "file": "server/data/updates.example.json",
+      "size": 925,
+      "mtime": "2026-02-03T05:39:58.643Z",
+      "sha256": "84bff95af7ed51a9faec6ccd4232cce796c99c3d0174e3e6e1da3953627f3939"
+    },
+    {
+      "file": "server/data/updates.json",
+      "size": 14262,
+      "mtime": "2026-02-13T02:26:14.614Z",
+      "sha256": "9a0f81f25511b13a5cf1cad572429530b115e80284ccf85f3dd4c2ce9f60d579"
+    },
+    {
+      "file": "server/data/uploads.json",
+      "size": 19872,
+      "mtime": "2026-02-19T02:56:07.385Z",
+      "sha256": "14ddebc5feab0503e55cae10020c4ccb3622ecc4ffa9e35cc1bc5b18e37625a8"
+    },
+    {
+      "file": "server/data/users.example.json",
+      "size": 2228,
+      "mtime": "2026-02-13T11:50:16.337Z",
+      "sha256": "954897069011227d9aa06e11944724058ff7cb248333077e61a121478508333c"
+    },
+    {
+      "file": "server/data/users.json",
+      "size": 3448,
+      "mtime": "2026-02-19T21:03:13.435Z",
+      "sha256": "8578c3ef4b282483fe6382573f90ff5785ab5f4c3c392cf175236154f8d29787"
+    }
+  ]
+}
+
+exit_code=0

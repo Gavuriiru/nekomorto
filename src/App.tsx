@@ -31,7 +31,7 @@ const DashboardSettings = lazy(() => import("./pages/DashboardSettings"));
 const Recruitment = lazy(() => import("./pages/Recruitment"));
 const PublicLayout = lazy(() => import("./components/PublicLayout"));
 
-const queryClient = new QueryClient();
+export const queryClient = new QueryClient();
 
 const PageTransition = ({ children }: { children: React.ReactNode }) => (
   <div className="page-transition">{children}</div>

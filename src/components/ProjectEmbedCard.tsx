@@ -5,11 +5,17 @@ import { Card, CardContent } from "@/components/ui/card";
 import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
 import { buildTranslationMap, sortByTranslatedLabel, translateTag } from "@/lib/project-taxonomy";
+import { useDynamicSynopsisClamp } from "@/hooks/use-dynamic-synopsis-clamp";
 import type { Project } from "@/data/projects";
 
 type ProjectEmbedCardProps = {
   projectId?: string | null;
 };
+
+const COVER_WIDTH_REM = 8;
+const COVER_ASPECT_WIDTH = 46;
+const COVER_ASPECT_HEIGHT = 65;
+const COVER_HEIGHT_CALC = `calc(${COVER_WIDTH_REM}rem * ${COVER_ASPECT_HEIGHT} / ${COVER_ASPECT_WIDTH})`;
 
 const ProjectEmbedCard = ({ projectId }: ProjectEmbedCardProps) => {
   const apiBase = getApiBase();
@@ -17,10 +23,23 @@ const ProjectEmbedCard = ({ projectId }: ProjectEmbedCardProps) => {
   const [hasLoaded, setHasLoaded] = useState(false);
   const [tagTranslations, setTagTranslations] = useState<Record<string, string>>({});
   const tagTranslationMap = useMemo(() => buildTranslationMap(tagTranslations), [tagTranslations]);
+  const synopsisKey = project?.id ?? projectId ?? "project-embed";
+  const { rootRef: synopsisRootRef, lineByKey } = useDynamicSynopsisClamp({
+    enabled: Boolean(projectId),
+    keys: [synopsisKey],
+    maxLines: 5,
+  });
   const sortedTags = useMemo(() => {
     const tags = Array.isArray(project?.tags) ? project.tags : [];
     return sortByTranslatedLabel(tags, (tag) => translateTag(tag, tagTranslationMap));
   }, [project?.tags, tagTranslationMap]);
+  const synopsisMaxLines = (() => {
+    const lines = lineByKey[synopsisKey] ?? 0;
+    if (lines <= 0) {
+      return 2;
+    }
+    return Math.min(lines, 5);
+  })();
 
   useEffect(() => {
     if (!projectId) {
@@ -94,54 +113,68 @@ const ProjectEmbedCard = ({ projectId }: ProjectEmbedCardProps) => {
     >
       <Card className="border-border bg-card shadow-xs transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:bg-card/90 hover:shadow-lg">
         <CardContent className="space-y-4 p-4">
-          <div className="group flex items-start gap-4">
-            <div
-              className="w-32 shrink-0 overflow-hidden rounded-xl border border-border transition group-hover:border-primary/40"
-              style={{ aspectRatio: "46 / 65" }}
-            >
+          <div ref={synopsisRootRef} className="group flex items-stretch gap-4" style={{ height: COVER_HEIGHT_CALC }}>
+            <div className="h-full w-32 shrink-0 self-start overflow-hidden rounded-xl">
               <img
                 src={project?.cover || "/placeholder.svg"}
                 alt={project?.title || "Projeto"}
                 className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
-                style={{ aspectRatio: "46 / 65" }}
               />
             </div>
-            <div className="flex min-w-0 flex-1 flex-col gap-2.5">
-              <div className="space-y-1">
+            <div
+              data-synopsis-role="column"
+              data-synopsis-key={synopsisKey}
+              className="flex min-h-0 min-w-0 flex-1 self-stretch flex-col overflow-hidden"
+            >
+              <div data-synopsis-role="title" className="space-y-1">
                 <p className="text-[10px] uppercase tracking-[0.2em] text-primary/80">
                   {project?.type || ""}
                 </p>
-                <span className="line-clamp-3 text-lg font-semibold text-foreground transition group-hover:text-primary sm:line-clamp-none">
+                <span className="line-clamp-2 text-lg font-semibold text-foreground transition group-hover:text-primary">
                   {project?.title || "Projeto"}
                 </span>
-                <p className="text-sm text-muted-foreground line-clamp-2">{project?.synopsis || ""}</p>
               </div>
-              <div data-testid="project-embed-primary-badges" className="flex flex-nowrap items-center gap-2 overflow-hidden text-xs sm:flex-wrap">
-                {project?.status ? (
-                  <Badge data-testid="project-embed-status-badge" variant="outline" className="max-w-[8.5rem] truncate">
-                    {project.status}
-                  </Badge>
-                ) : null}
-                {project?.studio ? (
-                  <Badge data-testid="project-embed-studio-badge" variant="outline" className="max-w-[8.5rem] truncate">
-                    {project.studio}
-                  </Badge>
-                ) : null}
-                {project?.episodes ? (
-                  <Badge data-testid="project-embed-episodes-badge" variant="outline" className="hidden sm:inline-flex">
-                    {project.episodes}
-                  </Badge>
-                ) : null}
-              </div>
-              {project?.tags?.length ? (
-                <div data-testid="project-embed-tags" className="hidden flex-wrap gap-1.5 sm:flex">
-                  {sortedTags.slice(0, 4).map((tag) => (
-                    <Badge key={tag} variant="secondary" className="text-[9px] uppercase">
-                      {translateTag(tag, tagTranslationMap)}
+              <p
+                data-synopsis-role="synopsis"
+                data-synopsis-lines={synopsisMaxLines}
+                className="text-sm text-muted-foreground break-normal [overflow-wrap:normal] [word-break:normal]"
+                style={{
+                  display: "-webkit-box",
+                  WebkitBoxOrient: "vertical",
+                  WebkitLineClamp: synopsisMaxLines,
+                  overflow: "hidden",
+                }}
+              >
+                {project?.synopsis || ""}
+              </p>
+              <div data-synopsis-role="badges" className="mt-auto space-y-2">
+                <div data-testid="project-embed-primary-badges" className="flex flex-nowrap items-center gap-2 overflow-hidden text-xs sm:flex-wrap">
+                  {project?.status ? (
+                    <Badge data-testid="project-embed-status-badge" variant="outline" className="max-w-[8.5rem] truncate">
+                      {project.status}
                     </Badge>
-                  ))}
+                  ) : null}
+                  {project?.studio ? (
+                    <Badge data-testid="project-embed-studio-badge" variant="outline" className="max-w-[8.5rem] truncate">
+                      {project.studio}
+                    </Badge>
+                  ) : null}
+                  {project?.episodes ? (
+                    <Badge data-testid="project-embed-episodes-badge" variant="outline" className="hidden sm:inline-flex">
+                      {project.episodes}
+                    </Badge>
+                  ) : null}
                 </div>
-              ) : null}
+                {project?.tags?.length ? (
+                  <div data-testid="project-embed-tags" className="hidden flex-wrap gap-1.5 sm:flex">
+                    {sortedTags.slice(0, 4).map((tag) => (
+                      <Badge key={tag} variant="secondary" className="text-[9px] uppercase">
+                        {translateTag(tag, tagTranslationMap)}
+                      </Badge>
+                    ))}
+                  </div>
+                ) : null}
+              </div>
             </div>
           </div>
         </CardContent>

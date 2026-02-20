@@ -52,6 +52,8 @@ import {
   removeOwnerRoleLabel,
   sanitizePermissionsForStorage,
 } from "./lib/authz.js";
+import { buildPublicBootstrapPayload } from "./lib/public-bootstrap.js";
+import { createDataRepository } from "./lib/data-repository.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -59,6 +61,7 @@ const __dirname = path.dirname(__filename);
 const app = express();
 app.disable("x-powered-by");
 const FileStore = fileStoreFactory(session);
+let dataRepository = null;
 
 const HTML_CACHE_CONTROL = "no-store";
 const STATIC_DEFAULT_CACHE_CONTROL = "public, max-age=0, must-revalidate";
@@ -85,28 +88,18 @@ const setStaticCacheHeaders = (res, filePath) => {
   res.setHeader("Cache-Control", STATIC_DEFAULT_CACHE_CONTROL);
 };
 
-const ownerIdsFilePath = path.join(__dirname, "data", "owner-ids.json");
-const auditLogFilePath = path.join(__dirname, "data", "audit-log.json");
-const analyticsEventsFilePath = path.join(__dirname, "data", "analytics-events.jsonl");
-const analyticsDailyFilePath = path.join(__dirname, "data", "analytics-daily.json");
-const analyticsMetaFilePath = path.join(__dirname, "data", "analytics-meta.json");
 const loadOwnerIds = () => {
-  try {
-    if (!fs.existsSync(ownerIdsFilePath)) {
-      return [...OWNER_IDS];
-    }
-    const raw = fs.readFileSync(ownerIdsFilePath, "utf-8");
-    const parsed = JSON.parse(raw);
-    const fileIds = Array.isArray(parsed) ? parsed : [];
-    return Array.from(new Set([...OWNER_IDS, ...fileIds.map((id) => String(id))]));
-  } catch {
+  if (!dataRepository) {
     return [...OWNER_IDS];
   }
+  const stored = dataRepository.loadOwnerIds();
+  return Array.from(new Set([...OWNER_IDS, ...stored.map((id) => String(id))]));
 };
 const writeOwnerIds = (ids) => {
-  fs.mkdirSync(path.dirname(ownerIdsFilePath), { recursive: true });
   const unique = Array.from(new Set(ids.map((id) => String(id).trim()).filter(Boolean)));
-  fs.writeFileSync(ownerIdsFilePath, JSON.stringify(unique, null, 2));
+  if (dataRepository) {
+    dataRepository.writeOwnerIds(unique);
+  }
 };
 const isOwner = (id) => loadOwnerIds().includes(String(id));
 const getPrimaryOwnerId = () => loadOwnerIds()[0] || null;
@@ -317,22 +310,18 @@ const normalizeAuditEntry = (item) => {
 };
 
 const loadAuditLog = () => {
-  try {
-    if (!fs.existsSync(auditLogFilePath)) {
-      return [];
-    }
-    const raw = fs.readFileSync(auditLogFilePath, "utf-8");
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed.map(normalizeAuditEntry) : [];
-  } catch {
+  if (!dataRepository) {
     return [];
   }
+  const entries = dataRepository.loadAuditLog();
+  return (Array.isArray(entries) ? entries : []).map(normalizeAuditEntry);
 };
 
 const writeAuditLog = (entries) => {
-  fs.mkdirSync(path.dirname(auditLogFilePath), { recursive: true });
   const compacted = compactAuditEntries(Array.isArray(entries) ? entries : []);
-  fs.writeFileSync(auditLogFilePath, JSON.stringify(compacted, null, 2));
+  if (dataRepository) {
+    dataRepository.writeAuditLog(compacted);
+  }
 };
 
 const appendAuditLog = (req, action, resource, meta = {}) => {
@@ -381,12 +370,16 @@ const ANILIST_API = "https://graphql.anilist.co";
 const SCOPES = ["identify", "email"];
 
 const {
+  DATABASE_URL = "",
+  DATA_SOURCE: DATA_SOURCE_ENV = "json",
+  MAINTENANCE_MODE: MAINTENANCE_MODE_ENV = "false",
   DISCORD_CLIENT_ID,
   DISCORD_CLIENT_SECRET,
   DISCORD_REDIRECT_URI = "auto",
   APP_ORIGIN = "",
   ADMIN_ORIGINS = "",
   SESSION_SECRET,
+  SESSION_FILE_STORE: SESSION_FILE_STORE_ENV = "",
   PORT = 8080,
   OWNER_IDS: OWNER_IDS_ENV = "",
   BOOTSTRAP_TOKEN,
@@ -394,15 +387,23 @@ const {
   ANALYTICS_RETENTION_DAYS: ANALYTICS_RETENTION_DAYS_ENV = "",
   ANALYTICS_AGG_RETENTION_DAYS: ANALYTICS_AGG_RETENTION_DAYS_ENV = "",
   AUTO_UPLOAD_REORGANIZE = "true",
+  AUTO_UPLOAD_REORGANIZE_ON_STARTUP: AUTO_UPLOAD_REORGANIZE_ON_STARTUP_ENV = "false",
   RBAC_V2_ENABLED: RBAC_V2_ENABLED_ENV = "false",
   RBAC_V2_ACCEPT_LEGACY_STAR: RBAC_V2_ACCEPT_LEGACY_STAR_ENV = "true",
 } = process.env;
 
 const isProduction = process.env.NODE_ENV === "production";
+const DATA_SOURCE = String(DATA_SOURCE_ENV || "json").trim().toLowerCase() === "db" ? "db" : "json";
+const isMaintenanceMode = isTruthyEnv(MAINTENANCE_MODE_ENV, false);
+const shouldUseFileSessionStore = isProduction || isTruthyEnv(SESSION_FILE_STORE_ENV, false);
 const isRbacV2Enabled = isTruthyEnv(RBAC_V2_ENABLED_ENV, false);
 const isRbacV2AcceptLegacyStar = isTruthyEnv(RBAC_V2_ACCEPT_LEGACY_STAR_ENV, true);
 const isAutoUploadReorganizationEnabled = !["0", "false", "no", "off"].includes(
   String(AUTO_UPLOAD_REORGANIZE || "").trim().toLowerCase(),
+);
+const isAutoUploadReorganizationOnStartupEnabled = isTruthyEnv(
+  AUTO_UPLOAD_REORGANIZE_ON_STARTUP_ENV,
+  false,
 );
 const OWNER_IDS = (OWNER_IDS_ENV || (isProduction ? "" : "380305493391966208"))
   .split(",")
@@ -537,6 +538,16 @@ const analyticsViewCooldown = new Map();
 const PUBLIC_ANALYTICS_EVENT_TYPE_SET = new Set(["chapter_view", "download_click"]);
 const PUBLIC_ANALYTICS_RESOURCE_TYPE_SET = new Set(["chapter"]);
 
+dataRepository = await createDataRepository({
+  dataSource: DATA_SOURCE,
+  databaseUrl: DATABASE_URL,
+  rootDir: REPO_ROOT_DIR,
+  ownerIdsFallback: OWNER_IDS,
+  analyticsSchemaVersion: ANALYTICS_SCHEMA_VERSION,
+  analyticsRetentionDays: ANALYTICS_RETENTION_DAYS,
+  analyticsAggRetentionDays: ANALYTICS_AGG_RETENTION_DAYS,
+});
+
 const parseAnalyticsTs = (value) => {
   const ts = new Date(value || 0).getTime();
   return Number.isFinite(ts) ? ts : null;
@@ -670,82 +681,56 @@ const normalizeAnalyticsEvent = (event) => {
 };
 
 const loadAnalyticsEvents = () => {
-  try {
-    if (!fs.existsSync(analyticsEventsFilePath)) {
-      return [];
-    }
-    const raw = fs.readFileSync(analyticsEventsFilePath, "utf-8");
-    return raw
-      .split(/\r?\n/)
-      .map((line) => line.trim())
-      .filter(Boolean)
-      .map((line) => {
-        try {
-          return normalizeAnalyticsEvent(JSON.parse(line));
-        } catch {
-          return null;
-        }
-      })
-      .filter(Boolean);
-  } catch {
+  if (!dataRepository) {
     return [];
   }
+  const events = dataRepository.loadAnalyticsEvents();
+  return (Array.isArray(events) ? events : [])
+    .map((event) => normalizeAnalyticsEvent(event))
+    .filter(Boolean);
 };
 
 const writeAnalyticsEvents = (events) => {
-  fs.mkdirSync(path.dirname(analyticsEventsFilePath), { recursive: true });
   const lines = (Array.isArray(events) ? events : [])
     .map((event) => normalizeAnalyticsEvent(event))
-    .map((event) => JSON.stringify(event));
-  fs.writeFileSync(analyticsEventsFilePath, `${lines.join("\n")}${lines.length ? "\n" : ""}`);
-};
-
-const loadAnalyticsDaily = () => {
-  try {
-    if (!fs.existsSync(analyticsDailyFilePath)) {
-      return {
-        schemaVersion: ANALYTICS_SCHEMA_VERSION,
-        generatedAt: new Date().toISOString(),
-        days: {},
-      };
-    }
-    const raw = fs.readFileSync(analyticsDailyFilePath, "utf-8");
-    const parsed = JSON.parse(raw);
-    if (!parsed || typeof parsed !== "object") {
-      throw new Error("invalid_analytics_daily");
-    }
-    return {
-      schemaVersion: Number(parsed.schemaVersion) || ANALYTICS_SCHEMA_VERSION,
-      generatedAt: String(parsed.generatedAt || new Date().toISOString()),
-      days: parsed.days && typeof parsed.days === "object" ? parsed.days : {},
-    };
-  } catch {
-    return {
-      schemaVersion: ANALYTICS_SCHEMA_VERSION,
-      generatedAt: new Date().toISOString(),
-      days: {},
-    };
+    .filter(Boolean);
+  if (dataRepository) {
+    dataRepository.writeAnalyticsEvents(lines);
   }
 };
 
+const loadAnalyticsDaily = () => {
+  const fallback = {
+    schemaVersion: ANALYTICS_SCHEMA_VERSION,
+    generatedAt: new Date().toISOString(),
+    days: {},
+  };
+  if (!dataRepository) {
+    return fallback;
+  }
+  const parsed = dataRepository.loadAnalyticsDaily();
+  if (!parsed || typeof parsed !== "object") {
+    return fallback;
+  }
+  return {
+    schemaVersion: Number(parsed.schemaVersion) || ANALYTICS_SCHEMA_VERSION,
+    generatedAt: String(parsed.generatedAt || fallback.generatedAt),
+    days: parsed.days && typeof parsed.days === "object" ? parsed.days : {},
+  };
+};
+
 const writeAnalyticsDaily = (data) => {
-  fs.mkdirSync(path.dirname(analyticsDailyFilePath), { recursive: true });
-  fs.writeFileSync(
-    analyticsDailyFilePath,
-    JSON.stringify(
-      {
-        schemaVersion: ANALYTICS_SCHEMA_VERSION,
-        generatedAt: data?.generatedAt || new Date().toISOString(),
-        days: data?.days && typeof data.days === "object" ? data.days : {},
-      },
-      null,
-      2,
-    ),
-  );
+  if (!dataRepository) {
+    return;
+  }
+  dataRepository.writeAnalyticsDaily({
+    schemaVersion: ANALYTICS_SCHEMA_VERSION,
+    generatedAt: data?.generatedAt || new Date().toISOString(),
+    days: data?.days && typeof data.days === "object" ? data.days : {},
+  });
 };
 
 const writeAnalyticsMeta = (value) => {
-  fs.mkdirSync(path.dirname(analyticsMetaFilePath), { recursive: true });
   const payload = {
     schemaVersion: ANALYTICS_SCHEMA_VERSION,
     retentionDays: ANALYTICS_RETENTION_DAYS,
@@ -753,7 +738,9 @@ const writeAnalyticsMeta = (value) => {
     updatedAt: new Date().toISOString(),
     ...(value && typeof value === "object" ? value : {}),
   };
-  fs.writeFileSync(analyticsMetaFilePath, JSON.stringify(payload, null, 2));
+  if (dataRepository) {
+    dataRepository.writeAnalyticsMeta(payload);
+  }
 };
 
 const ensureAnalyticsDayBucket = (days, dayKey) => {
@@ -1679,17 +1666,20 @@ const sessionPath = path.join(__dirname, "data", "sessions");
 if (!fs.existsSync(sessionPath)) {
   fs.mkdirSync(sessionPath, { recursive: true });
 }
+const sessionStore = shouldUseFileSessionStore
+  ? new FileStore({
+      path: sessionPath,
+      ttl: 60 * 60 * 24 * 7,
+      retries: 1,
+    })
+  : undefined;
 app.use(
   session({
     name: "rainbow.sid",
     secret: SESSION_SECRET || "dev-session-secret",
     resave: false,
     saveUninitialized: false,
-    store: new FileStore({
-      path: sessionPath,
-      ttl: 60 * 60 * 24 * 7,
-      retries: 1,
-    }),
+    ...(sessionStore ? { store: sessionStore } : {}),
     cookie: {
       httpOnly: true,
       sameSite: "lax",
@@ -1707,6 +1697,20 @@ app.use((req, res, next) => {
   req.requestId = requestId;
   res.setHeader("X-Request-Id", requestId);
   return next();
+});
+
+const MUTATING_HTTP_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
+app.use((req, res, next) => {
+  if (!isMaintenanceMode) {
+    return next();
+  }
+  if (!req.path.startsWith("/api")) {
+    return next();
+  }
+  if (!MUTATING_HTTP_METHODS.has(String(req.method || "").toUpperCase())) {
+    return next();
+  }
+  return res.status(503).json({ error: "maintenance_mode" });
 });
 
 const uploadsPublicDir = path.join(clientRootDir, "public", "uploads");
@@ -1731,40 +1735,35 @@ if (viteDevServer) {
 }
 
 const loadAllowedUsers = () => {
-  const filePath = path.join(__dirname, "data", "allowed-users.json");
-  try {
-    const raw = fs.readFileSync(filePath, "utf-8");
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
+  if (!dataRepository) {
     return [];
   }
+  const parsed = dataRepository.loadAllowedUsers();
+  return Array.isArray(parsed) ? parsed : [];
 };
 
 const writeAllowedUsers = (ids) => {
-  const filePath = path.join(__dirname, "data", "allowed-users.json");
-  fs.writeFileSync(filePath, JSON.stringify(ids, null, 2));
-};
-
-const loadUsers = () => {
-  const filePath = path.join(__dirname, "data", "users.json");
-  try {
-    const raw = fs.readFileSync(filePath, "utf-8");
-    const parsed = JSON.parse(raw);
-    const items = Array.isArray(parsed) ? parsed : [];
-    const normalized = normalizeUsers(items);
-    if (JSON.stringify(items) !== JSON.stringify(normalized)) {
-      writeUsers(normalized);
-    }
-    return normalized;
-  } catch {
-    return [];
+  if (dataRepository) {
+    dataRepository.writeAllowedUsers(ids);
   }
 };
 
+const loadUsers = () => {
+  if (!dataRepository) {
+    return [];
+  }
+  const items = dataRepository.loadUsers();
+  const normalized = normalizeUsers(Array.isArray(items) ? items : []);
+  if (JSON.stringify(items) !== JSON.stringify(normalized)) {
+    writeUsers(normalized);
+  }
+  return normalized;
+};
+
 const writeUsers = (users) => {
-  const filePath = path.join(__dirname, "data", "users.json");
-  fs.writeFileSync(filePath, JSON.stringify(normalizeUploadsDeep(users), null, 2));
+  if (dataRepository) {
+    dataRepository.writeUsers(normalizeUploadsDeep(users));
+  }
 };
 
 const normalizeLinkTypes = (items) => {
@@ -1788,48 +1787,50 @@ const normalizeLinkTypes = (items) => {
 };
 
 const loadLinkTypes = () => {
-  const filePath = path.join(__dirname, "data", "link-types.json");
-  try {
-    const raw = fs.readFileSync(filePath, "utf-8");
-    const parsed = JSON.parse(raw);
-    const normalized = normalizeLinkTypes(parsed);
-    if (JSON.stringify(parsed) !== JSON.stringify(normalized)) {
-      writeLinkTypes(normalized);
-    }
-    return normalized;
-  } catch {
+  if (!dataRepository) {
     return [];
   }
+  const parsed = dataRepository.loadLinkTypes();
+  const normalized = normalizeLinkTypes(parsed);
+  if (JSON.stringify(parsed) !== JSON.stringify(normalized)) {
+    writeLinkTypes(normalized);
+  }
+  return normalized;
 };
 
 const writeLinkTypes = (items) => {
-  const filePath = path.join(__dirname, "data", "link-types.json");
-  fs.writeFileSync(filePath, JSON.stringify(normalizeLinkTypes(items), null, 2));
-};
-
-const loadPosts = () => {
-  const filePath = path.join(__dirname, "data", "posts.json");
-  try {
-    const raw = fs.readFileSync(filePath, "utf-8");
-    const parsed = JSON.parse(raw);
-    const items = Array.isArray(parsed) ? parsed : [];
-    const pruned = pruneExpiredDeleted(items);
-    if (pruned.length !== items.length) {
-      writePosts(pruned);
-    }
-    const normalized = normalizePosts(pruned);
-    if (JSON.stringify(pruned) !== JSON.stringify(normalized)) {
-      writePosts(normalized);
-    }
-    return normalized;
-  } catch {
-    return [];
+  if (dataRepository) {
+    dataRepository.writeLinkTypes(normalizeLinkTypes(items));
   }
 };
 
+const loadPosts = () => {
+  const cached = readJsonFileFromCache("posts");
+  if (cached) {
+    return cached;
+  }
+  if (!dataRepository) {
+    return [];
+  }
+  const parsed = dataRepository.loadPosts();
+  const items = Array.isArray(parsed) ? parsed : [];
+  const pruned = pruneExpiredDeleted(items);
+  if (pruned.length !== items.length) {
+    writePosts(pruned);
+  }
+  const normalized = normalizePosts(pruned);
+  if (JSON.stringify(pruned) !== JSON.stringify(normalized)) {
+    writePosts(normalized);
+  }
+  writeJsonFileToCache("posts", normalized);
+  return normalized;
+};
+
 const writePosts = (posts) => {
-  const filePath = path.join(__dirname, "data", "posts.json");
-  fs.writeFileSync(filePath, JSON.stringify(normalizeUploadsDeep(posts), null, 2));
+  if (dataRepository) {
+    dataRepository.writePosts(normalizeUploadsDeep(posts));
+  }
+  invalidateJsonFileCache("posts");
 };
 
 const updateLexicalPollVotes = (
@@ -1900,13 +1901,38 @@ const updateLexicalPollVotes = (
   return { updated: true, content: JSON.stringify(parsed) };
 };
 
-const projectsFilePath = path.join(__dirname, "data", "projects.json");
-const updatesFilePath = path.join(__dirname, "data", "updates.json");
-const uploadsFilePath = path.join(__dirname, "data", "uploads.json");
-const tagTranslationsFilePath = path.join(__dirname, "data", "tag-translations.json");
-const commentsFilePath = path.join(__dirname, "data", "comments.json");
-const pagesFilePath = path.join(__dirname, "data", "pages.json");
-const siteSettingsFilePath = path.join(__dirname, "data", "site-settings.json");
+const jsonFileCache = new Map();
+const shouldUseInMemoryCache = DATA_SOURCE === "json";
+
+const cloneCachedValue = (value) => {
+  try {
+    return structuredClone(value);
+  } catch {
+    return value;
+  }
+};
+
+const readJsonFileFromCache = (cacheKey) => {
+  if (!shouldUseInMemoryCache) {
+    return null;
+  }
+  const entry = jsonFileCache.get(cacheKey);
+  if (!entry) {
+    return null;
+  }
+  return cloneCachedValue(entry.value);
+};
+
+const writeJsonFileToCache = (cacheKey, value) => {
+  if (!shouldUseInMemoryCache) {
+    return;
+  }
+  jsonFileCache.set(cacheKey, { value: cloneCachedValue(value) });
+};
+
+const invalidateJsonFileCache = (cacheKey) => {
+  jsonFileCache.delete(cacheKey);
+};
 
 const defaultSiteSettings = {
   site: {
@@ -2417,108 +2443,106 @@ const buildSiteSettingsStoragePayload = (settings) => {
 };
 
 const loadProjects = () => {
-  try {
-    if (!fs.existsSync(projectsFilePath)) {
-      return [];
-    }
-    const raw = fs.readFileSync(projectsFilePath, "utf-8");
-    const parsed = JSON.parse(raw);
-    const items = Array.isArray(parsed) ? parsed : [];
-    const pruned = pruneExpiredDeleted(items);
-    if (pruned.length !== items.length) {
-      writeProjects(pruned);
-    }
-    const normalized = normalizeProjects(pruned);
-    if (JSON.stringify(pruned) !== JSON.stringify(normalized)) {
-      writeProjects(normalized);
-    }
-    return normalized;
-  } catch {
+  const cached = readJsonFileFromCache("projects");
+  if (cached) {
+    return cached;
+  }
+  if (!dataRepository) {
     return [];
   }
+  const parsed = dataRepository.loadProjects();
+  const items = Array.isArray(parsed) ? parsed : [];
+  const pruned = pruneExpiredDeleted(items);
+  if (pruned.length !== items.length) {
+    writeProjects(pruned);
+  }
+  const normalized = normalizeProjects(pruned);
+  if (JSON.stringify(pruned) !== JSON.stringify(normalized)) {
+    writeProjects(normalized);
+  }
+  writeJsonFileToCache("projects", normalized);
+  return normalized;
 };
 
 const writeProjects = (projects) => {
-  fs.mkdirSync(path.dirname(projectsFilePath), { recursive: true });
-  fs.writeFileSync(projectsFilePath, JSON.stringify(normalizeUploadsDeep(projects), null, 2));
+  if (dataRepository) {
+    dataRepository.writeProjects(normalizeUploadsDeep(projects));
+  }
+  invalidateJsonFileCache("projects");
 };
 
 const loadUpdates = () => {
-  try {
-    if (!fs.existsSync(updatesFilePath)) {
-      return [];
-    }
-    const raw = fs.readFileSync(updatesFilePath, "utf-8");
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
+  const cached = readJsonFileFromCache("updates");
+  if (cached) {
+    return cached;
+  }
+  if (!dataRepository) {
     return [];
   }
+  const parsed = dataRepository.loadUpdates();
+  const normalized = Array.isArray(parsed) ? parsed : [];
+  writeJsonFileToCache("updates", normalized);
+  return normalized;
 };
 
 const writeUpdates = (updates) => {
-  fs.mkdirSync(path.dirname(updatesFilePath), { recursive: true });
-  fs.writeFileSync(updatesFilePath, JSON.stringify(updates, null, 2));
+  if (dataRepository) {
+    dataRepository.writeUpdates(updates);
+  }
+  invalidateJsonFileCache("updates");
 };
 
 const loadTagTranslations = () => {
-  try {
-    if (!fs.existsSync(tagTranslationsFilePath)) {
-      return { tags: {}, genres: {}, staffRoles: {} };
-    }
-    const raw = fs.readFileSync(tagTranslationsFilePath, "utf-8");
-    const parsed = JSON.parse(raw);
-    return {
-      tags: parsed?.tags && typeof parsed.tags === "object" ? parsed.tags : {},
-      genres: parsed?.genres && typeof parsed.genres === "object" ? parsed.genres : {},
-      staffRoles: parsed?.staffRoles && typeof parsed.staffRoles === "object" ? parsed.staffRoles : {},
-    };
-  } catch {
+  const cached = readJsonFileFromCache("tag-translations");
+  if (cached) {
+    return cached;
+  }
+  if (!dataRepository) {
     return { tags: {}, genres: {}, staffRoles: {} };
   }
+  const parsed = dataRepository.loadTagTranslations();
+  const normalized = {
+    tags: parsed?.tags && typeof parsed.tags === "object" ? parsed.tags : {},
+    genres: parsed?.genres && typeof parsed.genres === "object" ? parsed.genres : {},
+    staffRoles: parsed?.staffRoles && typeof parsed.staffRoles === "object" ? parsed.staffRoles : {},
+  };
+  writeJsonFileToCache("tag-translations", normalized);
+  return normalized;
 };
 
 const writeTagTranslations = (payload) => {
-  fs.mkdirSync(path.dirname(tagTranslationsFilePath), { recursive: true });
-  fs.writeFileSync(tagTranslationsFilePath, JSON.stringify(payload, null, 2));
+  if (dataRepository) {
+    dataRepository.writeTagTranslations(payload);
+  }
+  invalidateJsonFileCache("tag-translations");
 };
 
 const loadComments = () => {
-  try {
-    if (!fs.existsSync(commentsFilePath)) {
-      return [];
-    }
-    const raw = fs.readFileSync(commentsFilePath, "utf-8");
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
+  if (!dataRepository) {
     return [];
   }
+  const parsed = dataRepository.loadComments();
+  return Array.isArray(parsed) ? parsed : [];
 };
 
 const writeComments = (comments) => {
-  fs.mkdirSync(path.dirname(commentsFilePath), { recursive: true });
-  fs.writeFileSync(commentsFilePath, JSON.stringify(comments, null, 2));
-};
-
-const loadUploads = () => {
-  try {
-    if (!fs.existsSync(uploadsFilePath)) {
-      fs.mkdirSync(path.dirname(uploadsFilePath), { recursive: true });
-      fs.writeFileSync(uploadsFilePath, JSON.stringify([], null, 2));
-      return [];
-    }
-    const raw = fs.readFileSync(uploadsFilePath, "utf-8");
-    const parsed = JSON.parse(raw || "[]");
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return [];
+  if (dataRepository) {
+    dataRepository.writeComments(comments);
   }
 };
 
+const loadUploads = () => {
+  if (!dataRepository) {
+    return [];
+  }
+  const parsed = dataRepository.loadUploads();
+  return Array.isArray(parsed) ? parsed : [];
+};
+
 const writeUploads = (uploads) => {
-  fs.mkdirSync(path.dirname(uploadsFilePath), { recursive: true });
-  fs.writeFileSync(uploadsFilePath, JSON.stringify(uploads, null, 2));
+  if (dataRepository) {
+    dataRepository.writeUploads(uploads);
+  }
 };
 
 const upsertUploadEntries = (incomingEntries) => {
@@ -2668,91 +2692,72 @@ const deletePrivateUploadByUrl = (value) => {
 };
 
 const loadPages = () => {
-  try {
-    if (!fs.existsSync(pagesFilePath)) {
-      const seed = JSON.parse(fs.readFileSync(path.join(__dirname, "data", "pages.json"), "utf-8"));
-      fs.mkdirSync(path.dirname(pagesFilePath), { recursive: true });
-      fs.writeFileSync(pagesFilePath, JSON.stringify(seed, null, 2));
-      return seed;
-    }
-    const raw = fs.readFileSync(pagesFilePath, "utf-8");
-    let parsed = JSON.parse(raw || "{}");
-    if (hasMojibake(raw)) {
-      try {
-        const fixedRaw = Buffer.from(raw, "latin1").toString("utf8");
-        parsed = JSON.parse(fixedRaw || "{}");
-      } catch {
-        // ignore
-      }
-    }
-    const normalized = normalizeUploadsDeep(fixMojibakeDeep(parsed));
-    if (JSON.stringify(parsed) !== JSON.stringify(normalized)) {
-      fs.writeFileSync(pagesFilePath, JSON.stringify(normalized, null, 2));
-    }
-    return normalized;
-  } catch {
+  if (!dataRepository) {
     return {};
   }
+  let parsed = dataRepository.loadPages();
+  if (!parsed || typeof parsed !== "object") {
+    parsed = {};
+  }
+  const hasSeedContent = Object.keys(parsed).length > 0;
+  if (!hasSeedContent) {
+    try {
+      const seedFilePath = path.join(__dirname, "data", "pages.example.json");
+      if (fs.existsSync(seedFilePath)) {
+        const seed = JSON.parse(fs.readFileSync(seedFilePath, "utf-8"));
+        if (seed && typeof seed === "object") {
+          parsed = seed;
+          writePages(seed);
+        }
+      }
+    } catch {
+      // ignore seed fallback failure
+    }
+  }
+  const normalized = normalizeUploadsDeep(fixMojibakeDeep(parsed));
+  if (JSON.stringify(parsed) !== JSON.stringify(normalized)) {
+    writePages(normalized);
+  }
+  return normalized;
 };
 
 const writePages = (pages) => {
-  fs.mkdirSync(path.dirname(pagesFilePath), { recursive: true });
-  fs.writeFileSync(pagesFilePath, JSON.stringify(normalizeUploadsDeep(fixMojibakeDeep(pages)), null, 2));
+  if (dataRepository) {
+    dataRepository.writePages(normalizeUploadsDeep(fixMojibakeDeep(pages)));
+  }
 };
 
 const loadSiteSettings = () => {
-  try {
-    if (!fs.existsSync(siteSettingsFilePath)) {
-      const seeded = normalizeSiteSettings(defaultSiteSettings);
-      const seededStorage = buildSiteSettingsStoragePayload(seeded);
-      fs.mkdirSync(path.dirname(siteSettingsFilePath), { recursive: true });
-      fs.writeFileSync(siteSettingsFilePath, JSON.stringify(seededStorage, null, 2));
-      return seeded;
-    }
-    const raw = fs.readFileSync(siteSettingsFilePath, "utf-8");
-    let parsed = {};
-    try {
-      parsed = JSON.parse(raw || "{}");
-    } catch {
-      parsed = {};
-    }
-    if (hasMojibake(raw)) {
-      try {
-        const fixedRaw = Buffer.from(raw, "latin1").toString("utf8");
-        parsed = JSON.parse(fixedRaw || "{}");
-      } catch {
-        // ignore
-      }
-    }
-    const normalized = normalizeSiteSettings(parsed);
-    const storagePayload = buildSiteSettingsStoragePayload(normalized);
-    if (JSON.stringify(parsed) !== JSON.stringify(storagePayload)) {
-      fs.writeFileSync(siteSettingsFilePath, JSON.stringify(storagePayload, null, 2));
-    }
-    return normalized;
-  } catch {
+  const cached = readJsonFileFromCache("site-settings");
+  if (cached) {
+    return cached;
+  }
+  if (!dataRepository) {
     return normalizeSiteSettings(defaultSiteSettings);
   }
+  let parsed = dataRepository.loadSiteSettings();
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+    const seeded = normalizeSiteSettings(defaultSiteSettings);
+    writeSiteSettings(seeded);
+    writeJsonFileToCache("site-settings", seeded);
+    return seeded;
+  }
+  const normalized = normalizeSiteSettings(parsed);
+  const storagePayload = buildSiteSettingsStoragePayload(normalized);
+  if (JSON.stringify(parsed) !== JSON.stringify(storagePayload)) {
+    writeSiteSettings(normalized);
+  }
+  writeJsonFileToCache("site-settings", normalized);
+  return normalized;
 };
 
 const writeSiteSettings = (settings) => {
   const normalized = normalizeSiteSettings(settings);
   const storagePayload = buildSiteSettingsStoragePayload(normalized);
-  fs.mkdirSync(path.dirname(siteSettingsFilePath), { recursive: true });
-  fs.writeFileSync(siteSettingsFilePath, JSON.stringify(storagePayload, null, 2));
-};
-
-const readJsonFileSafe = (filePath, fallback) => {
-  try {
-    if (!fs.existsSync(filePath)) {
-      return fallback;
-    }
-    const raw = fs.readFileSync(filePath, "utf-8");
-    const parsed = JSON.parse(raw);
-    return parsed;
-  } catch {
-    return fallback;
+  if (dataRepository) {
+    dataRepository.writeSiteSettings(storagePayload);
   }
+  invalidateJsonFileCache("site-settings");
 };
 
 const countDroppedUserSocials = (usersInput) => {
@@ -2804,11 +2809,9 @@ const countDroppedSiteLinks = (settingsInput) => {
 };
 
 const runStartupSecuritySanitization = () => {
-  const usersFilePath = path.join(__dirname, "data", "users.json");
-  const linkTypesFilePath = path.join(__dirname, "data", "link-types.json");
-  const rawUsers = readJsonFileSafe(usersFilePath, []);
-  const rawLinkTypes = readJsonFileSafe(linkTypesFilePath, []);
-  const rawSiteSettings = readJsonFileSafe(siteSettingsFilePath, {});
+  const rawUsers = dataRepository ? dataRepository.loadUsers() : [];
+  const rawLinkTypes = dataRepository ? dataRepository.loadLinkTypes() : [];
+  const rawSiteSettings = dataRepository ? dataRepository.loadSiteSettings() : {};
   const usersSocialsDropped = countDroppedUserSocials(rawUsers);
   const linkTypeIconsDropped = countDroppedLinkTypeIcons(rawLinkTypes);
   const siteLinksDropped = countDroppedSiteLinks(rawSiteSettings);
@@ -3541,6 +3544,15 @@ app.get("/api/public/me", (req, res) => {
   }
 
   return res.json({ user: buildUserPayload(req.session.user) });
+});
+
+app.get("/api/health", (_req, res) => {
+  return res.json({
+    ok: true,
+    dataSource: dataRepository?.getDataSource?.() || DATA_SOURCE,
+    maintenanceMode: isMaintenanceMode,
+    ts: new Date().toISOString(),
+  });
 });
 
 const requireAuth = (req, res, next) => {
@@ -5598,6 +5610,63 @@ app.post("/api/projects/:id/rebuild-updates", requireAuth, (req, res) => {
   return res.json({ ok: true, updates: episodeUpdates.length });
 });
 
+app.get("/api/public/bootstrap", (req, res) => {
+  const now = Date.now();
+  const projects = normalizeProjects(loadProjects())
+    .filter((project) => !project.deletedAt)
+    .sort((a, b) => a.order - b.order);
+  const posts = normalizePosts(loadPosts())
+    .filter((post) => !post.deletedAt)
+    .filter((post) => {
+      const publishTime = new Date(post.publishedAt).getTime();
+      return publishTime <= now && (post.status === "published" || post.status === "scheduled");
+    })
+    .sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime())
+    .map((post) => {
+      const resolvedCover = resolvePostCover(post);
+      return {
+        id: post.id,
+        title: post.title,
+        slug: post.slug,
+        coverImageUrl: resolvedCover.coverImageUrl,
+        coverAlt: resolvedCover.coverAlt,
+        excerpt: post.excerpt,
+        author: post.author,
+        publishedAt: post.publishedAt,
+        projectId: post.projectId || "",
+        tags: Array.isArray(post.tags) ? post.tags : [],
+      };
+    });
+  const validProjectIds = new Set(projects.map((project) => project.id));
+  const updates = loadUpdates()
+    .filter((update) => {
+      if (!update?.projectId) {
+        return true;
+      }
+      return validProjectIds.has(String(update.projectId));
+    })
+    .map((update) => {
+      const reason = String(update?.reason || "");
+      const kind = String(update?.kind || "");
+      if (kind.toLowerCase().startsWith("lan") && reason.toLowerCase().includes("novo link adicionado")) {
+        return { ...update, kind: "Ajuste" };
+      }
+      return update;
+    })
+    .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
+    .slice(0, 10);
+  const payload = buildPublicBootstrapPayload({
+    settings: loadSiteSettings(),
+    projects,
+    posts,
+    updates,
+    tagTranslations: loadTagTranslations(),
+    generatedAt: new Date().toISOString(),
+  });
+  res.setHeader("Cache-Control", "public, max-age=30, stale-while-revalidate=120");
+  return res.json(payload);
+});
+
 app.get("/api/public/projects", (req, res) => {
   const limitRaw = Number(req.query.limit);
   const pageRaw = Number(req.query.page);
@@ -7335,22 +7404,33 @@ app.get("*", async (req, res) => {
   }
 });
 
-try {
-  runStartupSecuritySanitization();
-} catch {
-  // ignore startup sanitization failures on boot
-}
+const runStartupMaintenance = async () => {
+  try {
+    runStartupSecuritySanitization();
+  } catch {
+    // ignore startup sanitization failures on boot
+  }
 
-try {
-  compactAnalyticsData();
-} catch {
-  // ignore analytics compaction failures on boot
-}
+  try {
+    compactAnalyticsData();
+  } catch {
+    // ignore analytics compaction failures on boot
+  }
 
-try {
-  await runAutoUploadReorganization({ trigger: "startup" });
-} catch {
-  // ignore auto-reorganization failures on boot
-}
+  if (isAutoUploadReorganizationOnStartupEnabled) {
+    try {
+      await runAutoUploadReorganization({ trigger: "startup" });
+    } catch {
+      // ignore auto-reorganization failures on boot
+    }
+  }
+};
 
-app.listen(Number(PORT));
+app.listen(Number(PORT), () => {
+  console.log(
+    `[server] listening on :${Number(PORT)} (data_source=${dataRepository?.getDataSource?.() || DATA_SOURCE}, maintenance=${isMaintenanceMode})`,
+  );
+  setImmediate(() => {
+    void runStartupMaintenance();
+  });
+});

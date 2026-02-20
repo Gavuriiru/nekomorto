@@ -1,14 +1,12 @@
-﻿import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Clock } from "lucide-react";
 import { Link } from "react-router-dom";
-import { getApiBase } from "@/lib/api-base";
-import { apiFetch } from "@/lib/api-client";
+import { usePublicBootstrap } from "@/hooks/use-public-bootstrap";
 import { isLightNovelType, isMangaType } from "@/lib/project-utils";
-import type { Project } from "@/data/projects";
 
 type WorkKind = "anime" | "manga";
 
@@ -23,58 +21,99 @@ interface WorkItem {
 }
 
 const animeStages = [
-  { id: "aguardando-raw", label: "Aguardando Raw", color: "bg-slate-500", badge: "bg-slate-500/20 text-slate-300 border-slate-500/40" },
-  { id: "traducao", label: "Tradução", color: "bg-blue-500", badge: "bg-blue-500/20 text-blue-400 border-blue-500/30" },
-  { id: "revisao", label: "Revisão", color: "bg-yellow-500", badge: "bg-yellow-500/20 text-yellow-400 border-yellow-500/30" },
-  { id: "timing", label: "Timing", color: "bg-pink-500", badge: "bg-pink-500/20 text-pink-400 border-pink-500/30" },
-  { id: "typesetting", label: "Typesetting", color: "bg-indigo-500", badge: "bg-indigo-500/20 text-indigo-400 border-indigo-500/30" },
-  { id: "quality-check", label: "Quality Check", color: "bg-orange-500", badge: "bg-orange-500/20 text-orange-400 border-orange-500/30" },
-  { id: "encode", label: "Encode", color: "bg-purple-500", badge: "bg-purple-500/20 text-purple-400 border-purple-500/30" },
+  {
+    id: "aguardando-raw",
+    label: "Aguardando Raw",
+    color: "bg-slate-500",
+    badge: "bg-slate-500/20 text-slate-300 border-slate-500/40",
+  },
+  {
+    id: "traducao",
+    label: "Tradução",
+    color: "bg-blue-500",
+    badge: "bg-blue-500/20 text-blue-400 border-blue-500/30",
+  },
+  {
+    id: "revisao",
+    label: "Revisão",
+    color: "bg-yellow-500",
+    badge: "bg-yellow-500/20 text-yellow-400 border-yellow-500/30",
+  },
+  {
+    id: "timing",
+    label: "Timing",
+    color: "bg-pink-500",
+    badge: "bg-pink-500/20 text-pink-400 border-pink-500/30",
+  },
+  {
+    id: "typesetting",
+    label: "Typesetting",
+    color: "bg-indigo-500",
+    badge: "bg-indigo-500/20 text-indigo-400 border-indigo-500/30",
+  },
+  {
+    id: "quality-check",
+    label: "Quality Check",
+    color: "bg-orange-500",
+    badge: "bg-orange-500/20 text-orange-400 border-orange-500/30",
+  },
+  {
+    id: "encode",
+    label: "Encode",
+    color: "bg-purple-500",
+    badge: "bg-purple-500/20 text-purple-400 border-purple-500/30",
+  },
 ];
 
 const mangaStages = [
-  { id: "aguardando-raw", label: "Aguardando Raw", color: "bg-slate-500", badge: "bg-slate-500/20 text-slate-300 border-slate-500/40" },
-  { id: "traducao", label: "Tradução", color: "bg-blue-500", badge: "bg-blue-500/20 text-blue-400 border-blue-500/30" },
-  { id: "limpeza", label: "Limpeza", color: "bg-emerald-500", badge: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30" },
-  { id: "redrawing", label: "Redrawing", color: "bg-cyan-500", badge: "bg-cyan-500/20 text-cyan-400 border-cyan-500/30" },
-  { id: "revisao", label: "Revisão", color: "bg-yellow-500", badge: "bg-yellow-500/20 text-yellow-400 border-yellow-500/30" },
-  { id: "typesetting", label: "Typesetting", color: "bg-indigo-500", badge: "bg-indigo-500/20 text-indigo-400 border-indigo-500/30" },
-  { id: "quality-check", label: "Quality Check", color: "bg-orange-500", badge: "bg-orange-500/20 text-orange-400 border-orange-500/30" },
+  {
+    id: "aguardando-raw",
+    label: "Aguardando Raw",
+    color: "bg-slate-500",
+    badge: "bg-slate-500/20 text-slate-300 border-slate-500/40",
+  },
+  {
+    id: "traducao",
+    label: "Tradução",
+    color: "bg-blue-500",
+    badge: "bg-blue-500/20 text-blue-400 border-blue-500/30",
+  },
+  {
+    id: "limpeza",
+    label: "Limpeza",
+    color: "bg-emerald-500",
+    badge: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30",
+  },
+  {
+    id: "redrawing",
+    label: "Redrawing",
+    color: "bg-cyan-500",
+    badge: "bg-cyan-500/20 text-cyan-400 border-cyan-500/30",
+  },
+  {
+    id: "revisao",
+    label: "Revisão",
+    color: "bg-yellow-500",
+    badge: "bg-yellow-500/20 text-yellow-400 border-yellow-500/30",
+  },
+  {
+    id: "typesetting",
+    label: "Typesetting",
+    color: "bg-indigo-500",
+    badge: "bg-indigo-500/20 text-indigo-400 border-indigo-500/30",
+  },
+  {
+    id: "quality-check",
+    label: "Quality Check",
+    color: "bg-orange-500",
+    badge: "bg-orange-500/20 text-orange-400 border-orange-500/30",
+  },
 ];
 
 const WorkStatusCard = () => {
-  const apiBase = getApiBase();
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [isLoadingProjects, setIsLoadingProjects] = useState(true);
-
-  useEffect(() => {
-    let isActive = true;
-    const load = async () => {
-      try {
-        const response = await apiFetch(apiBase, "/api/public/projects");
-        if (!response.ok) {
-          return;
-        }
-        const data = await response.json();
-        if (isActive) {
-          setProjects(Array.isArray(data.projects) ? data.projects : []);
-        }
-      } catch {
-        if (isActive) {
-          setProjects([]);
-        }
-      } finally {
-        if (isActive) {
-          setIsLoadingProjects(false);
-        }
-      }
-    };
-
-    load();
-    return () => {
-      isActive = false;
-    };
-  }, [apiBase]);
+  const { data: bootstrapData, isLoading } = usePublicBootstrap();
+  const projects = bootstrapData?.projects || [];
+  const isLoadingProjects = isLoading && !bootstrapData;
 
   const workItems = useMemo<WorkItem[]>(() => {
     const items: WorkItem[] = [];
@@ -131,7 +170,10 @@ const WorkStatusCard = () => {
         {isLoadingProjects ? (
           <div className="space-y-3">
             {Array.from({ length: 2 }).map((_, index) => (
-              <div key={`progress-skeleton-${index}`} className="rounded-md bg-secondary/40 p-3">
+              <div
+                key={`progress-skeleton-${index}`}
+                className="rounded-md bg-secondary/40 p-3"
+              >
                 <Skeleton className="h-3 w-2/3" />
                 <Skeleton className="mt-2 h-2 w-1/2" />
                 <Skeleton className="mt-3 h-2 w-full" />
@@ -148,7 +190,8 @@ const WorkStatusCard = () => {
             const completedSet = new Set(item.completedStages);
             const completedCount = stages.filter((stage) => completedSet.has(stage.id)).length;
             const progress = Math.round((completedCount / stages.length) * 100);
-            const currentStage = stages.find((stage) => stage.id === item.currentStage) ?? stages[0];
+            const currentStage =
+              stages.find((stage) => stage.id === item.currentStage) ?? stages[0];
 
             return (
               <Link
@@ -189,10 +232,3 @@ const WorkStatusCard = () => {
 };
 
 export default WorkStatusCard;
-
-
-
-
-
-
-
