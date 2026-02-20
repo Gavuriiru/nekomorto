@@ -1,24 +1,17 @@
 import crypto from "crypto";
 import fs from "fs";
 import path from "path";
-import { fileURLToPath } from "url";
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-const DEFAULT_ROOT_DIR = path.resolve(__dirname, "../..");
-
-const DATA_FILES_TO_REWRITE = [
-  "posts.json",
-  "projects.json",
-  "site-settings.json",
-  "pages.json",
-  "comments.json",
-  "updates.json",
-  "users.json",
+const DATASETS_TO_REWRITE = [
+  "posts",
+  "projects",
+  "siteSettings",
+  "pages",
+  "comments",
+  "updates",
+  "users",
 ];
 
-const UPLOADS_FILE = "uploads.json";
 const MANAGED_UPLOAD_ROOT_FOLDERS = new Set(["posts", "projects", "shared"]);
 const DEFAULT_PRIVATE_ROOT_FOLDERS = new Set(["downloads", "socials", "users"]);
 
@@ -43,6 +36,32 @@ const fileExists = (value) => {
     return false;
   }
 };
+
+const cloneValue = (value) => {
+  try {
+    return structuredClone(value);
+  } catch {
+    try {
+      return JSON.parse(JSON.stringify(value));
+    } catch {
+      return value;
+    }
+  }
+};
+
+const normalizeDatasets = (datasets) => ({
+  posts: Array.isArray(datasets?.posts) ? cloneValue(datasets.posts) : [],
+  projects: Array.isArray(datasets?.projects) ? cloneValue(datasets.projects) : [],
+  users: Array.isArray(datasets?.users) ? cloneValue(datasets.users) : [],
+  comments: Array.isArray(datasets?.comments) ? cloneValue(datasets.comments) : [],
+  updates: Array.isArray(datasets?.updates) ? cloneValue(datasets.updates) : [],
+  pages: datasets?.pages && typeof datasets.pages === "object" ? cloneValue(datasets.pages) : {},
+  siteSettings:
+    datasets?.siteSettings && typeof datasets.siteSettings === "object"
+      ? cloneValue(datasets.siteSettings)
+      : {},
+  uploads: Array.isArray(datasets?.uploads) ? cloneValue(datasets.uploads) : [],
+});
 
 export const sanitizeSlug = (value) =>
   String(value || "")
@@ -214,19 +233,6 @@ const replaceUploadReferencesDeep = (value, mapping) => {
   return { value, count: 0 };
 };
 
-const readJson = (filePath) => {
-  if (!fileExists(filePath)) {
-    return null;
-  }
-  const raw = fs.readFileSync(filePath, "utf-8").replace(/^\uFEFF/, "");
-  return JSON.parse(raw);
-};
-
-const writeJson = (filePath, value) => {
-  fs.mkdirSync(path.dirname(filePath), { recursive: true });
-  fs.writeFileSync(filePath, `${JSON.stringify(value, null, 2)}\n`);
-};
-
 const getUploadRelativePath = (uploadUrl) =>
   toPosix(String(uploadUrl || "").replace(/^\/uploads\//, "").replace(/^\/+/, ""));
 
@@ -298,9 +304,7 @@ const collectUsage = (posts, projects) => {
   (Array.isArray(posts) ? posts : []).forEach((post, index) => {
     const postRef = String(post?.slug || post?.id || `post-${index + 1}`);
     addPostUsage(usageByUrl, post?.coverImageUrl, postRef);
-    extractUploadUrlsFromText(post?.content).forEach((uploadUrl) =>
-      addPostUsage(usageByUrl, uploadUrl, postRef),
-    );
+    extractUploadUrlsFromText(post?.content).forEach((uploadUrl) => addPostUsage(usageByUrl, uploadUrl, postRef));
   });
 
   (Array.isArray(projects) ? projects : []).forEach((project) => {
@@ -436,27 +440,30 @@ const ensureUploadEntry = ({ uploadMap, uploadUrl, skipped, uploadsDir }) => {
 const sumReplacements = (replacementSummary) =>
   replacementSummary.reduce((acc, item) => acc + Number(item.replacements || 0), 0);
 
+const areJsonEqual = (left, right) => {
+  try {
+    return JSON.stringify(left) === JSON.stringify(right);
+  } catch {
+    return false;
+  }
+};
+
 export const runUploadsReorganization = ({
-  rootDir = DEFAULT_ROOT_DIR,
+  datasets,
+  uploadsDir = path.join(process.cwd(), "public", "uploads"),
   applyChanges = false,
   privateRootFolders = DEFAULT_PRIVATE_ROOT_FOLDERS,
 } = {}) => {
-  const dataDir = path.join(rootDir, "server", "data");
-  const uploadsDir = path.join(rootDir, "public", "uploads");
+  const normalizedDatasets = normalizeDatasets(datasets || {});
   const privateFoldersSet =
     privateRootFolders instanceof Set ? privateRootFolders : new Set(privateRootFolders || []);
 
-  const loadedData = new Map();
-  [...DATA_FILES_TO_REWRITE, UPLOADS_FILE].forEach((fileName) => {
-    loadedData.set(fileName, readJson(path.join(dataDir, fileName)));
-  });
-
-  const posts = loadedData.get("posts.json");
-  const projects = loadedData.get("projects.json");
-  const uploadsInventory = loadedData.get(UPLOADS_FILE);
+  const posts = normalizedDatasets.posts;
+  const projects = normalizedDatasets.projects;
+  const uploadsInventory = normalizedDatasets.uploads;
 
   if (!Array.isArray(posts) || !Array.isArray(projects)) {
-    throw new Error("posts.json ou projects.json invalidos.");
+    throw new Error("posts/projects datasets invalidos");
   }
 
   const { usageByUrl, projectFoldersById } = collectUsage(posts, projects);
@@ -542,16 +549,18 @@ export const runUploadsReorganization = ({
     });
   }
 
-  const rewrittenData = new Map();
+  const rewritten = {
+    ...normalizedDatasets,
+  };
   const replacementSummary = [];
-  DATA_FILES_TO_REWRITE.forEach((fileName) => {
-    const payload = loadedData.get(fileName);
-    const safePayload = payload === null || payload === undefined ? {} : payload;
-    const { value, count } = replaceUploadReferencesDeep(safePayload, effectiveMapping);
-    rewrittenData.set(fileName, value);
-    replacementSummary.push({ fileName, replacements: count });
-    if (applyChanges && count > 0) {
-      writeJson(path.join(dataDir, fileName), value);
+  const changedDatasets = new Set();
+  DATASETS_TO_REWRITE.forEach((datasetKey) => {
+    const payload = rewritten[datasetKey];
+    const { value, count } = replaceUploadReferencesDeep(payload, effectiveMapping);
+    rewritten[datasetKey] = value;
+    replacementSummary.push({ dataset: datasetKey, replacements: count });
+    if (count > 0 || !areJsonEqual(payload, value)) {
+      changedDatasets.add(datasetKey);
     }
   });
 
@@ -575,8 +584,8 @@ export const runUploadsReorganization = ({
   });
 
   const referencedAfter = new Set();
-  collectUploadUrls(rewrittenData.get("posts.json"), referencedAfter);
-  collectUploadUrls(rewrittenData.get("projects.json"), referencedAfter);
+  collectUploadUrls(rewritten.posts, referencedAfter);
+  collectUploadUrls(rewritten.projects, referencedAfter);
   [...referencedAfter].forEach((uploadUrl) =>
     ensureUploadEntry({ uploadMap: nextUploadsByUrl, uploadUrl, skipped, uploadsDir }),
   );
@@ -584,9 +593,9 @@ export const runUploadsReorganization = ({
   const nextUploads = [...nextUploadsByUrl.values()].sort((a, b) =>
     String(a.url || "").localeCompare(String(b.url || ""), "en"),
   );
-
-  if (applyChanges) {
-    writeJson(path.join(dataDir, UPLOADS_FILE), nextUploads);
+  rewritten.uploads = nextUploads;
+  if (!areJsonEqual(uploadsInventory, nextUploads)) {
+    changedDatasets.add("uploads");
   }
 
   const mappings = [...effectiveMapping.entries()]
@@ -605,9 +614,11 @@ export const runUploadsReorganization = ({
     uploadsInventoryCount: nextUploads.length,
     totalRewrites,
     mappings,
-    replacementsByFile: replacementSummary,
+    replacementsByDataset: replacementSummary,
     skipped,
     failures: moveFailures,
+    rewritten,
+    changedDatasets: [...changedDatasets],
   };
 };
 

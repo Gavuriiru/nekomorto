@@ -1,5 +1,6 @@
 import path from "path";
 import { runUploadsReorganization } from "../server/lib/uploads-reorganizer.js";
+import { loadDbDatasets, persistDbDatasets, prisma } from "./lib/db-datasets.mjs";
 
 const APPLY_FLAG = "--apply";
 const HELP_FLAG = "--help";
@@ -12,6 +13,11 @@ if (process.argv.includes(HELP_FLAG)) {
   process.exit(0);
 }
 
+if (!String(process.env.DATABASE_URL || "").trim()) {
+  console.error("DATABASE_URL obrigatoria.");
+  process.exit(1);
+}
+
 const printReport = (report) => {
   console.log(`Modo: ${report.mode}`);
   console.log(`URLs referenciadas (posts/projetos): ${report.referencedUrlsCount}`);
@@ -19,7 +25,7 @@ const printReport = (report) => {
   console.log(`Movimentos aplicados: ${report.appliedMovesCount}`);
   console.log(`Mapeamentos efetivos: ${report.effectiveMappingsCount}`);
   console.log(`Falhas de movimento: ${report.moveFailuresCount}`);
-  console.log(`Registros em uploads.json (previstos): ${report.uploadsInventoryCount}`);
+  console.log(`Registros em uploads (previstos): ${report.uploadsInventoryCount}`);
 
   if (report.mappings.length > 0) {
     console.log("\nMapeamento de URLs:");
@@ -29,8 +35,8 @@ const printReport = (report) => {
   }
 
   console.log("\nReescrita de referencias:");
-  report.replacementsByFile.forEach((item) => {
-    console.log(`- ${item.fileName}: ${item.replacements}`);
+  report.replacementsByDataset.forEach((item) => {
+    console.log(`- ${item.dataset}: ${item.replacements}`);
   });
 
   if (report.failures.length > 0) {
@@ -54,18 +60,34 @@ const printReport = (report) => {
       console.log(`- ${item.type}: ${item.url}`);
     });
   }
+
+  if (applyChanges) {
+    console.log(`\nDatasets persistidos: ${report.changedDatasets.join(", ") || "(nenhum)"}`);
+  }
 };
 
 try {
-  const rootDir = path.resolve(process.cwd());
+  const datasets = await loadDbDatasets(prisma);
+  const uploadsDir = path.join(process.cwd(), "public", "uploads");
   const report = runUploadsReorganization({
-    rootDir,
+    datasets,
+    uploadsDir,
     applyChanges,
   });
+
+  if (applyChanges && report.changedDatasets.length > 0) {
+    await persistDbDatasets(prisma, report.rewritten, report.changedDatasets);
+  }
+
   printReport(report);
 } catch (error) {
   console.error("Falha ao reorganizar uploads.");
   console.error(error?.stack || error?.message || String(error));
-  process.exit(1);
+  process.exitCode = 1;
+} finally {
+  try {
+    await prisma.$disconnect();
+  } catch {
+    // ignore disconnect failure
+  }
 }
-

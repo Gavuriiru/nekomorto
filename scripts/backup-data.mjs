@@ -1,8 +1,8 @@
 import fs from "fs";
 import path from "path";
+import { loadDbDatasets, prisma } from "./lib/db-datasets.mjs";
 
 const rootDir = path.resolve(process.cwd());
-const dataDir = path.join(rootDir, "server", "data");
 const uploadsDir = path.join(rootDir, "public", "uploads");
 const backupsDir = path.join(rootDir, "backups");
 
@@ -24,8 +24,26 @@ const copyDir = (src, dest) => {
   });
 };
 
-fs.mkdirSync(targetDir, { recursive: true });
-copyDir(dataDir, path.join(targetDir, "data"));
-copyDir(uploadsDir, path.join(targetDir, "uploads"));
+if (!String(process.env.DATABASE_URL || "").trim()) {
+  console.error("DATABASE_URL obrigatoria.");
+  process.exit(1);
+}
 
-console.log(`Backup criado em: ${targetDir}`);
+try {
+  const datasets = await loadDbDatasets(prisma);
+
+  fs.mkdirSync(targetDir, { recursive: true });
+  fs.writeFileSync(path.join(targetDir, "db-snapshot.json"), `${JSON.stringify(datasets, null, 2)}\n`, "utf-8");
+  copyDir(uploadsDir, path.join(targetDir, "uploads"));
+
+  console.log(`Backup criado em: ${targetDir}`);
+} catch (error) {
+  console.error(error?.stack || error?.message || error);
+  process.exitCode = 1;
+} finally {
+  try {
+    await prisma.$disconnect();
+  } catch {
+    // ignore disconnect failure
+  }
+}

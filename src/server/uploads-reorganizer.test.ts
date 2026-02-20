@@ -11,50 +11,26 @@ import {
   runUploadsReorganization,
 } from "../../server/lib/uploads-reorganizer.js";
 
-const DATA_FILES = [
-  "posts.json",
-  "projects.json",
-  "site-settings.json",
-  "pages.json",
-  "comments.json",
-  "updates.json",
-  "users.json",
-  "uploads.json",
-] as const;
-
 const tempRoots: string[] = [];
 
-const defaultData = () => ({
-  "posts.json": [],
-  "projects.json": [],
-  "site-settings.json": {},
-  "pages.json": {},
-  "comments.json": [],
-  "updates.json": [],
-  "users.json": [],
-  "uploads.json": [],
-});
-
-const createTempRepo = (
-  dataOverrides: Partial<Record<(typeof DATA_FILES)[number], unknown>>,
+const createTempWorkspace = (
+  datasets: {
+    posts?: unknown[];
+    projects?: unknown[];
+    users?: unknown[];
+    comments?: unknown[];
+    updates?: unknown[];
+    pages?: Record<string, unknown>;
+    siteSettings?: Record<string, unknown>;
+    uploads?: unknown[];
+  },
   uploadFiles: Array<{ relativePath: string; content?: string | Buffer }> = [],
 ) => {
   const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "uploads-reorg-test-"));
   tempRoots.push(rootDir);
 
-  const dataDir = path.join(rootDir, "server", "data");
   const uploadsDir = path.join(rootDir, "public", "uploads");
-  fs.mkdirSync(dataDir, { recursive: true });
   fs.mkdirSync(uploadsDir, { recursive: true });
-
-  const data = {
-    ...defaultData(),
-    ...dataOverrides,
-  };
-  DATA_FILES.forEach((fileName) => {
-    const filePath = path.join(dataDir, fileName);
-    fs.writeFileSync(filePath, `${JSON.stringify(data[fileName], null, 2)}\n`);
-  });
 
   uploadFiles.forEach((item) => {
     const nextPath = path.join(uploadsDir, item.relativePath);
@@ -62,12 +38,20 @@ const createTempRepo = (
     fs.writeFileSync(nextPath, item.content || "img");
   });
 
-  return rootDir;
-};
-
-const readJson = (rootDir: string, relativePath: string) => {
-  const filePath = path.join(rootDir, relativePath);
-  return JSON.parse(fs.readFileSync(filePath, "utf-8"));
+  return {
+    rootDir,
+    uploadsDir,
+    datasets: {
+      posts: datasets.posts || [],
+      projects: datasets.projects || [],
+      users: datasets.users || [],
+      comments: datasets.comments || [],
+      updates: datasets.updates || [],
+      pages: datasets.pages || {},
+      siteSettings: datasets.siteSettings || {},
+      uploads: datasets.uploads || [],
+    },
+  };
 };
 
 afterEach(() => {
@@ -150,9 +134,9 @@ describe("uploads reorganizer helpers", () => {
 
 describe("uploads reorganizer apply", () => {
   it("mantem shared/relations sticky mesmo com uso em um unico projeto", () => {
-    const rootDir = createTempRepo(
+    const { uploadsDir, datasets } = createTempWorkspace(
       {
-        "projects.json": [
+        projects: [
           {
             id: "proj-1",
             title: "Projeto Um",
@@ -167,18 +151,18 @@ describe("uploads reorganizer apply", () => {
       [{ relativePath: "shared/relations/relation-777.png" }],
     );
 
-    const report = runUploadsReorganization({ rootDir, applyChanges: true });
+    const report = runUploadsReorganization({ datasets, uploadsDir, applyChanges: true });
     expect(report.mappings).toEqual([]);
-
-    const projects = readJson(rootDir, "server/data/projects.json");
-    expect(projects[0].relations[0].image).toBe("/uploads/shared/relations/relation-777.png");
-    expect(fs.existsSync(path.join(rootDir, "public/uploads/shared/relations/relation-777.png"))).toBe(true);
+    expect((report.rewritten.projects as Array<Record<string, unknown>>)[0].relations?.[0]?.image).toBe(
+      "/uploads/shared/relations/relation-777.png",
+    );
+    expect(fs.existsSync(path.join(uploadsDir, "shared/relations/relation-777.png"))).toBe(true);
   });
 
   it("move para pasta de projeto e reescreve referencias de post", () => {
-    const rootDir = createTempRepo(
+    const { uploadsDir, datasets } = createTempWorkspace(
       {
-        "posts.json": [
+        posts: [
           {
             id: "post-1",
             slug: "post-1",
@@ -186,7 +170,7 @@ describe("uploads reorganizer apply", () => {
             coverImageUrl: null,
           },
         ],
-        "projects.json": [
+        projects: [
           {
             id: "proj-1",
             title: "Projeto Um",
@@ -201,7 +185,7 @@ describe("uploads reorganizer apply", () => {
       [{ relativePath: "legacy.png" }],
     );
 
-    const report = runUploadsReorganization({ rootDir, applyChanges: true });
+    const report = runUploadsReorganization({ datasets, uploadsDir, applyChanges: true });
     expect(report.mode).toBe("apply");
     expect(report.mappings).toEqual([
       {
@@ -210,18 +194,18 @@ describe("uploads reorganizer apply", () => {
       },
     ]);
 
-    const posts = readJson(rootDir, "server/data/posts.json");
-    const projects = readJson(rootDir, "server/data/projects.json");
-    expect(posts[0].content).toContain("/uploads/projects/proj-1/legacy.png");
+    const posts = report.rewritten.posts as Array<Record<string, unknown>>;
+    const projects = report.rewritten.projects as Array<Record<string, unknown>>;
+    expect(String(posts[0].content || "")).toContain("/uploads/projects/proj-1/legacy.png");
     expect(projects[0].cover).toBe("/uploads/projects/proj-1/legacy.png");
-    expect(fs.existsSync(path.join(rootDir, "public/uploads/projects/proj-1/legacy.png"))).toBe(true);
-    expect(fs.existsSync(path.join(rootDir, "public/uploads/legacy.png"))).toBe(false);
+    expect(fs.existsSync(path.join(uploadsDir, "projects/proj-1/legacy.png"))).toBe(true);
+    expect(fs.existsSync(path.join(uploadsDir, "legacy.png"))).toBe(false);
   });
 
   it("move para shared quando a mesma url e usada por multiplos projetos", () => {
-    const rootDir = createTempRepo(
+    const { uploadsDir, datasets } = createTempWorkspace(
       {
-        "projects.json": [
+        projects: [
           {
             id: "proj-1",
             title: "Projeto Um",
@@ -245,7 +229,7 @@ describe("uploads reorganizer apply", () => {
       [{ relativePath: "image.png" }],
     );
 
-    const report = runUploadsReorganization({ rootDir, applyChanges: true });
+    const report = runUploadsReorganization({ datasets, uploadsDir, applyChanges: true });
     expect(report.mappings).toEqual([
       {
         oldUrl: "/uploads/image.png",
@@ -253,16 +237,16 @@ describe("uploads reorganizer apply", () => {
       },
     ]);
 
-    const projects = readJson(rootDir, "server/data/projects.json");
+    const projects = report.rewritten.projects as Array<Record<string, unknown>>;
     expect(projects[0].cover).toBe("/uploads/shared/image.png");
     expect(projects[1].cover).toBe("/uploads/shared/image.png");
-    expect(fs.existsSync(path.join(rootDir, "public/uploads/shared/image.png"))).toBe(true);
+    expect(fs.existsSync(path.join(uploadsDir, "shared/image.png"))).toBe(true);
   });
 
   it("move para posts quando existe uso apenas em post", () => {
-    const rootDir = createTempRepo(
+    const { uploadsDir, datasets } = createTempWorkspace(
       {
-        "posts.json": [
+        posts: [
           {
             id: "post-1",
             slug: "post-1",
@@ -274,7 +258,7 @@ describe("uploads reorganizer apply", () => {
       [{ relativePath: "cover.png" }],
     );
 
-    const report = runUploadsReorganization({ rootDir, applyChanges: true });
+    const report = runUploadsReorganization({ datasets, uploadsDir, applyChanges: true });
     expect(report.mappings).toEqual([
       {
         oldUrl: "/uploads/cover.png",
@@ -282,8 +266,8 @@ describe("uploads reorganizer apply", () => {
       },
     ]);
 
-    const posts = readJson(rootDir, "server/data/posts.json");
+    const posts = report.rewritten.posts as Array<Record<string, unknown>>;
     expect(posts[0].coverImageUrl).toBe("/uploads/posts/cover.png");
-    expect(fs.existsSync(path.join(rootDir, "public/uploads/posts/cover.png"))).toBe(true);
+    expect(fs.existsSync(path.join(uploadsDir, "posts/cover.png"))).toBe(true);
   });
 });

@@ -1,10 +1,15 @@
+import crypto from "crypto";
 import fs from "fs";
 import path from "path";
-import crypto from "crypto";
+import { persistDbDatasets, prisma } from "./lib/db-datasets.mjs";
 
 const rootDir = path.resolve(process.cwd());
 const uploadsDir = path.join(rootDir, "public", "uploads");
-const outPath = path.join(rootDir, "server", "data", "uploads.json");
+
+if (!String(process.env.DATABASE_URL || "").trim()) {
+  console.error("DATABASE_URL obrigatoria.");
+  process.exit(1);
+}
 
 if (!fs.existsSync(uploadsDir)) {
   console.error("Pasta public/uploads nao encontrada.");
@@ -27,19 +32,31 @@ const listFiles = (dir, base = "") => {
 };
 
 const files = listFiles(uploadsDir).filter((item) => /\.(png|jpe?g|gif|webp|svg)$/i.test(item.relative));
-const entries = files.map((item) => {
-  const stat = fs.statSync(item.full);
-  return {
-    id: crypto.randomUUID(),
-    url: `/uploads/${item.relative}`,
-    fileName: path.basename(item.relative),
-    folder: path.dirname(item.relative) === "." ? "" : path.dirname(item.relative).replace(/\\/g, "/"),
-    size: stat.size,
-    mime: "",
-    createdAt: stat.mtime.toISOString(),
-  };
-});
+const entries = files
+  .map((item) => {
+    const stat = fs.statSync(item.full);
+    return {
+      id: crypto.randomUUID(),
+      url: `/uploads/${item.relative}`,
+      fileName: path.basename(item.relative),
+      folder: path.dirname(item.relative) === "." ? "" : path.dirname(item.relative).replace(/\\/g, "/"),
+      size: stat.size,
+      mime: "",
+      createdAt: stat.mtime.toISOString(),
+    };
+  })
+  .sort((a, b) => a.url.localeCompare(b.url, "en"));
 
-fs.mkdirSync(path.dirname(outPath), { recursive: true });
-fs.writeFileSync(outPath, JSON.stringify(entries, null, 2));
-console.log(`Inventario gerado em: ${outPath}`);
+try {
+  await persistDbDatasets(prisma, { uploads: entries }, ["uploads"]);
+  console.log(`Inventario de uploads persistido no DB. Registros: ${entries.length}`);
+} catch (error) {
+  console.error(error?.stack || error?.message || error);
+  process.exitCode = 1;
+} finally {
+  try {
+    await prisma.$disconnect();
+  } catch {
+    // ignore disconnect failure
+  }
+}

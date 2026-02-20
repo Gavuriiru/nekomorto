@@ -2,13 +2,14 @@ import "dotenv/config";
 import crypto from "crypto";
 import express from "express";
 import session from "express-session";
-import fileStoreFactory from "session-file-store";
+import connectPgSimple from "connect-pg-simple";
 import cookieParser from "cookie-parser";
 import cors from "cors";
 import compression from "compression";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
+import { Pool } from "pg";
 import { resolvePostStatus } from "./lib/post-status.js";
 import { createSlug, createUniqueSlug } from "./lib/post-slug.js";
 import { importRemoteImageFile } from "./lib/remote-image-import.js";
@@ -60,7 +61,7 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 app.disable("x-powered-by");
-const FileStore = fileStoreFactory(session);
+const PgSessionStore = connectPgSimple(session);
 let dataRepository = null;
 
 const HTML_CACHE_CONTROL = "no-store";
@@ -371,7 +372,6 @@ const SCOPES = ["identify", "email"];
 
 const {
   DATABASE_URL = "",
-  DATA_SOURCE: DATA_SOURCE_ENV = "json",
   MAINTENANCE_MODE: MAINTENANCE_MODE_ENV = "false",
   DISCORD_CLIENT_ID,
   DISCORD_CLIENT_SECRET,
@@ -379,7 +379,7 @@ const {
   APP_ORIGIN = "",
   ADMIN_ORIGINS = "",
   SESSION_SECRET,
-  SESSION_FILE_STORE: SESSION_FILE_STORE_ENV = "",
+  SESSION_TABLE = "user_sessions",
   PORT = 8080,
   OWNER_IDS: OWNER_IDS_ENV = "",
   BOOTSTRAP_TOKEN,
@@ -393,9 +393,7 @@ const {
 } = process.env;
 
 const isProduction = process.env.NODE_ENV === "production";
-const DATA_SOURCE = String(DATA_SOURCE_ENV || "json").trim().toLowerCase() === "db" ? "db" : "json";
 const isMaintenanceMode = isTruthyEnv(MAINTENANCE_MODE_ENV, false);
-const shouldUseFileSessionStore = isProduction || isTruthyEnv(SESSION_FILE_STORE_ENV, false);
 const isRbacV2Enabled = isTruthyEnv(RBAC_V2_ENABLED_ENV, false);
 const isRbacV2AcceptLegacyStar = isTruthyEnv(RBAC_V2_ACCEPT_LEGACY_STAR_ENV, true);
 const isAutoUploadReorganizationEnabled = !["0", "false", "no", "off"].includes(
@@ -420,6 +418,15 @@ const PRIMARY_APP_ORIGIN = originConfig.primaryAppOrigin;
 const PRIMARY_APP_HOST = originConfig.primaryAppHost;
 const CONFIGURED_DISCORD_REDIRECT_URI = originConfig.configuredDiscordRedirectUri;
 const REPO_ROOT_DIR = path.join(__dirname, "..");
+if (!String(DATABASE_URL || "").trim()) {
+  throw new Error("DATABASE_URL is required");
+}
+const sessionStore = new PgSessionStore({
+  pool: new Pool({ connectionString: DATABASE_URL }),
+  tableName: String(SESSION_TABLE || "user_sessions"),
+  createTableIfMissing: false,
+  ttl: 60 * 60 * 24 * 7,
+});
 
 const AUTO_REORGANIZE_TRIGGER_TO_ACTION = {
   startup: "uploads.auto_reorganize.startup",
@@ -478,10 +485,48 @@ const runAutoUploadReorganization = async ({ trigger, req } = {}) => {
           : "post-save";
       const startedAt = Date.now();
       try {
+        const datasets = {
+          posts: loadPosts(),
+          projects: loadProjects(),
+          users: loadUsers(),
+          comments: loadComments(),
+          updates: loadUpdates(),
+          pages: loadPages(),
+          siteSettings: loadSiteSettings(),
+          uploads: loadUploads(),
+        };
         const report = runUploadsReorganization({
-          rootDir: REPO_ROOT_DIR,
+          datasets,
+          uploadsDir: path.join(REPO_ROOT_DIR, "public", "uploads"),
           applyChanges: true,
         });
+        const changedDatasets = new Set(
+          Array.isArray(report?.changedDatasets) ? report.changedDatasets : [],
+        );
+        if (changedDatasets.has("posts")) {
+          writePosts(report.rewritten.posts);
+        }
+        if (changedDatasets.has("projects")) {
+          writeProjects(report.rewritten.projects);
+        }
+        if (changedDatasets.has("users")) {
+          writeUsers(report.rewritten.users);
+        }
+        if (changedDatasets.has("comments")) {
+          writeComments(report.rewritten.comments);
+        }
+        if (changedDatasets.has("updates")) {
+          writeUpdates(report.rewritten.updates);
+        }
+        if (changedDatasets.has("pages")) {
+          writePages(report.rewritten.pages);
+        }
+        if (changedDatasets.has("siteSettings")) {
+          writeSiteSettings(report.rewritten.siteSettings);
+        }
+        if (changedDatasets.has("uploads")) {
+          writeUploads(report.rewritten.uploads);
+        }
         const durationMs = Date.now() - startedAt;
         const action = AUTO_REORGANIZE_TRIGGER_TO_ACTION[triggerForRun];
         appendAuditLog(req || createSystemAuditReq(), action, "uploads", buildAutoReorganizationMeta({
@@ -539,9 +584,7 @@ const PUBLIC_ANALYTICS_EVENT_TYPE_SET = new Set(["chapter_view", "download_click
 const PUBLIC_ANALYTICS_RESOURCE_TYPE_SET = new Set(["chapter"]);
 
 dataRepository = await createDataRepository({
-  dataSource: DATA_SOURCE,
   databaseUrl: DATABASE_URL,
-  rootDir: REPO_ROOT_DIR,
   ownerIdsFallback: OWNER_IDS,
   analyticsSchemaVersion: ANALYTICS_SCHEMA_VERSION,
   analyticsRetentionDays: ANALYTICS_RETENTION_DAYS,
@@ -1662,24 +1705,13 @@ const requireSameOrigin = (req, res, next) => {
 };
 app.use("/api", requireSameOrigin);
 
-const sessionPath = path.join(__dirname, "data", "sessions");
-if (!fs.existsSync(sessionPath)) {
-  fs.mkdirSync(sessionPath, { recursive: true });
-}
-const sessionStore = shouldUseFileSessionStore
-  ? new FileStore({
-      path: sessionPath,
-      ttl: 60 * 60 * 24 * 7,
-      retries: 1,
-    })
-  : undefined;
 app.use(
   session({
     name: "rainbow.sid",
     secret: SESSION_SECRET || "dev-session-secret",
     resave: false,
     saveUninitialized: false,
-    ...(sessionStore ? { store: sessionStore } : {}),
+    store: sessionStore,
     cookie: {
       httpOnly: true,
       sameSite: "lax",
@@ -1902,7 +1934,7 @@ const updateLexicalPollVotes = (
 };
 
 const jsonFileCache = new Map();
-const shouldUseInMemoryCache = DATA_SOURCE === "json";
+const shouldUseInMemoryCache = true;
 
 const cloneCachedValue = (value) => {
   try {
@@ -2698,21 +2730,6 @@ const loadPages = () => {
   let parsed = dataRepository.loadPages();
   if (!parsed || typeof parsed !== "object") {
     parsed = {};
-  }
-  const hasSeedContent = Object.keys(parsed).length > 0;
-  if (!hasSeedContent) {
-    try {
-      const seedFilePath = path.join(__dirname, "data", "pages.example.json");
-      if (fs.existsSync(seedFilePath)) {
-        const seed = JSON.parse(fs.readFileSync(seedFilePath, "utf-8"));
-        if (seed && typeof seed === "object") {
-          parsed = seed;
-          writePages(seed);
-        }
-      }
-    } catch {
-      // ignore seed fallback failure
-    }
   }
   const normalized = normalizeUploadsDeep(fixMojibakeDeep(parsed));
   if (JSON.stringify(parsed) !== JSON.stringify(normalized)) {
@@ -3549,7 +3566,7 @@ app.get("/api/public/me", (req, res) => {
 app.get("/api/health", (_req, res) => {
   return res.json({
     ok: true,
-    dataSource: dataRepository?.getDataSource?.() || DATA_SOURCE,
+    dataSource: "db",
     maintenanceMode: isMaintenanceMode,
     ts: new Date().toISOString(),
   });
@@ -7428,7 +7445,7 @@ const runStartupMaintenance = async () => {
 
 app.listen(Number(PORT), () => {
   console.log(
-    `[server] listening on :${Number(PORT)} (data_source=${dataRepository?.getDataSource?.() || DATA_SOURCE}, maintenance=${isMaintenanceMode})`,
+    `[server] listening on :${Number(PORT)} (data_source=db, maintenance=${isMaintenanceMode})`,
   );
   setImmediate(() => {
     void runStartupMaintenance();

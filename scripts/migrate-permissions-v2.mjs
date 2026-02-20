@@ -1,6 +1,7 @@
 import crypto from "crypto";
 import fs from "fs";
 import path from "path";
+import { loadDbDatasets, persistDbDatasets, prisma } from "./lib/db-datasets.mjs";
 
 const PERMISSION_IDS = [
   "posts",
@@ -36,31 +37,16 @@ const ADMIN_BADGE_LEGACY_PERMISSIONS = [
   "configuracoes",
 ];
 
-const cwd = process.cwd();
-const dataDir = path.join(cwd, "server", "data");
-const usersFilePath = path.join(dataDir, "users.json");
-const ownerIdsFilePath = path.join(dataDir, "owner-ids.json");
-const auditLogFilePath = path.join(dataDir, "audit-log.json");
-
 const args = new Set(process.argv.slice(2));
 const apply = args.has("--apply");
 const dryRun = !apply || args.has("--dry-run");
 
+if (!String(process.env.DATABASE_URL || "").trim()) {
+  console.error("DATABASE_URL obrigatoria.");
+  process.exit(1);
+}
+
 const ensureArray = (value) => (Array.isArray(value) ? value : []);
-
-const readJson = (filePath, fallback) => {
-  try {
-    const raw = fs.readFileSync(filePath, "utf-8");
-    return JSON.parse(raw);
-  } catch {
-    return fallback;
-  }
-};
-
-const writeJson = (filePath, value) => {
-  fs.mkdirSync(path.dirname(filePath), { recursive: true });
-  fs.writeFileSync(filePath, `${JSON.stringify(value, null, 2)}\n`);
-};
 
 const normalizeRoles = (roles) => {
   const next = [];
@@ -240,8 +226,8 @@ const buildMigration = (usersInput, ownerIdsInput) => {
   };
 };
 
-const appendAuditEntry = (summary, beforeOwnerIds, afterOwnerIds) => {
-  const entries = ensureArray(readJson(auditLogFilePath, []));
+const appendAuditEntry = (auditEntries, summary, beforeOwnerIds, afterOwnerIds) => {
+  const entries = ensureArray(auditEntries);
   entries.push({
     id: crypto.randomUUID(),
     ts: new Date().toISOString(),
@@ -260,33 +246,64 @@ const appendAuditEntry = (summary, beforeOwnerIds, afterOwnerIds) => {
       summary,
     },
   });
-  writeJson(auditLogFilePath, entries);
+  return entries;
 };
 
-const users = readJson(usersFilePath, []);
-const ownerIds = readJson(ownerIdsFilePath, []);
-const migration = buildMigration(users, ownerIds);
+try {
+  const datasets = await loadDbDatasets(prisma);
+  const users = datasets.users;
+  const ownerIds = datasets.ownerIds;
+  const migration = buildMigration(users, ownerIds);
 
-console.log(JSON.stringify({
-  dryRun,
-  apply,
-  summary: migration.summary,
-  beforeOwnerIds: migration.previousOwnerIds,
-  afterOwnerIds: migration.nextOwnerIds,
-}, null, 2));
+  console.log(
+    JSON.stringify(
+      {
+        dryRun,
+        apply,
+        summary: migration.summary,
+        beforeOwnerIds: migration.previousOwnerIds,
+        afterOwnerIds: migration.nextOwnerIds,
+      },
+      null,
+      2,
+    ),
+  );
 
-if (!apply) {
-  process.exit(0);
+  if (!apply) {
+    process.exit(0);
+  }
+
+  const backupsDir = path.join(process.cwd(), "backups");
+  const backupStamp = new Date().toISOString().replace(/[:.]/g, "-");
+  const backupPath = path.join(backupsDir, `users-rbac-v2-backup-${backupStamp}.json`);
+  fs.mkdirSync(backupsDir, { recursive: true });
+  fs.writeFileSync(backupPath, `${JSON.stringify(users, null, 2)}\n`);
+
+  const nextAuditLog = appendAuditEntry(
+    datasets.auditLog,
+    migration.summary,
+    migration.previousOwnerIds,
+    migration.nextOwnerIds,
+  );
+
+  await persistDbDatasets(
+    prisma,
+    {
+      users: migration.nextUsers,
+      ownerIds: migration.nextOwnerIds,
+      auditLog: nextAuditLog,
+    },
+    ["users", "ownerIds", "auditLog"],
+  );
+
+  console.log(`Applied RBAC V2 migration. Backup: ${backupPath}`);
+} catch (error) {
+  console.error(error?.stack || error?.message || error);
+  process.exitCode = 1;
+} finally {
+  try {
+    await prisma.$disconnect();
+  } catch {
+    // ignore disconnect failure
+  }
 }
-
-const backupsDir = path.join(cwd, "backups");
-const backupStamp = new Date().toISOString().replace(/[:.]/g, "-");
-const backupPath = path.join(backupsDir, `users-rbac-v2-backup-${backupStamp}.json`);
-fs.mkdirSync(backupsDir, { recursive: true });
-writeJson(backupPath, users);
-
-writeJson(usersFilePath, migration.nextUsers);
-writeJson(ownerIdsFilePath, migration.nextOwnerIds);
-appendAuditEntry(migration.summary, migration.previousOwnerIds, migration.nextOwnerIds);
-
-console.log(`Applied RBAC V2 migration. Backup: ${backupPath}`);

@@ -21,21 +21,22 @@ const absoluteUrlPattern = /https?:\/\/[^\\\s"'`<>()\[\]{},]+/gi;
 
 const toPosix = (value) => String(value || "").replace(/\\/g, "/");
 
-const readJson = (filePath, fallback) => {
-  try {
-    if (!fs.existsSync(filePath)) {
-      return fallback;
-    }
-    const raw = fs.readFileSync(filePath, "utf-8").replace(/^\uFEFF/, "");
-    return JSON.parse(raw);
-  } catch {
-    return fallback;
-  }
-};
+const normalizeDatasets = (datasets) => ({
+  projects: Array.isArray(datasets?.projects) ? cloneValue(datasets.projects) : [],
+  posts: Array.isArray(datasets?.posts) ? cloneValue(datasets.posts) : [],
+  uploads: Array.isArray(datasets?.uploads) ? cloneValue(datasets.uploads) : [],
+});
 
-const writeJson = (filePath, value) => {
-  fs.mkdirSync(path.dirname(filePath), { recursive: true });
-  fs.writeFileSync(filePath, `${JSON.stringify(value, null, 2)}\n`);
+const cloneValue = (value) => {
+  try {
+    return structuredClone(value);
+  } catch {
+    try {
+      return JSON.parse(JSON.stringify(value));
+    } catch {
+      return value;
+    }
+  }
 };
 
 const normalizeExtension = (value) => {
@@ -260,28 +261,33 @@ const buildUploadEntryFromDisk = ({ targetUrl, targetRelative, targetPath, sourc
   };
 };
 
+const areJsonEqual = (left, right) => {
+  try {
+    return JSON.stringify(left) === JSON.stringify(right);
+  } catch {
+    return false;
+  }
+};
+
 export const isolateProjectImageUploads = ({
-  rootDir = path.resolve(process.cwd()),
+  datasets,
+  uploadsDir = path.join(process.cwd(), "public", "uploads"),
   applyChanges = false,
   targetProjectId = "",
 } = {}) => {
-  const dataDir = path.join(rootDir, "server", "data");
-  const uploadsDir = path.join(rootDir, "public", "uploads");
-  const projectsPath = path.join(dataDir, "projects.json");
-  const postsPath = path.join(dataDir, "posts.json");
-  const uploadsPath = path.join(dataDir, "uploads.json");
+  const normalizedDatasets = normalizeDatasets(datasets || {});
+  const projects = normalizedDatasets.projects;
+  const posts = normalizedDatasets.posts;
+  const uploads = normalizedDatasets.uploads;
 
-  const projects = readJson(projectsPath, []);
   if (!Array.isArray(projects)) {
-    throw new Error("projects.json invalido.");
+    throw new Error("projects dataset invalido.");
   }
-  const posts = readJson(postsPath, []);
   if (!Array.isArray(posts)) {
-    throw new Error("posts.json invalido.");
+    throw new Error("posts dataset invalido.");
   }
-  const uploads = readJson(uploadsPath, []);
   if (!Array.isArray(uploads)) {
-    throw new Error("uploads.json invalido.");
+    throw new Error("uploads dataset invalido.");
   }
 
   const scopedProjects = targetProjectId
@@ -586,7 +592,7 @@ export const isolateProjectImageUploads = ({
         sourceEntry,
         previousEntry,
       });
-      if (JSON.stringify(previousEntry || null) !== JSON.stringify(nextEntry)) {
+      if (!areJsonEqual(previousEntry || null, nextEntry)) {
         uploadsUpdatedCount += 1;
         uploadsChanged = true;
       }
@@ -594,23 +600,21 @@ export const isolateProjectImageUploads = ({
     });
   }
 
-  const shouldWriteProjects = applyChanges && rewrittenReferences > 0;
-  const shouldWriteUploads = applyChanges && uploadsChanged;
+  const nextUploads = uploadsChanged
+    ? Array.from(uploadsByUrl.values()).sort((a, b) => String(a.url || "").localeCompare(String(b.url || ""), "en"))
+    : uploads;
 
-  if (shouldWriteProjects) {
-    writeJson(projectsPath, nextProjects);
+  const changedDatasets = [];
+  if (!areJsonEqual(projects, nextProjects)) {
+    changedDatasets.push("projects");
   }
-  if (shouldWriteUploads) {
-    const sortedUploads = Array.from(uploadsByUrl.values()).sort((a, b) =>
-      String(a.url || "").localeCompare(String(b.url || ""), "en"),
-    );
-    writeJson(uploadsPath, sortedUploads);
+  if (!areJsonEqual(uploads, nextUploads)) {
+    changedDatasets.push("uploads");
   }
 
   return {
     mode: applyChanges ? "apply" : "dry-run",
     applyChanges,
-    rootDir,
     scopedProjects: scopedProjects.length,
     copied: applyChanges ? copied.length : copyPlans.length,
     rewritten: effectiveRewriteDetails.length,
@@ -619,10 +623,11 @@ export const isolateProjectImageUploads = ({
     missing: missing.length,
     conflicts: conflicts.length,
     uploadsUpdated: applyChanges ? uploadsUpdatedCount : 0,
-    filesUpdated: {
-      projects: shouldWriteProjects ? projectsPath : null,
-      uploads: shouldWriteUploads ? uploadsPath : null,
+    rewrittenDatasets: {
+      projects: nextProjects,
+      uploads: nextUploads,
     },
+    changedDatasets,
     details: {
       copied: applyChanges ? copied : copyPlans,
       rewritten: effectiveRewriteDetails,

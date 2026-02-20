@@ -29,8 +29,8 @@ const randomSecret = () => crypto.randomBytes(32).toString("hex");
 const main = async () => {
   const nodeEnv = prod ? "production" : await ask("NODE_ENV", "development");
   const port = await ask("PORT", "8080");
-  const dataSource = await ask("DATA_SOURCE (json|db)", "json");
-  const databaseUrl = await ask("DATABASE_URL (optional unless DATA_SOURCE=db)");
+  const databaseUrl = await ask("DATABASE_URL");
+  const sessionTable = await ask("SESSION_TABLE", "user_sessions");
   const maintenanceMode = await ask("MAINTENANCE_MODE", "false");
   const appOrigin = await ask("APP_ORIGIN", "http://127.0.0.1:5173");
   const redirectUri = await ask("DISCORD_REDIRECT_URI", "http://127.0.0.1:8080/login");
@@ -47,8 +47,8 @@ const main = async () => {
   const lines = [
     `NODE_ENV=${nodeEnv}`,
     `PORT=${port}`,
-    `DATA_SOURCE=${dataSource}`,
     `DATABASE_URL=${databaseUrl}`,
+    `SESSION_TABLE=${sessionTable}`,
     `MAINTENANCE_MODE=${maintenanceMode}`,
     `APP_ORIGIN=${appOrigin}`,
     `DISCORD_CLIENT_ID=${discordClientId}`,

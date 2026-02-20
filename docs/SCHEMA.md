@@ -1,6 +1,6 @@
-# Schema Atual (JSON)
+# Schema Atual (DB-Only)
 
-Este documento congela o schema atual para facilitar a migração para banco.
+Este documento descreve o schema logico atual com PostgreSQL como unica fonte de verdade no runtime.
 
 ## posts
 - `id` (string, required)
@@ -112,9 +112,9 @@ Este documento congela o schema atual para facilitar a migração para banco.
 - `order` (number)
 
 ## owner-ids
-- arquivo: `server/data/owner-ids.json`
-- tipo: `string[]`
-: governanca de donos. O primeiro item e o owner primario.
+- tabela: `owner_ids`
+- coluna de negocio: `userId` (`string`)
+: governanca de donos. O primeiro item por `position` e o owner primario.
 
 ## auth payloads
 - `GET /api/me` adiciona:

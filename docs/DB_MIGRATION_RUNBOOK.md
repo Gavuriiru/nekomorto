@@ -1,74 +1,36 @@
-# DB Migration Runbook (JSON -> PostgreSQL + Prisma)
+# Runbook DB-Only (PostgreSQL)
 
-This runbook implements the staging-first strategy and is aligned with the operational scripts in this repo.
+Este runbook descreve operacao e deploy apos o corte definitivo para DB-only.
 
-## Scope and defaults
+## Premissas
 
-- Scope: staging first, then production.
-- Quality gate: block only on errors; warnings are not blockers.
-- Infra model: self-hosted PostgreSQL using Docker Compose.
-- No dual-write: app runs with one data source at a time (`json` or `db`).
-- Parity policy: strict parity is required only during cutover window (before reopening writes).
+- Aplicacao usa apenas PostgreSQL.
+- `DATABASE_URL` obrigatoria.
+- Sessao usa tabela `user_sessions`.
+- Sem dual-write com JSON.
 
-## Phase 1 - Provision staging PostgreSQL
+## 1. Preparacao de ambiente
 
-1. Prepare DB host.
-2. Configure stack files under `ops/postgres/`.
-3. Copy env and set secret:
+Confirmar variaveis obrigatorias:
 
 ```bash
-cp ops/postgres/env.staging.example ops/postgres/.env.staging
+NODE_ENV=production
+DATABASE_URL=postgresql://nekomorto_app:<senha>@<host>:5432/nekomorto
+SESSION_SECRET=<segredo>
+APP_ORIGIN=https://nekomata.moe,https://www.nekomata.moe
 ```
 
-4. Start database:
+Opcionais comuns:
 
 ```bash
-docker compose --env-file ops/postgres/.env.staging -f ops/postgres/docker-compose.staging.yml up -d
-```
-
-5. Confirm container health:
-
-```bash
-docker compose --env-file ops/postgres/.env.staging -f ops/postgres/docker-compose.staging.yml ps
-```
-
-## Phase 2 - Configure app (still JSON)
-
-Set app env in staging:
-
-```text
-DATABASE_URL=postgresql://nekomorto_app:<POSTGRES_PASSWORD>@<db-host>:5432/nekomorto
-DATA_SOURCE=json
+SESSION_TABLE=user_sessions
+ADMIN_ORIGINS=https://admin.nekomata.moe
 MAINTENANCE_MODE=false
 ```
 
-Deploy/restart app to validate runtime configuration.
+## 2. Schema e migrate
 
-## Phase 3 - Pre-cutover checks
-
-```bash
-npm run db:staging:precutover
-```
-
-Equivalent manual commands:
-
-```bash
-npm run db:preflight
-npm run db:migrate:json:dry-run
-```
-
-Acceptance:
-
-- `db:preflight` has no errors.
-- dry-run completes successfully.
-
-## Phase 4 - Prepare schema in PostgreSQL
-
-```bash
-npm run db:staging:prepare-schema
-```
-
-Equivalent manual commands:
+Gerar client e aplicar migrations:
 
 ```bash
 npm run prisma:generate
@@ -76,78 +38,90 @@ npm run prisma:migrate:deploy
 npx prisma migrate status
 ```
 
-Acceptance:
+Aceite:
 
-- `prisma migrate status` without pending migrations.
+- `migrate deploy` sem erro.
+- `migrate status` sem pendencias.
 
-## Phase 5 - Cutover window (staging)
-
-1. Enable maintenance mode in app env:
-
-```text
-MAINTENANCE_MODE=true
-```
-
-2. Run cutover:
+## 3. Deploy da aplicacao
 
 ```bash
-npm run db:staging:cutover
+npm run build
+npm run start
 ```
 
-Equivalent manual commands:
+Validar health:
 
 ```bash
-node scripts/backup-data.mjs
-npm run db:hash:snapshot
-npm run db:migrate:json:apply
-npm run db:verify:parity:strict
+npm run api:health:check -- --base=https://nekomata.moe --expect-source=db --expect-maintenance=false
 ```
 
-3. Switch data source and restart app:
-
-```text
-DATA_SOURCE=db
-```
-
-4. Validate health and smoke:
+Validar smoke:
 
 ```bash
-npm run db:staging:health:maintenance -- --base=https://staging.example.com
-npm run db:staging:smoke -- --base=https://staging.example.com
+npm run api:smoke -- --base=https://nekomata.moe
 ```
 
-5. Disable maintenance mode and validate again:
+## 4. Janela de manutencao (quando necessario)
 
-```text
-MAINTENANCE_MODE=false
-```
+1. Definir `MAINTENANCE_MODE=true` e reiniciar app.
+2. Executar atividade operacional (ex.: reorganizacao de uploads).
+3. Validar:
 
 ```bash
-npm run db:staging:health:open -- --base=https://staging.example.com
-npm run db:staging:smoke -- --base=https://staging.example.com
+npm run api:health:check -- --base=https://nekomata.moe --expect-source=db --expect-maintenance=true
+npm run api:smoke -- --base=https://nekomata.moe
 ```
 
-## Phase 6 - Functional validation
+4. Reabrir escrita: `MAINTENANCE_MODE=false` + restart.
 
-- Validate write flows in dashboard (post/project/comment/user).
-- Restart app and confirm persistence.
-- Observe Prisma/DB logs for at least 24 hours.
-- Optional non-blocking audit after reopening writes:
+## 5. Operacoes de dados
+
+Backup DB + uploads:
 
 ```bash
-npm run db:verify:parity:postcutover
+npm run db:backup
 ```
 
-## Phase 7 - Production promotion
+Reorganizar uploads:
 
-Repeat phases 2-6 in production with a scheduled maintenance window.
+```bash
+npm run uploads:reorganize
+npm run uploads:reorganize -- --apply
+```
 
-Final blockers before opening writes:
+Localizar/isolar imagens:
 
-- `db:verify:parity:strict` must have `differences: []`.
-- smoke checks must pass.
+```bash
+npm run uploads:localize-project-images -- --apply
+npm run uploads:isolate-project-images -- --apply
+```
 
-## Rollback note
+Reconstruir inventario de uploads no DB:
 
-Safe instant rollback exists only before reopening writes on `DATA_SOURCE=db`.
-After reopening writes, rollback requires reconciliation planning.
+```bash
+npm run uploads:generate-inventory
+```
+
+## 6. RBAC usuarios
+
+Dry-run:
+
+```bash
+npm run users:migrate-permissions-v2
+```
+
+Apply:
+
+```bash
+npm run users:migrate-permissions-v2 -- --apply
+```
+
+## 7. Rollback
+
+Rollback suportado:
+
+1. restore do snapshot DB;
+2. restore de `public/uploads`.
+
+Rollback para JSON nao e suportado.

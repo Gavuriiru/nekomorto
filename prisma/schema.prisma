@@ -202,3 +202,12 @@ model AnalyticsMetaRecord {
 
   @@map("analytics_meta")
 }
+
+model UserSessionRecord {
+  sid    String   @id @db.VarChar(255)
+  sess   Json
+  expire DateTime @db.Timestamp(6)
+
+  @@index([expire], map: "idx_user_sessions_expire")
+  @@map("user_sessions")
+}

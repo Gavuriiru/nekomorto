@@ -1,6 +1,6 @@
-# PostgreSQL Staging (Self-hosted)
+# PostgreSQL Stack (Self-hosted)
 
-This folder contains the staging DB stack and operational scripts for the JSON -> PostgreSQL migration.
+This folder contains the PostgreSQL stack and operational scripts for DB-only environments.
 
 ## Files
 
@@ -43,8 +43,6 @@ Use this format in the application host:
 ```text
 DATABASE_URL=postgresql://nekomorto_app:<POSTGRES_PASSWORD>@<db-host>:5432/nekomorto
 ```
-
-Keep `DATA_SOURCE=json` until the cutover window.
 
 ## Daily backup
 

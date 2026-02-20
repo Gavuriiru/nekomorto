@@ -1,12 +1,13 @@
+import crypto from "crypto";
 import fs from "fs";
 import path from "path";
-import crypto from "crypto";
 import { importRemoteImageFile } from "../server/lib/remote-image-import.js";
 import {
   buildRelationImageFileBase,
   localizeProjectImageFields,
   resolveProjectImageFolders,
 } from "../server/lib/project-image-localizer.js";
+import { loadDbDatasets, persistDbDatasets, prisma } from "./lib/db-datasets.mjs";
 
 const APPLY_FLAG = "--apply";
 const HELP_FLAG = "--help";
@@ -35,6 +36,11 @@ if (args.includes(HELP_FLAG)) {
   process.exit(0);
 }
 
+if (!String(process.env.DATABASE_URL || "").trim()) {
+  console.error("DATABASE_URL obrigatoria.");
+  process.exit(1);
+}
+
 const applyChanges = args.includes(APPLY_FLAG);
 let targetProjectId = "";
 const projectFlagIndex = args.findIndex((item) => item === PROJECT_FLAG);
@@ -46,37 +52,19 @@ if (projectFlagIndex >= 0) {
   }
 }
 
-const rootDir = path.resolve(process.cwd());
-const dataDir = path.join(rootDir, "server", "data");
-const uploadsDir = path.join(rootDir, "public", "uploads");
-const projectsPath = path.join(dataDir, "projects.json");
-const uploadsPath = path.join(dataDir, "uploads.json");
+const uploadsDir = path.join(process.cwd(), "public", "uploads");
 
-const readJson = (filePath, fallback) => {
+const areJsonEqual = (left, right) => {
   try {
-    if (!fs.existsSync(filePath)) {
-      return fallback;
-    }
-    const raw = fs.readFileSync(filePath, "utf-8").replace(/^\uFEFF/, "");
-    const parsed = JSON.parse(raw);
-    return parsed;
+    return JSON.stringify(left) === JSON.stringify(right);
   } catch {
-    return fallback;
+    return false;
   }
-};
-
-const writeJson = (filePath, value) => {
-  fs.mkdirSync(path.dirname(filePath), { recursive: true });
-  fs.writeFileSync(filePath, `${JSON.stringify(value, null, 2)}\n`);
 };
 
 const upsertUploadEntries = (existingUploads, incomingEntries) => {
   const current = Array.isArray(existingUploads) ? existingUploads : [];
-  const byUrl = new Map(
-    current
-      .filter((item) => item?.url)
-      .map((item) => [String(item.url), item]),
-  );
+  const byUrl = new Map(current.filter((item) => item?.url).map((item) => [String(item.url), item]));
   let changed = false;
   (Array.isArray(incomingEntries) ? incomingEntries : []).forEach((entry) => {
     const nextUrl = String(entry?.url || "").trim();
@@ -97,16 +85,14 @@ const upsertUploadEntries = (existingUploads, incomingEntries) => {
       height: Number.isFinite(entry?.height) ? Number(entry.height) : previous?.height ?? null,
       createdAt: String(entry?.createdAt || previous?.createdAt || new Date().toISOString()),
     };
-    if (JSON.stringify(previous || null) !== JSON.stringify(next)) {
+    if (!areJsonEqual(previous || null, next)) {
       changed = true;
     }
     byUrl.set(nextUrl, next);
   });
   return {
     changed,
-    uploads: Array.from(byUrl.values()).sort((a, b) =>
-      String(a.url || "").localeCompare(String(b.url || ""), "en"),
-    ),
+    uploads: Array.from(byUrl.values()).sort((a, b) => String(a.url || "").localeCompare(String(b.url || ""), "en")),
   };
 };
 
@@ -272,146 +258,162 @@ const migrateLocalRelationUploads = ({ project, uploadsDirPath, apply }) => {
   };
 };
 
-const projects = readJson(projectsPath, []);
-if (!Array.isArray(projects)) {
-  console.error("Erro: projects.json invalido.");
-  process.exit(1);
-}
-const uploads = readJson(uploadsPath, []);
-if (!Array.isArray(uploads)) {
-  console.error("Erro: uploads.json invalido.");
-  process.exit(1);
-}
+try {
+  const datasets = await loadDbDatasets(prisma);
+  const projects = Array.isArray(datasets.projects) ? datasets.projects : [];
+  const uploads = Array.isArray(datasets.uploads) ? datasets.uploads : [];
 
-const scopedProjects = targetProjectId
-  ? projects
-      .map((project, index) => ({ project, index }))
-      .filter((item) => String(item.project?.id || "") === targetProjectId)
-  : projects.map((project, index) => ({ project, index }));
+  const scopedProjects = targetProjectId
+    ? projects
+        .map((project, index) => ({ project, index }))
+        .filter((item) => String(item.project?.id || "") === targetProjectId)
+    : projects.map((project, index) => ({ project, index }));
 
-if (targetProjectId && scopedProjects.length === 0) {
-  console.error(`Projeto "${targetProjectId}" nao encontrado.`);
-  process.exit(1);
-}
+  if (targetProjectId && scopedProjects.length === 0) {
+    console.error(`Projeto "${targetProjectId}" nao encontrado.`);
+    process.exit(1);
+  }
 
-const importer = applyChanges
-  ? ({ remoteUrl, folder, fileBaseOverride, deterministic, onExisting }) =>
-      importRemoteImageFile({
-        remoteUrl,
-        folder,
-        uploadsDir,
-        fileBaseOverride,
-        deterministic,
-        onExisting,
-      })
-  : async () => ({
-      ok: false,
-      error: { code: "dry_run_skip" },
+  const importer = applyChanges
+    ? ({ remoteUrl, folder, fileBaseOverride, deterministic, onExisting }) =>
+        importRemoteImageFile({
+          remoteUrl,
+          folder,
+          uploadsDir,
+          fileBaseOverride,
+          deterministic,
+          onExisting,
+        })
+    : async () => ({
+        ok: false,
+        error: { code: "dry_run_skip" },
+      });
+
+  const nextProjects = [...projects];
+  const aggregatedUploads = [];
+  const perProjectReports = [];
+  const totals = {
+    attempted: 0,
+    downloaded: 0,
+    failed: 0,
+    skippedLocal: 0,
+    normalizedLocalAbsolute: 0,
+    dryRunSkipped: 0,
+    relationLegacyAttempted: 0,
+    relationLegacyMigrated: 0,
+    relationLegacyReused: 0,
+    relationLegacyFailed: 0,
+    relationLegacyDryRunEligible: 0,
+  };
+
+  for (const item of scopedProjects) {
+    const result = await localizeProjectImageFields({
+      project: item.project,
+      importRemoteImage: importer,
+      maxConcurrent: 4,
     });
 
-const nextProjects = [...projects];
-const aggregatedUploads = [];
-const perProjectReports = [];
-const totals = {
-  attempted: 0,
-  downloaded: 0,
-  failed: 0,
-  skippedLocal: 0,
-  normalizedLocalAbsolute: 0,
-  dryRunSkipped: 0,
-  relationLegacyAttempted: 0,
-  relationLegacyMigrated: 0,
-  relationLegacyReused: 0,
-  relationLegacyFailed: 0,
-  relationLegacyDryRunEligible: 0,
-};
+    const relationMigration = migrateLocalRelationUploads({
+      project: result.project,
+      uploadsDirPath: uploadsDir,
+      apply: applyChanges,
+    });
 
-for (const item of scopedProjects) {
-  const result = await localizeProjectImageFields({
-    project: item.project,
-    importRemoteImage: importer,
-    maxConcurrent: 4,
-  });
+    const dryRunSkipped = result.failures.filter((failure) => failure.error === "dry_run_skip").length;
+    const effectiveFailed = Math.max(0, Number(result.summary.failed || 0) - dryRunSkipped);
 
-  const relationMigration = migrateLocalRelationUploads({
-    project: result.project,
-    uploadsDirPath: uploadsDir,
-    apply: applyChanges,
-  });
+    totals.attempted += Number(result.summary.attempted || 0);
+    totals.downloaded += Number(result.summary.downloaded || 0);
+    totals.failed += effectiveFailed;
+    totals.skippedLocal += Number(result.summary.skippedLocal || 0);
+    totals.normalizedLocalAbsolute += Number(result.summary.normalizedLocalAbsolute || 0);
+    totals.dryRunSkipped += dryRunSkipped;
+    totals.relationLegacyAttempted += Number(relationMigration.summary.attempted || 0);
+    totals.relationLegacyMigrated += Number(relationMigration.summary.migrated || 0);
+    totals.relationLegacyReused += Number(relationMigration.summary.reused || 0);
+    totals.relationLegacyFailed += Number(relationMigration.summary.failed || 0);
+    totals.relationLegacyDryRunEligible += Number(relationMigration.summary.dryRunEligible || 0);
 
-  const dryRunSkipped = result.failures.filter((failure) => failure.error === "dry_run_skip").length;
-  const effectiveFailed = Math.max(0, Number(result.summary.failed || 0) - dryRunSkipped);
+    if (applyChanges) {
+      nextProjects[item.index] = relationMigration.project;
+      aggregatedUploads.push(...result.uploadsToUpsert, ...relationMigration.uploadsToUpsert);
+    }
 
-  totals.attempted += Number(result.summary.attempted || 0);
-  totals.downloaded += Number(result.summary.downloaded || 0);
-  totals.failed += effectiveFailed;
-  totals.skippedLocal += Number(result.summary.skippedLocal || 0);
-  totals.normalizedLocalAbsolute += Number(result.summary.normalizedLocalAbsolute || 0);
-  totals.dryRunSkipped += dryRunSkipped;
-  totals.relationLegacyAttempted += Number(relationMigration.summary.attempted || 0);
-  totals.relationLegacyMigrated += Number(relationMigration.summary.migrated || 0);
-  totals.relationLegacyReused += Number(relationMigration.summary.reused || 0);
-  totals.relationLegacyFailed += Number(relationMigration.summary.failed || 0);
-  totals.relationLegacyDryRunEligible += Number(relationMigration.summary.dryRunEligible || 0);
+    perProjectReports.push({
+      id: String(item.project?.id || ""),
+      attempted: Number(result.summary.attempted || 0),
+      downloaded: Number(result.summary.downloaded || 0),
+      failed: effectiveFailed,
+      skippedLocal: Number(result.summary.skippedLocal || 0),
+      normalizedLocalAbsolute: Number(result.summary.normalizedLocalAbsolute || 0),
+      relationLegacyAttempted: Number(relationMigration.summary.attempted || 0),
+      relationLegacyMigrated: Number(relationMigration.summary.migrated || 0),
+      relationLegacyFailed: Number(relationMigration.summary.failed || 0),
+    });
+  }
+
+  console.log(`Modo: ${applyChanges ? "apply" : "dry-run"}`);
+  console.log(`Projetos analisados: ${scopedProjects.length}`);
+  console.log(`Tentativas de localizacao (URLs remotas): ${totals.attempted}`);
+  console.log(`Downloads aplicados: ${totals.downloaded}`);
+  if (!applyChanges) {
+    console.log(`Dry-run sem download/escrita. Itens elegiveis remotos: ${totals.attempted}`);
+  }
+  console.log(`Falhas de importacao: ${totals.failed}`);
+  console.log(`Ja locais (/uploads): ${totals.skippedLocal}`);
+  console.log(`Normalizados de absoluto para relativo: ${totals.normalizedLocalAbsolute}`);
+  console.log(`Relations locais legadas detectadas: ${totals.relationLegacyAttempted}`);
+  if (applyChanges) {
+    console.log(`Relations locais legadas migradas: ${totals.relationLegacyMigrated}`);
+    console.log(`Relations reaproveitadas em target existente: ${totals.relationLegacyReused}`);
+    console.log(`Falhas na migracao local de relations: ${totals.relationLegacyFailed}`);
+  } else {
+    console.log(`Dry-run de relations locais elegiveis: ${totals.relationLegacyDryRunEligible}`);
+  }
+
+  const touchedProjects = perProjectReports.filter(
+    (item) =>
+      item.attempted > 0 ||
+      item.normalizedLocalAbsolute > 0 ||
+      item.relationLegacyAttempted > 0,
+  );
+  if (touchedProjects.length > 0) {
+    console.log("\nResumo por projeto:");
+    touchedProjects.forEach((item) => {
+      console.log(
+        `- ${item.id}: remotas tentativas=${item.attempted}, downloads=${item.downloaded}, falhas=${item.failed}, normalizados=${item.normalizedLocalAbsolute}, relations_legado tentativas=${item.relationLegacyAttempted}, migradas=${item.relationLegacyMigrated}, falhas=${item.relationLegacyFailed}`,
+      );
+    });
+  }
 
   if (applyChanges) {
-    nextProjects[item.index] = relationMigration.project;
-    aggregatedUploads.push(...result.uploadsToUpsert, ...relationMigration.uploadsToUpsert);
+    const upsertResult = upsertUploadEntries(uploads, aggregatedUploads);
+    const changedKeys = [];
+    const persistPayload = {};
+
+    if (!areJsonEqual(projects, nextProjects)) {
+      changedKeys.push("projects");
+      persistPayload.projects = nextProjects;
+    }
+    if (upsertResult.changed) {
+      changedKeys.push("uploads");
+      persistPayload.uploads = upsertResult.uploads;
+    }
+
+    if (changedKeys.length > 0) {
+      await persistDbDatasets(prisma, persistPayload, changedKeys);
+    }
+
+    console.log(`\nDatasets atualizados: ${changedKeys.join(", ") || "(nenhum)"}`);
+    console.log(`Registros de uploads adicionados/atualizados: ${aggregatedUploads.length}`);
   }
-
-  perProjectReports.push({
-    id: String(item.project?.id || ""),
-    attempted: Number(result.summary.attempted || 0),
-    downloaded: Number(result.summary.downloaded || 0),
-    failed: effectiveFailed,
-    skippedLocal: Number(result.summary.skippedLocal || 0),
-    normalizedLocalAbsolute: Number(result.summary.normalizedLocalAbsolute || 0),
-    relationLegacyAttempted: Number(relationMigration.summary.attempted || 0),
-    relationLegacyMigrated: Number(relationMigration.summary.migrated || 0),
-    relationLegacyFailed: Number(relationMigration.summary.failed || 0),
-  });
-}
-
-console.log(`Modo: ${applyChanges ? "apply" : "dry-run"}`);
-console.log(`Projetos analisados: ${scopedProjects.length}`);
-console.log(`Tentativas de localizacao (URLs remotas): ${totals.attempted}`);
-console.log(`Downloads aplicados: ${totals.downloaded}`);
-if (!applyChanges) {
-  console.log(`Dry-run sem download/escrita. Itens elegiveis remotos: ${totals.attempted}`);
-}
-console.log(`Falhas de importacao: ${totals.failed}`);
-console.log(`Ja locais (/uploads): ${totals.skippedLocal}`);
-console.log(`Normalizados de absoluto para relativo: ${totals.normalizedLocalAbsolute}`);
-console.log(`Relations locais legadas detectadas: ${totals.relationLegacyAttempted}`);
-if (applyChanges) {
-  console.log(`Relations locais legadas migradas: ${totals.relationLegacyMigrated}`);
-  console.log(`Relations reaproveitadas em target existente: ${totals.relationLegacyReused}`);
-  console.log(`Falhas na migracao local de relations: ${totals.relationLegacyFailed}`);
-} else {
-  console.log(`Dry-run de relations locais elegiveis: ${totals.relationLegacyDryRunEligible}`);
-}
-
-const touchedProjects = perProjectReports.filter(
-  (item) =>
-    item.attempted > 0 ||
-    item.normalizedLocalAbsolute > 0 ||
-    item.relationLegacyAttempted > 0,
-);
-if (touchedProjects.length > 0) {
-  console.log("\nResumo por projeto:");
-  touchedProjects.forEach((item) => {
-    console.log(
-      `- ${item.id}: remotas tentativas=${item.attempted}, downloads=${item.downloaded}, falhas=${item.failed}, normalizados=${item.normalizedLocalAbsolute}, relations_legado tentativas=${item.relationLegacyAttempted}, migradas=${item.relationLegacyMigrated}, falhas=${item.relationLegacyFailed}`,
-    );
-  });
-}
-
-if (applyChanges) {
-  writeJson(projectsPath, nextProjects);
-  const upsertResult = upsertUploadEntries(uploads, aggregatedUploads);
-  if (upsertResult.changed) {
-    writeJson(uploadsPath, upsertResult.uploads);
+} catch (error) {
+  console.error(error?.stack || error?.message || error);
+  process.exitCode = 1;
+} finally {
+  try {
+    await prisma.$disconnect();
+  } catch {
+    // ignore disconnect failure
   }
-  console.log(`\nArquivos atualizados: ${path.relative(rootDir, projectsPath)}, ${path.relative(rootDir, uploadsPath)}`);
-  console.log(`Registros de uploads adicionados/atualizados: ${aggregatedUploads.length}`);
 }
