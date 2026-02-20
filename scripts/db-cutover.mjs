@@ -134,7 +134,7 @@ const stages = {
 Notes:
   - preflight: runs db preflight and migration dry-run.
   - prepare-schema: runs prisma generate + migrate deploy + migrate status.
-  - cutover: backup + hash + json->db apply + parity verify.
+  - cutover: backup + hash + json->db apply + strict parity verify.
   - this script does not mutate .env; switch DATA_SOURCE and MAINTENANCE_MODE in your deploy env.`);
   },
 
@@ -182,8 +182,8 @@ Notes:
       commandArgs: ["run", "db:migrate:json:apply"],
     });
     runNpm({
-      label: "Verify parity JSON vs DB",
-      commandArgs: ["run", "db:verify:parity"],
+      label: "Verify strict parity JSON vs DB",
+      commandArgs: ["run", "db:verify:parity:strict"],
     });
   },
 

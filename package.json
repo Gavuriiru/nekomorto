@@ -16,6 +16,8 @@
     "db:migrate:json:dry-run": "node -r dotenv/config scripts/migrate-json-to-db.mjs --dry-run",
     "db:migrate:json:apply": "node -r dotenv/config scripts/migrate-json-to-db.mjs --apply",
     "db:verify:parity": "node -r dotenv/config scripts/verify-db-parity.mjs",
+    "db:verify:parity:strict": "node -r dotenv/config scripts/verify-db-parity.mjs",
+    "db:verify:parity:postcutover": "node -r dotenv/config scripts/verify-db-parity.mjs --ignore-keys=analyticsEvents,analyticsDaily,analyticsMeta",
     "db:hash:snapshot": "node scripts/hash-data-snapshot.mjs",
     "db:cutover": "node scripts/db-cutover.mjs",
     "db:staging:precutover": "node scripts/db-cutover.mjs preflight",

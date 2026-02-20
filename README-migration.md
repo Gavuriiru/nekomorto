@@ -253,6 +253,16 @@ Verificar paridade entre JSON e DB:
 npm run db:verify:parity
 ```
 
+Verificacao estrita (gate de cutover):
+```bash
+npm run db:verify:parity:strict
+```
+
+Verificacao pos-cutover (nao bloqueante, ignora analytics):
+```bash
+npm run db:verify:parity:postcutover
+```
+
 Gerar hash de snapshot de `server/data`:
 ```bash
 npm run db:hash:snapshot
@@ -277,7 +287,7 @@ npm run prisma:migrate:deploy
 4. Migre os dados e valide:
 ```bash
 npm run db:migrate:json:apply
-npm run db:verify:parity
+npm run db:verify:parity:strict
 ```
 5. Troque para DB e reinicie:
 ```bash
@@ -382,3 +392,5 @@ Observacoes importantes:
 - `db:staging:cutover` exige `DATABASE_URL` e, por seguranca, `MAINTENANCE_MODE=true`.
 - O script nao altera `.env` automaticamente. A troca `DATA_SOURCE=json -> db` continua sendo controlada pelo deploy.
 - Para bypass da checagem de manutencao (nao recomendado), use `--allow-no-maintenance`.
+- Politica de paridade: `db:verify:parity:strict` e gate apenas antes de reabrir escrita.
+- Apos reabrir escrita em `DATA_SOURCE=db`, divergencias em analytics sao esperadas; use `db:verify:parity:postcutover` apenas como auditoria.

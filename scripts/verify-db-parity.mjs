@@ -8,8 +8,52 @@ import {
   snapshotCounts,
 } from "./lib/db-migration-utils.mjs";
 
-const args = new Set(process.argv.slice(2));
-const skipUploadBackfill = args.has("--skip-upload-backfill");
+const args = process.argv.slice(2);
+const hasFlag = (flag) => args.includes(flag);
+const getArgValue = (name) => {
+  const item = args.find((entry) => entry.startsWith(`${name}=`));
+  return item ? item.slice(name.length + 1) : "";
+};
+
+const skipUploadBackfill = hasFlag("--skip-upload-backfill");
+const ignoreKeysRaw = getArgValue("--ignore-keys");
+const COMPARISON_KEYS = [
+  "posts",
+  "projects",
+  "users",
+  "comments",
+  "updates",
+  "uploads",
+  "pages",
+  "siteSettings",
+  "tagTranslations",
+  "linkTypes",
+  "ownerIds",
+  "allowedUsers",
+  "auditLog",
+  "analyticsEvents",
+  "analyticsDaily",
+  "analyticsMeta",
+];
+
+const parseIgnoredKeys = () => {
+  if (!String(ignoreKeysRaw || "").trim()) {
+    return new Set();
+  }
+  const keys = String(ignoreKeysRaw)
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
+  const unknown = keys.filter((key) => !COMPARISON_KEYS.includes(key));
+  if (unknown.length > 0) {
+    throw new Error(
+      `Unknown --ignore-keys values: ${unknown.join(", ")}. Allowed keys: ${COMPARISON_KEYS.join(", ")}`,
+    );
+  }
+  return new Set(keys);
+};
+
+const ignoredKeys = parseIgnoredKeys();
 
 const buildDbSnapshot = async () => {
   const [
@@ -74,26 +118,11 @@ const buildDbSnapshot = async () => {
 };
 
 const buildComparison = (left, right) => {
-  const keys = [
-    "posts",
-    "projects",
-    "users",
-    "comments",
-    "updates",
-    "uploads",
-    "pages",
-    "siteSettings",
-    "tagTranslations",
-    "linkTypes",
-    "ownerIds",
-    "allowedUsers",
-    "auditLog",
-    "analyticsEvents",
-    "analyticsDaily",
-    "analyticsMeta",
-  ];
   const differences = [];
-  keys.forEach((key) => {
+  COMPARISON_KEYS.forEach((key) => {
+    if (ignoredKeys.has(key)) {
+      return;
+    }
     const leftChecksum = checksumOf(left[key]);
     const rightChecksum = checksumOf(right[key]);
     if (leftChecksum !== rightChecksum) {
@@ -126,6 +155,7 @@ const main = async () => {
     JSON.stringify(
       {
         ts: new Date().toISOString(),
+        ignoredKeys: Array.from(ignoredKeys),
         expectedCounts,
         actualCounts,
         differences,

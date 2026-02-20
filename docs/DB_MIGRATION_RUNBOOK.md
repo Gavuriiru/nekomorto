@@ -8,6 +8,7 @@ This runbook implements the staging-first strategy and is aligned with the opera
 - Quality gate: block only on errors; warnings are not blockers.
 - Infra model: self-hosted PostgreSQL using Docker Compose.
 - No dual-write: app runs with one data source at a time (`json` or `db`).
+- Parity policy: strict parity is required only during cutover window (before reopening writes).
 
 ## Phase 1 - Provision staging PostgreSQL
 
@@ -99,7 +100,7 @@ Equivalent manual commands:
 node scripts/backup-data.mjs
 npm run db:hash:snapshot
 npm run db:migrate:json:apply
-npm run db:verify:parity
+npm run db:verify:parity:strict
 ```
 
 3. Switch data source and restart app:
@@ -131,6 +132,11 @@ npm run db:staging:smoke -- --base=https://staging.example.com
 - Validate write flows in dashboard (post/project/comment/user).
 - Restart app and confirm persistence.
 - Observe Prisma/DB logs for at least 24 hours.
+- Optional non-blocking audit after reopening writes:
+
+```bash
+npm run db:verify:parity:postcutover
+```
 
 ## Phase 7 - Production promotion
 
@@ -138,7 +144,7 @@ Repeat phases 2-6 in production with a scheduled maintenance window.
 
 Final blockers before opening writes:
 
-- `db:verify:parity` must have `differences: []`.
+- `db:verify:parity:strict` must have `differences: []`.
 - smoke checks must pass.
 
 ## Rollback note
