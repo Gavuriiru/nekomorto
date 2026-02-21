@@ -1,1 +1,0 @@
-const s=e=>String(e||"").toLowerCase(),a=e=>{const n=s(e);return n==="manga"||n==="mangá"||n.includes("mang")||n.includes("webtoon")},o=e=>{const n=s(e);return n.includes("light")||n.includes("novel")},t=e=>a(e)||o(e);export{a,o as b,t as i};

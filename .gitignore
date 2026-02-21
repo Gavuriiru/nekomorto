@@ -9,6 +9,7 @@ lerna-debug.log*
 
 node_modules
 dist
+/.tmp_build_verify/
 dist-ssr
 .vite
 .cache
@@ -35,6 +36,7 @@ coverage
 .env
 .env.*
 !.env.example
+!ops/prod/.env.prod.example
 .env.local
 .env.development.local
 .env.test.local
@@ -52,3 +54,4 @@ ops/postgres/backups/
 # Local tooling / generated assets
 temp_block.txt
 public/uploads/
+/reports/
