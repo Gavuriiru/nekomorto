@@ -3,6 +3,10 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
+  "engines": {
+    "node": "24.13.x",
+    "npm": "11.x"
+  },
   "scripts": {
     "dev": "node --watch --watch-path=server/index.js --watch-path=server/lib server/index.js",
     "dev:server": "node --watch --watch-path=server/index.js --watch-path=server/lib server/index.js",
@@ -15,6 +19,7 @@
     "db:backup": "node scripts/backup-data.mjs",
     "api:smoke": "node scripts/smoke-api.mjs",
     "api:health:check": "node scripts/check-health.mjs",
+    "reports:outdated": "node scripts/save-outdated-report.mjs",
     "lint": "biome check . --formatter-enabled=false --organize-imports-enabled=false",
     "format": "biome format --write .",
     "format:check": "biome format .",

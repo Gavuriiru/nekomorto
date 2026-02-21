@@ -92,10 +92,10 @@ describe("ProjectEmbedCard", () => {
     const studioBadge = screen.getByTestId("project-embed-studio-badge");
     const title = screen.getByText("Projeto Embed");
     const synopsis = screen.getByText("Sinopse");
-    const synopsisColumn = container.querySelector('[data-synopsis-role="column"]');
-    const synopsisTitle = container.querySelector('[data-synopsis-role="title"]');
-    const synopsisText = container.querySelector('[data-synopsis-role="synopsis"]');
-    const synopsisBadges = container.querySelector('[data-synopsis-role="badges"]');
+    const synopsisColumn = container.querySelector<HTMLElement>('[data-synopsis-role="column"]');
+    const synopsisTitle = container.querySelector<HTMLElement>('[data-synopsis-role="title"]');
+    const synopsisText = container.querySelector<HTMLElement>('[data-synopsis-role="synopsis"]');
+    const synopsisBadges = container.querySelector<HTMLElement>('[data-synopsis-role="badges"]');
 
     expect(acao.compareDocumentPosition(comedia) & Node.DOCUMENT_POSITION_FOLLOWING).not.toBe(0);
     expect(comedia.compareDocumentPosition(drama) & Node.DOCUMENT_POSITION_FOLLOWING).not.toBe(0);

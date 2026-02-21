@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+﻿import type { ReactNode } from "react";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -53,7 +53,7 @@ describe("DashboardAuditLog date/time filters", () => {
     });
   });
 
-  it("converte filtros DateField/TimeField para dateFrom/dateTo ISO sem mudar semântica", async () => {
+  it("converte filtros DateField/TimeField para dateFrom/dateTo ISO sem mudar semantica", async () => {
     render(
       <MemoryRouter initialEntries={["/dashboard/audit-log"]}>
         <DashboardAuditLog />
@@ -101,112 +101,122 @@ describe("DashboardAuditLog date/time filters", () => {
     });
   });
 
-  it("exibe toast de sucesso em exportação CSV sem truncamento", async () => {
+  it("exibe toast de sucesso em exportacao CSV sem truncamento", async () => {
     const originalCreateObjectURL = window.URL.createObjectURL;
     const originalRevokeObjectURL = window.URL.revokeObjectURL;
     window.URL.createObjectURL = vi.fn(() => "blob:http://localhost/fake") as typeof window.URL.createObjectURL;
     window.URL.revokeObjectURL = vi.fn() as typeof window.URL.revokeObjectURL;
     const appendChildSpy = vi.spyOn(document.body, "appendChild");
     const removeChildSpy = vi.spyOn(document.body, "removeChild");
+    const anchorClickSpy = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
 
-    apiFetchMock.mockImplementation(async (_base, path, options) => {
-      const method = String((options as RequestInit | undefined)?.method || "GET").toUpperCase();
-      if (path === "/api/me" && method === "GET") {
-        return mockJsonResponse(true, { id: "1", name: "Admin", username: "admin" });
-      }
-      if (String(path).startsWith("/api/audit-log?") && method === "GET") {
-        const query = String(path).split("?")[1] || "";
-        const params = new URLSearchParams(query);
-        if (params.get("format") === "csv") {
-          return ({
-            ok: true,
-            status: 200,
-            headers: new Headers(),
-            blob: async () => new Blob(["event"], { type: "text/csv" }),
-          }) as Response;
+    try {
+      apiFetchMock.mockImplementation(async (_base, path, options) => {
+        const method = String((options as RequestInit | undefined)?.method || "GET").toUpperCase();
+        if (path === "/api/me" && method === "GET") {
+          return mockJsonResponse(true, { id: "1", name: "Admin", username: "admin" });
         }
-        return mockJsonResponse(true, { entries: [], page: 1, limit: 50, total: 0 });
-      }
-      return mockJsonResponse(false, { error: "not_found" }, 404);
-    });
+        if (String(path).startsWith("/api/audit-log?") && method === "GET") {
+          const query = String(path).split("?")[1] || "";
+          const params = new URLSearchParams(query);
+          if (params.get("format") === "csv") {
+            return ({
+              ok: true,
+              status: 200,
+              headers: new Headers(),
+              blob: async () => new Blob(["event"], { type: "text/csv" }),
+            }) as Response;
+          }
+          return mockJsonResponse(true, { entries: [], page: 1, limit: 50, total: 0 });
+        }
+        return mockJsonResponse(false, { error: "not_found" }, 404);
+      });
 
-    render(
-      <MemoryRouter initialEntries={["/dashboard/audit-log"]}>
-        <DashboardAuditLog />
-      </MemoryRouter>,
-    );
-
-    await screen.findByRole("heading", { name: "Registro de Auditoria" });
-    fireEvent.click(screen.getByRole("button", { name: "Exportar CSV" }));
-
-    await waitFor(() => {
-      expect(toastMock).toHaveBeenCalledWith(
-        expect.objectContaining({
-          title: "CSV exportado",
-        }),
+      render(
+        <MemoryRouter initialEntries={["/dashboard/audit-log"]}>
+          <DashboardAuditLog />
+        </MemoryRouter>,
       );
-    });
 
-    window.URL.createObjectURL = originalCreateObjectURL;
-    window.URL.revokeObjectURL = originalRevokeObjectURL;
-    appendChildSpy.mockRestore();
-    removeChildSpy.mockRestore();
+      await screen.findByRole("heading", { name: "Registro de Auditoria" });
+      fireEvent.click(screen.getByRole("button", { name: "Exportar CSV" }));
+
+      await waitFor(() => {
+        expect(toastMock).toHaveBeenCalledWith(
+          expect.objectContaining({
+            title: "CSV exportado",
+          }),
+        );
+      });
+      expect(anchorClickSpy).toHaveBeenCalledTimes(1);
+    } finally {
+      window.URL.createObjectURL = originalCreateObjectURL;
+      window.URL.revokeObjectURL = originalRevokeObjectURL;
+      appendChildSpy.mockRestore();
+      removeChildSpy.mockRestore();
+      anchorClickSpy.mockRestore();
+    }
   });
 
-  it("exibe toast de truncamento quando exportação CSV vem limitada", async () => {
+  it("exibe toast de truncamento quando exportacao CSV vem limitada", async () => {
     const originalCreateObjectURL = window.URL.createObjectURL;
     const originalRevokeObjectURL = window.URL.revokeObjectURL;
     window.URL.createObjectURL = vi.fn(() => "blob:http://localhost/fake") as typeof window.URL.createObjectURL;
     window.URL.revokeObjectURL = vi.fn() as typeof window.URL.revokeObjectURL;
     const appendChildSpy = vi.spyOn(document.body, "appendChild");
     const removeChildSpy = vi.spyOn(document.body, "removeChild");
+    const anchorClickSpy = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
 
-    apiFetchMock.mockImplementation(async (_base, path, options) => {
-      const method = String((options as RequestInit | undefined)?.method || "GET").toUpperCase();
-      if (path === "/api/me" && method === "GET") {
-        return mockJsonResponse(true, { id: "1", name: "Admin", username: "admin" });
-      }
-      if (String(path).startsWith("/api/audit-log?") && method === "GET") {
-        const query = String(path).split("?")[1] || "";
-        const params = new URLSearchParams(query);
-        if (params.get("format") === "csv") {
-          const headers = new Headers({
-            "X-Audit-Export-Truncated": "1",
-            "X-Audit-Export-Count": "10000",
-            "X-Audit-Export-Total": "15234",
-          });
-          return ({
-            ok: true,
-            status: 200,
-            headers,
-            blob: async () => new Blob(["event"], { type: "text/csv" }),
-          }) as Response;
+    try {
+      apiFetchMock.mockImplementation(async (_base, path, options) => {
+        const method = String((options as RequestInit | undefined)?.method || "GET").toUpperCase();
+        if (path === "/api/me" && method === "GET") {
+          return mockJsonResponse(true, { id: "1", name: "Admin", username: "admin" });
         }
-        return mockJsonResponse(true, { entries: [], page: 1, limit: 50, total: 0 });
-      }
-      return mockJsonResponse(false, { error: "not_found" }, 404);
-    });
+        if (String(path).startsWith("/api/audit-log?") && method === "GET") {
+          const query = String(path).split("?")[1] || "";
+          const params = new URLSearchParams(query);
+          if (params.get("format") === "csv") {
+            const headers = new Headers({
+              "X-Audit-Export-Truncated": "1",
+              "X-Audit-Export-Count": "10000",
+              "X-Audit-Export-Total": "15234",
+            });
+            return ({
+              ok: true,
+              status: 200,
+              headers,
+              blob: async () => new Blob(["event"], { type: "text/csv" }),
+            }) as Response;
+          }
+          return mockJsonResponse(true, { entries: [], page: 1, limit: 50, total: 0 });
+        }
+        return mockJsonResponse(false, { error: "not_found" }, 404);
+      });
 
-    render(
-      <MemoryRouter initialEntries={["/dashboard/audit-log"]}>
-        <DashboardAuditLog />
-      </MemoryRouter>,
-    );
-
-    await screen.findByRole("heading", { name: "Registro de Auditoria" });
-    fireEvent.click(screen.getByRole("button", { name: "Exportar CSV" }));
-
-    await waitFor(() => {
-      expect(toastMock).toHaveBeenCalledWith(
-        expect.objectContaining({
-          title: "CSV exportado com limite",
-        }),
+      render(
+        <MemoryRouter initialEntries={["/dashboard/audit-log"]}>
+          <DashboardAuditLog />
+        </MemoryRouter>,
       );
-    });
 
-    window.URL.createObjectURL = originalCreateObjectURL;
-    window.URL.revokeObjectURL = originalRevokeObjectURL;
-    appendChildSpy.mockRestore();
-    removeChildSpy.mockRestore();
+      await screen.findByRole("heading", { name: "Registro de Auditoria" });
+      fireEvent.click(screen.getByRole("button", { name: "Exportar CSV" }));
+
+      await waitFor(() => {
+        expect(toastMock).toHaveBeenCalledWith(
+          expect.objectContaining({
+            title: "CSV exportado com limite",
+          }),
+        );
+      });
+      expect(anchorClickSpy).toHaveBeenCalledTimes(1);
+    } finally {
+      window.URL.createObjectURL = originalCreateObjectURL;
+      window.URL.revokeObjectURL = originalRevokeObjectURL;
+      appendChildSpy.mockRestore();
+      removeChildSpy.mockRestore();
+      anchorClickSpy.mockRestore();
+    }
   });
 });

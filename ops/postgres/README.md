@@ -72,6 +72,16 @@ Example cron (daily at 03:10 UTC):
 ./ops/postgres/restore.sh ops/postgres/backups/nekomorto_YYYYMMDDTHHMMSSZ.sql.gz
 ```
 
+## Using these scripts with production compose
+
+The scripts support override of compose/env paths. Example:
+
+```bash
+COMPOSE_FILE=/srv/nekomorto/docker-compose.prod.yml \
+ENV_FILE=/srv/nekomorto/.env.prod \
+./ops/postgres/backup.sh
+```
+
 ## Network hardening
 
 - Default bind is `127.0.0.1` (see `POSTGRES_BIND_IP`).

@@ -1,0 +1,94 @@
+name: nekomorto-prod
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: nekomorto-postgres-prod
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-nekomorto}
+      POSTGRES_USER: ${POSTGRES_USER:-nekomorto_app}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      TZ: UTC
+      PGTZ: UTC
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-nekomorto_app} -d ${POSTGRES_DB:-nekomorto}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    networks:
+      - nekomorto_internal
+    logging:
+      options:
+        max-size: "10m"
+        max-file: "5"
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: nekomorto-app:latest
+    container_name: nekomorto-app
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    env_file:
+      - .env.prod
+    environment:
+      NODE_ENV: production
+      PORT: 8080
+    expose:
+      - "8080"
+    volumes:
+      - uploads_data:/app/public/uploads
+    healthcheck:
+      test: ["CMD", "node", "scripts/check-health.mjs", "--base=http://127.0.0.1:8080", "--expect-source=db"]
+      interval: 20s
+      timeout: 5s
+      retries: 6
+      start_period: 40s
+    networks:
+      - nekomorto_internal
+    logging:
+      options:
+        max-size: "10m"
+        max-file: "5"
+
+  caddy:
+    image: caddy:2-alpine
+    container_name: nekomorto-caddy
+    restart: unless-stopped
+    depends_on:
+      app:
+        condition: service_healthy
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./ops/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    networks:
+      - nekomorto_internal
+    logging:
+      options:
+        max-size: "10m"
+        max-file: "5"
+
+networks:
+  nekomorto_internal:
+    name: nekomorto-internal
+
+volumes:
+  postgres_data:
+    name: nekomorto-postgres-prod-data
+  uploads_data:
+    name: nekomorto-uploads-prod-data
+  caddy_data:
+    name: nekomorto-caddy-data
+  caddy_config:
+    name: nekomorto-caddy-config

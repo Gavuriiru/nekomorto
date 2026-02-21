@@ -1,0 +1,1 @@
+const r=(t,e="pt-BR")=>t?new Date(t).toLocaleString(e,{dateStyle:"short",timeStyle:"short"}):"",o=(t,e="pt-BR")=>t?new Date(t).toLocaleDateString(e,{dateStyle:"short"}):"",a=(t,e="pt-BR")=>t?new Date(t).toLocaleString(e):"";export{r as a,a as b,o as f};

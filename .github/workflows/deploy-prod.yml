@@ -1,0 +1,43 @@
+name: Deploy Production
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure SSH
+        shell: bash
+        run: |
+          PORT="${{ secrets.PROD_PORT }}"
+          if [ -z "${PORT}" ]; then
+            PORT=22
+          fi
+
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "${{ secrets.PROD_SSH_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -p "${PORT}" "${{ secrets.PROD_HOST }}" >> ~/.ssh/known_hosts
+
+      - name: Run remote deploy
+        shell: bash
+        run: |
+          PORT="${{ secrets.PROD_PORT }}"
+          if [ -z "${PORT}" ]; then
+            PORT=22
+          fi
+
+          ssh -o StrictHostKeyChecking=yes -p "${PORT}" "${{ secrets.PROD_USER }}@${{ secrets.PROD_HOST }}" \
+            "DEPLOY_PATH='${{ secrets.PROD_DEPLOY_PATH }}' DEPLOY_BRANCH='main' HEALTHCHECK_BASE_URL='https://nekomata.moe' bash '${{ secrets.PROD_DEPLOY_PATH }}/ops/prod/deploy-prod.sh'"
