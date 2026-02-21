@@ -8,7 +8,9 @@
     "npm": "11.x"
   },
   "scripts": {
+    "predev": "npm run prisma:generate",
     "dev": "node --watch --watch-path=server/index.js --watch-path=server/lib server/index.js",
+    "predev:server": "npm run prisma:generate",
     "dev:server": "node --watch --watch-path=server/index.js --watch-path=server/lib server/index.js",
     "dev:client": "vite --port 5173",
     "build": "vite build",

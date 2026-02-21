@@ -29,7 +29,7 @@ const ThemeModeSwitcher = ({ className, buttonClassName }: ThemeModeSwitcherProp
       variant="ghost"
       size="icon"
       className={cn(
-        "h-10 w-10 rounded-full border border-border/60 bg-card/50 text-foreground/85 hover:bg-accent hover:text-accent-foreground",
+        "h-10 w-10 rounded-full text-muted-foreground hover:text-foreground",
         className,
         buttonClassName,
       )}

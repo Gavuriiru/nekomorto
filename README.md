@@ -97,6 +97,7 @@ DATABASE_URL=postgresql://usuario:senha@127.0.0.1:5432/nekomorto
 Depois rode migracoes e suba a aplicacao:
 
 ```bash
+npm run prisma:generate
 npm run prisma:migrate:deploy
 npm run dev
 ```
@@ -156,6 +157,7 @@ DATABASE_URL=postgresql://nekomorto_app:<POSTGRES_PASSWORD>@127.0.0.1:5432/nekom
 ### 5.4 Aplicar migracoes e iniciar app
 
 ```bash
+npm run prisma:generate
 npm run prisma:migrate:deploy
 npm run dev
 ```
@@ -529,6 +531,16 @@ Correcao:
 npm install
 ```
 
+### Erro: `The requested module '@prisma/client' does not provide an export named 'PrismaClient'`
+
+Causa: client do Prisma nao gerado (ausencia de `node_modules/.prisma/client`).
+
+Correcao:
+
+```bash
+npm run prisma:generate
+```
+
 ### Erro: `DATABASE_URL is required`
 
 Causa: variavel obrigatoria nao configurada.
@@ -603,6 +615,7 @@ Setup local rapido:
 ```bash
 npm install
 cp .env.example .env
+npm run prisma:generate
 npm run prisma:migrate:deploy
 npm run dev
 ```

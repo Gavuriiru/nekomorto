@@ -18,7 +18,7 @@ FROM base AS runtime
 ENV NODE_ENV=production
 ENV PORT=8080
 
-COPY --from=deps /app/node_modules ./node_modules
+COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/package.json ./package.json
 COPY --from=build /app/package-lock.json ./package-lock.json
 COPY --from=build /app/prisma.config.ts ./prisma.config.ts
