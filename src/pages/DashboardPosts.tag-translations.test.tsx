@@ -81,6 +81,7 @@ describe("DashboardPosts tags translation", () => {
               slug: "post-de-teste",
               excerpt: "Resumo",
               content: "",
+              coverImageUrl: "/uploads/posts/capa-vertical-9x16.jpg",
               author: "Admin",
               publishedAt: "2026-02-10T12:00:00.000Z",
               status: "published",
@@ -152,6 +153,11 @@ describe("DashboardPosts tags translation", () => {
 
     await screen.findByRole("heading", { name: "Gerenciar posts" });
     const card = await screen.findByTestId("post-card-post-1");
+    const coverImage = within(card).getByRole("img", { name: "Post de Teste" });
+    expect(coverImage).toHaveClass("absolute", "inset-0", "block", "h-full", "w-full", "object-cover", "object-center");
+    const coverContainer = coverImage.parentElement;
+    expect(coverContainer).not.toBeNull();
+    expect(coverContainer).toHaveClass("relative", "h-52", "w-full", "overflow-hidden", "lg:h-full");
     const cardLayoutContainer = Array.from(card.querySelectorAll("div")).find((element) =>
       element.className.includes("lg:h-[280px]"),
     );

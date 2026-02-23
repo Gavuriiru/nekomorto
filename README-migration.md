@@ -93,12 +93,52 @@ npm run uploads:isolate-project-images -- --apply
 npm run uploads:isolate-project-images -- --apply --project <id>
 ```
 
+Check de integridade de uploads:
+
+```bash
+npm run uploads:check-integrity
+```
+
 Migracao RBAC v2 (usuarios):
 
 ```bash
 npm run users:migrate-permissions-v2
 npm run users:migrate-permissions-v2 -- --apply
 ```
+
+## Restauracao de uploads (local/dev)
+
+Quando `public/uploads` estiver ausente ou incompleto, restaure a pasta a partir do snapshot/volume da producao.
+
+Export no host de producao (exemplo com volume Docker):
+
+```bash
+docker run --rm \
+  -v nekomorto-uploads-prod-data:/from \
+  -v "$(pwd)":/to \
+  alpine sh -c "cd /from && tar -czf /to/uploads-prod-snapshot.tgz ."
+```
+
+Copie o arquivo para a maquina local (exemplo):
+
+```bash
+scp <user>@<host>:/srv/nekomorto/uploads-prod-snapshot.tgz .
+```
+
+Restaure localmente:
+
+```bash
+mkdir -p public/uploads
+tar -xzf uploads-prod-snapshot.tgz -C public/uploads
+```
+
+Valide integridade:
+
+```bash
+node --env-file=.env scripts/check-upload-integrity.mjs
+```
+
+Se o check falhar, restaure novamente o snapshot correto e repita a validacao ate zerar erros criticos.
 
 ## Sessao em PostgreSQL
 

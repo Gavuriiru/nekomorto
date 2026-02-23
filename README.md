@@ -177,6 +177,7 @@ npm run dev
 ```
 
 - API + frontend em `http://localhost:8080`.
+- Para acesso por tunel/dominio publico, mantenha `VITE_API_BASE` vazio para usar same-origin.
 
 ### 6.2 Modo separado (backend e frontend em portas diferentes)
 
@@ -189,13 +190,14 @@ npm run dev:server
 Terminal 2:
 
 ```bash
-npm run dev:client
+npm run dev:client:local-api
 ```
 
-Nesse modo, configure `VITE_API_BASE` no `.env` para apontar ao backend:
+Esse comando ja injeta `VITE_API_BASE=http://127.0.0.1:8080` so nesta sessao.
+Se preferir manter `npm run dev:client`, exporte a variavel apenas no terminal (sem editar `.env`):
 
-```dotenv
-VITE_API_BASE=http://127.0.0.1:8080
+```bash
+VITE_API_BASE=http://127.0.0.1:8080 npm run dev:client
 ```
 
 Frontend:
@@ -247,7 +249,7 @@ Arquivo base para producao com Docker Compose:
 | `MAINTENANCE_MODE` | opcional | opcional | Bloqueia mutacoes `POST/PUT/PATCH/DELETE` na API quando `true`. |
 | `ADMIN_ORIGINS` | opcional | opcional | Origens extras para painel/admin. |
 | `DISCORD_REDIRECT_URI` | opcional | opcional | `auto` (padrao) ou URL absoluta fixa. |
-| `VITE_API_BASE` | opcional | opcional | Override da base de API no frontend. |
+| `VITE_API_BASE` | opcional | opcional | Override da base de API no frontend. Em modo integrado/producao same-origin, deixe vazio. |
 
 Condicional em producao:
 
@@ -332,6 +334,12 @@ Edite `.env.prod` com valores reais, incluindo:
 - `DISCORD_CLIENT_SECRET`
 - `OWNER_IDS` ou `BOOTSTRAP_TOKEN`
 
+Para producao same-origin (recomendado), nao configure `VITE_API_BASE`.
+No Discord Developer Portal, confirme as redirect URIs:
+
+- `https://nekomata.moe/login` (obrigatoria)
+- `https://www.nekomata.moe/login` (recomendada)
+
 ### 8.4 DNS, dominio e Caddy
 
 Antes do primeiro `up` com Caddy:
@@ -359,6 +367,7 @@ cd /srv/nekomorto
 docker compose --env-file .env.prod -f docker-compose.prod.yml up -d postgres
 docker compose --env-file .env.prod -f docker-compose.prod.yml build app
 docker compose --env-file .env.prod -f docker-compose.prod.yml run --rm app npm run prisma:migrate:deploy
+docker compose --env-file .env.prod -f docker-compose.prod.yml run --rm app npm run uploads:check-integrity
 docker compose --env-file .env.prod -f docker-compose.prod.yml up -d app caddy
 ```
 
@@ -408,8 +417,9 @@ Comportamento do deploy remoto (`ops/prod/deploy-prod.sh`):
 3. Sobe `postgres`.
 4. Builda imagem `app`.
 5. Aplica migracoes Prisma.
-6. Sobe `app` + `caddy`.
-7. Executa healthcheck interno e externo.
+6. Executa check de integridade de uploads (`npm run uploads:check-integrity`).
+7. Sobe `app` + `caddy`.
+8. Executa healthcheck interno e externo.
 
 Importante:
 
@@ -453,6 +463,38 @@ npm run db:backup
 ```
 
 Esse comando gera snapshot em `backups/` usando a `DATABASE_URL` atual.
+
+### 10.4 Restore de uploads para ambiente local
+
+Use quando `public/uploads` estiver vazio ou faltando arquivos.
+
+Export no host de producao (exemplo com volume Docker):
+
+```bash
+docker run --rm \
+  -v nekomorto-uploads-prod-data:/from \
+  -v "$(pwd)":/to \
+  alpine sh -c "cd /from && tar -czf /to/uploads-prod-snapshot.tgz ."
+```
+
+Copie o arquivo para sua maquina local:
+
+```bash
+scp <user>@<host>:/srv/nekomorto/uploads-prod-snapshot.tgz .
+```
+
+Restaure em `public/uploads`:
+
+```bash
+mkdir -p public/uploads
+tar -xzf uploads-prod-snapshot.tgz -C public/uploads
+```
+
+Valide com o check de integridade:
+
+```bash
+node --env-file=.env scripts/check-upload-integrity.mjs
+```
 
 ## 11. Operacao de Manutencao
 
@@ -608,6 +650,58 @@ Preencha no `.env.prod`:
 - `DISCORD_CLIENT_SECRET`
 - `SESSION_SECRET`
 
+### Erro: login volta para `/login` e `GET /api/me` retorna `401`
+
+Causa comum:
+
+- `VITE_API_BASE` aponta para `http://localhost:8080` enquanto o acesso ocorre por dominio publico (`https://...`).
+- Cookie de sessao antigo/invalido no navegador.
+
+Correcao:
+
+1. Em modo integrado/tunel, deixe no `.env`:
+
+```dotenv
+VITE_API_BASE=
+```
+
+2. Reinicie app e tunel.
+3. Limpe cookies do dominio publico e de `localhost`.
+4. Inicie o login pela URL publica (ex.: `https://dev.nekomata.moe/login`).
+5. Verifique no DevTools que as chamadas usam `https://<mesmo-dominio>/api/...` (nao `http://localhost:8080/api/...`).
+
+Diagnostico em producao:
+
+```bash
+docker compose --env-file .env.prod -f docker-compose.prod.yml logs -f app
+```
+
+Procure eventos `auth.login.failed` com codigos `state_mismatch`, `token_exchange_failed` ou `unauthorized`.
+
+Para verificar se a sessao esta sendo persistida:
+
+```bash
+docker compose --env-file .env.prod -f docker-compose.prod.yml exec postgres \
+  psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "select count(*) as total_sessions from user_sessions;"
+```
+
+### Erro: imagens quebradas em `/uploads` (home, projetos, posts, footer)
+
+Causa comum:
+
+- `public/uploads` ausente/incompleto no ambiente atual.
+
+Correcao:
+
+1. Restaure os arquivos de uploads a partir de backup/snapshot valido.
+2. Execute o check:
+
+```bash
+npm run uploads:check-integrity
+```
+
+3. Se o comando falhar, repita a restauracao ate eliminar `missing_source_file` e `missing_upload_file_for_inventory`.
+
 ## 13. Referencia Rapida de Comandos
 
 Setup local rapido:
@@ -632,6 +726,7 @@ Qualidade:
 ```bash
 npm run lint
 npm run test
+npm run uploads:check-integrity
 ```
 
 Producao (ordem):
@@ -640,6 +735,7 @@ Producao (ordem):
 docker compose --env-file .env.prod -f docker-compose.prod.yml up -d postgres
 docker compose --env-file .env.prod -f docker-compose.prod.yml build app
 docker compose --env-file .env.prod -f docker-compose.prod.yml run --rm app npm run prisma:migrate:deploy
+docker compose --env-file .env.prod -f docker-compose.prod.yml run --rm app npm run uploads:check-integrity
 docker compose --env-file .env.prod -f docker-compose.prod.yml up -d app caddy
 ```
 

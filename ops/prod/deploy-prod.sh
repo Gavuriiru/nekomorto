@@ -39,6 +39,9 @@ docker compose --env-file "${ENV_FILE}" -f "${COMPOSE_FILE}" build app
 echo "[deploy] Applying Prisma migrations..."
 docker compose --env-file "${ENV_FILE}" -f "${COMPOSE_FILE}" run --rm app npm run prisma:migrate:deploy
 
+echo "[deploy] Checking uploads integrity..."
+docker compose --env-file "${ENV_FILE}" -f "${COMPOSE_FILE}" run --rm app npm run uploads:check-integrity
+
 echo "[deploy] Starting app + caddy..."
 docker compose --env-file "${ENV_FILE}" -f "${COMPOSE_FILE}" up -d app caddy
 

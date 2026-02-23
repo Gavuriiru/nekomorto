@@ -242,11 +242,10 @@ const ProjectCard = ({
 };
 
 const Projects = () => {
-  usePageMeta({ title: "Projetos" });
-
   const apiBase = getApiBase();
   const hasMountedRef = useRef(false);
   const [projects, setProjects] = useState<Project[]>([]);
+  const [shareImage, setShareImage] = useState("");
   const [selectedLetter, setSelectedLetter] = useState("Todas");
   const [selectedType, setSelectedType] = useState("Todos");
   const [currentPage, setCurrentPage] = useState(1);
@@ -257,6 +256,30 @@ const Projects = () => {
   const projectsPerPage = 16;
   const selectedTag = searchParams.get("tag") || "Todas";
   const selectedGenre = searchParams.get("genero") || searchParams.get("genre") || "Todos";
+
+  usePageMeta({ title: "Projetos", image: shareImage || undefined });
+
+  useEffect(() => {
+    let isActive = true;
+    const loadPages = async () => {
+      try {
+        const response = await apiFetch(apiBase, "/api/public/pages");
+        if (!response.ok) {
+          return;
+        }
+        const data = await response.json();
+        if (isActive) {
+          setShareImage(String(data?.pages?.projects?.shareImage || "").trim());
+        }
+      } catch {
+        // ignore
+      }
+    };
+    loadPages();
+    return () => {
+      isActive = false;
+    };
+  }, [apiBase]);
 
   useEffect(() => {
     let isActive = true;

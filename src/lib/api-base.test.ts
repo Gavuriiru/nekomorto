@@ -33,6 +33,24 @@ describe("api-base", () => {
     ).toBe("https://site.example.com");
   });
 
+  it("resolveApiBase ignores localhost env base when page origin is public", () => {
+    expect(
+      resolveApiBase({
+        envBase: "http://localhost:8080",
+        locationOrigin: "https://dev.nekomata.moe",
+      }),
+    ).toBe("https://dev.nekomata.moe");
+  });
+
+  it("resolveApiBase keeps localhost env base when page origin is local", () => {
+    expect(
+      resolveApiBase({
+        envBase: "http://127.0.0.1:8080",
+        locationOrigin: "http://localhost:5173",
+      }),
+    ).toBe("http://127.0.0.1:8080");
+  });
+
   it("resolveApiBase returns empty when env and location are missing", () => {
     expect(resolveApiBase({ envBase: "", locationOrigin: "" })).toBe("");
   });

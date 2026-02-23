@@ -35,6 +35,7 @@ const Post = () => {
     slug: string;
     coverImageUrl?: string | null;
     coverAlt?: string | null;
+    seoImageUrl?: string | null;
     excerpt: string;
     content: string;
     contentFormat?: "lexical";
@@ -131,8 +132,10 @@ const Post = () => {
   }, [apiBase, post?.slug]);
   const shareImage = useMemo(
     () =>
-      normalizeAssetUrl(post?.coverImageUrl) || normalizeAssetUrl(settings.site.defaultShareImage),
-    [post?.coverImageUrl, settings.site.defaultShareImage],
+      normalizeAssetUrl(post?.seoImageUrl) ||
+      normalizeAssetUrl(post?.coverImageUrl) ||
+      normalizeAssetUrl(settings.site.defaultShareImage),
+    [post?.seoImageUrl, post?.coverImageUrl, settings.site.defaultShareImage],
   );
 
   usePageMeta({

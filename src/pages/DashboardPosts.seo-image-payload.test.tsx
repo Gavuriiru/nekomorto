@@ -5,9 +5,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import DashboardPosts from "@/pages/DashboardPosts";
 
-const { apiFetchMock, imageLibraryPropsSpy } = vi.hoisted(() => ({
+const { apiFetchMock } = vi.hoisted(() => ({
   apiFetchMock: vi.fn(),
-  imageLibraryPropsSpy: vi.fn(),
 }));
 
 vi.mock("@/components/DashboardShell", () => ({
@@ -36,10 +35,8 @@ vi.mock("@/components/dashboard/DashboardPageHeader", () => ({
 vi.mock("@/components/ImageLibraryDialog", () => ({
   default: (props: {
     open?: boolean;
-    currentSelectionUrls?: string[];
     onSave: (payload: { urls: string[]; items: [] }) => void;
   }) => {
-    imageLibraryPropsSpy(props);
     if (!props.open) {
       return null;
     }
@@ -48,7 +45,7 @@ vi.mock("@/components/ImageLibraryDialog", () => ({
         type="button"
         onClick={() =>
           props.onSave({
-            urls: [props.currentSelectionUrls?.[0] || ""],
+            urls: ["/uploads/seo-selected.jpg"],
             items: [],
           })
         }
@@ -85,6 +82,10 @@ vi.mock("@/lib/api-client", () => ({
   apiFetch: (...args: unknown[]) => apiFetchMock(...args),
 }));
 
+vi.mock("@/components/ui/use-toast", () => ({
+  toast: () => undefined,
+}));
+
 const mockJsonResponse = (ok: boolean, payload: unknown, status = ok ? 200 : 500) =>
   ({
     ok,
@@ -92,60 +93,26 @@ const mockJsonResponse = (ok: boolean, payload: unknown, status = ok ? 200 : 500
     json: async () => payload,
   }) as Response;
 
-const lexicalWithImage = JSON.stringify({
-  root: {
-    type: "root",
-    version: 1,
-    children: [
-      {
-        type: "paragraph",
-        version: 1,
-        children: [{ type: "text", version: 1, text: "Conteúdo do post" }],
-      },
-      {
-        type: "image",
-        version: 1,
-        src: "/uploads/primeira-capa.png",
-        altText: "Primeira automática",
-      },
-    ],
-  },
-});
+const getCreateCall = () =>
+  apiFetchMock.mock.calls.find((call) => {
+    const path = call[1];
+    const options = (call[2] || {}) as RequestInit;
+    const method = String(options.method || "GET").toUpperCase();
+    return path === "/api/posts" && method === "POST";
+  });
 
-describe("DashboardPosts biblioteca com capa automatica", () => {
+describe("DashboardPosts SEO image payload", () => {
   beforeEach(() => {
     apiFetchMock.mockReset();
-    imageLibraryPropsSpy.mockReset();
-    apiFetchMock.mockImplementation(async (_base, path, options) => {
-      const method = String((options as RequestInit | undefined)?.method || "GET").toUpperCase();
-
+    apiFetchMock.mockImplementation(async (_base: string, path: string, options?: RequestInit) => {
+      const method = String(options?.method || "GET").toUpperCase();
       if (path === "/api/posts" && method === "GET") {
-        return mockJsonResponse(true, {
-          posts: [
-            {
-              id: "post-1",
-              title: "Post sem capa manual",
-              slug: "post-sem-capa-manual",
-              coverImageUrl: null,
-              coverAlt: "",
-              excerpt: "Resumo",
-              content: lexicalWithImage,
-              contentFormat: "lexical",
-              author: "Admin",
-              publishedAt: "2026-02-10T12:00:00.000Z",
-              status: "published",
-              projectId: "",
-              tags: [],
-              views: 10,
-              commentsCount: 2,
-            },
-          ],
-        });
+        return mockJsonResponse(true, { posts: [] });
       }
       if (path === "/api/users" && method === "GET") {
         return mockJsonResponse(true, {
           users: [{ id: "user-1", permissions: ["posts"] }],
-          ownerIds: ["user-1"],
+          ownerIds: [],
         });
       }
       if (path === "/api/me" && method === "GET") {
@@ -157,34 +124,48 @@ describe("DashboardPosts biblioteca com capa automatica", () => {
       if (path === "/api/public/tag-translations" && method === "GET") {
         return mockJsonResponse(true, { tags: {}, genres: {}, staffRoles: {} });
       }
+      if (path === "/api/posts" && method === "POST") {
+        const body = JSON.parse(String(options?.body || "{}"));
+        return mockJsonResponse(true, {
+          post: {
+            id: "post-1",
+            slug: body.slug || "post-1",
+          },
+        });
+      }
       return mockJsonResponse(false, { error: "not_found" }, 404);
     });
   });
 
-  it("usa capa automatica como selecao da biblioteca e preserva modo automatico ao salvar igual", async () => {
+  it("inclui seoImageUrl no payload ao criar post", async () => {
     render(
-      <MemoryRouter>
+      <MemoryRouter initialEntries={["/dashboard/posts"]}>
         <DashboardPosts />
       </MemoryRouter>,
     );
 
-    await screen.findByRole("heading", { name: "Gerenciar posts" });
-    fireEvent.click(await screen.findByText("Post sem capa manual"));
-
+    fireEvent.click(await screen.findByRole("button", { name: "Nova postagem" }));
     const dialog = await screen.findByRole("dialog");
-    expect(within(dialog).getByText(/Autom.+tica$/i)).toBeInTheDocument();
+    const titleInput = dialog.querySelector<HTMLInputElement>("#post-title");
+    expect(titleInput).not.toBeNull();
+    fireEvent.change(titleInput as HTMLInputElement, { target: { value: "Meu post SEO" } });
 
     await waitFor(() => {
-      const latest = imageLibraryPropsSpy.mock.calls.at(-1)?.[0] as { currentSelectionUrls?: string[] } | undefined;
-      expect(latest?.currentSelectionUrls).toEqual(["/uploads/primeira-capa.png"]);
+      const slugInput = dialog.querySelector<HTMLInputElement>("#post-slug");
+      expect(slugInput).not.toBeNull();
+      expect((slugInput as HTMLInputElement).value).toBe("meu-post-seo");
     });
 
-    fireEvent.click(within(dialog).getByRole("button", { name: "Biblioteca" }));
+    fireEvent.click(within(dialog).getByRole("button", { name: "Biblioteca SEO" }));
     fireEvent.click(await screen.findByRole("button", { name: "Mock salvar biblioteca" }));
 
+    fireEvent.click(within(dialog).getByRole("button", { name: "Salvar rascunho" }));
+
     await waitFor(() => {
-      expect(within(dialog).getByText(/Autom.+tica$/i)).toBeInTheDocument();
-      expect(within(dialog).queryByText("Manual")).not.toBeInTheDocument();
+      const createCall = getCreateCall();
+      expect(createCall).toBeTruthy();
+      const payload = JSON.parse(String((((createCall?.[2] || {}) as RequestInit).body || "{}")));
+      expect(payload.seoImageUrl).toBe("/uploads/seo-selected.jpg");
     });
   });
 });
