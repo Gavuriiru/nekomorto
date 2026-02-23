@@ -38,7 +38,7 @@ const LatestEpisodeCard = () => {
       </CardHeader>
       <CardContent className="space-y-3 px-4 pb-4 pt-0">
         {isLoadingUpdates ? (
-          <div className="soft-divider">
+          <div className="space-y-3">
             {Array.from({ length: 3 }).map((_, index) => (
               <div
                 key={`update-skeleton-${index}`}
@@ -58,7 +58,7 @@ const LatestEpisodeCard = () => {
             Nenhuma atualização recente cadastrada.
           </div>
         ) : (
-          <div className="soft-divider">
+          <div className="space-y-3">
             {[...recentUpdates]
               .sort(
                 (a, b) =>
@@ -98,7 +98,7 @@ const LatestEpisodeCard = () => {
                     key={update.id}
                     to={`/projeto/${update.projectId}`}
                     style={{ "--card-h": "164px", "--card-pad": "16px" } as CSSProperties}
-                    className="group relative block h-(--card-h) rounded-2xl border border-border/60 bg-linear-to-br from-background/70 via-background/40 to-background/70 shadow-none transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:shadow-lg reveal"
+                    className="recent-updates-item group relative block h-(--card-h) rounded-2xl bg-linear-to-br from-background/70 via-background/40 to-background/70 hover:-translate-y-1 reveal"
                     data-reveal
                   >
                     <div className="absolute inset-(--card-pad) flex items-start gap-4">

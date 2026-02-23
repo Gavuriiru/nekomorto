@@ -598,6 +598,31 @@
 }
 
 @layer components {
+  .recent-updates-item {
+    border: 1px solid hsl(var(--border) / 0.6);
+  }
+
+  .recent-updates-item.reveal {
+    transition:
+      opacity 0.6s ease,
+      transform 300ms ease,
+      border-color 180ms ease,
+      box-shadow 180ms ease;
+  }
+
+  .recent-updates-item:hover {
+    border-color: hsl(var(--primary) / 0.5);
+    box-shadow: 0 18px 34px -26px hsl(var(--primary) / 0.65);
+  }
+
+  .recent-updates-item:focus-visible {
+    border-color: hsl(var(--ring) / 0.55);
+    box-shadow:
+      0 0 0 2px hsl(var(--ring) / 0.3),
+      0 16px 30px -26px hsl(var(--ring) / 0.55);
+    outline: none;
+  }
+
   .project-editor-dialog {
     border-color: hsl(var(--border) / 0.75);
     background:
