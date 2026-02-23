@@ -172,7 +172,7 @@ export const ColorPicker = ({
       </ColorArea>
       <ColorSlider colorSpace="hsb" channel="hue" className="block w-full">
         <SliderTrack className="relative h-3 w-full rounded-full border border-border/60">
-          <ColorThumb className="absolute top-1/2 h-4 w-4 -translate-y-1/2 rounded-full border-2 border-white shadow-md data-dragging:scale-110 data-focus-visible:ring-2 data-focus-visible:ring-ring" />
+          <ColorThumb className="absolute top-1/2 h-4 w-4 rounded-full border-2 border-white shadow-md data-dragging:scale-110 data-focus-visible:ring-2 data-focus-visible:ring-ring" />
         </SliderTrack>
       </ColorSlider>
       <HexField className="h-9 rounded-md border border-border/60 bg-background px-3 text-sm text-foreground shadow-xs outline-hidden transition focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background" />

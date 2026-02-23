@@ -65,9 +65,13 @@ type FAQItem = { question: string; answer: string };
 type FAQGroup = { title: string; icon: string; items: FAQItem[] };
 type FAQIntro = { title: string; icon: string; text: string; note: string };
 type RecruitmentRole = { title: string; description: string; icon: string };
+type PageWithShareImage = { shareImage: string };
+type PublicPageKey = "about" | "donations" | "faq" | "team" | "recruitment";
 
 type PagesConfig = {
-  about: {
+  home: PageWithShareImage;
+  projects: PageWithShareImage;
+  about: PageWithShareImage & {
     heroBadge: string;
     heroTitle: string;
     heroSubtitle: string;
@@ -79,7 +83,7 @@ type PagesConfig = {
     pillars: AboutPillar[];
     values: AboutValue[];
   };
-  donations: {
+  donations: PageWithShareImage & {
     heroTitle: string;
     heroSubtitle: string;
     costs: DonationsCost[];
@@ -94,20 +98,20 @@ type PagesConfig = {
     donorsIcon: string;
     donors: Donor[];
   };
-  faq: {
+  faq: PageWithShareImage & {
     heroTitle: string;
     heroSubtitle: string;
     introCards: FAQIntro[];
     groups: FAQGroup[];
   };
-  team: {
+  team: PageWithShareImage & {
     heroBadge: string;
     heroTitle: string;
     heroSubtitle: string;
     retiredTitle: string;
     retiredSubtitle: string;
   };
-  recruitment: {
+  recruitment: PageWithShareImage & {
     heroBadge: string;
     heroTitle: string;
     heroSubtitle: string;
@@ -169,7 +173,14 @@ const editorIconMap: Record<string, typeof Heart> = {
 };
 
 const emptyPages: PagesConfig = {
+  home: {
+    shareImage: "",
+  },
+  projects: {
+    shareImage: "",
+  },
   about: {
+    shareImage: "",
     heroBadge: "",
     heroTitle: "",
     heroSubtitle: "",
@@ -182,6 +193,7 @@ const emptyPages: PagesConfig = {
     values: [],
   },
   donations: {
+    shareImage: "",
     heroTitle: "",
     heroSubtitle: "",
     costs: [],
@@ -197,12 +209,14 @@ const emptyPages: PagesConfig = {
     donors: [],
   },
   faq: {
+    shareImage: "",
     heroTitle: "",
     heroSubtitle: "",
     introCards: [],
     groups: [],
   },
   team: {
+    shareImage: "",
     heroBadge: "",
     heroTitle: "",
     heroSubtitle: "",
@@ -210,6 +224,7 @@ const emptyPages: PagesConfig = {
     retiredSubtitle: "",
   },
   recruitment: {
+    shareImage: "",
     heroBadge: "",
     heroTitle: "",
     heroSubtitle: "",
@@ -222,7 +237,22 @@ const emptyPages: PagesConfig = {
 
 const defaultPages: PagesConfig = emptyPages;
 
-const pageLabels: Record<string, string> = {
+const mergePagesConfig = (value: Partial<PagesConfig> | null | undefined): PagesConfig => {
+  const incoming = value || {};
+  return {
+    ...defaultPages,
+    ...incoming,
+    home: { ...defaultPages.home, ...(incoming.home || {}) },
+    projects: { ...defaultPages.projects, ...(incoming.projects || {}) },
+    about: { ...defaultPages.about, ...(incoming.about || {}) },
+    donations: { ...defaultPages.donations, ...(incoming.donations || {}) },
+    faq: { ...defaultPages.faq, ...(incoming.faq || {}) },
+    team: { ...defaultPages.team, ...(incoming.team || {}) },
+    recruitment: { ...defaultPages.recruitment, ...(incoming.recruitment || {}) },
+  };
+};
+
+const pageLabels: Record<PublicPageKey, string> = {
   about: "Sobre",
   donations: "Doações",
   faq: "FAQ",
@@ -315,7 +345,7 @@ const DashboardPages = () => {
           return;
         }
         const data = await response.json();
-        setPages({ ...defaultPages, ...(data.pages || {}) });
+        setPages(mergePagesConfig(data.pages));
       } catch {
         setPages(defaultPages);
       } finally {
@@ -354,7 +384,7 @@ const DashboardPages = () => {
         throw new Error("save_failed");
       }
       const data = await response.json().catch(() => null);
-      const normalizedPages = { ...defaultPages, ...(data?.pages || nextPages) };
+      const normalizedPages = mergePagesConfig((data?.pages as Partial<PagesConfig> | undefined) || nextPages);
       setPages(normalizedPages);
       return normalizedPages;
     },
@@ -1357,7 +1387,11 @@ const DashboardPages = () => {
                                 <div
                                   key={`${item.question}-${itemIndex}`}
                                   draggable
-                                  onDragStart={() => handleDragStart(`faq.items.${groupIndex}`, itemIndex)}
+                                  onDragStart={(event) => {
+                                    // Avoid parent FAQ group dragstart overriding item drag state.
+                                    event.stopPropagation();
+                                    handleDragStart(`faq.items.${groupIndex}`, itemIndex);
+                                  }}
                                   onDragOver={(event) => event.preventDefault()}
                                   onDrop={() => handleDrop(`faq.items.${groupIndex}`, itemIndex)}
                                   className="rounded-xl border border-border/60 bg-card/70 p-3"

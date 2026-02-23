@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -60,6 +60,13 @@ const mockJsonResponse = (ok: boolean, payload: unknown, status = ok ? 200 : 500
 const createSettings = (override: Partial<SiteSettings> = {}) => mergeSettings(defaultSettings, override);
 
 const classTokens = (element: HTMLElement) => String(element.className).split(/\s+/).filter(Boolean);
+const setWindowScrollY = (value: number) => {
+  Object.defineProperty(window, "scrollY", {
+    value,
+    configurable: true,
+    writable: true,
+  });
+};
 
 const setupApiMock = (options?: { logoutOk?: boolean }) => {
   const { logoutOk = true } = options || {};
@@ -85,6 +92,7 @@ const setupApiMock = (options?: { logoutOk?: boolean }) => {
 
 describe("Header mobile search layout", () => {
   beforeEach(() => {
+    setWindowScrollY(0);
     setupApiMock();
     toastMock.mockReset();
     setThemePreferenceMock.mockReset();
@@ -117,6 +125,83 @@ describe("Header mobile search layout", () => {
           tags: { acao: "Acao" },
         },
       },
+    });
+  });
+
+  it("aplica gradiente abaixo do header fixo apenas apos scroll", async () => {
+    render(
+      <MemoryRouter initialEntries={["/"]}>
+        <Header />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(apiFetchMock).toHaveBeenCalledTimes(1);
+    });
+
+    const banner = screen.getByRole("banner");
+    expect(classTokens(banner)).toContain("after:top-full");
+    expect(classTokens(banner)).toContain("after:inset-x-0");
+    expect(classTokens(banner)).toContain("after:h-8");
+    expect(classTokens(banner)).toContain("after:opacity-0");
+    expect(classTokens(banner)).not.toContain("after:inset-0");
+    expect(classTokens(banner)).toContain("backdrop-blur-none");
+    expect(classTokens(banner)).not.toContain("backdrop-blur-xl");
+
+    const nav = within(banner).getByRole("navigation");
+    expect(classTokens(nav)).toContain("z-10");
+
+    act(() => {
+      setWindowScrollY(20);
+      window.dispatchEvent(new Event("scroll"));
+    });
+
+    await waitFor(() => {
+      expect(classTokens(banner)).toContain("after:opacity-100");
+      expect(classTokens(banner)).toContain("backdrop-blur-xl");
+      expect(classTokens(banner)).not.toContain("backdrop-blur-none");
+    });
+
+    act(() => {
+      setWindowScrollY(0);
+      window.dispatchEvent(new Event("scroll"));
+    });
+
+    await waitFor(() => {
+      expect(classTokens(banner)).toContain("after:opacity-0");
+      expect(classTokens(banner)).toContain("backdrop-blur-none");
+      expect(classTokens(banner)).not.toContain("backdrop-blur-xl");
+    });
+  });
+
+  it("nao aplica gradiente no variant static, mesmo com scroll", async () => {
+    render(
+      <MemoryRouter initialEntries={["/"]}>
+        <Header variant="static" />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(apiFetchMock).toHaveBeenCalledTimes(1);
+    });
+
+    const banner = screen.getByRole("banner");
+    expect(classTokens(banner)).not.toContain("after:top-full");
+    expect(classTokens(banner)).not.toContain("after:inset-x-0");
+    expect(classTokens(banner)).not.toContain("after:h-8");
+    expect(classTokens(banner)).toContain("backdrop-blur-none");
+
+    act(() => {
+      setWindowScrollY(40);
+      window.dispatchEvent(new Event("scroll"));
+    });
+
+    await waitFor(() => {
+      expect(classTokens(banner)).not.toContain("after:top-full");
+      expect(classTokens(banner)).not.toContain("after:inset-x-0");
+      expect(classTokens(banner)).not.toContain("after:h-8");
+      expect(classTokens(banner)).toContain("backdrop-blur-none");
+      expect(classTokens(banner)).not.toContain("backdrop-blur-xl");
     });
   });
 

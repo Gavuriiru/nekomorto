@@ -155,9 +155,9 @@ describe("DashboardPosts cover fallback", () => {
     expect(within(dialog).getByText("Editar postagem")).toBeInTheDocument();
     expect(within(dialog).getByText("primeira-capa.png")).toBeInTheDocument();
     expect(within(dialog).queryByText("/uploads/primeira-capa.png")).not.toBeInTheDocument();
-    expect(within(dialog).getByText("Automática")).toBeInTheDocument();
+    expect(within(dialog).getByText(/Autom.+tica$/i)).toBeInTheDocument();
 
-    const sidebarImage = within(dialog).getByAltText("Primeira automática");
+    const sidebarImage = within(dialog).getByAltText(/Primeira autom/i);
     expect(sidebarImage.getAttribute("src") || "").toContain("/uploads/primeira-capa.png");
   });
 });

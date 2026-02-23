@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 import {
   createViteDevServer,
   isViteMiddlewareEnabled,
+  resolveViteAllowedHostsFromOrigins,
   resolveClientIndexPath,
 } from "../../server/lib/frontend-runtime.js";
 
@@ -77,6 +78,47 @@ describe("frontend-runtime", () => {
             middlewareMode: true,
           }),
         }),
+      );
+    });
+
+    it("forwards APP_ORIGIN hostnames to vite allowedHosts", async () => {
+      const viteServer = { middlewares: {}, transformIndexHtml: vi.fn() };
+      const createServer = vi.fn().mockResolvedValue(viteServer);
+
+      await createViteDevServer({
+        isProduction: false,
+        createServer,
+        appOriginEnv: "https://dev.nekomata.moe,http://localhost:8080",
+      });
+
+      expect(createServer).toHaveBeenCalledWith(
+        expect.objectContaining({
+          server: expect.objectContaining({
+            allowedHosts: ["dev.nekomata.moe", "localhost"],
+          }),
+        }),
+      );
+    });
+  });
+
+  describe("resolveViteAllowedHostsFromOrigins", () => {
+    it("normalizes and deduplicates valid hosts from APP_ORIGIN", () => {
+      expect(
+        resolveViteAllowedHostsFromOrigins(
+          "https://dev.nekomata.moe,http://localhost:8080,https://DEV.nekomata.moe",
+        ),
+      ).toEqual(["dev.nekomata.moe", "localhost"]);
+    });
+
+    it("throws for malformed URLs in APP_ORIGIN", () => {
+      expect(() => resolveViteAllowedHostsFromOrigins("https://dev.nekomata.moe,invalid")).toThrow(
+        /APP_ORIGIN.*invalid URL/i,
+      );
+    });
+
+    it("throws for unsupported protocols in APP_ORIGIN", () => {
+      expect(() => resolveViteAllowedHostsFromOrigins("ftp://dev.nekomata.moe")).toThrow(
+        /APP_ORIGIN.*unsupported protocol/i,
       );
     });
   });

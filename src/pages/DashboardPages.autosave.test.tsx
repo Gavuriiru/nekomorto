@@ -8,9 +8,35 @@ const { apiFetchMock, navigateMock } = vi.hoisted(() => ({
   navigateMock: vi.fn(),
 }));
 const toastMock = vi.hoisted(() => vi.fn());
+const imageLibraryPropsSpy = vi.hoisted(() => vi.fn());
 
 vi.mock("@/components/DashboardShell", () => ({
   default: ({ children }: { children: ReactNode }) => <div>{children}</div>,
+}));
+
+vi.mock("@/components/ImageLibraryDialog", () => ({
+  default: (props: {
+    open?: boolean;
+    onSave: (payload: { urls: string[]; items: [] }) => void;
+  }) => {
+    imageLibraryPropsSpy(props);
+    if (!props.open) {
+      return null;
+    }
+    return (
+      <button
+        type="button"
+        onClick={() =>
+          props.onSave({
+            urls: ["/uploads/shared/og-preview.jpg"],
+            items: [],
+          })
+        }
+      >
+        Mock salvar biblioteca
+      </button>
+    );
+  },
 }));
 
 vi.mock("@/hooks/use-page-meta", () => ({
@@ -67,6 +93,7 @@ describe("DashboardPages autosave", () => {
     apiFetchMock.mockReset();
     navigateMock.mockReset();
     toastMock.mockReset();
+    imageLibraryPropsSpy.mockReset();
     apiFetchMock.mockImplementation(async (_base, path, options) => {
       const method = String((options as RequestInit | undefined)?.method || "GET").toUpperCase();
       if (path === "/api/me") {
@@ -134,6 +161,85 @@ describe("DashboardPages autosave", () => {
     expect(getPutPageCalls()).toHaveLength(1);
   });
 
+  it("reordena perguntas da FAQ e persiste a nova ordem no autosave", async () => {
+    apiFetchMock.mockImplementation(async (_base, path, options) => {
+      const method = String((options as RequestInit | undefined)?.method || "GET").toUpperCase();
+      if (path === "/api/me") {
+        return mockJsonResponse(true, { id: "1", name: "Admin", username: "admin" });
+      }
+      if (path === "/api/pages" && method === "GET") {
+        return mockJsonResponse(true, {
+          pages: {
+            faq: {
+              heroTitle: "FAQ",
+              heroSubtitle: "Subtitulo",
+              introCards: [],
+              groups: [
+                {
+                  title: "Grupo principal",
+                  icon: "Info",
+                  items: [
+                    { question: "Pergunta A", answer: "Resposta A" },
+                    { question: "Pergunta B", answer: "Resposta B" },
+                  ],
+                },
+              ],
+            },
+          },
+        });
+      }
+      if (path === "/api/pages" && method === "PUT") {
+        const body = JSON.parse(String((options as RequestInit).body || "{}"));
+        return mockJsonResponse(true, { pages: body.pages || {} });
+      }
+      return mockJsonResponse(false, { error: "not_found" }, 404);
+    });
+
+    render(<DashboardPages />);
+    await screen.findByRole("heading", { name: /Gerenciar/i });
+    fireEvent.mouseDown(screen.getByRole("tab", { name: "FAQ" }));
+
+    const firstQuestionInput = await screen.findByDisplayValue("Pergunta A");
+    const secondQuestionInput = await screen.findByDisplayValue("Pergunta B");
+    const firstQuestionCard = firstQuestionInput.closest('[draggable="true"]');
+    const secondQuestionCard = secondQuestionInput.closest('[draggable="true"]');
+    expect(firstQuestionCard).toBeTruthy();
+    expect(secondQuestionCard).toBeTruthy();
+
+    const dataTransfer = {
+      effectAllowed: "move",
+      dropEffect: "move",
+      setData: vi.fn(),
+      getData: vi.fn(),
+      clearData: vi.fn(),
+    };
+
+    fireEvent.dragStart(secondQuestionCard as HTMLElement, { dataTransfer });
+    fireEvent.dragOver(firstQuestionCard as HTMLElement, { dataTransfer });
+    fireEvent.drop(firstQuestionCard as HTMLElement, { dataTransfer });
+    fireEvent.dragEnd(secondQuestionCard as HTMLElement, { dataTransfer });
+
+    const movedQuestionInput = await screen.findByDisplayValue("Pergunta B");
+    const originalQuestionInput = await screen.findByDisplayValue("Pergunta A");
+    expect(
+      movedQuestionInput.compareDocumentPosition(originalQuestionInput) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).not.toBe(0);
+
+    await act(async () => {
+      await waitMs(1300);
+      await flushMicrotasks();
+    });
+
+    const putCalls = getPutPageCalls();
+    expect(putCalls.length).toBeGreaterThan(0);
+    const lastPutCall = putCalls[putCalls.length - 1];
+    const payload = JSON.parse(String(((lastPutCall?.[2] || {}) as RequestInit).body || "{}"));
+    expect(payload.pages?.faq?.groups?.[0]?.items?.map((item: { question: string }) => item.question)).toEqual([
+      "Pergunta B",
+      "Pergunta A",
+    ]);
+  });
+
   it("toggle desligado bloqueia autosave, mas botão manual continua salvando", async () => {
     render(<DashboardPages />);
     await screen.findByRole("heading", { name: /Gerenciar/i });
@@ -162,6 +268,71 @@ describe("DashboardPages autosave", () => {
         title: "Páginas salvas",
       }),
     );
+  });
+
+  it("mantém shareImage existente no payload ao editar conteúdo de página", async () => {
+    apiFetchMock.mockImplementation(async (_base, path, options) => {
+      const method = String((options as RequestInit | undefined)?.method || "GET").toUpperCase();
+      if (path === "/api/me") {
+        return mockJsonResponse(true, { id: "1", name: "Admin", username: "admin" });
+      }
+      if (path === "/api/pages" && method === "GET") {
+        return mockJsonResponse(true, {
+          pages: {
+            about: {
+              shareImage: "/uploads/shared/about-og.jpg",
+              heroBadge: "",
+              heroTitle: "",
+              heroSubtitle: "",
+              heroBadges: [],
+              highlights: [],
+              manifestoTitle: "",
+              manifestoIcon: "Flame",
+              manifestoParagraphs: [],
+              pillars: [],
+              values: [],
+            },
+            donations: {
+              heroTitle: "",
+              heroSubtitle: "",
+              costs: [],
+              reasonTitle: "",
+              reasonIcon: "HeartHandshake",
+              reasonText: "",
+              reasonNote: "",
+              pixKey: "PIX-INIT",
+              pixNote: "",
+              qrCustomUrl: "",
+              pixIcon: "QrCode",
+              donorsIcon: "PiggyBank",
+              donors: [],
+            },
+          },
+        });
+      }
+      if (path === "/api/pages" && method === "PUT") {
+        const body = JSON.parse(String((options as RequestInit).body || "{}"));
+        return mockJsonResponse(true, { pages: body.pages || {} });
+      }
+      return mockJsonResponse(false, { error: "not_found" }, 404);
+    });
+
+    render(<DashboardPages />);
+    await screen.findByRole("heading", { name: /Gerenciar/i });
+
+    const pixInput = await screen.findByDisplayValue("PIX-INIT");
+    fireEvent.change(pixInput, { target: { value: "pix-editado" } });
+
+    await act(async () => {
+      await waitMs(1300);
+      await flushMicrotasks();
+    });
+
+    const putCalls = getPutPageCalls();
+    expect(putCalls.length).toBeGreaterThan(0);
+    const payload = JSON.parse(String(((putCalls[putCalls.length - 1]?.[2] || {}) as RequestInit).body || "{}"));
+    expect(payload.pages?.about?.shareImage).toBe("/uploads/shared/about-og.jpg");
+    expect(payload.pages?.donations?.pixKey).toBe("pix-editado");
   });
 
   it("save manual com falha exibe toast destrutivo", { timeout: 15000 }, async () => {

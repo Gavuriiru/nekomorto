@@ -383,15 +383,20 @@ const DashboardHeader = ({
             )}
           >
             <div
-              className={`flex items-center gap-2 rounded-full border border-transparent bg-secondary/30 px-3 py-2 transition-all duration-300 ${
-                isSearchOpen ? "w-full border-border bg-secondary/70 xl:w-52 2xl:w-64" : "w-11"
+              className={`flex h-10 items-center gap-2 rounded-full transition-all duration-300 ${
+                isSearchOpen ? "w-full bg-secondary/70 pl-3 pr-2 xl:w-52 2xl:w-64" : "w-10 justify-center"
               }`}
             >
-              <button
+              <Button
                 type="button"
+                variant="ghost"
+                size="icon"
                 aria-label="Abrir pesquisa"
                 onClick={() => setIsSearchOpen((prev) => !prev)}
-                className="text-foreground transition-colors hover:text-primary"
+                className={cn(
+                  "shrink-0 rounded-full text-muted-foreground hover:text-foreground",
+                  isSearchOpen ? "h-8 w-8" : "h-10 w-10",
+                )}
               >
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
@@ -406,7 +411,7 @@ const DashboardHeader = ({
                   <circle cx="11" cy="11" r="8" />
                   <path d="m21 21-4.3-4.3" />
                 </svg>
-              </button>
+              </Button>
               {isSearchOpen && (
                 <input
                   autoFocus

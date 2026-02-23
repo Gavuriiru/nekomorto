@@ -45,7 +45,11 @@ export const usePageMeta = ({
 }: PageMetaOptions) => {
   const { settings, isLoading } = useSiteSettings();
   const siteName = settings.site.name || "Nekomata";
-  const effectiveSeparator = separator ?? settings.site.titleSeparator ?? "";
+  const resolveSeparator = (value: unknown) => {
+    const normalized = typeof value === "string" ? value : "";
+    return normalized || " | ";
+  };
+  const effectiveSeparator = resolveSeparator(separator ?? settings.site.titleSeparator);
   const pageTitle = useMemo(() => {
     if (!title) {
       return siteName;

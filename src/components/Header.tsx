@@ -245,19 +245,24 @@ const Header = ({ variant = "fixed", leading, className }: HeaderProps) => {
       setIsLoggingOut(false);
     }
   };
+  const isElevated = variant === "fixed" && isScrolled;
 
   return (
     <header
       className={cn(
-        "left-0 right-0 px-6 py-4 text-foreground transition-all duration-300 md:px-12 after:pointer-events-none after:absolute after:inset-0 after:bg-linear-to-b after:from-background/70 after:via-background/25 after:to-transparent",
-        variant === "fixed" ? "fixed top-0" : "relative",
-        isScrolled && variant === "fixed" ? "bg-background/70 backdrop-blur-xl" : "bg-transparent",
+        "left-0 right-0 px-6 py-4 text-foreground transition-[background-color,backdrop-filter] duration-300 ease-in-out md:px-12",
+        variant === "fixed"
+          ? "fixed top-0 after:pointer-events-none after:absolute after:inset-x-0 after:top-full after:h-8 after:bg-linear-to-b after:from-background/70 after:via-background/25 after:to-transparent after:transition-opacity after:duration-300 after:ease-in-out"
+          : "",
+        variant === "fixed" ? (isElevated ? "after:opacity-100" : "after:opacity-0") : "",
+        isElevated ? "bg-background/70 backdrop-blur-xl" : "bg-transparent backdrop-blur-none",
+        variant === "static" ? "relative" : "",
         leading ? "z-10" : "z-50",
         leading ? "md:pl-(--sidebar-offset)" : "",
         className,
       )}
     >
-      <nav className="relative flex items-center justify-between gap-3">
+      <nav className="relative z-10 flex items-center justify-between gap-3">
         <div
           data-testid="public-header-left-cluster"
           className={cn(
@@ -337,15 +342,20 @@ const Header = ({ variant = "fixed", leading, className }: HeaderProps) => {
             )}
           >
             <div
-              className={`flex items-center gap-2 rounded-full border border-transparent bg-secondary/30 px-3 py-2 transition-all duration-300 ${
-                isSearchOpen ? "w-full border-border bg-secondary/70 md:w-72" : "w-11"
+              className={`flex h-10 items-center gap-2 rounded-full transition-all duration-300 ${
+                isSearchOpen ? "w-full bg-secondary/70 pl-3 pr-2 md:w-72" : "w-10 justify-center"
               }`}
             >
-              <button
+              <Button
                 type="button"
+                variant="ghost"
+                size="icon"
                 aria-label="Abrir pesquisa"
                 onClick={() => setIsSearchOpen((prev) => !prev)}
-                className="text-foreground transition-colors hover:text-primary"
+                className={cn(
+                  "shrink-0 rounded-full text-muted-foreground hover:text-foreground",
+                  isSearchOpen ? "h-8 w-8" : "h-10 w-10",
+                )}
               >
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
@@ -360,7 +370,7 @@ const Header = ({ variant = "fixed", leading, className }: HeaderProps) => {
                   <circle cx="11" cy="11" r="8" />
                   <path d="m21 21-4.3-4.3" />
                 </svg>
-              </button>
+              </Button>
               {isSearchOpen && (
                 <input
                   autoFocus

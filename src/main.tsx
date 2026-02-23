@@ -37,7 +37,8 @@ const titleForPath = (path: string) => {
 const setBootstrapTitle = (siteName: string, separator: string) => {
   const path = window.location.pathname || "/";
   const pageTitle = titleForPath(path);
-  document.title = pageTitle ? `${pageTitle}${separator}${siteName}` : siteName;
+  const resolvedSeparator = separator || " | ";
+  document.title = pageTitle ? `${pageTitle}${resolvedSeparator}${siteName}` : siteName;
 };
 
 const asBootstrapPayload = (value: unknown): PublicBootstrapPayload | null => {
@@ -85,7 +86,7 @@ const bootstrap = async () => {
   const settings = (initialSettings as { site?: { name?: string; titleSeparator?: string } }) || {};
   const siteName =
     (settings.site?.name || "").trim() || (document.title || "NEKOMATA").trim() || "NEKOMATA";
-  const separator = settings.site?.titleSeparator ?? "";
+  const separator = settings.site?.titleSeparator || " | ";
   setBootstrapTitle(siteName, separator);
 
   const root = document.getElementById("root");

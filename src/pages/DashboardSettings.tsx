@@ -71,6 +71,7 @@ import { usePageMeta } from "@/hooks/use-page-meta";
 import ThemedSvgLogo from "@/components/ThemedSvgLogo";
 import { navbarIconOptions } from "@/lib/navbar-icons";
 import { resolveBranding } from "@/lib/branding";
+import { normalizeAssetUrl } from "@/lib/asset-url";
 
 const ImageLibraryDialog = lazy(() => import("@/components/ImageLibraryDialog"));
 
@@ -132,6 +133,30 @@ const normalizeLinkTypeId = (value: string) =>
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/(^-|-$)/g, "");
 
+const addIconCacheBust = (iconUrl: string | null | undefined, cacheVersion: number) => {
+  const trimmed = String(iconUrl || "").trim();
+  if (!trimmed) {
+    return "";
+  }
+
+  if (trimmed.startsWith("/uploads/")) {
+    const parsed = new URL(trimmed, "http://localhost");
+    parsed.searchParams.set("v", String(cacheVersion));
+    return `${parsed.pathname}${parsed.search}${parsed.hash}`;
+  }
+
+  try {
+    const parsed = new URL(trimmed);
+    if (!parsed.pathname.startsWith("/uploads/")) {
+      return trimmed;
+    }
+    parsed.searchParams.set("v", String(cacheVersion));
+    return parsed.toString();
+  } catch {
+    return trimmed;
+  }
+};
+
 const reorderItems = <T,>(items: T[], from: number, to: number) => {
   if (from === to) {
     return items;
@@ -168,13 +193,61 @@ type SettingsTabKey =
   | "footer"
   | "navbar"
   | "redes-usuarios"
-  | "traducoes";
+  | "traducoes"
+  | "preview-paginas";
 
 type LinkTypeItem = { id: string; label: string; icon: string };
 type TranslationsPayload = {
   tags: Record<string, string>;
   genres: Record<string, string>;
   staffRoles: Record<string, string>;
+};
+
+type PagePreviewKey = "home" | "projects" | "about" | "donations" | "faq" | "team" | "recruitment";
+type PagePreviewSection = { shareImage?: string } & Record<string, unknown>;
+type PagesPayload = Record<string, unknown> & Partial<Record<PagePreviewKey, PagePreviewSection>>;
+
+const pagePreviewKeys: PagePreviewKey[] = [
+  "home",
+  "projects",
+  "about",
+  "donations",
+  "faq",
+  "team",
+  "recruitment",
+];
+
+const pagePreviewLabels: Record<PagePreviewKey, string> = {
+  home: "Início",
+  projects: "Projetos",
+  about: "Sobre",
+  donations: "Doações",
+  faq: "FAQ",
+  team: "Equipe",
+  recruitment: "Recrutamento",
+};
+
+const asObjectRecord = (value: unknown): Record<string, unknown> =>
+  value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
+
+const normalizePagesPayload = (value: unknown): PagesPayload => {
+  const base = asObjectRecord(value);
+  const next: PagesPayload = { ...base };
+  pagePreviewKeys.forEach((key) => {
+    const section = asObjectRecord(base[key]);
+    next[key] = {
+      ...section,
+      shareImage: String(section.shareImage || "").trim(),
+    };
+  });
+  return next;
+};
+
+const readPagePreviewShareImage = (pages: PagesPayload, key: PagePreviewKey) => {
+  const section = asObjectRecord(pages[key]);
+  return String(section.shareImage || "").trim();
 };
 
 const logoEditorFields: Array<{
@@ -368,8 +441,13 @@ const DashboardSettings = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isSyncingAniList, setIsSyncingAniList] = useState(false);
   const [uploadingKey, setUploadingKey] = useState<string | null>(null);
+  const [iconCacheVersion, setIconCacheVersion] = useState(0);
   const [isLibraryOpen, setIsLibraryOpen] = useState(false);
   const [libraryTarget, setLibraryTarget] = useState<LogoLibraryTarget>("branding.assets.symbolUrl");
+  const [isPagePreviewLibraryOpen, setIsPagePreviewLibraryOpen] = useState(false);
+  const [pagePreviewTarget, setPagePreviewTarget] = useState<PagePreviewKey>("home");
+  const [pagesPayload, setPagesPayload] = useState<PagesPayload>(() => normalizePagesPayload({}));
+  const [canManagePages, setCanManagePages] = useState(false);
   const [tagQuery, setTagQuery] = useState("");
   const [genreQuery, setGenreQuery] = useState("");
   const [newTag, setNewTag] = useState("");
@@ -381,6 +459,7 @@ const DashboardSettings = () => {
   const [footerSocialDragOverIndex, setFooterSocialDragOverIndex] = useState<number | null>(null);
   const hasSyncedAniList = useRef(false);
   const rootLibraryFolders = useMemo(() => [""], []);
+  const settingsTabsGridClass = canManagePages ? "md:grid-cols-8" : "md:grid-cols-7";
 
   useEffect(() => {
     const loadUser = async () => {
@@ -407,11 +486,12 @@ const DashboardSettings = () => {
     const load = async () => {
       setIsLoading(true);
       try {
-        const [settingsRes, translationsRes, projectsRes, linkTypesRes] = await Promise.all([
+        const [settingsRes, translationsRes, projectsRes, linkTypesRes, pagesRes] = await Promise.all([
           apiFetch(apiBase, "/api/settings", { auth: true }),
           apiFetch(apiBase, "/api/public/tag-translations", { cache: "no-store" }),
           apiFetch(apiBase, "/api/projects", { auth: true }),
           apiFetch(apiBase, "/api/link-types"),
+          apiFetch(apiBase, "/api/pages", { auth: true }),
         ]);
         if (settingsRes.ok) {
           const data = await settingsRes.json();
@@ -457,9 +537,23 @@ const DashboardSettings = () => {
             setLinkTypes(Array.isArray(data.items) ? data.items : []);
           }
         }
+        if (pagesRes.ok) {
+          const data = await pagesRes.json();
+          if (isActive) {
+            setPagesPayload(normalizePagesPayload(data?.pages));
+            setCanManagePages(true);
+          }
+        } else if (isActive) {
+          setPagesPayload(normalizePagesPayload({}));
+          setCanManagePages(false);
+          setActiveTab((current) => (current === "preview-paginas" ? "geral" : current));
+        }
       } catch {
         if (isActive) {
           setSettings(publicSettings);
+          setPagesPayload(normalizePagesPayload({}));
+          setCanManagePages(false);
+          setActiveTab((current) => (current === "preview-paginas" ? "geral" : current));
         }
       } finally {
         if (isActive) {
@@ -527,6 +621,15 @@ const DashboardSettings = () => {
     return value.startsWith("http") || value.startsWith("data:") || value.startsWith("/uploads/");
   };
 
+  const bumpIconCacheVersion = useCallback(() => {
+    setIconCacheVersion((prev) => prev + 1);
+  }, []);
+
+  const toIconPreviewUrl = useCallback(
+    (iconUrl: string | null | undefined) => addIconCacheBust(iconUrl, iconCacheVersion),
+    [iconCacheVersion],
+  );
+
   const clearFooterSocialDragState = () => {
     setFooterSocialDragIndex(null);
     setFooterSocialDragOverIndex(null);
@@ -584,6 +687,32 @@ const DashboardSettings = () => {
     return readLogoField(settings, libraryTarget);
   }, [libraryTarget, settings]);
 
+  const updatePagePreviewShareImage = useCallback((pageKey: PagePreviewKey, shareImage: string) => {
+    setPagesPayload((prev) => {
+      const next = normalizePagesPayload(prev);
+      const currentSection = asObjectRecord(next[pageKey]);
+      next[pageKey] = {
+        ...currentSection,
+        shareImage,
+      };
+      return next;
+    });
+  }, []);
+
+  const clearPagePreviewShareImage = useCallback((pageKey: PagePreviewKey) => {
+    updatePagePreviewShareImage(pageKey, "");
+  }, [updatePagePreviewShareImage]);
+
+  const openPagePreviewLibrary = useCallback((pageKey: PagePreviewKey) => {
+    setPagePreviewTarget(pageKey);
+    setIsPagePreviewLibraryOpen(true);
+  }, []);
+
+  const currentPagePreviewSelection = useMemo(
+    () => readPagePreviewShareImage(pagesPayload, pagePreviewTarget),
+    [pagePreviewTarget, pagesPayload],
+  );
+
 
 
 
@@ -614,6 +743,7 @@ const DashboardSettings = () => {
         next[index] = { ...next[index], icon: data.url };
         return { ...prev, downloads: { ...prev.downloads, sources: next } };
       });
+      bumpIconCacheVersion();
       toast({ title: "Ícone enviado", description: "SVG atualizado com sucesso." });
     } catch {
       toast({
@@ -652,6 +782,7 @@ const DashboardSettings = () => {
         next[index] = { ...next[index], icon: data.url };
         return next;
       });
+      bumpIconCacheVersion();
       toast({ title: "Ícone enviado", description: "SVG atualizado com sucesso." });
     } catch {
       toast({
@@ -752,6 +883,25 @@ const DashboardSettings = () => {
     [apiBase],
   );
 
+  const savePagesPreviewResource = useCallback(
+    async (snapshot: PagesPayload) => {
+      const response = await apiFetch(apiBase, "/api/pages", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        auth: true,
+        body: JSON.stringify({ pages: snapshot }),
+      });
+      if (!response.ok) {
+        throw new Error("save_failed");
+      }
+      const data = await response.json().catch(() => null);
+      const normalizedPages = normalizePagesPayload(data?.pages || snapshot);
+      setPagesPayload(normalizedPages);
+      return normalizedPages;
+    },
+    [apiBase],
+  );
+
   const settingsAutosave = useAutosave<SiteSettings>({
     value: settings,
     onSave: saveSettingsResource,
@@ -809,6 +959,25 @@ const DashboardSettings = () => {
     },
   });
 
+  const pagesPreviewAutosave = useAutosave<PagesPayload>({
+    value: pagesPayload,
+    onSave: savePagesPreviewResource,
+    isReady: !isLoading && canManagePages,
+    enabled: initialAutosaveEnabledRef.current,
+    debounceMs: autosaveRuntimeConfig.debounceMs,
+    retryMax: autosaveRuntimeConfig.retryMax,
+    retryBaseMs: autosaveRuntimeConfig.retryBaseMs,
+    onError: (_error, payload) => {
+      if (payload.source === "auto" && payload.consecutiveErrors === 1) {
+        toast({
+          title: "Falha no autosave de previews",
+          description: "As imagens de preview das páginas não foram salvas automaticamente.",
+          variant: "destructive",
+        });
+      }
+    },
+  });
+
   const handleAutosaveToggle = useCallback(
     (nextEnabled: boolean) => {
       if (!autosaveRuntimeConfig.enabledByDefault) {
@@ -817,12 +986,30 @@ const DashboardSettings = () => {
       settingsAutosave.setEnabled(nextEnabled);
       translationsAutosave.setEnabled(nextEnabled);
       linkTypesAutosave.setEnabled(nextEnabled);
+      if (canManagePages) {
+        pagesPreviewAutosave.setEnabled(nextEnabled);
+      }
     },
-    [linkTypesAutosave, settingsAutosave, translationsAutosave],
+    [canManagePages, linkTypesAutosave, pagesPreviewAutosave, settingsAutosave, translationsAutosave],
   );
 
-  const autosaveEnabled =
-    settingsAutosave.enabled && translationsAutosave.enabled && linkTypesAutosave.enabled;
+  const autosaveEnabled = useMemo(() => {
+    const enabledFlags = [
+      settingsAutosave.enabled,
+      translationsAutosave.enabled,
+      linkTypesAutosave.enabled,
+    ];
+    if (canManagePages) {
+      enabledFlags.push(pagesPreviewAutosave.enabled);
+    }
+    return enabledFlags.every(Boolean);
+  }, [
+    canManagePages,
+    linkTypesAutosave.enabled,
+    pagesPreviewAutosave.enabled,
+    settingsAutosave.enabled,
+    translationsAutosave.enabled,
+  ]);
 
   useEffect(() => {
     writeAutosavePreference(autosaveStorageKeys.settings, autosaveEnabled);
@@ -834,6 +1021,9 @@ const DashboardSettings = () => {
       translationsAutosave.status,
       linkTypesAutosave.status,
     ];
+    if (canManagePages) {
+      statuses.push(pagesPreviewAutosave.status);
+    }
     if (statuses.includes("saving")) {
       return "saving";
     }
@@ -847,17 +1037,26 @@ const DashboardSettings = () => {
       return "saved";
     }
     return "idle";
-  }, [linkTypesAutosave.status, settingsAutosave.status, translationsAutosave.status]);
+  }, [
+    canManagePages,
+    linkTypesAutosave.status,
+    pagesPreviewAutosave.status,
+    settingsAutosave.status,
+    translationsAutosave.status,
+  ]);
 
   const combinedLastSavedAt = useMemo(() => {
     const points = [
       settingsAutosave.lastSavedAt,
       translationsAutosave.lastSavedAt,
       linkTypesAutosave.lastSavedAt,
+      canManagePages ? pagesPreviewAutosave.lastSavedAt : null,
     ].filter((point): point is number => Number.isFinite(point));
     return points.length ? Math.max(...points) : null;
   }, [
+    canManagePages,
     linkTypesAutosave.lastSavedAt,
+    pagesPreviewAutosave.lastSavedAt,
     settingsAutosave.lastSavedAt,
     translationsAutosave.lastSavedAt,
   ]);
@@ -872,19 +1071,31 @@ const DashboardSettings = () => {
     if (linkTypesAutosave.status === "error") {
       return "Há falha no salvamento automático das redes sociais.";
     }
+    if (canManagePages && pagesPreviewAutosave.status === "error") {
+      return "Há falha no salvamento automático dos previews das páginas.";
+    }
     return null;
-  }, [linkTypesAutosave.status, settingsAutosave.status, translationsAutosave.status]);
+  }, [
+    canManagePages,
+    linkTypesAutosave.status,
+    pagesPreviewAutosave.status,
+    settingsAutosave.status,
+    translationsAutosave.status,
+  ]);
 
   const hasPendingChanges =
     settingsAutosave.isDirty ||
     translationsAutosave.isDirty ||
     linkTypesAutosave.isDirty ||
+    (canManagePages && pagesPreviewAutosave.isDirty) ||
     settingsAutosave.status === "pending" ||
     settingsAutosave.status === "saving" ||
     translationsAutosave.status === "pending" ||
     translationsAutosave.status === "saving" ||
     linkTypesAutosave.status === "pending" ||
-    linkTypesAutosave.status === "saving";
+    linkTypesAutosave.status === "saving" ||
+    (canManagePages && pagesPreviewAutosave.status === "pending") ||
+    (canManagePages && pagesPreviewAutosave.status === "saving");
 
   useEffect(() => {
     if (isLoading || !hasPendingChanges) {
@@ -907,7 +1118,10 @@ const DashboardSettings = () => {
     if (linkTypesAutosave.enabled) {
       void linkTypesAutosave.flushNow();
     }
-  }, [linkTypesAutosave, settingsAutosave, translationsAutosave]);
+    if (canManagePages && pagesPreviewAutosave.enabled) {
+      void pagesPreviewAutosave.flushNow();
+    }
+  }, [canManagePages, linkTypesAutosave, pagesPreviewAutosave, settingsAutosave, translationsAutosave]);
 
   const handleSaveSettings = useCallback(async () => {
     const ok = await settingsAutosave.flushNow();
@@ -949,9 +1163,26 @@ const DashboardSettings = () => {
     toast({ title: "Redes sociais salvas" });
   }, [linkTypesAutosave]);
 
+  const handleSavePagePreviews = useCallback(async () => {
+    if (!canManagePages) {
+      return;
+    }
+    const ok = await pagesPreviewAutosave.flushNow();
+    if (!ok) {
+      toast({
+        title: "Falha ao salvar",
+        description: "Não foi possível salvar os previews das páginas.",
+        variant: "destructive",
+      });
+      return;
+    }
+    toast({ title: "Previews salvos" });
+  }, [canManagePages, pagesPreviewAutosave]);
+
   const isSaving = settingsAutosave.status === "saving";
   const isSavingTranslations = translationsAutosave.status === "saving";
   const isSavingLinkTypes = linkTypesAutosave.status === "saving";
+  const isSavingPagePreviews = pagesPreviewAutosave.status === "saving";
 
   const filteredTags = useMemo(() => {
     const query = tagQuery.trim().toLowerCase();
@@ -1168,7 +1399,9 @@ const DashboardSettings = () => {
               className="mt-8 animate-slide-up opacity-0"
               style={{ animationDelay: "0.2s" }}
             >
-              <TabsList className="no-scrollbar flex w-full flex-nowrap justify-start overflow-x-auto overscroll-x-contain md:grid md:grid-cols-7 md:overflow-visible">
+              <TabsList
+                className={`no-scrollbar flex w-full flex-nowrap justify-start overflow-x-auto overscroll-x-contain md:grid ${settingsTabsGridClass} md:overflow-visible`}
+              >
                 <TabsTrigger value="geral" className="shrink-0 md:w-full">
                   Geral
                 </TabsTrigger>
@@ -1190,6 +1423,11 @@ const DashboardSettings = () => {
                 <TabsTrigger value="traducoes" className="shrink-0 md:w-full">
                   Traduções
                 </TabsTrigger>
+                {canManagePages ? (
+                  <TabsTrigger value="preview-paginas" className="shrink-0 md:w-full">
+                    Preview páginas
+                  </TabsTrigger>
+                ) : null}
               </TabsList>
 
               <TabsContent value="geral" className="mt-6 space-y-6">
@@ -1601,6 +1839,107 @@ const DashboardSettings = () => {
                   </CardContent>
                 </Card>
               </TabsContent>
+
+              {canManagePages ? (
+                <TabsContent value="preview-paginas" className="mt-6 space-y-6">
+                  <Card className="border-border/60 bg-card/80">
+                    <CardContent className="space-y-6 p-6">
+                      <div className="flex flex-wrap items-center justify-between gap-3">
+                        <div>
+                          <h2 className="text-lg font-semibold">Previews de compartilhamento por página</h2>
+                          <p className="text-xs text-muted-foreground">
+                            Defina a imagem OG para cada página pública.
+                          </p>
+                        </div>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          onClick={(event) => {
+                            event.preventDefault();
+                            event.stopPropagation();
+                            void handleSavePagePreviews();
+                          }}
+                          disabled={isSavingPagePreviews}
+                          className="gap-2"
+                        >
+                          <Save className="h-4 w-4" />
+                          {isSavingPagePreviews ? "Salvando..." : "Salvar previews"}
+                        </Button>
+                      </div>
+
+                      <div className="grid gap-4 md:grid-cols-2">
+                        {pagePreviewKeys.map((pageKey) => {
+                          const shareImage = readPagePreviewShareImage(pagesPayload, pageKey);
+                          return (
+                            <div
+                              key={pageKey}
+                              className="rounded-2xl border border-border/60 bg-background/50 p-4 space-y-3"
+                            >
+                              <div className="space-y-1">
+                                <p className="text-sm font-semibold">{pagePreviewLabels[pageKey]}</p>
+                                <p className="text-xs text-muted-foreground">
+                                  Imagem usada no preview ao compartilhar a URL da página.
+                                </p>
+                              </div>
+
+                              {shareImage ? (
+                                <div className="space-y-2">
+                                  <div className="overflow-hidden rounded-lg border border-border bg-muted/20">
+                                    <img
+                                      src={normalizeAssetUrl(shareImage)}
+                                      alt={`Preview de ${pagePreviewLabels[pageKey]}`}
+                                      className="aspect-3/2 w-full object-cover"
+                                      loading="lazy"
+                                    />
+                                  </div>
+                                  <p className="text-xs text-muted-foreground break-all">{shareImage}</p>
+                                </div>
+                              ) : (
+                                <p className="text-xs text-muted-foreground">
+                                  Sem imagem de preview definida.
+                                </p>
+                              )}
+
+                              <div className="space-y-2">
+                                <Label htmlFor={`page-preview-${pageKey}`}>URL da imagem</Label>
+                                <Input
+                                  id={`page-preview-${pageKey}`}
+                                  value={shareImage}
+                                  placeholder="/uploads/shared/og-pagina.jpg"
+                                  onChange={(event) =>
+                                    updatePagePreviewShareImage(pageKey, String(event.target.value || "").trim())
+                                  }
+                                />
+                              </div>
+
+                              <div className="flex flex-wrap gap-2">
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => openPagePreviewLibrary(pageKey)}
+                                >
+                                  Biblioteca
+                                </Button>
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  disabled={!shareImage}
+                                  onClick={() => clearPagePreviewShareImage(pageKey)}
+                                >
+                                  Limpar
+                                </Button>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+              ) : null}
 
               <TabsContent value="traducoes" className="mt-6 space-y-6">
                 <Card className="border-border/60 bg-card/80">
@@ -2030,14 +2369,14 @@ const DashboardSettings = () => {
                               {isIconUrl(source.icon) ? (
                                 shouldTint ? (
                                   <ThemedSvgLogo
-                                    url={source.icon}
+                                    url={toIconPreviewUrl(source.icon)}
                                     label={`Ícone ${source.label}`}
                                     className="h-6 w-6 rounded bg-card/90 p-1"
                                     color={source.color}
                                   />
                                 ) : (
                                   <img
-                                    src={source.icon}
+                                    src={toIconPreviewUrl(source.icon)}
                                     alt={`Ícone ${source.label}`}
                                     className="h-6 w-6 rounded bg-card/90 p-1"
                                   />
@@ -2251,7 +2590,7 @@ const DashboardSettings = () => {
                             <div className="flex items-center gap-3 rounded-xl border border-border/60 bg-background/60 px-3 py-2 text-xs text-muted-foreground">
                               {isCustomIcon ? (
                                 <ThemedSvgLogo
-                                  url={link.icon}
+                                  url={toIconPreviewUrl(link.icon)}
                                   label={`Ícone ${link.label}`}
                                   className="h-6 w-6 text-primary"
                                 />
@@ -2803,6 +3142,23 @@ const DashboardSettings = () => {
             mode="single"
             currentSelectionUrls={currentLibrarySelection ? [currentLibrarySelection] : []}
             onSave={({ urls }) => applyLibraryImage(urls[0] || "")}
+          />
+          <ImageLibraryDialog
+            open={isPagePreviewLibraryOpen}
+            onOpenChange={setIsPagePreviewLibraryOpen}
+            apiBase={apiBase}
+            description="Escolha uma imagem para o preview de compartilhamento da página."
+            uploadFolder="shared"
+            listFolders={["shared", "posts", "projects"]}
+            listAll={false}
+            includeProjectImages
+            projectImagesView="by-project"
+            allowDeselect
+            mode="single"
+            currentSelectionUrls={currentPagePreviewSelection ? [currentPagePreviewSelection] : []}
+            onSave={({ urls }) =>
+              updatePagePreviewShareImage(pagePreviewTarget, String(urls[0] || "").trim())
+            }
           />
         </Suspense>
     </DashboardShell>
