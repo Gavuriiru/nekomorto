@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
-import { MemoryRouter, useLocation } from "react-router-dom";
+import { MemoryRouter, useLocation, useNavigate } from "react-router-dom";
 import { describe, expect, it, vi } from "vitest";
 
 import DashboardPosts from "@/pages/DashboardPosts";
@@ -83,8 +83,13 @@ const createPost = (index: number) => ({
   commentsCount: index % 5,
 });
 
-const setupApiMock = () => {
+const setupApiMock = ({
+  preferences = { uiListState: {} },
+}: {
+  preferences?: unknown;
+} = {}) => {
   let posts = Array.from({ length: 21 }, (_, index) => createPost(index + 1));
+  let persistedPreferences = preferences;
   apiFetchMock.mockReset();
   apiFetchMock.mockImplementation(async (_base: string, path: string, options?: RequestInit) => {
     const method = String(options?.method || "GET").toUpperCase();
@@ -117,9 +122,28 @@ const setupApiMock = () => {
     if (path === "/api/public/tag-translations" && method === "GET") {
       return mockJsonResponse(true, { tags: {}, genres: {}, staffRoles: {} });
     }
+    if (path === "/api/me/preferences" && method === "GET") {
+      return mockJsonResponse(true, { preferences: persistedPreferences });
+    }
+    if (path === "/api/me/preferences" && method === "PUT") {
+      const request = (options || {}) as RequestInit & { json?: unknown };
+      const payload =
+        (request.json as { preferences?: unknown } | undefined) ||
+        JSON.parse(String(request.body || "{}"));
+      persistedPreferences = payload.preferences || {};
+      return mockJsonResponse(true, { preferences: persistedPreferences });
+    }
     return mockJsonResponse(false, { error: "not_found" }, 404);
   });
 };
+
+const getPreferencePutCalls = () =>
+  apiFetchMock.mock.calls.filter((call) => {
+    const path = String(call[1] || "");
+    const options = (call[2] || {}) as RequestInit;
+    const method = String(options.method || "GET").toUpperCase();
+    return path === "/api/me/preferences" && method === "PUT";
+  });
 
 const LocationProbe = () => {
   const location = useLocation();
@@ -132,6 +156,15 @@ const LocationProbe = () => {
       <div data-testid="location-search">{location.search}</div>
       <div data-testid="location-history">{history.join("|")}</div>
     </>
+  );
+};
+
+const NavigateCleanQuery = () => {
+  const navigate = useNavigate();
+  return (
+    <button type="button" onClick={() => navigate("/dashboard/posts")}>
+      Limpar query
+    </button>
   );
 };
 
@@ -189,5 +222,56 @@ describe("DashboardPosts query sync", () => {
       expect(entries).toContain("?page=2");
       expect(entries.every((entry) => entry === "?page=2&edit=post-1" || entry === "?page=2")).toBe(true);
     });
+  });
+
+  it("nao reintroduz query e limpa estado salvo ao navegar para URL limpa", async () => {
+    setupApiMock({
+      preferences: {
+        uiListState: {
+          "dashboard.posts": {
+            sort: "alpha",
+            page: 2,
+            filters: {
+              q: "post",
+            },
+          },
+        },
+      },
+    });
+
+    render(
+      <MemoryRouter initialEntries={["/dashboard/posts?page=2"]}>
+        <DashboardPosts />
+        <NavigateCleanQuery />
+        <LocationProbe />
+      </MemoryRouter>,
+    );
+
+    await screen.findByRole("heading", { name: "Gerenciar posts" });
+    await waitFor(() => {
+      expect(screen.getByTestId("location-search").textContent).toBe("?page=2");
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Limpar query" }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("location-search").textContent).toBe("");
+    });
+
+    await new Promise((resolve) => setTimeout(resolve, 80));
+    expect(screen.getByTestId("location-search").textContent).toBe("");
+
+    await waitFor(
+      () => {
+        const putCalls = getPreferencePutCalls();
+        expect(putCalls.length).toBeGreaterThan(0);
+        const request = ((putCalls[putCalls.length - 1]?.[2] || {}) as RequestInit & {
+          json?: { preferences?: unknown };
+        });
+        const payload = request.json || JSON.parse(String(request.body || "{}"));
+        expect(payload.preferences?.uiListState?.["dashboard.posts"]).toBeUndefined();
+      },
+      { timeout: 2500 },
+    );
   });
 });

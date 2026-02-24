@@ -172,7 +172,7 @@ describe("DashboardProjectsEditor episode accordion", () => {
   it("nao fecha ao clicar no fundo do card", async () => {
     await openEpisodeEditor();
 
-    fireEvent.click(screen.getByRole("button", { name: /Ep 1/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Epis[oó]dio\s+1/i }));
     expect(screen.getByDisplayValue("Primeiro episodio")).toBeInTheDocument();
 
     fireEvent.click(screen.getByTestId("episode-card-0"));
@@ -194,7 +194,7 @@ describe("DashboardProjectsEditor episode accordion", () => {
   it("abre e fecha ao clicar no topo (trigger)", async () => {
     await openEpisodeEditor();
 
-    const episodeTrigger = screen.getByRole("button", { name: /Ep 1/i });
+    const episodeTrigger = screen.getByRole("button", { name: /Epis[oó]dio\s+1/i });
     expect(screen.queryByDisplayValue("Primeiro episodio")).not.toBeInTheDocument();
 
     fireEvent.click(episodeTrigger);
@@ -207,8 +207,8 @@ describe("DashboardProjectsEditor episode accordion", () => {
   it("permite abrir multiplos episodios ao mesmo tempo", async () => {
     await openEpisodeEditor();
 
-    fireEvent.click(screen.getByRole("button", { name: /Ep 1/i }));
-    fireEvent.click(screen.getByRole("button", { name: /Ep 2/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Epis[oó]dio\s+1/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Epis[oó]dio\s+2/i }));
 
     expect(screen.getByDisplayValue("Primeiro episodio")).toBeInTheDocument();
     expect(screen.getByDisplayValue("Segundo episodio")).toBeInTheDocument();
@@ -217,13 +217,13 @@ describe("DashboardProjectsEditor episode accordion", () => {
   it("mantem alinhamento do estado ao remover episodio", async () => {
     await openEpisodeEditor();
 
-    fireEvent.click(screen.getByRole("button", { name: /Ep 2/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Epis[oó]dio\s+2/i }));
     expect(screen.getByDisplayValue("Segundo episodio")).toBeInTheDocument();
 
     fireEvent.click(screen.getAllByRole("button", { name: "Remover episódio" })[0]);
     expect(screen.getByDisplayValue("Segundo episodio")).toBeInTheDocument();
 
-    const remainingTrigger = screen.getByRole("button", { name: /Ep 2/i });
+    const remainingTrigger = screen.getByRole("button", { name: /Epis[oó]dio\s+2/i });
     fireEvent.click(remainingTrigger);
     expect(screen.queryByDisplayValue("Segundo episodio")).not.toBeInTheDocument();
     fireEvent.click(remainingTrigger);
@@ -236,10 +236,10 @@ describe("DashboardProjectsEditor episode accordion", () => {
     expect(screen.queryByDisplayValue("Segundo episodio")).not.toBeInTheDocument();
 
     fireEvent.click(screen.getAllByRole("button", { name: /Remover epis/i })[0]);
-    expect(screen.queryByRole("button", { name: /Ep 1/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Epis[oó]dio\s+1/i })).not.toBeInTheDocument();
     expect(screen.queryByDisplayValue("Segundo episodio")).not.toBeInTheDocument();
 
-    const remainingTrigger = screen.getByRole("button", { name: /Ep 2/i });
+    const remainingTrigger = screen.getByRole("button", { name: /Epis[oó]dio\s+2/i });
     fireEvent.click(remainingTrigger);
     expect(screen.getByDisplayValue("Segundo episodio")).toBeInTheDocument();
   });

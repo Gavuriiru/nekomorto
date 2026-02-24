@@ -1,5 +1,5 @@
 import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useNavigationType, useSearchParams } from "react-router-dom";
 import DashboardShell from "@/components/DashboardShell";
 import DashboardPageContainer from "@/components/dashboard/DashboardPageContainer";
 import DashboardPageHeader from "@/components/dashboard/DashboardPageHeader";
@@ -46,6 +46,7 @@ import { applyBeforeUnloadCompatibility } from "@/lib/before-unload";
 import { formatDateTimeShort } from "@/lib/date";
 import { buildTranslationMap, sortByTranslatedLabel, translateTag } from "@/lib/project-taxonomy";
 import { usePageMeta } from "@/hooks/use-page-meta";
+import { useEditorScrollLock } from "@/hooks/use-editor-scroll-lock";
 import { useEditorScrollStability } from "@/hooks/use-editor-scroll-stability";
 import { useUserPreferences } from "@/hooks/use-user-preferences";
 import { normalizeAssetUrl } from "@/lib/asset-url";
@@ -152,6 +153,9 @@ const parseSortParam = (
   }
   return "recent";
 };
+
+const hasPostsSearchQueryState = (params: URLSearchParams) =>
+  Boolean(params.get("sort") || params.get("q") || params.get("project") || params.get("page"));
 
 const normalizeComparableCoverUrl = (value?: string | null) => {
   const trimmed = String(value || "").trim();
@@ -274,6 +278,7 @@ const getPostStatusLabel = (status: PostRecord["status"]): string => {
 const DashboardPosts = () => {
   usePageMeta({ title: "Posts", noIndex: true });
   const navigate = useNavigate();
+  const navigationType = useNavigationType();
   const [searchParams, setSearchParams] = useSearchParams();
   const apiBase = getApiBase();
   const restoreWindowMs = 3 * 24 * 60 * 60 * 1000;
@@ -292,6 +297,7 @@ const DashboardPosts = () => {
   const [hasLoadError, setHasLoadError] = useState(false);
   const [loadVersion, setLoadVersion] = useState(0);
   const [isEditorOpen, setIsEditorOpen] = useState(false);
+  useEditorScrollLock(isEditorOpen);
   useEditorScrollStability(isEditorOpen);
   const [isEditorDialogScrolled, setIsEditorDialogScrolled] = useState(false);
   const [editingPost, setEditingPost] = useState<PostRecord | null>(null);
@@ -890,17 +896,26 @@ const DashboardPosts = () => {
   }, [currentPage, projectFilterId, searchQuery, sortMode]);
 
   useEffect(() => {
+    if (!hasLoadedUserPreferences) {
+      return;
+    }
+    if (navigationType === "POP" || hasPostsSearchQueryState(searchParams)) {
+      return;
+    }
+    setUiListState(DASHBOARD_POSTS_LIST_STATE_KEY, null);
+  }, [hasLoadedUserPreferences, navigationType, searchParams, setUiListState]);
+
+  useEffect(() => {
     if (hasRestoredListStateRef.current || !hasLoadedUserPreferences) {
       return;
     }
     hasRestoredListStateRef.current = true;
-    const hasSearchQueryState = Boolean(
-      searchParams.get("sort") ||
-      searchParams.get("q") ||
-      searchParams.get("project") ||
-      searchParams.get("page"),
-    );
+    const hasSearchQueryState = hasPostsSearchQueryState(searchParams);
     if (hasSearchQueryState) {
+      return;
+    }
+    if (navigationType !== "POP") {
+      setUiListState(DASHBOARD_POSTS_LIST_STATE_KEY, null);
       return;
     }
     const savedListState = getUiListState(DASHBOARD_POSTS_LIST_STATE_KEY);
@@ -919,7 +934,7 @@ const DashboardPosts = () => {
     setSearchQuery((previous) => (previous === savedSearchQuery ? previous : savedSearchQuery));
     setProjectFilterId((previous) => (previous === savedProjectFilterId ? previous : savedProjectFilterId));
     setCurrentPage((previous) => (previous === savedPage ? previous : savedPage));
-  }, [getUiListState, hasLoadedUserPreferences, searchParams]);
+  }, [getUiListState, hasLoadedUserPreferences, navigationType, searchParams, setUiListState]);
 
   useEffect(() => {
     const nextSortMode = parseSortParam(searchParams.get("sort"));
@@ -995,11 +1010,24 @@ const DashboardPosts = () => {
     if (projectFilterId && projectFilterId !== "all") {
       filters.projectId = projectFilterId;
     }
-    setUiListState(DASHBOARD_POSTS_LIST_STATE_KEY, {
-      sort: sortMode,
-      page: currentPage,
-      filters,
-    });
+    const nextState: {
+      sort?: string;
+      page?: number;
+      filters?: Record<string, string>;
+    } = {};
+    if (sortMode !== "recent") {
+      nextState.sort = sortMode;
+    }
+    if (currentPage > 1) {
+      nextState.page = currentPage;
+    }
+    if (Object.keys(filters).length > 0) {
+      nextState.filters = filters;
+    }
+    setUiListState(
+      DASHBOARD_POSTS_LIST_STATE_KEY,
+      Object.keys(nextState).length > 0 ? nextState : null,
+    );
   }, [currentPage, hasLoadedUserPreferences, projectFilterId, searchQuery, setUiListState, sortMode]);
 
   const handlePublishDateChange = (nextDate: Date | null) => {

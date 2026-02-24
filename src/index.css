@@ -166,6 +166,11 @@
     scroll-behavior: smooth;
   }
 
+  html.editor-scroll-locked,
+  body.editor-scroll-locked {
+    overflow: hidden !important;
+  }
+
   @supports (scrollbar-gutter: stable) {
     html.editor-scroll-stable {
       scrollbar-gutter: stable;
@@ -262,6 +267,10 @@
 
   .bg-gradient-card {
     background: var(--gradient-card);
+  }
+
+  :root[data-theme-mode="light"] .projects-public-card {
+    background: hsl(var(--card));
   }
 
   .border-rainbow {
@@ -638,7 +647,7 @@
     background:
       radial-gradient(circle at 85% -20%, hsl(var(--primary) / 0.15), transparent 42%),
       linear-gradient(180deg, hsl(var(--card) / 0.98), hsl(var(--background) / 0.98));
-    box-shadow: 0 28px 80px -38px rgba(0, 0, 0, 0.9);
+    box-shadow: none;
   }
 
   .project-editor-top {
@@ -678,7 +687,12 @@
   .project-editor-episode-card {
     border-color: hsl(var(--border) / 0.66);
     background: linear-gradient(170deg, hsl(var(--card) / 0.85), hsl(var(--background) / 0.62));
-    box-shadow: inset 0 1px 0 hsl(var(--foreground) / 0.02);
+    box-shadow: none;
+    transition: border-color 180ms ease, background 180ms ease;
+  }
+
+  .project-editor-episode-card.lift-hover:hover {
+    box-shadow: none;
   }
 
   .project-editor-episode-header {
@@ -687,7 +701,7 @@
   }
 
   .project-editor-episode-trigger > div {
-    gap: 0.45rem;
+    gap: 0.2rem;
   }
 
   .project-editor-episode-panel {

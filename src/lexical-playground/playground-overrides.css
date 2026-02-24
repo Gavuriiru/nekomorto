@@ -1,6 +1,19 @@
 .lexical-playground {
+  --lexical-control-bg: hsl(var(--muted));
+  --lexical-control-bg-hover: hsl(var(--muted) / 0.82);
+  --lexical-control-bg-active: hsl(var(--muted) / 0.64);
+  --lexical-control-border: hsl(var(--border));
+  --lexical-control-text: hsl(var(--foreground));
+  --lexical-control-text-muted: hsl(var(--muted-foreground));
+  --lexical-control-focus: hsl(var(--primary) / 0.65);
+  --lexical-control-focus-ring: 0 0 0 2px hsl(var(--primary) / 0.35);
+  --lexical-icon-filter: brightness(0) invert(1);
   color: hsl(var(--foreground));
   font-family: "Inter", sans-serif;
+}
+
+:root[data-theme-mode="light"] .lexical-playground {
+  --lexical-icon-filter: none;
 }
 
 .lexical-playground .editor-shell {
@@ -191,38 +204,51 @@
 
 
 .lexical-playground button.toolbar-item {
-  color: hsl(var(--foreground));
+  color: var(--lexical-control-text);
 }
 
 .lexical-playground button.toolbar-item.active {
-  background-color: hsl(var(--muted) / 0.6);
+  background-color: var(--lexical-control-bg-active);
 }
 
 .lexical-playground .toolbar-item:hover:not([disabled]) {
-  background-color: hsl(var(--muted));
+  background-color: var(--lexical-control-bg-hover);
 }
 
 .lexical-playground .toolbar .toolbar-item .text {
-  color: hsl(var(--muted-foreground));
+  color: var(--lexical-control-text-muted);
 }
 
 .lexical-playground .toolbar .divider {
-  background-color: hsl(var(--border));
+  background-color: var(--lexical-control-border);
 }
 
 .lexical-playground .toolbar i.format,
 .lexical-playground .toolbar .icon,
+.lexical-playground .toolbar i.chevron-down,
+.lexical-playground .toolbar-item i.chevron-down,
 .lexical-playground .dropdown .icon,
 .lexical-playground .dropdown i,
-.lexical-playground .action-button i {
-  filter: brightness(0) invert(1);
-}
-
+.floating-text-format-popup button.popup-item i.format,
+.floating-text-format-popup .popup-item .icon,
+.floating-text-format-popup i.chevron-down,
+.lexical-playground .action-button i,
 .lexical-playground .draggable-block-menu .icon,
 .lexical-playground .draggable-block-menu .icon-plus,
 .lexical-playground .draggable-block-menu button,
-.lexical-playground .draggable-block-menu i {
-  filter: brightness(0) invert(1);
+.lexical-playground .draggable-block-menu i,
+.lexical-playground .table-cell-action-button i.chevron-down,
+.lexical-playground .code-action-menu-container button.menu-item i.format,
+.lexical-playground .link-editor div.link-edit,
+.lexical-playground .link-editor div.link-trash,
+.lexical-playground .link-editor div.link-cancel,
+.lexical-playground .link-editor div.link-confirm {
+  filter: var(--lexical-icon-filter);
+}
+
+.lexical-playground .code-action-menu-container button.menu-item i.format.success,
+.lexical-playground .code-action-menu-container button.menu-item i.format.prettier-error {
+  filter: none;
 }
 
 .lexical-playground .dropdown {
@@ -272,6 +298,7 @@
 }
 
 .lexical-playground .dropdown .item .shortcut {
+  color: var(--lexical-control-text-muted);
   flex-shrink: 0;
   margin-left: auto;
   min-width: 96px;
@@ -357,11 +384,11 @@
 }
 
 .lexical-playground .dropdown .item:hover {
-  background-color: hsl(var(--muted));
+  background-color: var(--lexical-control-bg-hover);
 }
 
 .lexical-playground .dropdown .divider {
-  background-color: hsl(var(--border));
+  background-color: var(--lexical-control-border);
 }
 
 .floating-text-format-popup {
@@ -377,11 +404,11 @@
 
 .floating-text-format-popup button.popup-item i.format {
   margin-top: 0;
-  filter: brightness(0) invert(1);
+  filter: var(--lexical-icon-filter);
 }
 
 .floating-text-format-popup .popup-item:hover:not([disabled]) {
-  background-color: hsl(var(--muted));
+  background-color: var(--lexical-control-bg-hover);
 }
 
 .floating-text-format-popup .divider {
@@ -791,10 +818,217 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  filter: brightness(0) invert(1);
+  filter: var(--lexical-icon-filter);
 }
 
 .lexical-playground .link-editor select {
-  background-color: hsl(var(--muted));
-  color: hsl(var(--foreground));
+  background-color: var(--lexical-control-bg);
+  border: 1px solid var(--lexical-control-border);
+  color: var(--lexical-control-text);
+}
+
+.lexical-playground .icon.table {
+  background-color: currentColor;
+}
+
+.lexical-playground .table-cell-action-button,
+.lexical-playground .PlaygroundEditorTheme__tableCellActionButton {
+  background-color: var(--lexical-control-bg);
+  border: 1px solid var(--lexical-control-border);
+  color: var(--lexical-control-text);
+}
+
+.lexical-playground .table-cell-action-button:hover,
+.lexical-playground .PlaygroundEditorTheme__tableCellActionButton:hover {
+  background-color: var(--lexical-control-bg-hover);
+}
+
+.lexical-playground .table-cell-action-button:active,
+.lexical-playground .PlaygroundEditorTheme__tableCellActionButton:active {
+  background-color: var(--lexical-control-bg-active);
+}
+
+.lexical-playground .floating-add-indicator,
+.lexical-playground .floating-filter-indicator {
+  background-color: var(--lexical-control-bg);
+  border-color: var(--lexical-control-border);
+  color: var(--lexical-control-text);
+  background-image: none;
+  position: relative;
+}
+
+.lexical-playground .floating-add-indicator::before,
+.lexical-playground .floating-filter-indicator::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 12px;
+  height: 12px;
+  transform: translate(-50%, -50%);
+  background-color: currentColor;
+  mask-repeat: no-repeat;
+  mask-position: center;
+  mask-size: 12px 12px;
+  -webkit-mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  -webkit-mask-size: 12px 12px;
+}
+
+.lexical-playground .floating-add-indicator::before {
+  mask-image: url(images/icons/plus.svg);
+  -webkit-mask-image: url(images/icons/plus.svg);
+}
+
+.lexical-playground .floating-filter-indicator::before {
+  mask-image: url(images/icons/filter-left.svg);
+  -webkit-mask-image: url(images/icons/filter-left.svg);
+}
+
+.lexical-playground .floating-add-indicator:hover,
+.lexical-playground .floating-filter-indicator:hover {
+  background-color: var(--lexical-control-bg-hover);
+}
+
+.lexical-playground .floating-sort-menu__item {
+  color: var(--lexical-control-text);
+}
+
+.lexical-playground .floating-sort-menu__item:hover {
+  background-color: var(--lexical-control-bg-hover);
+}
+
+.lexical-playground .code-action-menu-container {
+  color: var(--lexical-control-text-muted);
+}
+
+.lexical-playground .code-action-menu-container button.menu-item {
+  color: var(--lexical-control-text-muted);
+}
+
+.lexical-playground .code-action-menu-container button.menu-item:hover {
+  border-color: var(--lexical-control-border);
+  background-color: var(--lexical-control-bg-hover);
+  color: var(--lexical-control-text);
+  opacity: 1;
+}
+
+.lexical-playground .code-action-menu-container button.menu-item:active {
+  background-color: var(--lexical-control-bg-active);
+  border-color: var(--lexical-control-focus);
+}
+
+.lexical-playground .code-action-menu-container .prettier-wrapper .code-error-tips {
+  background: hsl(var(--popover));
+  border: 1px solid var(--lexical-control-border);
+  color: var(--lexical-control-text);
+}
+
+.lexical-playground button.item.dropdown-item-active {
+  background-color: var(--lexical-control-bg-active);
+  color: var(--lexical-control-text);
+}
+
+.lexical-playground .dialog-dropdown {
+  background-color: var(--lexical-control-bg) !important;
+  border: 1px solid var(--lexical-control-border);
+  color: var(--lexical-control-text);
+}
+
+.lexical-playground .font-size-input {
+  background-color: hsl(var(--background));
+  border: 1px solid var(--lexical-control-border);
+  color: var(--lexical-control-text-muted);
+}
+
+.lexical-playground .font-size-input:focus {
+  border-color: var(--lexical-control-focus);
+  box-shadow: var(--lexical-control-focus-ring);
+  outline: none;
+}
+
+.lexical-playground .font-size-input:disabled {
+  background-color: var(--lexical-control-bg);
+  color: var(--lexical-control-text-muted);
+  opacity: 0.65;
+}
+
+.lexical-playground .PlaygroundEditorTheme__contextMenu {
+  background: hsl(var(--popover));
+  border: 1px solid var(--lexical-control-border);
+  color: var(--lexical-control-text);
+}
+
+.lexical-playground .PlaygroundEditorTheme__contextMenuItem {
+  background-color: transparent;
+  color: var(--lexical-control-text);
+}
+
+.lexical-playground .PlaygroundEditorTheme__contextMenuItem.open {
+  background-color: var(--lexical-control-bg-active);
+}
+
+.lexical-playground .PlaygroundEditorTheme__contextMenuItem:focus,
+.lexical-playground .PlaygroundEditorTheme__contextMenuItem:not([disabled]):active,
+.lexical-playground .PlaygroundEditorTheme__contextMenuItem:not([disabled]):hover {
+  background-color: var(--lexical-control-bg-hover);
+}
+
+.lexical-playground .PlaygroundEditorTheme__contextMenuItem:disabled {
+  background-color: transparent;
+  color: var(--lexical-control-text-muted);
+}
+
+.lexical-playground .editor-dev-button,
+.lexical-playground .test-recorder-button {
+  background-color: var(--lexical-control-bg);
+  border: 1px solid var(--lexical-control-border);
+}
+
+.lexical-playground .editor-dev-button:hover,
+.lexical-playground .test-recorder-button:hover {
+  background-color: var(--lexical-control-bg-hover);
+}
+
+.lexical-playground .switch {
+  color: var(--lexical-control-text-muted);
+  background-color: hsl(var(--muted) / 0.7);
+}
+
+.lexical-playground .switch button {
+  background-color: var(--lexical-control-bg);
+  border: 1px solid var(--lexical-control-border);
+}
+
+.lexical-playground .switch button span {
+  background-color: hsl(var(--card));
+}
+
+.lexical-playground .switch button[aria-checked="true"] {
+  background-color: hsl(var(--primary));
+}
+
+.lexical-playground .switch button[aria-checked="true"] span {
+  background-color: hsl(var(--primary-foreground));
+}
+
+.lexical-playground button.action-button:disabled {
+  background: var(--lexical-control-bg);
+  color: var(--lexical-control-text-muted);
+}
+
+.lexical-playground button.toolbar-item:focus-visible,
+.lexical-playground .dropdown .item:focus-visible,
+.floating-text-format-popup button.popup-item:focus-visible,
+.lexical-playground .table-cell-action-button:focus-visible,
+.lexical-playground .floating-add-indicator:focus-visible,
+.lexical-playground .floating-filter-indicator:focus-visible,
+.lexical-playground .code-action-menu-container button.menu-item:focus-visible,
+.lexical-playground .switch button:focus-visible,
+.lexical-playground .test-recorder-button:focus-visible,
+.lexical-playground .editor-dev-button:focus-visible,
+.lexical-playground .PlaygroundEditorTheme__contextMenuItem:focus-visible {
+  outline: 2px solid var(--lexical-control-focus);
+  outline-offset: 1px;
+  box-shadow: var(--lexical-control-focus-ring);
 }

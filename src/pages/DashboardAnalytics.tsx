@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate, useNavigationType, useSearchParams } from "react-router-dom";
 import { CartesianGrid, Line, LineChart, XAxis, YAxis } from "recharts";
 
 import DashboardShell from "@/components/DashboardShell";
@@ -94,6 +94,9 @@ const parseMetric = (value: string | null): MetricValue =>
     ? value
     : "views";
 
+const hasAnalyticsSearchQueryState = (params: URLSearchParams) =>
+  Boolean(params.get("range") || params.get("type") || params.get("metric"));
+
 const DASHBOARD_ANALYTICS_LIST_STATE_KEY = "dashboard.analytics";
 
 const buildAnalyticsSearchParams = (
@@ -128,6 +131,7 @@ const DashboardAnalytics = () => {
 
   const apiBase = getApiBase();
   const navigate = useNavigate();
+  const navigationType = useNavigationType();
   const [searchParams, setSearchParams] = useSearchParams();
   const range = parseRange(searchParams.get("range"));
   const type = parseType(searchParams.get("type"));
@@ -175,12 +179,26 @@ const DashboardAnalytics = () => {
   }, [apiBase]);
 
   useEffect(() => {
+    if (!hasLoadedUserPreferences) {
+      return;
+    }
+    if (navigationType === "POP" || hasAnalyticsSearchQueryState(searchParams)) {
+      return;
+    }
+    setUiListState(DASHBOARD_ANALYTICS_LIST_STATE_KEY, null);
+  }, [hasLoadedUserPreferences, navigationType, searchParams, setUiListState]);
+
+  useEffect(() => {
     if (hasRestoredListStateRef.current || !hasLoadedUserPreferences) {
       return;
     }
     hasRestoredListStateRef.current = true;
-    const hasSearchQueryState = Boolean(searchParams.get("range") || searchParams.get("type") || searchParams.get("metric"));
+    const hasSearchQueryState = hasAnalyticsSearchQueryState(searchParams);
     if (hasSearchQueryState) {
+      return;
+    }
+    if (navigationType !== "POP") {
+      setUiListState(DASHBOARD_ANALYTICS_LIST_STATE_KEY, null);
       return;
     }
     const savedListState = getUiListState(DASHBOARD_ANALYTICS_LIST_STATE_KEY);
@@ -200,7 +218,7 @@ const DashboardAnalytics = () => {
     if (nextParams.toString() !== searchParams.toString()) {
       setSearchParams(nextParams, { replace: true });
     }
-  }, [getUiListState, hasLoadedUserPreferences, searchParams, setSearchParams]);
+  }, [getUiListState, hasLoadedUserPreferences, navigationType, searchParams, setSearchParams, setUiListState]);
 
   useEffect(() => {
     if (!hasLoadedUserPreferences) {
@@ -216,9 +234,14 @@ const DashboardAnalytics = () => {
     if (metric !== "views") {
       filters.metric = metric;
     }
-    setUiListState(DASHBOARD_ANALYTICS_LIST_STATE_KEY, {
-      filters,
-    });
+    setUiListState(
+      DASHBOARD_ANALYTICS_LIST_STATE_KEY,
+      Object.keys(filters).length > 0
+        ? {
+            filters,
+          }
+        : null,
+    );
   }, [hasLoadedUserPreferences, metric, range, setUiListState, type]);
 
   useEffect(() => {

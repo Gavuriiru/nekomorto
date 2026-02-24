@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
-import { render, screen, waitFor } from "@testing-library/react";
-import { MemoryRouter, useLocation } from "react-router-dom";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { MemoryRouter, useLocation, useNavigate } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import DashboardAnalytics from "@/pages/DashboardAnalytics";
@@ -127,6 +127,15 @@ const LocationProbe = () => {
   return <div data-testid="location-search">{location.search}</div>;
 };
 
+const NavigateCleanQuery = () => {
+  const navigate = useNavigate();
+  return (
+    <button type="button" onClick={() => navigate("/dashboard/analytics")}>
+      Limpar query
+    </button>
+  );
+};
+
 describe("DashboardAnalytics preferences", () => {
   beforeEach(() => {
     apiFetchMock.mockReset();
@@ -232,5 +241,54 @@ describe("DashboardAnalytics preferences", () => {
       type: "project",
       metric: "download_clicks",
     });
+  });
+
+  it("nao reidrata filtros e limpa preferencia salva em PUSH para URL limpa", async () => {
+    setupApiMock({
+      uiListState: {
+        "dashboard.analytics": {
+          filters: {
+            range: "90d",
+            type: "project",
+            metric: "download_clicks",
+          },
+        },
+      },
+    });
+
+    render(
+      <MemoryRouter initialEntries={["/dashboard/analytics?range=7d&type=post&metric=views"]}>
+        <DashboardAnalytics />
+        <NavigateCleanQuery />
+        <LocationProbe />
+      </MemoryRouter>,
+    );
+
+    await screen.findByRole("heading", { name: /Performance e aquisi/i });
+    fireEvent.click(screen.getByRole("button", { name: "Limpar query" }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("location-search").textContent).toBe("");
+    });
+
+    await waitFor(() => {
+      const params = getLastTimeseriesParams();
+      expect(params.get("range")).toBe("30d");
+      expect(params.get("type")).toBe("all");
+      expect(params.get("metric")).toBe("views");
+    });
+
+    await waitFor(
+      () => {
+        const putCalls = getPreferencePutCalls();
+        expect(putCalls.length).toBeGreaterThan(0);
+        const request = ((putCalls[putCalls.length - 1]?.[2] || {}) as RequestInit & {
+          json?: { preferences?: unknown };
+        });
+        const payload = request.json || JSON.parse(String(request.body || "{}"));
+        expect(payload.preferences?.uiListState?.["dashboard.analytics"]).toBeUndefined();
+      },
+      { timeout: 2500 },
+    );
   });
 });

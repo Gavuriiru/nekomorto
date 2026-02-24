@@ -161,12 +161,18 @@ describe("DashboardProjectsEditor edit query", () => {
     expect(document.documentElement).toHaveClass("editor-scroll-stable");
     expect(document.body).toHaveClass("editor-scroll-stable");
     expect(document.body.getAttribute("data-editor-scroll-stable-count")).toBe("1");
+    expect(document.documentElement).toHaveClass("editor-scroll-locked");
+    expect(document.body).toHaveClass("editor-scroll-locked");
+    expect(document.body.getAttribute("data-editor-scroll-lock-count")).toBe("1");
 
     unmount();
 
     expect(document.documentElement).not.toHaveClass("editor-scroll-stable");
     expect(document.body).not.toHaveClass("editor-scroll-stable");
     expect(document.body.getAttribute("data-editor-scroll-stable-count")).toBeNull();
+    expect(document.documentElement).not.toHaveClass("editor-scroll-locked");
+    expect(document.body).not.toHaveClass("editor-scroll-locked");
+    expect(document.body.getAttribute("data-editor-scroll-lock-count")).toBeNull();
   });
 
   it("nao abre editor quando item nao existe e limpa a query", async () => {

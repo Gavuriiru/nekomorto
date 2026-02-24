@@ -1,5 +1,5 @@
 import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useNavigationType, useSearchParams } from "react-router-dom";
 import type { MouseEvent as ReactMouseEvent } from "react";
 import DashboardShell from "@/components/DashboardShell";
 import DashboardPageContainer from "@/components/dashboard/DashboardPageContainer";
@@ -76,6 +76,7 @@ import {
 import { isChapterBasedType, isLightNovelType, isMangaType } from "@/lib/project-utils";
 import { formatBytesCompact, parseHumanSizeToBytes } from "@/lib/file-size";
 import { usePageMeta } from "@/hooks/use-page-meta";
+import { useEditorScrollLock } from "@/hooks/use-editor-scroll-lock";
 import { useEditorScrollStability } from "@/hooks/use-editor-scroll-stability";
 import { useUserPreferences } from "@/hooks/use-user-preferences";
 import type { LexicalEditorHandle } from "@/components/lexical/LexicalEditor";
@@ -680,6 +681,9 @@ const parsePageParam = (value: string | null) => {
   return Math.floor(parsed);
 };
 
+const hasProjectsSearchQueryState = (params: URLSearchParams) =>
+  Boolean(params.get("sort") || params.get("page"));
+
 const buildProjectEditorSnapshot = (form: ProjectForm, anilistIdInput: string) =>
   JSON.stringify({
     form,
@@ -725,6 +729,7 @@ const EpisodeContentEditor = ({
 const DashboardProjectsEditor = () => {
   usePageMeta({ title: "Projetos", noIndex: true });
   const navigate = useNavigate();
+  const navigationType = useNavigationType();
   const apiBase = getApiBase();
   const { settings: publicSettings } = useSiteSettings();
   const restoreWindowMs = 3 * 24 * 60 * 60 * 1000;
@@ -756,7 +761,9 @@ const DashboardProjectsEditor = () => {
     return "alpha";
   });
   const [currentPage, setCurrentPage] = useState(() => parsePageParam(searchParams.get("page")));
+  const [selectedType, setSelectedType] = useState("Todos");
   const [isEditorOpen, setIsEditorOpen] = useState(false);
+  useEditorScrollLock(isEditorOpen);
   useEditorScrollStability(isEditorOpen);
   const [isEditorDialogScrolled, setIsEditorDialogScrolled] = useState(false);
 
@@ -1036,16 +1043,37 @@ const DashboardProjectsEditor = () => {
   }, [currentPage, sortMode]);
 
   useEffect(() => {
+    if (!hasLoadedUserPreferences) {
+      return;
+    }
+    if (navigationType === "POP" || hasProjectsSearchQueryState(searchParams)) {
+      return;
+    }
+    setSelectedType((previous) => (previous === "Todos" ? previous : "Todos"));
+    setUiListState(DASHBOARD_PROJECTS_LIST_STATE_KEY, null);
+  }, [hasLoadedUserPreferences, navigationType, searchParams, setUiListState]);
+
+  useEffect(() => {
     if (hasRestoredListStateRef.current || !hasLoadedUserPreferences) {
       return;
     }
     hasRestoredListStateRef.current = true;
-    const hasSearchQueryState = Boolean(searchParams.get("sort") || searchParams.get("page"));
-    if (hasSearchQueryState) {
+    const hasSearchQueryState = hasProjectsSearchQueryState(searchParams);
+    if (!hasSearchQueryState && navigationType !== "POP") {
+      setSelectedType((previous) => (previous === "Todos" ? previous : "Todos"));
+      setUiListState(DASHBOARD_PROJECTS_LIST_STATE_KEY, null);
       return;
     }
     const savedListState = getUiListState(DASHBOARD_PROJECTS_LIST_STATE_KEY);
     if (!savedListState) {
+      return;
+    }
+    const savedType =
+      typeof savedListState.filters?.type === "string" && savedListState.filters.type.trim()
+        ? savedListState.filters.type.trim()
+        : "Todos";
+    setSelectedType((previous) => (previous === savedType ? previous : savedType));
+    if (hasSearchQueryState || navigationType !== "POP") {
       return;
     }
     const savedSortParam = typeof savedListState.sort === "string" ? savedListState.sort : null;
@@ -1061,7 +1089,7 @@ const DashboardProjectsEditor = () => {
     const savedPage = Number.isFinite(savedPageRaw) && savedPageRaw >= 1 ? Math.floor(savedPageRaw) : 1;
     setSortMode((previous) => (previous === savedSortMode ? previous : savedSortMode));
     setCurrentPage((previous) => (previous === savedPage ? previous : savedPage));
-  }, [getUiListState, hasLoadedUserPreferences, searchParams]);
+  }, [getUiListState, hasLoadedUserPreferences, navigationType, searchParams, setUiListState]);
 
   useEffect(() => {
     const sortParam = searchParams.get("sort");
@@ -1113,15 +1141,33 @@ const DashboardProjectsEditor = () => {
     if (!hasLoadedUserPreferences) {
       return;
     }
-    setUiListState(DASHBOARD_PROJECTS_LIST_STATE_KEY, {
-      sort: sortMode,
-      page: currentPage,
-    });
-  }, [currentPage, hasLoadedUserPreferences, setUiListState, sortMode]);
+    const filters: Record<string, string> = {};
+    if (selectedType !== "Todos") {
+      filters.type = selectedType;
+    }
+    const nextState: {
+      sort?: string;
+      page?: number;
+      filters?: Record<string, string>;
+    } = {};
+    if (sortMode !== "alpha") {
+      nextState.sort = sortMode;
+    }
+    if (currentPage > 1) {
+      nextState.page = currentPage;
+    }
+    if (Object.keys(filters).length > 0) {
+      nextState.filters = filters;
+    }
+    setUiListState(
+      DASHBOARD_PROJECTS_LIST_STATE_KEY,
+      Object.keys(nextState).length > 0 ? nextState : null,
+    );
+  }, [currentPage, hasLoadedUserPreferences, selectedType, setUiListState, sortMode]);
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchQuery, sortMode]);
+  }, [searchQuery, selectedType, sortMode]);
 
   const isManga = isMangaType(formState.type || "");
   const isLightNovel = isLightNovelType(formState.type || "");
@@ -1396,13 +1442,36 @@ const DashboardProjectsEditor = () => {
     () => projects.filter((project) => project.deletedAt && isRestorable(project)),
     [isRestorable, projects],
   );
+  const typeOptions = useMemo(() => {
+    const types = activeProjects.map((project) => String(project.type || "").trim()).filter(Boolean);
+    const unique = Array.from(new Set(types));
+    const sorted = unique.sort((a, b) => a.localeCompare(b, "pt-BR"));
+    return ["Todos", ...sorted];
+  }, [activeProjects]);
+
+  useEffect(() => {
+    if (isLoading || hasLoadError) {
+      return;
+    }
+    if (selectedType === "Todos") {
+      return;
+    }
+    if (typeOptions.includes(selectedType)) {
+      return;
+    }
+    setSelectedType("Todos");
+  }, [hasLoadError, isLoading, selectedType, typeOptions]);
 
   const filteredProjects = useMemo(() => {
+    const projectsByType =
+      selectedType === "Todos"
+        ? activeProjects
+        : activeProjects.filter((project) => String(project.type || "").trim() === selectedType);
     const query = searchQuery.trim().toLowerCase();
     if (!query) {
-      return activeProjects;
+      return projectsByType;
     }
-    return activeProjects.filter((project) => {
+    return projectsByType.filter((project) => {
       const haystack = [
         project.title,
         project.titleOriginal,
@@ -1421,7 +1490,7 @@ const DashboardProjectsEditor = () => {
         .toLowerCase();
       return haystack.includes(query);
     });
-  }, [activeProjects, searchQuery]);
+  }, [activeProjects, searchQuery, selectedType]);
 
   const currentLibrarySelection = useMemo(() => {
     if (libraryTarget === "cover") {
@@ -2274,6 +2343,18 @@ const DashboardProjectsEditor = () => {
                       <SelectItem value="status">Status</SelectItem>
                       <SelectItem value="views">Visualizações</SelectItem>
                       <SelectItem value="comments">Comentários</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Select value={selectedType} onValueChange={setSelectedType}>
+                    <SelectTrigger className="w-[210px]" aria-label="Filtrar por formato">
+                      <SelectValue placeholder="Todos os formatos" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {typeOptions.map((type) => (
+                        <SelectItem key={type} value={type}>
+                          {type}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
@@ -3404,6 +3485,27 @@ const DashboardProjectsEditor = () => {
               >
                 {sortedEpisodeDownloads.map(({ episode, index }) => {
                   const isEpisodeCollapsed = collapsedEpisodes[index] ?? false;
+                  const episodeUnitLabel = isChapterBased ? "Capítulo" : "Episódio";
+                  const episodeNumberLabel = `${episodeUnitLabel} ${episode.number || index + 1}`;
+                  const episodeTitleLabel = String(episode.title || "").trim() || "Sem título";
+                  const hasDownloadSource = episode.sources.some((source) => source.url);
+                  const currentProgressStageLabel =
+                    stageOptions.find(
+                      (stage) =>
+                        stage.id === getProgressStage(formState.type || "", episode.completedStages),
+                    )?.label || "Aguardando Raw";
+                  const collapsedHeaderMeta: string[] = [];
+
+                  if (isLightNovel && String(episode.content || "").trim().length > 0) {
+                    collapsedHeaderMeta.push("Conteúdo");
+                  }
+                  if (!isChapterBased && !hasDownloadSource) {
+                    collapsedHeaderMeta.push(currentProgressStageLabel);
+                  }
+                  if (hasDownloadSource) {
+                    collapsedHeaderMeta.push("Download");
+                  }
+
                   return (
                   <AccordionItem
                     key={`${episode.number}-${index}`}
@@ -3411,7 +3513,7 @@ const DashboardProjectsEditor = () => {
                     className="border-none"
                   >
                   <Card
-                    className="project-editor-episode-card border-border/60 bg-card/70"
+                    className="project-editor-episode-card border-border/60 bg-card/70 !shadow-none hover:!shadow-none"
                     data-testid={`episode-card-${index}`}
                     onDragStart={() => setEpisodeDragId(null)}
                   >
@@ -3424,17 +3526,17 @@ const DashboardProjectsEditor = () => {
                         <div className="min-w-0 flex-1">
                           <AccordionTrigger
                             data-episode-accordion-trigger
-                            className="project-editor-episode-trigger py-0 text-left text-base font-semibold text-foreground hover:no-underline [&>svg]:mt-0.5 [&>svg]:shrink-0"
+                            className="project-editor-episode-trigger py-0 text-left text-foreground hover:no-underline [&>svg]:mt-0.5 [&>svg]:shrink-0"
                           >
-                            <div className="flex min-w-0 items-center gap-2">
-                              <span className="rounded-full border border-border/60 bg-background/70 px-2 py-0.5 text-xs">
-                                {isChapterBased ? "Cap" : "Ep"} {episode.number || index + 1}
+                            <div className="flex min-w-0 flex-col py-0.5">
+                              <span className="text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground">
+                                {episodeNumberLabel}
                               </span>
-                              {episode.title ? (
-                                <span className="line-clamp-1">{episode.title}</span>
-                              ) : null}
+                              <span className="line-clamp-1 text-sm font-semibold leading-tight">
+                                {episodeTitleLabel}
+                              </span>
                               {episode.releaseDate ? (
-                                <span className="rounded-full border border-border/60 bg-background/50 px-2 py-0.5 text-[10px] leading-none">
+                                <span className="text-[11px] text-muted-foreground">
                                   {formatEpisodeReleaseDate(episode.releaseDate, episode.duration)}
                                 </span>
                               ) : null}
@@ -3442,28 +3544,10 @@ const DashboardProjectsEditor = () => {
                           </AccordionTrigger>
                         </div>
                         <div className="flex flex-wrap items-center gap-2">
-                          {isEpisodeCollapsed ? (
-                            <div className="flex flex-wrap items-center gap-1">
-                              {isLightNovel && String(episode.content || "").trim().length > 0 ? (
-                                <span className="rounded-full border border-primary/40 bg-primary/10 px-2 py-0.5 text-[10px] text-primary leading-none">
-                                  Conteúdo
-                                </span>
-                              ) : null}
-                              {!isChapterBased && !episode.sources.some((source) => source.url) ? (
-                                <span className="rounded-full border border-border/60 bg-background/50 px-2 py-0.5 text-[10px] leading-none">
-                                  {stageOptions.find(
-                                    (stage) =>
-                                      stage.id ===
-                                      getProgressStage(formState.type || "", episode.completedStages),
-                                  )?.label || "Aguardando Raw"}
-                                </span>
-                              ) : null}
-                              {episode.sources.some((source) => source.url) ? (
-                                <span className="rounded-full border border-emerald-500/40 bg-emerald-500/10 px-2 py-0.5 text-[10px] text-emerald-400 leading-none">
-                                  Download
-                                </span>
-                              ) : null}
-                            </div>
+                          {isEpisodeCollapsed && collapsedHeaderMeta.length > 0 ? (
+                            <span className="text-[11px] text-muted-foreground">
+                              {collapsedHeaderMeta.join(" • ")}
+                            </span>
                           ) : null}
                           <Button
                             type="button"
@@ -3664,10 +3748,7 @@ const DashboardProjectsEditor = () => {
                             <div className="project-editor-episode-group mt-3 space-y-2">
                               <Label className="text-xs">Etapa atual</Label>
                               <div className="rounded-md border border-border/60 bg-background/70 px-3 py-2 text-xs text-muted-foreground">
-                                {stageOptions.find((stage) =>
-                                  stage.id ===
-                                  getProgressStage(formState.type || "", episode.completedStages),
-                                )?.label || "Aguardando Raw"}
+                                {currentProgressStageLabel}
                               </div>
                             </div>
                           ) : null}

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate, useNavigationType, useSearchParams } from "react-router-dom";
 import DashboardShell from "@/components/DashboardShell";
 import AsyncState from "@/components/ui/async-state";
 import { Badge } from "@/components/ui/badge";
@@ -125,11 +125,25 @@ const normalizeStatusFilter = (value: string | null) => {
   return "all";
 };
 
+const hasAuditLogSearchQueryState = (params: URLSearchParams) =>
+  Boolean(
+    params.get("page") ||
+      params.get("limit") ||
+      params.get("q") ||
+      params.get("action") ||
+      params.get("resource") ||
+      params.get("actorId") ||
+      params.get("status") ||
+      params.get("dateFrom") ||
+      params.get("dateTo"),
+  );
+
 const DASHBOARD_AUDIT_LOG_LIST_STATE_KEY = "dashboard.audit-log";
 
 const DashboardAuditLog = () => {
   usePageMeta({ title: "Audit Log", noIndex: true });
   const navigate = useNavigate();
+  const navigationType = useNavigationType();
   const apiBase = getApiBase();
   const [searchParams, setSearchParams] = useSearchParams();
   const [entries, setEntries] = useState<AuditEntry[]>([]);
@@ -173,22 +187,26 @@ const DashboardAuditLog = () => {
   const dateToTimeValue = toTimeFieldValue(dateToParts.time || "00:00");
 
   useEffect(() => {
+    if (!hasLoadedUserPreferences) {
+      return;
+    }
+    if (navigationType === "POP" || hasAuditLogSearchQueryState(searchParams)) {
+      return;
+    }
+    setUiListState(DASHBOARD_AUDIT_LOG_LIST_STATE_KEY, null);
+  }, [hasLoadedUserPreferences, navigationType, searchParams, setUiListState]);
+
+  useEffect(() => {
     if (hasRestoredListStateRef.current || !hasLoadedUserPreferences) {
       return;
     }
     hasRestoredListStateRef.current = true;
-    const hasSearchQueryState = Boolean(
-      searchParams.get("page") ||
-      searchParams.get("limit") ||
-      searchParams.get("q") ||
-      searchParams.get("action") ||
-      searchParams.get("resource") ||
-      searchParams.get("actorId") ||
-      searchParams.get("status") ||
-      searchParams.get("dateFrom") ||
-      searchParams.get("dateTo"),
-    );
+    const hasSearchQueryState = hasAuditLogSearchQueryState(searchParams);
     if (hasSearchQueryState) {
+      return;
+    }
+    if (navigationType !== "POP") {
+      setUiListState(DASHBOARD_AUDIT_LOG_LIST_STATE_KEY, null);
       return;
     }
     const savedListState = getUiListState(DASHBOARD_AUDIT_LOG_LIST_STATE_KEY);
@@ -243,7 +261,7 @@ const DashboardAuditLog = () => {
     if (next.toString() !== searchParams.toString()) {
       setSearchParams(next, { replace: true });
     }
-  }, [getUiListState, hasLoadedUserPreferences, searchParams, setSearchParams]);
+  }, [getUiListState, hasLoadedUserPreferences, navigationType, searchParams, setSearchParams, setUiListState]);
 
   useEffect(() => {
     if (!hasLoadedUserPreferences) {

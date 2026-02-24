@@ -54,6 +54,8 @@ import {
 import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
 import { usePageMeta } from "@/hooks/use-page-meta";
+import { useEditorScrollLock } from "@/hooks/use-editor-scroll-lock";
+import { useEditorScrollStability } from "@/hooks/use-editor-scroll-stability";
 import { useSiteSettings } from "@/hooks/use-site-settings";
 import { toast } from "@/components/ui/use-toast";
 import ThemedSvgLogo from "@/components/ThemedSvgLogo";
@@ -302,6 +304,8 @@ const DashboardUsers = () => {
   const [socialDragIndex, setSocialDragIndex] = useState<number | null>(null);
   const [socialDragOverIndex, setSocialDragOverIndex] = useState<number | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  useEditorScrollLock(isDialogOpen);
+  useEditorScrollStability(isDialogOpen);
   const [editingUser, setEditingUser] = useState<UserRecord | null>(null);
   const [formState, setFormState] = useState(emptyForm);
   const [ownerToggle, setOwnerToggle] = useState(false);

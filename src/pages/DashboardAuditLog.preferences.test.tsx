@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
-import { render, screen, waitFor } from "@testing-library/react";
-import { MemoryRouter, useLocation } from "react-router-dom";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { MemoryRouter, useLocation, useNavigate } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import DashboardAuditLog from "@/pages/DashboardAuditLog";
@@ -84,6 +84,15 @@ const getPreferencePutCalls = () =>
 const LocationProbe = () => {
   const location = useLocation();
   return <div data-testid="location-search">{location.search}</div>;
+};
+
+const NavigateCleanQuery = () => {
+  const navigate = useNavigate();
+  return (
+    <button type="button" onClick={() => navigate("/dashboard/audit-log")}>
+      Limpar query
+    </button>
+  );
 };
 
 describe("DashboardAuditLog preferences", () => {
@@ -190,5 +199,56 @@ describe("DashboardAuditLog preferences", () => {
         status: "denied",
       },
     });
+  });
+
+  it("nao reidrata filtros e limpa preferencia salva em PUSH para URL limpa", async () => {
+    setupApiMock({
+      uiListState: {
+        "dashboard.audit-log": {
+          page: 2,
+          filters: {
+            limit: 20,
+            q: "admin",
+            status: "failed",
+          },
+        },
+      },
+    });
+
+    render(
+      <MemoryRouter initialEntries={["/dashboard/audit-log?page=3&limit=100&status=denied"]}>
+        <DashboardAuditLog />
+        <NavigateCleanQuery />
+        <LocationProbe />
+      </MemoryRouter>,
+    );
+
+    await screen.findByRole("heading", { name: "Registro de Auditoria" });
+    fireEvent.click(screen.getByRole("button", { name: "Limpar query" }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("location-search").textContent).toBe("");
+    });
+
+    await waitFor(() => {
+      const params = getLastAuditParams();
+      expect(params.get("page")).toBe("1");
+      expect(params.get("limit")).toBe("50");
+      expect(params.get("status")).toBeNull();
+      expect(params.get("q")).toBeNull();
+    });
+
+    await waitFor(
+      () => {
+        const putCalls = getPreferencePutCalls();
+        expect(putCalls.length).toBeGreaterThan(0);
+        const request = ((putCalls[putCalls.length - 1]?.[2] || {}) as RequestInit & {
+          json?: { preferences?: unknown };
+        });
+        const payload = request.json || JSON.parse(String(request.body || "{}"));
+        expect(payload.preferences?.uiListState?.["dashboard.audit-log"]).toBeUndefined();
+      },
+      { timeout: 2500 },
+    );
   });
 });
