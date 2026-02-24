@@ -294,6 +294,8 @@ const DashboardUsers = () => {
     primaryOwnerId?: string | null;
   } | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [hasLoadError, setHasLoadError] = useState(false);
+  const [loadVersion, setLoadVersion] = useState(0);
   const [dragId, setDragId] = useState<string | null>(null);
   const [dragGroup, setDragGroup] = useState<"active" | "retired" | null>(null);
   const [dragUsersSnapshot, setDragUsersSnapshot] = useState<UserRecord[] | null>(null);
@@ -460,34 +462,45 @@ const DashboardUsers = () => {
   useEffect(() => {
     const load = async () => {
       try {
+        setIsLoading(true);
+        setHasLoadError(false);
         const [usersRes, meRes, linkTypesRes] = await Promise.all([
           apiFetch(apiBase, "/api/users", { auth: true }),
           apiFetch(apiBase, "/api/me", { auth: true }),
           apiFetch(apiBase, "/api/link-types"),
         ]);
 
-        if (usersRes.ok) {
-          const data = await usersRes.json();
-          setUsers(data.users || []);
-          setOwnerIds(Array.isArray(data.ownerIds) ? data.ownerIds : []);
+        if (!usersRes.ok) {
+          throw new Error("users_load_failed");
         }
+        const data = await usersRes.json();
+        setUsers(data.users || []);
+        setOwnerIds(Array.isArray(data.ownerIds) ? data.ownerIds : []);
 
         if (meRes.ok) {
           const me = await meRes.json();
           setCurrentUser(me);
+        } else {
+          setCurrentUser(null);
         }
 
         if (linkTypesRes.ok) {
-          const data = await linkTypesRes.json();
-          setLinkTypes(Array.isArray(data.items) ? data.items : []);
+          const linkTypePayload = await linkTypesRes.json();
+          setLinkTypes(Array.isArray(linkTypePayload.items) ? linkTypePayload.items : []);
+        } else {
+          setLinkTypes([]);
         }
+      } catch {
+        setUsers([]);
+        setOwnerIds([]);
+        setHasLoadError(true);
       } finally {
         setIsLoading(false);
       }
     };
 
     load();
-  }, [apiBase]);
+  }, [apiBase, loadVersion]);
 
   useEffect(() => {
     if (searchParams.get("edit") !== "me") {
@@ -886,6 +899,18 @@ const DashboardUsers = () => {
                   title="Carregando usuarios"
                   description="Buscando membros e permissoes."
                   className="mt-6"
+                />
+              ) : hasLoadError ? (
+                <AsyncState
+                  kind="error"
+                  title="Não foi possível carregar os usuários"
+                  description="Tente novamente em instantes."
+                  className="mt-6"
+                  action={
+                    <Button variant="outline" onClick={() => setLoadVersion((previous) => previous + 1)}>
+                      Tentar novamente
+                    </Button>
+                  }
                 />
               ) : activeUsers.length === 0 ? (
                 <AsyncState

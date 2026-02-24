@@ -1,14 +1,16 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { CartesianGrid, Line, LineChart, XAxis, YAxis } from "recharts";
 
 import DashboardShell from "@/components/DashboardShell";
+import AsyncState from "@/components/ui/async-state";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
+import { useUserPreferences } from "@/hooks/use-user-preferences";
 import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
 import { usePageMeta } from "@/hooks/use-page-meta";
@@ -92,6 +94,35 @@ const parseMetric = (value: string | null): MetricValue =>
     ? value
     : "views";
 
+const DASHBOARD_ANALYTICS_LIST_STATE_KEY = "dashboard.analytics";
+
+const buildAnalyticsSearchParams = (
+  base: URLSearchParams,
+  next: {
+    range: RangeValue;
+    type: TypeValue;
+    metric: MetricValue;
+  },
+) => {
+  const params = new URLSearchParams(base);
+  if (next.range === "30d") {
+    params.delete("range");
+  } else {
+    params.set("range", next.range);
+  }
+  if (next.type === "all") {
+    params.delete("type");
+  } else {
+    params.set("type", next.type);
+  }
+  if (next.metric === "views") {
+    params.delete("metric");
+  } else {
+    params.set("metric", next.metric);
+  }
+  return params;
+};
+
 const DashboardAnalytics = () => {
   usePageMeta({ title: "Analytics", noIndex: true });
 
@@ -107,6 +138,13 @@ const DashboardAnalytics = () => {
   const [acquisition, setAcquisition] = useState<AcquisitionResponse>({});
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(true);
+  const [reloadTick, setReloadTick] = useState(0);
+  const hasRestoredListStateRef = useRef(false);
+  const {
+    hasLoaded: hasLoadedUserPreferences,
+    getUiListState,
+    setUiListState,
+  } = useUserPreferences();
 
   const [currentUser, setCurrentUser] = useState<{
     id: string;
@@ -135,6 +173,53 @@ const DashboardAnalytics = () => {
 
     void loadUser();
   }, [apiBase]);
+
+  useEffect(() => {
+    if (hasRestoredListStateRef.current || !hasLoadedUserPreferences) {
+      return;
+    }
+    hasRestoredListStateRef.current = true;
+    const hasSearchQueryState = Boolean(searchParams.get("range") || searchParams.get("type") || searchParams.get("metric"));
+    if (hasSearchQueryState) {
+      return;
+    }
+    const savedListState = getUiListState(DASHBOARD_ANALYTICS_LIST_STATE_KEY);
+    if (!savedListState) {
+      return;
+    }
+    const savedRange = parseRange(typeof savedListState.filters?.range === "string" ? savedListState.filters.range : null);
+    const savedType = parseType(typeof savedListState.filters?.type === "string" ? savedListState.filters.type : null);
+    const savedMetric = parseMetric(
+      typeof savedListState.filters?.metric === "string" ? savedListState.filters.metric : null,
+    );
+    const nextParams = buildAnalyticsSearchParams(searchParams, {
+      range: savedRange,
+      type: savedType,
+      metric: savedMetric,
+    });
+    if (nextParams.toString() !== searchParams.toString()) {
+      setSearchParams(nextParams, { replace: true });
+    }
+  }, [getUiListState, hasLoadedUserPreferences, searchParams, setSearchParams]);
+
+  useEffect(() => {
+    if (!hasLoadedUserPreferences) {
+      return;
+    }
+    const filters: Record<string, string> = {};
+    if (range !== "30d") {
+      filters.range = range;
+    }
+    if (type !== "all") {
+      filters.type = type;
+    }
+    if (metric !== "views") {
+      filters.metric = metric;
+    }
+    setUiListState(DASHBOARD_ANALYTICS_LIST_STATE_KEY, {
+      filters,
+    });
+  }, [hasLoadedUserPreferences, metric, range, setUiListState, type]);
 
   useEffect(() => {
     let isActive = true;
@@ -187,7 +272,7 @@ const DashboardAnalytics = () => {
     return () => {
       isActive = false;
     };
-  }, [apiBase, range, type, metric]);
+  }, [apiBase, metric, range, reloadTick, type]);
 
   const chartData = useMemo(
     () => (Array.isArray(timeseries.series) ? timeseries.series.map((item) => ({ ...item })) : []),
@@ -203,28 +288,27 @@ const DashboardAnalytics = () => {
   const commentsApproved = Number(metrics.commentsApproved || 0);
   const commentsApprovalRate = commentsCreated > 0 ? commentsApproved / commentsCreated : null;
 
+  const updateFilters = (nextRange: RangeValue, nextType: TypeValue, nextMetric: MetricValue) => {
+    const nextParams = buildAnalyticsSearchParams(searchParams, {
+      range: nextRange,
+      type: nextType,
+      metric: nextMetric,
+    });
+    if (nextParams.toString() !== searchParams.toString()) {
+      setSearchParams(nextParams, { replace: true });
+    }
+  };
+
   const setRangeFilter = (value: RangeValue) => {
-    const next = new URLSearchParams(searchParams);
-    next.set("range", value);
-    next.set("type", type);
-    next.set("metric", metric);
-    setSearchParams(next);
+    updateFilters(value, type, metric);
   };
 
   const setTypeFilter = (value: TypeValue) => {
-    const next = new URLSearchParams(searchParams);
-    next.set("range", range);
-    next.set("type", value);
-    next.set("metric", metric);
-    setSearchParams(next);
+    updateFilters(range, value, metric);
   };
 
   const setMetricFilter = (value: MetricValue) => {
-    const next = new URLSearchParams(searchParams);
-    next.set("range", range);
-    next.set("type", type);
-    next.set("metric", value);
-    setSearchParams(next);
+    updateFilters(range, type, value);
   };
 
   const exportCsv = () => {
@@ -334,47 +418,49 @@ const DashboardAnalytics = () => {
             </div>
           </header>
 
-          {error ? (
-            <div
-              className="animate-slide-up rounded-2xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-200 opacity-0"
-              style={{ animationDelay: "0.28s" }}
-            >
-              {error}
-            </div>
-          ) : null}
-
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          {isLoading ? (
+            <AsyncState
+              kind="loading"
+              title="Carregando analytics"
+              description="Buscando métricas, série temporal e aquisição."
+            />
+          ) : error ? (
+            <AsyncState
+              kind="error"
+              title="Não foi possível carregar analytics"
+              description={error}
+              action={
+                <Button variant="outline" onClick={() => setReloadTick((previous) => previous + 1)}>
+                  Tentar novamente
+                </Button>
+              }
+            />
+          ) : (
+            <>
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
             <Card className="animate-slide-up opacity-0" style={{ animationDelay: "40ms" }}>
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm text-muted-foreground">Views</CardTitle>
               </CardHeader>
-              <CardContent className={`text-3xl font-semibold ${isLoading ? "animate-pulse" : ""}`}>
-                {isLoading ? "-" : formatInt(metrics.views || 0)}
-              </CardContent>
+              <CardContent className="text-3xl font-semibold">{formatInt(metrics.views || 0)}</CardContent>
             </Card>
             <Card className="animate-slide-up opacity-0" style={{ animationDelay: "80ms" }}>
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm text-muted-foreground">Views únicas</CardTitle>
               </CardHeader>
-              <CardContent className={`text-3xl font-semibold ${isLoading ? "animate-pulse" : ""}`}>
-                {isLoading ? "-" : formatInt(metrics.uniqueViews || 0)}
-              </CardContent>
+              <CardContent className="text-3xl font-semibold">{formatInt(metrics.uniqueViews || 0)}</CardContent>
             </Card>
             <Card className="animate-slide-up opacity-0" style={{ animationDelay: "120ms" }}>
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm text-muted-foreground">Leituras de capítulos</CardTitle>
               </CardHeader>
-              <CardContent className={`text-3xl font-semibold ${isLoading ? "animate-pulse" : ""}`}>
-                {isLoading ? "-" : formatInt(metrics.chapterViews || 0)}
-              </CardContent>
+              <CardContent className="text-3xl font-semibold">{formatInt(metrics.chapterViews || 0)}</CardContent>
             </Card>
             <Card className="animate-slide-up opacity-0" style={{ animationDelay: "160ms" }}>
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm text-muted-foreground">Cliques em downloads</CardTitle>
               </CardHeader>
-              <CardContent className={`text-3xl font-semibold ${isLoading ? "animate-pulse" : ""}`}>
-                {isLoading ? "-" : formatInt(metrics.downloadClicks || 0)}
-              </CardContent>
+              <CardContent className="text-3xl font-semibold">{formatInt(metrics.downloadClicks || 0)}</CardContent>
             </Card>
           </div>
 
@@ -385,20 +471,16 @@ const DashboardAnalytics = () => {
             <CardContent className="grid gap-4 md:grid-cols-3">
               <div className="rounded-xl border border-border/60 bg-card/60 p-4">
                 <p className="text-xs uppercase tracking-wide text-muted-foreground">Comentários criados</p>
-                <p className={`mt-2 text-2xl font-semibold ${isLoading ? "animate-pulse" : ""}`}>
-                  {isLoading ? "-" : formatInt(commentsCreated)}
-                </p>
+                <p className="mt-2 text-2xl font-semibold">{formatInt(commentsCreated)}</p>
               </div>
               <div className="rounded-xl border border-border/60 bg-card/60 p-4">
                 <p className="text-xs uppercase tracking-wide text-muted-foreground">Comentários aprovados</p>
-                <p className={`mt-2 text-2xl font-semibold ${isLoading ? "animate-pulse" : ""}`}>
-                  {isLoading ? "-" : formatInt(commentsApproved)}
-                </p>
+                <p className="mt-2 text-2xl font-semibold">{formatInt(commentsApproved)}</p>
               </div>
               <div className="rounded-xl border border-border/60 bg-card/60 p-4">
                 <p className="text-xs uppercase tracking-wide text-muted-foreground">Taxa de aprovação</p>
-                <p className={`mt-2 text-2xl font-semibold ${isLoading ? "animate-pulse" : ""}`}>
-                  {isLoading ? "-" : commentsApprovalRate === null ? "0,0%" : formatPercent(commentsApprovalRate)}
+                <p className="mt-2 text-2xl font-semibold">
+                  {commentsApprovalRate === null ? "0,0%" : formatPercent(commentsApprovalRate)}
                 </p>
               </div>
             </CardContent>
@@ -410,9 +492,7 @@ const DashboardAnalytics = () => {
                 <CardTitle>Série temporal ({formatMetricLabel(metric)})</CardTitle>
               </CardHeader>
               <CardContent className="min-w-0">
-                {isLoading ? (
-                  <p className="animate-pulse text-sm text-muted-foreground">Carregando série temporal...</p>
-                ) : chartData.length ? (
+                {chartData.length ? (
                   <ChartContainer
                     className="min-w-0 w-full max-w-full h-52 sm:h-60 lg:h-[280px]"
                     config={{ metric: { label: formatMetricLabel(metric), color: "hsl(var(--accent))" } }}
@@ -434,7 +514,11 @@ const DashboardAnalytics = () => {
                     </LineChart>
                   </ChartContainer>
                 ) : (
-                  <p className="text-sm text-muted-foreground">Sem dados para o período selecionado.</p>
+                  <AsyncState
+                    kind="empty"
+                    title="Sem dados para o período selecionado."
+                    className="border-dashed bg-card/40 py-8"
+                  />
                 )}
               </CardContent>
             </Card>
@@ -444,9 +528,7 @@ const DashboardAnalytics = () => {
                 <CardTitle>Aquisição (origens)</CardTitle>
               </CardHeader>
               <CardContent className="min-w-0 space-y-3">
-                {isLoading ? (
-                  <p className="animate-pulse text-sm text-muted-foreground">Carregando origens...</p>
-                ) : referrerEntries.length ? (
+                {referrerEntries.length ? (
                   referrerEntries.slice(0, 8).map((entry) => (
                     <div key={entry.key} className="flex min-w-0 items-center gap-2 text-sm">
                       <span
@@ -461,20 +543,22 @@ const DashboardAnalytics = () => {
                     </div>
                   ))
                 ) : (
-                  <p className="text-sm text-muted-foreground">Sem dados de aquisição.</p>
+                  <AsyncState
+                    kind="empty"
+                    title="Sem dados de aquisição."
+                    className="border-dashed bg-card/40 py-8"
+                  />
                 )}
               </CardContent>
             </Card>
           </div>
 
-          <Card className="animate-slide-up opacity-0" style={{ animationDelay: "300ms" }}>
+              <Card className="animate-slide-up opacity-0" style={{ animationDelay: "300ms" }}>
             <CardHeader>
               <CardTitle>Top conteúdos</CardTitle>
             </CardHeader>
             <CardContent>
-              {isLoading ? (
-                <p className="animate-pulse text-sm text-muted-foreground">Carregando conteúdos...</p>
-              ) : topEntries.length ? (
+              {topEntries.length ? (
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -496,10 +580,16 @@ const DashboardAnalytics = () => {
                   </TableBody>
                 </Table>
               ) : (
-                <p className="text-sm text-muted-foreground">Nenhum conteúdo com views no período.</p>
+                <AsyncState
+                  kind="empty"
+                  title="Nenhum conteúdo com views no período."
+                  className="border-dashed bg-card/40 py-8"
+                />
               )}
             </CardContent>
-          </Card>
+              </Card>
+            </>
+          )}
         </section>
       </main>
     </DashboardShell>

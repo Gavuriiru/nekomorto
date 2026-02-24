@@ -233,5 +233,93 @@ describe("DashboardPosts tags translation", () => {
     expect(within(dialog).queryByText("AAA")).not.toBeInTheDocument();
     expect(getChipLabels()).toEqual(["ZZZ", "BBB", "MMM"]);
   });
+
+  it("mantem rodape fixo com resumo longo sem tags e aplica fallback de clamp", async () => {
+    apiFetchMock.mockReset();
+    apiFetchMock.mockImplementation(async (_base, path, options) => {
+      const method = String((options as RequestInit | undefined)?.method || "GET").toUpperCase();
+
+      if (path === "/api/posts" && method === "GET") {
+        return mockJsonResponse(true, {
+          posts: [
+            {
+              id: "post-long",
+              title: "Post com resumo longo",
+              slug: "post-longo-sem-tags",
+              excerpt:
+                "Resumo muito longo para validar clamp e fixacao do rodape. ".repeat(14).trim(),
+              content: "",
+              coverImageUrl: "/uploads/posts/capa-longa.jpg",
+              author: "Admin",
+              publishedAt: "2026-02-10T12:00:00.000Z",
+              status: "published",
+              projectId: "",
+              tags: [],
+              views: 99,
+              commentsCount: 7,
+            },
+          ],
+        });
+      }
+      if (path === "/api/users" && method === "GET") {
+        return mockJsonResponse(true, {
+          users: [{ id: "user-1", permissions: ["posts"] }],
+          ownerIds: ["user-1"],
+        });
+      }
+      if (path === "/api/me" && method === "GET") {
+        return mockJsonResponse(true, { id: "user-1", name: "Admin", username: "admin" });
+      }
+      if (path === "/api/projects" && method === "GET") {
+        return mockJsonResponse(true, { projects: [] });
+      }
+      if (path === "/api/public/tag-translations" && method === "GET") {
+        return mockJsonResponse(true, { tags: {}, genres: {}, staffRoles: {} });
+      }
+      return mockJsonResponse(false, { error: "not_found" }, 404);
+    });
+
+    render(
+      <MemoryRouter>
+        <DashboardPosts />
+      </MemoryRouter>,
+    );
+
+    await screen.findByRole("heading", { name: "Gerenciar posts" });
+    const card = await screen.findByTestId("post-card-post-long");
+
+    expect(within(card).getByText("99 visualizações")).toBeInTheDocument();
+    expect(within(card).getByText("7 comentários")).toBeInTheDocument();
+    expect(within(card).getByText("/post-longo-sem-tags")).toBeInTheDocument();
+
+    const tagsSlot = card.querySelector('[data-slot="tags"]');
+    expect(tagsSlot).not.toBeNull();
+    expect(tagsSlot?.querySelector("span.invisible")).not.toBeNull();
+
+    const excerptSlot = card.querySelector('[data-slot="excerpt"]') as HTMLParagraphElement | null;
+    expect(excerptSlot).not.toBeNull();
+    const excerptTokens = String(excerptSlot?.className || "")
+      .split(/\s+/)
+      .filter(Boolean);
+    expect(excerptTokens).toContain("line-clamp-2");
+    expect(excerptTokens).toContain("lg:line-clamp-1");
+    expect(excerptTokens).toContain("[display:-webkit-box]");
+    expect(excerptTokens).toContain("[-webkit-box-orient:vertical]");
+    expect(excerptTokens).toContain("[-webkit-line-clamp:2]");
+    expect(excerptTokens).toContain("lg:[-webkit-line-clamp:1]");
+
+    const rightContentColumn = Array.from(card.querySelectorAll("div")).find((element) =>
+      element.className.includes("grid-rows-[auto_auto_minmax(0,1fr)_auto]"),
+    );
+    expect(rightContentColumn).toBeDefined();
+    expect(rightContentColumn?.className).toContain("overflow-hidden");
+
+    const metaSlot = card.querySelector('[data-slot="meta"]') as HTMLDivElement | null;
+    expect(metaSlot).not.toBeNull();
+    const footerWrapperTokens = String(metaSlot?.parentElement?.className || "")
+      .split(/\s+/)
+      .filter(Boolean);
+    expect(footerWrapperTokens).toContain("shrink-0");
+  });
 });
 

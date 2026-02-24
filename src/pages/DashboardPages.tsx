@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import DashboardAutosaveStatus from "@/components/DashboardAutosaveStatus";
 import DashboardShell from "@/components/DashboardShell";
+import AsyncState from "@/components/ui/async-state";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -55,6 +56,7 @@ import { apiFetch } from "@/lib/api-client";
 import { applyBeforeUnloadCompatibility } from "@/lib/before-unload";
 import { toast } from "@/components/ui/use-toast";
 import { usePageMeta } from "@/hooks/use-page-meta";
+import { useUserPreferences } from "@/hooks/use-user-preferences";
 
 type AboutHighlight = { label: string; text: string; icon: string };
 type AboutValue = { title: string; description: string; icon: string };
@@ -260,9 +262,15 @@ const pageLabels: Record<PublicPageKey, string> = {
   recruitment: "Recrutamento",
 };
 
-const orderedPageTabs = Object.entries(pageLabels)
+const orderedPageTabs = (Object.entries(pageLabels) as Array<[PublicPageKey, string]>)
   .sort(([, labelA], [, labelB]) => labelA.localeCompare(labelB, "pt-BR"))
   .map(([key, label]) => ({ key, label }));
+
+const DASHBOARD_PAGES_LIST_STATE_KEY = "dashboard.pages";
+const DASHBOARD_PAGES_DEFAULT_TAB: PublicPageKey = orderedPageTabs[0]?.key || "donations";
+const DASHBOARD_PAGES_TAB_SET = new Set<PublicPageKey>(orderedPageTabs.map((tab) => tab.key));
+const isDashboardPagesTab = (value: string): value is PublicPageKey =>
+  DASHBOARD_PAGES_TAB_SET.has(value as PublicPageKey);
 
 const reorder = <T,>(items: T[], from: number, to: number) => {
   const next = [...items];
@@ -316,6 +324,10 @@ const DashboardPages = () => {
   );
   const [pages, setPages] = useState<PagesConfig>(defaultPages);
   const [isLoading, setIsLoading] = useState(true);
+  const [hasLoadError, setHasLoadError] = useState(false);
+  const [loadVersion, setLoadVersion] = useState(0);
+  const [activeTab, setActiveTab] = useState<PublicPageKey>(DASHBOARD_PAGES_DEFAULT_TAB);
+  const hasRestoredTabRef = useRef(false);
   const [dragState, setDragState] = useState<{ list: string; index: number } | null>(null);
   const [currentUser, setCurrentUser] = useState<{
     id: string;
@@ -323,6 +335,11 @@ const DashboardPages = () => {
     username: string;
     avatarUrl?: string | null;
   } | null>(null);
+  const {
+    hasLoaded: hasLoadedUserPreferences,
+    getUiListState,
+    setUiListState,
+  } = useUserPreferences();
 
   const qrPreview = useMemo(() => {
     if (pages.donations.qrCustomUrl) {
@@ -337,23 +354,54 @@ const DashboardPages = () => {
   }, [pages.donations.pixKey, pages.donations.qrCustomUrl]);
 
   useEffect(() => {
+    if (hasRestoredTabRef.current || !hasLoadedUserPreferences) {
+      return;
+    }
+    hasRestoredTabRef.current = true;
+    const savedListState = getUiListState(DASHBOARD_PAGES_LIST_STATE_KEY);
+    const savedTab = typeof savedListState?.filters?.tab === "string" ? savedListState.filters.tab.trim() : "";
+    if (savedTab && isDashboardPagesTab(savedTab)) {
+      setActiveTab(savedTab);
+    }
+  }, [getUiListState, hasLoadedUserPreferences]);
+
+  useEffect(() => {
+    if (!hasLoadedUserPreferences) {
+      return;
+    }
+    if (activeTab === DASHBOARD_PAGES_DEFAULT_TAB) {
+      setUiListState(DASHBOARD_PAGES_LIST_STATE_KEY, null);
+      return;
+    }
+    setUiListState(DASHBOARD_PAGES_LIST_STATE_KEY, {
+      filters: {
+        tab: activeTab,
+      },
+    });
+  }, [activeTab, hasLoadedUserPreferences, setUiListState]);
+
+  useEffect(() => {
     const load = async () => {
       try {
+        setIsLoading(true);
+        setHasLoadError(false);
         const response = await apiFetch(apiBase, "/api/pages", { auth: true });
         if (!response.ok) {
           setPages(defaultPages);
+          setHasLoadError(true);
           return;
         }
         const data = await response.json();
         setPages(mergePagesConfig(data.pages));
       } catch {
         setPages(defaultPages);
+        setHasLoadError(true);
       } finally {
         setIsLoading(false);
       }
     };
     load();
-  }, [apiBase]);
+  }, [apiBase, loadVersion]);
 
   useEffect(() => {
     const loadUser = async () => {
@@ -508,8 +556,38 @@ const DashboardPages = () => {
         currentUser={currentUser}
         onUserCardClick={() => navigate("/dashboard/usuarios?edit=me")}
       >
-        <main className="mx-auto w-full max-w-5xl px-6 pt-20 text-sm text-muted-foreground">
-          Carregando páginas...
+        <main className="pt-24">
+          <section className="mx-auto w-full max-w-5xl px-6 pb-20 md:px-10">
+            <AsyncState
+              kind="loading"
+              title="Carregando páginas"
+              description="Buscando a configuração atual das páginas públicas."
+            />
+          </section>
+        </main>
+      </DashboardShell>
+    );
+  }
+
+  if (hasLoadError) {
+    return (
+      <DashboardShell
+        currentUser={currentUser}
+        onUserCardClick={() => navigate("/dashboard/usuarios?edit=me")}
+      >
+        <main className="pt-24">
+          <section className="mx-auto w-full max-w-5xl px-6 pb-20 md:px-10">
+            <AsyncState
+              kind="error"
+              title="Não foi possível carregar as páginas"
+              description="Tente novamente em instantes."
+              action={
+                <Button variant="outline" onClick={() => setLoadVersion((previous) => previous + 1)}>
+                  Tentar novamente
+                </Button>
+              }
+            />
+          </section>
         </main>
       </DashboardShell>
     );
@@ -570,7 +648,12 @@ const DashboardPages = () => {
             </div>
 
             <Tabs
-              defaultValue={orderedPageTabs[0]?.key || "donations"}
+              value={activeTab}
+              onValueChange={(value) => {
+                if (isDashboardPagesTab(value)) {
+                  setActiveTab(value);
+                }
+              }}
               className="mt-8 animate-slide-up opacity-0"
               style={{ animationDelay: "0.2s" }}
             >

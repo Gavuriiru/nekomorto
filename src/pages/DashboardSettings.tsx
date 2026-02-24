@@ -11,6 +11,7 @@ import {
 import { useNavigate } from "react-router-dom";
 import DashboardAutosaveStatus from "@/components/DashboardAutosaveStatus";
 import DashboardShell from "@/components/DashboardShell";
+import AsyncState from "@/components/ui/async-state";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -68,6 +69,7 @@ import { useSiteSettings } from "@/hooks/use-site-settings";
 import { defaultSettings, mergeSettings } from "@/hooks/site-settings-context";
 import type { SiteSettings } from "@/types/site-settings";
 import { usePageMeta } from "@/hooks/use-page-meta";
+import { useUserPreferences } from "@/hooks/use-user-preferences";
 import ThemedSvgLogo from "@/components/ThemedSvgLogo";
 import { navbarIconOptions } from "@/lib/navbar-icons";
 import { resolveBranding } from "@/lib/branding";
@@ -195,6 +197,22 @@ type SettingsTabKey =
   | "redes-usuarios"
   | "traducoes"
   | "preview-paginas";
+
+const DASHBOARD_SETTINGS_LIST_STATE_KEY = "dashboard.settings";
+const DASHBOARD_SETTINGS_DEFAULT_TAB: SettingsTabKey = "geral";
+const dashboardSettingsTabSet = new Set<SettingsTabKey>([
+  "geral",
+  "downloads",
+  "equipe",
+  "footer",
+  "navbar",
+  "redes-usuarios",
+  "traducoes",
+  "preview-paginas",
+]);
+
+const isDashboardSettingsTab = (value: string): value is SettingsTabKey =>
+  dashboardSettingsTabSet.has(value as SettingsTabKey);
 
 type LinkTypeItem = { id: string; label: string; icon: string };
 type TranslationsPayload = {
@@ -439,6 +457,8 @@ const DashboardSettings = () => {
   const [knownStaffRoles, setKnownStaffRoles] = useState<string[]>([]);
   const [linkTypes, setLinkTypes] = useState<LinkTypeItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [hasLoadError, setHasLoadError] = useState(false);
+  const [loadVersion, setLoadVersion] = useState(0);
   const [isSyncingAniList, setIsSyncingAniList] = useState(false);
   const [uploadingKey, setUploadingKey] = useState<string | null>(null);
   const [iconCacheVersion, setIconCacheVersion] = useState(0);
@@ -454,12 +474,18 @@ const DashboardSettings = () => {
   const [newGenre, setNewGenre] = useState("");
   const [staffRoleQuery, setStaffRoleQuery] = useState("");
   const [newStaffRole, setNewStaffRole] = useState("");
-  const [activeTab, setActiveTab] = useState<SettingsTabKey>("geral");
+  const [activeTab, setActiveTab] = useState<SettingsTabKey>(DASHBOARD_SETTINGS_DEFAULT_TAB);
   const [footerSocialDragIndex, setFooterSocialDragIndex] = useState<number | null>(null);
   const [footerSocialDragOverIndex, setFooterSocialDragOverIndex] = useState<number | null>(null);
   const hasSyncedAniList = useRef(false);
+  const hasRestoredTabRef = useRef(false);
   const rootLibraryFolders = useMemo(() => [""], []);
   const settingsTabsGridClass = canManagePages ? "md:grid-cols-8" : "md:grid-cols-7";
+  const {
+    hasLoaded: hasLoadedUserPreferences,
+    getUiListState,
+    setUiListState,
+  } = useUserPreferences();
 
   useEffect(() => {
     const loadUser = async () => {
@@ -485,6 +511,7 @@ const DashboardSettings = () => {
     let isActive = true;
     const load = async () => {
       setIsLoading(true);
+      setHasLoadError(false);
       try {
         const [settingsRes, translationsRes, projectsRes, linkTypesRes, pagesRes] = await Promise.all([
           apiFetch(apiBase, "/api/settings", { auth: true }),
@@ -493,57 +520,53 @@ const DashboardSettings = () => {
           apiFetch(apiBase, "/api/link-types"),
           apiFetch(apiBase, "/api/pages", { auth: true }),
         ]);
-        if (settingsRes.ok) {
-          const data = await settingsRes.json();
-          if (isActive && data.settings) {
-            setSettings(mergeSettings(defaultSettings, data.settings));
-          }
+        if (!settingsRes.ok || !translationsRes.ok || !projectsRes.ok || !linkTypesRes.ok) {
+          throw new Error("settings_load_failed");
         }
-        if (translationsRes.ok) {
-          const data = await translationsRes.json();
-          if (isActive) {
-            setTagTranslations(data.tags || {});
-            setGenreTranslations(data.genres || {});
-            setStaffRoleTranslations(data.staffRoles || {});
-          }
+        const [settingsData, translationsData, projectsData, linkTypesData] = await Promise.all([
+          settingsRes.json(),
+          translationsRes.json(),
+          projectsRes.json(),
+          linkTypesRes.json(),
+        ]);
+        if (!isActive) {
+          return;
         }
-        if (projectsRes.ok) {
-          const data = await projectsRes.json();
-          if (isActive) {
-            const projects = Array.isArray(data.projects) ? data.projects : [];
-            const tags = new Set<string>();
-            const genres = new Set<string>();
-            const staffRoles = new Set<string>();
-            projects.forEach((project) => {
-              (project.tags || []).forEach((tag: string) => tags.add(tag));
-              (project.genres || []).forEach((genre: string) => genres.add(genre));
-              if (Array.isArray(project.animeStaff)) {
-                project.animeStaff.forEach((staff: { role?: string | null }) => {
-                  const role = String(staff?.role || "").trim();
-                  if (role) {
-                    staffRoles.add(role);
-                  }
-                });
+        if (settingsData.settings) {
+          setSettings(mergeSettings(defaultSettings, settingsData.settings));
+        }
+        setTagTranslations(translationsData.tags || {});
+        setGenreTranslations(translationsData.genres || {});
+        setStaffRoleTranslations(translationsData.staffRoles || {});
+
+        const projects = Array.isArray(projectsData.projects) ? projectsData.projects : [];
+        const tags = new Set<string>();
+        const genres = new Set<string>();
+        const staffRoles = new Set<string>();
+        projects.forEach((project) => {
+          (project.tags || []).forEach((tag: string) => tags.add(tag));
+          (project.genres || []).forEach((genre: string) => genres.add(genre));
+          if (Array.isArray(project.animeStaff)) {
+            project.animeStaff.forEach((staff: { role?: string | null }) => {
+              const role = String(staff?.role || "").trim();
+              if (role) {
+                staffRoles.add(role);
               }
             });
-            setKnownTags(Array.from(tags).sort((a, b) => a.localeCompare(b, "en")));
-            setKnownGenres(Array.from(genres).sort((a, b) => a.localeCompare(b, "en")));
-            setKnownStaffRoles(Array.from(staffRoles).sort((a, b) => a.localeCompare(b, "en")));
           }
-        }
-        if (linkTypesRes.ok) {
-          const data = await linkTypesRes.json();
-          if (isActive) {
-            setLinkTypes(Array.isArray(data.items) ? data.items : []);
-          }
-        }
+        });
+        setKnownTags(Array.from(tags).sort((a, b) => a.localeCompare(b, "en")));
+        setKnownGenres(Array.from(genres).sort((a, b) => a.localeCompare(b, "en")));
+        setKnownStaffRoles(Array.from(staffRoles).sort((a, b) => a.localeCompare(b, "en")));
+        setLinkTypes(Array.isArray(linkTypesData.items) ? linkTypesData.items : []);
+
         if (pagesRes.ok) {
-          const data = await pagesRes.json();
+          const pagesData = await pagesRes.json();
           if (isActive) {
-            setPagesPayload(normalizePagesPayload(data?.pages));
+            setPagesPayload(normalizePagesPayload(pagesData?.pages));
             setCanManagePages(true);
           }
-        } else if (isActive) {
+        } else {
           setPagesPayload(normalizePagesPayload({}));
           setCanManagePages(false);
           setActiveTab((current) => (current === "preview-paginas" ? "geral" : current));
@@ -551,9 +574,17 @@ const DashboardSettings = () => {
       } catch {
         if (isActive) {
           setSettings(publicSettings);
+          setTagTranslations({});
+          setGenreTranslations({});
+          setStaffRoleTranslations({});
+          setKnownTags([]);
+          setKnownGenres([]);
+          setKnownStaffRoles([]);
+          setLinkTypes([]);
           setPagesPayload(normalizePagesPayload({}));
           setCanManagePages(false);
           setActiveTab((current) => (current === "preview-paginas" ? "geral" : current));
+          setHasLoadError(true);
         }
       } finally {
         if (isActive) {
@@ -566,7 +597,42 @@ const DashboardSettings = () => {
     return () => {
       isActive = false;
     };
-  }, [apiBase, publicSettings]);
+  }, [apiBase, loadVersion, publicSettings]);
+
+  useEffect(() => {
+    if (hasRestoredTabRef.current || !hasLoadedUserPreferences || isLoading) {
+      return;
+    }
+    hasRestoredTabRef.current = true;
+    const savedListState = getUiListState(DASHBOARD_SETTINGS_LIST_STATE_KEY);
+    const savedTab = typeof savedListState?.filters?.tab === "string" ? savedListState.filters.tab.trim() : "";
+    if (!savedTab || !isDashboardSettingsTab(savedTab)) {
+      return;
+    }
+    if (savedTab === "preview-paginas" && !canManagePages) {
+      return;
+    }
+    setActiveTab(savedTab);
+  }, [canManagePages, getUiListState, hasLoadedUserPreferences, isLoading]);
+
+  useEffect(() => {
+    if (!hasLoadedUserPreferences || isLoading) {
+      return;
+    }
+    const resolvedTab =
+      activeTab === "preview-paginas" && !canManagePages
+        ? DASHBOARD_SETTINGS_DEFAULT_TAB
+        : activeTab;
+    if (resolvedTab === DASHBOARD_SETTINGS_DEFAULT_TAB) {
+      setUiListState(DASHBOARD_SETTINGS_LIST_STATE_KEY, null);
+      return;
+    }
+    setUiListState(DASHBOARD_SETTINGS_LIST_STATE_KEY, {
+      filters: {
+        tab: resolvedTab,
+      },
+    });
+  }, [activeTab, canManagePages, hasLoadedUserPreferences, isLoading, setUiListState]);
 
   const syncAniListTerms = useCallback(
     async (options?: { silent?: boolean }) => {
@@ -1340,9 +1406,38 @@ const DashboardSettings = () => {
       >
         <main className="pt-28">
           <section className="mx-auto w-full max-w-5xl px-6 pb-20 md:px-10">
-            <div className="rounded-2xl border border-dashed border-border/60 bg-card/40 px-6 py-12 text-center text-sm text-muted-foreground">
-              Carregando configurações...
-            </div>
+            <AsyncState
+              kind="loading"
+              title="Carregando configurações"
+              description="Buscando ajustes globais, traduções e integrações."
+            />
+          </section>
+        </main>
+      </DashboardShell>
+    );
+  }
+
+  if (hasLoadError) {
+    return (
+      <DashboardShell
+        currentUser={currentUser}
+        isLoadingUser={isLoadingUser}
+        userLabel={userLabel}
+        userSubLabel={userSubLabel}
+        onUserCardClick={() => navigate("/dashboard/usuarios?edit=me")}
+      >
+        <main className="pt-28">
+          <section className="mx-auto w-full max-w-5xl px-6 pb-20 md:px-10">
+            <AsyncState
+              kind="error"
+              title="Não foi possível carregar configurações"
+              description="Tente novamente em instantes."
+              action={
+                <Button variant="outline" onClick={() => setLoadVersion((previous) => previous + 1)}>
+                  Tentar novamente
+                </Button>
+              }
+            />
           </section>
         </main>
       </DashboardShell>

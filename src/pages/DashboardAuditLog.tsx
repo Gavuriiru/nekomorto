@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import DashboardShell from "@/components/DashboardShell";
+import AsyncState from "@/components/ui/async-state";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -23,6 +24,7 @@ import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
 import { formatDateTime } from "@/lib/date";
 import { usePageMeta } from "@/hooks/use-page-meta";
+import { useUserPreferences } from "@/hooks/use-user-preferences";
 import { toast } from "@/components/ui/use-toast";
 
 type AuditStatus = "success" | "failed" | "denied";
@@ -123,6 +125,8 @@ const normalizeStatusFilter = (value: string | null) => {
   return "all";
 };
 
+const DASHBOARD_AUDIT_LOG_LIST_STATE_KEY = "dashboard.audit-log";
+
 const DashboardAuditLog = () => {
   usePageMeta({ title: "Audit Log", noIndex: true });
   const navigate = useNavigate();
@@ -135,6 +139,7 @@ const DashboardAuditLog = () => {
   const [forbidden, setForbidden] = useState(false);
   const [refreshTick, setRefreshTick] = useState(0);
   const [selectedEntry, setSelectedEntry] = useState<AuditEntry | null>(null);
+  const hasRestoredListStateRef = useRef(false);
   const [currentUser, setCurrentUser] = useState<{
     id: string;
     name: string;
@@ -142,6 +147,11 @@ const DashboardAuditLog = () => {
     avatarUrl?: string | null;
   } | null>(null);
   const [isLoadingUser, setIsLoadingUser] = useState(true);
+  const {
+    hasLoaded: hasLoadedUserPreferences,
+    getUiListState,
+    setUiListState,
+  } = useUserPreferences();
 
   const [form, setForm] = useState<FilterForm>({
     q: "",
@@ -161,6 +171,131 @@ const DashboardAuditLog = () => {
   const dateToParts = parseLocalDateTimeValue(form.dateTo);
   const dateFromTimeValue = toTimeFieldValue(dateFromParts.time || "00:00");
   const dateToTimeValue = toTimeFieldValue(dateToParts.time || "00:00");
+
+  useEffect(() => {
+    if (hasRestoredListStateRef.current || !hasLoadedUserPreferences) {
+      return;
+    }
+    hasRestoredListStateRef.current = true;
+    const hasSearchQueryState = Boolean(
+      searchParams.get("page") ||
+      searchParams.get("limit") ||
+      searchParams.get("q") ||
+      searchParams.get("action") ||
+      searchParams.get("resource") ||
+      searchParams.get("actorId") ||
+      searchParams.get("status") ||
+      searchParams.get("dateFrom") ||
+      searchParams.get("dateTo"),
+    );
+    if (hasSearchQueryState) {
+      return;
+    }
+    const savedListState = getUiListState(DASHBOARD_AUDIT_LOG_LIST_STATE_KEY);
+    if (!savedListState) {
+      return;
+    }
+    const next = new URLSearchParams(searchParams);
+    const savedPageRaw = Number(savedListState.page);
+    const savedPage = Number.isFinite(savedPageRaw) && savedPageRaw >= 1 ? Math.floor(savedPageRaw) : 1;
+    if (savedPage > 1) {
+      next.set("page", String(savedPage));
+    }
+    const savedLimit = parseLimit(String(savedListState.filters?.limit || ""));
+    if (savedLimit !== 50) {
+      next.set("limit", String(savedLimit));
+    }
+    const savedQ = typeof savedListState.filters?.q === "string" ? savedListState.filters.q.trim() : "";
+    if (savedQ) {
+      next.set("q", savedQ);
+    }
+    const savedAction =
+      typeof savedListState.filters?.action === "string" ? savedListState.filters.action.trim() : "";
+    if (savedAction) {
+      next.set("action", savedAction);
+    }
+    const savedResource =
+      typeof savedListState.filters?.resource === "string" ? savedListState.filters.resource.trim() : "";
+    if (savedResource) {
+      next.set("resource", savedResource);
+    }
+    const savedActorId =
+      typeof savedListState.filters?.actorId === "string" ? savedListState.filters.actorId.trim() : "";
+    if (savedActorId) {
+      next.set("actorId", savedActorId);
+    }
+    const savedStatus = normalizeStatusFilter(
+      typeof savedListState.filters?.status === "string" ? savedListState.filters.status : null,
+    );
+    if (savedStatus !== "all") {
+      next.set("status", savedStatus);
+    }
+    const savedDateFrom =
+      typeof savedListState.filters?.dateFrom === "string" ? savedListState.filters.dateFrom.trim() : "";
+    if (savedDateFrom) {
+      next.set("dateFrom", savedDateFrom);
+    }
+    const savedDateTo =
+      typeof savedListState.filters?.dateTo === "string" ? savedListState.filters.dateTo.trim() : "";
+    if (savedDateTo) {
+      next.set("dateTo", savedDateTo);
+    }
+    if (next.toString() !== searchParams.toString()) {
+      setSearchParams(next, { replace: true });
+    }
+  }, [getUiListState, hasLoadedUserPreferences, searchParams, setSearchParams]);
+
+  useEffect(() => {
+    if (!hasLoadedUserPreferences) {
+      return;
+    }
+    const filters: Record<string, string | number> = {};
+    const q = searchParams.get("q") || "";
+    const action = searchParams.get("action") || "";
+    const resource = searchParams.get("resource") || "";
+    const actorId = searchParams.get("actorId") || "";
+    const status = normalizeStatusFilter(searchParams.get("status"));
+    const dateFrom = searchParams.get("dateFrom") || "";
+    const dateTo = searchParams.get("dateTo") || "";
+    if (q.trim()) {
+      filters.q = q.trim();
+    }
+    if (action.trim()) {
+      filters.action = action.trim();
+    }
+    if (resource.trim()) {
+      filters.resource = resource.trim();
+    }
+    if (actorId.trim()) {
+      filters.actorId = actorId.trim();
+    }
+    if (status !== "all") {
+      filters.status = status;
+    }
+    if (dateFrom.trim()) {
+      filters.dateFrom = dateFrom.trim();
+    }
+    if (dateTo.trim()) {
+      filters.dateTo = dateTo.trim();
+    }
+    if (limit !== 50) {
+      filters.limit = limit;
+    }
+    const nextState: {
+      page?: number;
+      filters?: Record<string, string | number>;
+    } = {};
+    if (page > 1) {
+      nextState.page = page;
+    }
+    if (Object.keys(filters).length > 0) {
+      nextState.filters = filters;
+    }
+    setUiListState(
+      DASHBOARD_AUDIT_LOG_LIST_STATE_KEY,
+      Object.keys(nextState).length > 0 ? nextState : null,
+    );
+  }, [hasLoadedUserPreferences, limit, page, searchParams, setUiListState]);
 
   const handleFilterDateChange = (field: FilterDateField, nextDate: Date | null) => {
     setForm((prev) => {
@@ -534,14 +669,35 @@ const DashboardAuditLog = () => {
 
             <div className="mt-6 rounded-2xl border border-border/60 bg-card/60 p-2 md:p-4 animate-slide-up opacity-0" style={{ animationDelay: "0.32s" }}>
               {forbidden ? (
-                <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-6 text-sm text-amber-100">
-                  Acesso negado. Apenas o dono pode visualizar o audit log.
-                </div>
-              ) : null}
-              {error && !forbidden ? (
-                <div className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-6 text-sm text-red-100">{error}</div>
-              ) : null}
-              {!forbidden && !error ? (
+                <AsyncState
+                  kind="error"
+                  title="Acesso negado"
+                  description="Apenas o dono pode visualizar o audit log."
+                />
+              ) : isLoading ? (
+                <AsyncState
+                  kind="loading"
+                  title="Carregando audit log"
+                  description="Buscando eventos mais recentes."
+                />
+              ) : error ? (
+                <AsyncState
+                  kind="error"
+                  title="Não foi possível carregar o audit log"
+                  description={error}
+                  action={
+                    <Button variant="outline" onClick={() => setRefreshTick((value) => value + 1)}>
+                      Tentar novamente
+                    </Button>
+                  }
+                />
+              ) : entries.length === 0 ? (
+                <AsyncState
+                  kind="empty"
+                  title="Nenhum evento encontrado para os filtros atuais."
+                  description="Ajuste os filtros ou limpe para ver mais resultados."
+                />
+              ) : (
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -556,51 +712,36 @@ const DashboardAuditLog = () => {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {isLoading ? (
-                      <TableRow>
-                        <TableCell colSpan={8} className="text-center text-muted-foreground animate-pulse">
-                          Carregando audit log...
+                    {entries.map((entry) => (
+                      <TableRow key={entry.id}>
+                        <TableCell>{formatDateTime(entry.ts)}</TableCell>
+                        <TableCell className="max-w-44">
+                          <div className="truncate">{entry.actorName || "anonymous"}</div>
+                          <div className="truncate text-xs text-muted-foreground">{entry.actorId}</div>
+                        </TableCell>
+                        <TableCell className="font-mono text-xs">{entry.action}</TableCell>
+                        <TableCell>
+                          <div>{entry.resource || "-"}</div>
+                          <div className="text-xs text-muted-foreground">{entry.resourceId || "-"}</div>
+                        </TableCell>
+                        <TableCell>
+                          <Badge className={statusBadgeClass(entry.status)}>{entry.status}</Badge>
+                        </TableCell>
+                        <TableCell className="font-mono text-xs">{entry.ip || "-"}</TableCell>
+                        <TableCell className="font-mono text-xs">{entry.resourceId || "-"}</TableCell>
+                        <TableCell className="text-right">
+                          <Button size="sm" variant="outline" onClick={() => setSelectedEntry(entry)}>
+                            Ver
+                          </Button>
                         </TableCell>
                       </TableRow>
-                    ) : null}
-                    {!isLoading && entries.length === 0 ? (
-                      <TableRow>
-                        <TableCell colSpan={8} className="text-center text-muted-foreground">
-                          Nenhum evento encontrado para os filtros atuais.
-                        </TableCell>
-                      </TableRow>
-                    ) : null}
-                    {!isLoading &&
-                      entries.map((entry) => (
-                        <TableRow key={entry.id}>
-                          <TableCell>{formatDateTime(entry.ts)}</TableCell>
-                          <TableCell className="max-w-44">
-                            <div className="truncate">{entry.actorName || "anonymous"}</div>
-                            <div className="truncate text-xs text-muted-foreground">{entry.actorId}</div>
-                          </TableCell>
-                          <TableCell className="font-mono text-xs">{entry.action}</TableCell>
-                          <TableCell>
-                            <div>{entry.resource || "-"}</div>
-                            <div className="text-xs text-muted-foreground">{entry.resourceId || "-"}</div>
-                          </TableCell>
-                          <TableCell>
-                            <Badge className={statusBadgeClass(entry.status)}>{entry.status}</Badge>
-                          </TableCell>
-                          <TableCell className="font-mono text-xs">{entry.ip || "-"}</TableCell>
-                          <TableCell className="font-mono text-xs">{entry.resourceId || "-"}</TableCell>
-                          <TableCell className="text-right">
-                            <Button size="sm" variant="outline" onClick={() => setSelectedEntry(entry)}>
-                              Ver
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      ))}
+                    ))}
                   </TableBody>
                 </Table>
-              ) : null}
+              )}
             </div>
 
-            {!forbidden && !error ? (
+            {!forbidden && !error && !isLoading ? (
               <div className="mt-4 flex items-center justify-between gap-3 animate-slide-up opacity-0" style={{ animationDelay: "0.36s" }}>
                 <p className="text-sm text-muted-foreground">
                   Página {page} de {totalPages}

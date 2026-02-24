@@ -1,6 +1,7 @@
 import { Link, useNavigate } from "react-router-dom";
 import { useEffect, useMemo, useState } from "react";
 import DashboardShell from "@/components/DashboardShell";
+import AsyncState from "@/components/ui/async-state";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import type { Project } from "@/data/projects";
@@ -63,6 +64,9 @@ const Dashboard = () => {
   const [analyticsTotalViews7d, setAnalyticsTotalViews7d] = useState(0);
   const [analyticsProjectViews7d, setAnalyticsProjectViews7d] = useState(0);
   const [analyticsPostViews7d, setAnalyticsPostViews7d] = useState(0);
+  const [isLoadingOverview, setIsLoadingOverview] = useState(true);
+  const [hasOverviewError, setHasOverviewError] = useState(false);
+  const [reloadTick, setReloadTick] = useState(0);
   const apiBase = getApiBase();
 
   useEffect(() => {
@@ -87,30 +91,51 @@ const Dashboard = () => {
 
   useEffect(() => {
     let isActive = true;
-    const loadAnalytics = async () => {
+    const loadOverview = async () => {
+      setIsLoadingOverview(true);
+      setHasOverviewError(false);
       try {
-        const [overviewAllRes, overviewProjectRes, overviewPostRes, seriesRes] = await Promise.all([
+        const [
+          overviewAllRes,
+          overviewProjectRes,
+          overviewPostRes,
+          seriesRes,
+          projectsRes,
+          postsRes,
+          recentCommentsRes,
+        ] = await Promise.all([
           apiFetch(apiBase, "/api/analytics/overview?range=7d&type=all", { auth: true }),
           apiFetch(apiBase, "/api/analytics/overview?range=7d&type=project", { auth: true }),
           apiFetch(apiBase, "/api/analytics/overview?range=7d&type=post", { auth: true }),
           apiFetch(apiBase, "/api/analytics/timeseries?range=7d&type=all&metric=views", { auth: true }),
+          apiFetch(apiBase, "/api/projects", { auth: true }),
+          apiFetch(apiBase, "/api/posts", { auth: true }),
+          apiFetch(apiBase, "/api/comments/recent?limit=3", { auth: true }),
         ]);
         if (!isActive) {
           return;
         }
-        if (!overviewAllRes.ok || !overviewProjectRes.ok || !overviewPostRes.ok || !seriesRes.ok) {
-          setAnalyticsTotalViews7d(0);
-          setAnalyticsProjectViews7d(0);
-          setAnalyticsPostViews7d(0);
-          setAnalyticsSeries7d([]);
-          return;
+        if (
+          !overviewAllRes.ok ||
+          !overviewProjectRes.ok ||
+          !overviewPostRes.ok ||
+          !seriesRes.ok ||
+          !projectsRes.ok ||
+          !postsRes.ok ||
+          !recentCommentsRes.ok
+        ) {
+          throw new Error("dashboard_overview_load_failed");
         }
-        const [overviewAll, overviewProject, overviewPost, seriesData] = await Promise.all([
-          overviewAllRes.json(),
-          overviewProjectRes.json(),
-          overviewPostRes.json(),
-          seriesRes.json(),
-        ]);
+        const [overviewAll, overviewProject, overviewPost, seriesData, projectsData, postsData, commentsData] =
+          await Promise.all([
+            overviewAllRes.json(),
+            overviewProjectRes.json(),
+            overviewPostRes.json(),
+            seriesRes.json(),
+            projectsRes.json(),
+            postsRes.json(),
+            recentCommentsRes.json(),
+          ]);
         if (!isActive) {
           return;
         }
@@ -122,110 +147,61 @@ const Dashboard = () => {
             ? (seriesData as AnalyticsTimeseriesResponse).series || []
             : [],
         );
+        const projectsPayload = projectsData as { projects?: Project[] };
+        const postsPayload = postsData as { posts?: DashboardPost[] };
+        const commentsPayload = commentsData as {
+          comments?: Array<{
+            id: string;
+            name: string;
+            content: string;
+            targetLabel: string;
+            createdAt: string;
+            targetUrl: string;
+            status?: string;
+          }>;
+          pendingCount?: number;
+        };
+        setProjects(Array.isArray(projectsPayload.projects) ? projectsPayload.projects : []);
+        setPosts(Array.isArray(postsPayload.posts) ? postsPayload.posts : []);
+        setRecentComments(
+          Array.isArray(commentsPayload.comments)
+            ? commentsPayload.comments.map((comment) => ({
+                id: comment.id,
+                author: comment.name,
+                message: comment.content,
+                page: comment.targetLabel,
+                createdAt: comment.createdAt,
+                url: comment.targetUrl,
+                status: comment.status || "approved",
+              }))
+            : [],
+        );
+        setPendingCommentsCount(Number.isFinite(commentsPayload.pendingCount) ? Number(commentsPayload.pendingCount) : 0);
       } catch {
         if (!isActive) {
           return;
         }
+        setHasOverviewError(true);
+        setProjects([]);
+        setPosts([]);
+        setRecentComments([]);
+        setPendingCommentsCount(0);
         setAnalyticsTotalViews7d(0);
         setAnalyticsProjectViews7d(0);
         setAnalyticsPostViews7d(0);
         setAnalyticsSeries7d([]);
+      } finally {
+        if (isActive) {
+          setIsLoadingOverview(false);
+        }
       }
     };
-    void loadAnalytics();
+
+    void loadOverview();
     return () => {
       isActive = false;
     };
-  }, [apiBase]);
-
-  useEffect(() => {
-    const loadProjects = async () => {
-      try {
-        const response = await apiFetch(apiBase, "/api/projects", { auth: true });
-        if (!response.ok) {
-          setProjects([]);
-          return;
-        }
-        const data = await response.json();
-        setProjects(Array.isArray(data.projects) ? data.projects : []);
-      } catch {
-        setProjects([]);
-      }
-    };
-
-    loadProjects();
-  }, [apiBase]);
-
-  useEffect(() => {
-    let isActive = true;
-    const loadPosts = async () => {
-      try {
-        const response = await apiFetch(apiBase, "/api/posts", { auth: true });
-        if (!response.ok) {
-          if (isActive) {
-            setPosts([]);
-          }
-          return;
-        }
-        const data = await response.json();
-        if (isActive) {
-          setPosts(Array.isArray(data.posts) ? data.posts : []);
-        }
-      } catch {
-        if (isActive) {
-          setPosts([]);
-        }
-      }
-    };
-
-    loadPosts();
-    return () => {
-      isActive = false;
-    };
-  }, [apiBase]);
-
-  useEffect(() => {
-    let isActive = true;
-    const loadRecentComments = async () => {
-      try {
-        const response = await apiFetch(apiBase, "/api/comments/recent?limit=3", { auth: true });
-        if (!response.ok) {
-          if (isActive) {
-            setRecentComments([]);
-            setPendingCommentsCount(0);
-          }
-          return;
-        }
-        const data = await response.json();
-        if (isActive) {
-          setRecentComments(
-            Array.isArray(data.comments)
-              ? data.comments.map((comment) => ({
-                  id: comment.id,
-                  author: comment.name,
-                  message: comment.content,
-                  page: comment.targetLabel,
-                  createdAt: comment.createdAt,
-                  url: comment.targetUrl,
-                  status: comment.status || "approved",
-                }))
-              : [],
-          );
-          setPendingCommentsCount(Number.isFinite(data.pendingCount) ? data.pendingCount : 0);
-        }
-      } catch {
-        if (isActive) {
-          setRecentComments([]);
-          setPendingCommentsCount(0);
-        }
-      }
-    };
-
-    loadRecentComments();
-    return () => {
-      isActive = false;
-    };
-  }, [apiBase]);
+  }, [apiBase, reloadTick]);
 
   const userLabel = useMemo(() => {
     if (isLoadingUser) {
@@ -429,7 +405,26 @@ const Dashboard = () => {
             </div>
           </header>
 
-          <div className="mt-10 grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          {isLoadingOverview ? (
+            <AsyncState
+              kind="loading"
+              title="Carregando dashboard"
+              description="Buscando analytics, projetos, posts e comentários."
+            />
+          ) : hasOverviewError ? (
+            <AsyncState
+              kind="error"
+              title="Não foi possível carregar o dashboard"
+              description="Tente novamente em instantes."
+              action={
+                <Button variant="outline" onClick={() => setReloadTick((previous) => previous + 1)}>
+                  Tentar novamente
+                </Button>
+              }
+            />
+          ) : (
+            <>
+              <div className="mt-10 grid gap-4 md:grid-cols-2 lg:grid-cols-4">
             <div
               className="rounded-2xl border border-border/60 bg-linear-to-br from-card/70 to-background/60 p-5 animate-slide-up opacity-0"
               style={{ animationDelay: "0ms" }}
@@ -464,8 +459,8 @@ const Dashboard = () => {
             </div>
           </div>
 
-          <section className="mt-10 grid gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] reveal" data-reveal>
-            <div className="space-y-6">
+              <section className="mt-10 grid gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] reveal" data-reveal>
+                <div className="space-y-6">
               <div
                 className="rounded-3xl border border-border/60 bg-card/60 p-6 shadow-[0_20px_60px_-40px_rgba(0,0,0,0.8)] animate-slide-up opacity-0"
                 style={{ animationDelay: "120ms" }}
@@ -619,7 +614,7 @@ const Dashboard = () => {
               </div>
             </div>
 
-            <aside className="space-y-6">
+                <aside className="space-y-6">
               <div
                 className="rounded-3xl border border-border/60 bg-card/60 p-6 animate-slide-up opacity-0"
                 style={{ animationDelay: "360ms" }}
@@ -684,8 +679,10 @@ const Dashboard = () => {
                   )}
                 </div>
               </div>
-            </aside>
-          </section>
+                </aside>
+              </section>
+            </>
+          )}
           </section>
         </main>
     </DashboardShell>

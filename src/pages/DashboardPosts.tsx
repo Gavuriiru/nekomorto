@@ -1855,24 +1855,24 @@ const DashboardPosts = () => {
                       >
                         <CardContent className="p-0">
                           <div className="grid min-h-[360px] gap-0 lg:h-[280px] lg:min-h-0 lg:grid-cols-[220px_1fr]">
-                            <div className="relative h-52 w-full lg:h-full">
+                            <div className="relative h-52 w-full overflow-hidden lg:h-full">
                               {resolvedCardCover.coverImageUrl ? (
                                 <img
                                   src={normalizeAssetUrl(resolvedCardCover.coverImageUrl)}
                                   alt={resolvedCardCover.coverAlt || post.title}
-                                  className="h-full w-full object-cover"
+                                  className="absolute inset-0 block h-full w-full object-cover object-center"
                                   loading="lazy"
                                   onError={(event) => {
                                     event.currentTarget.src = "/placeholder.svg";
                                   }}
                                 />
                               ) : (
-                                <div className="flex h-full w-full items-center justify-center bg-muted/30 text-xs text-muted-foreground">
+                                <div className="absolute inset-0 flex h-full w-full items-center justify-center bg-muted/30 text-xs text-muted-foreground">
                                   Sem capa
                                 </div>
                               )}
                             </div>
-                            <div className="grid h-full min-h-0 grid-rows-[auto_auto_minmax(0,1fr)_auto] gap-2 p-4 lg:pb-5">
+                            <div className="grid h-full min-h-0 overflow-hidden grid-rows-[auto_auto_minmax(0,1fr)_auto] gap-2 p-4 lg:pb-5">
                               <div data-slot="top" className="flex items-start justify-between gap-3">
                                 <div className="flex min-w-0 flex-wrap items-center gap-2">
                                   <Badge variant="outline" className="text-[10px] uppercase">
@@ -1935,12 +1935,12 @@ const DashboardPosts = () => {
 
                               <p
                                 data-slot="excerpt"
-                                className="line-clamp-2 min-h-0 overflow-hidden text-sm text-muted-foreground lg:line-clamp-1"
+                                className="line-clamp-2 min-h-0 overflow-hidden text-sm text-muted-foreground [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2] lg:line-clamp-1 lg:[-webkit-line-clamp:1]"
                               >
                                 {post.excerpt || "Sem prévia cadastrada."}
                               </p>
 
-                              <div className="flex min-h-0 flex-col gap-2">
+                              <div className="flex min-h-0 shrink-0 flex-col gap-2">
                                 <div data-slot="tags" className="min-h-6">
                                   {visibleCardTags.length > 0 ? (
                                     <div className="flex min-w-0 items-center gap-2 overflow-hidden">
