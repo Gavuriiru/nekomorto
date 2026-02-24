@@ -27,10 +27,7 @@ services:
         max-file: "5"
 
   app:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    image: nekomorto-app:latest
+    image: ${APP_IMAGE_REPO:-ghcr.io/gavuriiru/nekomorto}:${APP_IMAGE_TAG:-latest}
     container_name: nekomorto-app
     restart: unless-stopped
     depends_on:

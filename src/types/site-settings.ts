@@ -10,6 +10,7 @@ export type SiteSettings = {
   theme: {
     accent: string;
     mode: "dark" | "light";
+    useAccentInProgressCard?: boolean;
   };
   navbar: {
     links: Array<{

@@ -1979,6 +1979,7 @@ const defaultSiteSettings = {
   theme: {
     accent: "#9667e0",
     mode: "dark",
+    useAccentInProgressCard: false,
   },
   navbar: {
     links: [
@@ -2192,6 +2193,7 @@ const normalizeSiteSettings = (payload) => {
     ...(merged.theme || {}),
     accent: accentValue,
     mode: normalizeThemeMode(merged?.theme?.mode),
+    useAccentInProgressCard: merged?.theme?.useAccentInProgressCard === true,
   };
   const resolveNavbarIcon = (label, href, icon) => {
     const iconValue = String(icon || "").trim().toLowerCase();

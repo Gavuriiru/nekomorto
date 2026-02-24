@@ -9,6 +9,7 @@
   },
   "scripts": {
     "predev": "npm run prisma:generate",
+    "setup:dev": "node scripts/setup-dev.mjs",
     "dev": "node --watch --watch-path=server/index.js --watch-path=server/lib server/index.js",
     "predev:server": "npm run prisma:generate",
     "dev:server": "node --watch --watch-path=server/index.js --watch-path=server/lib server/index.js",

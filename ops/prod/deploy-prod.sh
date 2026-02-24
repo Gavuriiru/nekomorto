@@ -7,6 +7,8 @@ ENV_FILE="${ENV_FILE:-.env.prod}"
 COMPOSE_FILE="${COMPOSE_FILE:-docker-compose.prod.yml}"
 HEALTHCHECK_BASE_URL="${HEALTHCHECK_BASE_URL:-https://nekomata.moe}"
 EXPECTED_MAINTENANCE="${EXPECTED_MAINTENANCE:-false}"
+APP_IMAGE_REPO="${APP_IMAGE_REPO:-ghcr.io/gavuriiru/nekomorto}"
+APP_IMAGE_TAG="${APP_IMAGE_TAG:-latest}"
 
 if [[ ! -d "${DEPLOY_PATH}" ]]; then
   echo "Deploy path not found: ${DEPLOY_PATH}" >&2
@@ -25,28 +27,35 @@ if [[ ! -f "${COMPOSE_FILE}" ]]; then
   exit 1
 fi
 
+compose_cmd() {
+  APP_IMAGE_REPO="${APP_IMAGE_REPO}" APP_IMAGE_TAG="${APP_IMAGE_TAG}" \
+    docker compose --env-file "${ENV_FILE}" -f "${COMPOSE_FILE}" "$@"
+}
+
 echo "[deploy] Syncing repository..."
 git fetch --prune origin
 git checkout "${DEPLOY_BRANCH}"
 git reset --hard "origin/${DEPLOY_BRANCH}"
 
-echo "[deploy] Ensuring postgres is running..."
-docker compose --env-file "${ENV_FILE}" -f "${COMPOSE_FILE}" up -d postgres
+echo "[deploy] Using app image: ${APP_IMAGE_REPO}:${APP_IMAGE_TAG}"
 
-echo "[deploy] Building app image..."
-docker compose --env-file "${ENV_FILE}" -f "${COMPOSE_FILE}" build app
+echo "[deploy] Ensuring postgres is running..."
+compose_cmd up -d postgres
+
+echo "[deploy] Pulling app image..."
+compose_cmd pull app
 
 echo "[deploy] Applying Prisma migrations..."
-docker compose --env-file "${ENV_FILE}" -f "${COMPOSE_FILE}" run --rm app npm run prisma:migrate:deploy
+compose_cmd run --rm app npm run prisma:migrate:deploy
 
 echo "[deploy] Checking uploads integrity..."
-docker compose --env-file "${ENV_FILE}" -f "${COMPOSE_FILE}" run --rm app npm run uploads:check-integrity
+compose_cmd run --rm app npm run uploads:check-integrity
 
 echo "[deploy] Starting app + caddy..."
-docker compose --env-file "${ENV_FILE}" -f "${COMPOSE_FILE}" up -d app caddy
+compose_cmd up -d app caddy
 
 echo "[deploy] Running internal health checks..."
-docker compose --env-file "${ENV_FILE}" -f "${COMPOSE_FILE}" run --rm app \
+compose_cmd run --rm app \
   node scripts/check-health.mjs \
   --base=http://app:8080 \
   --expect-source=db \
@@ -56,6 +65,6 @@ echo "[deploy] Running external health check..."
 curl -fsS "${HEALTHCHECK_BASE_URL}/api/health" >/dev/null
 
 echo "[deploy] Current services:"
-docker compose --env-file "${ENV_FILE}" -f "${COMPOSE_FILE}" ps
+compose_cmd ps
 
 echo "[deploy] Completed successfully."

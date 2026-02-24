@@ -14,6 +14,7 @@ export const defaultSettings: SiteSettings = {
   theme: {
     accent: "#9667e0",
     mode: "dark",
+    useAccentInProgressCard: false,
   },
   navbar: {
     links: [

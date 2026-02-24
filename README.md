@@ -66,9 +66,9 @@ Portas comuns:
 - `5173`: frontend Vite quando usar `npm run dev:client`
 - `5432`: PostgreSQL
 
-## 4. Inicio Rapido (Local sem Docker completo)
+## 4. Inicio Rapido (recomendado: 1 comando)
 
-Use este fluxo se voce ja tiver PostgreSQL rodando fora do Docker.
+Fluxo oficial para desenvolvimento local com PostgreSQL em Docker:
 
 ### Linux/macOS
 
@@ -76,7 +76,7 @@ Use este fluxo se voce ja tiver PostgreSQL rodando fora do Docker.
 git clone <REPO_URL>
 cd nekomorto
 npm install
-cp .env.example .env
+npm run setup:dev
 ```
 
 ### Windows (PowerShell)
@@ -85,22 +85,24 @@ cp .env.example .env
 git clone <REPO_URL>
 Set-Location nekomorto
 npm install
-Copy-Item .env.example .env
+npm run setup:dev
 ```
 
-Edite `.env` e preencha pelo menos:
+No primeiro run, `npm run setup:dev`:
 
-```dotenv
-DATABASE_URL=postgresql://usuario:senha@127.0.0.1:5432/nekomorto
-```
+- valida `docker`, `docker compose`, `node` e `npm`
+- garante `ops/postgres/.env.staging` (pedindo `POSTGRES_PASSWORD` quando necessario)
+- sobe PostgreSQL local e aguarda readiness
+- cria `.env` de forma interativa quando ausente (com `DATABASE_URL` local automatica)
+- preserva `.env` existente e valida `DATABASE_URL`
+- executa `npm run prisma:generate` e `npm run prisma:migrate:deploy`
+- inicia `npm run dev` automaticamente
 
-Depois rode migracoes e suba a aplicacao:
+Observacoes:
 
-```bash
-npm run prisma:generate
-npm run prisma:migrate:deploy
-npm run dev
-```
+- Se `.env` nao existir, o primeiro setup exige terminal interativo (TTY).
+- Para encerrar a app, use `Ctrl+C`.
+- Para reexecutar setup, rode `npm run setup:dev` novamente (idempotente).
 
 URL local padrao:
 
@@ -119,7 +121,9 @@ npm run lint
 npm run test
 ```
 
-## 5. Configurar Banco Local com Docker (recomendado para dev)
+## 5. Configurar Banco Local com Docker (fluxo manual alternativo)
+
+Se preferir controlar os passos manualmente, use o fluxo abaixo.
 
 Stack de banco local em `ops/postgres/docker-compose.staging.yml`.
 
@@ -247,6 +251,8 @@ Arquivo base para producao com Docker Compose:
 | `PORT` | opcional | opcional | Porta HTTP da app (`8080` por padrao). |
 | `SESSION_TABLE` | opcional | opcional | Tabela de sessao (`user_sessions` por padrao). |
 | `MAINTENANCE_MODE` | opcional | opcional | Bloqueia mutacoes `POST/PUT/PATCH/DELETE` na API quando `true`. |
+| `APP_IMAGE_REPO` | n/a | opcional | Repositorio da imagem Docker da app em producao (`ghcr.io/gavuriiru/nekomorto` por padrao). |
+| `APP_IMAGE_TAG` | n/a | opcional | Tag da imagem usada no deploy (`latest` por padrao; no CI usamos `sha-<commit>`). |
 | `ADMIN_ORIGINS` | opcional | opcional | Origens extras para painel/admin. |
 | `DISCORD_REDIRECT_URI` | opcional | opcional | `auto` (padrao) ou URL absoluta fixa. |
 | `VITE_API_BASE` | opcional | opcional | Override da base de API no frontend. Em modo integrado/producao same-origin, deixe vazio. |
@@ -333,6 +339,7 @@ Edite `.env.prod` com valores reais, incluindo:
 - `DISCORD_CLIENT_ID`
 - `DISCORD_CLIENT_SECRET`
 - `OWNER_IDS` ou `BOOTSTRAP_TOKEN`
+- `APP_IMAGE_REPO` e `APP_IMAGE_TAG` (opcionais; defaults para GHCR + `latest`)
 
 Para producao same-origin (recomendado), nao configure `VITE_API_BASE`.
 No Discord Developer Portal, confirme as redirect URIs:
@@ -365,11 +372,13 @@ sudo ufw enable
 ```bash
 cd /srv/nekomorto
 docker compose --env-file .env.prod -f docker-compose.prod.yml up -d postgres
-docker compose --env-file .env.prod -f docker-compose.prod.yml build app
+docker compose --env-file .env.prod -f docker-compose.prod.yml pull app
 docker compose --env-file .env.prod -f docker-compose.prod.yml run --rm app npm run prisma:migrate:deploy
 docker compose --env-file .env.prod -f docker-compose.prod.yml run --rm app npm run uploads:check-integrity
 docker compose --env-file .env.prod -f docker-compose.prod.yml up -d app caddy
 ```
+
+Esse fluxo pressupoe que a imagem ja foi publicada no GHCR (via `push` em `main` ou `workflow_dispatch`).
 
 ### 8.7 Validacao apos deploy
 
@@ -400,7 +409,7 @@ Workflow:
 Triggers:
 
 - `push` para `main`
-- `workflow_dispatch`
+- `workflow_dispatch` (com input opcional `image_tag`)
 
 Secrets necessarios no repositorio:
 
@@ -410,12 +419,24 @@ Secrets necessarios no repositorio:
 - `PROD_SSH_KEY`
 - `PROD_DEPLOY_PATH` (exemplo: `/srv/nekomorto`)
 
+Fluxo CI/CD:
+
+1. Job `build_and_push` publica `ghcr.io/gavuriiru/nekomorto` com tags `latest` e `sha-<commit>`.
+2. Job `deploy` resolve a tag:
+   - sem `image_tag`: usa `sha-<commit_atual>`;
+   - com `image_tag`: valida `latest` ou `sha-[0-9a-f]{40}` e usa a tag informada.
+3. Via SSH, chama `ops/prod/deploy-prod.sh` no host com `APP_IMAGE_REPO` e `APP_IMAGE_TAG`.
+
+Pacote no GHCR:
+
+- `https://github.com/gavuriiru/nekomorto/pkgs/container/nekomorto`
+
 Comportamento do deploy remoto (`ops/prod/deploy-prod.sh`):
 
 1. Sincroniza branch de deploy.
 2. Executa `git reset --hard origin/<branch>` no host.
 3. Sobe `postgres`.
-4. Builda imagem `app`.
+4. Faz `pull` da imagem `app` definida por `APP_IMAGE_REPO:APP_IMAGE_TAG`.
 5. Aplica migracoes Prisma.
 6. Executa check de integridade de uploads (`npm run uploads:check-integrity`).
 7. Sobe `app` + `caddy`.
@@ -424,6 +445,7 @@ Comportamento do deploy remoto (`ops/prod/deploy-prod.sh`):
 Importante:
 
 - Mudancas locais nao commitadas no host de deploy serao descartadas pelo `reset --hard`.
+- Rollback/redeploy manual: execute `workflow_dispatch` e preencha `image_tag` com `sha-<commit>` ja publicado no GHCR.
 
 ## 10. Backup e Restore
 
@@ -708,6 +730,12 @@ Setup local rapido:
 
 ```bash
 npm install
+npm run setup:dev
+```
+
+Setup local manual (alternativa):
+
+```bash
 cp .env.example .env
 npm run prisma:generate
 npm run prisma:migrate:deploy
@@ -733,7 +761,7 @@ Producao (ordem):
 
 ```bash
 docker compose --env-file .env.prod -f docker-compose.prod.yml up -d postgres
-docker compose --env-file .env.prod -f docker-compose.prod.yml build app
+docker compose --env-file .env.prod -f docker-compose.prod.yml pull app
 docker compose --env-file .env.prod -f docker-compose.prod.yml run --rm app npm run prisma:migrate:deploy
 docker compose --env-file .env.prod -f docker-compose.prod.yml run --rm app npm run uploads:check-integrity
 docker compose --env-file .env.prod -f docker-compose.prod.yml up -d app caddy

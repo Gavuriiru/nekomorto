@@ -110,10 +110,15 @@ const mangaStages = [
   },
 ];
 
+const themedBadgeClass = "bg-primary/20 text-primary border-primary/40";
+const themedIndicatorClass = "bg-primary";
+
 const WorkStatusCard = () => {
   const { data: bootstrapData, isLoading } = usePublicBootstrap();
   const projects = bootstrapData?.projects || [];
   const isLoadingProjects = isLoading && !bootstrapData;
+  const useAccentInProgressCard =
+    bootstrapData?.settings?.theme?.useAccentInProgressCard === true;
 
   const workItems = useMemo<WorkItem[]>(() => {
     const items: WorkItem[] = [];
@@ -210,7 +215,9 @@ const WorkStatusCard = () => {
                   </div>
                   <Badge
                     variant="outline"
-                    className={`shrink-0 flex items-center gap-1 ${currentStage.badge}`}
+                    className={`shrink-0 flex items-center gap-1 ${
+                      useAccentInProgressCard ? themedBadgeClass : currentStage.badge
+                    }`}
                   >
                     {currentStage.label}
                   </Badge>
@@ -219,7 +226,9 @@ const WorkStatusCard = () => {
                   <Progress
                     value={progress}
                     className="h-2"
-                    indicatorClassName={currentStage.color}
+                    indicatorClassName={
+                      useAccentInProgressCard ? themedIndicatorClass : currentStage.color
+                    }
                   />
                 </div>
               </Link>

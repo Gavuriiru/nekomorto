@@ -9,7 +9,19 @@ This folder contains the PostgreSQL stack and operational scripts for DB-only en
 - `backup.sh`: `pg_dump` backup script with retention pruning.
 - `restore.sh`: restore script for `.sql` or `.sql.gz` files.
 
+## Recommended local setup
+
+From repo root, prefer the one-command setup:
+
+```bash
+npm run setup:dev
+```
+
+It configures app + local PostgreSQL + Prisma migration in one flow.
+
 ## Quick start
+
+Manual DB-only flow:
 
 1. Copy env file:
 

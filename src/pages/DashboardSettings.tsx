@@ -1496,6 +1496,30 @@ const DashboardSettings = () => {
                         </p>
                       </div>
                       <div className="space-y-2">
+                        <Label>Card Em Progresso</Label>
+                        <div className="flex items-center justify-between gap-3 rounded-xl border border-border/60 bg-background/60 px-3 py-2">
+                          <span className="text-sm text-foreground">
+                            Usar cor de destaque no card Em Progresso
+                          </span>
+                          <Switch
+                            checked={Boolean(settings.theme.useAccentInProgressCard)}
+                            onCheckedChange={(checked) =>
+                              setSettings((prev) => ({
+                                ...prev,
+                                theme: {
+                                  ...prev.theme,
+                                  useAccentInProgressCard: checked,
+                                },
+                              }))
+                            }
+                            aria-label="Usar cor de destaque no card Em Progresso"
+                          />
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          Quando ativado, barra e badge usam a cor temática em vez da cor da etapa.
+                        </p>
+                      </div>
+                      <div className="space-y-2">
                         <Label>Tema padrão do site</Label>
                         <Select
                           value={settings.theme.mode || "dark"}

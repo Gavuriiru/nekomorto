@@ -235,6 +235,28 @@ describe("DashboardSettings autosave", () => {
     expect(payload?.settings?.theme?.mode).toBe("dark");
   });
 
+  it("envia theme.useAccentInProgressCard no payload de configuracoes", async () => {
+    render(<DashboardSettings />);
+    await screen.findByRole("heading", { name: /Painel/i });
+
+    apiFetchMock.mockClear();
+    const accentSwitch = await screen.findByRole("switch", {
+      name: /Usar cor de destaque no card Em Progresso/i,
+    });
+    fireEvent.click(accentSwitch);
+
+    await act(async () => {
+      await waitMs(1300);
+      await flushMicrotasks();
+    });
+
+    const putCalls = getPutCalls();
+    expect(putCalls).toHaveLength(1);
+    expect(putCalls[0][1]).toBe("/api/settings");
+    const payload = JSON.parse(String(((putCalls[0][2] || {}) as RequestInit).body || "{}"));
+    expect(payload?.settings?.theme?.useAccentInProgressCard).toBe(true);
+  });
+
   it("editar tradução dispara apenas PUT /api/tag-translations", async () => {
     render(<DashboardSettings />);
     await screen.findByRole("heading", { name: /Painel/i });

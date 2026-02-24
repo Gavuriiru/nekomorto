@@ -77,5 +77,7 @@ describe("ReleasesSection cover fit", () => {
       "aspect-3/2",
       "overflow-hidden",
     );
+
+    expect(screen.queryByText("acao")).not.toBeInTheDocument();
   });
 });
