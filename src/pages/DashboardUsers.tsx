@@ -9,6 +9,7 @@
 } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import DashboardShell from "@/components/DashboardShell";
+import AsyncState from "@/components/ui/async-state";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -880,13 +881,19 @@ const DashboardUsers = () => {
               </div>
 
               {isLoading ? (
-                <div className="mt-6 rounded-2xl border border-border/60 bg-card/60 px-4 py-8 text-sm text-muted-foreground">
-                  Carregando usuários...
-                </div>
+                <AsyncState
+                  kind="loading"
+                  title="Carregando usuarios"
+                  description="Buscando membros e permissoes."
+                  className="mt-6"
+                />
               ) : activeUsers.length === 0 ? (
-                <div className="mt-6 rounded-2xl border border-dashed border-border/60 bg-card/60 px-4 py-8 text-sm text-muted-foreground">
-                  Nenhum usuário ativo no momento.
-                </div>
+                <AsyncState
+                  kind="empty"
+                  title="Nenhum usuario ativo"
+                  description="Adicione um novo membro para comecar."
+                  className="mt-6"
+                />
               ) : (
                 <div className="mt-6 grid gap-4 md:grid-cols-2">
                   {activeUsers.map((user, index) => {

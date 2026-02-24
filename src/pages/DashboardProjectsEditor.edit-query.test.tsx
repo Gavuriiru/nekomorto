@@ -146,7 +146,7 @@ describe("DashboardProjectsEditor edit query", () => {
   it("abre editor automaticamente com ?edit e limpa a query", async () => {
     setupApiMock({ canManageProjects: true, projects: [projectFixture] });
 
-    render(
+    const { unmount } = render(
       <MemoryRouter initialEntries={["/dashboard/projetos?edit=project-1"]}>
         <DashboardProjectsEditor />
         <LocationProbe />
@@ -158,6 +158,15 @@ describe("DashboardProjectsEditor edit query", () => {
     await waitFor(() => {
       expect(screen.getByTestId("location-search").textContent).toBe("");
     });
+    expect(document.documentElement).toHaveClass("editor-scroll-stable");
+    expect(document.body).toHaveClass("editor-scroll-stable");
+    expect(document.body.getAttribute("data-editor-scroll-stable-count")).toBe("1");
+
+    unmount();
+
+    expect(document.documentElement).not.toHaveClass("editor-scroll-stable");
+    expect(document.body).not.toHaveClass("editor-scroll-stable");
+    expect(document.body.getAttribute("data-editor-scroll-stable-count")).toBeNull();
   });
 
   it("nao abre editor quando item nao existe e limpa a query", async () => {

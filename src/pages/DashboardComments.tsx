@@ -13,6 +13,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import AsyncState from "@/components/ui/async-state";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -42,6 +43,7 @@ const DashboardComments = () => {
   const navigate = useNavigate();
   const [comments, setComments] = useState<PendingComment[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [hasLoadError, setHasLoadError] = useState(false);
   const [currentUser, setCurrentUser] = useState<{
     id: string;
     name: string;
@@ -55,15 +57,19 @@ const DashboardComments = () => {
   const loadComments = useCallback(async () => {
     try {
       setIsLoading(true);
+      setHasLoadError(false);
       const response = await apiFetch(apiBase, "/api/comments/pending", { auth: true });
       if (!response.ok) {
         setComments([]);
+        setHasLoadError(true);
         return;
       }
       const data = await response.json();
       setComments(Array.isArray(data.comments) ? data.comments : []);
+      setHasLoadError(false);
     } catch {
       setComments([]);
+      setHasLoadError(true);
     } finally {
       setIsLoading(false);
     }
@@ -196,16 +202,28 @@ const DashboardComments = () => {
             </div>
 
             {isLoading ? (
-              <div className="rounded-2xl border border-border/60 bg-card/60 p-6 text-sm text-muted-foreground">
-                Carregando comentários...
-              </div>
+              <AsyncState
+                kind="loading"
+                title="Carregando comentarios"
+                description="Buscando a fila de moderacao."
+              />
+            ) : hasLoadError ? (
+              <AsyncState
+                kind="error"
+                title="Nao foi possivel carregar os comentarios"
+                description="Tente novamente em instantes."
+                action={
+                  <Button variant="outline" onClick={() => void loadComments()}>
+                    Recarregar fila
+                  </Button>
+                }
+              />
             ) : comments.length === 0 ? (
-              <div
-                className="rounded-2xl border border-dashed border-border/60 bg-card/40 p-8 text-center text-sm text-muted-foreground animate-slide-up opacity-0"
-                style={{ animationDelay: "120ms" }}
-              >
-                Nenhum comentário aguardando aprovação.
-              </div>
+              <AsyncState
+                kind="empty"
+                title="Nenhum comentario pendente"
+                description="A fila de moderacao esta em dia."
+              />
             ) : (
               <div className="grid gap-4">
                 {comments.map((comment, index) => (

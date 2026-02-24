@@ -1,7 +1,8 @@
-﻿import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import AsyncState from "@/components/ui/async-state";
 import {
   Select,
   SelectContent,
@@ -26,6 +27,45 @@ import { prepareProjectBadges } from "@/lib/project-card-layout";
 import { cn } from "@/lib/utils";
 
 const alphabetOptions = ["Todas", ..."ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("")];
+const PROJECTS_LIST_STATE_STORAGE_KEY = "public.projects.list-state.v1";
+
+type PersistedProjectsListState = {
+  letter?: string;
+  type?: string;
+  tag?: string;
+  genre?: string;
+  page?: number;
+};
+
+const readPersistedProjectsListState = (): PersistedProjectsListState | null => {
+  if (typeof window === "undefined") {
+    return null;
+  }
+  try {
+    const rawValue = window.localStorage.getItem(PROJECTS_LIST_STATE_STORAGE_KEY);
+    if (!rawValue) {
+      return null;
+    }
+    const parsed = JSON.parse(rawValue);
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+      return null;
+    }
+    return parsed as PersistedProjectsListState;
+  } catch {
+    return null;
+  }
+};
+
+const writePersistedProjectsListState = (value: PersistedProjectsListState) => {
+  if (typeof window === "undefined") {
+    return;
+  }
+  try {
+    window.localStorage.setItem(PROJECTS_LIST_STATE_STORAGE_KEY, JSON.stringify(value));
+  } catch {
+    // Ignore persistence failures.
+  }
+};
 
 type ProjectCardProps = {
   project: Project;
@@ -121,7 +161,7 @@ const ProjectCard = ({
   return (
     <Link
       to={`/projeto/${project.id}`}
-      className="group flex h-50 w-full items-start gap-5 overflow-hidden rounded-2xl border border-border/60 bg-gradient-card p-5 shadow-[0_28px_120px_-60px_rgba(0,0,0,0.55)] transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:shadow-lg md:h-60"
+      className="group flex h-50 w-full items-start gap-5 overflow-hidden rounded-2xl border border-border/60 bg-gradient-card p-5 shadow-[0_28px_120px_-60px_rgba(0,0,0,0.55)] transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:shadow-lg focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:ring-offset-2 focus-visible:ring-offset-background md:h-60"
     >
       <div className="h-39 w-28 shrink-0 overflow-hidden rounded-xl bg-secondary shadow-inner md:h-50 md:w-36">
         <img
@@ -244,7 +284,11 @@ const ProjectCard = ({
 const Projects = () => {
   const apiBase = getApiBase();
   const hasMountedRef = useRef(false);
+  const hasRestoredListStateRef = useRef(false);
   const [projects, setProjects] = useState<Project[]>([]);
+  const [isLoadingProjects, setIsLoadingProjects] = useState(true);
+  const [hasProjectsLoadError, setHasProjectsLoadError] = useState(false);
+  const [projectsLoadVersion, setProjectsLoadVersion] = useState(0);
   const [shareImage, setShareImage] = useState("");
   const [selectedLetter, setSelectedLetter] = useState("Todas");
   const [selectedType, setSelectedType] = useState("Todos");
@@ -284,18 +328,32 @@ const Projects = () => {
   useEffect(() => {
     let isActive = true;
     const load = async () => {
+      if (isActive) {
+        setIsLoadingProjects(true);
+        setHasProjectsLoadError(false);
+      }
       try {
         const response = await apiFetch(apiBase, "/api/public/projects");
         if (!response.ok) {
+          if (isActive) {
+            setProjects([]);
+            setHasProjectsLoadError(true);
+          }
           return;
         }
         const data = await response.json();
         if (isActive) {
           setProjects(Array.isArray(data.projects) ? data.projects : []);
+          setHasProjectsLoadError(false);
         }
       } catch {
         if (isActive) {
           setProjects([]);
+          setHasProjectsLoadError(true);
+        }
+      } finally {
+        if (isActive) {
+          setIsLoadingProjects(false);
         }
       }
     };
@@ -304,7 +362,7 @@ const Projects = () => {
     return () => {
       isActive = false;
     };
-  }, [apiBase]);
+  }, [apiBase, projectsLoadVersion]);
 
   useEffect(() => {
     let isActive = true;
@@ -347,7 +405,7 @@ const Projects = () => {
     }
   }, [searchParams, setSearchParams]);
 
-  const updateFilterQuery = (tag: string, genre: string) => {
+  const updateFilterQuery = useCallback((tag: string, genre: string) => {
     const nextParams = new URLSearchParams(searchParams);
     if (tag === "Todas") {
       nextParams.delete("tag");
@@ -366,7 +424,39 @@ const Projects = () => {
     if (nextParams.toString() !== searchParams.toString()) {
       setSearchParams(nextParams, { replace: true });
     }
-  };
+  }, [searchParams, setSearchParams]);
+
+  useEffect(() => {
+    if (hasRestoredListStateRef.current) {
+      return;
+    }
+    const legacyGenre = searchParams.get("genre");
+    if (legacyGenre && !searchParams.get("genero")) {
+      return;
+    }
+    hasRestoredListStateRef.current = true;
+    const persisted = readPersistedProjectsListState();
+    if (!persisted) {
+      return;
+    }
+    if (typeof persisted.letter === "string" && persisted.letter.trim()) {
+      setSelectedLetter(persisted.letter.trim());
+    }
+    if (typeof persisted.type === "string" && persisted.type.trim()) {
+      setSelectedType(persisted.type.trim());
+    }
+    const persistedPage = Number(persisted.page);
+    if (Number.isFinite(persistedPage) && persistedPage >= 1) {
+      setCurrentPage(Math.floor(persistedPage));
+    }
+    const hasTagInQuery = Boolean(searchParams.get("tag"));
+    const hasGenreInQuery = Boolean(searchParams.get("genero"));
+    const nextTag = !hasTagInQuery && typeof persisted.tag === "string" ? persisted.tag : selectedTag;
+    const nextGenre = !hasGenreInQuery && typeof persisted.genre === "string" ? persisted.genre : selectedGenre;
+    if (!hasTagInQuery || !hasGenreInQuery) {
+      updateFilterQuery(nextTag || "Todas", nextGenre || "Todos");
+    }
+  }, [searchParams, selectedGenre, selectedTag, updateFilterQuery]);
 
   const tagOptions = useMemo(() => {
     const tags = projects.flatMap((project) => project.tags);
@@ -420,6 +510,20 @@ const Projects = () => {
   }, [currentPage]);
 
   const totalPages = Math.max(1, Math.ceil(filteredProjects.length / projectsPerPage));
+  useEffect(() => {
+    setCurrentPage((previous) => Math.min(previous, totalPages));
+  }, [totalPages]);
+
+  useEffect(() => {
+    writePersistedProjectsListState({
+      letter: selectedLetter,
+      type: selectedType,
+      tag: selectedTag,
+      genre: selectedGenre,
+      page: currentPage,
+    });
+  }, [currentPage, selectedGenre, selectedLetter, selectedTag, selectedType]);
+
   const pageStart = (currentPage - 1) * projectsPerPage;
   const paginatedProjects = filteredProjects.slice(pageStart, pageStart + projectsPerPage);
   const synopsisKeys = useMemo(() => paginatedProjects.map((project) => project.id), [paginatedProjects]);
@@ -540,10 +644,40 @@ const Projects = () => {
               </Button>
             </div>
           </div>
-          {paginatedProjects.length === 0 ? (
-            <div className="mt-10 rounded-2xl bg-card/40 px-6 py-12 text-center text-sm text-muted-foreground">
-              Nenhum projeto encontrado para os filtros selecionados.
-            </div>
+          {isLoadingProjects ? (
+            <AsyncState
+              kind="loading"
+              title="Carregando projetos"
+              description="Estamos buscando os projetos publicados."
+              className="mt-10"
+            />
+          ) : hasProjectsLoadError ? (
+            <AsyncState
+              kind="error"
+              title="Nao foi possivel carregar os projetos"
+              description="Verifique sua conexao e tente novamente."
+              className="mt-10"
+              action={
+                <Button
+                  variant="outline"
+                  onClick={() => setProjectsLoadVersion((current) => current + 1)}
+                >
+                  Tentar novamente
+                </Button>
+              }
+            />
+          ) : paginatedProjects.length === 0 ? (
+            <AsyncState
+              kind="empty"
+              title="Nenhum projeto encontrado"
+              description="Ajuste os filtros para ampliar os resultados."
+              className="mt-10"
+              action={
+                <Button variant="ghost" onClick={resetFilters} className="text-xs uppercase">
+                  Limpar filtros
+                </Button>
+              }
+            />
           ) : (
             <div ref={listRootRef} className="mt-10 grid gap-6 md:grid-cols-2 md:auto-rows-fr">
               {paginatedProjects.map((project, index) => {
@@ -573,7 +707,7 @@ const Projects = () => {
             </div>
           )}
 
-          {filteredProjects.length > projectsPerPage && (
+          {!isLoadingProjects && !hasProjectsLoadError && filteredProjects.length > projectsPerPage && (
             <div className="mt-12 flex justify-center">
               <Pagination>
                 <PaginationContent>
@@ -620,6 +754,8 @@ const Projects = () => {
 };
 
 export default Projects;
+
+
 
 
 

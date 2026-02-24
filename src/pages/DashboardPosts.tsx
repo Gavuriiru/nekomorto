@@ -4,6 +4,7 @@ import DashboardShell from "@/components/DashboardShell";
 import DashboardPageContainer from "@/components/dashboard/DashboardPageContainer";
 import DashboardPageHeader from "@/components/dashboard/DashboardPageHeader";
 import { dashboardPageLayoutTokens } from "@/components/dashboard/dashboard-page-tokens";
+import AsyncState from "@/components/ui/async-state";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -45,6 +46,8 @@ import { applyBeforeUnloadCompatibility } from "@/lib/before-unload";
 import { formatDateTimeShort } from "@/lib/date";
 import { buildTranslationMap, sortByTranslatedLabel, translateTag } from "@/lib/project-taxonomy";
 import { usePageMeta } from "@/hooks/use-page-meta";
+import { useEditorScrollStability } from "@/hooks/use-editor-scroll-stability";
+import { useUserPreferences } from "@/hooks/use-user-preferences";
 import { normalizeAssetUrl } from "@/lib/asset-url";
 import {
   MuiBrazilDateField,
@@ -59,6 +62,8 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from "@/components/ui/pagination";
+
+const DASHBOARD_POSTS_LIST_STATE_KEY = "dashboard.posts";
 
 const emptyForm = {
   title: "",
@@ -284,7 +289,10 @@ const DashboardPosts = () => {
     avatarUrl?: string | null;
   } | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [hasLoadError, setHasLoadError] = useState(false);
+  const [loadVersion, setLoadVersion] = useState(0);
   const [isEditorOpen, setIsEditorOpen] = useState(false);
+  useEditorScrollStability(isEditorOpen);
   const [isEditorDialogScrolled, setIsEditorDialogScrolled] = useState(false);
   const [editingPost, setEditingPost] = useState<PostRecord | null>(null);
   const [formState, setFormState] = useState(emptyForm);
@@ -320,6 +328,12 @@ const DashboardPosts = () => {
     projectFilterId,
     currentPage,
   });
+  const hasRestoredListStateRef = useRef(false);
+  const {
+    hasLoaded: hasLoadedUserPreferences,
+    getUiListState,
+    setUiListState,
+  } = useUserPreferences();
 
   const currentUserRecord = currentUser
     ? users.find((user) => user.id === currentUser.id) || null
@@ -383,7 +397,12 @@ const DashboardPosts = () => {
   useEffect(() => {
     let isActive = true;
     const load = async () => {
+      if (isActive) {
+        setIsLoading(true);
+        setHasLoadError(false);
+      }
       try {
+        let failed = false;
         const [postsRes, usersRes, meRes, projectsRes, tagsRes] = await Promise.all([
           apiFetch(apiBase, "/api/posts", { auth: true }),
           apiFetch(apiBase, "/api/users", { auth: true }),
@@ -398,6 +417,11 @@ const DashboardPosts = () => {
             const nextPosts = Array.isArray(data.posts) ? data.posts : [];
             setPosts(nextPosts);
           }
+        } else {
+          failed = true;
+          if (isActive) {
+            setPosts([]);
+          }
         }
 
         if (usersRes.ok) {
@@ -406,12 +430,23 @@ const DashboardPosts = () => {
             setUsers(Array.isArray(data.users) ? data.users : []);
             setOwnerIds(Array.isArray(data.ownerIds) ? data.ownerIds : []);
           }
+        } else {
+          failed = true;
+          if (isActive) {
+            setUsers([]);
+            setOwnerIds([]);
+          }
         }
 
         if (meRes.ok) {
           const data = await meRes.json();
           if (isActive) {
             setCurrentUser(data);
+          }
+        } else {
+          failed = true;
+          if (isActive) {
+            setCurrentUser(null);
           }
         }
 
@@ -420,6 +455,8 @@ const DashboardPosts = () => {
           if (isActive) {
             setProjects(Array.isArray(data.projects) ? data.projects : []);
           }
+        } else if (isActive) {
+          setProjects([]);
         }
 
         if (tagsRes.ok) {
@@ -430,10 +467,18 @@ const DashboardPosts = () => {
         } else if (isActive) {
           setTagTranslations({});
         }
+        if (isActive) {
+          setHasLoadError(failed);
+        }
       } catch {
         if (isActive) {
           setPosts([]);
+          setUsers([]);
+          setOwnerIds([]);
+          setCurrentUser(null);
+          setProjects([]);
           setTagTranslations({});
+          setHasLoadError(true);
         }
       } finally {
         if (isActive) {
@@ -446,7 +491,7 @@ const DashboardPosts = () => {
     return () => {
       isActive = false;
     };
-  }, [apiBase]);
+  }, [apiBase, loadVersion]);
 
   useEffect(() => {
     if (!isEditorOpen || !isDirty) {
@@ -845,6 +890,38 @@ const DashboardPosts = () => {
   }, [currentPage, projectFilterId, searchQuery, sortMode]);
 
   useEffect(() => {
+    if (hasRestoredListStateRef.current || !hasLoadedUserPreferences) {
+      return;
+    }
+    hasRestoredListStateRef.current = true;
+    const hasSearchQueryState = Boolean(
+      searchParams.get("sort") ||
+      searchParams.get("q") ||
+      searchParams.get("project") ||
+      searchParams.get("page"),
+    );
+    if (hasSearchQueryState) {
+      return;
+    }
+    const savedListState = getUiListState(DASHBOARD_POSTS_LIST_STATE_KEY);
+    if (!savedListState) {
+      return;
+    }
+    const savedSortMode = parseSortParam(typeof savedListState.sort === "string" ? savedListState.sort : null);
+    const savedSearchQuery = typeof savedListState.filters?.q === "string" ? savedListState.filters.q : "";
+    const savedProjectFilterId =
+      typeof savedListState.filters?.projectId === "string" && savedListState.filters.projectId.trim()
+        ? savedListState.filters.projectId.trim()
+        : "all";
+    const savedPageRaw = Number(savedListState.page);
+    const savedPage = Number.isFinite(savedPageRaw) && savedPageRaw >= 1 ? Math.floor(savedPageRaw) : 1;
+    setSortMode((previous) => (previous === savedSortMode ? previous : savedSortMode));
+    setSearchQuery((previous) => (previous === savedSearchQuery ? previous : savedSearchQuery));
+    setProjectFilterId((previous) => (previous === savedProjectFilterId ? previous : savedProjectFilterId));
+    setCurrentPage((previous) => (previous === savedPage ? previous : savedPage));
+  }, [getUiListState, hasLoadedUserPreferences, searchParams]);
+
+  useEffect(() => {
     const nextSortMode = parseSortParam(searchParams.get("sort"));
     const nextSearchQuery = searchParams.get("q") || "";
     const nextProjectFilterId = searchParams.get("project") || "all";
@@ -905,6 +982,25 @@ const DashboardPosts = () => {
       setSearchParams(nextParams, { replace: true });
     }
   }, [sortMode, searchQuery, projectFilterId, currentPage, searchParams, setSearchParams]);
+
+  useEffect(() => {
+    if (!hasLoadedUserPreferences) {
+      return;
+    }
+    const trimmedQuery = searchQuery.trim();
+    const filters: Record<string, string> = {};
+    if (trimmedQuery) {
+      filters.q = trimmedQuery;
+    }
+    if (projectFilterId && projectFilterId !== "all") {
+      filters.projectId = projectFilterId;
+    }
+    setUiListState(DASHBOARD_POSTS_LIST_STATE_KEY, {
+      sort: sortMode,
+      page: currentPage,
+      filters,
+    });
+  }, [currentPage, hasLoadedUserPreferences, projectFilterId, searchQuery, setUiListState, sortMode]);
 
   const handlePublishDateChange = (nextDate: Date | null) => {
     if (!nextDate) {
@@ -1676,15 +1772,42 @@ const DashboardPosts = () => {
                 </Badge>
               </div>
               {isLoading ? (
-                <div className={`${dashboardPageLayoutTokens.surfaceDefault} px-6 py-10 text-sm text-muted-foreground`}>
-                  Carregando postagens...
-                </div>
+                <AsyncState
+                  kind="loading"
+                  title="Carregando postagens"
+                  description="Buscando os dados mais recentes do painel."
+                  className={dashboardPageLayoutTokens.surfaceDefault}
+                />
+              ) : hasLoadError ? (
+                <AsyncState
+                  kind="error"
+                  title="Nao foi possivel carregar as postagens"
+                  description="Confira a conexao e tente atualizar os dados."
+                  className={dashboardPageLayoutTokens.surfaceDefault}
+                  action={
+                    <Button
+                      variant="outline"
+                      onClick={() => setLoadVersion((previous) => previous + 1)}
+                    >
+                      Recarregar
+                    </Button>
+                  }
+                />
               ) : sortedPosts.length === 0 ? (
-                <div
-                  className={`${dashboardPageLayoutTokens.surfaceMuted} border-dashed px-6 py-10 text-sm text-muted-foreground`}
-                >
-                  Nenhuma postagem cadastrada ainda.
-                </div>
+                <AsyncState
+                  kind="empty"
+                  title="Nenhuma postagem cadastrada"
+                  description="Crie uma nova postagem para iniciar o fluxo editorial."
+                  className={dashboardPageLayoutTokens.surfaceMuted}
+                  action={
+                    canManagePosts ? (
+                      <Button onClick={openCreate} className="bg-primary text-primary-foreground hover:bg-primary/90">
+                        <Plus className="mr-2 h-4 w-4" />
+                        Criar primeira postagem
+                      </Button>
+                    ) : null
+                  }
+                />
               ) : (
                 <div className="grid gap-6">
                   {paginatedPosts.map((post, index) => {
@@ -1713,6 +1836,17 @@ const DashboardPosts = () => {
                         data-testid={`post-card-${post.id}`}
                         className={`${dashboardPageLayoutTokens.listCard} group cursor-pointer overflow-hidden transition hover:border-primary/40 animate-slide-up opacity-0`}
                         style={{ animationDelay: `${Math.min(index * 35, 210)}ms` }}
+                        role={canManagePosts ? "button" : undefined}
+                        tabIndex={canManagePosts ? 0 : -1}
+                        onKeyDown={(event) => {
+                          if (!canManagePosts) {
+                            return;
+                          }
+                          if (event.key === "Enter" || event.key === " ") {
+                            event.preventDefault();
+                            openEdit(post);
+                          }
+                        }}
                         onClick={() => {
                           if (canManagePosts) {
                             openEdit(post);

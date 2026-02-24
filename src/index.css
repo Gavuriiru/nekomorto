@@ -166,6 +166,16 @@
     scroll-behavior: smooth;
   }
 
+  @supports (scrollbar-gutter: stable) {
+    html.editor-scroll-stable {
+      scrollbar-gutter: stable;
+    }
+
+    body.editor-scroll-stable[data-scroll-locked] {
+      margin-right: 0 !important;
+    }
+  }
+
   html,
   body {
     scrollbar-width: thin;

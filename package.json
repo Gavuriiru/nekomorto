@@ -10,9 +10,9 @@
   "scripts": {
     "predev": "npm run prisma:generate",
     "setup:dev": "node scripts/setup-dev.mjs",
-    "dev": "node --watch --watch-path=server/index.js --watch-path=server/lib server/index.js",
+    "dev": "node scripts/dev-watch-runner.mjs",
     "predev:server": "npm run prisma:generate",
-    "dev:server": "node --watch --watch-path=server/index.js --watch-path=server/lib server/index.js",
+    "dev:server": "node scripts/dev-watch-runner.mjs",
     "dev:client": "vite --port 5173",
     "dev:client:local-api": "cross-env VITE_API_BASE=http://127.0.0.1:8080 vite --port 5173",
     "build": "vite build",

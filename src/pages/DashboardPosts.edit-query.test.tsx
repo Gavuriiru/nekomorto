@@ -123,7 +123,7 @@ describe("DashboardPosts edit query", () => {
   it("abre editor automaticamente com ?edit e limpa a query", async () => {
     setupApiMock({ canManagePosts: true });
 
-    render(
+    const { unmount } = render(
       <MemoryRouter initialEntries={["/dashboard/posts?edit=post-1"]}>
         <DashboardPosts />
         <LocationProbe />
@@ -135,6 +135,15 @@ describe("DashboardPosts edit query", () => {
     await waitFor(() => {
       expect(screen.getByTestId("location-search").textContent).toBe("");
     });
+    expect(document.documentElement).toHaveClass("editor-scroll-stable");
+    expect(document.body).toHaveClass("editor-scroll-stable");
+    expect(document.body.getAttribute("data-editor-scroll-stable-count")).toBe("1");
+
+    unmount();
+
+    expect(document.documentElement).not.toHaveClass("editor-scroll-stable");
+    expect(document.body).not.toHaveClass("editor-scroll-stable");
+    expect(document.body.getAttribute("data-editor-scroll-stable-count")).toBeNull();
   });
 
   it("nao abre editor sem permissao e limpa a query", async () => {

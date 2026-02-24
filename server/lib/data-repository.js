@@ -63,6 +63,7 @@ class DbDataRepository {
       uploads: [],
       pages: {},
       siteSettings: {},
+      userPreferences: {},
     };
   }
 
@@ -116,6 +117,7 @@ class DbDataRepository {
       uploads,
       pages,
       siteSettings,
+      userPreferences,
     ] = await Promise.all([
       prisma.ownerIdRecord.findMany({ orderBy: { position: "asc" } }),
       prisma.auditLogRecord.findMany({ orderBy: { position: "asc" } }),
@@ -133,6 +135,7 @@ class DbDataRepository {
       prisma.uploadRecord.findMany({ orderBy: { position: "asc" } }),
       prisma.pagesRecord.findUnique({ where: { id: 1 } }),
       prisma.siteSettingsRecord.findUnique({ where: { id: 1 } }),
+      prisma.userPreferenceRecord.findMany({}),
     ]);
 
     this.snapshot.ownerIds = Array.from(
@@ -162,6 +165,14 @@ class DbDataRepository {
     this.snapshot.uploads = uploads.map((row) => cloneValue(row.data));
     this.snapshot.pages = pages?.data ? cloneValue(pages.data) : {};
     this.snapshot.siteSettings = siteSettings?.data ? cloneValue(siteSettings.data) : {};
+    this.snapshot.userPreferences = userPreferences.reduce((acc, row) => {
+      const userId = String(row?.userId || "").trim();
+      if (!userId) {
+        return acc;
+      }
+      acc[userId] = cloneValue(row.data);
+      return acc;
+    }, {});
   }
 
   loadOwnerIds() {
@@ -506,6 +517,38 @@ class DbDataRepository {
         where: { id: 1 },
         create: { id: 1, data: cloneValue(this.snapshot.siteSettings) },
         update: { data: cloneValue(this.snapshot.siteSettings) },
+      });
+    });
+  }
+
+  loadUserPreferences(userId) {
+    const key = String(userId || "").trim();
+    if (!key) {
+      return {};
+    }
+    const stored = this.snapshot.userPreferences?.[key];
+    if (!stored || typeof stored !== "object" || Array.isArray(stored)) {
+      return {};
+    }
+    return cloneValue(stored);
+  }
+
+  writeUserPreferences(userId, preferences) {
+    const key = String(userId || "").trim();
+    if (!key) {
+      return;
+    }
+    const nextPreferences =
+      preferences && typeof preferences === "object" && !Array.isArray(preferences)
+        ? cloneValue(preferences)
+        : {};
+    this.snapshot.userPreferences = this.snapshot.userPreferences || {};
+    this.snapshot.userPreferences[key] = nextPreferences;
+    this.enqueuePersist("user_preferences", async () => {
+      await prisma.userPreferenceRecord.upsert({
+        where: { userId: key },
+        create: { userId: key, data: cloneValue(nextPreferences) },
+        update: { data: cloneValue(nextPreferences) },
       });
     });
   }

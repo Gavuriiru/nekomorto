@@ -1766,6 +1766,132 @@ if (viteDevServer) {
   app.use(viteDevServer.middlewares);
 }
 
+const USER_PREFERENCES_MAX_BYTES = 20 * 1024;
+const USER_PREFERENCES_UI_LIST_STATE_KEY_PATTERN = /^[a-z0-9._-]{1,80}$/i;
+const USER_PREFERENCES_THEME_MODE_SET = new Set(["light", "dark", "system"]);
+const USER_PREFERENCES_DENSITY_SET = new Set(["comfortable", "compact"]);
+
+const isPlainObject = (value) =>
+  Boolean(value) && typeof value === "object" && !Array.isArray(value);
+
+const normalizeUiListStateValue = (value) => {
+  if (!isPlainObject(value)) {
+    return {};
+  }
+  const normalized = {};
+  if (typeof value.sort === "string") {
+    const sort = value.sort.trim();
+    if (sort) {
+      normalized.sort = sort.slice(0, 64);
+    }
+  }
+  if (Array.isArray(value.columns)) {
+    normalized.columns = Array.from(
+      new Set(
+        value.columns
+          .map((column) => String(column || "").trim().slice(0, 64))
+          .filter(Boolean),
+      ),
+    ).slice(0, 30);
+  }
+  const page = Number(value.page);
+  if (Number.isFinite(page) && page >= 1) {
+    normalized.page = Math.min(Math.floor(page), 9999);
+  }
+  if (isPlainObject(value.filters)) {
+    const filters = {};
+    Object.entries(value.filters)
+      .slice(0, 40)
+      .forEach(([key, rawValue]) => {
+        const normalizedKey = String(key || "").trim().slice(0, 64);
+        if (!normalizedKey) {
+          return;
+        }
+        if (
+          rawValue === null ||
+          typeof rawValue === "string" ||
+          typeof rawValue === "number" ||
+          typeof rawValue === "boolean"
+        ) {
+          filters[normalizedKey] = rawValue;
+          return;
+        }
+        if (Array.isArray(rawValue)) {
+          filters[normalizedKey] = rawValue
+            .slice(0, 20)
+            .filter(
+              (entry) =>
+                entry === null ||
+                typeof entry === "string" ||
+                typeof entry === "number" ||
+                typeof entry === "boolean",
+            );
+        }
+      });
+    if (Object.keys(filters).length > 0) {
+      normalized.filters = filters;
+    }
+  }
+  return normalized;
+};
+
+const normalizeUserPreferences = (value) => {
+  if (!isPlainObject(value)) {
+    return {};
+  }
+  const normalized = {};
+  const themeMode = String(value.themeMode || "").trim().toLowerCase();
+  if (USER_PREFERENCES_THEME_MODE_SET.has(themeMode)) {
+    normalized.themeMode = themeMode;
+  }
+  const density = String(value.density || "").trim().toLowerCase();
+  if (USER_PREFERENCES_DENSITY_SET.has(density)) {
+    normalized.density = density;
+  }
+  if (isPlainObject(value.uiListState)) {
+    const uiListState = {};
+    Object.entries(value.uiListState)
+      .slice(0, 80)
+      .forEach(([screenKey, stateValue]) => {
+        const normalizedKey = String(screenKey || "").trim();
+        if (!USER_PREFERENCES_UI_LIST_STATE_KEY_PATTERN.test(normalizedKey)) {
+          return;
+        }
+        const normalizedValue = normalizeUiListStateValue(stateValue);
+        if (Object.keys(normalizedValue).length > 0) {
+          uiListState[normalizedKey] = normalizedValue;
+        }
+      });
+    if (Object.keys(uiListState).length > 0) {
+      normalized.uiListState = uiListState;
+    }
+  }
+  return normalized;
+};
+
+const loadUserPreferences = (userId) => {
+  const normalizedId = String(userId || "").trim();
+  if (!normalizedId || !dataRepository) {
+    return {};
+  }
+  const parsed = dataRepository.loadUserPreferences(normalizedId);
+  const normalized = normalizeUserPreferences(parsed);
+  if (JSON.stringify(parsed) !== JSON.stringify(normalized)) {
+    dataRepository.writeUserPreferences(normalizedId, normalized);
+  }
+  return normalized;
+};
+
+const writeUserPreferences = (userId, preferences) => {
+  const normalizedId = String(userId || "").trim();
+  if (!normalizedId || !dataRepository) {
+    return {};
+  }
+  const normalized = normalizeUserPreferences(preferences);
+  dataRepository.writeUserPreferences(normalizedId, normalized);
+  return normalized;
+};
+
 const loadAllowedUsers = () => {
   if (!dataRepository) {
     return [];
@@ -3594,6 +3720,32 @@ const requirePrimaryOwner = (req, res, next) => {
   }
   return next();
 };
+
+app.get("/api/me/preferences", requireAuth, (req, res) => {
+  const userId = String(req.session?.user?.id || "").trim();
+  if (!userId) {
+    return res.status(401).json({ error: "unauthorized" });
+  }
+  return res.json({ preferences: loadUserPreferences(userId) });
+});
+
+app.put("/api/me/preferences", requireAuth, (req, res) => {
+  const userId = String(req.session?.user?.id || "").trim();
+  if (!userId) {
+    return res.status(401).json({ error: "unauthorized" });
+  }
+  const incoming = isPlainObject(req.body) && isPlainObject(req.body.preferences)
+    ? req.body.preferences
+    : req.body;
+  const normalized = normalizeUserPreferences(incoming);
+  const encoded = Buffer.byteLength(JSON.stringify(normalized), "utf8");
+  if (encoded > USER_PREFERENCES_MAX_BYTES) {
+    return res.status(413).json({ error: "payload_too_large" });
+  }
+  const saved = writeUserPreferences(userId, normalized);
+  appendAuditLog(req, "users.preferences.update", "users", { userId });
+  return res.json({ ok: true, preferences: saved });
+});
 
 app.get("/api/audit-log", requireAuth, (req, res) => {
   const userId = req.session?.user?.id;
@@ -7445,11 +7597,26 @@ const runStartupMaintenance = async () => {
   }
 };
 
-app.listen(Number(PORT), () => {
+const listenPort = Number(PORT);
+const httpServer = app.listen(listenPort, () => {
   console.log(
-    `[server] listening on :${Number(PORT)} (data_source=db, maintenance=${isMaintenanceMode})`,
+    `[server] listening on :${listenPort} (data_source=db, maintenance=${isMaintenanceMode})`,
   );
   setImmediate(() => {
     void runStartupMaintenance();
   });
+});
+
+httpServer.on("error", (error) => {
+  if (error?.code === "EADDRINUSE") {
+    console.error(
+      `[server] Port ${listenPort} is already in use. Stop the existing process or run "npm run dev" to perform automatic cleanup.`,
+    );
+    process.exit(1);
+    return;
+  }
+  console.error(
+    `[server] Failed to start HTTP server on :${listenPort}. ${String(error?.message || "Unknown error")}`,
+  );
+  process.exit(1);
 });

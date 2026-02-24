@@ -7,6 +7,7 @@ import DashboardPageHeader from "@/components/dashboard/DashboardPageHeader";
 import { dashboardPageLayoutTokens } from "@/components/dashboard/dashboard-page-tokens";
 import type { ImageLibraryOptions } from "@/components/ImageLibraryDialog";
 import ThemedSvgLogo from "@/components/ThemedSvgLogo";
+import AsyncState from "@/components/ui/async-state";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -75,8 +76,12 @@ import {
 import { isChapterBasedType, isLightNovelType, isMangaType } from "@/lib/project-utils";
 import { formatBytesCompact, parseHumanSizeToBytes } from "@/lib/file-size";
 import { usePageMeta } from "@/hooks/use-page-meta";
+import { useEditorScrollStability } from "@/hooks/use-editor-scroll-stability";
+import { useUserPreferences } from "@/hooks/use-user-preferences";
 import type { LexicalEditorHandle } from "@/components/lexical/LexicalEditor";
 import { useSiteSettings } from "@/hooks/use-site-settings";
+
+const DASHBOARD_PROJECTS_LIST_STATE_KEY = "dashboard.projects";
 
 const LexicalEditor = lazy(() => import("@/components/lexical/LexicalEditor"));
 const ImageLibraryDialog = lazy(() => import("@/components/ImageLibraryDialog"));
@@ -733,6 +738,8 @@ const DashboardProjectsEditor = () => {
   const [hasLoadedCurrentUser, setHasLoadedCurrentUser] = useState(false);
   const [projects, setProjects] = useState<ProjectRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [hasLoadError, setHasLoadError] = useState(false);
+  const [loadVersion, setLoadVersion] = useState(0);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchParams, setSearchParams] = useSearchParams();
   const [sortMode, setSortMode] = useState<"alpha" | "status" | "views" | "comments" | "recent">(() => {
@@ -750,6 +757,7 @@ const DashboardProjectsEditor = () => {
   });
   const [currentPage, setCurrentPage] = useState(() => parsePageParam(searchParams.get("page")));
   const [isEditorOpen, setIsEditorOpen] = useState(false);
+  useEditorScrollStability(isEditorOpen);
   const [isEditorDialogScrolled, setIsEditorDialogScrolled] = useState(false);
 
   const downloadSourceOptions = useMemo(() => {
@@ -868,6 +876,12 @@ const DashboardProjectsEditor = () => {
     sortMode,
     currentPage,
   });
+  const hasRestoredListStateRef = useRef(false);
+  const {
+    hasLoaded: hasLoadedUserPreferences,
+    getUiListState,
+    setUiListState,
+  } = useUserPreferences();
   const editorInitialSnapshotRef = useRef<string>(buildProjectEditorSnapshot(emptyProject, ""));
   const isDirty = useMemo(
     () => buildProjectEditorSnapshot(formState, anilistIdInput) !== editorInitialSnapshotRef.current,
@@ -1022,6 +1036,34 @@ const DashboardProjectsEditor = () => {
   }, [currentPage, sortMode]);
 
   useEffect(() => {
+    if (hasRestoredListStateRef.current || !hasLoadedUserPreferences) {
+      return;
+    }
+    hasRestoredListStateRef.current = true;
+    const hasSearchQueryState = Boolean(searchParams.get("sort") || searchParams.get("page"));
+    if (hasSearchQueryState) {
+      return;
+    }
+    const savedListState = getUiListState(DASHBOARD_PROJECTS_LIST_STATE_KEY);
+    if (!savedListState) {
+      return;
+    }
+    const savedSortParam = typeof savedListState.sort === "string" ? savedListState.sort : null;
+    const savedSortMode =
+      savedSortParam === "alpha" ||
+      savedSortParam === "status" ||
+      savedSortParam === "views" ||
+      savedSortParam === "comments" ||
+      savedSortParam === "recent"
+        ? savedSortParam
+        : "alpha";
+    const savedPageRaw = Number(savedListState.page);
+    const savedPage = Number.isFinite(savedPageRaw) && savedPageRaw >= 1 ? Math.floor(savedPageRaw) : 1;
+    setSortMode((previous) => (previous === savedSortMode ? previous : savedSortMode));
+    setCurrentPage((previous) => (previous === savedPage ? previous : savedPage));
+  }, [getUiListState, hasLoadedUserPreferences, searchParams]);
+
+  useEffect(() => {
     const sortParam = searchParams.get("sort");
     const nextSort =
       sortParam === "alpha" ||
@@ -1066,6 +1108,16 @@ const DashboardProjectsEditor = () => {
       setSearchParams(nextParams, { replace: true });
     }
   }, [currentPage, searchParams, setSearchParams, sortMode]);
+
+  useEffect(() => {
+    if (!hasLoadedUserPreferences) {
+      return;
+    }
+    setUiListState(DASHBOARD_PROJECTS_LIST_STATE_KEY, {
+      sort: sortMode,
+      page: currentPage,
+    });
+  }, [currentPage, hasLoadedUserPreferences, setUiListState, sortMode]);
 
   useEffect(() => {
     setCurrentPage(1);
@@ -1236,6 +1288,10 @@ const DashboardProjectsEditor = () => {
   useEffect(() => {
     let isActive = true;
     const load = async () => {
+      if (isActive) {
+        setIsLoading(true);
+        setHasLoadError(false);
+      }
       try {
         const [projectsResult, usersResult, translationsResult] = await Promise.allSettled([
           loadProjects(),
@@ -1256,6 +1312,8 @@ const DashboardProjectsEditor = () => {
               setMemberDirectory(Array.from(new Set(names)).sort((a, b) => a.localeCompare(b, "pt-BR")));
             }
           }
+        } else if (isActive) {
+          setMemberDirectory([]);
         }
         if (projectsResult.status === "rejected") {
           throw projectsResult.reason;
@@ -1270,13 +1328,22 @@ const DashboardProjectsEditor = () => {
               setStaffRoleTranslations(data?.staffRoles || {});
             }
           }
+        } else if (isActive) {
+          setTagTranslations({});
+          setGenreTranslations({});
+          setStaffRoleTranslations({});
+        }
+        if (isActive) {
+          setHasLoadError(false);
         }
       } catch {
         if (isActive) {
           setProjects([]);
+          setMemberDirectory([]);
           setTagTranslations({});
           setGenreTranslations({});
           setStaffRoleTranslations({});
+          setHasLoadError(true);
         }
       } finally {
         if (isActive) {
@@ -1288,7 +1355,7 @@ const DashboardProjectsEditor = () => {
     return () => {
       isActive = false;
     };
-  }, [apiBase, loadProjects]);
+  }, [apiBase, loadProjects, loadVersion]);
 
   useEffect(() => {
     if (!isLibraryOpen) {
@@ -2216,15 +2283,40 @@ const DashboardProjectsEditor = () => {
               </div>
 
               {isLoading ? (
-                <div className={`${dashboardPageLayoutTokens.surfaceDefault} px-6 py-10 text-sm text-muted-foreground`}>
-                  Carregando projetos...
-                </div>
+                <AsyncState
+                  kind="loading"
+                  title="Carregando projetos"
+                  description="Buscando os projetos no banco de dados."
+                  className={dashboardPageLayoutTokens.surfaceDefault}
+                />
+              ) : hasLoadError ? (
+                <AsyncState
+                  kind="error"
+                  title="Nao foi possivel carregar os projetos"
+                  description="Tente recarregar os dados do painel."
+                  className={dashboardPageLayoutTokens.surfaceDefault}
+                  action={
+                    <Button
+                      variant="outline"
+                      onClick={() => setLoadVersion((previous) => previous + 1)}
+                    >
+                      Recarregar
+                    </Button>
+                  }
+                />
               ) : sortedProjects.length === 0 ? (
-                <div
-                  className={`${dashboardPageLayoutTokens.surfaceMuted} border-dashed px-6 py-10 text-sm text-muted-foreground`}
-                >
-                  Nenhum projeto encontrado.
-                </div>
+                <AsyncState
+                  kind="empty"
+                  title="Nenhum projeto encontrado"
+                  description="Ajuste os filtros ou crie um novo projeto."
+                  className={dashboardPageLayoutTokens.surfaceMuted}
+                  action={
+                    <Button onClick={openCreate} className="bg-primary text-primary-foreground hover:bg-primary/90">
+                      <Plus className="mr-2 h-4 w-4" />
+                      Criar primeiro projeto
+                    </Button>
+                  }
+                />
               ) : (
                 <div className="grid gap-6">
                   {paginatedProjects.map((project, index) => (
@@ -2232,6 +2324,14 @@ const DashboardProjectsEditor = () => {
                       key={project.id}
                       className={`${dashboardPageLayoutTokens.listCard} group cursor-pointer overflow-hidden transition hover:border-primary/40 animate-slide-up opacity-0`}
                       style={{ animationDelay: `${Math.min(index * 35, 210)}ms` }}
+                      role="button"
+                      tabIndex={0}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter" || event.key === " ") {
+                          event.preventDefault();
+                          openEdit(project);
+                        }
+                      }}
                       onClick={() => openEdit(project)}
                     >
                       <CardContent className="p-0">

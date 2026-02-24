@@ -211,3 +211,11 @@ model UserSessionRecord {
   @@index([expire], map: "idx_user_sessions_expire")
   @@map("user_sessions")
 }
+
+model UserPreferenceRecord {
+  userId    String   @id
+  data      Json
+  updatedAt DateTime @updatedAt
+
+  @@map("user_preferences")
+}
