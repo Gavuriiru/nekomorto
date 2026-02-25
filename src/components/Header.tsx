@@ -24,9 +24,11 @@ import { usePublicBootstrap } from "@/hooks/use-public-bootstrap";
 import { getNavbarIcon } from "@/lib/navbar-icons";
 import { resolveBranding } from "@/lib/branding";
 import { rankPosts, rankProjects, selectVisibleTags, sortAlphabeticallyPtBr } from "@/lib/search-ranking";
+import { buildTranslationMap, translateTag } from "@/lib/project-taxonomy";
 import { useDynamicSynopsisClamp } from "@/hooks/use-dynamic-synopsis-clamp";
 import { buildDashboardMenuFromGrants, resolveGrants } from "@/lib/access-control";
 import { sanitizePublicHref } from "@/lib/url-safety";
+import type { SearchSuggestion } from "@/types/search-suggestion";
 
 type HeaderProps = {
   variant?: "fixed" | "static";
@@ -35,8 +37,12 @@ type HeaderProps = {
 };
 
 const Header = ({ variant = "fixed", leading, className }: HeaderProps) => {
+  const MIN_SUGGEST_QUERY_LENGTH = 2;
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [query, setQuery] = useState("");
+  const [remoteSuggestions, setRemoteSuggestions] = useState<SearchSuggestion[]>([]);
+  const [isSearchLoading, setIsSearchLoading] = useState(false);
+  const [hasSearchRequestFailed, setHasSearchRequestFailed] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [currentUser, setCurrentUser] = useState<{
@@ -58,6 +64,7 @@ const Header = ({ variant = "fixed", leading, className }: HeaderProps) => {
   const projects = bootstrapData?.projects || [];
   const posts = bootstrapData?.posts || [];
   const tagTranslations = bootstrapData?.tagTranslations?.tags || {};
+  const tagTranslationMap = useMemo(() => buildTranslationMap(tagTranslations), [tagTranslations]);
 
   const siteNameRaw = settings.site.name || "Nekomata";
   const siteName = siteNameRaw.toUpperCase();
@@ -107,9 +114,13 @@ const Header = ({ variant = "fixed", leading, className }: HeaderProps) => {
         href: `/projeto/${project.id}`,
         image: project.cover,
         synopsis: project.synopsis,
-        tags: selectVisibleTags(sortAlphabeticallyPtBr(project.tags.map((tag) => tagTranslations[tag] || tag)), 2, 18),
+        tags: selectVisibleTags(
+          sortAlphabeticallyPtBr(project.tags.map((tag) => translateTag(tag, tagTranslationMap))),
+          2,
+          18,
+        ),
       })),
-    [projects, tagTranslations],
+    [projects, tagTranslationMap],
   );
 
   const postItems = useMemo(
@@ -122,22 +133,152 @@ const Header = ({ variant = "fixed", leading, className }: HeaderProps) => {
     [posts],
   );
 
-  const filteredProjects = useMemo(() => {
-    if (!query.trim()) {
-      return [];
-    }
-    return rankProjects(projectItems, query);
-  }, [projectItems, query]);
+  const queryTrimmed = query.trim();
+  const hasMinimumSearchQueryLength = queryTrimmed.length >= MIN_SUGGEST_QUERY_LENGTH;
 
-  const filteredPosts = useMemo(() => {
-    if (!query.trim()) {
+  const fallbackProjects = useMemo(() => {
+    if (!queryTrimmed) {
       return [];
     }
-    return rankPosts(postItems, query);
-  }, [postItems, query]);
-  const showResults = isSearchOpen && query.trim().length > 0;
-  const hasResults = filteredProjects.length > 0 || filteredPosts.length > 0;
-  const synopsisKeys = useMemo(() => filteredProjects.map((item) => item.href), [filteredProjects]);
+    return rankProjects(projectItems, queryTrimmed);
+  }, [projectItems, queryTrimmed]);
+
+  const fallbackPosts = useMemo(() => {
+    if (!queryTrimmed) {
+      return [];
+    }
+    return rankPosts(postItems, queryTrimmed);
+  }, [postItems, queryTrimmed]);
+
+  useEffect(() => {
+    if (!isSearchOpen || !hasMinimumSearchQueryLength) {
+      setRemoteSuggestions([]);
+      setHasSearchRequestFailed(false);
+      setIsSearchLoading(false);
+      return;
+    }
+
+    let isActive = true;
+    const controller = new AbortController();
+    const timeout = window.setTimeout(async () => {
+      setIsSearchLoading(true);
+      try {
+        const params = new URLSearchParams({
+          q: queryTrimmed,
+          scope: "all",
+          limit: "8",
+        });
+        const response = await apiFetch(apiBase, `/api/public/search/suggest?${params.toString()}`, {
+          cache: "no-store",
+          signal: controller.signal,
+        });
+        if (!response.ok) {
+          throw new Error(`search_suggest_${response.status}`);
+        }
+        const payload = (await response.json()) as { suggestions?: unknown[] };
+        if (!isActive) {
+          return;
+        }
+        const nextSuggestions = Array.isArray(payload?.suggestions)
+          ? payload.suggestions
+              .map((item) => {
+                if (!item || typeof item !== "object") {
+                  return null;
+                }
+                const candidate = item as Partial<SearchSuggestion>;
+                const kind = candidate.kind === "project" || candidate.kind === "post" ? candidate.kind : null;
+                const id = String(candidate.id || "").trim();
+                const label = String(candidate.label || "").trim();
+                const href = String(candidate.href || "").trim();
+                if (!kind || !id || !label || !href) {
+                  return null;
+                }
+                return {
+                  kind,
+                  id,
+                  label,
+                  href,
+                  description: String(candidate.description || "").trim(),
+                  image: String(candidate.image || "").trim(),
+                  tags: Array.isArray(candidate.tags)
+                    ? candidate.tags
+                        .map((tag) => String(tag || "").trim())
+                        .filter(Boolean)
+                        .slice(0, 4)
+                    : [],
+                  meta: String(candidate.meta || "").trim(),
+                } satisfies SearchSuggestion;
+              })
+              .filter(Boolean)
+          : [];
+        setRemoteSuggestions(nextSuggestions as SearchSuggestion[]);
+        setHasSearchRequestFailed(false);
+      } catch (error) {
+        if (!isActive) {
+          return;
+        }
+        if (
+          error &&
+          typeof error === "object" &&
+          "name" in error &&
+          String((error as { name?: string }).name) === "AbortError"
+        ) {
+          return;
+        }
+        setRemoteSuggestions([]);
+        setHasSearchRequestFailed(true);
+      } finally {
+        if (isActive) {
+          setIsSearchLoading(false);
+        }
+      }
+    }, 180);
+
+    return () => {
+      isActive = false;
+      controller.abort();
+      window.clearTimeout(timeout);
+    };
+  }, [apiBase, hasMinimumSearchQueryLength, isSearchOpen, queryTrimmed]);
+
+  const remoteProjects = useMemo(
+    () =>
+      remoteSuggestions
+        .filter((suggestion) => suggestion.kind === "project")
+        .map((item) => ({
+          label: item.label,
+          href: item.href,
+          image: item.image || "/placeholder.svg",
+          synopsis: item.description || item.meta || "",
+          tags: selectVisibleTags(
+            sortAlphabeticallyPtBr(
+              (Array.isArray(item.tags) ? item.tags : [])
+                .map((tag) => translateTag(String(tag || "").trim(), tagTranslationMap))
+                .filter(Boolean),
+            ),
+            2,
+            18,
+          ),
+        })),
+    [remoteSuggestions, tagTranslationMap],
+  );
+
+  const remotePosts = useMemo(
+    () =>
+      remoteSuggestions
+        .filter((suggestion) => suggestion.kind === "post")
+        .map((item) => ({
+          label: item.label,
+          href: item.href,
+        })),
+    [remoteSuggestions],
+  );
+
+  const activeProjects = hasSearchRequestFailed ? fallbackProjects : remoteProjects;
+  const activePosts = hasSearchRequestFailed ? fallbackPosts : remotePosts;
+  const showResults = isSearchOpen && queryTrimmed.length > 0;
+  const hasResults = hasMinimumSearchQueryLength && (activeProjects.length > 0 || activePosts.length > 0);
+  const synopsisKeys = useMemo(() => activeProjects.map((item) => item.href), [activeProjects]);
   const { rootRef: synopsisRootRef, lineByKey: synopsisLineByKey } = useDynamicSynopsisClamp({
     enabled: showResults,
     keys: synopsisKeys,
@@ -388,29 +529,36 @@ const Header = ({ variant = "fixed", leading, className }: HeaderProps) => {
                 data-testid="public-header-results"
                 className="search-popover-enter absolute top-12 left-0 right-0 mx-auto max-h-[78vh] w-[min(24rem,calc(100vw-1rem))] overflow-hidden rounded-xl border border-border/60 bg-background/95 p-4 shadow-lg backdrop-blur-sm md:left-auto md:right-0 md:mx-0 md:w-80"
               >
-                {filteredProjects.length > 0 && (
+                {!hasMinimumSearchQueryLength ? (
+                  <p className="text-sm text-muted-foreground">Digite ao menos 2 caracteres para ver sugestões.</p>
+                ) : isSearchLoading ? (
+                  <p className="text-sm text-muted-foreground">Buscando sugestões...</p>
+                ) : null}
+
+                {hasMinimumSearchQueryLength && activeProjects.length > 0 && (
                   <div className="mb-4">
                     <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                       Projetos
                     </p>
                     <ul className="no-scrollbar mt-3 max-h-[44vh] space-y-3 overflow-y-auto overscroll-contain pr-1">
-                      {filteredProjects.map((item) => (
+                      {activeProjects.map((item) => (
                         <li key={item.href}>
                           <Link
                             to={item.href}
                             className="group flex h-36 items-start gap-4 overflow-hidden rounded-xl border border-border/60 bg-gradient-card p-4 transition hover:border-primary/40 hover:bg-primary/5"
                           >
-                            <div
-                              className="w-20 shrink-0 self-start overflow-hidden rounded-lg bg-secondary"
-                              style={{ aspectRatio: "46 / 65" }}
-                            >
+                            <div className="h-28 w-20 shrink-0 self-start overflow-hidden rounded-lg bg-secondary">
                               <img
                                 src={item.image}
                                 alt={item.label}
                                 className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
                               />
                             </div>
-                            <div data-synopsis-role="column" data-synopsis-key={item.href} className="min-w-0 h-full flex flex-col">
+                            <div
+                              data-synopsis-role="column"
+                              data-synopsis-key={item.href}
+                              className="h-28 min-w-0 flex flex-col overflow-hidden"
+                            >
                               <p data-synopsis-role="title" className="line-clamp-1 shrink-0 text-sm font-semibold text-foreground group-hover:text-primary">
                                 {item.label}
                               </p>
@@ -424,9 +572,12 @@ const Header = ({ variant = "fixed", leading, className }: HeaderProps) => {
                                 {item.synopsis}
                               </p>
                               {item.tags.length > 0 && (
-                                <div data-synopsis-role="badges" className="mt-auto pt-2 flex min-w-0 flex-wrap gap-1.5">
+                                <div
+                                  data-synopsis-role="badges"
+                                  className="mt-auto flex min-w-0 flex-nowrap gap-1.5 overflow-hidden pt-2"
+                                >
                                   {item.tags.map((tag) => (
-                                    <Badge key={tag} variant="secondary" className="text-[9px] uppercase whitespace-nowrap">
+                                    <Badge key={tag} variant="secondary" className="shrink-0 whitespace-nowrap text-[9px] uppercase">
                                       {tag}
                                     </Badge>
                                   ))}
@@ -440,13 +591,13 @@ const Header = ({ variant = "fixed", leading, className }: HeaderProps) => {
                   </div>
                 )}
 
-                {filteredPosts.length > 0 && (
+                {hasMinimumSearchQueryLength && activePosts.length > 0 && (
                   <div>
                     <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                       Posts
                     </p>
                     <ul className="no-scrollbar mt-2 max-h-[26vh] space-y-2 overflow-y-auto overscroll-contain pr-1">
-                      {filteredPosts.map((item) => (
+                      {activePosts.map((item) => (
                         <li key={item.href}>
                           <Link
                             to={item.href}
@@ -460,7 +611,7 @@ const Header = ({ variant = "fixed", leading, className }: HeaderProps) => {
                   </div>
                 )}
 
-                {!hasResults && (
+                {hasMinimumSearchQueryLength && !isSearchLoading && !hasResults && (
                   <p className="text-sm text-muted-foreground">
                     Nenhum resultado encontrado para a sua pesquisa.
                   </p>

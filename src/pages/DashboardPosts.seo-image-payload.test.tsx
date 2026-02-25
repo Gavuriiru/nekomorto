@@ -101,7 +101,7 @@ const getCreateCall = () =>
     return path === "/api/posts" && method === "POST";
   });
 
-describe("DashboardPosts SEO image payload", () => {
+describe("DashboardPosts cover image payload", () => {
   beforeEach(() => {
     apiFetchMock.mockReset();
     apiFetchMock.mockImplementation(async (_base: string, path: string, options?: RequestInit) => {
@@ -137,7 +137,7 @@ describe("DashboardPosts SEO image payload", () => {
     });
   });
 
-  it("inclui seoImageUrl no payload ao criar post", async () => {
+  it("inclui coverImageUrl no payload ao criar post", async () => {
     render(
       <MemoryRouter initialEntries={["/dashboard/posts"]}>
         <DashboardPosts />
@@ -156,7 +156,7 @@ describe("DashboardPosts SEO image payload", () => {
       expect((slugInput as HTMLInputElement).value).toBe("meu-post-seo");
     });
 
-    fireEvent.click(within(dialog).getByRole("button", { name: "Biblioteca SEO" }));
+    fireEvent.click(within(dialog).getByRole("button", { name: /^Biblioteca$/i }));
     fireEvent.click(await screen.findByRole("button", { name: "Mock salvar biblioteca" }));
 
     fireEvent.click(within(dialog).getByRole("button", { name: "Salvar rascunho" }));
@@ -165,7 +165,7 @@ describe("DashboardPosts SEO image payload", () => {
       const createCall = getCreateCall();
       expect(createCall).toBeTruthy();
       const payload = JSON.parse(String((((createCall?.[2] || {}) as RequestInit).body || "{}")));
-      expect(payload.seoImageUrl).toBe("/uploads/seo-selected.jpg");
+      expect(payload.coverImageUrl).toBe("/uploads/seo-selected.jpg");
     });
   });
 });

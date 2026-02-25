@@ -36,9 +36,15 @@ const setupBootstrapMock = () => {
           publishedAt: "2026-02-10T12:00:00.000Z",
           coverImageUrl: "/uploads/capa-card.jpg",
           tags: ["acao"],
+          projectId: "project-1",
         },
       ],
-      projects: [],
+      projects: [
+        {
+          id: "project-1",
+          title: "Projeto Teste",
+        },
+      ],
       tagTranslations: { tags: {} },
     },
   });
@@ -77,7 +83,20 @@ describe("ReleasesSection cover fit", () => {
       "aspect-3/2",
       "overflow-hidden",
     );
+  });
 
-    expect(screen.queryByText("acao")).not.toBeInTheDocument();
+  it("expoe ancora de lancamentos e CTA para projeto relacionado", async () => {
+    setupBootstrapMock();
+
+    render(
+      <MemoryRouter>
+        <ReleasesSection />
+      </MemoryRouter>,
+    );
+
+    expect(document.getElementById("lancamentos")).toBeInTheDocument();
+
+    const projectCta = await screen.findByRole("link", { name: /Ver projeto/i });
+    expect(projectCta).toHaveAttribute("href", "/projeto/project-1");
   });
 });

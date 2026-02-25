@@ -1,5 +1,6 @@
 ﻿import type { ReactNode } from "react";
 import { act, fireEvent, render, screen, within } from "@testing-library/react";
+import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import DashboardSettings from "@/pages/DashboardSettings";
 import { defaultSettings } from "@/hooks/site-settings-context";
@@ -71,6 +72,12 @@ const waitMs = (delayMs: number) =>
     setTimeout(resolve, delayMs);
   });
 const classTokens = (element: HTMLElement) => String(element.className).split(/\s+/).filter(Boolean);
+const renderDashboardSettings = () =>
+  render(
+    <MemoryRouter initialEntries={["/dashboard/configuracoes"]}>
+      <DashboardSettings />
+    </MemoryRouter>,
+  );
 
 describe("DashboardSettings autosave", () => {
   beforeEach(() => {
@@ -158,7 +165,7 @@ describe("DashboardSettings autosave", () => {
   });
 
   it("usa tablist com scroll horizontal invisivel no mobile e triggers sem compressao", async () => {
-    render(<DashboardSettings />);
+    renderDashboardSettings();
     await screen.findByRole("heading", { name: /Painel/i });
 
     const tablist = screen.getByRole("tablist");
@@ -176,7 +183,7 @@ describe("DashboardSettings autosave", () => {
   });
 
   it("editar ajustes gerais dispara apenas PUT /api/settings", async () => {
-    render(<DashboardSettings />);
+    renderDashboardSettings();
     await screen.findByRole("heading", { name: /Painel/i });
 
     apiFetchMock.mockClear();
@@ -194,7 +201,7 @@ describe("DashboardSettings autosave", () => {
   });
 
   it("editar preview de pagina dispara apenas PUT /api/pages", async () => {
-    render(<DashboardSettings />);
+    renderDashboardSettings();
     await screen.findByRole("heading", { name: /Painel/i });
 
     fireEvent.mouseDown(screen.getByRole("tab", { name: /Preview páginas/i }));
@@ -216,7 +223,7 @@ describe("DashboardSettings autosave", () => {
   });
 
   it("envia theme.mode no payload de configuracoes", async () => {
-    render(<DashboardSettings />);
+    renderDashboardSettings();
     await screen.findByRole("heading", { name: /Painel/i });
 
     apiFetchMock.mockClear();
@@ -236,7 +243,7 @@ describe("DashboardSettings autosave", () => {
   });
 
   it("envia theme.useAccentInProgressCard no payload de configuracoes", async () => {
-    render(<DashboardSettings />);
+    renderDashboardSettings();
     await screen.findByRole("heading", { name: /Painel/i });
 
     apiFetchMock.mockClear();
@@ -258,7 +265,7 @@ describe("DashboardSettings autosave", () => {
   });
 
   it("editar tradução dispara apenas PUT /api/tag-translations", async () => {
-    render(<DashboardSettings />);
+    renderDashboardSettings();
     await screen.findByRole("heading", { name: /Painel/i });
 
     fireEvent.mouseDown(screen.getByRole("tab", { name: /Tradu/i }));
@@ -278,7 +285,7 @@ describe("DashboardSettings autosave", () => {
   });
 
   it("editar tipo de link dispara apenas PUT /api/link-types", async () => {
-    render(<DashboardSettings />);
+    renderDashboardSettings();
     await screen.findByRole("heading", { name: /Painel/i });
 
     fireEvent.mouseDown(screen.getByRole("tab", { name: /Redes/i }));
@@ -300,7 +307,7 @@ describe("DashboardSettings autosave", () => {
 
   it("registra beforeunload quando há alteração pendente", async () => {
     const addEventListenerSpy = vi.spyOn(window, "addEventListener");
-    render(<DashboardSettings />);
+    renderDashboardSettings();
     await screen.findByRole("heading", { name: /Painel/i });
 
     addEventListenerSpy.mockClear();
@@ -318,7 +325,7 @@ describe("DashboardSettings autosave", () => {
   });
 
   it("renderiza a prévia do footer com nome em uppercase", async () => {
-    render(<DashboardSettings />);
+    renderDashboardSettings();
     await screen.findByRole("heading", { name: /Painel/i });
 
     const siteNameInput = await screen.findByDisplayValue(defaultSettings.site.name);
@@ -328,7 +335,7 @@ describe("DashboardSettings autosave", () => {
   });
 
   it("reordena redes sociais do footer via drag-and-drop e salva a nova ordem", async () => {
-    render(<DashboardSettings />);
+    renderDashboardSettings();
     await screen.findByRole("heading", { name: /Painel/i });
 
     fireEvent.mouseDown(screen.getByRole("tab", { name: /Footer/i }));
@@ -367,4 +374,8 @@ describe("DashboardSettings autosave", () => {
     expect(socialLabels[0]).toBe("Discord");
   });
 });
+
+
+
+
 

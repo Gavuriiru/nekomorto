@@ -37,23 +37,13 @@ const mockJsonResponse = (ok: boolean, payload: unknown, status = ok ? 200 : 500
     blob: async () => new Blob([""], { type: "text/csv" }),
   }) as Response;
 
-const setupApiMock = (preferences: unknown) => {
+const setupApiMock = () => {
   apiFetchMock.mockReset();
   toastMock.mockReset();
   apiFetchMock.mockImplementation(async (_base: string, path: string, options?: RequestInit) => {
     const method = String(options?.method || "GET").toUpperCase();
     if (path === "/api/me" && method === "GET") {
       return mockJsonResponse(true, { id: "1", name: "Admin", username: "admin" });
-    }
-    if (path === "/api/me/preferences" && method === "GET") {
-      return mockJsonResponse(true, { preferences });
-    }
-    if (path === "/api/me/preferences" && method === "PUT") {
-      const request = (options || {}) as RequestInit & { json?: unknown };
-      const payload =
-        (request.json as { preferences?: unknown } | undefined) ||
-        JSON.parse(String(request.body || "{}"));
-      return mockJsonResponse(true, { preferences: payload.preferences || {} });
     }
     if (String(path).startsWith("/api/audit-log?") && method === "GET") {
       return mockJsonResponse(true, { entries: [], page: 1, limit: 50, total: 0 });
@@ -73,12 +63,10 @@ const getLastAuditParams = () => {
   return new URLSearchParams(lastPath.split("?")[1] || "");
 };
 
-const getPreferencePutCalls = () =>
+const getPreferenceCalls = () =>
   apiFetchMock.mock.calls.filter((call) => {
     const path = String(call[1] || "");
-    const options = (call[2] || {}) as RequestInit;
-    const method = String(options.method || "GET").toUpperCase();
-    return path === "/api/me/preferences" && method === "PUT";
+    return path === "/api/me/preferences";
   });
 
 const LocationProbe = () => {
@@ -95,25 +83,14 @@ const NavigateCleanQuery = () => {
   );
 };
 
-describe("DashboardAuditLog preferences", () => {
+describe("DashboardAuditLog query sync", () => {
   beforeEach(() => {
     apiFetchMock.mockReset();
     toastMock.mockReset();
   });
 
-  it("restaura filtros salvos quando URL está limpa", async () => {
-    setupApiMock({
-      uiListState: {
-        "dashboard.audit-log": {
-          page: 2,
-          filters: {
-            limit: 20,
-            q: "admin",
-            status: "failed",
-          },
-        },
-      },
-    });
+  it("usa defaults quando URL inicial esta limpa", async () => {
+    setupApiMock();
 
     render(
       <MemoryRouter initialEntries={["/dashboard/audit-log"]}>
@@ -124,34 +101,19 @@ describe("DashboardAuditLog preferences", () => {
 
     await screen.findByRole("heading", { name: "Registro de Auditoria" });
     await waitFor(() => {
-      const params = getLastAuditParams();
-      expect(params.get("page")).toBe("2");
-      expect(params.get("limit")).toBe("20");
-      expect(params.get("q")).toBe("admin");
-      expect(params.get("status")).toBe("failed");
+      expect(screen.getByTestId("location-search").textContent).toBe("");
     });
-
     await waitFor(() => {
-      const search = String(screen.getByTestId("location-search").textContent || "");
-      expect(search).toContain("page=2");
-      expect(search).toContain("limit=20");
-      expect(search).toContain("q=admin");
-      expect(search).toContain("status=failed");
+      const params = getLastAuditParams();
+      expect(params.get("page")).toBe("1");
+      expect(params.get("limit")).toBe("50");
+      expect(params.get("status")).toBeNull();
     });
+    expect(getPreferenceCalls()).toHaveLength(0);
   });
 
-  it("mantém query explícita da URL como fonte de verdade", async () => {
-    setupApiMock({
-      uiListState: {
-        "dashboard.audit-log": {
-          page: 9,
-          filters: {
-            limit: 10,
-            status: "failed",
-          },
-        },
-      },
-    });
+  it("mantem query explicita da URL como fonte de verdade", async () => {
+    setupApiMock();
 
     render(
       <MemoryRouter initialEntries={["/dashboard/audit-log?page=3&limit=100&status=denied"]}>
@@ -166,54 +128,11 @@ describe("DashboardAuditLog preferences", () => {
       expect(params.get("limit")).toBe("100");
       expect(params.get("status")).toBe("denied");
     });
+    expect(getPreferenceCalls()).toHaveLength(0);
   });
 
-  it("persiste estado aplicado da lista via /api/me/preferences", async () => {
-    setupApiMock({ uiListState: {} });
-
-    render(
-      <MemoryRouter initialEntries={["/dashboard/audit-log?page=2&limit=20&status=denied"]}>
-        <DashboardAuditLog />
-      </MemoryRouter>,
-    );
-
-    await screen.findByRole("heading", { name: "Registro de Auditoria" });
-    await waitFor(
-      () => {
-        expect(getPreferencePutCalls().length).toBeGreaterThan(0);
-      },
-      { timeout: 2500 },
-    );
-
-    const putCalls = getPreferencePutCalls();
-    const request = ((putCalls[putCalls.length - 1]?.[2] || {}) as RequestInit & {
-      json?: { preferences?: unknown };
-    });
-    const payload =
-      request.json ||
-      JSON.parse(String(request.body || "{}"));
-    expect(payload.preferences?.uiListState?.["dashboard.audit-log"]).toMatchObject({
-      page: 2,
-      filters: {
-        limit: 20,
-        status: "denied",
-      },
-    });
-  });
-
-  it("nao reidrata filtros e limpa preferencia salva em PUSH para URL limpa", async () => {
-    setupApiMock({
-      uiListState: {
-        "dashboard.audit-log": {
-          page: 2,
-          filters: {
-            limit: 20,
-            q: "admin",
-            status: "failed",
-          },
-        },
-      },
-    });
+  it("limpa query e volta para defaults", async () => {
+    setupApiMock();
 
     render(
       <MemoryRouter initialEntries={["/dashboard/audit-log?page=3&limit=100&status=denied"]}>
@@ -237,18 +156,6 @@ describe("DashboardAuditLog preferences", () => {
       expect(params.get("status")).toBeNull();
       expect(params.get("q")).toBeNull();
     });
-
-    await waitFor(
-      () => {
-        const putCalls = getPreferencePutCalls();
-        expect(putCalls.length).toBeGreaterThan(0);
-        const request = ((putCalls[putCalls.length - 1]?.[2] || {}) as RequestInit & {
-          json?: { preferences?: unknown };
-        });
-        const payload = request.json || JSON.parse(String(request.body || "{}"));
-        expect(payload.preferences?.uiListState?.["dashboard.audit-log"]).toBeUndefined();
-      },
-      { timeout: 2500 },
-    );
+    expect(getPreferenceCalls()).toHaveLength(0);
   });
 });

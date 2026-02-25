@@ -20,6 +20,14 @@ import CommentsSection from "@/components/CommentsSection";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import ThemedSvgLogo from "@/components/ThemedSvgLogo";
@@ -325,6 +333,7 @@ const ProjectPage = () => {
   }, [lightNovelChapters]);
 
   const filteredLightNovelChapters = sortedLightNovelChapters;
+  const firstReadableChapter = filteredLightNovelChapters[0] || null;
 
   const visibleRelations = useMemo(() => {
     if (!project?.relations?.length) {
@@ -594,6 +603,25 @@ const ProjectPage = () => {
               />
             </div>
             <div className="flex w-full flex-1 flex-col items-center gap-4 text-center md:items-start md:text-left">
+              <Breadcrumb>
+                <BreadcrumbList>
+                  <BreadcrumbItem>
+                    <BreadcrumbLink asChild>
+                      <Link to="/">Início</Link>
+                    </BreadcrumbLink>
+                  </BreadcrumbItem>
+                  <BreadcrumbSeparator />
+                  <BreadcrumbItem>
+                    <BreadcrumbLink asChild>
+                      <Link to="/projetos">Projetos</Link>
+                    </BreadcrumbLink>
+                  </BreadcrumbItem>
+                  <BreadcrumbSeparator />
+                  <BreadcrumbItem>
+                    <BreadcrumbPage>{project.title}</BreadcrumbPage>
+                  </BreadcrumbItem>
+                </BreadcrumbList>
+              </Breadcrumb>
               <div className="flex w-full flex-wrap items-center justify-center gap-3 text-center text-xs uppercase tracking-[0.2em] text-primary/80 animate-fade-in md:w-auto md:justify-start md:text-left">
                 <span>{project.type}</span>
                 <span className="text-muted-foreground">•</span>
@@ -626,6 +654,17 @@ const ProjectPage = () => {
                     {isChapterBased ? "Ver capítulos" : "Ver episódios"}
                   </a>
                 </Button>
+                {isLightNovel && firstReadableChapter ? (
+                  <Button asChild variant="outline" className="gap-2">
+                    <Link
+                      to={`/projeto/${project.id}/leitura/${firstReadableChapter.number}${
+                        firstReadableChapter.volume ? `?volume=${firstReadableChapter.volume}` : ""
+                      }`}
+                    >
+                      Começar leitura
+                    </Link>
+                  </Button>
+                ) : null}
                 {project.trailerUrl ? (
                   <Button asChild variant="outline" className="gap-2">
                     <a href={project.trailerUrl} target="_blank" rel="noreferrer">

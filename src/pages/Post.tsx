@@ -10,6 +10,14 @@ import CommentsSection from "@/components/CommentsSection";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb";
 import { estimateReadTime } from "@/lib/post-content";
 import { normalizeAssetUrl } from "@/lib/asset-url";
 import { getApiBase } from "@/lib/api-base";
@@ -180,6 +188,19 @@ const Post = () => {
           ) : (
             <>
               <section className="space-y-6">
+                <Breadcrumb>
+                  <BreadcrumbList>
+                    <BreadcrumbItem>
+                      <BreadcrumbLink asChild>
+                        <Link to="/">Início</Link>
+                      </BreadcrumbLink>
+                    </BreadcrumbItem>
+                    <BreadcrumbSeparator />
+                    <BreadcrumbItem>
+                      <BreadcrumbPage>Postagem</BreadcrumbPage>
+                    </BreadcrumbItem>
+                  </BreadcrumbList>
+                </Breadcrumb>
                 <div className="space-y-3">
                   <h1 className="text-3xl font-bold text-foreground md:text-4xl">{post.title}</h1>
                   <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-muted-foreground">
@@ -210,6 +231,20 @@ const Post = () => {
                       ) : null}
                     </div>
                   </div>
+                </div>
+
+                <div className="flex flex-wrap gap-2">
+                  {post.projectId ? (
+                    <Button asChild size="sm" variant="outline">
+                      <Link to={`/projeto/${post.projectId}`}>Ir para projeto</Link>
+                    </Button>
+                  ) : null}
+                  <Button asChild size="sm" variant="outline">
+                    <Link to="/projetos">Explorar projetos</Link>
+                  </Button>
+                  <Button asChild size="sm" variant="ghost">
+                    <Link to="/#lancamentos">Voltar ao início</Link>
+                  </Button>
                 </div>
 
                 <div className="relative aspect-3/2 overflow-hidden rounded-2xl border border-border bg-card shadow-xs">

@@ -54,6 +54,13 @@ import {
   sanitizePermissionsForStorage,
 } from "./lib/authz.js";
 import { buildPublicBootstrapPayload } from "./lib/public-bootstrap.js";
+import {
+  buildPublicSearchSuggestions,
+  normalizeSearchQuery,
+  parseSearchLimit,
+  parseSearchScope,
+  publicSearchConfig,
+} from "./lib/public-search.js";
 import { createDataRepository } from "./lib/data-repository.js";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -1767,73 +1774,11 @@ if (viteDevServer) {
 }
 
 const USER_PREFERENCES_MAX_BYTES = 20 * 1024;
-const USER_PREFERENCES_UI_LIST_STATE_KEY_PATTERN = /^[a-z0-9._-]{1,80}$/i;
 const USER_PREFERENCES_THEME_MODE_SET = new Set(["light", "dark", "system"]);
 const USER_PREFERENCES_DENSITY_SET = new Set(["comfortable", "compact"]);
 
 const isPlainObject = (value) =>
   Boolean(value) && typeof value === "object" && !Array.isArray(value);
-
-const normalizeUiListStateValue = (value) => {
-  if (!isPlainObject(value)) {
-    return {};
-  }
-  const normalized = {};
-  if (typeof value.sort === "string") {
-    const sort = value.sort.trim();
-    if (sort) {
-      normalized.sort = sort.slice(0, 64);
-    }
-  }
-  if (Array.isArray(value.columns)) {
-    normalized.columns = Array.from(
-      new Set(
-        value.columns
-          .map((column) => String(column || "").trim().slice(0, 64))
-          .filter(Boolean),
-      ),
-    ).slice(0, 30);
-  }
-  const page = Number(value.page);
-  if (Number.isFinite(page) && page >= 1) {
-    normalized.page = Math.min(Math.floor(page), 9999);
-  }
-  if (isPlainObject(value.filters)) {
-    const filters = {};
-    Object.entries(value.filters)
-      .slice(0, 40)
-      .forEach(([key, rawValue]) => {
-        const normalizedKey = String(key || "").trim().slice(0, 64);
-        if (!normalizedKey) {
-          return;
-        }
-        if (
-          rawValue === null ||
-          typeof rawValue === "string" ||
-          typeof rawValue === "number" ||
-          typeof rawValue === "boolean"
-        ) {
-          filters[normalizedKey] = rawValue;
-          return;
-        }
-        if (Array.isArray(rawValue)) {
-          filters[normalizedKey] = rawValue
-            .slice(0, 20)
-            .filter(
-              (entry) =>
-                entry === null ||
-                typeof entry === "string" ||
-                typeof entry === "number" ||
-                typeof entry === "boolean",
-            );
-        }
-      });
-    if (Object.keys(filters).length > 0) {
-      normalized.filters = filters;
-    }
-  }
-  return normalized;
-};
 
 const normalizeUserPreferences = (value) => {
   if (!isPlainObject(value)) {
@@ -1847,24 +1792,6 @@ const normalizeUserPreferences = (value) => {
   const density = String(value.density || "").trim().toLowerCase();
   if (USER_PREFERENCES_DENSITY_SET.has(density)) {
     normalized.density = density;
-  }
-  if (isPlainObject(value.uiListState)) {
-    const uiListState = {};
-    Object.entries(value.uiListState)
-      .slice(0, 80)
-      .forEach(([screenKey, stateValue]) => {
-        const normalizedKey = String(screenKey || "").trim();
-        if (!USER_PREFERENCES_UI_LIST_STATE_KEY_PATTERN.test(normalizedKey)) {
-          return;
-        }
-        const normalizedValue = normalizeUiListStateValue(stateValue);
-        if (Object.keys(normalizedValue).length > 0) {
-          uiListState[normalizedKey] = normalizedValue;
-        }
-      });
-    if (Object.keys(uiListState).length > 0) {
-      normalized.uiListState = uiListState;
-    }
   }
   return normalized;
 };
@@ -5836,6 +5763,46 @@ app.get("/api/public/bootstrap", (req, res) => {
   });
   res.setHeader("Cache-Control", "public, max-age=30, stale-while-revalidate=120");
   return res.json(payload);
+});
+
+app.get("/api/public/search/suggest", (req, res) => {
+  const q = normalizeSearchQuery(req.query.q);
+  const scope = parseSearchScope(req.query.scope);
+  const limit = parseSearchLimit(req.query.limit);
+
+  if (q.length < publicSearchConfig.minQueryLength) {
+    return res.json({ q, scope, suggestions: [] });
+  }
+
+  const now = Date.now();
+  const projects = normalizeProjects(loadProjects()).filter((project) => !project.deletedAt);
+  const posts = normalizePosts(loadPosts())
+    .filter((post) => !post.deletedAt)
+    .filter((post) => {
+      const publishTime = new Date(post.publishedAt).getTime();
+      return publishTime <= now && (post.status === "published" || post.status === "scheduled");
+    })
+    .map((post) => {
+      const resolvedCover = resolvePostCover(post);
+      return {
+        ...post,
+        coverImageUrl: resolvedCover.coverImageUrl,
+      };
+    });
+
+  const suggestions = buildPublicSearchSuggestions({
+    query: q,
+    scope,
+    limit,
+    projects,
+    posts,
+  }).map(({ score: _score, ...item }) => item);
+
+  return res.json({
+    q,
+    scope,
+    suggestions,
+  });
 });
 
 app.get("/api/public/projects", (req, res) => {

@@ -1,5 +1,5 @@
 import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Link, useNavigate, useNavigationType, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import DashboardShell from "@/components/DashboardShell";
 import DashboardPageContainer from "@/components/dashboard/DashboardPageContainer";
 import DashboardPageHeader from "@/components/dashboard/DashboardPageHeader";
@@ -48,7 +48,6 @@ import { buildTranslationMap, sortByTranslatedLabel, translateTag } from "@/lib/
 import { usePageMeta } from "@/hooks/use-page-meta";
 import { useEditorScrollLock } from "@/hooks/use-editor-scroll-lock";
 import { useEditorScrollStability } from "@/hooks/use-editor-scroll-stability";
-import { useUserPreferences } from "@/hooks/use-user-preferences";
 import { normalizeAssetUrl } from "@/lib/asset-url";
 import {
   MuiBrazilDateField,
@@ -63,8 +62,6 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from "@/components/ui/pagination";
-
-const DASHBOARD_POSTS_LIST_STATE_KEY = "dashboard.posts";
 
 const emptyForm = {
   title: "",
@@ -153,9 +150,6 @@ const parseSortParam = (
   }
   return "recent";
 };
-
-const hasPostsSearchQueryState = (params: URLSearchParams) =>
-  Boolean(params.get("sort") || params.get("q") || params.get("project") || params.get("page"));
 
 const normalizeComparableCoverUrl = (value?: string | null) => {
   const trimmed = String(value || "").trim();
@@ -278,7 +272,6 @@ const getPostStatusLabel = (status: PostRecord["status"]): string => {
 const DashboardPosts = () => {
   usePageMeta({ title: "Posts", noIndex: true });
   const navigate = useNavigate();
-  const navigationType = useNavigationType();
   const [searchParams, setSearchParams] = useSearchParams();
   const apiBase = getApiBase();
   const restoreWindowMs = 3 * 24 * 60 * 60 * 1000;
@@ -334,12 +327,6 @@ const DashboardPosts = () => {
     projectFilterId,
     currentPage,
   });
-  const hasRestoredListStateRef = useRef(false);
-  const {
-    hasLoaded: hasLoadedUserPreferences,
-    getUiListState,
-    setUiListState,
-  } = useUserPreferences();
 
   const currentUserRecord = currentUser
     ? users.find((user) => user.id === currentUser.id) || null
@@ -896,47 +883,6 @@ const DashboardPosts = () => {
   }, [currentPage, projectFilterId, searchQuery, sortMode]);
 
   useEffect(() => {
-    if (!hasLoadedUserPreferences) {
-      return;
-    }
-    if (navigationType === "POP" || hasPostsSearchQueryState(searchParams)) {
-      return;
-    }
-    setUiListState(DASHBOARD_POSTS_LIST_STATE_KEY, null);
-  }, [hasLoadedUserPreferences, navigationType, searchParams, setUiListState]);
-
-  useEffect(() => {
-    if (hasRestoredListStateRef.current || !hasLoadedUserPreferences) {
-      return;
-    }
-    hasRestoredListStateRef.current = true;
-    const hasSearchQueryState = hasPostsSearchQueryState(searchParams);
-    if (hasSearchQueryState) {
-      return;
-    }
-    if (navigationType !== "POP") {
-      setUiListState(DASHBOARD_POSTS_LIST_STATE_KEY, null);
-      return;
-    }
-    const savedListState = getUiListState(DASHBOARD_POSTS_LIST_STATE_KEY);
-    if (!savedListState) {
-      return;
-    }
-    const savedSortMode = parseSortParam(typeof savedListState.sort === "string" ? savedListState.sort : null);
-    const savedSearchQuery = typeof savedListState.filters?.q === "string" ? savedListState.filters.q : "";
-    const savedProjectFilterId =
-      typeof savedListState.filters?.projectId === "string" && savedListState.filters.projectId.trim()
-        ? savedListState.filters.projectId.trim()
-        : "all";
-    const savedPageRaw = Number(savedListState.page);
-    const savedPage = Number.isFinite(savedPageRaw) && savedPageRaw >= 1 ? Math.floor(savedPageRaw) : 1;
-    setSortMode((previous) => (previous === savedSortMode ? previous : savedSortMode));
-    setSearchQuery((previous) => (previous === savedSearchQuery ? previous : savedSearchQuery));
-    setProjectFilterId((previous) => (previous === savedProjectFilterId ? previous : savedProjectFilterId));
-    setCurrentPage((previous) => (previous === savedPage ? previous : savedPage));
-  }, [getUiListState, hasLoadedUserPreferences, navigationType, searchParams, setUiListState]);
-
-  useEffect(() => {
     const nextSortMode = parseSortParam(searchParams.get("sort"));
     const nextSearchQuery = searchParams.get("q") || "";
     const nextProjectFilterId = searchParams.get("project") || "all";
@@ -997,38 +943,6 @@ const DashboardPosts = () => {
       setSearchParams(nextParams, { replace: true });
     }
   }, [sortMode, searchQuery, projectFilterId, currentPage, searchParams, setSearchParams]);
-
-  useEffect(() => {
-    if (!hasLoadedUserPreferences) {
-      return;
-    }
-    const trimmedQuery = searchQuery.trim();
-    const filters: Record<string, string> = {};
-    if (trimmedQuery) {
-      filters.q = trimmedQuery;
-    }
-    if (projectFilterId && projectFilterId !== "all") {
-      filters.projectId = projectFilterId;
-    }
-    const nextState: {
-      sort?: string;
-      page?: number;
-      filters?: Record<string, string>;
-    } = {};
-    if (sortMode !== "recent") {
-      nextState.sort = sortMode;
-    }
-    if (currentPage > 1) {
-      nextState.page = currentPage;
-    }
-    if (Object.keys(filters).length > 0) {
-      nextState.filters = filters;
-    }
-    setUiListState(
-      DASHBOARD_POSTS_LIST_STATE_KEY,
-      Object.keys(nextState).length > 0 ? nextState : null,
-    );
-  }, [currentPage, hasLoadedUserPreferences, projectFilterId, searchQuery, setUiListState, sortMode]);
 
   const handlePublishDateChange = (nextDate: Date | null) => {
     if (!nextDate) {

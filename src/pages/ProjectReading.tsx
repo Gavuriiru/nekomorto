@@ -1,20 +1,28 @@
-import { Suspense, lazy, useEffect, useMemo, useRef, useState } from "react";
+﻿import { Suspense, lazy, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
-import { ChevronLeft, BookOpen } from "lucide-react";
+import { BookOpen, ChevronLeft } from "lucide-react";
 
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import CommentsSection from "@/components/CommentsSection";
 import DiscordInviteCard from "@/components/DiscordInviteCard";
 import LatestEpisodeCard from "@/components/LatestEpisodeCard";
 import WorkStatusCard from "@/components/WorkStatusCard";
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { usePageMeta } from "@/hooks/use-page-meta";
 import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
 import { isLightNovelType } from "@/lib/project-utils";
-import CommentsSection from "@/components/CommentsSection";
-import { usePageMeta } from "@/hooks/use-page-meta";
-import NotFound from "./NotFound";
 import type { Project } from "@/data/projects";
+import NotFound from "./NotFound";
 
 const LexicalViewer = lazy(() => import("@/components/lexical/LexicalViewer"));
 
@@ -94,7 +102,6 @@ const ProjectReading = () => {
 
   const chapterNumber = Number(chapter);
   const volumeParam = Number(searchParams.get("volume"));
-
   const isLightNovel = isLightNovelType(project?.type || "");
 
   const sortedChapters = useMemo(() => {
@@ -175,6 +182,7 @@ const ProjectReading = () => {
       isActive = false;
     };
   }, [apiBase, project, chapterNumber, volumeParam]);
+
   useEffect(() => {
     if (!project?.id || !Number.isFinite(chapterContent?.number)) {
       return;
@@ -219,11 +227,9 @@ const ProjectReading = () => {
   if (!slug || (!project && hasLoaded)) {
     return <NotFound />;
   }
-
   if (!project) {
     return null;
   }
-
   if (!isLightNovel) {
     return <NotFound />;
   }
@@ -232,7 +238,8 @@ const ProjectReading = () => {
     <div className="flex min-h-screen flex-col">
       <main className="flex-1 bg-background">
         <section className="mx-auto w-full max-w-6xl px-6 pb-16 pt-10 md:px-10">
-          <div className="space-y-6">
+          <div className="space-y-5">
+
             <div className="flex flex-wrap items-center justify-between gap-3">
               <Button asChild variant="ghost" size="sm" className="gap-2">
                 <Link to={`/projeto/${project.id}`}>
@@ -252,6 +259,9 @@ const ProjectReading = () => {
                     </Link>
                   </Button>
                 ) : null}
+                <Button asChild size="sm" variant="outline">
+                  <Link to="/projetos">Ir para projetos</Link>
+                </Button>
                 {nextChapter ? (
                   <Button asChild size="sm">
                     <Link
@@ -265,7 +275,33 @@ const ProjectReading = () => {
                 ) : null}
               </div>
             </div>
-            <div className="space-y-2">
+
+            <div className="space-y-3">
+              <Breadcrumb>
+                <BreadcrumbList>
+                  <BreadcrumbItem>
+                    <BreadcrumbLink asChild>
+                      <Link to="/">Início</Link>
+                    </BreadcrumbLink>
+                  </BreadcrumbItem>
+                  <BreadcrumbSeparator />
+                  <BreadcrumbItem>
+                    <BreadcrumbLink asChild>
+                      <Link to="/projetos">Projetos</Link>
+                    </BreadcrumbLink>
+                  </BreadcrumbItem>
+                  <BreadcrumbSeparator />
+                  <BreadcrumbItem>
+                    <BreadcrumbLink asChild>
+                      <Link to={`/projeto/${project.id}`}>{project.title}</Link>
+                    </BreadcrumbLink>
+                  </BreadcrumbItem>
+                  <BreadcrumbSeparator />
+                  <BreadcrumbItem>
+                    <BreadcrumbPage>Leitura</BreadcrumbPage>
+                  </BreadcrumbItem>
+                </BreadcrumbList>
+              </Breadcrumb>
               <Badge variant="secondary" className="text-xs uppercase">
                 Cap {chapterData?.number ?? chapterNumber}
                 {chapterData?.volume ? ` • Vol. ${chapterData.volume}` : ""}
@@ -273,10 +309,9 @@ const ProjectReading = () => {
               <h1 className="text-2xl font-semibold text-foreground md:text-3xl">
                 {chapterContent?.title || chapterData?.title || project.title}
               </h1>
-              <p className="text-sm text-muted-foreground">
-                {project.title} • Leitura de Light Novel
-              </p>
+              <p className="text-sm text-muted-foreground">{project.title} • Leitura de Light Novel</p>
             </div>
+
           </div>
 
           <section className="mt-8 grid gap-8 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
@@ -312,12 +347,14 @@ const ProjectReading = () => {
                   )}
                 </CardContent>
               </Card>
+
               <CommentsSection
                 targetType="chapter"
                 targetId={project.id}
                 chapterNumber={chapterData?.number ?? chapterNumber}
                 volume={chapterData?.volume ?? (Number.isFinite(volumeParam) ? volumeParam : undefined)}
               />
+
               <div className="flex items-center gap-2 text-xs text-muted-foreground">
                 <BookOpen className="h-4 w-4 text-primary/70" />
                 Capítulos publicados diretamente no site.
@@ -337,5 +374,4 @@ const ProjectReading = () => {
 };
 
 export default ProjectReading;
-
 

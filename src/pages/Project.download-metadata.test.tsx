@@ -137,7 +137,7 @@ describe("Project downloads metadata", () => {
       </MemoryRouter>,
     );
 
-    expect(await screen.findByText("Projeto Teste")).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Projeto Teste" })).toBeInTheDocument();
     expect(screen.queryByText("Source:")).not.toBeInTheDocument();
     expect(screen.queryByText(/\bRAW\b/i)).not.toBeInTheDocument();
     expect(screen.getByText("TV")).toBeInTheDocument();

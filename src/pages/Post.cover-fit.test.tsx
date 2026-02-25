@@ -80,13 +80,17 @@ const postFixture = {
   commentsCount: 2,
 };
 
-const setupApiMock = () => {
+const setupApiMock = (postOverrides: Partial<typeof postFixture> = {}) => {
+  const post = {
+    ...postFixture,
+    ...postOverrides,
+  };
   apiFetchMock.mockReset();
   apiFetchMock.mockImplementation(async (_apiBase: string, endpoint: string, options?: RequestInit) => {
     const method = String(options?.method || "GET").toUpperCase();
 
     if (endpoint === "/api/public/posts/post-teste" && method === "GET") {
-      return mockJsonResponse(true, { post: postFixture });
+      return mockJsonResponse(true, { post });
     }
     if (endpoint === "/api/public/posts/post-teste/view" && method === "POST") {
       return mockJsonResponse(true, { views: 11 });
@@ -119,5 +123,27 @@ describe("Post cover fit", () => {
     const coverContainer = coverImage.parentElement;
     expect(coverContainer).not.toBeNull();
     expect(coverContainer).toHaveClass("relative", "aspect-3/2", "overflow-hidden");
+  });
+
+  it("renderiza breadcrumb e CTAs contextuais para navegacao interna", async () => {
+    setupApiMock({
+      projectId: "project-1",
+    });
+
+    render(
+      <MemoryRouter>
+        <Post />
+      </MemoryRouter>,
+    );
+
+    await screen.findByRole("heading", { name: "Post de Teste" });
+
+    const homeBreadcrumbLink = screen
+      .getAllByRole("link", { name: /In[ií]cio/i })
+      .find((link) => link.getAttribute("href") === "/");
+    expect(homeBreadcrumbLink).toBeDefined();
+    expect(screen.getByRole("link", { name: "Ir para projeto" })).toHaveAttribute("href", "/projeto/project-1");
+    expect(screen.getByRole("link", { name: "Explorar projetos" })).toHaveAttribute("href", "/projetos");
+    expect(screen.getByRole("link", { name: /Voltar ao in/i })).toHaveAttribute("href", "/#lancamentos");
   });
 });

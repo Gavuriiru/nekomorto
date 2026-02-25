@@ -8,7 +8,7 @@ import {
   useState,
   type DragEvent,
 } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import DashboardAutosaveStatus from "@/components/DashboardAutosaveStatus";
 import DashboardShell from "@/components/DashboardShell";
 import AsyncState from "@/components/ui/async-state";
@@ -69,7 +69,6 @@ import { useSiteSettings } from "@/hooks/use-site-settings";
 import { defaultSettings, mergeSettings } from "@/hooks/site-settings-context";
 import type { SiteSettings } from "@/types/site-settings";
 import { usePageMeta } from "@/hooks/use-page-meta";
-import { useUserPreferences } from "@/hooks/use-user-preferences";
 import ThemedSvgLogo from "@/components/ThemedSvgLogo";
 import { navbarIconOptions } from "@/lib/navbar-icons";
 import { resolveBranding } from "@/lib/branding";
@@ -198,7 +197,6 @@ type SettingsTabKey =
   | "traducoes"
   | "preview-paginas";
 
-const DASHBOARD_SETTINGS_LIST_STATE_KEY = "dashboard.settings";
 const DASHBOARD_SETTINGS_DEFAULT_TAB: SettingsTabKey = "geral";
 const dashboardSettingsTabSet = new Set<SettingsTabKey>([
   "geral",
@@ -213,6 +211,13 @@ const dashboardSettingsTabSet = new Set<SettingsTabKey>([
 
 const isDashboardSettingsTab = (value: string): value is SettingsTabKey =>
   dashboardSettingsTabSet.has(value as SettingsTabKey);
+const parseDashboardSettingsTabParam = (value: string | null): SettingsTabKey => {
+  const normalized = String(value || "").trim();
+  if (isDashboardSettingsTab(normalized)) {
+    return normalized;
+  }
+  return DASHBOARD_SETTINGS_DEFAULT_TAB;
+};
 
 type LinkTypeItem = { id: string; label: string; icon: string };
 type TranslationsPayload = {
@@ -434,6 +439,7 @@ const DashboardSettings = () => {
   usePageMeta({ title: "Configurações", noIndex: true });
 
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const apiBase = getApiBase();
   const initialAutosaveEnabledRef = useRef(
     autosaveRuntimeConfig.enabledByDefault &&
@@ -474,18 +480,14 @@ const DashboardSettings = () => {
   const [newGenre, setNewGenre] = useState("");
   const [staffRoleQuery, setStaffRoleQuery] = useState("");
   const [newStaffRole, setNewStaffRole] = useState("");
-  const [activeTab, setActiveTab] = useState<SettingsTabKey>(DASHBOARD_SETTINGS_DEFAULT_TAB);
+  const [activeTab, setActiveTab] = useState<SettingsTabKey>(() =>
+    parseDashboardSettingsTabParam(searchParams.get("tab")),
+  );
   const [footerSocialDragIndex, setFooterSocialDragIndex] = useState<number | null>(null);
   const [footerSocialDragOverIndex, setFooterSocialDragOverIndex] = useState<number | null>(null);
   const hasSyncedAniList = useRef(false);
-  const hasRestoredTabRef = useRef(false);
   const rootLibraryFolders = useMemo(() => [""], []);
   const settingsTabsGridClass = canManagePages ? "md:grid-cols-8" : "md:grid-cols-7";
-  const {
-    hasLoaded: hasLoadedUserPreferences,
-    getUiListState,
-    setUiListState,
-  } = useUserPreferences();
 
   useEffect(() => {
     const loadUser = async () => {
@@ -600,39 +602,39 @@ const DashboardSettings = () => {
   }, [apiBase, loadVersion, publicSettings]);
 
   useEffect(() => {
-    if (hasRestoredTabRef.current || !hasLoadedUserPreferences || isLoading) {
+    if (isLoading) {
       return;
     }
-    hasRestoredTabRef.current = true;
-    const savedListState = getUiListState(DASHBOARD_SETTINGS_LIST_STATE_KEY);
-    const savedTab = typeof savedListState?.filters?.tab === "string" ? savedListState.filters.tab.trim() : "";
-    if (!savedTab || !isDashboardSettingsTab(savedTab)) {
-      return;
-    }
-    if (savedTab === "preview-paginas" && !canManagePages) {
-      return;
-    }
-    setActiveTab(savedTab);
-  }, [canManagePages, getUiListState, hasLoadedUserPreferences, isLoading]);
+    const requestedTab = parseDashboardSettingsTabParam(searchParams.get("tab"));
+    const resolvedTab =
+      requestedTab === "preview-paginas" && !canManagePages
+        ? DASHBOARD_SETTINGS_DEFAULT_TAB
+        : requestedTab;
+    setActiveTab((previous) => (previous === resolvedTab ? previous : resolvedTab));
+  }, [canManagePages, isLoading, searchParams]);
 
   useEffect(() => {
-    if (!hasLoadedUserPreferences || isLoading) {
+    if (isLoading) {
       return;
     }
     const resolvedTab =
       activeTab === "preview-paginas" && !canManagePages
         ? DASHBOARD_SETTINGS_DEFAULT_TAB
         : activeTab;
-    if (resolvedTab === DASHBOARD_SETTINGS_DEFAULT_TAB) {
-      setUiListState(DASHBOARD_SETTINGS_LIST_STATE_KEY, null);
+    if (resolvedTab !== activeTab) {
+      setActiveTab(resolvedTab);
       return;
     }
-    setUiListState(DASHBOARD_SETTINGS_LIST_STATE_KEY, {
-      filters: {
-        tab: resolvedTab,
-      },
-    });
-  }, [activeTab, canManagePages, hasLoadedUserPreferences, isLoading, setUiListState]);
+    const nextParams = new URLSearchParams(searchParams);
+    if (resolvedTab === DASHBOARD_SETTINGS_DEFAULT_TAB) {
+      nextParams.delete("tab");
+    } else {
+      nextParams.set("tab", resolvedTab);
+    }
+    if (nextParams.toString() !== searchParams.toString()) {
+      setSearchParams(nextParams, { replace: true });
+    }
+  }, [activeTab, canManagePages, isLoading, searchParams, setSearchParams]);
 
   const syncAniListTerms = useCallback(
     async (options?: { silent?: boolean }) => {

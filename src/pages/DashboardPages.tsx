@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import DashboardAutosaveStatus from "@/components/DashboardAutosaveStatus";
 import DashboardShell from "@/components/DashboardShell";
 import AsyncState from "@/components/ui/async-state";
@@ -56,7 +56,6 @@ import { apiFetch } from "@/lib/api-client";
 import { applyBeforeUnloadCompatibility } from "@/lib/before-unload";
 import { toast } from "@/components/ui/use-toast";
 import { usePageMeta } from "@/hooks/use-page-meta";
-import { useUserPreferences } from "@/hooks/use-user-preferences";
 
 type AboutHighlight = { label: string; text: string; icon: string };
 type AboutValue = { title: string; description: string; icon: string };
@@ -266,11 +265,17 @@ const orderedPageTabs = (Object.entries(pageLabels) as Array<[PublicPageKey, str
   .sort(([, labelA], [, labelB]) => labelA.localeCompare(labelB, "pt-BR"))
   .map(([key, label]) => ({ key, label }));
 
-const DASHBOARD_PAGES_LIST_STATE_KEY = "dashboard.pages";
 const DASHBOARD_PAGES_DEFAULT_TAB: PublicPageKey = orderedPageTabs[0]?.key || "donations";
 const DASHBOARD_PAGES_TAB_SET = new Set<PublicPageKey>(orderedPageTabs.map((tab) => tab.key));
 const isDashboardPagesTab = (value: string): value is PublicPageKey =>
   DASHBOARD_PAGES_TAB_SET.has(value as PublicPageKey);
+const parseDashboardPagesTabParam = (value: string | null): PublicPageKey => {
+  const normalized = String(value || "").trim();
+  if (isDashboardPagesTab(normalized)) {
+    return normalized;
+  }
+  return DASHBOARD_PAGES_DEFAULT_TAB;
+};
 
 const reorder = <T,>(items: T[], from: number, to: number) => {
   const next = [...items];
@@ -318,6 +323,7 @@ const DashboardPages = () => {
   usePageMeta({ title: "Páginas", noIndex: true });
   const apiBase = getApiBase();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const initialAutosaveEnabledRef = useRef(
     autosaveRuntimeConfig.enabledByDefault &&
       readAutosavePreference(autosaveStorageKeys.pages, true),
@@ -326,8 +332,9 @@ const DashboardPages = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [hasLoadError, setHasLoadError] = useState(false);
   const [loadVersion, setLoadVersion] = useState(0);
-  const [activeTab, setActiveTab] = useState<PublicPageKey>(DASHBOARD_PAGES_DEFAULT_TAB);
-  const hasRestoredTabRef = useRef(false);
+  const [activeTab, setActiveTab] = useState<PublicPageKey>(() =>
+    parseDashboardPagesTabParam(searchParams.get("tab")),
+  );
   const [dragState, setDragState] = useState<{ list: string; index: number } | null>(null);
   const [currentUser, setCurrentUser] = useState<{
     id: string;
@@ -335,11 +342,6 @@ const DashboardPages = () => {
     username: string;
     avatarUrl?: string | null;
   } | null>(null);
-  const {
-    hasLoaded: hasLoadedUserPreferences,
-    getUiListState,
-    setUiListState,
-  } = useUserPreferences();
 
   const qrPreview = useMemo(() => {
     if (pages.donations.qrCustomUrl) {
@@ -354,31 +356,21 @@ const DashboardPages = () => {
   }, [pages.donations.pixKey, pages.donations.qrCustomUrl]);
 
   useEffect(() => {
-    if (hasRestoredTabRef.current || !hasLoadedUserPreferences) {
-      return;
-    }
-    hasRestoredTabRef.current = true;
-    const savedListState = getUiListState(DASHBOARD_PAGES_LIST_STATE_KEY);
-    const savedTab = typeof savedListState?.filters?.tab === "string" ? savedListState.filters.tab.trim() : "";
-    if (savedTab && isDashboardPagesTab(savedTab)) {
-      setActiveTab(savedTab);
-    }
-  }, [getUiListState, hasLoadedUserPreferences]);
+    const nextTab = parseDashboardPagesTabParam(searchParams.get("tab"));
+    setActiveTab((previous) => (previous === nextTab ? previous : nextTab));
+  }, [searchParams]);
 
   useEffect(() => {
-    if (!hasLoadedUserPreferences) {
-      return;
-    }
+    const nextParams = new URLSearchParams(searchParams);
     if (activeTab === DASHBOARD_PAGES_DEFAULT_TAB) {
-      setUiListState(DASHBOARD_PAGES_LIST_STATE_KEY, null);
-      return;
+      nextParams.delete("tab");
+    } else {
+      nextParams.set("tab", activeTab);
     }
-    setUiListState(DASHBOARD_PAGES_LIST_STATE_KEY, {
-      filters: {
-        tab: activeTab,
-      },
-    });
-  }, [activeTab, hasLoadedUserPreferences, setUiListState]);
+    if (nextParams.toString() !== searchParams.toString()) {
+      setSearchParams(nextParams, { replace: true });
+    }
+  }, [activeTab, searchParams, setSearchParams]);
 
   useEffect(() => {
     const load = async () => {

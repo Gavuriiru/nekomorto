@@ -1,5 +1,5 @@
 import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Link, useNavigate, useNavigationType, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import type { MouseEvent as ReactMouseEvent } from "react";
 import DashboardShell from "@/components/DashboardShell";
 import DashboardPageContainer from "@/components/dashboard/DashboardPageContainer";
@@ -78,11 +78,8 @@ import { formatBytesCompact, parseHumanSizeToBytes } from "@/lib/file-size";
 import { usePageMeta } from "@/hooks/use-page-meta";
 import { useEditorScrollLock } from "@/hooks/use-editor-scroll-lock";
 import { useEditorScrollStability } from "@/hooks/use-editor-scroll-stability";
-import { useUserPreferences } from "@/hooks/use-user-preferences";
 import type { LexicalEditorHandle } from "@/components/lexical/LexicalEditor";
 import { useSiteSettings } from "@/hooks/use-site-settings";
-
-const DASHBOARD_PROJECTS_LIST_STATE_KEY = "dashboard.projects";
 
 const LexicalEditor = lazy(() => import("@/components/lexical/LexicalEditor"));
 const ImageLibraryDialog = lazy(() => import("@/components/ImageLibraryDialog"));
@@ -681,8 +678,13 @@ const parsePageParam = (value: string | null) => {
   return Math.floor(parsed);
 };
 
-const hasProjectsSearchQueryState = (params: URLSearchParams) =>
-  Boolean(params.get("sort") || params.get("page"));
+const parseTypeParam = (value: string | null) => {
+  const normalized = String(value || "").trim();
+  if (!normalized) {
+    return "Todos";
+  }
+  return normalized;
+};
 
 const buildProjectEditorSnapshot = (form: ProjectForm, anilistIdInput: string) =>
   JSON.stringify({
@@ -729,7 +731,6 @@ const EpisodeContentEditor = ({
 const DashboardProjectsEditor = () => {
   usePageMeta({ title: "Projetos", noIndex: true });
   const navigate = useNavigate();
-  const navigationType = useNavigationType();
   const apiBase = getApiBase();
   const { settings: publicSettings } = useSiteSettings();
   const restoreWindowMs = 3 * 24 * 60 * 60 * 1000;
@@ -761,7 +762,7 @@ const DashboardProjectsEditor = () => {
     return "alpha";
   });
   const [currentPage, setCurrentPage] = useState(() => parsePageParam(searchParams.get("page")));
-  const [selectedType, setSelectedType] = useState("Todos");
+  const [selectedType, setSelectedType] = useState(() => parseTypeParam(searchParams.get("type")));
   const [isEditorOpen, setIsEditorOpen] = useState(false);
   useEditorScrollLock(isEditorOpen);
   useEditorScrollStability(isEditorOpen);
@@ -882,13 +883,9 @@ const DashboardProjectsEditor = () => {
   const queryStateRef = useRef({
     sortMode,
     currentPage,
+    selectedType,
   });
-  const hasRestoredListStateRef = useRef(false);
-  const {
-    hasLoaded: hasLoadedUserPreferences,
-    getUiListState,
-    setUiListState,
-  } = useUserPreferences();
+  const hasInitializedListFiltersRef = useRef(false);
   const editorInitialSnapshotRef = useRef<string>(buildProjectEditorSnapshot(emptyProject, ""));
   const isDirty = useMemo(
     () => buildProjectEditorSnapshot(formState, anilistIdInput) !== editorInitialSnapshotRef.current,
@@ -1039,57 +1036,9 @@ const DashboardProjectsEditor = () => {
     queryStateRef.current = {
       sortMode,
       currentPage,
+      selectedType,
     };
-  }, [currentPage, sortMode]);
-
-  useEffect(() => {
-    if (!hasLoadedUserPreferences) {
-      return;
-    }
-    if (navigationType === "POP" || hasProjectsSearchQueryState(searchParams)) {
-      return;
-    }
-    setSelectedType((previous) => (previous === "Todos" ? previous : "Todos"));
-    setUiListState(DASHBOARD_PROJECTS_LIST_STATE_KEY, null);
-  }, [hasLoadedUserPreferences, navigationType, searchParams, setUiListState]);
-
-  useEffect(() => {
-    if (hasRestoredListStateRef.current || !hasLoadedUserPreferences) {
-      return;
-    }
-    hasRestoredListStateRef.current = true;
-    const hasSearchQueryState = hasProjectsSearchQueryState(searchParams);
-    if (!hasSearchQueryState && navigationType !== "POP") {
-      setSelectedType((previous) => (previous === "Todos" ? previous : "Todos"));
-      setUiListState(DASHBOARD_PROJECTS_LIST_STATE_KEY, null);
-      return;
-    }
-    const savedListState = getUiListState(DASHBOARD_PROJECTS_LIST_STATE_KEY);
-    if (!savedListState) {
-      return;
-    }
-    const savedType =
-      typeof savedListState.filters?.type === "string" && savedListState.filters.type.trim()
-        ? savedListState.filters.type.trim()
-        : "Todos";
-    setSelectedType((previous) => (previous === savedType ? previous : savedType));
-    if (hasSearchQueryState || navigationType !== "POP") {
-      return;
-    }
-    const savedSortParam = typeof savedListState.sort === "string" ? savedListState.sort : null;
-    const savedSortMode =
-      savedSortParam === "alpha" ||
-      savedSortParam === "status" ||
-      savedSortParam === "views" ||
-      savedSortParam === "comments" ||
-      savedSortParam === "recent"
-        ? savedSortParam
-        : "alpha";
-    const savedPageRaw = Number(savedListState.page);
-    const savedPage = Number.isFinite(savedPageRaw) && savedPageRaw >= 1 ? Math.floor(savedPageRaw) : 1;
-    setSortMode((previous) => (previous === savedSortMode ? previous : savedSortMode));
-    setCurrentPage((previous) => (previous === savedPage ? previous : savedPage));
-  }, [getUiListState, hasLoadedUserPreferences, navigationType, searchParams, setUiListState]);
+  }, [currentPage, selectedType, sortMode]);
 
   useEffect(() => {
     const sortParam = searchParams.get("sort");
@@ -1102,14 +1051,21 @@ const DashboardProjectsEditor = () => {
         ? sortParam
         : "alpha";
     const nextPage = parsePageParam(searchParams.get("page"));
-    const { sortMode: currentSortMode, currentPage: currentCurrentPage } = queryStateRef.current;
-    const shouldApply = currentSortMode !== nextSort || currentCurrentPage !== nextPage;
+    const nextType = parseTypeParam(searchParams.get("type"));
+    const {
+      sortMode: currentSortMode,
+      currentPage: currentCurrentPage,
+      selectedType: currentSelectedType,
+    } = queryStateRef.current;
+    const shouldApply =
+      currentSortMode !== nextSort || currentCurrentPage !== nextPage || currentSelectedType !== nextType;
     if (!shouldApply) {
       return;
     }
     isApplyingSearchParamsRef.current = true;
     setSortMode((prev) => (prev === nextSort ? prev : nextSort));
     setCurrentPage((prev) => (prev === nextPage ? prev : nextPage));
+    setSelectedType((prev) => (prev === nextType ? prev : nextType));
   }, [searchParams]);
 
   useEffect(() => {
@@ -1124,6 +1080,11 @@ const DashboardProjectsEditor = () => {
     } else {
       nextParams.set("page", String(currentPage));
     }
+    if (selectedType === "Todos") {
+      nextParams.delete("type");
+    } else {
+      nextParams.set("type", selectedType);
+    }
     const currentQuery = searchParams.toString();
     const nextQuery = nextParams.toString();
     if (isApplyingSearchParamsRef.current) {
@@ -1135,37 +1096,13 @@ const DashboardProjectsEditor = () => {
     if (nextQuery !== currentQuery) {
       setSearchParams(nextParams, { replace: true });
     }
-  }, [currentPage, searchParams, setSearchParams, sortMode]);
+  }, [currentPage, searchParams, selectedType, setSearchParams, sortMode]);
 
   useEffect(() => {
-    if (!hasLoadedUserPreferences) {
+    if (!hasInitializedListFiltersRef.current) {
+      hasInitializedListFiltersRef.current = true;
       return;
     }
-    const filters: Record<string, string> = {};
-    if (selectedType !== "Todos") {
-      filters.type = selectedType;
-    }
-    const nextState: {
-      sort?: string;
-      page?: number;
-      filters?: Record<string, string>;
-    } = {};
-    if (sortMode !== "alpha") {
-      nextState.sort = sortMode;
-    }
-    if (currentPage > 1) {
-      nextState.page = currentPage;
-    }
-    if (Object.keys(filters).length > 0) {
-      nextState.filters = filters;
-    }
-    setUiListState(
-      DASHBOARD_PROJECTS_LIST_STATE_KEY,
-      Object.keys(nextState).length > 0 ? nextState : null,
-    );
-  }, [currentPage, hasLoadedUserPreferences, selectedType, setUiListState, sortMode]);
-
-  useEffect(() => {
     setCurrentPage(1);
   }, [searchQuery, selectedType, sortMode]);
 

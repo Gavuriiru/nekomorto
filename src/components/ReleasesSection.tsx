@@ -29,6 +29,15 @@ const ReleasesSection = () => {
   const projects = bootstrapData?.projects || [];
   const isLoadingPosts = isLoading && !bootstrapData;
   const tagTranslations = bootstrapData?.tagTranslations?.tags || {};
+  const projectById = useMemo(
+    () =>
+      new Map(
+        projects
+          .map((project) => [String(project.id || ""), String(project.title || "")] as const)
+          .filter(([id]) => Boolean(id)),
+      ),
+    [projects],
+  );
 
   const totalPages = Math.ceil(posts.length / pageSize) || 1;
   const pagedReleases = useMemo(() => {
@@ -58,7 +67,7 @@ const ReleasesSection = () => {
   );
 
   return (
-    <section className="py-16 px-6 md:px-12 bg-background reveal" data-reveal>
+    <section id="lancamentos" className="scroll-mt-32 py-16 px-6 md:px-12 bg-background reveal" data-reveal>
       <div className="max-w-7xl mx-auto">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Left side - Release cards (blog posts) */}
@@ -87,45 +96,49 @@ const ReleasesSection = () => {
                     : "";
                   const mainTag = Array.isArray(release.tags) && release.tags.length > 0 ? release.tags[0] : projectTag;
                   const displayTag = mainTag ? tagTranslations[mainTag] || mainTag : "";
+                  const projectId = String(release.projectId || "").trim();
+                  const projectTitle = projectById.get(projectId) || "";
+                  const projectHref = projectId ? `/projeto/${projectId}` : "";
                   return (
-                    <Link
+                    <div
                       key={release.id}
-                      to={`/postagem/${release.slug}`}
                       className={cn(
                         "group reveal",
-                        isOrphan && "sm:col-span-2 sm:justify-self-center sm:w-full sm:max-w-[calc((100%-2rem)/2)]"
+                        isOrphan && "sm:col-span-2 sm:justify-self-center sm:w-full sm:max-w-[calc((100%-2rem)/2)]",
                       )}
                       data-reveal
                       style={{ transitionDelay: `${index * 80}ms` }}
                     >
                       <Card className="bg-card border-border h-full overflow-hidden transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:bg-card/90 hover:shadow-lg">
                         <CardContent className="p-0 flex flex-col h-full">
-                          <div className="relative w-full aspect-3/2 overflow-hidden bg-secondary">
-                            <img
-                              src={normalizeAssetUrl(release.coverImageUrl) || "/placeholder.svg"}
-                              alt={release.title}
-                              className="absolute inset-0 block h-full w-full object-cover object-center transition-transform duration-300 group-hover:scale-105"
-                              loading="lazy"
-                            />
-                            {displayTag ? (
-                              <div className="absolute right-3 top-3 flex flex-wrap gap-2">
-                                <Badge
-                                  variant="secondary"
-                                  className="text-[10px] uppercase tracking-wide bg-background/85 text-foreground shadow-xs"
-                                >
-                                  {displayTag}
-                                </Badge>
-                              </div>
-                            ) : null}
-                          </div>
-                          <div className="p-5 space-y-2">
-                            <h3 className="text-xl md:text-2xl font-semibold text-foreground group-hover:text-primary transition-colors leading-snug">
-                              {release.title}
-                            </h3>
-                            <p className="text-sm text-muted-foreground line-clamp-3">
-                              {release.excerpt || "Sem prévia cadastrada."}
-                            </p>
-                          </div>
+                          <Link to={`/postagem/${release.slug}`} className="block">
+                            <div className="relative w-full aspect-3/2 overflow-hidden bg-secondary">
+                              <img
+                                src={normalizeAssetUrl(release.coverImageUrl) || "/placeholder.svg"}
+                                alt={release.title}
+                                className="absolute inset-0 block h-full w-full object-cover object-center transition-transform duration-300 group-hover:scale-105"
+                                loading="lazy"
+                              />
+                              {displayTag ? (
+                                <div className="absolute right-3 top-3 flex flex-wrap gap-2">
+                                  <Badge
+                                    variant="secondary"
+                                    className="text-[10px] uppercase tracking-wide bg-background/85 text-foreground shadow-xs"
+                                  >
+                                    {displayTag}
+                                  </Badge>
+                                </div>
+                              ) : null}
+                            </div>
+                            <div className="p-5 space-y-2">
+                              <h3 className="text-xl md:text-2xl font-semibold text-foreground group-hover:text-primary transition-colors leading-snug">
+                                {release.title}
+                              </h3>
+                              <p className="text-sm text-muted-foreground line-clamp-3">
+                                {release.excerpt || "Sem prévia cadastrada."}
+                              </p>
+                            </div>
+                          </Link>
                           <div className="mt-auto px-5 pb-5 flex items-center justify-between gap-3 text-xs text-muted-foreground">
                             <span className="inline-flex items-center gap-1.5">
                               <User className="h-4 w-4 text-primary/70" aria-hidden="true" />
@@ -136,9 +149,25 @@ const ReleasesSection = () => {
                               {formatDate(release.publishedAt)}
                             </span>
                           </div>
+                          <div className="px-5 pb-5 flex flex-wrap gap-2">
+                            <Link
+                              to={`/postagem/${release.slug}`}
+                              className="inline-flex items-center rounded-full border border-primary/25 bg-primary/10 px-3 py-1 text-xs font-medium text-primary transition-colors hover:bg-primary/20"
+                            >
+                              Ler postagem
+                            </Link>
+                            {projectHref ? (
+                              <Link
+                                to={projectHref}
+                                className="inline-flex items-center rounded-full border border-border/70 bg-background/70 px-3 py-1 text-xs font-medium text-foreground/85 transition-colors hover:border-primary/30 hover:text-primary"
+                              >
+                                {projectTitle ? `Ver projeto: ${projectTitle}` : "Ver projeto"}
+                              </Link>
+                            ) : null}
+                          </div>
                         </CardContent>
                       </Card>
-                    </Link>
+                    </div>
                   );
                 })}
               </div>
@@ -205,10 +234,3 @@ const ReleasesSection = () => {
 };
 
 export default ReleasesSection;
-
-
-
-
-
-
-

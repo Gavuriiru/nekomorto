@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { render, screen, within } from "@testing-library/react";
+import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import DashboardSettings from "@/pages/DashboardSettings";
 import { defaultSettings } from "@/hooks/site-settings-context";
@@ -87,7 +88,11 @@ describe("DashboardSettings preview permission gate", () => {
   });
 
   it("oculta a aba de preview quando /api/pages retorna 403", async () => {
-    render(<DashboardSettings />);
+    render(
+      <MemoryRouter initialEntries={["/dashboard/configuracoes"]}>
+        <DashboardSettings />
+      </MemoryRouter>,
+    );
     await screen.findByRole("heading", { name: /Painel/i });
 
     const tablist = screen.getByRole("tablist");

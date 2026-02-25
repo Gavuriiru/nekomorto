@@ -44,7 +44,7 @@ const mockJsonResponse = (ok: boolean, payload: unknown, status = ok ? 200 : 500
     json: async () => payload,
   }) as Response;
 
-const setupApiMock = (preferences: unknown) => {
+const setupApiMock = () => {
   apiFetchMock.mockReset();
   apiFetchMock.mockImplementation(async (_base: string, path: string, options?: RequestInit) => {
     const method = String(options?.method || "GET").toUpperCase();
@@ -54,16 +54,6 @@ const setupApiMock = (preferences: unknown) => {
         name: "Admin",
         username: "admin",
       });
-    }
-    if (path === "/api/me/preferences" && method === "GET") {
-      return mockJsonResponse(true, { preferences });
-    }
-    if (path === "/api/me/preferences" && method === "PUT") {
-      const request = (options || {}) as RequestInit & { json?: unknown };
-      const payload =
-        (request.json as { preferences?: unknown } | undefined) ||
-        JSON.parse(String(request.body || "{}"));
-      return mockJsonResponse(true, { preferences: payload.preferences || {} });
     }
     if (path.startsWith("/api/analytics/overview?") && method === "GET") {
       return mockJsonResponse(true, {
@@ -114,12 +104,10 @@ const getLastTimeseriesParams = () => {
   return new URLSearchParams(last.split("?")[1] || "");
 };
 
-const getPreferencePutCalls = () =>
+const getPreferenceCalls = () =>
   apiFetchMock.mock.calls.filter((call) => {
     const path = String(call[1] || "");
-    const options = (call[2] || {}) as RequestInit;
-    const method = String(options.method || "GET").toUpperCase();
-    return path === "/api/me/preferences" && method === "PUT";
+    return path === "/api/me/preferences";
   });
 
 const LocationProbe = () => {
@@ -136,23 +124,13 @@ const NavigateCleanQuery = () => {
   );
 };
 
-describe("DashboardAnalytics preferences", () => {
+describe("DashboardAnalytics query sync", () => {
   beforeEach(() => {
     apiFetchMock.mockReset();
   });
 
-  it("restaura filtros salvos quando URL inicial está limpa", async () => {
-    setupApiMock({
-      uiListState: {
-        "dashboard.analytics": {
-          filters: {
-            range: "90d",
-            type: "project",
-            metric: "download_clicks",
-          },
-        },
-      },
-    });
+  it("usa defaults quando URL inicial esta limpa", async () => {
+    setupApiMock();
 
     render(
       <MemoryRouter initialEntries={["/dashboard/analytics"]}>
@@ -163,32 +141,20 @@ describe("DashboardAnalytics preferences", () => {
 
     await screen.findByRole("heading", { name: /Performance e aquisi/i });
     await waitFor(() => {
-      const search = String(screen.getByTestId("location-search").textContent || "");
-      expect(search).toContain("range=90d");
-      expect(search).toContain("type=project");
-      expect(search).toContain("metric=download_clicks");
+      expect(screen.getByTestId("location-search").textContent).toBe("");
     });
 
     await waitFor(() => {
       const params = getLastTimeseriesParams();
-      expect(params.get("range")).toBe("90d");
-      expect(params.get("type")).toBe("project");
-      expect(params.get("metric")).toBe("download_clicks");
+      expect(params.get("range")).toBe("30d");
+      expect(params.get("type")).toBe("all");
+      expect(params.get("metric")).toBe("views");
     });
+    expect(getPreferenceCalls()).toHaveLength(0);
   });
 
-  it("prioriza query explícita da URL sobre preferências salvas", async () => {
-    setupApiMock({
-      uiListState: {
-        "dashboard.analytics": {
-          filters: {
-            range: "90d",
-            type: "project",
-            metric: "download_clicks",
-          },
-        },
-      },
-    });
+  it("prioriza query explicita da URL", async () => {
+    setupApiMock();
 
     render(
       <MemoryRouter initialEntries={["/dashboard/analytics?range=7d&type=post&metric=views"]}>
@@ -206,55 +172,11 @@ describe("DashboardAnalytics preferences", () => {
       expect(params.get("type")).toBe("post");
       expect(params.get("metric")).toBe("views");
     });
+    expect(getPreferenceCalls()).toHaveLength(0);
   });
 
-  it("persiste filtros ativos em /api/me/preferences", async () => {
-    setupApiMock({
-      uiListState: {},
-    });
-
-    render(
-      <MemoryRouter initialEntries={["/dashboard/analytics?range=90d&type=project&metric=download_clicks"]}>
-        <DashboardAnalytics />
-      </MemoryRouter>,
-    );
-
-    await screen.findByRole("heading", { name: /Performance e aquisi/i });
-
-    await waitFor(
-      () => {
-        const putCalls = getPreferencePutCalls();
-        expect(putCalls.length).toBeGreaterThan(0);
-      },
-      { timeout: 2500 },
-    );
-
-    const putCalls = getPreferencePutCalls();
-    const request = ((putCalls[putCalls.length - 1]?.[2] || {}) as RequestInit & {
-      json?: { preferences?: unknown };
-    });
-    const payload =
-      request.json ||
-      JSON.parse(String(request.body || "{}"));
-    expect(payload.preferences?.uiListState?.["dashboard.analytics"]?.filters).toMatchObject({
-      range: "90d",
-      type: "project",
-      metric: "download_clicks",
-    });
-  });
-
-  it("nao reidrata filtros e limpa preferencia salva em PUSH para URL limpa", async () => {
-    setupApiMock({
-      uiListState: {
-        "dashboard.analytics": {
-          filters: {
-            range: "90d",
-            type: "project",
-            metric: "download_clicks",
-          },
-        },
-      },
-    });
+  it("limpa query e volta para defaults", async () => {
+    setupApiMock();
 
     render(
       <MemoryRouter initialEntries={["/dashboard/analytics?range=7d&type=post&metric=views"]}>
@@ -277,18 +199,6 @@ describe("DashboardAnalytics preferences", () => {
       expect(params.get("type")).toBe("all");
       expect(params.get("metric")).toBe("views");
     });
-
-    await waitFor(
-      () => {
-        const putCalls = getPreferencePutCalls();
-        expect(putCalls.length).toBeGreaterThan(0);
-        const request = ((putCalls[putCalls.length - 1]?.[2] || {}) as RequestInit & {
-          json?: { preferences?: unknown };
-        });
-        const payload = request.json || JSON.parse(String(request.body || "{}"));
-        expect(payload.preferences?.uiListState?.["dashboard.analytics"]).toBeUndefined();
-      },
-      { timeout: 2500 },
-    );
+    expect(getPreferenceCalls()).toHaveLength(0);
   });
 });

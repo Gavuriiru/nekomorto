@@ -1,5 +1,6 @@
-import type { ReactNode } from "react";
+﻿import type { ReactNode } from "react";
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import DashboardPages from "@/pages/DashboardPages";
 
@@ -86,6 +87,12 @@ const waitMs = (delayMs: number) =>
     setTimeout(resolve, delayMs);
   });
 const classTokens = (element: HTMLElement) => String(element.className).split(/\s+/).filter(Boolean);
+const renderDashboardPages = () =>
+  render(
+    <MemoryRouter initialEntries={["/dashboard/paginas"]}>
+      <DashboardPages />
+    </MemoryRouter>,
+  );
 
 describe("DashboardPages autosave", () => {
   beforeEach(() => {
@@ -129,7 +136,7 @@ describe("DashboardPages autosave", () => {
   });
 
   it("usa tablist com scroll horizontal invisivel no mobile e triggers sem compressao", async () => {
-    render(<DashboardPages />);
+    renderDashboardPages();
     await screen.findByRole("heading", { name: /Gerenciar/i });
 
     const tablist = screen.getByRole("tablist");
@@ -146,8 +153,8 @@ describe("DashboardPages autosave", () => {
     });
   });
 
-  it("edita campo e dispara PUT /api/pages após debounce", async () => {
-    render(<DashboardPages />);
+  it("edita campo e dispara PUT /api/pages apÃ³s debounce", async () => {
+    renderDashboardPages();
     await screen.findByRole("heading", { name: /Gerenciar/i });
 
     const pixInput = await screen.findByDisplayValue("PIX-INIT");
@@ -195,7 +202,7 @@ describe("DashboardPages autosave", () => {
       return mockJsonResponse(false, { error: "not_found" }, 404);
     });
 
-    render(<DashboardPages />);
+    renderDashboardPages();
     await screen.findByRole("heading", { name: /Gerenciar/i });
     fireEvent.mouseDown(screen.getByRole("tab", { name: "FAQ" }));
 
@@ -240,8 +247,8 @@ describe("DashboardPages autosave", () => {
     ]);
   });
 
-  it("toggle desligado bloqueia autosave, mas botão manual continua salvando", async () => {
-    render(<DashboardPages />);
+  it("toggle desligado bloqueia autosave, mas botÃ£o manual continua salvando", async () => {
+    renderDashboardPages();
     await screen.findByRole("heading", { name: /Gerenciar/i });
 
     const autosaveSwitch = screen.getByRole("switch", { name: "Alternar autosave" });
@@ -265,12 +272,12 @@ describe("DashboardPages autosave", () => {
     expect(getPutPageCalls()).toHaveLength(1);
     expect(toastMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        title: "Páginas salvas",
+        title: expect.stringMatching(/P.ginas salvas/i),
       }),
     );
   });
 
-  it("mantém shareImage existente no payload ao editar conteúdo de página", async () => {
+  it("mantÃ©m shareImage existente no payload ao editar conteÃºdo de pÃ¡gina", async () => {
     apiFetchMock.mockImplementation(async (_base, path, options) => {
       const method = String((options as RequestInit | undefined)?.method || "GET").toUpperCase();
       if (path === "/api/me") {
@@ -317,7 +324,7 @@ describe("DashboardPages autosave", () => {
       return mockJsonResponse(false, { error: "not_found" }, 404);
     });
 
-    render(<DashboardPages />);
+    renderDashboardPages();
     await screen.findByRole("heading", { name: /Gerenciar/i });
 
     const pixInput = await screen.findByDisplayValue("PIX-INIT");
@@ -368,7 +375,7 @@ describe("DashboardPages autosave", () => {
       return mockJsonResponse(false, { error: "not_found" }, 404);
     });
 
-    render(<DashboardPages />);
+    renderDashboardPages();
     await screen.findByRole("heading", { name: /Gerenciar/i });
 
     const pixInput = await screen.findByDisplayValue("PIX-INIT");
@@ -393,5 +400,6 @@ describe("DashboardPages autosave", () => {
     );
   });
 });
+
 
 

@@ -43,8 +43,43 @@ const ScrollToTop = () => {
   const location = useLocation();
 
   useLayoutEffect(() => {
-    window.scrollTo({ top: 0, left: 0, behavior: "auto" });
-  }, [location.pathname, location.search]);
+    const normalizedHash = String(location.hash || "").replace(/^#/, "").trim();
+    if (!normalizedHash) {
+      window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+      return;
+    }
+
+    const findTarget = () => {
+      if (!normalizedHash) {
+        return null;
+      }
+      const byId = document.getElementById(normalizedHash);
+      if (byId) {
+        return byId;
+      }
+      const decoded = decodeURIComponent(normalizedHash);
+      return document.getElementById(decoded);
+    };
+
+    const scrollToHash = () => {
+      const target = findTarget();
+      if (!target) {
+        return false;
+      }
+      target.scrollIntoView({ behavior: "auto", block: "start" });
+      return true;
+    };
+
+    if (scrollToHash()) {
+      return;
+    }
+    const frameId = window.requestAnimationFrame(() => {
+      if (!scrollToHash()) {
+        window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+      }
+    });
+    return () => window.cancelAnimationFrame(frameId);
+  }, [location.hash, location.pathname, location.search]);
 
   return null;
 };

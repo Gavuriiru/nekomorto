@@ -1,10 +1,11 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { MemoryRouter, useLocation } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import Projects from "@/pages/Projects";
 
 const apiFetchMock = vi.hoisted(() => vi.fn());
+const PROJECTS_LIST_STATE_STORAGE_KEY = "public.projects.list-state.v1";
 
 vi.mock("@/hooks/use-page-meta", () => ({
   usePageMeta: () => undefined,
@@ -25,20 +26,28 @@ const mockJsonResponse = (ok: boolean, payload: unknown, status = ok ? 200 : 500
     json: async () => payload,
   }) as Response;
 
-const projectFixture = {
-  id: "project-1",
-  title: "Projeto Teste",
+const createProject = (
+  index: number,
+  overrides: Partial<{
+    title: string;
+    type: string;
+    tags: string[];
+    genres: string[];
+  }> = {},
+) => ({
+  id: `project-${index}`,
+  title: overrides.title ?? `Projeto ${index}`,
   titleOriginal: "",
   titleEnglish: "",
-  synopsis: "Sinopse de teste",
-  description: "Descricao de teste",
-  type: "Anime",
+  synopsis: `Sinopse ${index}`,
+  description: `Descricao ${index}`,
+  type: overrides.type ?? "Anime",
   status: "Em andamento",
   year: "2026",
   studio: "Studio Teste",
   episodes: "12 episodios",
-  tags: ["acao"],
-  genres: ["drama"],
+  tags: overrides.tags ?? ["acao"],
+  genres: overrides.genres ?? ["drama"],
   cover: "/placeholder.svg",
   banner: "/placeholder.svg",
   season: "Temporada 1",
@@ -46,20 +55,28 @@ const projectFixture = {
   rating: "14",
   episodeDownloads: [],
   staff: [],
-};
+});
 
-const setupApiMock = () => {
+const createProjects = (count: number, overrides?: Parameters<typeof createProject>[1]) =>
+  Array.from({ length: count }, (_, index) => createProject(index + 1, overrides));
+
+const setupApiMock = ({ projects = createProjects(24) }: { projects?: ReturnType<typeof createProject>[] } = {}) => {
   apiFetchMock.mockReset();
   apiFetchMock.mockImplementation(async (_apiBase: string, endpoint: string, options?: RequestInit) => {
     const method = String(options?.method || "GET").toUpperCase();
     if (endpoint === "/api/public/projects" && method === "GET") {
-      return mockJsonResponse(true, { projects: [projectFixture] });
+      return mockJsonResponse(true, { projects });
     }
     if (endpoint === "/api/public/tag-translations" && method === "GET") {
       return mockJsonResponse(true, {
         tags: { acao: "Acao" },
         genres: { drama: "Drama" },
         staffRoles: {},
+      });
+    }
+    if (endpoint === "/api/public/pages" && method === "GET") {
+      return mockJsonResponse(true, {
+        pages: { projects: { shareImage: "" } },
       });
     }
     return mockJsonResponse(false, { error: "not_found" }, 404);
@@ -71,14 +88,14 @@ const LocationProbe = () => {
   return <div data-testid="location-search">{location.search}</div>;
 };
 
-const getLocationSearch = () => String(screen.getByTestId("location-search").textContent || "");
-
-const getSearchParams = () => new URLSearchParams(getLocationSearch().replace(/^\?/, ""));
+const getSearchParams = () =>
+  new URLSearchParams(String(screen.getByTestId("location-search").textContent || "").replace(/^\?/, ""));
 
 describe("Projects query sync", () => {
   beforeEach(() => {
     setupApiMock();
     window.scrollTo = vi.fn();
+    window.localStorage.clear();
     vi.stubGlobal(
       "ResizeObserver",
       class {
@@ -87,39 +104,6 @@ describe("Projects query sync", () => {
         disconnect() {}
       },
     );
-  });
-
-  it("remove tag da URL ao limpar filtros", async () => {
-    render(
-      <MemoryRouter initialEntries={["/projetos?tag=acao"]}>
-        <Projects />
-        <LocationProbe />
-      </MemoryRouter>,
-    );
-
-    fireEvent.click(screen.getByRole("button", { name: "Limpar filtros" }));
-
-    await waitFor(() => {
-      expect(getSearchParams().get("tag")).toBeNull();
-    });
-  });
-
-  it("remove tag e genero da URL ao limpar filtros", async () => {
-    render(
-      <MemoryRouter initialEntries={["/projetos?tag=acao&genero=drama"]}>
-        <Projects />
-        <LocationProbe />
-      </MemoryRouter>,
-    );
-
-    fireEvent.click(screen.getByRole("button", { name: "Limpar filtros" }));
-
-    await waitFor(() => {
-      const params = getSearchParams();
-      expect(params.get("tag")).toBeNull();
-      expect(params.get("genero")).toBeNull();
-      expect(params.get("genre")).toBeNull();
-    });
   });
 
   it("normaliza query legada de genre para genero", async () => {
@@ -137,9 +121,81 @@ describe("Projects query sync", () => {
     });
   });
 
-  it("preserva query params nao relacionados ao limpar tag", async () => {
+  it("sincroniza letter/type/page da URL", async () => {
+    setupApiMock({
+      projects: createProjects(24, {
+        type: "Anime",
+        tags: ["acao"],
+        genres: ["drama"],
+      }),
+    });
+
     render(
-      <MemoryRouter initialEntries={["/projetos?tag=acao&foo=1"]}>
+      <MemoryRouter initialEntries={["/projetos?letter=P&type=Anime&page=2"]}>
+        <Projects />
+        <LocationProbe />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      const params = getSearchParams();
+      expect(params.get("letter")).toBe("P");
+      expect(params.get("type")).toBe("Anime");
+      expect(params.get("page")).toBe("2");
+    });
+  });
+
+  it("sincroniza q da URL com o campo de busca", async () => {
+    render(
+      <MemoryRouter initialEntries={["/projetos?q=studio"]}>
+        <Projects />
+        <LocationProbe />
+      </MemoryRouter>,
+    );
+
+    const searchInput = await screen.findByLabelText("Buscar projetos");
+    expect(searchInput).toHaveValue("studio");
+    expect(getSearchParams().get("q")).toBe("studio");
+  });
+
+  it("restaura filtros da persistencia local quando URL chega limpa", async () => {
+    window.localStorage.setItem(
+      PROJECTS_LIST_STATE_STORAGE_KEY,
+      JSON.stringify({
+        q: "drama",
+        letter: "P",
+        type: "Anime",
+        page: 2,
+      }),
+    );
+
+    render(
+      <MemoryRouter initialEntries={["/projetos"]}>
+        <Projects />
+        <LocationProbe />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      const params = getSearchParams();
+      expect(params.get("q")).toBe("drama");
+      expect(params.get("letter")).toBe("P");
+      expect(params.get("type")).toBe("Anime");
+      expect(params.get("page")).toBe("2");
+    });
+  });
+
+  it("limpar filtros remove params de filtro/paginacao e preserva params nao relacionados", async () => {
+    setupApiMock({
+      projects: createProjects(24, {
+        type: "Anime",
+        tags: ["acao"],
+        genres: ["drama"],
+      }),
+    });
+
+    render(
+      <MemoryRouter initialEntries={["/projetos?letter=P&type=Anime&tag=acao&genero=drama&page=2&q=teste&foo=1"]}>
         <Projects />
         <LocationProbe />
       </MemoryRouter>,
@@ -149,24 +205,64 @@ describe("Projects query sync", () => {
 
     await waitFor(() => {
       const params = getSearchParams();
+      expect(params.get("letter")).toBeNull();
+      expect(params.get("type")).toBeNull();
       expect(params.get("tag")).toBeNull();
+      expect(params.get("genero")).toBeNull();
+      expect(params.get("genre")).toBeNull();
+      expect(params.get("page")).toBeNull();
+      expect(params.get("q")).toBeNull();
       expect(params.get("foo")).toBe("1");
     });
   });
 
-  it("mantem card de projeto com altura fixa no mobile e oculta badges de tags/generos", async () => {
+  it("limpar filtros remove estado persistido da listagem", async () => {
     render(
-      <MemoryRouter initialEntries={["/projetos"]}>
+      <MemoryRouter initialEntries={["/projetos?tag=acao&genero=drama&q=teste"]}>
         <Projects />
+        <LocationProbe />
       </MemoryRouter>,
     );
 
-    const projectCard = await screen.findByRole("link", { name: /Projeto Teste/i });
-    expect(projectCard).toHaveClass("h-50", "md:h-60");
-    expect(projectCard).not.toHaveClass("min-h-50");
+    fireEvent.click(screen.getByRole("button", { name: "Limpar filtros" }));
 
-    const badgesRow = projectCard.querySelector('[data-synopsis-role="badges"] .flex-nowrap');
-    expect(badgesRow).not.toBeNull();
-    expect(badgesRow).toHaveClass("hidden", "sm:flex");
+    await waitFor(() => {
+      expect(window.localStorage.getItem(PROJECTS_LIST_STATE_STORAGE_KEY)).toBeNull();
+    });
+  });
+
+  it("escreve page na URL ao paginar", async () => {
+    render(
+      <MemoryRouter initialEntries={["/projetos"]}>
+        <Projects />
+        <LocationProbe />
+      </MemoryRouter>,
+    );
+
+    const pagination = await screen.findByRole("navigation");
+    fireEvent.click(within(pagination).getByRole("link", { name: "2" }));
+
+    await waitFor(() => {
+      expect(getSearchParams().get("page")).toBe("2");
+    });
+  });
+
+  it("type invalido cai para Todos e URL canonica remove type", async () => {
+    setupApiMock({
+      projects: createProjects(12, {
+        type: "Anime",
+      }),
+    });
+
+    render(
+      <MemoryRouter initialEntries={["/projetos?type=Inexistente"]}>
+        <Projects />
+        <LocationProbe />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(getSearchParams().get("type")).toBeNull();
+    });
   });
 });

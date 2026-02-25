@@ -1,13 +1,11 @@
 import type { ReactNode } from "react";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { MemoryRouter, useLocation } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import DashboardPages from "@/pages/DashboardPages";
 
-const { apiFetchMock, navigateMock } = vi.hoisted(() => ({
-  apiFetchMock: vi.fn(),
-  navigateMock: vi.fn(),
-}));
+const apiFetchMock = vi.hoisted(() => vi.fn());
 
 vi.mock("@/components/DashboardShell", () => ({
   default: ({ children }: { children: ReactNode }) => <div>{children}</div>,
@@ -25,14 +23,6 @@ vi.mock("@/lib/api-client", () => ({
   apiFetch: (...args: unknown[]) => apiFetchMock(...args),
 }));
 
-vi.mock("react-router-dom", async () => {
-  const actual = await vi.importActual<typeof import("react-router-dom")>("react-router-dom");
-  return {
-    ...actual,
-    useNavigate: () => navigateMock,
-  };
-});
-
 const mockJsonResponse = (ok: boolean, payload: unknown, status = ok ? 200 : 500) =>
   ({
     ok,
@@ -40,23 +30,12 @@ const mockJsonResponse = (ok: boolean, payload: unknown, status = ok ? 200 : 500
     json: async () => payload,
   }) as Response;
 
-const setupApiMock = (preferences: unknown) => {
+const setupApiMock = () => {
   apiFetchMock.mockReset();
-  navigateMock.mockReset();
   apiFetchMock.mockImplementation(async (_base: string, path: string, options?: RequestInit) => {
     const method = String(options?.method || "GET").toUpperCase();
     if (path === "/api/me" && method === "GET") {
       return mockJsonResponse(true, { id: "1", name: "Admin", username: "admin" });
-    }
-    if (path === "/api/me/preferences" && method === "GET") {
-      return mockJsonResponse(true, { preferences });
-    }
-    if (path === "/api/me/preferences" && method === "PUT") {
-      const request = (options || {}) as RequestInit & { json?: unknown };
-      const payload =
-        (request.json as { preferences?: unknown } | undefined) ||
-        JSON.parse(String(request.body || "{}"));
-      return mockJsonResponse(true, { preferences: payload.preferences || {} });
     }
     if (path === "/api/pages" && method === "GET") {
       return mockJsonResponse(true, {
@@ -82,62 +61,94 @@ const setupApiMock = (preferences: unknown) => {
   });
 };
 
-const getPreferencePutCalls = () =>
+const getPreferenceCalls = () =>
   apiFetchMock.mock.calls.filter((call) => {
     const path = String(call[1] || "");
-    const options = (call[2] || {}) as RequestInit;
-    const method = String(options.method || "GET").toUpperCase();
-    return path === "/api/me/preferences" && method === "PUT";
+    return path === "/api/me/preferences";
   });
 
-describe("DashboardPages preferences", () => {
+const LocationProbe = () => {
+  const location = useLocation();
+  return <div data-testid="location-search">{location.search}</div>;
+};
+
+describe("DashboardPages query sync", () => {
   beforeEach(() => {
     window.localStorage.clear();
     apiFetchMock.mockReset();
-    navigateMock.mockReset();
   });
 
-  it("restaura aba salva em preferências na abertura da página", async () => {
-    setupApiMock({
-      uiListState: {
-        "dashboard.pages": {
-          filters: {
-            tab: "faq",
-          },
-        },
-      },
-    });
+  it("aplica aba vinda de ?tab=", async () => {
+    setupApiMock();
 
-    render(<DashboardPages />);
+    render(
+      <MemoryRouter initialEntries={["/dashboard/paginas?tab=faq"]}>
+        <DashboardPages />
+        <LocationProbe />
+      </MemoryRouter>,
+    );
 
-    await screen.findByRole("heading", { name: /Gerenciar páginas/i });
+    await screen.findByRole("heading", { name: /Gerenciar/i });
     await waitFor(() => {
       expect(screen.getByRole("tab", { name: "FAQ" })).toHaveAttribute("aria-selected", "true");
     });
+    expect(getPreferenceCalls()).toHaveLength(0);
   });
 
-  it("persiste troca de aba via /api/me/preferences", async () => {
-    setupApiMock({ uiListState: {} });
+  it("atualiza tab na URL ao trocar de aba", async () => {
+    setupApiMock();
 
-    render(<DashboardPages />);
-
-    await screen.findByRole("heading", { name: /Gerenciar páginas/i });
-    fireEvent.mouseDown(screen.getByRole("tab", { name: "FAQ" }));
-
-    await waitFor(
-      () => {
-        expect(getPreferencePutCalls().length).toBeGreaterThan(0);
-      },
-      { timeout: 2500 },
+    render(
+      <MemoryRouter initialEntries={["/dashboard/paginas"]}>
+        <DashboardPages />
+        <LocationProbe />
+      </MemoryRouter>,
     );
 
-    const putCalls = getPreferencePutCalls();
-    const request = ((putCalls[putCalls.length - 1]?.[2] || {}) as RequestInit & {
-      json?: { preferences?: unknown };
+    await screen.findByRole("heading", { name: /Gerenciar/i });
+    fireEvent.mouseDown(screen.getByRole("tab", { name: "FAQ" }));
+
+    await waitFor(() => {
+      const search = String(screen.getByTestId("location-search").textContent || "");
+      expect(search).toContain("tab=faq");
     });
-    const payload =
-      request.json ||
-      JSON.parse(String(request.body || "{}"));
-    expect(payload.preferences?.uiListState?.["dashboard.pages"]?.filters?.tab).toBe("faq");
+    expect(getPreferenceCalls()).toHaveLength(0);
+  });
+
+  it("remove tab da URL quando volta para aba default", async () => {
+    setupApiMock();
+
+    render(
+      <MemoryRouter initialEntries={["/dashboard/paginas?tab=faq"]}>
+        <DashboardPages />
+        <LocationProbe />
+      </MemoryRouter>,
+    );
+
+    await screen.findByRole("heading", { name: /Gerenciar/i });
+    fireEvent.mouseDown(screen.getByRole("tab", { name: /^Doa/i }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("location-search").textContent).toBe("");
+    });
+    expect(getPreferenceCalls()).toHaveLength(0);
+  });
+
+  it("tab invalida cai para default e limpa URL", async () => {
+    setupApiMock();
+
+    render(
+      <MemoryRouter initialEntries={["/dashboard/paginas?tab=invalida"]}>
+        <DashboardPages />
+        <LocationProbe />
+      </MemoryRouter>,
+    );
+
+    await screen.findByRole("heading", { name: /Gerenciar/i });
+    await waitFor(() => {
+      expect(screen.getByRole("tab", { name: /^Doa/i })).toHaveAttribute("aria-selected", "true");
+      expect(screen.getByTestId("location-search").textContent).toBe("");
+    });
+    expect(getPreferenceCalls()).toHaveLength(0);
   });
 });

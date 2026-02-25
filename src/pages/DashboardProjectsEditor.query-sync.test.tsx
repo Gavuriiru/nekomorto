@@ -114,12 +114,9 @@ const createProject = (
 
 const setupApiMock = ({
   projects = Array.from({ length: 21 }, (_, index) => createProject(index + 1)),
-  preferences = { uiListState: {} },
 }: {
   projects?: ReturnType<typeof createProject>[];
-  preferences?: unknown;
 } = {}) => {
-  let persistedPreferences = preferences;
   apiFetchMock.mockReset();
   apiFetchMock.mockImplementation(async (_base: string, path: string, options?: RequestInit) => {
     const method = String(options?.method || "GET").toUpperCase();
@@ -141,28 +138,15 @@ const setupApiMock = ({
     if (path === "/api/public/tag-translations" && method === "GET") {
       return mockJsonResponse(true, { tags: {}, genres: {}, staffRoles: {} });
     }
-    if (path === "/api/me/preferences" && method === "GET") {
-      return mockJsonResponse(true, { preferences: persistedPreferences });
-    }
-    if (path === "/api/me/preferences" && method === "PUT") {
-      const request = (options || {}) as RequestInit & { json?: unknown };
-      const payload =
-        (request.json as { preferences?: unknown } | undefined) ||
-        JSON.parse(String(request.body || "{}"));
-      persistedPreferences = payload.preferences || {};
-      return mockJsonResponse(true, { preferences: persistedPreferences });
-    }
 
     return mockJsonResponse(false, { error: "not_found" }, 404);
   });
 };
 
-const getPreferencePutCalls = () =>
+const getPreferenceCalls = () =>
   apiFetchMock.mock.calls.filter((call) => {
     const path = String(call[1] || "");
-    const options = (call[2] || {}) as RequestInit;
-    const method = String(options.method || "GET").toUpperCase();
-    return path === "/api/me/preferences" && method === "PUT";
+    return path === "/api/me/preferences";
   });
 
 const LocationProbe = () => {
@@ -197,9 +181,10 @@ describe("DashboardProjectsEditor query sync", () => {
     await waitFor(() => {
       expect(screen.getByTestId("location-search").textContent).toBe("?page=2");
     });
+    expect(getPreferenceCalls()).toHaveLength(0);
   });
 
-  it("nao reintroduz query, reseta tipo e limpa estado salvo apos navegacao para URL limpa", async () => {
+  it("aplica filtro de tipo vindo da URL", async () => {
     setupApiMock({
       projects: Array.from({ length: 21 }, (_, index) =>
         createProject(index + 1, {
@@ -207,17 +192,54 @@ describe("DashboardProjectsEditor query sync", () => {
           type: index === 0 ? "Anime" : "Manga",
         }),
       ),
-      preferences: {
-        uiListState: {
-          "dashboard.projects": {
-            filters: { type: "Manga" },
-          },
-        },
-      },
     });
 
     render(
-      <MemoryRouter initialEntries={["/dashboard/projetos"]}>
+      <MemoryRouter initialEntries={["/dashboard/projetos?type=Manga"]}>
+        <DashboardProjectsEditor />
+      </MemoryRouter>,
+    );
+
+    await screen.findByRole("heading", { name: "Gerenciar projetos" });
+    await screen.findByText("Projeto Manga 1");
+    expect(screen.queryByText("Projeto Anime")).not.toBeInTheDocument();
+    expect(getPreferenceCalls()).toHaveLength(0);
+  });
+
+  it("remove type da URL quando filtro volta para Todos", async () => {
+    setupApiMock({
+      projects: [
+        createProject(1, { title: "Projeto Anime", type: "Anime" }),
+        createProject(2, { title: "Projeto Manga", type: "Manga" }),
+      ],
+    });
+
+    render(
+      <MemoryRouter initialEntries={["/dashboard/projetos?type=Todos"]}>
+        <DashboardProjectsEditor />
+        <LocationProbe />
+      </MemoryRouter>,
+    );
+
+    await screen.findByRole("heading", { name: "Gerenciar projetos" });
+    await waitFor(() => {
+      expect(screen.getByTestId("location-search").textContent).toBe("");
+    });
+    expect(getPreferenceCalls()).toHaveLength(0);
+  });
+
+  it("nao reintroduz query e reseta tipo ao navegar para URL limpa", async () => {
+    setupApiMock({
+      projects: Array.from({ length: 21 }, (_, index) =>
+        createProject(index + 1, {
+          title: index === 0 ? "Projeto Anime" : `Projeto Manga ${index}`,
+          type: index === 0 ? "Anime" : "Manga",
+        }),
+      ),
+    });
+
+    render(
+      <MemoryRouter initialEntries={["/dashboard/projetos?type=Manga&page=2"]}>
         <DashboardProjectsEditor />
         <NavigateCleanQuery />
         <LocationProbe />
@@ -225,127 +247,30 @@ describe("DashboardProjectsEditor query sync", () => {
     );
 
     await screen.findByRole("heading", { name: "Gerenciar projetos" });
-    await screen.findByText("Projeto Manga 1");
-    expect(screen.queryByText("Projeto Anime")).not.toBeInTheDocument();
-
-    const pagination = screen.getByRole("navigation");
-    fireEvent.click(within(pagination).getByRole("link", { name: /pr/i }));
-    await waitFor(() => {
-      expect(screen.getByTestId("location-search").textContent).toBe("?page=2");
-    });
-
     fireEvent.click(screen.getByRole("button", { name: "Limpar query" }));
 
     await waitFor(() => {
       expect(screen.getByTestId("location-search").textContent).toBe("");
     });
-
-    await new Promise((resolve) => setTimeout(resolve, 80));
-    expect(screen.getByTestId("location-search").textContent).toBe("");
-
     await waitFor(() => {
-      expect(screen.getByText("Projeto Anime")).toBeInTheDocument();
       expect(screen.getByLabelText("Filtrar por formato")).toHaveTextContent("Todos");
+      expect(screen.getByText("Projeto Anime")).toBeInTheDocument();
     });
-
-    await waitFor(
-      () => {
-        const putCalls = getPreferencePutCalls();
-        expect(putCalls.length).toBeGreaterThan(0);
-        const request = ((putCalls[putCalls.length - 1]?.[2] || {}) as RequestInit & {
-          json?: { preferences?: unknown };
-        });
-        const payload = request.json || JSON.parse(String(request.body || "{}"));
-        expect(payload.preferences?.uiListState?.["dashboard.projects"]).toBeUndefined();
-      },
-      { timeout: 2500 },
-    );
+    expect(getPreferenceCalls()).toHaveLength(0);
   });
 
-  it("restaura filtro de tipo salvo em preferencias", async () => {
+  it("faz fallback para Todos quando type da URL nao existe", async () => {
     setupApiMock({
       projects: [
         createProject(1, { title: "Projeto Anime", type: "Anime" }),
         createProject(2, { title: "Projeto Manga", type: "Manga" }),
       ],
-      preferences: {
-        uiListState: {
-          "dashboard.projects": {
-            filters: { type: "Anime" },
-          },
-        },
-      },
     });
 
     render(
-      <MemoryRouter initialEntries={["/dashboard/projetos"]}>
-        <DashboardProjectsEditor />
-      </MemoryRouter>,
-    );
-
-    await screen.findByRole("heading", { name: "Gerenciar projetos" });
-    await screen.findByText("Projeto Anime");
-    expect(screen.queryByText("Projeto Manga")).not.toBeInTheDocument();
-  });
-
-  it("persiste filtro de tipo e nao adiciona type na URL", async () => {
-    setupApiMock({
-      projects: [
-        createProject(1, { title: "Projeto Anime", type: "Anime" }),
-        createProject(2, { title: "Projeto Manga", type: "Manga" }),
-      ],
-      preferences: {
-        uiListState: {
-          "dashboard.projects": {
-            filters: { type: "Manga" },
-          },
-        },
-      },
-    });
-
-    render(
-      <MemoryRouter initialEntries={["/dashboard/projetos"]}>
+      <MemoryRouter initialEntries={["/dashboard/projetos?type=Inexistente"]}>
         <DashboardProjectsEditor />
         <LocationProbe />
-      </MemoryRouter>,
-    );
-
-    await screen.findByRole("heading", { name: "Gerenciar projetos" });
-    await screen.findByText("Projeto Manga");
-    expect(screen.queryByText("Projeto Anime")).not.toBeInTheDocument();
-
-    await new Promise((resolve) => setTimeout(resolve, 500));
-    const putCalls = getPreferencePutCalls();
-    if (putCalls.length > 0) {
-      const request = ((putCalls[putCalls.length - 1]?.[2] || {}) as RequestInit & {
-        json?: { preferences?: unknown };
-      });
-      const payload = request.json || JSON.parse(String(request.body || "{}"));
-      expect(payload.preferences?.uiListState?.["dashboard.projects"]?.filters?.type).toBe("Manga");
-    }
-
-    const locationSearch = String(screen.getByTestId("location-search").textContent || "");
-    expect(locationSearch).not.toContain("type=");
-  });
-
-  it("faz fallback para Todos quando tipo salvo nao existe", async () => {
-    setupApiMock({
-      projects: [
-        createProject(1, { title: "Projeto Anime", type: "Anime" }),
-        createProject(2, { title: "Projeto Manga", type: "Manga" }),
-      ],
-      preferences: {
-        uiListState: {
-          "dashboard.projects": {
-            filters: { type: "Inexistente" },
-          },
-        },
-      },
-    });
-
-    render(
-      <MemoryRouter initialEntries={["/dashboard/projetos"]}>
-        <DashboardProjectsEditor />
       </MemoryRouter>,
     );
 
@@ -354,6 +279,8 @@ describe("DashboardProjectsEditor query sync", () => {
       expect(screen.getByText("Projeto Anime")).toBeInTheDocument();
       expect(screen.getByText("Projeto Manga")).toBeInTheDocument();
       expect(screen.getByLabelText("Filtrar por formato")).toHaveTextContent("Todos");
+      expect(screen.getByTestId("location-search").textContent).toBe("");
     });
+    expect(getPreferenceCalls()).toHaveLength(0);
   });
 });

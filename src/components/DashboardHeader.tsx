@@ -25,6 +25,7 @@ import { cn } from "@/lib/utils";
 import { getNavbarIcon } from "@/lib/navbar-icons";
 import { resolveBranding } from "@/lib/branding";
 import { rankPosts, rankProjects, selectVisibleTags, sortAlphabeticallyPtBr } from "@/lib/search-ranking";
+import { buildTranslationMap, translateTag } from "@/lib/project-taxonomy";
 import { useDynamicSynopsisClamp } from "@/hooks/use-dynamic-synopsis-clamp";
 import { sanitizePublicHref } from "@/lib/url-safety";
 
@@ -62,6 +63,7 @@ const DashboardHeader = ({
     }>
   >([]);
   const [tagTranslations, setTagTranslations] = useState<Record<string, string>>({});
+  const tagTranslationMap = useMemo(() => buildTranslationMap(tagTranslations), [tagTranslations]);
   const searchRef = useRef<HTMLDivElement | null>(null);
 
   const activeMenuItem = useMemo(() => {
@@ -125,9 +127,13 @@ const DashboardHeader = ({
         href: `/projeto/${project.id}`,
         image: project.cover,
         synopsis: project.synopsis,
-        tags: selectVisibleTags(sortAlphabeticallyPtBr(project.tags.map((tag) => tagTranslations[tag] || tag)), 2, 18),
+        tags: selectVisibleTags(
+          sortAlphabeticallyPtBr(project.tags.map((tag) => translateTag(tag, tagTranslationMap))),
+          2,
+          18,
+        ),
       })),
-    [projects, tagTranslations],
+    [projects, tagTranslationMap],
   );
 
   const postItems = useMemo(

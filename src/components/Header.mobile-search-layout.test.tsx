@@ -68,8 +68,12 @@ const setWindowScrollY = (value: number) => {
   });
 };
 
-const setupApiMock = (options?: { logoutOk?: boolean }) => {
-  const { logoutOk = true } = options || {};
+const setupApiMock = (options?: {
+  logoutOk?: boolean;
+  searchSuggestOk?: boolean;
+  searchSuggestions?: unknown[];
+}) => {
+  const { logoutOk = true, searchSuggestOk = false, searchSuggestions = [] } = options || {};
   apiFetchMock.mockReset();
   apiFetchMock.mockImplementation(async (_apiBase: string, endpoint: string, options?: RequestInit) => {
     const method = String(options?.method || "GET").toUpperCase();
@@ -86,9 +90,20 @@ const setupApiMock = (options?: { logoutOk?: boolean }) => {
     if (endpoint === "/api/logout" && method === "POST") {
       return mockJsonResponse(logoutOk, logoutOk ? { ok: true } : { error: "logout_failed" }, logoutOk ? 200 : 500);
     }
+    if (endpoint.startsWith("/api/public/search/suggest?") && method === "GET") {
+      if (searchSuggestOk) {
+        return mockJsonResponse(true, {
+          suggestions: searchSuggestions,
+        });
+      }
+      return mockJsonResponse(false, { error: "search_suggest_failed" }, 500);
+    }
     return mockJsonResponse(false, { error: "not_found" }, 404);
   });
 };
+
+const getSearchSuggestCalls = () =>
+  apiFetchMock.mock.calls.filter((call) => String(call[1] || "").startsWith("/api/public/search/suggest?"));
 
 describe("Header mobile search layout", () => {
   beforeEach(() => {
@@ -257,6 +272,122 @@ describe("Header mobile search layout", () => {
     expect(classTokens(actionsCluster)).toContain("pointer-events-auto");
     expect(classTokens(actionsCluster)).not.toContain("invisible");
     expect(classTokens(searchCluster)).not.toContain("absolute");
+  });
+
+  it("dispara busca com debounce e renderiza sugestoes remotas", async () => {
+    const user = userEvent.setup();
+    setupApiMock({
+      searchSuggestOk: true,
+      searchSuggestions: [
+        {
+          kind: "project",
+          id: "project-99",
+          label: "Projeto Remoto",
+          href: "/projeto/project-99",
+          description: "Resultado remoto",
+        },
+      ],
+    });
+
+    render(
+      <MemoryRouter initialEntries={["/"]}>
+        <Header />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(apiFetchMock).toHaveBeenCalledTimes(1);
+    });
+
+    await user.click(screen.getByRole("button", { name: "Abrir pesquisa" }));
+    const searchInput = await screen.findByPlaceholderText("Pesquisar projetos e posts");
+    await user.type(searchInput, "re");
+
+    expect(getSearchSuggestCalls()).toHaveLength(0);
+
+    await waitFor(() => {
+      expect(getSearchSuggestCalls()).toHaveLength(1);
+    });
+    expect(await screen.findByText("Projeto Remoto")).toBeInTheDocument();
+  });
+
+  it("mantem badges de projetos remotos em uma linha com overflow oculto", async () => {
+    const user = userEvent.setup();
+    setupApiMock({
+      searchSuggestOk: true,
+      searchSuggestions: [
+        {
+          kind: "project",
+          id: "project-88",
+          label: "Projeto Remoto Badges",
+          href: "/projeto/project-88",
+          description: "Resultado remoto com muitas tags",
+          tags: ["acao", "TagAlpha", "TagGamma", "TagBeta"],
+        },
+      ],
+    });
+
+    render(
+      <MemoryRouter initialEntries={["/"]}>
+        <Header />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(apiFetchMock).toHaveBeenCalledTimes(1);
+    });
+
+    await user.click(screen.getByRole("button", { name: "Abrir pesquisa" }));
+    const searchInput = await screen.findByPlaceholderText("Pesquisar projetos e posts");
+    await user.type(searchInput, "ba");
+
+    const projectLink = await screen.findByRole("link", { name: /Projeto Remoto Badges/i });
+    const projectCard = projectLink.closest("a");
+    expect(projectCard).not.toBeNull();
+
+    const coverColumn = projectCard?.querySelector('[data-synopsis-role="column"]') as HTMLElement | null;
+    expect(coverColumn).not.toBeNull();
+    expect(classTokens(coverColumn as HTMLElement)).toContain("h-28");
+    expect(classTokens(coverColumn as HTMLElement)).toContain("overflow-hidden");
+
+    const badgesRow = projectCard?.querySelector('[data-synopsis-role="badges"]') as HTMLElement | null;
+    expect(badgesRow).not.toBeNull();
+    expect(classTokens(badgesRow as HTMLElement)).toContain("flex-nowrap");
+    expect(classTokens(badgesRow as HTMLElement)).toContain("overflow-hidden");
+    expect(classTokens(badgesRow as HTMLElement)).not.toContain("flex-wrap");
+
+    expect(screen.getByText("Acao")).toBeInTheDocument();
+    expect(screen.getByText("TagAlpha")).toBeInTheDocument();
+    expect(screen.queryByText("acao")).not.toBeInTheDocument();
+    expect(screen.queryByText("TagBeta")).not.toBeInTheDocument();
+    expect(screen.queryByText("TagGamma")).not.toBeInTheDocument();
+  });
+
+  it("usa fallback local quando a busca remota falha", async () => {
+    const user = userEvent.setup();
+    setupApiMock({ searchSuggestOk: false });
+
+    render(
+      <MemoryRouter initialEntries={["/"]}>
+        <Header />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(apiFetchMock).toHaveBeenCalledTimes(1);
+    });
+
+    await user.click(screen.getByRole("button", { name: "Abrir pesquisa" }));
+    const searchInput = await screen.findByPlaceholderText("Pesquisar projetos e posts");
+    await user.type(searchInput, "teste");
+
+    await waitFor(() => {
+      expect(getSearchSuggestCalls().length).toBeGreaterThan(0);
+    });
+    expect(await screen.findByText("Projeto Teste")).toBeInTheDocument();
+    expect(await screen.findByText("Post Teste")).toBeInTheDocument();
+    expect(await screen.findByText("Acao")).toBeInTheDocument();
+    expect(screen.queryByText("acao")).not.toBeInTheDocument();
   });
 
   it("mantem a ordem no desktop com links antes da busca e busca antes das acoes", async () => {

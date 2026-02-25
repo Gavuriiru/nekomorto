@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import { useNavigate, useNavigationType, useSearchParams } from "react-router-dom";
+import { useEffect, useMemo, useState } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import DashboardShell from "@/components/DashboardShell";
 import AsyncState from "@/components/ui/async-state";
 import { Badge } from "@/components/ui/badge";
@@ -24,7 +24,6 @@ import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
 import { formatDateTime } from "@/lib/date";
 import { usePageMeta } from "@/hooks/use-page-meta";
-import { useUserPreferences } from "@/hooks/use-user-preferences";
 import { toast } from "@/components/ui/use-toast";
 
 type AuditStatus = "success" | "failed" | "denied";
@@ -125,25 +124,9 @@ const normalizeStatusFilter = (value: string | null) => {
   return "all";
 };
 
-const hasAuditLogSearchQueryState = (params: URLSearchParams) =>
-  Boolean(
-    params.get("page") ||
-      params.get("limit") ||
-      params.get("q") ||
-      params.get("action") ||
-      params.get("resource") ||
-      params.get("actorId") ||
-      params.get("status") ||
-      params.get("dateFrom") ||
-      params.get("dateTo"),
-  );
-
-const DASHBOARD_AUDIT_LOG_LIST_STATE_KEY = "dashboard.audit-log";
-
 const DashboardAuditLog = () => {
   usePageMeta({ title: "Audit Log", noIndex: true });
   const navigate = useNavigate();
-  const navigationType = useNavigationType();
   const apiBase = getApiBase();
   const [searchParams, setSearchParams] = useSearchParams();
   const [entries, setEntries] = useState<AuditEntry[]>([]);
@@ -153,7 +136,6 @@ const DashboardAuditLog = () => {
   const [forbidden, setForbidden] = useState(false);
   const [refreshTick, setRefreshTick] = useState(0);
   const [selectedEntry, setSelectedEntry] = useState<AuditEntry | null>(null);
-  const hasRestoredListStateRef = useRef(false);
   const [currentUser, setCurrentUser] = useState<{
     id: string;
     name: string;
@@ -161,11 +143,6 @@ const DashboardAuditLog = () => {
     avatarUrl?: string | null;
   } | null>(null);
   const [isLoadingUser, setIsLoadingUser] = useState(true);
-  const {
-    hasLoaded: hasLoadedUserPreferences,
-    getUiListState,
-    setUiListState,
-  } = useUserPreferences();
 
   const [form, setForm] = useState<FilterForm>({
     q: "",
@@ -185,135 +162,6 @@ const DashboardAuditLog = () => {
   const dateToParts = parseLocalDateTimeValue(form.dateTo);
   const dateFromTimeValue = toTimeFieldValue(dateFromParts.time || "00:00");
   const dateToTimeValue = toTimeFieldValue(dateToParts.time || "00:00");
-
-  useEffect(() => {
-    if (!hasLoadedUserPreferences) {
-      return;
-    }
-    if (navigationType === "POP" || hasAuditLogSearchQueryState(searchParams)) {
-      return;
-    }
-    setUiListState(DASHBOARD_AUDIT_LOG_LIST_STATE_KEY, null);
-  }, [hasLoadedUserPreferences, navigationType, searchParams, setUiListState]);
-
-  useEffect(() => {
-    if (hasRestoredListStateRef.current || !hasLoadedUserPreferences) {
-      return;
-    }
-    hasRestoredListStateRef.current = true;
-    const hasSearchQueryState = hasAuditLogSearchQueryState(searchParams);
-    if (hasSearchQueryState) {
-      return;
-    }
-    if (navigationType !== "POP") {
-      setUiListState(DASHBOARD_AUDIT_LOG_LIST_STATE_KEY, null);
-      return;
-    }
-    const savedListState = getUiListState(DASHBOARD_AUDIT_LOG_LIST_STATE_KEY);
-    if (!savedListState) {
-      return;
-    }
-    const next = new URLSearchParams(searchParams);
-    const savedPageRaw = Number(savedListState.page);
-    const savedPage = Number.isFinite(savedPageRaw) && savedPageRaw >= 1 ? Math.floor(savedPageRaw) : 1;
-    if (savedPage > 1) {
-      next.set("page", String(savedPage));
-    }
-    const savedLimit = parseLimit(String(savedListState.filters?.limit || ""));
-    if (savedLimit !== 50) {
-      next.set("limit", String(savedLimit));
-    }
-    const savedQ = typeof savedListState.filters?.q === "string" ? savedListState.filters.q.trim() : "";
-    if (savedQ) {
-      next.set("q", savedQ);
-    }
-    const savedAction =
-      typeof savedListState.filters?.action === "string" ? savedListState.filters.action.trim() : "";
-    if (savedAction) {
-      next.set("action", savedAction);
-    }
-    const savedResource =
-      typeof savedListState.filters?.resource === "string" ? savedListState.filters.resource.trim() : "";
-    if (savedResource) {
-      next.set("resource", savedResource);
-    }
-    const savedActorId =
-      typeof savedListState.filters?.actorId === "string" ? savedListState.filters.actorId.trim() : "";
-    if (savedActorId) {
-      next.set("actorId", savedActorId);
-    }
-    const savedStatus = normalizeStatusFilter(
-      typeof savedListState.filters?.status === "string" ? savedListState.filters.status : null,
-    );
-    if (savedStatus !== "all") {
-      next.set("status", savedStatus);
-    }
-    const savedDateFrom =
-      typeof savedListState.filters?.dateFrom === "string" ? savedListState.filters.dateFrom.trim() : "";
-    if (savedDateFrom) {
-      next.set("dateFrom", savedDateFrom);
-    }
-    const savedDateTo =
-      typeof savedListState.filters?.dateTo === "string" ? savedListState.filters.dateTo.trim() : "";
-    if (savedDateTo) {
-      next.set("dateTo", savedDateTo);
-    }
-    if (next.toString() !== searchParams.toString()) {
-      setSearchParams(next, { replace: true });
-    }
-  }, [getUiListState, hasLoadedUserPreferences, navigationType, searchParams, setSearchParams, setUiListState]);
-
-  useEffect(() => {
-    if (!hasLoadedUserPreferences) {
-      return;
-    }
-    const filters: Record<string, string | number> = {};
-    const q = searchParams.get("q") || "";
-    const action = searchParams.get("action") || "";
-    const resource = searchParams.get("resource") || "";
-    const actorId = searchParams.get("actorId") || "";
-    const status = normalizeStatusFilter(searchParams.get("status"));
-    const dateFrom = searchParams.get("dateFrom") || "";
-    const dateTo = searchParams.get("dateTo") || "";
-    if (q.trim()) {
-      filters.q = q.trim();
-    }
-    if (action.trim()) {
-      filters.action = action.trim();
-    }
-    if (resource.trim()) {
-      filters.resource = resource.trim();
-    }
-    if (actorId.trim()) {
-      filters.actorId = actorId.trim();
-    }
-    if (status !== "all") {
-      filters.status = status;
-    }
-    if (dateFrom.trim()) {
-      filters.dateFrom = dateFrom.trim();
-    }
-    if (dateTo.trim()) {
-      filters.dateTo = dateTo.trim();
-    }
-    if (limit !== 50) {
-      filters.limit = limit;
-    }
-    const nextState: {
-      page?: number;
-      filters?: Record<string, string | number>;
-    } = {};
-    if (page > 1) {
-      nextState.page = page;
-    }
-    if (Object.keys(filters).length > 0) {
-      nextState.filters = filters;
-    }
-    setUiListState(
-      DASHBOARD_AUDIT_LOG_LIST_STATE_KEY,
-      Object.keys(nextState).length > 0 ? nextState : null,
-    );
-  }, [hasLoadedUserPreferences, limit, page, searchParams, setUiListState]);
 
   const handleFilterDateChange = (field: FilterDateField, nextDate: Date | null) => {
     setForm((prev) => {

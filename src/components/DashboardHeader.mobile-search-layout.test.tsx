@@ -156,6 +156,8 @@ describe("DashboardHeader mobile search layout", () => {
 
     expect(await screen.findByText("Projeto Dashboard")).toBeInTheDocument();
     expect(await screen.findByText("Post Dashboard")).toBeInTheDocument();
+    expect(await screen.findByText("Acao")).toBeInTheDocument();
+    expect(screen.queryByText("acao")).not.toBeInTheDocument();
 
     const results = screen.getByTestId("dashboard-header-results");
     expect(classTokens(results)).toContain("w-[min(24rem,calc(100vw-1rem))]");

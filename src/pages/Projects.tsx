@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+﻿import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import AsyncState from "@/components/ui/async-state";
+import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -24,17 +25,82 @@ import type { Project } from "@/data/projects";
 import { usePageMeta } from "@/hooks/use-page-meta";
 import { useDynamicSynopsisClamp } from "@/hooks/use-dynamic-synopsis-clamp";
 import { prepareProjectBadges } from "@/lib/project-card-layout";
+import { normalizeSearchText } from "@/lib/search-ranking";
 import { cn } from "@/lib/utils";
 
 const alphabetOptions = ["Todas", ..."ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("")];
 const PROJECTS_LIST_STATE_STORAGE_KEY = "public.projects.list-state.v1";
+const MAX_QUERY_LENGTH = 80;
 
 type PersistedProjectsListState = {
   letter?: string;
   type?: string;
   tag?: string;
-  genre?: string;
+  genero?: string;
   page?: number;
+  q?: string;
+};
+
+const parseLetterParam = (value: string | null) => {
+  const normalized = String(value || "").trim().toUpperCase();
+  if (/^[A-Z]$/.test(normalized)) {
+    return normalized;
+  }
+  return "Todas";
+};
+
+const parseTypeParam = (value: string | null) => {
+  const normalized = String(value || "").trim();
+  if (!normalized) {
+    return "Todos";
+  }
+  return normalized;
+};
+
+const parseProjectsPageParam = (value: string | null) => {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed < 1) {
+    return 1;
+  }
+  return Math.floor(parsed);
+};
+
+const hasProjectsFilterQueryState = (searchParams: URLSearchParams) =>
+  ["tag", "genero", "genre", "letter", "type", "page", "q"].some((key) => searchParams.has(key));
+
+const isPlainObject = (value: unknown): value is Record<string, unknown> =>
+  Boolean(value) && typeof value === "object" && !Array.isArray(value);
+
+const normalizePersistedProjectsListState = (value: unknown): PersistedProjectsListState | null => {
+  if (!isPlainObject(value)) {
+    return null;
+  }
+  const nextState: PersistedProjectsListState = {};
+  const letter = parseLetterParam(String(value.letter || "").trim());
+  if (letter !== "Todas") {
+    nextState.letter = letter;
+  }
+  const type = String(value.type || "").trim().slice(0, 40);
+  if (type && type !== "Todos") {
+    nextState.type = type;
+  }
+  const tag = String(value.tag || "").trim().slice(0, 60);
+  if (tag && tag !== "Todas") {
+    nextState.tag = tag;
+  }
+  const genero = String(value.genero || "").trim().slice(0, 60);
+  if (genero && genero !== "Todos") {
+    nextState.genero = genero;
+  }
+  const page = parseProjectsPageParam(String(value.page || "").trim());
+  if (page > 1) {
+    nextState.page = page;
+  }
+  const q = String(value.q || "").trim().slice(0, MAX_QUERY_LENGTH);
+  if (q) {
+    nextState.q = q;
+  }
+  return Object.keys(nextState).length > 0 ? nextState : null;
 };
 
 const readPersistedProjectsListState = (): PersistedProjectsListState | null => {
@@ -42,28 +108,28 @@ const readPersistedProjectsListState = (): PersistedProjectsListState | null => 
     return null;
   }
   try {
-    const rawValue = window.localStorage.getItem(PROJECTS_LIST_STATE_STORAGE_KEY);
-    if (!rawValue) {
+    const raw = window.localStorage.getItem(PROJECTS_LIST_STATE_STORAGE_KEY);
+    if (!raw) {
       return null;
     }
-    const parsed = JSON.parse(rawValue);
-    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
-      return null;
-    }
-    return parsed as PersistedProjectsListState;
+    return normalizePersistedProjectsListState(JSON.parse(raw));
   } catch {
     return null;
   }
 };
 
-const writePersistedProjectsListState = (value: PersistedProjectsListState) => {
+const writePersistedProjectsListState = (value: PersistedProjectsListState | null) => {
   if (typeof window === "undefined") {
+    return;
+  }
+  if (!value || Object.keys(value).length === 0) {
+    window.localStorage.removeItem(PROJECTS_LIST_STATE_STORAGE_KEY);
     return;
   }
   try {
     window.localStorage.setItem(PROJECTS_LIST_STATE_STORAGE_KEY, JSON.stringify(value));
   } catch {
-    // Ignore persistence failures.
+    // Ignore localStorage failures.
   }
 };
 
@@ -284,22 +350,29 @@ const ProjectCard = ({
 const Projects = () => {
   const apiBase = getApiBase();
   const hasMountedRef = useRef(false);
-  const hasRestoredListStateRef = useRef(false);
+  const hasAttemptedPersistedRestoreRef = useRef(false);
+  const isApplyingUrlStateRef = useRef(false);
   const [projects, setProjects] = useState<Project[]>([]);
   const [isLoadingProjects, setIsLoadingProjects] = useState(true);
   const [hasProjectsLoadError, setHasProjectsLoadError] = useState(false);
   const [projectsLoadVersion, setProjectsLoadVersion] = useState(0);
   const [shareImage, setShareImage] = useState("");
-  const [selectedLetter, setSelectedLetter] = useState("Todas");
-  const [selectedType, setSelectedType] = useState("Todos");
-  const [currentPage, setCurrentPage] = useState(1);
   const [searchParams, setSearchParams] = useSearchParams();
+  const [selectedLetter, setSelectedLetter] = useState(() => parseLetterParam(searchParams.get("letter")));
+  const [selectedType, setSelectedType] = useState(() => parseTypeParam(searchParams.get("type")));
+  const [currentPage, setCurrentPage] = useState(() => parseProjectsPageParam(searchParams.get("page")));
+  const listUiStateRef = useRef({
+    selectedLetter: parseLetterParam(searchParams.get("letter")),
+    selectedType: parseTypeParam(searchParams.get("type")),
+    currentPage: parseProjectsPageParam(searchParams.get("page")),
+  });
   const navigate = useNavigate();
   const [tagTranslations, setTagTranslations] = useState<Record<string, string>>({});
   const [genreTranslations, setGenreTranslations] = useState<Record<string, string>>({});
   const projectsPerPage = 16;
   const selectedTag = searchParams.get("tag") || "Todas";
   const selectedGenre = searchParams.get("genero") || searchParams.get("genre") || "Todos";
+  const selectedQuery = searchParams.get("q") || "";
 
   usePageMeta({ title: "Projetos", image: shareImage || undefined });
 
@@ -405,7 +478,14 @@ const Projects = () => {
     }
   }, [searchParams, setSearchParams]);
 
-  const updateFilterQuery = useCallback((tag: string, genre: string) => {
+  const updateFilterQuery = useCallback((
+    tag: string,
+    genre: string,
+    options?: {
+      resetPage?: boolean;
+      query?: string;
+    },
+  ) => {
     const nextParams = new URLSearchParams(searchParams);
     if (tag === "Todas") {
       nextParams.delete("tag");
@@ -421,42 +501,183 @@ const Projects = () => {
       nextParams.delete("genre");
     }
 
+    if (typeof options?.query === "string") {
+      const normalizedQuery = options.query.trim().slice(0, MAX_QUERY_LENGTH);
+      if (!normalizedQuery) {
+        nextParams.delete("q");
+      } else {
+        nextParams.set("q", normalizedQuery);
+      }
+    }
+
+    if (options?.resetPage !== false) {
+      nextParams.delete("page");
+    }
+
     if (nextParams.toString() !== searchParams.toString()) {
       setSearchParams(nextParams, { replace: true });
     }
   }, [searchParams, setSearchParams]);
 
   useEffect(() => {
-    if (hasRestoredListStateRef.current) {
+    if (hasAttemptedPersistedRestoreRef.current) {
       return;
     }
-    const legacyGenre = searchParams.get("genre");
-    if (legacyGenre && !searchParams.get("genero")) {
+    hasAttemptedPersistedRestoreRef.current = true;
+    if (hasProjectsFilterQueryState(searchParams)) {
       return;
     }
-    hasRestoredListStateRef.current = true;
-    const persisted = readPersistedProjectsListState();
-    if (!persisted) {
+    const persistedState = readPersistedProjectsListState();
+    if (!persistedState) {
       return;
     }
-    if (typeof persisted.letter === "string" && persisted.letter.trim()) {
-      setSelectedLetter(persisted.letter.trim());
+    const nextParams = new URLSearchParams(searchParams);
+    if (persistedState.letter) {
+      nextParams.set("letter", persistedState.letter);
     }
-    if (typeof persisted.type === "string" && persisted.type.trim()) {
-      setSelectedType(persisted.type.trim());
+    if (persistedState.type) {
+      nextParams.set("type", persistedState.type);
     }
-    const persistedPage = Number(persisted.page);
-    if (Number.isFinite(persistedPage) && persistedPage >= 1) {
-      setCurrentPage(Math.floor(persistedPage));
+    if (persistedState.tag) {
+      nextParams.set("tag", persistedState.tag);
     }
-    const hasTagInQuery = Boolean(searchParams.get("tag"));
-    const hasGenreInQuery = Boolean(searchParams.get("genero"));
-    const nextTag = !hasTagInQuery && typeof persisted.tag === "string" ? persisted.tag : selectedTag;
-    const nextGenre = !hasGenreInQuery && typeof persisted.genre === "string" ? persisted.genre : selectedGenre;
-    if (!hasTagInQuery || !hasGenreInQuery) {
-      updateFilterQuery(nextTag || "Todas", nextGenre || "Todos");
+    if (persistedState.genero) {
+      nextParams.set("genero", persistedState.genero);
     }
-  }, [searchParams, selectedGenre, selectedTag, updateFilterQuery]);
+    if (persistedState.page && persistedState.page > 1) {
+      nextParams.set("page", String(persistedState.page));
+    }
+    if (persistedState.q) {
+      nextParams.set("q", persistedState.q);
+    }
+    if (nextParams.toString() !== searchParams.toString()) {
+      setSearchParams(nextParams, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
+
+  useEffect(() => {
+    const nextParams = new URLSearchParams(searchParams);
+    let shouldUpdate = false;
+
+    const currentTag = String(nextParams.get("tag") || "").trim();
+    if (currentTag === "Todas") {
+      nextParams.delete("tag");
+      shouldUpdate = true;
+    }
+
+    const currentGenero = String(nextParams.get("genero") || "").trim();
+    if (currentGenero === "Todos") {
+      nextParams.delete("genero");
+      shouldUpdate = true;
+    }
+
+    const currentLegacyGenre = String(nextParams.get("genre") || "").trim();
+    if (currentLegacyGenre === "Todos") {
+      nextParams.delete("genre");
+      shouldUpdate = true;
+    }
+
+    const currentQuery = nextParams.get("q");
+    if (currentQuery !== null) {
+      const normalizedQuery = currentQuery.trim().slice(0, MAX_QUERY_LENGTH);
+      if (!normalizedQuery) {
+        nextParams.delete("q");
+        shouldUpdate = true;
+      } else if (normalizedQuery !== currentQuery) {
+        nextParams.set("q", normalizedQuery);
+        shouldUpdate = true;
+      }
+    }
+
+    if (shouldUpdate && nextParams.toString() !== searchParams.toString()) {
+      setSearchParams(nextParams, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
+
+  const updateSearchQuery = useCallback(
+    (value: string) => {
+      updateFilterQuery(selectedTag, selectedGenre, {
+        query: value,
+      });
+    },
+    [selectedGenre, selectedTag, updateFilterQuery],
+  );
+
+  useEffect(() => {
+    listUiStateRef.current = {
+      selectedLetter,
+      selectedType,
+      currentPage,
+    };
+  }, [currentPage, selectedLetter, selectedType]);
+
+  useEffect(() => {
+    const nextLetter = parseLetterParam(searchParams.get("letter"));
+    const nextType = parseTypeParam(searchParams.get("type"));
+    const nextPage = parseProjectsPageParam(searchParams.get("page"));
+    const previousState = listUiStateRef.current;
+    const hasStateChange =
+      previousState.selectedLetter !== nextLetter ||
+      previousState.selectedType !== nextType ||
+      previousState.currentPage !== nextPage;
+    if (!hasStateChange) {
+      return;
+    }
+    isApplyingUrlStateRef.current = true;
+    setSelectedLetter(nextLetter);
+    setSelectedType(nextType);
+    setCurrentPage(nextPage);
+  }, [searchParams]);
+
+  useEffect(() => {
+    if (isApplyingUrlStateRef.current) {
+      isApplyingUrlStateRef.current = false;
+      return;
+    }
+    const nextParams = new URLSearchParams(searchParams);
+    if (selectedLetter === "Todas") {
+      nextParams.delete("letter");
+    } else {
+      nextParams.set("letter", selectedLetter);
+    }
+    if (selectedType === "Todos") {
+      nextParams.delete("type");
+    } else {
+      nextParams.set("type", selectedType);
+    }
+    if (currentPage <= 1) {
+      nextParams.delete("page");
+    } else {
+      nextParams.set("page", String(currentPage));
+    }
+    if (nextParams.toString() !== searchParams.toString()) {
+      setSearchParams(nextParams, { replace: true });
+    }
+  }, [currentPage, searchParams, selectedLetter, selectedType, setSearchParams]);
+
+  useEffect(() => {
+    const nextState: PersistedProjectsListState = {};
+    if (selectedLetter !== "Todas") {
+      nextState.letter = selectedLetter;
+    }
+    if (selectedType !== "Todos") {
+      nextState.type = selectedType;
+    }
+    if (selectedTag !== "Todas") {
+      nextState.tag = selectedTag;
+    }
+    if (selectedGenre !== "Todos") {
+      nextState.genero = selectedGenre;
+    }
+    const normalizedQuery = selectedQuery.trim().slice(0, MAX_QUERY_LENGTH);
+    if (normalizedQuery) {
+      nextState.q = normalizedQuery;
+    }
+    if (currentPage > 1) {
+      nextState.page = currentPage;
+    }
+    writePersistedProjectsListState(nextState);
+  }, [currentPage, selectedGenre, selectedLetter, selectedQuery, selectedTag, selectedType]);
 
   const tagOptions = useMemo(() => {
     const tags = projects.flatMap((project) => project.tags);
@@ -483,6 +704,24 @@ const Projects = () => {
     return ["Todos", ...sorted];
   }, [projects]);
 
+  useEffect(() => {
+    if (isLoadingProjects || hasProjectsLoadError) {
+      return;
+    }
+    if (selectedType === "Todos") {
+      return;
+    }
+    if (typeOptions.includes(selectedType)) {
+      return;
+    }
+    setSelectedType("Todos");
+  }, [hasProjectsLoadError, isLoadingProjects, selectedType, typeOptions]);
+
+  const normalizedQueryTokens = useMemo(
+    () => normalizeSearchText(selectedQuery).split(/\s+/).filter(Boolean),
+    [selectedQuery],
+  );
+
   const filteredProjects = useMemo(() => {
     return projects
       .filter((project) => {
@@ -492,14 +731,32 @@ const Projects = () => {
           selectedLetter === "Todas" || project.title.toUpperCase().startsWith(selectedLetter);
         const matchesGenre =
           selectedGenre === "Todos" || (project.genres || []).includes(selectedGenre);
-        return matchesTag && matchesType && matchesLetter && matchesGenre;
+        const haystack =
+          normalizedQueryTokens.length > 0
+            ? normalizeSearchText(
+                [
+                  project.title,
+                  project.titleOriginal,
+                  project.titleEnglish,
+                  project.synopsis,
+                  project.description,
+                  project.type,
+                  project.status,
+                  project.studio,
+                  ...(Array.isArray(project.tags) ? project.tags : []),
+                  ...(Array.isArray(project.genres) ? project.genres : []),
+                ]
+                  .filter(Boolean)
+                  .join(" "),
+              )
+            : "";
+        const matchesQuery =
+          normalizedQueryTokens.length === 0 ||
+          normalizedQueryTokens.every((token) => haystack.includes(token));
+        return matchesTag && matchesType && matchesLetter && matchesGenre && matchesQuery;
       })
       .sort((a, b) => a.title.localeCompare(b.title, "pt-BR"));
-  }, [projects, selectedLetter, selectedTag, selectedType, selectedGenre]);
-
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [selectedLetter, selectedTag, selectedType, selectedGenre]);
+  }, [normalizedQueryTokens, projects, selectedGenre, selectedLetter, selectedTag, selectedType]);
 
   useEffect(() => {
     if (!hasMountedRef.current) {
@@ -511,18 +768,11 @@ const Projects = () => {
 
   const totalPages = Math.max(1, Math.ceil(filteredProjects.length / projectsPerPage));
   useEffect(() => {
+    if (isLoadingProjects || hasProjectsLoadError) {
+      return;
+    }
     setCurrentPage((previous) => Math.min(previous, totalPages));
-  }, [totalPages]);
-
-  useEffect(() => {
-    writePersistedProjectsListState({
-      letter: selectedLetter,
-      type: selectedType,
-      tag: selectedTag,
-      genre: selectedGenre,
-      page: currentPage,
-    });
-  }, [currentPage, selectedGenre, selectedLetter, selectedTag, selectedType]);
+  }, [hasProjectsLoadError, isLoadingProjects, totalPages]);
 
   const pageStart = (currentPage - 1) * projectsPerPage;
   const paginatedProjects = filteredProjects.slice(pageStart, pageStart + projectsPerPage);
@@ -549,22 +799,48 @@ const Projects = () => {
     return "line-clamp-4";
   };
 
-  const resetFilters = () => {
-    setSelectedLetter("Todas");
-    setSelectedType("Todos");
-    updateFilterQuery("Todas", "Todos");
-  };
+  const resetFilters = useCallback(() => {
+    const nextParams = new URLSearchParams(searchParams);
+    nextParams.delete("tag");
+    nextParams.delete("genero");
+    nextParams.delete("genre");
+    nextParams.delete("letter");
+    nextParams.delete("type");
+    nextParams.delete("page");
+    nextParams.delete("q");
+    if (nextParams.toString() !== searchParams.toString()) {
+      setSearchParams(nextParams, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
 
   return (
     <div className="min-h-screen bg-linear-to-b from-background via-[hsl(var(--primary)/0.12)] to-background text-foreground">
       <main className="pt-28">
         <section className="mx-auto w-full max-w-6xl px-6 pb-20 md:px-10 reveal" data-reveal>
           <div className="grid gap-4 rounded-2xl bg-card/70 p-6 shadow-lg md:grid-cols-4">
+            <div className="md:col-span-4 flex flex-col gap-2">
+              <span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+                Busca
+              </span>
+              <Input
+                value={selectedQuery}
+                onChange={(event) => updateSearchQuery(event.target.value)}
+                placeholder="Buscar por titulo, sinopse, tag ou genero"
+                className="bg-background/60"
+                aria-label="Buscar projetos"
+              />
+            </div>
             <div className="flex flex-col gap-2">
               <span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
                 A-Z
               </span>
-              <Select value={selectedLetter} onValueChange={setSelectedLetter}>
+              <Select
+                value={selectedLetter}
+                onValueChange={(value) => {
+                  setSelectedLetter(value);
+                  setCurrentPage(1);
+                }}
+              >
                 <SelectTrigger className="bg-background/60">
                   <SelectValue placeholder="Todas as letras" />
                 </SelectTrigger>
@@ -598,11 +874,11 @@ const Projects = () => {
 
             <div className="flex flex-col gap-2">
               <span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-                Gêneros
+                Generos
               </span>
               <Select value={selectedGenre} onValueChange={(value) => updateFilterQuery(selectedTag, value)}>
                 <SelectTrigger className="bg-background/60">
-                  <SelectValue placeholder="Todos os gêneros" />
+                  <SelectValue placeholder="Todos os generos" />
                 </SelectTrigger>
                 <SelectContent>
                   {genreOptions.map((genre) => (
@@ -618,7 +894,13 @@ const Projects = () => {
               <span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
                 Formato
               </span>
-              <Select value={selectedType} onValueChange={setSelectedType}>
+              <Select
+                value={selectedType}
+                onValueChange={(value) => {
+                  setSelectedType(value);
+                  setCurrentPage(1);
+                }}
+              >
                 <SelectTrigger className="bg-background/60">
                   <SelectValue placeholder="Todos os formatos" />
                 </SelectTrigger>
@@ -754,6 +1036,7 @@ const Projects = () => {
 };
 
 export default Projects;
+
 
 
 

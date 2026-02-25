@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import { useNavigate, useNavigationType, useSearchParams } from "react-router-dom";
+import { useEffect, useMemo, useState } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { CartesianGrid, Line, LineChart, XAxis, YAxis } from "recharts";
 
 import DashboardShell from "@/components/DashboardShell";
@@ -10,7 +10,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
-import { useUserPreferences } from "@/hooks/use-user-preferences";
 import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
 import { usePageMeta } from "@/hooks/use-page-meta";
@@ -94,11 +93,6 @@ const parseMetric = (value: string | null): MetricValue =>
     ? value
     : "views";
 
-const hasAnalyticsSearchQueryState = (params: URLSearchParams) =>
-  Boolean(params.get("range") || params.get("type") || params.get("metric"));
-
-const DASHBOARD_ANALYTICS_LIST_STATE_KEY = "dashboard.analytics";
-
 const buildAnalyticsSearchParams = (
   base: URLSearchParams,
   next: {
@@ -131,7 +125,6 @@ const DashboardAnalytics = () => {
 
   const apiBase = getApiBase();
   const navigate = useNavigate();
-  const navigationType = useNavigationType();
   const [searchParams, setSearchParams] = useSearchParams();
   const range = parseRange(searchParams.get("range"));
   const type = parseType(searchParams.get("type"));
@@ -143,12 +136,6 @@ const DashboardAnalytics = () => {
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [reloadTick, setReloadTick] = useState(0);
-  const hasRestoredListStateRef = useRef(false);
-  const {
-    hasLoaded: hasLoadedUserPreferences,
-    getUiListState,
-    setUiListState,
-  } = useUserPreferences();
 
   const [currentUser, setCurrentUser] = useState<{
     id: string;
@@ -177,72 +164,6 @@ const DashboardAnalytics = () => {
 
     void loadUser();
   }, [apiBase]);
-
-  useEffect(() => {
-    if (!hasLoadedUserPreferences) {
-      return;
-    }
-    if (navigationType === "POP" || hasAnalyticsSearchQueryState(searchParams)) {
-      return;
-    }
-    setUiListState(DASHBOARD_ANALYTICS_LIST_STATE_KEY, null);
-  }, [hasLoadedUserPreferences, navigationType, searchParams, setUiListState]);
-
-  useEffect(() => {
-    if (hasRestoredListStateRef.current || !hasLoadedUserPreferences) {
-      return;
-    }
-    hasRestoredListStateRef.current = true;
-    const hasSearchQueryState = hasAnalyticsSearchQueryState(searchParams);
-    if (hasSearchQueryState) {
-      return;
-    }
-    if (navigationType !== "POP") {
-      setUiListState(DASHBOARD_ANALYTICS_LIST_STATE_KEY, null);
-      return;
-    }
-    const savedListState = getUiListState(DASHBOARD_ANALYTICS_LIST_STATE_KEY);
-    if (!savedListState) {
-      return;
-    }
-    const savedRange = parseRange(typeof savedListState.filters?.range === "string" ? savedListState.filters.range : null);
-    const savedType = parseType(typeof savedListState.filters?.type === "string" ? savedListState.filters.type : null);
-    const savedMetric = parseMetric(
-      typeof savedListState.filters?.metric === "string" ? savedListState.filters.metric : null,
-    );
-    const nextParams = buildAnalyticsSearchParams(searchParams, {
-      range: savedRange,
-      type: savedType,
-      metric: savedMetric,
-    });
-    if (nextParams.toString() !== searchParams.toString()) {
-      setSearchParams(nextParams, { replace: true });
-    }
-  }, [getUiListState, hasLoadedUserPreferences, navigationType, searchParams, setSearchParams, setUiListState]);
-
-  useEffect(() => {
-    if (!hasLoadedUserPreferences) {
-      return;
-    }
-    const filters: Record<string, string> = {};
-    if (range !== "30d") {
-      filters.range = range;
-    }
-    if (type !== "all") {
-      filters.type = type;
-    }
-    if (metric !== "views") {
-      filters.metric = metric;
-    }
-    setUiListState(
-      DASHBOARD_ANALYTICS_LIST_STATE_KEY,
-      Object.keys(filters).length > 0
-        ? {
-            filters,
-          }
-        : null,
-    );
-  }, [hasLoadedUserPreferences, metric, range, setUiListState, type]);
 
   useEffect(() => {
     let isActive = true;

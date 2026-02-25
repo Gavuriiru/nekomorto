@@ -88,6 +88,20 @@ const projectFixture = {
   commentsCount: 0,
 };
 
+const lightNovelProjectFixture = {
+  ...projectFixture,
+  type: "Light Novel",
+  episodeDownloads: [
+    {
+      number: 1,
+      volume: 2,
+      title: "Capitulo 1",
+      synopsis: "Resumo do capitulo",
+      content: "<p>Conteudo</p>",
+    },
+  ],
+};
+
 const setupApiMock = () => {
   apiFetchMock.mockReset();
   apiFetchMock.mockImplementation(async (_apiBase: string, endpoint: string, options?: RequestInit) => {
@@ -176,5 +190,44 @@ describe("Project mobile hero layout", () => {
     expect(actionsRowTokens).toContain("w-full");
     expect(actionsRowTokens).toContain("justify-center");
     expect(actionsRowTokens).toContain("md:justify-start");
+  });
+
+  it("renderiza breadcrumb e CTA de leitura para light novel com capitulo publicado", async () => {
+    apiFetchMock.mockReset();
+    apiFetchMock.mockImplementation(async (_apiBase: string, endpoint: string, options?: RequestInit) => {
+      const method = String(options?.method || "GET").toUpperCase();
+
+      if (endpoint === "/api/public/projects/project-1" && method === "GET") {
+        return mockJsonResponse(true, { project: lightNovelProjectFixture });
+      }
+      if (endpoint === "/api/public/projects" && method === "GET") {
+        return mockJsonResponse(true, { projects: [lightNovelProjectFixture] });
+      }
+      if (endpoint === "/api/public/tag-translations" && method === "GET") {
+        return mockJsonResponse(true, { tags: {}, genres: {}, staffRoles: {} });
+      }
+      if (endpoint === "/api/public/projects/project-1/view" && method === "POST") {
+        return mockJsonResponse(true, { views: 1 });
+      }
+      if (endpoint === "/api/public/me" && method === "GET") {
+        return mockJsonResponse(true, { user: null });
+      }
+      return mockJsonResponse(false, { error: "not_found" }, 404);
+    });
+
+    render(
+      <MemoryRouter>
+        <ProjectPage />
+      </MemoryRouter>,
+    );
+
+    await screen.findByRole("heading", { name: "Projeto Teste" });
+
+    expect(screen.getByRole("link", { name: /In[ií]cio/i })).toHaveAttribute("href", "/");
+    expect(screen.getByRole("link", { name: "Projetos" })).toHaveAttribute("href", "/projetos");
+    expect(screen.getByRole("link", { name: "Começar leitura" })).toHaveAttribute(
+      "href",
+      "/projeto/project-1/leitura/1?volume=2",
+    );
   });
 });

@@ -1,5 +1,6 @@
-import type { ReactNode } from "react";
+﻿import type { ReactNode } from "react";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import DashboardSettings from "@/pages/DashboardSettings";
 import { defaultSettings } from "@/hooks/site-settings-context";
@@ -59,6 +60,13 @@ const parseSrc = (value: string | null) => {
     version: parsed.searchParams.get("v"),
   };
 };
+
+const renderDashboardSettings = () =>
+  render(
+    <MemoryRouter initialEntries={["/dashboard/configuracoes"]}>
+      <DashboardSettings />
+    </MemoryRouter>,
+  );
 
 const settingsWithUploadIcons = {
   ...defaultSettings,
@@ -146,7 +154,7 @@ describe("DashboardSettings svg refresh", () => {
   });
 
   it("updates downloads SVG preview when upload returns the same URL", async () => {
-    render(<DashboardSettings />);
+    renderDashboardSettings();
     await screen.findByRole("heading", { name: /Painel/i });
 
     fireEvent.mouseDown(screen.getByRole("tab", { name: /Downloads/i }));
@@ -186,11 +194,11 @@ describe("DashboardSettings svg refresh", () => {
   });
 
   it("updates social link type SVG preview when upload returns the same URL", async () => {
-    render(<DashboardSettings />);
+    renderDashboardSettings();
     await screen.findByRole("heading", { name: /Painel/i });
 
     fireEvent.mouseDown(screen.getByRole("tab", { name: /Redes/i }));
-    await screen.findByRole("heading", { name: /Redes sociais \(Usuários\)/i });
+    await screen.findByRole("heading", { name: /Redes sociais/i });
 
     const previewBefore = await screen.findByAltText(/Instagram/i);
     const srcBefore = previewBefore.getAttribute("src");
@@ -225,3 +233,6 @@ describe("DashboardSettings svg refresh", () => {
     });
   });
 });
+
+
+
