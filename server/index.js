@@ -13,6 +13,7 @@ import { Pool } from "pg";
 import { resolvePostStatus } from "./lib/post-status.js";
 import { createSlug, createUniqueSlug } from "./lib/post-slug.js";
 import { buildEditorialCalendarItems } from "./lib/editorial-calendar.js";
+import { bulkModeratePendingComments } from "./lib/comments-bulk-moderation.js";
 import { dedupePostVersionRecordsNewestFirst } from "./lib/post-version-dedupe.js";
 import { importRemoteImageFile } from "./lib/remote-image-import.js";
 import { localizeProjectImageFields } from "./lib/project-image-localizer.js";
@@ -5423,6 +5424,91 @@ app.get("/api/comments/recent", requireAuth, (req, res) => {
       };
     });
   return res.json({ comments: recent, pendingCount, totalCount: comments.length });
+});
+
+app.post("/api/comments/pending/bulk", requireAuth, (req, res) => {
+  const sessionUser = req.session.user;
+  if (!canManageComments(sessionUser?.id)) {
+    return res.status(403).json({ error: "forbidden" });
+  }
+
+  const comments = loadComments();
+  const result = bulkModeratePendingComments(comments, {
+    action: req.body?.action,
+    confirmText: req.body?.confirmText,
+  });
+
+  if (!result.ok) {
+    if (result.error === "invalid_action") {
+      return res.status(400).json({ error: "invalid_action" });
+    }
+    if (result.error === "confirmation_required") {
+      return res.status(400).json({ error: "confirmation_required" });
+    }
+    return res.status(500).json({ error: "bulk_moderation_failed" });
+  }
+
+  writeComments(result.comments);
+
+  if (result.action === "approve_all" && Array.isArray(result.processedComments) && result.processedComments.length > 0) {
+    const affectedPostIds = new Set();
+    const affectedProjectIds = new Set();
+
+    result.processedComments.forEach((comment) => {
+      if (comment?.targetType === "post" && comment.targetId) {
+        affectedPostIds.add(String(comment.targetId));
+      }
+      if (comment?.targetType === "project" && comment.targetId) {
+        affectedProjectIds.add(String(comment.targetId));
+      }
+      appendAnalyticsEvent(req, {
+        eventType: "comment_approved",
+        resourceType: "comment",
+        resourceId: String(comment.id || ""),
+        meta: {
+          targetType: comment.targetType,
+          targetId: comment.targetId,
+          status: "approved",
+        },
+      });
+    });
+
+    if (affectedPostIds.size > 0) {
+      let updatedPosts = normalizePosts(loadPosts());
+      affectedPostIds.forEach((targetId) => {
+        updatedPosts = applyCommentCountToPosts(updatedPosts, result.comments, targetId);
+      });
+      writePosts(updatedPosts);
+    }
+
+    if (affectedProjectIds.size > 0) {
+      let updatedProjects = normalizeProjects(loadProjects());
+      affectedProjectIds.forEach((targetId) => {
+        updatedProjects = applyCommentCountToProjects(updatedProjects, result.comments, targetId);
+      });
+      writeProjects(updatedProjects);
+    }
+
+    appendAuditLog(req, "comments.bulk.approve", "comments", {
+      processedCount: result.processedCount,
+      totalPendingBefore: result.totalPendingBefore,
+    });
+  }
+
+  if (result.action === "delete_all") {
+    appendAuditLog(req, "comments.bulk.delete", "comments", {
+      processedCount: result.processedCount,
+      totalPendingBefore: result.totalPendingBefore,
+    });
+  }
+
+  return res.json({
+    ok: true,
+    action: result.action,
+    totalPendingBefore: result.totalPendingBefore,
+    processedCount: result.processedCount,
+    remainingPending: result.remainingPending,
+  });
 });
 
 app.post("/api/comments/:id/approve", requireAuth, (req, res) => {

@@ -17,6 +17,7 @@ import AsyncState from "@/components/ui/async-state";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import { toast } from "@/components/ui/use-toast";
 import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
@@ -37,6 +38,32 @@ type PendingComment = {
   targetUrl: string;
 };
 
+type CommentsBulkAction = "approve_all" | "delete_all";
+
+type CommentsBulkModerationResult = {
+  ok: true;
+  action: CommentsBulkAction;
+  totalPendingBefore: number;
+  processedCount: number;
+  remainingPending: number;
+};
+
+const BULK_DELETE_CONFIRM_TEXT = "EXCLUIR";
+
+const COMMENT_TARGET_TYPE_LABELS: Record<string, string> = {
+  post: "POST",
+  project: "PROJETO",
+  chapter: "CAPÍTULO",
+};
+
+const getCommentTargetTypeLabel = (targetType: string) => {
+  const normalizedTargetType = String(targetType || "").trim().toLowerCase();
+  if (!normalizedTargetType) {
+    return "ITEM";
+  }
+  return COMMENT_TARGET_TYPE_LABELS[normalizedTargetType] || normalizedTargetType.toUpperCase();
+};
+
 const DashboardComments = () => {
   usePageMeta({ title: "Comentários", noIndex: true });
   const apiBase = getApiBase();
@@ -53,6 +80,10 @@ const DashboardComments = () => {
   const [deleteTarget, setDeleteTarget] = useState<PendingComment | null>(null);
   const [pendingActionById, setPendingActionById] = useState<Record<string, "approve" | "delete">>({});
   const [isDeleteConfirmLoading, setIsDeleteConfirmLoading] = useState(false);
+  const [isBulkActionLoading, setIsBulkActionLoading] = useState(false);
+  const [bulkActionType, setBulkActionType] = useState<CommentsBulkAction | null>(null);
+  const [isBulkDeleteConfirmOpen, setIsBulkDeleteConfirmOpen] = useState(false);
+  const [bulkDeleteConfirmText, setBulkDeleteConfirmText] = useState("");
 
   const loadComments = useCallback(async () => {
     try {
@@ -98,7 +129,7 @@ const DashboardComments = () => {
   }, [apiBase]);
 
   const handleApprove = async (id: string) => {
-    if (pendingActionById[id]) {
+    if (pendingActionById[id] || isBulkActionLoading) {
       return;
     }
     setPendingActionById((prev) => ({ ...prev, [id]: "approve" }));
@@ -179,6 +210,81 @@ const DashboardComments = () => {
     }
   };
 
+  const runBulkModeration = useCallback(
+    async (action: CommentsBulkAction, confirmText?: string) => {
+      if (isBulkActionLoading) {
+        return;
+      }
+      setIsBulkActionLoading(true);
+      setBulkActionType(action);
+      try {
+        const response = await apiFetch(apiBase, "/api/comments/pending/bulk", {
+          method: "POST",
+          auth: true,
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            action,
+            ...(action === "delete_all" ? { confirmText } : {}),
+          }),
+        });
+
+        if (!response.ok) {
+          toast({
+            title:
+              action === "approve_all"
+                ? "Não foi possível aprovar todos os comentários"
+                : "Não foi possível excluir todos os comentários",
+            variant: "destructive",
+          });
+          return;
+        }
+
+        const data = (await response.json()) as CommentsBulkModerationResult;
+        const processedCount = Number(data.processedCount) || 0;
+        setComments([]);
+        toast({
+          title: action === "approve_all" ? "Comentários aprovados" : "Comentários excluídos",
+          description:
+            processedCount === 1
+              ? action === "approve_all"
+                ? "1 comentário foi aprovado."
+                : "1 comentário foi excluído."
+              : action === "approve_all"
+                ? `${processedCount} comentários foram aprovados.`
+                : `${processedCount} comentários foram excluídos.`,
+          intent: "success",
+        });
+      } catch {
+        toast({
+          title:
+            action === "approve_all"
+              ? "Não foi possível aprovar todos os comentários"
+              : "Não foi possível excluir todos os comentários",
+          variant: "destructive",
+        });
+      } finally {
+        setIsBulkActionLoading(false);
+        setBulkActionType(null);
+      }
+    },
+    [apiBase, isBulkActionLoading],
+  );
+
+  const handleApproveAll = useCallback(async () => {
+    await runBulkModeration("approve_all");
+  }, [runBulkModeration]);
+
+  const handleConfirmBulkDelete = useCallback(async () => {
+    if (bulkDeleteConfirmText !== BULK_DELETE_CONFIRM_TEXT) {
+      return;
+    }
+    await runBulkModeration("delete_all", bulkDeleteConfirmText);
+    setIsBulkDeleteConfirmOpen(false);
+    setBulkDeleteConfirmText("");
+  }, [bulkDeleteConfirmText, runBulkModeration]);
+
   return (
     <DashboardShell
       currentUser={currentUser}
@@ -196,9 +302,31 @@ const DashboardComments = () => {
                   Aprove ou exclua comentários enviados pelos visitantes.
                 </p>
               </div>
-              <Badge variant="secondary" className="text-xs uppercase animate-fade-in">
-                {comments.length} pendentes
-              </Badge>
+              <div className="flex flex-wrap items-center gap-2">
+                {!isLoading && comments.length > 0 ? (
+                  <>
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      disabled={isBulkActionLoading}
+                      onClick={() => void handleApproveAll()}
+                    >
+                      {isBulkActionLoading && bulkActionType === "approve_all" ? "Aprovando..." : "Aprovar todos"}
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="destructive"
+                      disabled={isBulkActionLoading}
+                      onClick={() => setIsBulkDeleteConfirmOpen(true)}
+                    >
+                      {isBulkActionLoading && bulkActionType === "delete_all" ? "Excluindo..." : "Excluir todos"}
+                    </Button>
+                  </>
+                ) : null}
+                <Badge variant="secondary" className="text-xs uppercase animate-fade-in">
+                  {comments.length} pendentes
+                </Badge>
+              </div>
             </div>
 
             {isLoading ? (
@@ -234,12 +362,15 @@ const DashboardComments = () => {
                   >
                     <CardContent className="space-y-4 p-6">
                       <div className="flex flex-wrap items-start justify-between gap-4">
-                        <div className="space-y-1">
-                          <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                            <Badge variant="outline" className="text-[10px] uppercase">
-                              {comment.targetType}
+                        <div className="min-w-0 flex-1 space-y-1">
+                          <div className="flex min-w-0 items-center gap-2 text-xs text-muted-foreground">
+                            <Badge variant="outline" className="shrink-0 text-[10px] uppercase">
+                              {getCommentTargetTypeLabel(comment.targetType)}
                             </Badge>
-                            <span>{formatDateTime(comment.createdAt)}</span>
+                            <span className="min-w-0 truncate" title={comment.targetLabel}>
+                              {comment.targetLabel}
+                            </span>
+                            <span className="ml-auto shrink-0 whitespace-nowrap">{formatDateTime(comment.createdAt)}</span>
                           </div>
                           <p className="text-sm font-semibold text-foreground">{comment.name}</p>
                           <p className="text-sm text-muted-foreground whitespace-pre-line">{comment.content}</p>
@@ -248,7 +379,7 @@ const DashboardComments = () => {
                           <Button
                             size="sm"
                             variant="secondary"
-                            disabled={Boolean(pendingActionById[comment.id])}
+                            disabled={Boolean(pendingActionById[comment.id]) || isBulkActionLoading}
                             onClick={() => handleApprove(comment.id)}
                           >
                             <CheckCircle2 className="mr-2 h-4 w-4" />
@@ -257,7 +388,7 @@ const DashboardComments = () => {
                           <Button
                             size="sm"
                             variant="destructive"
-                            disabled={Boolean(pendingActionById[comment.id])}
+                            disabled={Boolean(pendingActionById[comment.id]) || isBulkActionLoading}
                             onClick={() => handleDelete(comment)}
                           >
                             <Trash2 className="mr-2 h-4 w-4" />
@@ -270,9 +401,6 @@ const DashboardComments = () => {
                             </a>
                           </Button>
                         </div>
-                      </div>
-                      <div className="rounded-xl border border-border/50 bg-background/60 px-3 py-2 text-xs text-muted-foreground">
-                        {comment.targetLabel}
                       </div>
                     </CardContent>
                   </Card>
@@ -307,6 +435,51 @@ const DashboardComments = () => {
               }}
             >
               {isDeleteConfirmLoading ? "Excluindo..." : "Excluir"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      <AlertDialog
+        open={isBulkDeleteConfirmOpen}
+        onOpenChange={(open) => {
+          if (isBulkActionLoading) {
+            return;
+          }
+          setIsBulkDeleteConfirmOpen(open);
+          if (!open) {
+            setBulkDeleteConfirmText("");
+          }
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir todos os comentários pendentes?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta ação remove permanentemente todos os comentários pendentes da fila. Digite EXCLUIR para confirmar.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="space-y-2">
+            <p className="text-sm text-muted-foreground">
+              Pendentes na fila: <span className="font-semibold text-foreground">{comments.length}</span>
+            </p>
+            <Input
+              value={bulkDeleteConfirmText}
+              onChange={(event) => setBulkDeleteConfirmText(event.target.value)}
+              placeholder="Digite EXCLUIR"
+              disabled={isBulkActionLoading}
+            />
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isBulkActionLoading}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={isBulkActionLoading || bulkDeleteConfirmText !== BULK_DELETE_CONFIRM_TEXT}
+              onClick={(event) => {
+                event.preventDefault();
+                void handleConfirmBulkDelete();
+              }}
+            >
+              {isBulkActionLoading && bulkActionType === "delete_all" ? "Excluindo..." : "Excluir todos"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
