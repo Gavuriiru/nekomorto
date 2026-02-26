@@ -56,6 +56,7 @@ class DbDataRepository {
       users: [],
       linkTypes: [],
       posts: [],
+      postVersions: [],
       projects: [],
       updates: [],
       tagTranslations: { tags: {}, genres: {}, staffRoles: {} },
@@ -110,6 +111,7 @@ class DbDataRepository {
       users,
       linkTypes,
       posts,
+      postVersions,
       projects,
       updates,
       tagTranslations,
@@ -128,6 +130,11 @@ class DbDataRepository {
       prisma.userRecord.findMany({ orderBy: { position: "asc" } }),
       prisma.linkTypeRecord.findMany({ orderBy: { position: "asc" } }),
       prisma.postRecord.findMany({ orderBy: { position: "asc" } }),
+      typeof prisma.postVersionRecord?.findMany === "function"
+        ? prisma.postVersionRecord
+            .findMany({ orderBy: { position: "asc" } })
+            .catch(() => [])
+        : Promise.resolve([]),
       prisma.projectRecord.findMany({ orderBy: { position: "asc" } }),
       prisma.updateRecord.findMany({ orderBy: { position: "asc" } }),
       prisma.tagTranslationsRecord.findUnique({ where: { id: 1 } }),
@@ -156,6 +163,7 @@ class DbDataRepository {
     this.snapshot.users = users.map((row) => cloneValue(row.data));
     this.snapshot.linkTypes = linkTypes.map((row) => cloneValue(row.data));
     this.snapshot.posts = posts.map((row) => cloneValue(row.data));
+    this.snapshot.postVersions = postVersions.map((row) => cloneValue(row.data));
     this.snapshot.projects = projects.map((row) => cloneValue(row.data));
     this.snapshot.updates = updates.map((row) => cloneValue(row.data));
     this.snapshot.tagTranslations = tagTranslations?.data
@@ -385,6 +393,35 @@ class DbDataRepository {
       await prisma.$transaction([
         prisma.postRecord.deleteMany({}),
         ...(rows.length ? [prisma.postRecord.createMany({ data: rows })] : []),
+      ]);
+    });
+  }
+
+  loadPostVersions() {
+    return cloneValue(this.snapshot.postVersions);
+  }
+
+  writePostVersions(entries) {
+    this.snapshot.postVersions = cloneValue(ensureArray(entries));
+    this.enqueuePersist("post_versions", async () => {
+      const rows = this.snapshot.postVersions.map((entry, index) => ({
+        id: String(entry?.id || crypto.randomUUID()),
+        postId: String(entry?.postId || ""),
+        position: index,
+        versionNumber: Number.isFinite(Number(entry?.versionNumber))
+          ? Number(entry.versionNumber)
+          : index + 1,
+        reason: String(entry?.reason || "update"),
+        label: typeof entry?.label === "string" && entry.label.trim() ? String(entry.label) : null,
+        actorId: typeof entry?.actorId === "string" && entry.actorId.trim() ? String(entry.actorId) : null,
+        actorName: typeof entry?.actorName === "string" && entry.actorName.trim() ? String(entry.actorName) : null,
+        slug: String(entry?.slug || entry?.data?.slug || ""),
+        createdAt: toDateOrNull(entry?.createdAt) || new Date(),
+        data: cloneValue(entry || {}),
+      }));
+      await prisma.$transaction([
+        prisma.postVersionRecord.deleteMany({}),
+        ...(rows.length ? [prisma.postVersionRecord.createMany({ data: rows })] : []),
       ]);
     });
   }

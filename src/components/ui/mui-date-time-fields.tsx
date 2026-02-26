@@ -21,13 +21,18 @@ const normalizeDate = (value: Date | null): Date | null => {
 const muiTextFieldSx = {
   "& .MuiOutlinedInput-root": {
     height: "2.5rem",
-    borderRadius: "0.375rem",
+    borderRadius: "var(--radius)",
+    overflow: "hidden",
     backgroundColor: "hsl(var(--background))",
     color: "hsl(var(--foreground))",
     fontSize: "0.875rem",
     transition: "box-shadow 0.2s ease",
     "& .MuiOutlinedInput-notchedOutline": {
       borderColor: "hsl(var(--input))",
+      borderRadius: "var(--radius)",
+    },
+    "& fieldset": {
+      borderRadius: "var(--radius)",
     },
     "&:hover .MuiOutlinedInput-notchedOutline": {
       borderColor: "hsl(var(--input))",

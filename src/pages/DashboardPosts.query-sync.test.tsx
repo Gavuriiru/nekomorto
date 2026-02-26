@@ -81,10 +81,31 @@ const createPost = (index: number) => ({
   tags: [],
   views: 10 - (index % 3),
   commentsCount: index % 5,
+  deletedAt: null,
+  deletedBy: null,
 });
 
-const setupApiMock = () => {
+const setupApiMock = ({
+  includeTrashedPost = false,
+  calendarItems = [],
+}: {
+  includeTrashedPost?: boolean;
+  calendarItems?: Array<Record<string, unknown>>;
+} = {}) => {
   let posts = Array.from({ length: 21 }, (_, index) => createPost(index + 1));
+  if (includeTrashedPost) {
+    posts = [
+      ...posts,
+      {
+        ...createPost(999),
+        id: "post-trash",
+        title: "Post na lixeira",
+        slug: "post-na-lixeira",
+        deletedAt: new Date(Date.now() - 60 * 60 * 1000).toISOString(),
+        deletedBy: "user-1",
+      },
+    ];
+  }
   apiFetchMock.mockReset();
   apiFetchMock.mockImplementation(async (_base: string, path: string, options?: RequestInit) => {
     const method = String(options?.method || "GET").toUpperCase();
@@ -116,6 +137,15 @@ const setupApiMock = () => {
     }
     if (path === "/api/public/tag-translations" && method === "GET") {
       return mockJsonResponse(true, { tags: {}, genres: {}, staffRoles: {} });
+    }
+    if (path.startsWith("/api/admin/editorial/calendar") && method === "GET") {
+      const url = new URL(`http://test.local${path}`);
+      return mockJsonResponse(true, {
+        from: url.searchParams.get("from") || "",
+        to: url.searchParams.get("to") || "",
+        tz: url.searchParams.get("tz") || "America/Sao_Paulo",
+        items: calendarItems,
+      });
     }
     return mockJsonResponse(false, { error: "not_found" }, 404);
   });
@@ -204,6 +234,85 @@ describe("DashboardPosts query sync", () => {
       expect(entries).toContain("?page=2");
       expect(entries.every((entry) => entry === "?page=2&edit=post-1" || entry === "?page=2")).toBe(true);
     });
+  });
+
+  it("oculta paginacao e lixeira no calendario e preserva page na URL", async () => {
+    setupApiMock({ includeTrashedPost: true });
+
+    render(
+      <MemoryRouter initialEntries={["/dashboard/posts"]}>
+        <DashboardPosts />
+        <LocationProbe />
+      </MemoryRouter>,
+    );
+
+    await screen.findByRole("heading", { name: "Gerenciar posts" });
+    const pagination = screen.getByRole("navigation");
+    fireEvent.click(within(pagination).getByRole("link", { name: /pr/i }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("location-search").textContent).toBe("?page=2");
+    });
+    expect(screen.getByText("Lixeira")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /Calend/i }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("location-search").textContent).toBe("?page=2");
+    });
+    expect(screen.queryByRole("navigation")).not.toBeInTheDocument();
+    expect(screen.queryByText("Lixeira")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /Lista/i }));
+
+    await waitFor(() => {
+      expect(screen.getByRole("navigation")).toBeInTheDocument();
+    });
+    expect(screen.getByText("Lixeira")).toBeInTheDocument();
+    expect(screen.getByTestId("location-search").textContent).toBe("?page=2");
+  });
+
+  it("calendario renderiza postagens agendadas e publicadas com status", async () => {
+    const now = new Date();
+    const currentMonthDate = new Date(now.getFullYear(), now.getMonth(), 10, 14, 0, 0, 0);
+    const nextHour = new Date(currentMonthDate.getTime() + 60 * 60 * 1000);
+    setupApiMock({
+      calendarItems: [
+        {
+          id: "post-1",
+          title: "Post agendado",
+          slug: "post-agendado",
+          status: "scheduled",
+          publishedAt: currentMonthDate.toISOString(),
+          scheduledAt: currentMonthDate.toISOString(),
+          projectId: "",
+        },
+        {
+          id: "post-2",
+          title: "Post publicado",
+          slug: "post-publicado",
+          status: "published",
+          publishedAt: nextHour.toISOString(),
+          scheduledAt: null,
+          projectId: "",
+        },
+      ],
+    });
+
+    render(
+      <MemoryRouter initialEntries={["/dashboard/posts"]}>
+        <DashboardPosts />
+      </MemoryRouter>,
+    );
+
+    await screen.findByRole("heading", { name: "Gerenciar posts" });
+    fireEvent.click(screen.getByRole("button", { name: /Calend/i }));
+
+    await screen.findByText(/Agenda de postagens .*publicadas/i);
+    expect(screen.getByText("Post agendado")).toBeInTheDocument();
+    expect(screen.getByText("Post publicado")).toBeInTheDocument();
+    expect(screen.getByText("Agendada")).toBeInTheDocument();
+    expect(screen.getByText("Publicada")).toBeInTheDocument();
   });
 
   it(

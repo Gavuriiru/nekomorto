@@ -432,6 +432,8 @@ const ImageLibraryDialog = ({
   const [selectedUrls, setSelectedUrls] = useState<string[]>([]);
   const [urlInput, setUrlInput] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
+  const [sortMode, setSortMode] = useState<"recent" | "oldest" | "name">("recent");
+  const [uploadsFolderFilter, setUploadsFolderFilter] = useState<string>("__all__");
   const [renameTarget, setRenameTarget] = useState<LibraryImageItem | null>(null);
   const [renameValue, setRenameValue] = useState("");
   const [deleteTarget, setDeleteTarget] = useState<LibraryImageItem | null>(null);
@@ -513,6 +515,31 @@ const ImageLibraryDialog = ({
   const primarySelectedUrl = selectedUrls[0] || "";
   const normalizedSearch = searchQuery.trim().toLowerCase();
 
+  const sortLibraryItems = useCallback(
+    (items: LibraryImageItem[]) => {
+      const next = [...items];
+      next.sort((left, right) => {
+        if (sortMode === "name") {
+          return toEffectiveName(left).localeCompare(toEffectiveName(right), "pt-BR");
+        }
+        const leftTs = new Date(left.createdAt || 0).getTime();
+        const rightTs = new Date(right.createdAt || 0).getTime();
+        const safeLeftTs = Number.isFinite(leftTs) ? leftTs : 0;
+        const safeRightTs = Number.isFinite(rightTs) ? rightTs : 0;
+        if (sortMode === "oldest") {
+          if (safeLeftTs !== safeRightTs) {
+            return safeLeftTs - safeRightTs;
+          }
+        } else if (safeLeftTs !== safeRightTs) {
+          return safeRightTs - safeLeftTs;
+        }
+        return toEffectiveName(left).localeCompare(toEffectiveName(right), "pt-BR");
+      });
+      return next;
+    },
+    [sortMode],
+  );
+
   const matchesSearch = useCallback(
     (item: LibraryImageItem) => {
       if (!normalizedSearch) {
@@ -542,11 +569,39 @@ const ImageLibraryDialog = ({
     return uploads.filter((item) => !isAvatarGeneratedUsersUpload(item));
   }, [cropAvatar, uploads]);
 
-  const filteredUploads = useMemo(() => visibleUploads.filter(matchesSearch), [matchesSearch, visibleUploads]);
+  const filteredUploads = useMemo(() => {
+    const bySearch = visibleUploads.filter(matchesSearch);
+    const byFolder =
+      uploadsFolderFilter === "__all__"
+        ? bySearch
+        : bySearch.filter(
+            (item) => sanitizeUploadFolderForComparison(item.folder) === sanitizeUploadFolderForComparison(uploadsFolderFilter),
+          );
+    return sortLibraryItems(byFolder);
+  }, [matchesSearch, sortLibraryItems, uploadsFolderFilter, visibleUploads]);
   const filteredProjectImages = useMemo(
-    () => projectImages.filter(matchesSearch),
-    [matchesSearch, projectImages],
+    () => sortLibraryItems(projectImages.filter(matchesSearch)),
+    [matchesSearch, projectImages, sortLibraryItems],
   );
+  const uploadFolderFilterOptions = useMemo(() => {
+    const set = new Set<string>();
+    uploads.forEach((item) => {
+      const normalized = sanitizeUploadFolderForComparison(item.folder);
+      if (normalized) {
+        set.add(normalized);
+      }
+    });
+    return Array.from(set).sort((a, b) => a.localeCompare(b, "pt-BR"));
+  }, [uploads]);
+
+  useEffect(() => {
+    if (uploadsFolderFilter === "__all__") {
+      return;
+    }
+    if (!uploadFolderFilterOptions.includes(uploadsFolderFilter)) {
+      setUploadsFolderFilter("__all__");
+    }
+  }, [uploadFolderFilterOptions, uploadsFolderFilter]);
 
   const selectionSeed = useMemo(
     () =>
@@ -1323,7 +1378,51 @@ const ImageLibraryDialog = ({
 
           <div className="mt-4 min-h-0 flex-1 space-y-8 overflow-auto no-scrollbar">
             <div>
-              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <div className="sticky top-0 z-10 -mx-1 mb-2 rounded-xl border border-border/60 bg-background/95 px-3 py-3 backdrop-blur">
+                <div className="flex flex-col gap-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <h3 className="text-sm font-semibold text-foreground">Uploads do servidor</h3>
+                    <p className="text-xs text-muted-foreground">Selecionadas: {selectedUrls.length}</p>
+                  </div>
+                  <div className="flex flex-col gap-2 lg:flex-row lg:items-center">
+                    <Input
+                      value={searchQuery}
+                      onChange={(event) => setSearchQuery(event.target.value)}
+                      placeholder="Pesquisar por nome, projeto ou URL..."
+                      className="h-9 lg:w-80"
+                    />
+                    <div className="flex flex-1 flex-wrap items-center gap-2">
+                      <select
+                        value={uploadsFolderFilter}
+                        onChange={(event) => setUploadsFolderFilter(event.target.value)}
+                        className="h-9 rounded-md border border-input bg-background px-3 text-sm"
+                      >
+                        <option value="__all__">Todas as pastas</option>
+                        {uploadFolderFilterOptions.map((folder) => (
+                          <option key={folder} value={folder}>
+                            {folder}
+                          </option>
+                        ))}
+                      </select>
+                      <select
+                        value={sortMode}
+                        onChange={(event) => setSortMode(event.target.value as "recent" | "oldest" | "name")}
+                        className="h-9 rounded-md border border-input bg-background px-3 text-sm"
+                      >
+                        <option value="recent">Mais recentes</option>
+                        <option value="oldest">Mais antigos</option>
+                        <option value="name">Nome</option>
+                      </select>
+                      {allowDeselect ? (
+                        <Button type="button" size="sm" variant="outline" onClick={() => setSelectedUrls([])}>
+                          Limpar seleção
+                        </Button>
+                      ) : null}
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div className="hidden flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                 <h3 className="text-sm font-semibold text-foreground">Uploads do servidor</h3>
                 <div className="flex w-full items-center gap-2 sm:w-auto">
                   <Input
@@ -1339,14 +1438,21 @@ const ImageLibraryDialog = ({
                   ) : null}
                 </div>
               </div>
-              <p className="mt-2 text-xs text-muted-foreground">Selecionadas: {selectedUrls.length}</p>
+              <p className="hidden mt-2 text-xs text-muted-foreground" aria-hidden="true" />
               {renderGrid(
                 filteredUploads,
-                normalizedSearch ? "Nenhum upload encontrado para essa pesquisa." : "Nenhum upload dispon\u00EDvel.",
+                normalizedSearch || uploadsFolderFilter !== "__all__"
+                  ? "Nenhum upload corresponde aos filtros atuais."
+                  : "Nenhum upload disponível.",
               )}
             </div>
             <div>
-              <h3 className="text-sm font-semibold text-foreground">Imagens dos projetos</h3>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <h3 className="text-sm font-semibold text-foreground">Imagens dos projetos</h3>
+                <span className="text-xs text-muted-foreground">
+                  Ordenação: {sortMode === "recent" ? "mais recentes" : sortMode === "oldest" ? "mais antigos" : "nome"}
+                </span>
+              </div>
               {includeProjectImages
                 ? projectImagesView === "by-project"
                   ? renderProjectGroups(

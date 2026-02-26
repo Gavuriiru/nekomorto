@@ -23,6 +23,25 @@ model PostRecord {
   @@map("posts")
 }
 
+model PostVersionRecord {
+  id          String   @id
+  postId       String
+  position     Int      @default(0)
+  versionNumber Int
+  reason       String
+  label        String?
+  actorId      String?
+  actorName    String?
+  slug         String
+  createdAt    DateTime
+  data         Json
+
+  @@index([position])
+  @@index([postId, createdAt])
+  @@index([postId, versionNumber])
+  @@map("post_versions")
+}
+
 model ProjectRecord {
   id        String    @id
   position  Int       @default(0)

@@ -83,7 +83,45 @@ const postFixture = {
   commentsCount: 2,
 };
 
-const setupApiMock = ({ canManagePosts }: { canManagePosts: boolean }) => {
+const buildVersionSnapshot = (overrides: Record<string, unknown> = {}) => ({
+  id: postFixture.id,
+  slug: postFixture.slug,
+  title: postFixture.title,
+  status: postFixture.status,
+  publishedAt: postFixture.publishedAt,
+  scheduledAt: null,
+  projectId: postFixture.projectId,
+  excerpt: postFixture.excerpt,
+  content: postFixture.content,
+  contentFormat: postFixture.contentFormat,
+  author: postFixture.author,
+  coverImageUrl: null,
+  coverAlt: "",
+  seoTitle: "",
+  seoDescription: "",
+  tags: [],
+  updatedAt: postFixture.publishedAt,
+  ...overrides,
+});
+
+const buildVersion = (id: string, snapshotOverrides: Record<string, unknown> = {}) => ({
+  id,
+  postId: postFixture.id,
+  versionNumber: Number(id.replace(/\D/g, "")) || 1,
+  reason: "update",
+  reasonLabel: "Atualizacao",
+  slug: String(snapshotOverrides.slug || postFixture.slug),
+  createdAt: "2026-02-10T12:00:00.000Z",
+  snapshot: buildVersionSnapshot(snapshotOverrides),
+});
+
+const setupApiMock = ({
+  canManagePosts,
+  versionsResponse,
+}: {
+  canManagePosts: boolean;
+  versionsResponse?: { versions?: unknown[]; nextCursor?: string | null } | "error";
+}) => {
   apiFetchMock.mockReset();
   apiFetchMock.mockImplementation(async (_base: string, path: string, options?: RequestInit) => {
     const method = String(options?.method || "GET").toUpperCase();
@@ -109,6 +147,16 @@ const setupApiMock = ({ canManagePosts }: { canManagePosts: boolean }) => {
     }
     if (path === "/api/public/tag-translations" && method === "GET") {
       return mockJsonResponse(true, { tags: {}, genres: {}, staffRoles: {} });
+    }
+    if (path.startsWith("/api/admin/content/post/") && path.includes("/versions") && method === "GET") {
+      if (versionsResponse === "error") {
+        return mockJsonResponse(false, { error: "versions_failed" }, 500);
+      }
+      return mockJsonResponse(true, {
+        postId: "post-1",
+        versions: versionsResponse?.versions || [],
+        nextCursor: versionsResponse?.nextCursor || null,
+      });
     }
     return mockJsonResponse(false, { error: "not_found" }, 404);
   });
@@ -167,5 +215,79 @@ describe("DashboardPosts edit query", () => {
       expect(screen.getByTestId("location-search").textContent).toBe("");
     });
     expect(screen.queryByText("Editar postagem")).not.toBeInTheDocument();
+  });
+
+  it("oculta botao de historico quando a unica versao equivale ao estado atual", async () => {
+    setupApiMock({
+      canManagePosts: true,
+      versionsResponse: {
+        versions: [buildVersion("v1")],
+      },
+    });
+
+    render(
+      <MemoryRouter initialEntries={["/dashboard/posts?edit=post-1"]}>
+        <DashboardPosts />
+        <LocationProbe />
+      </MemoryRouter>,
+    );
+
+    await screen.findByRole("heading", { name: "Gerenciar posts" });
+    await screen.findByText("Editar postagem");
+
+    await waitFor(() => {
+      expect(
+        apiFetchMock.mock.calls.some((call) => String(call[1] || "").includes("/api/admin/content/post/post-1/versions")),
+      ).toBe(true);
+    });
+
+    expect(screen.queryByRole("button", { name: /Hist/i })).not.toBeInTheDocument();
+  });
+
+  it("mostra botao de historico quando existe uma versao restauravel mesmo sendo unica", async () => {
+    setupApiMock({
+      canManagePosts: true,
+      versionsResponse: {
+        versions: [buildVersion("v2", { title: "Titulo antigo" })],
+      },
+    });
+
+    render(
+      <MemoryRouter initialEntries={["/dashboard/posts?edit=post-1"]}>
+        <DashboardPosts />
+        <LocationProbe />
+      </MemoryRouter>,
+    );
+
+    await screen.findByRole("heading", { name: "Gerenciar posts" });
+    await screen.findByText("Editar postagem");
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /Hist/i })).toBeInTheDocument();
+    });
+  });
+
+  it("mostra botao de historico quando ha nextCursor mesmo sem diferenca nas primeiras versoes", async () => {
+    setupApiMock({
+      canManagePosts: true,
+      versionsResponse: {
+        versions: [buildVersion("v1"), buildVersion("v2")],
+        nextCursor: "cursor-1",
+      },
+    });
+
+    render(
+      <MemoryRouter initialEntries={["/dashboard/posts?edit=post-1"]}>
+        <DashboardPosts />
+        <LocationProbe />
+      </MemoryRouter>,
+    );
+
+    await screen.findByRole("heading", { name: "Gerenciar posts" });
+    await screen.findByText("Editar postagem");
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /Hist/i })).toBeInTheDocument();
+    });
   });
 });

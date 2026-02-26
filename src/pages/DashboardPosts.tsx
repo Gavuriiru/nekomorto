@@ -1,4 +1,4 @@
-import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from "react";
+﻿import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import DashboardShell from "@/components/DashboardShell";
 import DashboardPageContainer from "@/components/dashboard/DashboardPageContainer";
@@ -26,11 +26,15 @@ import {
 } from "@/components/ui/select";
 import { toast } from "@/components/ui/use-toast";
 import {
+  CalendarDays,
   Copy,
   Edit3,
   Eye,
+  History,
+  List as ListIcon,
   MessageSquare,
   Plus,
+  RotateCcw,
   Trash2,
   X,
   UserRound,
@@ -42,6 +46,12 @@ import type { Project } from "@/data/projects";
 import ProjectEmbedCard from "@/components/ProjectEmbedCard";
 import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
+import {
+  createPostVersion,
+  fetchEditorialCalendar,
+  fetchPostVersions,
+  rollbackPostVersion,
+} from "@/lib/editorial-admin";
 import { applyBeforeUnloadCompatibility } from "@/lib/before-unload";
 import { formatDateTimeShort } from "@/lib/date";
 import { buildTranslationMap, sortByTranslatedLabel, translateTag } from "@/lib/project-taxonomy";
@@ -49,6 +59,7 @@ import { usePageMeta } from "@/hooks/use-page-meta";
 import { useEditorScrollLock } from "@/hooks/use-editor-scroll-lock";
 import { useEditorScrollStability } from "@/hooks/use-editor-scroll-stability";
 import { normalizeAssetUrl } from "@/lib/asset-url";
+import type { ContentVersion, EditorialCalendarItem } from "@/types/editorial";
 import {
   MuiBrazilDateField,
   MuiBrazilTimeField,
@@ -149,6 +160,39 @@ const parseSortParam = (
     return value;
   }
   return "recent";
+};
+
+const toMonthStart = (value: Date) => new Date(value.getFullYear(), value.getMonth(), 1);
+
+const toLocalDateKey = (value: Date | string) => {
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return "";
+  }
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+};
+
+const formatLocalTimeShort = (value?: string | null) => {
+  if (!value) {
+    return "";
+  }
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) {
+    return "";
+  }
+  return parsed.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+};
+
+const buildMonthCalendarGrid = (monthCursor: Date) => {
+  const start = toMonthStart(monthCursor);
+  const monthStartWeekday = start.getDay();
+  const gridStart = new Date(start);
+  gridStart.setDate(start.getDate() - monthStartWeekday);
+  return Array.from({ length: 42 }, (_, index) => {
+    const next = new Date(gridStart);
+    next.setDate(gridStart.getDate() + index);
+    return next;
+  });
 };
 
 const normalizeComparableCoverUrl = (value?: string | null) => {
@@ -269,6 +313,113 @@ const getPostStatusLabel = (status: PostRecord["status"]): string => {
   return "Rascunho";
 };
 
+type ComparablePostSnapshot = {
+  title: string;
+  slug: string;
+  status: PostRecord["status"];
+  publishedAt: string;
+  scheduledAt: string | null;
+  projectId: string;
+  excerpt: string;
+  content: string;
+  contentFormat: string;
+  author: string;
+  coverImageUrl: string;
+  coverAlt: string;
+  seoTitle: string;
+  seoDescription: string;
+  tags: string[];
+};
+
+const normalizeComparableTags = (value?: string[] | null) =>
+  (Array.isArray(value) ? value : [])
+    .map((tag) => String(tag || "").trim())
+    .filter(Boolean);
+
+const buildComparableSnapshotFromPost = (post?: PostRecord | null): ComparablePostSnapshot | null => {
+  if (!post) {
+    return null;
+  }
+  return {
+    title: String(post.title || "").trim(),
+    slug: String(post.slug || "").trim(),
+    status: post.status === "scheduled" || post.status === "published" ? post.status : "draft",
+    publishedAt: String(post.publishedAt || "").trim(),
+    scheduledAt: post.scheduledAt ? String(post.scheduledAt).trim() || null : null,
+    projectId: String(post.projectId || "").trim(),
+    excerpt: String(post.excerpt || ""),
+    content: String(post.content || ""),
+    contentFormat: String(post.contentFormat || "lexical"),
+    author: String(post.author || "").trim(),
+    coverImageUrl: normalizeComparableCoverUrl(post.coverImageUrl),
+    coverAlt: String(post.coverAlt || ""),
+    seoTitle: String(post.seoTitle || ""),
+    seoDescription: String(post.seoDescription || ""),
+    tags: normalizeComparableTags(post.tags),
+  };
+};
+
+const normalizeComparableVersionSnapshot = (snapshot?: ContentVersion["snapshot"] | null): ComparablePostSnapshot => ({
+  title: String(snapshot?.title || "").trim(),
+  slug: String(snapshot?.slug || "").trim(),
+  status:
+    snapshot?.status === "scheduled" || snapshot?.status === "published"
+      ? snapshot.status
+      : "draft",
+  publishedAt: String(snapshot?.publishedAt || "").trim(),
+  scheduledAt: snapshot?.scheduledAt ? String(snapshot.scheduledAt).trim() || null : null,
+  projectId: String(snapshot?.projectId || "").trim(),
+  excerpt: String(snapshot?.excerpt || ""),
+  content: String(snapshot?.content || ""),
+  contentFormat: String(snapshot?.contentFormat || "lexical"),
+  author: String(snapshot?.author || "").trim(),
+  coverImageUrl: normalizeComparableCoverUrl(snapshot?.coverImageUrl),
+  coverAlt: String(snapshot?.coverAlt || ""),
+  seoTitle: String(snapshot?.seoTitle || ""),
+  seoDescription: String(snapshot?.seoDescription || ""),
+  tags: normalizeComparableTags(snapshot?.tags),
+});
+
+const isVersionRestorableAgainstPost = (version: ContentVersion, post?: PostRecord | null) => {
+  const current = buildComparableSnapshotFromPost(post);
+  if (!current) {
+    return false;
+  }
+  const candidate = normalizeComparableVersionSnapshot(version?.snapshot);
+  if (JSON.stringify(candidate) !== JSON.stringify(current)) {
+    return true;
+  }
+
+  // Fallback defensivo para casos em que a snapshot venha parcial/inconsistente,
+  // mas a versão ainda indique claramente um estado diferente.
+  const topLevelVersionSlug = String(version?.slug || "").trim();
+  if (topLevelVersionSlug && topLevelVersionSlug !== current.slug) {
+    return true;
+  }
+  const snapshotTitle = String(version?.snapshot?.title || "").trim();
+  if (snapshotTitle && snapshotTitle !== current.title) {
+    return true;
+  }
+  return false;
+};
+
+const hasRestorableVersionForPost = (
+  versions: ContentVersion[],
+  post?: PostRecord | null,
+  nextCursor?: string | null,
+) => {
+  if ((Array.isArray(versions) ? versions : []).some((version) => isVersionRestorableAgainstPost(version, post))) {
+    return true;
+  }
+  return Boolean(nextCursor);
+};
+
+const getCalendarItemDisplayTime = (item: EditorialCalendarItem) =>
+  item.status === "scheduled" ? item.scheduledAt || item.publishedAt : item.publishedAt;
+
+const getCalendarItemStatusLabel = (status: EditorialCalendarItem["status"]) =>
+  status === "published" ? "Publicada" : "Agendada";
+
 const DashboardPosts = () => {
   usePageMeta({ title: "Posts", noIndex: true });
   const navigate = useNavigate();
@@ -297,6 +448,12 @@ const DashboardPosts = () => {
   const [formState, setFormState] = useState(emptyForm);
   const [isSlugCustom, setIsSlugCustom] = useState(false);
   const [isLibraryOpen, setIsLibraryOpen] = useState(false);
+  const [listViewMode, setListViewMode] = useState<"list" | "calendar">("list");
+  const [calendarMonthCursor, setCalendarMonthCursor] = useState(() => toMonthStart(new Date()));
+  const [calendarItems, setCalendarItems] = useState<EditorialCalendarItem[]>([]);
+  const [calendarTz, setCalendarTz] = useState(timeZone);
+  const [isCalendarLoading, setIsCalendarLoading] = useState(false);
+  const [hasCalendarError, setHasCalendarError] = useState(false);
   const [sortMode, setSortMode] = useState<"recent" | "alpha" | "tags" | "projects" | "status" | "views" | "comments">(() =>
     parseSortParam(searchParams.get("sort")),
   );
@@ -310,6 +467,18 @@ const DashboardPosts = () => {
   const tagInputRef = useRef<HTMLInputElement | null>(null);
   const [tagOrder, setTagOrder] = useState<string[]>([]);
   const [draggedTag, setDraggedTag] = useState<string | null>(null);
+  const [isVersionHistoryOpen, setIsVersionHistoryOpen] = useState(false);
+  const [isLoadingVersions, setIsLoadingVersions] = useState(false);
+  const [hasVersionsError, setHasVersionsError] = useState(false);
+  const [postVersions, setPostVersions] = useState<ContentVersion[]>([]);
+  const [versionsNextCursor, setVersionsNextCursor] = useState<string | null>(null);
+  const [versionHistoryAvailabilityByPostId, setVersionHistoryAvailabilityByPostId] = useState<
+    Record<string, boolean | undefined>
+  >({});
+  const openingVersionHistoryRef = useRef(false);
+  const [isCreatingManualVersion, setIsCreatingManualVersion] = useState(false);
+  const [rollbackTargetVersion, setRollbackTargetVersion] = useState<ContentVersion | null>(null);
+  const [isRollingBackVersion, setIsRollingBackVersion] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [confirmTitle, setConfirmTitle] = useState("Sair da edição?");
   const [confirmDescription, setConfirmDescription] = useState(
@@ -386,6 +555,98 @@ const DashboardPosts = () => {
     const nextPosts = Array.isArray(data.posts) ? data.posts : [];
     setPosts(nextPosts);
   };
+
+  const loadEditorialCalendar = useCallback(
+    async (monthCursor: Date) => {
+      const monthStart = toMonthStart(monthCursor);
+      const from = toLocalDateKey(monthStart);
+      const monthEnd = new Date(monthStart.getFullYear(), monthStart.getMonth() + 1, 0);
+      const to = toLocalDateKey(monthEnd);
+      setIsCalendarLoading(true);
+      setHasCalendarError(false);
+      try {
+        const response = await fetchEditorialCalendar(apiBase, {
+          from,
+          to,
+          tz: timeZone,
+        });
+        setCalendarItems(Array.isArray(response.items) ? response.items : []);
+        setCalendarTz(response.tz || timeZone);
+      } catch {
+        setCalendarItems([]);
+        setCalendarTz(timeZone);
+        setHasCalendarError(true);
+      } finally {
+        setIsCalendarLoading(false);
+      }
+    },
+    [apiBase, timeZone],
+  );
+
+  const loadVersionHistory = useCallback(
+    async (postId: string) => {
+      if (!postId) {
+        setPostVersions([]);
+        setVersionsNextCursor(null);
+        return;
+      }
+      setIsLoadingVersions(true);
+      setHasVersionsError(false);
+      try {
+        const response = await fetchPostVersions(apiBase, postId, { limit: 20 });
+        const versions = Array.isArray(response.versions) ? response.versions : [];
+        const nextCursor = response.nextCursor || null;
+        setPostVersions(versions);
+        setVersionsNextCursor(nextCursor);
+        const currentPostForComparison =
+          posts.find((post) => post.id === postId) || (editingPost?.id === postId ? editingPost : null);
+        setVersionHistoryAvailabilityByPostId((prev) => ({
+          ...prev,
+          [postId]: hasRestorableVersionForPost(versions, currentPostForComparison, nextCursor),
+        }));
+      } catch {
+        setPostVersions([]);
+        setVersionsNextCursor(null);
+        setHasVersionsError(true);
+      } finally {
+        setIsLoadingVersions(false);
+      }
+    },
+    [apiBase, editingPost, posts],
+  );
+
+  const checkRestorableHistoryAvailability = useCallback(
+    async (post: PostRecord | null | undefined) => {
+      const safePostId = String(post?.id || "").trim();
+      if (!safePostId || !post) {
+        return;
+      }
+      const baselinePost = posts.find((item) => item.id === safePostId) || post;
+      try {
+        const response = await fetchPostVersions(apiBase, safePostId, { limit: 5 });
+        const versions = Array.isArray(response.versions) ? response.versions : [];
+        const hasRestorableHistory = hasRestorableVersionForPost(
+          versions,
+          baselinePost,
+          response.nextCursor || null,
+        );
+        setVersionHistoryAvailabilityByPostId((prev) => ({
+          ...prev,
+          [safePostId]: hasRestorableHistory,
+        }));
+      } catch {
+        setVersionHistoryAvailabilityByPostId((prev) => {
+          if (!(safePostId in prev)) {
+            return prev;
+          }
+          const next = { ...prev };
+          delete next[safePostId];
+          return next;
+        });
+      }
+    },
+    [apiBase, posts],
+  );
 
   useEffect(() => {
     let isActive = true;
@@ -613,6 +874,80 @@ const DashboardPosts = () => {
   }, []);
 
   useEffect(() => {
+    if (!editingPost?.id || !canManagePosts) {
+      return;
+    }
+    void checkRestorableHistoryAvailability(editingPost);
+  }, [canManagePosts, checkRestorableHistoryAvailability, editingPost]);
+
+  const openVersionHistory = useCallback(async () => {
+    if (!editingPost?.id) {
+      return;
+    }
+    openingVersionHistoryRef.current = true;
+    setIsVersionHistoryOpen(true);
+    setTimeout(() => {
+      openingVersionHistoryRef.current = false;
+    }, 0);
+    await loadVersionHistory(editingPost.id);
+  }, [editingPost?.id, loadVersionHistory]);
+
+  const handleCreateManualVersion = useCallback(async () => {
+    if (!editingPost?.id) {
+      return;
+    }
+    setIsCreatingManualVersion(true);
+    try {
+      await createPostVersion(apiBase, editingPost.id);
+      void checkRestorableHistoryAvailability(editingPost);
+      await loadVersionHistory(editingPost.id);
+      toast({
+        title: "Versão criada",
+        description: "Checkpoint manual criado com sucesso.",
+        intent: "success",
+      });
+    } catch {
+      toast({
+        title: "Não foi possível criar a versão",
+        description: "Tente novamente em alguns segundos.",
+      });
+    } finally {
+      setIsCreatingManualVersion(false);
+    }
+  }, [apiBase, checkRestorableHistoryAvailability, editingPost, loadVersionHistory]);
+
+  const handleConfirmRollbackVersion = useCallback(async () => {
+    if (!editingPost?.id || !rollbackTargetVersion?.id) {
+      return;
+    }
+    setIsRollingBackVersion(true);
+    try {
+      const response = await rollbackPostVersion<PostRecord>(apiBase, editingPost.id, rollbackTargetVersion.id);
+      await loadPosts();
+      if (response?.post) {
+        openEdit(response.post);
+        void checkRestorableHistoryAvailability(response.post);
+      }
+      await loadVersionHistory(editingPost.id);
+      setRollbackTargetVersion(null);
+      toast({
+        title: "Versão restaurada",
+        description: response.rollback?.slugAdjusted
+          ? `Slug ajustado para /${response.rollback?.resultingSlug || response.post?.slug || ""}.`
+          : "O post foi restaurado com sucesso.",
+        intent: "success",
+      });
+    } catch {
+      toast({
+        title: "Não foi possível restaurar a versão",
+        description: "Verifique as permissões e tente novamente.",
+      });
+    } finally {
+      setIsRollingBackVersion(false);
+    }
+  }, [apiBase, checkRestorableHistoryAvailability, editingPost?.id, loadPosts, loadVersionHistory, openEdit, rollbackTargetVersion]);
+
+  useEffect(() => {
     const editTarget = (searchParams.get("edit") || "").trim();
     if (!editTarget) {
       autoEditHandledRef.current = null;
@@ -661,7 +996,13 @@ const DashboardPosts = () => {
   };
 
   const handleEditorOpenChange = (next: boolean) => {
-    if (!next && isLibraryOpen) {
+    if (
+      !next &&
+      (isLibraryOpen ||
+        isVersionHistoryOpen ||
+        openingVersionHistoryRef.current ||
+        Boolean(rollbackTargetVersion))
+    ) {
       return;
     }
     if (!next) {
@@ -860,6 +1201,51 @@ const DashboardPosts = () => {
     });
     return next;
   }, [filteredPosts, projectMap, sortMode]);
+
+  const calendarGridDays = useMemo(
+    () => buildMonthCalendarGrid(calendarMonthCursor),
+    [calendarMonthCursor],
+  );
+  const calendarDayItemsMap = useMemo(() => {
+    const map = new Map<string, EditorialCalendarItem[]>();
+    calendarItems.forEach((item) => {
+      const key = toLocalDateKey(item.scheduledAt || item.publishedAt);
+      if (!key) {
+        return;
+      }
+      if (!map.has(key)) {
+        map.set(key, []);
+      }
+      map.get(key)?.push(item);
+    });
+    map.forEach((items) =>
+      items.sort(
+        (a, b) =>
+          new Date(a.scheduledAt || a.publishedAt || 0).getTime() -
+          new Date(b.scheduledAt || b.publishedAt || 0).getTime(),
+      ),
+    );
+    return map;
+  }, [calendarItems]);
+  const calendarWeeks = useMemo(
+    () => Array.from({ length: 6 }, (_, index) => calendarGridDays.slice(index * 7, index * 7 + 7)),
+    [calendarGridDays],
+  );
+  const calendarMonthLabel = useMemo(
+    () =>
+      calendarMonthCursor.toLocaleDateString("pt-BR", {
+        month: "long",
+        year: "numeric",
+      }),
+    [calendarMonthCursor],
+  );
+
+  useEffect(() => {
+    if (listViewMode !== "calendar" || !canManagePosts) {
+      return;
+    }
+    void loadEditorialCalendar(calendarMonthCursor);
+  }, [calendarMonthCursor, canManagePosts, listViewMode, loadEditorialCalendar, posts]);
 
   const postsPerPage = 10;
   const totalPages = Math.max(1, Math.ceil(sortedPosts.length / postsPerPage));
@@ -1182,6 +1568,13 @@ const DashboardPosts = () => {
     }
 
     await loadPosts();
+    if (editingPost?.id) {
+      const savedPost =
+        data?.post && typeof data.post === "object"
+          ? ({ ...(editingPost || {}), ...(data.post as Partial<PostRecord>) } as PostRecord)
+          : editingPost;
+      void checkRestorableHistoryAvailability(savedPost);
+    }
     const nextFormAfterSave = {
       ...formState,
       status: resolvedStatus,
@@ -1262,6 +1655,13 @@ const DashboardPosts = () => {
     setPosts((prev) => prev.map((item) => (item.id === post.id ? data.post : item)));
     toast({ title: "Postagem restaurada" });
   };
+
+  const persistedEditingPost =
+    editingPost?.id ? posts.find((post) => post.id === editingPost.id) || editingPost : null;
+
+  const editingPostHasRestorableHistory = Boolean(
+    editingPost?.id && versionHistoryAvailabilityByPostId[editingPost.id] === true,
+  );
 
 
   return (
@@ -1365,7 +1765,7 @@ const DashboardPosts = () => {
                     <Card className="border-border/60 bg-card/80">
                       <CardContent className="space-y-5 p-6">
                         <div className="space-y-2">
-                          <Label htmlFor="post-title">Título</Label>
+                          <Label htmlFor="post-title">{"T\u00edtulo"}</Label>
                           <Input
                             id="post-title"
                             value={formState.title}
@@ -1428,7 +1828,7 @@ const DashboardPosts = () => {
                           </Select>
                         </div>
                         <div className="space-y-2">
-                          <Label htmlFor="post-date">Publicação</Label>
+                          <Label htmlFor="post-date">{"Publica\u00e7\u00e3o"}</Label>
                           <MuiDateTimeFieldsProvider>
                             <div className="grid gap-3 md:grid-cols-[1.2fr_0.8fr]">
                               <MuiBrazilDateField
@@ -1552,7 +1952,7 @@ const DashboardPosts = () => {
                                     {displayTag(tag)}
                                     {isProjectTag ? null : (
                                       <span className="ml-2 text-[10px] text-muted-foreground group-hover:text-foreground">
-                                        ×
+                                        ?
                                       </span>
                                     )}
                                   </Badge>
@@ -1607,6 +2007,12 @@ const DashboardPosts = () => {
                         </Button>
                         {editingPost ? (
                           <>
+                            {editingPostHasRestorableHistory ? (
+                            <Button variant="outline" onClick={() => void openVersionHistory()} className="gap-2">
+                              <History className="h-4 w-4" />
+                              Histórico
+                            </Button>
+                            ) : null}
                             <Button variant="outline" onClick={handleDelete} className="gap-2">
                               <Trash2 className="h-4 w-4" />
                               Excluir
@@ -1709,9 +2115,33 @@ const DashboardPosts = () => {
                     </Select>
                   ) : null}
                 </div>
-                <Badge variant="secondary" className="text-xs uppercase animate-slide-up opacity-0">
-                  {sortedPosts.length} posts
-                </Badge>
+                <div className="flex items-center gap-2">
+                  <div className="inline-flex items-center rounded-lg border border-border/60 bg-card/70 p-1">
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant={listViewMode === "list" ? "secondary" : "ghost"}
+                      className="h-8 gap-2 px-3"
+                      onClick={() => setListViewMode("list")}
+                    >
+                      <ListIcon className="h-4 w-4" />
+                      Lista
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant={listViewMode === "calendar" ? "secondary" : "ghost"}
+                      className="h-8 gap-2 px-3"
+                      onClick={() => setListViewMode("calendar")}
+                    >
+                      <CalendarDays className="h-4 w-4" />
+                      Calendário
+                    </Button>
+                  </div>
+                  <Badge variant="secondary" className="text-xs uppercase animate-slide-up opacity-0">
+                    {sortedPosts.length} posts
+                  </Badge>
+                </div>
               </div>
               {isLoading ? (
                 <AsyncState
@@ -1723,7 +2153,7 @@ const DashboardPosts = () => {
               ) : hasLoadError ? (
                 <AsyncState
                   kind="error"
-                  title="Nao foi possivel carregar as postagens"
+                  title="Não foi possível carregar as postagens"
                   description="Confira a conexao e tente atualizar os dados."
                   className={dashboardPageLayoutTokens.surfaceDefault}
                   action={
@@ -1750,6 +2180,160 @@ const DashboardPosts = () => {
                     ) : null
                   }
                 />
+              ) : listViewMode === "calendar" ? (
+                <Card className={dashboardPageLayoutTokens.surfaceDefault}>
+                  <CardContent className="space-y-4 p-4 md:p-6">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <div>
+                        <h3 className="text-base font-semibold capitalize">{calendarMonthLabel}</h3>
+                        <p className="text-xs text-muted-foreground">
+                          Agenda de postagens (agendadas e publicadas) ({calendarTz || timeZone})
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() =>
+                            setCalendarMonthCursor(
+                              (prev) => new Date(prev.getFullYear(), prev.getMonth() - 1, 1),
+                            )
+                          }
+                        >
+                          Mês anterior
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() =>
+                            setCalendarMonthCursor(
+                              (prev) => new Date(prev.getFullYear(), prev.getMonth() + 1, 1),
+                            )
+                          }
+                        >
+                          Próximo mês
+                        </Button>
+                      </div>
+                    </div>
+                    {isCalendarLoading ? (
+                      <AsyncState
+                        kind="loading"
+                        title="Carregando calendário editorial"
+                        description="Buscando postagens do m?s."
+                        className="border-0 bg-transparent p-0"
+                      />
+                    ) : hasCalendarError ? (
+                      <AsyncState
+                        kind="error"
+                        title="Não foi possível carregar o calendário"
+                        description="Tente novamente em alguns segundos."
+                        className="border-0 bg-transparent p-0"
+                        action={
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => void loadEditorialCalendar(calendarMonthCursor)}
+                          >
+                            Recarregar
+                          </Button>
+                        }
+                      />
+                    ) : (
+                      <div className="space-y-3">
+                        <div className="grid grid-cols-7 gap-2 text-center text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                          {["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"].map((label) => (
+                            <div key={label} className="py-1">
+                              {label}
+                            </div>
+                          ))}
+                        </div>
+                        <div className="grid gap-2">
+                          {calendarWeeks.map((week, weekIndex) => (
+                            <div key={`calendar-week-${weekIndex}`} className="grid grid-cols-7 gap-2">
+                              {week.map((day) => {
+                                const dayKey = toLocalDateKey(day);
+                                const dayItems = calendarDayItemsMap.get(dayKey) || [];
+                                const isCurrentMonth = day.getMonth() === calendarMonthCursor.getMonth();
+                                const isToday = dayKey === toLocalDateKey(new Date());
+                                return (
+                                  <div
+                                    key={dayKey}
+                                    className={`min-h-[120px] rounded-lg border p-2 ${
+                                      isCurrentMonth
+                                        ? "border-border/60 bg-card/40"
+                                        : "border-border/30 bg-muted/20"
+                                    } ${isToday ? "ring-1 ring-primary/50" : ""}`}
+                                  >
+                                    <div className="mb-2 flex items-center justify-between gap-2">
+                                      <span
+                                        className={`text-xs font-medium ${
+                                          isCurrentMonth ? "text-foreground" : "text-muted-foreground"
+                                        }`}
+                                      >
+                                        {day.getDate()}
+                                      </span>
+                                      {dayItems.length > 0 ? (
+                                        <Badge variant="secondary" className="text-[10px] uppercase">
+                                          {dayItems.length}
+                                        </Badge>
+                                      ) : null}
+                                    </div>
+                                    <div className="space-y-1">
+                                      {dayItems.length === 0 ? (
+                                        <span className="text-[11px] text-muted-foreground">Sem postagens</span>
+                                      ) : (
+                                        dayItems.slice(0, 4).map((item) => (
+                                          <button
+                                            key={item.id}
+                                            type="button"
+                                            className="block w-full rounded-md border border-border/60 bg-background/60 px-2 py-1 text-left hover:border-primary/40"
+                                            onClick={() => {
+                                              const target = posts.find((post) => post.id === item.id);
+                                              if (target && canManagePosts) {
+                                                openEdit(target);
+                                              }
+                                            }}
+                                          >
+                                            <div className="flex items-center justify-between gap-1">
+                                              <div className="truncate text-[11px] font-medium text-foreground">
+                                                {item.title}
+                                              </div>
+                                              <Badge
+                                                variant={item.status === "published" ? "outline" : "secondary"}
+                                                className="shrink-0 text-[9px] uppercase"
+                                              >
+                                                {getCalendarItemStatusLabel(item.status)}
+                                              </Badge>
+                                            </div>
+                                            <div className="truncate text-[10px] text-muted-foreground">
+                                              {formatLocalTimeShort(getCalendarItemDisplayTime(item))}
+                                            </div>
+                                          </button>
+                                        ))
+                                      )}
+                                      {dayItems.length > 4 ? (
+                                        <span className="text-[10px] text-muted-foreground">
+                                          +{dayItems.length - 4} postagens
+                                        </span>
+                                      ) : null}
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          ))}
+                        </div>
+                        {!isCalendarLoading && !hasCalendarError && calendarItems.length === 0 ? (
+                          <p className="text-sm text-muted-foreground">
+                            Nenhuma postagem publicada/agendada neste m?s.
+                          </p>
+                        ) : null}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
               ) : (
                 <div className="grid gap-6">
                   {paginatedPosts.map((post, index) => {
@@ -1916,11 +2500,13 @@ const DashboardPosts = () => {
                                   </span>
                                   <span className="inline-flex shrink-0 items-center gap-2 whitespace-nowrap">
                                     <Eye className="h-4 w-4" />
-                                    {post.views} visualizações
+                                    {post.views}
+                                    {" visualiza\u00e7\u00f5es"}
                                   </span>
                                   <span className="inline-flex shrink-0 items-center gap-2 whitespace-nowrap">
                                     <MessageSquare className="h-4 w-4" />
-                                    {post.commentsCount} comentários
+                                    {post.commentsCount}
+                                    {" coment\u00e1rios"}
                                   </span>
                                   <span className="ml-auto hidden max-w-44 truncate text-right text-xs text-muted-foreground lg:block">
                                     /{post.slug}
@@ -1935,7 +2521,7 @@ const DashboardPosts = () => {
                   })}
                 </div>
               )}
-              {sortedPosts.length > postsPerPage ? (
+              {listViewMode === "list" && sortedPosts.length > postsPerPage ? (
                 <div className="mt-6 flex justify-center">
                   <Pagination>
                     <PaginationContent>
@@ -1975,7 +2561,7 @@ const DashboardPosts = () => {
                   </Pagination>
                 </div>
               ) : null}
-              {trashedPosts.length > 0 ? (
+              {listViewMode === "list" && trashedPosts.length > 0 ? (
                 <Card className="mt-8 border-border/60 bg-card/60">
                   <CardContent className="space-y-4 p-6">
                     <div className="flex items-center justify-between">
@@ -2028,7 +2614,7 @@ const DashboardPosts = () => {
           open={isLibraryOpen}
           onOpenChange={setIsLibraryOpen}
           apiBase={apiBase}
-          description="Escolha uma imagem ja enviada ou use capas/banners de projetos."
+          description="Escolha uma imagem já enviada ou use capas/banners de projetos."
           uploadFolder={postImageLibraryOptions.uploadFolder}
           listFolders={postImageLibraryOptions.listFolders}
           listAll={postImageLibraryOptions.listAll}
@@ -2041,6 +2627,229 @@ const DashboardPosts = () => {
           onSave={({ urls }) => handleLibrarySelect(urls[0] || "")}
         />
       </Suspense>
+
+      <Dialog
+        open={isVersionHistoryOpen}
+        onOpenChange={(open) => {
+          setIsVersionHistoryOpen(open);
+          if (!open) {
+            setRollbackTargetVersion(null);
+          }
+        }}
+      >
+        <DialogContent className="max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>Histórico de versões</DialogTitle>
+            <DialogDescription>
+              {editingPost ? `Postagem: ${editingPost.title}` : "Selecione uma postagem para visualizar versões."}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p className="text-xs text-muted-foreground">
+                Versões mais recentes primeiro. Rollback restaura o conteúdo editorial da versão escolhida.
+              </p>
+              {editingPost ? (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  disabled={isCreatingManualVersion}
+                  onClick={() => void handleCreateManualVersion()}
+                >
+                  {isCreatingManualVersion ? "Criando..." : "Criar versão agora"}
+                </Button>
+              ) : null}
+            </div>
+            {isLoadingVersions ? (
+              <AsyncState
+                kind="loading"
+                title="Carregando versões"
+                description="Buscando histórico da postagem."
+                className="border-0 bg-transparent p-0"
+              />
+            ) : hasVersionsError ? (
+              <AsyncState
+                kind="error"
+                title="Não foi possível carregar o histórico"
+                description="Tente novamente em alguns segundos."
+                className="border-0 bg-transparent p-0"
+                action={
+                  editingPost ? (
+                    <Button type="button" variant="outline" onClick={() => void loadVersionHistory(editingPost.id)}>
+                      Recarregar
+                    </Button>
+                  ) : null
+                }
+              />
+            ) : postVersions.length === 0 ? (
+              <AsyncState
+                kind="empty"
+                title="Sem versões ainda"
+                description="As versões aparecem após salvar/editar a postagem."
+                className="border-0 bg-transparent p-0"
+              />
+            ) : (
+              <div className="max-h-[55vh] space-y-3 overflow-auto pr-1">
+                {postVersions.map((version) => {
+                  const isRestorable = isVersionRestorableAgainstPost(version, persistedEditingPost);
+                  return (
+                  <div
+                    key={version.id}
+                    className="flex flex-wrap items-start justify-between gap-3 rounded-lg border border-border/60 bg-card/60 p-3"
+                  >
+                    <div className="min-w-0 space-y-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Badge variant="outline" className="text-[10px] uppercase">
+                          v{version.versionNumber}
+                        </Badge>
+                        <Badge variant="secondary" className="text-[10px] uppercase">
+                          {version.reasonLabel || version.reason}
+                        </Badge>
+                        {version.label ? (
+                          <Badge variant="secondary" className="text-[10px]">
+                            {version.label}
+                          </Badge>
+                        ) : null}
+                        {!isRestorable ? (
+                          <Badge variant="outline" className="text-[10px] uppercase">
+                            Estado atual
+                          </Badge>
+                        ) : null}
+                      </div>
+                      <p className="text-sm font-medium text-foreground">
+                        {formatDateTimeShort(version.createdAt)}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {version.actorName || "Sistema"} {"\u2022"} /{version.slug}
+                      </p>
+                    </div>
+                    <div className="shrink-0 self-start">
+                      {isRestorable ? (
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          className="gap-2"
+                          onClick={() => setRollbackTargetVersion(version)}
+                        >
+                          <RotateCcw className="h-4 w-4" />
+                          {"Restaurar esta vers\u00e3o"}
+                        </Button>
+                      ) : null}
+                    </div>
+                  </div>
+                )})}
+                {versionsNextCursor ? (
+                  <p className="text-xs text-muted-foreground">
+                    Há mais versões antigas disponíveis. (Paginação v1 ainda não exposta na UI)
+                  </p>
+                ) : null}
+              </div>
+            )}
+            <div className="flex justify-end">
+              <Button type="button" variant="outline" onClick={() => setIsVersionHistoryOpen(false)}>
+                Fechar
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={Boolean(rollbackTargetVersion)} onOpenChange={(open) => !open && setRollbackTargetVersion(null)}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Restaurar versão?</DialogTitle>
+            <DialogDescription>
+              {rollbackTargetVersion
+                ? `Restaurar a versão v${rollbackTargetVersion.versionNumber} de ${formatDateTimeShort(
+                    rollbackTargetVersion.createdAt,
+                  )}?`
+                : "Confirme o rollback da versão selecionada."}
+            </DialogDescription>
+          </DialogHeader>
+          {rollbackTargetVersion ? (
+            <Card className="border-border/60 bg-card/60">
+              <CardContent className="space-y-3 p-4">
+                <div className="flex flex-wrap items-center gap-2">
+                  <Badge variant="outline" className="text-[10px] uppercase">
+                    v{rollbackTargetVersion.versionNumber}
+                  </Badge>
+                  <Badge variant="secondary" className="text-[10px] uppercase">
+                    {rollbackTargetVersion.reasonLabel || rollbackTargetVersion.reason}
+                  </Badge>
+                  <Badge variant="outline" className="text-[10px] uppercase">
+                    {getPostStatusLabel(
+                      rollbackTargetVersion.snapshot?.status === "scheduled" ||
+                        rollbackTargetVersion.snapshot?.status === "published"
+                        ? rollbackTargetVersion.snapshot.status
+                        : "draft",
+                    )}
+                  </Badge>
+                </div>
+                <div className="grid gap-2 text-sm sm:grid-cols-2">
+                  <div>
+                    <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Título</p>
+                    <p className="font-medium text-foreground">{rollbackTargetVersion.snapshot?.title || "-"}</p>
+                  </div>
+                  <div>
+                    <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Slug</p>
+                    <p className="font-medium text-foreground">/{rollbackTargetVersion.snapshot?.slug || "-"}</p>
+                  </div>
+                  <div>
+                    <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Versão salva</p>
+                    <p className="text-foreground">{formatDateTimeShort(rollbackTargetVersion.createdAt)}</p>
+                  </div>
+                  <div>
+                    <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Data editorial</p>
+                    <p className="text-foreground">
+                      {(() => {
+                        const editorialAt =
+                          rollbackTargetVersion.snapshot?.status === "scheduled"
+                            ? rollbackTargetVersion.snapshot?.scheduledAt || rollbackTargetVersion.snapshot?.publishedAt
+                            : rollbackTargetVersion.snapshot?.publishedAt;
+                        return editorialAt ? formatDateTimeShort(editorialAt) : "Sem data";
+                      })()}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Autor</p>
+                    <p className="text-foreground">{rollbackTargetVersion.snapshot?.author || "Não definido"}</p>
+                  </div>
+                  <div>
+                    <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Projeto</p>
+                    <p className="text-foreground">
+                      {rollbackTargetVersion.snapshot?.projectId
+                        ? projectMap.get(String(rollbackTargetVersion.snapshot.projectId || ""))?.title ||
+                          `ID ${rollbackTargetVersion.snapshot.projectId}`
+                        : "Sem projeto"}
+                    </p>
+                  </div>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Resumo</p>
+                  <p className="line-clamp-3 text-sm text-foreground/90">
+                    {String(rollbackTargetVersion.snapshot?.excerpt || "").trim() || "Sem resumo"}
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          ) : null}
+          <div className="flex justify-end gap-3">
+            <Button
+              type="button"
+              variant="ghost"
+              disabled={isRollingBackVersion}
+              onClick={() => setRollbackTargetVersion(null)}
+            >
+              Cancelar
+            </Button>
+            <Button type="button" disabled={isRollingBackVersion} onClick={() => void handleConfirmRollbackVersion()}>
+              {isRollingBackVersion ? "Restaurando..." : "Confirmar rollback"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
         <DialogContent className="max-w-md">
@@ -2100,6 +2909,7 @@ const DashboardPosts = () => {
 };
 
 export default DashboardPosts;
+
 
 
 
