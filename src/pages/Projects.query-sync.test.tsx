@@ -158,13 +158,15 @@ describe("Projects query sync", () => {
     expect(getSearchParams().get("q")).toBe("studio");
   });
 
-  it("restaura filtros da persistencia local quando URL chega limpa", async () => {
+  it("nao restaura filtros/page do localStorage quando URL chega limpa", async () => {
     window.localStorage.setItem(
       PROJECTS_LIST_STATE_STORAGE_KEY,
       JSON.stringify({
         q: "drama",
         letter: "P",
         type: "Anime",
+        tag: "acao",
+        genero: "drama",
         page: 2,
       }),
     );
@@ -178,81 +180,34 @@ describe("Projects query sync", () => {
 
     await waitFor(() => {
       const params = getSearchParams();
-      expect(params.get("q")).toBe("drama");
-      expect(params.get("letter")).toBe("P");
-      expect(params.get("type")).toBe("Anime");
-      expect(params.get("page")).toBe("2");
+      expect(params.get("q")).toBeNull();
+      expect(params.get("letter")).toBeNull();
+      expect(params.get("type")).toBeNull();
+      expect(params.get("tag")).toBeNull();
+      expect(params.get("genero")).toBeNull();
+      expect(params.get("page")).toBeNull();
     });
   });
 
-  it("restaura page persistida quando URL nao traz page e os filtros sao equivalentes", async () => {
+  it("limpa automaticamente a chave legada ao carregar /projetos", async () => {
     window.localStorage.setItem(
       PROJECTS_LIST_STATE_STORAGE_KEY,
       JSON.stringify({
-        q: "drama",
-        letter: "P",
-        type: "Anime",
-        tag: "acao",
-        genero: "drama",
-        page: 3,
-      }),
-    );
-
-    render(
-      <MemoryRouter initialEntries={["/projetos?q=drama&letter=P&type=Anime&tag=acao&genero=drama"]}>
-        <Projects />
-        <LocationProbe />
-      </MemoryRouter>,
-    );
-
-    await waitFor(() => {
-      expect(getSearchParams().get("page")).toBe("3");
-    });
-  });
-
-  it("nao restaura page persistida quando filtros da URL diferem do estado salvo", async () => {
-    window.localStorage.setItem(
-      PROJECTS_LIST_STATE_STORAGE_KEY,
-      JSON.stringify({
-        q: "drama",
-        letter: "P",
-        type: "Anime",
+        q: "valor-antigo",
         page: 4,
       }),
     );
 
     render(
-      <MemoryRouter initialEntries={["/projetos?q=drama&letter=A&type=Anime"]}>
+      <MemoryRouter initialEntries={["/projetos?tag=acao"]}>
         <Projects />
         <LocationProbe />
       </MemoryRouter>,
     );
 
     await waitFor(() => {
-      expect(getSearchParams().get("page")).toBeNull();
-    });
-  });
-
-  it("page explicita da URL prevalece sobre page persistida", async () => {
-    window.localStorage.setItem(
-      PROJECTS_LIST_STATE_STORAGE_KEY,
-      JSON.stringify({
-        q: "drama",
-        letter: "P",
-        type: "Anime",
-        page: 5,
-      }),
-    );
-
-    render(
-      <MemoryRouter initialEntries={["/projetos?q=drama&letter=P&type=Anime&page=2"]}>
-        <Projects />
-        <LocationProbe />
-      </MemoryRouter>,
-    );
-
-    await waitFor(() => {
-      expect(getSearchParams().get("page")).toBe("2");
+      expect(window.localStorage.getItem(PROJECTS_LIST_STATE_STORAGE_KEY)).toBeNull();
+      expect(getSearchParams().get("tag")).toBe("acao");
     });
   });
 
@@ -287,18 +242,20 @@ describe("Projects query sync", () => {
     });
   });
 
-  it("limpar filtros remove estado persistido da listagem", async () => {
+  it("nao grava estado da listagem no localStorage ao interagir", async () => {
     render(
-      <MemoryRouter initialEntries={["/projetos?tag=acao&genero=drama&q=teste"]}>
+      <MemoryRouter initialEntries={["/projetos?tag=acao"]}>
         <Projects />
         <LocationProbe />
       </MemoryRouter>,
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "Limpar filtros" }));
+    const pagination = await screen.findByRole("navigation");
+    fireEvent.click(within(pagination).getByRole("link", { name: "2" }));
 
     await waitFor(() => {
       expect(window.localStorage.getItem(PROJECTS_LIST_STATE_STORAGE_KEY)).toBeNull();
+      expect(getSearchParams().get("page")).toBe("2");
     });
   });
 
@@ -345,7 +302,8 @@ describe("Projects query sync", () => {
       </MemoryRouter>,
     );
 
-    expect(await screen.findByPlaceholderText("Buscar por título, sinopse, tag ou gênero")).toBeInTheDocument();
-    expect(screen.getByText("Gêneros")).toBeInTheDocument();
+    expect(await screen.findByPlaceholderText("Buscar por t\u00EDtulo, sinopse, tag ou g\u00EAnero")).toBeInTheDocument();
+    expect(screen.getByText("G\u00EAneros")).toBeInTheDocument();
   });
 });
+

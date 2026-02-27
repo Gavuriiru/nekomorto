@@ -27,7 +27,10 @@ const buildDefaultAnalyticsDaily = ({ schemaVersion }) => ({
   days: {},
 });
 
-const buildDefaultAnalyticsMeta = ({ schemaVersion, retentionDays, aggregateRetentionDays }, override = {}) => ({
+const buildDefaultAnalyticsMeta = (
+  { schemaVersion, retentionDays, aggregateRetentionDays },
+  override = {},
+) => ({
   schemaVersion,
   retentionDays,
   aggregateRetentionDays,
@@ -137,6 +140,38 @@ class DbDataRepository {
       });
   }
 
+  async persistCollectionById({ model, rows, idKey = "id", updateFields = null }) {
+    if (!model || typeof model.deleteMany !== "function" || typeof model.upsert !== "function") {
+      throw new Error("persist_collection_model_invalid");
+    }
+    const safeRows = ensureArray(rows);
+    const ids = safeRows.map((row) => String(row?.[idKey] || "").trim()).filter(Boolean);
+    const tx = [];
+    if (ids.length > 0) {
+      tx.push(model.deleteMany({ where: { [idKey]: { notIn: ids } } }));
+    } else {
+      tx.push(model.deleteMany({}));
+    }
+    safeRows.forEach((row) => {
+      const where = { [idKey]: row[idKey] };
+      const update =
+        Array.isArray(updateFields) && updateFields.length > 0
+          ? updateFields.reduce((acc, field) => {
+              acc[field] = row[field];
+              return acc;
+            }, {})
+          : { ...row };
+      tx.push(
+        model.upsert({
+          where,
+          create: row,
+          update,
+        }),
+      );
+    });
+    await prisma.$transaction(tx);
+  }
+
   async hydrate() {
     const [
       ownerIds,
@@ -169,9 +204,7 @@ class DbDataRepository {
       prisma.linkTypeRecord.findMany({ orderBy: { position: "asc" } }),
       prisma.postRecord.findMany({ orderBy: { position: "asc" } }),
       typeof prisma.postVersionRecord?.findMany === "function"
-        ? prisma.postVersionRecord
-            .findMany({ orderBy: { position: "asc" } })
-            .catch(() => [])
+        ? prisma.postVersionRecord.findMany({ orderBy: { position: "asc" } }).catch(() => [])
         : Promise.resolve([]),
       prisma.projectRecord.findMany({ orderBy: { position: "asc" } }),
       prisma.updateRecord.findMany({ orderBy: { position: "asc" } }),
@@ -187,10 +220,7 @@ class DbDataRepository {
     ]);
 
     this.snapshot.ownerIds = Array.from(
-      new Set([
-        ...this.ownerIdsFallback,
-        ...ownerIds.map((item) => String(item.userId)),
-      ]),
+      new Set([...this.ownerIdsFallback, ...ownerIds.map((item) => String(item.userId))]),
     );
     this.snapshot.auditLog = auditLogs.map((row) => cloneValue(row.data));
     this.snapshot.analyticsEvents = analyticsEvents.map((row) => cloneValue(row.data));
@@ -233,7 +263,11 @@ class DbDataRepository {
 
   writeOwnerIds(ids) {
     const unique = Array.from(
-      new Set(ensureArray(ids).map((id) => String(id).trim()).filter(Boolean)),
+      new Set(
+        ensureArray(ids)
+          .map((id) => String(id).trim())
+          .filter(Boolean),
+      ),
     );
     this.snapshot.ownerIds = unique;
     this.enqueuePersist("owner_ids", async () => {
@@ -389,10 +423,12 @@ class DbDataRepository {
         status: user?.status ? String(user.status) : null,
         data: cloneValue(user || {}),
       }));
-      await prisma.$transaction([
-        prisma.userRecord.deleteMany({}),
-        ...(rows.length ? [prisma.userRecord.createMany({ data: rows })] : []),
-      ]);
+      await this.persistCollectionById({
+        model: prisma.userRecord,
+        rows,
+        idKey: "id",
+        updateFields: ["position", "accessRole", "status", "data"],
+      });
     });
   }
 
@@ -410,10 +446,12 @@ class DbDataRepository {
         icon: String(item?.icon || ""),
         data: cloneValue(item || {}),
       }));
-      await prisma.$transaction([
-        prisma.linkTypeRecord.deleteMany({}),
-        ...(rows.length ? [prisma.linkTypeRecord.createMany({ data: rows })] : []),
-      ]);
+      await this.persistCollectionById({
+        model: prisma.linkTypeRecord,
+        rows,
+        idKey: "id",
+        updateFields: ["position", "label", "icon", "data"],
+      });
     });
   }
 
@@ -434,10 +472,20 @@ class DbDataRepository {
         deletedAt: toDateOrNull(post?.deletedAt),
         data: cloneValue(post || {}),
       }));
-      await prisma.$transaction([
-        prisma.postRecord.deleteMany({}),
-        ...(rows.length ? [prisma.postRecord.createMany({ data: rows })] : []),
-      ]);
+      await this.persistCollectionById({
+        model: prisma.postRecord,
+        rows,
+        idKey: "id",
+        updateFields: [
+          "position",
+          "slug",
+          "projectId",
+          "status",
+          "publishedAt",
+          "deletedAt",
+          "data",
+        ],
+      });
     });
   }
 
@@ -457,8 +505,12 @@ class DbDataRepository {
           : index + 1,
         reason: String(entry?.reason || "update"),
         label: typeof entry?.label === "string" && entry.label.trim() ? String(entry.label) : null,
-        actorId: typeof entry?.actorId === "string" && entry.actorId.trim() ? String(entry.actorId) : null,
-        actorName: typeof entry?.actorName === "string" && entry.actorName.trim() ? String(entry.actorName) : null,
+        actorId:
+          typeof entry?.actorId === "string" && entry.actorId.trim() ? String(entry.actorId) : null,
+        actorName:
+          typeof entry?.actorName === "string" && entry.actorName.trim()
+            ? String(entry.actorName)
+            : null,
         slug: String(entry?.slug || entry?.data?.slug || ""),
         createdAt: toDateOrNull(entry?.createdAt) || new Date(),
         data: cloneValue(entry || {}),
@@ -483,10 +535,12 @@ class DbDataRepository {
         deletedAt: toDateOrNull(project?.deletedAt),
         data: cloneValue(project || {}),
       }));
-      await prisma.$transaction([
-        prisma.projectRecord.deleteMany({}),
-        ...(rows.length ? [prisma.projectRecord.createMany({ data: rows })] : []),
-      ]);
+      await this.persistCollectionById({
+        model: prisma.projectRecord,
+        rows,
+        idKey: "id",
+        updateFields: ["position", "deletedAt", "data"],
+      });
     });
   }
 
@@ -504,10 +558,12 @@ class DbDataRepository {
         updatedAt: toDateOrNull(update?.updatedAt),
         data: cloneValue(update || {}),
       }));
-      await prisma.$transaction([
-        prisma.updateRecord.deleteMany({}),
-        ...(rows.length ? [prisma.updateRecord.createMany({ data: rows })] : []),
-      ]);
+      await this.persistCollectionById({
+        model: prisma.updateRecord,
+        rows,
+        idKey: "id",
+        updateFields: ["position", "projectId", "updatedAt", "data"],
+      });
     });
   }
 
@@ -517,7 +573,9 @@ class DbDataRepository {
 
   writeTagTranslations(payload) {
     this.snapshot.tagTranslations =
-      payload && typeof payload === "object" ? cloneValue(payload) : { tags: {}, genres: {}, staffRoles: {} };
+      payload && typeof payload === "object"
+        ? cloneValue(payload)
+        : { tags: {}, genres: {}, staffRoles: {} };
     this.enqueuePersist("tag_translations", async () => {
       await prisma.tagTranslationsRecord.upsert({
         where: { id: 1 },
@@ -543,10 +601,12 @@ class DbDataRepository {
         createdAt: toDateOrNull(comment?.createdAt),
         data: cloneValue(comment || {}),
       }));
-      await prisma.$transaction([
-        prisma.commentRecord.deleteMany({}),
-        ...(rows.length ? [prisma.commentRecord.createMany({ data: rows })] : []),
-      ]);
+      await this.persistCollectionById({
+        model: prisma.commentRecord,
+        rows,
+        idKey: "id",
+        updateFields: ["position", "targetType", "targetId", "status", "createdAt", "data"],
+      });
     });
   }
 
@@ -565,10 +625,12 @@ class DbDataRepository {
         createdAt: toDateOrNull(upload?.createdAt),
         data: cloneValue(upload || {}),
       }));
-      await prisma.$transaction([
-        prisma.uploadRecord.deleteMany({}),
-        ...(rows.length ? [prisma.uploadRecord.createMany({ data: rows })] : []),
-      ]);
+      await this.persistCollectionById({
+        model: prisma.uploadRecord,
+        rows,
+        idKey: "id",
+        updateFields: ["position", "url", "folder", "createdAt", "data"],
+      });
     });
   }
 
@@ -592,7 +654,8 @@ class DbDataRepository {
   }
 
   writeSiteSettings(settings) {
-    this.snapshot.siteSettings = settings && typeof settings === "object" ? cloneValue(settings) : {};
+    this.snapshot.siteSettings =
+      settings && typeof settings === "object" ? cloneValue(settings) : {};
     this.enqueuePersist("site_settings", async () => {
       await prisma.siteSettingsRecord.upsert({
         where: { id: 1 },
@@ -656,7 +719,8 @@ class DbDataRepository {
   getHealthSnapshot() {
     const nowMs = Date.now();
     const oldestPendingMs =
-      Number.isFinite(Number(this.health.oldestPendingEnqueuedAt)) && Number(this.health.oldestPendingEnqueuedAt) > 0
+      Number.isFinite(Number(this.health.oldestPendingEnqueuedAt)) &&
+      Number(this.health.oldestPendingEnqueuedAt) > 0
         ? Math.max(0, nowMs - Number(this.health.oldestPendingEnqueuedAt))
         : 0;
     return cloneValue({

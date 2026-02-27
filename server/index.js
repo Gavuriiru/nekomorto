@@ -1,66 +1,16 @@
 import "dotenv/config";
 import crypto from "crypto";
-import express from "express";
-import session from "express-session";
-import connectPgSimple from "connect-pg-simple";
-import cookieParser from "cookie-parser";
-import cors from "cors";
-import compression from "compression";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
+import compression from "compression";
+import connectPgSimple from "connect-pg-simple";
+import cookieParser from "cookie-parser";
+import cors from "cors";
+import express from "express";
+import session from "express-session";
 import { Pool } from "pg";
-import { resolvePostStatus } from "./lib/post-status.js";
-import { createSlug, createUniqueSlug } from "./lib/post-slug.js";
-import { buildEditorialCalendarItems } from "./lib/editorial-calendar.js";
-import { bulkModeratePendingComments } from "./lib/comments-bulk-moderation.js";
-import { dedupePostVersionRecordsNewestFirst } from "./lib/post-version-dedupe.js";
-import { buildSitemapXml } from "./lib/sitemap-xml.js";
-import { buildRssXml } from "./lib/rss-xml.js";
-import { buildHealthStatusResponse } from "./lib/health-checks.js";
-import {
-  buildOperationalAlertsResponse,
-  buildOperationalAlertsV1,
-} from "./lib/operational-alerts.js";
-import { buildSessionCookieConfig } from "./lib/session-cookie-config.js";
-import { dispatchWebhookMessage } from "./lib/webhooks/dispatcher.js";
-import { toDiscordWebhookPayload } from "./lib/webhooks/providers/discord.js";
-import { buildOperationalAlertsWebhookNotification } from "./lib/webhooks/templates/operational-alerts.js";
-import { diffOperationalAlertSets } from "./lib/webhooks/transitions.js";
-import {
-  buildEditorialEventContext,
-  buildEditorialMentions,
-  migrateEditorialMentionPlaceholdersInSettings,
-  normalizeEditorialWebhookSettings,
-  renderWebhookTemplate,
-  resolveEditorialEventChannel,
-  resolveEditorialEventLabel,
-  validateEditorialWebhookSettingsPlaceholders,
-} from "./lib/webhooks/editorial.js";
-import { importRemoteImageFile } from "./lib/remote-image-import.js";
-import { localizeProjectImageFields } from "./lib/project-image-localizer.js";
-import { runUploadsReorganization } from "./lib/uploads-reorganizer.js";
-import {
-  sanitizeAssetUrl,
-  sanitizeIconSource,
-  sanitizePublicHref,
-  sanitizeSocials,
-} from "./lib/url-safety.js";
-import { establishAuthenticatedSession } from "./lib/session-auth.js";
-import {
-  buildOriginConfig,
-  isAllowedOrigin as isAllowedOriginByConfig,
-  resolveDiscordRedirectUri as resolveDiscordRedirectUriByConfig,
-} from "./lib/origin-config.js";
-import {
-  createViteDevServer,
-  resolveClientIndexPath,
-} from "./lib/frontend-runtime.js";
-import { buildCorsOptionsForRequest } from "./lib/cors-policy.js";
-import {
-  applySecurityHeaders,
-  injectNonceIntoHtmlScripts,
-} from "./lib/security-headers.js";
+import { API_CONTRACT_VERSION, buildApiContractV1 } from "./lib/api-contract-v1.js";
 import {
   AccessRole,
   BASIC_PROFILE_FIELDS,
@@ -78,6 +28,28 @@ import {
   removeOwnerRoleLabel,
   sanitizePermissionsForStorage,
 } from "./lib/authz.js";
+import { bulkModeratePendingComments } from "./lib/comments-bulk-moderation.js";
+import { buildCorsOptionsForRequest } from "./lib/cors-policy.js";
+import { createDataRepository } from "./lib/data-repository.js";
+import { buildEditorialCalendarItems } from "./lib/editorial-calendar.js";
+import { createViteDevServer, resolveClientIndexPath } from "./lib/frontend-runtime.js";
+import { buildHealthStatusResponse } from "./lib/health-checks.js";
+import { createIdempotencyFingerprint, createIdempotencyStore } from "./lib/idempotency-store.js";
+import { createJobQueue } from "./lib/job-queue.js";
+import {
+  buildOperationalAlertsResponse,
+  buildOperationalAlertsV1,
+} from "./lib/operational-alerts.js";
+import {
+  buildOriginConfig,
+  isAllowedOrigin as isAllowedOriginByConfig,
+  resolveDiscordRedirectUri as resolveDiscordRedirectUriByConfig,
+} from "./lib/origin-config.js";
+import { createSlug, createUniqueSlug } from "./lib/post-slug.js";
+import { resolvePostStatus } from "./lib/post-status.js";
+import { dedupePostVersionRecordsNewestFirst } from "./lib/post-version-dedupe.js";
+import { prisma } from "./lib/prisma-client.js";
+import { localizeProjectImageFields } from "./lib/project-image-localizer.js";
 import { buildPublicBootstrapPayload } from "./lib/public-bootstrap.js";
 import {
   buildPublicSearchSuggestions,
@@ -86,8 +58,35 @@ import {
   parseSearchScope,
   publicSearchConfig,
 } from "./lib/public-search.js";
-import { createDataRepository } from "./lib/data-repository.js";
-import { prisma } from "./lib/prisma-client.js";
+import { createRateLimiter } from "./lib/rate-limiter.js";
+import { importRemoteImageFile } from "./lib/remote-image-import.js";
+import { createResponseCache } from "./lib/response-cache.js";
+import { buildRssXml } from "./lib/rss-xml.js";
+import { applySecurityHeaders, injectNonceIntoHtmlScripts } from "./lib/security-headers.js";
+import { establishAuthenticatedSession } from "./lib/session-auth.js";
+import { buildSessionCookieConfig } from "./lib/session-cookie-config.js";
+import { buildSitemapXml } from "./lib/sitemap-xml.js";
+import { runUploadsReorganization } from "./lib/uploads-reorganizer.js";
+import {
+  sanitizeAssetUrl,
+  sanitizeIconSource,
+  sanitizePublicHref,
+  sanitizeSocials,
+} from "./lib/url-safety.js";
+import { dispatchWebhookMessage } from "./lib/webhooks/dispatcher.js";
+import {
+  buildEditorialEventContext,
+  buildEditorialMentions,
+  migrateEditorialMentionPlaceholdersInSettings,
+  normalizeEditorialWebhookSettings,
+  renderWebhookTemplate,
+  resolveEditorialEventChannel,
+  resolveEditorialEventLabel,
+  validateEditorialWebhookSettingsPlaceholders,
+} from "./lib/webhooks/editorial.js";
+import { toDiscordWebhookPayload } from "./lib/webhooks/providers/discord.js";
+import { buildOperationalAlertsWebhookNotification } from "./lib/webhooks/templates/operational-alerts.js";
+import { diffOperationalAlertSets } from "./lib/webhooks/transitions.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -120,7 +119,8 @@ const PWA_MANIFEST_BASE = Object.freeze({
   id: "/",
   name: "Nekomata Fansub",
   short_name: "Nekomata",
-  description: "Fansub dedicada a trazer historias inesqueciveis com o carinho que a comunidade merece.",
+  description:
+    "Fansub dedicada a trazer historias inesqueciveis com o carinho que a comunidade merece.",
   start_url: "/",
   display: "standalone",
   lang: "pt-BR",
@@ -271,8 +271,21 @@ const AUDIT_META_ALLOWLIST = {
   "uploads.delete": ["url"],
   "uploads.auto_reorganize.startup": ["trigger", "moves", "rewrites", "failures", "durationMs"],
   "uploads.auto_reorganize.post_save": ["trigger", "moves", "rewrites", "failures", "durationMs"],
-  "uploads.auto_reorganize.project_save": ["trigger", "moves", "rewrites", "failures", "durationMs"],
-  "uploads.auto_reorganize.failed": ["trigger", "moves", "rewrites", "failures", "durationMs", "error"],
+  "uploads.auto_reorganize.project_save": [
+    "trigger",
+    "moves",
+    "rewrites",
+    "failures",
+    "durationMs",
+  ],
+  "uploads.auto_reorganize.failed": [
+    "trigger",
+    "moves",
+    "rewrites",
+    "failures",
+    "durationMs",
+    "error",
+  ],
   "posts.version.create": ["id", "slug", "versionId", "reason", "label"],
   "posts.rollback": [
     "id",
@@ -288,7 +301,14 @@ const AUDIT_META_ALLOWLIST = {
   "users.update_self": ["id", "before", "after", "changes"],
   "users.delete": ["id", "wasOwner", "before"],
   "owners.update": ["count", "before", "after"],
-  "owners.transfer_primary": ["targetId", "fromPrimaryId", "toPrimaryId", "before", "after", "changes"],
+  "owners.transfer_primary": [
+    "targetId",
+    "fromPrimaryId",
+    "toPrimaryId",
+    "before",
+    "after",
+    "changes",
+  ],
   "security.update.sanitization_startup": [
     "usersSocialsDropped",
     "linkTypeIconsDropped",
@@ -365,7 +385,11 @@ const isAuditActionEnabled = (action) => {
   if (normalized === "integrations.webhooks_editorial.read") {
     return true;
   }
-  if (normalized.includes(".read") || normalized.endsWith(".read") || normalized.includes("_read")) {
+  if (
+    normalized.includes(".read") ||
+    normalized.endsWith(".read") ||
+    normalized.includes("_read")
+  ) {
     return false;
   }
   return AUDIT_ENABLED_ACTION_PATTERN.test(normalized);
@@ -381,7 +405,9 @@ const truncateAuditString = (value) => {
 
 const redactSignedUrl = (value) => {
   const text = String(value || "");
-  const hasSensitiveQuery = /[?&](token|signature|sig|x-amz-signature|x-goog-signature)=/i.test(text);
+  const hasSensitiveQuery = /[?&](token|signature|sig|x-amz-signature|x-goog-signature)=/i.test(
+    text,
+  );
   if (!hasSensitiveQuery) {
     return null;
   }
@@ -394,7 +420,9 @@ const redactSignedUrl = (value) => {
 };
 
 const isSensitiveAuditKey = (key) =>
-  /(token|secret|password|cookie|authorization|session|credential|jwt|signature|sig)/i.test(String(key || ""));
+  /(token|secret|password|cookie|authorization|session|credential|jwt|signature|sig)/i.test(
+    String(key || ""),
+  );
 
 const redactSensitiveFields = (value, key = "", depth = 0) => {
   if (depth > 4) {
@@ -512,7 +540,10 @@ const appendAuditLog = (req, action, resource, meta = {}) => {
     const actorNameRaw = sessionUser?.name || "anonymous";
     const actorNameFixed =
       typeof fixMojibakeText === "function" ? fixMojibakeText(actorNameRaw) : String(actorNameRaw);
-    const actorName = String(actorNameFixed || "anonymous").replace(/\uFFFD/g, "").trim() || "anonymous";
+    const actorName =
+      String(actorNameFixed || "anonymous")
+        .replace(/\uFFFD/g, "")
+        .trim() || "anonymous";
     const entry = {
       id: crypto.randomUUID(),
       ts: now.toISOString(),
@@ -540,6 +571,7 @@ const SCOPES = ["identify", "email"];
 
 const {
   DATABASE_URL = "",
+  REDIS_URL = "",
   MAINTENANCE_MODE: MAINTENANCE_MODE_ENV = "false",
   DISCORD_CLIENT_ID,
   DISCORD_CLIENT_SECRET,
@@ -564,6 +596,11 @@ const {
   OPS_ALERTS_WEBHOOK_TIMEOUT_MS: OPS_ALERTS_WEBHOOK_TIMEOUT_MS_ENV = "",
   OPS_ALERTS_WEBHOOK_INTERVAL_MS: OPS_ALERTS_WEBHOOK_INTERVAL_MS_ENV = "",
   OPS_ALERTS_DB_LATENCY_WARNING_MS: OPS_ALERTS_DB_LATENCY_WARNING_MS_ENV = "",
+  RATE_LIMIT_PREFIX: RATE_LIMIT_PREFIX_ENV = "nekomorto:rate_limit",
+  IDEMPOTENCY_TTL_MS: IDEMPOTENCY_TTL_MS_ENV = "",
+  PUBLIC_READ_CACHE_TTL_MS: PUBLIC_READ_CACHE_TTL_MS_ENV = "",
+  PUBLIC_READ_CACHE_MAX_ENTRIES: PUBLIC_READ_CACHE_MAX_ENTRIES_ENV = "",
+  ANALYTICS_COMPACTION_INTERVAL_MS: ANALYTICS_COMPACTION_INTERVAL_MS_ENV = "",
   VITE_PWA_DEV_ENABLED: VITE_PWA_DEV_ENABLED_ENV = "false",
 } = process.env;
 
@@ -572,7 +609,9 @@ const isMaintenanceMode = isTruthyEnv(MAINTENANCE_MODE_ENV, false);
 const isRbacV2Enabled = isTruthyEnv(RBAC_V2_ENABLED_ENV, false);
 const isRbacV2AcceptLegacyStar = isTruthyEnv(RBAC_V2_ACCEPT_LEGACY_STAR_ENV, true);
 const isAutoUploadReorganizationEnabled = !["0", "false", "no", "off"].includes(
-  String(AUTO_UPLOAD_REORGANIZE || "").trim().toLowerCase(),
+  String(AUTO_UPLOAD_REORGANIZE || "")
+    .trim()
+    .toLowerCase(),
 );
 const isAutoUploadReorganizationOnStartupEnabled = isTruthyEnv(
   AUTO_UPLOAD_REORGANIZE_ON_STARTUP_ENV,
@@ -595,7 +634,9 @@ const PRIMARY_APP_ORIGIN = originConfig.primaryAppOrigin;
 const PRIMARY_APP_HOST = originConfig.primaryAppHost;
 const CONFIGURED_DISCORD_REDIRECT_URI = originConfig.configuredDiscordRedirectUri;
 const OPS_ALERTS_WEBHOOK_PROVIDER =
-  String(OPS_ALERTS_WEBHOOK_PROVIDER_ENV || "discord").trim().toLowerCase() || "discord";
+  String(OPS_ALERTS_WEBHOOK_PROVIDER_ENV || "discord")
+    .trim()
+    .toLowerCase() || "discord";
 const OPS_ALERTS_WEBHOOK_URL = String(OPS_ALERTS_WEBHOOK_URL_ENV || "").trim();
 const REPO_ROOT_DIR = path.join(__dirname, "..");
 if (!String(DATABASE_URL || "").trim()) {
@@ -714,19 +755,29 @@ const runAutoUploadReorganization = async ({ trigger, req } = {}) => {
         }
         const durationMs = Date.now() - startedAt;
         const action = AUTO_REORGANIZE_TRIGGER_TO_ACTION[triggerForRun];
-        appendAuditLog(req || createSystemAuditReq(), action, "uploads", buildAutoReorganizationMeta({
-          trigger: triggerForRun,
-          report,
-          durationMs,
-        }));
+        appendAuditLog(
+          req || createSystemAuditReq(),
+          action,
+          "uploads",
+          buildAutoReorganizationMeta({
+            trigger: triggerForRun,
+            report,
+            durationMs,
+          }),
+        );
         latestResult = { ok: true, trigger: triggerForRun, report, durationMs };
       } catch (error) {
         const durationMs = Date.now() - startedAt;
-        appendAuditLog(req || createSystemAuditReq(), "uploads.auto_reorganize.failed", "uploads", buildAutoReorganizationMeta({
-          trigger: triggerForRun,
-          durationMs,
-          error,
-        }));
+        appendAuditLog(
+          req || createSystemAuditReq(),
+          "uploads.auto_reorganize.failed",
+          "uploads",
+          buildAutoReorganizationMeta({
+            trigger: triggerForRun,
+            durationMs,
+            error,
+          }),
+        );
         latestResult = { ok: false, trigger: triggerForRun, error, durationMs };
       }
     }
@@ -748,13 +799,54 @@ const parseEnvInteger = (value, fallback, min, max) => {
   return Math.min(Math.max(Math.floor(parsed), min), max);
 };
 
-const OPS_ALERTS_WEBHOOK_TIMEOUT_MS = parseEnvInteger(OPS_ALERTS_WEBHOOK_TIMEOUT_MS_ENV, 5000, 1000, 30000);
-const OPS_ALERTS_WEBHOOK_INTERVAL_MS = parseEnvInteger(OPS_ALERTS_WEBHOOK_INTERVAL_MS_ENV, 60000, 10000, 3600000);
-const OPS_ALERTS_DB_LATENCY_WARNING_MS = parseEnvInteger(OPS_ALERTS_DB_LATENCY_WARNING_MS_ENV, 1000, 50, 60000);
+const OPS_ALERTS_WEBHOOK_TIMEOUT_MS = parseEnvInteger(
+  OPS_ALERTS_WEBHOOK_TIMEOUT_MS_ENV,
+  5000,
+  1000,
+  30000,
+);
+const OPS_ALERTS_WEBHOOK_INTERVAL_MS = parseEnvInteger(
+  OPS_ALERTS_WEBHOOK_INTERVAL_MS_ENV,
+  60000,
+  10000,
+  3600000,
+);
+const OPS_ALERTS_DB_LATENCY_WARNING_MS = parseEnvInteger(
+  OPS_ALERTS_DB_LATENCY_WARNING_MS_ENV,
+  1000,
+  50,
+  60000,
+);
+const RATE_LIMIT_PREFIX =
+  String(RATE_LIMIT_PREFIX_ENV || "nekomorto:rate_limit").trim() || "nekomorto:rate_limit";
+const IDEMPOTENCY_TTL_MS = parseEnvInteger(
+  IDEMPOTENCY_TTL_MS_ENV,
+  24 * 60 * 60 * 1000,
+  1000,
+  7 * 24 * 60 * 60 * 1000,
+);
+const PUBLIC_READ_CACHE_TTL_MS = parseEnvInteger(PUBLIC_READ_CACHE_TTL_MS_ENV, 30000, 250, 300000);
+const PUBLIC_READ_CACHE_MAX_ENTRIES = parseEnvInteger(
+  PUBLIC_READ_CACHE_MAX_ENTRIES_ENV,
+  4000,
+  100,
+  50000,
+);
+const ANALYTICS_COMPACTION_INTERVAL_MS = parseEnvInteger(
+  ANALYTICS_COMPACTION_INTERVAL_MS_ENV,
+  30 * 60 * 1000,
+  60 * 1000,
+  24 * 60 * 60 * 1000,
+);
 
 const ANALYTICS_SCHEMA_VERSION = 1;
 const ANALYTICS_RETENTION_DAYS = parseEnvInteger(ANALYTICS_RETENTION_DAYS_ENV, 90, 7, 3650);
-const ANALYTICS_AGG_RETENTION_DAYS = parseEnvInteger(ANALYTICS_AGG_RETENTION_DAYS_ENV, 365, 30, 3650);
+const ANALYTICS_AGG_RETENTION_DAYS = parseEnvInteger(
+  ANALYTICS_AGG_RETENTION_DAYS_ENV,
+  365,
+  30,
+  3650,
+);
 const ANALYTICS_RETENTION_MS = ANALYTICS_RETENTION_DAYS * 24 * 60 * 60 * 1000;
 const ANALYTICS_AGG_RETENTION_MS = ANALYTICS_AGG_RETENTION_DAYS * 24 * 60 * 60 * 1000;
 const ANALYTICS_EVENT_TYPE_SET = new Set([
@@ -783,6 +875,34 @@ const PUBLIC_ANALYTICS_EVENT_TYPE_SET = new Set([
 ]);
 const PUBLIC_ANALYTICS_RESOURCE_TYPE_SET = new Set(["chapter", "pwa"]);
 
+const rateLimiter = await createRateLimiter({
+  redisUrl: REDIS_URL,
+  prefix: RATE_LIMIT_PREFIX,
+  onError: ({ label, error }) => {
+    console.warn(
+      `[rate-limit:${String(label || "unknown")}] ${String(error?.message || error || "error")}`,
+    );
+  },
+});
+const idempotencyStore = createIdempotencyStore({
+  ttlMs: IDEMPOTENCY_TTL_MS,
+  maxEntries: 5000,
+});
+const publicReadCache = createResponseCache({
+  defaultTtlMs: PUBLIC_READ_CACHE_TTL_MS,
+  maxEntries: PUBLIC_READ_CACHE_MAX_ENTRIES,
+});
+const backgroundJobQueue = createJobQueue({
+  name: "backend",
+  concurrency: 1,
+  historySize: 200,
+  onError: ({ type, error }) => {
+    console.error(
+      `[job-queue:${String(type || "job")}] ${String(error?.message || error || "failed")}`,
+    );
+  },
+});
+
 dataRepository = await createDataRepository({
   databaseUrl: DATABASE_URL,
   ownerIdsFallback: OWNER_IDS,
@@ -805,7 +925,9 @@ const getDayKeyFromTs = (value) => {
 };
 
 const normalizeAnalyticsTypeFilter = (value) => {
-  const normalized = String(value || "").trim().toLowerCase();
+  const normalized = String(value || "")
+    .trim()
+    .toLowerCase();
   if (["post", "project"].includes(normalized)) {
     return normalized;
   }
@@ -813,7 +935,9 @@ const normalizeAnalyticsTypeFilter = (value) => {
 };
 
 const parseAnalyticsRangeDays = (value) => {
-  const normalized = String(value || "").trim().toLowerCase();
+  const normalized = String(value || "")
+    .trim()
+    .toLowerCase();
   if (normalized === "7d") return 7;
   if (normalized === "30d") return 30;
   if (normalized === "90d") return 90;
@@ -837,6 +961,76 @@ const sanitizeUtmValue = (value) =>
 
 const getRequestIp = (req) => req.headers["x-forwarded-for"]?.split(",")[0]?.trim() || req.ip || "";
 
+const serializeQueryForCache = (query) => {
+  if (!query || typeof query !== "object") {
+    return "";
+  }
+  const params = [];
+  Object.keys(query)
+    .sort((a, b) => a.localeCompare(b, "en"))
+    .forEach((key) => {
+      const value = query[key];
+      if (Array.isArray(value)) {
+        value.forEach((item) => {
+          params.push([key, String(item)]);
+        });
+        return;
+      }
+      if (value === undefined) {
+        return;
+      }
+      params.push([key, String(value)]);
+    });
+  if (params.length === 0) {
+    return "";
+  }
+  return params
+    .map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(value)}`)
+    .join("&");
+};
+
+const buildPublicReadCacheKey = (req) => {
+  const pathName = String(req.path || req.originalUrl || "").split("?")[0] || "/";
+  const queryText = serializeQueryForCache(req.query);
+  if (!queryText) {
+    return pathName;
+  }
+  return `${pathName}?${queryText}`;
+};
+
+const readPublicCachedJson = (req) => {
+  const cacheKey = buildPublicReadCacheKey(req);
+  const cached = publicReadCache.get(cacheKey);
+  if (!cached) {
+    return null;
+  }
+  return {
+    cacheKey,
+    payload: cached.payload,
+    statusCode: Number(cached.statusCode || 200),
+  };
+};
+
+const writePublicCachedJson = (req, payload, { statusCode = 200, ttlMs, tags = [] } = {}) => {
+  const cacheKey = buildPublicReadCacheKey(req);
+  publicReadCache.set(
+    cacheKey,
+    {
+      payload,
+      statusCode: Number(statusCode) || 200,
+    },
+    {
+      ttlMs,
+      tags,
+    },
+  );
+  return cacheKey;
+};
+
+const invalidatePublicReadCacheTags = (tags) => {
+  publicReadCache.invalidateTags(tags);
+};
+
 const getVisitorHash = (req) => {
   const ip = getRequestIp(req);
   if (!ip) {
@@ -857,7 +1051,9 @@ const getRequestAcquisition = (req) => {
   }
   try {
     const parsed = new URL(refererHeader, PRIMARY_APP_ORIGIN);
-    const host = String(parsed.host || "").trim().toLowerCase();
+    const host = String(parsed.host || "")
+      .trim()
+      .toLowerCase();
     const utm = {
       source: sanitizeUtmValue(parsed.searchParams.get("utm_source") || ""),
       medium: sanitizeUtmValue(parsed.searchParams.get("utm_medium") || ""),
@@ -905,9 +1101,13 @@ const sanitizeAnalyticsMeta = (value) => {
 };
 
 const normalizeAnalyticsEvent = (event) => {
-  const eventType = String(event?.eventType || "").trim().toLowerCase();
+  const eventType = String(event?.eventType || "")
+    .trim()
+    .toLowerCase();
   const normalizedType = ANALYTICS_EVENT_TYPE_SET.has(eventType) ? eventType : "view";
-  const resourceTypeRaw = String(event?.resourceType || "").trim().toLowerCase();
+  const resourceTypeRaw = String(event?.resourceType || "")
+    .trim()
+    .toLowerCase();
   const resourceType = resourceTypeRaw || "post";
   return {
     id: String(event?.id || crypto.randomUUID()),
@@ -1080,6 +1280,13 @@ const compactAnalyticsData = (nowTs = Date.now()) => {
   return { events: compacted, daily };
 };
 
+const enqueueAnalyticsCompactionJob = ({ trigger = "manual" } = {}) =>
+  backgroundJobQueue.enqueue({
+    type: "analytics.compaction",
+    payload: { trigger },
+    run: async () => compactAnalyticsData(),
+  });
+
 const shouldRegisterAnalyticsView = (visitorHash, resourceType, resourceId, nowTs = Date.now()) => {
   const key = `${visitorHash}|${resourceType}|${resourceId}`;
   const previous = analyticsViewCooldown.get(key);
@@ -1101,11 +1308,15 @@ const shouldRegisterAnalyticsView = (visitorHash, resourceType, resourceId, nowT
 const appendAnalyticsEvent = (req, payload) => {
   try {
     const normalizedPayload = payload && typeof payload === "object" ? payload : {};
-    const eventType = String(normalizedPayload.eventType || "").trim().toLowerCase();
+    const eventType = String(normalizedPayload.eventType || "")
+      .trim()
+      .toLowerCase();
     if (!ANALYTICS_EVENT_TYPE_SET.has(eventType)) {
       return { ok: false, reason: "invalid_event_type" };
     }
-    const resourceType = String(normalizedPayload.resourceType || "").trim().toLowerCase();
+    const resourceType = String(normalizedPayload.resourceType || "")
+      .trim()
+      .toLowerCase();
     const resourceId = String(normalizedPayload.resourceId || "").trim();
     if (!resourceType || !resourceId) {
       return { ok: false, reason: "invalid_resource" };
@@ -1294,7 +1505,11 @@ const sendHtml = async (req, res, html) => {
   return res.type("html").send(body);
 };
 
-const stripHtml = (value) => String(value || "").replace(/<[^>]*>/g, "").replace(/\s+/g, " ").trim();
+const stripHtml = (value) =>
+  String(value || "")
+    .replace(/<[^>]*>/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
 
 const isValidPostCoverImageUrl = (value) => {
   if (typeof value !== "string") {
@@ -1698,7 +1913,12 @@ const getJpegDimensions = (buffer) => {
       continue;
     }
     const marker = buffer[offset + 1];
-    if (marker === 0xd8 || marker === 0xd9 || marker === 0x01 || (marker >= 0xd0 && marker <= 0xd7)) {
+    if (
+      marker === 0xd8 ||
+      marker === 0xd9 ||
+      marker === 0x01 ||
+      (marker >= 0xd0 && marker <= 0xd7)
+    ) {
       offset += 2;
       continue;
     }
@@ -1795,7 +2015,12 @@ const validateUploadImageBuffer = (buffer, requestedMime, options = {}) => {
   const strictRequestedMime = options.strictRequestedMime === true;
   const normalizedRequested = normalizeUploadMime(requestedMime);
   const detectedMime = detectUploadImageMimeFromBuffer(buffer);
-  if (strictRequestedMime && detectedMime && normalizedRequested && detectedMime !== normalizedRequested) {
+  if (
+    strictRequestedMime &&
+    detectedMime &&
+    normalizedRequested &&
+    detectedMime !== normalizedRequested
+  ) {
     return { valid: false, error: "mime_mismatch" };
   }
   const mime = detectedMime || normalizedRequested;
@@ -1928,6 +2153,7 @@ app.use((req, res, next) => {
     : crypto.randomUUID();
   req.requestId = requestId;
   res.setHeader("X-Request-Id", requestId);
+  res.setHeader("X-API-Version", API_CONTRACT_VERSION);
   return next();
 });
 
@@ -1943,6 +2169,90 @@ app.use((req, res, next) => {
     return next();
   }
   return res.status(503).json({ error: "maintenance_mode" });
+});
+
+const IDEMPOTENCY_KEY_PATTERN = /^[a-zA-Z0-9:_-]{8,200}$/;
+app.use("/api", (req, res, next) => {
+  if (!MUTATING_HTTP_METHODS.has(String(req.method || "").toUpperCase())) {
+    return next();
+  }
+  const idempotencyKey = String(req.headers["idempotency-key"] || "").trim();
+  if (!idempotencyKey) {
+    return next();
+  }
+  if (!IDEMPOTENCY_KEY_PATTERN.test(idempotencyKey)) {
+    return res.status(400).json({ error: "invalid_idempotency_key" });
+  }
+  const actorId = req.session?.user?.id
+    ? `user:${req.session.user.id}`
+    : `ip:${getRequestIp(req) || "anonymous"}`;
+  const requestPath = String(req.path || "").split("?")[0] || "/";
+  const fingerprint = createIdempotencyFingerprint({
+    method: req.method,
+    path: requestPath,
+    actorId,
+    body: req.body && typeof req.body === "object" ? req.body : null,
+  });
+  const reserveResult = idempotencyStore.reserve({
+    key: idempotencyKey,
+    fingerprint,
+    ttlOverrideMs: IDEMPOTENCY_TTL_MS,
+  });
+
+  if (reserveResult.status === "conflict") {
+    return res.status(409).json({ error: "idempotency_conflict" });
+  }
+  if (reserveResult.status === "in_progress") {
+    return res.status(409).json({ error: "idempotency_in_progress" });
+  }
+  if (reserveResult.status === "replay") {
+    const replay = reserveResult.response || {};
+    res.setHeader("Idempotency-Replayed", "true");
+    res.setHeader("Idempotency-Key", idempotencyKey);
+    return res.status(Number(replay.statusCode || 200)).json(replay.body ?? null);
+  }
+  if (reserveResult.status !== "reserved") {
+    return res.status(400).json({ error: "invalid_idempotency_key" });
+  }
+
+  res.setHeader("Idempotency-Key", idempotencyKey);
+  const originalJson = res.json.bind(res);
+  let capturedJson = null;
+  let hasJsonPayload = false;
+  res.json = (payload) => {
+    capturedJson = payload;
+    hasJsonPayload = true;
+    return originalJson(payload);
+  };
+
+  let done = false;
+  const finalize = () => {
+    if (done) {
+      return;
+    }
+    done = true;
+    if (res.statusCode >= 500 || !hasJsonPayload) {
+      idempotencyStore.release({ key: idempotencyKey, fingerprint });
+      return;
+    }
+    idempotencyStore.complete({
+      key: idempotencyKey,
+      fingerprint,
+      ttlOverrideMs: IDEMPOTENCY_TTL_MS,
+      response: {
+        statusCode: res.statusCode,
+        body: capturedJson,
+      },
+    });
+  };
+
+  res.on("finish", finalize);
+  res.on("close", () => {
+    if (!res.writableEnded) {
+      idempotencyStore.release({ key: idempotencyKey, fingerprint });
+    }
+  });
+  return next();
 });
 
 const PWA_WORKBOX_FILE_PATTERN = /^workbox-[\w-]+\.js$/;
@@ -2066,11 +2376,15 @@ const normalizeUserPreferences = (value) => {
     return {};
   }
   const normalized = {};
-  const themeMode = String(value.themeMode || "").trim().toLowerCase();
+  const themeMode = String(value.themeMode || "")
+    .trim()
+    .toLowerCase();
   if (USER_PREFERENCES_THEME_MODE_SET.has(themeMode)) {
     normalized.themeMode = themeMode;
   }
-  const density = String(value.density || "").trim().toLowerCase();
+  const density = String(value.density || "")
+    .trim()
+    .toLowerCase();
   if (USER_PREFERENCES_DENSITY_SET.has(density)) {
     normalized.density = density;
   }
@@ -2170,6 +2484,13 @@ const writeLinkTypes = (items) => {
   }
 };
 
+const PUBLIC_READ_CACHE_TAGS = Object.freeze({
+  BOOTSTRAP: "public:bootstrap",
+  SEARCH: "public:search",
+  POSTS: "public:posts",
+  PROJECTS: "public:projects",
+});
+
 const loadPosts = () => {
   const cached = readJsonFileFromCache("posts");
   if (cached) {
@@ -2193,9 +2514,29 @@ const loadPosts = () => {
 };
 
 const writePosts = (posts) => {
+  const validProjectIds = new Set(
+    normalizeProjects(loadProjects())
+      .filter((project) => !project.deletedAt)
+      .map((project) => String(project.id)),
+  );
+  const sanitizedPosts = (Array.isArray(posts) ? posts : []).map((post) => {
+    const normalizedProjectId = String(post?.projectId || "").trim();
+    if (!normalizedProjectId || validProjectIds.has(normalizedProjectId)) {
+      return post;
+    }
+    return {
+      ...post,
+      projectId: "",
+    };
+  });
   if (dataRepository) {
-    dataRepository.writePosts(normalizeUploadsDeep(posts));
+    dataRepository.writePosts(normalizeUploadsDeep(sanitizedPosts));
   }
+  invalidatePublicReadCacheTags([
+    PUBLIC_READ_CACHE_TAGS.BOOTSTRAP,
+    PUBLIC_READ_CACHE_TAGS.SEARCH,
+    PUBLIC_READ_CACHE_TAGS.POSTS,
+  ]);
   invalidateJsonFileCache("posts");
 };
 
@@ -2224,10 +2565,7 @@ const writePostVersions = (entries) => {
   invalidateJsonFileCache("post_versions");
 };
 
-const updateLexicalPollVotes = (
-  content,
-  { question, optionUid, voterId, checked },
-) => {
+const updateLexicalPollVotes = (content, { question, optionUid, voterId, checked }) => {
   if (!content || typeof content !== "string") {
     return { updated: false };
   }
@@ -2256,16 +2594,13 @@ const updateLexicalPollVotes = (
       if (safeQuestion && node.question !== safeQuestion) {
         // continue searching
       } else {
-        const option = node.options.find(
-          (entry) => entry && entry.uid === safeOptionUid,
-        );
+        const option = node.options.find((entry) => entry && entry.uid === safeOptionUid);
         if (option) {
           const votes = Array.isArray(option.votes)
             ? option.votes.filter((vote) => typeof vote === "string")
             : [];
           const hasVote = votes.includes(safeVoterId);
-          const shouldCheck =
-            typeof checked === "boolean" ? checked : !hasVote;
+          const shouldCheck = typeof checked === "boolean" ? checked : !hasVote;
           if (shouldCheck && !hasVote) {
             votes.push(safeVoterId);
             option.votes = votes;
@@ -2384,7 +2719,13 @@ const defaultSiteSettings = {
   },
   downloads: {
     sources: [
-      { id: "google-drive", label: "Google Drive", color: "#34A853", icon: "google-drive", tintIcon: true },
+      {
+        id: "google-drive",
+        label: "Google Drive",
+        color: "#34A853",
+        icon: "google-drive",
+        tintIcon: true,
+      },
       { id: "mega", label: "MEGA", color: "#D9272E", icon: "mega", tintIcon: true },
       { id: "torrent", label: "Torrent", color: "#7C3AED", icon: "torrent", tintIcon: true },
       { id: "mediafire", label: "Mediafire", color: "#2563EB", icon: "mediafire", tintIcon: true },
@@ -2542,7 +2883,9 @@ const normalizeUploadsDeep = (value) => {
 const normalizeSiteSettings = (payload) => {
   const merged = fixMojibakeDeep(mergeSettings(defaultSiteSettings, payload || {}));
   const normalizeThemeMode = (value) => {
-    const normalized = String(value || "").trim().toLowerCase();
+    const normalized = String(value || "")
+      .trim()
+      .toLowerCase();
     return normalized === "light" ? "light" : "dark";
   };
   const accentValue =
@@ -2555,18 +2898,27 @@ const normalizeSiteSettings = (payload) => {
     useAccentInProgressCard: merged?.theme?.useAccentInProgressCard === true,
   };
   const resolveNavbarIcon = (label, href, icon) => {
-    const iconValue = String(icon || "").trim().toLowerCase();
+    const iconValue = String(icon || "")
+      .trim()
+      .toLowerCase();
     if (iconValue) {
       return iconValue;
     }
-    const normalizedLabel = String(label || "").trim().toLowerCase();
+    const normalizedLabel = String(label || "")
+      .trim()
+      .toLowerCase();
     const normalizedHref = String(href || "").trim();
-    const matchByHref = defaultSiteSettings.navbar.links.find((item) => String(item.href || "").trim() === normalizedHref);
+    const matchByHref = defaultSiteSettings.navbar.links.find(
+      (item) => String(item.href || "").trim() === normalizedHref,
+    );
     if (matchByHref?.icon) {
       return String(matchByHref.icon).trim().toLowerCase();
     }
     const matchByLabel = defaultSiteSettings.navbar.links.find(
-      (item) => String(item.label || "").trim().toLowerCase() === normalizedLabel,
+      (item) =>
+        String(item.label || "")
+          .trim()
+          .toLowerCase() === normalizedLabel,
     );
     if (matchByLabel?.icon) {
       return String(matchByLabel.icon).trim().toLowerCase();
@@ -2582,10 +2934,9 @@ const normalizeSiteSettings = (payload) => {
         }))
         .filter((link) => link.label && link.href)
     : [];
-  const normalizedNavbarLinks =
-    Array.isArray(merged?.navbar?.links)
-      ? navbarLinks
-      : defaultSiteSettings.navbar.links.map((link) => ({ ...link }));
+  const normalizedNavbarLinks = Array.isArray(merged?.navbar?.links)
+    ? navbarLinks
+    : defaultSiteSettings.navbar.links.map((link) => ({ ...link }));
   merged.navbar = {
     links: normalizedNavbarLinks,
   };
@@ -2593,7 +2944,9 @@ const normalizeSiteSettings = (payload) => {
   const allowedNavbarModes = new Set(["wordmark", "symbol-text", "symbol", "text"]);
   const allowedFooterModes = new Set(["wordmark", "symbol-text", "text"]);
   const legacyPlacement = String(merged?.branding?.wordmarkPlacement || "both");
-  const normalizedLegacyPlacement = allowedPlacements.has(legacyPlacement) ? legacyPlacement : "both";
+  const normalizedLegacyPlacement = allowedPlacements.has(legacyPlacement)
+    ? legacyPlacement
+    : "both";
   const legacyWordmarkEnabled = Boolean(merged?.branding?.wordmarkEnabled);
   const legacyWordmarkUrl = String(merged?.branding?.wordmarkUrl || "").trim();
   const legacyWordmarkUrlNavbar = String(merged?.branding?.wordmarkUrlNavbar || "").trim();
@@ -2602,9 +2955,7 @@ const normalizeSiteSettings = (payload) => {
   const legacyFooterSymbol = String(merged?.footer?.brandLogoUrl || "").trim();
 
   const payloadBranding =
-    payload?.branding && typeof payload.branding === "object"
-      ? payload.branding
-      : null;
+    payload?.branding && typeof payload.branding === "object" ? payload.branding : null;
   const hasAnyNewBrandingInput = Boolean(
     payloadBranding &&
       (typeof payloadBranding.assets === "object" ||
@@ -2626,7 +2977,9 @@ const normalizeSiteSettings = (payload) => {
       : {};
 
   const symbolAssetUrl =
-    sanitizeAssetUrl(rawBrandAssets.symbolUrl || (!hasAnyNewBrandingInput ? legacySiteSymbol : "") || "") || "";
+    sanitizeAssetUrl(
+      rawBrandAssets.symbolUrl || (!hasAnyNewBrandingInput ? legacySiteSymbol : "") || "",
+    ) || "";
   const wordmarkAssetUrl =
     sanitizeAssetUrl(
       rawBrandAssets.wordmarkUrl ||
@@ -2638,14 +2991,23 @@ const normalizeSiteSettings = (payload) => {
 
   const navbarSymbolOverride = sanitizeAssetUrl(rawBrandOverrides.navbarSymbolUrl || "") || "";
   const footerSymbolOverride =
-    sanitizeAssetUrl(rawBrandOverrides.footerSymbolUrl || (!hasAnyNewBrandingInput ? legacyFooterSymbol : "") || "") ||
-    "";
+    sanitizeAssetUrl(
+      rawBrandOverrides.footerSymbolUrl ||
+        (!hasAnyNewBrandingInput ? legacyFooterSymbol : "") ||
+        "",
+    ) || "";
   const navbarWordmarkOverride =
-    sanitizeAssetUrl(rawBrandOverrides.navbarWordmarkUrl || (!hasAnyNewBrandingInput ? legacyWordmarkUrlNavbar : "") || "") ||
-    "";
+    sanitizeAssetUrl(
+      rawBrandOverrides.navbarWordmarkUrl ||
+        (!hasAnyNewBrandingInput ? legacyWordmarkUrlNavbar : "") ||
+        "",
+    ) || "";
   const footerWordmarkOverride =
-    sanitizeAssetUrl(rawBrandOverrides.footerWordmarkUrl || (!hasAnyNewBrandingInput ? legacyWordmarkUrlFooter : "") || "") ||
-    "";
+    sanitizeAssetUrl(
+      rawBrandOverrides.footerWordmarkUrl ||
+        (!hasAnyNewBrandingInput ? legacyWordmarkUrlFooter : "") ||
+        "",
+    ) || "";
 
   const legacyNavbarMode =
     legacyWordmarkEnabled &&
@@ -2673,13 +3035,14 @@ const normalizeSiteSettings = (payload) => {
 
   const usesWordmarkNavbar = navbarMode === "wordmark";
   const usesWordmarkFooter = footerMode === "wordmark";
-  const compatPlacement = usesWordmarkNavbar && usesWordmarkFooter
-    ? "both"
-    : usesWordmarkNavbar
-      ? "navbar"
-      : usesWordmarkFooter
-        ? "footer"
-        : normalizedLegacyPlacement;
+  const compatPlacement =
+    usesWordmarkNavbar && usesWordmarkFooter
+      ? "both"
+      : usesWordmarkNavbar
+        ? "navbar"
+        : usesWordmarkFooter
+          ? "footer"
+          : normalizedLegacyPlacement;
   const compatWordmarkEnabled = usesWordmarkNavbar || usesWordmarkFooter;
 
   merged.branding = {
@@ -2708,10 +3071,12 @@ const normalizeSiteSettings = (payload) => {
     String(merged?.site?.name || defaultSiteSettings.site.name || "Nekomata").trim() ||
     String(defaultSiteSettings.site.name || "Nekomata").trim() ||
     "Nekomata";
-  const siteFaviconUrl = sanitizeAssetUrl(merged?.site?.faviconUrl || defaultSiteSettings.site.faviconUrl || "") || "";
+  const siteFaviconUrl =
+    sanitizeAssetUrl(merged?.site?.faviconUrl || defaultSiteSettings.site.faviconUrl || "") || "";
   const siteDefaultShareImage =
-    sanitizeAssetUrl(merged?.site?.defaultShareImage || defaultSiteSettings.site.defaultShareImage || "") ||
-    defaultSiteSettings.site.defaultShareImage;
+    sanitizeAssetUrl(
+      merged?.site?.defaultShareImage || defaultSiteSettings.site.defaultShareImage || "",
+    ) || defaultSiteSettings.site.defaultShareImage;
   merged.site = {
     ...(merged.site || {}),
     name: normalizedSiteName,
@@ -2726,7 +3091,9 @@ const normalizeSiteSettings = (payload) => {
   };
   const discordUrl =
     sanitizePublicHref(
-      String(merged?.community?.discordUrl || defaultSiteSettings.community.discordUrl || "").trim(),
+      String(
+        merged?.community?.discordUrl || defaultSiteSettings.community.discordUrl || "",
+      ).trim(),
     ) ||
     sanitizePublicHref(String(defaultSiteSettings.community.discordUrl || "").trim()) ||
     "";
@@ -2745,12 +3112,14 @@ const normalizeSiteSettings = (payload) => {
     String(inviteCardPayload.panelTitle || inviteCardDefaults.panelTitle || "").trim() ||
     String(inviteCardDefaults.panelTitle || "").trim();
   const inviteCardPanelDescription =
-    String(inviteCardPayload.panelDescription || inviteCardDefaults.panelDescription || "").trim() ||
-    String(inviteCardDefaults.panelDescription || "").trim();
+    String(
+      inviteCardPayload.panelDescription || inviteCardDefaults.panelDescription || "",
+    ).trim() || String(inviteCardDefaults.panelDescription || "").trim();
   const inviteCardCtaLabel =
     String(inviteCardPayload.ctaLabel || inviteCardDefaults.ctaLabel || "").trim() ||
     String(inviteCardDefaults.ctaLabel || "").trim();
-  const inviteCardCtaUrlRaw = sanitizePublicHref(String(inviteCardPayload.ctaUrl || "").trim()) || "";
+  const inviteCardCtaUrlRaw =
+    sanitizePublicHref(String(inviteCardPayload.ctaUrl || "").trim()) || "";
   const inviteCardCtaUrl = inviteCardCtaUrlRaw || discordUrl;
 
   merged.community = {
@@ -2861,6 +3230,11 @@ const writeProjects = (projects) => {
   if (dataRepository) {
     dataRepository.writeProjects(normalizeUploadsDeep(projects));
   }
+  invalidatePublicReadCacheTags([
+    PUBLIC_READ_CACHE_TAGS.BOOTSTRAP,
+    PUBLIC_READ_CACHE_TAGS.SEARCH,
+    PUBLIC_READ_CACHE_TAGS.PROJECTS,
+  ]);
   invalidateJsonFileCache("projects");
 };
 
@@ -2879,9 +3253,22 @@ const loadUpdates = () => {
 };
 
 const writeUpdates = (updates) => {
+  const validProjectIds = new Set(
+    normalizeProjects(loadProjects())
+      .filter((project) => !project.deletedAt)
+      .map((project) => String(project.id)),
+  );
+  const sanitizedUpdates = (Array.isArray(updates) ? updates : []).filter((update) => {
+    const projectId = String(update?.projectId || "").trim();
+    if (!projectId) {
+      return true;
+    }
+    return validProjectIds.has(projectId);
+  });
   if (dataRepository) {
-    dataRepository.writeUpdates(updates);
+    dataRepository.writeUpdates(sanitizedUpdates);
   }
+  invalidatePublicReadCacheTags([PUBLIC_READ_CACHE_TAGS.BOOTSTRAP]);
   invalidateJsonFileCache("updates");
 };
 
@@ -2897,7 +3284,8 @@ const loadTagTranslations = () => {
   const normalized = {
     tags: parsed?.tags && typeof parsed.tags === "object" ? parsed.tags : {},
     genres: parsed?.genres && typeof parsed.genres === "object" ? parsed.genres : {},
-    staffRoles: parsed?.staffRoles && typeof parsed.staffRoles === "object" ? parsed.staffRoles : {},
+    staffRoles:
+      parsed?.staffRoles && typeof parsed.staffRoles === "object" ? parsed.staffRoles : {},
   };
   writeJsonFileToCache("tag-translations", normalized);
   return normalized;
@@ -2907,6 +3295,7 @@ const writeTagTranslations = (payload) => {
   if (dataRepository) {
     dataRepository.writeTagTranslations(payload);
   }
+  invalidatePublicReadCacheTags([PUBLIC_READ_CACHE_TAGS.BOOTSTRAP]);
   invalidateJsonFileCache("tag-translations");
 };
 
@@ -2918,9 +3307,73 @@ const loadComments = () => {
   return Array.isArray(parsed) ? parsed : [];
 };
 
+const hasProjectChapter = (project, chapterNumber, volume) => {
+  const safeChapter = Number(chapterNumber);
+  if (!Number.isFinite(safeChapter)) {
+    return false;
+  }
+  const safeVolume = Number.isFinite(Number(volume)) ? Number(volume) : null;
+  return Array.isArray(project?.episodeDownloads)
+    ? project.episodeDownloads.some((episode) => {
+        if (Number(episode?.number) !== safeChapter) {
+          return false;
+        }
+        if (safeVolume === null) {
+          return true;
+        }
+        return Number(episode?.volume || 0) === safeVolume;
+      })
+    : false;
+};
+
+const enforceCommentTargetIntegrity = (comments) => {
+  const safeComments = Array.isArray(comments) ? comments : [];
+  if (safeComments.length === 0) {
+    return safeComments;
+  }
+  const posts = normalizePosts(loadPosts());
+  const projects = normalizeProjects(loadProjects());
+  const postSlugs = new Set(
+    posts.filter((post) => !post.deletedAt).map((post) => String(post.slug || "")),
+  );
+  const projectMap = new Map(
+    projects
+      .filter((project) => !project.deletedAt)
+      .map((project) => [String(project.id || ""), project]),
+  );
+  return safeComments.filter((comment) => {
+    const targetType = String(comment?.targetType || "")
+      .trim()
+      .toLowerCase();
+    const targetId = String(comment?.targetId || "").trim();
+    if (!targetType || !targetId) {
+      return false;
+    }
+    if (targetType === "post") {
+      return postSlugs.has(targetId);
+    }
+    if (targetType === "project") {
+      return projectMap.has(targetId);
+    }
+    if (targetType === "chapter") {
+      const project = projectMap.get(targetId);
+      if (!project) {
+        return false;
+      }
+      return hasProjectChapter(
+        project,
+        comment?.targetMeta?.chapterNumber,
+        comment?.targetMeta?.volume,
+      );
+    }
+    return false;
+  });
+};
+
 const writeComments = (comments) => {
+  const sanitizedComments = enforceCommentTargetIntegrity(comments);
   if (dataRepository) {
-    dataRepository.writeComments(comments);
+    dataRepository.writeComments(sanitizedComments);
   }
 };
 
@@ -2944,9 +3397,7 @@ const upsertUploadEntries = (incomingEntries) => {
   }
   const existingUploads = loadUploads();
   const byUrl = new Map(
-    existingUploads
-      .filter((item) => item?.url)
-      .map((item) => [String(item.url), item]),
+    existingUploads.filter((item) => item?.url).map((item) => [String(item.url), item]),
   );
   let changed = false;
   incomingEntries.forEach((entry) => {
@@ -2962,10 +3413,10 @@ const upsertUploadEntries = (incomingEntries) => {
       url: nextUrl,
       fileName: String(entry?.fileName || current?.fileName || ""),
       folder: String(entry?.folder || current?.folder || ""),
-      size: Number.isFinite(entry?.size) ? Number(entry.size) : current?.size ?? null,
+      size: Number.isFinite(entry?.size) ? Number(entry.size) : (current?.size ?? null),
       mime: String(entry?.mime || current?.mime || ""),
-      width: Number.isFinite(entry?.width) ? Number(entry.width) : current?.width ?? null,
-      height: Number.isFinite(entry?.height) ? Number(entry.height) : current?.height ?? null,
+      width: Number.isFinite(entry?.width) ? Number(entry.width) : (current?.width ?? null),
+      height: Number.isFinite(entry?.height) ? Number(entry.height) : (current?.height ?? null),
       createdAt: String(entry?.createdAt || current?.createdAt || new Date().toISOString()),
     };
     if (JSON.stringify(current || null) !== JSON.stringify(next)) {
@@ -3103,6 +3554,7 @@ const writePages = (pages) => {
   if (dataRepository) {
     dataRepository.writePages(normalizeUploadsDeep(fixMojibakeDeep(pages)));
   }
+  invalidatePublicReadCacheTags([PUBLIC_READ_CACHE_TAGS.BOOTSTRAP]);
 };
 
 const loadSiteSettings = () => {
@@ -3135,6 +3587,7 @@ const writeSiteSettings = (settings) => {
   if (dataRepository) {
     dataRepository.writeSiteSettings(storagePayload);
   }
+  invalidatePublicReadCacheTags([PUBLIC_READ_CACHE_TAGS.BOOTSTRAP]);
   invalidateJsonFileCache("site-settings");
 };
 
@@ -3143,13 +3596,13 @@ const loadIntegrationSettings = () => {
   if (cached) {
     return cached;
   }
-  if (
-    !dataRepository ||
-    typeof dataRepository.loadIntegrationSettings !== "function"
-  ) {
-    const defaults = normalizeEditorialWebhookSettings({}, {
-      defaultProjectTypes: DEFAULT_PROJECT_TYPE_CATALOG,
-    });
+  if (!dataRepository || typeof dataRepository.loadIntegrationSettings !== "function") {
+    const defaults = normalizeEditorialWebhookSettings(
+      {},
+      {
+        defaultProjectTypes: DEFAULT_PROJECT_TYPE_CATALOG,
+      },
+    );
     writeJsonFileToCache("integration-settings", defaults);
     return defaults;
   }
@@ -3170,10 +3623,7 @@ const writeIntegrationSettings = (settings) => {
     defaultProjectTypes: DEFAULT_PROJECT_TYPE_CATALOG,
   });
   const migrated = migrateEditorialMentionPlaceholdersInSettings(normalized);
-  if (
-    dataRepository &&
-    typeof dataRepository.writeIntegrationSettings === "function"
-  ) {
+  if (dataRepository && typeof dataRepository.writeIntegrationSettings === "function") {
     dataRepository.writeIntegrationSettings(migrated);
   }
   invalidateJsonFileCache("integration-settings");
@@ -3210,7 +3660,9 @@ const countDroppedSiteLinks = (settingsInput) => {
       total += 1;
     }
   });
-  const footerLinks = Array.isArray(settings?.footer?.socialLinks) ? settings.footer.socialLinks : [];
+  const footerLinks = Array.isArray(settings?.footer?.socialLinks)
+    ? settings.footer.socialLinks
+    : [];
   footerLinks.forEach((link) => {
     const href = String(link?.href || "").trim();
     if (href && !sanitizePublicHref(href)) {
@@ -3252,7 +3704,10 @@ const runStartupSecuritySanitization = () => {
   }
 };
 
-const normalizeEmail = (value) => String(value || "").trim().toLowerCase();
+const normalizeEmail = (value) =>
+  String(value || "")
+    .trim()
+    .toLowerCase();
 const createGravatarHash = (email) =>
   crypto.createHash("sha256").update(normalizeEmail(email)).digest("hex");
 const buildGravatarUrl = (hash, size = 96) =>
@@ -3282,77 +3737,50 @@ const resolveGravatarAvatarUrl = async (hash) => {
   return buildGravatarUrl(hash);
 };
 
-const commentRateLimit = new Map();
-const canSubmitComment = (ip) => {
+const consumeIpRateLimit = async ({ bucket, ip, maxPerWindow, windowMs = 60 * 1000 }) => {
   if (!ip) {
     return true;
   }
-  const now = Date.now();
-  const windowMs = 60 * 1000;
-  const maxPerWindow = 3;
-  const entry = commentRateLimit.get(ip) || { count: 0, resetAt: now + windowMs };
-  if (now > entry.resetAt) {
-    entry.count = 0;
-    entry.resetAt = now + windowMs;
+  try {
+    const result = await rateLimiter.consume({
+      bucket,
+      key: ip,
+      limit: maxPerWindow,
+      windowMs,
+    });
+    return Boolean(result?.allowed);
+  } catch {
+    return true;
   }
-  entry.count += 1;
-  commentRateLimit.set(ip, entry);
-  return entry.count <= maxPerWindow;
 };
 
-const authRateLimit = new Map();
-const canAttemptAuth = (ip) => {
-  if (!ip) {
-    return true;
-  }
-  const now = Date.now();
-  const windowMs = 60 * 1000;
-  const maxPerWindow = isProduction ? 20 : 120;
-  const entry = authRateLimit.get(ip) || { count: 0, resetAt: now + windowMs };
-  if (now > entry.resetAt) {
-    entry.count = 0;
-    entry.resetAt = now + windowMs;
-  }
-  entry.count += 1;
-  authRateLimit.set(ip, entry);
-  return entry.count <= maxPerWindow;
-};
+const canSubmitComment = async (ip) =>
+  consumeIpRateLimit({
+    bucket: "comment_submit",
+    ip,
+    maxPerWindow: 3,
+  });
 
-const uploadRateLimit = new Map();
-const canUploadImage = (ip) => {
-  if (!ip) {
-    return true;
-  }
-  const now = Date.now();
-  const windowMs = 60 * 1000;
-  const maxPerWindow = isProduction ? 20 : 120;
-  const entry = uploadRateLimit.get(ip) || { count: 0, resetAt: now + windowMs };
-  if (now > entry.resetAt) {
-    entry.count = 0;
-    entry.resetAt = now + windowMs;
-  }
-  entry.count += 1;
-  uploadRateLimit.set(ip, entry);
-  return entry.count <= maxPerWindow;
-};
+const canAttemptAuth = async (ip) =>
+  consumeIpRateLimit({
+    bucket: "auth_attempt",
+    ip,
+    maxPerWindow: isProduction ? 20 : 120,
+  });
 
-const bootstrapRateLimit = new Map();
-const canBootstrap = (ip) => {
-  if (!ip) {
-    return true;
-  }
-  const now = Date.now();
-  const windowMs = 60 * 1000;
-  const maxPerWindow = isProduction ? 5 : 60;
-  const entry = bootstrapRateLimit.get(ip) || { count: 0, resetAt: now + windowMs };
-  if (now > entry.resetAt) {
-    entry.count = 0;
-    entry.resetAt = now + windowMs;
-  }
-  entry.count += 1;
-  bootstrapRateLimit.set(ip, entry);
-  return entry.count <= maxPerWindow;
-};
+const canUploadImage = async (ip) =>
+  consumeIpRateLimit({
+    bucket: "upload_image",
+    ip,
+    maxPerWindow: isProduction ? 20 : 120,
+  });
+
+const canBootstrap = async (ip) =>
+  consumeIpRateLimit({
+    bucket: "bootstrap_owner",
+    ip,
+    maxPerWindow: isProduction ? 5 : 60,
+  });
 
 const sanitizeSvg = (value) => {
   if (!value) return "";
@@ -3373,41 +3801,19 @@ const sanitizeSvg = (value) => {
   return output;
 };
 
-const viewRateLimit = new Map();
-const canRegisterView = (ip) => {
-  if (!ip) {
-    return true;
-  }
-  const now = Date.now();
-  const windowMs = 60 * 1000;
-  const maxPerWindow = isProduction ? 60 : 300;
-  const entry = viewRateLimit.get(ip) || { count: 0, resetAt: now + windowMs };
-  if (now > entry.resetAt) {
-    entry.count = 0;
-    entry.resetAt = now + windowMs;
-  }
-  entry.count += 1;
-  viewRateLimit.set(ip, entry);
-  return entry.count <= maxPerWindow;
-};
+const canRegisterView = async (ip) =>
+  consumeIpRateLimit({
+    bucket: "register_view",
+    ip,
+    maxPerWindow: isProduction ? 60 : 300,
+  });
 
-const pollVoteRateLimit = new Map();
-const canRegisterPollVote = (ip) => {
-  if (!ip) {
-    return true;
-  }
-  const now = Date.now();
-  const windowMs = 60 * 1000;
-  const maxPerWindow = isProduction ? 20 : 120;
-  const entry = pollVoteRateLimit.get(ip) || { count: 0, resetAt: now + windowMs };
-  if (now > entry.resetAt) {
-    entry.count = 0;
-    entry.resetAt = now + windowMs;
-  }
-  entry.count += 1;
-  pollVoteRateLimit.set(ip, entry);
-  return entry.count <= maxPerWindow;
-};
+const canRegisterPollVote = async (ip) =>
+  consumeIpRateLimit({
+    bucket: "poll_vote",
+    ip,
+    maxPerWindow: isProduction ? 20 : 120,
+  });
 const DELETE_RETENTION_MS = 3 * 24 * 60 * 60 * 1000;
 const POST_VERSION_RETENTION_DAYS = 15;
 const POST_VERSION_RETENTION_MS = POST_VERSION_RETENTION_DAYS * 24 * 60 * 60 * 1000;
@@ -3423,7 +3829,9 @@ const isWithinRestoreWindow = (deletedAt) => {
   return Date.now() - ts <= DELETE_RETENTION_MS;
 };
 const pruneExpiredDeleted = (items) =>
-  (Array.isArray(items) ? items : []).filter((item) => !item?.deletedAt || isWithinRestoreWindow(item.deletedAt));
+  (Array.isArray(items) ? items : []).filter(
+    (item) => !item?.deletedAt || isWithinRestoreWindow(item.deletedAt),
+  );
 
 const isPostVersionWithinRetention = (createdAt, nowMs = Date.now()) => {
   const createdAtMs = new Date(createdAt || 0).getTime();
@@ -3490,7 +3898,9 @@ const normalizePosts = (posts) => {
 };
 
 const normalizePostVersionReason = (value) => {
-  const normalized = String(value || "").trim().toLowerCase();
+  const normalized = String(value || "")
+    .trim()
+    .toLowerCase();
   if (
     normalized === "create" ||
     normalized === "update" ||
@@ -3584,7 +3994,8 @@ const normalizePostVersionRecords = (entries) => {
     if (!postId) {
       return;
     }
-    const createdAtRaw = candidate.createdAt || candidate?.snapshot?.updatedAt || new Date().toISOString();
+    const createdAtRaw =
+      candidate.createdAt || candidate?.snapshot?.updatedAt || new Date().toISOString();
     const createdAtParsed = new Date(createdAtRaw);
     const createdAt = Number.isFinite(createdAtParsed.getTime())
       ? createdAtParsed.toISOString()
@@ -3603,10 +4014,18 @@ const normalizePostVersionRecords = (entries) => {
       versionNumber:
         Number.isFinite(versionNumber) && versionNumber > 0 ? Math.floor(versionNumber) : index + 1,
       reason: normalizePostVersionReason(candidate.reason),
-      label: typeof candidate.label === "string" && candidate.label.trim() ? String(candidate.label) : null,
-      actorId: typeof candidate.actorId === "string" && candidate.actorId.trim() ? String(candidate.actorId) : null,
+      label:
+        typeof candidate.label === "string" && candidate.label.trim()
+          ? String(candidate.label)
+          : null,
+      actorId:
+        typeof candidate.actorId === "string" && candidate.actorId.trim()
+          ? String(candidate.actorId)
+          : null,
       actorName:
-        typeof candidate.actorName === "string" && candidate.actorName.trim() ? String(candidate.actorName) : null,
+        typeof candidate.actorName === "string" && candidate.actorName.trim()
+          ? String(candidate.actorName)
+          : null,
       slug: snapshot.slug,
       createdAt,
       snapshot,
@@ -3657,12 +4076,7 @@ const prunePostVersions = (entries, postId, maxVersionsPerPost = POST_VERSION_RE
   });
 };
 
-const appendPostVersion = ({
-  post,
-  reason,
-  actor = null,
-  label = null,
-}) => {
+const appendPostVersion = ({ post, reason, actor = null, label = null }) => {
   const normalizedPost = normalizePosts([post || {}])[0];
   if (!normalizedPost?.id) {
     return null;
@@ -3683,7 +4097,11 @@ const appendPostVersion = ({
     createdAt: new Date().toISOString(),
     snapshot: buildPostVersionSnapshot(normalizedPost),
   };
-  const nextEntries = prunePostVersions([...versions, record], normalizedPost.id, POST_VERSION_RETENTION_MAX);
+  const nextEntries = prunePostVersions(
+    [...versions, record],
+    normalizedPost.id,
+    POST_VERSION_RETENTION_MAX,
+  );
   writePostVersions(nextEntries);
   return record;
 };
@@ -3733,7 +4151,8 @@ const listPostVersions = (postId, options = {}) => {
     });
   }
   const slice = versions.slice(0, limit);
-  const nextCursor = versions.length > limit ? encodePostVersionCursor(slice[slice.length - 1]) : null;
+  const nextCursor =
+    versions.length > limit ? encodePostVersionCursor(slice[slice.length - 1]) : null;
   return { versions: slice, nextCursor };
 };
 
@@ -3750,7 +4169,8 @@ const applyPostSnapshotForRollback = ({ existingPost, snapshot, allPosts }) => {
   const otherSlugs = normalizePosts(Array.isArray(allPosts) ? allPosts : [])
     .filter((item) => item.id !== current.id)
     .map((item) => item.slug);
-  const requestedSlug = createSlug(safeSnapshot.slug || safeSnapshot.title || current.slug) || current.slug;
+  const requestedSlug =
+    createSlug(safeSnapshot.slug || safeSnapshot.title || current.slug) || current.slug;
   const resolvedSlug = createUniqueSlug(requestedSlug, otherSlugs);
   const updated = normalizePosts([
     {
@@ -3781,10 +4201,8 @@ const normalizeProjects = (projects) =>
   projects.map((project, index) => {
     const normalizedEpisodeDownloads = Array.isArray(project.episodeDownloads)
       ? project.episodeDownloads.map((episode) => {
-          const episodeObject =
-            episode && typeof episode === "object" ? episode : {};
-          const { synopsis: _episodeSynopsis, ...episodeWithoutSynopsis } =
-            episodeObject;
+          const episodeObject = episode && typeof episode === "object" ? episode : {};
+          const { synopsis: _episodeSynopsis, ...episodeWithoutSynopsis } = episodeObject;
           const normalizedSources = Array.isArray(episode?.sources)
             ? episode.sources.map((source) => {
                 const label = String(source?.label || "");
@@ -3827,66 +4245,67 @@ const normalizeProjects = (projects) =>
       : [];
 
     const normalized = {
-    id: String(project.id || `project-${Date.now()}-${index}`),
-    anilistId: project.anilistId ? Number(project.anilistId) : null,
-    title: String(project.title || "Sem título"),
-    titleOriginal: String(project.titleOriginal || ""),
-    titleEnglish: String(project.titleEnglish || ""),
-    synopsis: String(project.synopsis || ""),
-    description: String(project.description || ""),
-    type: String(project.type || project.format || ""),
-    status: String(project.status || ""),
-    year: String(project.year || ""),
-    studio: String(project.studio || ""),
-    episodes: String(project.episodes || ""),
-    tags: Array.isArray(project.tags) ? project.tags.filter(Boolean) : [],
-    genres: Array.isArray(project.genres) ? project.genres.filter(Boolean) : [],
-    cover: project.cover || "/placeholder.svg",
-    banner: project.banner || "/placeholder.svg",
-    season: String(project.season || ""),
-    schedule: String(project.schedule || ""),
-    rating: String(project.rating || ""),
-    country: String(project.country || ""),
-    source: String(project.source || ""),
-    discordRoleId: /^\d+$/.test(String(project.discordRoleId || "").trim())
-      ? String(project.discordRoleId || "").trim()
-      : "",
-    producers: Array.isArray(project.producers) ? project.producers.filter(Boolean) : [],
-    score: Number.isFinite(project.score) ? project.score : null,
-    startDate: project.startDate || "",
-    endDate: project.endDate || "",
-    relations: Array.isArray(project.relations) ? project.relations : [],
-    staff: Array.isArray(project.fansubStaff)
-      ? project.fansubStaff
-      : Array.isArray(project.staff)
-        ? project.staff
-        : [],
-    animeStaff: Array.isArray(project.animeStaff) ? project.animeStaff : [],
-    trailerUrl: project.trailerUrl || "",
-    forceHero: Boolean(project.forceHero),
-    heroImageUrl: String(project.heroImageUrl || ""),
-    episodeDownloads: normalizedEpisodeDownloads,
-    views: Number.isFinite(project.views) ? project.views : 0,
-    viewsDaily: project.viewsDaily && typeof project.viewsDaily === "object" ? project.viewsDaily : {},
-    commentsCount: Number.isFinite(project.commentsCount) ? project.commentsCount : 0,
-    order: Number.isFinite(project.order) ? project.order : index,
-    deletedAt: project.deletedAt || null,
-    deletedBy: project.deletedBy || null,
-    createdAt: project.createdAt || new Date().toISOString(),
-    updatedAt: project.updatedAt || project.createdAt || new Date().toISOString(),
-  };
-  normalized.searchText = buildSearchText(
-    normalized.title,
-    normalized.titleOriginal,
-    normalized.titleEnglish,
-    normalized.synopsis,
-    normalized.description,
-    normalized.type,
-    normalized.status,
-    ...(Array.isArray(normalized.tags) ? normalized.tags : []),
-    ...(Array.isArray(normalized.genres) ? normalized.genres : []),
-  );
-  return normalizeUploadsDeep(normalized);
+      id: String(project.id || `project-${Date.now()}-${index}`),
+      anilistId: project.anilistId ? Number(project.anilistId) : null,
+      title: String(project.title || "Sem título"),
+      titleOriginal: String(project.titleOriginal || ""),
+      titleEnglish: String(project.titleEnglish || ""),
+      synopsis: String(project.synopsis || ""),
+      description: String(project.description || ""),
+      type: String(project.type || project.format || ""),
+      status: String(project.status || ""),
+      year: String(project.year || ""),
+      studio: String(project.studio || ""),
+      episodes: String(project.episodes || ""),
+      tags: Array.isArray(project.tags) ? project.tags.filter(Boolean) : [],
+      genres: Array.isArray(project.genres) ? project.genres.filter(Boolean) : [],
+      cover: project.cover || "/placeholder.svg",
+      banner: project.banner || "/placeholder.svg",
+      season: String(project.season || ""),
+      schedule: String(project.schedule || ""),
+      rating: String(project.rating || ""),
+      country: String(project.country || ""),
+      source: String(project.source || ""),
+      discordRoleId: /^\d+$/.test(String(project.discordRoleId || "").trim())
+        ? String(project.discordRoleId || "").trim()
+        : "",
+      producers: Array.isArray(project.producers) ? project.producers.filter(Boolean) : [],
+      score: Number.isFinite(project.score) ? project.score : null,
+      startDate: project.startDate || "",
+      endDate: project.endDate || "",
+      relations: Array.isArray(project.relations) ? project.relations : [],
+      staff: Array.isArray(project.fansubStaff)
+        ? project.fansubStaff
+        : Array.isArray(project.staff)
+          ? project.staff
+          : [],
+      animeStaff: Array.isArray(project.animeStaff) ? project.animeStaff : [],
+      trailerUrl: project.trailerUrl || "",
+      forceHero: Boolean(project.forceHero),
+      heroImageUrl: String(project.heroImageUrl || ""),
+      episodeDownloads: normalizedEpisodeDownloads,
+      views: Number.isFinite(project.views) ? project.views : 0,
+      viewsDaily:
+        project.viewsDaily && typeof project.viewsDaily === "object" ? project.viewsDaily : {},
+      commentsCount: Number.isFinite(project.commentsCount) ? project.commentsCount : 0,
+      order: Number.isFinite(project.order) ? project.order : index,
+      deletedAt: project.deletedAt || null,
+      deletedBy: project.deletedBy || null,
+      createdAt: project.createdAt || new Date().toISOString(),
+      updatedAt: project.updatedAt || project.createdAt || new Date().toISOString(),
+    };
+    normalized.searchText = buildSearchText(
+      normalized.title,
+      normalized.titleOriginal,
+      normalized.titleEnglish,
+      normalized.synopsis,
+      normalized.description,
+      normalized.type,
+      normalized.status,
+      ...(Array.isArray(normalized.tags) ? normalized.tags : []),
+      ...(Array.isArray(normalized.genres) ? normalized.genres : []),
+    );
+    return normalizeUploadsDeep(normalized);
   });
 
 const getTodayKey = () => new Date().toISOString().slice(0, 10);
@@ -4026,8 +4445,12 @@ const isLightNovelType = (type) => {
 
 const collectEpisodeUpdates = (prevProject, nextProject) => {
   const updates = [];
-  const prevEpisodes = Array.isArray(prevProject?.episodeDownloads) ? prevProject.episodeDownloads : [];
-  const nextEpisodes = Array.isArray(nextProject?.episodeDownloads) ? nextProject.episodeDownloads : [];
+  const prevEpisodes = Array.isArray(prevProject?.episodeDownloads)
+    ? prevProject.episodeDownloads
+    : [];
+  const nextEpisodes = Array.isArray(nextProject?.episodeDownloads)
+    ? nextProject.episodeDownloads
+    : [];
   const prevMap = new Map(prevEpisodes.map((ep) => [Number(ep.number), ep]));
   const isChapterBased = isChapterBasedType(nextProject?.type || "");
   const unitLabel = isChapterBased ? "Capítulo" : "Episódio";
@@ -4042,8 +4465,14 @@ const collectEpisodeUpdates = (prevProject, nextProject) => {
     const prev = prevMap.get(number);
     const prevSources = Array.isArray(prev?.sources) ? prev.sources.filter((s) => s.url) : [];
     const prevContent = typeof prev?.content === "string" ? prev.content.trim() : "";
-    const urls = sources.map((s) => s.url).sort().join("|");
-    const prevUrls = prevSources.map((s) => s.url).sort().join("|");
+    const urls = sources
+      .map((s) => s.url)
+      .sort()
+      .join("|");
+    const prevUrls = prevSources
+      .map((s) => s.url)
+      .sort()
+      .join("|");
     if (isLightNovel) {
       const chapterUpdatedAt = ep.chapterUpdatedAt || "";
       const prevSignature = [
@@ -4091,7 +4520,8 @@ const collectEpisodeUpdates = (prevProject, nextProject) => {
     }
     if (urls !== prevUrls) {
       const newUrlSet = new Set(sources.map((s) => s.url));
-      const addedOnly = sources.length > prevSources.length && prevSources.every((s) => newUrlSet.has(s.url));
+      const addedOnly =
+        sources.length > prevSources.length && prevSources.every((s) => newUrlSet.has(s.url));
       updates.push({
         kind: "Ajuste",
         reason: addedOnly
@@ -4106,7 +4536,9 @@ const collectEpisodeUpdates = (prevProject, nextProject) => {
 };
 
 const resolveProjectWebhookEventKey = (kind) => {
-  const normalized = String(kind || "").trim().toLowerCase();
+  const normalized = String(kind || "")
+    .trim()
+    .toLowerCase();
   if (normalized.startsWith("lan")) {
     return "project_release";
   }
@@ -4217,9 +4649,7 @@ const prepareEditorialWebhookDispatch = ({
   }
   const projectTypes = getActiveProjectTypes();
   const baseSettings =
-    settingsInput && typeof settingsInput === "object"
-      ? settingsInput
-      : loadIntegrationSettings();
+    settingsInput && typeof settingsInput === "object" ? settingsInput : loadIntegrationSettings();
   const settings = normalizeEditorialWebhookSettings(baseSettings, {
     projectTypes,
   });
@@ -4248,7 +4678,8 @@ const prepareEditorialWebhookDispatch = ({
     project && typeof project === "object"
       ? project
       : post?.projectId
-        ? normalizeProjects(loadProjects()).find((item) => item.id === String(post.projectId)) || null
+        ? normalizeProjects(loadProjects()).find((item) => item.id === String(post.projectId)) ||
+          null
         : null;
   const safeChapter =
     chapter && typeof chapter === "object"
@@ -4421,9 +4852,9 @@ const createDiscordAvatarUrl = (user) => {
   return `https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png?size=128`;
 };
 
-app.get("/auth/discord", (req, res) => {
+app.get("/auth/discord", async (req, res) => {
   const ip = req.headers["x-forwarded-for"]?.split(",")[0]?.trim() || req.ip;
-  if (!canAttemptAuth(ip)) {
+  if (!(await canAttemptAuth(ip))) {
     appendAuditLog(req, "auth.discord.rate_limited", "auth", {});
     return res.status(429).json({ error: "rate_limited" });
   }
@@ -4457,7 +4888,7 @@ app.get("/auth/discord", (req, res) => {
 
 app.get("/login", async (req, res) => {
   const ip = req.headers["x-forwarded-for"]?.split(",")[0]?.trim() || req.ip;
-  if (!canAttemptAuth(ip)) {
+  if (!(await canAttemptAuth(ip))) {
     appendAuditLog(req, "auth.login.rate_limited", "auth", {});
     return res.redirect(`${PRIMARY_APP_ORIGIN}/login?error=rate_limited`);
   }
@@ -4579,7 +5010,10 @@ const buildUserPayload = (sessionUser) => {
     primaryOwnerId,
     acceptLegacyStar: isRbacV2AcceptLegacyStar,
   });
-  const roles = addOwnerRoleLabel(matched?.roles || [], ownerIds.includes(String(sessionUser?.id || "")));
+  const roles = addOwnerRoleLabel(
+    matched?.roles || [],
+    ownerIds.includes(String(sessionUser?.id || "")),
+  );
   return {
     ...sessionUser,
     permissions: permissionsForRead(matched?.permissions || []),
@@ -4608,6 +5042,30 @@ app.get("/api/public/me", (req, res) => {
   }
 
   return res.json({ user: buildUserPayload(req.session.user) });
+});
+
+app.get("/api/version", (_req, res) => {
+  res.setHeader("Cache-Control", "no-store");
+  return res.json({
+    apiVersion: API_CONTRACT_VERSION,
+    contractUrl: `/api/contracts/${API_CONTRACT_VERSION}.json`,
+  });
+});
+
+app.get("/api/contracts", (_req, res) => {
+  res.setHeader("Cache-Control", "no-store");
+  return res.json({
+    versions: [API_CONTRACT_VERSION],
+    latest: API_CONTRACT_VERSION,
+    links: {
+      [API_CONTRACT_VERSION]: `/api/contracts/${API_CONTRACT_VERSION}.json`,
+    },
+  });
+});
+
+app.get(["/api/contracts/v1", "/api/contracts/v1.json"], (_req, res) => {
+  res.setHeader("Cache-Control", "no-store");
+  return res.json(buildApiContractV1());
 });
 
 const getRepositoryHealthSnapshot = () => {
@@ -4649,10 +5107,14 @@ const buildSessionConfigHealthCheck = () => ({
 
 const buildRepositoryHealthCheck = () => {
   const snapshot = getRepositoryHealthSnapshot();
-  const lastErrorTs = snapshot.lastPersistErrorAt ? new Date(snapshot.lastPersistErrorAt).getTime() : null;
+  const lastErrorTs = snapshot.lastPersistErrorAt
+    ? new Date(snapshot.lastPersistErrorAt).getTime()
+    : null;
   const hasRecentError =
-    Number.isFinite(lastErrorTs) && Date.now() - Number(lastErrorTs) <= OPERATIONAL_PERSIST_ERROR_RECENT_WINDOW_MS;
-  const backlog = Number(snapshot.queueDepth || 0) > 10 || Number(snapshot.oldestPendingMs || 0) > 30_000;
+    Number.isFinite(lastErrorTs) &&
+    Date.now() - Number(lastErrorTs) <= OPERATIONAL_PERSIST_ERROR_RECENT_WINDOW_MS;
+  const backlog =
+    Number(snapshot.queueDepth || 0) > 10 || Number(snapshot.oldestPendingMs || 0) > 30_000;
   return {
     name: "data_repository",
     status: hasRecentError ? "warning" : backlog ? "warning" : "ok",
@@ -4662,6 +5124,37 @@ const buildRepositoryHealthCheck = () => {
         ? "Fila de persistência acumulada."
         : "Persistência em background saudável.",
     meta: snapshot,
+  };
+};
+
+const buildBackgroundJobQueueHealthCheck = () => {
+  const snapshot = backgroundJobQueue.snapshot();
+  const maxRuntimeMs = Array.isArray(snapshot.activeJobs)
+    ? snapshot.activeJobs.reduce((max, job) => Math.max(max, Number(job.runtimeMs || 0)), 0)
+    : 0;
+  const hasBacklog = Number(snapshot.pending || 0) > 20 || maxRuntimeMs > 120000;
+  return {
+    name: "background_jobs",
+    status: hasBacklog ? "warning" : "ok",
+    message: hasBacklog ? "Fila de jobs em atraso." : "Fila de jobs operacional.",
+    meta: {
+      pending: Number(snapshot.pending || 0),
+      running: Number(snapshot.running || 0),
+      maxRuntimeMs,
+    },
+  };
+};
+
+const buildRateLimiterHealthCheck = () => {
+  const usingRedis = rateLimiter.mode === "redis";
+  return {
+    name: "rate_limit_backend",
+    status: isProduction && !usingRedis ? "warning" : "ok",
+    message: usingRedis ? "Rate limit distribuido ativo (Redis)." : "Rate limit local em memoria.",
+    meta: {
+      mode: rateLimiter.mode,
+      redisConfigured: Boolean(String(REDIS_URL || "").trim()),
+    },
   };
 };
 
@@ -4717,6 +5210,8 @@ const evaluateOperationalMonitoring = async () => {
   const checks = [
     dbCheck,
     buildRepositoryHealthCheck(),
+    buildBackgroundJobQueueHealthCheck(),
+    buildRateLimiterHealthCheck(),
     await probeUploadsDirHealthCheck(),
     buildSessionConfigHealthCheck(),
     buildMaintenanceHealthCheck(),
@@ -4784,6 +5279,9 @@ app.get("/api/health", async (_req, res) => {
 const operationalAlertsWebhookState = {
   previousAlerts: [],
   inFlight: null,
+  timer: null,
+};
+const analyticsCompactionState = {
   timer: null,
 };
 
@@ -4923,9 +5421,10 @@ app.put("/api/me/preferences", requireAuth, (req, res) => {
   if (!userId) {
     return res.status(401).json({ error: "unauthorized" });
   }
-  const incoming = isPlainObject(req.body) && isPlainObject(req.body.preferences)
-    ? req.body.preferences
-    : req.body;
+  const incoming =
+    isPlainObject(req.body) && isPlainObject(req.body.preferences)
+      ? req.body.preferences
+      : req.body;
   const normalized = normalizeUserPreferences(incoming);
   const encoded = Buffer.byteLength(JSON.stringify(normalized), "utf8");
   if (encoded > USER_PREFERENCES_MAX_BYTES) {
@@ -4945,16 +5444,23 @@ app.get("/api/audit-log", requireAuth, (req, res) => {
   const pageRaw = Number(req.query.page);
   const limitRaw = Number(req.query.limit);
   const page = Number.isFinite(pageRaw) && pageRaw > 0 ? Math.floor(pageRaw) : 1;
-  const limit = Number.isFinite(limitRaw) && limitRaw > 0
-    ? Math.min(Math.max(Math.floor(limitRaw), 10), 100)
-    : 50;
+  const limit =
+    Number.isFinite(limitRaw) && limitRaw > 0
+      ? Math.min(Math.max(Math.floor(limitRaw), 10), 100)
+      : 50;
 
   const action = String(req.query.action || "").trim();
   const resource = String(req.query.resource || "").trim();
   const actorId = String(req.query.actorId || "").trim();
-  const status = String(req.query.status || "").trim().toLowerCase();
-  const q = String(req.query.q || "").trim().toLowerCase();
-  const format = String(req.query.format || "").trim().toLowerCase();
+  const status = String(req.query.status || "")
+    .trim()
+    .toLowerCase();
+  const q = String(req.query.q || "")
+    .trim()
+    .toLowerCase();
+  const format = String(req.query.format || "")
+    .trim()
+    .toLowerCase();
   const dateFromRaw = String(req.query.dateFrom || "").trim();
   const dateToRaw = String(req.query.dateTo || "").trim();
   const dateFromTs = dateFromRaw ? parseAuditTs(dateFromRaw) : null;
@@ -5007,8 +5513,8 @@ app.get("/api/audit-log", requireAuth, (req, res) => {
   if (format === "csv") {
     const escapeCsv = (value) => {
       const text = String(value ?? "");
-      if (text.includes("\"") || text.includes(",") || text.includes("\n")) {
-        return `"${text.replace(/"/g, "\"\"")}"`;
+      if (text.includes('"') || text.includes(",") || text.includes("\n")) {
+        return `"${text.replace(/"/g, '""')}"`;
       }
       return text;
     };
@@ -5102,8 +5608,12 @@ app.get("/api/analytics/timeseries", requireAuth, (req, res) => {
   }
   const rangeDays = parseAnalyticsRangeDays(req.query.range);
   const type = normalizeAnalyticsTypeFilter(req.query.type);
-  const metricRaw = String(req.query.metric || "").trim().toLowerCase();
-  const metric = ["views", "unique_views", "comments", "chapter_views", "download_clicks"].includes(metricRaw)
+  const metricRaw = String(req.query.metric || "")
+    .trim()
+    .toLowerCase();
+  const metric = ["views", "unique_views", "comments", "chapter_views", "download_clicks"].includes(
+    metricRaw,
+  )
     ? metricRaw
     : "views";
   const range = buildAnalyticsRange(rangeDays);
@@ -5193,7 +5703,9 @@ app.get("/api/analytics/top-content", requireAuth, (req, res) => {
   });
 
   const postsBySlug = new Map(normalizePosts(loadPosts()).map((post) => [post.slug, post]));
-  const projectsById = new Map(normalizeProjects(loadProjects()).map((project) => [project.id, project]));
+  const projectsById = new Map(
+    normalizeProjects(loadProjects()).map((project) => [project.id, project]),
+  );
 
   const entries = Array.from(grouped.values())
     .map((item) => {
@@ -5227,9 +5739,12 @@ app.get("/api/analytics/acquisition", requireAuth, (req, res) => {
   const rangeDays = parseAnalyticsRangeDays(req.query.range);
   const type = normalizeAnalyticsTypeFilter(req.query.type);
   const range = buildAnalyticsRange(rangeDays);
-  const events = filterAnalyticsEvents(loadAnalyticsEvents(), range.fromTs, range.toTs, type).filter(
-    (event) => event.eventType === "view",
-  );
+  const events = filterAnalyticsEvents(
+    loadAnalyticsEvents(),
+    range.fromTs,
+    range.toTs,
+    type,
+  ).filter((event) => event.eventType === "view");
 
   const counters = {
     referrerHost: {},
@@ -5271,7 +5786,9 @@ const legacyAdminBadgePermissions = [
 ];
 
 const inferLegacyAccessRole = (user) => {
-  const permissions = Array.isArray(user?.permissions) ? user.permissions.map((item) => String(item || "")) : [];
+  const permissions = Array.isArray(user?.permissions)
+    ? user.permissions.map((item) => String(item || ""))
+    : [];
   if (permissions.includes("*")) {
     return AccessRole.ADMIN;
   }
@@ -5646,7 +6163,9 @@ const permissionsForRead = (permissions) => {
 };
 
 const userWithAccessForResponse = (user, ownerIdsInput = null) => {
-  const ownerIds = Array.isArray(ownerIdsInput) ? ownerIdsInput.map((id) => String(id)) : loadOwnerIds().map((id) => String(id));
+  const ownerIds = Array.isArray(ownerIdsInput)
+    ? ownerIdsInput.map((id) => String(id))
+    : loadOwnerIds().map((id) => String(id));
   const primaryOwnerId = ownerIds[0] ? String(ownerIds[0]) : null;
   const accessRole = computeEffectiveAccessRole({
     userId: user.id,
@@ -5670,7 +6189,8 @@ const userWithAccessForResponse = (user, ownerIdsInput = null) => {
   };
 };
 
-const toUserApiResponse = (user, ownerIdsInput = null) => applyOwnerRole(userWithAccessForResponse(user, ownerIdsInput));
+const toUserApiResponse = (user, ownerIdsInput = null) =>
+  applyOwnerRole(userWithAccessForResponse(user, ownerIdsInput));
 
 const diffUserFields = (beforeUser, afterUser, fields) => {
   const before = beforeUser || {};
@@ -5719,9 +6239,7 @@ const ensureOwnerUser = (sessionUser) => {
       avatarDisplay: normalizeAvatarDisplay(null),
       socials: [],
       status: "active",
-      permissions: isRbacV2Enabled
-        ? [...defaultPermissionsForRole(targetAccessRole)]
-        : ["*"],
+      permissions: isRbacV2Enabled ? [...defaultPermissionsForRole(targetAccessRole)] : ["*"],
       accessRole: targetAccessRole,
       order: users.length,
     });
@@ -5736,7 +6254,8 @@ const ensureOwnerUser = (sessionUser) => {
 app.get("/api/users", requireAuth, (req, res) => {
   const sessionUser = req.session.user;
   if (isRbacV2Enabled) {
-    const canReadUsers = canManageUsersBasic(sessionUser?.id) || canManageUsersAccess(sessionUser?.id);
+    const canReadUsers =
+      canManageUsersBasic(sessionUser?.id) || canManageUsersAccess(sessionUser?.id);
     if (!canReadUsers) {
       return res.status(403).json({ error: "forbidden" });
     }
@@ -5747,7 +6266,9 @@ app.get("/api/users", requireAuth, (req, res) => {
   writeUsers(users);
   syncAllowedUsers(users);
   const ownerIds = loadOwnerIds().map((id) => String(id));
-  const responseUsers = users.map((user) => applyOwnerRole(userWithAccessForResponse(user, ownerIds)));
+  const responseUsers = users.map((user) =>
+    applyOwnerRole(userWithAccessForResponse(user, ownerIds)),
+  );
   appendAuditLog(req, "users.read", "users", {});
   res.json({
     users: responseUsers,
@@ -5778,10 +6299,14 @@ app.put("/api/owners", requirePrimaryOwner, (req, res) => {
     unique.push(normalizedPrimary, ...filtered);
   }
   const users = normalizeUsers(loadUsers());
-  const activeUserIds = new Set(users.filter((user) => user.status === "active").map((user) => user.id));
+  const activeUserIds = new Set(
+    users.filter((user) => user.status === "active").map((user) => user.id),
+  );
   const unknownOrInactiveIds = unique.filter((id) => !activeUserIds.has(id));
   if (unknownOrInactiveIds.length > 0) {
-    return res.status(400).json({ error: "owner_ids_must_be_active_users", ids: unknownOrInactiveIds });
+    return res
+      .status(400)
+      .json({ error: "owner_ids_must_be_active_users", ids: unknownOrInactiveIds });
   }
   writeOwnerIds(unique);
   const promotedOwnerIds = unique.filter((id) => !previousOwnerIds.includes(id));
@@ -5859,9 +6384,9 @@ app.post("/api/owners/transfer-primary", requirePrimaryOwner, (req, res) => {
   });
 });
 
-app.post("/api/bootstrap-owner", requireAuth, (req, res) => {
+app.post("/api/bootstrap-owner", requireAuth, async (req, res) => {
   const ip = req.headers["x-forwarded-for"]?.split(",")[0]?.trim() || req.ip;
-  if (!canBootstrap(ip)) {
+  if (!(await canBootstrap(ip))) {
     appendAuditLog(req, "auth.bootstrap.rate_limited", "owners", {});
     return res.status(429).json({ error: "rate_limited" });
   }
@@ -5901,17 +6426,17 @@ app.get("/api/public/users", (req, res) => {
     .map((user) => {
       const withAccess = userWithAccessForResponse(user, ownerIds);
       return {
-      id: user.id,
-      name: user.name,
-      phrase: user.phrase,
-      bio: user.bio,
-      avatarUrl: user.avatarUrl,
-      avatarDisplay: normalizeAvatarDisplay(user.avatarDisplay),
-      socials: user.socials,
-      roles: applyOwnerRole(user).roles,
-      accessRole: withAccess.accessRole,
-      isAdmin: withAccess.accessRole === AccessRole.ADMIN,
-      status: user.status,
+        id: user.id,
+        name: user.name,
+        phrase: user.phrase,
+        bio: user.bio,
+        avatarUrl: user.avatarUrl,
+        avatarDisplay: normalizeAvatarDisplay(user.avatarDisplay),
+        socials: user.socials,
+        roles: applyOwnerRole(user).roles,
+        accessRole: withAccess.accessRole,
+        isAdmin: withAccess.accessRole === AccessRole.ADMIN,
+        status: user.status,
       };
     });
 
@@ -5949,6 +6474,11 @@ app.get("/api/posts", requireAuth, (req, res) => {
 });
 
 app.get("/api/public/posts", (req, res) => {
+  const cached = readPublicCachedJson(req);
+  if (cached) {
+    res.setHeader("X-Cache", "HIT");
+    return res.status(cached.statusCode).json(cached.payload);
+  }
   const limitRaw = Number(req.query.limit);
   const pageRaw = Number(req.query.page);
   const usePagination = Number.isFinite(limitRaw) || Number.isFinite(pageRaw);
@@ -5979,12 +6509,20 @@ app.get("/api/public/posts", (req, res) => {
         tags: Array.isArray(post.tags) ? post.tags : [],
       };
     });
+  let payload = null;
   if (!usePagination) {
-    return res.json({ posts });
+    payload = { posts };
+  } else {
+    const start = (page - 1) * limit;
+    const paged = posts.slice(start, start + limit);
+    payload = { posts: paged, page, limit, total: posts.length };
   }
-  const start = (page - 1) * limit;
-  const paged = posts.slice(start, start + limit);
-  return res.json({ posts: paged, page, limit, total: posts.length });
+  writePublicCachedJson(req, payload, {
+    ttlMs: PUBLIC_READ_CACHE_TTL_MS,
+    tags: [PUBLIC_READ_CACHE_TAGS.POSTS],
+  });
+  res.setHeader("X-Cache", "MISS");
+  return res.json(payload);
 });
 
 app.get("/api/public/posts/:slug", (req, res) => {
@@ -6025,9 +6563,9 @@ app.get("/api/public/posts/:slug", (req, res) => {
   });
 });
 
-app.post("/api/public/posts/:slug/view", (req, res) => {
+app.post("/api/public/posts/:slug/view", async (req, res) => {
   const ip = req.headers["x-forwarded-for"]?.split(",")[0]?.trim() || req.ip;
-  if (!canRegisterView(ip)) {
+  if (!(await canRegisterView(ip))) {
     return res.status(429).json({ error: "rate_limited" });
   }
   const now = Date.now();
@@ -6058,9 +6596,9 @@ app.post("/api/public/posts/:slug/view", (req, res) => {
   return res.json({ views: updated?.views ?? post.views ?? 0 });
 });
 
-app.post("/api/public/posts/:slug/polls/vote", (req, res) => {
+app.post("/api/public/posts/:slug/polls/vote", async (req, res) => {
   const ip = req.headers["x-forwarded-for"]?.split(",")[0]?.trim() || req.ip;
-  if (!canRegisterPollVote(ip)) {
+  if (!(await canRegisterPollVote(ip))) {
     return res.status(429).json({ error: "rate_limited" });
   }
   const slug = String(req.params.slug || "");
@@ -6125,7 +6663,8 @@ app.get("/api/public/comments", (req, res) => {
       name: comment.name,
       content: comment.content,
       createdAt: comment.createdAt,
-      avatarUrl: comment.avatarUrl || (comment.emailHash ? buildGravatarUrl(comment.emailHash) : ""),
+      avatarUrl:
+        comment.avatarUrl || (comment.emailHash ? buildGravatarUrl(comment.emailHash) : ""),
     }));
 
   return res.json({ comments });
@@ -6134,12 +6673,13 @@ app.get("/api/public/comments", (req, res) => {
 app.post("/api/public/comments", async (req, res) => {
   const sessionUser = req.session?.user || null;
   const isStaff = sessionUser?.id ? canManageComments(sessionUser.id) : false;
-  const { targetType, targetId, parentId, name, email, content, chapterNumber, volume, website } = req.body || {};
+  const { targetType, targetId, parentId, name, email, content, chapterNumber, volume, website } =
+    req.body || {};
   if (website) {
     return res.status(400).json({ error: "invalid_payload" });
   }
   const ip = req.headers["x-forwarded-for"]?.split(",")[0]?.trim() || req.ip;
-  if (!canSubmitComment(ip)) {
+  if (!(await canSubmitComment(ip))) {
     return res.status(429).json({ error: "rate_limited" });
   }
   const normalizedTargetType = String(targetType || "").toLowerCase();
@@ -6148,7 +6688,9 @@ app.post("/api/public/comments", async (req, res) => {
     ? String(sessionUser?.name || "Equipe").trim()
     : String(name || "").trim();
   const normalizedEmail = isStaff ? normalizeEmail(sessionUser?.email) : normalizeEmail(email);
-  const normalizedContent = String(content || "").trim().slice(0, 2000);
+  const normalizedContent = String(content || "")
+    .trim()
+    .slice(0, 2000);
 
   if (!normalizedTargetType || !normalizedTargetId) {
     return res.status(400).json({ error: "target_required" });
@@ -6210,7 +6752,11 @@ app.post("/api/public/comments", async (req, res) => {
   const comments = loadComments();
   if (parentId) {
     const parent = comments.find((comment) => comment.id === String(parentId));
-    if (!parent || parent.targetType !== normalizedTargetType || parent.targetId !== normalizedTargetId) {
+    if (
+      !parent ||
+      parent.targetType !== normalizedTargetType ||
+      parent.targetId !== normalizedTargetId
+    ) {
       return res.status(400).json({ error: "invalid_parent" });
     }
   }
@@ -6276,14 +6822,20 @@ const buildCommentTargetInfo = (comment, posts, projects) => {
     if (!post) {
       return { label: "Postagem", url: PRIMARY_APP_ORIGIN };
     }
-    return { label: post.title, url: `${PRIMARY_APP_ORIGIN}/postagem/${post.slug}#comment-${comment.id}` };
+    return {
+      label: post.title,
+      url: `${PRIMARY_APP_ORIGIN}/postagem/${post.slug}#comment-${comment.id}`,
+    };
   }
   if (comment.targetType === "project") {
     const project = projects.find((item) => item.id === comment.targetId);
     if (!project) {
       return { label: "Projeto", url: PRIMARY_APP_ORIGIN };
     }
-    return { label: project.title, url: `${PRIMARY_APP_ORIGIN}/projeto/${project.id}#comment-${comment.id}` };
+    return {
+      label: project.title,
+      url: `${PRIMARY_APP_ORIGIN}/projeto/${project.id}#comment-${comment.id}`,
+    };
   }
   if (comment.targetType === "chapter") {
     const project = projects.find((item) => item.id === comment.targetId);
@@ -6320,7 +6872,8 @@ app.get("/api/comments/pending", requireAuth, (req, res) => {
         name: comment.name,
         content: comment.content,
         createdAt: comment.createdAt,
-        avatarUrl: comment.avatarUrl || (comment.emailHash ? buildGravatarUrl(comment.emailHash) : ""),
+        avatarUrl:
+          comment.avatarUrl || (comment.emailHash ? buildGravatarUrl(comment.emailHash) : ""),
         targetLabel: target.label,
         targetUrl: target.url,
       };
@@ -6353,7 +6906,8 @@ app.get("/api/comments/recent", requireAuth, (req, res) => {
         name: comment.name,
         content: comment.content,
         createdAt: comment.createdAt,
-        avatarUrl: comment.avatarUrl || (comment.emailHash ? buildGravatarUrl(comment.emailHash) : ""),
+        avatarUrl:
+          comment.avatarUrl || (comment.emailHash ? buildGravatarUrl(comment.emailHash) : ""),
         targetLabel: target.label,
         targetUrl: target.url,
       };
@@ -6385,7 +6939,11 @@ app.post("/api/comments/pending/bulk", requireAuth, (req, res) => {
 
   writeComments(result.comments);
 
-  if (result.action === "approve_all" && Array.isArray(result.processedComments) && result.processedComments.length > 0) {
+  if (
+    result.action === "approve_all" &&
+    Array.isArray(result.processedComments) &&
+    result.processedComments.length > 0
+  ) {
     const affectedPostIds = new Set();
     const affectedProjectIds = new Set();
 
@@ -6469,7 +7027,11 @@ app.post("/api/comments/:id/approve", requireAuth, (req, res) => {
   writeComments(comments);
 
   if (existing.targetType === "post") {
-    const updatedPosts = applyCommentCountToPosts(normalizePosts(loadPosts()), comments, existing.targetId);
+    const updatedPosts = applyCommentCountToPosts(
+      normalizePosts(loadPosts()),
+      comments,
+      existing.targetId,
+    );
     writePosts(updatedPosts);
   }
   if (existing.targetType === "project") {
@@ -6510,7 +7072,11 @@ app.delete("/api/comments/:id", requireAuth, (req, res) => {
 
   if (removed.status === "approved") {
     if (removed.targetType === "post") {
-      const updatedPosts = applyCommentCountToPosts(normalizePosts(loadPosts()), comments, removed.targetId);
+      const updatedPosts = applyCommentCountToPosts(
+        normalizePosts(loadPosts()),
+        comments,
+        removed.targetId,
+      );
       writePosts(updatedPosts);
     }
     if (removed.targetType === "project") {
@@ -6558,7 +7124,10 @@ app.post("/api/posts", requireAuth, async (req, res) => {
   if (!baseSlug) {
     return res.status(400).json({ error: "slug_required" });
   }
-  const normalizedSlug = createUniqueSlug(baseSlug, posts.map((post) => post.slug));
+  const normalizedSlug = createUniqueSlug(
+    baseSlug,
+    posts.map((post) => post.slug),
+  );
 
   const nowMs = Date.now();
   const now = new Date(nowMs).toISOString();
@@ -6580,9 +7149,7 @@ app.post("/api/posts", requireAuth, async (req, res) => {
     excerpt: excerpt || "",
     content: content || "",
     contentFormat:
-      contentFormat === "html" || contentFormat === "lexical"
-        ? contentFormat
-        : "markdown",
+      contentFormat === "html" || contentFormat === "lexical" ? contentFormat : "markdown",
     author: author || sessionUser?.name || "Autor",
     publishedAt: normalizedPublishedAt,
     scheduledAt: scheduledAt || null,
@@ -6600,7 +7167,8 @@ app.post("/api/posts", requireAuth, async (req, res) => {
   posts.push(newPost);
   writePosts(posts);
   await runAutoUploadReorganization({ trigger: "post-save", req });
-  const persistedPost = normalizePosts(loadPosts()).find((post) => post.id === newPost.id) || newPost;
+  const persistedPost =
+    normalizePosts(loadPosts()).find((post) => post.id === newPost.id) || newPost;
   appendPostVersion({
     post: persistedPost,
     reason: "create",
@@ -6648,20 +7216,25 @@ app.put("/api/posts/:id", requireAuth, async (req, res) => {
   }
 
   const normalizedSlug = slug ? createSlug(slug) : "";
-  if (normalizedSlug && posts.some((post) => post.slug === normalizedSlug && post.id !== String(id))) {
+  if (
+    normalizedSlug &&
+    posts.some((post) => post.slug === normalizedSlug && post.id !== String(id))
+  ) {
     return res.status(409).json({ error: "slug_exists" });
   }
 
   const existing = posts[index];
   const statusCandidate =
-    status === "draft" || status === "scheduled" || status === "published" ? status : existing.status;
+    status === "draft" || status === "scheduled" || status === "published"
+      ? status
+      : existing.status;
   const nextPublishedAt = publishedAt || existing.publishedAt;
   const normalizedStatus = resolvePostStatus(statusCandidate, nextPublishedAt, Date.now());
   const updated = {
     ...existing,
     title: title ? String(title) : existing.title,
     slug: normalizedSlug || existing.slug,
-    coverImageUrl: coverImageUrl === "" ? null : coverImageUrl ?? existing.coverImageUrl,
+    coverImageUrl: coverImageUrl === "" ? null : (coverImageUrl ?? existing.coverImageUrl),
     coverAlt: typeof coverAlt === "string" ? coverAlt : existing.coverAlt,
     excerpt: typeof excerpt === "string" ? excerpt : existing.excerpt,
     content: typeof content === "string" ? content : existing.content,
@@ -6687,7 +7260,8 @@ app.put("/api/posts/:id", requireAuth, async (req, res) => {
   posts[index] = updated;
   writePosts(posts);
   await runAutoUploadReorganization({ trigger: "post-save", req });
-  const persistedPost = normalizePosts(loadPosts()).find((post) => post.id === updated.id) || updated;
+  const persistedPost =
+    normalizePosts(loadPosts()).find((post) => post.id === updated.id) || updated;
   appendPostVersion({
     post: persistedPost,
     reason: "update",
@@ -6808,7 +7382,9 @@ app.post("/api/admin/content/post/:id/version", requireAuth, (req, res) => {
     return res.status(404).json({ error: "not_found" });
   }
   const label =
-    typeof req.body?.label === "string" && req.body.label.trim() ? String(req.body.label).trim() : null;
+    typeof req.body?.label === "string" && req.body.label.trim()
+      ? String(req.body.label).trim()
+      : null;
   const version = appendPostVersion({
     post,
     reason: "manual",
@@ -6848,7 +7424,9 @@ app.post("/api/admin/content/post/:id/rollback", requireAuth, async (req, res) =
   if (index === -1) {
     return res.status(404).json({ error: "not_found" });
   }
-  const targetVersion = loadPostVersions().find((item) => item.postId === postId && item.id === versionId);
+  const targetVersion = loadPostVersions().find(
+    (item) => item.postId === postId && item.id === versionId,
+  );
   if (!targetVersion) {
     return res.status(404).json({ error: "version_not_found" });
   }
@@ -6872,7 +7450,8 @@ app.post("/api/admin/content/post/:id/rollback", requireAuth, async (req, res) =
   posts[index] = rolledBack;
   writePosts(posts);
   await runAutoUploadReorganization({ trigger: "post-save", req });
-  const persistedPost = normalizePosts(loadPosts()).find((item) => item.id === postId) || rolledBack;
+  const persistedPost =
+    normalizePosts(loadPosts()).find((item) => item.id === postId) || rolledBack;
   const rollbackVersion = appendPostVersion({
     post: persistedPost,
     reason: "rollback",
@@ -6916,10 +7495,16 @@ app.get("/api/admin/editorial/calendar", requireAuth, (req, res) => {
   }
   const fromDate = new Date(`${fromRaw}T00:00:00.000Z`);
   const toDate = new Date(`${toRaw}T23:59:59.999Z`);
-  if (!Number.isFinite(fromDate.getTime()) || !Number.isFinite(toDate.getTime()) || fromDate > toDate) {
+  if (
+    !Number.isFinite(fromDate.getTime()) ||
+    !Number.isFinite(toDate.getTime()) ||
+    fromDate > toDate
+  ) {
     return res.status(400).json({ error: "invalid_range" });
   }
-  const tz = String(req.query.tz || Intl.DateTimeFormat().resolvedOptions().timeZone || "America/Sao_Paulo");
+  const tz = String(
+    req.query.tz || Intl.DateTimeFormat().resolvedOptions().timeZone || "America/Sao_Paulo",
+  );
   const items = buildEditorialCalendarItems(normalizePosts(loadPosts()), {
     fromMs: fromDate.getTime(),
     toMs: toDate.getTime(),
@@ -7012,11 +7597,16 @@ app.post("/api/projects", requireAuth, async (req, res) => {
     updatedAt: item.updatedAt,
     image: nextProject.cover || "",
   }));
-  let nextUpdates = episodeUpdateRecords.length > 0 ? [...updates, ...episodeUpdateRecords] : updates;
+  let nextUpdates =
+    episodeUpdateRecords.length > 0 ? [...updates, ...episodeUpdateRecords] : updates;
   const webhookUpdates = [...episodeWebhookUpdates];
   if (
-    String(nextProject.type || "").toLowerCase().includes("light") ||
-    String(nextProject.type || "").toLowerCase().includes("novel")
+    String(nextProject.type || "")
+      .toLowerCase()
+      .includes("light") ||
+    String(nextProject.type || "")
+      .toLowerCase()
+      .includes("novel")
   ) {
     const existingKeys = new Set(
       nextUpdates
@@ -7057,7 +7647,8 @@ app.post("/api/projects", requireAuth, async (req, res) => {
 
   await runAutoUploadReorganization({ trigger: "project-save", req });
   const persistedProject =
-    normalizeProjects(loadProjects()).find((project) => project.id === nextProject.id) || nextProject;
+    normalizeProjects(loadProjects()).find((project) => project.id === nextProject.id) ||
+    nextProject;
 
   for (const update of webhookUpdates) {
     const eventKey = resolveProjectWebhookEventKey(update.kind);
@@ -7138,11 +7729,16 @@ app.put("/api/projects/:id", requireAuth, async (req, res) => {
     updatedAt: item.updatedAt,
     image: merged.cover || "",
   }));
-  let nextUpdates = episodeUpdateRecords.length > 0 ? [...updates, ...episodeUpdateRecords] : updates;
+  let nextUpdates =
+    episodeUpdateRecords.length > 0 ? [...updates, ...episodeUpdateRecords] : updates;
   const webhookUpdates = [...episodeWebhookUpdates];
   if (
-    String(merged.type || "").toLowerCase().includes("light") ||
-    String(merged.type || "").toLowerCase().includes("novel")
+    String(merged.type || "")
+      .toLowerCase()
+      .includes("light") ||
+    String(merged.type || "")
+      .toLowerCase()
+      .includes("novel")
   ) {
     const existingKeys = new Set(
       nextUpdates
@@ -7182,7 +7778,8 @@ app.put("/api/projects/:id", requireAuth, async (req, res) => {
   }
 
   await runAutoUploadReorganization({ trigger: "project-save", req });
-  const persistedProject = normalizeProjects(loadProjects()).find((project) => project.id === merged.id) || merged;
+  const persistedProject =
+    normalizeProjects(loadProjects()).find((project) => project.id === merged.id) || merged;
   for (const update of webhookUpdates) {
     const eventKey = resolveProjectWebhookEventKey(update.kind);
     if (!eventKey) {
@@ -7349,7 +7946,10 @@ const getPublicVisibleUpdates = () => {
     .map((update) => {
       const reason = String(update?.reason || "");
       const kind = String(update?.kind || "");
-      if (kind.toLowerCase().startsWith("lan") && reason.toLowerCase().includes("novo link adicionado")) {
+      if (
+        kind.toLowerCase().startsWith("lan") &&
+        reason.toLowerCase().includes("novo link adicionado")
+      ) {
         return { ...update, kind: "Ajuste" };
       }
       return update;
@@ -7358,7 +7958,9 @@ const getPublicVisibleUpdates = () => {
 };
 
 const stripAndTruncateRssText = (value, max = 280) => {
-  const text = stripHtml(String(value || "")).replace(/\s+/g, " ").trim();
+  const text = stripHtml(String(value || ""))
+    .replace(/\s+/g, " ")
+    .trim();
   if (!text) {
     return "";
   }
@@ -7411,16 +8013,22 @@ const buildPostsRssItems = () =>
         link,
         guid: link,
         pubDate: post.publishedAt,
-        description: stripAndTruncateRssText(post.seoDescription || post.excerpt || post.content || ""),
+        description: stripAndTruncateRssText(
+          post.seoDescription || post.excerpt || post.content || "",
+        ),
         categories: Array.isArray(post.tags) ? post.tags.slice(0, 5) : [],
       };
     });
 
 const buildLaunchesRssItems = () => {
-  const publicProjects = new Map(getPublicVisibleProjects().map((project) => [String(project.id), project]));
+  const publicProjects = new Map(
+    getPublicVisibleProjects().map((project) => [String(project.id), project]),
+  );
   return getPublicVisibleUpdates()
     .filter((update) => {
-      const kind = String(update?.kind || "").trim().toLowerCase();
+      const kind = String(update?.kind || "")
+        .trim()
+        .toLowerCase();
       return kind === "lançamento" || kind === "ajuste";
     })
     .slice(0, 50)
@@ -7429,7 +8037,9 @@ const buildLaunchesRssItems = () => {
       const project = publicProjects.get(projectId);
       const projectTitle = String(update?.projectTitle || project?.title || "Projeto");
       const unit = String(update?.unit || "Capítulo").trim() || "Capítulo";
-      const episodeNumber = Number.isFinite(Number(update?.episodeNumber)) ? Number(update.episodeNumber) : null;
+      const episodeNumber = Number.isFinite(Number(update?.episodeNumber))
+        ? Number(update.episodeNumber)
+        : null;
       const kind = String(update?.kind || "Atualização").trim() || "Atualização";
       const link = project ? `${PRIMARY_APP_ORIGIN}/projeto/${project.id}` : PRIMARY_APP_ORIGIN;
       return {
@@ -7437,7 +8047,10 @@ const buildLaunchesRssItems = () => {
         link,
         guid: `${link}#update-${String(update?.id || crypto.randomUUID())}`,
         pubDate: String(update?.updatedAt || new Date().toISOString()),
-        description: stripAndTruncateRssText(String(update?.reason || `${kind} em ${projectTitle}`), 320),
+        description: stripAndTruncateRssText(
+          String(update?.reason || `${kind} em ${projectTitle}`),
+          320,
+        ),
         categories: [kind],
       };
     });
@@ -7484,7 +8097,9 @@ app.get("/rss/lancamentos.xml", (_req, res) => {
 });
 
 app.get("/api/public/rss.xml", (req, res) => {
-  const feed = String(req.query.feed || "posts").trim().toLowerCase();
+  const feed = String(req.query.feed || "posts")
+    .trim()
+    .toLowerCase();
   if (feed === "lancamentos") {
     const settings = loadSiteSettings();
     const xml = buildRssXml({
@@ -7508,6 +8123,12 @@ app.get("/api/public/rss.xml", (req, res) => {
 });
 
 app.get("/api/public/bootstrap", (req, res) => {
+  const cached = readPublicCachedJson(req);
+  if (cached) {
+    res.setHeader("Cache-Control", "public, max-age=30, stale-while-revalidate=120");
+    res.setHeader("X-Cache", "HIT");
+    return res.status(cached.statusCode).json(cached.payload);
+  }
   const now = Date.now();
   const projects = normalizeProjects(loadProjects())
     .filter((project) => !project.deletedAt)
@@ -7545,7 +8166,10 @@ app.get("/api/public/bootstrap", (req, res) => {
     .map((update) => {
       const reason = String(update?.reason || "");
       const kind = String(update?.kind || "");
-      if (kind.toLowerCase().startsWith("lan") && reason.toLowerCase().includes("novo link adicionado")) {
+      if (
+        kind.toLowerCase().startsWith("lan") &&
+        reason.toLowerCase().includes("novo link adicionado")
+      ) {
         return { ...update, kind: "Ajuste" };
       }
       return update;
@@ -7560,17 +8184,33 @@ app.get("/api/public/bootstrap", (req, res) => {
     tagTranslations: loadTagTranslations(),
     generatedAt: new Date().toISOString(),
   });
+  writePublicCachedJson(req, payload, {
+    ttlMs: 30000,
+    tags: [PUBLIC_READ_CACHE_TAGS.BOOTSTRAP],
+  });
   res.setHeader("Cache-Control", "public, max-age=30, stale-while-revalidate=120");
+  res.setHeader("X-Cache", "MISS");
   return res.json(payload);
 });
 
 app.get("/api/public/search/suggest", (req, res) => {
+  const cached = readPublicCachedJson(req);
+  if (cached) {
+    res.setHeader("X-Cache", "HIT");
+    return res.status(cached.statusCode).json(cached.payload);
+  }
   const q = normalizeSearchQuery(req.query.q);
   const scope = parseSearchScope(req.query.scope);
   const limit = parseSearchLimit(req.query.limit);
 
   if (q.length < publicSearchConfig.minQueryLength) {
-    return res.json({ q, scope, suggestions: [] });
+    const payload = { q, scope, suggestions: [] };
+    writePublicCachedJson(req, payload, {
+      ttlMs: Math.min(PUBLIC_READ_CACHE_TTL_MS, 10000),
+      tags: [PUBLIC_READ_CACHE_TAGS.SEARCH],
+    });
+    res.setHeader("X-Cache", "MISS");
+    return res.json(payload);
   }
 
   const now = Date.now();
@@ -7597,14 +8237,25 @@ app.get("/api/public/search/suggest", (req, res) => {
     posts,
   }).map(({ score: _score, ...item }) => item);
 
-  return res.json({
+  const payload = {
     q,
     scope,
     suggestions,
+  };
+  writePublicCachedJson(req, payload, {
+    ttlMs: Math.min(PUBLIC_READ_CACHE_TTL_MS, 15000),
+    tags: [PUBLIC_READ_CACHE_TAGS.SEARCH],
   });
+  res.setHeader("X-Cache", "MISS");
+  return res.json(payload);
 });
 
 app.get("/api/public/projects", (req, res) => {
+  const cached = readPublicCachedJson(req);
+  if (cached) {
+    res.setHeader("X-Cache", "HIT");
+    return res.status(cached.statusCode).json(cached.payload);
+  }
   const limitRaw = Number(req.query.limit);
   const pageRaw = Number(req.query.page);
   const usePagination = Number.isFinite(limitRaw) || Number.isFinite(pageRaw);
@@ -7652,12 +8303,20 @@ app.get("/api/public/projects", (req, res) => {
       views: project.views,
       commentsCount: project.commentsCount,
     }));
+  let payload = null;
   if (!usePagination) {
-    return res.json({ projects });
+    payload = { projects };
+  } else {
+    const start = (page - 1) * limit;
+    const paged = projects.slice(start, start + limit);
+    payload = { projects: paged, page, limit, total: projects.length };
   }
-  const start = (page - 1) * limit;
-  const paged = projects.slice(start, start + limit);
-  return res.json({ projects: paged, page, limit, total: projects.length });
+  writePublicCachedJson(req, payload, {
+    ttlMs: PUBLIC_READ_CACHE_TTL_MS,
+    tags: [PUBLIC_READ_CACHE_TAGS.PROJECTS],
+  });
+  res.setHeader("X-Cache", "MISS");
+  return res.json(payload);
 });
 
 app.get("/api/public/projects/:id", (req, res) => {
@@ -7682,9 +8341,9 @@ app.get("/api/public/projects/:id", (req, res) => {
   return res.json({ project: sanitized });
 });
 
-app.post("/api/public/projects/:id/view", (req, res) => {
+app.post("/api/public/projects/:id/view", async (req, res) => {
   const ip = req.headers["x-forwarded-for"]?.split(",")[0]?.trim() || req.ip;
-  if (!canRegisterView(ip)) {
+  if (!(await canRegisterView(ip))) {
     return res.status(429).json({ error: "rate_limited" });
   }
   const id = String(req.params.id || "");
@@ -7710,9 +8369,9 @@ app.post("/api/public/projects/:id/view", (req, res) => {
   return res.json({ views: updated?.views ?? project.views ?? 0 });
 });
 
-app.post("/api/public/analytics/event", (req, res) => {
+app.post("/api/public/analytics/event", async (req, res) => {
   const ip = req.headers["x-forwarded-for"]?.split(",")[0]?.trim() || req.ip;
-  if (!canRegisterView(ip)) {
+  if (!(await canRegisterView(ip))) {
     return res.status(429).json({ error: "rate_limited" });
   }
   const payload = req.body && typeof req.body === "object" ? req.body : {};
@@ -7736,7 +8395,10 @@ app.post("/api/public/analytics/event", (req, res) => {
     eventType,
     resourceType,
     resourceId,
-    meta: payload.meta && typeof payload.meta === "object" && !Array.isArray(payload.meta) ? payload.meta : {},
+    meta:
+      payload.meta && typeof payload.meta === "object" && !Array.isArray(payload.meta)
+        ? payload.meta
+        : {},
   });
   if (result.ok || result.reason === "cooldown") {
     return res.json({ ok: true, deduped: result.reason === "cooldown" });
@@ -7782,9 +8444,9 @@ app.get("/api/public/projects/:id/chapters/:number", (req, res) => {
   });
 });
 
-app.post("/api/public/projects/:id/chapters/:number/polls/vote", (req, res) => {
+app.post("/api/public/projects/:id/chapters/:number/polls/vote", async (req, res) => {
   const ip = req.headers["x-forwarded-for"]?.split(",")[0]?.trim() || req.ip;
-  if (!canRegisterPollVote(ip)) {
+  if (!(await canRegisterPollVote(ip))) {
     return res.status(429).json({ error: "rate_limited" });
   }
   const id = String(req.params.id || "");
@@ -7859,7 +8521,10 @@ app.get("/api/public/updates", (req, res) => {
     .map((update) => {
       const reason = String(update?.reason || "");
       const kind = String(update?.kind || "");
-      if (kind.toLowerCase().startsWith("lan") && reason.toLowerCase().includes("novo link adicionado")) {
+      if (
+        kind.toLowerCase().startsWith("lan") &&
+        reason.toLowerCase().includes("novo link adicionado")
+      ) {
         return { ...update, kind: "Ajuste" };
       }
       return update;
@@ -7996,8 +8661,9 @@ app.post("/api/integrations/webhooks/editorial/test", requireAuth, async (req, r
     }
 
     const chapterSource = Array.isArray(sampleProject?.episodeDownloads)
-      ? sampleProject.episodeDownloads.find((episode) => Number.isFinite(Number(episode?.number))) ||
-        sampleProject.episodeDownloads[0]
+      ? sampleProject.episodeDownloads.find((episode) =>
+          Number.isFinite(Number(episode?.number)),
+        ) || sampleProject.episodeDownloads[0]
       : null;
     const chapterNumber = Number(chapterSource?.number);
     const safeChapterNumber = Number.isFinite(chapterNumber) ? Number(chapterNumber) : 1;
@@ -8134,13 +8800,11 @@ app.post("/api/tag-translations/anilist-sync", requireAuth, async (req, res) => 
     }
     const data = await response.json();
     const rawGenres = Array.isArray(data?.data?.GenreCollection) ? data.data.GenreCollection : [];
-    const rawTags = Array.isArray(data?.data?.MediaTagCollection) ? data.data.MediaTagCollection : [];
-    const genres = rawGenres
-      .map((genre) => String(genre || "").trim())
-      .filter(Boolean);
-    const tags = rawTags
-      .map((tag) => String(tag?.name || "").trim())
-      .filter(Boolean);
+    const rawTags = Array.isArray(data?.data?.MediaTagCollection)
+      ? data.data.MediaTagCollection
+      : [];
+    const genres = rawGenres.map((genre) => String(genre || "").trim()).filter(Boolean);
+    const tags = rawTags.map((tag) => String(tag?.name || "").trim()).filter(Boolean);
     const current = loadTagTranslations();
     const nextTags = { ...current.tags };
     const nextGenres = { ...current.genres };
@@ -8189,7 +8853,9 @@ app.put("/api/settings", requireAuth, (req, res) => {
   const normalized = normalizeSiteSettings(settings);
   writeSiteSettings(normalized);
   const nextDownloadIcons = collectDownloadIconUploads(normalized);
-  const removedIcons = Array.from(previousDownloadIcons).filter((url) => !nextDownloadIcons.has(url));
+  const removedIcons = Array.from(previousDownloadIcons).filter(
+    (url) => !nextDownloadIcons.has(url),
+  );
   removedIcons.forEach((url) => deletePrivateUploadByUrl(url));
   appendAuditLog(req, "settings.update", "settings", {});
   return res.json({ settings: normalized });
@@ -8273,22 +8939,29 @@ app.put("/api/tag-translations", requireAuth, (req, res) => {
     return res.status(400).json({ error: "translations_required" });
   }
   const current = loadTagTranslations();
-  const normalizedTags = tags && typeof tags === "object"
-    ? Object.fromEntries(
-        Object.entries(tags).map(([key, value]) => [String(key), String(value || "")]),
-      )
-    : current.tags;
-  const normalizedGenres = genres && typeof genres === "object"
-    ? Object.fromEntries(
-        Object.entries(genres).map(([key, value]) => [String(key), String(value || "")]),
-      )
-    : current.genres;
-  const normalizedStaffRoles = staffRoles && typeof staffRoles === "object"
-    ? Object.fromEntries(
-        Object.entries(staffRoles).map(([key, value]) => [String(key), String(value || "")]),
-      )
-    : current.staffRoles;
-  const payload = { tags: normalizedTags, genres: normalizedGenres, staffRoles: normalizedStaffRoles };
+  const normalizedTags =
+    tags && typeof tags === "object"
+      ? Object.fromEntries(
+          Object.entries(tags).map(([key, value]) => [String(key), String(value || "")]),
+        )
+      : current.tags;
+  const normalizedGenres =
+    genres && typeof genres === "object"
+      ? Object.fromEntries(
+          Object.entries(genres).map(([key, value]) => [String(key), String(value || "")]),
+        )
+      : current.genres;
+  const normalizedStaffRoles =
+    staffRoles && typeof staffRoles === "object"
+      ? Object.fromEntries(
+          Object.entries(staffRoles).map(([key, value]) => [String(key), String(value || "")]),
+        )
+      : current.staffRoles;
+  const payload = {
+    tags: normalizedTags,
+    genres: normalizedGenres,
+    staffRoles: normalizedStaffRoles,
+  };
   writeTagTranslations(payload);
   return res.json(payload);
 });
@@ -8374,13 +9047,13 @@ app.get("/api/anilist/:id", requireAuth, async (req, res) => {
   }
 });
 
-app.post("/api/uploads/image", requireAuth, (req, res) => {
+app.post("/api/uploads/image", requireAuth, async (req, res) => {
   const sessionUser = req.session.user;
   if (!canManageUploads(sessionUser?.id)) {
     return res.status(403).json({ error: "forbidden" });
   }
   const ip = req.headers["x-forwarded-for"]?.split(",")[0]?.trim() || req.ip;
-  if (!canUploadImage(ip)) {
+  if (!(await canUploadImage(ip))) {
     return res.status(429).json({ error: "rate_limited" });
   }
 
@@ -8458,7 +9131,11 @@ app.post("/api/uploads/image", requireAuth, (req, res) => {
   }
   writeUploads(uploads);
 
-  appendAuditLog(req, "uploads.image", "uploads", { fileName, folder: safeFolder || "", url: relativeUrl });
+  appendAuditLog(req, "uploads.image", "uploads", {
+    fileName,
+    folder: safeFolder || "",
+    url: relativeUrl,
+  });
   return res.json({
     url: relativeUrl,
     fileName,
@@ -8583,10 +9260,12 @@ const collectProjectImageItems = (projects) => {
         : `${project.title} (Relação ${index + 1})`;
       push(project, relation?.image, "relation", relationLabel);
     });
-    (Array.isArray(project.episodeDownloads) ? project.episodeDownloads : []).forEach((episode, index) => {
-      const suffix = episode?.number ? `Cap/Ep ${episode.number}` : `Cap/Ep ${index + 1}`;
-      push(project, episode?.coverImageUrl, "episode-cover", `${project.title} (${suffix})`);
-    });
+    (Array.isArray(project.episodeDownloads) ? project.episodeDownloads : []).forEach(
+      (episode, index) => {
+        const suffix = episode?.number ? `Cap/Ep ${episode.number}` : `Cap/Ep ${index + 1}`;
+        push(project, episode?.coverImageUrl, "episode-cover", `${project.title} (${suffix})`);
+      },
+    );
   });
   return items;
 };
@@ -8606,7 +9285,7 @@ app.post("/api/uploads/image-from-url", requireAuth, async (req, res) => {
     return res.status(403).json({ error: "forbidden" });
   }
   const ip = req.headers["x-forwarded-for"]?.split(",")[0]?.trim() || req.ip;
-  if (!canUploadImage(ip)) {
+  if (!(await canUploadImage(ip))) {
     return res.status(429).json({ error: "rate_limited" });
   }
 
@@ -8977,7 +9656,19 @@ app.delete("/api/uploads/delete", requireAuth, (req, res) => {
 
 app.post("/api/users", requireAuth, (req, res) => {
   const sessionUser = req.session.user;
-  const { id, name, phrase, bio, avatarUrl, avatarDisplay, socials, status, permissions, roles, accessRole } = req.body || {};
+  const {
+    id,
+    name,
+    phrase,
+    bio,
+    avatarUrl,
+    avatarDisplay,
+    socials,
+    status,
+    permissions,
+    roles,
+    accessRole,
+  } = req.body || {};
   if (!id || !name) {
     return res.status(400).json({ error: "id_and_name_required" });
   }
@@ -9007,9 +9698,7 @@ app.post("/api/users", requireAuth, (req, res) => {
 
     users.push(newUser);
     users = normalizeUsers(users).map((user) =>
-      isOwner(user.id)
-        ? { ...user, status: "active", permissions: ["*"] }
-        : user,
+      isOwner(user.id) ? { ...user, status: "active", permissions: ["*"] } : user,
     );
     writeUsers(users);
     syncAllowedUsers(users);
@@ -9033,11 +9722,15 @@ app.post("/api/users", requireAuth, (req, res) => {
   }
 
   const normalizedAccessRole = normalizeAccessRole(accessRole, AccessRole.NORMAL);
-  if (normalizedAccessRole === AccessRole.OWNER_PRIMARY || normalizedAccessRole === AccessRole.OWNER_SECONDARY) {
+  if (
+    normalizedAccessRole === AccessRole.OWNER_PRIMARY ||
+    normalizedAccessRole === AccessRole.OWNER_SECONDARY
+  ) {
     return res.status(403).json({ error: "owner_role_requires_owner_governance" });
   }
 
-  const nextAccessRole = normalizedAccessRole === AccessRole.ADMIN ? AccessRole.ADMIN : AccessRole.NORMAL;
+  const nextAccessRole =
+    normalizedAccessRole === AccessRole.ADMIN ? AccessRole.ADMIN : AccessRole.NORMAL;
   const sanitizedPermissions = Array.isArray(permissions)
     ? sanitizePermissionsForStorage(permissions, {
         acceptLegacyStar: false,
@@ -9086,11 +9779,19 @@ app.put("/api/users/reorder", requireAuth, (req, res) => {
       return res.status(403).json({ error: "forbidden" });
     }
     let users = normalizeUsers(loadUsers());
-    const activeUsers = users.filter((user) => user.status === "active").sort((a, b) => a.order - b.order);
-    const retiredUsers = users.filter((user) => user.status === "retired").sort((a, b) => a.order - b.order);
+    const activeUsers = users
+      .filter((user) => user.status === "active")
+      .sort((a, b) => a.order - b.order);
+    const retiredUsers = users
+      .filter((user) => user.status === "retired")
+      .sort((a, b) => a.order - b.order);
 
-    const activeOrder = Array.isArray(orderedIds) ? orderedIds.map(String) : activeUsers.map((user) => user.id);
-    const retiredOrder = Array.isArray(retiredIds) ? retiredIds.map(String) : retiredUsers.map((user) => user.id);
+    const activeOrder = Array.isArray(orderedIds)
+      ? orderedIds.map(String)
+      : activeUsers.map((user) => user.id);
+    const retiredOrder = Array.isArray(retiredIds)
+      ? retiredIds.map(String)
+      : retiredUsers.map((user) => user.id);
 
     const activeOrderMap = new Map(activeOrder.map((id, index) => [String(id), index]));
     const retiredOrderMap = new Map(retiredOrder.map((id, index) => [String(id), index]));
@@ -9106,9 +9807,7 @@ app.put("/api/users/reorder", requireAuth, (req, res) => {
     });
 
     users = normalizeUsers(users).map((user) =>
-      isOwner(user.id)
-        ? { ...user, status: "active", permissions: ["*"] }
-        : user,
+      isOwner(user.id) ? { ...user, status: "active", permissions: ["*"] } : user,
     );
     users.sort((a, b) => a.order - b.order);
     writeUsers(users);
@@ -9127,11 +9826,19 @@ app.put("/api/users/reorder", requireAuth, (req, res) => {
   }
 
   let users = normalizeUsers(loadUsers());
-  const activeUsers = users.filter((user) => user.status === "active").sort((a, b) => a.order - b.order);
-  const retiredUsers = users.filter((user) => user.status === "retired").sort((a, b) => a.order - b.order);
+  const activeUsers = users
+    .filter((user) => user.status === "active")
+    .sort((a, b) => a.order - b.order);
+  const retiredUsers = users
+    .filter((user) => user.status === "retired")
+    .sort((a, b) => a.order - b.order);
 
-  const activeOrder = Array.isArray(orderedIds) ? orderedIds.map(String) : activeUsers.map((user) => user.id);
-  const retiredOrder = Array.isArray(retiredIds) ? retiredIds.map(String) : retiredUsers.map((user) => user.id);
+  const activeOrder = Array.isArray(orderedIds)
+    ? orderedIds.map(String)
+    : activeUsers.map((user) => user.id);
+  const retiredOrder = Array.isArray(retiredIds)
+    ? retiredIds.map(String)
+    : retiredUsers.map((user) => user.id);
 
   const activeOrderMap = new Map(activeOrder.map((id, index) => [String(id), index]));
   const retiredOrderMap = new Map(retiredOrder.map((id, index) => [String(id), index]));
@@ -9148,7 +9855,9 @@ app.put("/api/users/reorder", requireAuth, (req, res) => {
 
   if (actorContext.accessRole === AccessRole.OWNER_SECONDARY) {
     const ownerIds = new Set(loadOwnerIds().map((id) => String(id)));
-    const previousOrderById = new Map(normalizeUsers(loadUsers()).map((user) => [user.id, user.order]));
+    const previousOrderById = new Map(
+      normalizeUsers(loadUsers()).map((user) => [user.id, user.order]),
+    );
     const changedOwnerOrder = users.some((user) => {
       if (!ownerIds.has(user.id)) {
         return false;
@@ -9193,8 +9902,7 @@ app.put("/api/users/:id", (req, res) => {
     }
 
     if (!isOwnerRequest && canManageBadges) {
-      const onlyRoles =
-        Object.keys(update).length === 1 && Array.isArray(update.roles);
+      const onlyRoles = Object.keys(update).length === 1 && Array.isArray(update.roles);
       if (!onlyRoles) {
         return res.status(403).json({ error: "roles_only" });
       }
@@ -9218,9 +9926,7 @@ app.put("/api/users/:id", (req, res) => {
 
     users[index] = updated;
     users = normalizeUsers(users).map((user) =>
-      isOwner(user.id)
-        ? { ...user, status: "active", permissions: ["*"] }
-        : user,
+      isOwner(user.id) ? { ...user, status: "active", permissions: ["*"] } : user,
     );
     writeUsers(users);
     syncAllowedUsers(users);
@@ -9235,8 +9941,14 @@ app.put("/api/users/:id", (req, res) => {
   const actorIsPrimary = actorContext.accessRole === AccessRole.OWNER_PRIMARY;
   const actorIsSecondary = actorContext.accessRole === AccessRole.OWNER_SECONDARY;
   const actorIsAdmin = actorContext.accessRole === AccessRole.ADMIN;
-  const actorCanUsersBasic = can({ grants: actorContext.grants, permissionId: PermissionId.USUARIOS_BASICO });
-  const actorCanUsersAccess = can({ grants: actorContext.grants, permissionId: PermissionId.USUARIOS_ACESSO });
+  const actorCanUsersBasic = can({
+    grants: actorContext.grants,
+    permissionId: PermissionId.USUARIOS_BASICO,
+  });
+  const actorCanUsersAccess = can({
+    grants: actorContext.grants,
+    permissionId: PermissionId.USUARIOS_ACESSO,
+  });
   const touchesBasicFields = updateKeys.some((field) => isBasicProfileField(field));
   const touchesAccessFields = updateKeys.some((field) => !isBasicProfileField(field));
 
@@ -9277,7 +9989,7 @@ app.put("/api/users/:id", (req, res) => {
 
   if (
     Object.prototype.hasOwnProperty.call(update, "accessRole") &&
-    (String(update.accessRole || "").includes("owner"))
+    String(update.accessRole || "").includes("owner")
   ) {
     return res.status(403).json({ error: "owner_role_requires_owner_governance" });
   }
@@ -9290,7 +10002,9 @@ app.put("/api/users/:id", (req, res) => {
       basicPatch.avatarDisplay !== undefined
         ? normalizeAvatarDisplay(basicPatch.avatarDisplay)
         : normalizeAvatarDisplay(existing.avatarDisplay),
-    socials: Array.isArray(basicPatch.socials) ? sanitizeSocials(basicPatch.socials) : existing.socials,
+    socials: Array.isArray(basicPatch.socials)
+      ? sanitizeSocials(basicPatch.socials)
+      : existing.socials,
     roles: Array.isArray(update.roles) ? removeOwnerRoleLabel(update.roles) : existing.roles,
     status:
       update.status === "retired"
@@ -9325,7 +10039,10 @@ app.put("/api/users/:id", (req, res) => {
     updated.accessRole = existing.accessRole;
   }
 
-  if (updated.accessRole === AccessRole.OWNER_PRIMARY || updated.accessRole === AccessRole.OWNER_SECONDARY) {
+  if (
+    updated.accessRole === AccessRole.OWNER_PRIMARY ||
+    updated.accessRole === AccessRole.OWNER_SECONDARY
+  ) {
     updated.accessRole = existing.accessRole;
   }
   if (!actorIsPrimary && !actorIsSecondary) {
@@ -9389,8 +10106,12 @@ app.delete("/api/users/:id", requireAuth, (req, res) => {
     const removed = users[index];
     users = users.filter((user) => user.id !== targetId);
 
-    const activeUsers = users.filter((user) => user.status === "active").sort((a, b) => a.order - b.order);
-    const retiredUsers = users.filter((user) => user.status === "retired").sort((a, b) => a.order - b.order);
+    const activeUsers = users
+      .filter((user) => user.status === "active")
+      .sort((a, b) => a.order - b.order);
+    const retiredUsers = users
+      .filter((user) => user.status === "retired")
+      .sort((a, b) => a.order - b.order);
     let orderIndex = 0;
     const reordered = [
       ...activeUsers.map((user) => ({ ...user, order: orderIndex++ })),
@@ -9407,9 +10128,7 @@ app.delete("/api/users/:id", requireAuth, (req, res) => {
     }
 
     const normalizedUsers = normalizeUsers(reordered).map((user) =>
-      isOwner(user.id)
-        ? { ...user, status: "active", permissions: ["*"] }
-        : user,
+      isOwner(user.id) ? { ...user, status: "active", permissions: ["*"] } : user,
     );
     normalizedUsers.sort((a, b) => a.order - b.order);
     writeUsers(normalizedUsers);
@@ -9428,7 +10147,10 @@ app.delete("/api/users/:id", requireAuth, (req, res) => {
   const targetContext = getUserAccessContextById(targetId, users);
   const actorIsPrimary = actorContext.accessRole === AccessRole.OWNER_PRIMARY;
   const actorIsSecondary = actorContext.accessRole === AccessRole.OWNER_SECONDARY;
-  const actorCanUsersAccess = can({ grants: actorContext.grants, permissionId: PermissionId.USUARIOS_ACESSO });
+  const actorCanUsersAccess = can({
+    grants: actorContext.grants,
+    permissionId: PermissionId.USUARIOS_ACESSO,
+  });
   if ((!actorIsPrimary && !actorIsSecondary) || !actorCanUsersAccess) {
     return res.status(403).json({ error: "forbidden" });
   }
@@ -9441,8 +10163,12 @@ app.delete("/api/users/:id", requireAuth, (req, res) => {
 
   users = users.filter((user) => user.id !== targetId);
 
-  const activeUsers = users.filter((user) => user.status === "active").sort((a, b) => a.order - b.order);
-  const retiredUsers = users.filter((user) => user.status === "retired").sort((a, b) => a.order - b.order);
+  const activeUsers = users
+    .filter((user) => user.status === "active")
+    .sort((a, b) => a.order - b.order);
+  const retiredUsers = users
+    .filter((user) => user.status === "retired")
+    .sort((a, b) => a.order - b.order);
   let orderIndex = 0;
   const reordered = [
     ...activeUsers.map((user) => ({ ...user, order: orderIndex++ })),
@@ -9495,7 +10221,9 @@ app.put("/api/users/self", requireAuth, (req, res) => {
       basicPatch.avatarDisplay !== undefined
         ? normalizeAvatarDisplay(basicPatch.avatarDisplay)
         : normalizeAvatarDisplay(existing.avatarDisplay),
-    socials: Array.isArray(basicPatch.socials) ? sanitizeSocials(basicPatch.socials) : existing.socials,
+    socials: Array.isArray(basicPatch.socials)
+      ? sanitizeSocials(basicPatch.socials)
+      : existing.socials,
   };
 
   const ownerIds = loadOwnerIds().map((id) => String(id));
@@ -9504,9 +10232,7 @@ app.put("/api/users/self", requireAuth, (req, res) => {
   users = isRbacV2Enabled
     ? enforceUserAccessInvariants(users)
     : normalizeUsers(users).map((user) =>
-        isOwner(user.id)
-          ? { ...user, status: "active", permissions: ["*"] }
-          : user,
+        isOwner(user.id) ? { ...user, status: "active", permissions: ["*"] } : user,
       );
   writeUsers(users);
   syncAllowedUsers(users);
@@ -9528,26 +10254,41 @@ app.post("/api/logout", (req, res) => {
   res.json({ ok: true });
 });
 
-app.get(["/", "/projeto/:id", "/projeto/:id/leitura/:chapter", "/postagem/:slug"], async (req, res) => {
-  try {
-    if (req.path.startsWith("/postagem/")) {
-      const slug = String(req.params.slug || "");
-      const post = normalizePosts(loadPosts()).find((item) => item.slug === slug);
-      const meta = post ? buildPostMeta(post) : buildSiteMeta();
-      return await sendHtml(req, res, renderMetaHtml({ ...meta, url: `${PRIMARY_APP_ORIGIN}${req.path}` }));
+app.get(
+  ["/", "/projeto/:id", "/projeto/:id/leitura/:chapter", "/postagem/:slug"],
+  async (req, res) => {
+    try {
+      if (req.path.startsWith("/postagem/")) {
+        const slug = String(req.params.slug || "");
+        const post = normalizePosts(loadPosts()).find((item) => item.slug === slug);
+        const meta = post ? buildPostMeta(post) : buildSiteMeta();
+        return await sendHtml(
+          req,
+          res,
+          renderMetaHtml({ ...meta, url: `${PRIMARY_APP_ORIGIN}${req.path}` }),
+        );
+      }
+      if (req.path.startsWith("/projeto/")) {
+        const id = String(req.params.id || "");
+        const project = normalizeProjects(loadProjects()).find((item) => String(item.id) === id);
+        const meta = project ? buildProjectMeta(project) : buildSiteMeta();
+        return await sendHtml(
+          req,
+          res,
+          renderMetaHtml({ ...meta, url: `${PRIMARY_APP_ORIGIN}${req.path}` }),
+        );
+      }
+      const meta = buildSiteMeta();
+      return await sendHtml(
+        req,
+        res,
+        renderMetaHtml({ ...meta, url: `${PRIMARY_APP_ORIGIN}${req.path}` }),
+      );
+    } catch {
+      return await sendHtml(req, res, getIndexHtml());
     }
-    if (req.path.startsWith("/projeto/")) {
-      const id = String(req.params.id || "");
-      const project = normalizeProjects(loadProjects()).find((item) => String(item.id) === id);
-      const meta = project ? buildProjectMeta(project) : buildSiteMeta();
-      return await sendHtml(req, res, renderMetaHtml({ ...meta, url: `${PRIMARY_APP_ORIGIN}${req.path}` }));
-    }
-    const meta = buildSiteMeta();
-    return await sendHtml(req, res, renderMetaHtml({ ...meta, url: `${PRIMARY_APP_ORIGIN}${req.path}` }));
-  } catch {
-    return await sendHtml(req, res, getIndexHtml());
-  }
-});
+  },
+);
 
 app.get("*", async (req, res) => {
   if (req.path.startsWith("/api") || req.path.startsWith("/auth")) {
@@ -9560,7 +10301,11 @@ app.get("*", async (req, res) => {
     const separator = settings.site?.titleSeparator ?? "";
     const pageTitle = getPageTitleFromPath(req.path);
     const title = pageTitle ? `${pageTitle}${separator}${siteName}` : siteName;
-    return await sendHtml(req, res, renderMetaHtml({ ...meta, title, url: `${PRIMARY_APP_ORIGIN}${req.path}` }));
+    return await sendHtml(
+      req,
+      res,
+      renderMetaHtml({ ...meta, title, url: `${PRIMARY_APP_ORIGIN}${req.path}` }),
+    );
   } catch {
     return await sendHtml(req, res, getIndexHtml());
   }
@@ -9574,7 +10319,7 @@ const runStartupMaintenance = async () => {
   }
 
   try {
-    compactAnalyticsData();
+    await enqueueAnalyticsCompactionJob({ trigger: "startup" });
   } catch {
     // ignore analytics compaction failures on boot
   }
@@ -9596,6 +10341,10 @@ const httpServer = app.listen(listenPort, () => {
   setImmediate(() => {
     void runStartupMaintenance();
   });
+  analyticsCompactionState.timer = setInterval(() => {
+    void enqueueAnalyticsCompactionJob({ trigger: "interval" }).catch(() => undefined);
+  }, ANALYTICS_COMPACTION_INTERVAL_MS);
+  analyticsCompactionState.timer.unref?.();
   if (isOpsAlertsWebhookEnabled) {
     operationalAlertsWebhookState.timer = setInterval(() => {
       void runOperationalAlertsWebhookTick();
@@ -9622,10 +10371,13 @@ httpServer.on("error", (error) => {
 });
 
 httpServer.on("close", () => {
+  if (analyticsCompactionState.timer) {
+    clearInterval(analyticsCompactionState.timer);
+    analyticsCompactionState.timer = null;
+  }
   if (operationalAlertsWebhookState.timer) {
     clearInterval(operationalAlertsWebhookState.timer);
     operationalAlertsWebhookState.timer = null;
   }
+  void rateLimiter.close();
 });
-
-
