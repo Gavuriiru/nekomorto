@@ -14,6 +14,8 @@ describe("session-cookie-config", () => {
     expect(config.cookie.secure).toBe("auto");
     expect(config.cookie.path).toBe("/");
     expect(config.usesDefaultSecretInProduction).toBe(false);
+    expect(config.secret).toEqual(["dev-session-secret"]);
+    expect(config.acceptedSecretsCount).toBe(1);
   });
 
   it("usa prefixo __Host- em producao e detecta secret fallback", () => {
@@ -28,5 +30,18 @@ describe("session-cookie-config", () => {
     expect(config.usesDefaultSecretInProduction).toBe(true);
     expect(isDefaultSessionSecretInProduction({ isProduction: true, sessionSecret: "" })).toBe(true);
   });
-});
 
+  it("aceita rotacao com SESSION_SECRETS sem fallback", () => {
+    const config = buildSessionCookieConfig({
+      isProduction: true,
+      cookieBaseName: "rainbow.sid",
+      sessionSecret: "",
+      sessionSecrets: "new-secret,old-secret",
+    });
+
+    expect(config.secret).toEqual(["new-secret", "old-secret"]);
+    expect(config.activeSecret).toBe("new-secret");
+    expect(config.acceptedSecretsCount).toBe(2);
+    expect(config.usesDefaultSecretInProduction).toBe(false);
+  });
+});

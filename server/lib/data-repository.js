@@ -78,6 +78,11 @@ class DbDataRepository {
       siteSettings: {},
       integrationSettings: {},
       userPreferences: {},
+      userMfaTotpRecords: {},
+      userSessionIndexRecords: [],
+      securityEvents: [],
+      adminExportJobs: [],
+      secretRotations: [],
     };
   }
 
@@ -193,6 +198,11 @@ class DbDataRepository {
       siteSettings,
       integrationSettings,
       userPreferences,
+      userMfaTotpRecords,
+      userSessionIndexRecords,
+      securityEvents,
+      adminExportJobs,
+      secretRotations,
     ] = await Promise.all([
       prisma.ownerIdRecord.findMany({ orderBy: { position: "asc" } }),
       prisma.auditLogRecord.findMany({ orderBy: { position: "asc" } }),
@@ -217,6 +227,21 @@ class DbDataRepository {
         ? prisma.integrationSettingsRecord.findUnique({ where: { id: 1 } }).catch(() => null)
         : Promise.resolve(null),
       prisma.userPreferenceRecord.findMany({}),
+      typeof prisma.userMfaTotpRecord?.findMany === "function"
+        ? prisma.userMfaTotpRecord.findMany({})
+        : Promise.resolve([]),
+      typeof prisma.userSessionIndexRecord?.findMany === "function"
+        ? prisma.userSessionIndexRecord.findMany({ orderBy: { lastSeenAt: "desc" } })
+        : Promise.resolve([]),
+      typeof prisma.securityEventRecord?.findMany === "function"
+        ? prisma.securityEventRecord.findMany({ orderBy: { ts: "desc" } })
+        : Promise.resolve([]),
+      typeof prisma.adminExportJobRecord?.findMany === "function"
+        ? prisma.adminExportJobRecord.findMany({ orderBy: { createdAt: "desc" } })
+        : Promise.resolve([]),
+      typeof prisma.secretRotationRecord?.findMany === "function"
+        ? prisma.secretRotationRecord.findMany({ orderBy: { rotatedAt: "desc" } })
+        : Promise.resolve([]),
     ]);
 
     this.snapshot.ownerIds = Array.from(
@@ -255,6 +280,78 @@ class DbDataRepository {
       acc[userId] = cloneValue(row.data);
       return acc;
     }, {});
+    this.snapshot.userMfaTotpRecords = userMfaTotpRecords.reduce((acc, row) => {
+      const userId = String(row?.userId || "").trim();
+      if (!userId) {
+        return acc;
+      }
+      acc[userId] = {
+        userId,
+        secretEncrypted: String(row?.secretEncrypted || ""),
+        secretKeyId: String(row?.secretKeyId || ""),
+        enabledAt: row?.enabledAt ? new Date(row.enabledAt).toISOString() : null,
+        disabledAt: row?.disabledAt ? new Date(row.disabledAt).toISOString() : null,
+        recoveryCodesHashed: cloneValue(row?.recoveryCodesHashed || []),
+        createdAt: row?.createdAt ? new Date(row.createdAt).toISOString() : null,
+        updatedAt: row?.updatedAt ? new Date(row.updatedAt).toISOString() : null,
+      };
+      return acc;
+    }, {});
+    this.snapshot.userSessionIndexRecords = userSessionIndexRecords.map((row) => ({
+      sid: String(row?.sid || ""),
+      userId: String(row?.userId || ""),
+      createdAt: row?.createdAt ? new Date(row.createdAt).toISOString() : null,
+      lastSeenAt: row?.lastSeenAt ? new Date(row.lastSeenAt).toISOString() : null,
+      lastIp: row?.lastIp ? String(row.lastIp) : "",
+      userAgent: row?.userAgent ? String(row.userAgent) : "",
+      revokedAt: row?.revokedAt ? new Date(row.revokedAt).toISOString() : null,
+      revokedBy: row?.revokedBy ? String(row.revokedBy) : null,
+      revokeReason: row?.revokeReason ? String(row.revokeReason) : null,
+      isPendingMfa: Boolean(row?.isPendingMfa),
+    }));
+    this.snapshot.securityEvents = securityEvents.map((row) => ({
+      id: String(row?.id || ""),
+      ts: row?.ts ? new Date(row.ts).toISOString() : new Date().toISOString(),
+      type: String(row?.type || ""),
+      severity: String(row?.severity || "info"),
+      riskScore: Number(row?.riskScore || 0),
+      status: String(row?.status || "open"),
+      actorUserId: row?.actorUserId ? String(row.actorUserId) : null,
+      targetUserId: row?.targetUserId ? String(row.targetUserId) : null,
+      ip: row?.ip ? String(row.ip) : "",
+      userAgent: row?.userAgent ? String(row.userAgent) : "",
+      sessionId: row?.sessionId ? String(row.sessionId) : null,
+      requestId: row?.requestId ? String(row.requestId) : null,
+      data: cloneValue(row?.data || {}),
+      createdAt: row?.createdAt ? new Date(row.createdAt).toISOString() : null,
+      updatedAt: row?.updatedAt ? new Date(row.updatedAt).toISOString() : null,
+    }));
+    this.snapshot.adminExportJobs = adminExportJobs.map((row) => ({
+      id: String(row?.id || ""),
+      dataset: String(row?.dataset || ""),
+      format: String(row?.format || "csv"),
+      status: String(row?.status || "queued"),
+      requestedBy: String(row?.requestedBy || ""),
+      filters: cloneValue(row?.filters || {}),
+      filePath: row?.filePath ? String(row.filePath) : null,
+      rowCount: Number.isFinite(Number(row?.rowCount)) ? Number(row.rowCount) : null,
+      error: row?.error ? String(row.error) : null,
+      createdAt: row?.createdAt ? new Date(row.createdAt).toISOString() : null,
+      startedAt: row?.startedAt ? new Date(row.startedAt).toISOString() : null,
+      finishedAt: row?.finishedAt ? new Date(row.finishedAt).toISOString() : null,
+      expiresAt: row?.expiresAt ? new Date(row.expiresAt).toISOString() : null,
+      updatedAt: row?.updatedAt ? new Date(row.updatedAt).toISOString() : null,
+    }));
+    this.snapshot.secretRotations = secretRotations.map((row) => ({
+      id: String(row?.id || ""),
+      secretFamily: String(row?.secretFamily || ""),
+      keyId: String(row?.keyId || ""),
+      rotatedAt: row?.rotatedAt ? new Date(row.rotatedAt).toISOString() : new Date().toISOString(),
+      rotatedBy: String(row?.rotatedBy || "system"),
+      notes: row?.notes ? String(row.notes) : "",
+      status: String(row?.status || "completed"),
+      createdAt: row?.createdAt ? new Date(row.createdAt).toISOString() : null,
+    }));
   }
 
   loadOwnerIds() {
@@ -714,6 +811,406 @@ class DbDataRepository {
         update: { data: cloneValue(nextPreferences) },
       });
     });
+  }
+
+  loadUserMfaTotpRecord(userId) {
+    const key = String(userId || "").trim();
+    if (!key) {
+      return null;
+    }
+    const row = this.snapshot.userMfaTotpRecords?.[key];
+    return row ? cloneValue(row) : null;
+  }
+
+  writeUserMfaTotpRecord(userId, record) {
+    const key = String(userId || "").trim();
+    if (!key) {
+      return;
+    }
+    const row = {
+      userId: key,
+      secretEncrypted: String(record?.secretEncrypted || ""),
+      secretKeyId: String(record?.secretKeyId || ""),
+      enabledAt: record?.enabledAt ? String(record.enabledAt) : new Date().toISOString(),
+      disabledAt: record?.disabledAt ? String(record.disabledAt) : null,
+      recoveryCodesHashed: cloneValue(
+        Array.isArray(record?.recoveryCodesHashed) ? record.recoveryCodesHashed : [],
+      ),
+    };
+    this.snapshot.userMfaTotpRecords = this.snapshot.userMfaTotpRecords || {};
+    this.snapshot.userMfaTotpRecords[key] = row;
+    this.enqueuePersist("user_mfa_totp", async () => {
+      await prisma.userMfaTotpRecord.upsert({
+        where: { userId: key },
+        create: {
+          userId: key,
+          secretEncrypted: row.secretEncrypted,
+          secretKeyId: row.secretKeyId,
+          enabledAt: toDateOrNull(row.enabledAt) || new Date(),
+          disabledAt: toDateOrNull(row.disabledAt),
+          recoveryCodesHashed: cloneValue(row.recoveryCodesHashed),
+        },
+        update: {
+          secretEncrypted: row.secretEncrypted,
+          secretKeyId: row.secretKeyId,
+          enabledAt: toDateOrNull(row.enabledAt),
+          disabledAt: toDateOrNull(row.disabledAt),
+          recoveryCodesHashed: cloneValue(row.recoveryCodesHashed),
+        },
+      });
+    });
+  }
+
+  deleteUserMfaTotpRecord(userId) {
+    const key = String(userId || "").trim();
+    if (!key) {
+      return;
+    }
+    if (this.snapshot.userMfaTotpRecords) {
+      delete this.snapshot.userMfaTotpRecords[key];
+    }
+    this.enqueuePersist("user_mfa_totp_delete", async () => {
+      await prisma.userMfaTotpRecord.deleteMany({ where: { userId: key } });
+    });
+  }
+
+  loadUserSessionIndexRecords({ userId = null, includeRevoked = true } = {}) {
+    const normalizedUserId = String(userId || "").trim();
+    return cloneValue(this.snapshot.userSessionIndexRecords || []).filter((record) => {
+      if (normalizedUserId && String(record.userId) !== normalizedUserId) {
+        return false;
+      }
+      if (!includeRevoked && record.revokedAt) {
+        return false;
+      }
+      return true;
+    });
+  }
+
+  upsertUserSessionIndexRecord(record) {
+    const sid = String(record?.sid || "").trim();
+    const userId = String(record?.userId || "").trim();
+    if (!sid || !userId) {
+      return;
+    }
+    const normalized = {
+      sid,
+      userId,
+      createdAt: String(record?.createdAt || new Date().toISOString()),
+      lastSeenAt: String(record?.lastSeenAt || new Date().toISOString()),
+      lastIp: String(record?.lastIp || ""),
+      userAgent: String(record?.userAgent || ""),
+      revokedAt: record?.revokedAt ? String(record.revokedAt) : null,
+      revokedBy: record?.revokedBy ? String(record.revokedBy) : null,
+      revokeReason: record?.revokeReason ? String(record.revokeReason) : null,
+      isPendingMfa: Boolean(record?.isPendingMfa),
+    };
+    const list = ensureArray(this.snapshot.userSessionIndexRecords);
+    const index = list.findIndex((item) => String(item?.sid || "") === sid);
+    if (index >= 0) {
+      list[index] = normalized;
+    } else {
+      list.push(normalized);
+    }
+    this.snapshot.userSessionIndexRecords = list;
+    this.enqueuePersist("user_session_index", async () => {
+      await prisma.userSessionIndexRecord.upsert({
+        where: { sid },
+        create: {
+          sid,
+          userId: normalized.userId,
+          createdAt: toDateOrNull(normalized.createdAt) || new Date(),
+          lastSeenAt: toDateOrNull(normalized.lastSeenAt) || new Date(),
+          lastIp: normalized.lastIp || null,
+          userAgent: normalized.userAgent || null,
+          revokedAt: toDateOrNull(normalized.revokedAt),
+          revokedBy: normalized.revokedBy,
+          revokeReason: normalized.revokeReason,
+          isPendingMfa: normalized.isPendingMfa,
+        },
+        update: {
+          userId: normalized.userId,
+          lastSeenAt: toDateOrNull(normalized.lastSeenAt) || new Date(),
+          lastIp: normalized.lastIp || null,
+          userAgent: normalized.userAgent || null,
+          revokedAt: toDateOrNull(normalized.revokedAt),
+          revokedBy: normalized.revokedBy,
+          revokeReason: normalized.revokeReason,
+          isPendingMfa: normalized.isPendingMfa,
+        },
+      });
+    });
+  }
+
+  revokeUserSessionIndexRecord(sid, { revokedBy = null, revokeReason = null } = {}) {
+    const key = String(sid || "").trim();
+    if (!key) {
+      return;
+    }
+    const list = ensureArray(this.snapshot.userSessionIndexRecords);
+    const index = list.findIndex((item) => String(item?.sid || "") === key);
+    if (index < 0) {
+      return;
+    }
+    const current = list[index];
+    list[index] = {
+      ...current,
+      revokedAt: new Date().toISOString(),
+      revokedBy: revokedBy ? String(revokedBy) : null,
+      revokeReason: revokeReason ? String(revokeReason) : null,
+    };
+    this.snapshot.userSessionIndexRecords = list;
+    const persisted = list[index];
+    this.enqueuePersist("user_session_index_revoke", async () => {
+      await prisma.userSessionIndexRecord.updateMany({
+        where: { sid: key },
+        data: {
+          revokedAt: toDateOrNull(persisted.revokedAt) || new Date(),
+          revokedBy: persisted.revokedBy,
+          revokeReason: persisted.revokeReason,
+        },
+      });
+    });
+  }
+
+  removeUserSessionIndexRecord(sid) {
+    const key = String(sid || "").trim();
+    if (!key) {
+      return;
+    }
+    this.snapshot.userSessionIndexRecords = ensureArray(this.snapshot.userSessionIndexRecords).filter(
+      (item) => String(item?.sid || "") !== key,
+    );
+    this.enqueuePersist("user_session_index_delete", async () => {
+      await prisma.userSessionIndexRecord.deleteMany({ where: { sid: key } });
+    });
+  }
+
+  loadSecurityEvents() {
+    return cloneValue(this.snapshot.securityEvents || []);
+  }
+
+  writeSecurityEvents(events) {
+    this.snapshot.securityEvents = cloneValue(ensureArray(events));
+    this.enqueuePersist("security_events", async () => {
+      const rows = this.snapshot.securityEvents.map((event) => ({
+        id: String(event?.id || crypto.randomUUID()),
+        ts: toDateOrNull(event?.ts) || new Date(),
+        type: String(event?.type || ""),
+        severity: String(event?.severity || "info"),
+        riskScore: Number.isFinite(Number(event?.riskScore)) ? Math.floor(Number(event.riskScore)) : 0,
+        status: String(event?.status || "open"),
+        actorUserId: event?.actorUserId ? String(event.actorUserId) : null,
+        targetUserId: event?.targetUserId ? String(event.targetUserId) : null,
+        ip: event?.ip ? String(event.ip) : null,
+        userAgent: event?.userAgent ? String(event.userAgent) : null,
+        sessionId: event?.sessionId ? String(event.sessionId) : null,
+        requestId: event?.requestId ? String(event.requestId) : null,
+        data: cloneValue(event?.data || {}),
+      }));
+      await this.persistCollectionById({
+        model: prisma.securityEventRecord,
+        rows,
+        idKey: "id",
+        updateFields: [
+          "ts",
+          "type",
+          "severity",
+          "riskScore",
+          "status",
+          "actorUserId",
+          "targetUserId",
+          "ip",
+          "userAgent",
+          "sessionId",
+          "requestId",
+          "data",
+        ],
+      });
+    });
+  }
+
+  upsertSecurityEvent(event) {
+    const id = String(event?.id || "").trim() || crypto.randomUUID();
+    const list = ensureArray(this.snapshot.securityEvents);
+    const index = list.findIndex((item) => String(item?.id || "") === id);
+    const normalized = {
+      id,
+      ts: String(event?.ts || new Date().toISOString()),
+      type: String(event?.type || ""),
+      severity: String(event?.severity || "info"),
+      riskScore: Number.isFinite(Number(event?.riskScore)) ? Math.floor(Number(event.riskScore)) : 0,
+      status: String(event?.status || "open"),
+      actorUserId: event?.actorUserId ? String(event.actorUserId) : null,
+      targetUserId: event?.targetUserId ? String(event.targetUserId) : null,
+      ip: event?.ip ? String(event.ip) : "",
+      userAgent: event?.userAgent ? String(event.userAgent) : "",
+      sessionId: event?.sessionId ? String(event.sessionId) : null,
+      requestId: event?.requestId ? String(event.requestId) : null,
+      data: cloneValue(event?.data || {}),
+    };
+    if (index >= 0) {
+      list[index] = normalized;
+    } else {
+      list.push(normalized);
+    }
+    this.snapshot.securityEvents = list.sort((a, b) => {
+      const aTs = new Date(a.ts || 0).getTime();
+      const bTs = new Date(b.ts || 0).getTime();
+      return bTs - aTs;
+    });
+    this.enqueuePersist("security_event_upsert", async () => {
+      await prisma.securityEventRecord.upsert({
+        where: { id },
+        create: {
+          id,
+          ts: toDateOrNull(normalized.ts) || new Date(),
+          type: normalized.type,
+          severity: normalized.severity,
+          riskScore: normalized.riskScore,
+          status: normalized.status,
+          actorUserId: normalized.actorUserId,
+          targetUserId: normalized.targetUserId,
+          ip: normalized.ip || null,
+          userAgent: normalized.userAgent || null,
+          sessionId: normalized.sessionId,
+          requestId: normalized.requestId,
+          data: cloneValue(normalized.data),
+        },
+        update: {
+          ts: toDateOrNull(normalized.ts) || new Date(),
+          type: normalized.type,
+          severity: normalized.severity,
+          riskScore: normalized.riskScore,
+          status: normalized.status,
+          actorUserId: normalized.actorUserId,
+          targetUserId: normalized.targetUserId,
+          ip: normalized.ip || null,
+          userAgent: normalized.userAgent || null,
+          sessionId: normalized.sessionId,
+          requestId: normalized.requestId,
+          data: cloneValue(normalized.data),
+        },
+      });
+    });
+    return cloneValue(normalized);
+  }
+
+  loadAdminExportJobs() {
+    return cloneValue(this.snapshot.adminExportJobs || []);
+  }
+
+  upsertAdminExportJob(job) {
+    const id = String(job?.id || "").trim();
+    if (!id) {
+      return null;
+    }
+    const normalized = {
+      id,
+      dataset: String(job?.dataset || "audit_log"),
+      format: String(job?.format || "csv"),
+      status: String(job?.status || "queued"),
+      requestedBy: String(job?.requestedBy || ""),
+      filters: cloneValue(job?.filters || {}),
+      filePath: job?.filePath ? String(job.filePath) : null,
+      rowCount: Number.isFinite(Number(job?.rowCount)) ? Number(job.rowCount) : null,
+      error: job?.error ? String(job.error) : null,
+      createdAt: String(job?.createdAt || new Date().toISOString()),
+      startedAt: job?.startedAt ? String(job.startedAt) : null,
+      finishedAt: job?.finishedAt ? String(job.finishedAt) : null,
+      expiresAt: job?.expiresAt ? String(job.expiresAt) : null,
+      updatedAt: String(job?.updatedAt || new Date().toISOString()),
+    };
+    const list = ensureArray(this.snapshot.adminExportJobs);
+    const index = list.findIndex((item) => String(item?.id || "") === id);
+    if (index >= 0) {
+      list[index] = normalized;
+    } else {
+      list.push(normalized);
+    }
+    this.snapshot.adminExportJobs = list.sort((a, b) => {
+      const aTs = new Date(a.createdAt || 0).getTime();
+      const bTs = new Date(b.createdAt || 0).getTime();
+      return bTs - aTs;
+    });
+    this.enqueuePersist("admin_export_job", async () => {
+      await prisma.adminExportJobRecord.upsert({
+        where: { id },
+        create: {
+          id,
+          dataset: normalized.dataset,
+          format: normalized.format,
+          status: normalized.status,
+          requestedBy: normalized.requestedBy,
+          filters: cloneValue(normalized.filters),
+          filePath: normalized.filePath,
+          rowCount: normalized.rowCount,
+          error: normalized.error,
+          createdAt: toDateOrNull(normalized.createdAt) || new Date(),
+          startedAt: toDateOrNull(normalized.startedAt),
+          finishedAt: toDateOrNull(normalized.finishedAt),
+          expiresAt: toDateOrNull(normalized.expiresAt),
+        },
+        update: {
+          dataset: normalized.dataset,
+          format: normalized.format,
+          status: normalized.status,
+          requestedBy: normalized.requestedBy,
+          filters: cloneValue(normalized.filters),
+          filePath: normalized.filePath,
+          rowCount: normalized.rowCount,
+          error: normalized.error,
+          startedAt: toDateOrNull(normalized.startedAt),
+          finishedAt: toDateOrNull(normalized.finishedAt),
+          expiresAt: toDateOrNull(normalized.expiresAt),
+        },
+      });
+    });
+    return cloneValue(normalized);
+  }
+
+  loadSecretRotations() {
+    return cloneValue(this.snapshot.secretRotations || []);
+  }
+
+  appendSecretRotation(entry) {
+    const normalized = {
+      id: String(entry?.id || crypto.randomUUID()),
+      secretFamily: String(entry?.secretFamily || ""),
+      keyId: String(entry?.keyId || ""),
+      rotatedAt: String(entry?.rotatedAt || new Date().toISOString()),
+      rotatedBy: String(entry?.rotatedBy || "system"),
+      notes: entry?.notes ? String(entry.notes) : "",
+      status: String(entry?.status || "completed"),
+      createdAt: String(entry?.createdAt || new Date().toISOString()),
+    };
+    this.snapshot.secretRotations = [normalized, ...ensureArray(this.snapshot.secretRotations)]
+      .sort((a, b) => new Date(b.rotatedAt || 0).getTime() - new Date(a.rotatedAt || 0).getTime())
+      .slice(0, 1000);
+    this.enqueuePersist("secret_rotation", async () => {
+      await prisma.secretRotationRecord.upsert({
+        where: { id: normalized.id },
+        create: {
+          id: normalized.id,
+          secretFamily: normalized.secretFamily,
+          keyId: normalized.keyId,
+          rotatedAt: toDateOrNull(normalized.rotatedAt) || new Date(),
+          rotatedBy: normalized.rotatedBy,
+          notes: normalized.notes || null,
+          status: normalized.status,
+          createdAt: toDateOrNull(normalized.createdAt) || new Date(),
+        },
+        update: {
+          secretFamily: normalized.secretFamily,
+          keyId: normalized.keyId,
+          rotatedAt: toDateOrNull(normalized.rotatedAt) || new Date(),
+          rotatedBy: normalized.rotatedBy,
+          notes: normalized.notes || null,
+          status: normalized.status,
+        },
+      });
+    });
+    return cloneValue(normalized);
   }
 
   getHealthSnapshot() {

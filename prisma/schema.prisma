@@ -239,6 +239,99 @@ model UserSessionRecord {
   @@map("user_sessions")
 }
 
+model UserMfaTotpRecord {
+  userId              String   @id
+  secretEncrypted     String
+  secretKeyId         String
+  enabledAt           DateTime?
+  disabledAt          DateTime?
+  recoveryCodesHashed Json
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  @@map("user_mfa_totp")
+}
+
+model UserSessionIndexRecord {
+  sid          String   @id @db.VarChar(255)
+  userId       String
+  createdAt    DateTime @default(now())
+  lastSeenAt   DateTime
+  lastIp       String?
+  userAgent    String?
+  revokedAt    DateTime?
+  revokedBy    String?
+  revokeReason String?
+  isPendingMfa Boolean  @default(false)
+
+  @@index([userId], map: "user_session_index_userId_idx")
+  @@index([lastSeenAt], map: "user_session_index_lastSeenAt_idx")
+  @@index([revokedAt], map: "user_session_index_revokedAt_idx")
+  @@map("user_session_index")
+}
+
+model SecurityEventRecord {
+  id           String   @id
+  ts           DateTime @default(now())
+  type         String
+  severity     String
+  riskScore    Int      @default(0)
+  status       String
+  actorUserId  String?
+  targetUserId String?
+  ip           String?
+  userAgent    String?
+  sessionId    String?
+  requestId    String?
+  data         Json
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([ts], map: "security_events_ts_idx")
+  @@index([status], map: "security_events_status_idx")
+  @@index([severity], map: "security_events_severity_idx")
+  @@index([type], map: "security_events_type_idx")
+  @@index([actorUserId], map: "security_events_actorUserId_idx")
+  @@index([targetUserId], map: "security_events_targetUserId_idx")
+  @@map("security_events")
+}
+
+model AdminExportJobRecord {
+  id          String   @id
+  dataset     String
+  format      String
+  status      String
+  requestedBy String
+  filters     Json
+  filePath    String?
+  rowCount    Int?
+  error       String?
+  createdAt   DateTime @default(now())
+  startedAt   DateTime?
+  finishedAt  DateTime?
+  expiresAt   DateTime?
+  updatedAt   DateTime @updatedAt
+
+  @@index([status], map: "admin_export_jobs_status_idx")
+  @@index([createdAt], map: "admin_export_jobs_createdAt_idx")
+  @@index([requestedBy], map: "admin_export_jobs_requestedBy_idx")
+  @@map("admin_export_jobs")
+}
+
+model SecretRotationRecord {
+  id           String   @id
+  secretFamily String
+  keyId        String
+  rotatedAt    DateTime
+  rotatedBy    String
+  notes        String?
+  status       String
+  createdAt    DateTime @default(now())
+
+  @@index([secretFamily, rotatedAt], map: "secret_rotations_family_rotatedAt_idx")
+  @@map("secret_rotations")
+}
+
 model UserPreferenceRecord {
   userId    String   @id
   data      Json

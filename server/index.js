@@ -31,11 +31,22 @@ import {
 import { bulkModeratePendingComments } from "./lib/comments-bulk-moderation.js";
 import { buildCorsOptionsForRequest } from "./lib/cors-policy.js";
 import { createDataRepository } from "./lib/data-repository.js";
+import {
+  ADMIN_EXPORT_DATASETS,
+  filterByDateRange,
+  filterExportEntries,
+  normalizeExportDataset,
+  normalizeExportFilters,
+  normalizeExportFormat,
+  normalizeExportStatus,
+  writeExportFile,
+} from "./lib/admin-exports.js";
 import { buildEditorialCalendarItems } from "./lib/editorial-calendar.js";
 import { createViteDevServer, resolveClientIndexPath } from "./lib/frontend-runtime.js";
 import { buildHealthStatusResponse } from "./lib/health-checks.js";
 import { createIdempotencyFingerprint, createIdempotencyStore } from "./lib/idempotency-store.js";
 import { createJobQueue } from "./lib/job-queue.js";
+import { createMetricsRegistry } from "./lib/metrics.js";
 import {
   buildOperationalAlertsResponse,
   buildOperationalAlertsV1,
@@ -62,10 +73,32 @@ import { createRateLimiter } from "./lib/rate-limiter.js";
 import { importRemoteImageFile } from "./lib/remote-image-import.js";
 import { createResponseCache } from "./lib/response-cache.js";
 import { buildRssXml } from "./lib/rss-xml.js";
+import {
+  decryptStringWithKeyring,
+  encryptStringWithKeyring,
+  parseDataEncryptionKeyring,
+  resolveSessionSecrets,
+} from "./lib/security-crypto.js";
+import {
+  createSecurityEventPayload,
+  createSlidingWindowCounter,
+  getIpv4Network24,
+  normalizeSecurityEventStatus,
+  SecurityEventSeverity,
+  SecurityEventStatus,
+} from "./lib/security-events.js";
 import { applySecurityHeaders, injectNonceIntoHtmlScripts } from "./lib/security-headers.js";
 import { establishAuthenticatedSession } from "./lib/session-auth.js";
 import { buildSessionCookieConfig } from "./lib/session-cookie-config.js";
 import { buildSitemapXml } from "./lib/sitemap-xml.js";
+import {
+  buildOtpAuthUrl,
+  generateRecoveryCodes,
+  generateTotpSecret,
+  hashRecoveryCode,
+  normalizeRecoveryCode,
+  verifyTotpCode,
+} from "./lib/totp.js";
 import { runUploadsReorganization } from "./lib/uploads-reorganizer.js";
 import {
   sanitizeAssetUrl,
@@ -565,6 +598,114 @@ const appendAuditLog = (req, action, resource, meta = {}) => {
   }
 };
 
+const SECURITY_EVENT_MAX_ROWS = 20_000;
+const SECURITY_EVENT_COOLDOWN_MS = 10 * 60 * 1000;
+const securityRuleEventCooldown = new Map();
+
+const shouldEmitSecurityRuleEvent = (ruleKey, actorKey = "") => {
+  const normalizedRule = String(ruleKey || "").trim();
+  if (!normalizedRule) {
+    return false;
+  }
+  const key = `${normalizedRule}:${String(actorKey || "").trim()}`;
+  const nowTs = Date.now();
+  const previousTs = Number(securityRuleEventCooldown.get(key) || 0);
+  if (Number.isFinite(previousTs) && nowTs - previousTs < SECURITY_EVENT_COOLDOWN_MS) {
+    return false;
+  }
+  securityRuleEventCooldown.set(key, nowTs);
+  if (securityRuleEventCooldown.size > 5000) {
+    const cutoff = nowTs - SECURITY_EVENT_COOLDOWN_MS;
+    Array.from(securityRuleEventCooldown.entries()).forEach(([entryKey, value]) => {
+      if (Number(value) < cutoff) {
+        securityRuleEventCooldown.delete(entryKey);
+      }
+    });
+  }
+  return true;
+};
+
+const trimSecurityEvents = (events) => {
+  const safe = Array.isArray(events) ? events : [];
+  if (safe.length <= SECURITY_EVENT_MAX_ROWS) {
+    return safe;
+  }
+  return safe.slice(0, SECURITY_EVENT_MAX_ROWS);
+};
+
+const sanitizeSecurityEventData = (data) => {
+  if (!data || typeof data !== "object" || Array.isArray(data)) {
+    return {};
+  }
+  const output = {};
+  Object.entries(data)
+    .slice(0, 50)
+    .forEach(([key, value]) => {
+      if (value === undefined) {
+        return;
+      }
+      if (value === null) {
+        output[key] = null;
+        return;
+      }
+      if (typeof value === "string") {
+        output[key] = value.slice(0, 1000);
+        return;
+      }
+      if (typeof value === "number" || typeof value === "boolean") {
+        output[key] = value;
+        return;
+      }
+      if (Array.isArray(value)) {
+        output[key] = value.slice(0, 20);
+        return;
+      }
+      if (typeof value === "object") {
+        output[key] = value;
+      }
+    });
+  return output;
+};
+
+const emitSecurityEvent = ({ req, type, severity, riskScore, actorUserId, targetUserId, data } = {}) => {
+  const payload = createSecurityEventPayload({
+    type,
+    severity,
+    riskScore,
+    actorUserId: actorUserId || req?.session?.user?.id || null,
+    targetUserId,
+    ip: getRequestIp(req),
+    userAgent: String(req?.headers?.["user-agent"] || "").slice(0, 512),
+    sessionId: req?.sessionID ? String(req.sessionID) : null,
+    requestId: req?.requestId ? String(req.requestId) : null,
+    status: SecurityEventStatus.OPEN,
+    data: sanitizeSecurityEventData(data),
+  });
+  const saved = upsertSecurityEvent(payload);
+  if (!saved) {
+    return null;
+  }
+  const allEvents = trimSecurityEvents(loadSecurityEvents());
+  if (allEvents.length !== loadSecurityEvents().length && dataRepository?.writeSecurityEvents) {
+    dataRepository.writeSecurityEvents(allEvents);
+  }
+  metricsRegistry.inc("security_events_open_total", {
+    severity: String(saved.severity || "info"),
+    type: String(saved.type || "security_event"),
+  });
+  appendAuditLog(req || createSystemAuditReq(), "security.event.open", "security", {
+    id: saved.id,
+    type: saved.type,
+    severity: saved.severity,
+    riskScore: saved.riskScore,
+    targetUserId: saved.targetUserId || null,
+  });
+  if (String(saved.severity || "").toLowerCase() === SecurityEventSeverity.CRITICAL) {
+    void dispatchCriticalSecurityEventWebhook(saved);
+  }
+  return saved;
+};
+
 const DISCORD_API = "https://discord.com/api/v10";
 const ANILIST_API = "https://graphql.anilist.co";
 const SCOPES = ["identify", "email"];
@@ -579,7 +720,17 @@ const {
   APP_ORIGIN = "",
   ADMIN_ORIGINS = "",
   SESSION_SECRET,
+  SESSION_SECRETS = "",
   SESSION_TABLE = "user_sessions",
+  DATA_ENCRYPTION_KEYS_JSON = "",
+  SECURITY_RECOVERY_CODE_PEPPER = "",
+  MFA_ISSUER = "Nekomata",
+  TOTP_ICON_URL = "",
+  MFA_ENROLLMENT_TTL_MS: MFA_ENROLLMENT_TTL_MS_ENV = "",
+  ADMIN_EXPORTS_DIR = "",
+  ADMIN_EXPORT_TTL_HOURS: ADMIN_EXPORT_TTL_HOURS_ENV = "",
+  METRICS_ENABLED: METRICS_ENABLED_ENV = "false",
+  METRICS_TOKEN = "",
   PORT = 8080,
   OWNER_IDS: OWNER_IDS_ENV = "",
   BOOTSTRAP_TOKEN,
@@ -618,7 +769,14 @@ const isAutoUploadReorganizationOnStartupEnabled = isTruthyEnv(
   false,
 );
 const isOpsAlertsWebhookEnabled = isTruthyEnv(OPS_ALERTS_WEBHOOK_ENABLED_ENV, false);
+const isMetricsEnabled = isTruthyEnv(METRICS_ENABLED_ENV, false);
 const isPwaDevEnabled = VITE_PWA_DEV_ENABLED_ENV === "true";
+const MFA_ENROLLMENT_TTL_MS = Number.isFinite(Number(MFA_ENROLLMENT_TTL_MS_ENV))
+  ? Math.min(Math.max(Math.floor(Number(MFA_ENROLLMENT_TTL_MS_ENV)), 60_000), 24 * 60 * 60 * 1000)
+  : 10 * 60 * 1000;
+const ADMIN_EXPORT_TTL_HOURS = Number.isFinite(Number(ADMIN_EXPORT_TTL_HOURS_ENV))
+  ? Math.min(Math.max(Math.floor(Number(ADMIN_EXPORT_TTL_HOURS_ENV)), 1), 7 * 24)
+  : 24;
 const OWNER_IDS = (OWNER_IDS_ENV || (isProduction ? "" : "380305493391966208"))
   .split(",")
   .map((id) => id.trim())
@@ -639,6 +797,25 @@ const OPS_ALERTS_WEBHOOK_PROVIDER =
     .toLowerCase() || "discord";
 const OPS_ALERTS_WEBHOOK_URL = String(OPS_ALERTS_WEBHOOK_URL_ENV || "").trim();
 const REPO_ROOT_DIR = path.join(__dirname, "..");
+const adminExportsDir = path.resolve(
+  REPO_ROOT_DIR,
+  String(ADMIN_EXPORTS_DIR || "").trim() || path.join("backups", "admin-exports"),
+);
+const sessionSecretList = resolveSessionSecrets({
+  sessionSecretsEnv: SESSION_SECRETS,
+  sessionSecretFallback: SESSION_SECRET,
+});
+const dataEncryptionKeyring = parseDataEncryptionKeyring({
+  dataEncryptionKeysJson: DATA_ENCRYPTION_KEYS_JSON,
+  legacySecret: sessionSecretList[0] || SESSION_SECRET || "",
+});
+const metricsRegistry = createMetricsRegistry({
+  defaultLabels: {
+    service: "nekomorto",
+  },
+});
+const authFailedByIpCounter = createSlidingWindowCounter();
+const mfaFailedByUserCounter = createSlidingWindowCounter();
 if (!String(DATABASE_URL || "").trim()) {
   throw new Error("DATABASE_URL is required");
 }
@@ -652,7 +829,19 @@ const sessionCookieConfig = buildSessionCookieConfig({
   isProduction,
   cookieBaseName: "rainbow.sid",
   sessionSecret: SESSION_SECRET,
+  sessionSecrets: sessionSecretList.join(","),
 });
+const MFA_RECOVERY_CODE_PEPPER = String(SECURITY_RECOVERY_CODE_PEPPER || "").trim();
+const MFA_ICON_URL = String(TOTP_ICON_URL || "").trim();
+const AUTH_FAILED_BURST_WARNING = Object.freeze({ threshold: 8, windowMs: 5 * 60 * 1000 });
+const AUTH_FAILED_BURST_CRITICAL = Object.freeze({ threshold: 20, windowMs: 15 * 60 * 1000 });
+const MFA_FAILED_BURST_WARNING = Object.freeze({ threshold: 5, windowMs: 10 * 60 * 1000 });
+const EXCESSIVE_SESSIONS_WARNING = 7;
+const NEW_NETWORK_LOOKBACK_MS = 30 * 24 * 60 * 60 * 1000;
+const ADMIN_EXPORT_MAX_ROWS = 25_000;
+const METRICS_TOKEN_NORMALIZED = String(METRICS_TOKEN || "").trim();
+const SESSION_INDEX_TOUCH_MIN_INTERVAL_MS = 30 * 1000;
+const sessionIndexTouchTsBySid = new Map();
 
 const AUTO_REORGANIZE_TRIGGER_TO_ACTION = {
   startup: "uploads.auto_reorganize.startup",
@@ -2156,6 +2345,69 @@ app.use((req, res, next) => {
   res.setHeader("X-API-Version", API_CONTRACT_VERSION);
   return next();
 });
+app.use((req, res, next) => {
+  const stopTimer = metricsRegistry.createTimer("http_request_duration_ms", {
+    method: String(req.method || "").toUpperCase(),
+    route: String(req.path || ""),
+  });
+  const startedAt = Date.now();
+  res.on("finish", () => {
+    const durationMs = stopTimer();
+    metricsRegistry.inc("http_requests_total", {
+      method: String(req.method || "").toUpperCase(),
+      route: String(req.path || ""),
+      status: String(res.statusCode || 0),
+    });
+    if (isMetricsEnabled) {
+      const log = {
+        level: res.statusCode >= 500 ? "error" : "info",
+        msg: "http_request",
+        ts: new Date().toISOString(),
+        requestId: req.requestId || null,
+        userId: req.session?.user?.id || req.session?.pendingMfaUser?.id || null,
+        method: String(req.method || "").toUpperCase(),
+        route: String(req.path || ""),
+        statusCode: Number(res.statusCode || 0),
+        durationMs: Math.round(durationMs),
+        ip: getRequestIp(req) || "",
+        ua: String(req.headers["user-agent"] || "").slice(0, 200),
+        bytesIn: Number(req.headers["content-length"] || 0) || 0,
+        bytesOut: Number(res.getHeader("content-length") || 0) || 0,
+        elapsedMs: Date.now() - startedAt,
+      };
+      console.log(JSON.stringify(log));
+    }
+  });
+  return next();
+});
+app.use((req, _res, next) => {
+  updateSessionIndexFromRequest(req);
+  return next();
+});
+const PENDING_MFA_ALLOWED_API_PATHS = new Set([
+  "/api/auth/mfa/verify",
+  "/api/logout",
+  "/api/public/me",
+  "/api/version",
+  "/api/contracts",
+  "/api/contracts/v1",
+  "/api/contracts/v1.json",
+]);
+app.use("/api", (req, res, next) => {
+  const hasPendingMfa = Boolean(req.session?.pendingMfaUser?.id && !req.session?.user?.id);
+  if (!hasPendingMfa) {
+    return next();
+  }
+  const normalizedPath = String(req.path || "").split("?")[0] || "/";
+  if (PENDING_MFA_ALLOWED_API_PATHS.has(normalizedPath)) {
+    return next();
+  }
+  return res.status(401).json({ error: "mfa_required" });
+});
+app.use("/api", (req, _res, next) => {
+  maybeEmitAdminActionFromNewNetwork(req);
+  return next();
+});
 
 const MUTATING_HTTP_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
 app.use((req, res, next) => {
@@ -2412,6 +2664,530 @@ const writeUserPreferences = (userId, preferences) => {
   const normalized = normalizeUserPreferences(preferences);
   dataRepository.writeUserPreferences(normalizedId, normalized);
   return normalized;
+};
+
+const loadUserMfaTotpRecord = (userId) => {
+  const normalizedId = String(userId || "").trim();
+  if (!normalizedId || !dataRepository || typeof dataRepository.loadUserMfaTotpRecord !== "function") {
+    return null;
+  }
+  return dataRepository.loadUserMfaTotpRecord(normalizedId);
+};
+
+const writeUserMfaTotpRecord = (userId, record) => {
+  const normalizedId = String(userId || "").trim();
+  if (
+    !normalizedId ||
+    !dataRepository ||
+    typeof dataRepository.writeUserMfaTotpRecord !== "function"
+  ) {
+    return null;
+  }
+  dataRepository.writeUserMfaTotpRecord(normalizedId, record);
+  return loadUserMfaTotpRecord(normalizedId);
+};
+
+const deleteUserMfaTotpRecord = (userId) => {
+  const normalizedId = String(userId || "").trim();
+  if (
+    !normalizedId ||
+    !dataRepository ||
+    typeof dataRepository.deleteUserMfaTotpRecord !== "function"
+  ) {
+    return;
+  }
+  dataRepository.deleteUserMfaTotpRecord(normalizedId);
+};
+
+const isTotpEnabledForUser = (userId) => {
+  const record = loadUserMfaTotpRecord(userId);
+  return Boolean(record && record.enabledAt && !record.disabledAt && record.secretEncrypted);
+};
+
+const getUserTotpSecret = (userId) => {
+  const record = loadUserMfaTotpRecord(userId);
+  if (!record || !record.secretEncrypted || record.disabledAt) {
+    return null;
+  }
+  const decrypted = decryptStringWithKeyring({
+    keyring: dataEncryptionKeyring,
+    payload: record.secretEncrypted,
+  });
+  if (!decrypted) {
+    return null;
+  }
+  try {
+    const parsed = JSON.parse(decrypted);
+    const secret = String(parsed?.secret || "").trim().toUpperCase();
+    if (!secret) {
+      return null;
+    }
+    return secret;
+  } catch {
+    return null;
+  }
+};
+
+const loadUserSessionIndexRecords = ({ userId = null, includeRevoked = true } = {}) => {
+  if (
+    !dataRepository ||
+    typeof dataRepository.loadUserSessionIndexRecords !== "function"
+  ) {
+    return [];
+  }
+  return dataRepository.loadUserSessionIndexRecords({ userId, includeRevoked });
+};
+
+const upsertUserSessionIndexRecord = (record) => {
+  if (
+    !dataRepository ||
+    typeof dataRepository.upsertUserSessionIndexRecord !== "function"
+  ) {
+    return;
+  }
+  dataRepository.upsertUserSessionIndexRecord(record);
+};
+
+const revokeUserSessionIndexRecord = (sid, options = {}) => {
+  if (
+    !dataRepository ||
+    typeof dataRepository.revokeUserSessionIndexRecord !== "function"
+  ) {
+    return;
+  }
+  dataRepository.revokeUserSessionIndexRecord(sid, options);
+};
+
+const removeUserSessionIndexRecord = (sid) => {
+  if (
+    !dataRepository ||
+    typeof dataRepository.removeUserSessionIndexRecord !== "function"
+  ) {
+    return;
+  }
+  dataRepository.removeUserSessionIndexRecord(sid);
+};
+
+const loadSecurityEvents = () => {
+  if (!dataRepository || typeof dataRepository.loadSecurityEvents !== "function") {
+    return [];
+  }
+  return dataRepository.loadSecurityEvents();
+};
+
+const upsertSecurityEvent = (event) => {
+  if (!dataRepository || typeof dataRepository.upsertSecurityEvent !== "function") {
+    return null;
+  }
+  return dataRepository.upsertSecurityEvent(event);
+};
+
+const loadAdminExportJobs = () => {
+  if (!dataRepository || typeof dataRepository.loadAdminExportJobs !== "function") {
+    return [];
+  }
+  return dataRepository.loadAdminExportJobs();
+};
+
+const upsertAdminExportJob = (job) => {
+  if (!dataRepository || typeof dataRepository.upsertAdminExportJob !== "function") {
+    return null;
+  }
+  return dataRepository.upsertAdminExportJob(job);
+};
+
+const loadSecretRotations = () => {
+  if (!dataRepository || typeof dataRepository.loadSecretRotations !== "function") {
+    return [];
+  }
+  return dataRepository.loadSecretRotations();
+};
+
+const appendSecretRotation = (entry) => {
+  if (!dataRepository || typeof dataRepository.appendSecretRotation !== "function") {
+    return null;
+  }
+  return dataRepository.appendSecretRotation(entry);
+};
+
+const listActiveSessionsForUser = (userId) => {
+  const normalizedUserId = String(userId || "").trim();
+  if (!normalizedUserId) {
+    return [];
+  }
+  return loadUserSessionIndexRecords({ userId: normalizedUserId, includeRevoked: false })
+    .filter((item) => !item.revokedAt)
+    .sort((a, b) => new Date(b.lastSeenAt || 0).getTime() - new Date(a.lastSeenAt || 0).getTime());
+};
+
+const destroySessionBySid = (sid) =>
+  new Promise((resolve) => {
+    try {
+      sessionStore.destroy(String(sid || ""), () => resolve());
+    } catch {
+      resolve();
+    }
+  });
+
+const revokeSessionBySid = async ({ sid, revokedBy = null, revokeReason = "manual_revoke" } = {}) => {
+  const normalizedSid = String(sid || "").trim();
+  if (!normalizedSid) {
+    return false;
+  }
+  await destroySessionBySid(normalizedSid);
+  revokeUserSessionIndexRecord(normalizedSid, {
+    revokedBy: revokedBy ? String(revokedBy) : null,
+    revokeReason: String(revokeReason || "manual_revoke"),
+  });
+  metricsRegistry.inc("active_sessions_total", {}, -1);
+  return true;
+};
+
+const resolveRecoveryCodesRemaining = (record) => {
+  const list = Array.isArray(record?.recoveryCodesHashed) ? record.recoveryCodesHashed : [];
+  return list.filter((item) => typeof item === "string" && item.trim()).length;
+};
+
+const verifyTotpOrRecoveryCode = ({ userId, codeOrRecoveryCode, consumeRecoveryCode = true } = {}) => {
+  const normalizedUserId = String(userId || "").trim();
+  if (!normalizedUserId) {
+    return { ok: false, reason: "invalid_user" };
+  }
+  const code = String(codeOrRecoveryCode || "").trim();
+  if (!code) {
+    return { ok: false, reason: "code_required" };
+  }
+
+  const secret = getUserTotpSecret(normalizedUserId);
+  if (secret && verifyTotpCode({ secret, code })) {
+    return { ok: true, method: "totp", remainingRecoveryCodes: resolveRecoveryCodesRemaining(loadUserMfaTotpRecord(normalizedUserId)) };
+  }
+
+  const record = loadUserMfaTotpRecord(normalizedUserId);
+  if (!record) {
+    return { ok: false, reason: "mfa_not_enabled" };
+  }
+  const hashes = Array.isArray(record.recoveryCodesHashed) ? record.recoveryCodesHashed : [];
+  const targetHash = hashRecoveryCode({ code, pepper: MFA_RECOVERY_CODE_PEPPER });
+  if (!targetHash) {
+    return { ok: false, reason: "invalid_code" };
+  }
+  const index = hashes.findIndex((item) => item === targetHash);
+  if (index < 0) {
+    return { ok: false, reason: "invalid_code" };
+  }
+
+  const remainingHashes = consumeRecoveryCode
+    ? hashes.filter((item, itemIndex) => itemIndex !== index)
+    : hashes;
+  if (consumeRecoveryCode) {
+    writeUserMfaTotpRecord(normalizedUserId, {
+      ...record,
+      recoveryCodesHashed: remainingHashes,
+      updatedAt: new Date().toISOString(),
+    });
+  }
+
+  return {
+    ok: true,
+    method: "recovery_code",
+    remainingRecoveryCodes: remainingHashes.length,
+  };
+};
+
+const toAbsoluteAssetUrl = (value) => {
+  const normalized = sanitizeAssetUrl(value);
+  if (!normalized) {
+    return "";
+  }
+  if (normalized.startsWith("/")) {
+    return `${PRIMARY_APP_ORIGIN}${normalized}`;
+  }
+  return normalized;
+};
+
+const resolveMfaMetadata = ({ req, userId, accountName } = {}) => {
+  const normalizedUserId = String(userId || "").trim();
+  const sessionUser = req?.session?.user || req?.session?.pendingMfaUser || null;
+  const issuer = String(MFA_ISSUER || "Nekomata").trim() || "Nekomata";
+  const accountLabel =
+    String(accountName || sessionUser?.username || sessionUser?.name || normalizedUserId || "user").trim() ||
+    "user";
+  const siteSettings = loadSiteSettings();
+  const iconUrl = toAbsoluteAssetUrl(
+    sessionUser?.avatarUrl || MFA_ICON_URL || siteSettings?.site?.faviconUrl || "",
+  );
+  return {
+    issuer,
+    accountLabel,
+    iconUrl,
+  };
+};
+
+const startTotpEnrollment = ({ req, userId, accountName, issuer, iconUrl } = {}) => {
+  if (!req?.session || !userId) {
+    return null;
+  }
+  const secret = generateTotpSecret();
+  const enrollmentToken = crypto.randomUUID();
+  req.session.mfaEnrollment = {
+    token: enrollmentToken,
+    secret,
+    userId: String(userId),
+    createdAt: Date.now(),
+    accountName: String(accountName || userId),
+    issuer: String(issuer || MFA_ISSUER || "Nekomata"),
+    iconUrl: String(iconUrl || ""),
+  };
+  return {
+    enrollmentToken,
+    secret,
+    otpauthUrl: buildOtpAuthUrl({
+      issuer: String(issuer || MFA_ISSUER || "Nekomata"),
+      accountName: String(accountName || userId),
+      secret,
+      iconUrl: String(iconUrl || ""),
+    }),
+  };
+};
+
+const resolveEnrollmentFromSession = ({ req, enrollmentToken, userId } = {}) => {
+  const stored = req?.session?.mfaEnrollment;
+  if (!stored || typeof stored !== "object") {
+    return null;
+  }
+  if (String(stored.userId || "") !== String(userId || "")) {
+    return null;
+  }
+  if (String(stored.token || "") !== String(enrollmentToken || "")) {
+    return null;
+  }
+  const createdAt = Number(stored.createdAt || 0);
+  if (!Number.isFinite(createdAt) || Date.now() - createdAt > MFA_ENROLLMENT_TTL_MS) {
+    return null;
+  }
+  return stored;
+};
+
+const clearEnrollmentFromSession = (req) => {
+  if (!req?.session) {
+    return;
+  }
+  req.session.mfaEnrollment = null;
+};
+
+const buildMySecuritySummary = ({ req, userId } = {}) => {
+  const record = loadUserMfaTotpRecord(userId);
+  const activeSessions = listActiveSessionsForUser(userId);
+  const metadata = resolveMfaMetadata({ req, userId });
+  return {
+    totpEnabled: Boolean(record && record.enabledAt && !record.disabledAt),
+    recoveryCodesRemaining: resolveRecoveryCodesRemaining(record),
+    activeSessionsCount: activeSessions.length,
+    issuer: metadata.issuer,
+    accountLabel: metadata.accountLabel,
+    iconUrl: metadata.iconUrl,
+  };
+};
+
+const updateSessionIndexFromRequest = (req, { force = false } = {}) => {
+  const sid = String(req?.sessionID || "").trim();
+  const userId = String(req?.session?.user?.id || "").trim();
+  const isPendingMfa = Boolean(req?.session?.pendingMfaUser?.id && !req?.session?.user?.id);
+  if (!sid || (!userId && !isPendingMfa)) {
+    return;
+  }
+  const nowTs = Date.now();
+  const lastTouchTs = Number(sessionIndexTouchTsBySid.get(sid) || 0);
+  if (!force && Number.isFinite(lastTouchTs) && nowTs - lastTouchTs < SESSION_INDEX_TOUCH_MIN_INTERVAL_MS) {
+    return;
+  }
+  sessionIndexTouchTsBySid.set(sid, nowTs);
+  upsertUserSessionIndexRecord({
+    sid,
+    userId: userId || String(req?.session?.pendingMfaUser?.id || ""),
+    createdAt: req?.session?.createdAt || new Date(nowTs).toISOString(),
+    lastSeenAt: new Date(nowTs).toISOString(),
+    lastIp: getRequestIp(req) || "",
+    userAgent: String(req?.headers?.["user-agent"] || "").slice(0, 512),
+    revokedAt: null,
+    revokedBy: null,
+    revokeReason: null,
+    isPendingMfa,
+  });
+};
+
+const maybeEmitNewNetworkLoginEvent = ({ req, userId } = {}) => {
+  const network = getIpv4Network24(getRequestIp(req));
+  if (!network || !userId) {
+    return;
+  }
+  const nowTs = Date.now();
+  const seen = loadUserSessionIndexRecords({ userId, includeRevoked: true }).some((item) => {
+    const ts = new Date(item?.lastSeenAt || 0).getTime();
+    if (!Number.isFinite(ts) || nowTs - ts > NEW_NETWORK_LOOKBACK_MS) {
+      return false;
+    }
+    return getIpv4Network24(item?.lastIp) === network;
+  });
+  if (seen || !shouldEmitSecurityRuleEvent("new_network_login_warning", `${userId}:${network}`)) {
+    return;
+  }
+  emitSecurityEvent({
+    req,
+    type: "new_network_login_warning",
+    severity: SecurityEventSeverity.WARNING,
+    riskScore: 55,
+    actorUserId: userId,
+    targetUserId: userId,
+    data: { network, lookbackDays: 30 },
+  });
+};
+
+const maybeEmitExcessiveSessionsEvent = ({ req, userId } = {}) => {
+  const activeCount = listActiveSessionsForUser(userId).length;
+  if (
+    activeCount <= EXCESSIVE_SESSIONS_WARNING ||
+    !shouldEmitSecurityRuleEvent("excessive_sessions_warning", userId)
+  ) {
+    return;
+  }
+  emitSecurityEvent({
+    req,
+    type: "excessive_sessions_warning",
+    severity: SecurityEventSeverity.WARNING,
+    riskScore: 45,
+    actorUserId: userId,
+    targetUserId: userId,
+    data: {
+      activeSessions: activeCount,
+      threshold: EXCESSIVE_SESSIONS_WARNING,
+    },
+  });
+};
+
+const handleAuthFailureSecuritySignals = ({ req, error = "login_failed" } = {}) => {
+  const ip = getRequestIp(req);
+  if (!ip) {
+    return;
+  }
+  const warningWindowCount = authFailedByIpCounter.record({
+    key: ip,
+    windowMs: AUTH_FAILED_BURST_WARNING.windowMs,
+  }).count;
+  const criticalWindowCount = authFailedByIpCounter.count({
+    key: ip,
+    windowMs: AUTH_FAILED_BURST_CRITICAL.windowMs,
+  });
+
+  if (
+    criticalWindowCount >= AUTH_FAILED_BURST_CRITICAL.threshold &&
+    shouldEmitSecurityRuleEvent("auth_failed_burst_ip_critical", ip)
+  ) {
+    emitSecurityEvent({
+      req,
+      type: "auth_failed_burst_ip_critical",
+      severity: SecurityEventSeverity.CRITICAL,
+      riskScore: 90,
+      data: {
+        ip,
+        attempts: criticalWindowCount,
+        windowMs: AUTH_FAILED_BURST_CRITICAL.windowMs,
+        error: String(error || "login_failed"),
+      },
+    });
+    return;
+  }
+
+  if (
+    warningWindowCount >= AUTH_FAILED_BURST_WARNING.threshold &&
+    shouldEmitSecurityRuleEvent("auth_failed_burst_ip_warning", ip)
+  ) {
+    emitSecurityEvent({
+      req,
+      type: "auth_failed_burst_ip_warning",
+      severity: SecurityEventSeverity.WARNING,
+      riskScore: 65,
+      data: {
+        ip,
+        attempts: warningWindowCount,
+        windowMs: AUTH_FAILED_BURST_WARNING.windowMs,
+        error: String(error || "login_failed"),
+      },
+    });
+  }
+};
+
+const handleMfaFailureSecuritySignals = ({ req, userId, error = "mfa_invalid_code" } = {}) => {
+  const normalizedUserId = String(userId || "").trim();
+  if (!normalizedUserId) {
+    return;
+  }
+  metricsRegistry.inc("auth_mfa_verify_total", { status: "failed" });
+  const count = mfaFailedByUserCounter.record({
+    key: normalizedUserId,
+    windowMs: MFA_FAILED_BURST_WARNING.windowMs,
+  }).count;
+  if (
+    count >= MFA_FAILED_BURST_WARNING.threshold &&
+    shouldEmitSecurityRuleEvent("mfa_failed_burst_user_warning", normalizedUserId)
+  ) {
+    emitSecurityEvent({
+      req,
+      type: "mfa_failed_burst_user_warning",
+      severity: SecurityEventSeverity.WARNING,
+      riskScore: 70,
+      actorUserId: normalizedUserId,
+      targetUserId: normalizedUserId,
+      data: {
+        userId: normalizedUserId,
+        attempts: count,
+        windowMs: MFA_FAILED_BURST_WARNING.windowMs,
+        error: String(error || "mfa_invalid_code"),
+      },
+    });
+  }
+};
+
+const maybeEmitAdminActionFromNewNetwork = (req) => {
+  const userId = String(req?.session?.user?.id || "").trim();
+  if (!userId || !String(req?.path || "").startsWith("/api/admin")) {
+    return;
+  }
+  if (!isAdminUser(req?.session?.user)) {
+    return;
+  }
+  const network = getIpv4Network24(getRequestIp(req));
+  if (!network) {
+    return;
+  }
+  const nowTs = Date.now();
+  const hasKnownNetwork = loadUserSessionIndexRecords({ userId, includeRevoked: true }).some((item) => {
+    const ts = new Date(item?.lastSeenAt || 0).getTime();
+    if (!Number.isFinite(ts) || nowTs - ts > NEW_NETWORK_LOOKBACK_MS) {
+      return false;
+    }
+    return getIpv4Network24(item?.lastIp) === network;
+  });
+  if (
+    hasKnownNetwork ||
+    !shouldEmitSecurityRuleEvent("admin_action_from_new_network_warning", `${userId}:${network}`)
+  ) {
+    return;
+  }
+  emitSecurityEvent({
+    req,
+    type: "admin_action_from_new_network_warning",
+    severity: SecurityEventSeverity.WARNING,
+    riskScore: 72,
+    actorUserId: userId,
+    targetUserId: userId,
+    data: {
+      network,
+      path: String(req.path || ""),
+      method: String(req.method || "").toUpperCase(),
+    },
+  });
 };
 
 const loadAllowedUsers = () => {
@@ -3748,6 +4524,11 @@ const consumeIpRateLimit = async ({ bucket, ip, maxPerWindow, windowMs = 60 * 10
       limit: maxPerWindow,
       windowMs,
     });
+    if (!result?.allowed) {
+      metricsRegistry.inc("rate_limit_reject_total", {
+        bucket: String(bucket || "default"),
+      });
+    }
     return Boolean(result?.allowed);
   } catch {
     return true;
@@ -4855,6 +5636,7 @@ const createDiscordAvatarUrl = (user) => {
 app.get("/auth/discord", async (req, res) => {
   const ip = req.headers["x-forwarded-for"]?.split(",")[0]?.trim() || req.ip;
   if (!(await canAttemptAuth(ip))) {
+    metricsRegistry.inc("auth_login_total", { status: "rate_limited" });
     appendAuditLog(req, "auth.discord.rate_limited", "auth", {});
     return res.status(429).json({ error: "rate_limited" });
   }
@@ -4889,17 +5671,22 @@ app.get("/auth/discord", async (req, res) => {
 app.get("/login", async (req, res) => {
   const ip = req.headers["x-forwarded-for"]?.split(",")[0]?.trim() || req.ip;
   if (!(await canAttemptAuth(ip))) {
+    metricsRegistry.inc("auth_login_total", { status: "rate_limited" });
     appendAuditLog(req, "auth.login.rate_limited", "auth", {});
     return res.redirect(`${PRIMARY_APP_ORIGIN}/login?error=rate_limited`);
   }
   const { code, state } = req.query;
 
   if (!code || typeof code !== "string") {
+    metricsRegistry.inc("auth_login_total", { status: "failed" });
+    handleAuthFailureSecuritySignals({ req, error: "missing_code" });
     appendAuditLog(req, "auth.login.failed", "auth", { error: "missing_code" });
     return res.redirect(`${PRIMARY_APP_ORIGIN}/login?error=missing_code`);
   }
 
   if (!state || typeof state !== "string" || state !== req.session?.oauthState) {
+    metricsRegistry.inc("auth_login_total", { status: "failed" });
+    handleAuthFailureSecuritySignals({ req, error: "state_mismatch" });
     appendAuditLog(req, "auth.login.failed", "auth", { error: "state_mismatch" });
     return res.redirect(`${PRIMARY_APP_ORIGIN}/login?error=state_mismatch`);
   }
@@ -4930,6 +5717,8 @@ app.get("/login", async (req, res) => {
     });
 
     if (!tokenResponse.ok) {
+      metricsRegistry.inc("auth_login_total", { status: "failed" });
+      handleAuthFailureSecuritySignals({ req, error: "token_exchange_failed" });
       appendAuditLog(req, "auth.login.failed", "auth", { error: "token_exchange_failed" });
       return res.redirect(`${PRIMARY_APP_ORIGIN}/login?error=token_exchange_failed`);
     }
@@ -4943,6 +5732,8 @@ app.get("/login", async (req, res) => {
     });
 
     if (!userResponse.ok) {
+      metricsRegistry.inc("auth_login_total", { status: "failed" });
+      handleAuthFailureSecuritySignals({ req, error: "user_fetch_failed" });
       appendAuditLog(req, "auth.login.failed", "auth", { error: "user_fetch_failed" });
       return res.redirect(`${PRIMARY_APP_ORIGIN}/login?error=user_fetch_failed`);
     }
@@ -4955,6 +5746,8 @@ app.get("/login", async (req, res) => {
       if (req.session) {
         req.session.destroy(() => undefined);
       }
+      metricsRegistry.inc("auth_login_total", { status: "failed" });
+      handleAuthFailureSecuritySignals({ req, error: "unauthorized" });
       appendAuditLog(req, "auth.login.failed", "auth", { error: "unauthorized" });
       return res.redirect(`${PRIMARY_APP_ORIGIN}/login?error=unauthorized`);
     }
@@ -4967,27 +5760,116 @@ app.get("/login", async (req, res) => {
       email: discordUser.email || null,
       avatarUrl: createDiscordAvatarUrl(discordUser),
     };
+    ensureOwnerUser(authenticatedUser);
+    const requiresMfa = isTotpEnabledForUser(authenticatedUser.id);
     try {
       await establishAuthenticatedSession({
         req,
         user: authenticatedUser,
       });
     } catch {
+      metricsRegistry.inc("auth_login_total", { status: "failed" });
+      handleAuthFailureSecuritySignals({ req, error: "session_regenerate_failed" });
       appendAuditLog(req, "auth.login.failed", "auth", { error: "session_regenerate_failed" });
       return res.redirect(`${PRIMARY_APP_ORIGIN}/login?error=server_error`);
     }
     if (req.session) {
       req.session.oauthState = null;
       req.session.discordRedirectUri = null;
-      req.session.loginNext = null;
+      req.session.loginNext = next || null;
     }
-    ensureOwnerUser(authenticatedUser);
+
+    if (requiresMfa && req.session) {
+      req.session.pendingMfaUser = authenticatedUser;
+      req.session.user = null;
+      req.session.mfaVerifiedAt = null;
+      updateSessionIndexFromRequest(req, { force: true });
+      appendAuditLog(req, "auth.login.mfa_required", "auth", { userId: discordUser.id });
+      metricsRegistry.inc("auth_login_total", { status: "mfa_required" });
+      return res.redirect(
+        `${PRIMARY_APP_ORIGIN}/login?mfa=required${next ? `&next=${encodeURIComponent(next)}` : ""}`,
+      );
+    }
+
+    if (req.session) {
+      req.session.loginNext = null;
+      req.session.mfaVerifiedAt = new Date().toISOString();
+    }
+    updateSessionIndexFromRequest(req, { force: true });
+    maybeEmitNewNetworkLoginEvent({ req, userId: authenticatedUser.id });
+    maybeEmitExcessiveSessionsEvent({ req, userId: authenticatedUser.id });
     appendAuditLog(req, "auth.login.success", "auth", { userId: discordUser.id });
+    metricsRegistry.inc("auth_login_total", { status: "success" });
     return res.redirect(next ? `${PRIMARY_APP_ORIGIN}${next}` : `${PRIMARY_APP_ORIGIN}/dashboard`);
   } catch {
+    metricsRegistry.inc("auth_login_total", { status: "failed" });
+    handleAuthFailureSecuritySignals({ req, error: "server_error" });
     appendAuditLog(req, "auth.login.failed", "auth", { error: "server_error" });
     return res.redirect(`${PRIMARY_APP_ORIGIN}/login?error=server_error`);
   }
+});
+app.post("/api/auth/mfa/verify", async (req, res) => {
+  res.setHeader("Cache-Control", "no-store");
+  const pendingUser = req.session?.pendingMfaUser || null;
+  if (!pendingUser?.id) {
+    return res.status(401).json({ error: "mfa_not_pending" });
+  }
+
+  const codeOrRecoveryCode =
+    String(req.body?.codeOrRecoveryCode || req.body?.code || "")
+      .trim();
+  if (!codeOrRecoveryCode) {
+    return res.status(400).json({ error: "code_required" });
+  }
+
+  const verification = verifyTotpOrRecoveryCode({
+    userId: pendingUser.id,
+    codeOrRecoveryCode,
+    consumeRecoveryCode: true,
+  });
+  if (!verification.ok) {
+    handleMfaFailureSecuritySignals({
+      req,
+      userId: pendingUser.id,
+      error: verification.reason || "invalid_code",
+    });
+    appendAuditLog(req, "auth.mfa.failed", "auth", {
+      userId: pendingUser.id,
+      error: verification.reason || "invalid_code",
+    });
+    return res.status(401).json({ error: "invalid_mfa_code" });
+  }
+
+  const next = String(req.session?.loginNext || "").trim();
+  try {
+    await establishAuthenticatedSession({
+      req,
+      user: pendingUser,
+      preserved: {
+        loginNext: null,
+        mfaVerifiedAt: new Date().toISOString(),
+      },
+    });
+  } catch {
+    return res.status(500).json({ error: "session_regenerate_failed" });
+  }
+  if (req.session) {
+    req.session.pendingMfaUser = null;
+  }
+  updateSessionIndexFromRequest(req, { force: true });
+  maybeEmitNewNetworkLoginEvent({ req, userId: pendingUser.id });
+  maybeEmitExcessiveSessionsEvent({ req, userId: pendingUser.id });
+  metricsRegistry.inc("auth_mfa_verify_total", { status: "success" });
+  appendAuditLog(req, "auth.mfa.success", "auth", {
+    userId: pendingUser.id,
+    method: verification.method,
+  });
+  return res.json({
+    ok: true,
+    method: verification.method,
+    recoveryCodesRemaining: verification.remainingRecoveryCodes ?? 0,
+    redirect: next ? `${PRIMARY_APP_ORIGIN}${next}` : `${PRIMARY_APP_ORIGIN}/dashboard`,
+  });
 });
 
 const buildUserPayload = (sessionUser) => {
@@ -5029,6 +5911,18 @@ const buildUserPayload = (sessionUser) => {
 app.get("/api/me", (req, res) => {
   res.setHeader("Cache-Control", "no-store");
   if (!req.session?.user) {
+    if (req.session?.pendingMfaUser?.id) {
+      return res.status(401).json({
+        error: "mfa_required",
+        pendingMfa: true,
+        user: {
+          id: req.session.pendingMfaUser.id,
+          name: req.session.pendingMfaUser.name || "",
+          username: req.session.pendingMfaUser.username || "",
+          avatarUrl: req.session.pendingMfaUser.avatarUrl || null,
+        },
+      });
+    }
     return res.status(401).json({ error: "unauthorized" });
   }
 
@@ -5038,7 +5932,10 @@ app.get("/api/me", (req, res) => {
 app.get("/api/public/me", (req, res) => {
   res.setHeader("Cache-Control", "no-store");
   if (!req.session?.user) {
-    return res.json({ user: null });
+    return res.json({
+      user: null,
+      pendingMfa: Boolean(req.session?.pendingMfaUser?.id),
+    });
   }
 
   return res.json({ user: buildUserPayload(req.session.user) });
@@ -5275,6 +6172,31 @@ app.get("/api/health", async (_req, res) => {
   const statusCode = snapshot.health.status === "fail" ? 503 : 200;
   return res.status(statusCode).json(snapshot.health);
 });
+app.get("/api/metrics", (req, res) => {
+  if (!isMetricsEnabled || !METRICS_TOKEN_NORMALIZED) {
+    return res.status(404).json({ error: "not_found" });
+  }
+  const authHeader = String(req.headers.authorization || "").trim();
+  const tokenFromHeader = authHeader.toLowerCase().startsWith("bearer ")
+    ? authHeader.slice("bearer ".length).trim()
+    : "";
+  const token = tokenFromHeader || String(req.headers["x-metrics-token"] || "").trim();
+  if (!token || token !== METRICS_TOKEN_NORMALIZED) {
+    return res.status(401).json({ error: "unauthorized" });
+  }
+  const activeSessionsCount = loadUserSessionIndexRecords({ includeRevoked: false }).filter(
+    (entry) => !entry.revokedAt,
+  ).length;
+  metricsRegistry.setGauge("active_sessions_total", {}, activeSessionsCount);
+  const openSecurityEvents = loadSecurityEvents().filter(
+    (entry) => String(entry.status || "").toLowerCase() === SecurityEventStatus.OPEN,
+  ).length;
+  metricsRegistry.setGauge("security_events_open_current", {}, openSecurityEvents);
+
+  res.setHeader("Cache-Control", "no-store");
+  res.setHeader("Content-Type", "text/plain; version=0.0.4; charset=utf-8");
+  return res.status(200).send(metricsRegistry.renderPrometheus());
+});
 
 const operationalAlertsWebhookState = {
   previousAlerts: [],
@@ -5286,6 +6208,65 @@ const analyticsCompactionState = {
 };
 
 const buildOperationalDashboardUrl = () => `${PRIMARY_APP_ORIGIN}/dashboard`;
+
+const dispatchCriticalSecurityEventWebhook = async (event) => {
+  if (!event || !isOpsAlertsWebhookEnabled || !OPS_ALERTS_WEBHOOK_URL) {
+    return { ok: false, status: "skipped", code: "disabled" };
+  }
+  if (OPS_ALERTS_WEBHOOK_PROVIDER !== "discord") {
+    return { ok: false, status: "skipped", code: "unsupported_provider" };
+  }
+  const title = `Evento crítico de segurança: ${String(event.type || "security_event")}`;
+  const description = [
+    `Status: ${String(event.status || "open")}`,
+    `Risco: ${Number(event.riskScore || 0)}`,
+    event.actorUserId ? `Ator: ${event.actorUserId}` : "",
+    event.targetUserId ? `Alvo: ${event.targetUserId}` : "",
+    event.ip ? `IP: ${event.ip}` : "",
+  ]
+    .filter(Boolean)
+    .join("\n");
+  const payload = {
+    content: "Alerta crítico de segurança detectado.",
+    embeds: [
+      {
+        title,
+        description: description || "Sem detalhes adicionais.",
+        color: 0xff4d4f,
+        timestamp: new Date(event.ts || Date.now()).toISOString(),
+        fields: [
+          {
+            name: "Dashboard",
+            value: buildOperationalDashboardUrl(),
+            inline: false,
+          },
+          {
+            name: "Event ID",
+            value: String(event.id || "unknown"),
+            inline: false,
+          },
+        ],
+      },
+    ],
+    allowed_mentions: { parse: [] },
+  };
+  const result = await dispatchWebhookMessage({
+    provider: "discord",
+    webhookUrl: OPS_ALERTS_WEBHOOK_URL,
+    message: payload,
+    timeoutMs: OPS_ALERTS_WEBHOOK_TIMEOUT_MS,
+    retries: 1,
+  });
+  appendAuditLog(createSystemAuditReq(), "security.webhook.dispatch", "security", {
+    id: event.id,
+    type: event.type,
+    severity: event.severity,
+    status: result.ok ? "success" : "failed",
+    code: result.code || null,
+    statusCode: result.statusCode || null,
+  });
+  return result;
+};
 
 const dispatchOperationalAlertsWebhookTransition = async ({ transition, generatedAt }) => {
   if (!transition?.hasChanges) {
@@ -5434,6 +6415,191 @@ app.put("/api/me/preferences", requireAuth, (req, res) => {
   appendAuditLog(req, "users.preferences.update", "users", { userId });
   return res.json({ ok: true, preferences: saved });
 });
+app.get("/api/me/security", requireAuth, (req, res) => {
+  res.setHeader("Cache-Control", "no-store");
+  const userId = String(req.session?.user?.id || "").trim();
+  if (!userId) {
+    return res.status(401).json({ error: "unauthorized" });
+  }
+  return res.json(buildMySecuritySummary({ req, userId }));
+});
+app.post("/api/me/security/totp/enroll/start", requireAuth, (req, res) => {
+  res.setHeader("Cache-Control", "no-store");
+  const userId = String(req.session?.user?.id || "").trim();
+  if (!userId) {
+    return res.status(401).json({ error: "unauthorized" });
+  }
+  if (isTotpEnabledForUser(userId)) {
+    return res.status(409).json({ error: "totp_already_enabled" });
+  }
+  const metadata = resolveMfaMetadata({
+    req,
+    userId,
+    accountName: req.session?.user?.username || req.session?.user?.name || userId,
+  });
+  const enrollment = startTotpEnrollment({
+    req,
+    userId,
+    accountName: metadata.accountLabel,
+    issuer: metadata.issuer,
+    iconUrl: metadata.iconUrl,
+  });
+  if (!enrollment) {
+    return res.status(500).json({ error: "enrollment_unavailable" });
+  }
+  appendAuditLog(req, "auth.mfa.enroll.start", "auth", { userId });
+  return res.json({
+    enrollmentToken: enrollment.enrollmentToken,
+    otpauthUrl: enrollment.otpauthUrl,
+    manualSecret: enrollment.secret,
+    issuer: metadata.issuer,
+    accountLabel: metadata.accountLabel,
+    iconUrl: metadata.iconUrl,
+  });
+});
+app.post("/api/me/security/totp/enroll/confirm", requireAuth, (req, res) => {
+  res.setHeader("Cache-Control", "no-store");
+  const userId = String(req.session?.user?.id || "").trim();
+  if (!userId) {
+    return res.status(401).json({ error: "unauthorized" });
+  }
+  const enrollmentToken = String(req.body?.enrollmentToken || "").trim();
+  const code = String(req.body?.code || "").trim();
+  if (!enrollmentToken || !code) {
+    return res.status(400).json({ error: "enrollment_token_and_code_required" });
+  }
+  const enrollment = resolveEnrollmentFromSession({ req, enrollmentToken, userId });
+  if (!enrollment) {
+    return res.status(400).json({ error: "invalid_or_expired_enrollment" });
+  }
+  if (!verifyTotpCode({ secret: enrollment.secret, code })) {
+    handleMfaFailureSecuritySignals({
+      req,
+      userId,
+      error: "enroll_confirm_invalid_code",
+    });
+    return res.status(401).json({ error: "invalid_totp_code" });
+  }
+  const recoveryCodes = generateRecoveryCodes({ count: 8 });
+  const recoveryCodesHashed = recoveryCodes.map((entry) =>
+    hashRecoveryCode({ code: entry, pepper: MFA_RECOVERY_CODE_PEPPER }),
+  );
+  const encryptedSecret = encryptStringWithKeyring({
+    keyring: dataEncryptionKeyring,
+    plaintext: JSON.stringify({ secret: enrollment.secret }),
+  });
+  writeUserMfaTotpRecord(userId, {
+    userId,
+    secretEncrypted: encryptedSecret,
+    secretKeyId: dataEncryptionKeyring.activeKeyId,
+    enabledAt: new Date().toISOString(),
+    disabledAt: null,
+    recoveryCodesHashed,
+  });
+  clearEnrollmentFromSession(req);
+  appendAuditLog(req, "auth.mfa.enroll.success", "auth", { userId });
+  metricsRegistry.inc("auth_mfa_verify_total", { status: "configured" });
+  return res.json({
+    ok: true,
+    recoveryCodes,
+    recoveryCodesRemaining: recoveryCodes.length,
+  });
+});
+app.post("/api/me/security/totp/disable", requireAuth, (req, res) => {
+  res.setHeader("Cache-Control", "no-store");
+  const userId = String(req.session?.user?.id || "").trim();
+  if (!userId) {
+    return res.status(401).json({ error: "unauthorized" });
+  }
+  if (!isTotpEnabledForUser(userId)) {
+    return res.status(409).json({ error: "totp_not_enabled" });
+  }
+  const codeOrRecoveryCode = String(req.body?.codeOrRecoveryCode || req.body?.code || "").trim();
+  const verification = verifyTotpOrRecoveryCode({
+    userId,
+    codeOrRecoveryCode,
+    consumeRecoveryCode: true,
+  });
+  if (!verification.ok) {
+    handleMfaFailureSecuritySignals({
+      req,
+      userId,
+      error: verification.reason || "disable_invalid_code",
+    });
+    return res.status(401).json({ error: "invalid_mfa_code" });
+  }
+  deleteUserMfaTotpRecord(userId);
+  clearEnrollmentFromSession(req);
+  appendAuditLog(req, "auth.mfa.disable", "auth", { userId, method: verification.method });
+  return res.json({ ok: true });
+});
+app.get("/api/me/sessions", requireAuth, (req, res) => {
+  res.setHeader("Cache-Control", "no-store");
+  const userId = String(req.session?.user?.id || "").trim();
+  if (!userId) {
+    return res.status(401).json({ error: "unauthorized" });
+  }
+  const currentSid = String(req.sessionID || "");
+  const sessions = listActiveSessionsForUser(userId).map((entry) => ({
+    sid: entry.sid,
+    createdAt: entry.createdAt || null,
+    lastSeenAt: entry.lastSeenAt || null,
+    lastIp: entry.lastIp || "",
+    userAgent: entry.userAgent || "",
+    current: String(entry.sid || "") === currentSid,
+    isCurrent: String(entry.sid || "") === currentSid,
+    revokedAt: entry.revokedAt || null,
+    isPendingMfa: Boolean(entry.isPendingMfa),
+  }));
+  metricsRegistry.setGauge("active_sessions_total", {}, sessions.length);
+  return res.json({ sessions });
+});
+app.delete("/api/me/sessions/others", requireAuth, async (req, res) => {
+  res.setHeader("Cache-Control", "no-store");
+  const userId = String(req.session?.user?.id || "").trim();
+  const currentSid = String(req.sessionID || "");
+  const sessions = listActiveSessionsForUser(userId).filter((entry) => String(entry.sid || "") !== currentSid);
+  await Promise.all(
+    sessions.map((entry) =>
+      revokeSessionBySid({
+        sid: entry.sid,
+        revokedBy: userId,
+        revokeReason: "self_revoke_others",
+      }),
+    ),
+  );
+  appendAuditLog(req, "auth.sessions.revoke_others", "auth", {
+    userId,
+    count: sessions.length,
+  });
+  return res.json({ ok: true, revokedCount: sessions.length });
+});
+app.delete("/api/me/sessions/:sid", requireAuth, async (req, res) => {
+  res.setHeader("Cache-Control", "no-store");
+  const userId = String(req.session?.user?.id || "").trim();
+  const targetSid = String(req.params.sid || "").trim();
+  const currentSid = String(req.sessionID || "");
+  if (!targetSid) {
+    return res.status(400).json({ error: "invalid_sid" });
+  }
+  if (targetSid === currentSid) {
+    return res.status(400).json({ error: "cannot_revoke_current_session" });
+  }
+  const target = listActiveSessionsForUser(userId).find((entry) => String(entry.sid || "") === targetSid);
+  if (!target) {
+    return res.status(404).json({ error: "session_not_found" });
+  }
+  await revokeSessionBySid({
+    sid: targetSid,
+    revokedBy: userId,
+    revokeReason: "self_revoke_single",
+  });
+  appendAuditLog(req, "auth.sessions.revoke_single", "auth", {
+    userId,
+    sid: targetSid,
+  });
+  return res.json({ ok: true });
+});
 
 app.get("/api/audit-log", requireAuth, (req, res) => {
   res.setHeader("Cache-Control", "no-store");
@@ -5569,6 +6735,712 @@ app.get("/api/audit-log", requireAuth, (req, res) => {
       dateTo: dateToRaw,
     },
   });
+});
+const canManageSecurityAdmin = (userId) => {
+  if (!userId) {
+    return false;
+  }
+  return canViewAuditLog(userId) || canManageUsersAccess(userId) || isPrimaryOwner(userId);
+};
+
+const toSecurityEventApiResponse = (event) => ({
+  id: event.id,
+  ts: event.ts,
+  type: event.type,
+  severity: event.severity,
+  riskScore: Number(event.riskScore || 0),
+  status: event.status,
+  actorUserId: event.actorUserId || null,
+  targetUserId: event.targetUserId || null,
+  ip: event.ip || "",
+  userAgent: event.userAgent || "",
+  sessionId: event.sessionId || null,
+  requestId: event.requestId || null,
+  data: event.data || {},
+});
+
+const findSecurityEventById = (id) =>
+  loadSecurityEvents().find((entry) => String(entry?.id || "") === String(id || "")) || null;
+
+const updateSecurityEventStatus = ({ eventId, status, actorUserId } = {}) => {
+  const existing = findSecurityEventById(eventId);
+  if (!existing) {
+    return null;
+  }
+  const normalizedStatus = normalizeSecurityEventStatus(status);
+  const updated = upsertSecurityEvent({
+    ...existing,
+    status: normalizedStatus,
+    updatedAt: new Date().toISOString(),
+    data: {
+      ...(existing.data && typeof existing.data === "object" ? existing.data : {}),
+      statusUpdatedAt: new Date().toISOString(),
+      statusUpdatedBy: actorUserId ? String(actorUserId) : "system",
+    },
+  });
+  return updated;
+};
+
+const EXPORT_HEADERS_BY_DATASET = Object.freeze({
+  audit_log: [
+    "id",
+    "ts",
+    "actorId",
+    "actorName",
+    "action",
+    "resource",
+    "resourceId",
+    "status",
+    "ip",
+    "requestId",
+    "meta",
+  ],
+  security_events: [
+    "id",
+    "ts",
+    "type",
+    "severity",
+    "riskScore",
+    "status",
+    "actorUserId",
+    "targetUserId",
+    "ip",
+    "userAgent",
+    "requestId",
+    "data",
+  ],
+  users: [
+    "id",
+    "name",
+    "status",
+    "accessRole",
+    "permissions",
+    "roles",
+    "isOwner",
+    "updatedAt",
+  ],
+  sessions: [
+    "sid",
+    "userId",
+    "createdAt",
+    "lastSeenAt",
+    "lastIp",
+    "userAgent",
+    "revokedAt",
+    "revokedBy",
+    "revokeReason",
+    "isPendingMfa",
+  ],
+});
+
+const buildExportRowsByDataset = ({ dataset, filters }) => {
+  const normalizedDataset = normalizeExportDataset(dataset);
+  const normalizedFilters = normalizeExportFilters(filters);
+
+  if (normalizedDataset === "audit_log") {
+    let rows = loadAuditLog().map((entry) => normalizeAuditEntry(entry));
+    rows = filterByDateRange(rows, {
+      dateFrom: normalizedFilters.dateFrom,
+      dateTo: normalizedFilters.dateTo,
+      tsAccessor: (entry) => entry.ts,
+    });
+    rows = filterExportEntries(rows, normalizedFilters, {
+      fieldAccessors: {
+        actorUserId: (entry) => entry.actorId,
+        targetUserId: (entry) => entry.resourceId,
+        action: (entry) => entry.action,
+        resource: (entry) => entry.resource,
+        status: (entry) => entry.status,
+      },
+    });
+    const mapped = rows.slice(0, ADMIN_EXPORT_MAX_ROWS).map((entry) => ({
+      id: entry.id,
+      ts: entry.ts,
+      actorId: entry.actorId,
+      actorName: entry.actorName,
+      action: entry.action,
+      resource: entry.resource,
+      resourceId: entry.resourceId || "",
+      status: entry.status,
+      ip: entry.ip || "",
+      requestId: entry.requestId || "",
+      meta: entry.meta || {},
+    }));
+    return {
+      headers: EXPORT_HEADERS_BY_DATASET.audit_log,
+      rows: mapped,
+      truncated: rows.length > mapped.length,
+    };
+  }
+
+  if (normalizedDataset === "security_events") {
+    let rows = loadSecurityEvents();
+    rows = filterByDateRange(rows, {
+      dateFrom: normalizedFilters.dateFrom,
+      dateTo: normalizedFilters.dateTo,
+      tsAccessor: (entry) => entry.ts,
+    });
+    rows = filterExportEntries(rows, normalizedFilters, {
+      fieldAccessors: {
+        actorUserId: (entry) => entry.actorUserId,
+        targetUserId: (entry) => entry.targetUserId,
+        action: (entry) => entry.type,
+        severity: (entry) => entry.severity,
+        status: (entry) => entry.status,
+      },
+    });
+    const mapped = rows.slice(0, ADMIN_EXPORT_MAX_ROWS).map((entry) => ({
+      id: entry.id,
+      ts: entry.ts,
+      type: entry.type,
+      severity: entry.severity,
+      riskScore: Number(entry.riskScore || 0),
+      status: entry.status,
+      actorUserId: entry.actorUserId || "",
+      targetUserId: entry.targetUserId || "",
+      ip: entry.ip || "",
+      userAgent: entry.userAgent || "",
+      requestId: entry.requestId || "",
+      data: entry.data || {},
+    }));
+    return {
+      headers: EXPORT_HEADERS_BY_DATASET.security_events,
+      rows: mapped,
+      truncated: rows.length > mapped.length,
+    };
+  }
+
+  if (normalizedDataset === "users") {
+    const ownerIds = new Set(loadOwnerIds().map((entry) => String(entry)));
+    let rows = normalizeUsers(loadUsers()).map((entry) => ({
+      id: entry.id,
+      name: entry.name || "",
+      status: entry.status || "active",
+      accessRole: entry.accessRole || AccessRole.NORMAL,
+      permissions: Array.isArray(entry.permissions) ? entry.permissions : [],
+      roles: Array.isArray(entry.roles) ? entry.roles : [],
+      isOwner: ownerIds.has(String(entry.id)),
+      updatedAt: entry.updatedAt || "",
+    }));
+    rows = filterExportEntries(rows, normalizedFilters, {
+      fieldAccessors: {
+        actorUserId: (entry) => entry.id,
+        targetUserId: (entry) => entry.id,
+        status: (entry) => entry.status,
+      },
+    });
+    const mapped = rows.slice(0, ADMIN_EXPORT_MAX_ROWS);
+    return {
+      headers: EXPORT_HEADERS_BY_DATASET.users,
+      rows: mapped,
+      truncated: rows.length > mapped.length,
+    };
+  }
+
+  let sessionRows = loadUserSessionIndexRecords({ includeRevoked: true });
+  sessionRows = filterByDateRange(sessionRows, {
+    dateFrom: normalizedFilters.dateFrom,
+    dateTo: normalizedFilters.dateTo,
+    tsAccessor: (entry) => entry.lastSeenAt || entry.createdAt,
+  });
+  sessionRows = filterExportEntries(sessionRows, normalizedFilters, {
+    fieldAccessors: {
+      actorUserId: (entry) => entry.userId,
+      targetUserId: (entry) => entry.userId,
+      status: (entry) => (entry.revokedAt ? "revoked" : "active"),
+    },
+  });
+  const mapped = sessionRows.slice(0, ADMIN_EXPORT_MAX_ROWS).map((entry) => ({
+    sid: entry.sid,
+    userId: entry.userId,
+    createdAt: entry.createdAt || null,
+    lastSeenAt: entry.lastSeenAt || null,
+    lastIp: entry.lastIp || "",
+    userAgent: entry.userAgent || "",
+    revokedAt: entry.revokedAt || null,
+    revokedBy: entry.revokedBy || null,
+    revokeReason: entry.revokeReason || null,
+    isPendingMfa: Boolean(entry.isPendingMfa),
+  }));
+  return {
+    headers: EXPORT_HEADERS_BY_DATASET.sessions,
+    rows: mapped,
+    truncated: sessionRows.length > mapped.length,
+  };
+};
+
+const toAdminExportJobApiResponse = (job) => ({
+  id: job.id,
+  dataset: job.dataset,
+  format: job.format,
+  status: normalizeExportStatus(job.status),
+  requestedBy: job.requestedBy,
+  filters: job.filters || {},
+  rowCount: Number.isFinite(Number(job.rowCount)) ? Number(job.rowCount) : null,
+  error: job.error || null,
+  createdAt: job.createdAt || null,
+  startedAt: job.startedAt || null,
+  finishedAt: job.finishedAt || null,
+  expiresAt: job.expiresAt || null,
+  hasFile: Boolean(job.filePath),
+});
+
+const runAdminExportJob = async (jobId) => {
+  const current = loadAdminExportJobs().find((entry) => String(entry?.id || "") === String(jobId || ""));
+  if (!current) {
+    return null;
+  }
+  const nowIso = new Date().toISOString();
+  let processing = upsertAdminExportJob({
+    ...current,
+    status: "processing",
+    startedAt: nowIso,
+    finishedAt: null,
+    error: null,
+  });
+  try {
+    const payload = buildExportRowsByDataset({
+      dataset: processing.dataset,
+      filters: processing.filters,
+    });
+    const filePath = writeExportFile({
+      exportsDir: adminExportsDir,
+      fileName: `${processing.dataset}-${processing.id}`,
+      format: processing.format,
+      headers: payload.headers,
+      rows: payload.rows,
+    });
+    const finishedAt = new Date();
+    processing = upsertAdminExportJob({
+      ...processing,
+      status: "completed",
+      filePath,
+      rowCount: payload.rows.length,
+      finishedAt: finishedAt.toISOString(),
+      expiresAt: new Date(finishedAt.getTime() + ADMIN_EXPORT_TTL_HOURS * 60 * 60 * 1000).toISOString(),
+      error: payload.truncated ? "truncated_max_rows" : null,
+    });
+    appendAuditLog(createSystemAuditReq(), "admin.exports.completed", "exports", {
+      id: processing.id,
+      dataset: processing.dataset,
+      rowCount: payload.rows.length,
+    });
+    metricsRegistry.inc("export_jobs_total", {
+      status: "completed",
+      dataset: String(processing.dataset || "unknown"),
+    });
+    return processing;
+  } catch (error) {
+    const failed = upsertAdminExportJob({
+      ...processing,
+      status: "failed",
+      finishedAt: new Date().toISOString(),
+      error: String(error?.message || error || "export_failed"),
+    });
+    appendAuditLog(createSystemAuditReq(), "admin.exports.failed", "exports", {
+      id: current.id,
+      dataset: current.dataset,
+      error: String(error?.message || error || "export_failed"),
+    });
+    metricsRegistry.inc("export_jobs_total", {
+      status: "failed",
+      dataset: String(current.dataset || "unknown"),
+    });
+    return failed;
+  }
+};
+
+const enqueueAdminExportJob = (jobId) =>
+  backgroundJobQueue.enqueue({
+    type: "admin.export",
+    payload: { jobId },
+    run: async () => runAdminExportJob(jobId),
+  });
+
+app.get("/api/admin/security/events", requireAuth, (req, res) => {
+  if (!canManageSecurityAdmin(req.session?.user?.id)) {
+    return res.status(403).json({ error: "forbidden" });
+  }
+  const pageRaw = Number(req.query.page);
+  const limitRaw = Number(req.query.limit);
+  const page = Number.isFinite(pageRaw) && pageRaw > 0 ? Math.floor(pageRaw) : 1;
+  const limit =
+    Number.isFinite(limitRaw) && limitRaw > 0
+      ? Math.min(Math.max(Math.floor(limitRaw), 10), 200)
+      : 50;
+  const filters = normalizeExportFilters(req.query);
+  let rows = loadSecurityEvents();
+  rows = filterByDateRange(rows, {
+    dateFrom: filters.dateFrom,
+    dateTo: filters.dateTo,
+    tsAccessor: (entry) => entry.ts,
+  });
+  rows = filterExportEntries(rows, filters, {
+    fieldAccessors: {
+      actorUserId: (entry) => entry.actorUserId,
+      targetUserId: (entry) => entry.targetUserId,
+      severity: (entry) => entry.severity,
+      status: (entry) => entry.status,
+      action: (entry) => entry.type,
+    },
+  });
+  rows.sort((a, b) => new Date(b.ts || 0).getTime() - new Date(a.ts || 0).getTime());
+  const total = rows.length;
+  const start = (page - 1) * limit;
+  const paged = rows.slice(start, start + limit).map((entry) => toSecurityEventApiResponse(entry));
+  return res.json({ events: paged, page, limit, total });
+});
+app.post("/api/admin/security/events/:id/ack", requireAuth, (req, res) => {
+  if (!canManageSecurityAdmin(req.session?.user?.id)) {
+    return res.status(403).json({ error: "forbidden" });
+  }
+  const event = updateSecurityEventStatus({
+    eventId: req.params.id,
+    status: SecurityEventStatus.ACK,
+    actorUserId: req.session?.user?.id || "system",
+  });
+  if (!event) {
+    return res.status(404).json({ error: "not_found" });
+  }
+  appendAuditLog(req, "security.event.ack", "security", { id: event.id });
+  return res.json({ ok: true, event: toSecurityEventApiResponse(event) });
+});
+app.post("/api/admin/security/events/:id/resolve", requireAuth, (req, res) => {
+  if (!canManageSecurityAdmin(req.session?.user?.id)) {
+    return res.status(403).json({ error: "forbidden" });
+  }
+  const event = updateSecurityEventStatus({
+    eventId: req.params.id,
+    status: SecurityEventStatus.RESOLVED,
+    actorUserId: req.session?.user?.id || "system",
+  });
+  if (!event) {
+    return res.status(404).json({ error: "not_found" });
+  }
+  appendAuditLog(req, "security.event.resolve", "security", { id: event.id });
+  return res.json({ ok: true, event: toSecurityEventApiResponse(event) });
+});
+app.post("/api/admin/security/events/:id/ignore", requireAuth, (req, res) => {
+  if (!canManageSecurityAdmin(req.session?.user?.id)) {
+    return res.status(403).json({ error: "forbidden" });
+  }
+  const event = updateSecurityEventStatus({
+    eventId: req.params.id,
+    status: SecurityEventStatus.IGNORED,
+    actorUserId: req.session?.user?.id || "system",
+  });
+  if (!event) {
+    return res.status(404).json({ error: "not_found" });
+  }
+  appendAuditLog(req, "security.event.ignore", "security", { id: event.id });
+  return res.json({ ok: true, event: toSecurityEventApiResponse(event) });
+});
+app.get("/api/admin/security/rotation", requireAuth, (req, res) => {
+  if (!isPrimaryOwner(req.session?.user?.id) && !canManageSecurityAdmin(req.session?.user?.id)) {
+    return res.status(403).json({ error: "forbidden" });
+  }
+  const recent = loadSecretRotations().slice(0, 50);
+  return res.json({
+    session: {
+      acceptedSecretsCount: Number(sessionCookieConfig.acceptedSecretsCount || 0),
+      activeSecretConfigured: Boolean(sessionCookieConfig.activeSecret),
+    },
+    encryption: {
+      activeKeyId: dataEncryptionKeyring.activeKeyId || null,
+      availableKeyIds: Object.keys(dataEncryptionKeyring.keys || {}),
+    },
+    recentRotations: recent,
+  });
+});
+app.post("/api/admin/security/rotation", requireAuth, (req, res) => {
+  if (!isPrimaryOwner(req.session?.user?.id)) {
+    return res.status(403).json({ error: "forbidden" });
+  }
+  const secretFamily = String(req.body?.secretFamily || "").trim();
+  const keyId = String(req.body?.keyId || "").trim();
+  if (!secretFamily || !keyId) {
+    return res.status(400).json({ error: "secret_family_and_key_id_required" });
+  }
+  const entry = appendSecretRotation({
+    id: crypto.randomUUID(),
+    secretFamily,
+    keyId,
+    rotatedAt: new Date().toISOString(),
+    rotatedBy: req.session?.user?.id || "system",
+    notes: String(req.body?.notes || "").trim(),
+    status: String(req.body?.status || "completed").trim() || "completed",
+  });
+  appendAuditLog(req, "security.rotation.record", "security", {
+    secretFamily,
+    keyId,
+    id: entry?.id || null,
+  });
+  return res.status(201).json({ ok: true, rotation: entry });
+});
+app.post("/api/admin/users/:id/security/totp/reset", requireAuth, (req, res) => {
+  const actorId = String(req.session?.user?.id || "").trim();
+  if (!isOwner(actorId)) {
+    return res.status(403).json({ error: "forbidden" });
+  }
+  const targetId = String(req.params.id || "").trim();
+  if (!targetId) {
+    return res.status(400).json({ error: "invalid_target_id" });
+  }
+  deleteUserMfaTotpRecord(targetId);
+  appendAuditLog(req, "auth.mfa.reset_admin", "users", {
+    targetId,
+  });
+  emitSecurityEvent({
+    req,
+    type: "mfa_reset_admin",
+    severity: SecurityEventSeverity.WARNING,
+    riskScore: 60,
+    actorUserId: actorId || null,
+    targetUserId: targetId,
+    data: { targetId },
+  });
+  return res.json({ ok: true });
+});
+app.get("/api/admin/users/:id/sessions", requireAuth, (req, res) => {
+  const actorId = String(req.session?.user?.id || "").trim();
+  if (!isOwner(actorId)) {
+    return res.status(403).json({ error: "forbidden" });
+  }
+  const targetId = String(req.params.id || "").trim();
+  if (!targetId) {
+    return res.status(400).json({ error: "invalid_target_id" });
+  }
+  const sessions = listActiveSessionsForUser(targetId).map((entry) => ({
+    sid: entry.sid,
+    userId: entry.userId,
+    createdAt: entry.createdAt || null,
+    lastSeenAt: entry.lastSeenAt || null,
+    lastIp: entry.lastIp || "",
+    userAgent: entry.userAgent || "",
+    current: false,
+    isCurrent: false,
+    revokedAt: entry.revokedAt || null,
+    isPendingMfa: Boolean(entry.isPendingMfa),
+  }));
+  return res.json({ sessions });
+});
+app.get("/api/admin/sessions/active", requireAuth, (req, res) => {
+  res.setHeader("Cache-Control", "no-store");
+  const actorId = String(req.session?.user?.id || "").trim();
+  if (!isOwner(actorId)) {
+    return res.status(403).json({ error: "forbidden" });
+  }
+
+  const pageRaw = Number(req.query.page);
+  const limitRaw = Number(req.query.limit);
+  const page = Number.isFinite(pageRaw) && pageRaw > 0 ? Math.floor(pageRaw) : 1;
+  const limit =
+    Number.isFinite(limitRaw) && limitRaw > 0
+      ? Math.min(Math.max(Math.floor(limitRaw), 1), 500)
+      : 100;
+
+  const usersById = new Map(
+    normalizeUsers(loadUsers()).map((entry) => [String(entry.id || ""), entry]),
+  );
+  const currentSid = String(req.sessionID || "");
+  const rows = loadUserSessionIndexRecords({ includeRevoked: false })
+    .filter((entry) => !entry.revokedAt)
+    .sort((a, b) => new Date(b.lastSeenAt || 0).getTime() - new Date(a.lastSeenAt || 0).getTime());
+  const total = rows.length;
+  const start = (page - 1) * limit;
+  const sessions = rows.slice(start, start + limit).map((entry) => {
+    const normalizedUserId = String(entry.userId || "").trim();
+    const user = usersById.get(normalizedUserId) || null;
+    return {
+      sid: String(entry.sid || ""),
+      userId: normalizedUserId,
+      userName: String(user?.name || normalizedUserId || "usuario"),
+      userAvatarUrl: user?.avatarUrl || null,
+      createdAt: entry.createdAt || null,
+      lastSeenAt: entry.lastSeenAt || null,
+      lastIp: entry.lastIp || "",
+      userAgent: entry.userAgent || "",
+      isPendingMfa: Boolean(entry.isPendingMfa),
+      currentForViewer: String(entry.sid || "") === currentSid,
+    };
+  });
+
+  return res.json({
+    sessions,
+    page,
+    limit,
+    total,
+  });
+});
+app.delete("/api/admin/users/:id/sessions/:sid", requireAuth, async (req, res) => {
+  const actorId = String(req.session?.user?.id || "").trim();
+  if (!isOwner(actorId)) {
+    return res.status(403).json({ error: "forbidden" });
+  }
+  const targetId = String(req.params.id || "").trim();
+  const sid = String(req.params.sid || "").trim();
+  if (!targetId || !sid) {
+    return res.status(400).json({ error: "invalid_params" });
+  }
+  const target = listActiveSessionsForUser(targetId).find((entry) => String(entry.sid || "") === sid);
+  if (!target) {
+    return res.status(404).json({ error: "session_not_found" });
+  }
+  await revokeSessionBySid({
+    sid,
+    revokedBy: actorId || null,
+    revokeReason: "admin_revoke",
+  });
+  appendAuditLog(req, "auth.sessions.admin_revoke", "users", {
+    targetId,
+    sid,
+  });
+  return res.json({ ok: true });
+});
+app.post("/api/admin/exports", requireAuth, async (req, res) => {
+  const actorId = String(req.session?.user?.id || "").trim();
+  if (!canManageSecurityAdmin(actorId)) {
+    return res.status(403).json({ error: "forbidden" });
+  }
+  const dataset = normalizeExportDataset(req.body?.dataset);
+  const format = normalizeExportFormat(req.body?.format);
+  if (!ADMIN_EXPORT_DATASETS.includes(dataset)) {
+    return res.status(400).json({ error: "invalid_dataset" });
+  }
+  const filters = normalizeExportFilters(req.body?.filters || {});
+  const job = upsertAdminExportJob({
+    id: crypto.randomUUID(),
+    dataset,
+    format,
+    status: "queued",
+    requestedBy: actorId,
+    filters,
+    filePath: null,
+    rowCount: null,
+    error: null,
+    createdAt: new Date().toISOString(),
+  });
+  if (!job) {
+    return res.status(500).json({ error: "job_create_failed" });
+  }
+  metricsRegistry.inc("export_jobs_total", {
+    status: "queued",
+    dataset: String(dataset || "unknown"),
+  });
+  appendAuditLog(req, "admin.exports.create", "exports", {
+    id: job.id,
+    dataset,
+    format,
+  });
+  void enqueueAdminExportJob(job.id).catch((error) => {
+    console.error(`[admin-export] failed to enqueue job ${job.id}: ${String(error?.message || error)}`);
+  });
+  return res.status(202).json({ job: toAdminExportJobApiResponse(job) });
+});
+app.get("/api/admin/exports", requireAuth, (req, res) => {
+  const actorId = String(req.session?.user?.id || "").trim();
+  if (!canManageSecurityAdmin(actorId)) {
+    return res.status(403).json({ error: "forbidden" });
+  }
+  const pageRaw = Number(req.query.page);
+  const limitRaw = Number(req.query.limit);
+  const page = Number.isFinite(pageRaw) && pageRaw > 0 ? Math.floor(pageRaw) : 1;
+  const limit =
+    Number.isFinite(limitRaw) && limitRaw > 0
+      ? Math.min(Math.max(Math.floor(limitRaw), 10), 200)
+      : 50;
+  const statusFilter = normalizeExportStatus(req.query.status);
+  const datasetFilter = normalizeExportDataset(req.query.dataset);
+  let rows = loadAdminExportJobs();
+  if (String(req.query.status || "").trim()) {
+    rows = rows.filter((entry) => normalizeExportStatus(entry.status) === statusFilter);
+  }
+  if (String(req.query.dataset || "").trim()) {
+    rows = rows.filter((entry) => normalizeExportDataset(entry.dataset) === datasetFilter);
+  }
+  if (String(req.query.requestedBy || "").trim()) {
+    rows = rows.filter((entry) => String(entry.requestedBy || "") === String(req.query.requestedBy || ""));
+  }
+  rows.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
+  const total = rows.length;
+  const start = (page - 1) * limit;
+  const paged = rows.slice(start, start + limit).map((entry) => toAdminExportJobApiResponse(entry));
+  return res.json({ jobs: paged, page, limit, total });
+});
+app.get("/api/admin/exports/:id", requireAuth, (req, res) => {
+  const actorId = String(req.session?.user?.id || "").trim();
+  if (!canManageSecurityAdmin(actorId)) {
+    return res.status(403).json({ error: "forbidden" });
+  }
+  const job = loadAdminExportJobs().find((entry) => String(entry?.id || "") === String(req.params.id || ""));
+  if (!job) {
+    return res.status(404).json({ error: "not_found" });
+  }
+  return res.json({ job: toAdminExportJobApiResponse(job) });
+});
+app.get("/api/admin/exports/:id/download", requireAuth, (req, res) => {
+  const actorId = String(req.session?.user?.id || "").trim();
+  if (!canManageSecurityAdmin(actorId)) {
+    return res.status(403).json({ error: "forbidden" });
+  }
+  const job = loadAdminExportJobs().find((entry) => String(entry?.id || "") === String(req.params.id || ""));
+  if (!job) {
+    return res.status(404).json({ error: "not_found" });
+  }
+  if (normalizeExportStatus(job.status) !== "completed" || !job.filePath) {
+    return res.status(409).json({ error: "job_not_completed" });
+  }
+  const expiresAtTs = new Date(job.expiresAt || 0).getTime();
+  if (Number.isFinite(expiresAtTs) && Date.now() > expiresAtTs) {
+    upsertAdminExportJob({
+      ...job,
+      status: "expired",
+      error: "file_expired",
+      filePath: null,
+    });
+    return res.status(410).json({ error: "export_expired" });
+  }
+  if (!fs.existsSync(job.filePath)) {
+    return res.status(404).json({ error: "file_not_found" });
+  }
+  appendAuditLog(req, "admin.exports.download", "exports", {
+    id: job.id,
+    dataset: job.dataset,
+  });
+  const extension = normalizeExportFormat(job.format) === "jsonl" ? "jsonl" : "csv";
+  res.setHeader("Content-Disposition", `attachment; filename=\"${job.dataset}-${job.id}.${extension}\"`);
+  res.setHeader(
+    "Content-Type",
+    extension === "jsonl" ? "application/x-ndjson; charset=utf-8" : "text/csv; charset=utf-8",
+  );
+  return res.sendFile(path.resolve(job.filePath));
+});
+app.delete("/api/admin/exports/:id", requireAuth, (req, res) => {
+  const actorId = String(req.session?.user?.id || "").trim();
+  if (!canManageSecurityAdmin(actorId)) {
+    return res.status(403).json({ error: "forbidden" });
+  }
+  const job = loadAdminExportJobs().find((entry) => String(entry?.id || "") === String(req.params.id || ""));
+  if (!job) {
+    return res.status(404).json({ error: "not_found" });
+  }
+  if (job.filePath && fs.existsSync(job.filePath)) {
+    try {
+      fs.unlinkSync(job.filePath);
+    } catch {
+      // ignore cleanup failure
+    }
+  }
+  const expired = upsertAdminExportJob({
+    ...job,
+    status: "expired",
+    filePath: null,
+    finishedAt: job.finishedAt || new Date().toISOString(),
+    expiresAt: new Date().toISOString(),
+    error: job.error || null,
+  });
+  appendAuditLog(req, "admin.exports.expire", "exports", { id: job.id });
+  return res.json({ ok: true, job: expired ? toAdminExportJobApiResponse(expired) : null });
 });
 
 app.get("/api/analytics/overview", requireAuth, (req, res) => {
@@ -6375,6 +8247,18 @@ app.post("/api/owners/transfer-primary", requirePrimaryOwner, (req, res) => {
         from: previousPrimaryOwnerId,
         to: targetId,
       },
+    },
+  });
+  emitSecurityEvent({
+    req,
+    type: "owner_transfer_critical",
+    severity: SecurityEventSeverity.CRITICAL,
+    riskScore: 95,
+    actorUserId: req.session?.user?.id || null,
+    targetUserId: targetId,
+    data: {
+      fromPrimaryId: previousPrimaryOwnerId,
+      toPrimaryId: targetId,
     },
   });
   return res.json({
@@ -9930,6 +11814,26 @@ app.put("/api/users/:id", (req, res) => {
     );
     writeUsers(users);
     syncAllowedUsers(users);
+    const permissionsChanged =
+      JSON.stringify(existing.permissions || []) !== JSON.stringify(updated.permissions || []);
+    if (
+      permissionsChanged &&
+      shouldEmitSecurityRuleEvent("privilege_escalation_warning", `${sessionUser.id}:${targetId}`)
+    ) {
+      emitSecurityEvent({
+        req,
+        type: "privilege_escalation_warning",
+        severity: SecurityEventSeverity.WARNING,
+        riskScore: 75,
+        actorUserId: sessionUser.id,
+        targetUserId: targetId,
+        data: {
+          mode: "legacy",
+          permissionsBefore: existing.permissions || [],
+          permissionsAfter: updated.permissions || [],
+        },
+      });
+    }
     appendAuditLog(req, "users.update", "users", { id: targetId });
     return res.json({ user: applyOwnerRole(updated) });
   }
@@ -10072,6 +11976,31 @@ app.put("/api/users/:id", (req, res) => {
       "accessRole",
     ]),
   });
+  const hasPrivilegeEscalation =
+    JSON.stringify(beforeSnapshot.permissions || []) !== JSON.stringify(afterSnapshot.permissions || []) ||
+    String(beforeSnapshot.accessRole || "") !== String(afterSnapshot.accessRole || "") ||
+    String(beforeSnapshot.status || "") !== String(afterSnapshot.status || "");
+  if (
+    hasPrivilegeEscalation &&
+    shouldEmitSecurityRuleEvent("privilege_escalation_warning", `${sessionUser.id}:${targetId}`)
+  ) {
+    emitSecurityEvent({
+      req,
+      type: "privilege_escalation_warning",
+      severity: SecurityEventSeverity.WARNING,
+      riskScore: 78,
+      actorUserId: sessionUser.id,
+      targetUserId: targetId,
+      data: {
+        accessRoleBefore: beforeSnapshot.accessRole || null,
+        accessRoleAfter: afterSnapshot.accessRole || null,
+        permissionsBefore: beforeSnapshot.permissions || [],
+        permissionsAfter: afterSnapshot.permissions || [],
+        statusBefore: beforeSnapshot.status || null,
+        statusAfter: afterSnapshot.status || null,
+      },
+    });
+  }
   return res.json({ user: afterSnapshot });
 });
 
@@ -10248,7 +12177,16 @@ app.put("/api/users/self", requireAuth, (req, res) => {
 });
 
 app.post("/api/logout", (req, res) => {
+  const currentSid = String(req.sessionID || "").trim();
+  const actorId = String(req.session?.user?.id || req.session?.pendingMfaUser?.id || "").trim();
   appendAuditLog(req, "auth.logout", "auth", {});
+  if (currentSid) {
+    revokeUserSessionIndexRecord(currentSid, {
+      revokedBy: actorId || null,
+      revokeReason: "logout",
+    });
+    sessionIndexTouchTsBySid.delete(currentSid);
+  }
   req.session?.destroy(() => undefined);
   res.clearCookie(sessionCookieConfig.name, { path: "/" });
   res.json({ ok: true });

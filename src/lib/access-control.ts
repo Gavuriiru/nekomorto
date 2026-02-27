@@ -151,6 +151,7 @@ export const canAccessUsersPage = (grants: GrantMap | null | undefined): boolean
 
 const dashboardRouteToPermission: Record<string, PermissionId | "users" | null> = {
   "/dashboard": null,
+  "/dashboard/seguranca": null,
   "/dashboard/analytics": "analytics",
   "/dashboard/posts": "posts",
   "/dashboard/projetos": "projetos",
@@ -164,6 +165,7 @@ const dashboardRouteToPermission: Record<string, PermissionId | "users" | null> 
 
 const dashboardRouteOrder = [
   "/dashboard",
+  "/dashboard/seguranca",
   "/dashboard/analytics",
   "/dashboard/posts",
   "/dashboard/projetos",

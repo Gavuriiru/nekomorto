@@ -6,6 +6,7 @@ import {
   getFirstAllowedDashboardRoute,
   isDashboardPathAllowed,
   isFrontendRbacV2Enabled,
+  resolveAccessRole,
   resolveGrants,
 } from "@/lib/access-control";
 import { toast } from "@/components/ui/use-toast";
@@ -32,6 +33,18 @@ const RequireAuth = ({ children }: RequireAuthProps) => {
         }
         const user = await response.json();
         const grants = resolveGrants(user || null);
+        const accessRole = resolveAccessRole(user || null);
+        const isOwner =
+          accessRole === "owner_primary" || accessRole === "owner_secondary";
+        if (location.pathname.startsWith("/dashboard/seguranca") && !isOwner) {
+          const target = getFirstAllowedDashboardRoute(grants);
+          toast({
+            title: "Acesso negado",
+            description: "A area de seguranca e restrita aos donos.",
+          });
+          navigate(target, { replace: true });
+          return;
+        }
         if (
           isFrontendRbacV2Enabled &&
           location.pathname.startsWith("/dashboard") &&

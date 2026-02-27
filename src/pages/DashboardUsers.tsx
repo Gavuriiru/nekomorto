@@ -8,6 +8,7 @@
   type DragEvent,
 } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import QRCode from "qrcode";
 import DashboardShell from "@/components/DashboardShell";
 import AsyncState from "@/components/ui/async-state";
 
@@ -76,6 +77,26 @@ type UserRecord = {
   accessRole?: AccessRole;
   grants?: Partial<Record<string, boolean>>;
   order: number;
+};
+
+type SecuritySummary = {
+  totpEnabled: boolean;
+  recoveryCodesRemaining: number;
+  activeSessionsCount: number;
+  issuer?: string;
+  accountLabel?: string;
+  iconUrl?: string;
+};
+
+type SecuritySessionRow = {
+  sid: string;
+  createdAt: string | null;
+  lastSeenAt: string | null;
+  lastIp: string;
+  userAgent: string;
+  current?: boolean;
+  isCurrent?: boolean;
+  isPendingMfa?: boolean;
 };
 
 type DashboardAvatarProps = {
@@ -253,6 +274,20 @@ const didUserOrderChange = (before: UserRecord[], after: UserRecord[]) => {
   return beforeBuckets.retiredIds.some((id, index) => id !== afterBuckets.retiredIds[index]);
 };
 
+const isCurrentSecuritySession = (session: SecuritySessionRow) =>
+  session.current === true || session.isCurrent === true;
+
+const formatSecurityDateTime = (value: string | null | undefined) => {
+  if (!value) {
+    return "-";
+  }
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) {
+    return "-";
+  }
+  return parsed.toLocaleString("pt-BR");
+};
+
 const roleIconRegistry: Record<string, typeof Globe> = {
   languages: Languages,
   check: Check,
@@ -313,6 +348,21 @@ const DashboardUsers = () => {
   const [isLibraryOpen, setIsLibraryOpen] = useState(false);
   const [avatarCacheVersion, setAvatarCacheVersion] = useState(0);
   const [linkTypes, setLinkTypes] = useState<Array<{ id: string; label: string; icon: string }>>([]);
+  const [securitySummary, setSecuritySummary] = useState<SecuritySummary | null>(null);
+  const [securitySessions, setSecuritySessions] = useState<SecuritySessionRow[]>([]);
+  const [isLoadingSecurity, setIsLoadingSecurity] = useState(false);
+  const [securityEnrollment, setSecurityEnrollment] = useState<{
+    enrollmentToken: string;
+    manualSecret: string;
+    otpauthUrl: string;
+    issuer?: string;
+    accountLabel?: string;
+    iconUrl?: string;
+  } | null>(null);
+  const [securityQrDataUrl, setSecurityQrDataUrl] = useState("");
+  const [securityEnrollCode, setSecurityEnrollCode] = useState("");
+  const [securityDisableCode, setSecurityDisableCode] = useState("");
+  const [securityRecoveryCodes, setSecurityRecoveryCodes] = useState<string[]>([]);
   const fallbackLinkTypes = useMemo(
     () => [
       { id: "instagram", label: "Instagram", icon: "instagram" },
@@ -448,6 +498,7 @@ const DashboardUsers = () => {
   const isAdminRecord = (user: UserRecord) => resolveUserAccessRole(user) === "admin";
   const isAdminForm = formState.accessRole === "admin";
   const isEditingSelf = Boolean(editingUser && currentUser && editingUser.id === currentUser.id);
+  const showSelfSecuritySection = isEditingSelf && isDialogOpen;
   const canCreateUsers = canManageUsers;
   const canEditBasicFields = !editingUser
     ? canCreateUsers
@@ -516,6 +567,201 @@ const DashboardUsers = () => {
     openEditDialog(currentUserRecord);
     navigate("/dashboard/usuarios", { replace: true });
   }, [currentUserRecord, isDialogOpen, navigate, openEditDialog, searchParams]);
+
+  useEffect(() => {
+    if (!showSelfSecuritySection || !editingUser?.id) {
+      setSecuritySummary(null);
+      setSecuritySessions([]);
+      setSecurityEnrollment(null);
+      setSecurityQrDataUrl("");
+      setSecurityEnrollCode("");
+      setSecurityDisableCode("");
+      setSecurityRecoveryCodes([]);
+      return;
+    }
+
+    let active = true;
+    setIsLoadingSecurity(true);
+    void Promise.all([
+      apiFetch(apiBase, "/api/me/security", { auth: true }),
+      apiFetch(apiBase, "/api/me/sessions", { auth: true }),
+    ])
+      .then(async ([securityRes, sessionsRes]) => {
+        if (!active) {
+          return;
+        }
+        if (securityRes.ok) {
+          const body = await securityRes.json();
+          if (active) {
+            setSecuritySummary(body);
+          }
+        } else if (active) {
+          setSecuritySummary(null);
+        }
+
+        if (sessionsRes.ok) {
+          const body = await sessionsRes.json();
+          if (active) {
+            setSecuritySessions(Array.isArray(body.sessions) ? body.sessions : []);
+          }
+        } else if (active) {
+          setSecuritySessions([]);
+        }
+      })
+      .catch(() => {
+        if (!active) {
+          return;
+        }
+        setSecuritySummary(null);
+        setSecuritySessions([]);
+      })
+      .finally(() => {
+        if (active) {
+          setIsLoadingSecurity(false);
+        }
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [apiBase, editingUser?.id, showSelfSecuritySection]);
+
+  useEffect(() => {
+    if (!securityEnrollment?.otpauthUrl) {
+      setSecurityQrDataUrl("");
+      return;
+    }
+    let active = true;
+    void QRCode.toDataURL(securityEnrollment.otpauthUrl, {
+      width: 220,
+      margin: 1,
+      errorCorrectionLevel: "M",
+    })
+      .then((dataUrl) => {
+        if (active) {
+          setSecurityQrDataUrl(dataUrl);
+        }
+      })
+      .catch(() => {
+        if (active) {
+          setSecurityQrDataUrl("");
+        }
+      });
+    return () => {
+      active = false;
+    };
+  }, [securityEnrollment?.otpauthUrl]);
+
+  const refreshSelfSecurity = async () => {
+    if (!showSelfSecuritySection) {
+      return;
+    }
+    setIsLoadingSecurity(true);
+    try {
+      const [securityRes, sessionsRes] = await Promise.all([
+        apiFetch(apiBase, "/api/me/security", { auth: true }),
+        apiFetch(apiBase, "/api/me/sessions", { auth: true }),
+      ]);
+      if (securityRes.ok) {
+        setSecuritySummary(await securityRes.json());
+      }
+      if (sessionsRes.ok) {
+        const body = await sessionsRes.json();
+        setSecuritySessions(Array.isArray(body.sessions) ? body.sessions : []);
+      }
+    } finally {
+      setIsLoadingSecurity(false);
+    }
+  };
+
+  const startSelfEnrollment = async () => {
+    const response = await apiFetch(apiBase, "/api/me/security/totp/enroll/start", {
+      method: "POST",
+      auth: true,
+    });
+    if (!response.ok) {
+      toast({ title: "Falha ao iniciar 2FA", variant: "destructive" });
+      return;
+    }
+    const body = await response.json();
+    setSecurityEnrollment({
+      enrollmentToken: String(body.enrollmentToken || ""),
+      manualSecret: String(body.manualSecret || ""),
+      otpauthUrl: String(body.otpauthUrl || ""),
+      issuer: String(body.issuer || ""),
+      accountLabel: String(body.accountLabel || ""),
+      iconUrl: String(body.iconUrl || ""),
+    });
+    setSecurityEnrollCode("");
+    setSecurityRecoveryCodes([]);
+  };
+
+  const confirmSelfEnrollment = async () => {
+    if (!securityEnrollment || !securityEnrollCode.trim()) {
+      return;
+    }
+    const response = await apiFetch(apiBase, "/api/me/security/totp/enroll/confirm", {
+      method: "POST",
+      auth: true,
+      json: {
+        enrollmentToken: securityEnrollment.enrollmentToken,
+        code: securityEnrollCode.trim(),
+      },
+    });
+    if (!response.ok) {
+      toast({ title: "Codigo invalido", variant: "destructive" });
+      return;
+    }
+    const body = await response.json();
+    setSecurityRecoveryCodes(Array.isArray(body.recoveryCodes) ? body.recoveryCodes : []);
+    setSecurityEnrollment(null);
+    setSecurityEnrollCode("");
+    toast({ title: "2FA ativado" });
+    await refreshSelfSecurity();
+  };
+
+  const disableSelfTotp = async () => {
+    if (!securityDisableCode.trim()) {
+      return;
+    }
+    const response = await apiFetch(apiBase, "/api/me/security/totp/disable", {
+      method: "POST",
+      auth: true,
+      json: { codeOrRecoveryCode: securityDisableCode.trim() },
+    });
+    if (!response.ok) {
+      toast({ title: "Nao foi possivel desativar", variant: "destructive" });
+      return;
+    }
+    setSecurityDisableCode("");
+    setSecurityEnrollment(null);
+    toast({ title: "2FA desativado" });
+    await refreshSelfSecurity();
+  };
+
+  const revokeSelfSession = async (sid: string) => {
+    const response = await apiFetch(apiBase, `/api/me/sessions/${encodeURIComponent(sid)}`, {
+      method: "DELETE",
+      auth: true,
+    });
+    if (!response.ok) {
+      toast({ title: "Falha ao encerrar sessao", variant: "destructive" });
+      return;
+    }
+    await refreshSelfSecurity();
+  };
+
+  const revokeSelfOthers = async () => {
+    const response = await apiFetch(apiBase, "/api/me/sessions/others", {
+      method: "DELETE",
+      auth: true,
+    });
+    if (!response.ok) {
+      toast({ title: "Falha ao encerrar outras sessoes", variant: "destructive" });
+      return;
+    }
+    await refreshSelfSecurity();
+  };
 
   const openNewDialog = () => {
     setEditingUser(null);
@@ -1302,6 +1548,208 @@ const DashboardUsers = () => {
                 </Button>
               </div>
             </div>
+            {showSelfSecuritySection ? (
+              <div className="grid gap-3 rounded-2xl border border-border/60 bg-card/60 p-4">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="space-y-1">
+                    <Label className="text-sm font-medium">Seguranca da conta</Label>
+                    <p className="text-xs text-muted-foreground">
+                      Configure 2FA opcional e gerencie suas sessoes ativas.
+                    </p>
+                  </div>
+                  <Button size="sm" variant="outline" onClick={() => void refreshSelfSecurity()}>
+                    Atualizar
+                  </Button>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2">
+                  <Badge className="bg-card/80 text-muted-foreground">
+                    2FA {securitySummary?.totpEnabled ? "Ativo" : "Inativo"}
+                  </Badge>
+                  <Badge className="bg-card/80 text-muted-foreground">
+                    Recovery: {securitySummary?.recoveryCodesRemaining ?? 0}
+                  </Badge>
+                  <Badge className="bg-card/80 text-muted-foreground">
+                    Sessoes: {securitySummary?.activeSessionsCount ?? 0}
+                  </Badge>
+                </div>
+
+                {!securitySummary?.totpEnabled ? (
+                  <div className="space-y-3 rounded-2xl border border-border/60 bg-background/60 p-3">
+                    <Button size="sm" onClick={startSelfEnrollment}>
+                      Ativar 2FA (TOTP)
+                    </Button>
+                    {securityEnrollment ? (
+                      <div className="space-y-3">
+                        <div className="flex flex-wrap items-center gap-3">
+                          {securityEnrollment.iconUrl ? (
+                            <img
+                              src={securityEnrollment.iconUrl}
+                              alt="Icone da conta"
+                              className="h-9 w-9 rounded-full border border-border/60 object-cover"
+                              referrerPolicy="no-referrer"
+                            />
+                          ) : null}
+                          <p className="text-xs text-muted-foreground">
+                            {securityEnrollment.issuer || securitySummary?.issuer || "Nekomata"}:
+                            {securityEnrollment.accountLabel ||
+                              securitySummary?.accountLabel ||
+                              currentUser?.username ||
+                              currentUser?.name ||
+                              editingUser?.id}
+                          </p>
+                        </div>
+                        <div className="flex flex-wrap gap-4">
+                          {securityQrDataUrl ? (
+                            <img
+                              src={securityQrDataUrl}
+                              alt="QR code para configurar TOTP"
+                              className="h-48 w-48 rounded-xl border border-border/60 bg-white p-2"
+                            />
+                          ) : (
+                            <div className="flex h-48 w-48 items-center justify-center rounded-xl border border-dashed border-border/60 text-xs text-muted-foreground">
+                              Gerando QR...
+                            </div>
+                          )}
+                          <div className="min-w-0 flex-1 space-y-2">
+                            <code className="block break-all rounded bg-card px-3 py-2 text-xs">
+                              {securityEnrollment.manualSecret}
+                            </code>
+                            <div className="flex flex-wrap gap-2">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={async () => {
+                                  try {
+                                    await navigator.clipboard.writeText(securityEnrollment.manualSecret);
+                                    toast({ title: "Segredo copiado" });
+                                  } catch {
+                                    toast({ title: "Nao foi possivel copiar", variant: "destructive" });
+                                  }
+                                }}
+                              >
+                                Copiar segredo
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={async () => {
+                                  try {
+                                    await navigator.clipboard.writeText(securityEnrollment.otpauthUrl);
+                                    toast({ title: "URL OTP copiada" });
+                                  } catch {
+                                    toast({ title: "Nao foi possivel copiar", variant: "destructive" });
+                                  }
+                                }}
+                              >
+                                Copiar URL OTP
+                              </Button>
+                            </div>
+                            <Input
+                              value={securityEnrollCode}
+                              onChange={(event) => setSecurityEnrollCode(event.target.value)}
+                              placeholder="Codigo de 6 digitos"
+                            />
+                            <Button
+                              size="sm"
+                              onClick={confirmSelfEnrollment}
+                              disabled={!securityEnrollCode.trim()}
+                            >
+                              Confirmar ativacao
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    ) : null}
+                  </div>
+                ) : (
+                  <div className="space-y-2 rounded-2xl border border-border/60 bg-background/60 p-3">
+                    <Input
+                      value={securityDisableCode}
+                      onChange={(event) => setSecurityDisableCode(event.target.value)}
+                      placeholder="Codigo TOTP ou recovery code"
+                    />
+                    <Button
+                      size="sm"
+                      variant="destructive"
+                      onClick={disableSelfTotp}
+                      disabled={!securityDisableCode.trim()}
+                    >
+                      Desativar 2FA
+                    </Button>
+                  </div>
+                )}
+
+                {securityRecoveryCodes.length > 0 ? (
+                  <div className="space-y-2 rounded-2xl border border-amber-500/30 bg-amber-500/10 p-3">
+                    <p className="text-xs font-medium">Salve estes recovery codes agora:</p>
+                    <div className="grid gap-1 md:grid-cols-2">
+                      {securityRecoveryCodes.map((code) => (
+                        <code key={code} className="rounded bg-card px-2 py-1 text-xs">
+                          {code}
+                        </code>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
+
+                <div className="space-y-2 rounded-2xl border border-border/60 bg-background/60 p-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-sm font-medium">Sessoes ativas</p>
+                    <Button size="sm" variant="outline" onClick={revokeSelfOthers}>
+                      Encerrar outras
+                    </Button>
+                  </div>
+                  {isLoadingSecurity ? (
+                    <p className="text-xs text-muted-foreground">Carregando sessoes...</p>
+                  ) : securitySessions.length === 0 ? (
+                    <p className="text-xs text-muted-foreground">Nenhuma sessao ativa.</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {securitySessions.map((session) => (
+                        <div
+                          key={session.sid}
+                          className="flex flex-wrap items-start justify-between gap-2 rounded-xl border border-border/60 bg-card/50 p-2"
+                        >
+                          <div className="space-y-1">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <p className="text-xs font-medium">
+                                {isCurrentSecuritySession(session) ? "Sessao atual" : "Sessao remota"}
+                              </p>
+                              {isCurrentSecuritySession(session) ? (
+                                <Badge className="bg-emerald-500/20 text-emerald-200">Atual</Badge>
+                              ) : null}
+                              {session.isPendingMfa ? (
+                                <Badge className="bg-amber-500/20 text-amber-200">Pendente MFA</Badge>
+                              ) : null}
+                            </div>
+                            <p className="text-[11px] text-muted-foreground">
+                              Ultima atividade: {formatSecurityDateTime(session.lastSeenAt)}
+                            </p>
+                            <p className="text-[11px] text-muted-foreground">
+                              Criada em: {formatSecurityDateTime(session.createdAt)}
+                            </p>
+                            <p className="text-[11px] text-muted-foreground">IP: {session.lastIp || "-"}</p>
+                            <p className="max-w-[360px] truncate text-[11px] text-muted-foreground">
+                              {session.userAgent || "-"}
+                            </p>
+                          </div>
+                          {!isCurrentSecuritySession(session) ? (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => revokeSelfSession(session.sid)}
+                            >
+                              Encerrar
+                            </Button>
+                          ) : null}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            ) : null}
             <div className="grid gap-2">
               <Label>Funções</Label>
               {!canEditRoles && (

@@ -7,6 +7,7 @@
   MessageSquare,
   Send,
   Settings,
+  ShieldAlert,
   Shield,
   UserRound,
 } from "lucide-react";
@@ -28,5 +29,6 @@ export const dashboardMenuItems: DashboardMenuItem[] = [
   { label: "Usuários", href: "/dashboard/usuarios", icon: UserRound, enabled: true },
   { label: "Páginas", href: "/dashboard/paginas", icon: Shield, enabled: true },
   { label: "Webhooks", href: "/dashboard/webhooks", icon: Send, enabled: true },
+  { label: "Segurança", href: "/dashboard/seguranca", icon: ShieldAlert, enabled: true },
   { label: "Configurações", href: "/dashboard/configuracoes", icon: Settings, enabled: true },
 ];

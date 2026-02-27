@@ -16,7 +16,11 @@ import {
   SidebarProvider,
 } from "@/components/ui/sidebar";
 import { dashboardMenuItems, type DashboardMenuItem } from "@/components/dashboard-menu";
-import { buildDashboardMenuFromGrants, resolveGrants } from "@/lib/access-control";
+import {
+  buildDashboardMenuFromGrants,
+  resolveAccessRole,
+  resolveGrants,
+} from "@/lib/access-control";
 
 type DashboardUser = {
   id?: string;
@@ -78,11 +82,19 @@ const DashboardShell = ({
   }, [currentUser, isLoadingUser]);
 
   const resolvedMenuItems = useMemo(() => {
+    const accessRole = resolveAccessRole(effectiveUser || null);
+    const isOwner =
+      accessRole === "owner_primary" || accessRole === "owner_secondary";
     if (Array.isArray(menuItems)) {
-      return menuItems.filter((item) => item.enabled);
+      return menuItems.filter(
+        (item) =>
+          item.enabled && (item.href !== "/dashboard/seguranca" || isOwner),
+      );
     }
     const grants = resolveGrants(effectiveUser || null);
-    return buildDashboardMenuFromGrants(dashboardMenuItems, grants);
+    return buildDashboardMenuFromGrants(dashboardMenuItems, grants).filter(
+      (item) => item.href !== "/dashboard/seguranca" || isOwner,
+    );
   }, [effectiveUser, menuItems]);
   const userName =
     userLabel ?? (effectiveUser?.name ?? (isLoadingUser ? "Carregando usuario..." : "Usuario"));
