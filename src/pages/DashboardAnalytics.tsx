@@ -308,19 +308,19 @@ const DashboardAnalytics = () => {
         <section className="mx-auto w-full max-w-6xl space-y-6 px-6 pb-20 md:px-10">
           <header className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div>
-              <div className="inline-flex motion-item items-center gap-3 rounded-full border border-border/60 bg-card/60 px-4 py-2 text-xs uppercase tracking-[0.3em] text-muted-foreground">
+              <div className="inline-flex animate-fade-in items-center gap-3 rounded-full border border-border/60 bg-card/60 px-4 py-2 text-xs uppercase tracking-[0.3em] text-muted-foreground">
                 Analytics
               </div>
-              <h1 className="mt-3 motion-item text-3xl font-semibold lg:text-4xl">Performance e aquisição</h1>
+              <h1 className="mt-3 animate-slide-up text-3xl font-semibold lg:text-4xl">Performance e aquisição</h1>
               <p
-                className="mt-2 motion-item text-sm text-muted-foreground opacity-0"
+                className="mt-2 animate-slide-up text-sm text-muted-foreground opacity-0"
                 style={{ animationDelay: "0.2s" }}
               >
                 Foco em consumo de conteúdo, retenção e tendências de audiência.
               </p>
             </div>
             <div
-              className="flex flex-col gap-3 motion-item opacity-0 lg:flex-row lg:items-center"
+              className="flex flex-col gap-3 animate-slide-up opacity-0 lg:flex-row lg:items-center"
               style={{ animationDelay: "0.24s" }}
             >
               <div className="flex flex-wrap items-center gap-3 lg:flex-nowrap">
@@ -382,25 +382,25 @@ const DashboardAnalytics = () => {
           ) : (
             <>
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-            <Card className="motion-item opacity-0" style={{ animationDelay: "40ms" }}>
+            <Card className="animate-slide-up opacity-0" style={{ animationDelay: "40ms" }}>
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm text-muted-foreground">Views</CardTitle>
               </CardHeader>
               <CardContent className="text-3xl font-semibold">{formatInt(metrics.views || 0)}</CardContent>
             </Card>
-            <Card className="motion-item opacity-0" style={{ animationDelay: "80ms" }}>
+            <Card className="animate-slide-up opacity-0" style={{ animationDelay: "80ms" }}>
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm text-muted-foreground">Views únicas</CardTitle>
               </CardHeader>
               <CardContent className="text-3xl font-semibold">{formatInt(metrics.uniqueViews || 0)}</CardContent>
             </Card>
-            <Card className="motion-item opacity-0" style={{ animationDelay: "120ms" }}>
+            <Card className="animate-slide-up opacity-0" style={{ animationDelay: "120ms" }}>
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm text-muted-foreground">Leituras de capítulos</CardTitle>
               </CardHeader>
               <CardContent className="text-3xl font-semibold">{formatInt(metrics.chapterViews || 0)}</CardContent>
             </Card>
-            <Card className="motion-item opacity-0" style={{ animationDelay: "160ms" }}>
+            <Card className="animate-slide-up opacity-0" style={{ animationDelay: "160ms" }}>
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm text-muted-foreground">Cliques em downloads</CardTitle>
               </CardHeader>
@@ -408,7 +408,7 @@ const DashboardAnalytics = () => {
             </Card>
           </div>
 
-          <Card className="motion-item opacity-0" style={{ animationDelay: "190ms" }}>
+          <Card className="animate-slide-up opacity-0" style={{ animationDelay: "190ms" }}>
             <CardHeader>
               <CardTitle>Comunidade e moderação</CardTitle>
             </CardHeader>
@@ -431,7 +431,7 @@ const DashboardAnalytics = () => {
           </Card>
 
           <div className="grid min-w-0 gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
-            <Card className="min-w-0 motion-item opacity-0" style={{ animationDelay: "220ms" }}>
+            <Card className="min-w-0 animate-slide-up opacity-0" style={{ animationDelay: "220ms" }}>
               <CardHeader>
                 <CardTitle>Série temporal ({formatMetricLabel(metric)})</CardTitle>
               </CardHeader>
@@ -467,7 +467,7 @@ const DashboardAnalytics = () => {
               </CardContent>
             </Card>
 
-            <Card className="min-w-0 motion-item opacity-0" style={{ animationDelay: "260ms" }}>
+            <Card className="min-w-0 animate-slide-up opacity-0" style={{ animationDelay: "260ms" }}>
               <CardHeader>
                 <CardTitle>Aquisição (origens)</CardTitle>
               </CardHeader>
@@ -497,7 +497,7 @@ const DashboardAnalytics = () => {
             </Card>
           </div>
 
-              <Card className="motion-item opacity-0" style={{ animationDelay: "300ms" }}>
+              <Card className="animate-slide-up opacity-0" style={{ animationDelay: "300ms" }}>
             <CardHeader>
               <CardTitle>Top conteúdos</CardTitle>
             </CardHeader>

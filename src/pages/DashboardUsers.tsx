@@ -1,4 +1,4 @@
-import {
+Ôªøimport {
   Suspense,
   lazy,
   useCallback,
@@ -136,15 +136,15 @@ const emptyForm = {
 const permissionOptions: Array<{ id: (typeof permissionIds)[number]; label: string }> = [
   { id: "posts", label: "Posts" },
   { id: "projetos", label: "Projetos" },
-  { id: "comentarios", label: "Coment·rios" },
-  { id: "paginas", label: "P·ginas" },
+  { id: "comentarios", label: "Coment√°rios" },
+  { id: "paginas", label: "P√°ginas" },
   { id: "uploads", label: "Uploads" },
   { id: "analytics", label: "Analytics" },
-  { id: "usuarios_basico", label: "Usu·rios (b·sico)" },
-  { id: "usuarios_acesso", label: "Usu·rios (acesso)" },
-  { id: "configuracoes", label: "ConfiguraÁıes" },
+  { id: "usuarios_basico", label: "Usu√°rios (b√°sico)" },
+  { id: "usuarios_acesso", label: "Usu√°rios (acesso)" },
+  { id: "configuracoes", label: "Configura√ß√µes" },
   { id: "audit_log", label: "Audit Log" },
-  { id: "integracoes", label: "IntegraÁıes" },
+  { id: "integracoes", label: "Integra√ß√µes" },
 ];
 
 const stripOwnerRole = (roles: string[]) =>
@@ -269,7 +269,7 @@ const roleIconRegistry: Record<string, typeof Globe> = {
 };
 
 const DashboardUsers = () => {
-  usePageMeta({ title: "Usu·rios", noIndex: true });
+  usePageMeta({ title: "Usu√°rios", noIndex: true });
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const apiBase = getApiBase();
@@ -634,7 +634,7 @@ const DashboardUsers = () => {
             }
           } else {
             toast({
-              title: shouldKeepOwner ? "N„o foi possÌvel promover para dono" : "N„o foi possÌvel rebaixar o dono",
+              title: shouldKeepOwner ? "N√£o foi poss√≠vel promover para dono" : "N√£o foi poss√≠vel rebaixar o dono",
               variant: "destructive",
             });
           }
@@ -654,13 +654,13 @@ const DashboardUsers = () => {
       bumpAvatarCacheVersion();
       setIsDialogOpen(false);
       toast({
-        title: editingUser ? "Usu·rio atualizado" : "Usu·rio criado",
-        description: "As alteraÁıes foram salvas com sucesso.",
+        title: editingUser ? "Usu√°rio atualizado" : "Usu√°rio criado",
+        description: "As altera√ß√µes foram salvas com sucesso.",
         intent: "success",
       });
       return;
     }
-    toast({ title: "N„o foi possÌvel salvar o usu·rio", variant: "destructive" });
+    toast({ title: "N√£o foi poss√≠vel salvar o usu√°rio", variant: "destructive" });
   };
 
   const togglePermission = (permissionId: (typeof permissionIds)[number]) => {
@@ -688,7 +688,7 @@ const DashboardUsers = () => {
       auth: true,
     });
     if (!response.ok) {
-      toast({ title: "N„o foi possÌvel excluir o usu·rio", variant: "destructive" });
+      toast({ title: "N√£o foi poss√≠vel excluir o usu√°rio", variant: "destructive" });
       return;
     }
     const data = await response.json();
@@ -700,7 +700,7 @@ const DashboardUsers = () => {
       setIsDialogOpen(false);
     }
     setDeleteTarget(null);
-    toast({ title: "Usu·rio excluÌdo" });
+    toast({ title: "Usu√°rio exclu√≠do" });
   };
 
   const toggleRole = (role: string) => {
@@ -836,14 +836,14 @@ const DashboardUsers = () => {
           setUsers(snapshot);
         }
         toast({
-          title: "N„o foi possÌvel salvar a nova ordem",
+          title: "N√£o foi poss√≠vel salvar a nova ordem",
           description: "A lista foi restaurada para a ordem anterior.",
           variant: "destructive",
         });
       } else {
         toast({
-          title: "Ordem dos usu·rios atualizada",
-          description: "A nova ordenaÁ„o foi salva.",
+          title: "Ordem dos usu√°rios atualizada",
+          description: "A nova ordena√ß√£o foi salva.",
           intent: "success",
         });
       }
@@ -852,7 +852,7 @@ const DashboardUsers = () => {
         setUsers(snapshot);
       }
       toast({
-        title: "N„o foi possÌvel salvar a nova ordem",
+        title: "N√£o foi poss√≠vel salvar a nova ordem",
         description: "A lista foi restaurada para a ordem anterior.",
         variant: "destructive",
       });
@@ -873,20 +873,20 @@ const DashboardUsers = () => {
           <section className="mx-auto w-full max-w-6xl px-6 pb-20 md:px-10">
             <header className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
               <div>
-                <div className="inline-flex items-center gap-3 rounded-full border border-border/60 bg-card/60 px-4 py-2 text-xs uppercase tracking-[0.3em] text-muted-foreground motion-item">
-                  Usu·rios
+                <div className="inline-flex items-center gap-3 rounded-full border border-border/60 bg-card/60 px-4 py-2 text-xs uppercase tracking-[0.3em] text-muted-foreground animate-fade-in">
+                  Usu√°rios
                 </div>
-                <h1 className="mt-4 text-3xl font-semibold lg:text-4xl motion-item">Gest„o de Usu·rios</h1>
+                <h1 className="mt-4 text-3xl font-semibold lg:text-4xl animate-slide-up">Gest√£o de Usu√°rios</h1>
                 <p
-                  className="mt-2 text-sm text-muted-foreground motion-item opacity-0"
+                  className="mt-2 text-sm text-muted-foreground animate-slide-up opacity-0"
                   style={{ animationDelay: "0.2s" }}
                 >
-                  Reordene arrastando para refletir a ordem na p·gina p˙blica.
+                  Reordene arrastando para refletir a ordem na p√°gina p√∫blica.
                 </p>
               </div>
               {canManageUsers && (
                 <Button className="bg-primary text-primary-foreground hover:bg-primary/90" onClick={openNewDialog}>
-                  Adicionar usu·rio
+                  Adicionar usu√°rio
                 </Button>
               )}
             </header>
@@ -894,7 +894,7 @@ const DashboardUsers = () => {
             <div className="mt-10">
 
               <div className="flex items-center justify-between">
-                <h2 className="text-lg font-semibold">Usu·rios ativos</h2>
+                <h2 className="text-lg font-semibold">Usu√°rios ativos</h2>
                 <Badge className="bg-card/80 text-muted-foreground">{activeUsers.length}</Badge>
               </div>
 
@@ -908,7 +908,7 @@ const DashboardUsers = () => {
               ) : hasLoadError ? (
                 <AsyncState
                   kind="error"
-                  title="N„o foi possÌvel carregar os usu·rios"
+                  title="N√£o foi poss√≠vel carregar os usu√°rios"
                   description="Tente novamente em instantes."
                   className="mt-6"
                   action={
@@ -932,7 +932,7 @@ const DashboardUsers = () => {
                     return (
                     <div
                       key={user.id}
-                      className={`relative rounded-2xl border border-border/60 bg-card/60 p-5 transition hover:border-primary/40 hover:bg-primary/5 motion-item opacity-0 ${
+                      className={`relative rounded-2xl border border-border/60 bg-card/60 p-5 transition hover:border-primary/40 hover:bg-primary/5 animate-slide-up opacity-0 ${
                         isLoneLastActiveCard ? "md:col-span-2 md:mx-auto md:w-[calc(50%-0.5rem)]" : ""
                       }`}
                       style={{ animationDelay: `${index * 60}ms` }}
@@ -1004,7 +1004,7 @@ const DashboardUsers = () => {
               {retiredUsers.length > 0 && (
                 <div className="mt-12">
                   <div className="flex items-center justify-between">
-                    <h2 className="text-lg font-semibold">Usu·rios aposentados</h2>
+                    <h2 className="text-lg font-semibold">Usu√°rios aposentados</h2>
                     <Badge className="bg-card/80 text-muted-foreground">{retiredUsers.length}</Badge>
                   </div>
                   <div className="mt-6 grid gap-4 md:grid-cols-2">
@@ -1014,7 +1014,7 @@ const DashboardUsers = () => {
                       return (
                       <div
                         key={user.id}
-                        className={`rounded-2xl border border-border/60 bg-card/60 p-5 motion-item opacity-0 ${
+                        className={`rounded-2xl border border-border/60 bg-card/60 p-5 animate-slide-up opacity-0 ${
                           isLoneLastRetiredCard ? "md:col-span-2 md:mx-auto md:w-[calc(50%-0.5rem)]" : ""
                         }`}
                         style={{ animationDelay: `${index * 60}ms` }}
@@ -1090,7 +1090,7 @@ const DashboardUsers = () => {
           open={isLibraryOpen}
           onOpenChange={handleLibraryOpenChange}
           apiBase={apiBase}
-          description="Selecione uma imagem j· enviada para reutilizar ou envie um novo arquivo."
+          description="Selecione uma imagem j√° enviada para reutilizar ou envie um novo arquivo."
           uploadFolder="users"
           listFolders={avatarLibraryFolders}
           listAll={false}
@@ -1109,16 +1109,16 @@ const DashboardUsers = () => {
           overlayClassName="backdrop-blur-xs"
         >
           <DialogHeader>
-            <DialogTitle>{editingUser ? "Editar usu·rio" : "Adicionar usu·rio"}</DialogTitle>
+            <DialogTitle>{editingUser ? "Editar usu√°rio" : "Adicionar usu√°rio"}</DialogTitle>
             <DialogDescription>
               {editingUser
-                ? "Atualize as informaÁıes e permissıes do usu·rio."
-                : "Cadastre um novo usu·rio autorizado."}
+                ? "Atualize as informa√ß√µes e permiss√µes do usu√°rio."
+                : "Cadastre um novo usu√°rio autorizado."}
             </DialogDescription>
           </DialogHeader>
           {basicProfileOnlyEdit && (
             <div className="rounded-2xl border border-border/60 bg-card/60 px-4 py-3 text-xs text-muted-foreground">
-              VocÍ sÛ pode alterar informaÁıes b·sicas deste usu·rio.
+              Voc√™ s√≥ pode alterar informa√ß√µes b√°sicas deste usu√°rio.
             </div>
           )}
           <div className="grid gap-4">
@@ -1303,10 +1303,10 @@ const DashboardUsers = () => {
               </div>
             </div>
             <div className="grid gap-2">
-              <Label>FunÁıes</Label>
+              <Label>Fun√ß√µes</Label>
               {!canEditRoles && (
                 <p className="text-xs text-muted-foreground">
-                  Apenas donos com permiss„o de acesso podem alterar funÁıes de equipe.
+                  Apenas donos com permiss√£o de acesso podem alterar fun√ß√µes de equipe.
                 </p>
               )}
               <div className="flex flex-wrap gap-2">
@@ -1330,7 +1330,7 @@ const DashboardUsers = () => {
                 })}
               </div>
               {isOwnerRecord && (
-                <p className="text-xs text-muted-foreground">A badge de dono È autom·tica.</p>
+                <p className="text-xs text-muted-foreground">A badge de dono √© autom√°tica.</p>
               )}
             </div>
             <div className="grid gap-2">
@@ -1374,12 +1374,12 @@ const DashboardUsers = () => {
               </Select>
               {isOwnerRecord ? (
                 <p className="text-xs text-muted-foreground">
-                  O papel de dono È definido pela governanÁa de owners.
+                  O papel de dono √© definido pela governan√ßa de owners.
                 </p>
               ) : null}
             </div>
             <div className="grid gap-2">
-              <Label>Permissıes</Label>
+              <Label>Permiss√µes</Label>
               {isOwnerRecord && <Badge className="w-fit bg-primary/20 text-primary">Acesso total</Badge>}
               {!isOwnerRecord && isAdminForm && (
                 <Badge className="w-fit bg-card/80 text-muted-foreground">Administrador</Badge>
@@ -1403,7 +1403,7 @@ const DashboardUsers = () => {
               </div>
               {!canEditAccessControls && (
                 <p className="text-xs text-muted-foreground">
-                  Apenas donos com permiss„o de acesso podem alterar permissıes de acesso.
+                  Apenas donos com permiss√£o de acesso podem alterar permiss√µes de acesso.
                 </p>
               )}
             </div>
@@ -1412,7 +1412,7 @@ const DashboardUsers = () => {
                 <Label>Dono</Label>
                 <div className="flex items-center justify-between gap-4 rounded-2xl border border-border/60 bg-card/60 px-4 py-3">
                   <span className="text-sm text-muted-foreground">
-                    Permite acesso total ao painel e ‡s configuraÁıes crÌticas.
+                    Permite acesso total ao painel e √†s configura√ß√µes cr√≠ticas.
                   </span>
                   <Switch
                     checked={ownerToggle}
@@ -1427,7 +1427,7 @@ const DashboardUsers = () => {
                 ) : null}
                 {isPrimaryOwnerRecord ? (
                   <p className="text-xs text-muted-foreground">
-                    O primeiro dono n„o pode ser rebaixado.
+                    O primeiro dono n√£o pode ser rebaixado.
                   </p>
                 ) : null}
               </div>
@@ -1482,9 +1482,9 @@ const DashboardUsers = () => {
       >
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Excluir usu·rio?</DialogTitle>
+            <DialogTitle>Excluir usu√°rio?</DialogTitle>
             <DialogDescription>
-              {deleteTarget ? `Excluir "${deleteTarget.name}"? Esta aÁ„o n„o pode ser desfeita.` : ""}
+              {deleteTarget ? `Excluir "${deleteTarget.name}"? Esta a√ß√£o n√£o pode ser desfeita.` : ""}
             </DialogDescription>
           </DialogHeader>
           <div className="flex justify-end gap-3">

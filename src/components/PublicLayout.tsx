@@ -8,7 +8,7 @@ const PublicLayout = () => {
   return (
     <div className="flex min-h-screen flex-col">
       <Header />
-      <main key={location.pathname} className="flex-1 motion-route page-transition">
+      <main key={location.pathname} className="flex-1 page-transition">
         <Outlet />
       </main>
       <Footer />

@@ -34,7 +34,7 @@ const PublicLayout = lazy(() => import("./components/PublicLayout"));
 export const queryClient = new QueryClient();
 
 const PageTransition = ({ children }: { children: React.ReactNode }) => (
-  <div className="motion-route page-transition">{children}</div>
+  <div className="page-transition">{children}</div>
 );
 
 const RouteLoadingFallback = () => <div aria-hidden="true" className="min-h-[55vh] w-full" />;
@@ -87,7 +87,7 @@ const ScrollToTop = () => {
 const RouterShell = () => {
   const location = useLocation();
   useReveal();
-  const wrap = (node: React.ReactNode) => <PageTransition key={location.pathname}>{node}</PageTransition>;
+  const wrap = (node: React.ReactNode) => <PageTransition>{node}</PageTransition>;
   return (
     <Suspense fallback={<RouteLoadingFallback />}>
       <Routes location={location}>

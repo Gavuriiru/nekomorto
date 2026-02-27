@@ -136,14 +136,14 @@ const Recruitment = () => {
       <main className="px-6 pb-20 pt-20 md:px-12">
         <section className="mx-auto w-full max-w-6xl pb-10 pt-6 reveal" data-reveal>
           <div className="space-y-4">
-            <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground motion-item">
+            <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground animate-fade-in">
               {recruitment.heroBadge}
             </p>
-            <h1 className="text-3xl font-semibold text-foreground md:text-4xl motion-item">
+            <h1 className="text-3xl font-semibold text-foreground md:text-4xl animate-slide-up">
               {recruitment.heroTitle}
             </h1>
             <p
-              className="max-w-2xl text-sm text-muted-foreground motion-item opacity-0"
+              className="max-w-2xl text-sm text-muted-foreground animate-slide-up opacity-0"
               style={{ animationDelay: "0.2s" }}
             >
               {recruitment.heroSubtitle}
@@ -158,7 +158,7 @@ const Recruitment = () => {
               return (
                 <Card
                   key={role.title}
-                  className="group bg-card/70 motion-item opacity-0 transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:bg-card/90 hover:shadow-lg"
+                  className="group bg-card/70 animate-fade-in opacity-0 transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:bg-card/90 hover:shadow-lg"
                   style={{ animationDelay: `${index * 80}ms` }}
                 >
                   <CardContent className="space-y-3 p-5">
@@ -182,7 +182,7 @@ const Recruitment = () => {
 
         <section className="mx-auto mt-12 w-full max-w-6xl reveal" data-reveal>
           <Card
-            className="group bg-card/70 motion-item opacity-0 transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:bg-card/90 hover:shadow-lg"
+            className="group bg-card/70 animate-fade-in opacity-0 transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:bg-card/90 hover:shadow-lg"
             style={{ animationDelay: "0.4s" }}
           >
             <CardContent className="flex flex-col items-stretch justify-between gap-4 p-6 md:flex-row md:items-center">

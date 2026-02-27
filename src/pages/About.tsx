@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+ï»¿import { useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -40,13 +40,13 @@ const iconMap: Record<string, typeof Heart> = {
 
 const defaultAbout = {
   heroBadge: "Sobre",
-  heroTitle: "Uma fansub com identidade própria",
+  heroTitle: "Uma fansub com identidade prÃ³pria",
   heroSubtitle:
-    "A Nekomata nasceu para entregar traduções naturais, visual marcante e um fluxo de trabalho que respeita a obra e o público. Cada etapa é feita com cuidado editorial e atenção aos detalhes.",
+    "A Nekomata nasceu para entregar traduÃ§Ãµes naturais, visual marcante e um fluxo de trabalho que respeita a obra e o pÃºblico. Cada etapa Ã© feita com cuidado editorial e atenÃ§Ã£o aos detalhes.",
   heroBadges: ["Legendado com carinho", "Sem propaganda", "Gratuito"],
   highlights: [
     {
-      label: "Somos movidos por histórias",
+      label: "Somos movidos por histÃ³rias",
       icon: "Sparkles",
       text:
         "Trabalhamos em equipe para traduzir, adaptar e manter a identidade de cada obra com cuidado editorial.",
@@ -54,48 +54,48 @@ const defaultAbout = {
     {
       label: "Processo claro e constante",
       icon: "Sparkles",
-      text: "Fluxo colaborativo, revisão dupla e ajustes finos fazem parte da nossa rotina.",
+      text: "Fluxo colaborativo, revisÃ£o dupla e ajustes finos fazem parte da nossa rotina.",
     },
     {
-      label: "Respeito à obra",
+      label: "Respeito Ã  obra",
       icon: "Sparkles",
       text:
-        "Apoiamos o consumo legal e preservamos a experiência original, com o toque da comunidade.",
+        "Apoiamos o consumo legal e preservamos a experiÃªncia original, com o toque da comunidade.",
     },
   ],
   manifestoTitle: "Manifesto",
   manifestoIcon: "Flame",
   manifestoParagraphs: [
-    "Fazemos tudo por paixão, sem fins lucrativos, priorizando qualidade e uma entrega que dê orgulho à comunidade. Cada projeto é um convite para sentir a obra como ela merece.",
-    "Nossas escolhas são orientadas por clareza, estilo e consistência. O resultado precisa ser bonito, legível e fiel ao tom da história.",
+    "Fazemos tudo por paixÃ£o, sem fins lucrativos, priorizando qualidade e uma entrega que dÃª orgulho Ã  comunidade. Cada projeto Ã© um convite para sentir a obra como ela merece.",
+    "Nossas escolhas sÃ£o orientadas por clareza, estilo e consistÃªncia. O resultado precisa ser bonito, legÃ­vel e fiel ao tom da histÃ³ria.",
   ],
   pillars: [
     {
       title: "Pipeline",
-      description: "Tradução ? Revisão ? Timing ? Typesetting ? Qualidade ? Encode.",
+      description: "TraduÃ§Ã£o â†’ RevisÃ£o â†’ Timing â†’ Typesetting â†’ Qualidade â†’ Encode.",
       icon: "Zap",
     },
     {
       title: "Comunidade",
-      description: "Feedbacks ajudam a evoluir o padrão e manter a identidade da equipe.",
+      description: "Feedbacks ajudam a evoluir o padrÃ£o e manter a identidade da equipe.",
       icon: "Users",
     },
     {
       title: "Estilo",
-      description: "Tipografia, ritmo e efeitos visuais criam uma experiência memorável.",
+      description: "Tipografia, ritmo e efeitos visuais criam uma experiÃªncia memorÃ¡vel.",
       icon: "Sparkles",
     },
   ],
   values: [
     {
-      title: "Paixão pelo que fazemos",
+      title: "PaixÃ£o pelo que fazemos",
       description:
-        "Cada projeto é tratado com carinho e respeito à obra original, sempre buscando a melhor experiência possível.",
+        "Cada projeto Ã© tratado com carinho e respeito Ã  obra original, sempre buscando a melhor experiÃªncia possÃ­vel.",
       icon: "Heart",
     },
     {
       title: "Qualidade em cada etapa",
-      description: "Do timing ao encode, mantemos um fluxo cuidadoso para entregar consistência e leitura confortável.",
+      description: "Do timing ao encode, mantemos um fluxo cuidadoso para entregar consistÃªncia e leitura confortÃ¡vel.",
       icon: "Sparkles",
     },
     {
@@ -106,7 +106,7 @@ const defaultAbout = {
     },
     {
       title: "Criatividade e estilo",
-      description: "Tipografia, efeitos e ritmo contam história. O typesetting é parte essencial da narrativa visual.",
+      description: "Tipografia, efeitos e ritmo contam histÃ³ria. O typesetting Ã© parte essencial da narrativa visual.",
       icon: "Wand2",
     },
   ],
@@ -166,19 +166,19 @@ const About = () => {
           <div className="absolute -right-24 bottom-10 h-64 w-64 rounded-full bg-accent/20 blur-[120px]" />
           <div className="relative mx-auto grid w-full max-w-6xl gap-8 px-6 pb-16 pt-24 md:grid-cols-[1.2fr_0.8fr] md:px-10 md:pt-28 reveal" data-reveal>
             <div className="space-y-5">
-              <Badge variant="secondary" className="text-xs uppercase tracking-widest motion-item">
+              <Badge variant="secondary" className="text-xs uppercase tracking-widest animate-fade-in">
                 {about.heroBadge}
               </Badge>
-              <h1 className="text-3xl font-semibold text-foreground md:text-5xl motion-item">
+              <h1 className="text-3xl font-semibold text-foreground md:text-5xl animate-slide-up">
                 {about.heroTitle}
               </h1>
               <p
-                className="text-sm text-muted-foreground md:text-base motion-item opacity-0"
+                className="text-sm text-muted-foreground md:text-base animate-slide-up opacity-0"
                 style={{ animationDelay: "0.2s" }}
               >
                 {about.heroSubtitle}
               </p>
-              <div className="flex flex-wrap gap-3 motion-item opacity-0" style={{ animationDelay: "0.4s" }}>
+              <div className="flex flex-wrap gap-3 animate-slide-up opacity-0" style={{ animationDelay: "0.4s" }}>
                 {about.heroBadges.map((badge) => (
                   <Badge key={badge} variant="secondary" className="text-xs uppercase tracking-widest">
                     {badge}

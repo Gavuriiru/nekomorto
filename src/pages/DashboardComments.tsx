@@ -299,9 +299,9 @@ const DashboardComments = () => {
           <div className="mx-auto flex w-full max-w-6xl flex-col gap-6">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
-                <h1 className="text-2xl font-semibold text-foreground motion-item">Comentários pendentes</h1>
+                <h1 className="text-2xl font-semibold text-foreground animate-slide-up">Comentários pendentes</h1>
                 <p
-                  className="text-sm text-muted-foreground motion-item opacity-0"
+                  className="text-sm text-muted-foreground animate-slide-up opacity-0"
                   style={{ animationDelay: "0.2s" }}
                 >
                   Aprove ou exclua comentários enviados pelos visitantes.
@@ -328,7 +328,7 @@ const DashboardComments = () => {
                     </Button>
                   </>
                 ) : null}
-                <Badge variant="secondary" className="text-xs uppercase motion-item">
+                <Badge variant="secondary" className="text-xs uppercase animate-fade-in">
                   {comments.length} pendentes
                 </Badge>
               </div>
@@ -362,7 +362,7 @@ const DashboardComments = () => {
                 {comments.map((comment, index) => (
                   <Card
                     key={comment.id}
-                    className="border-border/60 bg-card/80 shadow-lg motion-item opacity-0"
+                    className="border-border/60 bg-card/80 shadow-lg animate-slide-up opacity-0"
                     style={{ animationDelay: `${index * 60}ms` }}
                   >
                     <CardContent className="space-y-4 p-6">

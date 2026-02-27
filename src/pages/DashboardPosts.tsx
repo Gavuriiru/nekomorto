@@ -1,4 +1,4 @@
-import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from "react";
+Ôªøimport { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import DashboardShell from "@/components/DashboardShell";
 import DashboardPageContainer from "@/components/dashboard/DashboardPageContainer";
@@ -391,7 +391,7 @@ const isVersionRestorableAgainstPost = (version: ContentVersion, post?: PostReco
   }
 
   // Fallback defensivo para casos em que a snapshot venha parcial/inconsistente,
-  // mas a vers„o ainda indique claramente um estado diferente.
+  // mas a vers√£o ainda indique claramente um estado diferente.
   const topLevelVersionSlug = String(version?.slug || "").trim();
   if (topLevelVersionSlug && topLevelVersionSlug !== current.slug) {
     return true;
@@ -480,9 +480,9 @@ const DashboardPosts = () => {
   const [rollbackTargetVersion, setRollbackTargetVersion] = useState<ContentVersion | null>(null);
   const [isRollingBackVersion, setIsRollingBackVersion] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
-  const [confirmTitle, setConfirmTitle] = useState("Sair da ediÁ„o?");
+  const [confirmTitle, setConfirmTitle] = useState("Sair da edi√ß√£o?");
   const [confirmDescription, setConfirmDescription] = useState(
-    "VocÍ tem alteraÁıes n„o salvas. Deseja continuar?",
+    "Voc√™ tem altera√ß√µes n√£o salvas. Deseja continuar?",
   );
   const confirmActionRef = useRef<(() => void) | null>(null);
   const confirmCancelRef = useRef<(() => void) | null>(null);
@@ -772,8 +772,8 @@ const DashboardPosts = () => {
         return;
       }
       window.history.pushState(null, document.title, window.location.href);
-      setConfirmTitle("Sair da ediÁ„o?");
-      setConfirmDescription("VocÍ tem alteraÁıes n„o salvas. Deseja continuar?");
+      setConfirmTitle("Sair da edi√ß√£o?");
+      setConfirmDescription("Voc√™ tem altera√ß√µes n√£o salvas. Deseja continuar?");
       confirmActionRef.current = () => {
         allowPopRef.current = true;
         closeEditor();
@@ -806,8 +806,8 @@ const DashboardPosts = () => {
         return;
       }
       event.preventDefault();
-      setConfirmTitle("Sair da ediÁ„o?");
-      setConfirmDescription("VocÍ tem alteraÁıes n„o salvas. Deseja continuar?");
+      setConfirmTitle("Sair da edi√ß√£o?");
+      setConfirmDescription("Voc√™ tem altera√ß√µes n√£o salvas. Deseja continuar?");
       confirmActionRef.current = () => {
         const url = new URL(anchor.href, window.location.href);
         if (url.origin === window.location.origin) {
@@ -833,7 +833,7 @@ const DashboardPosts = () => {
     };
     if (isEditorOpen && isDirty) {
       setConfirmTitle("Criar nova postagem?");
-      setConfirmDescription("H· alteraÁıes n„o salvas. Deseja descartar e criar uma nova postagem?");
+      setConfirmDescription("H√° altera√ß√µes n√£o salvas. Deseja descartar e criar uma nova postagem?");
       confirmActionRef.current = () => {
         setEditingPost(null);
         setIsSlugCustom(false);
@@ -902,13 +902,13 @@ const DashboardPosts = () => {
       void checkRestorableHistoryAvailability(editingPost);
       await loadVersionHistory(editingPost.id);
       toast({
-        title: "Vers„o criada",
+        title: "Vers√£o criada",
         description: "Checkpoint manual criado com sucesso.",
         intent: "success",
       });
     } catch {
       toast({
-        title: "N„o foi possÌvel criar a vers„o",
+        title: "N√£o foi poss√≠vel criar a vers√£o",
         description: "Tente novamente em alguns segundos.",
       });
     } finally {
@@ -931,7 +931,7 @@ const DashboardPosts = () => {
       await loadVersionHistory(editingPost.id);
       setRollbackTargetVersion(null);
       toast({
-        title: "Vers„o restaurada",
+        title: "Vers√£o restaurada",
         description: response.rollback?.slugAdjusted
           ? `Slug ajustado para /${response.rollback?.resultingSlug || response.post?.slug || ""}.`
           : "O post foi restaurado com sucesso.",
@@ -939,8 +939,8 @@ const DashboardPosts = () => {
       });
     } catch {
       toast({
-        title: "N„o foi possÌvel restaurar a vers„o",
-        description: "Verifique as permissıes e tente novamente.",
+        title: "N√£o foi poss√≠vel restaurar a vers√£o",
+        description: "Verifique as permiss√µes e tente novamente.",
       });
     } finally {
       setIsRollingBackVersion(false);
@@ -984,8 +984,8 @@ const DashboardPosts = () => {
       closeEditor();
       return;
     }
-    setConfirmTitle("Sair da ediÁ„o?");
-    setConfirmDescription("VocÍ tem alteraÁıes n„o salvas. Deseja continuar?");
+    setConfirmTitle("Sair da edi√ß√£o?");
+    setConfirmDescription("Voc√™ tem altera√ß√µes n√£o salvas. Deseja continuar?");
     confirmActionRef.current = () => {
       closeEditor();
     };
@@ -1017,8 +1017,8 @@ const DashboardPosts = () => {
       navigate(href);
       return;
     }
-    setConfirmTitle("Sair da ediÁ„o?");
-    setConfirmDescription("VocÍ tem alteraÁıes n„o salvas. Deseja continuar?");
+    setConfirmTitle("Sair da edi√ß√£o?");
+    setConfirmDescription("Voc√™ tem altera√ß√µes n√£o salvas. Deseja continuar?");
     confirmActionRef.current = () => {
       navigate(href);
     };
@@ -1457,7 +1457,7 @@ const DashboardPosts = () => {
       await navigator.clipboard.writeText(url);
       toast({ title: "Link copiado", description: url });
     } catch {
-      toast({ title: "N„o foi possÌvel copiar o link" });
+      toast({ title: "N√£o foi poss√≠vel copiar o link" });
     }
   };
 
@@ -1483,7 +1483,7 @@ const DashboardPosts = () => {
     const hasScheduledDate = resolvedStatus !== "scheduled" || Boolean(scheduledDateSource);
     if (!hasScheduledDate) {
       toast({
-        title: "Defina uma data de publicaÁ„o",
+        title: "Defina uma data de publica√ß√£o",
         description: "Posts agendados precisam de uma data.",
       });
       return;
@@ -1530,8 +1530,8 @@ const DashboardPosts = () => {
 
     if (!payload.title || !payload.slug) {
       toast({
-        title: "Preencha os campos obrigatÛrios",
-        description: "TÌtulo e slug s„o necess·rios para criar a postagem.",
+        title: "Preencha os campos obrigat√≥rios",
+        description: "T√≠tulo e slug s√£o necess√°rios para criar a postagem.",
       });
       return;
     }
@@ -1549,8 +1549,8 @@ const DashboardPosts = () => {
 
     if (!response.ok) {
       toast({
-        title: "N„o foi possÌvel salvar",
-        description: "Verifique as permissıes ou tente novamente.",
+        title: "N√£o foi poss√≠vel salvar",
+        description: "Verifique as permiss√µes ou tente novamente.",
       });
       return;
     }
@@ -1592,7 +1592,7 @@ const DashboardPosts = () => {
     setTagOrder(tagsToSave);
     toast({
       title: editingPost ? "Postagem atualizada" : "Postagem criada",
-      description: "As alteraÁıes j· est„o na dashboard.",
+      description: "As altera√ß√µes j√° est√£o na dashboard.",
     });
     if (pendingTags.length) {
       setTagInput("");
@@ -1627,7 +1627,7 @@ const DashboardPosts = () => {
       auth: true,
     });
     if (!response.ok) {
-      toast({ title: "N„o foi possÌvel excluir a postagem" });
+      toast({ title: "N√£o foi poss√≠vel excluir a postagem" });
       return;
     }
     await loadPosts();
@@ -1635,7 +1635,7 @@ const DashboardPosts = () => {
     if (editingPost && deleteTarget.id === editingPost.id) {
       closeEditor();
     }
-    toast({ title: "Postagem movida para a lixeira", description: "VocÍ pode restaurar por 3 dias." });
+    toast({ title: "Postagem movida para a lixeira", description: "Voc√™ pode restaurar por 3 dias." });
   };
   const handleRestorePost = async (post: PostRecord) => {
     const response = await apiFetch(apiBase, `/api/posts/${post.id}/restore`, {
@@ -1644,11 +1644,11 @@ const DashboardPosts = () => {
     });
     if (!response.ok) {
       if (response.status === 410) {
-        toast({ title: "Janela de restauraÁ„o expirou" });
+        toast({ title: "Janela de restaura√ß√£o expirou" });
         await loadPosts();
         return;
       }
-      toast({ title: "N„o foi possÌvel restaurar a postagem" });
+      toast({ title: "N√£o foi poss√≠vel restaurar a postagem" });
       return;
     }
     const data = await response.json();
@@ -1732,7 +1732,7 @@ const DashboardPosts = () => {
                     <DialogHeader>
                       <DialogTitle>{editingPost ? "Editar postagem" : "Nova postagem"}</DialogTitle>
                       <DialogDescription>
-                        Crie, edite e publique conte˙dos sem sair da listagem.
+                        Crie, edite e publique conte√∫dos sem sair da listagem.
                       </DialogDescription>
                     </DialogHeader>
                     <div
@@ -1756,7 +1756,7 @@ const DashboardPosts = () => {
                           contentLexical: value,
                         }))
                       }
-                      placeholder="Escreva o conte˙do do post..."
+                      placeholder="Escreva o conte√∫do do post..."
                       className="lexical-playground--stretch lexical-playground--modal min-w-0 w-full"
                       imageLibraryOptions={postImageLibraryOptions}
                     />
@@ -1784,7 +1784,7 @@ const DashboardPosts = () => {
                               size="sm"
                               onClick={() => setIsSlugCustom((prev) => !prev)}
                             >
-                              {isSlugCustom ? "Autom·tico" : "Personalizar"}
+                              {isSlugCustom ? "Autom√°tico" : "Personalizar"}
                             </Button>
                           </div>
                           <Input
@@ -1881,7 +1881,7 @@ const DashboardPosts = () => {
                                   variant={editorResolvedCover.source === "manual" ? "secondary" : "outline"}
                                   className="shrink-0 text-[10px] uppercase"
                                 >
-                                  {editorResolvedCover.source === "manual" ? "Manual" : "Autom·tica"}
+                                  {editorResolvedCover.source === "manual" ? "Manual" : "Autom√°tica"}
                                 </Badge>
                               </div>
                             </div>
@@ -2011,7 +2011,7 @@ const DashboardPosts = () => {
                             {editingPostHasRestorableHistory ? (
                             <Button variant="outline" onClick={() => void openVersionHistory()} className="gap-2">
                               <History className="h-4 w-4" />
-                              HistÛrico
+                              Hist√≥rico
                             </Button>
                             ) : null}
                             <Button variant="outline" onClick={handleDelete} className="gap-2">
@@ -2051,7 +2051,7 @@ const DashboardPosts = () => {
             ) : null}
 
             <section className="mt-10 space-y-6">
-              <div className="flex flex-wrap items-center justify-between gap-3 motion-item opacity-0">
+              <div className="flex flex-wrap items-center justify-between gap-3 animate-slide-up opacity-0">
                 <div className="flex flex-1 flex-wrap items-center gap-3">
                   <div className="w-full max-w-sm">
                     <Input
@@ -2060,7 +2060,7 @@ const DashboardPosts = () => {
                         setCurrentPage(1);
                         setSearchQuery(event.target.value);
                       }}
-                      placeholder="Buscar por tÌtulo, slug, autor, tags..."
+                      placeholder="Buscar por t√≠tulo, slug, autor, tags..."
                     />
                   </div>
                   <Select
@@ -2075,12 +2075,12 @@ const DashboardPosts = () => {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="recent">Mais recentes</SelectItem>
-                      <SelectItem value="alpha">Ordem alfabÈtica</SelectItem>
+                      <SelectItem value="alpha">Ordem alfab√©tica</SelectItem>
                       <SelectItem value="tags">Tags</SelectItem>
                       <SelectItem value="projects">Projetos</SelectItem>
                       <SelectItem value="status">Status</SelectItem>
-                      <SelectItem value="views">VisualizaÁıes</SelectItem>
-                      <SelectItem value="comments">Coment·rios</SelectItem>
+                      <SelectItem value="views">Visualiza√ß√µes</SelectItem>
+                      <SelectItem value="comments">Coment√°rios</SelectItem>
                     </SelectContent>
                   </Select>
                   {sortMode === "projects" ? (
@@ -2136,10 +2136,10 @@ const DashboardPosts = () => {
                       onClick={() => setListViewMode("calendar")}
                     >
                       <CalendarDays className="h-4 w-4" />
-                      Calend·rio
+                      Calend√°rio
                     </Button>
                   </div>
-                  <Badge variant="secondary" className="text-xs uppercase motion-item opacity-0">
+                  <Badge variant="secondary" className="text-xs uppercase animate-slide-up opacity-0">
                     {sortedPosts.length} posts
                   </Badge>
                 </div>
@@ -2154,7 +2154,7 @@ const DashboardPosts = () => {
               ) : hasLoadError ? (
                 <AsyncState
                   kind="error"
-                  title="N„o foi possÌvel carregar as postagens"
+                  title="N√£o foi poss√≠vel carregar as postagens"
                   description="Confira a conexao e tente atualizar os dados."
                   className={dashboardPageLayoutTokens.surfaceDefault}
                   action={
@@ -2202,7 +2202,7 @@ const DashboardPosts = () => {
                             )
                           }
                         >
-                          MÍs anterior
+                          M√™s anterior
                         </Button>
                         <Button
                           type="button"
@@ -2214,21 +2214,21 @@ const DashboardPosts = () => {
                             )
                           }
                         >
-                          PrÛximo mÍs
+                          Pr√≥ximo m√™s
                         </Button>
                       </div>
                     </div>
                     {isCalendarLoading ? (
                       <AsyncState
                         kind="loading"
-                        title="Carregando calend·rio editorial"
+                        title="Carregando calend√°rio editorial"
                         description="Buscando postagens do m?s."
                         className="border-0 bg-transparent p-0"
                       />
                     ) : hasCalendarError ? (
                       <AsyncState
                         kind="error"
-                        title="N„o foi possÌvel carregar o calend·rio"
+                        title="N√£o foi poss√≠vel carregar o calend√°rio"
                         description="Tente novamente em alguns segundos."
                         className="border-0 bg-transparent p-0"
                         action={
@@ -2244,7 +2244,7 @@ const DashboardPosts = () => {
                     ) : (
                       <div className="space-y-3">
                         <div className="grid grid-cols-7 gap-2 text-center text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-                          {["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "S·b"].map((label) => (
+                          {["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "S√°b"].map((label) => (
                             <div key={label} className="py-1">
                               {label}
                             </div>
@@ -2361,7 +2361,7 @@ const DashboardPosts = () => {
                       <Card
                         key={post.id}
                         data-testid={`post-card-${post.id}`}
-                        className={`${dashboardPageLayoutTokens.listCard} group cursor-pointer overflow-hidden transition hover:border-primary/40 motion-item opacity-0`}
+                        className={`${dashboardPageLayoutTokens.listCard} group cursor-pointer overflow-hidden transition hover:border-primary/40 animate-slide-up opacity-0`}
                         style={{ animationDelay: `${Math.min(index * 35, 210)}ms` }}
                         role={canManagePosts ? "button" : undefined}
                         tabIndex={canManagePosts ? 0 : -1}
@@ -2464,7 +2464,7 @@ const DashboardPosts = () => {
                                 data-slot="excerpt"
                                 className="line-clamp-2 min-h-0 overflow-hidden text-sm text-muted-foreground [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2] lg:line-clamp-1 lg:[-webkit-line-clamp:1]"
                               >
-                                {post.excerpt || "Sem prÈvia cadastrada."}
+                                {post.excerpt || "Sem pr√©via cadastrada."}
                               </p>
 
                               <div className="flex min-h-0 shrink-0 flex-col gap-2">
@@ -2497,7 +2497,7 @@ const DashboardPosts = () => {
                                 >
                                   <span className="inline-flex min-w-0 max-w-full items-center gap-2">
                                     <UserRound className="h-4 w-4 shrink-0" />
-                                    <span className="truncate">{post.author || "Autor n„o definido"}</span>
+                                    <span className="truncate">{post.author || "Autor n√£o definido"}</span>
                                   </span>
                                   <span className="inline-flex shrink-0 items-center gap-2 whitespace-nowrap">
                                     <Eye className="h-4 w-4" />
@@ -2569,7 +2569,7 @@ const DashboardPosts = () => {
                       <div>
                         <h3 className="text-lg font-semibold">Lixeira</h3>
                         <p className="text-xs text-muted-foreground">
-                          Restaure em atÈ 3 dias apÛs a exclus„o.
+                          Restaure em at√© 3 dias ap√≥s a exclus√£o.
                         </p>
                       </div>
                       <Badge variant="secondary" className="text-xs uppercase">
@@ -2580,7 +2580,7 @@ const DashboardPosts = () => {
                       {trashedPosts.map((post, index) => (
                         <div
                           key={`trash-${post.id}`}
-                          className={`${dashboardPageLayoutTokens.surfaceDefault} flex flex-wrap items-center justify-between gap-3 px-4 py-3 motion-item opacity-0`}
+                          className={`${dashboardPageLayoutTokens.surfaceDefault} flex flex-wrap items-center justify-between gap-3 px-4 py-3 animate-slide-up opacity-0`}
                           style={{ animationDelay: `${Math.min(index * 35, 210)}ms` }}
                         >
                           <div className="min-w-0">
@@ -2615,7 +2615,7 @@ const DashboardPosts = () => {
           open={isLibraryOpen}
           onOpenChange={setIsLibraryOpen}
           apiBase={apiBase}
-          description="Escolha uma imagem j· enviada ou use capas/banners de projetos."
+          description="Escolha uma imagem j√° enviada ou use capas/banners de projetos."
           uploadFolder={postImageLibraryOptions.uploadFolder}
           listFolders={postImageLibraryOptions.listFolders}
           listAll={postImageLibraryOptions.listAll}
@@ -2640,15 +2640,15 @@ const DashboardPosts = () => {
       >
         <DialogContent className="max-w-3xl">
           <DialogHeader>
-            <DialogTitle>HistÛrico de versıes</DialogTitle>
+            <DialogTitle>Hist√≥rico de vers√µes</DialogTitle>
             <DialogDescription>
-              {editingPost ? `Postagem: ${editingPost.title}` : "Selecione uma postagem para visualizar versıes."}
+              {editingPost ? `Postagem: ${editingPost.title}` : "Selecione uma postagem para visualizar vers√µes."}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <p className="text-xs text-muted-foreground">
-                Versıes mais recentes primeiro. Rollback restaura o conte˙do editorial da vers„o escolhida.
+                Vers√µes mais recentes primeiro. Rollback restaura o conte√∫do editorial da vers√£o escolhida.
               </p>
               {editingPost ? (
                 <Button
@@ -2658,21 +2658,21 @@ const DashboardPosts = () => {
                   disabled={isCreatingManualVersion}
                   onClick={() => void handleCreateManualVersion()}
                 >
-                  {isCreatingManualVersion ? "Criando..." : "Criar vers„o agora"}
+                  {isCreatingManualVersion ? "Criando..." : "Criar vers√£o agora"}
                 </Button>
               ) : null}
             </div>
             {isLoadingVersions ? (
               <AsyncState
                 kind="loading"
-                title="Carregando versıes"
-                description="Buscando histÛrico da postagem."
+                title="Carregando vers√µes"
+                description="Buscando hist√≥rico da postagem."
                 className="border-0 bg-transparent p-0"
               />
             ) : hasVersionsError ? (
               <AsyncState
                 kind="error"
-                title="N„o foi possÌvel carregar o histÛrico"
+                title="N√£o foi poss√≠vel carregar o hist√≥rico"
                 description="Tente novamente em alguns segundos."
                 className="border-0 bg-transparent p-0"
                 action={
@@ -2686,8 +2686,8 @@ const DashboardPosts = () => {
             ) : postVersions.length === 0 ? (
               <AsyncState
                 kind="empty"
-                title="Sem versıes ainda"
-                description="As versıes aparecem apÛs salvar/editar a postagem."
+                title="Sem vers√µes ainda"
+                description="As vers√µes aparecem ap√≥s salvar/editar a postagem."
                 className="border-0 bg-transparent p-0"
               />
             ) : (
@@ -2743,7 +2743,7 @@ const DashboardPosts = () => {
                 )})}
                 {versionsNextCursor ? (
                   <p className="text-xs text-muted-foreground">
-                    H· mais versıes antigas disponÌveis. (PaginaÁ„o v1 ainda n„o exposta na UI)
+                    H√° mais vers√µes antigas dispon√≠veis. (Pagina√ß√£o v1 ainda n√£o exposta na UI)
                   </p>
                 ) : null}
               </div>
@@ -2760,13 +2760,13 @@ const DashboardPosts = () => {
       <Dialog open={Boolean(rollbackTargetVersion)} onOpenChange={(open) => !open && setRollbackTargetVersion(null)}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle>Restaurar vers„o?</DialogTitle>
+            <DialogTitle>Restaurar vers√£o?</DialogTitle>
             <DialogDescription>
               {rollbackTargetVersion
-                ? `Restaurar a vers„o v${rollbackTargetVersion.versionNumber} de ${formatDateTimeShort(
+                ? `Restaurar a vers√£o v${rollbackTargetVersion.versionNumber} de ${formatDateTimeShort(
                     rollbackTargetVersion.createdAt,
                   )}?`
-                : "Confirme o rollback da vers„o selecionada."}
+                : "Confirme o rollback da vers√£o selecionada."}
             </DialogDescription>
           </DialogHeader>
           {rollbackTargetVersion ? (
@@ -2790,7 +2790,7 @@ const DashboardPosts = () => {
                 </div>
                 <div className="grid gap-2 text-sm sm:grid-cols-2">
                   <div>
-                    <p className="text-[11px] uppercase tracking-wide text-muted-foreground">TÌtulo</p>
+                    <p className="text-[11px] uppercase tracking-wide text-muted-foreground">T√≠tulo</p>
                     <p className="font-medium text-foreground">{rollbackTargetVersion.snapshot?.title || "-"}</p>
                   </div>
                   <div>
@@ -2798,7 +2798,7 @@ const DashboardPosts = () => {
                     <p className="font-medium text-foreground">/{rollbackTargetVersion.snapshot?.slug || "-"}</p>
                   </div>
                   <div>
-                    <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Vers„o salva</p>
+                    <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Vers√£o salva</p>
                     <p className="text-foreground">{formatDateTimeShort(rollbackTargetVersion.createdAt)}</p>
                   </div>
                   <div>
@@ -2815,7 +2815,7 @@ const DashboardPosts = () => {
                   </div>
                   <div>
                     <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Autor</p>
-                    <p className="text-foreground">{rollbackTargetVersion.snapshot?.author || "N„o definido"}</p>
+                    <p className="text-foreground">{rollbackTargetVersion.snapshot?.author || "N√£o definido"}</p>
                   </div>
                   <div>
                     <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Projeto</p>
@@ -2892,7 +2892,7 @@ const DashboardPosts = () => {
           <DialogHeader>
             <DialogTitle>Excluir postagem?</DialogTitle>
             <DialogDescription>
-              {deleteTarget ? `Excluir "${deleteTarget.title}"? VocÍ pode restaurar por atÈ 3 dias.` : ""}
+              {deleteTarget ? `Excluir "${deleteTarget.title}"? Voc√™ pode restaurar por at√© 3 dias.` : ""}
             </DialogDescription>
           </DialogHeader>
           <div className="flex justify-end gap-3">

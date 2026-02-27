@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from "react";
+Ôªøimport { useEffect, useMemo } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -40,17 +40,17 @@ const Login = () => {
   const errorMessage = (() => {
     switch (error) {
       case "unauthorized":
-        return "Seu usu·rio ainda n„o tem acesso liberado.";
+        return "Seu usu√°rio ainda n√£o tem acesso liberado.";
       case "state_mismatch":
-        return "Falha de seguranÁa na autenticaÁ„o. Tente novamente.";
+        return "Falha de seguran√ßa na autentica√ß√£o. Tente novamente.";
       case "token_exchange_failed":
-        return "N„o foi possÌvel concluir a autenticaÁ„o.";
+        return "N√£o foi poss√≠vel concluir a autentica√ß√£o.";
       case "user_fetch_failed":
-        return "N„o foi possÌvel buscar seus dados.";
+        return "N√£o foi poss√≠vel buscar seus dados.";
       case "missing_code":
-        return "AutenticaÁ„o cancelada ou incompleta.";
+        return "Autentica√ß√£o cancelada ou incompleta.";
       case "server_error":
-        return "Erro interno no servidor de autenticaÁ„o.";
+        return "Erro interno no servidor de autentica√ß√£o.";
       default:
         return null;
     }
@@ -61,8 +61,8 @@ const Login = () => {
       <div aria-hidden className="login-backdrop" />
       <main className="relative pt-28">
         <section className="mx-auto w-full max-w-3xl px-6 pb-20 md:px-10">
-          <div className="login-card motion-item">
-            <div className="login-card-content motion-item">
+          <div className="login-card animate-fade-in">
+            <div className="login-card-content animate-slide-up">
               <div className="flex flex-col gap-6">
                 <div className="flex flex-wrap items-center gap-2">
                   <Badge className="border border-border/65 bg-card/75 text-muted-foreground">
@@ -74,10 +74,10 @@ const Login = () => {
                 </div>
                 <div className="space-y-2">
                   <h1 className="text-3xl font-semibold lg:text-4xl">
-                    AutorizaÁ„o Necess·ria
+                    Autoriza√ß√£o Necess√°ria
                   </h1>
                   <p className="text-sm text-muted-foreground">
-                    FaÁa o seu login para acessar a plataforma.
+                    Fa√ßa o seu login para acessar a plataforma.
                   </p>
                 </div>
 
