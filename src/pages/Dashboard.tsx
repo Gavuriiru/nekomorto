@@ -430,14 +430,14 @@ const Dashboard = () => {
           <section className="mx-auto w-full max-w-6xl px-6 pb-20 md:px-10 reveal" data-reveal>
             <header className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
               <div className="space-y-3">
-                <div className="inline-flex items-center gap-3 rounded-full border border-border/60 bg-card/60 px-4 py-2 text-xs uppercase tracking-[0.3em] text-muted-foreground animate-fade-in">
+                <div className="inline-flex items-center gap-3 rounded-full border border-border/60 bg-card/60 px-4 py-2 text-xs uppercase tracking-[0.3em] text-muted-foreground motion-item">
                   Dashboard Interna
               </div>
-              <h1 className="text-3xl font-semibold lg:text-4xl animate-slide-up">
+              <h1 className="text-3xl font-semibold lg:text-4xl motion-item">
                 Painel de controle da comunidade
               </h1>
               <p
-                className="max-w-2xl text-sm text-muted-foreground animate-slide-up opacity-0"
+                className="max-w-2xl text-sm text-muted-foreground motion-item opacity-0"
                 style={{ animationDelay: "0.2s" }}
               >
                 Visão geral dos projetos e do conteúdo. Assim que as integrações de analytics e
@@ -488,7 +488,7 @@ const Dashboard = () => {
             <>
               <div className="mt-10 grid gap-4 md:grid-cols-2 lg:grid-cols-4">
             <div
-              className="rounded-2xl border border-border/60 bg-linear-to-br from-card/70 to-background/60 p-5 animate-slide-up opacity-0"
+              className="rounded-2xl border border-border/60 bg-linear-to-br from-card/70 to-background/60 p-5 motion-item opacity-0"
               style={{ animationDelay: "0ms" }}
             >
               <p className="text-sm text-muted-foreground">Projetos cadastrados</p>
@@ -496,7 +496,7 @@ const Dashboard = () => {
               <p className="mt-2 text-xs text-muted-foreground">Catálogo completo do site.</p>
             </div>
             <div
-              className="rounded-2xl border border-border/60 bg-linear-to-br from-card/70 to-background/60 p-5 animate-slide-up opacity-0"
+              className="rounded-2xl border border-border/60 bg-linear-to-br from-card/70 to-background/60 p-5 motion-item opacity-0"
               style={{ animationDelay: "80ms" }}
             >
               <p className="text-sm text-muted-foreground">Mídias disponíveis</p>
@@ -504,7 +504,7 @@ const Dashboard = () => {
               <p className="mt-2 text-xs text-muted-foreground">Downloads ativos nos projetos.</p>
             </div>
             <div
-              className="rounded-2xl border border-border/60 bg-linear-to-br from-card/70 to-background/60 p-5 animate-slide-up opacity-0"
+              className="rounded-2xl border border-border/60 bg-linear-to-br from-card/70 to-background/60 p-5 motion-item opacity-0"
               style={{ animationDelay: "160ms" }}
             >
               <p className="text-sm text-muted-foreground">Projetos ativos</p>
@@ -512,7 +512,7 @@ const Dashboard = () => {
               <p className="mt-2 text-xs text-muted-foreground">Em andamento ou produção.</p>
             </div>
             <div
-              className="rounded-2xl border border-border/60 bg-linear-to-br from-card/70 to-background/60 p-5 animate-slide-up opacity-0"
+              className="rounded-2xl border border-border/60 bg-linear-to-br from-card/70 to-background/60 p-5 motion-item opacity-0"
               style={{ animationDelay: "240ms" }}
             >
               <p className="text-sm text-muted-foreground">Projetos finalizados</p>
@@ -524,7 +524,7 @@ const Dashboard = () => {
               <section className="mt-10 grid gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] reveal" data-reveal>
                 <div className="space-y-6">
               <div
-                className="rounded-3xl border border-border/60 bg-card/60 p-6 shadow-[0_20px_60px_-40px_rgba(0,0,0,0.8)] animate-slide-up opacity-0"
+                className="rounded-3xl border border-border/60 bg-card/60 p-6 shadow-[0_20px_60px_-40px_rgba(0,0,0,0.8)] motion-item opacity-0"
                 style={{ animationDelay: "120ms" }}
               >
                 <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
@@ -587,7 +587,7 @@ const Dashboard = () => {
               </div>
 
               <div
-                className="rounded-3xl border border-border/60 bg-card/60 p-6 animate-slide-up opacity-0"
+                className="rounded-3xl border border-border/60 bg-card/60 p-6 motion-item opacity-0"
                 style={{ animationDelay: "200ms" }}
               >
                 <div className="flex items-center justify-between">
@@ -629,7 +629,7 @@ const Dashboard = () => {
               </div>
 
               <div
-                className="rounded-3xl border border-border/60 bg-card/60 p-6 animate-slide-up opacity-0"
+                className="rounded-3xl border border-border/60 bg-card/60 p-6 motion-item opacity-0"
                 style={{ animationDelay: "280ms" }}
               >
                 <div className="flex items-center justify-between">
@@ -679,7 +679,7 @@ const Dashboard = () => {
                 <aside className="space-y-6">
               {!hideOperationalAlertsCard ? (
                 <div
-                  className="rounded-3xl border border-border/60 bg-card/60 p-6 animate-slide-up opacity-0"
+                  className="rounded-3xl border border-border/60 bg-card/60 p-6 motion-item opacity-0"
                   style={{ animationDelay: "320ms" }}
                 >
                   <div className="flex items-center justify-between gap-3">
@@ -730,7 +730,7 @@ const Dashboard = () => {
                 </div>
               ) : null}
               <div
-                className="rounded-3xl border border-border/60 bg-card/60 p-6 animate-slide-up opacity-0"
+                className="rounded-3xl border border-border/60 bg-card/60 p-6 motion-item opacity-0"
                 style={{ animationDelay: "360ms" }}
               >
                 <div className="flex items-center justify-between">
@@ -767,7 +767,7 @@ const Dashboard = () => {
               </div>
 
               <div
-                className="rounded-3xl border border-border/60 bg-card/60 p-6 overflow-hidden animate-slide-up opacity-0"
+                className="rounded-3xl border border-border/60 bg-card/60 p-6 overflow-hidden motion-item opacity-0"
                 style={{ animationDelay: "440ms" }}
               >
                 <h2 className="text-lg font-semibold">Projetos cadastrados</h2>

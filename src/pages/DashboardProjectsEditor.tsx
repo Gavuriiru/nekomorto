@@ -2262,7 +2262,7 @@ const DashboardProjectsEditor = () => {
             />
 
             <section className="mt-8 space-y-6">
-              <div className="flex flex-wrap items-center justify-between gap-3 animate-slide-up opacity-0">
+              <div className="flex flex-wrap items-center justify-between gap-3 motion-item opacity-0">
                 <div className="flex flex-1 flex-wrap items-center gap-3">
                   <div className="w-full max-w-sm">
                     <Input
@@ -2296,7 +2296,7 @@ const DashboardProjectsEditor = () => {
                     </SelectContent>
                   </Select>
                 </div>
-                <Badge variant="secondary" className="text-xs uppercase animate-slide-up opacity-0">
+                <Badge variant="secondary" className="text-xs uppercase motion-item opacity-0">
                   {sortedProjects.length} projetos
                 </Badge>
               </div>
@@ -2341,7 +2341,7 @@ const DashboardProjectsEditor = () => {
                   {paginatedProjects.map((project, index) => (
                     <Card
                       key={project.id}
-                      className={`${dashboardPageLayoutTokens.listCard} group cursor-pointer overflow-hidden transition hover:border-primary/40 animate-slide-up opacity-0`}
+                      className={`${dashboardPageLayoutTokens.listCard} group cursor-pointer overflow-hidden transition hover:border-primary/40 motion-item opacity-0`}
                       style={{ animationDelay: `${Math.min(index * 35, 210)}ms` }}
                       role="button"
                       tabIndex={0}
@@ -2535,7 +2535,7 @@ const DashboardProjectsEditor = () => {
                       {trashedProjects.map((project, index) => (
                         <div
                           key={`trash-${project.id}`}
-                          className={`${dashboardPageLayoutTokens.surfaceDefault} flex flex-wrap items-center justify-between gap-3 px-4 py-3 animate-slide-up opacity-0`}
+                          className={`${dashboardPageLayoutTokens.surfaceDefault} flex flex-wrap items-center justify-between gap-3 px-4 py-3 motion-item opacity-0`}
                           style={{ animationDelay: `${Math.min(index * 35, 210)}ms` }}
                         >
                           <div className="min-w-0">

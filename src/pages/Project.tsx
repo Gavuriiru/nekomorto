@@ -1,4 +1,4 @@
-Ôªøimport { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import {
   BookOpen,
@@ -188,10 +188,10 @@ const ProjectPage = () => {
       { label: "Formato", value: project.type },
       { label: "Status", value: project.status },
       { label: "Ano", value: project.year },
-      { label: "Est√∫dio", value: project.studio },
+      { label: "Est˙dio", value: project.studio },
       { label: "Temporada", value: project.season },
-      { label: isChapterBased ? "Cap√≠tulos" : "Epis√≥dios", value: project.episodes },
-      { label: "Classifica√ß√£o", value: project.rating },
+      { label: isChapterBased ? "CapÌtulos" : "EpisÛdios", value: project.episodes },
+      { label: "ClassificaÁ„o", value: project.rating },
       { label: "Agenda", value: project.schedule },
     ].filter((item) => String(item.value || "").trim().length > 0);
   }, [project]);
@@ -419,7 +419,7 @@ const ProjectPage = () => {
               <div className="flex min-w-0 items-center gap-2 pr-20">
                 <Badge variant="secondary" className="rounded-full px-2.5 py-0.5 text-[10px] uppercase">
                   {isManga
-                    ? `Cap ${episode.number}${episode.volume ? ` ‚Ä¢ Vol. ${episode.volume}` : ""}`
+                    ? `Cap ${episode.number}${episode.volume ? ` ï Vol. ${episode.volume}` : ""}`
                     : `EP ${episode.number}`}
                 </Badge>
                 <p className="truncate text-base font-semibold text-foreground md:text-lg">{episode.title}</p>
@@ -428,7 +428,7 @@ const ProjectPage = () => {
                 {episode.duration ? (
                   <span className="inline-flex items-center gap-1">
                     <Clock3 className="h-3.5 w-3.5 text-primary/70" />
-                    <span className="font-medium text-foreground/90">Dura√ß√£o:</span>
+                    <span className="font-medium text-foreground/90">DuraÁ„o:</span>
                     {episode.duration}
                   </span>
                 ) : null}
@@ -587,7 +587,7 @@ const ProjectPage = () => {
           <div className="absolute inset-0 bg-linear-to-t from-background/85 via-background/45 to-transparent" />
 
           <div className="relative mx-auto flex min-h-[420px] w-full max-w-6xl flex-col items-center gap-8 px-6 pb-16 pt-24 md:flex-row md:items-center md:px-10 lg:min-h-[520px] reveal" data-reveal>
-            <div className="mx-auto w-52 shrink-0 overflow-hidden rounded-2xl bg-secondary shadow-2xl animate-slide-up opacity-0 md:mx-0 md:w-64">
+            <div className="mx-auto w-52 shrink-0 overflow-hidden rounded-2xl bg-secondary shadow-2xl motion-item opacity-0 md:mx-0 md:w-64">
               <img
                 src={project.cover}
                 alt={project.title}
@@ -595,22 +595,22 @@ const ProjectPage = () => {
               />
             </div>
             <div className="flex w-full flex-1 flex-col items-center gap-4 text-center md:items-start md:text-left">
-              <div className="flex w-full flex-wrap items-center justify-center gap-3 text-center text-xs uppercase tracking-[0.2em] text-primary/80 animate-fade-in md:w-auto md:justify-start md:text-left">
+              <div className="flex w-full flex-wrap items-center justify-center gap-3 text-center text-xs uppercase tracking-[0.2em] text-primary/80 motion-item md:w-auto md:justify-start md:text-left">
                 <span>{project.type}</span>
-                <span className="text-muted-foreground">‚Ä¢</span>
+                <span className="text-muted-foreground">ï</span>
                 <span>{project.status}</span>
               </div>
-              <h1 className="text-center text-3xl font-semibold text-foreground md:text-left md:text-4xl lg:text-5xl animate-slide-up">
+              <h1 className="text-center text-3xl font-semibold text-foreground md:text-left md:text-4xl lg:text-5xl motion-item">
                 {project.title}
               </h1>
               <p
-                className="max-w-2xl text-center text-sm text-muted-foreground md:text-left md:text-base animate-slide-up opacity-0"
+                className="max-w-2xl text-center text-sm text-muted-foreground md:text-left md:text-base motion-item opacity-0"
                 style={{ animationDelay: "0.2s" }}
               >
                 {project.synopsis}
               </p>
               {project.tags?.length ? (
-                <div className="flex w-full flex-wrap justify-center gap-2 animate-slide-up opacity-0 md:justify-start" style={{ animationDelay: "0.3s" }}>
+                <div className="flex w-full flex-wrap justify-center gap-2 motion-item opacity-0 md:justify-start" style={{ animationDelay: "0.3s" }}>
                   {sortedTags.map((tag) => (
                     <Link key={tag} to={`/projetos?tag=${encodeURIComponent(tag)}`} className="inline-flex">
                       <Badge variant="secondary" className="text-[10px] uppercase">
@@ -620,11 +620,11 @@ const ProjectPage = () => {
                   ))}
                 </div>
               ) : null}
-              <div className="flex w-full flex-wrap justify-center gap-3 animate-slide-up opacity-0 md:justify-start" style={{ animationDelay: "0.4s" }}>
+              <div className="flex w-full flex-wrap justify-center gap-3 motion-item opacity-0 md:justify-start" style={{ animationDelay: "0.4s" }}>
                 <Button asChild className="gap-2">
                   <a href="#downloads">
                     <Download className="h-4 w-4" />
-                    {isChapterBased ? "Ver cap√≠tulos" : "Ver epis√≥dios"}
+                    {isChapterBased ? "Ver capÌtulos" : "Ver episÛdios"}
                   </a>
                 </Button>
                 {isLightNovel && firstReadableChapter ? (
@@ -634,7 +634,7 @@ const ProjectPage = () => {
                         firstReadableChapter.volume ? `?volume=${firstReadableChapter.volume}` : ""
                       }`}
                     >
-                      Come√ßar leitura
+                      ComeÁar leitura
                     </Link>
                   </Button>
                 ) : null}
@@ -730,7 +730,7 @@ const ProjectPage = () => {
                                 {relation.title}
                               </p>
                               <p className="text-xs text-muted-foreground">
-                                {relation.format} ‚Ä¢ {relation.status}
+                                {relation.format} ï {relation.status}
                               </p>
                             </div>
                           </Link>
@@ -803,25 +803,25 @@ const ProjectPage = () => {
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
                   <h2 className="text-2xl font-semibold text-foreground">
-                    {isChapterBased ? "Cap√≠tulos" : "Downloads"}
+                    {isChapterBased ? "CapÌtulos" : "Downloads"}
                   </h2>
                 <p className="text-sm text-muted-foreground">
                   {isLightNovel
-                    ? "Leia os cap√≠tulos dispon√≠veis diretamente no site."
+                    ? "Leia os capÌtulos disponÌveis diretamente no site."
                     : isManga
-                    ? "Selecione um cap√≠tulo dispon√≠vel para download."
-                    : "Selecione uma fonte de download para cada item dispon√≠vel."}
+                    ? "Selecione um capÌtulo disponÌvel para download."
+                    : "Selecione uma fonte de download para cada item disponÌvel."}
                 </p>
               </div>
               <Badge variant="secondary" className="text-xs uppercase">
-                {isLightNovel ? filteredLightNovelChapters.length : filteredDownloadableEpisodes.length} dispon√≠veis
+                {isLightNovel ? filteredLightNovelChapters.length : filteredDownloadableEpisodes.length} disponÌveis
               </Badge>
             </div>
 
             {isLightNovel ? (
               filteredLightNovelChapters.length === 0 ? (
                 <div className="rounded-2xl border border-dashed border-border/60 bg-card/40 p-8 text-center text-sm text-muted-foreground">
-                  Nenhum cap√≠tulo publicado ainda.
+                  Nenhum capÌtulo publicado ainda.
                 </div>
               ) : (
                 <div className="grid gap-6">
@@ -834,7 +834,7 @@ const ProjectPage = () => {
                               <div className="flex w-full items-center justify-between gap-4">
                                 <span>{group.label}</span>
                                 <span className="text-xs text-muted-foreground">
-                                  {group.items.length} cap√≠tulos
+                                  {group.items.length} capÌtulos
                                 </span>
                               </div>
                             </AccordionTrigger>
@@ -855,10 +855,10 @@ const ProjectPage = () => {
                                       <div className="space-y-1">
                                         <Badge variant="secondary" className="text-xs uppercase">
                                           Cap {chapter.number}
-                                          {chapter.volume ? ` ‚Ä¢ Vol. ${chapter.volume}` : ""}
+                                          {chapter.volume ? ` ï Vol. ${chapter.volume}` : ""}
                                         </Badge>
                                         <p className="text-base font-semibold text-foreground">
-                                          {chapter.title || "Cap√≠tulo"}
+                                          {chapter.title || "CapÌtulo"}
                                         </p>
                                       </div>
                                       <div className="flex items-center gap-2">
@@ -867,7 +867,7 @@ const ProjectPage = () => {
                                             <Link
                                               to={`/projeto/${project.id}/leitura/${chapter.number}${search}`}
                                             >
-                                              Ler cap√≠tulo
+                                              Ler capÌtulo
                                             </Link>
                                           </Button>
                                         ) : (
@@ -895,8 +895,8 @@ const ProjectPage = () => {
               )
             ) : filteredDownloadableEpisodes.length === 0 ? (
               <div className="rounded-2xl border border-dashed border-border/60 bg-card/40 p-8 text-center text-sm text-muted-foreground">
-                Este projeto ainda est√° em produ√ß√£o. Assim que os epis√≥dios forem lan√ßados, os
-                downloads aparecer√£o aqui.
+                Este projeto ainda est· em produÁ„o. Assim que os episÛdios forem lanÁados, os
+                downloads aparecer„o aqui.
               </div>
             ) : (
               <div className="grid gap-6 justify-items-center">
@@ -910,7 +910,7 @@ const ProjectPage = () => {
                                 <div className="flex w-full items-center justify-between gap-4">
                                   <span>{group.label}</span>
                                   <span className="text-xs text-muted-foreground">
-                                    {group.items.length} cap√≠tulos
+                                    {group.items.length} capÌtulos
                                   </span>
                                 </div>
                               </AccordionTrigger>
@@ -947,7 +947,7 @@ const ProjectPage = () => {
                   Anterior
                 </Button>
                 <span className="text-xs text-muted-foreground">
-                  P√°gina {episodePage} de {totalEpisodePages}
+                  P·gina {episodePage} de {totalEpisodePages}
                 </span>
                 <Button
                   variant="outline"
@@ -955,7 +955,7 @@ const ProjectPage = () => {
                   disabled={episodePage === totalEpisodePages}
                   onClick={() => setEpisodePage((page) => Math.min(totalEpisodePages, page + 1))}
                 >
-                  Pr√≥xima
+                  PrÛxima
                 </Button>
               </div>
             ) : null}

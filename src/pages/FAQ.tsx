@@ -1,4 +1,4 @@
-ï»¿import { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { HelpCircle, Info, Users, Rocket, Shield, Sparkles } from "lucide-react";
@@ -17,19 +17,19 @@ const iconMap: Record<string, typeof HelpCircle> = {
 
 const defaultFaq = {
   heroTitle: "Perguntas frequentes",
-  heroSubtitle: "Respostas rÃ¡pidas para dÃºvidas comuns sobre projetos, lanÃ§amentos e equipe.",
+  heroSubtitle: "Respostas rápidas para dúvidas comuns sobre projetos, lançamentos e equipe.",
   introCards: [
     {
       title: "Antes de perguntar",
       icon: "HelpCircle",
-      text: "Se sua dÃºvida nÃ£o estiver aqui, fale com a equipe no Discord. Responderemos assim que possÃ­vel.",
-      note: "A equipe Ã© pequena e trabalha no tempo livre. Obrigado pela compreensÃ£o!",
+      text: "Se sua dúvida não estiver aqui, fale com a equipe no Discord. Responderemos assim que possível.",
+      note: "A equipe é pequena e trabalha no tempo livre. Obrigado pela compreensão!",
     },
     {
-      title: "Dica rÃ¡pida",
+      title: "Dica rápida",
       icon: "Sparkles",
-      text: "Para melhor experiÃªncia, use players como MPV ou VLC e mantenha o arquivo na mesma pasta da legenda.",
-      note: "SugestÃµes de projetos sÃ£o bem-vindas, mas dependem de disponibilidade.",
+      text: "Para melhor experiência, use players como MPV ou VLC e mantenha o arquivo na mesma pasta da legenda.",
+      note: "Sugestões de projetos são bem-vindas, mas dependem de disponibilidade.",
     },
   ],
   groups: [
@@ -38,11 +38,11 @@ const defaultFaq = {
       icon: "Info",
       items: [
         {
-          question: "O que Ã© a Nekomata Fansub?",
-          answer: "Somos um grupo de fÃ£s que traduz e adapta conteÃºdos com foco em qualidade, estilo e respeito Ã  obra.",
+          question: "O que é a Nekomata Fansub?",
+          answer: "Somos um grupo de fãs que traduz e adapta conteúdos com foco em qualidade, estilo e respeito à obra.",
         },
-        { question: "VocÃªs cobram pelos lanÃ§amentos?", answer: "NÃ£o. Nosso trabalho Ã© feito por paixÃ£o e sem fins lucrativos." },
-        { question: "Qual a prioridade da equipe?", answer: "Entregar algo bonito, legÃ­vel e consistente, mesmo que isso leve mais tempo." },
+        { question: "Vocês cobram pelos lançamentos?", answer: "Não. Nosso trabalho é feito por paixão e sem fins lucrativos." },
+        { question: "Qual a prioridade da equipe?", answer: "Entregar algo bonito, legível e consistente, mesmo que isso leve mais tempo." },
       ],
     },
     {
@@ -50,14 +50,14 @@ const defaultFaq = {
       icon: "Users",
       items: [
         { question: "Posso entrar para a equipe?", answer: "Sim! Sempre buscamos pessoas comprometidas. Entre em contato pelo Discord." },
-        { question: "Preciso ter experiÃªncia?", answer: "Ajuda, mas nÃ£o Ã© obrigatÃ³rio. O principal Ã© vontade de aprender e consistÃªncia." },
+        { question: "Preciso ter experiência?", answer: "Ajuda, mas não é obrigatório. O principal é vontade de aprender e consistência." },
       ],
     },
     {
-      title: "Projetos e lanÃ§amentos",
+      title: "Projetos e lançamentos",
       icon: "Rocket",
       items: [
-        { question: "Quando sai o prÃ³ximo episÃ³dio?", answer: "Quando estiver pronto. Evitamos datas exatas para priorizar qualidade." },
+        { question: "Quando sai o próximo episódio?", answer: "Quando estiver pronto. Evitamos datas exatas para priorizar qualidade." },
         { question: "Posso sugerir um projeto?", answer: "Pode sim! Levamos em conta a demanda e a capacidade da equipe." },
       ],
     },
@@ -66,7 +66,7 @@ const defaultFaq = {
       icon: "Shield",
       items: [
         { question: "Como reporto um erro?", answer: "Fale com a equipe pelo Discord. Quanto mais detalhes, melhor." },
-        { question: "A legenda nÃ£o aparece. O que faÃ§o?", answer: "Verifique o player e o arquivo. Recomendamos players como MPV e VLC." },
+        { question: "A legenda não aparece. O que faço?", answer: "Verifique o player e o arquivo. Recomendamos players como MPV e VLC." },
       ],
     },
   ],
@@ -110,11 +110,11 @@ const FAQ = () => {
           <div className="absolute -right-24 bottom-10 h-64 w-64 rounded-full bg-accent/20 blur-[120px]" />
           <div className="relative mx-auto flex w-full max-w-6xl flex-col gap-6 px-6 pb-16 pt-20 md:px-10 reveal" data-reveal>
             <div className="max-w-3xl space-y-4">
-              <h1 className="text-3xl font-semibold text-foreground md:text-5xl animate-slide-up">
+              <h1 className="text-3xl font-semibold text-foreground md:text-5xl motion-item">
                 {faq.heroTitle}
               </h1>
               <p
-                className="text-sm text-muted-foreground md:text-base animate-slide-up opacity-0"
+                className="text-sm text-muted-foreground md:text-base motion-item opacity-0"
                 style={{ animationDelay: "0.2s" }}
               >
                 {faq.heroSubtitle}

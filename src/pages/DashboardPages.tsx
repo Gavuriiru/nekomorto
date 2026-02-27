@@ -608,12 +608,12 @@ const DashboardPages = () => {
           <section className="mx-auto w-full max-w-6xl px-6 pb-20 md:px-10">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
-                <div className="inline-flex items-center gap-3 rounded-full border border-border/60 bg-card/60 px-4 py-2 text-xs uppercase tracking-[0.3em] text-muted-foreground animate-fade-in">
+                <div className="inline-flex items-center gap-3 rounded-full border border-border/60 bg-card/60 px-4 py-2 text-xs uppercase tracking-[0.3em] text-muted-foreground motion-item">
                   Páginas
                 </div>
-                <h1 className="mt-4 text-3xl font-semibold lg:text-4xl animate-slide-up">Gerenciar páginas</h1>
+                <h1 className="mt-4 text-3xl font-semibold lg:text-4xl motion-item">Gerenciar páginas</h1>
                 <p
-                  className="mt-2 text-sm text-muted-foreground animate-slide-up opacity-0"
+                  className="mt-2 text-sm text-muted-foreground motion-item opacity-0"
                   style={{ animationDelay: "0.2s" }}
                 >
                   Edite textos, cards, badges e listas das páginas públicas.
@@ -653,7 +653,7 @@ const DashboardPages = () => {
                   setActiveTab(value);
                 }
               }}
-              className="mt-8 animate-slide-up opacity-0"
+              className="mt-8 motion-item opacity-0"
               style={{ animationDelay: "0.2s" }}
             >
               <TabsList className="no-scrollbar flex w-full flex-nowrap justify-start overflow-x-auto overscroll-x-contain md:grid md:grid-cols-5 md:overflow-visible">

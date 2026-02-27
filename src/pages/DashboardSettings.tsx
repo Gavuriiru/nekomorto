@@ -1463,12 +1463,12 @@ const DashboardSettings = () => {
           <section className="mx-auto w-full max-w-6xl px-6 pb-20 md:px-10">
             <div className="flex flex-wrap items-center justify-between gap-4">
               <div>
-                <div className="inline-flex items-center gap-3 rounded-full border border-border/60 bg-card/60 px-4 py-2 text-xs uppercase tracking-[0.3em] text-muted-foreground animate-fade-in">
+                <div className="inline-flex items-center gap-3 rounded-full border border-border/60 bg-card/60 px-4 py-2 text-xs uppercase tracking-[0.3em] text-muted-foreground motion-item">
                   Configurações
                 </div>
-                <h1 className="mt-4 text-3xl font-semibold text-foreground animate-slide-up">Painel de ajustes</h1>
+                <h1 className="mt-4 text-3xl font-semibold text-foreground motion-item">Painel de ajustes</h1>
                 <p
-                  className="mt-2 text-sm text-muted-foreground animate-slide-up opacity-0"
+                  className="mt-2 text-sm text-muted-foreground motion-item opacity-0"
                   style={{ animationDelay: "0.2s" }}
                 >
                   Atualize identidade, traduções e links globais do site.
@@ -1493,7 +1493,7 @@ const DashboardSettings = () => {
             <Tabs
               value={activeTab}
               onValueChange={(value) => setActiveTab(value as SettingsTabKey)}
-              className="mt-8 animate-slide-up opacity-0"
+              className="mt-8 motion-item opacity-0"
               style={{ animationDelay: "0.2s" }}
             >
               <TabsList

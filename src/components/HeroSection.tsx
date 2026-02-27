@@ -449,7 +449,7 @@ const HeroSection = () => {
                         {slide.id === latestSlideId ? (
                           <span
                             data-testid={`hero-slide-latest-${slide.id}`}
-                            className="inline-block px-3 py-1 rounded-full animate-fade-in border bg-(--hero-badge-bg,hsl(var(--primary)/0.2)) text-(--hero-badge-text,hsl(var(--primary))) border-(--hero-badge-border,hsl(var(--primary)/0.3))"
+                            className="inline-block px-3 py-1 rounded-full motion-item border bg-(--hero-badge-bg,hsl(var(--primary)/0.2)) text-(--hero-badge-text,hsl(var(--primary))) border-(--hero-badge-border,hsl(var(--primary)/0.3))"
                           >
                             Último Lançamento
                           </span>
@@ -466,19 +466,19 @@ const HeroSection = () => {
                         ) : null}
                       </div>
 
-                      <h1 className="text-2xl md:text-4xl lg:text-5xl xl:text-6xl 2xl:text-7xl font-black mb-6 animate-slide-up text-foreground leading-tight">
+                      <h1 className="text-2xl md:text-4xl lg:text-5xl xl:text-6xl 2xl:text-7xl font-black mb-6 motion-item text-foreground leading-tight">
                         {slide.title}
                       </h1>
 
                       <p
-                        className="text-base md:text-lg xl:text-xl 2xl:text-2xl text-muted-foreground leading-relaxed max-w-2xl animate-slide-up opacity-0"
+                        className="text-base md:text-lg xl:text-xl 2xl:text-2xl text-muted-foreground leading-relaxed max-w-2xl motion-item opacity-0"
                         style={{ animationDelay: "0.2s" }}
                       >
                         {clampSynopsis(slide.description)}
                       </p>
 
                       <div
-                        className="mt-8 flex flex-wrap gap-4 animate-slide-up opacity-0"
+                        className="mt-8 flex flex-wrap gap-4 motion-item opacity-0"
                         style={{ animationDelay: "0.4s" }}
                       >
                         <Link
