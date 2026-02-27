@@ -59,6 +59,7 @@ export type Project = {
   rating: string;
   country?: string;
   source?: string;
+  discordRoleId?: string;
   producers?: string[];
   score?: number | null;
   startDate?: string;

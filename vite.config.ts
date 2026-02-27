@@ -44,6 +44,7 @@ export default defineConfig(({ mode }) => {
         devOptions: {
           enabled: isPwaDevEnabled,
           type: "module",
+          suppressWarnings: true,
         },
         includeAssets: ["favicon.ico", "placeholder.svg"],
         manifest: {

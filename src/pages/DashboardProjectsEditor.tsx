@@ -150,6 +150,7 @@ type ProjectRecord = {
   rating: string;
   country: string;
   source: string;
+  discordRoleId?: string;
   producers: string[];
   score: number | null;
   startDate: string;
@@ -235,6 +236,7 @@ const emptyProject: ProjectForm = {
   rating: "",
   country: "",
   source: "",
+  discordRoleId: "",
   producers: [],
   score: null,
   startDate: "",
@@ -248,7 +250,7 @@ const emptyProject: ProjectForm = {
   episodeDownloads: [],
 };
 
-const formatOptions = ["Anime", "Mangá", "Webtoon", "Light Novel", "Filme", "OVA", "ONA", "Especial", "Spin-off"];
+const defaultFormatOptions = ["Anime", "Mangá", "Webtoon", "Light Novel", "Filme", "OVA", "ONA", "Especial", "Spin-off"];
 const statusOptions = ["Em andamento", "Finalizado", "Pausado", "Cancelado"];
 const fansubRoleOptions = [
   "Tradução",
@@ -743,6 +745,7 @@ const DashboardProjectsEditor = () => {
   } | null>(null);
   const [hasLoadedCurrentUser, setHasLoadedCurrentUser] = useState(false);
   const [projects, setProjects] = useState<ProjectRecord[]>([]);
+  const [projectTypeOptions, setProjectTypeOptions] = useState<string[]>(defaultFormatOptions);
   const [isLoading, setIsLoading] = useState(true);
   const [hasLoadError, setHasLoadError] = useState(false);
   const [loadVersion, setLoadVersion] = useState(0);
@@ -1268,6 +1271,24 @@ const DashboardProjectsEditor = () => {
     setProjects(Array.isArray(data.projects) ? data.projects : []);
   }, [apiBase]);
 
+  const loadProjectTypes = useCallback(async () => {
+    const response = await apiFetch(apiBase, "/api/project-types", {
+      auth: true,
+      cache: "no-store",
+    });
+    if (!response.ok) {
+      throw new Error("project_types_load_failed");
+    }
+    const data = await response.json();
+    const remoteTypes = Array.isArray(data?.types)
+      ? data.types
+          .map((item: unknown) => String(item || "").trim())
+          .filter(Boolean)
+      : [];
+    const uniqueTypes = Array.from(new Set([...remoteTypes, ...defaultFormatOptions]));
+    setProjectTypeOptions(uniqueTypes.length > 0 ? uniqueTypes : defaultFormatOptions);
+  }, [apiBase]);
+
   useEffect(() => {
     let isActive = true;
     const load = async () => {
@@ -1276,8 +1297,9 @@ const DashboardProjectsEditor = () => {
         setHasLoadError(false);
       }
       try {
-        const [projectsResult, usersResult, translationsResult] = await Promise.allSettled([
+        const [projectsResult, projectTypesResult, usersResult, translationsResult] = await Promise.allSettled([
           loadProjects(),
+          loadProjectTypes(),
           apiFetch(apiBase, "/api/users", { auth: true }),
           apiFetch(apiBase, "/api/public/tag-translations", { cache: "no-store" }),
         ]);
@@ -1301,6 +1323,9 @@ const DashboardProjectsEditor = () => {
         if (projectsResult.status === "rejected") {
           throw projectsResult.reason;
         }
+        if (projectTypesResult.status === "rejected" && isActive) {
+          setProjectTypeOptions(defaultFormatOptions);
+        }
         if (translationsResult.status === "fulfilled") {
           const response = translationsResult.value;
           if (response.ok) {
@@ -1322,6 +1347,7 @@ const DashboardProjectsEditor = () => {
       } catch {
         if (isActive) {
           setProjects([]);
+          setProjectTypeOptions(defaultFormatOptions);
           setMemberDirectory([]);
           setTagTranslations({});
           setGenreTranslations({});
@@ -1338,7 +1364,7 @@ const DashboardProjectsEditor = () => {
     return () => {
       isActive = false;
     };
-  }, [apiBase, loadProjects, loadVersion]);
+  }, [apiBase, loadProjectTypes, loadProjects, loadVersion]);
 
   useEffect(() => {
     if (!isLibraryOpen) {
@@ -1385,6 +1411,12 @@ const DashboardProjectsEditor = () => {
     const sorted = unique.sort((a, b) => a.localeCompare(b, "pt-BR"));
     return ["Todos", ...sorted];
   }, [activeProjects]);
+  const formatSelectOptions = useMemo(() => {
+    const fromApi = Array.isArray(projectTypeOptions) ? projectTypeOptions : [];
+    const currentType = String(formState.type || "").trim();
+    const merged = Array.from(new Set([...fromApi, ...defaultFormatOptions, currentType].filter(Boolean)));
+    return merged.sort((a, b) => a.localeCompare(b, "pt-BR"));
+  }, [formState.type, projectTypeOptions]);
 
   useEffect(() => {
     if (isLoading || hasLoadError) {
@@ -1541,6 +1573,7 @@ const DashboardProjectsEditor = () => {
       rating: project.rating || "",
       country: project.country || "",
       source: project.source || "",
+      discordRoleId: project.discordRoleId || "",
       producers: Array.isArray(project.producers) ? project.producers : [],
       score: project.score ?? null,
       startDate: project.startDate || "",
@@ -1634,10 +1667,20 @@ const DashboardProjectsEditor = () => {
   const handleSave = async () => {
     const trimmedTitle = formState.title.trim();
     const baseId = formState.id.trim();
+    const normalizedDiscordRoleId = String(formState.discordRoleId || "").trim();
     if (!trimmedTitle) {
       toast({
         title: "Preencha o título do projeto",
         description: "O título é obrigatório para salvar.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (normalizedDiscordRoleId && !/^\d+$/.test(normalizedDiscordRoleId)) {
+      toast({
+        title: "Cargo Discord inválido",
+        description: "Use apenas números no campo de cargo Discord.",
         variant: "destructive",
       });
       return;
@@ -1758,6 +1801,7 @@ const DashboardProjectsEditor = () => {
       rating: formState.rating?.trim() || "",
       country: formState.country?.trim() || "",
       source: formState.source?.trim() || "",
+      discordRoleId: normalizedDiscordRoleId || "",
       producers: formState.producers.filter(Boolean),
       startDate: formState.startDate || "",
       endDate: formState.endDate || "",
@@ -2855,7 +2899,7 @@ const DashboardProjectsEditor = () => {
                     <SelectValue placeholder="Formato" />
                   </SelectTrigger>
                   <SelectContent>
-                    {formatOptions.map((option) => (
+                    {formatSelectOptions.map((option) => (
                       <SelectItem key={option} value={option}>
                         {option}
                       </SelectItem>
@@ -2921,6 +2965,19 @@ const DashboardProjectsEditor = () => {
                 <Input
                   value={formState.source}
                   onChange={(event) => setFormState((prev) => ({ ...prev, source: event.target.value }))}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Cargo Discord (ID)</Label>
+                <Input
+                  value={formState.discordRoleId || ""}
+                  onChange={(event) =>
+                    setFormState((prev) => ({
+                      ...prev,
+                      discordRoleId: event.target.value.replace(/\D/g, ""),
+                    }))
+                  }
+                  placeholder="Opcional: ID numerico do cargo"
                 />
               </div>
                   </div>
@@ -4098,5 +4155,7 @@ const DashboardProjectsEditor = () => {
 };
 
 export default DashboardProjectsEditor;
+
+
 
 

@@ -82,6 +82,7 @@ describe("DashboardShell menu permissions", () => {
     expect(screen.getByTestId("sidebar-inset").className).toContain("overflow-x-hidden");
     expect(screen.queryByText("Painel de gestao")).not.toBeInTheDocument();
     expect(screen.queryByText("Usuários")).not.toBeInTheDocument();
+    expect(screen.queryByText("Webhooks")).not.toBeInTheDocument();
     expect(screen.queryByText("Configurações")).not.toBeInTheDocument();
   });
 

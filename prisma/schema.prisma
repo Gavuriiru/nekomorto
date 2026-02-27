@@ -145,6 +145,14 @@ model SiteSettingsRecord {
   @@map("site_settings")
 }
 
+model IntegrationSettingsRecord {
+  id        Int      @id @default(1)
+  data      Json
+  updatedAt DateTime @updatedAt
+
+  @@map("integration_settings")
+}
+
 model PagesRecord {
   id        Int      @id @default(1)
   data      Json

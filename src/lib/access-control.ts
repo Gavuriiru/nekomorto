@@ -158,6 +158,7 @@ const dashboardRouteToPermission: Record<string, PermissionId | "users" | null> 
   "/dashboard/audit-log": "audit_log",
   "/dashboard/usuarios": "users",
   "/dashboard/paginas": "paginas",
+  "/dashboard/webhooks": "integracoes",
   "/dashboard/configuracoes": "configuracoes",
 };
 
@@ -170,6 +171,7 @@ const dashboardRouteOrder = [
   "/dashboard/audit-log",
   "/dashboard/usuarios",
   "/dashboard/paginas",
+  "/dashboard/webhooks",
   "/dashboard/configuracoes",
 ] as const;
 

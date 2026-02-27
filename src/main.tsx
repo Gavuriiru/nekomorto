@@ -28,6 +28,7 @@ const titleForPath = (path: string) => {
     [/^\/dashboard\/comentarios\/?$/, "Comentários"],
     [/^\/dashboard\/audit-log\/?$/, "Audit Log"],
     [/^\/dashboard\/paginas\/?$/, "Páginas"],
+    [/^\/dashboard\/webhooks\/?$/, "Webhooks"],
     [/^\/dashboard\/configuracoes\/?$/, "Configurações"],
     [/^\/dashboard\/?$/, "Dashboard"],
   ];

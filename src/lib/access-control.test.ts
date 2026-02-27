@@ -22,6 +22,9 @@ describe("access-control RBAC V2", () => {
     expect(access.isDashboardHrefAllowed("/dashboard/posts", grants)).toBe(true);
     expect(access.isDashboardHrefAllowed("/dashboard/comentarios", grants)).toBe(false);
     expect(access.isDashboardHrefAllowed("/dashboard/usuarios", grants)).toBe(false);
+    expect(access.isDashboardHrefAllowed("/dashboard/webhooks", grants)).toBe(false);
+    grants.integracoes = true;
+    expect(access.isDashboardHrefAllowed("/dashboard/webhooks", grants)).toBe(true);
 
     const menu = access.buildDashboardMenuFromGrants(
       [

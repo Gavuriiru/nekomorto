@@ -27,6 +27,15 @@ import { dispatchWebhookMessage } from "./lib/webhooks/dispatcher.js";
 import { toDiscordWebhookPayload } from "./lib/webhooks/providers/discord.js";
 import { buildOperationalAlertsWebhookNotification } from "./lib/webhooks/templates/operational-alerts.js";
 import { diffOperationalAlertSets } from "./lib/webhooks/transitions.js";
+import {
+  buildEditorialEventContext,
+  buildEditorialMentions,
+  normalizeEditorialWebhookSettings,
+  renderWebhookTemplate,
+  resolveEditorialEventChannel,
+  resolveEditorialEventLabel,
+  validateEditorialWebhookSettingsPlaceholders,
+} from "./lib/webhooks/editorial.js";
 import { importRemoteImageFile } from "./lib/remote-image-import.js";
 import { localizeProjectImageFields } from "./lib/project-image-localizer.js";
 import { runUploadsReorganization } from "./lib/uploads-reorganizer.js";
@@ -94,6 +103,18 @@ const PWA_MANIFEST_CACHE_CONTROL = "public, max-age=300, stale-while-revalidate=
 const PWA_SW_CACHE_CONTROL = "no-cache";
 const PWA_THEME_COLOR_DARK = "#101114";
 const PWA_THEME_COLOR_LIGHT = "#f8fafc";
+const DEFAULT_PROJECT_TYPE_CATALOG = Object.freeze([
+  "Anime",
+  "Manga",
+  "Mangá",
+  "Webtoon",
+  "Light Novel",
+  "Filme",
+  "OVA",
+  "ONA",
+  "Especial",
+  "Spin-off",
+]);
 const PWA_MANIFEST_BASE = Object.freeze({
   id: "/",
   name: "Nekomata Fansub",
@@ -205,7 +226,7 @@ const AUDIT_MAX_ENTRIES = 20000;
 const AUDIT_CSV_MAX_ROWS = 10000;
 const AUDIT_META_STRING_MAX = 256;
 const AUDIT_ENABLED_ACTION_PATTERN =
-  /(^|\.)(create|update|delete|restore|reorder|login|logout|denied|failed|rate_limited|bootstrap|rebuild|image|rename|success|reorganize)(\.|_|$)/i;
+  /(^|\.)(create|update|delete|restore|reorder|login|logout|denied|failed|rate_limited|bootstrap|rebuild|image|rename|success|reorganize|sent|skipped|test)(\.|_|$)/i;
 const AUDIT_DEFAULT_META_KEYS = [
   "error",
   "id",
@@ -272,6 +293,48 @@ const AUDIT_META_ALLOWLIST = {
     "linkTypeIconsDropped",
     "siteLinksDropped",
   ],
+  "editorial_webhook.sent": [
+    "eventKey",
+    "eventLabel",
+    "channel",
+    "status",
+    "statusCode",
+    "attempt",
+    "postId",
+    "projectId",
+  ],
+  "editorial_webhook.failed": [
+    "eventKey",
+    "eventLabel",
+    "channel",
+    "status",
+    "code",
+    "statusCode",
+    "attempt",
+    "postId",
+    "projectId",
+  ],
+  "editorial_webhook.skipped": ["eventKey", "channel", "code", "postId", "projectId"],
+  "integrations.webhooks_editorial.read": ["channel", "eventKey"],
+  "integrations.webhooks_editorial.update": [
+    "channel",
+    "eventKey",
+    "count",
+    "postId",
+    "projectId",
+    "code",
+  ],
+  "integrations.webhooks_editorial.test": [
+    "channel",
+    "eventKey",
+    "status",
+    "code",
+    "statusCode",
+    "attempt",
+    "postId",
+    "projectId",
+    "error",
+  ],
 };
 
 const parseAuditTs = (value) => {
@@ -297,6 +360,9 @@ const isAuditActionEnabled = (action) => {
   const normalized = String(action || "").toLowerCase();
   if (!normalized) {
     return false;
+  }
+  if (normalized === "integrations.webhooks_editorial.read") {
+    return true;
   }
   if (normalized.includes(".read") || normalized.endsWith(".read") || normalized.includes("_read")) {
     return false;
@@ -3071,6 +3137,46 @@ const writeSiteSettings = (settings) => {
   invalidateJsonFileCache("site-settings");
 };
 
+const loadIntegrationSettings = () => {
+  const cached = readJsonFileFromCache("integration-settings");
+  if (cached) {
+    return cached;
+  }
+  if (
+    !dataRepository ||
+    typeof dataRepository.loadIntegrationSettings !== "function"
+  ) {
+    const defaults = normalizeEditorialWebhookSettings({}, {
+      defaultProjectTypes: DEFAULT_PROJECT_TYPE_CATALOG,
+    });
+    writeJsonFileToCache("integration-settings", defaults);
+    return defaults;
+  }
+  const parsed = dataRepository.loadIntegrationSettings();
+  const normalized = normalizeEditorialWebhookSettings(parsed, {
+    defaultProjectTypes: DEFAULT_PROJECT_TYPE_CATALOG,
+  });
+  if (JSON.stringify(parsed) !== JSON.stringify(normalized)) {
+    writeIntegrationSettings(normalized);
+  }
+  writeJsonFileToCache("integration-settings", normalized);
+  return normalized;
+};
+
+const writeIntegrationSettings = (settings) => {
+  const normalized = normalizeEditorialWebhookSettings(settings, {
+    defaultProjectTypes: DEFAULT_PROJECT_TYPE_CATALOG,
+  });
+  if (
+    dataRepository &&
+    typeof dataRepository.writeIntegrationSettings === "function"
+  ) {
+    dataRepository.writeIntegrationSettings(normalized);
+  }
+  invalidateJsonFileCache("integration-settings");
+  return normalized;
+};
+
 const countDroppedUserSocials = (usersInput) => {
   const users = Array.isArray(usersInput) ? usersInput : [];
   return users.reduce((total, user) => {
@@ -3131,6 +3237,7 @@ const runStartupSecuritySanitization = () => {
   loadUsers();
   loadLinkTypes();
   loadSiteSettings();
+  loadIntegrationSettings();
 
   const totalDropped = usersSocialsDropped + linkTypeIconsDropped + siteLinksDropped;
   if (totalDropped > 0) {
@@ -3738,6 +3845,9 @@ const normalizeProjects = (projects) =>
     rating: String(project.rating || ""),
     country: String(project.country || ""),
     source: String(project.source || ""),
+    discordRoleId: /^\d+$/.test(String(project.discordRoleId || "").trim())
+      ? String(project.discordRoleId || "").trim()
+      : "",
     producers: Array.isArray(project.producers) ? project.producers.filter(Boolean) : [],
     score: Number.isFinite(project.score) ? project.score : null,
     startDate: project.startDate || "",
@@ -3862,20 +3972,63 @@ const applyCommentCountToProjects = (projects, comments, targetId) => {
   return next;
 };
 
+const normalizeTypeLookupKey = (value) =>
+  String(value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim()
+    .toLowerCase();
+
+const dedupeProjectTypes = (typesInput) => {
+  const map = new Map();
+  (Array.isArray(typesInput) ? typesInput : []).forEach((raw) => {
+    const type = String(raw || "").trim();
+    const key = normalizeTypeLookupKey(type);
+    if (!type || !key || map.has(key)) {
+      return;
+    }
+    map.set(key, type);
+  });
+  return Array.from(map.values()).sort((left, right) =>
+    left.localeCompare(right, "pt-BR", { sensitivity: "base" }),
+  );
+};
+
+const getActiveProjectTypes = ({ includeDefaults = true } = {}) => {
+  const existingTypes = normalizeProjects(loadProjects())
+    .filter((project) => !project.deletedAt)
+    .map((project) => String(project.type || "").trim())
+    .filter(Boolean);
+  const deduped = dedupeProjectTypes(existingTypes);
+  if (deduped.length > 0) {
+    return deduped;
+  }
+  return includeDefaults ? dedupeProjectTypes(DEFAULT_PROJECT_TYPE_CATALOG) : [];
+};
+
+const isChapterBasedType = (type) => {
+  const normalized = normalizeTypeLookupKey(type);
+  return (
+    normalized.includes("mang") ||
+    normalized.includes("webtoon") ||
+    normalized.includes("light") ||
+    normalized.includes("novel")
+  );
+};
+
+const isLightNovelType = (type) => {
+  const normalized = normalizeTypeLookupKey(type);
+  return normalized.includes("light") || normalized.includes("novel");
+};
+
 const collectEpisodeUpdates = (prevProject, nextProject) => {
   const updates = [];
   const prevEpisodes = Array.isArray(prevProject?.episodeDownloads) ? prevProject.episodeDownloads : [];
   const nextEpisodes = Array.isArray(nextProject?.episodeDownloads) ? nextProject.episodeDownloads : [];
   const prevMap = new Map(prevEpisodes.map((ep) => [Number(ep.number), ep]));
-  const typeLabel = String(nextProject?.type || "").toLowerCase();
-  const isChapterBased =
-    typeLabel.includes("mang") ||
-    typeLabel.includes("webtoon") ||
-    typeLabel.includes("light") ||
-    typeLabel.includes("novel");
+  const isChapterBased = isChapterBasedType(nextProject?.type || "");
   const unitLabel = isChapterBased ? "Capítulo" : "Episódio";
-  const isLightNovel =
-    typeLabel.includes("light") || typeLabel.includes("novel");
+  const isLightNovel = isLightNovelType(nextProject?.type || "");
   nextEpisodes.forEach((ep) => {
     const number = Number(ep.number);
     const sources = Array.isArray(ep.sources) ? ep.sources.filter((s) => s.url) : [];
@@ -3947,6 +4100,302 @@ const collectEpisodeUpdates = (prevProject, nextProject) => {
     }
   });
   return updates;
+};
+
+const resolveProjectWebhookEventKey = (kind) => {
+  const normalized = String(kind || "").trim().toLowerCase();
+  if (normalized.startsWith("lan")) {
+    return "project_release";
+  }
+  if (normalized.startsWith("aju")) {
+    return "project_adjust";
+  }
+  return "";
+};
+
+const chapterContentToPlainText = (value) => {
+  const source = String(value || "");
+  if (!source) {
+    return "";
+  }
+  const withoutImages = source.replace(/!\[[^\]]*]\([^)]*\)/g, " ");
+  const withoutLinks = withoutImages.replace(/\[([^\]]+)\]\(([^)]+)\)/g, "$1");
+  const withoutInlineCode = withoutLinks.replace(/`{1,3}[^`]*`{1,3}/g, " ");
+  const withoutMarkdownTokens = withoutInlineCode
+    .replace(/^#{1,6}\s+/gm, "")
+    .replace(/[*_~>|`]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  return stripHtml(withoutMarkdownTokens).replace(/\s+/g, " ").trim();
+};
+
+const deriveChapterSynopsis = (chapter, maxLength = 280) => {
+  const explicit = String(chapter?.synopsis || "").trim();
+  if (explicit) {
+    return explicit.length <= maxLength
+      ? explicit
+      : `${explicit.slice(0, Math.max(0, maxLength - 3)).trimEnd()}...`;
+  }
+  const fromContent = chapterContentToPlainText(chapter?.content || "");
+  if (!fromContent) {
+    return "";
+  }
+  return fromContent.length <= maxLength
+    ? fromContent
+    : `${fromContent.slice(0, Math.max(0, maxLength - 3)).trimEnd()}...`;
+};
+
+const findProjectChapterByEpisodeNumber = (project, episodeNumber) => {
+  const safeNumber = Number(episodeNumber);
+  if (!Number.isFinite(safeNumber)) {
+    return null;
+  }
+  const episodes = Array.isArray(project?.episodeDownloads) ? project.episodeDownloads : [];
+  const chapter = episodes.find((episode) => Number(episode?.number) === safeNumber);
+  if (!chapter) {
+    return null;
+  }
+  const synopsis = deriveChapterSynopsis(chapter);
+  return {
+    number: Number.isFinite(Number(chapter.number)) ? Number(chapter.number) : safeNumber,
+    volume: Number.isFinite(Number(chapter.volume)) ? Number(chapter.volume) : "",
+    title: String(chapter.title || ""),
+    synopsis,
+    content: String(chapter.content || ""),
+    releaseDate: String(chapter.releaseDate || ""),
+    updatedAt: String(chapter.chapterUpdatedAt || chapter.updatedAt || ""),
+    coverImageUrl: String(chapter.coverImageUrl || ""),
+  };
+};
+
+const clampWebhookInteger = (value, min, max, fallback) => {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) {
+    return fallback;
+  }
+  return Math.min(max, Math.max(min, Math.floor(parsed)));
+};
+
+const resolveEditorialAuthorFromPost = (postInput) => {
+  const post = postInput && typeof postInput === "object" ? postInput : null;
+  const authorName = String(post?.author || "").trim();
+  if (!authorName) {
+    return {
+      name: "",
+      avatarUrl: "",
+    };
+  }
+  const normalizedAuthorName = normalizeTypeLookupKey(authorName);
+  const user =
+    normalizeUsers(loadUsers()).find((item) => {
+      if (item?.status !== "active") {
+        return false;
+      }
+      return normalizeTypeLookupKey(item?.name || "") === normalizedAuthorName;
+    }) || null;
+  return {
+    name: authorName,
+    avatarUrl: String(user?.avatarUrl || "").trim(),
+  };
+};
+
+const prepareEditorialWebhookDispatch = ({
+  eventKey,
+  post = null,
+  project = null,
+  update = null,
+  chapter = null,
+  settings: settingsInput = null,
+  allowDisabled = false,
+} = {}) => {
+  const channelKey = resolveEditorialEventChannel(eventKey);
+  if (!channelKey) {
+    return { ok: false, status: "skipped", code: "invalid_event_key" };
+  }
+  const projectTypes = getActiveProjectTypes();
+  const baseSettings =
+    settingsInput && typeof settingsInput === "object"
+      ? settingsInput
+      : loadIntegrationSettings();
+  const settings = normalizeEditorialWebhookSettings(baseSettings, {
+    projectTypes,
+  });
+  const channel = settings?.channels?.[channelKey];
+  if (!channel || typeof channel !== "object") {
+    return { ok: false, status: "skipped", code: "missing_channel", channel: channelKey };
+  }
+  if (!allowDisabled && channel.enabled !== true) {
+    return { ok: false, status: "skipped", code: "channel_disabled", channel: channelKey };
+  }
+  if (!allowDisabled && channel?.events?.[eventKey] !== true) {
+    return { ok: false, status: "skipped", code: "event_disabled", channel: channelKey };
+  }
+
+  const webhookUrl = String(channel?.webhookUrl || "").trim();
+  if (!webhookUrl) {
+    return { ok: false, status: "skipped", code: "missing_webhook_url", channel: channelKey };
+  }
+
+  const template = channel?.templates?.[eventKey];
+  if (!template || typeof template !== "object") {
+    return { ok: false, status: "skipped", code: "missing_template", channel: channelKey };
+  }
+
+  const safeProject =
+    project && typeof project === "object"
+      ? project
+      : post?.projectId
+        ? normalizeProjects(loadProjects()).find((item) => item.id === String(post.projectId)) || null
+        : null;
+  const safeChapter =
+    chapter && typeof chapter === "object"
+      ? chapter
+      : safeProject
+        ? findProjectChapterByEpisodeNumber(safeProject, update?.episodeNumber)
+        : null;
+  const author = resolveEditorialAuthorFromPost(post);
+  const safePost =
+    post && typeof post === "object"
+      ? {
+          ...post,
+          authorAvatarUrl: author.avatarUrl || String(post.authorAvatarUrl || "").trim(),
+        }
+      : post;
+  const mentions = buildEditorialMentions({
+    settings,
+    eventKey,
+    projectType: safeProject?.type || "",
+    projectDiscordRoleId: safeProject?.discordRoleId || "",
+    includeProjectRole: channelKey === "projects",
+  });
+  const occurredAt =
+    String(update?.updatedAt || safePost?.updatedAt || safeProject?.updatedAt || "").trim() ||
+    new Date().toISOString();
+  const siteSettings = loadSiteSettings();
+  const siteName = String(siteSettings?.site?.name || "Nekomata").trim() || "Nekomata";
+  const siteUrl = PRIMARY_APP_ORIGIN;
+  const siteLogoUrl =
+    String(
+      siteSettings?.site?.logoUrl ||
+        siteSettings?.branding?.assets?.symbolUrl ||
+        siteSettings?.branding?.assets?.wordmarkUrl ||
+        "",
+    ).trim() || "";
+  const siteCoverImageUrl = String(siteSettings?.site?.defaultShareImage || "").trim();
+  const siteFaviconUrl = String(siteSettings?.site?.faviconUrl || "").trim();
+  const context = buildEditorialEventContext({
+    eventKey,
+    occurredAt,
+    siteName,
+    siteUrl,
+    siteLogoUrl,
+    siteCoverImageUrl,
+    siteFaviconUrl,
+    origin: PRIMARY_APP_ORIGIN,
+    mentions,
+    author,
+    post: safePost,
+    project: safeProject,
+    chapter: safeChapter,
+    update,
+  });
+  const rendered = renderWebhookTemplate(template, context);
+  const payload = toDiscordWebhookPayload({
+    content: rendered?.content || "",
+    origin: PRIMARY_APP_ORIGIN,
+    embed: {
+      title: rendered?.embed?.title || "",
+      description: rendered?.embed?.description || "",
+      footerText: rendered?.embed?.footerText || rendered?.embed?.footer || "",
+      footerIconUrl: rendered?.embed?.footerIconUrl || "",
+      url: rendered?.embed?.url || "",
+      color: rendered?.embed?.color || "",
+      authorName: rendered?.embed?.authorName || "",
+      authorIconUrl: rendered?.embed?.authorIconUrl || "",
+      authorUrl: rendered?.embed?.authorUrl || "",
+      thumbnailUrl: rendered?.embed?.thumbnailUrl || "",
+      imageUrl: rendered?.embed?.imageUrl || "",
+      fields: Array.isArray(rendered?.embed?.fields) ? rendered.embed.fields : [],
+      timestamp: occurredAt,
+    },
+    allowedMentionsRoleIds: mentions.roleIds || [],
+  });
+  const hasContent = String(payload?.content || "").trim().length > 0;
+  const hasEmbeds = Array.isArray(payload?.embeds) && payload.embeds.length > 0;
+  if (!hasContent && !hasEmbeds) {
+    return { ok: false, status: "skipped", code: "empty_payload", channel: channelKey };
+  }
+
+  return {
+    ok: true,
+    channel: channelKey,
+    eventKey,
+    webhookUrl,
+    timeoutMs: clampWebhookInteger(channel.timeoutMs, 1000, 30000, 5000),
+    retries: clampWebhookInteger(channel.retries, 0, 5, 1),
+    payload,
+    mentionsRoleIds: Array.isArray(mentions.roleIds) ? mentions.roleIds : [],
+    context,
+  };
+};
+
+const dispatchEditorialWebhookEvent = async ({
+  eventKey,
+  post = null,
+  project = null,
+  update = null,
+  chapter = null,
+  req = null,
+} = {}) => {
+  const actorReq = req || createSystemAuditReq();
+  const prepared = prepareEditorialWebhookDispatch({
+    eventKey,
+    post,
+    project,
+    update,
+    chapter,
+  });
+  if (!prepared.ok) {
+    appendAuditLog(actorReq, "editorial_webhook.skipped", "integrations", {
+      eventKey,
+      channel: prepared.channel || resolveEditorialEventChannel(eventKey),
+      code: prepared.code || "skipped",
+      postId: post?.id || null,
+      projectId: project?.id || post?.projectId || null,
+    });
+    return prepared;
+  }
+
+  const result = await dispatchWebhookMessage({
+    provider: "discord",
+    webhookUrl: prepared.webhookUrl,
+    message: prepared.payload,
+    timeoutMs: prepared.timeoutMs,
+    retries: prepared.retries,
+  });
+
+  appendAuditLog(
+    actorReq,
+    result.ok ? "editorial_webhook.sent" : "editorial_webhook.failed",
+    "integrations",
+    {
+      eventKey,
+      eventLabel: resolveEditorialEventLabel(eventKey),
+      channel: prepared.channel,
+      status: result.status,
+      code: result.code || null,
+      statusCode: result.statusCode || null,
+      attempt: result.attempt || null,
+      postId: post?.id || null,
+      projectId: project?.id || post?.projectId || null,
+    },
+  );
+
+  return {
+    ...result,
+    eventKey,
+    channel: prepared.channel,
+  };
 };
 
 const normalizeTags = (value) => {
@@ -6155,6 +6604,13 @@ app.post("/api/posts", requireAuth, async (req, res) => {
     actor: req.session?.user || null,
   });
   appendAuditLog(req, "posts.create", "posts", { id: newPost.id, slug: newPost.slug });
+  if (persistedPost.status === "published" || persistedPost.status === "scheduled") {
+    await dispatchEditorialWebhookEvent({
+      eventKey: "post_create",
+      post: persistedPost,
+      req,
+    });
+  }
   return res.json({ post: persistedPost });
 });
 
@@ -6235,6 +6691,13 @@ app.put("/api/posts/:id", requireAuth, async (req, res) => {
     actor: req.session?.user || null,
   });
   appendAuditLog(req, "posts.update", "posts", { id: updated.id, slug: updated.slug });
+  if (persistedPost.status === "published" || persistedPost.status === "scheduled") {
+    await dispatchEditorialWebhookEvent({
+      eventKey: "post_update",
+      post: persistedPost,
+      req,
+    });
+  }
   return res.json({ post: persistedPost });
 });
 
@@ -6470,6 +6933,15 @@ app.get("/api/projects", requireAuth, (req, res) => {
   res.json({ projects });
 });
 
+app.get("/api/project-types", requireAuth, (req, res) => {
+  const sessionUser = req.session.user;
+  if (!canManageProjects(sessionUser?.id)) {
+    return res.status(403).json({ error: "forbidden" });
+  }
+  const types = getActiveProjectTypes({ includeDefaults: true });
+  return res.json({ types });
+});
+
 app.post("/api/projects", requireAuth, async (req, res) => {
   const sessionUser = req.session.user;
   if (!canManageProjects(sessionUser?.id)) {
@@ -6522,27 +6994,29 @@ app.post("/api/projects", requireAuth, async (req, res) => {
   });
 
   const updates = loadUpdates();
-  const episodeUpdates = collectEpisodeUpdates(null, nextProject);
-  if (episodeUpdates.length) {
-    const nextUpdates = [
-      ...updates,
-      ...episodeUpdates.map((item) => ({
-        id: crypto.randomUUID(),
-        projectId: nextProject.id,
-        projectTitle: nextProject.title,
-        episodeNumber: item.episodeNumber,
-        kind: item.kind,
-        reason: item.reason,
-        unit: item.unit,
-        updatedAt: item.updatedAt || now,
-        image: nextProject.cover || "",
-      })),
-    ];
-    writeUpdates(nextUpdates);
-  }
-  if (String(nextProject.type || "").toLowerCase().includes("light") || String(nextProject.type || "").toLowerCase().includes("novel")) {
+  const episodeWebhookUpdates = collectEpisodeUpdates(null, nextProject).map((item) => ({
+    ...item,
+    updatedAt: item.updatedAt || now,
+  }));
+  const episodeUpdateRecords = episodeWebhookUpdates.map((item) => ({
+    id: crypto.randomUUID(),
+    projectId: nextProject.id,
+    projectTitle: nextProject.title,
+    episodeNumber: item.episodeNumber,
+    kind: item.kind,
+    reason: item.reason,
+    unit: item.unit,
+    updatedAt: item.updatedAt,
+    image: nextProject.cover || "",
+  }));
+  let nextUpdates = episodeUpdateRecords.length > 0 ? [...updates, ...episodeUpdateRecords] : updates;
+  const webhookUpdates = [...episodeWebhookUpdates];
+  if (
+    String(nextProject.type || "").toLowerCase().includes("light") ||
+    String(nextProject.type || "").toLowerCase().includes("novel")
+  ) {
     const existingKeys = new Set(
-      updates
+      nextUpdates
         .filter((item) => item.projectId === nextProject.id)
         .map((item) => `${item.episodeNumber}`),
     );
@@ -6550,26 +7024,51 @@ app.post("/api/projects", requireAuth, async (req, res) => {
       .filter((episode) => typeof episode.content === "string" && episode.content.trim().length > 0)
       .filter((episode) => !existingKeys.has(`${episode.number}`))
       .sort((a, b) => Number(b.number) - Number(a.number));
-    const fallback = fallbackSource
-      .map((episode) => ({
-        id: crypto.randomUUID(),
-        projectId: nextProject.id,
-        projectTitle: nextProject.title,
-        episodeNumber: episode.number,
-        kind: "Lançamento",
-        reason: `Capítulo ${episode.number} disponível`,
-        unit: "Capítulo",
-        updatedAt: new Date(Date.now() - fallbackSource.indexOf(episode) * 1000).toISOString(),
-        image: nextProject.cover || "",
-      }));
-    if (fallback.length) {
-      writeUpdates([...updates, ...fallback]);
+    const fallbackRecords = fallbackSource.map((episode, index) => ({
+      id: crypto.randomUUID(),
+      projectId: nextProject.id,
+      projectTitle: nextProject.title,
+      episodeNumber: episode.number,
+      kind: "Lançamento",
+      reason: `Capítulo ${episode.number} disponível`,
+      unit: "Capítulo",
+      updatedAt: new Date(Date.now() - index * 1000).toISOString(),
+      image: nextProject.cover || "",
+    }));
+    if (fallbackRecords.length > 0) {
+      nextUpdates = [...nextUpdates, ...fallbackRecords];
+      fallbackRecords.forEach((item) => {
+        webhookUpdates.push({
+          kind: item.kind,
+          reason: item.reason,
+          unit: item.unit,
+          episodeNumber: item.episodeNumber,
+          updatedAt: item.updatedAt,
+        });
+      });
     }
+  }
+  if (nextUpdates.length !== updates.length) {
+    writeUpdates(nextUpdates);
   }
 
   await runAutoUploadReorganization({ trigger: "project-save", req });
   const persistedProject =
     normalizeProjects(loadProjects()).find((project) => project.id === nextProject.id) || nextProject;
+
+  for (const update of webhookUpdates) {
+    const eventKey = resolveProjectWebhookEventKey(update.kind);
+    if (!eventKey) {
+      continue;
+    }
+    await dispatchEditorialWebhookEvent({
+      eventKey,
+      project: persistedProject,
+      update,
+      chapter: findProjectChapterByEpisodeNumber(persistedProject, update.episodeNumber),
+      req,
+    });
+  }
 
   return res.status(201).json({ project: persistedProject });
 });
@@ -6621,27 +7120,27 @@ app.put("/api/projects/:id", requireAuth, async (req, res) => {
   });
 
   const updates = loadUpdates();
-  const episodeUpdates = collectEpisodeUpdates(existing, merged);
-  const nextUpdates = episodeUpdates.length
-    ? [
-        ...updates,
-        ...episodeUpdates.map((item) => ({
-          id: crypto.randomUUID(),
-          projectId: merged.id,
-          projectTitle: merged.title,
-          episodeNumber: item.episodeNumber,
-          kind: item.kind,
-          reason: item.reason,
-          unit: item.unit,
-        updatedAt: item.updatedAt || now,
-        image: merged.cover || "",
-      })),
-      ]
-    : updates;
-  if (episodeUpdates.length) {
-    writeUpdates(nextUpdates);
-  }
-  if (String(merged.type || "").toLowerCase().includes("light") || String(merged.type || "").toLowerCase().includes("novel")) {
+  const episodeWebhookUpdates = collectEpisodeUpdates(existing, merged).map((item) => ({
+    ...item,
+    updatedAt: item.updatedAt || now,
+  }));
+  const episodeUpdateRecords = episodeWebhookUpdates.map((item) => ({
+    id: crypto.randomUUID(),
+    projectId: merged.id,
+    projectTitle: merged.title,
+    episodeNumber: item.episodeNumber,
+    kind: item.kind,
+    reason: item.reason,
+    unit: item.unit,
+    updatedAt: item.updatedAt,
+    image: merged.cover || "",
+  }));
+  let nextUpdates = episodeUpdateRecords.length > 0 ? [...updates, ...episodeUpdateRecords] : updates;
+  const webhookUpdates = [...episodeWebhookUpdates];
+  if (
+    String(merged.type || "").toLowerCase().includes("light") ||
+    String(merged.type || "").toLowerCase().includes("novel")
+  ) {
     const existingKeys = new Set(
       nextUpdates
         .filter((item) => item.projectId === merged.id)
@@ -6651,25 +7150,49 @@ app.put("/api/projects/:id", requireAuth, async (req, res) => {
       .filter((episode) => typeof episode.content === "string" && episode.content.trim().length > 0)
       .filter((episode) => !existingKeys.has(`${episode.number}`))
       .sort((a, b) => Number(b.number) - Number(a.number));
-    const fallback = fallbackSource
-      .map((episode) => ({
-        id: crypto.randomUUID(),
-        projectId: merged.id,
-        projectTitle: merged.title,
-        episodeNumber: episode.number,
-        kind: "Lançamento",
-        reason: `Capítulo ${episode.number} disponível`,
-        unit: "Capítulo",
-        updatedAt: new Date(Date.now() - fallbackSource.indexOf(episode) * 1000).toISOString(),
-        image: merged.cover || "",
-      }));
-    if (fallback.length) {
-      writeUpdates([...nextUpdates, ...fallback]);
+    const fallbackRecords = fallbackSource.map((episode, index) => ({
+      id: crypto.randomUUID(),
+      projectId: merged.id,
+      projectTitle: merged.title,
+      episodeNumber: episode.number,
+      kind: "Lançamento",
+      reason: `Capítulo ${episode.number} disponível`,
+      unit: "Capítulo",
+      updatedAt: new Date(Date.now() - index * 1000).toISOString(),
+      image: merged.cover || "",
+    }));
+    if (fallbackRecords.length > 0) {
+      nextUpdates = [...nextUpdates, ...fallbackRecords];
+      fallbackRecords.forEach((item) => {
+        webhookUpdates.push({
+          kind: item.kind,
+          reason: item.reason,
+          unit: item.unit,
+          episodeNumber: item.episodeNumber,
+          updatedAt: item.updatedAt,
+        });
+      });
     }
+  }
+  if (nextUpdates.length !== updates.length) {
+    writeUpdates(nextUpdates);
   }
 
   await runAutoUploadReorganization({ trigger: "project-save", req });
   const persistedProject = normalizeProjects(loadProjects()).find((project) => project.id === merged.id) || merged;
+  for (const update of webhookUpdates) {
+    const eventKey = resolveProjectWebhookEventKey(update.kind);
+    if (!eventKey) {
+      continue;
+    }
+    await dispatchEditorialWebhookEvent({
+      eventKey,
+      project: persistedProject,
+      update,
+      chapter: findProjectChapterByEpisodeNumber(persistedProject, update.episodeNumber),
+      req,
+    });
+  }
   return res.json({ project: persistedProject });
 });
 
@@ -7144,8 +7667,9 @@ app.get("/api/public/projects/:id", (req, res) => {
   if (project.deletedAt) {
     return res.status(404).json({ error: "not_found" });
   }
+  const { discordRoleId: _discordRoleId, ...projectWithoutDiscordRoleId } = project;
   const sanitized = {
-    ...project,
+    ...projectWithoutDiscordRoleId,
     episodeDownloads: project.episodeDownloads.map((episode) => ({
       ...episode,
       content: undefined,
@@ -7344,6 +7868,226 @@ app.get("/api/public/updates", (req, res) => {
   const start = (page - 1) * limit;
   const paged = updates.slice(start, start + limit);
   return res.json({ updates: paged, page, limit, total: updates.length });
+});
+
+app.get("/api/integrations/webhooks/editorial", requireAuth, (req, res) => {
+  const sessionUser = req.session.user;
+  if (!canManageIntegrations(sessionUser?.id)) {
+    return res.status(403).json({ error: "forbidden" });
+  }
+  const projectTypes = getActiveProjectTypes({ includeDefaults: true });
+  const loadedSettings = loadIntegrationSettings();
+  const settings = normalizeEditorialWebhookSettings(loadedSettings, { projectTypes });
+  if (JSON.stringify(loadedSettings) !== JSON.stringify(settings)) {
+    writeIntegrationSettings(settings);
+  }
+  appendAuditLog(req, "integrations.webhooks_editorial.read", "integrations", {
+    channel: "all",
+  });
+  return res.json({ settings, projectTypes });
+});
+
+app.put("/api/integrations/webhooks/editorial", requireAuth, (req, res) => {
+  const sessionUser = req.session.user;
+  if (!canManageIntegrations(sessionUser?.id)) {
+    return res.status(403).json({ error: "forbidden" });
+  }
+  const payload = req.body?.settings ?? req.body;
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+    return res.status(400).json({ error: "invalid_payload" });
+  }
+
+  const projectTypes = getActiveProjectTypes({ includeDefaults: true });
+  const normalized = normalizeEditorialWebhookSettings(payload, { projectTypes });
+  const validation = validateEditorialWebhookSettingsPlaceholders(normalized);
+  if (!validation.ok) {
+    return res.status(400).json({
+      error: "invalid_placeholders",
+      placeholders: validation.errors,
+    });
+  }
+
+  const persisted = writeIntegrationSettings(normalized);
+  const settings = normalizeEditorialWebhookSettings(persisted, { projectTypes });
+  appendAuditLog(req, "integrations.webhooks_editorial.update", "integrations", {
+    count: Array.isArray(settings?.typeRoles) ? settings.typeRoles.length : 0,
+  });
+  return res.json({ settings, projectTypes });
+});
+
+app.post("/api/integrations/webhooks/editorial/test", requireAuth, async (req, res) => {
+  const sessionUser = req.session.user;
+  if (!canManageIntegrations(sessionUser?.id)) {
+    return res.status(403).json({ error: "forbidden" });
+  }
+
+  const eventKey = String(req.body?.eventKey || "").trim();
+  const channelKey = resolveEditorialEventChannel(eventKey);
+  if (!channelKey) {
+    return res.status(400).json({ error: "invalid_event_key" });
+  }
+
+  try {
+    const now = new Date().toISOString();
+    const placeholderImage = toAbsoluteUrl("/placeholder.svg") || "/placeholder.svg";
+    const projects = normalizeProjects(loadProjects()).filter((project) => !project.deletedAt);
+    const posts = normalizePosts(loadPosts()).filter((post) => !post.deletedAt);
+    const requestedProjectId = String(req.body?.projectId || "").trim();
+    const requestedPostId = String(req.body?.postId || "").trim();
+
+    let sampleProject =
+      projects.find((project) => project.id === requestedProjectId) ||
+      projects.find((project) => String(project.id || "").trim().length > 0) ||
+      null;
+    let samplePost =
+      posts.find((post) => post.id === requestedPostId) ||
+      posts.find((post) => String(post.slug || "").trim().length > 0) ||
+      null;
+
+    if (!sampleProject && samplePost?.projectId) {
+      sampleProject =
+        projects.find((project) => project.id === String(samplePost.projectId)) || null;
+    }
+
+    if (!sampleProject) {
+      sampleProject = {
+        id: "sample-project",
+        title: "Projeto de teste",
+        type: "Anime",
+        cover: placeholderImage,
+        banner: placeholderImage,
+        heroImageUrl: "",
+        discordRoleId: "",
+        episodeDownloads: [
+          {
+            number: 1,
+            volume: 1,
+            title: "Capítulo piloto",
+            releaseDate: now.slice(0, 10),
+            chapterUpdatedAt: now,
+            coverImageUrl: placeholderImage,
+          },
+        ],
+        updatedAt: now,
+      };
+    }
+
+    if (!samplePost) {
+      samplePost = {
+        id: "sample-post",
+        title: "Post de teste",
+        slug: "post-de-teste",
+        status: "published",
+        author: sessionUser?.name || "Editor",
+        publishedAt: now,
+        excerpt: "Mensagem de teste para o webhook editorial.",
+        tags: ["Teste"],
+        coverImageUrl: sampleProject.cover || placeholderImage,
+        projectId: String(sampleProject.id || ""),
+        updatedAt: now,
+      };
+    }
+
+    const chapterSource = Array.isArray(sampleProject?.episodeDownloads)
+      ? sampleProject.episodeDownloads.find((episode) => Number.isFinite(Number(episode?.number))) ||
+        sampleProject.episodeDownloads[0]
+      : null;
+    const chapterNumber = Number(chapterSource?.number);
+    const safeChapterNumber = Number.isFinite(chapterNumber) ? Number(chapterNumber) : 1;
+    const sampleChapter = {
+      number: safeChapterNumber,
+      volume: Number.isFinite(Number(chapterSource?.volume)) ? Number(chapterSource.volume) : "",
+      title: String(chapterSource?.title || ""),
+      synopsis: deriveChapterSynopsis(chapterSource),
+      releaseDate: String(chapterSource?.releaseDate || ""),
+      updatedAt: String(chapterSource?.chapterUpdatedAt || chapterSource?.updatedAt || now),
+      coverImageUrl: String(chapterSource?.coverImageUrl || ""),
+    };
+    const sampleUpdate = {
+      kind: eventKey === "project_adjust" ? "Ajuste" : "Lançamento",
+      reason:
+        eventKey === "project_adjust"
+          ? "Conteúdo revisado para melhorar qualidade."
+          : "Novo capítulo/episódio publicado.",
+      unit: isChapterBasedType(sampleProject?.type || "") ? "Capítulo" : "Episódio",
+      episodeNumber: safeChapterNumber,
+      updatedAt: now,
+    };
+
+    const prepared = prepareEditorialWebhookDispatch({
+      eventKey,
+      post: samplePost,
+      project: sampleProject,
+      update: sampleUpdate,
+      chapter: sampleChapter,
+      settings: loadIntegrationSettings(),
+      allowDisabled: true,
+    });
+    if (!prepared.ok) {
+      appendAuditLog(req, "integrations.webhooks_editorial.test", "integrations", {
+        eventKey,
+        channel: prepared.channel || channelKey,
+        status: prepared.status || "failed",
+        code: prepared.code || "prepare_failed",
+        postId: samplePost?.id || null,
+        projectId: sampleProject?.id || null,
+      });
+      return res.status(400).json({
+        ok: false,
+        error: prepared.code || "prepare_failed",
+        channel: prepared.channel || channelKey,
+      });
+    }
+
+    const result = await dispatchWebhookMessage({
+      provider: "discord",
+      webhookUrl: prepared.webhookUrl,
+      message: prepared.payload,
+      timeoutMs: prepared.timeoutMs,
+      retries: prepared.retries,
+    });
+    const errorDetail = result.ok
+      ? ""
+      : String(result.bodyText || result.message || "")
+          .trim()
+          .slice(0, 500);
+
+    appendAuditLog(req, "integrations.webhooks_editorial.test", "integrations", {
+      eventKey,
+      channel: prepared.channel,
+      status: result.status,
+      code: result.code || null,
+      statusCode: result.statusCode || null,
+      attempt: result.attempt || null,
+      postId: samplePost?.id || null,
+      projectId: sampleProject?.id || null,
+      error: errorDetail || null,
+    });
+
+    return res.json({
+      ok: result.ok,
+      eventKey,
+      channel: prepared.channel,
+      status: result.status,
+      code: result.code || null,
+      statusCode: result.statusCode || null,
+      attempt: result.attempt || null,
+      ...(errorDetail ? { errorDetail } : {}),
+    });
+  } catch (error) {
+    appendAuditLog(req, "integrations.webhooks_editorial.test", "integrations", {
+      eventKey,
+      channel: channelKey,
+      status: "failed",
+      code: "test_dispatch_failed",
+      error: String(error?.message || error || "").slice(0, 200),
+    });
+    return res.status(500).json({
+      ok: false,
+      error: "test_dispatch_failed",
+      channel: channelKey,
+    });
+  }
 });
 
 app.get("/api/public/settings", (req, res) => {
@@ -8876,3 +9620,5 @@ httpServer.on("close", () => {
     operationalAlertsWebhookState.timer = null;
   }
 });
+
+

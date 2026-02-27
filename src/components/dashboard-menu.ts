@@ -5,6 +5,7 @@
   FolderCog,
   LayoutGrid,
   MessageSquare,
+  Send,
   Settings,
   Shield,
   UserRound,
@@ -26,5 +27,6 @@ export const dashboardMenuItems: DashboardMenuItem[] = [
   { label: "Audit Log", href: "/dashboard/audit-log", icon: ScrollText, enabled: true },
   { label: "Usuários", href: "/dashboard/usuarios", icon: UserRound, enabled: true },
   { label: "Páginas", href: "/dashboard/paginas", icon: Shield, enabled: true },
+  { label: "Webhooks", href: "/dashboard/webhooks", icon: Send, enabled: true },
   { label: "Configurações", href: "/dashboard/configuracoes", icon: Settings, enabled: true },
 ];

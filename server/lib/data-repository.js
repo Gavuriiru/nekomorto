@@ -73,6 +73,7 @@ class DbDataRepository {
       uploads: [],
       pages: {},
       siteSettings: {},
+      integrationSettings: {},
       userPreferences: {},
     };
   }
@@ -155,6 +156,7 @@ class DbDataRepository {
       uploads,
       pages,
       siteSettings,
+      integrationSettings,
       userPreferences,
     ] = await Promise.all([
       prisma.ownerIdRecord.findMany({ orderBy: { position: "asc" } }),
@@ -178,6 +180,9 @@ class DbDataRepository {
       prisma.uploadRecord.findMany({ orderBy: { position: "asc" } }),
       prisma.pagesRecord.findUnique({ where: { id: 1 } }),
       prisma.siteSettingsRecord.findUnique({ where: { id: 1 } }),
+      typeof prisma.integrationSettingsRecord?.findUnique === "function"
+        ? prisma.integrationSettingsRecord.findUnique({ where: { id: 1 } }).catch(() => null)
+        : Promise.resolve(null),
       prisma.userPreferenceRecord.findMany({}),
     ]);
 
@@ -209,6 +214,9 @@ class DbDataRepository {
     this.snapshot.uploads = uploads.map((row) => cloneValue(row.data));
     this.snapshot.pages = pages?.data ? cloneValue(pages.data) : {};
     this.snapshot.siteSettings = siteSettings?.data ? cloneValue(siteSettings.data) : {};
+    this.snapshot.integrationSettings = integrationSettings?.data
+      ? cloneValue(integrationSettings.data)
+      : {};
     this.snapshot.userPreferences = userPreferences.reduce((acc, row) => {
       const userId = String(row?.userId || "").trim();
       if (!userId) {
@@ -590,6 +598,25 @@ class DbDataRepository {
         where: { id: 1 },
         create: { id: 1, data: cloneValue(this.snapshot.siteSettings) },
         update: { data: cloneValue(this.snapshot.siteSettings) },
+      });
+    });
+  }
+
+  loadIntegrationSettings() {
+    return cloneValue(this.snapshot.integrationSettings);
+  }
+
+  writeIntegrationSettings(settings) {
+    this.snapshot.integrationSettings =
+      settings && typeof settings === "object" ? cloneValue(settings) : {};
+    this.enqueuePersist("integration_settings", async () => {
+      if (typeof prisma.integrationSettingsRecord?.upsert !== "function") {
+        return;
+      }
+      await prisma.integrationSettingsRecord.upsert({
+        where: { id: 1 },
+        create: { id: 1, data: cloneValue(this.snapshot.integrationSettings) },
+        update: { data: cloneValue(this.snapshot.integrationSettings) },
       });
     });
   }
