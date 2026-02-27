@@ -83,4 +83,61 @@ describe("DashboardShell menu permissions", () => {
     expect(screen.queryByText("Usuários")).not.toBeInTheDocument();
     expect(screen.queryByText("Configurações")).not.toBeInTheDocument();
   });
+
+  it("keeps previous user while loading and clears cache when loading finishes", async () => {
+    const grants = buildGrants();
+    grants.posts = true;
+    const { default: DashboardShell } = await import("@/components/DashboardShell");
+
+    const { rerender } = render(
+      <MemoryRouter initialEntries={["/dashboard/posts"]}>
+        <DashboardShell
+          currentUser={{
+            id: "user-2",
+            name: "Maria Persist",
+            username: "maria",
+            grants,
+          }}
+        >
+          <div>Conteudo</div>
+        </DashboardShell>
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByText("Maria Persist")).toBeInTheDocument();
+    expect(screen.getByText("@maria")).toBeInTheDocument();
+
+    rerender(
+      <MemoryRouter initialEntries={["/dashboard/posts"]}>
+        <DashboardShell currentUser={null} isLoadingUser>
+          <div>Conteudo</div>
+        </DashboardShell>
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByText("Maria Persist")).toBeInTheDocument();
+    expect(screen.getByText("@maria")).toBeInTheDocument();
+
+    rerender(
+      <MemoryRouter initialEntries={["/dashboard/posts"]}>
+        <DashboardShell currentUser={null} isLoadingUser={false}>
+          <div>Conteudo</div>
+        </DashboardShell>
+      </MemoryRouter>,
+    );
+
+    expect(screen.queryByText("Maria Persist")).not.toBeInTheDocument();
+    expect(screen.getByText("Usuario")).toBeInTheDocument();
+
+    rerender(
+      <MemoryRouter initialEntries={["/dashboard/posts"]}>
+        <DashboardShell currentUser={null} isLoadingUser>
+          <div>Conteudo</div>
+        </DashboardShell>
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByText("Carregando usuario...")).toBeInTheDocument();
+    expect(screen.getByText("Aguarde")).toBeInTheDocument();
+  });
 });

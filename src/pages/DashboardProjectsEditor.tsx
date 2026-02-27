@@ -2245,6 +2245,7 @@ const DashboardProjectsEditor = () => {
     <>
       <DashboardShell
         currentUser={currentUser}
+        isLoadingUser={!hasLoadedCurrentUser}
         onUserCardClick={() => navigate("/dashboard/usuarios?edit=me")}
       >
           <DashboardPageContainer>

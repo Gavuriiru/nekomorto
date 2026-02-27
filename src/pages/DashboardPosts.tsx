@@ -1668,6 +1668,7 @@ const DashboardPosts = () => {
     <>
       <DashboardShell
         currentUser={currentUser}
+        isLoadingUser={isLoading}
         onUserCardClick={() => navigate("/dashboard/usuarios?edit=me")}
         onMenuItemClick={(item, event) => {
           if (!item.enabled || !isEditorOpen || !isDirty) {

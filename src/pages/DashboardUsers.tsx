@@ -866,6 +866,7 @@ const DashboardUsers = () => {
     <>
       <DashboardShell
         currentUser={currentUser}
+        isLoadingUser={isLoading}
         onUserCardClick={currentUserRecord ? () => handleUserCardClick(currentUserRecord) : undefined}
       >
       <main className="pt-24">

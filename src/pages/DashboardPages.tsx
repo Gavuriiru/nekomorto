@@ -342,6 +342,7 @@ const DashboardPages = () => {
     username: string;
     avatarUrl?: string | null;
   } | null>(null);
+  const [isLoadingUser, setIsLoadingUser] = useState(true);
 
   const qrPreview = useMemo(() => {
     if (pages.donations.qrCustomUrl) {
@@ -397,6 +398,7 @@ const DashboardPages = () => {
 
   useEffect(() => {
     const loadUser = async () => {
+      setIsLoadingUser(true);
       try {
         const response = await apiFetch(apiBase, "/api/me", { auth: true });
         if (!response.ok) {
@@ -407,9 +409,11 @@ const DashboardPages = () => {
         setCurrentUser(data);
       } catch {
         setCurrentUser(null);
+      } finally {
+        setIsLoadingUser(false);
       }
     };
-    loadUser();
+    void loadUser();
   }, [apiBase]);
 
   const savePages = useCallback(
@@ -546,6 +550,7 @@ const DashboardPages = () => {
     return (
       <DashboardShell
         currentUser={currentUser}
+        isLoadingUser={isLoadingUser}
         onUserCardClick={() => navigate("/dashboard/usuarios?edit=me")}
       >
         <main className="pt-24">
@@ -565,6 +570,7 @@ const DashboardPages = () => {
     return (
       <DashboardShell
         currentUser={currentUser}
+        isLoadingUser={isLoadingUser}
         onUserCardClick={() => navigate("/dashboard/usuarios?edit=me")}
       >
         <main className="pt-24">
@@ -588,6 +594,7 @@ const DashboardPages = () => {
   return (
     <DashboardShell
       currentUser={currentUser}
+      isLoadingUser={isLoadingUser}
       onUserCardClick={() => navigate("/dashboard/usuarios?edit=me")}
     >
         <main

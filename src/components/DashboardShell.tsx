@@ -1,4 +1,4 @@
-import { useMemo, type MouseEvent, type ReactNode } from "react";
+import { useEffect, useMemo, type MouseEvent, type ReactNode } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { Home, LayoutDashboard } from "lucide-react";
 import DashboardHeader from "@/components/DashboardHeader";
@@ -45,6 +45,8 @@ type DashboardShellProps = {
   ) => void;
 };
 
+let lastResolvedDashboardUser: DashboardUser | null = null;
+
 const DashboardShell = ({
   children,
   currentUser,
@@ -56,18 +58,38 @@ const DashboardShell = ({
   onMenuItemClick,
 }: DashboardShellProps) => {
   const location = useLocation();
+  const effectiveUser = useMemo<DashboardUser | null>(() => {
+    if (currentUser) {
+      return currentUser;
+    }
+    if (isLoadingUser) {
+      return lastResolvedDashboardUser;
+    }
+    return null;
+  }, [currentUser, isLoadingUser]);
+
+  useEffect(() => {
+    if (currentUser) {
+      lastResolvedDashboardUser = currentUser;
+      return;
+    }
+    if (!isLoadingUser) {
+      lastResolvedDashboardUser = null;
+    }
+  }, [currentUser, isLoadingUser]);
+
   const resolvedMenuItems = useMemo(() => {
     if (Array.isArray(menuItems)) {
       return menuItems.filter((item) => item.enabled);
     }
-    const grants = resolveGrants(currentUser || null);
+    const grants = resolveGrants(effectiveUser || null);
     return buildDashboardMenuFromGrants(dashboardMenuItems, grants);
-  }, [currentUser, menuItems]);
+  }, [effectiveUser, menuItems]);
   const userName =
-    userLabel ?? (isLoadingUser ? "Carregando usuario..." : currentUser?.name ?? "Usuario");
+    userLabel ?? (effectiveUser?.name ?? (isLoadingUser ? "Carregando usuario..." : "Usuario"));
   const userHandle =
-    userSubLabel ?? (currentUser?.username ? `@${currentUser.username}` : "Dashboard");
-  const initialsRaw = (currentUser?.name ?? currentUser?.username ?? "")
+    userSubLabel ?? (effectiveUser?.username ? `@${effectiveUser.username}` : isLoadingUser ? "Aguarde" : "Dashboard");
+  const initialsRaw = (effectiveUser?.name ?? effectiveUser?.username ?? "")
     .split(" ")
     .filter(Boolean)
     .slice(0, 2)
@@ -115,7 +137,7 @@ const DashboardShell = ({
               }}
             >
               <Avatar className="h-11 w-11 border border-sidebar-border">
-                {currentUser?.avatarUrl ? <AvatarImage src={currentUser.avatarUrl} alt={userName} /> : null}
+                {effectiveUser?.avatarUrl ? <AvatarImage src={effectiveUser.avatarUrl} alt={userName} /> : null}
                 <AvatarFallback className="bg-sidebar-primary/10 text-xs text-sidebar-foreground">
                   {initials}
                 </AvatarFallback>
@@ -142,7 +164,7 @@ const DashboardShell = ({
               }}
             >
               <Avatar className="h-8 w-8 border border-sidebar-border shadow-xs">
-                {currentUser?.avatarUrl ? <AvatarImage src={currentUser.avatarUrl} alt={userName} /> : null}
+                {effectiveUser?.avatarUrl ? <AvatarImage src={effectiveUser.avatarUrl} alt={userName} /> : null}
                 <AvatarFallback className="bg-sidebar-primary/10 text-[10px] text-sidebar-foreground">
                   {initials}
                 </AvatarFallback>
@@ -209,7 +231,7 @@ const DashboardShell = ({
         </Sidebar>
 
         <SidebarInset className="min-w-0 overflow-x-hidden flex min-h-screen flex-col bg-linear-to-b from-background via-[hsl(var(--primary)/0.12)] to-background text-foreground md:peer-data-[variant=inset]:shadow-none md:peer-data-[variant=inset]:rounded-none">
-          <DashboardHeader currentUser={currentUser} menuItems={resolvedMenuItems} />
+          <DashboardHeader currentUser={effectiveUser} menuItems={resolvedMenuItems} />
           <div className="min-w-0 w-full flex-1">{children}</div>
           <Footer />
         </SidebarInset>

@@ -77,6 +77,7 @@ const DashboardComments = () => {
     username: string;
     avatarUrl?: string | null;
   } | null>(null);
+  const [isLoadingUser, setIsLoadingUser] = useState(true);
   const [deleteTarget, setDeleteTarget] = useState<PendingComment | null>(null);
   const [pendingActionById, setPendingActionById] = useState<Record<string, "approve" | "delete">>({});
   const [isDeleteConfirmLoading, setIsDeleteConfirmLoading] = useState(false);
@@ -112,6 +113,7 @@ const DashboardComments = () => {
 
   useEffect(() => {
     const loadUser = async () => {
+      setIsLoadingUser(true);
       try {
         const response = await apiFetch(apiBase, "/api/me", { auth: true });
         if (!response.ok) {
@@ -122,10 +124,12 @@ const DashboardComments = () => {
         setCurrentUser(data);
       } catch {
         setCurrentUser(null);
+      } finally {
+        setIsLoadingUser(false);
       }
     };
 
-    loadUser();
+    void loadUser();
   }, [apiBase]);
 
   const handleApprove = async (id: string) => {
@@ -288,6 +292,7 @@ const DashboardComments = () => {
   return (
     <DashboardShell
       currentUser={currentUser}
+      isLoadingUser={isLoadingUser}
       onUserCardClick={() => navigate("/dashboard/usuarios?edit=me")}
     >
       <main className="px-6 pb-20 pt-24 md:px-10">
