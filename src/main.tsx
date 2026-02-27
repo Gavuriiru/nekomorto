@@ -3,6 +3,7 @@ import App, { queryClient } from "./App.tsx";
 import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
 import { PUBLIC_BOOTSTRAP_QUERY_KEY } from "@/hooks/use-public-bootstrap";
+import { registerPwa } from "@/lib/pwa-register";
 import type { PublicBootstrapPayload } from "@/types/public-bootstrap";
 import "./index.css";
 
@@ -53,6 +54,8 @@ const asBootstrapPayload = (value: unknown): PublicBootstrapPayload | null => {
 };
 
 const bootstrap = async () => {
+  void registerPwa();
+
   const apiBase = getApiBase();
   const globalWindow = window as Window & {
     __BOOTSTRAP_SETTINGS__?: unknown;

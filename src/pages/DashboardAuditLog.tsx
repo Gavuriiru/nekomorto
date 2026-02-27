@@ -62,6 +62,12 @@ type FilterForm = {
 
 type FilterDateField = "dateFrom" | "dateTo";
 
+type AuditChangeRow = {
+  field: string;
+  before: unknown;
+  after: unknown;
+};
+
 const pad = (value: number) => String(value).padStart(2, "0");
 
 const toLocalDateValue = (value: Date) =>
@@ -122,6 +128,109 @@ const normalizeStatusFilter = (value: string | null) => {
     return normalized;
   }
   return "all";
+};
+
+const AUDIT_ACTION_LABELS: Record<string, string> = {
+  "posts.create": "Posts · Criação",
+  "posts.update": "Posts · Atualização",
+  "posts.delete": "Posts · Exclusão",
+  "posts.restore": "Posts · Restauração",
+  "posts.version.create": "Posts · Versão criada",
+  "posts.rollback": "Posts · Rollback",
+  "projects.create": "Projetos · Criação",
+  "projects.update": "Projetos · Atualização",
+  "projects.delete": "Projetos · Exclusão",
+  "projects.restore": "Projetos · Restauração",
+  "comments.approve": "Comentários · Aprovação",
+  "comments.delete": "Comentários · Exclusão",
+  "comments.bulk.approve": "Comentários · Aprovação em massa",
+  "comments.bulk.delete": "Comentários · Exclusão em massa",
+  "ops_alerts.webhook.sent": "Alertas operacionais · Webhook enviado",
+  "ops_alerts.webhook.failed": "Alertas operacionais · Webhook falhou",
+  "ops_alerts.webhook.skipped": "Alertas operacionais · Webhook ignorado",
+  "auth.login.success": "Autenticação · Login",
+  "auth.logout": "Autenticação · Logout",
+};
+
+const humanizeAuditAction = (action: string) => {
+  const normalized = String(action || "").trim();
+  if (!normalized) {
+    return "Evento";
+  }
+  if (AUDIT_ACTION_LABELS[normalized]) {
+    return AUDIT_ACTION_LABELS[normalized];
+  }
+  const [resource = "evento", verb = "ação"] = normalized.split(".");
+  const resourceLabel = resource.charAt(0).toUpperCase() + resource.slice(1);
+  const verbLabel = verb.replace(/_/g, " ");
+  return `${resourceLabel} · ${verbLabel.charAt(0).toUpperCase()}${verbLabel.slice(1)}`;
+};
+
+const humanizeAuditStatus = (status: AuditStatus) => {
+  if (status === "failed") return "Falha";
+  if (status === "denied") return "Negado";
+  return "Sucesso";
+};
+
+const summarizeMeta = (meta: Record<string, unknown>) => {
+  const safeMeta = meta && typeof meta === "object" ? meta : {};
+  const entries: Array<{ label: string; value: string }> = [];
+  const pushIfPresent = (label: string, keys: string[]) => {
+    for (const key of keys) {
+      const raw = safeMeta[key];
+      if (raw === undefined || raw === null || raw === "") {
+        continue;
+      }
+      entries.push({
+        label,
+        value: typeof raw === "string" ? raw : JSON.stringify(raw),
+      });
+      return;
+    }
+  };
+  pushIfPresent("ID", ["id", "resourceId", "targetId"]);
+  pushIfPresent("Slug", ["slug"]);
+  pushIfPresent("Projeto", ["projectId"]);
+  pushIfPresent("Usuário", ["userId", "ownerId"]);
+  pushIfPresent("Quantidade", ["processedCount", "count"]);
+  pushIfPresent("Erro", ["error"]);
+  return entries.slice(0, 8);
+};
+
+const getAuditChanges = (meta: Record<string, unknown>): AuditChangeRow[] => {
+  const rawChanges = meta?.changes;
+  if (!Array.isArray(rawChanges)) {
+    return [];
+  }
+  return rawChanges
+    .map((change) => {
+      if (!change || typeof change !== "object") {
+        return null;
+      }
+      return {
+        field: String((change as { field?: unknown }).field || "").trim(),
+        before: (change as { before?: unknown }).before,
+        after: (change as { after?: unknown }).after,
+      };
+    })
+    .filter((item): item is AuditChangeRow => Boolean(item?.field));
+};
+
+const formatMetaValue = (value: unknown) => {
+  if (value === null || value === undefined || value === "") {
+    return "-";
+  }
+  if (typeof value === "string") {
+    return value;
+  }
+  if (typeof value === "number" || typeof value === "boolean") {
+    return String(value);
+  }
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return String(value);
+  }
 };
 
 const DashboardAuditLog = () => {
@@ -585,13 +694,16 @@ const DashboardAuditLog = () => {
                           <div className="truncate">{entry.actorName || "anonymous"}</div>
                           <div className="truncate text-xs text-muted-foreground">{entry.actorId}</div>
                         </TableCell>
-                        <TableCell className="font-mono text-xs">{entry.action}</TableCell>
+                        <TableCell className="max-w-56">
+                          <div className="truncate text-sm">{humanizeAuditAction(entry.action)}</div>
+                          <div className="truncate font-mono text-xs text-muted-foreground">{entry.action}</div>
+                        </TableCell>
                         <TableCell>
                           <div>{entry.resource || "-"}</div>
                           <div className="text-xs text-muted-foreground">{entry.resourceId || "-"}</div>
                         </TableCell>
                         <TableCell>
-                          <Badge className={statusBadgeClass(entry.status)}>{entry.status}</Badge>
+                          <Badge className={statusBadgeClass(entry.status)}>{humanizeAuditStatus(entry.status)}</Badge>
                         </TableCell>
                         <TableCell className="font-mono text-xs">{entry.ip || "-"}</TableCell>
                         <TableCell className="font-mono text-xs">{entry.resourceId || "-"}</TableCell>
@@ -656,11 +768,70 @@ const DashboardAuditLog = () => {
                 </div>
                 <div>
                   <p className="text-muted-foreground">Status</p>
-                  <Badge className={statusBadgeClass(selectedEntry.status)}>{selectedEntry.status}</Badge>
+                  <Badge className={statusBadgeClass(selectedEntry.status)}>{humanizeAuditStatus(selectedEntry.status)}</Badge>
                 </div>
               </div>
               <div className="rounded-xl border border-border/60 bg-card/80 p-4">
-                <p className="mb-2 text-sm text-muted-foreground">Meta</p>
+                <p className="mb-2 text-sm text-muted-foreground">Resumo</p>
+                <div className="grid gap-2 text-sm md:grid-cols-2">
+                  {summarizeMeta(selectedEntry.meta || {}).length > 0 ? (
+                    summarizeMeta(selectedEntry.meta || {}).map((item) => (
+                      <div key={`${item.label}-${item.value}`} className="min-w-0">
+                        <p className="text-xs text-muted-foreground">{item.label}</p>
+                        <p className="truncate" title={item.value}>{item.value}</p>
+                      </div>
+                    ))
+                  ) : (
+                    <p className="text-sm text-muted-foreground md:col-span-2">
+                      Sem campos resumíveis neste evento.
+                    </p>
+                  )}
+                </div>
+              </div>
+              {getAuditChanges(selectedEntry.meta || {}).length > 0 ? (
+                <div className="rounded-xl border border-border/60 bg-card/80 p-4">
+                  <p className="mb-2 text-sm text-muted-foreground">Mudanças</p>
+                  <div className="space-y-2">
+                    {getAuditChanges(selectedEntry.meta || {}).map((change) => (
+                      <div key={change.field} className="rounded-lg border border-border/60 bg-background/50 p-3">
+                        <p className="text-xs font-medium text-muted-foreground">{change.field}</p>
+                        <div className="mt-2 grid gap-2 text-xs md:grid-cols-2">
+                          <div>
+                            <p className="text-muted-foreground">Antes</p>
+                            <p className="break-words">{formatMetaValue(change.before)}</p>
+                          </div>
+                          <div>
+                            <p className="text-muted-foreground">Depois</p>
+                            <p className="break-words">{formatMetaValue(change.after)}</p>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+              {selectedEntry.meta?.before !== undefined || selectedEntry.meta?.after !== undefined ? (
+                <div className="space-y-2">
+                  {selectedEntry.meta?.before !== undefined ? (
+                    <details className="rounded-xl border border-border/60 bg-card/80 p-4">
+                      <summary className="cursor-pointer text-sm text-muted-foreground">Antes (raw)</summary>
+                      <pre className="mt-3 max-h-[25vh] overflow-auto text-xs leading-relaxed text-foreground">
+                        {JSON.stringify(selectedEntry.meta.before, null, 2)}
+                      </pre>
+                    </details>
+                  ) : null}
+                  {selectedEntry.meta?.after !== undefined ? (
+                    <details className="rounded-xl border border-border/60 bg-card/80 p-4">
+                      <summary className="cursor-pointer text-sm text-muted-foreground">Depois (raw)</summary>
+                      <pre className="mt-3 max-h-[25vh] overflow-auto text-xs leading-relaxed text-foreground">
+                        {JSON.stringify(selectedEntry.meta.after, null, 2)}
+                      </pre>
+                    </details>
+                  ) : null}
+                </div>
+              ) : null}
+              <div className="rounded-xl border border-border/60 bg-card/80 p-4">
+                <p className="mb-2 text-sm text-muted-foreground">Meta raw</p>
                 <pre className="max-h-[45vh] overflow-auto text-xs leading-relaxed text-foreground">
                   {JSON.stringify(selectedEntry.meta || {}, null, 2)}
                 </pre>

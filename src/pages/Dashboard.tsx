@@ -9,6 +9,7 @@ import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
 import { formatDateTime } from "@/lib/date";
 import { usePageMeta } from "@/hooks/use-page-meta";
+import type { OperationalAlertsResponse } from "@/types/operational-alerts";
 
 type DashboardPost = {
   id: string;
@@ -67,6 +68,10 @@ const Dashboard = () => {
   const [isLoadingOverview, setIsLoadingOverview] = useState(true);
   const [hasOverviewError, setHasOverviewError] = useState(false);
   const [reloadTick, setReloadTick] = useState(0);
+  const [operationalAlerts, setOperationalAlerts] = useState<OperationalAlertsResponse | null>(null);
+  const [isLoadingOperationalAlerts, setIsLoadingOperationalAlerts] = useState(true);
+  const [operationalAlertsError, setOperationalAlertsError] = useState("");
+  const [hideOperationalAlertsCard, setHideOperationalAlertsCard] = useState(false);
   const apiBase = getApiBase();
 
   useEffect(() => {
@@ -203,6 +208,48 @@ const Dashboard = () => {
     };
   }, [apiBase, reloadTick]);
 
+  useEffect(() => {
+    let isActive = true;
+    const loadOperationalAlerts = async () => {
+      setIsLoadingOperationalAlerts(true);
+      setOperationalAlertsError("");
+      try {
+        const response = await apiFetch(apiBase, "/api/admin/operational-alerts", { auth: true });
+        if (!isActive) {
+          return;
+        }
+        if (response.status === 403 || response.status === 401) {
+          setHideOperationalAlertsCard(true);
+          setOperationalAlerts(null);
+          return;
+        }
+        setHideOperationalAlertsCard(false);
+        if (!response.ok) {
+          setOperationalAlertsError("Não foi possível carregar o status operacional.");
+          setOperationalAlerts(null);
+          return;
+        }
+        const data = (await response.json()) as OperationalAlertsResponse;
+        setOperationalAlerts(data);
+      } catch {
+        if (!isActive) {
+          return;
+        }
+        setHideOperationalAlertsCard(false);
+        setOperationalAlertsError("Erro ao consultar alertas operacionais.");
+        setOperationalAlerts(null);
+      } finally {
+        if (isActive) {
+          setIsLoadingOperationalAlerts(false);
+        }
+      }
+    };
+    void loadOperationalAlerts();
+    return () => {
+      isActive = false;
+    };
+  }, [apiBase, reloadTick]);
+
   const userLabel = useMemo(() => {
     if (isLoadingUser) {
       return "Carregando usuário...";
@@ -291,6 +338,21 @@ const Dashboard = () => {
         .join(" ")
     : "";
   const areaPath = hasAnalyticsData ? `M0,${chartHeight} L${chartPoints} L${chartWidth},${chartHeight} Z` : "";
+  const operationalStatusLabel = operationalAlerts?.status === "fail"
+    ? "Falha"
+    : operationalAlerts?.status === "degraded"
+      ? "Degradado"
+      : "OK";
+  const operationalStatusClass = operationalAlerts?.status === "fail"
+    ? "bg-red-500/20 text-red-200"
+    : operationalAlerts?.status === "degraded"
+      ? "bg-amber-500/20 text-amber-200"
+      : "bg-emerald-500/20 text-emerald-200";
+  const alertSeverityClass = (severity?: string) => {
+    if (severity === "critical") return "bg-red-500/20 text-red-200";
+    if (severity === "warning") return "bg-amber-500/20 text-amber-200";
+    return "bg-card/80 text-muted-foreground";
+  };
 
   const handleExportReport = () => {
     const escapeCsv = (value: string | number | null | undefined) => {
@@ -615,6 +677,58 @@ const Dashboard = () => {
             </div>
 
                 <aside className="space-y-6">
+              {!hideOperationalAlertsCard ? (
+                <div
+                  className="rounded-3xl border border-border/60 bg-card/60 p-6 animate-slide-up opacity-0"
+                  style={{ animationDelay: "320ms" }}
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <h2 className="text-lg font-semibold">Status operacional</h2>
+                      <p className="text-sm text-muted-foreground">Healthchecks e alertas internos</p>
+                    </div>
+                    <Badge className={operationalStatusClass}>{operationalStatusLabel}</Badge>
+                  </div>
+                  {isLoadingOperationalAlerts ? (
+                    <div className="mt-4 rounded-2xl border border-dashed border-border/60 bg-card/60 px-4 py-6 text-sm text-muted-foreground">
+                      Carregando status operacional...
+                    </div>
+                  ) : operationalAlertsError ? (
+                    <div className="mt-4 space-y-3">
+                      <div className="rounded-2xl border border-dashed border-border/60 bg-card/60 px-4 py-6 text-sm text-muted-foreground">
+                        {operationalAlertsError}
+                      </div>
+                      <Button variant="outline" size="sm" onClick={() => setReloadTick((value) => value + 1)}>
+                        Tentar novamente
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="mt-4 space-y-3">
+                      {operationalAlerts?.alerts?.slice(0, 3).map((alert) => (
+                        <div key={alert.code} className="rounded-2xl border border-border/60 bg-card/60 p-3">
+                          <div className="flex items-center justify-between gap-2">
+                            <p className="text-sm font-medium">{alert.title}</p>
+                            <Badge className={alertSeverityClass(alert.severity)}>
+                              {alert.severity === "critical" ? "Crítico" : alert.severity === "warning" ? "Alerta" : "Info"}
+                            </Badge>
+                          </div>
+                          <p className="mt-1 text-xs text-muted-foreground">{alert.description}</p>
+                        </div>
+                      ))}
+                      {(!operationalAlerts?.alerts || operationalAlerts.alerts.length === 0) && (
+                        <div className="rounded-2xl border border-dashed border-border/60 bg-card/60 px-4 py-6 text-sm text-muted-foreground">
+                          Nenhum alerta operacional ativo.
+                        </div>
+                      )}
+                      <div className="pt-1">
+                        <Button variant="outline" className="w-full" asChild>
+                          <Link to="/dashboard/audit-log">Ver audit log</Link>
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ) : null}
               <div
                 className="rounded-3xl border border-border/60 bg-card/60 p-6 animate-slide-up opacity-0"
                 style={{ animationDelay: "360ms" }}

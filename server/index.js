@@ -15,6 +15,18 @@ import { createSlug, createUniqueSlug } from "./lib/post-slug.js";
 import { buildEditorialCalendarItems } from "./lib/editorial-calendar.js";
 import { bulkModeratePendingComments } from "./lib/comments-bulk-moderation.js";
 import { dedupePostVersionRecordsNewestFirst } from "./lib/post-version-dedupe.js";
+import { buildSitemapXml } from "./lib/sitemap-xml.js";
+import { buildRssXml } from "./lib/rss-xml.js";
+import { buildHealthStatusResponse } from "./lib/health-checks.js";
+import {
+  buildOperationalAlertsResponse,
+  buildOperationalAlertsV1,
+} from "./lib/operational-alerts.js";
+import { buildSessionCookieConfig } from "./lib/session-cookie-config.js";
+import { dispatchWebhookMessage } from "./lib/webhooks/dispatcher.js";
+import { toDiscordWebhookPayload } from "./lib/webhooks/providers/discord.js";
+import { buildOperationalAlertsWebhookNotification } from "./lib/webhooks/templates/operational-alerts.js";
+import { diffOperationalAlertSets } from "./lib/webhooks/transitions.js";
 import { importRemoteImageFile } from "./lib/remote-image-import.js";
 import { localizeProjectImageFields } from "./lib/project-image-localizer.js";
 import { runUploadsReorganization } from "./lib/uploads-reorganizer.js";
@@ -65,6 +77,7 @@ import {
   publicSearchConfig,
 } from "./lib/public-search.js";
 import { createDataRepository } from "./lib/data-repository.js";
+import { prisma } from "./lib/prisma-client.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -77,6 +90,62 @@ let dataRepository = null;
 const HTML_CACHE_CONTROL = "no-store";
 const STATIC_DEFAULT_CACHE_CONTROL = "public, max-age=0, must-revalidate";
 const STATIC_IMMUTABLE_CACHE_CONTROL = "public, max-age=31536000, immutable";
+const PWA_MANIFEST_CACHE_CONTROL = "public, max-age=300, stale-while-revalidate=600";
+const PWA_SW_CACHE_CONTROL = "no-cache";
+const PWA_THEME_COLOR_DARK = "#101114";
+const PWA_THEME_COLOR_LIGHT = "#f8fafc";
+const PWA_MANIFEST_BASE = Object.freeze({
+  id: "/",
+  name: "Nekomata Fansub",
+  short_name: "Nekomata",
+  description: "Fansub dedicada a trazer historias inesqueciveis com o carinho que a comunidade merece.",
+  start_url: "/",
+  display: "standalone",
+  lang: "pt-BR",
+  scope: "/",
+  categories: ["entertainment", "books"],
+  screenshots: [
+    {
+      src: "/pwa/screenshots/home-mobile-1080x1920.png",
+      sizes: "1080x1920",
+      type: "image/png",
+      form_factor: "narrow",
+      label: "Pagina inicial mobile",
+    },
+    {
+      src: "/pwa/screenshots/project-mobile-1080x1920.png",
+      sizes: "1080x1920",
+      type: "image/png",
+      form_factor: "narrow",
+      label: "Pagina de projeto mobile",
+    },
+    {
+      src: "/pwa/screenshots/home-desktop-1920x1080.png",
+      sizes: "1920x1080",
+      type: "image/png",
+      form_factor: "wide",
+      label: "Pagina inicial desktop",
+    },
+  ],
+  icons: [
+    {
+      src: "/pwa/icon-192.png",
+      sizes: "192x192",
+      type: "image/png",
+    },
+    {
+      src: "/pwa/icon-512.png",
+      sizes: "512x512",
+      type: "image/png",
+    },
+    {
+      src: "/pwa/icon-512-maskable.png",
+      sizes: "512x512",
+      type: "image/png",
+      purpose: "maskable",
+    },
+  ],
+});
 
 const hasHashedAssetName = (filePath) => {
   const fileName = path.basename(String(filePath || ""));
@@ -85,6 +154,18 @@ const hasHashedAssetName = (filePath) => {
 
 const setStaticCacheHeaders = (res, filePath) => {
   const normalizedPath = String(filePath || "");
+  const fileName = path.basename(normalizedPath);
+
+  if (fileName === "manifest.webmanifest") {
+    res.setHeader("Cache-Control", PWA_MANIFEST_CACHE_CONTROL);
+    return;
+  }
+
+  if (fileName === "sw.js" || /^workbox-[A-Za-z0-9_-]+\.js$/.test(fileName)) {
+    res.setHeader("Cache-Control", PWA_SW_CACHE_CONTROL);
+    return;
+  }
+
   if (normalizedPath.endsWith(".html")) {
     res.setHeader("Cache-Control", HTML_CACHE_CONTROL);
     return;
@@ -410,6 +491,13 @@ const {
   AUTO_UPLOAD_REORGANIZE_ON_STARTUP: AUTO_UPLOAD_REORGANIZE_ON_STARTUP_ENV = "false",
   RBAC_V2_ENABLED: RBAC_V2_ENABLED_ENV = "false",
   RBAC_V2_ACCEPT_LEGACY_STAR: RBAC_V2_ACCEPT_LEGACY_STAR_ENV = "true",
+  OPS_ALERTS_WEBHOOK_ENABLED: OPS_ALERTS_WEBHOOK_ENABLED_ENV = "false",
+  OPS_ALERTS_WEBHOOK_PROVIDER: OPS_ALERTS_WEBHOOK_PROVIDER_ENV = "discord",
+  OPS_ALERTS_WEBHOOK_URL: OPS_ALERTS_WEBHOOK_URL_ENV = "",
+  OPS_ALERTS_WEBHOOK_TIMEOUT_MS: OPS_ALERTS_WEBHOOK_TIMEOUT_MS_ENV = "",
+  OPS_ALERTS_WEBHOOK_INTERVAL_MS: OPS_ALERTS_WEBHOOK_INTERVAL_MS_ENV = "",
+  OPS_ALERTS_DB_LATENCY_WARNING_MS: OPS_ALERTS_DB_LATENCY_WARNING_MS_ENV = "",
+  VITE_PWA_DEV_ENABLED: VITE_PWA_DEV_ENABLED_ENV = "false",
 } = process.env;
 
 const isProduction = process.env.NODE_ENV === "production";
@@ -423,6 +511,8 @@ const isAutoUploadReorganizationOnStartupEnabled = isTruthyEnv(
   AUTO_UPLOAD_REORGANIZE_ON_STARTUP_ENV,
   false,
 );
+const isOpsAlertsWebhookEnabled = isTruthyEnv(OPS_ALERTS_WEBHOOK_ENABLED_ENV, false);
+const isPwaDevEnabled = VITE_PWA_DEV_ENABLED_ENV === "true";
 const OWNER_IDS = (OWNER_IDS_ENV || (isProduction ? "" : "380305493391966208"))
   .split(",")
   .map((id) => id.trim())
@@ -437,6 +527,9 @@ const ALLOWED_ORIGINS = originConfig.allowedOrigins;
 const PRIMARY_APP_ORIGIN = originConfig.primaryAppOrigin;
 const PRIMARY_APP_HOST = originConfig.primaryAppHost;
 const CONFIGURED_DISCORD_REDIRECT_URI = originConfig.configuredDiscordRedirectUri;
+const OPS_ALERTS_WEBHOOK_PROVIDER =
+  String(OPS_ALERTS_WEBHOOK_PROVIDER_ENV || "discord").trim().toLowerCase() || "discord";
+const OPS_ALERTS_WEBHOOK_URL = String(OPS_ALERTS_WEBHOOK_URL_ENV || "").trim();
 const REPO_ROOT_DIR = path.join(__dirname, "..");
 if (!String(DATABASE_URL || "").trim()) {
   throw new Error("DATABASE_URL is required");
@@ -446,6 +539,11 @@ const sessionStore = new PgSessionStore({
   tableName: String(SESSION_TABLE || "user_sessions"),
   createTableIfMissing: false,
   ttl: 60 * 60 * 24 * 7,
+});
+const sessionCookieConfig = buildSessionCookieConfig({
+  isProduction,
+  cookieBaseName: "rainbow.sid",
+  sessionSecret: SESSION_SECRET,
 });
 
 const AUTO_REORGANIZE_TRIGGER_TO_ACTION = {
@@ -583,6 +681,10 @@ const parseEnvInteger = (value, fallback, min, max) => {
   return Math.min(Math.max(Math.floor(parsed), min), max);
 };
 
+const OPS_ALERTS_WEBHOOK_TIMEOUT_MS = parseEnvInteger(OPS_ALERTS_WEBHOOK_TIMEOUT_MS_ENV, 5000, 1000, 30000);
+const OPS_ALERTS_WEBHOOK_INTERVAL_MS = parseEnvInteger(OPS_ALERTS_WEBHOOK_INTERVAL_MS_ENV, 60000, 10000, 3600000);
+const OPS_ALERTS_DB_LATENCY_WARNING_MS = parseEnvInteger(OPS_ALERTS_DB_LATENCY_WARNING_MS_ENV, 1000, 50, 60000);
+
 const ANALYTICS_SCHEMA_VERSION = 1;
 const ANALYTICS_RETENTION_DAYS = parseEnvInteger(ANALYTICS_RETENTION_DAYS_ENV, 90, 7, 3650);
 const ANALYTICS_AGG_RETENTION_DAYS = parseEnvInteger(ANALYTICS_AGG_RETENTION_DAYS_ENV, 365, 30, 3650);
@@ -594,14 +696,25 @@ const ANALYTICS_EVENT_TYPE_SET = new Set([
   "download_click",
   "comment_created",
   "comment_approved",
+  "pwa_install_prompt_shown",
+  "pwa_install_prompt_accepted",
+  "pwa_install_prompt_dismissed",
+  "pwa_installed",
 ]);
 const ANALYTICS_COOLDOWN_EVENT_TYPE_SET = new Set(["view", "chapter_view"]);
 const ANALYTICS_COOLDOWN_RESOURCE_SET = new Set(["post", "project", "chapter"]);
 const ANALYTICS_VIEW_COOLDOWN_MS = 30 * 60 * 1000;
 const ANALYTICS_META_STRING_MAX = 180;
 const analyticsViewCooldown = new Map();
-const PUBLIC_ANALYTICS_EVENT_TYPE_SET = new Set(["chapter_view", "download_click"]);
-const PUBLIC_ANALYTICS_RESOURCE_TYPE_SET = new Set(["chapter"]);
+const PUBLIC_ANALYTICS_EVENT_TYPE_SET = new Set([
+  "chapter_view",
+  "download_click",
+  "pwa_install_prompt_shown",
+  "pwa_install_prompt_accepted",
+  "pwa_install_prompt_dismissed",
+  "pwa_installed",
+]);
+const PUBLIC_ANALYTICS_RESOURCE_TYPE_SET = new Set(["chapter", "pwa"]);
 
 dataRepository = await createDataRepository({
   databaseUrl: DATABASE_URL,
@@ -708,6 +821,11 @@ const sanitizeAnalyticsMeta = (value) => {
     "chapterNumber",
     "volume",
     "sourceLabel",
+    "surface",
+    "platform",
+    "browser",
+    "displayMode",
+    "outcome",
   ];
   const output = {};
   allowlist.forEach((key) => {
@@ -1727,17 +1845,12 @@ app.use("/api", requireSameOrigin);
 
 app.use(
   session({
-    name: "rainbow.sid",
-    secret: SESSION_SECRET || "dev-session-secret",
+    name: sessionCookieConfig.name,
+    secret: sessionCookieConfig.secret,
     resave: false,
     saveUninitialized: false,
     store: sessionStore,
-    cookie: {
-      httpOnly: true,
-      sameSite: "lax",
-      secure: "auto",
-      maxAge: 1000 * 60 * 60 * 24 * 7,
-    },
+    cookie: sessionCookieConfig.cookie,
   }),
 );
 
@@ -1765,6 +1878,64 @@ app.use((req, res, next) => {
   return res.status(503).json({ error: "maintenance_mode" });
 });
 
+const PWA_WORKBOX_FILE_PATTERN = /^workbox-[\w-]+\.js$/;
+
+const resolvePwaCriticalAssetPath = (requestPath) => {
+  const normalizedPath = String(requestPath || "").trim();
+  if (!normalizedPath) {
+    return null;
+  }
+  if (normalizedPath === "/manifest.webmanifest") {
+    return path.join(clientDistDir, "manifest.webmanifest");
+  }
+  if (normalizedPath === "/sw.js") {
+    return path.join(clientDistDir, "sw.js");
+  }
+  const fileName = normalizedPath.startsWith("/") ? normalizedPath.slice(1) : normalizedPath;
+  if (PWA_WORKBOX_FILE_PATTERN.test(fileName)) {
+    return path.join(clientDistDir, fileName);
+  }
+  return null;
+};
+
+const resolvePwaThemeColors = (mode) => {
+  if (String(mode || "").toLowerCase() === "light") {
+    return {
+      theme_color: PWA_THEME_COLOR_LIGHT,
+      background_color: PWA_THEME_COLOR_LIGHT,
+    };
+  }
+  return {
+    theme_color: PWA_THEME_COLOR_DARK,
+    background_color: PWA_THEME_COLOR_DARK,
+  };
+};
+
+const buildPwaManifestPayload = () => {
+  let themeMode = "dark";
+  try {
+    const settings = loadSiteSettings();
+    themeMode = settings?.theme?.mode;
+  } catch {
+    themeMode = "dark";
+  }
+  const colors = resolvePwaThemeColors(themeMode);
+  return {
+    ...PWA_MANIFEST_BASE,
+    ...colors,
+  };
+};
+
+app.get("/manifest.webmanifest", (_req, res) => {
+  if (!isProduction && !isPwaDevEnabled) {
+    return res.status(404).json({ error: "pwa_asset_unavailable_in_dev" });
+  }
+  const payload = buildPwaManifestPayload();
+  res.setHeader("Cache-Control", PWA_MANIFEST_CACHE_CONTROL);
+  res.type("application/manifest+json; charset=utf-8");
+  return res.status(200).send(JSON.stringify(payload));
+});
+
 const uploadsPublicDir = path.join(clientRootDir, "public", "uploads");
 app.use(
   "/uploads",
@@ -1781,6 +1952,36 @@ if (isProduction) {
       setHeaders: setStaticCacheHeaders,
     }),
   );
+  app.use((req, res, next) => {
+    const method = String(req.method || "").toUpperCase();
+    if (method !== "GET" && method !== "HEAD") {
+      return next();
+    }
+    const assetPath = resolvePwaCriticalAssetPath(req.path);
+    if (!assetPath) {
+      return next();
+    }
+    if (fs.existsSync(assetPath)) {
+      return next();
+    }
+    return res.status(404).json({ error: "pwa_asset_not_found" });
+  });
+}
+if (!isProduction) {
+  app.use((req, res, next) => {
+    const method = String(req.method || "").toUpperCase();
+    if (method !== "GET" && method !== "HEAD") {
+      return next();
+    }
+    const assetPath = resolvePwaCriticalAssetPath(req.path);
+    if (!assetPath) {
+      return next();
+    }
+    if (isPwaDevEnabled) {
+      return next();
+    }
+    return res.status(404).json({ error: "pwa_asset_unavailable_in_dev" });
+  });
 }
 if (viteDevServer) {
   app.use(viteDevServer.middlewares);
@@ -3940,6 +4141,7 @@ const buildUserPayload = (sessionUser) => {
 };
 
 app.get("/api/me", (req, res) => {
+  res.setHeader("Cache-Control", "no-store");
   if (!req.session?.user) {
     return res.status(401).json({ error: "unauthorized" });
   }
@@ -3948,6 +4150,7 @@ app.get("/api/me", (req, res) => {
 });
 
 app.get("/api/public/me", (req, res) => {
+  res.setHeader("Cache-Control", "no-store");
   if (!req.session?.user) {
     return res.json({ user: null });
   }
@@ -3955,14 +4158,282 @@ app.get("/api/public/me", (req, res) => {
   return res.json({ user: buildUserPayload(req.session.user) });
 });
 
-app.get("/api/health", (_req, res) => {
-  return res.json({
-    ok: true,
-    dataSource: "db",
+const getRepositoryHealthSnapshot = () => {
+  if (!dataRepository || typeof dataRepository.getHealthSnapshot !== "function") {
+    return {
+      queueDepth: 0,
+      oldestPendingMs: 0,
+      lastPersistStartedAt: null,
+      lastPersistCompletedAt: null,
+      lastPersistErrorAt: null,
+      lastPersistErrorLabel: null,
+      lastPersistErrorMessage: null,
+    };
+  }
+  return dataRepository.getHealthSnapshot();
+};
+
+const OPERATIONAL_PERSIST_ERROR_RECENT_WINDOW_MS = 15 * 60 * 1000;
+
+const buildMaintenanceHealthCheck = () => ({
+  name: "maintenance_mode",
+  status: isMaintenanceMode ? "warning" : "ok",
+  message: isMaintenanceMode ? "Modo de manutenção ativo." : "Modo de manutenção desativado.",
+});
+
+const buildSessionConfigHealthCheck = () => ({
+  name: "session_config",
+  status: sessionCookieConfig.usesDefaultSecretInProduction ? "warning" : "ok",
+  message: sessionCookieConfig.usesDefaultSecretInProduction
+    ? "SESSION_SECRET fallback em produção."
+    : "Configuração de sessão válida.",
+  meta: {
+    cookieName: sessionCookieConfig.name,
+    secure: Boolean(sessionCookieConfig.cookie?.secure),
+    sameSite: sessionCookieConfig.cookie?.sameSite || "lax",
+    path: sessionCookieConfig.cookie?.path || "/",
+  },
+});
+
+const buildRepositoryHealthCheck = () => {
+  const snapshot = getRepositoryHealthSnapshot();
+  const lastErrorTs = snapshot.lastPersistErrorAt ? new Date(snapshot.lastPersistErrorAt).getTime() : null;
+  const hasRecentError =
+    Number.isFinite(lastErrorTs) && Date.now() - Number(lastErrorTs) <= OPERATIONAL_PERSIST_ERROR_RECENT_WINDOW_MS;
+  const backlog = Number(snapshot.queueDepth || 0) > 10 || Number(snapshot.oldestPendingMs || 0) > 30_000;
+  return {
+    name: "data_repository",
+    status: hasRecentError ? "warning" : backlog ? "warning" : "ok",
+    message: hasRecentError
+      ? "Houve erro recente na persistência em background."
+      : backlog
+        ? "Fila de persistência acumulada."
+        : "Persistência em background saudável.",
+    meta: snapshot,
+  };
+};
+
+const probeDbHealthCheck = async () => {
+  const startedAt = Date.now();
+  try {
+    await prisma.$queryRawUnsafe("SELECT 1");
+    const latencyMs = Date.now() - startedAt;
+    return {
+      name: "database",
+      status: latencyMs > OPS_ALERTS_DB_LATENCY_WARNING_MS ? "warning" : "ok",
+      latencyMs,
+      message:
+        latencyMs > OPS_ALERTS_DB_LATENCY_WARNING_MS
+          ? "Banco respondeu acima do limite de latência."
+          : "Banco respondeu ao ping.",
+    };
+  } catch (error) {
+    return {
+      name: "database",
+      status: "critical",
+      latencyMs: Date.now() - startedAt,
+      message: String(error?.message || error || "db_ping_failed"),
+    };
+  }
+};
+
+const probeUploadsDirHealthCheck = async () => {
+  const startedAt = Date.now();
+  try {
+    await fs.promises.access(uploadsPublicDir, fs.constants.R_OK | fs.constants.W_OK);
+    return {
+      name: "uploads_dir",
+      status: "ok",
+      latencyMs: Date.now() - startedAt,
+      message: "Diretório de uploads acessível.",
+      meta: { path: uploadsPublicDir },
+    };
+  } catch (error) {
+    return {
+      name: "uploads_dir",
+      status: "warning",
+      latencyMs: Date.now() - startedAt,
+      message: String(error?.message || error || "uploads_dir_unavailable"),
+      meta: { path: uploadsPublicDir },
+    };
+  }
+};
+
+const evaluateOperationalMonitoring = async () => {
+  const dbCheck = await probeDbHealthCheck();
+  const repositoryHealth = getRepositoryHealthSnapshot();
+  const checks = [
+    dbCheck,
+    buildRepositoryHealthCheck(),
+    await probeUploadsDirHealthCheck(),
+    buildSessionConfigHealthCheck(),
+    buildMaintenanceHealthCheck(),
+  ];
+  const health = buildHealthStatusResponse({
+    checks,
+    dataSource: dataRepository?.getDataSource?.() || "db",
     maintenanceMode: isMaintenanceMode,
     ts: new Date().toISOString(),
   });
+  const alerts = buildOperationalAlertsV1({
+    maintenanceMode: isMaintenanceMode,
+    dbCheck,
+    repositoryHealth,
+    session: {
+      usesDefaultSecretInProduction: sessionCookieConfig.usesDefaultSecretInProduction,
+    },
+    thresholds: {
+      dbLatencyWarningMs: OPS_ALERTS_DB_LATENCY_WARNING_MS,
+    },
+    now: health.ts,
+  });
+  const alertsResponse = buildOperationalAlertsResponse({
+    alerts,
+    checks: health.checks,
+    generatedAt: health.ts,
+  });
+  return {
+    ts: health.ts,
+    checks: health.checks,
+    health,
+    alerts: alertsResponse,
+    repositoryHealth,
+    dbCheck,
+  };
+};
+
+const setNoStoreJson = (res) => {
+  res.setHeader("Cache-Control", "no-store");
+};
+
+app.get("/api/health/live", (_req, res) => {
+  setNoStoreJson(res);
+  return res.json({
+    ok: true,
+    status: "ok",
+    ts: new Date().toISOString(),
+  });
 });
+
+app.get("/api/health/ready", async (_req, res) => {
+  setNoStoreJson(res);
+  const snapshot = await evaluateOperationalMonitoring();
+  const statusCode = snapshot.health.status === "fail" ? 503 : 200;
+  return res.status(statusCode).json(snapshot.health);
+});
+
+app.get("/api/health", async (_req, res) => {
+  setNoStoreJson(res);
+  const snapshot = await evaluateOperationalMonitoring();
+  const statusCode = snapshot.health.status === "fail" ? 503 : 200;
+  return res.status(statusCode).json(snapshot.health);
+});
+
+const operationalAlertsWebhookState = {
+  previousAlerts: [],
+  inFlight: null,
+  timer: null,
+};
+
+const buildOperationalDashboardUrl = () => `${PRIMARY_APP_ORIGIN}/dashboard`;
+
+const dispatchOperationalAlertsWebhookTransition = async ({ transition, generatedAt }) => {
+  if (!transition?.hasChanges) {
+    return { ok: false, status: "skipped", code: "no_change" };
+  }
+
+  if (!isOpsAlertsWebhookEnabled) {
+    appendAuditLog(createSystemAuditReq(), "ops_alerts.webhook.skipped", "system", {
+      reason: "disabled",
+      changes:
+        Number(transition.triggered?.length || 0) +
+        Number(transition.changed?.length || 0) +
+        Number(transition.resolved?.length || 0),
+    });
+    return { ok: false, status: "skipped", code: "disabled" };
+  }
+
+  if (!OPS_ALERTS_WEBHOOK_URL) {
+    appendAuditLog(createSystemAuditReq(), "ops_alerts.webhook.skipped", "system", {
+      reason: "missing_webhook_url",
+    });
+    return { ok: false, status: "skipped", code: "missing_webhook_url" };
+  }
+
+  if (OPS_ALERTS_WEBHOOK_PROVIDER !== "discord") {
+    appendAuditLog(createSystemAuditReq(), "ops_alerts.webhook.skipped", "system", {
+      reason: "unsupported_provider",
+      provider: OPS_ALERTS_WEBHOOK_PROVIDER,
+    });
+    return { ok: false, status: "skipped", code: "unsupported_provider" };
+  }
+
+  const notification = buildOperationalAlertsWebhookNotification({
+    transition,
+    dashboardUrl: buildOperationalDashboardUrl(),
+    generatedAt,
+  });
+  const payload = toDiscordWebhookPayload(notification);
+  const result = await dispatchWebhookMessage({
+    provider: OPS_ALERTS_WEBHOOK_PROVIDER,
+    webhookUrl: OPS_ALERTS_WEBHOOK_URL,
+    message: payload,
+    timeoutMs: OPS_ALERTS_WEBHOOK_TIMEOUT_MS,
+    retries: 1,
+  });
+
+  if (result.ok) {
+    appendAuditLog(createSystemAuditReq(), "ops_alerts.webhook.sent", "system", {
+      provider: OPS_ALERTS_WEBHOOK_PROVIDER,
+      statusCode: result.statusCode || null,
+      triggered: Number(transition.triggered?.length || 0),
+      changed: Number(transition.changed?.length || 0),
+      resolved: Number(transition.resolved?.length || 0),
+    });
+  } else if (result.status !== "skipped") {
+    appendAuditLog(createSystemAuditReq(), "ops_alerts.webhook.failed", "system", {
+      provider: OPS_ALERTS_WEBHOOK_PROVIDER,
+      code: result.code || "failed",
+      statusCode: result.statusCode || null,
+      error: result.message || result.bodyText || null,
+    });
+  }
+
+  return result;
+};
+
+const runOperationalAlertsWebhookTick = async () => {
+  if (operationalAlertsWebhookState.inFlight) {
+    return operationalAlertsWebhookState.inFlight;
+  }
+  operationalAlertsWebhookState.inFlight = (async () => {
+    try {
+      const snapshot = await evaluateOperationalMonitoring();
+      const transition = diffOperationalAlertSets({
+        previousAlerts: operationalAlertsWebhookState.previousAlerts,
+        currentAlerts: snapshot.alerts.alerts,
+      });
+      const result = await dispatchOperationalAlertsWebhookTransition({
+        transition,
+        generatedAt: snapshot.alerts.generatedAt,
+      });
+      operationalAlertsWebhookState.previousAlerts = Array.isArray(snapshot.alerts.alerts)
+        ? snapshot.alerts.alerts
+        : [];
+      return result;
+    } catch (error) {
+      appendAuditLog(createSystemAuditReq(), "ops_alerts.webhook.failed", "system", {
+        provider: OPS_ALERTS_WEBHOOK_PROVIDER,
+        code: "tick_failed",
+        error: String(error?.message || error || "tick_failed"),
+      });
+      return { ok: false, status: "failed", code: "tick_failed" };
+    } finally {
+      operationalAlertsWebhookState.inFlight = null;
+    }
+  })();
+  return operationalAlertsWebhookState.inFlight;
+};
 
 const requireAuth = (req, res, next) => {
   if (!req.session?.user) {
@@ -3986,6 +4457,7 @@ const requirePrimaryOwner = (req, res, next) => {
 };
 
 app.get("/api/me/preferences", requireAuth, (req, res) => {
+  res.setHeader("Cache-Control", "no-store");
   const userId = String(req.session?.user?.id || "").trim();
   if (!userId) {
     return res.status(401).json({ error: "unauthorized" });
@@ -3994,6 +4466,7 @@ app.get("/api/me/preferences", requireAuth, (req, res) => {
 });
 
 app.put("/api/me/preferences", requireAuth, (req, res) => {
+  res.setHeader("Cache-Control", "no-store");
   const userId = String(req.session?.user?.id || "").trim();
   if (!userId) {
     return res.status(401).json({ error: "unauthorized" });
@@ -4012,6 +4485,7 @@ app.put("/api/me/preferences", requireAuth, (req, res) => {
 });
 
 app.get("/api/audit-log", requireAuth, (req, res) => {
+  res.setHeader("Cache-Control", "no-store");
   const userId = req.session?.user?.id;
   if (!canViewAuditLog(userId)) {
     return res.status(403).json({ error: "forbidden" });
@@ -4572,6 +5046,15 @@ const canManageSettings = (userId) => {
   const permissions = Array.isArray(user?.permissions) ? user.permissions : [];
   return permissions.includes("*") || permissions.includes("configuracoes");
 };
+
+app.get("/api/admin/operational-alerts", requireAuth, async (req, res) => {
+  if (!canManageSettings(req.session?.user?.id)) {
+    return res.status(403).json({ error: "forbidden" });
+  }
+  res.setHeader("Cache-Control", "no-store");
+  const snapshot = await evaluateOperationalMonitoring();
+  return res.json(snapshot.alerts);
+});
 
 const canManageUploads = (userId) => {
   if (!userId) {
@@ -6299,6 +6782,203 @@ app.post("/api/projects/:id/rebuild-updates", requireAuth, (req, res) => {
   writeUpdates(rebuilt);
   appendAuditLog(req, "projects.rebuild_updates", "projects", { id });
   return res.json({ ok: true, updates: episodeUpdates.length });
+});
+
+const SITEMAP_STATIC_PUBLIC_PATHS = [
+  "/",
+  "/projetos",
+  "/sobre",
+  "/equipe",
+  "/faq",
+  "/recrutamento",
+  "/doacoes",
+];
+
+const getPublicVisibleProjects = () =>
+  normalizeProjects(loadProjects())
+    .filter((project) => !project.deletedAt)
+    .sort((a, b) => a.order - b.order);
+
+const getPublicVisiblePosts = () => {
+  const now = Date.now();
+  return normalizePosts(loadPosts())
+    .filter((post) => !post.deletedAt)
+    .filter((post) => {
+      const publishTime = new Date(post.publishedAt).getTime();
+      return publishTime <= now && (post.status === "published" || post.status === "scheduled");
+    })
+    .sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime());
+};
+
+const getPublicVisibleUpdates = () => {
+  const projects = getPublicVisibleProjects();
+  const validProjectIds = new Set(projects.map((project) => project.id));
+  return loadUpdates()
+    .filter((update) => {
+      if (!update?.projectId) {
+        return true;
+      }
+      return validProjectIds.has(String(update.projectId));
+    })
+    .map((update) => {
+      const reason = String(update?.reason || "");
+      const kind = String(update?.kind || "");
+      if (kind.toLowerCase().startsWith("lan") && reason.toLowerCase().includes("novo link adicionado")) {
+        return { ...update, kind: "Ajuste" };
+      }
+      return update;
+    })
+    .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+};
+
+const stripAndTruncateRssText = (value, max = 280) => {
+  const text = stripHtml(String(value || "")).replace(/\s+/g, " ").trim();
+  if (!text) {
+    return "";
+  }
+  if (text.length <= max) {
+    return text;
+  }
+  return `${text.slice(0, Math.max(0, max - 3)).trim()}...`;
+};
+
+const buildPublicSitemapEntries = () => {
+  const settings = loadSiteSettings();
+  const siteUpdatedAt = String(settings?.updatedAt || "").trim();
+  const entries = [
+    ...SITEMAP_STATIC_PUBLIC_PATHS.map((pathname) => ({
+      loc: `${PRIMARY_APP_ORIGIN}${pathname}`,
+      lastmod: siteUpdatedAt || null,
+      changefreq: pathname === "/" ? "hourly" : "daily",
+      priority: pathname === "/" ? 1 : pathname === "/projetos" ? 0.9 : 0.7,
+    })),
+    ...getPublicVisibleProjects().map((project) => ({
+      loc: `${PRIMARY_APP_ORIGIN}/projeto/${project.id}`,
+      lastmod: project.updatedAt || project.createdAt || null,
+      changefreq: "weekly",
+      priority: 0.8,
+    })),
+    ...getPublicVisiblePosts().map((post) => ({
+      loc: `${PRIMARY_APP_ORIGIN}/postagem/${post.slug}`,
+      lastmod: post.updatedAt || post.publishedAt || null,
+      changefreq: "monthly",
+      priority: 0.7,
+    })),
+  ];
+  const seen = new Set();
+  return entries.filter((entry) => {
+    if (!entry.loc || seen.has(entry.loc)) {
+      return false;
+    }
+    seen.add(entry.loc);
+    return true;
+  });
+};
+
+const buildPostsRssItems = () =>
+  getPublicVisiblePosts()
+    .slice(0, 50)
+    .map((post) => {
+      const link = `${PRIMARY_APP_ORIGIN}/postagem/${post.slug}`;
+      return {
+        title: post.title || "Postagem",
+        link,
+        guid: link,
+        pubDate: post.publishedAt,
+        description: stripAndTruncateRssText(post.seoDescription || post.excerpt || post.content || ""),
+        categories: Array.isArray(post.tags) ? post.tags.slice(0, 5) : [],
+      };
+    });
+
+const buildLaunchesRssItems = () => {
+  const publicProjects = new Map(getPublicVisibleProjects().map((project) => [String(project.id), project]));
+  return getPublicVisibleUpdates()
+    .filter((update) => {
+      const kind = String(update?.kind || "").trim().toLowerCase();
+      return kind === "lançamento" || kind === "ajuste";
+    })
+    .slice(0, 50)
+    .map((update) => {
+      const projectId = String(update?.projectId || "").trim();
+      const project = publicProjects.get(projectId);
+      const projectTitle = String(update?.projectTitle || project?.title || "Projeto");
+      const unit = String(update?.unit || "Capítulo").trim() || "Capítulo";
+      const episodeNumber = Number.isFinite(Number(update?.episodeNumber)) ? Number(update.episodeNumber) : null;
+      const kind = String(update?.kind || "Atualização").trim() || "Atualização";
+      const link = project ? `${PRIMARY_APP_ORIGIN}/projeto/${project.id}` : PRIMARY_APP_ORIGIN;
+      return {
+        title: `${kind}: ${projectTitle}${episodeNumber !== null ? ` • ${unit} ${episodeNumber}` : ""}`,
+        link,
+        guid: `${link}#update-${String(update?.id || crypto.randomUUID())}`,
+        pubDate: String(update?.updatedAt || new Date().toISOString()),
+        description: stripAndTruncateRssText(String(update?.reason || `${kind} em ${projectTitle}`), 320),
+        categories: [kind],
+      };
+    });
+};
+
+const sendXmlResponse = (res, xml, contentType) => {
+  res.setHeader("Content-Type", contentType);
+  res.setHeader("Cache-Control", "public, max-age=300, stale-while-revalidate=600");
+  return res.status(200).send(xml);
+};
+
+app.get("/sitemap.xml", (_req, res) => {
+  const xml = buildSitemapXml(buildPublicSitemapEntries());
+  return sendXmlResponse(res, xml, "application/xml; charset=utf-8");
+});
+
+app.get("/api/public/sitemap.xml", (_req, res) => {
+  const xml = buildSitemapXml(buildPublicSitemapEntries());
+  return sendXmlResponse(res, xml, "application/xml; charset=utf-8");
+});
+
+app.get("/rss/posts.xml", (_req, res) => {
+  const settings = loadSiteSettings();
+  const xml = buildRssXml({
+    title: `${settings?.site?.name || "Nekomata"} • Posts`,
+    link: PRIMARY_APP_ORIGIN,
+    description: "Feed de postagens publicadas",
+    selfUrl: `${PRIMARY_APP_ORIGIN}/rss/posts.xml`,
+    items: buildPostsRssItems(),
+  });
+  return sendXmlResponse(res, xml, "application/rss+xml; charset=utf-8");
+});
+
+app.get("/rss/lancamentos.xml", (_req, res) => {
+  const settings = loadSiteSettings();
+  const xml = buildRssXml({
+    title: `${settings?.site?.name || "Nekomata"} • Lançamentos`,
+    link: `${PRIMARY_APP_ORIGIN}/projetos`,
+    description: "Feed de lançamentos e ajustes de projetos",
+    selfUrl: `${PRIMARY_APP_ORIGIN}/rss/lancamentos.xml`,
+    items: buildLaunchesRssItems(),
+  });
+  return sendXmlResponse(res, xml, "application/rss+xml; charset=utf-8");
+});
+
+app.get("/api/public/rss.xml", (req, res) => {
+  const feed = String(req.query.feed || "posts").trim().toLowerCase();
+  if (feed === "lancamentos") {
+    const settings = loadSiteSettings();
+    const xml = buildRssXml({
+      title: `${settings?.site?.name || "Nekomata"} • Lançamentos`,
+      link: `${PRIMARY_APP_ORIGIN}/projetos`,
+      description: "Feed de lançamentos e ajustes de projetos",
+      selfUrl: `${PRIMARY_APP_ORIGIN}/api/public/rss.xml?feed=lancamentos`,
+      items: buildLaunchesRssItems(),
+    });
+    return sendXmlResponse(res, xml, "application/rss+xml; charset=utf-8");
+  }
+  const settings = loadSiteSettings();
+  const xml = buildRssXml({
+    title: `${settings?.site?.name || "Nekomata"} • Posts`,
+    link: PRIMARY_APP_ORIGIN,
+    description: "Feed de postagens publicadas",
+    selfUrl: `${PRIMARY_APP_ORIGIN}/api/public/rss.xml?feed=posts`,
+    items: buildPostsRssItems(),
+  });
+  return sendXmlResponse(res, xml, "application/rss+xml; charset=utf-8");
 });
 
 app.get("/api/public/bootstrap", (req, res) => {
@@ -8093,7 +8773,7 @@ app.put("/api/users/self", requireAuth, (req, res) => {
 app.post("/api/logout", (req, res) => {
   appendAuditLog(req, "auth.logout", "auth", {});
   req.session?.destroy(() => undefined);
-  res.clearCookie("rainbow.sid");
+  res.clearCookie(sessionCookieConfig.name, { path: "/" });
   res.json({ ok: true });
 });
 
@@ -8165,6 +8845,15 @@ const httpServer = app.listen(listenPort, () => {
   setImmediate(() => {
     void runStartupMaintenance();
   });
+  if (isOpsAlertsWebhookEnabled) {
+    operationalAlertsWebhookState.timer = setInterval(() => {
+      void runOperationalAlertsWebhookTick();
+    }, OPS_ALERTS_WEBHOOK_INTERVAL_MS);
+    operationalAlertsWebhookState.timer.unref?.();
+    setImmediate(() => {
+      void runOperationalAlertsWebhookTick();
+    });
+  }
 });
 
 httpServer.on("error", (error) => {
@@ -8179,4 +8868,11 @@ httpServer.on("error", (error) => {
     `[server] Failed to start HTTP server on :${listenPort}. ${String(error?.message || "Unknown error")}`,
   );
   process.exit(1);
+});
+
+httpServer.on("close", () => {
+  if (operationalAlertsWebhookState.timer) {
+    clearInterval(operationalAlertsWebhookState.timer);
+    operationalAlertsWebhookState.timer = null;
+  }
 });

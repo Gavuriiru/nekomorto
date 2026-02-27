@@ -9,6 +9,7 @@ HEALTHCHECK_BASE_URL="${HEALTHCHECK_BASE_URL:-https://nekomata.moe}"
 EXPECTED_MAINTENANCE="${EXPECTED_MAINTENANCE:-false}"
 APP_IMAGE_REPO="${APP_IMAGE_REPO:-ghcr.io/gavuriiru/nekomorto}"
 APP_IMAGE_TAG="${APP_IMAGE_TAG:-latest}"
+RUN_CATEGORY6_SMOKE="${RUN_CATEGORY6_SMOKE:-true}"
 
 if [[ ! -d "${DEPLOY_PATH}" ]]; then
   echo "Deploy path not found: ${DEPLOY_PATH}" >&2
@@ -54,6 +55,17 @@ compose_cmd run --rm app npm run uploads:check-integrity
 echo "[deploy] Starting app + caddy..."
 compose_cmd up -d app caddy
 
+echo "[deploy] Validating critical PWA artifacts..."
+compose_cmd run --rm app sh -lc '
+  for file in dist/manifest.webmanifest dist/sw.js; do
+    if [ ! -f "$file" ]; then
+      echo "Missing critical PWA artifact: $file" >&2
+      exit 1
+    fi
+  done
+  echo "PWA artifacts detected: dist/manifest.webmanifest, dist/sw.js"
+'
+
 echo "[deploy] Running internal health checks..."
 compose_cmd run --rm app \
   node scripts/check-health.mjs \
@@ -61,8 +73,22 @@ compose_cmd run --rm app \
   --expect-source=db \
   --expect-maintenance="${EXPECTED_MAINTENANCE}"
 
+if [[ "${RUN_CATEGORY6_SMOKE}" == "true" ]]; then
+  echo "[deploy] Running category6 internal smoke checks..."
+  compose_cmd run --rm app \
+    node scripts/check-category6-smoke.mjs \
+    --base=http://app:8080
+fi
+
 echo "[deploy] Running external health check..."
 curl -fsS "${HEALTHCHECK_BASE_URL}/api/health" >/dev/null
+
+if [[ "${RUN_CATEGORY6_SMOKE}" == "true" ]]; then
+  echo "[deploy] Running category6 external smoke checks..."
+  compose_cmd run --rm app \
+    node scripts/check-category6-smoke.mjs \
+    --base="${HEALTHCHECK_BASE_URL}"
+fi
 
 echo "[deploy] Current services:"
 compose_cmd ps

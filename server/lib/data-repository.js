@@ -46,6 +46,15 @@ class DbDataRepository {
     };
     this.onBackgroundError = options.onBackgroundError;
     this.persistQueue = Promise.resolve();
+    this.health = {
+      queueDepth: 0,
+      oldestPendingEnqueuedAt: null,
+      lastPersistStartedAt: null,
+      lastPersistCompletedAt: null,
+      lastPersistErrorAt: null,
+      lastPersistErrorLabel: null,
+      lastPersistErrorMessage: null,
+    };
     this.snapshot = {
       ownerIds: [],
       auditLog: [],
@@ -79,6 +88,9 @@ class DbDataRepository {
   }
 
   reportError(label, error) {
+    this.health.lastPersistErrorAt = new Date().toISOString();
+    this.health.lastPersistErrorLabel = String(label || "");
+    this.health.lastPersistErrorMessage = String(error?.message || error || "").slice(0, 500);
     const message = `[data-repository:${label}] ${error?.message || error}`;
     console.error(message);
     if (typeof this.onBackgroundError === "function") {
@@ -87,16 +99,40 @@ class DbDataRepository {
   }
 
   enqueuePersist(label, fn) {
+    const enqueuedAt = Date.now();
+    this.health.queueDepth += 1;
+    if (
+      !Number.isFinite(Number(this.health.oldestPendingEnqueuedAt)) ||
+      Number(this.health.oldestPendingEnqueuedAt) > enqueuedAt
+    ) {
+      this.health.oldestPendingEnqueuedAt = enqueuedAt;
+    }
+    let finished = false;
+    const markDone = () => {
+      if (finished) {
+        return;
+      }
+      finished = true;
+      this.health.queueDepth = Math.max(0, Number(this.health.queueDepth || 0) - 1);
+      if (this.health.queueDepth === 0) {
+        this.health.oldestPendingEnqueuedAt = null;
+      }
+    };
     this.persistQueue = this.persistQueue
       .then(async () => {
+        this.health.lastPersistStartedAt = new Date().toISOString();
         try {
           await fn();
+          this.health.lastPersistCompletedAt = new Date().toISOString();
         } catch (error) {
           this.reportError(label, error);
+        } finally {
+          markDone();
         }
       })
       .catch((error) => {
         this.reportError(label, error);
+        markDone();
       });
   }
 
@@ -587,6 +623,23 @@ class DbDataRepository {
         create: { userId: key, data: cloneValue(nextPreferences) },
         update: { data: cloneValue(nextPreferences) },
       });
+    });
+  }
+
+  getHealthSnapshot() {
+    const nowMs = Date.now();
+    const oldestPendingMs =
+      Number.isFinite(Number(this.health.oldestPendingEnqueuedAt)) && Number(this.health.oldestPendingEnqueuedAt) > 0
+        ? Math.max(0, nowMs - Number(this.health.oldestPendingEnqueuedAt))
+        : 0;
+    return cloneValue({
+      queueDepth: Math.max(0, Number(this.health.queueDepth || 0)),
+      oldestPendingMs,
+      lastPersistStartedAt: this.health.lastPersistStartedAt || null,
+      lastPersistCompletedAt: this.health.lastPersistCompletedAt || null,
+      lastPersistErrorAt: this.health.lastPersistErrorAt || null,
+      lastPersistErrorLabel: this.health.lastPersistErrorLabel || null,
+      lastPersistErrorMessage: this.health.lastPersistErrorMessage || null,
     });
   }
 }

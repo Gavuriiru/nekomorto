@@ -1,6 +1,7 @@
 import { useLayoutEffect, useMemo } from "react";
 import { useSiteSettings } from "@/hooks/use-site-settings";
 import { normalizeAssetUrl } from "@/lib/asset-url";
+import { getCanonicalPageUrl } from "@/lib/canonical-url";
 
 type PageMetaOptions = {
   title?: string;
@@ -69,6 +70,8 @@ export const usePageMeta = ({
     document.documentElement.dataset.pageMeta = "true";
     document.title = pageTitle;
 
+    const canonicalUrl = getCanonicalPageUrl(window.location.href) || window.location.href;
+
     const descriptionMeta = ensureMeta('meta[name="description"]', { name: "description" });
     descriptionMeta?.setAttribute("content", pageDescription);
 
@@ -86,7 +89,7 @@ export const usePageMeta = ({
     const ogType = ensureMeta('meta[property="og:type"]', { property: "og:type" });
     ogType?.setAttribute("content", type);
     const ogUrl = ensureMeta('meta[property="og:url"]', { property: "og:url" });
-    ogUrl?.setAttribute("content", window.location.href);
+    ogUrl?.setAttribute("content", canonicalUrl);
     const ogLocale = ensureMeta('meta[property="og:locale"]', { property: "og:locale" });
     ogLocale?.setAttribute("content", "pt_BR");
 
@@ -100,7 +103,7 @@ export const usePageMeta = ({
     twitterCard?.setAttribute("content", pageImage ? "summary_large_image" : "summary");
 
     const canonical = ensureLink('link[rel="canonical"]', { rel: "canonical" });
-    canonical?.setAttribute("href", window.location.href);
+    canonical?.setAttribute("href", canonicalUrl);
 
     return () => {
       delete document.documentElement.dataset.pageMeta;

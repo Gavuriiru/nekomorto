@@ -21,11 +21,23 @@
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:image" content="/placeholder.svg" />
     <link rel="icon" href="/favicon.ico" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <meta name="theme-color" content="#101114" />
     <script>
       (function () {
         var THEME_STORAGE_KEY = "nekomata:theme-mode-preference";
+        var THEME_COLOR_DARK = "#101114";
+        var THEME_COLOR_LIGHT = "#f8fafc";
         var normalizeThemeMode = function (value) {
           return String(value || "").toLowerCase() === "light" ? "light" : "dark";
+        };
+        var resolveThemeColor = function (mode) {
+          return normalizeThemeMode(mode) === "light" ? THEME_COLOR_LIGHT : THEME_COLOR_DARK;
+        };
+        var applyThemeColor = function (mode) {
+          var meta = document.querySelector('meta[name="theme-color"]');
+          if (!meta) return;
+          meta.setAttribute("content", resolveThemeColor(mode));
         };
         var applyThemeMode = function (mode) {
           var resolved = normalizeThemeMode(mode);
@@ -50,11 +62,12 @@
           return "global";
         };
         var localThemePreference = readLocalThemePreference();
-        if (localThemePreference === "light" || localThemePreference === "dark") {
-          applyThemeMode(localThemePreference);
-        } else {
-          applyThemeMode("dark");
-        }
+        var initialMode =
+          localThemePreference === "light" || localThemePreference === "dark"
+            ? localThemePreference
+            : "dark";
+        applyThemeMode(initialMode);
+        applyThemeColor(initialMode);
         fetch("/api/public/settings")
           .then(function (res) {
             return res.ok ? res.json() : null;
@@ -66,11 +79,13 @@
             if (name) {
               document.title = name;
             }
+            var globalMode =
+              data.settings && data.settings.theme ? data.settings.theme.mode : "dark";
             if (localThemePreference === "global") {
-              var globalMode =
-                data.settings && data.settings.theme ? data.settings.theme.mode : "dark";
               applyThemeMode(globalMode);
             }
+            var effectiveMode = localThemePreference === "global" ? globalMode : localThemePreference;
+            applyThemeColor(effectiveMode);
           })
           .catch(function () {});
       })();

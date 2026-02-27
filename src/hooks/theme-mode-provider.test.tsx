@@ -51,6 +51,8 @@ const assertDocumentTheme = (mode: "light" | "dark") => {
   expect(document.documentElement.dataset.themeMode).toBe(mode);
   expect(document.documentElement.style.colorScheme).toBe(mode);
   expect(document.documentElement.classList.contains("dark")).toBe(mode === "dark");
+  const themeColorMeta = document.querySelector('meta[name="theme-color"]');
+  expect(themeColorMeta?.getAttribute("content")).toBe(mode === "light" ? "#f8fafc" : "#101114");
 };
 
 describe("ThemeModeProvider", () => {
@@ -59,6 +61,13 @@ describe("ThemeModeProvider", () => {
     document.documentElement.classList.remove("dark");
     delete document.documentElement.dataset.themeMode;
     document.documentElement.style.colorScheme = "";
+    let themeColorMeta = document.querySelector('meta[name="theme-color"]');
+    if (!themeColorMeta) {
+      themeColorMeta = document.createElement("meta");
+      themeColorMeta.setAttribute("name", "theme-color");
+      document.head.appendChild(themeColorMeta);
+    }
+    themeColorMeta.setAttribute("content", "");
   });
 
   it("follows global mode when preference is global", async () => {

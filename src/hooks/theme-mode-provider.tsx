@@ -9,6 +9,8 @@ import {
 } from "@/hooks/theme-mode-context";
 
 const normalizeMode = (value: unknown): ThemeMode => (value === "light" ? "light" : "dark");
+const PWA_THEME_COLOR_DARK = "#101114";
+const PWA_THEME_COLOR_LIGHT = "#f8fafc";
 const normalizePreference = (value: unknown): ThemeModePreference => {
   if (value === "light" || value === "dark" || value === "global") {
     return value;
@@ -39,6 +41,10 @@ const applyThemeToDocument = (mode: ThemeMode) => {
     root.classList.add("dark");
   } else {
     root.classList.remove("dark");
+  }
+  const themeColorMeta = document.querySelector('meta[name="theme-color"]');
+  if (themeColorMeta) {
+    themeColorMeta.setAttribute("content", mode === "light" ? PWA_THEME_COLOR_LIGHT : PWA_THEME_COLOR_DARK);
   }
 };
 
