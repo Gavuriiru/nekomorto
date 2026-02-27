@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { dispatchWebhookMessage } from "../../server/lib/webhooks/dispatcher.js";
 import {
   buildEditorialMentions,
+  migrateEditorialMentionPlaceholdersInSettings,
   normalizeEditorialWebhookSettings,
   renderWebhookTemplate,
   validateEditorialWebhookSettingsPlaceholders,
@@ -153,13 +154,20 @@ describe("webhooks", () => {
 
   it("aceita placeholders novos e bloqueia placeholder inválido", () => {
     const settings = normalizeEditorialWebhookSettings({}, { projectTypes: ["Anime"] });
-    settings.channels.posts.templates.post_create.content = "{{site.logoUrl}} {{mention.release}}";
+    settings.channels.posts.templates.post_create.content =
+      "{{site.logoUrl}} {{mention.category}} {{mention.general}}";
     settings.channels.projects.templates.project_release.embed.imageUrl = "{{project.synopsis}}";
     settings.channels.projects.templates.project_adjust.embed.description = "{{chapter.synopsis}}";
     settings.channels.projects.templates.project_release.embed.fields = [
       { name: "Legado", value: "{{project.status}}", inline: true },
     ];
     expect(validateEditorialWebhookSettingsPlaceholders(settings).ok).toBe(true);
+
+    const migrated = migrateEditorialMentionPlaceholdersInSettings(settings);
+    expect(migrated.channels.posts.templates.post_create.content).toContain("{{mention.type}}");
+    expect(migrated.channels.posts.templates.post_create.content).toContain("{{mention.release}}");
+    expect(migrated.channels.posts.templates.post_create.content).not.toContain("{{mention.category}}");
+    expect(migrated.channels.posts.templates.post_create.content).not.toContain("{{mention.general}}");
 
     settings.channels.posts.templates.post_create.content = "{{placeholder.inexistente}}";
     const validation = validateEditorialWebhookSettingsPlaceholders(settings);

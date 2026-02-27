@@ -30,6 +30,7 @@ import { diffOperationalAlertSets } from "./lib/webhooks/transitions.js";
 import {
   buildEditorialEventContext,
   buildEditorialMentions,
+  migrateEditorialMentionPlaceholdersInSettings,
   normalizeEditorialWebhookSettings,
   renderWebhookTemplate,
   resolveEditorialEventChannel,
@@ -3156,25 +3157,27 @@ const loadIntegrationSettings = () => {
   const normalized = normalizeEditorialWebhookSettings(parsed, {
     defaultProjectTypes: DEFAULT_PROJECT_TYPE_CATALOG,
   });
-  if (JSON.stringify(parsed) !== JSON.stringify(normalized)) {
-    writeIntegrationSettings(normalized);
+  const migrated = migrateEditorialMentionPlaceholdersInSettings(normalized);
+  if (JSON.stringify(parsed) !== JSON.stringify(migrated)) {
+    writeIntegrationSettings(migrated);
   }
-  writeJsonFileToCache("integration-settings", normalized);
-  return normalized;
+  writeJsonFileToCache("integration-settings", migrated);
+  return migrated;
 };
 
 const writeIntegrationSettings = (settings) => {
   const normalized = normalizeEditorialWebhookSettings(settings, {
     defaultProjectTypes: DEFAULT_PROJECT_TYPE_CATALOG,
   });
+  const migrated = migrateEditorialMentionPlaceholdersInSettings(normalized);
   if (
     dataRepository &&
     typeof dataRepository.writeIntegrationSettings === "function"
   ) {
-    dataRepository.writeIntegrationSettings(normalized);
+    dataRepository.writeIntegrationSettings(migrated);
   }
   invalidateJsonFileCache("integration-settings");
-  return normalized;
+  return migrated;
 };
 
 const countDroppedUserSocials = (usersInput) => {
@@ -7877,7 +7880,8 @@ app.get("/api/integrations/webhooks/editorial", requireAuth, (req, res) => {
   }
   const projectTypes = getActiveProjectTypes({ includeDefaults: true });
   const loadedSettings = loadIntegrationSettings();
-  const settings = normalizeEditorialWebhookSettings(loadedSettings, { projectTypes });
+  const normalized = normalizeEditorialWebhookSettings(loadedSettings, { projectTypes });
+  const settings = migrateEditorialMentionPlaceholdersInSettings(normalized);
   if (JSON.stringify(loadedSettings) !== JSON.stringify(settings)) {
     writeIntegrationSettings(settings);
   }
@@ -7899,7 +7903,8 @@ app.put("/api/integrations/webhooks/editorial", requireAuth, (req, res) => {
 
   const projectTypes = getActiveProjectTypes({ includeDefaults: true });
   const normalized = normalizeEditorialWebhookSettings(payload, { projectTypes });
-  const validation = validateEditorialWebhookSettingsPlaceholders(normalized);
+  const migrated = migrateEditorialMentionPlaceholdersInSettings(normalized);
+  const validation = validateEditorialWebhookSettingsPlaceholders(migrated);
   if (!validation.ok) {
     return res.status(400).json({
       error: "invalid_placeholders",
@@ -7907,8 +7912,10 @@ app.put("/api/integrations/webhooks/editorial", requireAuth, (req, res) => {
     });
   }
 
-  const persisted = writeIntegrationSettings(normalized);
-  const settings = normalizeEditorialWebhookSettings(persisted, { projectTypes });
+  const persisted = writeIntegrationSettings(migrated);
+  const settings = migrateEditorialMentionPlaceholdersInSettings(
+    normalizeEditorialWebhookSettings(persisted, { projectTypes }),
+  );
   appendAuditLog(req, "integrations.webhooks_editorial.update", "integrations", {
     count: Array.isArray(settings?.typeRoles) ? settings.typeRoles.length : 0,
   });

@@ -20,6 +20,11 @@ const MAX_RETRIES = 5;
 const MAX_TEMPLATE_FIELDS = 25;
 const ROLE_ID_PATTERN = /^\d+$/;
 const FALLBACK_PROJECT_TYPES = Object.freeze(["Anime", "Manga", "Light Novel"]);
+const TEMPLATE_PLACEHOLDER_PATTERN = /{{\s*([a-zA-Z0-9_.]+)\s*}}/g;
+const MENTION_PLACEHOLDER_ALIAS_MAP = Object.freeze({
+  "mention.category": "mention.type",
+  "mention.general": "mention.release",
+});
 
 const normalizeLookupKey = (value) =>
   String(value || "")
@@ -61,6 +66,25 @@ const uniqueStrings = (items) => {
     next.push(value);
   });
   return next;
+};
+
+const canonicalizeMentionPlaceholder = (placeholder) =>
+  MENTION_PLACEHOLDER_ALIAS_MAP[String(placeholder || "").trim()] ||
+  String(placeholder || "").trim();
+
+const replaceMentionPlaceholderAliases = (value) => {
+  TEMPLATE_PLACEHOLDER_PATTERN.lastIndex = 0;
+  return String(value || "").replace(TEMPLATE_PLACEHOLDER_PATTERN, (match, rawPath) => {
+    const path = String(rawPath || "").trim();
+    if (!path) {
+      return match;
+    }
+    const canonicalPath = canonicalizeMentionPlaceholder(path);
+    if (canonicalPath === path) {
+      return match;
+    }
+    return `{{${canonicalPath}}}`;
+  });
 };
 
 const toMention = (roleId) => {
@@ -160,8 +184,8 @@ const buildDefaultTemplate = (eventKey) => {
 const normalizeTemplateField = (value) => {
   const item = asObject(value);
   return {
-    name: String(item.name || "").trim(),
-    value: String(item.value || "").trim(),
+    name: replaceMentionPlaceholderAliases(String(item.name || "").trim()),
+    value: replaceMentionPlaceholderAliases(String(item.value || "").trim()),
     inline: item.inline === true,
   };
 };
@@ -180,19 +204,31 @@ const normalizeTemplate = (value, fallback) => {
   const footerIconSource = inputEmbed.footerIconUrl ?? baseEmbed.footerIconUrl;
 
   return {
-    content: String(input.content ?? base.content ?? "").trim(),
+    content: replaceMentionPlaceholderAliases(String(input.content ?? base.content ?? "").trim()),
     embed: {
-      title: String(inputEmbed.title ?? baseEmbed.title ?? "").trim(),
-      description: String(inputEmbed.description ?? baseEmbed.description ?? "").trim(),
-      footerText: String(footerSource ?? "").trim(),
-      footerIconUrl: String(footerIconSource ?? "").trim(),
-      url: String(inputEmbed.url ?? baseEmbed.url ?? "").trim(),
+      title: replaceMentionPlaceholderAliases(String(inputEmbed.title ?? baseEmbed.title ?? "").trim()),
+      description: replaceMentionPlaceholderAliases(
+        String(inputEmbed.description ?? baseEmbed.description ?? "").trim(),
+      ),
+      footerText: replaceMentionPlaceholderAliases(String(footerSource ?? "").trim()),
+      footerIconUrl: replaceMentionPlaceholderAliases(String(footerIconSource ?? "").trim()),
+      url: replaceMentionPlaceholderAliases(String(inputEmbed.url ?? baseEmbed.url ?? "").trim()),
       color: String(inputEmbed.color ?? baseEmbed.color ?? "#3b82f6").trim() || "#3b82f6",
-      authorName: String(inputEmbed.authorName ?? baseEmbed.authorName ?? "").trim(),
-      authorIconUrl: String(inputEmbed.authorIconUrl ?? baseEmbed.authorIconUrl ?? "").trim(),
-      authorUrl: String(inputEmbed.authorUrl ?? baseEmbed.authorUrl ?? "").trim(),
-      thumbnailUrl: String(inputEmbed.thumbnailUrl ?? baseEmbed.thumbnailUrl ?? "").trim(),
-      imageUrl: String(inputEmbed.imageUrl ?? baseEmbed.imageUrl ?? "").trim(),
+      authorName: replaceMentionPlaceholderAliases(
+        String(inputEmbed.authorName ?? baseEmbed.authorName ?? "").trim(),
+      ),
+      authorIconUrl: replaceMentionPlaceholderAliases(
+        String(inputEmbed.authorIconUrl ?? baseEmbed.authorIconUrl ?? "").trim(),
+      ),
+      authorUrl: replaceMentionPlaceholderAliases(
+        String(inputEmbed.authorUrl ?? baseEmbed.authorUrl ?? "").trim(),
+      ),
+      thumbnailUrl: replaceMentionPlaceholderAliases(
+        String(inputEmbed.thumbnailUrl ?? baseEmbed.thumbnailUrl ?? "").trim(),
+      ),
+      imageUrl: replaceMentionPlaceholderAliases(
+        String(inputEmbed.imageUrl ?? baseEmbed.imageUrl ?? "").trim(),
+      ),
       fields: fieldsInput
         .map((field) => normalizeTemplateField(field))
         .slice(0, MAX_TEMPLATE_FIELDS),
@@ -320,6 +356,49 @@ const normalizeChannelSettings = ({
   };
 };
 
+const migrateTemplateCollectionMentionAliases = (
+  templatesInput,
+  eventKeys,
+) => {
+  const templates = asObject(templatesInput);
+  const nextTemplates = { ...templates };
+  eventKeys.forEach((eventKey) => {
+    if (!(eventKey in templates)) {
+      return;
+    }
+    const source = asObject(templates[eventKey]);
+    nextTemplates[eventKey] = normalizeTemplate(source, source);
+  });
+  return nextTemplates;
+};
+
+export const migrateEditorialMentionPlaceholdersInSettings = (settingsInput = {}) => {
+  const settings = asObject(settingsInput);
+  const channels = asObject(settings.channels);
+  const posts = asObject(channels.posts);
+  const projects = asObject(channels.projects);
+  return {
+    ...settings,
+    channels: {
+      ...channels,
+      posts: {
+        ...posts,
+        templates: migrateTemplateCollectionMentionAliases(
+          posts.templates,
+          ["post_create", "post_update"],
+        ),
+      },
+      projects: {
+        ...projects,
+        templates: migrateTemplateCollectionMentionAliases(
+          projects.templates,
+          ["project_release", "project_adjust"],
+        ),
+      },
+    },
+  };
+};
+
 const buildDefaultTypeRoles = (projectTypes = []) => {
   const catalog = uniqueStrings(projectTypes.length > 0 ? projectTypes : FALLBACK_PROJECT_TYPES);
   return catalog.map((type, order) => ({
@@ -395,7 +474,7 @@ export const normalizeEditorialWebhookSettings = (
     projectTypes: catalog,
   });
 
-  return {
+  const normalized = {
     version: 1,
     mentionMode: "role_id",
     mentionFallback: "skip",
@@ -414,14 +493,14 @@ export const normalizeEditorialWebhookSettings = (
       }),
     },
   };
+  return migrateEditorialMentionPlaceholdersInSettings(normalized);
 };
-
-const TEMPLATE_PLACEHOLDER_PATTERN = /{{\s*([a-zA-Z0-9_.]+)\s*}}/g;
 
 export const extractTemplatePlaceholders = (value) => {
   const source = String(value || "");
   const placeholders = new Set();
   let match;
+  TEMPLATE_PLACEHOLDER_PATTERN.lastIndex = 0;
   while ((match = TEMPLATE_PLACEHOLDER_PATTERN.exec(source))) {
     const placeholder = String(match[1] || "").trim();
     if (!placeholder) {
@@ -432,7 +511,7 @@ export const extractTemplatePlaceholders = (value) => {
   return Array.from(placeholders);
 };
 
-const COMMON_PLACEHOLDERS = [
+const COMMON_PLACEHOLDERS_CANONICAL = [
   "event.key",
   "event.label",
   "event.occurredAt",
@@ -442,10 +521,8 @@ const COMMON_PLACEHOLDERS = [
   "site.coverImageUrl",
   "site.faviconUrl",
   "mention.type",
-  "mention.category",
   "mention.project",
   "mention.release",
-  "mention.general",
   "mention.all",
   "author.name",
   "author.avatarUrl",
@@ -513,10 +590,28 @@ const UPDATE_PLACEHOLDERS = [
 ];
 
 const PLACEHOLDER_ALLOWLIST = {
-  post_create: new Set([...COMMON_PLACEHOLDERS, ...POST_PLACEHOLDERS, ...PROJECT_PLACEHOLDERS]),
-  post_update: new Set([...COMMON_PLACEHOLDERS, ...POST_PLACEHOLDERS, ...PROJECT_PLACEHOLDERS]),
-  project_release: new Set([...COMMON_PLACEHOLDERS, ...PROJECT_PLACEHOLDERS, ...CHAPTER_PLACEHOLDERS, ...UPDATE_PLACEHOLDERS]),
-  project_adjust: new Set([...COMMON_PLACEHOLDERS, ...PROJECT_PLACEHOLDERS, ...CHAPTER_PLACEHOLDERS, ...UPDATE_PLACEHOLDERS]),
+  post_create: new Set([
+    ...COMMON_PLACEHOLDERS_CANONICAL,
+    ...POST_PLACEHOLDERS,
+    ...PROJECT_PLACEHOLDERS,
+  ]),
+  post_update: new Set([
+    ...COMMON_PLACEHOLDERS_CANONICAL,
+    ...POST_PLACEHOLDERS,
+    ...PROJECT_PLACEHOLDERS,
+  ]),
+  project_release: new Set([
+    ...COMMON_PLACEHOLDERS_CANONICAL,
+    ...PROJECT_PLACEHOLDERS,
+    ...CHAPTER_PLACEHOLDERS,
+    ...UPDATE_PLACEHOLDERS,
+  ]),
+  project_adjust: new Set([
+    ...COMMON_PLACEHOLDERS_CANONICAL,
+    ...PROJECT_PLACEHOLDERS,
+    ...CHAPTER_PLACEHOLDERS,
+    ...UPDATE_PLACEHOLDERS,
+  ]),
 };
 
 export const getEditorialPlaceholderAllowlist = (eventKey) =>
@@ -566,7 +661,8 @@ export const validateEditorialWebhookSettingsPlaceholders = (settings) => {
       const allowlist = getEditorialPlaceholderAllowlist(eventKey);
       collectTemplateEntries(template, eventKey).forEach((entry) => {
         extractTemplatePlaceholders(entry.value).forEach((placeholder) => {
-          if (allowlist.has(placeholder)) {
+          const canonicalPlaceholder = canonicalizeMentionPlaceholder(placeholder);
+          if (allowlist.has(canonicalPlaceholder)) {
             return;
           }
           errors.push({
@@ -574,6 +670,7 @@ export const validateEditorialWebhookSettingsPlaceholders = (settings) => {
             eventKey,
             templatePath: entry.templatePath,
             placeholder,
+            canonicalPlaceholder,
           });
         });
       });
@@ -610,9 +707,12 @@ const resolvePathValue = (source, path) => {
 };
 
 export const renderTemplateString = (template, context) =>
-  String(template || "").replace(TEMPLATE_PLACEHOLDER_PATTERN, (_match, rawPath) =>
-    resolvePathValue(context, String(rawPath || "").trim()),
-  );
+  (() => {
+    TEMPLATE_PLACEHOLDER_PATTERN.lastIndex = 0;
+    return String(template || "").replace(TEMPLATE_PLACEHOLDER_PATTERN, (_match, rawPath) =>
+      resolvePathValue(context, canonicalizeMentionPlaceholder(String(rawPath || "").trim())),
+    );
+  })();
 
 export const renderWebhookTemplate = (template, context) => {
   const source = asObject(template);

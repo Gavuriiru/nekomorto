@@ -31,6 +31,9 @@ import { cn } from "@/lib/utils";
 const alphabetOptions = ["Todas", ..."ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("")];
 const PROJECTS_LIST_STATE_STORAGE_KEY = "public.projects.list-state.v1";
 const MAX_QUERY_LENGTH = 80;
+const MAX_TYPE_LENGTH = 40;
+const MAX_TAG_LENGTH = 60;
+const MAX_GENRE_LENGTH = 60;
 
 type PersistedProjectsListState = {
   letter?: string;
@@ -39,6 +42,14 @@ type PersistedProjectsListState = {
   genero?: string;
   page?: number;
   q?: string;
+};
+
+type CanonicalProjectsListFilters = {
+  letter: string;
+  type: string;
+  tag: string;
+  genero: string;
+  q: string;
 };
 
 const parseLetterParam = (value: string | null) => {
@@ -57,6 +68,24 @@ const parseTypeParam = (value: string | null) => {
   return normalized;
 };
 
+const parseTagParam = (value: string | null) => {
+  const normalized = String(value || "").trim().slice(0, MAX_TAG_LENGTH);
+  if (!normalized || normalized === "Todas") {
+    return "Todas";
+  }
+  return normalized;
+};
+
+const parseGenreParam = (value: string | null) => {
+  const normalized = String(value || "").trim().slice(0, MAX_GENRE_LENGTH);
+  if (!normalized || normalized === "Todos") {
+    return "Todos";
+  }
+  return normalized;
+};
+
+const parseQueryParam = (value: string | null) => String(value || "").trim().slice(0, MAX_QUERY_LENGTH);
+
 const parseProjectsPageParam = (value: string | null) => {
   const parsed = Number(value);
   if (!Number.isFinite(parsed) || parsed < 1) {
@@ -67,6 +96,34 @@ const parseProjectsPageParam = (value: string | null) => {
 
 const hasProjectsFilterQueryState = (searchParams: URLSearchParams) =>
   ["tag", "genero", "genre", "letter", "type", "page", "q"].some((key) => searchParams.has(key));
+
+const normalizeProjectsFiltersFromSearchParams = (searchParams: URLSearchParams): CanonicalProjectsListFilters => ({
+  letter: parseLetterParam(searchParams.get("letter")),
+  type: parseTypeParam(searchParams.get("type")),
+  tag: parseTagParam(searchParams.get("tag")),
+  genero: parseGenreParam(searchParams.get("genero") || searchParams.get("genre")),
+  q: parseQueryParam(searchParams.get("q")),
+});
+
+const normalizeProjectsFiltersFromPersistedState = (
+  persistedState: PersistedProjectsListState,
+): CanonicalProjectsListFilters => ({
+  letter: parseLetterParam(persistedState.letter || null),
+  type: parseTypeParam(persistedState.type || null),
+  tag: parseTagParam(persistedState.tag || null),
+  genero: parseGenreParam(persistedState.genero || null),
+  q: parseQueryParam(persistedState.q || null),
+});
+
+const areProjectsFiltersEquivalent = (
+  left: CanonicalProjectsListFilters,
+  right: CanonicalProjectsListFilters,
+) =>
+  left.letter === right.letter &&
+  left.type === right.type &&
+  left.tag === right.tag &&
+  left.genero === right.genero &&
+  left.q === right.q;
 
 const isPlainObject = (value: unknown): value is Record<string, unknown> =>
   Boolean(value) && typeof value === "object" && !Array.isArray(value);
@@ -80,23 +137,23 @@ const normalizePersistedProjectsListState = (value: unknown): PersistedProjectsL
   if (letter !== "Todas") {
     nextState.letter = letter;
   }
-  const type = String(value.type || "").trim().slice(0, 40);
+  const type = String(value.type || "").trim().slice(0, MAX_TYPE_LENGTH);
   if (type && type !== "Todos") {
     nextState.type = type;
   }
-  const tag = String(value.tag || "").trim().slice(0, 60);
-  if (tag && tag !== "Todas") {
+  const tag = parseTagParam(String(value.tag || "").trim());
+  if (tag !== "Todas") {
     nextState.tag = tag;
   }
-  const genero = String(value.genero || "").trim().slice(0, 60);
-  if (genero && genero !== "Todos") {
+  const genero = parseGenreParam(String(value.genero || "").trim());
+  if (genero !== "Todos") {
     nextState.genero = genero;
   }
   const page = parseProjectsPageParam(String(value.page || "").trim());
   if (page > 1) {
     nextState.page = page;
   }
-  const q = String(value.q || "").trim().slice(0, MAX_QUERY_LENGTH);
+  const q = parseQueryParam(String(value.q || "").trim());
   if (q) {
     nextState.q = q;
   }
@@ -524,32 +581,53 @@ const Projects = () => {
       return;
     }
     hasAttemptedPersistedRestoreRef.current = true;
-    if (hasProjectsFilterQueryState(searchParams)) {
-      return;
-    }
     const persistedState = readPersistedProjectsListState();
     if (!persistedState) {
       return;
     }
+
+    if (!hasProjectsFilterQueryState(searchParams)) {
+      const nextParams = new URLSearchParams(searchParams);
+      if (persistedState.letter) {
+        nextParams.set("letter", persistedState.letter);
+      }
+      if (persistedState.type) {
+        nextParams.set("type", persistedState.type);
+      }
+      if (persistedState.tag) {
+        nextParams.set("tag", persistedState.tag);
+      }
+      if (persistedState.genero) {
+        nextParams.set("genero", persistedState.genero);
+      }
+      if (persistedState.page && persistedState.page > 1) {
+        nextParams.set("page", String(persistedState.page));
+      }
+      if (persistedState.q) {
+        nextParams.set("q", persistedState.q);
+      }
+      if (nextParams.toString() !== searchParams.toString()) {
+        setSearchParams(nextParams, { replace: true });
+      }
+      return;
+    }
+
+    if (searchParams.has("page")) {
+      return;
+    }
+
+    if (!persistedState.page || persistedState.page <= 1) {
+      return;
+    }
+
+    const currentFilters = normalizeProjectsFiltersFromSearchParams(searchParams);
+    const persistedFilters = normalizeProjectsFiltersFromPersistedState(persistedState);
+    if (!areProjectsFiltersEquivalent(currentFilters, persistedFilters)) {
+      return;
+    }
+
     const nextParams = new URLSearchParams(searchParams);
-    if (persistedState.letter) {
-      nextParams.set("letter", persistedState.letter);
-    }
-    if (persistedState.type) {
-      nextParams.set("type", persistedState.type);
-    }
-    if (persistedState.tag) {
-      nextParams.set("tag", persistedState.tag);
-    }
-    if (persistedState.genero) {
-      nextParams.set("genero", persistedState.genero);
-    }
-    if (persistedState.page && persistedState.page > 1) {
-      nextParams.set("page", String(persistedState.page));
-    }
-    if (persistedState.q) {
-      nextParams.set("q", persistedState.q);
-    }
+    nextParams.set("page", String(persistedState.page));
     if (nextParams.toString() !== searchParams.toString()) {
       setSearchParams(nextParams, { replace: true });
     }
@@ -825,7 +903,7 @@ const Projects = () => {
               <Input
                 value={selectedQuery}
                 onChange={(event) => updateSearchQuery(event.target.value)}
-                placeholder="Buscar por titulo, sinopse, tag ou genero"
+                placeholder="Buscar por título, sinopse, tag ou gênero"
                 className="bg-background/60"
                 aria-label="Buscar projetos"
               />
@@ -874,7 +952,7 @@ const Projects = () => {
 
             <div className="flex flex-col gap-2">
               <span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-                Generos
+                Gêneros
               </span>
               <Select value={selectedGenre} onValueChange={(value) => updateFilterQuery(selectedTag, value)}>
                 <SelectTrigger className="bg-background/60">
@@ -936,8 +1014,8 @@ const Projects = () => {
           ) : hasProjectsLoadError ? (
             <AsyncState
               kind="error"
-              title="Nao foi possivel carregar os projetos"
-              description="Verifique sua conexao e tente novamente."
+              title="Não foi possível carregar os projetos"
+              description="Verifique sua conexão e tente novamente."
               className="mt-10"
               action={
                 <Button

@@ -185,6 +185,77 @@ describe("Projects query sync", () => {
     });
   });
 
+  it("restaura page persistida quando URL nao traz page e os filtros sao equivalentes", async () => {
+    window.localStorage.setItem(
+      PROJECTS_LIST_STATE_STORAGE_KEY,
+      JSON.stringify({
+        q: "drama",
+        letter: "P",
+        type: "Anime",
+        tag: "acao",
+        genero: "drama",
+        page: 3,
+      }),
+    );
+
+    render(
+      <MemoryRouter initialEntries={["/projetos?q=drama&letter=P&type=Anime&tag=acao&genero=drama"]}>
+        <Projects />
+        <LocationProbe />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(getSearchParams().get("page")).toBe("3");
+    });
+  });
+
+  it("nao restaura page persistida quando filtros da URL diferem do estado salvo", async () => {
+    window.localStorage.setItem(
+      PROJECTS_LIST_STATE_STORAGE_KEY,
+      JSON.stringify({
+        q: "drama",
+        letter: "P",
+        type: "Anime",
+        page: 4,
+      }),
+    );
+
+    render(
+      <MemoryRouter initialEntries={["/projetos?q=drama&letter=A&type=Anime"]}>
+        <Projects />
+        <LocationProbe />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(getSearchParams().get("page")).toBeNull();
+    });
+  });
+
+  it("page explicita da URL prevalece sobre page persistida", async () => {
+    window.localStorage.setItem(
+      PROJECTS_LIST_STATE_STORAGE_KEY,
+      JSON.stringify({
+        q: "drama",
+        letter: "P",
+        type: "Anime",
+        page: 5,
+      }),
+    );
+
+    render(
+      <MemoryRouter initialEntries={["/projetos?q=drama&letter=P&type=Anime&page=2"]}>
+        <Projects />
+        <LocationProbe />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(getSearchParams().get("page")).toBe("2");
+    });
+  });
+
   it("limpar filtros remove params de filtro/paginacao e preserva params nao relacionados", async () => {
     setupApiMock({
       projects: createProjects(24, {
@@ -264,5 +335,17 @@ describe("Projects query sync", () => {
     await waitFor(() => {
       expect(getSearchParams().get("type")).toBeNull();
     });
+  });
+
+  it("exibe textos da UI com acentuacao correta", async () => {
+    render(
+      <MemoryRouter initialEntries={["/projetos"]}>
+        <Projects />
+        <LocationProbe />
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByPlaceholderText("Buscar por título, sinopse, tag ou gênero")).toBeInTheDocument();
+    expect(screen.getByText("Gêneros")).toBeInTheDocument();
   });
 });

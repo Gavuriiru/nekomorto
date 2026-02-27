@@ -100,10 +100,8 @@ const COMMON_PLACEHOLDERS = [
   "site.coverImageUrl",
   "site.faviconUrl",
   "mention.type",
-  "mention.category",
   "mention.project",
   "mention.release",
-  "mention.general",
   "mention.all",
   "author.name",
   "author.avatarUrl",
@@ -1115,6 +1113,9 @@ const DashboardWebhooks = () => {
                                   </Badge>
                                 ))}
                               </div>
+                              <p className="text-xs text-muted-foreground">
+                                Aliases legados de menção são convertidos automaticamente ao salvar.
+                              </p>
                             </div>
                           </AccordionContent>
                         </AccordionItem>

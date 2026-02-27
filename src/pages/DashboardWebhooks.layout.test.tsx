@@ -236,6 +236,10 @@ describe("DashboardWebhooks layout", () => {
     });
 
     expect(screen.getByText(/^#[0-9A-F]{6}$/i)).toBeInTheDocument();
+    expect(screen.getByText("{{mention.type}}")).toBeInTheDocument();
+    expect(screen.getByText("{{mention.release}}")).toBeInTheDocument();
+    expect(screen.queryByText("{{mention.category}}")).not.toBeInTheDocument();
+    expect(screen.queryByText("{{mention.general}}")).not.toBeInTheDocument();
 
     expectBefore(/Conte.*da mensagem/i, /Autor e miniatura/i);
     expectBefore(/Autor e miniatura/i, /URL da embed/i);
