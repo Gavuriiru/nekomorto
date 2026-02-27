@@ -14,7 +14,6 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarProvider,
-  SidebarSeparator,
 } from "@/components/ui/sidebar";
 import { dashboardMenuItems, type DashboardMenuItem } from "@/components/dashboard-menu";
 import { buildDashboardMenuFromGrants, resolveGrants } from "@/lib/access-control";
@@ -158,8 +157,6 @@ const DashboardShell = ({
               </Avatar>
             </div>
           </SidebarHeader>
-
-          <SidebarSeparator className="my-2" />
 
           <SidebarContent className="px-2 pb-2">
             <SidebarMenu className="gap-1.5">
