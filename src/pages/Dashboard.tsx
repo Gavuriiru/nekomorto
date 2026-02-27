@@ -76,6 +76,7 @@ const Dashboard = () => {
 
   useEffect(() => {
     const loadUser = async () => {
+      setIsLoadingUser(true);
       try {
         const response = await apiFetch(apiBase, "/api/me", { auth: true });
         if (!response.ok) {
@@ -90,8 +91,7 @@ const Dashboard = () => {
         setIsLoadingUser(false);
       }
     };
-
-    loadUser();
+    void loadUser();
   }, [apiBase]);
 
   useEffect(() => {
@@ -249,20 +249,6 @@ const Dashboard = () => {
       isActive = false;
     };
   }, [apiBase, reloadTick]);
-
-  const userLabel = useMemo(() => {
-    if (isLoadingUser) {
-      return "Carregando usuário...";
-    }
-    return currentUser?.name ?? "Usuário não conectado";
-  }, [currentUser, isLoadingUser]);
-
-  const userSubLabel = useMemo(() => {
-    if (isLoadingUser) {
-      return "Aguarde";
-    }
-    return currentUser ? `@${currentUser.username}` : "OAuth Discord pendente";
-  }, [currentUser, isLoadingUser]);
 
   const last7Days = useMemo(() => {
     const days: string[] = [];
@@ -422,8 +408,6 @@ const Dashboard = () => {
     <DashboardShell
       currentUser={currentUser}
       isLoadingUser={isLoadingUser}
-      userLabel={userLabel}
-      userSubLabel={userSubLabel}
       onUserCardClick={() => navigate("/dashboard/usuarios?edit=me")}
     >
       <main className="pt-24">

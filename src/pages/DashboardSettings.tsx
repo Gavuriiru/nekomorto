@@ -491,6 +491,7 @@ const DashboardSettings = () => {
 
   useEffect(() => {
     const loadUser = async () => {
+      setIsLoadingUser(true);
       try {
         const response = await apiFetch(apiBase, "/api/me", { auth: true });
         if (!response.ok) {
@@ -505,8 +506,7 @@ const DashboardSettings = () => {
         setIsLoadingUser(false);
       }
     };
-
-    loadUser();
+    void loadUser();
   }, [apiBase]);
 
   useEffect(() => {
@@ -1276,20 +1276,6 @@ const DashboardSettings = () => {
       .sort((a, b) => a.localeCompare(b, "en"));
   }, [knownStaffRoles, staffRoleTranslations, staffRoleQuery]);
 
-  const userLabel = useMemo(() => {
-    if (isLoadingUser) {
-      return "Carregando usuário...";
-    }
-    return currentUser?.name ?? "Usuário não conectado";
-  }, [currentUser, isLoadingUser]);
-
-  const userSubLabel = useMemo(() => {
-    if (isLoadingUser) {
-      return "Aguarde";
-    }
-    return currentUser ? `@${currentUser.username}` : "OAuth Discord pendente";
-  }, [currentUser, isLoadingUser]);
-
   const siteNamePreview = (settings.site.name || "Nekomata").trim() || "Nekomata";
   const footerBrandNamePreview = (settings.site.name || settings.footer.brandName || "Nekomata").trim() || "Nekomata";
   const footerBrandNameUpperPreview = footerBrandNamePreview.toUpperCase();
@@ -1402,8 +1388,6 @@ const DashboardSettings = () => {
       <DashboardShell
         currentUser={currentUser}
         isLoadingUser={isLoadingUser}
-        userLabel={userLabel}
-        userSubLabel={userSubLabel}
         onUserCardClick={() => navigate("/dashboard/usuarios?edit=me")}
       >
         <main className="pt-28">
@@ -1424,8 +1408,6 @@ const DashboardSettings = () => {
       <DashboardShell
         currentUser={currentUser}
         isLoadingUser={isLoadingUser}
-        userLabel={userLabel}
-        userSubLabel={userSubLabel}
         onUserCardClick={() => navigate("/dashboard/usuarios?edit=me")}
       >
         <main className="pt-28">
@@ -1450,8 +1432,6 @@ const DashboardSettings = () => {
     <DashboardShell
       currentUser={currentUser}
       isLoadingUser={isLoadingUser}
-      userLabel={userLabel}
-      userSubLabel={userSubLabel}
       onUserCardClick={() => navigate("/dashboard/usuarios?edit=me")}
     >
       <main

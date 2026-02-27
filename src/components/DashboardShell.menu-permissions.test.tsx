@@ -80,6 +80,7 @@ describe("DashboardShell menu permissions", () => {
     expect(screen.getByText("Postagens")).toBeInTheDocument();
     expect(screen.getByTestId("sidebar-inset").className).toContain("min-w-0");
     expect(screen.getByTestId("sidebar-inset").className).toContain("overflow-x-hidden");
+    expect(screen.queryByText("Painel de gestao")).not.toBeInTheDocument();
     expect(screen.queryByText("Usuários")).not.toBeInTheDocument();
     expect(screen.queryByText("Configurações")).not.toBeInTheDocument();
   });

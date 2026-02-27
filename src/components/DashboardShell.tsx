@@ -1,6 +1,6 @@
 import { useEffect, useMemo, type MouseEvent, type ReactNode } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { Home, LayoutDashboard } from "lucide-react";
+import { Home } from "lucide-react";
 import DashboardHeader from "@/components/DashboardHeader";
 import Footer from "@/components/Footer";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -108,19 +108,6 @@ const DashboardShell = ({
       <SidebarProvider defaultOpen>
         <Sidebar variant="inset" collapsible="icon">
           <SidebarHeader className="gap-3 px-2 pb-2 pt-3 transition-all duration-200 ease-linear group-data-[collapsible=icon]:gap-2 group-data-[collapsible=icon]:items-center">
-            <Link
-              to="/dashboard"
-              className="group flex items-center gap-3 rounded-xl border border-sidebar-border/80 bg-sidebar-accent/20 p-3 transition hover:border-sidebar-ring/40 hover:bg-sidebar-accent/35"
-            >
-              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-sidebar-border/70 bg-sidebar-primary/15 text-sidebar-primary">
-                <LayoutDashboard className="h-4 w-4" />
-              </span>
-              <div className="flex min-w-0 flex-col group-data-[collapsible=icon]:hidden">
-                <span className="truncate text-sm font-semibold text-sidebar-foreground">Dashboard</span>
-                <span className="text-xs text-sidebar-foreground/65">Painel de gestao</span>
-              </div>
-            </Link>
-
             <div
               className={`${userCardBaseClass} ${isUserClickable ? "cursor-pointer" : "cursor-default"}`}
               role={isUserClickable ? "button" : undefined}
