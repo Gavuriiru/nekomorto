@@ -192,7 +192,7 @@ describe("Project mobile hero layout", () => {
     expect(actionsRowTokens).toContain("md:justify-start");
   });
 
-  it("renderiza breadcrumb e CTA de leitura para light novel com capitulo publicado", async () => {
+  it("renderiza CTA de leitura para light novel com capitulo publicado", async () => {
     apiFetchMock.mockReset();
     apiFetchMock.mockImplementation(async (_apiBase: string, endpoint: string, options?: RequestInit) => {
       const method = String(options?.method || "GET").toUpperCase();
@@ -222,12 +222,10 @@ describe("Project mobile hero layout", () => {
     );
 
     await screen.findByRole("heading", { name: "Projeto Teste" });
-
-    expect(screen.getByRole("link", { name: /In[ií]cio/i })).toHaveAttribute("href", "/");
-    expect(screen.getByRole("link", { name: "Projetos" })).toHaveAttribute("href", "/projetos");
     expect(screen.getByRole("link", { name: "Começar leitura" })).toHaveAttribute(
       "href",
       "/projeto/project-1/leitura/1?volume=2",
     );
   });
 });
+

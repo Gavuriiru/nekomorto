@@ -133,7 +133,7 @@ const Recruitment = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      <main className="px-6 pb-20 pt-14 md:px-12">
+      <main className="px-6 pb-20 pt-20 md:px-12">
         <section className="mx-auto w-full max-w-6xl pb-10 pt-6 reveal" data-reveal>
           <div className="space-y-4">
             <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground animate-fade-in">

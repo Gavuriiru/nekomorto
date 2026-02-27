@@ -27,8 +27,10 @@ describe("ThemeModeSwitcher", () => {
   it("exibe lua no modo escuro e label para alternar para claro", () => {
     useThemeModeMock.mockReturnValue(createThemeState());
     const { container } = render(<ThemeModeSwitcher />);
+    const button = screen.getByRole("button", { name: "Alternar para tema claro" });
 
-    expect(screen.getByRole("button", { name: "Alternar para tema claro" })).toBeInTheDocument();
+    expect(button).toBeInTheDocument();
+    expect(button).toHaveClass("text-foreground/80");
     expect(container.querySelector("svg.lucide-moon")).not.toBeNull();
   });
 

@@ -494,7 +494,7 @@ const Header = ({ variant = "fixed", leading, className }: HeaderProps) => {
                 aria-label="Abrir pesquisa"
                 onClick={() => setIsSearchOpen((prev) => !prev)}
                 className={cn(
-                  "shrink-0 rounded-full text-muted-foreground hover:text-foreground",
+                  "shrink-0 rounded-full text-foreground/80 hover:text-foreground",
                   isSearchOpen ? "h-8 w-8" : "h-10 w-10",
                 )}
               >

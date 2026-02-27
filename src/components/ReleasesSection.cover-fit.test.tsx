@@ -85,7 +85,7 @@ describe("ReleasesSection cover fit", () => {
     );
   });
 
-  it("expoe ancora de lancamentos e CTA para projeto relacionado", async () => {
+  it("expoe ancora de lancamentos, link da postagem e remove CTAs extras", async () => {
     setupBootstrapMock();
 
     render(
@@ -95,8 +95,9 @@ describe("ReleasesSection cover fit", () => {
     );
 
     expect(document.getElementById("lancamentos")).toBeInTheDocument();
-
-    const projectCta = await screen.findByRole("link", { name: /Ver projeto/i });
-    expect(projectCta).toHaveAttribute("href", "/projeto/project-1");
+    const postLink = await screen.findByRole("link", { name: /post de teste/i });
+    expect(postLink).toHaveAttribute("href", "/postagem/post-teste");
+    expect(screen.queryByRole("link", { name: /Ler postagem/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /Ver projeto/i })).not.toBeInTheDocument();
   });
 });

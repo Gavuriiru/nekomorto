@@ -29,16 +29,6 @@ const ReleasesSection = () => {
   const projects = bootstrapData?.projects || [];
   const isLoadingPosts = isLoading && !bootstrapData;
   const tagTranslations = bootstrapData?.tagTranslations?.tags || {};
-  const projectById = useMemo(
-    () =>
-      new Map(
-        projects
-          .map((project) => [String(project.id || ""), String(project.title || "")] as const)
-          .filter(([id]) => Boolean(id)),
-      ),
-    [projects],
-  );
-
   const totalPages = Math.ceil(posts.length / pageSize) || 1;
   const pagedReleases = useMemo(() => {
     const startIndex = (currentPage - 1) * pageSize;
@@ -96,12 +86,10 @@ const ReleasesSection = () => {
                     : "";
                   const mainTag = Array.isArray(release.tags) && release.tags.length > 0 ? release.tags[0] : projectTag;
                   const displayTag = mainTag ? tagTranslations[mainTag] || mainTag : "";
-                  const projectId = String(release.projectId || "").trim();
-                  const projectTitle = projectById.get(projectId) || "";
-                  const projectHref = projectId ? `/projeto/${projectId}` : "";
                   return (
-                    <div
+                    <Link
                       key={release.id}
+                      to={`/postagem/${release.slug}`}
                       className={cn(
                         "group reveal",
                         isOrphan && "sm:col-span-2 sm:justify-self-center sm:w-full sm:max-w-[calc((100%-2rem)/2)]",
@@ -111,7 +99,6 @@ const ReleasesSection = () => {
                     >
                       <Card className="bg-card border-border h-full overflow-hidden transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:bg-card/90 hover:shadow-lg">
                         <CardContent className="p-0 flex flex-col h-full">
-                          <Link to={`/postagem/${release.slug}`} className="block">
                             <div className="relative w-full aspect-3/2 overflow-hidden bg-secondary">
                               <img
                                 src={normalizeAssetUrl(release.coverImageUrl) || "/placeholder.svg"}
@@ -138,7 +125,6 @@ const ReleasesSection = () => {
                                 {release.excerpt || "Sem prévia cadastrada."}
                               </p>
                             </div>
-                          </Link>
                           <div className="mt-auto px-5 pb-5 flex items-center justify-between gap-3 text-xs text-muted-foreground">
                             <span className="inline-flex items-center gap-1.5">
                               <User className="h-4 w-4 text-primary/70" aria-hidden="true" />
@@ -149,25 +135,9 @@ const ReleasesSection = () => {
                               {formatDate(release.publishedAt)}
                             </span>
                           </div>
-                          <div className="px-5 pb-5 flex flex-wrap gap-2">
-                            <Link
-                              to={`/postagem/${release.slug}`}
-                              className="inline-flex items-center rounded-full border border-primary/25 bg-primary/10 px-3 py-1 text-xs font-medium text-primary transition-colors hover:bg-primary/20"
-                            >
-                              Ler postagem
-                            </Link>
-                            {projectHref ? (
-                              <Link
-                                to={projectHref}
-                                className="inline-flex items-center rounded-full border border-border/70 bg-background/70 px-3 py-1 text-xs font-medium text-foreground/85 transition-colors hover:border-primary/30 hover:text-primary"
-                              >
-                                {projectTitle ? `Ver projeto: ${projectTitle}` : "Ver projeto"}
-                              </Link>
-                            ) : null}
-                          </div>
                         </CardContent>
                       </Card>
-                    </div>
+                    </Link>
                   );
                 })}
               </div>

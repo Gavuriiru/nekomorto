@@ -447,7 +447,12 @@ describe("Header mobile search layout", () => {
     await waitFor(() => {
       expect(apiFetchMock).toHaveBeenCalledTimes(1);
     });
-    expect(screen.getByRole("button", { name: /Alternar para tema/i })).toBeInTheDocument();
+    const searchButton = screen.getByRole("button", { name: "Abrir pesquisa" });
+    const themeToggle = screen.getByRole("button", { name: /Alternar para tema/i });
+
+    expect(classTokens(searchButton)).toContain("text-foreground/80");
+    expect(themeToggle).toBeInTheDocument();
+    expect(classTokens(themeToggle)).toContain("text-foreground/80");
     expect(setThemePreferenceMock).not.toHaveBeenCalled();
   });
 

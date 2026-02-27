@@ -1,19 +1,11 @@
 ﻿import { Suspense, lazy, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
-import { BookOpen, ChevronLeft } from "lucide-react";
+import { BookOpen } from "lucide-react";
 
 import CommentsSection from "@/components/CommentsSection";
 import DiscordInviteCard from "@/components/DiscordInviteCard";
 import LatestEpisodeCard from "@/components/LatestEpisodeCard";
 import WorkStatusCard from "@/components/WorkStatusCard";
-import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbList,
-  BreadcrumbPage,
-  BreadcrumbSeparator,
-} from "@/components/ui/breadcrumb";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -237,17 +229,11 @@ const ProjectReading = () => {
   return (
     <div className="flex min-h-screen flex-col">
       <main className="flex-1 bg-background">
-        <section className="mx-auto w-full max-w-6xl px-6 pb-16 pt-10 md:px-10">
+        <section className="mx-auto w-full max-w-6xl px-6 pb-16 pt-20 md:px-10">
           <div className="space-y-5">
 
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <Button asChild variant="ghost" size="sm" className="gap-2">
-                <Link to={`/projeto/${project.id}`}>
-                  <ChevronLeft className="h-4 w-4" />
-                  Voltar ao projeto
-                </Link>
-              </Button>
-              <div className="flex flex-wrap items-center gap-2">
+            {previousChapter || nextChapter ? (
+              <div className="flex flex-wrap items-center justify-end gap-2">
                 {previousChapter ? (
                   <Button asChild size="sm" variant="outline">
                     <Link
@@ -259,9 +245,6 @@ const ProjectReading = () => {
                     </Link>
                   </Button>
                 ) : null}
-                <Button asChild size="sm" variant="outline">
-                  <Link to="/projetos">Ir para projetos</Link>
-                </Button>
                 {nextChapter ? (
                   <Button asChild size="sm">
                     <Link
@@ -274,34 +257,9 @@ const ProjectReading = () => {
                   </Button>
                 ) : null}
               </div>
-            </div>
+            ) : null}
 
             <div className="space-y-3">
-              <Breadcrumb>
-                <BreadcrumbList>
-                  <BreadcrumbItem>
-                    <BreadcrumbLink asChild>
-                      <Link to="/">Início</Link>
-                    </BreadcrumbLink>
-                  </BreadcrumbItem>
-                  <BreadcrumbSeparator />
-                  <BreadcrumbItem>
-                    <BreadcrumbLink asChild>
-                      <Link to="/projetos">Projetos</Link>
-                    </BreadcrumbLink>
-                  </BreadcrumbItem>
-                  <BreadcrumbSeparator />
-                  <BreadcrumbItem>
-                    <BreadcrumbLink asChild>
-                      <Link to={`/projeto/${project.id}`}>{project.title}</Link>
-                    </BreadcrumbLink>
-                  </BreadcrumbItem>
-                  <BreadcrumbSeparator />
-                  <BreadcrumbItem>
-                    <BreadcrumbPage>Leitura</BreadcrumbPage>
-                  </BreadcrumbItem>
-                </BreadcrumbList>
-              </Breadcrumb>
               <Badge variant="secondary" className="text-xs uppercase">
                 Cap {chapterData?.number ?? chapterNumber}
                 {chapterData?.volume ? ` • Vol. ${chapterData.volume}` : ""}

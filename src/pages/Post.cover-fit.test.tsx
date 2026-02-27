@@ -125,7 +125,7 @@ describe("Post cover fit", () => {
     expect(coverContainer).toHaveClass("relative", "aspect-3/2", "overflow-hidden");
   });
 
-  it("renderiza breadcrumb e CTAs contextuais para navegacao interna", async () => {
+  it("remove breadcrumb e CTAs de navegacao e aplica offset do header", async () => {
     setupApiMock({
       projectId: "project-1",
     });
@@ -137,13 +137,14 @@ describe("Post cover fit", () => {
     );
 
     await screen.findByRole("heading", { name: "Post de Teste" });
+    expect(screen.queryByRole("navigation", { name: /breadcrumb/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Ir para projeto" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Explorar projetos" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /Voltar ao in/i })).not.toBeInTheDocument();
 
-    const homeBreadcrumbLink = screen
-      .getAllByRole("link", { name: /In[ií]cio/i })
-      .find((link) => link.getAttribute("href") === "/");
-    expect(homeBreadcrumbLink).toBeDefined();
-    expect(screen.getByRole("link", { name: "Ir para projeto" })).toHaveAttribute("href", "/projeto/project-1");
-    expect(screen.getByRole("link", { name: "Explorar projetos" })).toHaveAttribute("href", "/projetos");
-    expect(screen.getByRole("link", { name: /Voltar ao in/i })).toHaveAttribute("href", "/#lancamentos");
+    const main = document.querySelector("main");
+    expect(main).not.toBeNull();
+    expect(main).toHaveClass("pt-20");
   });
 });
+

@@ -147,7 +147,7 @@ describe("ProjectReading analytics", () => {
     expect(screen.queryByRole("button", { name: /Restaurar padr.o/i })).not.toBeInTheDocument();
   });
 
-  it("renderiza breadcrumb no bloco do titulo e preserva CTAs de navegacao", async () => {
+  it("remove breadcrumb e CTAs de projeto, mantendo o capitulo visivel", async () => {
     setupProjectReadingApiMock();
 
     render(
@@ -156,13 +156,14 @@ describe("ProjectReading analytics", () => {
       </MemoryRouter>,
     );
 
-    const heading = await screen.findByRole("heading", { name: /Cap.tulo 1/i });
-    const breadcrumb = screen.getByRole("navigation", { name: /breadcrumb/i });
-    expect(breadcrumb.compareDocumentPosition(heading) & Node.DOCUMENT_POSITION_FOLLOWING).not.toBe(0);
+    await screen.findByRole("heading", { name: /Cap.tulo 1/i });
 
-    expect(screen.getByRole("link", { name: /In.cio/i })).toHaveAttribute("href", "/");
-    expect(screen.getAllByRole("link", { name: "Projetos" })[0]).toHaveAttribute("href", "/projetos");
-    expect(screen.getByRole("link", { name: "Voltar ao projeto" })).toHaveAttribute("href", "/projeto/projeto-teste");
-    expect(screen.getByRole("link", { name: "Ir para projetos" })).toHaveAttribute("href", "/projetos");
+    expect(screen.queryByRole("navigation", { name: /breadcrumb/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Voltar ao projeto" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Ir para projetos" })).not.toBeInTheDocument();
+
+    const rootSection = document.querySelector("main > section");
+    expect(rootSection).not.toBeNull();
+    expect(rootSection).toHaveClass("pt-20");
   });
 });

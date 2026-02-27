@@ -63,6 +63,10 @@ describe("Recruitment mobile CTA layout", () => {
   it("aplica CTA full width no mobile e auto width no desktop", async () => {
     render(<Recruitment />);
 
+    const main = document.querySelector("main");
+    expect(main).not.toBeNull();
+    expect(main).toHaveClass("pt-20");
+
     const ctaLink = await screen.findByRole("link", { name: "Entrar no Discord" });
     const ctaLinkTokens = classTokens(ctaLink);
 
