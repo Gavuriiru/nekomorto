@@ -18,7 +18,6 @@ export type UploadVariantPreset = {
 
 export type UploadMediaVariantEntry = {
   variantsVersion?: number | null;
-  focalPoint?: { x: number; y: number } | null;
   variants?: Record<string, UploadVariantPreset | null> | null;
 };
 
@@ -98,4 +97,3 @@ export const resolveUploadVariantSources = ({
     fallback: toFormatUrl(formats.fallback),
   };
 };
-

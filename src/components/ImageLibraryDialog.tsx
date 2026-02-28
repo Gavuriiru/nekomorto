@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent } from "react";
 import { CircleStencil, FixedCropper, type FixedCropperRef } from "react-advanced-cropper";
 import { ImageRestriction } from "advanced-cropper";
 import "react-advanced-cropper/dist/style.css";
@@ -29,6 +29,15 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "@/components/ui/use-toast";
 import { apiFetch } from "@/lib/api-client";
+import {
+  UPLOAD_VARIANT_PRESET_DIMENSIONS,
+  UPLOAD_VARIANT_PRESET_KEYS,
+  computeUploadFocalCoverRect,
+  deriveLegacyUploadFocalPoint,
+  normalizeUploadFocalPoints,
+  type UploadFocalPoints,
+} from "@/lib/upload-focal-points";
+import type { UploadVariantPresetKey } from "@/lib/upload-variants";
 
 export type LibraryImageSource = "upload" | "project";
 
@@ -43,12 +52,15 @@ export type LibraryImageItem = {
   mime?: string;
   size?: number;
   createdAt?: string;
+  width?: number | null;
+  height?: number | null;
   inUse?: boolean;
   canDelete?: boolean;
   projectId?: string;
   projectTitle?: string;
   kind?: string;
   hashSha256?: string;
+  focalPoints?: UploadFocalPoints;
   focalPoint?: { x: number; y: number };
   variantsVersion?: number;
   variants?: Record<string, unknown>;
@@ -147,16 +159,6 @@ const sanitizeUploadSlotForComparison = (value: string | null | undefined) =>
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "");
-
-const normalizeFocalPointForUi = (value: unknown) => {
-  const source = value && typeof value === "object" ? value : {};
-  const x = Number((source as { x?: number }).x);
-  const y = Number((source as { y?: number }).y);
-  return {
-    x: Number.isFinite(x) ? Math.min(1, Math.max(0, x)) : 0.5,
-    y: Number.isFinite(y) ? Math.min(1, Math.max(0, y)) : 0.5,
-  };
-};
 
 const escapeRegexPattern = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 const AVATAR_UPLOAD_FILENAME_PATTERN = /^avatar-[a-z0-9-]+\.(png|jpe?g|gif|webp|svg)$/i;
@@ -445,6 +447,321 @@ const AvatarCropWorkspace = ({
   );
 };
 
+const buildFocalPreviewImageStyle = ({
+  sourceWidth,
+  sourceHeight,
+  rect,
+}: {
+  sourceWidth: number;
+  sourceHeight: number;
+  rect: { left: number; top: number; width: number; height: number };
+}) => ({
+  width: `${(sourceWidth / rect.width) * 100}%`,
+  height: `${(sourceHeight / rect.height) * 100}%`,
+  left: `-${(rect.left / rect.width) * 100}%`,
+  top: `-${(rect.top / rect.height) * 100}%`,
+});
+
+type FocalPointWorkspaceProps = {
+  item: LibraryImageItem;
+  draft: UploadFocalPoints;
+  activePreset: UploadVariantPresetKey;
+  isSaving: boolean;
+  onDraftChange: (next: UploadFocalPoints) => void;
+  onActivePresetChange: (preset: UploadVariantPresetKey) => void;
+  onCancel: () => void;
+  onSave: () => void;
+};
+
+const FocalPointWorkspace = ({
+  item,
+  draft,
+  activePreset,
+  isSaving,
+  onDraftChange,
+  onActivePresetChange,
+  onCancel,
+  onSave,
+}: FocalPointWorkspaceProps) => {
+  const frameRef = useRef<HTMLDivElement | null>(null);
+  const imageRef = useRef<HTMLImageElement | null>(null);
+  const [renderedRect, setRenderedRect] = useState({ left: 0, top: 0, width: 0, height: 0 });
+  const [naturalSize, setNaturalSize] = useState(() => ({
+    width: typeof item.width === "number" ? Math.max(0, item.width) : 0,
+    height: typeof item.height === "number" ? Math.max(0, item.height) : 0,
+  }));
+
+  const syncPreviewMetrics = useCallback(() => {
+    const frame = frameRef.current;
+    const image = imageRef.current;
+    if (!frame || !image) {
+      return;
+    }
+    const frameRect = frame.getBoundingClientRect();
+    const imageRect = image.getBoundingClientRect();
+    const nextRect = {
+      left: Math.max(0, imageRect.left - frameRect.left),
+      top: Math.max(0, imageRect.top - frameRect.top),
+      width: Math.max(0, imageRect.width),
+      height: Math.max(0, imageRect.height),
+    };
+    setRenderedRect((prev) =>
+      prev.left === nextRect.left &&
+      prev.top === nextRect.top &&
+      prev.width === nextRect.width &&
+      prev.height === nextRect.height
+        ? prev
+        : nextRect,
+    );
+
+    const naturalWidth = Number(image.naturalWidth || 0);
+    const naturalHeight = Number(image.naturalHeight || 0);
+    if (naturalWidth > 0 && naturalHeight > 0) {
+      setNaturalSize((prev) =>
+        prev.width === naturalWidth && prev.height === naturalHeight
+          ? prev
+          : { width: naturalWidth, height: naturalHeight },
+      );
+    }
+  }, []);
+
+  useEffect(() => {
+    setRenderedRect({ left: 0, top: 0, width: 0, height: 0 });
+    setNaturalSize({
+      width: typeof item.width === "number" ? Math.max(0, item.width) : 0,
+      height: typeof item.height === "number" ? Math.max(0, item.height) : 0,
+    });
+  }, [item.height, item.url, item.width]);
+
+  useEffect(() => {
+    const rafId = window.requestAnimationFrame(() => {
+      syncPreviewMetrics();
+    });
+    const handleResize = () => {
+      syncPreviewMetrics();
+    };
+    window.addEventListener("resize", handleResize);
+    return () => {
+      window.cancelAnimationFrame(rafId);
+      window.removeEventListener("resize", handleResize);
+    };
+  }, [activePreset, draft, item.url, syncPreviewMetrics]);
+
+  const sourceWidth = naturalSize.width > 0 ? naturalSize.width : Math.max(1, Math.round(renderedRect.width) || 1);
+  const sourceHeight =
+    naturalSize.height > 0 ? naturalSize.height : Math.max(1, Math.round(renderedRect.height) || 1);
+  const activePoint = draft[activePreset];
+
+  const previewRects = useMemo(() => {
+    const next = {} as Record<UploadVariantPresetKey, { left: number; top: number; width: number; height: number }>;
+    UPLOAD_VARIANT_PRESET_KEYS.forEach((preset) => {
+      const dimensions = UPLOAD_VARIANT_PRESET_DIMENSIONS[preset];
+      next[preset] = computeUploadFocalCoverRect({
+        sourceWidth,
+        sourceHeight,
+        targetWidth: dimensions.width,
+        targetHeight: dimensions.height,
+        focalPoint: draft[preset],
+      });
+    });
+    return next;
+  }, [draft, sourceHeight, sourceWidth]);
+
+  const activeOverlayRect = useMemo(() => {
+    if (renderedRect.width <= 0 || renderedRect.height <= 0) {
+      return null;
+    }
+    const rect = previewRects[activePreset];
+    return {
+      left: renderedRect.left + (rect.left / sourceWidth) * renderedRect.width,
+      top: renderedRect.top + (rect.top / sourceHeight) * renderedRect.height,
+      width: (rect.width / sourceWidth) * renderedRect.width,
+      height: (rect.height / sourceHeight) * renderedRect.height,
+    };
+  }, [activePreset, previewRects, renderedRect, sourceHeight, sourceWidth]);
+
+  const activeMarker = useMemo(() => {
+    if (renderedRect.width <= 0 || renderedRect.height <= 0) {
+      return null;
+    }
+    return {
+      left: renderedRect.left + activePoint.x * renderedRect.width,
+      top: renderedRect.top + activePoint.y * renderedRect.height,
+    };
+  }, [activePoint.x, activePoint.y, renderedRect]);
+
+  const updateActivePresetPoint = useCallback(
+    (nextPoint: { x: number; y: number }) => {
+      onDraftChange({
+        ...draft,
+        [activePreset]: nextPoint,
+      });
+    },
+    [activePreset, draft, onDraftChange],
+  );
+
+  const handleFrameClick = useCallback(
+    (event: MouseEvent<HTMLDivElement>) => {
+      const image = imageRef.current;
+      if (!image) {
+        return;
+      }
+      const imageRect = image.getBoundingClientRect();
+      const nextX = imageRect.width > 0 ? (event.clientX - imageRect.left) / imageRect.width : 0.5;
+      const nextY = imageRect.height > 0 ? (event.clientY - imageRect.top) / imageRect.height : 0.5;
+      if (nextX < 0 || nextX > 1 || nextY < 0 || nextY > 1) {
+        return;
+      }
+      updateActivePresetPoint({
+        x: Math.min(1, Math.max(0, nextX)),
+        y: Math.min(1, Math.max(0, nextY)),
+      });
+    },
+    [updateActivePresetPoint],
+  );
+
+  const handleAxisChange = useCallback(
+    (axis: "x" | "y", value: number) => {
+      const normalized = Math.min(1, Math.max(0, value / 100));
+      updateActivePresetPoint({
+        ...draft[activePreset],
+        [axis]: normalized,
+      });
+    },
+    [activePreset, draft, updateActivePresetPoint],
+  );
+
+  return (
+    <div className="space-y-4">
+      <div className="space-y-2">
+        <p className="text-xs text-muted-foreground">
+          Escolha o preset, clique sobre a imagem inteira e ajuste os eixos. Cliques fora da imagem
+          visivel sao ignorados.
+        </p>
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          {UPLOAD_VARIANT_PRESET_KEYS.map((preset) => {
+            const dimensions = UPLOAD_VARIANT_PRESET_DIMENSIONS[preset];
+            const rect = previewRects[preset];
+            const isActive = preset === activePreset;
+            return (
+              <button
+                key={preset}
+                type="button"
+                className={`rounded-xl border p-2 text-left transition ${
+                  isActive
+                    ? "border-primary/60 bg-primary/10 ring-2 ring-primary/40"
+                    : "border-border/60 bg-card/60 hover:border-primary/40"
+                }`}
+                onClick={() => onActivePresetChange(preset)}
+              >
+                <div className="mb-2 flex items-center justify-between gap-2 text-[11px] text-muted-foreground">
+                  <span className="font-semibold uppercase text-foreground">{preset}</span>
+                  <span>
+                    {dimensions.width}x{dimensions.height}
+                  </span>
+                </div>
+                <div
+                  className="relative overflow-hidden rounded-lg border border-border/40 bg-background/60"
+                  style={{ aspectRatio: `${dimensions.width} / ${dimensions.height}` }}
+                >
+                  <img
+                    src={item.url}
+                    alt=""
+                    aria-hidden="true"
+                    className="pointer-events-none absolute max-w-none select-none"
+                    style={buildFocalPreviewImageStyle({
+                      sourceWidth,
+                      sourceHeight,
+                      rect,
+                    })}
+                  />
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      <div
+        ref={frameRef}
+        className="relative grid h-80 cursor-crosshair place-items-center overflow-hidden rounded-xl border border-border/60 bg-background/40"
+        onClick={handleFrameClick}
+      >
+        <img
+          ref={imageRef}
+          src={item.url}
+          alt={toEffectiveName(item)}
+          className="block max-h-full max-w-full select-none"
+          draggable={false}
+          onLoad={syncPreviewMetrics}
+        />
+        {activeOverlayRect ? (
+          <div
+            className="pointer-events-none absolute rounded-md border-2 border-primary/70 bg-primary/10"
+            style={{
+              left: `${activeOverlayRect.left}px`,
+              top: `${activeOverlayRect.top}px`,
+              width: `${activeOverlayRect.width}px`,
+              height: `${activeOverlayRect.height}px`,
+            }}
+          />
+        ) : null}
+        {activeMarker ? (
+          <div
+            className="pointer-events-none absolute h-5 w-5 rounded-full border-2 border-primary bg-primary/40 shadow"
+            style={{
+              left: `${activeMarker.left}px`,
+              top: `${activeMarker.top}px`,
+              transform: "translate(-50%, -50%)",
+            }}
+          />
+        ) : null}
+      </div>
+
+      <div className="rounded-xl border border-border/60 bg-card/60 p-3">
+        <p className="mb-3 text-sm font-medium text-foreground">
+          Preset ativo: {activePreset.toUpperCase()}
+        </p>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <label className="space-y-2 text-xs text-muted-foreground">
+            Eixo X ({Math.round(activePoint.x * 100)}%)
+            <input
+              type="range"
+              min={0}
+              max={100}
+              step={1}
+              value={Math.round(activePoint.x * 100)}
+              onChange={(event) => handleAxisChange("x", Number(event.target.value))}
+              className="w-full accent-primary"
+            />
+          </label>
+          <label className="space-y-2 text-xs text-muted-foreground">
+            Eixo Y ({Math.round(activePoint.y * 100)}%)
+            <input
+              type="range"
+              min={0}
+              max={100}
+              step={1}
+              value={Math.round(activePoint.y * 100)}
+              onChange={(event) => handleAxisChange("y", Number(event.target.value))}
+              className="w-full accent-primary"
+            />
+          </label>
+        </div>
+      </div>
+
+      <div className="flex justify-end gap-2">
+        <Button type="button" variant="outline" disabled={isSaving} onClick={onCancel}>
+          Cancelar
+        </Button>
+        <Button type="button" disabled={isSaving} onClick={onSave}>
+          {isSaving ? "Salvando..." : "Salvar ponto focal"}
+        </Button>
+      </div>
+    </div>
+  );
+};
+
 const ImageLibraryDialog = ({
   open,
   onOpenChange,
@@ -481,9 +798,8 @@ const ImageLibraryDialog = ({
   const [renameValue, setRenameValue] = useState("");
   const [deleteTarget, setDeleteTarget] = useState<LibraryImageItem | null>(null);
   const [focalTarget, setFocalTarget] = useState<LibraryImageItem | null>(null);
-  const [focalDraft, setFocalDraft] = useState<{ x: number; y: number }>(() =>
-    normalizeFocalPointForUi(null),
-  );
+  const [focalDraft, setFocalDraft] = useState<UploadFocalPoints>(() => normalizeUploadFocalPoints());
+  const [activeFocalPreset, setActiveFocalPreset] = useState<UploadVariantPresetKey>("card");
   const [isRenaming, setIsRenaming] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isSavingFocal, setIsSavingFocal] = useState(false);
@@ -757,10 +1073,13 @@ const ImageLibraryDialog = ({
             mime: typeof file.mime === "string" ? file.mime : "",
             size: typeof file.size === "number" ? file.size : undefined,
             createdAt: typeof file.createdAt === "string" ? file.createdAt : undefined,
+            width: typeof file.width === "number" ? file.width : null,
+            height: typeof file.height === "number" ? file.height : null,
             inUse: Boolean(file.inUse),
             canDelete: typeof file.canDelete === "boolean" ? file.canDelete : !file.inUse,
             hashSha256: typeof file.hashSha256 === "string" ? file.hashSha256 : "",
-            focalPoint: normalizeFocalPointForUi(file.focalPoint),
+            focalPoints: normalizeUploadFocalPoints(file.focalPoints, file.focalPoint),
+            focalPoint: deriveLegacyUploadFocalPoint(file.focalPoints, file.focalPoint),
             variantsVersion: Number.isFinite(Number(file.variantsVersion))
               ? Number(file.variantsVersion)
               : 1,
@@ -1173,7 +1492,8 @@ const ImageLibraryDialog = ({
       return;
     }
     setFocalTarget(item);
-    setFocalDraft(normalizeFocalPointForUi(item.focalPoint));
+    setFocalDraft(normalizeUploadFocalPoints(item.focalPoints, item.focalPoint));
+    setActiveFocalPreset("card");
   }, []);
 
   const saveFocalPoint = useCallback(async () => {
@@ -1190,8 +1510,7 @@ const ImageLibraryDialog = ({
           headers: { "Content-Type": "application/json" },
           auth: true,
           body: JSON.stringify({
-            x: focalDraft.x,
-            y: focalDraft.y,
+            focalPoints: focalDraft,
           }),
         },
       );
@@ -1217,7 +1536,7 @@ const ImageLibraryDialog = ({
     } finally {
       setIsSavingFocal(false);
     }
-  }, [apiBase, focalDraft.x, focalDraft.y, focalTarget?.id, loadUploads]);
+  }, [apiBase, focalDraft, focalTarget?.id, loadUploads]);
 
   const handleSave = () => {
     if (cropAvatar && selectedUrls.length > 0) {
@@ -1714,96 +2033,28 @@ const ImageLibraryDialog = ({
           }
         }}
       >
-        <DialogContent className="max-w-xl z-240" overlayClassName="z-230">
+        <DialogContent
+          className="max-h-[92vh] max-w-4xl overflow-auto z-240 data-[state=open]:animate-none data-[state=closed]:animate-none"
+          overlayClassName="z-230 data-[state=open]:animate-none data-[state=closed]:animate-none"
+        >
           <DialogHeader>
             <DialogTitle>Definir ponto focal</DialogTitle>
             <DialogDescription>
-              Clique na imagem para posicionar o foco principal e regenerar as variantes
-              automáticas.
+              Ajuste o enquadramento por preset e regenere as variantes automáticas com uma
+              prévia fiel ao recorte final.
             </DialogDescription>
           </DialogHeader>
           {focalTarget ? (
-            <div className="space-y-4">
-              <div
-                className="relative cursor-crosshair overflow-hidden rounded-xl border border-border/60 bg-background/40"
-                onClick={(event) => {
-                  const rect = event.currentTarget.getBoundingClientRect();
-                  const nextX = rect.width > 0 ? (event.clientX - rect.left) / rect.width : 0.5;
-                  const nextY = rect.height > 0 ? (event.clientY - rect.top) / rect.height : 0.5;
-                  setFocalDraft({
-                    x: Math.min(1, Math.max(0, nextX)),
-                    y: Math.min(1, Math.max(0, nextY)),
-                  });
-                }}
-              >
-                <img
-                  src={focalTarget.url}
-                  alt={toEffectiveName(focalTarget)}
-                  className="h-72 w-full object-cover"
-                />
-                <div
-                  className="pointer-events-none absolute h-5 w-5 rounded-full border-2 border-primary bg-primary/40 shadow"
-                  style={{
-                    left: `${focalDraft.x * 100}%`,
-                    top: `${focalDraft.y * 100}%`,
-                    transform: "translate(-50%, -50%)",
-                  }}
-                />
-              </div>
-              <div className="grid gap-3 sm:grid-cols-2">
-                <label className="space-y-2 text-xs text-muted-foreground">
-                  Eixo X ({Math.round(focalDraft.x * 100)}%)
-                  <input
-                    type="range"
-                    min={0}
-                    max={100}
-                    step={1}
-                    value={Math.round(focalDraft.x * 100)}
-                    onChange={(event) =>
-                      setFocalDraft((prev) => ({
-                        ...prev,
-                        x: Math.min(1, Math.max(0, Number(event.target.value) / 100)),
-                      }))
-                    }
-                    className="w-full accent-primary"
-                  />
-                </label>
-                <label className="space-y-2 text-xs text-muted-foreground">
-                  Eixo Y ({Math.round(focalDraft.y * 100)}%)
-                  <input
-                    type="range"
-                    min={0}
-                    max={100}
-                    step={1}
-                    value={Math.round(focalDraft.y * 100)}
-                    onChange={(event) =>
-                      setFocalDraft((prev) => ({
-                        ...prev,
-                        y: Math.min(1, Math.max(0, Number(event.target.value) / 100)),
-                      }))
-                    }
-                    className="w-full accent-primary"
-                  />
-                </label>
-              </div>
-              <div className="flex justify-end gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  disabled={isSavingFocal}
-                  onClick={() => setFocalTarget(null)}
-                >
-                  Cancelar
-                </Button>
-                <Button
-                  type="button"
-                  disabled={isSavingFocal}
-                  onClick={() => void saveFocalPoint()}
-                >
-                  {isSavingFocal ? "Salvando..." : "Salvar ponto focal"}
-                </Button>
-              </div>
-            </div>
+            <FocalPointWorkspace
+              item={focalTarget}
+              draft={focalDraft}
+              activePreset={activeFocalPreset}
+              isSaving={isSavingFocal}
+              onDraftChange={setFocalDraft}
+              onActivePresetChange={setActiveFocalPreset}
+              onCancel={() => setFocalTarget(null)}
+              onSave={() => void saveFocalPoint()}
+            />
           ) : null}
         </DialogContent>
       </Dialog>

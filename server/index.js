@@ -109,7 +109,8 @@ import {
   buildStorageAreaSummary,
   computeBufferSha256,
   findUploadByHash,
-  normalizeFocalPoint,
+  getPrimaryFocalPoint,
+  normalizeFocalPoints,
   resolveUploadAbsolutePath,
 } from "./lib/upload-media.js";
 import {
@@ -4345,6 +4346,7 @@ const upsertUploadEntries = (incomingEntries) => {
       return;
     }
     const current = byUrl.get(nextUrl);
+    const focalState = resolveIncomingUploadFocalState(entry, current);
     const next = {
       ...(current || {}),
       ...entry,
@@ -4358,22 +4360,8 @@ const upsertUploadEntries = (incomingEntries) => {
       height: Number.isFinite(entry?.height) ? Number(entry.height) : (current?.height ?? null),
       area: String(entry?.area || current?.area || ""),
       hashSha256: String(entry?.hashSha256 || current?.hashSha256 || ""),
-      focalPoint:
-        entry?.focalPoint && typeof entry.focalPoint === "object"
-          ? {
-              x: Number.isFinite(Number(entry.focalPoint.x))
-                ? Number(entry.focalPoint.x)
-                : Number(current?.focalPoint?.x ?? 0.5),
-              y: Number.isFinite(Number(entry.focalPoint.y))
-                ? Number(entry.focalPoint.y)
-                : Number(current?.focalPoint?.y ?? 0.5),
-            }
-          : current?.focalPoint && typeof current.focalPoint === "object"
-            ? {
-                x: Number.isFinite(Number(current.focalPoint.x)) ? Number(current.focalPoint.x) : 0.5,
-                y: Number.isFinite(Number(current.focalPoint.y)) ? Number(current.focalPoint.y) : 0.5,
-              }
-            : undefined,
+      focalPoints: focalState.focalPoints,
+      focalPoint: focalState.focalPoint,
       variantsVersion: Number.isFinite(Number(entry?.variantsVersion))
         ? Number(entry.variantsVersion)
         : Number.isFinite(Number(current?.variantsVersion))
@@ -4442,19 +4430,46 @@ const normalizeUploadUrlValue = (value) => {
   return null;
 };
 
-const normalizePublicFocalPoint = (value) => {
-  if (!value || typeof value !== "object") {
-    return undefined;
-  }
-  const x = Number(value.x);
-  const y = Number(value.y);
-  if (!Number.isFinite(x) || !Number.isFinite(y)) {
-    return undefined;
-  }
+const hasOwnField = (value, key) => Boolean(value && Object.prototype.hasOwnProperty.call(value, key));
+
+const readUploadFocalState = (value) => {
+  const focalPoints = normalizeFocalPoints(value?.focalPoints, value?.focalPoint);
   return {
-    x: Math.min(1, Math.max(0, x)),
-    y: Math.min(1, Math.max(0, y)),
+    focalPoints,
+    focalPoint: getPrimaryFocalPoint(focalPoints),
   };
+};
+
+const resolveIncomingUploadFocalState = (incoming, current) => {
+  if (hasOwnField(incoming, "focalPoints")) {
+    const focalPoints = normalizeFocalPoints(incoming.focalPoints, current?.focalPoints ?? current?.focalPoint);
+    return {
+      focalPoints,
+      focalPoint: getPrimaryFocalPoint(focalPoints),
+    };
+  }
+  if (hasOwnField(incoming, "focalPoint")) {
+    const focalPoints = normalizeFocalPoints(incoming.focalPoint);
+    return {
+      focalPoints,
+      focalPoint: getPrimaryFocalPoint(focalPoints),
+    };
+  }
+  return readUploadFocalState(current);
+};
+
+const extractRequestedUploadFocalPayload = (value) => {
+  const body = value && typeof value === "object" ? value : {};
+  if (hasOwnField(body, "focalPoints")) {
+    return { focalPoints: body.focalPoints };
+  }
+  if (hasOwnField(body, "focalPoint")) {
+    return { focalPoint: body.focalPoint };
+  }
+  if (hasOwnField(body, "x") || hasOwnField(body, "y")) {
+    return { focalPoint: body };
+  }
+  return {};
 };
 
 const getUploadFolderFromUrlValue = (value) => {
@@ -4519,11 +4534,9 @@ const buildPublicMediaVariants = (...sources) => {
     const variantsVersion = Number.isFinite(variantsVersionRaw)
       ? Math.max(1, Math.floor(variantsVersionRaw))
       : 1;
-    const focalPoint = normalizePublicFocalPoint(entry?.focalPoint);
     mediaVariants[normalizedUrl] = {
       variantsVersion,
       variants,
-      ...(focalPoint ? { focalPoint } : {}),
     };
   });
   return mediaVariants;
@@ -11586,6 +11599,7 @@ app.post("/api/uploads/image", requireAuth, async (req, res) => {
       dedupeEntry?.variants &&
       typeof dedupeEntry.variants === "object" &&
       Object.keys(dedupeEntry.variants).length > 0;
+    const dedupeFocalState = readUploadFocalState(dedupeEntry);
     appendAuditLog(req, "uploads.image", "uploads", {
       uploadId: dedupeEntry.id,
       fileName: dedupeEntry.fileName,
@@ -11601,7 +11615,8 @@ app.post("/api/uploads/image", requireAuth, async (req, res) => {
       fileName: dedupeEntry.fileName,
       hashSha256,
       dedupeHit: true,
-      focalPoint: dedupeEntry.focalPoint || normalizeFocalPoint(),
+      focalPoints: dedupeFocalState.focalPoints,
+      focalPoint: dedupeFocalState.focalPoint,
       variants: dedupeEntry.variants || {},
       area: dedupeEntry.area || "",
       variantsGenerated: dedupeVariantsGenerated,
@@ -11623,6 +11638,8 @@ app.post("/api/uploads/image", requireAuth, async (req, res) => {
   const relativeUrl = `/uploads/${safeFolder ? `${safeFolder}/` : ""}${fileName}`;
   const existingIndex = uploads.findIndex((item) => item.url === relativeUrl);
   const existingEntry = existingIndex >= 0 ? uploads[existingIndex] : null;
+  const requestedFocalPayload = extractRequestedUploadFocalPayload(req.body);
+  const requestedFocalState = resolveIncomingUploadFocalState(requestedFocalPayload, existingEntry);
   const variantsVersion = Math.max(1, Number(existingEntry?.variantsVersion || 0) + 1);
   const uploadEntryBase = {
     id: existingEntry?.id || crypto.randomUUID(),
@@ -11646,7 +11663,7 @@ app.post("/api/uploads/image", requireAuth, async (req, res) => {
       sourcePath: filePath,
       sourceMime: mime,
       hashSha256,
-      focalPoint: normalizeFocalPoint(req.body?.focalPoint),
+      focalPoints: requestedFocalState.focalPoints,
       variantsVersion,
       regenerateVariants: true,
     });
@@ -11662,7 +11679,8 @@ app.post("/api/uploads/image", requireAuth, async (req, res) => {
     uploadEntry = {
       ...uploadEntryBase,
       hashSha256,
-      focalPoint: normalizeFocalPoint(req.body?.focalPoint),
+      focalPoints: requestedFocalState.focalPoints,
+      focalPoint: requestedFocalState.focalPoint,
       variantsVersion,
       variants: {},
       variantBytes: 0,
@@ -11686,13 +11704,15 @@ app.post("/api/uploads/image", requireAuth, async (req, res) => {
     dedupeHit: false,
     variantBytes: Number(uploadEntry?.variantBytes || 0),
   });
+  const uploadFocalState = readUploadFocalState(uploadEntry);
   return res.json({
     uploadId: uploadEntry.id,
     url: relativeUrl,
     fileName,
     hashSha256,
     dedupeHit: false,
-    focalPoint: uploadEntry.focalPoint || normalizeFocalPoint(),
+    focalPoints: uploadFocalState.focalPoints,
+    focalPoint: uploadFocalState.focalPoint,
     variants: uploadEntry.variants || {},
     area: uploadEntry.area || "",
     variantsGenerated,
@@ -11747,6 +11767,7 @@ app.get("/api/uploads/list", requireAuth, (req, res) => {
         const stat = fs.statSync(fullPath);
         const meta = uploadMetaMap.get(normalizedUrl) || null;
         const inUse = usedUrls.has(normalizedUrl);
+        const focalState = readUploadFocalState(meta);
         results.push({
           id: meta?.id || null,
           name: entry.name,
@@ -11757,8 +11778,11 @@ app.get("/api/uploads/list", requireAuth, (req, res) => {
           mime: meta?.mime || getUploadMimeFromExtension(path.extname(entry.name).replace(".", "")),
           size: typeof meta?.size === "number" ? meta.size : stat.size,
           createdAt: meta?.createdAt || stat.mtime.toISOString(),
+          width: typeof meta?.width === "number" ? meta.width : null,
+          height: typeof meta?.height === "number" ? meta.height : null,
           hashSha256: typeof meta?.hashSha256 === "string" ? meta.hashSha256 : "",
-          focalPoint: normalizeFocalPoint(meta?.focalPoint),
+          focalPoints: focalState.focalPoints,
+          focalPoint: focalState.focalPoint,
           variantsVersion: Number.isFinite(Number(meta?.variantsVersion))
             ? Number(meta.variantsVersion)
             : 1,
@@ -11786,6 +11810,7 @@ app.get("/api/uploads/list", requireAuth, (req, res) => {
             const stat = fs.statSync(fullPath);
             const meta = uploadMetaMap.get(normalizedUrl) || null;
             const inUse = usedUrls.has(normalizedUrl);
+            const focalState = readUploadFocalState(meta);
             return {
               id: meta?.id || null,
               name: item,
@@ -11796,8 +11821,11 @@ app.get("/api/uploads/list", requireAuth, (req, res) => {
               mime: meta?.mime || getUploadMimeFromExtension(path.extname(item).replace(".", "")),
               size: typeof meta?.size === "number" ? meta.size : stat.size,
               createdAt: meta?.createdAt || stat.mtime.toISOString(),
+              width: typeof meta?.width === "number" ? meta.width : null,
+              height: typeof meta?.height === "number" ? meta.height : null,
               hashSha256: typeof meta?.hashSha256 === "string" ? meta.hashSha256 : "",
-              focalPoint: normalizeFocalPoint(meta?.focalPoint),
+              focalPoints: focalState.focalPoints,
+              focalPoint: focalState.focalPoint,
               variantsVersion: Number.isFinite(Number(meta?.variantsVersion))
                 ? Number(meta.variantsVersion)
                 : 1,
@@ -11846,7 +11874,11 @@ app.patch("/api/uploads/:id/focal-point", requireAuth, async (req, res) => {
       return res.status(500).json({ error: "upload_file_read_failed" });
     }
   }
-  const nextFocalPoint = normalizeFocalPoint(req.body);
+  const requestedFocalPayload = extractRequestedUploadFocalPayload(req.body);
+  if (!hasOwnField(requestedFocalPayload, "focalPoints") && !hasOwnField(requestedFocalPayload, "focalPoint")) {
+    return res.status(400).json({ error: "invalid_focal_point" });
+  }
+  const nextFocalState = resolveIncomingUploadFocalState(requestedFocalPayload, current);
   const nextVersion = Math.max(1, Number(current?.variantsVersion || 0) + 1);
   let updated = null;
   try {
@@ -11856,7 +11888,7 @@ app.patch("/api/uploads/:id/focal-point", requireAuth, async (req, res) => {
       sourcePath,
       sourceMime: current?.mime,
       hashSha256,
-      focalPoint: nextFocalPoint,
+      focalPoints: nextFocalState.focalPoints,
       variantsVersion: nextVersion,
       regenerateVariants: true,
     });
@@ -11869,6 +11901,7 @@ app.patch("/api/uploads/:id/focal-point", requireAuth, async (req, res) => {
   appendAuditLog(req, "uploads.focal_point.update", "uploads", {
     id: uploadId,
     url: updated.url,
+    focalPresets: Object.keys(nextFocalState.focalPoints),
   });
 
   return res.json({
@@ -11883,7 +11916,8 @@ app.patch("/api/uploads/:id/focal-point", requireAuth, async (req, res) => {
       width: updated.width,
       height: updated.height,
       hashSha256: updated.hashSha256 || "",
-      focalPoint: updated.focalPoint || normalizeFocalPoint(),
+      focalPoints: updated.focalPoints || nextFocalState.focalPoints,
+      focalPoint: updated.focalPoint || nextFocalState.focalPoint,
       variantsVersion: Number.isFinite(Number(updated.variantsVersion))
         ? Number(updated.variantsVersion)
         : 1,
@@ -11990,6 +12024,8 @@ app.post("/api/uploads/image-from-url", requireAuth, async (req, res) => {
     return res.status(400).json({ error: code });
   }
   const entry = importResult.entry;
+  const requestedFocalPayload = extractRequestedUploadFocalPayload(req.body);
+  const requestedFocalState = resolveIncomingUploadFocalState(requestedFocalPayload, null);
   const sourcePath = resolveUploadAbsolutePath({ uploadsDir, uploadUrl: entry?.url });
   if (!sourcePath || !fs.existsSync(sourcePath)) {
     return res.status(500).json({ error: "imported_file_not_found" });
@@ -12014,6 +12050,7 @@ app.post("/api/uploads/image-from-url", requireAuth, async (req, res) => {
       dedupeEntry?.variants &&
       typeof dedupeEntry.variants === "object" &&
       Object.keys(dedupeEntry.variants).length > 0;
+    const dedupeFocalState = readUploadFocalState(dedupeEntry);
     try {
       fs.unlinkSync(sourcePath);
     } catch {
@@ -12034,7 +12071,8 @@ app.post("/api/uploads/image-from-url", requireAuth, async (req, res) => {
       fileName: dedupeEntry.fileName,
       hashSha256,
       dedupeHit: true,
-      focalPoint: dedupeEntry.focalPoint || normalizeFocalPoint(),
+      focalPoints: dedupeFocalState.focalPoints,
+      focalPoint: dedupeFocalState.focalPoint,
       variants: dedupeEntry.variants || {},
       area: dedupeEntry.area || "",
       variantsGenerated: dedupeVariantsGenerated,
@@ -12054,7 +12092,7 @@ app.post("/api/uploads/image-from-url", requireAuth, async (req, res) => {
       sourcePath,
       sourceMime: entry?.mime,
       hashSha256,
-      focalPoint: normalizeFocalPoint(req.body?.focalPoint),
+      focalPoints: requestedFocalState.focalPoints,
       variantsVersion: Math.max(1, Number(entry?.variantsVersion || 1)),
       regenerateVariants: true,
     });
@@ -12070,7 +12108,8 @@ app.post("/api/uploads/image-from-url", requireAuth, async (req, res) => {
     enrichedEntry = {
       ...entry,
       hashSha256,
-      focalPoint: normalizeFocalPoint(req.body?.focalPoint),
+      focalPoints: requestedFocalState.focalPoints,
+      focalPoint: requestedFocalState.focalPoint,
       variantsVersion: 1,
       variants: {},
       variantBytes: 0,
@@ -12088,13 +12127,15 @@ app.post("/api/uploads/image-from-url", requireAuth, async (req, res) => {
     dedupeHit: false,
     variantBytes: Number(enrichedEntry?.variantBytes || 0),
   });
+  const enrichedFocalState = readUploadFocalState(enrichedEntry);
   return res.json({
     uploadId: enrichedEntry.id,
     url: enrichedEntry.url,
     fileName: enrichedEntry.fileName,
     hashSha256,
     dedupeHit: false,
-    focalPoint: enrichedEntry.focalPoint || normalizeFocalPoint(),
+    focalPoints: enrichedFocalState.focalPoints,
+    focalPoint: enrichedFocalState.focalPoint,
     variants: enrichedEntry.variants || {},
     area: enrichedEntry.area || "",
     variantsGenerated,

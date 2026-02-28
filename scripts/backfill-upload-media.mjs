@@ -76,7 +76,6 @@ try {
         sourcePath,
         sourceMime: normalizeUploadMime(current?.mime, current?.fileName),
         hashSha256,
-        focalPoint: current?.focalPoint,
         variantsVersion: Math.max(1, Number(current?.variantsVersion || 1)),
         regenerateVariants: true,
       });

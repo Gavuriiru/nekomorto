@@ -10,6 +10,8 @@ export const UPLOAD_VARIANT_PRESETS = Object.freeze({
   og: Object.freeze({ width: 1200, height: 630 }),
 });
 
+export const UPLOAD_VARIANT_PRESET_KEYS = Object.freeze(Object.keys(UPLOAD_VARIANT_PRESETS));
+
 const RASTER_UPLOAD_MIMES = new Set([
   "image/png",
   "image/jpeg",
@@ -177,6 +179,43 @@ export const normalizeFocalPoint = (value) => {
   };
 };
 
+const isFocalPointValue = (value) =>
+  Boolean(value && typeof value === "object" && ("x" in value || "y" in value));
+
+const resolvePresetFocalSource = ({ value, fallback, presetKey }) => {
+  if (isFocalPointValue(value)) {
+    return value;
+  }
+  if (value && typeof value === "object" && value[presetKey] && typeof value[presetKey] === "object") {
+    return value[presetKey];
+  }
+  if (isFocalPointValue(fallback)) {
+    return fallback;
+  }
+  if (
+    fallback &&
+    typeof fallback === "object" &&
+    fallback[presetKey] &&
+    typeof fallback[presetKey] === "object"
+  ) {
+    return fallback[presetKey];
+  }
+  return null;
+};
+
+export const normalizeFocalPoints = (value, fallbackValue) => {
+  const next = {};
+  UPLOAD_VARIANT_PRESET_KEYS.forEach((presetKey) => {
+    next[presetKey] = normalizeFocalPoint(
+      resolvePresetFocalSource({ value, fallback: fallbackValue, presetKey }),
+    );
+  });
+  return next;
+};
+
+export const getPrimaryFocalPoint = (value, fallbackValue) =>
+  normalizeFocalPoint(resolvePresetFocalSource({ value, fallback: fallbackValue, presetKey: "card" }));
+
 export const deriveUploadArea = (folder) => toArea(folder);
 
 export const computeBufferSha256 = (buffer) => crypto.createHash("sha256").update(buffer).digest("hex");
@@ -213,6 +252,7 @@ export const generateUploadVariants = async ({
   sourcePath,
   sourceMime,
   focalPoint,
+  focalPoints,
   variantsVersion = 1,
 } = {}) => {
   if (!isRasterUploadMime(sourceMime)) {
@@ -231,7 +271,7 @@ export const generateUploadVariants = async ({
   const hasAlpha = metadata?.hasAlpha === true || Number(metadata?.channels || 0) >= 4;
   const fallback = toFallbackFormat(hasAlpha);
   const safeVersion = sanitizeVariantVersion(variantsVersion);
-  const safeFocal = normalizeFocalPoint(focalPoint);
+  const safeFocalPoints = normalizeFocalPoints(focalPoints, focalPoint);
   const variantDir = resetVariantDirectory(uploadsDir, uploadId);
 
   const variants = {};
@@ -243,7 +283,7 @@ export const generateUploadVariants = async ({
       sourceHeight,
       targetWidth: preset.width,
       targetHeight: preset.height,
-      focalPoint: safeFocal,
+      focalPoint: safeFocalPoints[presetKey],
     });
     const base = createBaseVariantPipeline({ sourcePath, rect, preset });
     const avifPath = createVariantFilePath({
@@ -330,11 +370,18 @@ export const attachUploadMediaMetadata = async ({
   sourceMime,
   hashSha256,
   focalPoint,
+  focalPoints,
   variantsVersion,
   regenerateVariants = true,
 } = {}) => {
   const current = entry && typeof entry === "object" ? { ...entry } : {};
-  const normalizedFocal = normalizeFocalPoint(focalPoint ?? current.focalPoint);
+  const normalizedFocalPoints =
+    typeof focalPoints !== "undefined"
+      ? normalizeFocalPoints(focalPoints, current?.focalPoints ?? current?.focalPoint)
+      : typeof focalPoint !== "undefined"
+        ? normalizeFocalPoints(focalPoint)
+        : normalizeFocalPoints(current?.focalPoints, current?.focalPoint);
+  const normalizedFocal = getPrimaryFocalPoint(normalizedFocalPoints);
   const normalizedHash = String(hashSha256 || current.hashSha256 || "").trim().toLowerCase();
   const nextVersion = sanitizeVariantVersion(variantsVersion ?? current.variantsVersion ?? 1);
   let nextVariants = normalizeVariants(current.variants);
@@ -348,7 +395,7 @@ export const attachUploadMediaMetadata = async ({
       uploadId: String(current.id || ""),
       sourcePath,
       sourceMime,
-      focalPoint: normalizedFocal,
+      focalPoints: normalizedFocalPoints,
       variantsVersion: nextVersion,
     });
     nextVariants = normalizeVariants(generated.variants);
@@ -360,6 +407,7 @@ export const attachUploadMediaMetadata = async ({
   return {
     ...current,
     hashSha256: normalizedHash || "",
+    focalPoints: normalizedFocalPoints,
     focalPoint: normalizedFocal,
     variantsVersion: nextVersion,
     variants: nextVariants,
