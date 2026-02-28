@@ -162,6 +162,7 @@ const dashboardRouteToPermission: Record<string, PermissionId | "users" | null> 
   "/dashboard/paginas": "paginas",
   "/dashboard/webhooks": "integracoes",
   "/dashboard/configuracoes": "configuracoes",
+  "/dashboard/redirecionamentos": "configuracoes",
 };
 
 const dashboardRouteOrder = [
@@ -177,6 +178,7 @@ const dashboardRouteOrder = [
   "/dashboard/paginas",
   "/dashboard/webhooks",
   "/dashboard/configuracoes",
+  "/dashboard/redirecionamentos",
 ] as const;
 
 export const isDashboardHrefAllowed = (

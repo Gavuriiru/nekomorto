@@ -5,6 +5,7 @@
   FolderCog,
   LayoutGrid,
   MessageSquare,
+  Route as RouteIcon,
   Send,
   Settings,
   ShieldAlert,
@@ -33,4 +34,5 @@ export const dashboardMenuItems: DashboardMenuItem[] = [
   { label: "Webhooks", href: "/dashboard/webhooks", icon: Send, enabled: true },
   { label: "Segurança", href: "/dashboard/seguranca", icon: ShieldAlert, enabled: true },
   { label: "Configurações", href: "/dashboard/configuracoes", icon: Settings, enabled: true },
+  { label: "Redirecionamentos", href: "/dashboard/redirecionamentos", icon: RouteIcon, enabled: true },
 ];

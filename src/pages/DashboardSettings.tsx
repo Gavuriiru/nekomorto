@@ -1,4 +1,4 @@
-import {
+﻿import {
   Suspense,
   lazy,
   useCallback,
@@ -8,7 +8,7 @@ import {
   useState,
   type DragEvent,
 } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import DashboardAutosaveStatus from "@/components/DashboardAutosaveStatus";
 import DashboardShell from "@/components/DashboardShell";
 import AsyncState from "@/components/ui/async-state";
@@ -72,7 +72,6 @@ import { usePageMeta } from "@/hooks/use-page-meta";
 import ThemedSvgLogo from "@/components/ThemedSvgLogo";
 import { navbarIconOptions } from "@/lib/navbar-icons";
 import { resolveBranding } from "@/lib/branding";
-import { normalizeAssetUrl } from "@/lib/asset-url";
 
 const ImageLibraryDialog = lazy(() => import("@/components/ImageLibraryDialog"));
 
@@ -194,8 +193,7 @@ type SettingsTabKey =
   | "footer"
   | "navbar"
   | "redes-usuarios"
-  | "traducoes"
-  | "preview-paginas";
+  | "traducoes";
 
 const DASHBOARD_SETTINGS_DEFAULT_TAB: SettingsTabKey = "geral";
 const dashboardSettingsTabSet = new Set<SettingsTabKey>([
@@ -206,7 +204,6 @@ const dashboardSettingsTabSet = new Set<SettingsTabKey>([
   "navbar",
   "redes-usuarios",
   "traducoes",
-  "preview-paginas",
 ]);
 
 const isDashboardSettingsTab = (value: string): value is SettingsTabKey =>
@@ -226,53 +223,6 @@ type TranslationsPayload = {
   staffRoles: Record<string, string>;
 };
 
-type PagePreviewKey = "home" | "projects" | "about" | "donations" | "faq" | "team" | "recruitment";
-type PagePreviewSection = { shareImage?: string } & Record<string, unknown>;
-type PagesPayload = Record<string, unknown> & Partial<Record<PagePreviewKey, PagePreviewSection>>;
-
-const pagePreviewKeys: PagePreviewKey[] = [
-  "home",
-  "projects",
-  "about",
-  "donations",
-  "faq",
-  "team",
-  "recruitment",
-];
-
-const pagePreviewLabels: Record<PagePreviewKey, string> = {
-  home: "Início",
-  projects: "Projetos",
-  about: "Sobre",
-  donations: "Doações",
-  faq: "FAQ",
-  team: "Equipe",
-  recruitment: "Recrutamento",
-};
-
-const asObjectRecord = (value: unknown): Record<string, unknown> =>
-  value && typeof value === "object" && !Array.isArray(value)
-    ? (value as Record<string, unknown>)
-    : {};
-
-const normalizePagesPayload = (value: unknown): PagesPayload => {
-  const base = asObjectRecord(value);
-  const next: PagesPayload = { ...base };
-  pagePreviewKeys.forEach((key) => {
-    const section = asObjectRecord(base[key]);
-    next[key] = {
-      ...section,
-      shareImage: String(section.shareImage || "").trim(),
-    };
-  });
-  return next;
-};
-
-const readPagePreviewShareImage = (pages: PagesPayload, key: PagePreviewKey) => {
-  const section = asObjectRecord(pages[key]);
-  return String(section.shareImage || "").trim();
-};
-
 const logoEditorFields: Array<{
   target: LogoLibraryTarget;
   label: string;
@@ -283,7 +233,7 @@ const logoEditorFields: Array<{
 }> = [
   {
     target: "branding.assets.symbolUrl",
-    label: "Símbolo da marca",
+    label: "SÃ­mbolo da marca",
     description: "Ativo principal usado como base para logo da marca.",
     frameClassName: "h-16",
     imageClassName: "h-10 w-10 rounded bg-card/70 object-contain",
@@ -298,14 +248,14 @@ const logoEditorFields: Array<{
   {
     target: "site.faviconUrl",
     label: "Favicon",
-    description: "Ícone mostrado na aba do navegador.",
+    description: "Ãcone mostrado na aba do navegador.",
     frameClassName: "h-16",
     imageClassName: "h-8 w-8 rounded bg-card/70 object-contain",
   },
   {
     target: "site.defaultShareImage",
     label: "Imagem de compartilhamento",
-    description: "Imagem padrão de cards sociais quando a página não define uma própria.",
+    description: "Imagem padrÃ£o de cards sociais quando a pÃ¡gina nÃ£o define uma prÃ³pria.",
     frameClassName: "h-20",
     imageClassName: "h-full w-full rounded bg-card/70 object-cover",
   },
@@ -327,16 +277,16 @@ const logoEditorFields: Array<{
   },
   {
     target: "branding.overrides.navbarSymbolUrl",
-    label: "Override de símbolo da navbar",
-    description: "Opcional. Se vazio, a navbar usa o símbolo principal.",
+    label: "Override de sÃ­mbolo da navbar",
+    description: "Opcional. Se vazio, a navbar usa o sÃ­mbolo principal.",
     frameClassName: "h-16",
     imageClassName: "h-10 w-10 rounded bg-card/70 object-contain",
     optional: true,
   },
   {
     target: "branding.overrides.footerSymbolUrl",
-    label: "Override de símbolo do footer",
-    description: "Opcional. Se vazio, o footer usa o símbolo principal.",
+    label: "Override de sÃ­mbolo do footer",
+    description: "Opcional. Se vazio, o footer usa o sÃ­mbolo principal.",
     frameClassName: "h-16",
     imageClassName: "h-10 w-10 rounded bg-card/70 object-contain",
     optional: true,
@@ -436,9 +386,10 @@ const writeLogoField = (nextSettings: SiteSettings, target: LogoLibraryTarget, u
 };
 
 const DashboardSettings = () => {
-  usePageMeta({ title: "Configurações", noIndex: true });
+  usePageMeta({ title: "ConfiguraÃ§Ãµes", noIndex: true });
 
   const navigate = useNavigate();
+  const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
   const apiBase = getApiBase();
   const initialAutosaveEnabledRef = useRef(
@@ -470,10 +421,6 @@ const DashboardSettings = () => {
   const [iconCacheVersion, setIconCacheVersion] = useState(0);
   const [isLibraryOpen, setIsLibraryOpen] = useState(false);
   const [libraryTarget, setLibraryTarget] = useState<LogoLibraryTarget>("branding.assets.symbolUrl");
-  const [isPagePreviewLibraryOpen, setIsPagePreviewLibraryOpen] = useState(false);
-  const [pagePreviewTarget, setPagePreviewTarget] = useState<PagePreviewKey>("home");
-  const [pagesPayload, setPagesPayload] = useState<PagesPayload>(() => normalizePagesPayload({}));
-  const [canManagePages, setCanManagePages] = useState(false);
   const [tagQuery, setTagQuery] = useState("");
   const [genreQuery, setGenreQuery] = useState("");
   const [newTag, setNewTag] = useState("");
@@ -487,7 +434,7 @@ const DashboardSettings = () => {
   const [footerSocialDragOverIndex, setFooterSocialDragOverIndex] = useState<number | null>(null);
   const hasSyncedAniList = useRef(false);
   const rootLibraryFolders = useMemo(() => [""], []);
-  const settingsTabsGridClass = canManagePages ? "md:grid-cols-8" : "md:grid-cols-7";
+  const settingsTabsGridClass = "md:grid-cols-7";
 
   useEffect(() => {
     const loadUser = async () => {
@@ -515,12 +462,11 @@ const DashboardSettings = () => {
       setIsLoading(true);
       setHasLoadError(false);
       try {
-        const [settingsRes, translationsRes, projectsRes, linkTypesRes, pagesRes] = await Promise.all([
+        const [settingsRes, translationsRes, projectsRes, linkTypesRes] = await Promise.all([
           apiFetch(apiBase, "/api/settings", { auth: true }),
           apiFetch(apiBase, "/api/public/tag-translations", { cache: "no-store" }),
           apiFetch(apiBase, "/api/projects", { auth: true }),
           apiFetch(apiBase, "/api/link-types"),
-          apiFetch(apiBase, "/api/pages", { auth: true }),
         ]);
         if (!settingsRes.ok || !translationsRes.ok || !projectsRes.ok || !linkTypesRes.ok) {
           throw new Error("settings_load_failed");
@@ -561,18 +507,6 @@ const DashboardSettings = () => {
         setKnownGenres(Array.from(genres).sort((a, b) => a.localeCompare(b, "en")));
         setKnownStaffRoles(Array.from(staffRoles).sort((a, b) => a.localeCompare(b, "en")));
         setLinkTypes(Array.isArray(linkTypesData.items) ? linkTypesData.items : []);
-
-        if (pagesRes.ok) {
-          const pagesData = await pagesRes.json();
-          if (isActive) {
-            setPagesPayload(normalizePagesPayload(pagesData?.pages));
-            setCanManagePages(true);
-          }
-        } else {
-          setPagesPayload(normalizePagesPayload({}));
-          setCanManagePages(false);
-          setActiveTab((current) => (current === "preview-paginas" ? "geral" : current));
-        }
       } catch {
         if (isActive) {
           setSettings(publicSettings);
@@ -583,9 +517,6 @@ const DashboardSettings = () => {
           setKnownGenres([]);
           setKnownStaffRoles([]);
           setLinkTypes([]);
-          setPagesPayload(normalizePagesPayload({}));
-          setCanManagePages(false);
-          setActiveTab((current) => (current === "preview-paginas" ? "geral" : current));
           setHasLoadError(true);
         }
       } finally {
@@ -602,39 +533,55 @@ const DashboardSettings = () => {
   }, [apiBase, loadVersion, publicSettings]);
 
   useEffect(() => {
+    if (!location.pathname.startsWith("/dashboard/configuracoes")) {
+      return;
+    }
+    const rawTab = String(searchParams.get("tab") || "").trim();
+    if (rawTab !== "seo") {
+      return;
+    }
+    navigate("/dashboard/redirecionamentos", { replace: true });
+  }, [location.pathname, navigate, searchParams]);
+
+  useEffect(() => {
+    if (!location.pathname.startsWith("/dashboard/configuracoes")) {
+      return;
+    }
+    const rawTab = String(searchParams.get("tab") || "").trim();
+    if (rawTab !== "preview-paginas") {
+      return;
+    }
+    navigate("/dashboard/paginas?tab=preview", { replace: true });
+  }, [location.pathname, navigate, searchParams]);
+
+  useEffect(() => {
+    if (!location.pathname.startsWith("/dashboard/configuracoes")) {
+      return;
+    }
     if (isLoading) {
       return;
     }
     const requestedTab = parseDashboardSettingsTabParam(searchParams.get("tab"));
-    const resolvedTab =
-      requestedTab === "preview-paginas" && !canManagePages
-        ? DASHBOARD_SETTINGS_DEFAULT_TAB
-        : requestedTab;
-    setActiveTab((previous) => (previous === resolvedTab ? previous : resolvedTab));
-  }, [canManagePages, isLoading, searchParams]);
+    setActiveTab((previous) => (previous === requestedTab ? previous : requestedTab));
+  }, [isLoading, location.pathname, searchParams]);
 
   useEffect(() => {
+    if (!location.pathname.startsWith("/dashboard/configuracoes")) {
+      return;
+    }
     if (isLoading) {
       return;
     }
-    const resolvedTab =
-      activeTab === "preview-paginas" && !canManagePages
-        ? DASHBOARD_SETTINGS_DEFAULT_TAB
-        : activeTab;
-    if (resolvedTab !== activeTab) {
-      setActiveTab(resolvedTab);
-      return;
-    }
     const nextParams = new URLSearchParams(searchParams);
-    if (resolvedTab === DASHBOARD_SETTINGS_DEFAULT_TAB) {
+    if (activeTab === DASHBOARD_SETTINGS_DEFAULT_TAB) {
       nextParams.delete("tab");
     } else {
-      nextParams.set("tab", resolvedTab);
+      nextParams.set("tab", activeTab);
     }
     if (nextParams.toString() !== searchParams.toString()) {
       setSearchParams(nextParams, { replace: true });
     }
-  }, [activeTab, canManagePages, isLoading, searchParams, setSearchParams]);
+  }, [activeTab, isLoading, location.pathname, searchParams, setSearchParams]);
 
   const syncAniListTerms = useCallback(
     async (options?: { silent?: boolean }) => {
@@ -659,14 +606,14 @@ const DashboardSettings = () => {
         if (!options?.silent) {
           toast({
             title: "Termos do AniList atualizados",
-            description: "Tags e gêneros foram importados para tradução.",
+            description: "Tags e gÃªneros foram importados para traduÃ§Ã£o.",
           });
         }
       } catch {
         if (!options?.silent) {
           toast({
-            title: "Não foi possível importar",
-            description: "Verifique a conexão ou tente novamente.",
+            title: "NÃ£o foi possÃ­vel importar",
+            description: "Verifique a conexÃ£o ou tente novamente.",
           });
         }
       } finally {
@@ -754,37 +701,6 @@ const DashboardSettings = () => {
   const currentLibrarySelection = useMemo(() => {
     return readLogoField(settings, libraryTarget);
   }, [libraryTarget, settings]);
-
-  const updatePagePreviewShareImage = useCallback((pageKey: PagePreviewKey, shareImage: string) => {
-    setPagesPayload((prev) => {
-      const next = normalizePagesPayload(prev);
-      const currentSection = asObjectRecord(next[pageKey]);
-      next[pageKey] = {
-        ...currentSection,
-        shareImage,
-      };
-      return next;
-    });
-  }, []);
-
-  const clearPagePreviewShareImage = useCallback((pageKey: PagePreviewKey) => {
-    updatePagePreviewShareImage(pageKey, "");
-  }, [updatePagePreviewShareImage]);
-
-  const openPagePreviewLibrary = useCallback((pageKey: PagePreviewKey) => {
-    setPagePreviewTarget(pageKey);
-    setIsPagePreviewLibraryOpen(true);
-  }, []);
-
-  const currentPagePreviewSelection = useMemo(
-    () => readPagePreviewShareImage(pagesPayload, pagePreviewTarget),
-    [pagePreviewTarget, pagesPayload],
-  );
-
-
-
-
-
   const uploadDownloadIcon = async (file: File, index: number) => {
     setUploadingKey(`download-icon-${index}`);
     try {
@@ -812,11 +728,11 @@ const DashboardSettings = () => {
         return { ...prev, downloads: { ...prev.downloads, sources: next } };
       });
       bumpIconCacheVersion();
-      toast({ title: "Ícone enviado", description: "SVG atualizado com sucesso." });
+      toast({ title: "Ãcone enviado", description: "SVG atualizado com sucesso." });
     } catch {
       toast({
         title: "Falha no upload",
-        description: "Não foi possível enviar o ícone.",
+        description: "NÃ£o foi possÃ­vel enviar o Ã­cone.",
         variant: "destructive",
       });
     } finally {
@@ -851,11 +767,11 @@ const DashboardSettings = () => {
         return next;
       });
       bumpIconCacheVersion();
-      toast({ title: "Ícone enviado", description: "SVG atualizado com sucesso." });
+      toast({ title: "Ãcone enviado", description: "SVG atualizado com sucesso." });
     } catch {
       toast({
         title: "Falha no upload",
-        description: "Não foi possível enviar o ícone.",
+        description: "NÃ£o foi possÃ­vel enviar o Ã­cone.",
         variant: "destructive",
       });
     } finally {
@@ -951,25 +867,6 @@ const DashboardSettings = () => {
     [apiBase],
   );
 
-  const savePagesPreviewResource = useCallback(
-    async (snapshot: PagesPayload) => {
-      const response = await apiFetch(apiBase, "/api/pages", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        auth: true,
-        body: JSON.stringify({ pages: snapshot }),
-      });
-      if (!response.ok) {
-        throw new Error("save_failed");
-      }
-      const data = await response.json().catch(() => null);
-      const normalizedPages = normalizePagesPayload(data?.pages || snapshot);
-      setPagesPayload(normalizedPages);
-      return normalizedPages;
-    },
-    [apiBase],
-  );
-
   const settingsAutosave = useAutosave<SiteSettings>({
     value: settings,
     onSave: saveSettingsResource,
@@ -982,7 +879,7 @@ const DashboardSettings = () => {
       if (payload.source === "auto" && payload.consecutiveErrors === 1) {
         toast({
           title: "Falha no autosave de ajustes",
-          description: "As configurações gerais não foram salvas automaticamente.",
+          description: "As configuraÃ§Ãµes gerais nÃ£o foram salvas automaticamente.",
           variant: "destructive",
         });
       }
@@ -1000,8 +897,8 @@ const DashboardSettings = () => {
     onError: (_error, payload) => {
       if (payload.source === "auto" && payload.consecutiveErrors === 1) {
         toast({
-          title: "Falha no autosave de traduções",
-          description: "As traduções não foram salvas automaticamente.",
+          title: "Falha no autosave de traduÃ§Ãµes",
+          description: "As traduÃ§Ãµes nÃ£o foram salvas automaticamente.",
           variant: "destructive",
         });
       }
@@ -1020,26 +917,7 @@ const DashboardSettings = () => {
       if (payload.source === "auto" && payload.consecutiveErrors === 1) {
         toast({
           title: "Falha no autosave de redes",
-          description: "Os tipos de link não foram salvos automaticamente.",
-          variant: "destructive",
-        });
-      }
-    },
-  });
-
-  const pagesPreviewAutosave = useAutosave<PagesPayload>({
-    value: pagesPayload,
-    onSave: savePagesPreviewResource,
-    isReady: !isLoading && canManagePages,
-    enabled: initialAutosaveEnabledRef.current,
-    debounceMs: autosaveRuntimeConfig.debounceMs,
-    retryMax: autosaveRuntimeConfig.retryMax,
-    retryBaseMs: autosaveRuntimeConfig.retryBaseMs,
-    onError: (_error, payload) => {
-      if (payload.source === "auto" && payload.consecutiveErrors === 1) {
-        toast({
-          title: "Falha no autosave de previews",
-          description: "As imagens de preview das páginas não foram salvas automaticamente.",
+          description: "Os tipos de link nÃ£o foram salvos automaticamente.",
           variant: "destructive",
         });
       }
@@ -1054,30 +932,13 @@ const DashboardSettings = () => {
       settingsAutosave.setEnabled(nextEnabled);
       translationsAutosave.setEnabled(nextEnabled);
       linkTypesAutosave.setEnabled(nextEnabled);
-      if (canManagePages) {
-        pagesPreviewAutosave.setEnabled(nextEnabled);
-      }
     },
-    [canManagePages, linkTypesAutosave, pagesPreviewAutosave, settingsAutosave, translationsAutosave],
+    [linkTypesAutosave, settingsAutosave, translationsAutosave],
   );
 
   const autosaveEnabled = useMemo(() => {
-    const enabledFlags = [
-      settingsAutosave.enabled,
-      translationsAutosave.enabled,
-      linkTypesAutosave.enabled,
-    ];
-    if (canManagePages) {
-      enabledFlags.push(pagesPreviewAutosave.enabled);
-    }
-    return enabledFlags.every(Boolean);
-  }, [
-    canManagePages,
-    linkTypesAutosave.enabled,
-    pagesPreviewAutosave.enabled,
-    settingsAutosave.enabled,
-    translationsAutosave.enabled,
-  ]);
+    return settingsAutosave.enabled && translationsAutosave.enabled && linkTypesAutosave.enabled;
+  }, [linkTypesAutosave.enabled, settingsAutosave.enabled, translationsAutosave.enabled]);
 
   useEffect(() => {
     writeAutosavePreference(autosaveStorageKeys.settings, autosaveEnabled);
@@ -1089,9 +950,6 @@ const DashboardSettings = () => {
       translationsAutosave.status,
       linkTypesAutosave.status,
     ];
-    if (canManagePages) {
-      statuses.push(pagesPreviewAutosave.status);
-    }
     if (statuses.includes("saving")) {
       return "saving";
     }
@@ -1105,65 +963,40 @@ const DashboardSettings = () => {
       return "saved";
     }
     return "idle";
-  }, [
-    canManagePages,
-    linkTypesAutosave.status,
-    pagesPreviewAutosave.status,
-    settingsAutosave.status,
-    translationsAutosave.status,
-  ]);
+  }, [linkTypesAutosave.status, settingsAutosave.status, translationsAutosave.status]);
 
   const combinedLastSavedAt = useMemo(() => {
     const points = [
       settingsAutosave.lastSavedAt,
       translationsAutosave.lastSavedAt,
       linkTypesAutosave.lastSavedAt,
-      canManagePages ? pagesPreviewAutosave.lastSavedAt : null,
     ].filter((point): point is number => Number.isFinite(point));
     return points.length ? Math.max(...points) : null;
-  }, [
-    canManagePages,
-    linkTypesAutosave.lastSavedAt,
-    pagesPreviewAutosave.lastSavedAt,
-    settingsAutosave.lastSavedAt,
-    translationsAutosave.lastSavedAt,
-  ]);
+  }, [linkTypesAutosave.lastSavedAt, settingsAutosave.lastSavedAt, translationsAutosave.lastSavedAt]);
 
   const combinedAutosaveErrorMessage = useMemo(() => {
     if (settingsAutosave.status === "error") {
-      return "Há falha no salvamento automático dos ajustes gerais.";
+      return "HÃ¡ falha no salvamento automÃ¡tico dos ajustes gerais.";
     }
     if (translationsAutosave.status === "error") {
-      return "Há falha no salvamento automático das traduções.";
+      return "HÃ¡ falha no salvamento automÃ¡tico das traduÃ§Ãµes.";
     }
     if (linkTypesAutosave.status === "error") {
-      return "Há falha no salvamento automático das redes sociais.";
-    }
-    if (canManagePages && pagesPreviewAutosave.status === "error") {
-      return "Há falha no salvamento automático dos previews das páginas.";
+      return "HÃ¡ falha no salvamento automÃ¡tico das redes sociais.";
     }
     return null;
-  }, [
-    canManagePages,
-    linkTypesAutosave.status,
-    pagesPreviewAutosave.status,
-    settingsAutosave.status,
-    translationsAutosave.status,
-  ]);
+  }, [linkTypesAutosave.status, settingsAutosave.status, translationsAutosave.status]);
 
   const hasPendingChanges =
     settingsAutosave.isDirty ||
     translationsAutosave.isDirty ||
     linkTypesAutosave.isDirty ||
-    (canManagePages && pagesPreviewAutosave.isDirty) ||
     settingsAutosave.status === "pending" ||
     settingsAutosave.status === "saving" ||
     translationsAutosave.status === "pending" ||
     translationsAutosave.status === "saving" ||
     linkTypesAutosave.status === "pending" ||
-    linkTypesAutosave.status === "saving" ||
-    (canManagePages && pagesPreviewAutosave.status === "pending") ||
-    (canManagePages && pagesPreviewAutosave.status === "saving");
+    linkTypesAutosave.status === "saving";
 
   useEffect(() => {
     if (isLoading || !hasPendingChanges) {
@@ -1186,23 +1019,20 @@ const DashboardSettings = () => {
     if (linkTypesAutosave.enabled) {
       void linkTypesAutosave.flushNow();
     }
-    if (canManagePages && pagesPreviewAutosave.enabled) {
-      void pagesPreviewAutosave.flushNow();
-    }
-  }, [canManagePages, linkTypesAutosave, pagesPreviewAutosave, settingsAutosave, translationsAutosave]);
+  }, [linkTypesAutosave, settingsAutosave, translationsAutosave]);
 
   const handleSaveSettings = useCallback(async () => {
     const ok = await settingsAutosave.flushNow();
     if (!ok) {
       toast({
         title: "Falha ao salvar",
-        description: "Não foi possível salvar as configurações.",
+        description: "NÃ£o foi possÃ­vel salvar as configuraÃ§Ãµes.",
         variant: "destructive",
       });
       return;
     }
     await refresh().catch(() => undefined);
-    toast({ title: "Configurações salvas" });
+    toast({ title: "ConfiguraÃ§Ãµes salvas" });
   }, [refresh, settingsAutosave]);
 
   const handleSaveTranslations = useCallback(async () => {
@@ -1210,12 +1040,12 @@ const DashboardSettings = () => {
     if (!ok) {
       toast({
         title: "Falha ao salvar",
-        description: "Não foi possível salvar as traduções.",
+        description: "NÃ£o foi possÃ­vel salvar as traduÃ§Ãµes.",
         variant: "destructive",
       });
       return;
     }
-    toast({ title: "Traduções salvas" });
+    toast({ title: "TraduÃ§Ãµes salvas" });
   }, [translationsAutosave]);
 
   const handleSaveLinkTypes = useCallback(async () => {
@@ -1223,7 +1053,7 @@ const DashboardSettings = () => {
     if (!ok) {
       toast({
         title: "Falha ao salvar",
-        description: "Não foi possível salvar as redes sociais.",
+        description: "NÃ£o foi possÃ­vel salvar as redes sociais.",
         variant: "destructive",
       });
       return;
@@ -1231,26 +1061,9 @@ const DashboardSettings = () => {
     toast({ title: "Redes sociais salvas" });
   }, [linkTypesAutosave]);
 
-  const handleSavePagePreviews = useCallback(async () => {
-    if (!canManagePages) {
-      return;
-    }
-    const ok = await pagesPreviewAutosave.flushNow();
-    if (!ok) {
-      toast({
-        title: "Falha ao salvar",
-        description: "Não foi possível salvar os previews das páginas.",
-        variant: "destructive",
-      });
-      return;
-    }
-    toast({ title: "Previews salvos" });
-  }, [canManagePages, pagesPreviewAutosave]);
-
   const isSaving = settingsAutosave.status === "saving";
   const isSavingTranslations = translationsAutosave.status === "saving";
   const isSavingLinkTypes = linkTypesAutosave.status === "saving";
-  const isSavingPagePreviews = pagesPreviewAutosave.status === "saving";
 
   const filteredTags = useMemo(() => {
     const query = tagQuery.trim().toLowerCase();
@@ -1319,10 +1132,10 @@ const DashboardSettings = () => {
       value: symbolAssetDirect,
       preview: symbolAssetUrl,
       status: symbolAssetDirect
-        ? "Símbolo principal ativo."
+        ? "SÃ­mbolo principal ativo."
         : legacySiteSymbol
           ? "Sem valor no modelo novo. Usando fallback legado."
-          : "Sem símbolo definido.",
+          : "Sem sÃ­mbolo definido.",
     },
     "branding.assets.wordmarkUrl": {
       value: wordmarkAssetDirect,
@@ -1342,8 +1155,8 @@ const DashboardSettings = () => {
       value: shareImageUrl,
       preview: shareImageUrl,
       status: shareImageUrl
-        ? "Imagem padrão de compartilhamento ativa."
-        : "Sem imagem padrão de compartilhamento.",
+        ? "Imagem padrÃ£o de compartilhamento ativa."
+        : "Sem imagem padrÃ£o de compartilhamento.",
     },
     "branding.overrides.navbarWordmarkUrl": {
       value: navbarWordmarkOverrideDirect,
@@ -1352,7 +1165,7 @@ const DashboardSettings = () => {
         ? "Override da navbar ativo."
         : resolvedNavbarWordmarkUrl
           ? "Sem override. Navbar usa o logotipo principal."
-          : "Sem imagem disponível para a wordmark da navbar.",
+          : "Sem imagem disponÃ­vel para a wordmark da navbar.",
     },
     "branding.overrides.footerWordmarkUrl": {
       value: footerWordmarkOverrideDirect,
@@ -1361,7 +1174,7 @@ const DashboardSettings = () => {
         ? "Override do footer ativo."
         : resolvedFooterWordmarkUrl
           ? "Sem override. Footer usa o logotipo principal."
-          : "Sem imagem disponível para a wordmark do footer.",
+          : "Sem imagem disponÃ­vel para a wordmark do footer.",
     },
     "branding.overrides.navbarSymbolUrl": {
       value: navbarSymbolOverrideDirect,
@@ -1369,8 +1182,8 @@ const DashboardSettings = () => {
       status: navbarSymbolOverrideDirect
         ? "Override da navbar ativo."
         : resolvedNavbarSymbolUrl
-          ? "Sem override. Navbar usa o símbolo principal."
-          : "Sem símbolo disponível para a navbar.",
+          ? "Sem override. Navbar usa o sÃ­mbolo principal."
+          : "Sem sÃ­mbolo disponÃ­vel para a navbar.",
     },
     "branding.overrides.footerSymbolUrl": {
       value: footerSymbolOverrideDirect,
@@ -1378,8 +1191,8 @@ const DashboardSettings = () => {
       status: footerSymbolOverrideDirect
         ? "Override do footer ativo."
         : resolvedFooterSymbolUrl
-          ? "Sem override. Footer usa o símbolo principal."
-          : "Sem símbolo disponível para o footer.",
+          ? "Sem override. Footer usa o sÃ­mbolo principal."
+          : "Sem sÃ­mbolo disponÃ­vel para o footer.",
     },
   };
 
@@ -1394,8 +1207,8 @@ const DashboardSettings = () => {
           <section className="mx-auto w-full max-w-5xl px-6 pb-20 md:px-10">
             <AsyncState
               kind="loading"
-              title="Carregando configurações"
-              description="Buscando ajustes globais, traduções e integrações."
+              title="Carregando configuraÃ§Ãµes"
+              description="Buscando ajustes globais, traduÃ§Ãµes e integraÃ§Ãµes."
             />
           </section>
         </main>
@@ -1414,7 +1227,7 @@ const DashboardSettings = () => {
           <section className="mx-auto w-full max-w-5xl px-6 pb-20 md:px-10">
             <AsyncState
               kind="error"
-              title="Não foi possível carregar configurações"
+              title="NÃ£o foi possÃ­vel carregar configuraÃ§Ãµes"
               description="Tente novamente em instantes."
               action={
                 <Button variant="outline" onClick={() => setLoadVersion((previous) => previous + 1)}>
@@ -1444,18 +1257,18 @@ const DashboardSettings = () => {
             <div className="flex flex-wrap items-center justify-between gap-4">
               <div>
                 <div className="inline-flex items-center gap-3 rounded-full border border-border/60 bg-card/60 px-4 py-2 text-xs uppercase tracking-[0.3em] text-muted-foreground animate-fade-in">
-                  Configurações
+                  ConfiguraÃ§Ãµes
                 </div>
                 <h1 className="mt-4 text-3xl font-semibold text-foreground animate-slide-up">Painel de ajustes</h1>
                 <p
                   className="mt-2 text-sm text-muted-foreground animate-slide-up opacity-0"
                   style={{ animationDelay: "0.2s" }}
                 >
-                  Atualize identidade, traduções e links globais do site.
+                  Atualize identidade, traduÃ§Ãµes e links globais do site.
                 </p>
               </div>
               <DashboardAutosaveStatus
-                title="Autosave das configurações"
+                title="Autosave das configuraÃ§Ãµes"
                 status={combinedAutosaveStatus}
                 enabled={autosaveEnabled}
                 onEnabledChange={handleAutosaveToggle}
@@ -1498,13 +1311,8 @@ const DashboardSettings = () => {
                   Redes sociais
                 </TabsTrigger>
                 <TabsTrigger value="traducoes" className="shrink-0 md:w-full">
-                  Traduções
+                  TraduÃ§Ãµes
                 </TabsTrigger>
-                {canManagePages ? (
-                  <TabsTrigger value="preview-paginas" className="shrink-0 md:w-full">
-                    Preview páginas
-                  </TabsTrigger>
-                ) : null}
               </TabsList>
 
               <TabsContent value="geral" className="mt-6 space-y-6">
@@ -1525,7 +1333,7 @@ const DashboardSettings = () => {
                         />
                       </div>
                       <div className="space-y-2">
-                        <Label>Separador do título</Label>
+                        <Label>Separador do tÃ­tulo</Label>
                         <Input
                           value={settings.site.titleSeparator || " | "}
                           onChange={(event) =>
@@ -1537,11 +1345,11 @@ const DashboardSettings = () => {
                           placeholder=" | "
                         />
                         <p className="text-xs text-muted-foreground">
-                          Usado entre o título da página e o nome do site.
+                          Usado entre o tÃ­tulo da pÃ¡gina e o nome do site.
                         </p>
                       </div>
                       <div className="space-y-2">
-                        <Label>Descrição curta</Label>
+                        <Label>DescriÃ§Ã£o curta</Label>
                         <Textarea
                           value={settings.site.description}
                           onChange={(event) =>
@@ -1593,11 +1401,11 @@ const DashboardSettings = () => {
                           />
                         </div>
                         <p className="text-xs text-muted-foreground">
-                          Quando ativado, barra e badge usam a cor temática em vez da cor da etapa.
+                          Quando ativado, barra e badge usam a cor temÃ¡tica em vez da cor da etapa.
                         </p>
                       </div>
                       <div className="space-y-2">
-                        <Label>Tema padrão do site</Label>
+                        <Label>Tema padrÃ£o do site</Label>
                         <Select
                           value={settings.theme.mode || "dark"}
                           onValueChange={(value) =>
@@ -1611,7 +1419,7 @@ const DashboardSettings = () => {
                           }
                         >
                           <SelectTrigger>
-                            <SelectValue placeholder="Selecione o tema padrão" />
+                            <SelectValue placeholder="Selecione o tema padrÃ£o" />
                           </SelectTrigger>
                           <SelectContent>
                             <SelectItem value="dark">Escuro</SelectItem>
@@ -1619,7 +1427,7 @@ const DashboardSettings = () => {
                           </SelectContent>
                         </Select>
                         <p className="text-xs text-muted-foreground">
-                          Define o tema padrão global. Cada usuário pode sobrescrever no cabeçalho.
+                          Define o tema padrÃ£o global. Cada usuÃ¡rio pode sobrescrever no cabeÃ§alho.
                         </p>
                       </div>
                     </div>
@@ -1740,9 +1548,9 @@ const DashboardSettings = () => {
 
                     <div className="space-y-4">
                       <div>
-                        <h2 className="text-lg font-semibold">Logos e ícones de marca</h2>
+                        <h2 className="text-lg font-semibold">Logos e Ã­cones de marca</h2>
                         <p className="text-xs text-muted-foreground">
-                          Todos os ativos visuais em um só lugar, com fallback e prévia rápida.
+                          Todos os ativos visuais em um sÃ³ lugar, com fallback e prÃ©via rÃ¡pida.
                         </p>
                       </div>
 
@@ -1803,7 +1611,7 @@ const DashboardSettings = () => {
 
                       <div className="grid gap-4 md:grid-cols-2">
                         <div className="rounded-2xl border border-border/60 bg-background/50 p-4 space-y-3">
-                          <Label>Exibição da marca na navbar</Label>
+                          <Label>ExibiÃ§Ã£o da marca na navbar</Label>
                           <Select
                             value={navbarMode}
                             onValueChange={(value) =>
@@ -1824,8 +1632,8 @@ const DashboardSettings = () => {
                             </SelectTrigger>
                             <SelectContent>
                               <SelectItem value="wordmark">Wordmark</SelectItem>
-                              <SelectItem value="symbol-text">Símbolo + texto</SelectItem>
-                              <SelectItem value="symbol">Somente símbolo</SelectItem>
+                              <SelectItem value="symbol-text">SÃ­mbolo + texto</SelectItem>
+                              <SelectItem value="symbol">Somente sÃ­mbolo</SelectItem>
                               <SelectItem value="text">Somente texto</SelectItem>
                             </SelectContent>
                           </Select>
@@ -1835,7 +1643,7 @@ const DashboardSettings = () => {
                         </div>
 
                         <div className="rounded-2xl border border-border/60 bg-background/50 p-4 space-y-3">
-                          <Label>Exibição da marca no footer</Label>
+                          <Label>ExibiÃ§Ã£o da marca no footer</Label>
                           <Select
                             value={footerMode}
                             onValueChange={(value) =>
@@ -1856,12 +1664,12 @@ const DashboardSettings = () => {
                             </SelectTrigger>
                             <SelectContent>
                               <SelectItem value="wordmark">Wordmark</SelectItem>
-                              <SelectItem value="symbol-text">Símbolo + texto</SelectItem>
+                              <SelectItem value="symbol-text">SÃ­mbolo + texto</SelectItem>
                               <SelectItem value="text">Somente texto</SelectItem>
                             </SelectContent>
                           </Select>
                           <p className="text-xs text-muted-foreground">
-                            Define como a identidade aparece no rodapé.
+                            Define como a identidade aparece no rodapÃ©.
                           </p>
                         </div>
                       </div>
@@ -1869,7 +1677,7 @@ const DashboardSettings = () => {
                       <div className="grid gap-4 md:grid-cols-2">
                         <div className="rounded-2xl border border-border/60 bg-background/50 p-4">
                           <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-                            Prévia navbar
+                            PrÃ©via navbar
                           </p>
                           <div className={`mt-3 flex min-h-[68px] items-center gap-3 rounded-xl border px-4 py-3 ${navbarPreviewShellClass}`}>
                             {showWordmarkInNavbarPreview ? (
@@ -1905,7 +1713,7 @@ const DashboardSettings = () => {
 
                         <div className="rounded-2xl border border-border/60 bg-background/50 p-4">
                           <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-                            Prévia footer
+                            PrÃ©via footer
                           </p>
                           <div className="mt-3 flex min-h-[68px] items-center gap-3 rounded-xl border border-border/60 bg-background/70 px-4 py-3">
                             {showWordmarkInFooterPreview ? (
@@ -1941,107 +1749,6 @@ const DashboardSettings = () => {
                 </Card>
               </TabsContent>
 
-              {canManagePages ? (
-                <TabsContent value="preview-paginas" className="mt-6 space-y-6">
-                  <Card className="border-border/60 bg-card/80">
-                    <CardContent className="space-y-6 p-6">
-                      <div className="flex flex-wrap items-center justify-between gap-3">
-                        <div>
-                          <h2 className="text-lg font-semibold">Previews de compartilhamento por página</h2>
-                          <p className="text-xs text-muted-foreground">
-                            Defina a imagem OG para cada página pública.
-                          </p>
-                        </div>
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="outline"
-                          onClick={(event) => {
-                            event.preventDefault();
-                            event.stopPropagation();
-                            void handleSavePagePreviews();
-                          }}
-                          disabled={isSavingPagePreviews}
-                          className="gap-2"
-                        >
-                          <Save className="h-4 w-4" />
-                          {isSavingPagePreviews ? "Salvando..." : "Salvar previews"}
-                        </Button>
-                      </div>
-
-                      <div className="grid gap-4 md:grid-cols-2">
-                        {pagePreviewKeys.map((pageKey) => {
-                          const shareImage = readPagePreviewShareImage(pagesPayload, pageKey);
-                          return (
-                            <div
-                              key={pageKey}
-                              className="rounded-2xl border border-border/60 bg-background/50 p-4 space-y-3"
-                            >
-                              <div className="space-y-1">
-                                <p className="text-sm font-semibold">{pagePreviewLabels[pageKey]}</p>
-                                <p className="text-xs text-muted-foreground">
-                                  Imagem usada no preview ao compartilhar a URL da página.
-                                </p>
-                              </div>
-
-                              {shareImage ? (
-                                <div className="space-y-2">
-                                  <div className="overflow-hidden rounded-lg border border-border bg-muted/20">
-                                    <img
-                                      src={normalizeAssetUrl(shareImage)}
-                                      alt={`Preview de ${pagePreviewLabels[pageKey]}`}
-                                      className="aspect-3/2 w-full object-cover"
-                                      loading="lazy"
-                                    />
-                                  </div>
-                                  <p className="text-xs text-muted-foreground break-all">{shareImage}</p>
-                                </div>
-                              ) : (
-                                <p className="text-xs text-muted-foreground">
-                                  Sem imagem de preview definida.
-                                </p>
-                              )}
-
-                              <div className="space-y-2">
-                                <Label htmlFor={`page-preview-${pageKey}`}>URL da imagem</Label>
-                                <Input
-                                  id={`page-preview-${pageKey}`}
-                                  value={shareImage}
-                                  placeholder="/uploads/shared/og-pagina.jpg"
-                                  onChange={(event) =>
-                                    updatePagePreviewShareImage(pageKey, String(event.target.value || "").trim())
-                                  }
-                                />
-                              </div>
-
-                              <div className="flex flex-wrap gap-2">
-                                <Button
-                                  type="button"
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => openPagePreviewLibrary(pageKey)}
-                                >
-                                  Biblioteca
-                                </Button>
-                                <Button
-                                  type="button"
-                                  variant="ghost"
-                                  size="sm"
-                                  disabled={!shareImage}
-                                  onClick={() => clearPagePreviewShareImage(pageKey)}
-                                >
-                                  Limpar
-                                </Button>
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </CardContent>
-                  </Card>
-                </TabsContent>
-              ) : null}
-
               <TabsContent value="traducoes" className="mt-6 space-y-6">
                 <Card className="border-border/60 bg-card/80">
                   <CardContent className="space-y-6 p-6">
@@ -2049,7 +1756,7 @@ const DashboardSettings = () => {
                       <div>
                         <h2 className="text-lg font-semibold">Tags</h2>
                         <p className="text-xs text-muted-foreground">
-                          Termos em inglês importados do AniList com a tradução exibida no site.
+                          Termos em inglÃªs importados do AniList com a traduÃ§Ã£o exibida no site.
                         </p>
                       </div>
                       <div className="flex flex-wrap gap-2">
@@ -2076,7 +1783,7 @@ const DashboardSettings = () => {
                           className="gap-2"
                         >
                           <Save className="h-4 w-4" />
-                          {isSavingTranslations ? "Salvando..." : "Salvar traduções"}
+                          {isSavingTranslations ? "Salvando..." : "Salvar traduÃ§Ãµes"}
                         </Button>
                       </div>
                     </div>
@@ -2116,8 +1823,8 @@ const DashboardSettings = () => {
                             <thead className="sticky top-0 bg-background/90 text-xs uppercase tracking-wide text-muted-foreground">
                               <tr>
                                 <th className="px-4 py-3 text-left font-medium">Termo (AniList)</th>
-                                <th className="px-4 py-3 text-left font-medium">Tradução</th>
-                                <th className="px-4 py-3 text-right font-medium">Ações</th>
+                                <th className="px-4 py-3 text-left font-medium">TraduÃ§Ã£o</th>
+                                <th className="px-4 py-3 text-right font-medium">AÃ§Ãµes</th>
                               </tr>
                             </thead>
                             <tbody className="divide-y divide-border/60">
@@ -2162,9 +1869,9 @@ const DashboardSettings = () => {
                   <CardContent className="space-y-6 p-6">
                     <div className="flex flex-wrap items-center justify-between gap-3">
                       <div>
-                        <h2 className="text-lg font-semibold">Gêneros</h2>
+                        <h2 className="text-lg font-semibold">GÃªneros</h2>
                         <p className="text-xs text-muted-foreground">
-                          Termos em inglês importados do AniList com a tradução exibida no site.
+                          Termos em inglÃªs importados do AniList com a traduÃ§Ã£o exibida no site.
                         </p>
                       </div>
                       <div className="flex flex-wrap gap-2">
@@ -2191,19 +1898,19 @@ const DashboardSettings = () => {
                           className="gap-2"
                         >
                           <Save className="h-4 w-4" />
-                          {isSavingTranslations ? "Salvando..." : "Salvar traduções"}
+                          {isSavingTranslations ? "Salvando..." : "Salvar traduÃ§Ãµes"}
                         </Button>
                       </div>
                     </div>
                     <div className="grid gap-3 md:grid-cols-[1fr_auto]">
                       <Input
-                        placeholder="Buscar gênero"
+                        placeholder="Buscar gÃªnero"
                         value={genreQuery}
                         onChange={(event) => setGenreQuery(event.target.value)}
                       />
                       <div className="flex gap-2">
                         <Input
-                          placeholder="Novo gênero"
+                          placeholder="Novo gÃªnero"
                           value={newGenre}
                           onChange={(event) => setNewGenre(event.target.value)}
                         />
@@ -2224,15 +1931,15 @@ const DashboardSettings = () => {
                     </div>
                     <div className="overflow-hidden rounded-xl border border-border/60">
                       {filteredGenres.length === 0 ? (
-                        <p className="px-4 py-3 text-xs text-muted-foreground">Nenhum gênero encontrado.</p>
+                        <p className="px-4 py-3 text-xs text-muted-foreground">Nenhum gÃªnero encontrado.</p>
                       ) : (
                         <div className="max-h-[420px] overflow-y-auto no-scrollbar">
                           <table className="w-full text-sm">
                             <thead className="sticky top-0 bg-background/90 text-xs uppercase tracking-wide text-muted-foreground">
                               <tr>
                                 <th className="px-4 py-3 text-left font-medium">Termo (AniList)</th>
-                                <th className="px-4 py-3 text-left font-medium">Tradução</th>
-                                <th className="px-4 py-3 text-right font-medium">Ações</th>
+                                <th className="px-4 py-3 text-left font-medium">TraduÃ§Ã£o</th>
+                                <th className="px-4 py-3 text-right font-medium">AÃ§Ãµes</th>
                               </tr>
                             </thead>
                             <tbody className="divide-y divide-border/60">
@@ -2279,7 +1986,7 @@ const DashboardSettings = () => {
                       <div>
                         <h2 className="text-lg font-semibold">Cargos do AniList</h2>
                         <p className="text-xs text-muted-foreground">
-                          Traduza funções da equipe do anime exibidas no projeto.
+                          Traduza funÃ§Ãµes da equipe do anime exibidas no projeto.
                         </p>
                       </div>
                       <Button
@@ -2295,7 +2002,7 @@ const DashboardSettings = () => {
                         className="gap-2"
                       >
                         <Save className="h-4 w-4" />
-                        {isSavingTranslations ? "Salvando..." : "Salvar traduções"}
+                        {isSavingTranslations ? "Salvando..." : "Salvar traduÃ§Ãµes"}
                       </Button>
                     </div>
                     <div className="grid gap-3 md:grid-cols-[1fr_auto]">
@@ -2334,8 +2041,8 @@ const DashboardSettings = () => {
                             <thead className="sticky top-0 bg-background/90 text-xs uppercase tracking-wide text-muted-foreground">
                               <tr>
                                 <th className="px-4 py-3 text-left font-medium">Termo (AniList)</th>
-                                <th className="px-4 py-3 text-left font-medium">Tradução</th>
-                                <th className="px-4 py-3 text-right font-medium">Ações</th>
+                                <th className="px-4 py-3 text-left font-medium">TraduÃ§Ã£o</th>
+                                <th className="px-4 py-3 text-right font-medium">AÃ§Ãµes</th>
                               </tr>
                             </thead>
                             <tbody className="divide-y divide-border/60">
@@ -2387,7 +2094,7 @@ const DashboardSettings = () => {
                       <div>
                         <h2 className="text-lg font-semibold">Fontes de download</h2>
                         <p className="text-xs text-muted-foreground">
-                          Ajuste nome, cor e envie o SVG do serviço para exibição nos downloads.
+                          Ajuste nome, cor e envie o SVG do serviÃ§o para exibiÃ§Ã£o nos downloads.
                         </p>
                       </div>
                       <Button
@@ -2452,7 +2159,7 @@ const DashboardSettings = () => {
                             </div>
                             <div className="flex items-center justify-center gap-2 rounded-xl border border-border/60 bg-background/60 px-3 py-2">
                               <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
-                                Aplicar ao ícone
+                                Aplicar ao Ã­cone
                               </span>
                               <Switch
                                 checked={shouldTint}
@@ -2471,14 +2178,14 @@ const DashboardSettings = () => {
                                 shouldTint ? (
                                   <ThemedSvgLogo
                                     url={toIconPreviewUrl(source.icon)}
-                                    label={`Ícone ${source.label}`}
+                                    label={`Ãcone ${source.label}`}
                                     className="h-6 w-6 rounded bg-card/90 p-1"
                                     color={source.color}
                                   />
                                 ) : (
                                   <img
                                     src={toIconPreviewUrl(source.icon)}
-                                    alt={`Ícone ${source.label}`}
+                                    alt={`Ãcone ${source.label}`}
                                     className="h-6 w-6 rounded bg-card/90 p-1"
                                   />
                                 )
@@ -2541,9 +2248,9 @@ const DashboardSettings = () => {
                   <CardContent className="space-y-6 p-6">
                     <div className="flex flex-wrap items-center justify-between gap-3">
                       <div>
-                        <h2 className="text-lg font-semibold">Funções do time</h2>
+                        <h2 className="text-lg font-semibold">FunÃ§Ãµes do time</h2>
                         <p className="text-xs text-muted-foreground">
-                          Ajuste os cargos disponíveis para membros.
+                          Ajuste os cargos disponÃ­veis para membros.
                         </p>
                       </div>
                       <Button
@@ -2554,7 +2261,7 @@ const DashboardSettings = () => {
                             ...prev,
                             teamRoles: [
                               ...prev.teamRoles,
-                              { id: `role-${Date.now()}`, label: "Nova função", icon: "user" },
+                              { id: `role-${Date.now()}`, label: "Nova funÃ§Ã£o", icon: "user" },
                             ],
                           }))
                         }
@@ -2588,7 +2295,7 @@ const DashboardSettings = () => {
                             }
                           >
                             <SelectTrigger>
-                              <SelectValue placeholder="Ícone" />
+                              <SelectValue placeholder="Ãcone" />
                             </SelectTrigger>
                             <SelectContent>
                               {roleIconOptions.map((option) => {
@@ -2629,9 +2336,9 @@ const DashboardSettings = () => {
                   <CardContent className="space-y-6 p-6">
                     <div className="flex flex-wrap items-center justify-between gap-3">
                       <div>
-                        <h2 className="text-lg font-semibold">Redes sociais (Usuários)</h2>
+                        <h2 className="text-lg font-semibold">Redes sociais (UsuÃ¡rios)</h2>
                         <p className="text-xs text-muted-foreground">
-                          Opções exibidas no editor de usuários.
+                          OpÃ§Ãµes exibidas no editor de usuÃ¡rios.
                         </p>
                       </div>
                       <div className="flex flex-wrap gap-2">
@@ -2692,7 +2399,7 @@ const DashboardSettings = () => {
                               {isCustomIcon ? (
                                 <ThemedSvgLogo
                                   url={toIconPreviewUrl(link.icon)}
-                                  label={`Ícone ${link.label}`}
+                                  label={`Ãcone ${link.label}`}
                                   className="h-6 w-6 text-primary"
                                 />
                               ) : (
@@ -2784,7 +2491,7 @@ const DashboardSettings = () => {
                             }
                           >
                             <SelectTrigger>
-                              <SelectValue placeholder="Ícone" />
+                              <SelectValue placeholder="Ãcone" />
                             </SelectTrigger>
                             <SelectContent>
                               {navbarIconOptions.map((option) => {
@@ -2849,10 +2556,10 @@ const DashboardSettings = () => {
                 <Card className="border-border/60 bg-card/80">
                   <CardContent className="space-y-6 p-6">
                     <div>
-                      <h2 className="text-lg font-semibold">Conteúdo do footer</h2>
+                      <h2 className="text-lg font-semibold">ConteÃºdo do footer</h2>
                     </div>
                     <div className="space-y-2">
-                      <Label>Descrição</Label>
+                      <Label>DescriÃ§Ã£o</Label>
                       <Textarea
                         value={settings.footer.brandDescription}
                         onChange={(event) =>
@@ -2871,7 +2578,7 @@ const DashboardSettings = () => {
                     <div className="flex flex-wrap items-center justify-between gap-3">
                       <div>
                         <h2 className="text-lg font-semibold">Colunas de links</h2>
-                      <p className="text-xs text-muted-foreground">Edite as seções do footer.</p>
+                      <p className="text-xs text-muted-foreground">Edite as seÃ§Ãµes do footer.</p>
                       </div>
                       <Button
                         type="button"
@@ -3062,7 +2769,7 @@ const DashboardSettings = () => {
                             }
                           >
                             <SelectTrigger>
-                              <SelectValue placeholder="Ícone" />
+                              <SelectValue placeholder="Ãcone" />
                             </SelectTrigger>
                             <SelectContent>
                               {linkTypes.length === 0 ? (
@@ -3080,7 +2787,7 @@ const DashboardSettings = () => {
                                       {isCustomIcon ? (
                                         <ThemedSvgLogo
                                           url={iconValue}
-                                          label={`Ícone ${option.label}`}
+                                          label={`Ãcone ${option.label}`}
                                           className="h-4 w-4 text-primary"
                                         />
                                       ) : (
@@ -3130,11 +2837,11 @@ const DashboardSettings = () => {
                   <CardContent className="space-y-6 p-6">
                     <div>
                       <h2 className="text-lg font-semibold">Textos legais</h2>
-                      <p className="text-xs text-muted-foreground">Descrição, aviso e copyright.</p>
+                      <p className="text-xs text-muted-foreground">DescriÃ§Ã£o, aviso e copyright.</p>
                     </div>
                     <div className="grid gap-4">
                       <div className="space-y-2">
-                        <Label>Parágrafos do aviso</Label>
+                        <Label>ParÃ¡grafos do aviso</Label>
                         <div className="space-y-3">
                           {settings.footer.disclaimer.map((item, index) => (
                             <div key={`disclaimer-${index}`} className="grid gap-3 md:grid-cols-[1fr_auto]">
@@ -3198,7 +2905,7 @@ const DashboardSettings = () => {
                           />
                         </div>
                         <div className="space-y-2">
-                          <Label>Descrição do destaque</Label>
+                          <Label>DescriÃ§Ã£o do destaque</Label>
                           <Textarea
                             value={settings.footer.highlightDescription}
                             onChange={(event) =>
@@ -3244,29 +2951,13 @@ const DashboardSettings = () => {
             currentSelectionUrls={currentLibrarySelection ? [currentLibrarySelection] : []}
             onSave={({ urls }) => applyLibraryImage(urls[0] || "")}
           />
-          <ImageLibraryDialog
-            open={isPagePreviewLibraryOpen}
-            onOpenChange={setIsPagePreviewLibraryOpen}
-            apiBase={apiBase}
-            description="Escolha uma imagem para o preview de compartilhamento da página."
-            uploadFolder="shared"
-            listFolders={["shared", "posts", "projects"]}
-            listAll={false}
-            includeProjectImages
-            projectImagesView="by-project"
-            allowDeselect
-            mode="single"
-            currentSelectionUrls={currentPagePreviewSelection ? [currentPagePreviewSelection] : []}
-            onSave={({ urls }) =>
-              updatePagePreviewShareImage(pagePreviewTarget, String(urls[0] || "").trim())
-            }
-          />
         </Suspense>
     </DashboardShell>
   );
 };
 
 export default DashboardSettings;
+
 
 
 

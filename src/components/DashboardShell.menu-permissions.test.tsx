@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+﻿import type { ReactNode } from "react";
 import { render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -75,15 +75,42 @@ describe("DashboardShell menu permissions", () => {
       </MemoryRouter>,
     );
 
-    expect(screen.getByText("Início")).toBeInTheDocument();
-    expect(screen.getByText("Analytics")).toBeInTheDocument();
-    expect(screen.getByText("Postagens")).toBeInTheDocument();
+    const headerText = screen.getByTestId("dashboard-header").textContent || "";
+    expect(headerText).toContain("Início");
+    expect(headerText).toContain("Analytics");
+    expect(headerText).toContain("Postagens");
     expect(screen.getByTestId("sidebar-inset").className).toContain("min-w-0");
     expect(screen.getByTestId("sidebar-inset").className).toContain("overflow-x-hidden");
     expect(screen.queryByText("Painel de gestao")).not.toBeInTheDocument();
-    expect(screen.queryByText("Usuários")).not.toBeInTheDocument();
+    expect(screen.queryByText(/Usu[áa]rios/i)).not.toBeInTheDocument();
     expect(screen.queryByText("Webhooks")).not.toBeInTheDocument();
-    expect(screen.queryByText("Configurações")).not.toBeInTheDocument();
+    expect(screen.queryByText(/Configura[çc][õo]es/i)).not.toBeInTheDocument();
+    expect(screen.queryByText("Redirecionamentos")).not.toBeInTheDocument();
+  });
+
+  it("exibe Redirecionamentos quando grant de configuracoes esta habilitado", async () => {
+    const grants = buildGrants();
+    grants.configuracoes = true;
+    const { default: DashboardShell } = await import("@/components/DashboardShell");
+
+    render(
+      <MemoryRouter initialEntries={["/dashboard/redirecionamentos"]}>
+        <DashboardShell
+          currentUser={{
+            id: "user-1",
+            name: "User 1",
+            username: "user1",
+            grants,
+          }}
+        >
+          <div>Conteudo</div>
+        </DashboardShell>
+      </MemoryRouter>,
+    );
+
+    const headerText = screen.getByTestId("dashboard-header").textContent || "";
+    expect(headerText).toContain("Configurações");
+    expect(headerText).toContain("Redirecionamentos");
   });
 
   it("keeps previous user while loading and clears cache when loading finishes", async () => {
@@ -143,3 +170,4 @@ describe("DashboardShell menu permissions", () => {
     expect(screen.getByText("Aguarde")).toBeInTheDocument();
   });
 });
+

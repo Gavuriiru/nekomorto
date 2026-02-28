@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import DashboardAutosaveStatus from "@/components/DashboardAutosaveStatus";
 import DashboardShell from "@/components/DashboardShell";
@@ -56,6 +56,9 @@ import { apiFetch } from "@/lib/api-client";
 import { applyBeforeUnloadCompatibility } from "@/lib/before-unload";
 import { toast } from "@/components/ui/use-toast";
 import { usePageMeta } from "@/hooks/use-page-meta";
+import { normalizeAssetUrl } from "@/lib/asset-url";
+
+const ImageLibraryDialog = lazy(() => import("@/components/ImageLibraryDialog"));
 
 type AboutHighlight = { label: string; text: string; icon: string };
 type AboutValue = { title: string; description: string; icon: string };
@@ -68,6 +71,8 @@ type FAQIntro = { title: string; icon: string; text: string; note: string };
 type RecruitmentRole = { title: string; description: string; icon: string };
 type PageWithShareImage = { shareImage: string };
 type PublicPageKey = "about" | "donations" | "faq" | "team" | "recruitment";
+type ShareImagePageKey = "home" | "projects" | PublicPageKey;
+type DashboardPagesTabKey = PublicPageKey | "preview";
 
 type PagesConfig = {
   home: PageWithShareImage;
@@ -261,16 +266,42 @@ const pageLabels: Record<PublicPageKey, string> = {
   recruitment: "Recrutamento",
 };
 
-const orderedPageTabs = (Object.entries(pageLabels) as Array<[PublicPageKey, string]>)
-  .sort(([, labelA], [, labelB]) => labelA.localeCompare(labelB, "pt-BR"))
-  .map(([key, label]) => ({ key, label }));
+const orderedPageTabs = [
+  ...(Object.entries(pageLabels) as Array<[PublicPageKey, string]>)
+    .sort(([, labelA], [, labelB]) => labelA.localeCompare(labelB, "pt-BR"))
+    .map(([key, label]) => ({ key, label })),
+  { key: "preview", label: "Preview" },
+] as const satisfies Array<{ key: DashboardPagesTabKey; label: string }>;
 
-const DASHBOARD_PAGES_DEFAULT_TAB: PublicPageKey = orderedPageTabs[0]?.key || "donations";
-const DASHBOARD_PAGES_TAB_SET = new Set<PublicPageKey>(orderedPageTabs.map((tab) => tab.key));
-const isDashboardPagesTab = (value: string): value is PublicPageKey =>
-  DASHBOARD_PAGES_TAB_SET.has(value as PublicPageKey);
-const parseDashboardPagesTabParam = (value: string | null): PublicPageKey => {
+const shareImagePageKeys: ShareImagePageKey[] = [
+  "home",
+  "projects",
+  "about",
+  "donations",
+  "faq",
+  "team",
+  "recruitment",
+];
+
+const shareImagePageLabels: Record<ShareImagePageKey, string> = {
+  home: "InÃ­cio",
+  projects: "Projetos",
+  about: "Sobre",
+  donations: "DoaÃ§Ãµes",
+  faq: "FAQ",
+  team: "Equipe",
+  recruitment: "Recrutamento",
+};
+
+const DASHBOARD_PAGES_DEFAULT_TAB: DashboardPagesTabKey = "donations";
+const DASHBOARD_PAGES_TAB_SET = new Set<DashboardPagesTabKey>(orderedPageTabs.map((tab) => tab.key));
+const isDashboardPagesTab = (value: string): value is DashboardPagesTabKey =>
+  DASHBOARD_PAGES_TAB_SET.has(value as DashboardPagesTabKey);
+const parseDashboardPagesTabParam = (value: string | null): DashboardPagesTabKey => {
   const normalized = String(value || "").trim();
+  if (normalized === "preview-paginas") {
+    return "preview";
+  }
   if (isDashboardPagesTab(normalized)) {
     return normalized;
   }
@@ -332,7 +363,7 @@ const DashboardPages = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [hasLoadError, setHasLoadError] = useState(false);
   const [loadVersion, setLoadVersion] = useState(0);
-  const [activeTab, setActiveTab] = useState<PublicPageKey>(() =>
+  const [activeTab, setActiveTab] = useState<DashboardPagesTabKey>(() =>
     parseDashboardPagesTabParam(searchParams.get("tab")),
   );
   const [dragState, setDragState] = useState<{ list: string; index: number } | null>(null);
@@ -343,6 +374,8 @@ const DashboardPages = () => {
     avatarUrl?: string | null;
   } | null>(null);
   const [isLoadingUser, setIsLoadingUser] = useState(true);
+  const [isPreviewLibraryOpen, setIsPreviewLibraryOpen] = useState(false);
+  const [previewLibraryTarget, setPreviewLibraryTarget] = useState<ShareImagePageKey>("home");
 
   const qrPreview = useMemo(() => {
     if (pages.donations.qrCustomUrl) {
@@ -501,6 +534,27 @@ const DashboardPages = () => {
     setPages((prev) => ({ ...prev, team: { ...prev.team, ...patch } }));
   const updateRecruitment = (patch: Partial<PagesConfig["recruitment"]>) =>
     setPages((prev) => ({ ...prev, recruitment: { ...prev.recruitment, ...patch } }));
+  const readPageShareImage = useCallback(
+    (pageKey: ShareImagePageKey) => String(pages[pageKey]?.shareImage || "").trim(),
+    [pages],
+  );
+  const updatePageShareImage = useCallback((pageKey: ShareImagePageKey, shareImage: string) => {
+    setPages((prev) => ({
+      ...prev,
+      [pageKey]: {
+        ...prev[pageKey],
+        shareImage,
+      },
+    }));
+  }, []);
+  const openPreviewLibrary = useCallback((pageKey: ShareImagePageKey) => {
+    setPreviewLibraryTarget(pageKey);
+    setIsPreviewLibraryOpen(true);
+  }, []);
+  const currentPreviewLibrarySelection = useMemo(
+    () => readPageShareImage(previewLibraryTarget),
+    [previewLibraryTarget, readPageShareImage],
+  );
 
   const handleDragStart = (list: string, index: number) => {
     setDragState({ list, index });
@@ -616,7 +670,7 @@ const DashboardPages = () => {
                   className="mt-2 text-sm text-muted-foreground animate-slide-up opacity-0"
                   style={{ animationDelay: "0.2s" }}
                 >
-                  Edite textos, cards, badges e listas das páginas públicas.
+                  Edite textos e previews de compartilhamento das páginas públicas.
                 </p>
               </div>
               <DashboardAutosaveStatus
@@ -656,13 +710,95 @@ const DashboardPages = () => {
               className="mt-8 animate-slide-up opacity-0"
               style={{ animationDelay: "0.2s" }}
             >
-              <TabsList className="no-scrollbar flex w-full flex-nowrap justify-start overflow-x-auto overscroll-x-contain md:grid md:grid-cols-5 md:overflow-visible">
+              <TabsList className="no-scrollbar flex w-full flex-nowrap justify-start overflow-x-auto overscroll-x-contain md:grid md:grid-cols-6 md:overflow-visible">
                 {orderedPageTabs.map((tab) => (
                   <TabsTrigger key={tab.key} value={tab.key} className="shrink-0 md:w-full">
                     <span>{tab.label}</span>
                   </TabsTrigger>
                 ))}
               </TabsList>
+
+              <TabsContent value="preview" className="mt-6 space-y-6">
+                <Card className="border-border/60 bg-card/80">
+                  <CardContent className="space-y-6 p-6">
+                    <div>
+                      <h2 className="text-lg font-semibold">Previews de compartilhamento</h2>
+                      <p className="text-xs text-muted-foreground">
+                        Defina a imagem OG de cada página para links compartilhados.
+                      </p>
+                    </div>
+
+                    <div className="grid gap-4 md:grid-cols-2">
+                      {shareImagePageKeys.map((pageKey) => {
+                        const shareImage = readPageShareImage(pageKey);
+                        return (
+                          <div
+                            key={pageKey}
+                            className="rounded-2xl border border-border/60 bg-background/50 p-4 space-y-3"
+                          >
+                            <div className="space-y-1">
+                              <p className="text-sm font-semibold">{shareImagePageLabels[pageKey]}</p>
+                              <p className="text-xs text-muted-foreground">
+                                Imagem exibida no card social ao compartilhar essa URL.
+                              </p>
+                            </div>
+
+                            {shareImage ? (
+                              <div className="space-y-2">
+                                <div className="overflow-hidden rounded-lg border border-border bg-muted/20">
+                                  <img
+                                    src={normalizeAssetUrl(shareImage)}
+                                    alt={`Preview de ${shareImagePageLabels[pageKey]}`}
+                                    className="aspect-3/2 w-full object-cover"
+                                    loading="lazy"
+                                  />
+                                </div>
+                                <p className="text-xs text-muted-foreground break-all">{shareImage}</p>
+                              </div>
+                            ) : (
+                              <p className="text-xs text-muted-foreground">
+                                Sem imagem de preview definida.
+                              </p>
+                            )}
+
+                            <div className="space-y-2">
+                              <Label htmlFor={`page-preview-${pageKey}`}>URL da imagem</Label>
+                              <Input
+                                id={`page-preview-${pageKey}`}
+                                value={shareImage}
+                                placeholder="/uploads/shared/og-pagina.jpg"
+                                onChange={(event) =>
+                                  updatePageShareImage(pageKey, String(event.target.value || "").trim())
+                                }
+                              />
+                            </div>
+
+                            <div className="flex flex-wrap gap-2">
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={() => openPreviewLibrary(pageKey)}
+                              >
+                                Biblioteca
+                              </Button>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                disabled={!shareImage}
+                                onClick={() => updatePageShareImage(pageKey, "")}
+                              >
+                                Limpar
+                              </Button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </CardContent>
+                </Card>
+              </TabsContent>
 
               <TabsContent value="about" className="mt-6 space-y-6">
                 <Card className="border-border/60 bg-card/80">
@@ -1704,6 +1840,25 @@ const DashboardPages = () => {
 
           </section>
         </main>
+        <Suspense fallback={null}>
+          <ImageLibraryDialog
+            open={isPreviewLibraryOpen}
+            onOpenChange={setIsPreviewLibraryOpen}
+            apiBase={apiBase}
+            description="Escolha uma imagem para o preview de compartilhamento da página."
+            uploadFolder="shared"
+            listFolders={["shared", "posts", "projects"]}
+            listAll={false}
+            includeProjectImages
+            projectImagesView="by-project"
+            allowDeselect
+            mode="single"
+            currentSelectionUrls={currentPreviewLibrarySelection ? [currentPreviewLibrarySelection] : []}
+            onSave={({ urls }) =>
+              updatePageShareImage(previewLibraryTarget, String(urls[0] || "").trim())
+            }
+          />
+        </Suspense>
     </DashboardShell>
   );
 };

@@ -126,6 +126,9 @@ export const defaultSettings: SiteSettings = {
       "Este site segue a licença Creative Commons BY-NC. Você pode compartilhar com créditos, sem fins comerciais.",
     copyright: "© 2014 - 2026 Nekomata Fansub. Feito por fãs para fãs.",
   },
+  seo: {
+    redirects: [],
+  },
 };
 
 export const mergeSettings = <T,>(base: T, override: Partial<T> | undefined): T => {

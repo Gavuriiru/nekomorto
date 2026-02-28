@@ -585,91 +585,131 @@ const ProjectPage = () => {
     return null;
   }
 
+  const heroBannerSrc = project.banner || project.heroImageUrl || project.cover || "/placeholder.svg";
+  const heroCoverSrc = project.cover || project.banner || "/placeholder.svg";
+  const heroBannerAlt = `Banner do projeto ${project.title}`;
+
   return (
     <div className="min-h-screen bg-background text-foreground">
 
       <main>
-        <section className="relative overflow-hidden border-b border-border/60">
-          <div
-            className="absolute inset-0 bg-cover bg-center"
-            style={{ backgroundImage: `url(${project.banner})` }}
+        <section data-testid="project-hero" className="relative overflow-hidden border-b border-border/60">
+          <UploadPicture
+            src={heroBannerSrc}
+            alt={heroBannerAlt}
+            preset="hero"
+            mediaVariants={mediaVariants}
+            className="absolute inset-0 h-full w-full"
+            imgClassName="h-full w-full object-cover object-center"
+            loading="eager"
+            decoding="async"
+            {...({ fetchpriority: "high" } as Record<string, string>)}
           />
-          <div className="absolute inset-0 bg-background/30 backdrop-blur-[2px]" />
-          <div className="absolute inset-0 bg-linear-to-t from-background/85 via-background/45 to-transparent" />
+          <div className="absolute inset-0 bg-background/20 backdrop-blur-[1.5px]" />
+          <div className="absolute inset-0 bg-linear-to-r from-background/76 via-background/48 to-background/74 md:from-background/66 md:via-background/44 md:to-background/80" />
+          <div className="absolute inset-0 bg-linear-to-t from-background via-background/70 to-transparent" />
+          <div className="absolute inset-x-0 bottom-0 h-32 bg-linear-to-b from-transparent via-background/80 to-background" />
 
-          <div className="relative mx-auto flex min-h-[420px] w-full max-w-6xl flex-col items-center gap-8 px-6 pb-16 pt-24 md:flex-row md:items-center md:px-10 lg:min-h-[520px] reveal" data-reveal>
-            <div className="mx-auto w-52 shrink-0 overflow-hidden rounded-2xl bg-secondary shadow-2xl animate-slide-up opacity-0 md:mx-0 md:w-64">
-              <img
-                src={project.cover}
-                alt={project.title}
-                className="h-auto w-full object-contain"
-              />
-            </div>
-            <div className="flex w-full flex-1 flex-col items-center gap-4 text-center md:items-start md:text-left">
-              <div className="flex w-full flex-wrap items-center justify-center gap-3 text-center text-xs uppercase tracking-[0.2em] text-primary/80 animate-fade-in md:w-auto md:justify-start md:text-left">
-                <span>{project.type}</span>
-                <span className="text-muted-foreground">•</span>
-                <span>{project.status}</span>
-              </div>
-              <h1 className="text-center text-3xl font-semibold text-foreground md:text-left md:text-4xl lg:text-5xl animate-slide-up">
-                {project.title}
-              </h1>
-              <p
-                className="max-w-2xl text-center text-sm text-muted-foreground md:text-left md:text-base animate-slide-up opacity-0"
-                style={{ animationDelay: "0.2s" }}
+          <div className="relative mx-auto w-full max-w-6xl px-6 pb-20 pt-24 md:px-10 md:pb-24 lg:pt-28 lg:pb-28">
+            <div
+              data-testid="project-hero-layout"
+              className="grid items-start gap-10 lg:gap-12 reveal md:items-stretch md:grid-cols-[320px_minmax(0,1fr)] lg:grid-cols-[340px_minmax(0,1fr)]"
+              data-reveal
+            >
+              <div
+                data-testid="project-hero-cover-shell"
+                className="order-1 mx-auto w-64 md:mx-0 md:h-full md:w-[320px] lg:w-[340px]"
               >
-                {project.synopsis}
-              </p>
-              {project.tags?.length ? (
-                <div className="flex w-full flex-wrap justify-center gap-2 animate-slide-up opacity-0 md:justify-start" style={{ animationDelay: "0.3s" }}>
-                  {sortedTags.map((tag) => (
-                    <Link key={tag} to={`/projetos?tag=${encodeURIComponent(tag)}`} className="inline-flex">
-                      <Badge variant="secondary" className="text-[10px] uppercase">
-                        {translateTag(tag, tagTranslationMap)}
-                      </Badge>
-                    </Link>
-                  ))}
+                <div
+                  data-testid="project-hero-cover-frame"
+                  className="h-full overflow-hidden rounded-2xl border border-border/70 bg-secondary/90 shadow-[0_30px_100px_-55px_rgba(0,0,0,0.95)] animate-slide-up opacity-0 md:max-h-[620px]"
+                >
+                  <UploadPicture
+                    src={heroCoverSrc}
+                    alt={project.title || "Capa do projeto"}
+                    preset="card"
+                    mediaVariants={mediaVariants}
+                    className="block h-full w-full"
+                    imgClassName="h-full w-full object-cover object-center"
+                    loading="eager"
+                    decoding="async"
+                    {...({ fetchpriority: "high" } as Record<string, string>)}
+                  />
                 </div>
-              ) : null}
-              <div className="flex w-full flex-wrap justify-center gap-3 animate-slide-up opacity-0 md:justify-start" style={{ animationDelay: "0.4s" }}>
-                <Button asChild className="gap-2">
-                  <a href="#downloads">
-                    <Download className="h-4 w-4" />
-                    {isChapterBased ? "Ver capítulos" : "Ver episódios"}
-                  </a>
-                </Button>
-                {isLightNovel && firstReadableChapter ? (
-                  <Button asChild variant="outline" className="gap-2">
-                    <Link
-                      to={`/projeto/${project.id}/leitura/${firstReadableChapter.number}${
-                        firstReadableChapter.volume ? `?volume=${firstReadableChapter.volume}` : ""
-                      }`}
-                    >
-                      Começar leitura
-                    </Link>
-                  </Button>
+              </div>
+              <div
+                data-testid="project-hero-info-panel"
+                className="order-2 flex w-full flex-1 flex-col items-center gap-4 px-2 py-3 text-center md:h-full md:items-start md:px-0 md:py-2 md:text-left"
+              >
+                <div className="flex w-full flex-wrap items-center justify-center gap-3 text-center text-xs uppercase tracking-[0.2em] text-primary/80 animate-fade-in md:w-auto md:justify-start md:text-left">
+                  <span>{project.type}</span>
+                  <span className="text-muted-foreground">•</span>
+                  <span>{project.status}</span>
+                </div>
+                <h1 className="text-center text-3xl font-semibold text-foreground md:text-left md:text-4xl lg:text-5xl animate-slide-up">
+                  {project.title}
+                </h1>
+                <p
+                  className="max-w-2xl text-center text-sm text-muted-foreground md:text-left md:text-base animate-slide-up opacity-0"
+                  style={{ animationDelay: "0.2s" }}
+                >
+                  {project.synopsis}
+                </p>
+                {project.tags?.length ? (
+                  <div className="flex w-full flex-wrap justify-center gap-2 animate-slide-up opacity-0 md:justify-start" style={{ animationDelay: "0.3s" }}>
+                    {sortedTags.map((tag) => (
+                      <Link key={tag} to={`/projetos?tag=${encodeURIComponent(tag)}`} className="inline-flex">
+                        <Badge variant="secondary" className="text-[10px] uppercase">
+                          {translateTag(tag, tagTranslationMap)}
+                        </Badge>
+                      </Link>
+                    ))}
+                  </div>
                 ) : null}
-                {project.trailerUrl ? (
-                  <Button asChild variant="outline" className="gap-2">
-                    <a href={project.trailerUrl} target="_blank" rel="noreferrer">
-                      <PlayCircle className="h-4 w-4" />
-                      Assistir trailer
+                <div
+                  data-testid="project-hero-actions-row"
+                  className="flex w-full flex-wrap justify-center gap-3 animate-slide-up opacity-0 md:mt-auto md:justify-start"
+                  style={{ animationDelay: "0.4s" }}
+                >
+                  <Button asChild className="gap-2">
+                    <a href="#downloads">
+                      <Download className="h-4 w-4" />
+                      {isChapterBased ? "Ver capítulos" : "Ver episódios"}
                     </a>
                   </Button>
-                ) : null}
-                {canEditProject ? (
-                  <Button asChild variant="secondary" className="gap-2">
-                    <Link to={`/dashboard/projetos?edit=${encodeURIComponent(project.id)}`}>
-                      Editar projeto
-                    </Link>
-                  </Button>
-                ) : null}
+                  {isLightNovel && firstReadableChapter ? (
+                    <Button asChild variant="outline" className="gap-2">
+                      <Link
+                        to={`/projeto/${project.id}/leitura/${firstReadableChapter.number}${
+                          firstReadableChapter.volume ? `?volume=${firstReadableChapter.volume}` : ""
+                        }`}
+                      >
+                        Começar leitura
+                      </Link>
+                    </Button>
+                  ) : null}
+                  {project.trailerUrl ? (
+                    <Button asChild variant="outline" className="gap-2">
+                      <a href={project.trailerUrl} target="_blank" rel="noreferrer">
+                        <PlayCircle className="h-4 w-4" />
+                        Assistir trailer
+                      </a>
+                    </Button>
+                  ) : null}
+                  {canEditProject ? (
+                    <Button asChild variant="secondary" className="gap-2">
+                      <Link to={`/dashboard/projetos?edit=${encodeURIComponent(project.id)}`}>
+                        Editar projeto
+                      </Link>
+                    </Button>
+                  ) : null}
+                </div>
               </div>
             </div>
           </div>
         </section>
 
-        <section className="mx-auto w-full max-w-6xl px-6 pb-12 pt-12 md:px-10 reveal" data-reveal>
+        <section className="relative z-10 -mt-8 mx-auto w-full max-w-6xl px-6 pb-12 pt-12 md:-mt-10 md:px-10 md:pt-14 reveal" data-reveal>
           <div className="grid gap-8 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
             <div className="space-y-8">
               <Card className="border-border/60 bg-card/80 shadow-lg transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:bg-card/90 hover:shadow-lg">

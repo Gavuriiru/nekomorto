@@ -29,6 +29,7 @@ const DashboardAuditLog = lazy(() => import("./pages/DashboardAuditLog"));
 const DashboardAnalytics = lazy(() => import("./pages/DashboardAnalytics"));
 const DashboardPages = lazy(() => import("./pages/DashboardPages"));
 const DashboardSettings = lazy(() => import("./pages/DashboardSettings"));
+const DashboardRedirects = lazy(() => import("./pages/DashboardRedirects"));
 const DashboardWebhooks = lazy(() => import("./pages/DashboardWebhooks"));
 const DashboardSecurity = lazy(() => import("./pages/DashboardSecurity"));
 const Recruitment = lazy(() => import("./pages/Recruitment"));
@@ -188,6 +189,14 @@ const RouterShell = () => {
           element={wrap(
             <RequireAuth>
               <DashboardSettings />
+            </RequireAuth>,
+          )}
+        />
+        <Route
+          path="/dashboard/redirecionamentos"
+          element={wrap(
+            <RequireAuth>
+              <DashboardRedirects />
             </RequireAuth>,
           )}
         />

@@ -69,7 +69,12 @@ const getPreferenceCalls = () =>
 
 const LocationProbe = () => {
   const location = useLocation();
-  return <div data-testid="location-search">{location.search}</div>;
+  return (
+    <>
+      <div data-testid="location-path">{location.pathname}</div>
+      <div data-testid="location-search">{location.search}</div>
+    </>
+  );
 };
 
 describe("DashboardPages query sync", () => {
@@ -95,6 +100,24 @@ describe("DashboardPages query sync", () => {
     expect(getPreferenceCalls()).toHaveLength(0);
   });
 
+  it("aplica aba Preview vinda de ?tab=preview", async () => {
+    setupApiMock();
+
+    render(
+      <MemoryRouter initialEntries={["/dashboard/paginas?tab=preview"]}>
+        <DashboardPages />
+        <LocationProbe />
+      </MemoryRouter>,
+    );
+
+    await screen.findByRole("heading", { name: /Gerenciar/i });
+    await waitFor(() => {
+      expect(screen.getByRole("tab", { name: /Preview/i })).toHaveAttribute("aria-selected", "true");
+      expect(screen.getByTestId("location-search").textContent).toBe("?tab=preview");
+    });
+    expect(getPreferenceCalls()).toHaveLength(0);
+  });
+
   it("atualiza tab na URL ao trocar de aba", async () => {
     setupApiMock();
 
@@ -111,6 +134,25 @@ describe("DashboardPages query sync", () => {
     await waitFor(() => {
       const search = String(screen.getByTestId("location-search").textContent || "");
       expect(search).toContain("tab=faq");
+    });
+    expect(getPreferenceCalls()).toHaveLength(0);
+  });
+
+  it("aceita alias legado ?tab=preview-paginas e normaliza para ?tab=preview", async () => {
+    setupApiMock();
+
+    render(
+      <MemoryRouter initialEntries={["/dashboard/paginas?tab=preview-paginas"]}>
+        <DashboardPages />
+        <LocationProbe />
+      </MemoryRouter>,
+    );
+
+    await screen.findByRole("heading", { name: /Gerenciar/i });
+    await waitFor(() => {
+      expect(screen.getByRole("tab", { name: /Preview/i })).toHaveAttribute("aria-selected", "true");
+      expect(screen.getByTestId("location-path").textContent).toBe("/dashboard/paginas");
+      expect(screen.getByTestId("location-search").textContent).toBe("?tab=preview");
     });
     expect(getPreferenceCalls()).toHaveLength(0);
   });

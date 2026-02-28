@@ -49,7 +49,7 @@ const mockJsonResponse = (ok: boolean, payload: unknown, status = ok ? 200 : 500
     json: async () => payload,
   }) as Response;
 
-const setupApiMock = ({ canManagePages }: { canManagePages: boolean }) => {
+const setupApiMock = () => {
   apiFetchMock.mockReset();
   refreshMock.mockClear();
   apiFetchMock.mockImplementation(async (_base: string, path: string, options?: RequestInit) => {
@@ -73,22 +73,6 @@ const setupApiMock = ({ canManagePages }: { canManagePages: boolean }) => {
     if (path === "/api/link-types" && method === "GET") {
       return mockJsonResponse(true, { items: [] });
     }
-    if (path === "/api/pages" && method === "GET") {
-      if (!canManagePages) {
-        return mockJsonResponse(false, { error: "forbidden" }, 403);
-      }
-      return mockJsonResponse(true, {
-        pages: {
-          home: { shareImage: "" },
-          projects: { shareImage: "" },
-          about: { shareImage: "" },
-          donations: { shareImage: "" },
-          faq: { shareImage: "" },
-          team: { shareImage: "" },
-          recruitment: { shareImage: "" },
-        },
-      });
-    }
     if (path === "/api/settings" && method === "PUT") {
       const request = (options || {}) as RequestInit & { json?: unknown };
       const payload =
@@ -106,9 +90,6 @@ const setupApiMock = ({ canManagePages }: { canManagePages: boolean }) => {
     if (path === "/api/link-types" && method === "PUT") {
       return mockJsonResponse(true, { items: [] });
     }
-    if (path === "/api/pages" && method === "PUT") {
-      return mockJsonResponse(true, { pages: {} });
-    }
     return mockJsonResponse(false, { error: "not_found" }, 404);
   });
 };
@@ -121,7 +102,12 @@ const getPreferenceCalls = () =>
 
 const LocationProbe = () => {
   const location = useLocation();
-  return <div data-testid="location-search">{location.search}</div>;
+  return (
+    <>
+      <div data-testid="location-path">{location.pathname}</div>
+      <div data-testid="location-search">{location.search}</div>
+    </>
+  );
 };
 
 describe("DashboardSettings query sync", () => {
@@ -132,7 +118,7 @@ describe("DashboardSettings query sync", () => {
   });
 
   it("aplica aba vinda de ?tab=", async () => {
-    setupApiMock({ canManagePages: true });
+    setupApiMock();
 
     render(
       <MemoryRouter initialEntries={["/dashboard/configuracoes?tab=traducoes"]}>
@@ -149,8 +135,26 @@ describe("DashboardSettings query sync", () => {
     expect(getPreferenceCalls()).toHaveLength(0);
   });
 
+  it("redireciona legado ?tab=seo para /dashboard/redirecionamentos", async () => {
+    setupApiMock();
+
+    render(
+      <MemoryRouter initialEntries={["/dashboard/configuracoes?tab=seo"]}>
+        <DashboardSettings />
+        <LocationProbe />
+      </MemoryRouter>,
+    );
+
+    await screen.findByRole("heading", { name: /Painel de ajustes/i });
+    await waitFor(() => {
+      expect(screen.getByTestId("location-path").textContent).toBe("/dashboard/redirecionamentos");
+      expect(screen.getByTestId("location-search").textContent).toBe("");
+    });
+    expect(getPreferenceCalls()).toHaveLength(0);
+  });
+
   it("tab invalida cai para default e limpa a URL", async () => {
-    setupApiMock({ canManagePages: true });
+    setupApiMock();
 
     render(
       <MemoryRouter initialEntries={["/dashboard/configuracoes?tab=invalida"]}>
@@ -167,8 +171,8 @@ describe("DashboardSettings query sync", () => {
     expect(getPreferenceCalls()).toHaveLength(0);
   });
 
-  it("preview-paginas sem permissao cai no default e limpa a URL", async () => {
-    setupApiMock({ canManagePages: false });
+  it("redireciona legado ?tab=preview-paginas para /dashboard/paginas?tab=preview", async () => {
+    setupApiMock();
 
     render(
       <MemoryRouter initialEntries={["/dashboard/configuracoes?tab=preview-paginas"]}>
@@ -179,15 +183,14 @@ describe("DashboardSettings query sync", () => {
 
     await screen.findByRole("heading", { name: /Painel de ajustes/i });
     await waitFor(() => {
-      expect(screen.queryByRole("tab", { name: /Preview/i })).not.toBeInTheDocument();
-      expect(screen.getByRole("tab", { name: /Geral/i })).toHaveAttribute("aria-selected", "true");
-      expect(screen.getByTestId("location-search").textContent).toBe("");
+      expect(screen.getByTestId("location-path").textContent).toBe("/dashboard/paginas");
+      expect(screen.getByTestId("location-search").textContent).toBe("?tab=preview");
     });
     expect(getPreferenceCalls()).toHaveLength(0);
   });
 
   it("troca de aba atualiza ?tab= e aba default remove o parametro", async () => {
-    setupApiMock({ canManagePages: true });
+    setupApiMock();
 
     render(
       <MemoryRouter initialEntries={["/dashboard/configuracoes"]}>

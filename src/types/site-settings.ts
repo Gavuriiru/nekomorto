@@ -79,4 +79,12 @@ export type SiteSettings = {
     highlightDescription: string;
     copyright: string;
   };
+  seo: {
+    redirects: Array<{
+      id: string;
+      from: string;
+      to: string;
+      enabled: boolean;
+    }>;
+  };
 };

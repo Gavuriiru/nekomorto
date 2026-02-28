@@ -93,6 +93,8 @@ import { applySecurityHeaders, injectNonceIntoHtmlScripts } from "./lib/security
 import { establishAuthenticatedSession } from "./lib/session-auth.js";
 import { buildSessionCookieConfig } from "./lib/session-cookie-config.js";
 import { buildSitemapXml } from "./lib/sitemap-xml.js";
+import { normalizePublicRedirects, resolvePublicRedirect } from "./lib/public-redirects.js";
+import { buildSchemaOrgPayload, serializeSchemaOrgEntry } from "./lib/schema-org.js";
 import {
   buildOtpAuthUrl,
   generateRecoveryCodes,
@@ -1682,6 +1684,23 @@ const upsertLink = (html, rel, href) => {
 const replaceTitle = (html, title) =>
   html.replace(/<title>.*?<\/title>/i, `<title>${escapeHtml(title)}</title>`);
 
+const appendStructuredDataScripts = (html, structuredData) => {
+  const entries = Array.isArray(structuredData) ? structuredData : [];
+  if (entries.length === 0) {
+    return html;
+  }
+  const scripts = entries
+    .filter((entry) => entry && typeof entry === "object")
+    .map(
+      (entry) =>
+        `  <script type="application/ld+json" data-schema-org="true">${serializeSchemaOrgEntry(entry)}</script>`,
+    );
+  if (scripts.length === 0) {
+    return html;
+  }
+  return html.replace("</head>", `${scripts.join("\n")}\n</head>`);
+};
+
 const renderMetaHtml = ({
   title,
   description,
@@ -1690,6 +1709,7 @@ const renderMetaHtml = ({
   type = "website",
   siteName,
   favicon,
+  structuredData = [],
 }) => {
   let html = getIndexHtml();
   const safeUrl = url || PRIMARY_APP_ORIGIN;
@@ -1713,6 +1733,7 @@ const renderMetaHtml = ({
   if (favicon) {
     html = upsertLink(html, "icon", toAbsoluteUrl(favicon));
   }
+  html = appendStructuredDataScripts(html, structuredData);
   return html;
 };
 
@@ -1920,6 +1941,7 @@ const getPageTitleFromPath = (value) => {
     [/^\/dashboard\/comentarios\/?$/, "Comentários"],
     [/^\/dashboard\/paginas\/?$/, "Páginas"],
     [/^\/dashboard\/configuracoes\/?$/, "Configurações"],
+    [/^\/dashboard\/redirecionamentos\/?$/, "Redirecionamentos"],
     [/^\/dashboard\/?$/, "Dashboard"],
   ];
   const match = rules.find(([regex]) => regex.test(pathValue));
@@ -3681,6 +3703,9 @@ const defaultSiteSettings = {
       "Este site segue a licença Creative Commons BY-NC. Você pode compartilhar com créditos, sem fins comerciais.",
     copyright: "© 2014 - 2026 Nekomata Fansub. Feito por fãs para fãs.",
   },
+  seo: {
+    redirects: [],
+  },
 };
 
 const mergeSettings = (base, override) => {
@@ -4050,6 +4075,10 @@ const normalizeSiteSettings = (payload) => {
       }))
       .filter((link) => link.label && link.href);
   }
+  merged.seo = {
+    ...(merged.seo && typeof merged.seo === "object" ? merged.seo : {}),
+    redirects: normalizePublicRedirects(merged?.seo?.redirects),
+  };
   return normalizeUploadsDeep(merged);
 };
 
@@ -13101,35 +13130,92 @@ app.post("/api/logout", (req, res) => {
   res.json({ ok: true });
 });
 
+app.use((req, res, next) => {
+  const method = String(req.method || "").toUpperCase();
+  if (method !== "GET" && method !== "HEAD") {
+    return next();
+  }
+  let search = "";
+  try {
+    const parsedUrl = new URL(req.originalUrl || req.url || req.path || "/", PRIMARY_APP_ORIGIN);
+    search = parsedUrl.search || "";
+  } catch {
+    search = "";
+  }
+  const settings = loadSiteSettings();
+  const redirect = resolvePublicRedirect({
+    redirects: settings?.seo?.redirects,
+    pathname: req.path,
+    search,
+  });
+  if (!redirect?.location) {
+    return next();
+  }
+  return res.redirect(301, redirect.location);
+});
+
 app.get(
-  ["/", "/projeto/:id", "/projeto/:id/leitura/:chapter", "/postagem/:slug"],
+  [
+    "/",
+    "/projeto/:id",
+    "/projeto/:id/leitura/:chapter",
+    "/projetos/:id",
+    "/projetos/:id/leitura/:chapter",
+    "/postagem/:slug",
+  ],
   async (req, res) => {
     try {
+      const settings = loadSiteSettings();
+      const pages = loadPages();
+      const canonicalUrl = `${PRIMARY_APP_ORIGIN}${req.path}`;
       if (req.path.startsWith("/postagem/")) {
         const slug = String(req.params.slug || "");
         const post = normalizePosts(loadPosts()).find((item) => item.slug === slug);
-        const meta = post ? buildPostMeta(post) : buildSiteMeta();
+        const meta = post ? buildPostMeta(post) : buildSiteMetaWithSettings(settings);
+        const structuredData = buildSchemaOrgPayload({
+          origin: PRIMARY_APP_ORIGIN,
+          pathname: req.path,
+          canonicalUrl,
+          settings,
+          pages,
+          post: post || null,
+        });
         return await sendHtml(
           req,
           res,
-          renderMetaHtml({ ...meta, url: `${PRIMARY_APP_ORIGIN}${req.path}` }),
+          renderMetaHtml({ ...meta, url: canonicalUrl, structuredData }),
         );
       }
-      if (req.path.startsWith("/projeto/")) {
+      if (req.path.startsWith("/projeto/") || req.path.startsWith("/projetos/")) {
         const id = String(req.params.id || "");
         const project = normalizeProjects(loadProjects()).find((item) => String(item.id) === id);
-        const meta = project ? buildProjectMeta(project) : buildSiteMeta();
+        const meta = project ? buildProjectMeta(project) : buildSiteMetaWithSettings(settings);
+        const structuredData = buildSchemaOrgPayload({
+          origin: PRIMARY_APP_ORIGIN,
+          pathname: req.path,
+          canonicalUrl,
+          settings,
+          pages,
+          project: project || null,
+        });
         return await sendHtml(
           req,
           res,
-          renderMetaHtml({ ...meta, url: `${PRIMARY_APP_ORIGIN}${req.path}` }),
+          renderMetaHtml({ ...meta, url: canonicalUrl, structuredData }),
         );
       }
-      const meta = buildSiteMeta();
+      const meta = buildSiteMetaWithSettings(settings);
+      const structuredData = buildSchemaOrgPayload({
+        origin: PRIMARY_APP_ORIGIN,
+        pathname: req.path,
+        canonicalUrl,
+        settings,
+        pages,
+      });
       return await sendHtml(
         req,
         res,
-        renderMetaHtml({ ...meta, url: `${PRIMARY_APP_ORIGIN}${req.path}` }),
+        renderMetaHtml({ ...meta, url: canonicalUrl, structuredData }),
       );
     } catch {
       return await sendHtml(req, res, getIndexHtml());
@@ -13143,15 +13229,24 @@ app.get("*", async (req, res) => {
   }
   try {
     const settings = loadSiteSettings();
+    const pages = loadPages();
     const meta = buildSiteMetaWithSettings(settings);
     const siteName = settings.site?.name || "Nekomata";
     const separator = settings.site?.titleSeparator ?? "";
     const pageTitle = getPageTitleFromPath(req.path);
     const title = pageTitle ? `${pageTitle}${separator}${siteName}` : siteName;
+    const canonicalUrl = `${PRIMARY_APP_ORIGIN}${req.path}`;
+    const structuredData = buildSchemaOrgPayload({
+      origin: PRIMARY_APP_ORIGIN,
+      pathname: req.path,
+      canonicalUrl,
+      settings,
+      pages,
+    });
     return await sendHtml(
       req,
       res,
-      renderMetaHtml({ ...meta, title, url: `${PRIMARY_APP_ORIGIN}${req.path}` }),
+      renderMetaHtml({ ...meta, title, url: canonicalUrl, structuredData }),
     );
   } catch {
     return await sendHtml(req, res, getIndexHtml());

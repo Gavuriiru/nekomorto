@@ -120,19 +120,6 @@ describe("DashboardSettings autosave", () => {
           ],
         });
       }
-      if (path === "/api/pages" && method === "GET") {
-        return mockJsonResponse(true, {
-          pages: {
-            home: { shareImage: "" },
-            projects: { shareImage: "" },
-            about: { shareImage: "" },
-            donations: { shareImage: "" },
-            faq: { shareImage: "" },
-            team: { shareImage: "" },
-            recruitment: { shareImage: "" },
-          },
-        });
-      }
       if (path === "/api/tag-translations/anilist-sync" && method === "POST") {
         return mockJsonResponse(true, {
           tags: { Action: "Ação" },
@@ -156,10 +143,6 @@ describe("DashboardSettings autosave", () => {
         const body = JSON.parse(String((options as RequestInit).body || "{}"));
         return mockJsonResponse(true, { items: body.items || [] });
       }
-      if (path === "/api/pages" && method === "PUT") {
-        const body = JSON.parse(String((options as RequestInit).body || "{}"));
-        return mockJsonResponse(true, { pages: body.pages || {} });
-      }
       return mockJsonResponse(false, { error: "not_found" }, 404);
     });
   });
@@ -173,7 +156,7 @@ describe("DashboardSettings autosave", () => {
     expect(tablistClasses).toContain("no-scrollbar");
     expect(tablistClasses).toContain("overflow-x-auto");
     expect(tablistClasses).toContain("md:grid");
-    expect(tablistClasses).toContain("md:grid-cols-8");
+    expect(tablistClasses).toContain("md:grid-cols-7");
 
     const tabs = within(tablist).getAllByRole("tab");
     expect(tabs.length).toBeGreaterThan(0);
@@ -198,28 +181,6 @@ describe("DashboardSettings autosave", () => {
     const putCalls = getPutCalls();
     expect(putCalls).toHaveLength(1);
     expect(putCalls[0][1]).toBe("/api/settings");
-  });
-
-  it("editar preview de pagina dispara apenas PUT /api/pages", async () => {
-    renderDashboardSettings();
-    await screen.findByRole("heading", { name: /Painel/i });
-
-    fireEvent.mouseDown(screen.getByRole("tab", { name: /Preview páginas/i }));
-    apiFetchMock.mockClear();
-
-    const homePreviewInput = await screen.findByLabelText(/URL da imagem/i, {
-      selector: "#page-preview-home",
-    });
-    fireEvent.change(homePreviewInput, { target: { value: "/uploads/shared/home-og.jpg" } });
-
-    await act(async () => {
-      await waitMs(1300);
-      await flushMicrotasks();
-    });
-
-    const putCalls = getPutCalls();
-    expect(putCalls).toHaveLength(1);
-    expect(putCalls[0][1]).toBe("/api/pages");
   });
 
   it("envia theme.mode no payload de configuracoes", async () => {

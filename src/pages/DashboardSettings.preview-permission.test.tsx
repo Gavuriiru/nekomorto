@@ -53,7 +53,7 @@ const mockJsonResponse = (ok: boolean, payload: unknown, status = ok ? 200 : 500
     json: async () => payload,
   }) as Response;
 
-describe("DashboardSettings preview permission gate", () => {
+describe("DashboardSettings sem preview de paginas", () => {
   beforeEach(() => {
     window.localStorage.clear();
     apiFetchMock.mockReset();
@@ -77,9 +77,6 @@ describe("DashboardSettings preview permission gate", () => {
       if (path === "/api/link-types" && method === "GET") {
         return mockJsonResponse(true, { items: [] });
       }
-      if (path === "/api/pages" && method === "GET") {
-        return mockJsonResponse(false, { error: "forbidden" }, 403);
-      }
       if (path === "/api/tag-translations/anilist-sync" && method === "POST") {
         return mockJsonResponse(true, { tags: {}, genres: {}, staffRoles: {} });
       }
@@ -87,7 +84,7 @@ describe("DashboardSettings preview permission gate", () => {
     });
   });
 
-  it("oculta a aba de preview quando /api/pages retorna 403", async () => {
+  it("nao renderiza a aba Preview e nao chama /api/pages", async () => {
     render(
       <MemoryRouter initialEntries={["/dashboard/configuracoes"]}>
         <DashboardSettings />
@@ -96,6 +93,9 @@ describe("DashboardSettings preview permission gate", () => {
     await screen.findByRole("heading", { name: /Painel/i });
 
     const tablist = screen.getByRole("tablist");
-    expect(within(tablist).queryByRole("tab", { name: /Preview páginas/i })).not.toBeInTheDocument();
+    expect(within(tablist).queryByRole("tab", { name: /Preview/i })).not.toBeInTheDocument();
+    expect(
+      apiFetchMock.mock.calls.some((call) => String(call[1] || "") === "/api/pages"),
+    ).toBe(false);
   });
 });

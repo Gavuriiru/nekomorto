@@ -874,6 +874,10 @@ const DashboardProjectsEditor = () => {
   const [episodeCoverIndex, setEpisodeCoverIndex] = useState<number | null>(null);
   const chapterEditorsRef = useRef<Record<number, LexicalEditorHandle | null>>({});
   const episodeSizeInputRefs = useRef<Record<number, HTMLInputElement | null>>({});
+  const pendingAddAutoScrollRef = useRef(false);
+  const pendingEpisodeToScrollRef = useRef<ProjectEpisode | null>(null);
+  const previousEpisodeCountRef = useRef(0);
+  const episodeCardNodeMapRef = useRef<WeakMap<ProjectEpisode, HTMLDivElement>>(new WeakMap());
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [confirmTitle, setConfirmTitle] = useState("Sair da edição?");
   const [confirmDescription, setConfirmDescription] = useState(
@@ -1223,6 +1227,53 @@ const DashboardProjectsEditor = () => {
       return next;
     });
   }, [formState.episodeDownloads, isChapterBased, sortedEpisodeDownloads]);
+
+  useEffect(() => {
+    const currentCount = formState.episodeDownloads.length;
+    const previousCount = previousEpisodeCountRef.current;
+    if (pendingAddAutoScrollRef.current && currentCount > previousCount) {
+      const latestEpisode = formState.episodeDownloads.at(-1) || null;
+      pendingEpisodeToScrollRef.current = latestEpisode;
+      pendingAddAutoScrollRef.current = false;
+
+      if (latestEpisode) {
+        const latestEpisodeIndex = currentCount - 1;
+        setCollapsedEpisodes((prev) => ({
+          ...prev,
+          [latestEpisodeIndex]: false,
+        }));
+      }
+    }
+    previousEpisodeCountRef.current = currentCount;
+  }, [formState.episodeDownloads]);
+
+  useEffect(() => {
+    const pendingEpisode = pendingEpisodeToScrollRef.current;
+    if (!pendingEpisode) {
+      return;
+    }
+    const episodeCardNode = episodeCardNodeMapRef.current.get(pendingEpisode);
+    if (!episodeCardNode) {
+      return;
+    }
+
+    const frameId = requestAnimationFrame(() => {
+      const latestNode = episodeCardNodeMapRef.current.get(pendingEpisode);
+      if (!latestNode) {
+        return;
+      }
+      latestNode.scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+        inline: "nearest",
+      });
+      pendingEpisodeToScrollRef.current = null;
+    });
+
+    return () => {
+      cancelAnimationFrame(frameId);
+    };
+  }, [sortedEpisodeDownloads]);
 
   const applyLibraryImage = (url: string, _altText?: string) => {
     setFormState((prev) => {
@@ -2209,6 +2260,28 @@ const DashboardProjectsEditor = () => {
       producers: prev.producers.includes(next) ? prev.producers : [...prev.producers, next],
     }));
     setProducerInput("");
+  };
+
+  const handleAddEpisodeDownload = () => {
+    pendingAddAutoScrollRef.current = true;
+    setFormState((prev) => {
+      const newEpisode: ProjectEpisode = {
+        number: prev.episodeDownloads.length + 1,
+        volume: undefined,
+        title: "",
+        releaseDate: "",
+        duration: "",
+        coverImageUrl: "",
+        sourceType: "TV",
+        sources: [],
+        progressStage: "aguardando-raw",
+        completedStages: [],
+        content: "",
+        contentFormat: "lexical",
+      };
+      const next = [...prev.episodeDownloads, newEpisode];
+      return { ...prev, episodeDownloads: next };
+    });
   };
 
   const handleRelationDrop = (targetIndex: number) => {

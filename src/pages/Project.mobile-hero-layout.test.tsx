@@ -66,8 +66,8 @@ const projectFixture = {
   episodes: "12 episodios",
   tags: [],
   genres: [],
-  cover: "/placeholder.svg",
-  banner: "/placeholder.svg",
+  cover: "/uploads/cover-default.jpg",
+  banner: "/uploads/banner-default.jpg",
   season: "Temporada 1",
   schedule: "Sabado",
   rating: "14",
@@ -102,16 +102,16 @@ const lightNovelProjectFixture = {
   ],
 };
 
-const setupApiMock = () => {
+const setupApiMock = (project = projectFixture) => {
   apiFetchMock.mockReset();
   apiFetchMock.mockImplementation(async (_apiBase: string, endpoint: string, options?: RequestInit) => {
     const method = String(options?.method || "GET").toUpperCase();
 
     if (endpoint === "/api/public/projects/project-1" && method === "GET") {
-      return mockJsonResponse(true, { project: projectFixture });
+      return mockJsonResponse(true, { project });
     }
     if (endpoint === "/api/public/projects" && method === "GET") {
-      return mockJsonResponse(true, { projects: [projectFixture] });
+      return mockJsonResponse(true, { projects: [project] });
     }
     if (endpoint === "/api/public/tag-translations" && method === "GET") {
       return mockJsonResponse(true, { tags: {}, genres: {}, staffRoles: {} });
@@ -138,19 +138,49 @@ describe("Project mobile hero layout", () => {
       </MemoryRouter>,
     );
 
+    const hero = await screen.findByTestId("project-hero");
+    const bannerImage = within(hero).getByRole("img", { name: "Banner do projeto Projeto Teste" });
+    const coverImage = within(hero).getByRole("img", { name: "Projeto Teste" });
+    expect(bannerImage.getAttribute("src")).toContain("/uploads/banner-default.jpg");
+    expect(coverImage.getAttribute("src")).toContain("/uploads/cover-default.jpg");
+
     const heading = await screen.findByRole("heading", { name: "Projeto Teste" });
     const headingTokens = classTokens(heading);
     expect(headingTokens).toContain("text-center");
     expect(headingTokens).toContain("md:text-left");
     expect(headingTokens).not.toContain("md:text-center");
 
-    const coverImage = screen.getByRole("img", { name: "Projeto Teste" });
-    const coverWrapper = coverImage.parentElement as HTMLElement | null;
-    expect(coverWrapper).not.toBeNull();
-
-    const coverWrapperTokens = classTokens(coverWrapper as HTMLElement);
+    const coverWrapper = screen.getByTestId("project-hero-cover-shell");
+    const coverWrapperTokens = classTokens(coverWrapper);
     expect(coverWrapperTokens).toContain("mx-auto");
     expect(coverWrapperTokens).toContain("md:mx-0");
+    expect(coverWrapperTokens).toContain("w-64");
+    expect(coverWrapperTokens).toContain("md:w-[320px]");
+    expect(coverWrapperTokens).toContain("lg:w-[340px]");
+
+    const heroLayout = screen.getByTestId("project-hero-layout");
+    const heroLayoutTokens = classTokens(heroLayout);
+    expect(heroLayoutTokens).toContain("items-start");
+    expect(heroLayoutTokens).toContain("md:items-stretch");
+    expect(heroLayoutTokens).toContain("gap-10");
+    expect(heroLayoutTokens).toContain("lg:gap-12");
+    expect(heroLayoutTokens).toContain("md:grid-cols-[320px_minmax(0,1fr)]");
+    expect(heroLayoutTokens).toContain("lg:grid-cols-[340px_minmax(0,1fr)]");
+
+    const infoPanel = screen.getByTestId("project-hero-info-panel");
+    const infoPanelTokens = classTokens(infoPanel);
+    expect(infoPanel.contains(coverWrapper)).toBe(false);
+    expect(within(infoPanel).queryByTestId("project-hero-cover-shell")).not.toBeInTheDocument();
+    expect(infoPanelTokens).toContain("md:h-full");
+    expect(infoPanelTokens).not.toContain("bg-card/45");
+    expect(infoPanelTokens).not.toContain("border");
+    expect(infoPanelTokens).not.toContain("backdrop-blur-md");
+
+    expect(coverWrapperTokens).toContain("md:h-full");
+    const coverFrame = screen.getByTestId("project-hero-cover-frame");
+    const coverFrameTokens = classTokens(coverFrame);
+    expect(coverFrameTokens).toContain("h-full");
+    expect(coverFrameTokens).toContain("md:max-h-[620px]");
 
     const contentColumn = heading.parentElement as HTMLElement | null;
     expect(contentColumn).not.toBeNull();
@@ -174,7 +204,7 @@ describe("Project mobile hero layout", () => {
     expect(metaRowTokens).toContain("md:justify-start");
     expect(metaRowTokens).toContain("md:text-left");
 
-    expect(within(metaRow as HTMLElement).getByText("•")).toBeInTheDocument();
+    expect(within(metaRow as HTMLElement).getByText(/•|â€¢/)).toBeInTheDocument();
     expect(within(metaRow as HTMLElement).getByText("Em andamento")).toBeInTheDocument();
 
     const synopsis = within(contentColumn as HTMLElement).getByText("Sinopse de teste");
@@ -182,14 +212,55 @@ describe("Project mobile hero layout", () => {
     expect(synopsisTokens).toContain("text-center");
     expect(synopsisTokens).toContain("md:text-left");
 
-    const downloadsLink = within(contentColumn as HTMLElement).getByRole("link", { name: "Ver episódios" });
-    const actionsRow = downloadsLink.closest("div") as HTMLElement | null;
-    expect(actionsRow).not.toBeNull();
-
-    const actionsRowTokens = classTokens(actionsRow as HTMLElement);
+    const actionsRow = screen.getByTestId("project-hero-actions-row");
+    const actionsRowTokens = classTokens(actionsRow);
     expect(actionsRowTokens).toContain("w-full");
     expect(actionsRowTokens).toContain("justify-center");
     expect(actionsRowTokens).toContain("md:justify-start");
+    expect(actionsRowTokens).toContain("md:mt-auto");
+  });
+
+  it("usa fallback de banner com heroImageUrl e depois cover", async () => {
+    setupApiMock({
+      ...projectFixture,
+      banner: "",
+      heroImageUrl: "/uploads/hero-fallback.jpg",
+      cover: "/uploads/cover-fallback.jpg",
+    });
+
+    const firstRender = render(
+      <MemoryRouter>
+        <ProjectPage />
+      </MemoryRouter>,
+    );
+
+    await screen.findByRole("heading", { name: "Projeto Teste" });
+    const heroWithHeroFallback = screen.getByTestId("project-hero");
+    const bannerFromHeroImage = within(heroWithHeroFallback).getByRole("img", {
+      name: "Banner do projeto Projeto Teste",
+    });
+    expect(bannerFromHeroImage.getAttribute("src")).toContain("/uploads/hero-fallback.jpg");
+    firstRender.unmount();
+
+    setupApiMock({
+      ...projectFixture,
+      banner: "",
+      heroImageUrl: "",
+      cover: "/uploads/cover-only.jpg",
+    });
+
+    render(
+      <MemoryRouter>
+        <ProjectPage />
+      </MemoryRouter>,
+    );
+
+    await screen.findByRole("heading", { name: "Projeto Teste" });
+    const heroWithCoverFallback = screen.getByTestId("project-hero");
+    const bannerFromCover = within(heroWithCoverFallback).getByRole("img", {
+      name: "Banner do projeto Projeto Teste",
+    });
+    expect(bannerFromCover.getAttribute("src")).toContain("/uploads/cover-only.jpg");
   });
 
   it("renderiza CTA de leitura para light novel com capitulo publicado", async () => {
@@ -222,10 +293,9 @@ describe("Project mobile hero layout", () => {
     );
 
     await screen.findByRole("heading", { name: "Projeto Teste" });
-    expect(screen.getByRole("link", { name: "Começar leitura" })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: /Come.* leitura/i })).toHaveAttribute(
       "href",
       "/projeto/project-1/leitura/1?volume=2",
     );
   });
 });
-

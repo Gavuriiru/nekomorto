@@ -30,6 +30,7 @@ const titleForPath = (path: string) => {
     [/^\/dashboard\/paginas\/?$/, "Páginas"],
     [/^\/dashboard\/webhooks\/?$/, "Webhooks"],
     [/^\/dashboard\/configuracoes\/?$/, "Configurações"],
+    [/^\/dashboard\/redirecionamentos\/?$/, "Redirecionamentos"],
     [/^\/dashboard\/?$/, "Dashboard"],
   ];
   const match = rules.find(([regex]) => regex.test(path));

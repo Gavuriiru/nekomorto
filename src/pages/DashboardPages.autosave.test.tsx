@@ -144,7 +144,7 @@ describe("DashboardPages autosave", () => {
     expect(tablistClasses).toContain("no-scrollbar");
     expect(tablistClasses).toContain("overflow-x-auto");
     expect(tablistClasses).toContain("md:grid");
-    expect(tablistClasses).toContain("md:grid-cols-5");
+    expect(tablistClasses).toContain("md:grid-cols-6");
 
     const tabs = within(tablist).getAllByRole("tab");
     expect(tabs.length).toBeGreaterThan(0);
@@ -166,6 +166,55 @@ describe("DashboardPages autosave", () => {
     });
 
     expect(getPutPageCalls()).toHaveLength(1);
+  });
+
+  it("editar preview dispara PUT /api/pages apos debounce", async () => {
+    renderDashboardPages();
+    await screen.findByRole("heading", { name: /Gerenciar/i });
+
+    fireEvent.mouseDown(screen.getByRole("tab", { name: /Preview/i }));
+    apiFetchMock.mockClear();
+
+    const homePreviewInput = await screen.findByLabelText(/URL da imagem/i, {
+      selector: "#page-preview-home",
+    });
+    fireEvent.change(homePreviewInput, { target: { value: "/uploads/shared/home-og.jpg" } });
+
+    await act(async () => {
+      await waitMs(1300);
+      await flushMicrotasks();
+    });
+
+    const putCalls = getPutPageCalls();
+    expect(putCalls).toHaveLength(1);
+    const payload = JSON.parse(String(((putCalls[0][2] || {}) as RequestInit).body || "{}"));
+    expect(payload.pages?.home?.shareImage).toBe("/uploads/shared/home-og.jpg");
+  });
+
+  it("seleciona imagem via biblioteca no preview e persiste no payload", async () => {
+    renderDashboardPages();
+    await screen.findByRole("heading", { name: /Gerenciar/i });
+
+    fireEvent.mouseDown(screen.getByRole("tab", { name: /Preview/i }));
+    apiFetchMock.mockClear();
+
+    const libraryButtons = await screen.findAllByRole("button", { name: /Biblioteca/i });
+    fireEvent.click(libraryButtons[0]);
+
+    const saveFromLibrary = await screen.findByRole("button", { name: /Mock salvar biblioteca/i });
+    fireEvent.click(saveFromLibrary);
+
+    await act(async () => {
+      await waitMs(1300);
+      await flushMicrotasks();
+    });
+
+    const putCalls = getPutPageCalls();
+    expect(putCalls.length).toBeGreaterThan(0);
+    const lastPayload = JSON.parse(
+      String(((putCalls[putCalls.length - 1]?.[2] || {}) as RequestInit).body || "{}"),
+    );
+    expect(lastPayload.pages?.home?.shareImage).toBe("/uploads/shared/og-preview.jpg");
   });
 
   it("reordena perguntas da FAQ e persiste a nova ordem no autosave", async () => {
