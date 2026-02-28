@@ -14,9 +14,9 @@ import {
 import LatestEpisodeCard from "./LatestEpisodeCard";
 import WorkStatusCard from "./WorkStatusCard";
 import DiscordInviteCard from "./DiscordInviteCard";
+import UploadPicture from "./UploadPicture";
 import { CalendarDays, User } from "lucide-react";
 import { usePublicBootstrap } from "@/hooks/use-public-bootstrap";
-import { normalizeAssetUrl } from "@/lib/asset-url";
 import { formatDate } from "@/lib/date";
 import { cn } from "@/lib/utils";
 
@@ -27,6 +27,7 @@ const ReleasesSection = () => {
   const { data: bootstrapData, isLoading } = usePublicBootstrap();
   const posts = bootstrapData?.posts || [];
   const projects = bootstrapData?.projects || [];
+  const mediaVariants = bootstrapData?.mediaVariants || {};
   const isLoadingPosts = isLoading && !bootstrapData;
   const tagTranslations = bootstrapData?.tagTranslations?.tags || {};
   const totalPages = Math.ceil(posts.length / pageSize) || 1;
@@ -100,10 +101,13 @@ const ReleasesSection = () => {
                       <Card className="bg-card border-border h-full overflow-hidden transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:bg-card/90 hover:shadow-lg">
                         <CardContent className="p-0 flex flex-col h-full">
                             <div className="relative w-full aspect-3/2 overflow-hidden bg-secondary">
-                              <img
-                                src={normalizeAssetUrl(release.coverImageUrl) || "/placeholder.svg"}
+                              <UploadPicture
+                                src={release.coverImageUrl}
                                 alt={release.title}
-                                className="absolute inset-0 block h-full w-full object-cover object-center transition-transform duration-300 group-hover:scale-105"
+                                preset="card"
+                                mediaVariants={mediaVariants}
+                                className="absolute inset-0 block h-full w-full"
+                                imgClassName="absolute inset-0 block h-full w-full object-cover object-center transition-transform duration-300 group-hover:scale-105"
                                 loading="lazy"
                               />
                               {displayTag ? (

@@ -17,6 +17,7 @@ const Login = () => {
   const mfa = params.get("mfa");
   const [mfaCode, setMfaCode] = useState("");
   const [isVerifyingMfa, setIsVerifyingMfa] = useState(false);
+  const [isCancellingMfa, setIsCancellingMfa] = useState(false);
   const [showMfaForm, setShowMfaForm] = useState(mfa === "required");
   const [mfaError, setMfaError] = useState("");
   const apiBase = getApiBase();
@@ -124,6 +125,23 @@ const Login = () => {
     }
   };
 
+  const handleCancelMfaLogin = async () => {
+    if (isCancellingMfa) {
+      return;
+    }
+    setIsCancellingMfa(true);
+    try {
+      await apiFetch(apiBase, "/api/logout", {
+        method: "POST",
+        auth: true,
+      });
+    } catch {
+      // fail-open to avoid trapping the user in pending MFA state
+    } finally {
+      window.location.href = "/";
+    }
+  };
+
   return (
     <div className="login-shell text-foreground">
       <div aria-hidden className="login-backdrop" />
@@ -172,6 +190,15 @@ const Login = () => {
                     >
                       {isVerifyingMfa ? "Validando..." : "Confirmar código"}
                     </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="w-full"
+                      disabled={isCancellingMfa || isVerifyingMfa}
+                      onClick={handleCancelMfaLogin}
+                    >
+                      {isCancellingMfa ? "Cancelando..." : "Cancelar login"}
+                    </Button>
                   </div>
                 )}
 
@@ -189,9 +216,11 @@ const Login = () => {
                       Entrar com Discord
                     </Button>
                   ) : null}
-                  <Link to="/" className="text-sm text-muted-foreground hover:text-foreground">
-                    Voltar
-                  </Link>
+                  {!showMfaForm ? (
+                    <Link to="/" className="text-sm text-muted-foreground hover:text-foreground">
+                      Voltar
+                    </Link>
+                  ) : null}
                 </div>
               </div>
             </div>

@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 
 import CommentsSection from "@/components/CommentsSection";
+import UploadPicture from "@/components/UploadPicture";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -39,6 +40,7 @@ import { formatBytesCompact } from "@/lib/file-size";
 import { useSiteSettings } from "@/hooks/use-site-settings";
 import { usePageMeta } from "@/hooks/use-page-meta";
 import { normalizeAssetUrl } from "@/lib/asset-url";
+import type { UploadMediaVariantsMap } from "@/lib/upload-variants";
 import NotFound from "./NotFound";
 import type { Project } from "@/data/projects";
 
@@ -53,6 +55,7 @@ const ProjectPage = () => {
   const [staffRoleTranslations, setStaffRoleTranslations] = useState<Record<string, string>>({});
   const [currentUser, setCurrentUser] = useState<{ permissions?: string[] } | null>(null);
   const [episodePage, setEpisodePage] = useState(1);
+  const [mediaVariants, setMediaVariants] = useState<UploadMediaVariantsMap>({});
   const { settings } = useSiteSettings();
   const trackedViewsRef = useRef<Set<string>>(new Set());
 
@@ -79,16 +82,21 @@ const ProjectPage = () => {
         if (!response.ok) {
           if (isActive) {
             setProject(null);
+            setMediaVariants({});
           }
           return;
         }
         const data = await response.json();
         if (isActive) {
           setProject(data.project || null);
+          setMediaVariants(
+            data?.mediaVariants && typeof data.mediaVariants === "object" ? data.mediaVariants : {},
+          );
         }
       } catch {
         if (isActive) {
           setProject(null);
+          setMediaVariants({});
         }
       } finally {
         if (isActive) {
@@ -408,10 +416,13 @@ const ProjectPage = () => {
             </Badge>
           ) : null}
           <div className="w-full overflow-hidden rounded-xl border border-border/60 bg-background/50 shadow-inner md:h-[153px] md:w-[272px]">
-            <img
+            <UploadPicture
               src={episode.coverImageUrl || project.banner || project.cover || "/placeholder.svg"}
               alt={`Preview de ${episode.title}`}
-              className="h-full w-full aspect-video object-cover object-center transition-transform duration-300 group-hover:scale-[1.03]"
+              preset="card"
+              mediaVariants={mediaVariants}
+              className="h-full w-full"
+              imgClassName="h-full w-full aspect-video object-cover object-center transition-transform duration-300 group-hover:scale-[1.03]"
             />
           </div>
           <div className="relative h-full min-h-[153px] md:pr-0">

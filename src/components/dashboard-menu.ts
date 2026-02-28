@@ -9,6 +9,7 @@
   Settings,
   ShieldAlert,
   Shield,
+  HardDriveUpload,
   UserRound,
 } from "lucide-react";
 
@@ -28,6 +29,7 @@ export const dashboardMenuItems: DashboardMenuItem[] = [
   { label: "Audit Log", href: "/dashboard/audit-log", icon: ScrollText, enabled: true },
   { label: "Usuários", href: "/dashboard/usuarios", icon: UserRound, enabled: true },
   { label: "Páginas", href: "/dashboard/paginas", icon: Shield, enabled: true },
+  { label: "Uploads", href: "/dashboard/uploads", icon: HardDriveUpload, enabled: true },
   { label: "Webhooks", href: "/dashboard/webhooks", icon: Send, enabled: true },
   { label: "Segurança", href: "/dashboard/seguranca", icon: ShieldAlert, enabled: true },
   { label: "Configurações", href: "/dashboard/configuracoes", icon: Settings, enabled: true },

@@ -47,6 +47,7 @@ import { buildHealthStatusResponse } from "./lib/health-checks.js";
 import { createIdempotencyFingerprint, createIdempotencyStore } from "./lib/idempotency-store.js";
 import { createJobQueue } from "./lib/job-queue.js";
 import { createMetricsRegistry } from "./lib/metrics.js";
+import { canAccessApiDuringPendingMfa } from "./lib/pending-mfa-guard.js";
 import {
   buildOperationalAlertsResponse,
   buildOperationalAlertsV1,
@@ -100,6 +101,14 @@ import {
   verifyTotpCode,
 } from "./lib/totp.js";
 import { runUploadsReorganization } from "./lib/uploads-reorganizer.js";
+import {
+  attachUploadMediaMetadata,
+  buildStorageAreaSummary,
+  computeBufferSha256,
+  findUploadByHash,
+  normalizeFocalPoint,
+  resolveUploadAbsolutePath,
+} from "./lib/upload-media.js";
 import {
   sanitizeAssetUrl,
   sanitizeIconSource,
@@ -288,6 +297,10 @@ const AUDIT_DEFAULT_META_KEYS = [
   "usersSocialsDropped",
   "linkTypeIconsDropped",
   "siteLinksDropped",
+  "uploadId",
+  "hashSha256",
+  "dedupeHit",
+  "variantBytes",
 ];
 const AUDIT_META_ALLOWLIST = {
   "auth.login.failed": ["error"],
@@ -298,8 +311,17 @@ const AUDIT_META_ALLOWLIST = {
   "auth.bootstrap.disabled": [],
   "auth.bootstrap.rate_limited": [],
   "users.delete": ["id", "wasOwner"],
-  "uploads.image": ["fileName", "folder", "url"],
-  "uploads.image_from_url": ["fileName", "folder", "url", "remoteUrl"],
+  "uploads.image": ["uploadId", "fileName", "folder", "url", "hashSha256", "dedupeHit", "variantBytes"],
+  "uploads.image_from_url": [
+    "uploadId",
+    "fileName",
+    "folder",
+    "url",
+    "remoteUrl",
+    "hashSha256",
+    "dedupeHit",
+    "variantBytes",
+  ],
   "uploads.rename": ["oldUrl", "newUrl", "updatedReferences", "replacements"],
   "uploads.delete": ["url"],
   "uploads.auto_reorganize.startup": ["trigger", "moves", "rewrites", "failures", "durationMs"],
@@ -2384,22 +2406,12 @@ app.use((req, _res, next) => {
   updateSessionIndexFromRequest(req);
   return next();
 });
-const PENDING_MFA_ALLOWED_API_PATHS = new Set([
-  "/auth/mfa/verify",
-  "/logout",
-  "/public/me",
-  "/version",
-  "/contracts",
-  "/contracts/v1",
-  "/contracts/v1.json",
-]);
 app.use("/api", (req, res, next) => {
   const hasPendingMfa = Boolean(req.session?.pendingMfaUser?.id && !req.session?.user?.id);
   if (!hasPendingMfa) {
     return next();
   }
-  const normalizedPath = String(req.path || "").split("?")[0] || "/";
-  if (PENDING_MFA_ALLOWED_API_PATHS.has(normalizedPath)) {
+  if (canAccessApiDuringPendingMfa(req.path)) {
     return next();
   }
   return res.status(401).json({ error: "mfa_required" });
@@ -4208,6 +4220,40 @@ const upsertUploadEntries = (incomingEntries) => {
       mime: String(entry?.mime || current?.mime || ""),
       width: Number.isFinite(entry?.width) ? Number(entry.width) : (current?.width ?? null),
       height: Number.isFinite(entry?.height) ? Number(entry.height) : (current?.height ?? null),
+      area: String(entry?.area || current?.area || ""),
+      hashSha256: String(entry?.hashSha256 || current?.hashSha256 || ""),
+      focalPoint:
+        entry?.focalPoint && typeof entry.focalPoint === "object"
+          ? {
+              x: Number.isFinite(Number(entry.focalPoint.x))
+                ? Number(entry.focalPoint.x)
+                : Number(current?.focalPoint?.x ?? 0.5),
+              y: Number.isFinite(Number(entry.focalPoint.y))
+                ? Number(entry.focalPoint.y)
+                : Number(current?.focalPoint?.y ?? 0.5),
+            }
+          : current?.focalPoint && typeof current.focalPoint === "object"
+            ? {
+                x: Number.isFinite(Number(current.focalPoint.x)) ? Number(current.focalPoint.x) : 0.5,
+                y: Number.isFinite(Number(current.focalPoint.y)) ? Number(current.focalPoint.y) : 0.5,
+              }
+            : undefined,
+      variantsVersion: Number.isFinite(Number(entry?.variantsVersion))
+        ? Number(entry.variantsVersion)
+        : Number.isFinite(Number(current?.variantsVersion))
+          ? Number(current.variantsVersion)
+          : 1,
+      variants:
+        entry?.variants && typeof entry.variants === "object"
+          ? entry.variants
+          : current?.variants && typeof current.variants === "object"
+            ? current.variants
+            : {},
+      variantBytes: Number.isFinite(Number(entry?.variantBytes))
+        ? Number(entry.variantBytes)
+        : Number.isFinite(Number(current?.variantBytes))
+          ? Number(current.variantBytes)
+          : 0,
       createdAt: String(entry?.createdAt || current?.createdAt || new Date().toISOString()),
     };
     if (JSON.stringify(current || null) !== JSON.stringify(next)) {
@@ -4258,6 +4304,93 @@ const normalizeUploadUrlValue = (value) => {
     // ignore
   }
   return null;
+};
+
+const normalizePublicFocalPoint = (value) => {
+  if (!value || typeof value !== "object") {
+    return undefined;
+  }
+  const x = Number(value.x);
+  const y = Number(value.y);
+  if (!Number.isFinite(x) || !Number.isFinite(y)) {
+    return undefined;
+  }
+  return {
+    x: Math.min(1, Math.max(0, x)),
+    y: Math.min(1, Math.max(0, y)),
+  };
+};
+
+const getUploadFolderFromUrlValue = (value) => {
+  const normalized = normalizeUploadUrlValue(value);
+  if (!normalized) {
+    return "";
+  }
+  const relative = normalized.replace(/^\/uploads\//, "");
+  const lastSlash = relative.lastIndexOf("/");
+  if (lastSlash < 0) {
+    return "";
+  }
+  return relative.slice(0, lastSlash);
+};
+
+const collectPublicUploadUrls = (value, urls, seen = new WeakSet()) => {
+  if (!value) {
+    return;
+  }
+  if (typeof value === "string") {
+    const normalized = normalizeUploadUrlValue(value);
+    if (normalized) {
+      urls.add(normalized);
+    }
+    return;
+  }
+  if (Array.isArray(value)) {
+    value.forEach((item) => collectPublicUploadUrls(item, urls, seen));
+    return;
+  }
+  if (typeof value === "object") {
+    if (seen.has(value)) {
+      return;
+    }
+    seen.add(value);
+    Object.values(value).forEach((item) => collectPublicUploadUrls(item, urls, seen));
+  }
+};
+
+const buildPublicMediaVariants = (...sources) => {
+  const urls = new Set();
+  sources.forEach((source) => collectPublicUploadUrls(source, urls));
+  if (urls.size === 0) {
+    return {};
+  }
+  const uploads = loadUploads();
+  const mediaVariants = {};
+  uploads.forEach((entry) => {
+    const normalizedUrl = normalizeUploadUrlValue(entry?.url);
+    if (!normalizedUrl || !urls.has(normalizedUrl)) {
+      return;
+    }
+    const folder = String(entry?.folder || getUploadFolderFromUrlValue(normalizedUrl) || "");
+    if (isPrivateUploadFolder(folder)) {
+      return;
+    }
+    const variants = entry?.variants && typeof entry.variants === "object" ? entry.variants : null;
+    if (!variants || Object.keys(variants).length === 0) {
+      return;
+    }
+    const variantsVersionRaw = Number(entry?.variantsVersion);
+    const variantsVersion = Number.isFinite(variantsVersionRaw)
+      ? Math.max(1, Math.floor(variantsVersionRaw))
+      : 1;
+    const focalPoint = normalizePublicFocalPoint(entry?.focalPoint);
+    mediaVariants[normalizedUrl] = {
+      variantsVersion,
+      variants,
+      ...(focalPoint ? { focalPoint } : {}),
+    };
+  });
+  return mediaVariants;
 };
 
 const collectDownloadIconUploads = (settings) => {
@@ -8448,6 +8581,10 @@ app.get("/api/public/posts", (req, res) => {
     const paged = posts.slice(start, start + limit);
     payload = { posts: paged, page, limit, total: posts.length };
   }
+  payload = {
+    ...payload,
+    mediaVariants: buildPublicMediaVariants(payload.posts),
+  };
   writePublicCachedJson(req, payload, {
     ttlMs: PUBLIC_READ_CACHE_TTL_MS,
     tags: [PUBLIC_READ_CACHE_TAGS.POSTS],
@@ -8472,25 +8609,27 @@ app.get("/api/public/posts/:slug", (req, res) => {
     return res.status(404).json({ error: "not_found" });
   }
   const resolvedCover = resolvePostCover(post);
+  const publicPost = {
+    id: post.id,
+    title: post.title,
+    slug: post.slug,
+    coverImageUrl: resolvedCover.coverImageUrl,
+    coverAlt: resolvedCover.coverAlt,
+    excerpt: post.excerpt,
+    content: post.content,
+    contentFormat: post.contentFormat,
+    author: post.author,
+    publishedAt: post.publishedAt,
+    views: post.views,
+    commentsCount: post.commentsCount,
+    seoTitle: post.seoTitle,
+    seoDescription: post.seoDescription,
+    projectId: post.projectId || "",
+    tags: Array.isArray(post.tags) ? post.tags : [],
+  };
   return res.json({
-    post: {
-      id: post.id,
-      title: post.title,
-      slug: post.slug,
-      coverImageUrl: resolvedCover.coverImageUrl,
-      coverAlt: resolvedCover.coverAlt,
-      excerpt: post.excerpt,
-      content: post.content,
-      contentFormat: post.contentFormat,
-      author: post.author,
-      publishedAt: post.publishedAt,
-      views: post.views,
-      commentsCount: post.commentsCount,
-      seoTitle: post.seoTitle,
-      seoDescription: post.seoDescription,
-      projectId: post.projectId || "",
-      tags: Array.isArray(post.tags) ? post.tags : [],
-    },
+    post: publicPost,
+    mediaVariants: buildPublicMediaVariants({ coverImageUrl: publicPost.coverImageUrl }),
   });
 });
 
@@ -10115,6 +10254,7 @@ app.get("/api/public/bootstrap", (req, res) => {
     tagTranslations: loadTagTranslations(),
     generatedAt: new Date().toISOString(),
   });
+  payload.mediaVariants = buildPublicMediaVariants(payload.projects, payload.posts, payload.updates);
   writePublicCachedJson(req, payload, {
     ttlMs: 30000,
     tags: [PUBLIC_READ_CACHE_TAGS.BOOTSTRAP],
@@ -10242,6 +10382,10 @@ app.get("/api/public/projects", (req, res) => {
     const paged = projects.slice(start, start + limit);
     payload = { projects: paged, page, limit, total: projects.length };
   }
+  payload = {
+    ...payload,
+    mediaVariants: buildPublicMediaVariants(payload.projects),
+  };
   writePublicCachedJson(req, payload, {
     ttlMs: PUBLIC_READ_CACHE_TTL_MS,
     tags: [PUBLIC_READ_CACHE_TAGS.PROJECTS],
@@ -10269,7 +10413,10 @@ app.get("/api/public/projects/:id", (req, res) => {
       hasContent: typeof episode.content === "string" && episode.content.trim().length > 0,
     })),
   };
-  return res.json({ project: sanitized });
+  return res.json({
+    project: sanitized,
+    mediaVariants: buildPublicMediaVariants(sanitized),
+  });
 });
 
 app.post("/api/public/projects/:id/view", async (req, res) => {
@@ -11017,11 +11164,43 @@ app.post("/api/uploads/image", requireAuth, async (req, res) => {
   if (mime === "image/svg+xml" && buffer.length > MAX_SVG_SIZE_BYTES) {
     return res.status(400).json({ error: "svg_too_large" });
   }
+  const safeFolder = sanitizeUploadFolder(folder);
+  const uploadsDir = path.join(__dirname, "..", "public", "uploads");
+  const sourceBuffer =
+    mime === "image/svg+xml" ? Buffer.from(sanitizeSvg(buffer.toString("utf-8")), "utf-8") : buffer;
+  const hashSha256 = computeBufferSha256(sourceBuffer);
+  const uploads = loadUploads();
+  const dedupeEntry = findUploadByHash(uploads, hashSha256);
+  if (dedupeEntry) {
+    const dedupeVariantsGenerated =
+      dedupeEntry?.variants &&
+      typeof dedupeEntry.variants === "object" &&
+      Object.keys(dedupeEntry.variants).length > 0;
+    appendAuditLog(req, "uploads.image", "uploads", {
+      uploadId: dedupeEntry.id,
+      fileName: dedupeEntry.fileName,
+      folder: dedupeEntry.folder || "",
+      url: dedupeEntry.url,
+      hashSha256,
+      dedupeHit: true,
+      variantBytes: Number(dedupeEntry?.variantBytes || 0),
+    });
+    return res.json({
+      uploadId: dedupeEntry.id,
+      url: dedupeEntry.url,
+      fileName: dedupeEntry.fileName,
+      hashSha256,
+      dedupeHit: true,
+      focalPoint: dedupeEntry.focalPoint || normalizeFocalPoint(),
+      variants: dedupeEntry.variants || {},
+      area: dedupeEntry.area || "",
+      variantsGenerated: dedupeVariantsGenerated,
+    });
+  }
+
   const ext = getUploadExtFromMime(mime);
   const safeName = sanitizeUploadBaseName(filename || "upload");
   const safeSlot = sanitizeUploadSlot(slot);
-  const uploadsDir = path.join(__dirname, "..", "public", "uploads");
-  const safeFolder = sanitizeUploadFolder(folder);
   const targetDir = safeFolder ? path.join(uploadsDir, safeFolder) : uploadsDir;
   fs.mkdirSync(targetDir, { recursive: true });
   const useSlotName = Boolean(safeSlot && isPrivateUploadFolder(safeFolder));
@@ -11029,47 +11208,85 @@ app.post("/api/uploads/image", requireAuth, async (req, res) => {
     ? `${safeSlot}.${ext}`
     : `${safeName || "imagem"}-${Date.now()}.${ext}`;
   const filePath = path.join(targetDir, fileName);
-  if (mime === "image/svg+xml") {
-    const svgText = buffer.toString("utf-8");
-    const sanitized = sanitizeSvg(svgText);
-    fs.writeFileSync(filePath, sanitized);
-  } else {
-    fs.writeFileSync(filePath, buffer);
-  }
+  fs.writeFileSync(filePath, sourceBuffer);
 
   const relativeUrl = `/uploads/${safeFolder ? `${safeFolder}/` : ""}${fileName}`;
-  const uploads = loadUploads();
-  const uploadEntry = {
-    id: crypto.randomUUID(),
+  const existingIndex = uploads.findIndex((item) => item.url === relativeUrl);
+  const existingEntry = existingIndex >= 0 ? uploads[existingIndex] : null;
+  const variantsVersion = Math.max(1, Number(existingEntry?.variantsVersion || 0) + 1);
+  const uploadEntryBase = {
+    id: existingEntry?.id || crypto.randomUUID(),
     url: relativeUrl,
     fileName,
     folder: safeFolder || "",
-    size: buffer.length,
+    size: sourceBuffer.length,
     mime,
     width: validation.dimensions?.width || null,
     height: validation.dimensions?.height || null,
+    area: safeFolder ? String(safeFolder).split("/")[0] : "root",
     createdAt: new Date().toISOString(),
   };
-  const existingIndex = uploads.findIndex((item) => item.url === relativeUrl);
-  if (existingIndex >= 0) {
-    uploads[existingIndex] = {
-      ...uploads[existingIndex],
-      ...uploadEntry,
-      id: uploads[existingIndex].id,
+  let uploadEntry = uploadEntryBase;
+  let variantsGenerated = true;
+  let variantGenerationError = "";
+  try {
+    uploadEntry = await attachUploadMediaMetadata({
+      uploadsDir,
+      entry: uploadEntryBase,
+      sourcePath: filePath,
+      sourceMime: mime,
+      hashSha256,
+      focalPoint: normalizeFocalPoint(req.body?.focalPoint),
+      variantsVersion,
+      regenerateVariants: true,
+    });
+  } catch (error) {
+    variantsGenerated = false;
+    variantGenerationError = String(error?.message || "variant_generation_failed");
+    appendAuditLog(req, "uploads.image.variant_generation_failed", "uploads", {
+      uploadId: uploadEntryBase.id,
+      url: relativeUrl,
+      fileName,
+      error: variantGenerationError,
+    });
+    uploadEntry = {
+      ...uploadEntryBase,
+      hashSha256,
+      focalPoint: normalizeFocalPoint(req.body?.focalPoint),
+      variantsVersion,
+      variants: {},
+      variantBytes: 0,
+      area: safeFolder ? String(safeFolder).split("/")[0] : "root",
     };
+  }
+
+  if (existingIndex >= 0) {
+    uploads[existingIndex] = uploadEntry;
   } else {
     uploads.push(uploadEntry);
   }
   writeUploads(uploads);
 
   appendAuditLog(req, "uploads.image", "uploads", {
+    uploadId: uploadEntry.id,
     fileName,
     folder: safeFolder || "",
     url: relativeUrl,
+    hashSha256,
+    dedupeHit: false,
+    variantBytes: Number(uploadEntry?.variantBytes || 0),
   });
   return res.json({
+    uploadId: uploadEntry.id,
     url: relativeUrl,
     fileName,
+    hashSha256,
+    dedupeHit: false,
+    focalPoint: uploadEntry.focalPoint || normalizeFocalPoint(),
+    variants: uploadEntry.variants || {},
+    area: uploadEntry.area || "",
+    variantsGenerated,
+    ...(variantGenerationError ? { variantGenerationError } : {}),
   });
 });
 
@@ -11101,6 +11318,9 @@ app.get("/api/uploads/list", requireAuth, (req, res) => {
         const fullPath = path.join(dir, entry.name);
         const nextBase = path.join(base, entry.name);
         const normalizedBase = nextBase.split(path.sep).join("/");
+        if (normalizedBase === "_variants" || normalizedBase.startsWith("_variants/")) {
+          return;
+        }
         if (listAll && isPrivateUploadFolder(normalizedBase)) {
           return;
         }
@@ -11118,6 +11338,7 @@ app.get("/api/uploads/list", requireAuth, (req, res) => {
         const meta = uploadMetaMap.get(normalizedUrl) || null;
         const inUse = usedUrls.has(normalizedUrl);
         results.push({
+          id: meta?.id || null,
           name: entry.name,
           url: normalizedUrl,
           source: "upload",
@@ -11126,6 +11347,17 @@ app.get("/api/uploads/list", requireAuth, (req, res) => {
           mime: meta?.mime || getUploadMimeFromExtension(path.extname(entry.name).replace(".", "")),
           size: typeof meta?.size === "number" ? meta.size : stat.size,
           createdAt: meta?.createdAt || stat.mtime.toISOString(),
+          hashSha256: typeof meta?.hashSha256 === "string" ? meta.hashSha256 : "",
+          focalPoint: normalizeFocalPoint(meta?.focalPoint),
+          variantsVersion: Number.isFinite(Number(meta?.variantsVersion))
+            ? Number(meta.variantsVersion)
+            : 1,
+          variants: meta?.variants && typeof meta.variants === "object" ? meta.variants : {},
+          variantBytes: Number.isFinite(Number(meta?.variantBytes)) ? Number(meta.variantBytes) : 0,
+          area:
+            typeof meta?.area === "string" && meta.area
+              ? meta.area
+              : String((meta?.folder || path.dirname(relative).replace(/\\/g, "/")).split("/")[0] || "root"),
           inUse,
           canDelete: !inUse,
         });
@@ -11145,6 +11377,7 @@ app.get("/api/uploads/list", requireAuth, (req, res) => {
             const meta = uploadMetaMap.get(normalizedUrl) || null;
             const inUse = usedUrls.has(normalizedUrl);
             return {
+              id: meta?.id || null,
               name: item,
               url: normalizedUrl,
               source: "upload",
@@ -11153,6 +11386,17 @@ app.get("/api/uploads/list", requireAuth, (req, res) => {
               mime: meta?.mime || getUploadMimeFromExtension(path.extname(item).replace(".", "")),
               size: typeof meta?.size === "number" ? meta.size : stat.size,
               createdAt: meta?.createdAt || stat.mtime.toISOString(),
+              hashSha256: typeof meta?.hashSha256 === "string" ? meta.hashSha256 : "",
+              focalPoint: normalizeFocalPoint(meta?.focalPoint),
+              variantsVersion: Number.isFinite(Number(meta?.variantsVersion))
+                ? Number(meta.variantsVersion)
+                : 1,
+              variants: meta?.variants && typeof meta.variants === "object" ? meta.variants : {},
+              variantBytes: Number.isFinite(Number(meta?.variantBytes)) ? Number(meta.variantBytes) : 0,
+              area:
+                typeof meta?.area === "string" && meta.area
+                  ? meta.area
+                  : String((meta?.folder || safeFolder || "").split("/")[0] || "root"),
               inUse,
               canDelete: !inUse,
             };
@@ -11161,6 +11405,93 @@ app.get("/api/uploads/list", requireAuth, (req, res) => {
   } catch {
     return res.json({ files: [] });
   }
+});
+
+app.patch("/api/uploads/:id/focal-point", requireAuth, async (req, res) => {
+  const sessionUser = req.session.user;
+  if (!canManageUploads(sessionUser?.id)) {
+    return res.status(403).json({ error: "forbidden" });
+  }
+  const uploadId = String(req.params?.id || "").trim();
+  if (!uploadId) {
+    return res.status(400).json({ error: "invalid_upload_id" });
+  }
+  const uploads = loadUploads();
+  const targetIndex = uploads.findIndex((item) => String(item?.id || "") === uploadId);
+  if (targetIndex < 0) {
+    return res.status(404).json({ error: "upload_not_found" });
+  }
+  const current = uploads[targetIndex];
+  const uploadsDir = path.join(__dirname, "..", "public", "uploads");
+  const sourcePath = resolveUploadAbsolutePath({ uploadsDir, uploadUrl: current?.url });
+  if (!sourcePath || !fs.existsSync(sourcePath)) {
+    return res.status(404).json({ error: "upload_file_not_found" });
+  }
+  let hashSha256 = String(current?.hashSha256 || "").trim().toLowerCase();
+  if (!hashSha256) {
+    try {
+      const sourceBuffer = fs.readFileSync(sourcePath);
+      hashSha256 = computeBufferSha256(sourceBuffer);
+    } catch {
+      return res.status(500).json({ error: "upload_file_read_failed" });
+    }
+  }
+  const nextFocalPoint = normalizeFocalPoint(req.body);
+  const nextVersion = Math.max(1, Number(current?.variantsVersion || 0) + 1);
+  let updated = null;
+  try {
+    updated = await attachUploadMediaMetadata({
+      uploadsDir,
+      entry: current,
+      sourcePath,
+      sourceMime: current?.mime,
+      hashSha256,
+      focalPoint: nextFocalPoint,
+      variantsVersion: nextVersion,
+      regenerateVariants: true,
+    });
+  } catch {
+    return res.status(500).json({ error: "focal_point_update_failed" });
+  }
+
+  uploads[targetIndex] = updated;
+  writeUploads(uploads);
+  appendAuditLog(req, "uploads.focal_point.update", "uploads", {
+    id: uploadId,
+    url: updated.url,
+  });
+
+  return res.json({
+    ok: true,
+    item: {
+      id: updated.id,
+      url: updated.url,
+      fileName: updated.fileName,
+      folder: updated.folder,
+      mime: updated.mime,
+      size: updated.size,
+      width: updated.width,
+      height: updated.height,
+      hashSha256: updated.hashSha256 || "",
+      focalPoint: updated.focalPoint || normalizeFocalPoint(),
+      variantsVersion: Number.isFinite(Number(updated.variantsVersion))
+        ? Number(updated.variantsVersion)
+        : 1,
+      variants: updated.variants || {},
+      variantBytes: Number.isFinite(Number(updated.variantBytes)) ? Number(updated.variantBytes) : 0,
+      area: updated.area || "",
+      createdAt: updated.createdAt || null,
+    },
+  });
+});
+
+app.get("/api/uploads/storage/areas", requireAuth, (req, res) => {
+  const sessionUser = req.session.user;
+  if (!canManageUploads(sessionUser?.id)) {
+    return res.status(403).json({ error: "forbidden" });
+  }
+  const summary = buildStorageAreaSummary(loadUploads());
+  return res.json(summary);
 });
 
 const collectProjectImageItems = (projects) => {
@@ -11221,10 +11552,11 @@ app.post("/api/uploads/image-from-url", requireAuth, async (req, res) => {
   }
 
   const remoteUrl = String(req.body?.url || "").trim();
+  const uploadsDir = path.join(__dirname, "..", "public", "uploads");
   const importResult = await importRemoteImageFile({
     remoteUrl,
     folder: req.body?.folder || "",
-    uploadsDir: path.join(__dirname, "..", "public", "uploads"),
+    uploadsDir,
     timeoutMs: 20_000,
   });
   if (!importResult.ok) {
@@ -11248,13 +11580,116 @@ app.post("/api/uploads/image-from-url", requireAuth, async (req, res) => {
     return res.status(400).json({ error: code });
   }
   const entry = importResult.entry;
-  upsertUploadEntries([entry]);
+  const sourcePath = resolveUploadAbsolutePath({ uploadsDir, uploadUrl: entry?.url });
+  if (!sourcePath || !fs.existsSync(sourcePath)) {
+    return res.status(500).json({ error: "imported_file_not_found" });
+  }
+
+  let hashSha256 = "";
+  try {
+    const importedBuffer = fs.readFileSync(sourcePath);
+    hashSha256 = computeBufferSha256(importedBuffer);
+  } catch {
+    return res.status(500).json({ error: "imported_file_read_failed" });
+  }
+
+  const uploads = loadUploads();
+  const dedupeEntry = (Array.isArray(uploads) ? uploads : []).find(
+    (item) =>
+      String(item?.url || "") !== String(entry?.url || "") &&
+      String(item?.hashSha256 || "").trim().toLowerCase() === hashSha256,
+  );
+  if (dedupeEntry) {
+    const dedupeVariantsGenerated =
+      dedupeEntry?.variants &&
+      typeof dedupeEntry.variants === "object" &&
+      Object.keys(dedupeEntry.variants).length > 0;
+    try {
+      fs.unlinkSync(sourcePath);
+    } catch {
+      // ignore cleanup failure and keep dedupe response
+    }
+    appendAuditLog(req, "uploads.image_from_url", "uploads", {
+      uploadId: dedupeEntry.id,
+      url: dedupeEntry.url,
+      remoteUrl,
+      folder: dedupeEntry.folder || "",
+      hashSha256,
+      dedupeHit: true,
+      variantBytes: Number(dedupeEntry?.variantBytes || 0),
+    });
+    return res.json({
+      uploadId: dedupeEntry.id,
+      url: dedupeEntry.url,
+      fileName: dedupeEntry.fileName,
+      hashSha256,
+      dedupeHit: true,
+      focalPoint: dedupeEntry.focalPoint || normalizeFocalPoint(),
+      variants: dedupeEntry.variants || {},
+      area: dedupeEntry.area || "",
+      variantsGenerated: dedupeVariantsGenerated,
+    });
+  }
+
+  let enrichedEntry = entry;
+  let variantsGenerated = true;
+  let variantGenerationError = "";
+  try {
+    enrichedEntry = await attachUploadMediaMetadata({
+      uploadsDir,
+      entry: {
+        ...entry,
+        area: String(String(entry?.folder || "").split("/")[0] || "root"),
+      },
+      sourcePath,
+      sourceMime: entry?.mime,
+      hashSha256,
+      focalPoint: normalizeFocalPoint(req.body?.focalPoint),
+      variantsVersion: Math.max(1, Number(entry?.variantsVersion || 1)),
+      regenerateVariants: true,
+    });
+  } catch (error) {
+    variantsGenerated = false;
+    variantGenerationError = String(error?.message || "variant_generation_failed");
+    appendAuditLog(req, "uploads.image_from_url.variant_generation_failed", "uploads", {
+      uploadId: entry?.id || null,
+      url: entry?.url || null,
+      remoteUrl,
+      error: variantGenerationError,
+    });
+    enrichedEntry = {
+      ...entry,
+      hashSha256,
+      focalPoint: normalizeFocalPoint(req.body?.focalPoint),
+      variantsVersion: 1,
+      variants: {},
+      variantBytes: 0,
+      area: String(String(entry?.folder || "").split("/")[0] || "root"),
+    };
+  }
+
+  upsertUploadEntries([enrichedEntry]);
   appendAuditLog(req, "uploads.image_from_url", "uploads", {
-    url: entry.url,
+    uploadId: enrichedEntry.id,
+    url: enrichedEntry.url,
     remoteUrl,
-    folder: entry.folder || "",
+    folder: enrichedEntry.folder || "",
+    hashSha256,
+    dedupeHit: false,
+    variantBytes: Number(enrichedEntry?.variantBytes || 0),
   });
-  return res.json({ url: entry.url, fileName: entry.fileName });
+  return res.json({
+    uploadId: enrichedEntry.id,
+    url: enrichedEntry.url,
+    fileName: enrichedEntry.fileName,
+    hashSha256,
+    dedupeHit: false,
+    focalPoint: enrichedEntry.focalPoint || normalizeFocalPoint(),
+    variants: enrichedEntry.variants || {},
+    area: enrichedEntry.area || "",
+    variantsGenerated,
+    ...(variantGenerationError ? { variantGenerationError } : {}),
+  });
 });
 
 const toUploadPath = (value) => {
@@ -11458,6 +11893,7 @@ app.put("/api/uploads/rename", requireAuth, (req, res) => {
             url: nextUrl,
             fileName: nextFileName,
             folder: oldFolder,
+            area: String((oldFolder || "").split("/")[0] || "root"),
           }
         : item,
     );
@@ -11574,9 +12010,20 @@ app.delete("/api/uploads/delete", requireAuth, (req, res) => {
       fs.unlinkSync(resolved);
     }
     const uploads = loadUploads();
+    const targetEntry = uploads.find((item) => item.url === normalized) || null;
     const nextUploads = uploads.filter((item) => item.url !== normalized);
     if (nextUploads.length !== uploads.length) {
       writeUploads(nextUploads);
+    }
+    const variantDir = targetEntry?.id
+      ? path.join(uploadsDir, "_variants", String(targetEntry.id))
+      : null;
+    if (variantDir) {
+      try {
+        fs.rmSync(variantDir, { recursive: true, force: true });
+      } catch {
+        // ignore variant cleanup failure
+      }
     }
     appendAuditLog(req, "uploads.delete", "uploads", { url: normalized });
     return res.json({ ok: true });

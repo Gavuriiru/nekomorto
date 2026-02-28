@@ -22,6 +22,7 @@ import { apiFetch } from "@/lib/api-client";
 export type LibraryImageSource = "upload" | "project";
 
 export type LibraryImageItem = {
+  id?: string | null;
   name: string;
   url: string;
   source: LibraryImageSource;
@@ -36,6 +37,12 @@ export type LibraryImageItem = {
   projectId?: string;
   projectTitle?: string;
   kind?: string;
+  hashSha256?: string;
+  focalPoint?: { x: number; y: number };
+  variantsVersion?: number;
+  variants?: Record<string, unknown>;
+  variantBytes?: number;
+  area?: string;
 };
 
 export type ImageLibrarySavePayload = {
@@ -128,6 +135,16 @@ const sanitizeUploadSlotForComparison = (value: string | null | undefined) =>
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "");
+
+const normalizeFocalPointForUi = (value: unknown) => {
+  const source = value && typeof value === "object" ? value : {};
+  const x = Number((source as { x?: number }).x);
+  const y = Number((source as { y?: number }).y);
+  return {
+    x: Number.isFinite(x) ? Math.min(1, Math.max(0, x)) : 0.5,
+    y: Number.isFinite(y) ? Math.min(1, Math.max(0, y)) : 0.5,
+  };
+};
 
 const escapeRegexPattern = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 const AVATAR_UPLOAD_FILENAME_PATTERN = /^avatar-[a-z0-9-]+\.(png|jpe?g|gif|webp|svg)$/i;
@@ -437,8 +454,11 @@ const ImageLibraryDialog = ({
   const [renameTarget, setRenameTarget] = useState<LibraryImageItem | null>(null);
   const [renameValue, setRenameValue] = useState("");
   const [deleteTarget, setDeleteTarget] = useState<LibraryImageItem | null>(null);
+  const [focalTarget, setFocalTarget] = useState<LibraryImageItem | null>(null);
+  const [focalDraft, setFocalDraft] = useState<{ x: number; y: number }>(() => normalizeFocalPointForUi(null));
   const [isRenaming, setIsRenaming] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isSavingFocal, setIsSavingFocal] = useState(false);
   const [isApplyingCrop, setIsApplyingCrop] = useState(false);
   const [isCropDialogOpen, setIsCropDialogOpen] = useState(false);
   const [isLibraryHydratedForOpen, setIsLibraryHydratedForOpen] = useState(false);
@@ -689,6 +709,7 @@ const ImageLibraryDialog = ({
             continue;
           }
           files.push({
+            id: typeof file.id === "string" ? file.id : null,
             source: "upload",
             url: String(file.url),
             name: String(file.name || file.fileName || ""),
@@ -700,6 +721,14 @@ const ImageLibraryDialog = ({
             createdAt: typeof file.createdAt === "string" ? file.createdAt : undefined,
             inUse: Boolean(file.inUse),
             canDelete: typeof file.canDelete === "boolean" ? file.canDelete : !file.inUse,
+            hashSha256: typeof file.hashSha256 === "string" ? file.hashSha256 : "",
+            focalPoint: normalizeFocalPointForUi(file.focalPoint),
+            variantsVersion: Number.isFinite(Number(file.variantsVersion))
+              ? Number(file.variantsVersion)
+              : 1,
+            variants: file.variants && typeof file.variants === "object" ? file.variants : {},
+            variantBytes: Number.isFinite(Number(file.variantBytes)) ? Number(file.variantBytes) : 0,
+            area: typeof file.area === "string" ? file.area : "",
           });
         }
       }
@@ -801,6 +830,7 @@ const ImageLibraryDialog = ({
   useEffect(() => {
     if (!open) {
       setIsDragActive(false);
+      setFocalTarget(null);
       return;
     }
     setSelectedUrls([...selectionSeedRef.current]);
@@ -1093,6 +1123,53 @@ const ImageLibraryDialog = ({
     }
   }, [apiBase, loadLibrary, renameTarget, renameValue]);
 
+  const beginFocalPointEdit = useCallback((item: LibraryImageItem) => {
+    if (item.source !== "upload" || !item.id) {
+      return;
+    }
+    setFocalTarget(item);
+    setFocalDraft(normalizeFocalPointForUi(item.focalPoint));
+  }, []);
+
+  const saveFocalPoint = useCallback(async () => {
+    if (!focalTarget?.id) {
+      return;
+    }
+    setIsSavingFocal(true);
+    try {
+      const response = await apiFetch(apiBase, `/api/uploads/${encodeURIComponent(focalTarget.id)}/focal-point`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        auth: true,
+        body: JSON.stringify({
+          x: focalDraft.x,
+          y: focalDraft.y,
+        }),
+      });
+      if (!response.ok) {
+        toast({
+          title: "Nao foi possivel salvar o ponto focal.",
+          variant: "destructive",
+        });
+        return;
+      }
+      setFocalTarget(null);
+      await loadUploads();
+      toast({
+        title: "Ponto focal atualizado",
+        description: "As variantes foram regeneradas com o novo enquadramento.",
+        intent: "success",
+      });
+    } catch {
+      toast({
+        title: "Nao foi possivel salvar o ponto focal.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSavingFocal(false);
+    }
+  }, [apiBase, focalDraft.x, focalDraft.y, focalTarget?.id, loadUploads]);
+
   const handleSave = () => {
     if (cropAvatar && selectedUrls.length > 0) {
       const normalizedCropSlot = String(cropSlot || "").trim();
@@ -1195,6 +1272,7 @@ const ImageLibraryDialog = ({
           const isSelected = selectedResolvedUrlSet.has(item.url);
           const canRename = item.source === "upload";
           const canDelete = item.source === "upload" && Boolean(item.canDelete);
+          const canEditFocal = item.source === "upload" && Boolean(item.id);
           return (
             <ContextMenu key={`${item.source}:${item.url}`}>
               <ContextMenuTrigger asChild>
@@ -1229,6 +1307,17 @@ const ImageLibraryDialog = ({
                 ) : null}
                 {cropAvatar && mode === "single" ? <ContextMenuSeparator /> : null}
                 <ContextMenuItem
+                  disabled={!canEditFocal}
+                  onSelect={() => {
+                    if (!canEditFocal) {
+                      return;
+                    }
+                    beginFocalPointEdit(item);
+                  }}
+                >
+                  Definir ponto focal
+                </ContextMenuItem>
+                <ContextMenuItem
                   disabled={!canRename}
                   onSelect={() => {
                     if (!canRename) {
@@ -1251,7 +1340,7 @@ const ImageLibraryDialog = ({
                 >
                   Excluir
                 </ContextMenuItem>
-                {!canRename || !canDelete ? (
+                {!canRename || !canDelete || !canEditFocal ? (
                   <>
                     <ContextMenuSeparator />
                     <ContextMenuLabel className="text-xs font-normal text-muted-foreground">
@@ -1513,6 +1602,98 @@ const ImageLibraryDialog = ({
           ) : (
             <p className="text-sm text-muted-foreground">Selecione um avatar na biblioteca antes de abrir o editor.</p>
           )}
+        </DialogContent>
+      </Dialog>
+      <Dialog
+        open={Boolean(focalTarget)}
+        onOpenChange={(next) => {
+          if (!next && !isSavingFocal) {
+            setFocalTarget(null);
+          }
+        }}
+      >
+        <DialogContent className="max-w-xl z-240" overlayClassName="z-230">
+          <DialogHeader>
+            <DialogTitle>Definir ponto focal</DialogTitle>
+            <DialogDescription>
+              Clique na imagem para posicionar o foco principal e regenerar as variantes automáticas.
+            </DialogDescription>
+          </DialogHeader>
+          {focalTarget ? (
+            <div className="space-y-4">
+              <div
+                className="relative cursor-crosshair overflow-hidden rounded-xl border border-border/60 bg-background/40"
+                onClick={(event) => {
+                  const rect = event.currentTarget.getBoundingClientRect();
+                  const nextX = rect.width > 0 ? (event.clientX - rect.left) / rect.width : 0.5;
+                  const nextY = rect.height > 0 ? (event.clientY - rect.top) / rect.height : 0.5;
+                  setFocalDraft({
+                    x: Math.min(1, Math.max(0, nextX)),
+                    y: Math.min(1, Math.max(0, nextY)),
+                  });
+                }}
+              >
+                <img src={focalTarget.url} alt={toEffectiveName(focalTarget)} className="h-72 w-full object-cover" />
+                <div
+                  className="pointer-events-none absolute h-5 w-5 rounded-full border-2 border-primary bg-primary/40 shadow"
+                  style={{
+                    left: `${focalDraft.x * 100}%`,
+                    top: `${focalDraft.y * 100}%`,
+                    transform: "translate(-50%, -50%)",
+                  }}
+                />
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <label className="space-y-2 text-xs text-muted-foreground">
+                  Eixo X ({Math.round(focalDraft.x * 100)}%)
+                  <input
+                    type="range"
+                    min={0}
+                    max={100}
+                    step={1}
+                    value={Math.round(focalDraft.x * 100)}
+                    onChange={(event) =>
+                      setFocalDraft((prev) => ({
+                        ...prev,
+                        x: Math.min(1, Math.max(0, Number(event.target.value) / 100)),
+                      }))
+                    }
+                    className="w-full accent-primary"
+                  />
+                </label>
+                <label className="space-y-2 text-xs text-muted-foreground">
+                  Eixo Y ({Math.round(focalDraft.y * 100)}%)
+                  <input
+                    type="range"
+                    min={0}
+                    max={100}
+                    step={1}
+                    value={Math.round(focalDraft.y * 100)}
+                    onChange={(event) =>
+                      setFocalDraft((prev) => ({
+                        ...prev,
+                        y: Math.min(1, Math.max(0, Number(event.target.value) / 100)),
+                      }))
+                    }
+                    className="w-full accent-primary"
+                  />
+                </label>
+              </div>
+              <div className="flex justify-end gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={isSavingFocal}
+                  onClick={() => setFocalTarget(null)}
+                >
+                  Cancelar
+                </Button>
+                <Button type="button" disabled={isSavingFocal} onClick={() => void saveFocalPoint()}>
+                  {isSavingFocal ? "Salvando..." : "Salvar ponto focal"}
+                </Button>
+              </div>
+            </div>
+          ) : null}
         </DialogContent>
       </Dialog>
       <Dialog open={Boolean(deleteTarget)} onOpenChange={(next) => !next && setDeleteTarget(null)}>

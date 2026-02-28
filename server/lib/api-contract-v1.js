@@ -17,6 +17,8 @@ const CONTRACT_BASE = Object.freeze({
     "Endpoints de escrita aceitam Idempotency-Key opcional para deduplicacao segura.",
     "Rate limit usa backend Redis quando configurado (fallback local em memoria).",
     "Fluxo MFA opcional usa pending_mfa; finalize em POST /api/auth/mfa/verify.",
+    "Endpoints publicos de conteudo expõem mediaVariants (mapa de URL para avif/webp/fallback).",
+    "Endpoints de upload podem retornar variantsGenerated e variantGenerationError para observabilidade.",
   ],
   endpoints: [
     {
@@ -24,6 +26,7 @@ const CONTRACT_BASE = Object.freeze({
       path: "/api/public/bootstrap",
       auth: "public",
       cache: "public-read",
+      responseExtends: ["mediaVariants"],
     },
     {
       method: "GET",
@@ -36,12 +39,28 @@ const CONTRACT_BASE = Object.freeze({
       path: "/api/public/projects",
       auth: "public",
       cache: "public-read",
+      responseExtends: ["mediaVariants"],
     },
     {
       method: "GET",
       path: "/api/public/posts",
       auth: "public",
       cache: "public-read",
+      responseExtends: ["mediaVariants"],
+    },
+    {
+      method: "GET",
+      path: "/api/public/posts/:slug",
+      auth: "public",
+      cache: "public-read",
+      responseExtends: ["mediaVariants"],
+    },
+    {
+      method: "GET",
+      path: "/api/public/projects/:id",
+      auth: "public",
+      cache: "public-read",
+      responseExtends: ["mediaVariants"],
     },
     {
       method: "POST",
@@ -54,12 +73,26 @@ const CONTRACT_BASE = Object.freeze({
       path: "/api/uploads/image",
       auth: "session",
       idempotent: "optional_by_header",
+      responseExtends: ["variantsGenerated", "variantGenerationError?"],
     },
     {
       method: "POST",
       path: "/api/uploads/image-from-url",
       auth: "session",
       idempotent: "optional_by_header",
+      responseExtends: ["variantsGenerated", "variantGenerationError?"],
+    },
+    {
+      method: "PATCH",
+      path: "/api/uploads/:id/focal-point",
+      auth: "session",
+      idempotent: "optional_by_header",
+    },
+    {
+      method: "GET",
+      path: "/api/uploads/storage/areas",
+      auth: "session",
+      cache: "no-store",
     },
     {
       method: "GET",

@@ -7,6 +7,7 @@ import LatestEpisodeCard from "@/components/LatestEpisodeCard";
 import WorkStatusCard from "@/components/WorkStatusCard";
 import ProjectEmbedCard from "@/components/ProjectEmbedCard";
 import CommentsSection from "@/components/CommentsSection";
+import UploadPicture from "@/components/UploadPicture";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -17,6 +18,7 @@ import { apiFetch } from "@/lib/api-client";
 import { usePageMeta } from "@/hooks/use-page-meta";
 import { useSiteSettings } from "@/hooks/use-site-settings";
 import { formatDateTime } from "@/lib/date";
+import type { UploadMediaVariantsMap } from "@/lib/upload-variants";
 
 const LexicalViewer = lazy(() => import("@/components/lexical/LexicalViewer"));
 
@@ -50,6 +52,7 @@ const Post = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
   const [currentUser, setCurrentUser] = useState<{ permissions?: string[] } | null>(null);
+  const [mediaVariants, setMediaVariants] = useState<UploadMediaVariantsMap>({});
   const trackedViewsRef = useRef<Set<string>>(new Set());
   const { settings } = useSiteSettings();
 
@@ -63,18 +66,23 @@ const Post = () => {
           if (isActive) {
             setLoadError(true);
             setPost(null);
+            setMediaVariants({});
           }
           return;
         }
         const data = await response.json();
         if (isActive) {
           setPost(data.post);
+          setMediaVariants(
+            data?.mediaVariants && typeof data.mediaVariants === "object" ? data.mediaVariants : {},
+          );
           setLoadError(false);
         }
       } catch {
         if (isActive) {
           setLoadError(true);
           setPost(null);
+          setMediaVariants({});
         }
       } finally {
         if (isActive) {
@@ -158,7 +166,6 @@ const Post = () => {
     }
     return estimateReadTime(post.content || "");
   }, [post]);
-  const coverUrl = useMemo(() => normalizeAssetUrl(post?.coverImageUrl), [post?.coverImageUrl]);
   const canEditPost = useMemo(() => {
     const permissions = Array.isArray(currentUser?.permissions) ? currentUser.permissions : [];
     return permissions.includes("*") || permissions.includes("posts");
@@ -213,10 +220,13 @@ const Post = () => {
                 </div>
 
                 <div className="relative aspect-3/2 overflow-hidden rounded-2xl border border-border bg-card shadow-xs">
-                  <img
-                    src={coverUrl || "/placeholder.svg"}
+                  <UploadPicture
+                    src={post.coverImageUrl}
                     alt={post.coverAlt || `Capa do post: ${post.title}`}
-                    className="absolute inset-0 block h-full w-full object-cover object-center"
+                    preset="hero"
+                    mediaVariants={mediaVariants}
+                    className="absolute inset-0 block h-full w-full"
+                    imgClassName="absolute inset-0 block h-full w-full object-cover object-center"
                     loading="lazy"
                   />
                 </div>

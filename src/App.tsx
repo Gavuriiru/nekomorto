@@ -24,6 +24,7 @@ const DashboardUsers = lazy(() => import("./pages/DashboardUsers"));
 const DashboardPosts = lazy(() => import("./pages/DashboardPosts"));
 const DashboardProjectsEditor = lazy(() => import("./pages/DashboardProjectsEditor"));
 const DashboardComments = lazy(() => import("./pages/DashboardComments"));
+const DashboardUploads = lazy(() => import("./pages/DashboardUploads"));
 const DashboardAuditLog = lazy(() => import("./pages/DashboardAuditLog"));
 const DashboardAnalytics = lazy(() => import("./pages/DashboardAnalytics"));
 const DashboardPages = lazy(() => import("./pages/DashboardPages"));
@@ -147,6 +148,14 @@ const RouterShell = () => {
           element={wrap(
             <RequireAuth>
               <DashboardComments />
+            </RequireAuth>,
+          )}
+        />
+        <Route
+          path="/dashboard/uploads"
+          element={wrap(
+            <RequireAuth>
+              <DashboardUploads />
             </RequireAuth>,
           )}
         />

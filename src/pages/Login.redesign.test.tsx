@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import Login from "@/pages/Login";
@@ -113,5 +113,35 @@ describe("Login redesign", () => {
     fireEvent.click(screen.getByRole("button", { name: "Entrar com Discord" }));
 
     expect(locationHref).toBe("http://api.local/auth/discord");
+  });
+
+  it("cancela login MFA com logout explicito e redireciona para home", async () => {
+    apiFetchMock.mockResolvedValueOnce(mockResponse(false)).mockResolvedValueOnce(mockResponse(true));
+
+    renderLogin("/login?mfa=required");
+
+    fireEvent.click(screen.getByRole("button", { name: "Cancelar login" }));
+
+    await waitFor(() => {
+      expect(apiFetchMock).toHaveBeenNthCalledWith(2, "http://api.local", "/api/logout", {
+        method: "POST",
+        auth: true,
+      });
+    });
+    await waitFor(() => {
+      expect(locationHref).toBe("/");
+    });
+  });
+
+  it("redireciona para home mesmo quando logout falha (fail-open)", async () => {
+    apiFetchMock.mockResolvedValueOnce(mockResponse(false)).mockRejectedValueOnce(new Error("network"));
+
+    renderLogin("/login?mfa=required");
+
+    fireEvent.click(screen.getByRole("button", { name: "Cancelar login" }));
+
+    await waitFor(() => {
+      expect(locationHref).toBe("/");
+    });
   });
 });

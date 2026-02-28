@@ -120,7 +120,7 @@ describe("Post cover fit", () => {
     const coverImage = await screen.findByRole("img", { name: "Capa de teste" });
     expect(coverImage).toHaveClass("absolute", "inset-0", "block", "h-full", "w-full", "object-cover", "object-center");
 
-    const coverContainer = coverImage.parentElement;
+    const coverContainer = coverImage.parentElement?.parentElement;
     expect(coverContainer).not.toBeNull();
     expect(coverContainer).toHaveClass("relative", "aspect-3/2", "overflow-hidden");
   });

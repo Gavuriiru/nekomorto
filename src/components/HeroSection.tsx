@@ -12,6 +12,7 @@ import {
   CarouselPrevious,
   type CarouselApi,
 } from "@/components/ui/carousel";
+import UploadPicture from "@/components/UploadPicture";
 import { useThemeMode } from "@/hooks/use-theme-mode";
 import { usePublicBootstrap } from "@/hooks/use-public-bootstrap";
 import type {
@@ -138,6 +139,7 @@ const HeroSection = () => {
   );
   const { data: bootstrapData, isFetched } = usePublicBootstrap();
   const { effectiveMode } = useThemeMode();
+  const mediaVariants = bootstrapData?.mediaVariants || {};
 
   const visibleSlides = React.useMemo(() => {
     if (heroSlides.length > 0) {
@@ -421,11 +423,14 @@ const HeroSection = () => {
                         />
                       </picture>
                     ) : (
-                      <img
+                      <UploadPicture
                         src={shouldLoadImage ? slide.image : transparentPixel}
                         alt=""
+                        preset="hero"
+                        mediaVariants={shouldLoadImage ? mediaVariants : undefined}
+                        className="h-full w-full"
+                        imgClassName="h-full w-full object-cover object-center"
                         aria-hidden="true"
-                        className="h-full w-full object-cover object-center"
                         loading={loading}
                         decoding="async"
                         {...imagePriorityProps}

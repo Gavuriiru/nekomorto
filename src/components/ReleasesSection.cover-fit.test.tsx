@@ -75,7 +75,7 @@ describe("ReleasesSection cover fit", () => {
       "object-center",
     );
 
-    const coverContainer = coverImage.parentElement;
+    const coverContainer = coverImage.parentElement?.parentElement;
     expect(coverContainer).not.toBeNull();
     expect(coverContainer).toHaveClass(
       "relative",

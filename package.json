@@ -34,6 +34,7 @@
     "uploads:generate-inventory": "node scripts/generate-uploads-inventory.mjs",
     "uploads:localize-project-images": "node scripts/localize-project-images.mjs",
     "uploads:isolate-project-images": "node scripts/isolate-project-images.mjs",
+    "uploads:backfill-media": "node scripts/backfill-upload-media.mjs",
     "users:migrate-permissions-v2": "node scripts/migrate-permissions-v2.mjs",
     "test": "vitest run",
     "test:watch": "vitest"
@@ -130,6 +131,7 @@
     "react-router-dom": "^6.30.1",
     "recharts": "^2.15.4",
     "redis": "^4.7.1",
+    "sharp": "^0.34.5",
     "sonner": "^1.7.4",
     "tailwind-merge": "^3.4.0",
     "tailwind-variants": "^3.2.2",
