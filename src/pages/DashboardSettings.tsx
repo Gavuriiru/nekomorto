@@ -71,6 +71,7 @@ import { defaultSettings, mergeSettings } from "@/hooks/site-settings-context";
 import type { SiteSettings } from "@/types/site-settings";
 import { usePageMeta } from "@/hooks/use-page-meta";
 import ThemedSvgLogo from "@/components/ThemedSvgLogo";
+import { DEFAULT_SITE_SHARE_IMAGE_ALT, resolveAssetAltText } from "@/lib/image-alt";
 import { navbarIconOptions } from "@/lib/navbar-icons";
 import { resolveBranding } from "@/lib/branding";
 
@@ -386,6 +387,20 @@ const writeLogoField = (nextSettings: SiteSettings, target: LogoLibraryTarget, u
   return nextSettings;
 };
 
+const normalizeDefaultShareImageSettings = (value: SiteSettings): SiteSettings => {
+  const defaultShareImage = String(value.site.defaultShareImage || "").trim();
+  return {
+    ...value,
+    site: {
+      ...value.site,
+      defaultShareImage,
+      defaultShareImageAlt: defaultShareImage
+        ? resolveAssetAltText(value.site.defaultShareImageAlt, DEFAULT_SITE_SHARE_IMAGE_ALT)
+        : "",
+    },
+  };
+};
+
 const DashboardSettings = () => {
   usePageMeta({ title: "Configurações", noIndex: true });
 
@@ -398,7 +413,9 @@ const DashboardSettings = () => {
       readAutosavePreference(autosaveStorageKeys.settings, true),
   );
   const { settings: publicSettings, refresh } = useSiteSettings();
-  const [settings, setSettings] = useState<SiteSettings>(publicSettings);
+  const [settings, setSettings] = useState<SiteSettings>(
+    normalizeDefaultShareImageSettings(publicSettings),
+  );
   const [currentUser, setCurrentUser] = useState<{
     id: string;
     name: string;
@@ -484,7 +501,11 @@ const DashboardSettings = () => {
           return;
         }
         if (settingsData.settings) {
-          setSettings(mergeSettings(defaultSettings, settingsData.settings));
+          setSettings(
+            normalizeDefaultShareImageSettings(
+              mergeSettings(defaultSettings, settingsData.settings),
+            ),
+          );
         }
         setTagTranslations(translationsData.tags || {});
         setGenreTranslations(translationsData.genres || {});
@@ -512,7 +533,7 @@ const DashboardSettings = () => {
         setLinkTypes(Array.isArray(linkTypesData.items) ? linkTypesData.items : []);
       } catch {
         if (isActive) {
-          setSettings(publicSettings);
+          setSettings(normalizeDefaultShareImageSettings(publicSettings));
           setTagTranslations({});
           setGenreTranslations({});
           setStaffRoleTranslations({});
@@ -702,8 +723,23 @@ const DashboardSettings = () => {
     setIsLibraryOpen(true);
   };
 
-  const applyLibraryImage = (url: string) => {
-    setSettings((prev) => writeLogoField(prev, libraryTarget, url));
+  const applyLibraryImage = (url: string, altText?: string) => {
+    const normalizedUrl = String(url || "").trim();
+    setSettings((prev) => {
+      const next = writeLogoField(prev, libraryTarget, normalizedUrl);
+      if (libraryTarget !== "site.defaultShareImage") {
+        return next;
+      }
+      return {
+        ...next,
+        site: {
+          ...next.site,
+          defaultShareImageAlt: normalizedUrl
+            ? resolveAssetAltText(altText, DEFAULT_SITE_SHARE_IMAGE_ALT)
+            : "",
+        },
+      };
+    });
   };
 
   const clearLibraryImage = (target: LogoLibraryTarget) => {
@@ -805,13 +841,7 @@ const DashboardSettings = () => {
 
   const saveSettingsResource = useCallback(
     async (snapshot: SiteSettings) => {
-      const nextSettings = { ...snapshot };
-      if (
-        String(nextSettings.site.defaultShareImage || "").trim() &&
-        !String(nextSettings.site.defaultShareImageAlt || "").trim()
-      ) {
-        throw new Error("default_share_image_alt_required");
-      }
+      const nextSettings = normalizeDefaultShareImageSettings(snapshot);
       const socialDiscord = nextSettings.footer.socialLinks.find(
         (link) => String(link.label || "").toLowerCase() === "discord",
       );
@@ -828,7 +858,9 @@ const DashboardSettings = () => {
         throw new Error("save_failed");
       }
       const data = await response.json().catch(() => null);
-      const normalizedSettings = mergeSettings(defaultSettings, data?.settings || nextSettings);
+      const normalizedSettings = normalizeDefaultShareImageSettings(
+        mergeSettings(defaultSettings, data?.settings || nextSettings),
+      );
       setSettings(normalizedSettings);
       return normalizedSettings;
     },
@@ -1056,20 +1088,6 @@ const DashboardSettings = () => {
   }, [linkTypesAutosave, settingsAutosave, translationsAutosave]);
 
   const handleSaveSettings = useCallback(async () => {
-    const currentDefaultShareImage = String(settings.site.defaultShareImage || "").trim();
-    const currentDefaultShareImageAlt = String(settings.site.defaultShareImageAlt || "").trim();
-    const currentDefaultShareImageAltError =
-      currentDefaultShareImage && !currentDefaultShareImageAlt
-        ? "Informe um texto alternativo para a imagem padrao de compartilhamento."
-        : "";
-    if (currentDefaultShareImageAltError) {
-      toast({
-        title: "Texto alternativo obrigatório",
-        description: currentDefaultShareImageAltError,
-        variant: "destructive",
-      });
-      return;
-    }
     const ok = await settingsAutosave.flushNow();
     if (!ok) {
       toast({
@@ -1081,7 +1099,7 @@ const DashboardSettings = () => {
     }
     await refresh().catch(() => undefined);
     toast({ title: "Configurações salvas" });
-  }, [refresh, settings, settingsAutosave]);
+  }, [refresh, settingsAutosave]);
 
   const handleSaveTranslations = useCallback(async () => {
     const ok = await translationsAutosave.flushNow();
@@ -1156,13 +1174,7 @@ const DashboardSettings = () => {
   const navbarWordmarkOverrideDirect = branding.direct.navbarWordmarkOverrideUrl;
   const footerWordmarkOverrideDirect = branding.direct.footerWordmarkOverrideUrl;
   const faviconUrl = settings.site.faviconUrl?.trim() || "";
-  const shareImageUrl = settings.site.defaultShareImage?.trim() || "";
-  const defaultShareImageAlt = settings.site.defaultShareImageAlt?.trim() || "";
-  const defaultShareImageAltError =
-    shareImageUrl && !defaultShareImageAlt
-      ? "Informe um texto alternativo para a imagem padrão de compartilhamento."
-      : "";
-
+  const defaultShareImageUrl = settings.site.defaultShareImage?.trim() || "";
   const symbolAssetUrl = branding.assets.symbolUrl;
   const wordmarkAssetUrl = branding.assets.wordmarkUrl;
   const resolvedNavbarSymbolUrl = branding.navbar.symbolUrl;
@@ -1211,9 +1223,9 @@ const DashboardSettings = () => {
       status: faviconUrl ? "Favicon ativa na aba do navegador." : "Sem favicon definida.",
     },
     "site.defaultShareImage": {
-      value: shareImageUrl,
-      preview: shareImageUrl,
-      status: shareImageUrl
+      value: defaultShareImageUrl,
+      preview: defaultShareImageUrl,
+      status: defaultShareImageUrl
         ? "Imagem padrão de compartilhamento ativa."
         : "Sem imagem padrão de compartilhamento.",
     },
@@ -1691,44 +1703,6 @@ const DashboardSettings = () => {
                               </Button>
                             </div>
 
-                            {field.target === "site.defaultShareImage" ? (
-                              <div className="space-y-2">
-                                <Label htmlFor="site-default-share-image-alt">Texto alternativo</Label>
-                                <Input
-                                  id="site-default-share-image-alt"
-                                  value={settings.site.defaultShareImageAlt}
-                                  onChange={(event) =>
-                                    setSettings((prev) => ({
-                                      ...prev,
-                                      site: {
-                                        ...prev.site,
-                                        defaultShareImageAlt: event.target.value,
-                                      },
-                                    }))
-                                  }
-                                  aria-invalid={Boolean(defaultShareImageAltError)}
-                                  aria-describedby={
-                                    defaultShareImageAltError
-                                      ? "site-default-share-image-alt-error"
-                                      : undefined
-                                  }
-                                  placeholder="Descreva a imagem padrão de compartilhamento"
-                                />
-                                {defaultShareImageAltError ? (
-                                  <p
-                                    id="site-default-share-image-alt-error"
-                                    role="alert"
-                                    className="text-xs text-destructive"
-                                  >
-                                    {defaultShareImageAltError}
-                                  </p>
-                                ) : (
-                                  <p className="text-xs text-muted-foreground">
-                                    Obrigatório quando a imagem padrão estiver definida.
-                                  </p>
-                                )}
-                              </div>
-                            ) : null}
                           </div>
                         );
                       })}
@@ -1752,7 +1726,7 @@ const DashboardSettings = () => {
                             }))
                           }
                         >
-                          <SelectTrigger>
+                          <SelectTrigger className="min-w-0">
                             <SelectValue placeholder="Selecione" />
                           </SelectTrigger>
                           <SelectContent>
@@ -1784,7 +1758,7 @@ const DashboardSettings = () => {
                             }))
                           }
                         >
-                          <SelectTrigger>
+                          <SelectTrigger className="min-w-0">
                             <SelectValue placeholder="Selecione" />
                           </SelectTrigger>
                           <SelectContent>
@@ -2443,7 +2417,7 @@ const DashboardSettings = () => {
                             })
                           }
                         >
-                          <SelectTrigger>
+                          <SelectTrigger className="min-w-0">
                             <SelectValue placeholder="Ícone" />
                           </SelectTrigger>
                           <SelectContent>
@@ -2645,7 +2619,7 @@ const DashboardSettings = () => {
                             })
                           }
                         >
-                          <SelectTrigger>
+                          <SelectTrigger className="min-w-0">
                             <SelectValue placeholder="Ícone" />
                           </SelectTrigger>
                           <SelectContent>
@@ -2674,6 +2648,7 @@ const DashboardSettings = () => {
                           }
                         />
                         <Input
+                          className="min-w-0"
                           value={link.href}
                           placeholder="URL ou rota"
                           onChange={(event) =>
@@ -2930,7 +2905,7 @@ const DashboardSettings = () => {
                       <div
                         key={`${link.label}-${index}`}
                         data-testid={`footer-social-row-${index}`}
-                        className={`grid items-center gap-3 rounded-xl border p-2 transition md:grid-cols-[auto_0.8fr_1.6fr_auto] ${
+                        className={`overflow-x-auto rounded-xl border p-2 transition ${
                           footerSocialDragOverIndex === index
                             ? "border-primary/40 bg-primary/5"
                             : "border-transparent"
@@ -2938,6 +2913,7 @@ const DashboardSettings = () => {
                         onDragOver={(event) => handleFooterSocialDragOver(event, index)}
                         onDrop={(event) => handleFooterSocialDrop(event, index)}
                       >
+                        <div className="grid min-w-[720px] items-center gap-3 md:grid-cols-[auto_auto_minmax(180px,0.95fr)_minmax(260px,1.55fr)_auto]">
                         <button
                           type="button"
                           draggable
@@ -2971,7 +2947,7 @@ const DashboardSettings = () => {
                             })
                           }
                         >
-                          <SelectTrigger>
+                          <SelectTrigger className="min-w-0 w-full">
                             <SelectValue placeholder="Ícone" />
                           </SelectTrigger>
                           <SelectContent>
@@ -3004,6 +2980,7 @@ const DashboardSettings = () => {
                           </SelectContent>
                         </Select>
                         <Input
+                          className="min-w-0"
                           value={link.href}
                           placeholder="URL"
                           onChange={(event) =>
@@ -3018,6 +2995,8 @@ const DashboardSettings = () => {
                           type="button"
                           variant="ghost"
                           size="icon"
+                          className="h-9 w-9 shrink-0 text-destructive hover:text-destructive"
+                          aria-label={`Remover rede ${link.label || index + 1}`}
                           onClick={() =>
                             setSettings((prev) => ({
                               ...prev,
@@ -3032,6 +3011,7 @@ const DashboardSettings = () => {
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -3159,7 +3139,7 @@ const DashboardSettings = () => {
           allowDeselect
           mode="single"
           currentSelectionUrls={currentLibrarySelection ? [currentLibrarySelection] : []}
-          onSave={({ urls }) => applyLibraryImage(urls[0] || "")}
+          onSave={({ urls, items }) => applyLibraryImage(urls[0] || "", items[0]?.altText)}
         />
       </Suspense>
     </DashboardShell>

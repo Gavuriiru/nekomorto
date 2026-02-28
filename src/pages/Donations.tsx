@@ -24,6 +24,8 @@ import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
 import { publicPageLayoutTokens } from "@/components/public-page-tokens";
 import { usePageMeta } from "@/hooks/use-page-meta";
+import { usePixQrCode } from "@/hooks/use-pix-qr-code";
+import { useSiteSettings } from "@/hooks/use-site-settings";
 
 const iconMap: Record<string, typeof Server> = {
   Server,
@@ -54,6 +56,7 @@ const emptyDonations = {
   reasonNote: "",
   pixKey: "",
   pixNote: "",
+  pixCity: "",
   qrCustomUrl: "",
   pixIcon: "QrCode",
   donorsIcon: "PiggyBank",
@@ -64,8 +67,11 @@ const defaultDonations = emptyDonations;
 
 const Donations = () => {
   const apiBase = getApiBase();
+  const { settings } = useSiteSettings();
   const [copied, setCopied] = useState(false);
   const [donations, setDonations] = useState(defaultDonations);
+  const merchantName =
+    String(settings.site.name || settings.footer.brandName || "NEKOMATA").trim() || "NEKOMATA";
   usePageMeta({
     title: "Doações",
     image: donations.shareImage || undefined,
@@ -134,11 +140,13 @@ const Donations = () => {
     }
   };
 
-  const qrUrl = donations.qrCustomUrl
-    ? donations.qrCustomUrl
-    : donations.pixKey
-      ? `https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=${encodeURIComponent(donations.pixKey)}`
-      : "/placeholder.svg";
+  const qrUrl = usePixQrCode({
+    pixKey: donations.pixKey,
+    pixNote: donations.pixNote,
+    pixCity: donations.pixCity?.trim() || "CIDADE",
+    qrCustomUrl: donations.qrCustomUrl,
+    merchantName,
+  });
 
   return (
     <div className="min-h-screen bg-background text-foreground">

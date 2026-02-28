@@ -305,6 +305,7 @@ const AUDIT_DEFAULT_META_KEYS = [
   "hashSha256",
   "dedupeHit",
   "variantBytes",
+  "altTextLength",
 ];
 const AUDIT_META_ALLOWLIST = {
   "auth.login.failed": ["error"],
@@ -327,6 +328,7 @@ const AUDIT_META_ALLOWLIST = {
     "variantBytes",
   ],
   "uploads.rename": ["oldUrl", "newUrl", "updatedReferences", "replacements"],
+  "uploads.alt_text.update": ["uploadId", "altTextLength"],
   "uploads.delete": ["url"],
   "uploads.auto_reorganize.startup": ["trigger", "moves", "rewrites", "failures", "durationMs"],
   "uploads.auto_reorganize.post_save": ["trigger", "moves", "rewrites", "failures", "durationMs"],
@@ -4360,6 +4362,7 @@ const upsertUploadEntries = (incomingEntries) => {
       height: Number.isFinite(entry?.height) ? Number(entry.height) : (current?.height ?? null),
       area: String(entry?.area || current?.area || ""),
       hashSha256: String(entry?.hashSha256 || current?.hashSha256 || ""),
+      altText: readUploadAltText(entry) || readUploadAltText(current),
       focalPoints: focalState.focalPoints,
       focalPoint: focalState.focalPoint,
       variantsVersion: Number.isFinite(Number(entry?.variantsVersion))
@@ -4439,6 +4442,8 @@ const readUploadFocalState = (value) => {
     focalPoint: getPrimaryFocalPoint(focalPoints),
   };
 };
+
+const readUploadAltText = (value) => String(value?.altText || "").trim();
 
 const resolveIncomingUploadFocalState = (incoming, current) => {
   if (hasOwnField(incoming, "focalPoints")) {
@@ -11652,6 +11657,7 @@ app.post("/api/uploads/image", requireAuth, async (req, res) => {
     height: validation.dimensions?.height || null,
     area: safeFolder ? String(safeFolder).split("/")[0] : "root",
     createdAt: new Date().toISOString(),
+    altText: readUploadAltText(existingEntry),
   };
   let uploadEntry = uploadEntryBase;
   let variantsGenerated = true;
@@ -11792,6 +11798,7 @@ app.get("/api/uploads/list", requireAuth, (req, res) => {
             typeof meta?.area === "string" && meta.area
               ? meta.area
               : String((meta?.folder || path.dirname(relative).replace(/\\/g, "/")).split("/")[0] || "root"),
+          altText: readUploadAltText(meta),
           inUse,
           canDelete: !inUse,
         });
@@ -11835,6 +11842,7 @@ app.get("/api/uploads/list", requireAuth, (req, res) => {
                 typeof meta?.area === "string" && meta.area
                   ? meta.area
                   : String((meta?.folder || safeFolder || "").split("/")[0] || "root"),
+              altText: readUploadAltText(meta),
               inUse,
               canDelete: !inUse,
             };
@@ -11924,6 +11932,46 @@ app.patch("/api/uploads/:id/focal-point", requireAuth, async (req, res) => {
       variants: updated.variants || {},
       variantBytes: Number.isFinite(Number(updated.variantBytes)) ? Number(updated.variantBytes) : 0,
       area: updated.area || "",
+      altText: readUploadAltText(updated),
+      createdAt: updated.createdAt || null,
+    },
+  });
+});
+
+app.patch("/api/uploads/:id/alt-text", requireAuth, (req, res) => {
+  const sessionUser = req.session.user;
+  if (!canManageUploads(sessionUser?.id)) {
+    return res.status(403).json({ error: "forbidden" });
+  }
+  const uploadId = String(req.params?.id || "").trim();
+  if (!uploadId) {
+    return res.status(400).json({ error: "invalid_upload_id" });
+  }
+  const uploads = loadUploads();
+  const targetIndex = uploads.findIndex((item) => String(item?.id || "") === uploadId);
+  if (targetIndex < 0) {
+    return res.status(404).json({ error: "upload_not_found" });
+  }
+  const current = uploads[targetIndex];
+  const nextAltText = String(req.body?.altText || "").trim();
+  const updated = {
+    ...current,
+    altText: nextAltText,
+  };
+  uploads[targetIndex] = updated;
+  writeUploads(uploads);
+  appendAuditLog(req, "uploads.alt_text.update", "uploads", {
+    uploadId,
+    altTextLength: nextAltText.length,
+  });
+  return res.json({
+    ok: true,
+    item: {
+      id: updated.id,
+      url: updated.url,
+      fileName: updated.fileName,
+      folder: updated.folder,
+      altText: readUploadAltText(updated),
       createdAt: updated.createdAt || null,
     },
   });

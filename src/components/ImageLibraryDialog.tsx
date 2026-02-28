@@ -66,6 +66,7 @@ export type LibraryImageItem = {
   variants?: Record<string, unknown>;
   variantBytes?: number;
   area?: string;
+  altText?: string;
 };
 
 export type ImageLibrarySavePayload = {
@@ -796,11 +797,14 @@ const ImageLibraryDialog = ({
   const [uploadsFolderFilter, setUploadsFolderFilter] = useState<string>("__all__");
   const [renameTarget, setRenameTarget] = useState<LibraryImageItem | null>(null);
   const [renameValue, setRenameValue] = useState("");
+  const [altTextTarget, setAltTextTarget] = useState<LibraryImageItem | null>(null);
+  const [altTextValue, setAltTextValue] = useState("");
   const [deleteTarget, setDeleteTarget] = useState<LibraryImageItem | null>(null);
   const [focalTarget, setFocalTarget] = useState<LibraryImageItem | null>(null);
   const [focalDraft, setFocalDraft] = useState<UploadFocalPoints>(() => normalizeUploadFocalPoints());
   const [activeFocalPreset, setActiveFocalPreset] = useState<UploadVariantPresetKey>("card");
   const [isRenaming, setIsRenaming] = useState(false);
+  const [isSavingAltText, setIsSavingAltText] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isSavingFocal, setIsSavingFocal] = useState(false);
   const [isApplyingCrop, setIsApplyingCrop] = useState(false);
@@ -1088,6 +1092,7 @@ const ImageLibraryDialog = ({
               ? Number(file.variantBytes)
               : 0,
             area: typeof file.area === "string" ? file.area : "",
+            altText: typeof file.altText === "string" ? file.altText : "",
           });
         }
       }
@@ -1188,6 +1193,8 @@ const ImageLibraryDialog = ({
   useEffect(() => {
     if (!open) {
       setIsDragActive(false);
+      setAltTextTarget(null);
+      setAltTextValue("");
       setFocalTarget(null);
       return;
     }
@@ -1487,6 +1494,58 @@ const ImageLibraryDialog = ({
     }
   }, [apiBase, loadLibrary, renameTarget, renameValue]);
 
+  const beginAltTextEdit = useCallback((item: LibraryImageItem) => {
+    if (item.source !== "upload" || !item.id) {
+      return;
+    }
+    setAltTextTarget(item);
+    setAltTextValue(String(item.altText || ""));
+  }, []);
+
+  const handleAltTextConfirm = useCallback(async () => {
+    if (!altTextTarget?.id || altTextTarget.source !== "upload") {
+      setAltTextTarget(null);
+      setAltTextValue("");
+      return;
+    }
+    setIsSavingAltText(true);
+    try {
+      const response = await apiFetch(
+        apiBase,
+        `/api/uploads/${encodeURIComponent(altTextTarget.id)}/alt-text`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          auth: true,
+          body: JSON.stringify({
+            altText: altTextValue,
+          }),
+        },
+      );
+      if (!response.ok) {
+        toast({
+          title: "Nao foi possivel salvar o texto alternativo.",
+          variant: "destructive",
+        });
+        return;
+      }
+      setAltTextTarget(null);
+      setAltTextValue("");
+      await loadUploads();
+      toast({
+        title: "Texto alternativo atualizado",
+        intent: "success",
+      });
+    } catch {
+      toast({
+        title: "Nao foi possivel salvar o texto alternativo.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSavingAltText(false);
+    }
+  }, [altTextTarget, altTextValue, apiBase, loadUploads]);
+
   const beginFocalPointEdit = useCallback((item: LibraryImageItem) => {
     if (item.source !== "upload" || !item.id) {
       return;
@@ -1648,6 +1707,7 @@ const ImageLibraryDialog = ({
           const canRename = item.source === "upload";
           const canDelete = item.source === "upload" && Boolean(item.canDelete);
           const canEditFocal = item.source === "upload" && Boolean(item.id);
+          const canEditAltText = item.source === "upload" && Boolean(item.id);
           return (
             <ContextMenu key={`${item.source}:${item.url}`}>
               <ContextMenuTrigger asChild>
@@ -1699,6 +1759,17 @@ const ImageLibraryDialog = ({
                   Definir ponto focal
                 </ContextMenuItem>
                 <ContextMenuItem
+                  disabled={!canEditAltText}
+                  onSelect={() => {
+                    if (!canEditAltText) {
+                      return;
+                    }
+                    beginAltTextEdit(item);
+                  }}
+                >
+                  Editar texto alternativo
+                </ContextMenuItem>
+                <ContextMenuItem
                   disabled={!canRename}
                   onSelect={() => {
                     if (!canRename) {
@@ -1721,12 +1792,12 @@ const ImageLibraryDialog = ({
                 >
                   Excluir
                 </ContextMenuItem>
-                {!canRename || !canDelete || !canEditFocal ? (
+                {!canRename || !canDelete || !canEditFocal || !canEditAltText ? (
                   <>
                     <ContextMenuSeparator />
                     <ContextMenuLabel className="text-xs font-normal text-muted-foreground">
                       {item.source === "project"
-                        ? "Item somente leitura (projeto)."
+                        ? "Item somente leitura (projeto). Texto alternativo editavel apenas em uploads."
                         : item.inUse
                           ? "Exclus\u00E3o bloqueada: imagem em uso."
                           : "A\u00E7\u00F5es indispon\u00EDveis."}
@@ -2093,6 +2164,54 @@ const ImageLibraryDialog = ({
             >
               {isDeleting ? "Excluindo..." : "Excluir"}
             </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={Boolean(altTextTarget)}
+        onOpenChange={(next) => {
+          if (!next) {
+            setAltTextTarget(null);
+            setAltTextValue("");
+          }
+        }}
+      >
+        <DialogContent className="max-w-md z-240" overlayClassName="z-230">
+          <DialogHeader>
+            <DialogTitle>Editar texto alternativo</DialogTitle>
+            <DialogDescription>
+              Esse texto fica salvo no upload e pode ser reutilizado ao selecionar a imagem.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <Label htmlFor="edit-image-alt-text">Texto alternativo</Label>
+            <Input
+              id="edit-image-alt-text"
+              value={altTextValue}
+              onChange={(event) => setAltTextValue(event.target.value)}
+              placeholder="Descreva a imagem, se quiser"
+            />
+            <div className="flex justify-end gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setAltTextTarget(null);
+                  setAltTextValue("");
+                }}
+                disabled={isSavingAltText}
+              >
+                Cancelar
+              </Button>
+              <Button
+                type="button"
+                disabled={isSavingAltText}
+                onClick={() => void handleAltTextConfirm()}
+              >
+                {isSavingAltText ? "Salvando..." : "Salvar"}
+              </Button>
+            </div>
           </div>
         </DialogContent>
       </Dialog>

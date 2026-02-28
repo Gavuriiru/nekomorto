@@ -67,6 +67,13 @@ import { createSlug } from "@/lib/post-content";
 import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
 import {
+  DEFAULT_PROJECT_BANNER_ALT,
+  DEFAULT_PROJECT_COVER_ALT,
+  DEFAULT_PROJECT_HERO_ALT,
+  getEpisodeCoverAltFallback,
+  resolveAssetAltText,
+} from "@/lib/image-alt";
+import {
   buildTranslationMap,
   sortByTranslatedLabel,
   translateAnilistRole,
@@ -1336,25 +1343,20 @@ const DashboardProjectsEditor = () => {
   }, [sortedEpisodeDownloads]);
 
   const applyLibraryImage = (url: string, altText?: string) => {
-    const nextAlt = String(altText || "").trim();
+    const nextUrl = String(url || "").trim();
     setFormState((prev) => {
       const next = { ...prev };
       if (libraryTarget === "cover") {
-        next.cover = url;
-        if (!String(next.coverAlt || "").trim()) {
-          next.coverAlt = nextAlt || next.title || "Capa do projeto";
-        }
+        next.cover = nextUrl;
+        next.coverAlt = nextUrl ? resolveAssetAltText(altText, DEFAULT_PROJECT_COVER_ALT) : "";
       } else if (libraryTarget === "banner") {
-        next.banner = url;
-        if (!String(next.bannerAlt || "").trim()) {
-          next.bannerAlt = nextAlt || (next.title ? `${next.title} (banner)` : "Banner do projeto");
-        }
+        next.banner = nextUrl;
+        next.bannerAlt = nextUrl
+          ? resolveAssetAltText(altText, DEFAULT_PROJECT_BANNER_ALT)
+          : "";
       } else if (libraryTarget === "hero") {
-        next.heroImageUrl = url;
-        if (!String(next.heroImageAlt || "").trim()) {
-          next.heroImageAlt =
-            nextAlt || (next.title ? `${next.title} (hero)` : "Imagem hero do projeto");
-        }
+        next.heroImageUrl = nextUrl;
+        next.heroImageAlt = nextUrl ? resolveAssetAltText(altText, DEFAULT_PROJECT_HERO_ALT) : "";
       } else if (libraryTarget === "episode-cover") {
         if (episodeCoverIndex === null) {
           return prev;
@@ -1365,12 +1367,13 @@ const DashboardProjectsEditor = () => {
         }
         nextEpisodes[episodeCoverIndex] = {
           ...nextEpisodes[episodeCoverIndex],
-          coverImageUrl: url,
-          coverImageAlt:
-            nextEpisodes[episodeCoverIndex].coverImageAlt ||
-            nextAlt ||
-            nextEpisodes[episodeCoverIndex].title ||
-            "Capa do episódio",
+          coverImageUrl: nextUrl,
+          coverImageAlt: nextUrl
+            ? resolveAssetAltText(
+                altText,
+                getEpisodeCoverAltFallback(isChapterBasedType(prev.type || "")),
+              )
+            : "",
         };
         return { ...prev, episodeDownloads: nextEpisodes };
       }
@@ -1684,12 +1687,17 @@ const DashboardProjectsEditor = () => {
 
   const openEdit = useCallback((project: ProjectRecord) => {
     const initialEpisodes: ProjectEpisode[] = Array.isArray(project.episodeDownloads)
-      ? project.episodeDownloads.map(
+        ? project.episodeDownloads.map(
           (episode): ProjectEpisode => ({
             ...episode,
             content: episode.content || "",
             contentFormat: "lexical",
-            coverImageAlt: episode.coverImageAlt || episode.title || "",
+            coverImageAlt: episode.coverImageUrl
+              ? resolveAssetAltText(
+                  episode.coverImageAlt,
+                  getEpisodeCoverAltFallback(isChapterBasedType(project.type || "")),
+                )
+              : "",
           }),
         )
       : [];
@@ -1710,9 +1718,13 @@ const DashboardProjectsEditor = () => {
       tags: Array.isArray(project.tags) ? project.tags : [],
       genres: Array.isArray(project.genres) ? project.genres : [],
       cover: project.cover || "",
-      coverAlt: project.coverAlt || project.title || "",
+      coverAlt: project.cover
+        ? resolveAssetAltText(project.coverAlt, DEFAULT_PROJECT_COVER_ALT)
+        : "",
       banner: project.banner || "",
-      bannerAlt: project.bannerAlt || (project.title ? `${project.title} (banner)` : ""),
+      bannerAlt: project.banner
+        ? resolveAssetAltText(project.bannerAlt, DEFAULT_PROJECT_BANNER_ALT)
+        : "",
       season: project.season || "",
       schedule: project.schedule || "",
       rating: project.rating || "",
@@ -1729,7 +1741,9 @@ const DashboardProjectsEditor = () => {
       trailerUrl: project.trailerUrl || "",
       forceHero: Boolean(project.forceHero),
       heroImageUrl: project.heroImageUrl || "",
-      heroImageAlt: project.heroImageAlt || (project.title ? `${project.title} (hero)` : ""),
+      heroImageAlt: project.heroImageUrl
+        ? resolveAssetAltText(project.heroImageAlt, DEFAULT_PROJECT_HERO_ALT)
+        : "",
       episodeDownloads: initialEpisodes,
     };
     const nextAniListInput = project.anilistId ? String(project.anilistId) : "";
@@ -1814,19 +1828,6 @@ const DashboardProjectsEditor = () => {
     };
     setConfirmOpen(true);
   };
-
-  const coverAltError =
-    formState.cover && !String(formState.coverAlt || "").trim()
-      ? "Informe um texto alternativo para a capa."
-      : "";
-  const bannerAltError =
-    formState.banner && !String(formState.bannerAlt || "").trim()
-      ? "Informe um texto alternativo para o banner."
-      : "";
-  const heroImageAltError =
-    formState.heroImageUrl && !String(formState.heroImageAlt || "").trim()
-      ? "Informe um texto alternativo para a imagem do carrossel."
-      : "";
 
   const handleSave = async () => {
     const trimmedTitle = formState.title.trim();
@@ -1961,9 +1962,13 @@ const DashboardProjectsEditor = () => {
       tags: formState.tags.filter(Boolean),
       genres: formState.genres.filter(Boolean),
       cover: formState.cover?.trim() || "",
-      coverAlt: formState.coverAlt?.trim() || "",
+      coverAlt: formState.cover?.trim()
+        ? resolveAssetAltText(formState.coverAlt, DEFAULT_PROJECT_COVER_ALT)
+        : "",
       banner: formState.banner?.trim() || "",
-      bannerAlt: formState.bannerAlt?.trim() || "",
+      bannerAlt: formState.banner?.trim()
+        ? resolveAssetAltText(formState.bannerAlt, DEFAULT_PROJECT_BANNER_ALT)
+        : "",
       season: formState.season?.trim() || "",
       schedule: formState.schedule?.trim() || "",
       rating: formState.rating?.trim() || "",
@@ -1976,7 +1981,9 @@ const DashboardProjectsEditor = () => {
       trailerUrl: formState.trailerUrl?.trim() || "",
       forceHero: Boolean(formState.forceHero),
       heroImageUrl: formState.heroImageUrl?.trim() || "",
-      heroImageAlt: formState.heroImageAlt?.trim() || "",
+      heroImageAlt: formState.heroImageUrl?.trim()
+        ? resolveAssetAltText(formState.heroImageAlt, DEFAULT_PROJECT_HERO_ALT)
+        : "",
       relations: formState.relations
         .filter((item) => item.title || item.relation || item.projectId)
         .filter((item, index, arr) => {
@@ -2013,7 +2020,12 @@ const DashboardProjectsEditor = () => {
           Number.isFinite(parsedSize) && parsedSize > 0 ? Math.round(parsedSize) : undefined;
         return {
           ...episode,
-          coverImageAlt: String(episode.coverImageAlt || "").trim(),
+          coverImageAlt: String(episode.coverImageUrl || "").trim()
+            ? resolveAssetAltText(
+                episode.coverImageAlt,
+                getEpisodeCoverAltFallback(isChapterBasedType(formState.type || "")),
+              )
+            : "",
           hash: hash || undefined,
           sizeBytes,
           sources: (episode.sources || [])
@@ -2034,42 +2046,6 @@ const DashboardProjectsEditor = () => {
         };
       }),
     };
-
-    const firstEpisodeMissingAlt = payload.episodeDownloads.find(
-      (episode) => episode.coverImageUrl && !String(episode.coverImageAlt || "").trim(),
-    );
-    if (payload.cover && !payload.coverAlt) {
-      toast({
-        title: "Texto alternativo obrigatório",
-        description: "A capa do projeto precisa de um texto alternativo.",
-        variant: "destructive",
-      });
-      return;
-    }
-    if (payload.banner && !payload.bannerAlt) {
-      toast({
-        title: "Texto alternativo obrigatório",
-        description: "O banner do projeto precisa de um texto alternativo.",
-        variant: "destructive",
-      });
-      return;
-    }
-    if (payload.heroImageUrl && !payload.heroImageAlt) {
-      toast({
-        title: "Texto alternativo obrigatório",
-        description: "A imagem do carrossel precisa de um texto alternativo.",
-        variant: "destructive",
-      });
-      return;
-    }
-    if (firstEpisodeMissingAlt) {
-      toast({
-        title: "Texto alternativo obrigatório",
-        description: `O item ${firstEpisodeMissingAlt.title || firstEpisodeMissingAlt.number} precisa de um texto alternativo para a capa.`,
-        variant: "destructive",
-      });
-      return;
-    }
 
     const response = await apiFetch(
       apiBase,
@@ -2662,14 +2638,23 @@ const DashboardProjectsEditor = () => {
                     <CardContent className="p-0">
                       <div className="grid gap-6 md:grid-cols-[220px_1fr]">
                         <div className="relative aspect-2/3 w-full">
+                          <button
+                            type="button"
+                            className="absolute inset-0 z-10 rounded-2xl focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary/60"
+                            aria-hidden="true"
+                            tabIndex={-1}
+                            onClick={() => openEdit(project)}
+                          >
+                            <span className="sr-only">{`Abrir projeto ${project.title}`}</span>
+                          </button>
                           <img
                             src={project.cover || "/placeholder.svg"}
                             alt={project.title}
-                            className="h-full w-full object-cover object-center"
+                            className="pointer-events-none h-full w-full object-cover object-center"
                             loading="lazy"
                           />
                           {project.tags[0] ? (
-                            <Badge className="absolute right-3 top-3 text-[10px] uppercase bg-background/85 text-foreground">
+                            <Badge className="pointer-events-none absolute right-3 top-3 text-[10px] uppercase bg-background/85 text-foreground">
                               {translateTag(
                                 sortByTranslatedLabel(project.tags || [], (tag) =>
                                   translateTag(tag, tagTranslationMap),
@@ -2679,8 +2664,16 @@ const DashboardProjectsEditor = () => {
                             </Badge>
                           ) : null}
                         </div>
-                        <div className="flex flex-1 flex-col gap-4 p-6">
-                          <div className="flex flex-wrap items-start justify-between gap-4">
+                        <div className="relative flex flex-1 flex-col gap-4 p-6">
+                          <button
+                            type="button"
+                            className="absolute inset-0 z-0 rounded-2xl focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary/60"
+                            aria-label={`Abrir projeto ${project.title}`}
+                            onClick={() => openEdit(project)}
+                          >
+                            <span className="sr-only">{`Abrir projeto ${project.title}`}</span>
+                          </button>
+                          <div className="relative z-10 flex flex-wrap items-start justify-between gap-4 pointer-events-none">
                             <div className="space-y-2">
                               <div className="flex flex-wrap items-center gap-2">
                                 <Badge variant="outline" className="text-[10px] uppercase">
@@ -2695,7 +2688,7 @@ const DashboardProjectsEditor = () => {
                               </h3>
                               <p className="text-xs text-muted-foreground">{project.studio}</p>
                             </div>
-                            <div className="flex items-center gap-2">
+                            <div className="pointer-events-auto relative z-20 flex items-center gap-2">
                               <Button
                                 variant="outline"
                                 size="sm"
@@ -2746,12 +2739,12 @@ const DashboardProjectsEditor = () => {
                             </div>
                           </div>
 
-                          <p className="text-sm text-muted-foreground line-clamp-3">
+                          <p className="pointer-events-none relative z-10 text-sm text-muted-foreground line-clamp-3">
                             {project.synopsis}
                           </p>
 
                           {project.tags.length > 0 ? (
-                            <div className="flex flex-wrap gap-2">
+                            <div className="pointer-events-none relative z-10 flex flex-wrap gap-2">
                               {sortByTranslatedLabel(project.tags || [], (tag) =>
                                 translateTag(tag, tagTranslationMap),
                               )
@@ -2768,7 +2761,7 @@ const DashboardProjectsEditor = () => {
                             </div>
                           ) : null}
                           {project.genres?.length ? (
-                            <div className="flex flex-wrap gap-2">
+                            <div className="pointer-events-none relative z-10 flex flex-wrap gap-2">
                               {sortByTranslatedLabel(project.genres || [], (genre) =>
                                 translateGenre(genre, genreTranslationMap),
                               )
@@ -2785,7 +2778,7 @@ const DashboardProjectsEditor = () => {
                             </div>
                           ) : null}
 
-                          <div className="flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
+                          <div className="pointer-events-none relative z-10 flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
                             <span className="inline-flex items-center gap-2">
                               {project.views} visualizações
                             </span>
@@ -3129,27 +3122,6 @@ const DashboardProjectsEditor = () => {
                             Biblioteca
                           </Button>
                         </div>
-                        <Input
-                          value={formState.heroImageAlt}
-                          onChange={(event) =>
-                            setFormState((prev) => ({
-                              ...prev,
-                              heroImageAlt: event.target.value,
-                            }))
-                          }
-                          aria-invalid={Boolean(heroImageAltError)}
-                          aria-describedby={heroImageAltError ? "project-hero-alt-error" : undefined}
-                          placeholder="Texto alternativo da imagem do carrossel"
-                        />
-                        {heroImageAltError ? (
-                          <p id="project-hero-alt-error" role="alert" className="text-xs text-destructive">
-                            {heroImageAltError}
-                          </p>
-                        ) : (
-                          <p className="text-xs text-muted-foreground">
-                            Obrigatório quando houver imagem do carrossel.
-                          </p>
-                        )}
                       </div>
                     </div>
                     <div className="space-y-2">
@@ -3177,27 +3149,6 @@ const DashboardProjectsEditor = () => {
                             Biblioteca
                           </Button>
                         </div>
-                        <Input
-                          value={formState.coverAlt}
-                          onChange={(event) =>
-                            setFormState((prev) => ({
-                              ...prev,
-                              coverAlt: event.target.value,
-                            }))
-                          }
-                          aria-invalid={Boolean(coverAltError)}
-                          aria-describedby={coverAltError ? "project-cover-alt-error" : undefined}
-                          placeholder="Texto alternativo da capa"
-                        />
-                        {coverAltError ? (
-                          <p id="project-cover-alt-error" role="alert" className="text-xs text-destructive">
-                            {coverAltError}
-                          </p>
-                        ) : (
-                          <p className="text-xs text-muted-foreground">
-                            Obrigatório quando houver capa.
-                          </p>
-                        )}
                       </div>
                     </div>
                     <div className="space-y-2">
@@ -3225,27 +3176,6 @@ const DashboardProjectsEditor = () => {
                             Biblioteca
                           </Button>
                         </div>
-                        <Input
-                          value={formState.bannerAlt}
-                          onChange={(event) =>
-                            setFormState((prev) => ({
-                              ...prev,
-                              bannerAlt: event.target.value,
-                            }))
-                          }
-                          aria-invalid={Boolean(bannerAltError)}
-                          aria-describedby={bannerAltError ? "project-banner-alt-error" : undefined}
-                          placeholder="Texto alternativo do banner"
-                        />
-                        {bannerAltError ? (
-                          <p id="project-banner-alt-error" role="alert" className="text-xs text-destructive">
-                            {bannerAltError}
-                          </p>
-                        ) : (
-                          <p className="text-xs text-muted-foreground">
-                            Obrigatório quando houver banner.
-                          </p>
-                        )}
                       </div>
                     </div>
                   </div>
@@ -4248,50 +4178,6 @@ const DashboardProjectsEditor = () => {
                                       >
                                         Biblioteca
                                       </Button>
-                                      <div className="w-full space-y-2">
-                                        <Input
-                                          value={episode.coverImageAlt || ""}
-                                          onChange={(event) =>
-                                            setFormState((prev) => {
-                                              const next = [...prev.episodeDownloads];
-                                              next[index] = {
-                                                ...next[index],
-                                                coverImageAlt: event.target.value,
-                                              };
-                                              return { ...prev, episodeDownloads: next };
-                                            })
-                                          }
-                                          aria-invalid={Boolean(
-                                            episode.coverImageUrl &&
-                                              !String(episode.coverImageAlt || "").trim(),
-                                          )}
-                                          aria-describedby={
-                                            episode.coverImageUrl &&
-                                            !String(episode.coverImageAlt || "").trim()
-                                              ? `episode-cover-alt-error-${index}`
-                                              : undefined
-                                          }
-                                          placeholder={
-                                            isChapterBased
-                                              ? "Texto alternativo da capa do capítulo"
-                                              : "Texto alternativo da capa do episódio"
-                                          }
-                                        />
-                                        {episode.coverImageUrl &&
-                                        !String(episode.coverImageAlt || "").trim() ? (
-                                          <p
-                                            id={`episode-cover-alt-error-${index}`}
-                                            role="alert"
-                                            className="text-xs text-destructive"
-                                          >
-                                            Informe um texto alternativo para esta capa.
-                                          </p>
-                                        ) : (
-                                          <p className="text-xs text-muted-foreground">
-                                            Obrigatório quando houver capa neste item.
-                                          </p>
-                                        )}
-                                      </div>
                                     </div>
                                   </div>
                                   {isLightNovel ? (
@@ -4689,9 +4575,7 @@ const DashboardProjectsEditor = () => {
           allowDeselect
           mode="single"
           currentSelectionUrls={currentLibrarySelection ? [currentLibrarySelection] : []}
-          onSave={({ urls, items }) =>
-            applyLibraryImage(urls[0] || "", String(items[0]?.label || items[0]?.name || ""))
-          }
+          onSave={({ urls, items }) => applyLibraryImage(urls[0] || "", items[0]?.altText)}
         />
       </Suspense>
     </>

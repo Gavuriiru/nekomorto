@@ -89,6 +89,12 @@ const CONTRACT_BASE = Object.freeze({
       idempotent: "optional_by_header",
     },
     {
+      method: "PATCH",
+      path: "/api/uploads/:id/alt-text",
+      auth: "session",
+      idempotent: "optional_by_header",
+    },
+    {
       method: "GET",
       path: "/api/uploads/storage/areas",
       auth: "session",

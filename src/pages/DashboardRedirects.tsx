@@ -474,16 +474,16 @@ const DashboardRedirects = () => {
                             </div>
                           </div>
 
-                          <div className="space-y-1.5 lg:justify-self-end">
-                            <Label>Acoes</Label>
+                          <div className="flex h-9 items-center lg:justify-self-end">
                             <Button
                               type="button"
                               variant="ghost"
-                              size="sm"
+                              size="icon"
+                              className="h-9 w-9 text-destructive hover:text-destructive"
+                              aria-label={`Remover redirecionamento ${index + 1}`}
                               onClick={() => removeSeoRedirectRule(rule.id)}
                             >
                               <Trash2 className="h-4 w-4" />
-                              Remover
                             </Button>
                           </div>
                         </div>

@@ -6,6 +6,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import DashboardPages from "@/pages/DashboardPages";
 
 const apiFetchMock = vi.hoisted(() => vi.fn());
+const qrCodeToDataUrlMock = vi.hoisted(() =>
+  vi.fn().mockResolvedValue("data:image/png;base64,mock-qr"),
+);
 
 vi.mock("@/components/DashboardShell", () => ({
   default: ({ children }: { children: ReactNode }) => <div>{children}</div>,
@@ -21,6 +24,12 @@ vi.mock("@/lib/api-base", () => ({
 
 vi.mock("@/lib/api-client", () => ({
   apiFetch: (...args: unknown[]) => apiFetchMock(...args),
+}));
+
+vi.mock("qrcode", () => ({
+  default: {
+    toDataURL: (...args: unknown[]) => qrCodeToDataUrlMock(...args),
+  },
 }));
 
 const mockJsonResponse = (ok: boolean, payload: unknown, status = ok ? 200 : 500) =>

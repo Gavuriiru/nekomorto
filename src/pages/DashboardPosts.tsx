@@ -53,6 +53,7 @@ import {
   fetchPostVersions,
   rollbackPostVersion,
 } from "@/lib/editorial-admin";
+import { DEFAULT_POST_COVER_ALT, resolveAssetAltText } from "@/lib/image-alt";
 import { applyBeforeUnloadCompatibility } from "@/lib/before-unload";
 import { formatDateTimeShort } from "@/lib/date";
 import { buildTranslationMap, sortByTranslatedLabel, translateTag } from "@/lib/project-taxonomy";
@@ -539,11 +540,6 @@ const DashboardPosts = () => {
     () => getImageFileNameFromUrl(editorResolvedCover.coverImageUrl),
     [editorResolvedCover.coverImageUrl],
   );
-  const coverAltError =
-    editorResolvedCover.coverImageUrl && !String(formState.coverAlt || "").trim()
-      ? "Informe um texto alternativo para a capa."
-      : "";
-
   const allowPopRef = useRef(false);
   const hasPushedBlockRef = useRef(false);
 
@@ -1496,7 +1492,10 @@ const DashboardPosts = () => {
         return {
           ...prev,
           coverImageUrl: shouldKeepAutomatic ? "" : nextUrl,
-          coverAlt: prev.coverAlt || altText || prev.title || "Capa",
+          coverAlt:
+            shouldKeepAutomatic || !nextUrl
+              ? ""
+              : resolveAssetAltText(altText, DEFAULT_POST_COVER_ALT),
         };
       });
     },
@@ -1547,7 +1546,9 @@ const DashboardPosts = () => {
     const lexicalText = getLexicalText(formState.contentLexical);
     const seoDescription = lexicalText.trim().slice(0, 150);
     const coverImageUrl = formState.coverImageUrl.trim() || null;
-    const coverAlt = formState.coverAlt.trim() || "";
+    const coverAlt = coverImageUrl
+      ? resolveAssetAltText(formState.coverAlt, DEFAULT_POST_COVER_ALT)
+      : formState.coverAlt.trim() || "";
     const excerpt = formState.excerpt.trim() || lexicalText.trim().slice(0, 160);
     const rawTagInput = tagInputRef.current?.value ?? tagInput;
     const pendingTags = rawTagInput
@@ -1591,15 +1592,6 @@ const DashboardPosts = () => {
       });
       return;
     }
-    if (editorResolvedCover.coverImageUrl && !coverAlt) {
-      toast({
-        title: "Texto alternativo obrigatório",
-        description: "Posts com capa precisam de um texto alternativo.",
-        variant: "destructive",
-      });
-      return;
-    }
-
     const response = await apiFetch(
       apiBase,
       `/api/posts${editingPost ? `/${editingPost.id}` : ""}`,
@@ -1971,35 +1963,6 @@ const DashboardPosts = () => {
                               >
                                 Biblioteca
                               </Button>
-                              <div className="space-y-2">
-                                <Label htmlFor="post-cover-alt">Texto alternativo da capa</Label>
-                                <Input
-                                  id="post-cover-alt"
-                                  value={formState.coverAlt}
-                                  onChange={(event) =>
-                                    setFormState((prev) => ({
-                                      ...prev,
-                                      coverAlt: event.target.value,
-                                    }))
-                                  }
-                                  aria-invalid={Boolean(coverAltError)}
-                                  aria-describedby={coverAltError ? "post-cover-alt-error" : undefined}
-                                  placeholder="Descreva a imagem principal da postagem"
-                                />
-                                {coverAltError ? (
-                                  <p
-                                    id="post-cover-alt-error"
-                                    role="alert"
-                                    className="text-xs text-destructive"
-                                  >
-                                    {coverAltError}
-                                  </p>
-                                ) : (
-                                  <p className="text-xs text-muted-foreground">
-                                    Obrigatório sempre que a postagem tiver capa.
-                                  </p>
-                                )}
-                              </div>
                             </div>
                           </CardContent>
                         </Card>
@@ -2776,7 +2739,9 @@ const DashboardPosts = () => {
           currentSelectionUrls={
             editorResolvedCover.coverImageUrl ? [editorResolvedCover.coverImageUrl] : []
           }
-          onSave={({ urls }) => handleLibrarySelect(urls[0] || "")}
+          onSave={({ urls, items }) =>
+            handleLibrarySelect(urls[0] || "", items[0]?.altText)
+          }
         />
       </Suspense>
 

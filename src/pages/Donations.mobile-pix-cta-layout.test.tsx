@@ -4,6 +4,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import Donations from "@/pages/Donations";
 
 const apiFetchMock = vi.hoisted(() => vi.fn());
+const qrCodeToDataUrlMock = vi.hoisted(() =>
+  vi.fn().mockResolvedValue("data:image/png;base64,mock-qr"),
+);
 
 vi.mock("@/lib/api-base", () => ({
   getApiBase: () => "",
@@ -15,6 +18,12 @@ vi.mock("@/lib/api-client", () => ({
 
 vi.mock("@/hooks/use-page-meta", () => ({
   usePageMeta: () => undefined,
+}));
+
+vi.mock("qrcode", () => ({
+  default: {
+    toDataURL: (...args: unknown[]) => qrCodeToDataUrlMock(...args),
+  },
 }));
 
 const classTokens = (element: HTMLElement) => String(element.className).split(/\s+/).filter(Boolean);

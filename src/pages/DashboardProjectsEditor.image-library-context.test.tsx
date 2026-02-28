@@ -170,8 +170,10 @@ describe("DashboardProjectsEditor image library context", () => {
       </MemoryRouter>,
     );
 
-    const projectTitle = await screen.findByText("Projeto Teste");
-    fireEvent.click(projectTitle);
+    const projectCardButton = await screen.findByRole("button", {
+      name: "Abrir projeto Projeto Teste",
+    });
+    fireEvent.click(projectCardButton);
     await screen.findByText("Editar projeto");
 
     await waitFor(() => {

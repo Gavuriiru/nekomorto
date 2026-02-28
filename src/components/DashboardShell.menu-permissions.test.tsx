@@ -83,6 +83,8 @@ describe("DashboardShell menu permissions", () => {
     expect(headerText).toContain("Início");
     expect(headerText).toContain("Análises");
     expect(headerText).toContain("Postagens");
+    expect(screen.getByRole("link", { name: "Pular para a navegação" })).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Pular para o conteúdo" })).not.toBeInTheDocument();
     expect(screen.getByTestId("sidebar-inset").className).toContain("min-w-0");
     expect(screen.getByTestId("sidebar-inset").className).toContain("overflow-x-hidden");
     expect(screen.queryByText("Painel de gestao")).not.toBeInTheDocument();

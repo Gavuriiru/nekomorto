@@ -57,6 +57,9 @@ import { apiFetch } from "@/lib/api-client";
 import { applyBeforeUnloadCompatibility } from "@/lib/before-unload";
 import { toast } from "@/components/ui/use-toast";
 import { usePageMeta } from "@/hooks/use-page-meta";
+import { usePixQrCode } from "@/hooks/use-pix-qr-code";
+import { useSiteSettings } from "@/hooks/use-site-settings";
+import { getShareImageAltFallback, resolveAssetAltText } from "@/lib/image-alt";
 import { normalizeAssetUrl } from "@/lib/asset-url";
 
 const ImageLibraryDialog = lazy(() => import("@/components/ImageLibraryDialog"));
@@ -100,6 +103,7 @@ type PagesConfig = {
     reasonNote: string;
     pixKey: string;
     pixNote: string;
+    pixCity: string;
     qrCustomUrl: string;
     pixIcon: string;
     donorsIcon: string;
@@ -214,6 +218,7 @@ const emptyPages: PagesConfig = {
     reasonNote: "",
     pixKey: "",
     pixNote: "",
+    pixCity: "",
     qrCustomUrl: "",
     pixIcon: "QrCode",
     donorsIcon: "PiggyBank",
@@ -301,16 +306,29 @@ const shareImagePageLabels: Record<ShareImagePageKey, string> = {
   recruitment: "Recrutamento",
 };
 
-const getShareImageAltErrors = (pages: PagesConfig) =>
-  shareImagePageKeys.reduce<Record<ShareImagePageKey, string>>((acc, pageKey) => {
-    const shareImage = String(pages[pageKey]?.shareImage || "").trim();
-    const shareImageAlt = String(pages[pageKey]?.shareImageAlt || "").trim();
-    acc[pageKey] =
-      shareImage && !shareImageAlt
-        ? `Informe um texto alternativo para ${shareImagePageLabels[pageKey]}.`
-        : "";
-    return acc;
-  }, {} as Record<ShareImagePageKey, string>);
+const normalizePageShareImage = <T extends PageWithShareImage>(
+  page: T,
+  pageKey: ShareImagePageKey,
+): T => {
+  const shareImage = String(page.shareImage || "").trim();
+  const shareImageAlt = String(page.shareImageAlt || "").trim();
+  return {
+    ...page,
+    shareImage,
+    shareImageAlt: shareImage ? shareImageAlt || getShareImageAltFallback(pageKey) : "",
+  };
+};
+
+const normalizePagesShareImages = (pages: PagesConfig): PagesConfig => ({
+  ...pages,
+  home: normalizePageShareImage(pages.home, "home"),
+  projects: normalizePageShareImage(pages.projects, "projects"),
+  about: normalizePageShareImage(pages.about, "about"),
+  donations: normalizePageShareImage(pages.donations, "donations"),
+  faq: normalizePageShareImage(pages.faq, "faq"),
+  team: normalizePageShareImage(pages.team, "team"),
+  recruitment: normalizePageShareImage(pages.recruitment, "recruitment"),
+});
 
 const DASHBOARD_PAGES_DEFAULT_TAB: DashboardPagesTabKey = "donations";
 const DASHBOARD_PAGES_TAB_SET = new Set<DashboardPagesTabKey>(
@@ -374,6 +392,7 @@ const IconSelect = ({
 const DashboardPages = () => {
   usePageMeta({ title: "Páginas", noIndex: true });
   const apiBase = getApiBase();
+  const { settings } = useSiteSettings();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const initialAutosaveEnabledRef = useRef(
@@ -398,17 +417,15 @@ const DashboardPages = () => {
   const [isPreviewLibraryOpen, setIsPreviewLibraryOpen] = useState(false);
   const [previewLibraryTarget, setPreviewLibraryTarget] = useState<ShareImagePageKey>("home");
 
-  const qrPreview = useMemo(() => {
-    if (pages.donations.qrCustomUrl) {
-      return pages.donations.qrCustomUrl;
-    }
-    if (!pages.donations.pixKey) {
-      return "/placeholder.svg";
-    }
-    return `https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=${encodeURIComponent(
-      pages.donations.pixKey,
-    )}`;
-  }, [pages.donations.pixKey, pages.donations.qrCustomUrl]);
+  const merchantName =
+    String(settings.site.name || settings.footer.brandName || "NEKOMATA").trim() || "NEKOMATA";
+  const qrPreview = usePixQrCode({
+    pixKey: pages.donations.pixKey,
+    pixNote: pages.donations.pixNote,
+    pixCity: pages.donations.pixCity?.trim() || "CIDADE",
+    qrCustomUrl: pages.donations.qrCustomUrl,
+    merchantName,
+  });
 
   useEffect(() => {
     const nextTab = parseDashboardPagesTabParam(searchParams.get("tab"));
@@ -439,7 +456,7 @@ const DashboardPages = () => {
           return;
         }
         const data = await response.json();
-        setPages(mergePagesConfig(data.pages));
+        setPages(normalizePagesShareImages(mergePagesConfig(data.pages)));
       } catch {
         setPages(defaultPages);
         setHasLoadError(true);
@@ -472,22 +489,21 @@ const DashboardPages = () => {
 
   const savePages = useCallback(
     async (nextPages: PagesConfig) => {
-      const shareImageAltErrors = getShareImageAltErrors(nextPages);
-      if (Object.values(shareImageAltErrors).some(Boolean)) {
-        throw new Error("share_image_alt_required");
-      }
+      const normalizedNextPages = normalizePagesShareImages(nextPages);
       const response = await apiFetch(apiBase, "/api/pages", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         auth: true,
-        body: JSON.stringify({ pages: nextPages }),
+        body: JSON.stringify({ pages: normalizedNextPages }),
       });
       if (!response.ok) {
         throw new Error("save_failed");
       }
       const data = await response.json().catch(() => null);
-      const normalizedPages = mergePagesConfig(
-        (data?.pages as Partial<PagesConfig> | undefined) || nextPages,
+      const normalizedPages = normalizePagesShareImages(
+        mergePagesConfig(
+          (data?.pages as Partial<PagesConfig> | undefined) || normalizedNextPages,
+        ),
       );
       setPages(normalizedPages);
       return normalizedPages;
@@ -535,15 +551,6 @@ const DashboardPages = () => {
   }, [hasPendingChanges, isLoading]);
 
   const handleSave = useCallback(async () => {
-    const currentShareImageAltErrors = getShareImageAltErrors(pages);
-    if (Object.values(currentShareImageAltErrors).some(Boolean)) {
-      toast({
-        title: "Texto alternativo obrigatório",
-        description: "Preencha o texto alternativo das imagens de compartilhamento.",
-        variant: "destructive",
-      });
-      return;
-    }
     const ok = await pagesAutosave.flushNow();
     if (!ok) {
       toast({
@@ -558,7 +565,7 @@ const DashboardPages = () => {
       description: "As alterações foram aplicadas com sucesso.",
       intent: "success",
     });
-  }, [pages, pagesAutosave]);
+  }, [pagesAutosave]);
 
   const updateAbout = (patch: Partial<PagesConfig["about"]>) =>
     setPages((prev) => ({ ...prev, about: { ...prev.about, ...patch } }));
@@ -574,10 +581,6 @@ const DashboardPages = () => {
     (pageKey: ShareImagePageKey) => String(pages[pageKey]?.shareImage || "").trim(),
     [pages],
   );
-  const readPageShareImageAlt = useCallback(
-    (pageKey: ShareImagePageKey) => String(pages[pageKey]?.shareImageAlt || "").trim(),
-    [pages],
-  );
   const updatePageShareImage = useCallback((pageKey: ShareImagePageKey, shareImage: string) => {
     setPages((prev) => ({
       ...prev,
@@ -587,12 +590,20 @@ const DashboardPages = () => {
       },
     }));
   }, []);
-  const updatePageShareImageAlt = useCallback((pageKey: ShareImagePageKey, shareImageAlt: string) => {
+  const applyPageShareImage = useCallback((
+    pageKey: ShareImagePageKey,
+    shareImage: string,
+    altText?: string,
+  ) => {
+    const normalizedShareImage = String(shareImage || "").trim();
     setPages((prev) => ({
       ...prev,
       [pageKey]: {
         ...prev[pageKey],
-        shareImageAlt,
+        shareImage: normalizedShareImage,
+        shareImageAlt: normalizedShareImage
+          ? resolveAssetAltText(altText, getShareImageAltFallback(pageKey))
+          : "",
       },
     }));
   }, []);
@@ -604,7 +615,6 @@ const DashboardPages = () => {
     () => readPageShareImage(previewLibraryTarget),
     [previewLibraryTarget, readPageShareImage],
   );
-  const shareImageAltErrors = useMemo(() => getShareImageAltErrors(pages), [pages]);
 
   const handleDragStart = (list: string, index: number) => {
     setDragState({ list, index });
@@ -787,8 +797,6 @@ const DashboardPages = () => {
                   <div className="grid gap-4 md:grid-cols-2">
                     {shareImagePageKeys.map((pageKey) => {
                       const shareImage = readPageShareImage(pageKey);
-                      const shareImageAlt = readPageShareImageAlt(pageKey);
-                      const shareImageAltError = shareImageAltErrors[pageKey];
                       return (
                         <div
                           key={pageKey}
@@ -836,38 +844,6 @@ const DashboardPages = () => {
                             />
                           </div>
 
-                          <div className="space-y-2">
-                            <Label htmlFor={`page-preview-alt-${pageKey}`}>Texto alternativo</Label>
-                            <Input
-                              id={`page-preview-alt-${pageKey}`}
-                              value={shareImageAlt}
-                              placeholder={`Descreva a imagem de ${shareImagePageLabels[pageKey]}`}
-                              onChange={(event) =>
-                                updatePageShareImageAlt(
-                                  pageKey,
-                                  String(event.target.value || ""),
-                                )
-                              }
-                              aria-invalid={Boolean(shareImageAltError)}
-                              aria-describedby={
-                                shareImageAltError ? `page-preview-alt-error-${pageKey}` : undefined
-                              }
-                            />
-                            {shareImageAltError ? (
-                              <p
-                                id={`page-preview-alt-error-${pageKey}`}
-                                role="alert"
-                                className="text-xs text-destructive"
-                              >
-                                {shareImageAltError}
-                              </p>
-                            ) : (
-                              <p className="text-xs text-muted-foreground">
-                                Obrigatório quando a imagem de compartilhamento estiver definida.
-                              </p>
-                            )}
-                          </div>
-
                           <div className="flex flex-wrap gap-2">
                             <Button
                               type="button"
@@ -883,8 +859,7 @@ const DashboardPages = () => {
                               size="sm"
                               disabled={!shareImage}
                               onClick={() => {
-                                updatePageShareImage(pageKey, "");
-                                updatePageShareImageAlt(pageKey, "");
+                                applyPageShareImage(pageKey, "");
                               }}
                             >
                               Limpar
@@ -1462,11 +1437,20 @@ const DashboardPages = () => {
                       value={pages.donations.pixKey}
                       onChange={(e) => updateDonations({ pixKey: e.target.value })}
                     />
-                    <Label>Nota da chave</Label>
+                    <Label>DescriÃ§Ã£o no QR (opcional)</Label>
                     <Input
                       value={pages.donations.pixNote}
                       onChange={(e) => updateDonations({ pixNote: e.target.value })}
                     />
+                    <Label>Cidade do recebedor (opcional)</Label>
+                    <Input
+                      value={pages.donations.pixCity}
+                      onChange={(e) => updateDonations({ pixCity: e.target.value })}
+                      placeholder="CIDADE"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Se vazio, o QR Pix usa CIDADE como fallback.
+                    </p>
                     <Label>QR Code (URL customizada)</Label>
                     <Input
                       value={pages.donations.qrCustomUrl}
@@ -2089,8 +2073,12 @@ const DashboardPages = () => {
           currentSelectionUrls={
             currentPreviewLibrarySelection ? [currentPreviewLibrarySelection] : []
           }
-          onSave={({ urls }) =>
-            updatePageShareImage(previewLibraryTarget, String(urls[0] || "").trim())
+          onSave={({ urls, items }) =>
+            applyPageShareImage(
+              previewLibraryTarget,
+              String(urls[0] || "").trim(),
+              items[0]?.altText,
+            )
           }
         />
       </Suspense>

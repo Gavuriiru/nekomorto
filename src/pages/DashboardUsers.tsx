@@ -44,6 +44,7 @@ import {
   Youtube,
   MessageCircle,
   GripVertical,
+  Trash2,
 } from "lucide-react";
 import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
@@ -1320,7 +1321,20 @@ const DashboardUsers = () => {
                         onDragEnd={handleDragEnd}
                       >
                         <div className="flex items-start justify-between gap-4">
-                          <div className="flex gap-4">
+                          <div
+                            className={`relative min-w-0 flex-1 ${canEditUser ? "cursor-pointer" : ""}`}
+                          >
+                            {canEditUser ? (
+                              <button
+                                type="button"
+                                className="absolute inset-0 z-0 rounded-2xl focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary/60"
+                                aria-label={`Abrir usuario ${user.name}`}
+                                onClick={() => handleUserCardClick(user)}
+                              >
+                                <span className="sr-only">{`Abrir usuario ${user.name}`}</span>
+                              </button>
+                            ) : null}
+                            <div className="pointer-events-none flex gap-4">
                             <DashboardAvatar
                               avatarUrl={toAvatarRenderUrl(user.avatarUrl)}
                               name={user.name}
@@ -1363,7 +1377,8 @@ const DashboardUsers = () => {
                               )}
                             </div>
                           </div>
-                          <div className="flex flex-wrap items-center gap-2">
+                        </div>
+                          <div className="relative z-10 flex flex-wrap items-center gap-2">
                             {canManageUsers ? (
                               <ReorderControls
                                 label={`usuario ${user.name}`}
@@ -1427,7 +1442,20 @@ const DashboardUsers = () => {
                           onDragEnd={handleDragEnd}
                         >
                           <div className="flex items-start justify-between gap-4">
-                            <div className="flex gap-4">
+                            <div
+                              className={`relative min-w-0 flex-1 ${canEditUser ? "cursor-pointer" : ""}`}
+                            >
+                              {canEditUser ? (
+                                <button
+                                  type="button"
+                                  className="absolute inset-0 z-0 rounded-2xl focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary/60"
+                                  aria-label={`Abrir usuario ${user.name}`}
+                                  onClick={() => handleUserCardClick(user)}
+                                >
+                                  <span className="sr-only">{`Abrir usuario ${user.name}`}</span>
+                                </button>
+                              ) : null}
+                              <div className="pointer-events-none flex gap-4">
                               <DashboardAvatar
                                 avatarUrl={toAvatarRenderUrl(user.avatarUrl)}
                                 name={user.name}
@@ -1472,7 +1500,8 @@ const DashboardUsers = () => {
                                 ) : null}
                               </div>
                             </div>
-                            <div className="flex flex-wrap items-center gap-2">
+                          </div>
+                            <div className="relative z-10 flex flex-wrap items-center gap-2">
                               {canManageUsers ? (
                                 <ReorderControls
                                   label={`usuario ${user.name}`}
@@ -1626,7 +1655,7 @@ const DashboardUsers = () => {
                   <div
                     key={`${social.label}-${index}`}
                     data-testid={`user-social-row-${index}`}
-                    className={`grid items-center gap-2 rounded-xl border p-2 transition md:grid-cols-[auto_1fr_2fr_auto] ${
+                    className={`overflow-x-auto rounded-xl border p-2 transition ${
                       socialDragOverIndex === index
                         ? "border-primary/40 bg-primary/5"
                         : "border-transparent"
@@ -1634,6 +1663,7 @@ const DashboardUsers = () => {
                     onDragOver={(event) => handleSocialDragOver(event, index)}
                     onDrop={(event) => handleSocialDrop(event, index)}
                   >
+                    <div className="grid min-w-[720px] items-center gap-2 md:grid-cols-[auto_auto_minmax(180px,0.95fr)_minmax(260px,1.55fr)_auto]">
                     <button
                       type="button"
                       draggable={canEditBasicFields}
@@ -1663,7 +1693,7 @@ const DashboardUsers = () => {
                       }
                       disabled={!canEditBasicFields}
                     >
-                      <SelectTrigger className="bg-background/60 justify-start text-left">
+                      <SelectTrigger className="min-w-0 bg-background/60 justify-start text-left">
                         <SelectValue placeholder="Selecione a rede" />
                       </SelectTrigger>
                       <SelectContent align="start">
@@ -1694,6 +1724,7 @@ const DashboardUsers = () => {
                       </SelectContent>
                     </Select>
                     <Input
+                      className="min-w-0"
                       value={social.href}
                       onChange={(event) =>
                         setFormState((prev) => {
@@ -1708,7 +1739,9 @@ const DashboardUsers = () => {
                     <Button
                       type="button"
                       variant="ghost"
-                      className="justify-start md:justify-center"
+                      size="icon"
+                      className="h-9 w-9 shrink-0 text-destructive hover:text-destructive"
+                      aria-label={`Remover rede ${social.label || index + 1}`}
                       onClick={() =>
                         setFormState((prev) => ({
                           ...prev,
@@ -1717,8 +1750,9 @@ const DashboardUsers = () => {
                       }
                       disabled={!canEditBasicFields}
                     >
-                      Remover
+                      <Trash2 className="h-4 w-4" />
                     </Button>
+                    </div>
                   </div>
                 ))}
                 <Button

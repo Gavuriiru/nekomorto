@@ -10,6 +10,9 @@ const { apiFetchMock, navigateMock } = vi.hoisted(() => ({
 }));
 const toastMock = vi.hoisted(() => vi.fn());
 const imageLibraryPropsSpy = vi.hoisted(() => vi.fn());
+const qrCodeToDataUrlMock = vi.hoisted(() =>
+  vi.fn().mockResolvedValue("data:image/png;base64,mock-qr"),
+);
 
 vi.mock("@/components/DashboardShell", () => ({
   default: ({ children }: { children: ReactNode }) => <div>{children}</div>,
@@ -18,7 +21,7 @@ vi.mock("@/components/DashboardShell", () => ({
 vi.mock("@/components/ImageLibraryDialog", () => ({
   default: (props: {
     open?: boolean;
-    onSave: (payload: { urls: string[]; items: [] }) => void;
+    onSave: (payload: { urls: string[]; items: Array<{ altText?: string }> }) => void;
   }) => {
     imageLibraryPropsSpy(props);
     if (!props.open) {
@@ -30,7 +33,7 @@ vi.mock("@/components/ImageLibraryDialog", () => ({
         onClick={() =>
           props.onSave({
             urls: ["/uploads/shared/og-preview.jpg"],
-            items: [],
+            items: [{ altText: "Alt da biblioteca" }],
           })
         }
       >
@@ -54,6 +57,12 @@ vi.mock("@/lib/api-client", () => ({
 
 vi.mock("@/components/ui/use-toast", () => ({
   toast: (...args: unknown[]) => toastMock(...args),
+}));
+
+vi.mock("qrcode", () => ({
+  default: {
+    toDataURL: (...args: unknown[]) => qrCodeToDataUrlMock(...args),
+  },
 }));
 
 vi.mock("react-router-dom", async () => {
@@ -180,11 +189,6 @@ describe("DashboardPages autosave", () => {
       selector: "#page-preview-home",
     });
     fireEvent.change(homePreviewInput, { target: { value: "/uploads/shared/home-og.jpg" } });
-    fireEvent.change(await screen.findByLabelText(/Texto alternativo/i, {
-      selector: "#page-preview-alt-home",
-    }), {
-      target: { value: "Capa do compartilhamento da pagina inicial" },
-    });
 
     await act(async () => {
       await waitMs(1300);
@@ -195,6 +199,9 @@ describe("DashboardPages autosave", () => {
     expect(putCalls).toHaveLength(1);
     const payload = JSON.parse(String(((putCalls[0][2] || {}) as RequestInit).body || "{}"));
     expect(payload.pages?.home?.shareImage).toBe("/uploads/shared/home-og.jpg");
+    expect(payload.pages?.home?.shareImageAlt).toBe(
+      "Imagem de compartilhamento da página inicial",
+    );
   });
 
   it("seleciona imagem via biblioteca no preview e persiste no payload", async () => {
@@ -209,11 +216,6 @@ describe("DashboardPages autosave", () => {
 
     const saveFromLibrary = await screen.findByRole("button", { name: /Mock salvar biblioteca/i });
     fireEvent.click(saveFromLibrary);
-    fireEvent.change(await screen.findByLabelText(/Texto alternativo/i, {
-      selector: "#page-preview-alt-home",
-    }), {
-      target: { value: "Capa da imagem selecionada" },
-    });
 
     await act(async () => {
       await waitMs(1300);
@@ -226,6 +228,7 @@ describe("DashboardPages autosave", () => {
       String(((putCalls[putCalls.length - 1]?.[2] || {}) as RequestInit).body || "{}"),
     );
     expect(lastPayload.pages?.home?.shareImage).toBe("/uploads/shared/og-preview.jpg");
+    expect(lastPayload.pages?.home?.shareImageAlt).toBe("Alt da biblioteca");
   });
 
   it("reordena perguntas da FAQ e persiste a nova ordem no autosave", async () => {

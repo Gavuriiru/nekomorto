@@ -131,7 +131,6 @@ const DashboardShell = ({
       <SkipLinks
         links={[
           { href: "#dashboard-navigation", label: "Pular para a navegação" },
-          { href: "#dashboard-main-content", label: "Pular para o conteúdo" },
         ]}
       />
       <SidebarProvider defaultOpen>
