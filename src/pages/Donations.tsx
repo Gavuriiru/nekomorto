@@ -43,6 +43,8 @@ const iconMap: Record<string, typeof Server> = {
 };
 
 const emptyDonations = {
+  shareImage: "",
+  shareImageAlt: "",
   heroTitle: "",
   heroSubtitle: "",
   costs: [],
@@ -61,11 +63,14 @@ const emptyDonations = {
 const defaultDonations = emptyDonations;
 
 const Donations = () => {
-  usePageMeta({ title: "Doações" });
-
   const apiBase = getApiBase();
   const [copied, setCopied] = useState(false);
   const [donations, setDonations] = useState(defaultDonations);
+  usePageMeta({
+    title: "Doações",
+    image: donations.shareImage || undefined,
+    imageAlt: donations.shareImageAlt || undefined,
+  });
 
   useEffect(() => {
     let isActive = true;

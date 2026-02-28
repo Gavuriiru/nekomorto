@@ -75,8 +75,6 @@ const TeamMemberAvatar = ({ imageSrc, name }: TeamMemberAvatarProps) => {
 };
 
 const Team = () => {
-  usePageMeta({ title: "Equipe" });
-
   const apiBase = getApiBase();
   const { settings } = useSiteSettings();
   const [members, setMembers] = useState<PublicUser[]>([]);
@@ -86,12 +84,19 @@ const Team = () => {
     [],
   );
   const [pageCopy, setPageCopy] = useState({
+    shareImage: "",
+    shareImageAlt: "",
     heroBadge: "Equipe",
     heroTitle: "Conheça quem faz o projeto acontecer",
     heroSubtitle:
       "Os perfis e redes sociais serão gerenciados pela dashboard. Este layout antecipa como a equipe aparecerá para o público.",
     retiredTitle: "Membros aposentados",
     retiredSubtitle: "Agradecemos por todas as contribuições.",
+  });
+  usePageMeta({
+    title: "Equipe",
+    image: pageCopy.shareImage || undefined,
+    imageAlt: pageCopy.shareImageAlt || undefined,
   });
   const socialIcons = useMemo(
     () => ({

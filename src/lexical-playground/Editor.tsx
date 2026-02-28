@@ -138,7 +138,7 @@ export default function Editor({
       target.closest('.link-editor') ||
       target.closest('.floating-text-format-popup') ||
       target.closest('.dropdown') ||
-      target.closest('button, a, input, textarea, select, [role="button"]')
+      target.closest('button, a, input, textarea, select')
     ) {
       return;
     }

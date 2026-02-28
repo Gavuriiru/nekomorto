@@ -11,6 +11,7 @@ import {
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import DashboardAutosaveStatus from "@/components/DashboardAutosaveStatus";
 import DashboardShell from "@/components/DashboardShell";
+import ReorderControls from "@/components/ReorderControls";
 import AsyncState from "@/components/ui/async-state";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -686,6 +687,15 @@ const DashboardSettings = () => {
     }));
     clearFooterSocialDragState();
   };
+  const moveFooterSocialLink = useCallback((from: number, to: number) => {
+    setSettings((prev) => ({
+      ...prev,
+      footer: {
+        ...prev.footer,
+        socialLinks: reorderItems(prev.footer.socialLinks, from, to),
+      },
+    }));
+  }, []);
 
   const openLibrary = (target: LogoLibraryTarget) => {
     setLibraryTarget(target);
@@ -697,7 +707,19 @@ const DashboardSettings = () => {
   };
 
   const clearLibraryImage = (target: LogoLibraryTarget) => {
-    setSettings((prev) => writeLogoField(prev, target, ""));
+    setSettings((prev) => {
+      const next = writeLogoField(prev, target, "");
+      if (target === "site.defaultShareImage") {
+        return {
+          ...next,
+          site: {
+            ...next.site,
+            defaultShareImageAlt: "",
+          },
+        };
+      }
+      return next;
+    });
   };
 
   const currentLibrarySelection = useMemo(() => {
@@ -784,6 +806,12 @@ const DashboardSettings = () => {
   const saveSettingsResource = useCallback(
     async (snapshot: SiteSettings) => {
       const nextSettings = { ...snapshot };
+      if (
+        String(nextSettings.site.defaultShareImage || "").trim() &&
+        !String(nextSettings.site.defaultShareImageAlt || "").trim()
+      ) {
+        throw new Error("default_share_image_alt_required");
+      }
       const socialDiscord = nextSettings.footer.socialLinks.find(
         (link) => String(link.label || "").toLowerCase() === "discord",
       );
@@ -1028,6 +1056,20 @@ const DashboardSettings = () => {
   }, [linkTypesAutosave, settingsAutosave, translationsAutosave]);
 
   const handleSaveSettings = useCallback(async () => {
+    const currentDefaultShareImage = String(settings.site.defaultShareImage || "").trim();
+    const currentDefaultShareImageAlt = String(settings.site.defaultShareImageAlt || "").trim();
+    const currentDefaultShareImageAltError =
+      currentDefaultShareImage && !currentDefaultShareImageAlt
+        ? "Informe um texto alternativo para a imagem padrao de compartilhamento."
+        : "";
+    if (currentDefaultShareImageAltError) {
+      toast({
+        title: "Texto alternativo obrigatório",
+        description: currentDefaultShareImageAltError,
+        variant: "destructive",
+      });
+      return;
+    }
     const ok = await settingsAutosave.flushNow();
     if (!ok) {
       toast({
@@ -1039,7 +1081,7 @@ const DashboardSettings = () => {
     }
     await refresh().catch(() => undefined);
     toast({ title: "Configurações salvas" });
-  }, [refresh, settingsAutosave]);
+  }, [refresh, settings, settingsAutosave]);
 
   const handleSaveTranslations = useCallback(async () => {
     const ok = await translationsAutosave.flushNow();
@@ -1115,6 +1157,11 @@ const DashboardSettings = () => {
   const footerWordmarkOverrideDirect = branding.direct.footerWordmarkOverrideUrl;
   const faviconUrl = settings.site.faviconUrl?.trim() || "";
   const shareImageUrl = settings.site.defaultShareImage?.trim() || "";
+  const defaultShareImageAlt = settings.site.defaultShareImageAlt?.trim() || "";
+  const defaultShareImageAltError =
+    shareImageUrl && !defaultShareImageAlt
+      ? "Informe um texto alternativo para a imagem padrão de compartilhamento."
+      : "";
 
   const symbolAssetUrl = branding.assets.symbolUrl;
   const wordmarkAssetUrl = branding.assets.wordmarkUrl;
@@ -1643,6 +1690,45 @@ const DashboardSettings = () => {
                                 Limpar
                               </Button>
                             </div>
+
+                            {field.target === "site.defaultShareImage" ? (
+                              <div className="space-y-2">
+                                <Label htmlFor="site-default-share-image-alt">Texto alternativo</Label>
+                                <Input
+                                  id="site-default-share-image-alt"
+                                  value={settings.site.defaultShareImageAlt}
+                                  onChange={(event) =>
+                                    setSettings((prev) => ({
+                                      ...prev,
+                                      site: {
+                                        ...prev.site,
+                                        defaultShareImageAlt: event.target.value,
+                                      },
+                                    }))
+                                  }
+                                  aria-invalid={Boolean(defaultShareImageAltError)}
+                                  aria-describedby={
+                                    defaultShareImageAltError
+                                      ? "site-default-share-image-alt-error"
+                                      : undefined
+                                  }
+                                  placeholder="Descreva a imagem padrão de compartilhamento"
+                                />
+                                {defaultShareImageAltError ? (
+                                  <p
+                                    id="site-default-share-image-alt-error"
+                                    role="alert"
+                                    className="text-xs text-destructive"
+                                  >
+                                    {defaultShareImageAltError}
+                                  </p>
+                                ) : (
+                                  <p className="text-xs text-muted-foreground">
+                                    Obrigatório quando a imagem padrão estiver definida.
+                                  </p>
+                                )}
+                              </div>
+                            ) : null}
                           </div>
                         );
                       })}
@@ -2862,6 +2948,12 @@ const DashboardSettings = () => {
                         >
                           <GripVertical className="h-4 w-4" />
                         </button>
+                        <ReorderControls
+                          label={`rede ${link.label || index + 1}`}
+                          index={index}
+                          total={settings.footer.socialLinks.length}
+                          onMove={(targetIndex) => moveFooterSocialLink(index, targetIndex)}
+                        />
                         <Select
                           value={link.icon || "link"}
                           onValueChange={(value) =>

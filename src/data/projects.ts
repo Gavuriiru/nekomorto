@@ -11,6 +11,7 @@ export type ProjectEpisode = {
   releaseDate: string;
   duration: string;
   coverImageUrl?: string;
+  coverImageAlt?: string;
   sourceType: "TV" | "Web" | "Blu-ray";
   sources: DownloadSource[];
   hash?: string;
@@ -53,7 +54,9 @@ export type Project = {
   tags: string[];
   genres?: string[];
   cover: string;
+  coverAlt?: string;
   banner: string;
+  bannerAlt?: string;
   season: string;
   schedule: string;
   rating: string;
@@ -75,6 +78,7 @@ export type Project = {
   trailerUrl?: string;
   forceHero?: boolean;
   heroImageUrl?: string;
+  heroImageAlt?: string;
 };
 
 const defaultSources: DownloadSource[] = [

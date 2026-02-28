@@ -1,4 +1,12 @@
 import "@testing-library/jest-dom";
+import { toHaveNoViolations } from "jest-axe";
+
+expect.extend(toHaveNoViolations);
+
+if (!window.requestAnimationFrame) {
+  window.requestAnimationFrame = (callback: FrameRequestCallback) =>
+    window.setTimeout(() => callback(performance.now()), 16);
+}
 
 Object.defineProperty(window, "matchMedia", {
   writable: true,

@@ -1705,6 +1705,7 @@ const renderMetaHtml = ({
   title,
   description,
   image,
+  imageAlt,
   url,
   type = "website",
   siteName,
@@ -1724,7 +1725,9 @@ const renderMetaHtml = ({
   html = upsertMeta(html, "property", "og:locale", "pt_BR");
   if (safeImage) {
     html = upsertMeta(html, "property", "og:image", safeImage);
+    html = upsertMeta(html, "property", "og:image:alt", String(imageAlt || ""));
     html = upsertMeta(html, "name", "twitter:image", safeImage);
+    html = upsertMeta(html, "name", "twitter:image:alt", String(imageAlt || ""));
   }
   html = upsertMeta(html, "name", "twitter:title", title);
   html = upsertMeta(html, "name", "twitter:description", description);
@@ -1911,6 +1914,7 @@ const buildSiteMetaWithSettings = (settings) => ({
   title: settings.site?.name || "Nekomata",
   description: settings.site?.description || "",
   image: settings.site?.defaultShareImage || "",
+  imageAlt: settings.site?.defaultShareImageAlt || "",
   url: PRIMARY_APP_ORIGIN,
   type: "website",
   siteName: settings.site?.name || "Nekomata",
@@ -1955,10 +1959,18 @@ const buildProjectMeta = (project) => {
   const description =
     stripHtml(project?.synopsis || project?.description || "") || settings.site?.description || "";
   const image = project?.banner || project?.cover || settings.site?.defaultShareImage || "";
+  const imageAlt =
+    String(image === project?.banner ? project?.bannerAlt || "" : "").trim() ||
+    String(image === project?.cover ? project?.coverAlt || "" : "").trim() ||
+    String(project?.coverAlt || "").trim() ||
+    String(project?.bannerAlt || "").trim() ||
+    settings.site?.defaultShareImageAlt ||
+    "";
   return {
     title,
     description,
     image,
+    imageAlt,
     url: `${PRIMARY_APP_ORIGIN}/projeto/${project?.id || ""}`,
     type: "article",
     siteName,
@@ -1976,10 +1988,12 @@ const buildPostMeta = (post) => {
     settings.site?.description ||
     "";
   const image = resolvedCover.coverImageUrl || settings.site?.defaultShareImage || "";
+  const imageAlt = resolvedCover.coverAlt || settings.site?.defaultShareImageAlt || "";
   return {
     title,
     description,
     image,
+    imageAlt,
     url: `${PRIMARY_APP_ORIGIN}/postagem/${post?.slug || ""}`,
     type: "article",
     siteName,
@@ -3580,6 +3594,7 @@ const defaultSiteSettings = {
     description:
       "Fansub dedicada a trazer histórias inesquecíveis com o carinho que a comunidade merece.",
     defaultShareImage: "/placeholder.svg",
+    defaultShareImageAlt: "Imagem padrão de compartilhamento da Nekomata",
     titleSeparator: " | ",
   },
   theme: {
@@ -3992,12 +4007,17 @@ const normalizeSiteSettings = (payload) => {
     sanitizeAssetUrl(
       merged?.site?.defaultShareImage || defaultSiteSettings.site.defaultShareImage || "",
     ) || defaultSiteSettings.site.defaultShareImage;
+  const siteDefaultShareImageAlt =
+    String(
+      merged?.site?.defaultShareImageAlt || defaultSiteSettings.site.defaultShareImageAlt || "",
+    ).trim() || defaultSiteSettings.site.defaultShareImageAlt;
   merged.site = {
     ...(merged.site || {}),
     name: normalizedSiteName,
     logoUrl: symbolAssetUrl,
     faviconUrl: siteFaviconUrl,
     defaultShareImage: siteDefaultShareImage,
+    defaultShareImageAlt: siteDefaultShareImageAlt,
   };
   merged.footer = {
     ...(merged.footer || {}),
@@ -5282,6 +5302,7 @@ const normalizeProjects = (projects) =>
           return {
             ...episodeWithoutSynopsis,
             sources: normalizedSources,
+            coverImageAlt: String(episode?.coverImageAlt || episode?.title || "").trim(),
             hash: hash || undefined,
             sizeBytes,
             chapterUpdatedAt: episodeObject.chapterUpdatedAt || "",
@@ -5305,7 +5326,9 @@ const normalizeProjects = (projects) =>
       tags: Array.isArray(project.tags) ? project.tags.filter(Boolean) : [],
       genres: Array.isArray(project.genres) ? project.genres.filter(Boolean) : [],
       cover: project.cover || "/placeholder.svg",
+      coverAlt: String(project.coverAlt || project.title || "Capa do projeto").trim(),
       banner: project.banner || "/placeholder.svg",
+      bannerAlt: String(project.bannerAlt || `${project.title || "Projeto"} (banner)`).trim(),
       season: String(project.season || ""),
       schedule: String(project.schedule || ""),
       rating: String(project.rating || ""),
@@ -5328,6 +5351,7 @@ const normalizeProjects = (projects) =>
       trailerUrl: project.trailerUrl || "",
       forceHero: Boolean(project.forceHero),
       heroImageUrl: String(project.heroImageUrl || ""),
+      heroImageAlt: String(project.heroImageAlt || `${project.title || "Projeto"} (hero)`).trim(),
       episodeDownloads: normalizedEpisodeDownloads,
       views: Number.isFinite(project.views) ? project.views : 0,
       viewsDaily:

@@ -317,24 +317,20 @@ function FloatingLinkEditor({
               className="link-cancel"
               type="button"
               aria-label="Cancelar edição de link"
-              role="button"
-              tabIndex={0}
               onMouseDown={preventDefault}
               onClick={() => {
                 setIsLinkEditMode(false);
               }}>
-              <X size={16} />
+              <X size={16} aria-hidden="true" />
             </button>
 
             <button
               className="link-confirm"
               type="button"
               aria-label="Confirmar link"
-              role="button"
-              tabIndex={0}
               onMouseDown={preventDefault}
               onClick={handleLinkSubmission}>
-              <Check size={16} />
+              <Check size={16} aria-hidden="true" />
             </button>
           </div>
         </>
@@ -350,27 +346,23 @@ function FloatingLinkEditor({
             className="link-edit"
             type="button"
             aria-label="Editar link"
-            role="button"
-            tabIndex={0}
             onMouseDown={preventDefault}
             onClick={(event) => {
               event.preventDefault();
               setEditedLinkUrl(linkUrl);
               setIsLinkEditMode(true);
             }}>
-            <Pencil size={16} />
+            <Pencil size={16} aria-hidden="true" />
           </button>
           <button
             className="link-trash"
             type="button"
             aria-label="Remover link"
-            role="button"
-            tabIndex={0}
             onMouseDown={preventDefault}
             onClick={() => {
               editor.dispatchCommand(TOGGLE_LINK_COMMAND, null);
             }}>
-            <Trash2 size={16} />
+            <Trash2 size={16} aria-hidden="true" />
           </button>
         </div>
       )}

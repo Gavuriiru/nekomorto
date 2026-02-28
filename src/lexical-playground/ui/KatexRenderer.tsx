@@ -23,6 +23,14 @@ export default function KatexRenderer({
 }>): JSX.Element {
   const katexElementRef = useRef(null);
 
+  const handleKeyDown = (event: React.KeyboardEvent<HTMLButtonElement>) => {
+    if (event.key !== 'Enter' && event.key !== ' ') {
+      return;
+    }
+    event.preventDefault();
+    onDoubleClick();
+  };
+
   useEffect(() => {
     const katexElement = katexElementRef.current;
 
@@ -49,12 +57,18 @@ export default function KatexRenderer({
         height="0"
         alt=""
       />
-      <span
-        role="button"
-        tabIndex={-1}
+      <button
+        type="button"
+        className={
+          inline
+            ? 'inline-flex max-w-full appearance-none items-center border-0 bg-transparent p-0 text-left text-inherit'
+            : 'flex w-full appearance-none justify-start border-0 bg-transparent p-0 text-left text-inherit'
+        }
+        aria-label="Editar formula"
         onDoubleClick={onDoubleClick}
-        ref={katexElementRef}
-      />
+        onKeyDown={handleKeyDown}>
+        <span ref={katexElementRef} aria-hidden="true" />
+      </button>
       <img
         src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7"
         width="0"

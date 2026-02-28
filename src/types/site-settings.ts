@@ -5,6 +5,7 @@ export type SiteSettings = {
     faviconUrl: string;
     description: string;
     defaultShareImage: string;
+    defaultShareImageAlt: string;
     titleSeparator?: string;
   };
   theme: {

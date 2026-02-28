@@ -3,6 +3,7 @@ import { Link, useLocation } from "react-router-dom";
 import { Home } from "lucide-react";
 import DashboardHeader from "@/components/DashboardHeader";
 import Footer from "@/components/Footer";
+import SkipLinks from "@/components/SkipLinks";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   Sidebar,
@@ -121,30 +122,38 @@ const DashboardShell = ({
   const initials = initialsRaw || "??";
   const isUserClickable = Boolean(onUserCardClick);
   const userCardBaseClass =
-    "flex items-center gap-3 rounded-xl border border-sidebar-border/80 bg-sidebar-accent/20 p-3 transition hover:border-sidebar-ring/40 hover:bg-sidebar-accent/35 group-data-[collapsible=icon]:hidden";
+    "relative flex items-center gap-3 rounded-xl border border-sidebar-border/80 bg-sidebar-accent/20 p-3 transition hover:border-sidebar-ring/40 hover:bg-sidebar-accent/35 group-data-[collapsible=icon]:hidden";
   const userCardCompactClass =
-    "hidden items-center justify-center rounded-xl border border-sidebar-border/80 bg-sidebar-accent/20 p-2 transition hover:border-sidebar-ring/40 hover:bg-sidebar-accent/35 group-data-[collapsible=icon]:flex";
+    "relative hidden items-center justify-center rounded-xl border border-sidebar-border/80 bg-sidebar-accent/20 p-2 transition hover:border-sidebar-ring/40 hover:bg-sidebar-accent/35 group-data-[collapsible=icon]:flex";
 
   return (
     <div className="min-h-screen overflow-x-hidden bg-background text-foreground">
+      <SkipLinks
+        links={[
+          { href: "#dashboard-navigation", label: "Pular para a navegação" },
+          { href: "#dashboard-main-content", label: "Pular para o conteúdo" },
+        ]}
+      />
       <SidebarProvider defaultOpen>
         <Sidebar variant="inset" collapsible="icon">
-          <SidebarHeader className="gap-3 px-2 pb-2 pt-3 transition-all duration-200 ease-linear group-data-[collapsible=icon]:gap-2 group-data-[collapsible=icon]:items-center">
+          <SidebarHeader
+            id="dashboard-navigation"
+            tabIndex={-1}
+            className="a11y-focus-target gap-3 px-2 pb-2 pt-3 transition-all duration-200 ease-linear group-data-[collapsible=icon]:gap-2 group-data-[collapsible=icon]:items-center"
+          >
             <div
               className={`${userCardBaseClass} ${isUserClickable ? "cursor-pointer" : "cursor-default"}`}
-              role={isUserClickable ? "button" : undefined}
-              tabIndex={isUserClickable ? 0 : undefined}
-              onClick={isUserClickable ? onUserCardClick : undefined}
-              onKeyDown={(event) => {
-                if (!isUserClickable) {
-                  return;
-                }
-                if (event.key === "Enter" || event.key === " ") {
-                  event.preventDefault();
-                  onUserCardClick?.();
-                }
-              }}
             >
+              {isUserClickable ? (
+                <button
+                  type="button"
+                  className="absolute inset-0 z-10 rounded-xl focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-sidebar-ring"
+                  aria-label={`Abrir perfil de ${userName}`}
+                  onClick={onUserCardClick}
+                >
+                  <span className="sr-only">{`Abrir perfil de ${userName}`}</span>
+                </button>
+              ) : null}
               <Avatar className="h-11 w-11 border border-sidebar-border">
                 {effectiveUser?.avatarUrl ? (
                   <AvatarImage src={effectiveUser.avatarUrl} alt={userName} />
@@ -161,19 +170,17 @@ const DashboardShell = ({
 
             <div
               className={`${userCardCompactClass} ${isUserClickable ? "cursor-pointer" : "cursor-default"}`}
-              role={isUserClickable ? "button" : undefined}
-              tabIndex={isUserClickable ? 0 : undefined}
-              onClick={isUserClickable ? onUserCardClick : undefined}
-              onKeyDown={(event) => {
-                if (!isUserClickable) {
-                  return;
-                }
-                if (event.key === "Enter" || event.key === " ") {
-                  event.preventDefault();
-                  onUserCardClick?.();
-                }
-              }}
             >
+              {isUserClickable ? (
+                <button
+                  type="button"
+                  className="absolute inset-0 z-10 rounded-xl focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-sidebar-ring"
+                  aria-label={`Abrir perfil de ${userName}`}
+                  onClick={onUserCardClick}
+                >
+                  <span className="sr-only">{`Abrir perfil de ${userName}`}</span>
+                </button>
+              ) : null}
               <Avatar className="h-8 w-8 border border-sidebar-border shadow-xs">
                 {effectiveUser?.avatarUrl ? (
                   <AvatarImage src={effectiveUser.avatarUrl} alt={userName} />
@@ -243,7 +250,11 @@ const DashboardShell = ({
           </SidebarFooter>
         </Sidebar>
 
-        <SidebarInset className="min-w-0 overflow-x-hidden flex min-h-screen flex-col bg-linear-to-b from-background via-[hsl(var(--primary)/0.12)] to-background text-foreground md:peer-data-[variant=inset]:shadow-none md:peer-data-[variant=inset]:rounded-none">
+        <SidebarInset
+          id="dashboard-main-content"
+          tabIndex={-1}
+          className="a11y-focus-target min-w-0 overflow-x-hidden flex min-h-screen flex-col bg-linear-to-b from-background via-[hsl(var(--primary)/0.12)] to-background text-foreground md:peer-data-[variant=inset]:shadow-none md:peer-data-[variant=inset]:rounded-none"
+        >
           <DashboardHeader
             currentUser={effectiveUser}
             menuItems={resolvedMenuItems}

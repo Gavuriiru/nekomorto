@@ -17,6 +17,8 @@ const iconMap: Record<string, typeof HelpCircle> = {
 };
 
 const defaultFaq = {
+  shareImage: "",
+  shareImageAlt: "",
   heroTitle: "Perguntas frequentes",
   heroSubtitle: "Respostas rápidas para dúvidas comuns sobre projetos, lançamentos e equipe.",
   introCards: [
@@ -99,10 +101,13 @@ const defaultFaq = {
 };
 
 const FAQ = () => {
-  usePageMeta({ title: "FAQ" });
-
   const apiBase = getApiBase();
   const [faq, setFaq] = useState(defaultFaq);
+  usePageMeta({
+    title: "FAQ",
+    image: faq.shareImage || undefined,
+    imageAlt: faq.shareImageAlt || undefined,
+  });
 
   useEffect(() => {
     let isActive = true;

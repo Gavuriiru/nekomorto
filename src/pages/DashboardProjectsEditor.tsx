@@ -2,6 +2,7 @@ import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } fro
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import type { MouseEvent as ReactMouseEvent } from "react";
 import DashboardShell from "@/components/DashboardShell";
+import ReorderControls from "@/components/ReorderControls";
 import DashboardPageContainer from "@/components/dashboard/DashboardPageContainer";
 import DashboardPageHeader from "@/components/dashboard/DashboardPageHeader";
 import { dashboardPageLayoutTokens } from "@/components/dashboard/dashboard-page-tokens";
@@ -117,6 +118,7 @@ type ProjectEpisode = {
   releaseDate: string;
   duration: string;
   coverImageUrl?: string;
+  coverImageAlt?: string;
   sourceType: "TV" | "Web" | "Blu-ray";
   sources: DownloadSource[];
   hash?: string;
@@ -144,7 +146,9 @@ type ProjectRecord = {
   tags: string[];
   genres: string[];
   cover: string;
+  coverAlt: string;
   banner: string;
+  bannerAlt: string;
   season: string;
   schedule: string;
   rating: string;
@@ -161,6 +165,7 @@ type ProjectRecord = {
   trailerUrl: string;
   forceHero?: boolean;
   heroImageUrl?: string;
+  heroImageAlt: string;
   episodeDownloads: ProjectEpisode[];
   views: number;
   commentsCount: number;
@@ -230,7 +235,9 @@ const emptyProject: ProjectForm = {
   tags: [],
   genres: [],
   cover: "",
+  coverAlt: "",
   banner: "",
+  bannerAlt: "",
   season: "",
   schedule: "",
   rating: "",
@@ -247,6 +254,7 @@ const emptyProject: ProjectForm = {
   trailerUrl: "",
   forceHero: false,
   heroImageUrl: "",
+  heroImageAlt: "",
   episodeDownloads: [],
 };
 
@@ -667,7 +675,6 @@ const episodeHeaderNoToggleSelector = [
   "select",
   "textarea",
   "label",
-  '[role="button"]',
   '[role="link"]',
   '[contenteditable="true"]',
 ].join(", ");
@@ -695,6 +702,19 @@ const generateLocalId = () => {
   const random = Math.random().toString(36).slice(2, 9);
   const stamp = Date.now().toString(36).slice(-3);
   return `${alpha}${random}${stamp}`;
+};
+
+const moveIndexedItem = <T,>(items: T[], from: number, to: number) => {
+  if (from === to || from < 0 || to < 0 || from >= items.length || to >= items.length) {
+    return items;
+  }
+  const next = [...items];
+  const [moved] = next.splice(from, 1);
+  if (typeof moved === "undefined") {
+    return items;
+  }
+  next.splice(to, 0, moved);
+  return next;
 };
 
 const parsePageParam = (value: string | null) => {
@@ -1315,15 +1335,26 @@ const DashboardProjectsEditor = () => {
     };
   }, [sortedEpisodeDownloads]);
 
-  const applyLibraryImage = (url: string, _altText?: string) => {
+  const applyLibraryImage = (url: string, altText?: string) => {
+    const nextAlt = String(altText || "").trim();
     setFormState((prev) => {
       const next = { ...prev };
       if (libraryTarget === "cover") {
         next.cover = url;
+        if (!String(next.coverAlt || "").trim()) {
+          next.coverAlt = nextAlt || next.title || "Capa do projeto";
+        }
       } else if (libraryTarget === "banner") {
         next.banner = url;
+        if (!String(next.bannerAlt || "").trim()) {
+          next.bannerAlt = nextAlt || (next.title ? `${next.title} (banner)` : "Banner do projeto");
+        }
       } else if (libraryTarget === "hero") {
         next.heroImageUrl = url;
+        if (!String(next.heroImageAlt || "").trim()) {
+          next.heroImageAlt =
+            nextAlt || (next.title ? `${next.title} (hero)` : "Imagem hero do projeto");
+        }
       } else if (libraryTarget === "episode-cover") {
         if (episodeCoverIndex === null) {
           return prev;
@@ -1335,6 +1366,11 @@ const DashboardProjectsEditor = () => {
         nextEpisodes[episodeCoverIndex] = {
           ...nextEpisodes[episodeCoverIndex],
           coverImageUrl: url,
+          coverImageAlt:
+            nextEpisodes[episodeCoverIndex].coverImageAlt ||
+            nextAlt ||
+            nextEpisodes[episodeCoverIndex].title ||
+            "Capa do episódio",
         };
         return { ...prev, episodeDownloads: nextEpisodes };
       }
@@ -1653,6 +1689,7 @@ const DashboardProjectsEditor = () => {
             ...episode,
             content: episode.content || "",
             contentFormat: "lexical",
+            coverImageAlt: episode.coverImageAlt || episode.title || "",
           }),
         )
       : [];
@@ -1673,7 +1710,9 @@ const DashboardProjectsEditor = () => {
       tags: Array.isArray(project.tags) ? project.tags : [],
       genres: Array.isArray(project.genres) ? project.genres : [],
       cover: project.cover || "",
+      coverAlt: project.coverAlt || project.title || "",
       banner: project.banner || "",
+      bannerAlt: project.bannerAlt || (project.title ? `${project.title} (banner)` : ""),
       season: project.season || "",
       schedule: project.schedule || "",
       rating: project.rating || "",
@@ -1690,6 +1729,7 @@ const DashboardProjectsEditor = () => {
       trailerUrl: project.trailerUrl || "",
       forceHero: Boolean(project.forceHero),
       heroImageUrl: project.heroImageUrl || "",
+      heroImageAlt: project.heroImageAlt || (project.title ? `${project.title} (hero)` : ""),
       episodeDownloads: initialEpisodes,
     };
     const nextAniListInput = project.anilistId ? String(project.anilistId) : "";
@@ -1774,6 +1814,19 @@ const DashboardProjectsEditor = () => {
     };
     setConfirmOpen(true);
   };
+
+  const coverAltError =
+    formState.cover && !String(formState.coverAlt || "").trim()
+      ? "Informe um texto alternativo para a capa."
+      : "";
+  const bannerAltError =
+    formState.banner && !String(formState.bannerAlt || "").trim()
+      ? "Informe um texto alternativo para o banner."
+      : "";
+  const heroImageAltError =
+    formState.heroImageUrl && !String(formState.heroImageAlt || "").trim()
+      ? "Informe um texto alternativo para a imagem do carrossel."
+      : "";
 
   const handleSave = async () => {
     const trimmedTitle = formState.title.trim();
@@ -1908,7 +1961,9 @@ const DashboardProjectsEditor = () => {
       tags: formState.tags.filter(Boolean),
       genres: formState.genres.filter(Boolean),
       cover: formState.cover?.trim() || "",
+      coverAlt: formState.coverAlt?.trim() || "",
       banner: formState.banner?.trim() || "",
+      bannerAlt: formState.bannerAlt?.trim() || "",
       season: formState.season?.trim() || "",
       schedule: formState.schedule?.trim() || "",
       rating: formState.rating?.trim() || "",
@@ -1921,6 +1976,7 @@ const DashboardProjectsEditor = () => {
       trailerUrl: formState.trailerUrl?.trim() || "",
       forceHero: Boolean(formState.forceHero),
       heroImageUrl: formState.heroImageUrl?.trim() || "",
+      heroImageAlt: formState.heroImageAlt?.trim() || "",
       relations: formState.relations
         .filter((item) => item.title || item.relation || item.projectId)
         .filter((item, index, arr) => {
@@ -1957,6 +2013,7 @@ const DashboardProjectsEditor = () => {
           Number.isFinite(parsedSize) && parsedSize > 0 ? Math.round(parsedSize) : undefined;
         return {
           ...episode,
+          coverImageAlt: String(episode.coverImageAlt || "").trim(),
           hash: hash || undefined,
           sizeBytes,
           sources: (episode.sources || [])
@@ -1977,6 +2034,42 @@ const DashboardProjectsEditor = () => {
         };
       }),
     };
+
+    const firstEpisodeMissingAlt = payload.episodeDownloads.find(
+      (episode) => episode.coverImageUrl && !String(episode.coverImageAlt || "").trim(),
+    );
+    if (payload.cover && !payload.coverAlt) {
+      toast({
+        title: "Texto alternativo obrigatório",
+        description: "A capa do projeto precisa de um texto alternativo.",
+        variant: "destructive",
+      });
+      return;
+    }
+    if (payload.banner && !payload.bannerAlt) {
+      toast({
+        title: "Texto alternativo obrigatório",
+        description: "O banner do projeto precisa de um texto alternativo.",
+        variant: "destructive",
+      });
+      return;
+    }
+    if (payload.heroImageUrl && !payload.heroImageAlt) {
+      toast({
+        title: "Texto alternativo obrigatório",
+        description: "A imagem do carrossel precisa de um texto alternativo.",
+        variant: "destructive",
+      });
+      return;
+    }
+    if (firstEpisodeMissingAlt) {
+      toast({
+        title: "Texto alternativo obrigatório",
+        description: `O item ${firstEpisodeMissingAlt.title || firstEpisodeMissingAlt.number} precisa de um texto alternativo para a capa.`,
+        variant: "destructive",
+      });
+      return;
+    }
 
     const response = await apiFetch(
       apiBase,
@@ -2340,6 +2433,7 @@ const DashboardProjectsEditor = () => {
         releaseDate: "",
         duration: "",
         coverImageUrl: "",
+        coverImageAlt: "",
         sourceType: "TV",
         sources: [],
         progressStage: "aguardando-raw",
@@ -2352,17 +2446,68 @@ const DashboardProjectsEditor = () => {
     });
   };
 
+  const moveRelationItem = useCallback((from: number, to: number) => {
+    if (from === to) {
+      return;
+    }
+    setFormState((prev) => ({
+      ...prev,
+      relations: moveIndexedItem(prev.relations, from, to),
+    }));
+  }, []);
+
+  const moveStaffItem = useCallback((from: number, to: number) => {
+    if (from === to) {
+      return;
+    }
+    setFormState((prev) => ({
+      ...prev,
+      staff: moveIndexedItem(prev.staff, from, to),
+    }));
+  }, []);
+
+  const moveAnimeStaffItem = useCallback((from: number, to: number) => {
+    if (from === to) {
+      return;
+    }
+    setFormState((prev) => ({
+      ...prev,
+      animeStaff: moveIndexedItem(prev.animeStaff, from, to),
+    }));
+    setAnimeStaffMemberInput({});
+  }, []);
+
+  const moveEpisodeItem = useCallback(
+    (from: number, to: number) => {
+      if (from === to) {
+        return;
+      }
+      setFormState((prev) => ({
+        ...prev,
+        episodeDownloads: moveIndexedItem(prev.episodeDownloads, from, to),
+      }));
+      setCollapsedEpisodes((prev) => {
+        const flags = Array.from(
+          { length: formState.episodeDownloads.length },
+          (_, idx) => prev[idx] ?? false,
+        );
+        const nextFlags = moveIndexedItem(flags, from, to);
+        const next: Record<number, boolean> = {};
+        nextFlags.forEach((value, idx) => {
+          next[idx] = value;
+        });
+        return next;
+      });
+    },
+    [formState.episodeDownloads.length],
+  );
+
   const handleRelationDrop = (targetIndex: number) => {
     if (relationDragIndex === null || relationDragIndex === targetIndex) {
       setRelationDragIndex(null);
       return;
     }
-    setFormState((prev) => {
-      const next = [...prev.relations];
-      const [removed] = next.splice(relationDragIndex, 1);
-      next.splice(targetIndex, 0, removed);
-      return { ...prev, relations: next };
-    });
+    moveRelationItem(relationDragIndex, targetIndex);
     setRelationDragIndex(null);
   };
 
@@ -2371,12 +2516,7 @@ const DashboardProjectsEditor = () => {
       setStaffDragIndex(null);
       return;
     }
-    setFormState((prev) => {
-      const next = [...prev.staff];
-      const [removed] = next.splice(staffDragIndex, 1);
-      next.splice(targetIndex, 0, removed);
-      return { ...prev, staff: next };
-    });
+    moveStaffItem(staffDragIndex, targetIndex);
     setStaffDragIndex(null);
   };
 
@@ -2385,13 +2525,7 @@ const DashboardProjectsEditor = () => {
       setAnimeStaffDragIndex(null);
       return;
     }
-    setFormState((prev) => {
-      const next = [...prev.animeStaff];
-      const [removed] = next.splice(animeStaffDragIndex, 1);
-      next.splice(targetIndex, 0, removed);
-      return { ...prev, animeStaff: next };
-    });
-    setAnimeStaffMemberInput({});
+    moveAnimeStaffItem(animeStaffDragIndex, targetIndex);
     setAnimeStaffDragIndex(null);
   };
 
@@ -2400,25 +2534,7 @@ const DashboardProjectsEditor = () => {
       setEpisodeDragId(null);
       return;
     }
-    setFormState((prev) => {
-      const next = [...prev.episodeDownloads];
-      const [removed] = next.splice(episodeDragId, 1);
-      next.splice(targetIndex, 0, removed);
-      return { ...prev, episodeDownloads: next };
-    });
-    setCollapsedEpisodes((prev) => {
-      const flags = Array.from(
-        { length: formState.episodeDownloads.length },
-        (_, idx) => prev[idx] ?? false,
-      );
-      const [moved] = flags.splice(episodeDragId, 1);
-      flags.splice(targetIndex, 0, moved);
-      const next: Record<number, boolean> = {};
-      flags.forEach((value, idx) => {
-        next[idx] = value;
-      });
-      return next;
-    });
+    moveEpisodeItem(episodeDragId, targetIndex);
     setEpisodeDragId(null);
   };
 
@@ -2540,17 +2656,8 @@ const DashboardProjectsEditor = () => {
                 {paginatedProjects.map((project, index) => (
                   <Card
                     key={project.id}
-                    className={`${dashboardPageLayoutTokens.listCard} group cursor-pointer overflow-hidden transition hover:border-primary/40 animate-slide-up opacity-0`}
+                    className={`${dashboardPageLayoutTokens.listCard} group overflow-hidden transition hover:border-primary/40 animate-slide-up opacity-0`}
                     style={{ animationDelay: `${Math.min(index * 35, 210)}ms` }}
-                    role="button"
-                    tabIndex={0}
-                    onKeyDown={(event) => {
-                      if (event.key === "Enter" || event.key === " ") {
-                        event.preventDefault();
-                        openEdit(project);
-                      }
-                    }}
-                    onClick={() => openEdit(project)}
                   >
                     <CardContent className="p-0">
                       <div className="grid gap-6 md:grid-cols-[220px_1fr]">
@@ -2590,11 +2697,19 @@ const DashboardProjectsEditor = () => {
                             </div>
                             <div className="flex items-center gap-2">
                               <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => openEdit(project)}
+                                aria-label={`Editar projeto ${project.title}`}
+                              >
+                                <FolderCog className="mr-2 h-4 w-4" aria-hidden="true" />
+                                Editar
+                              </Button>
+                              <Button
                                 variant="ghost"
                                 size="icon"
                                 title="Visualizar"
                                 asChild
-                                onClick={(event) => event.stopPropagation()}
                               >
                                 <Link to={`/projeto/${project.id}`}>
                                   <Eye className="h-4 w-4" />
@@ -2604,8 +2719,7 @@ const DashboardProjectsEditor = () => {
                                 variant="ghost"
                                 size="icon"
                                 title="Copiar link"
-                                onClick={(event) => {
-                                  event.stopPropagation();
+                                onClick={() => {
                                   const url = `${window.location.origin}/projeto/${project.id}`;
                                   navigator.clipboard.writeText(url).catch(() => {
                                     const textarea = document.createElement("textarea");
@@ -2623,8 +2737,7 @@ const DashboardProjectsEditor = () => {
                                 variant="ghost"
                                 size="icon"
                                 title="Excluir"
-                                onClick={(event) => {
-                                  event.stopPropagation();
+                                onClick={() => {
                                   setDeleteTarget(project);
                                 }}
                               >
@@ -2993,77 +3106,146 @@ const DashboardProjectsEditor = () => {
                   <div className="grid gap-3 md:grid-cols-3">
                     <div className="space-y-2">
                       <Label>Imagem do carrossel</Label>
-                      <div className="flex items-center gap-3 rounded-2xl border border-border/60 bg-card/60 px-3 py-2">
-                        {formState.heroImageUrl ? (
-                          <img
-                            src={formState.heroImageUrl}
-                            alt="Imagem do carrossel"
-                            className="h-12 w-12 rounded-lg object-cover"
-                          />
+                      <div className="space-y-2 rounded-2xl border border-border/60 bg-card/60 px-3 py-2">
+                        <div className="flex items-center gap-3">
+                          {formState.heroImageUrl ? (
+                            <img
+                              src={formState.heroImageUrl}
+                              alt="Imagem do carrossel"
+                              className="h-12 w-12 rounded-lg object-cover"
+                            />
+                          ) : (
+                            <div className="flex h-12 w-12 items-center justify-center rounded-lg border border-dashed border-border/60 text-center text-[10px] text-muted-foreground leading-tight">
+                              Sem imagem
+                            </div>
+                          )}
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="ml-auto"
+                            onClick={() => openLibraryForProjectImage("hero")}
+                          >
+                            Biblioteca
+                          </Button>
+                        </div>
+                        <Input
+                          value={formState.heroImageAlt}
+                          onChange={(event) =>
+                            setFormState((prev) => ({
+                              ...prev,
+                              heroImageAlt: event.target.value,
+                            }))
+                          }
+                          aria-invalid={Boolean(heroImageAltError)}
+                          aria-describedby={heroImageAltError ? "project-hero-alt-error" : undefined}
+                          placeholder="Texto alternativo da imagem do carrossel"
+                        />
+                        {heroImageAltError ? (
+                          <p id="project-hero-alt-error" role="alert" className="text-xs text-destructive">
+                            {heroImageAltError}
+                          </p>
                         ) : (
-                          <div className="flex h-12 w-12 items-center justify-center rounded-lg border border-dashed border-border/60 text-center text-[10px] text-muted-foreground leading-tight">
-                            Sem imagem
-                          </div>
+                          <p className="text-xs text-muted-foreground">
+                            Obrigatório quando houver imagem do carrossel.
+                          </p>
                         )}
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          className="ml-auto"
-                          onClick={() => openLibraryForProjectImage("hero")}
-                        >
-                          Biblioteca
-                        </Button>
                       </div>
                     </div>
                     <div className="space-y-2">
                       <Label>Capa</Label>
-                      <div className="flex items-center gap-3 rounded-2xl border border-border/60 bg-card/60 px-3 py-2">
-                        {formState.cover ? (
-                          <img
-                            src={formState.cover}
-                            alt="Capa"
-                            className="h-12 w-12 rounded-lg object-cover"
-                          />
+                      <div className="space-y-2 rounded-2xl border border-border/60 bg-card/60 px-3 py-2">
+                        <div className="flex items-center gap-3">
+                          {formState.cover ? (
+                            <img
+                              src={formState.cover}
+                              alt="Capa"
+                              className="h-12 w-12 rounded-lg object-cover"
+                            />
+                          ) : (
+                            <div className="flex h-12 w-12 items-center justify-center rounded-lg border border-dashed border-border/60 text-center text-[10px] text-muted-foreground leading-tight">
+                              Sem imagem
+                            </div>
+                          )}
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="ml-auto"
+                            onClick={() => openLibraryForProjectImage("cover")}
+                          >
+                            Biblioteca
+                          </Button>
+                        </div>
+                        <Input
+                          value={formState.coverAlt}
+                          onChange={(event) =>
+                            setFormState((prev) => ({
+                              ...prev,
+                              coverAlt: event.target.value,
+                            }))
+                          }
+                          aria-invalid={Boolean(coverAltError)}
+                          aria-describedby={coverAltError ? "project-cover-alt-error" : undefined}
+                          placeholder="Texto alternativo da capa"
+                        />
+                        {coverAltError ? (
+                          <p id="project-cover-alt-error" role="alert" className="text-xs text-destructive">
+                            {coverAltError}
+                          </p>
                         ) : (
-                          <div className="flex h-12 w-12 items-center justify-center rounded-lg border border-dashed border-border/60 text-center text-[10px] text-muted-foreground leading-tight">
-                            Sem imagem
-                          </div>
+                          <p className="text-xs text-muted-foreground">
+                            Obrigatório quando houver capa.
+                          </p>
                         )}
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          className="ml-auto"
-                          onClick={() => openLibraryForProjectImage("cover")}
-                        >
-                          Biblioteca
-                        </Button>
                       </div>
                     </div>
                     <div className="space-y-2">
                       <Label>Banner</Label>
-                      <div className="flex items-center gap-3 rounded-2xl border border-border/60 bg-card/60 px-3 py-2">
-                        {formState.banner ? (
-                          <img
-                            src={formState.banner}
-                            alt="Banner"
-                            className="h-12 w-12 rounded-lg object-cover"
-                          />
+                      <div className="space-y-2 rounded-2xl border border-border/60 bg-card/60 px-3 py-2">
+                        <div className="flex items-center gap-3">
+                          {formState.banner ? (
+                            <img
+                              src={formState.banner}
+                              alt="Banner"
+                              className="h-12 w-12 rounded-lg object-cover"
+                            />
+                          ) : (
+                            <div className="flex h-12 w-12 items-center justify-center rounded-lg border border-dashed border-border/60 text-center text-[10px] text-muted-foreground leading-tight">
+                              Sem imagem
+                            </div>
+                          )}
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="ml-auto"
+                            onClick={() => openLibraryForProjectImage("banner")}
+                          >
+                            Biblioteca
+                          </Button>
+                        </div>
+                        <Input
+                          value={formState.bannerAlt}
+                          onChange={(event) =>
+                            setFormState((prev) => ({
+                              ...prev,
+                              bannerAlt: event.target.value,
+                            }))
+                          }
+                          aria-invalid={Boolean(bannerAltError)}
+                          aria-describedby={bannerAltError ? "project-banner-alt-error" : undefined}
+                          placeholder="Texto alternativo do banner"
+                        />
+                        {bannerAltError ? (
+                          <p id="project-banner-alt-error" role="alert" className="text-xs text-destructive">
+                            {bannerAltError}
+                          </p>
                         ) : (
-                          <div className="flex h-12 w-12 items-center justify-center rounded-lg border border-dashed border-border/60 text-center text-[10px] text-muted-foreground leading-tight">
-                            Sem imagem
-                          </div>
+                          <p className="text-xs text-muted-foreground">
+                            Obrigatório quando houver banner.
+                          </p>
                         )}
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          className="ml-auto"
-                          onClick={() => openLibraryForProjectImage("banner")}
-                        >
-                          Biblioteca
-                        </Button>
                       </div>
                     </div>
                   </div>
@@ -3344,7 +3526,7 @@ const DashboardProjectsEditor = () => {
                       {formState.relations.map((relation, index) => (
                         <div
                           key={`${relation.title}-${index}`}
-                          className="grid gap-2 rounded-2xl border border-border/60 bg-card/60 p-3 md:grid-cols-[1.35fr_1fr_1fr_auto]"
+                          className="grid gap-2 rounded-2xl border border-border/60 bg-card/60 p-3 md:grid-cols-[1.35fr_1fr_1fr_auto_auto]"
                           draggable
                           onDragStart={() => setRelationDragIndex(index)}
                           onDragOver={(event) => event.preventDefault()}
@@ -3382,6 +3564,12 @@ const DashboardProjectsEditor = () => {
                               })
                             }
                             placeholder="ID relacionado"
+                          />
+                          <ReorderControls
+                            label={`relacao ${index + 1}`}
+                            index={index}
+                            total={formState.relations.length}
+                            onMove={(targetIndex) => moveRelationItem(index, targetIndex)}
                           />
                           <Button
                             type="button"
@@ -3438,7 +3626,7 @@ const DashboardProjectsEditor = () => {
                           onDragOver={(event) => event.preventDefault()}
                           onDrop={() => handleStaffDrop(index)}
                         >
-                          <div className="grid gap-3 md:grid-cols-[1fr_auto]">
+                          <div className="grid gap-3 md:grid-cols-[1fr_auto_auto]">
                             <Select
                               value={role.role || ""}
                               onValueChange={(value) =>
@@ -3463,6 +3651,12 @@ const DashboardProjectsEditor = () => {
                                 ))}
                               </SelectContent>
                             </Select>
+                            <ReorderControls
+                              label={`funcao da fansub ${index + 1}`}
+                              index={index}
+                              total={formState.staff.length}
+                              onMove={(targetIndex) => moveStaffItem(index, targetIndex)}
+                            />
                             <Button
                               type="button"
                               variant="ghost"
@@ -3560,7 +3754,7 @@ const DashboardProjectsEditor = () => {
                           onDragOver={(event) => event.preventDefault()}
                           onDrop={() => handleAnimeStaffDrop(index)}
                         >
-                          <div className="grid gap-3 md:grid-cols-[1fr_auto]">
+                          <div className="grid gap-3 md:grid-cols-[1fr_auto_auto]">
                             <div className="space-y-1">
                               <Input
                                 value={role.role || ""}
@@ -3579,6 +3773,12 @@ const DashboardProjectsEditor = () => {
                                 </p>
                               ) : null}
                             </div>
+                            <ReorderControls
+                              label={`funcao do anime ${index + 1}`}
+                              index={index}
+                              total={formState.animeStaff.length}
+                              onMove={(targetIndex) => moveAnimeStaffItem(index, targetIndex)}
+                            />
                             <Button
                               type="button"
                               variant="ghost"
@@ -3773,6 +3973,13 @@ const DashboardProjectsEditor = () => {
                                         {collapsedHeaderMeta.join(" • ")}
                                       </span>
                                     ) : null}
+                                    <ReorderControls
+                                      label={`${isChapterBased ? "capitulo" : "episodio"} ${episode.number || index + 1}`}
+                                      index={index}
+                                      total={sortedEpisodeDownloads.length}
+                                      onMove={(targetIndex) => moveEpisodeItem(index, targetIndex)}
+                                      buttonClassName="h-7 w-7"
+                                    />
                                     <Button
                                       type="button"
                                       size="sm"
@@ -4041,6 +4248,50 @@ const DashboardProjectsEditor = () => {
                                       >
                                         Biblioteca
                                       </Button>
+                                      <div className="w-full space-y-2">
+                                        <Input
+                                          value={episode.coverImageAlt || ""}
+                                          onChange={(event) =>
+                                            setFormState((prev) => {
+                                              const next = [...prev.episodeDownloads];
+                                              next[index] = {
+                                                ...next[index],
+                                                coverImageAlt: event.target.value,
+                                              };
+                                              return { ...prev, episodeDownloads: next };
+                                            })
+                                          }
+                                          aria-invalid={Boolean(
+                                            episode.coverImageUrl &&
+                                              !String(episode.coverImageAlt || "").trim(),
+                                          )}
+                                          aria-describedby={
+                                            episode.coverImageUrl &&
+                                            !String(episode.coverImageAlt || "").trim()
+                                              ? `episode-cover-alt-error-${index}`
+                                              : undefined
+                                          }
+                                          placeholder={
+                                            isChapterBased
+                                              ? "Texto alternativo da capa do capítulo"
+                                              : "Texto alternativo da capa do episódio"
+                                          }
+                                        />
+                                        {episode.coverImageUrl &&
+                                        !String(episode.coverImageAlt || "").trim() ? (
+                                          <p
+                                            id={`episode-cover-alt-error-${index}`}
+                                            role="alert"
+                                            className="text-xs text-destructive"
+                                          >
+                                            Informe um texto alternativo para esta capa.
+                                          </p>
+                                        ) : (
+                                          <p className="text-xs text-muted-foreground">
+                                            Obrigatório quando houver capa neste item.
+                                          </p>
+                                        )}
+                                      </div>
                                     </div>
                                   </div>
                                   {isLightNovel ? (
@@ -4438,7 +4689,9 @@ const DashboardProjectsEditor = () => {
           allowDeselect
           mode="single"
           currentSelectionUrls={currentLibrarySelection ? [currentLibrarySelection] : []}
-          onSave={({ urls }) => applyLibraryImage(urls[0] || "")}
+          onSave={({ urls, items }) =>
+            applyLibraryImage(urls[0] || "", String(items[0]?.label || items[0]?.name || ""))
+          }
         />
       </Suspense>
     </>

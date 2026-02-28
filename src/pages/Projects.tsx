@@ -290,6 +290,7 @@ const Projects = () => {
   const [hasProjectsLoadError, setHasProjectsLoadError] = useState(false);
   const [projectsLoadVersion, setProjectsLoadVersion] = useState(0);
   const [shareImage, setShareImage] = useState("");
+  const [shareImageAlt, setShareImageAlt] = useState("");
   const [searchParams, setSearchParams] = useSearchParams();
   const [selectedLetter, setSelectedLetter] = useState(() =>
     parseLetterParam(searchParams.get("letter")),
@@ -311,7 +312,11 @@ const Projects = () => {
   const selectedGenre = searchParams.get("genero") || searchParams.get("genre") || "Todos";
   const selectedQuery = searchParams.get("q") || "";
 
-  usePageMeta({ title: "Projetos", image: shareImage || undefined });
+  usePageMeta({
+    title: "Projetos",
+    image: shareImage || undefined,
+    imageAlt: shareImageAlt || undefined,
+  });
 
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -335,6 +340,7 @@ const Projects = () => {
         const data = await response.json();
         if (isActive) {
           setShareImage(String(data?.pages?.projects?.shareImage || "").trim());
+          setShareImageAlt(String(data?.pages?.projects?.shareImageAlt || "").trim());
         }
       } catch {
         // ignore

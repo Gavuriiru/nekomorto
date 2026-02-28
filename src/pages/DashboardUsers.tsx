@@ -2,6 +2,7 @@
 import { useNavigate, useSearchParams } from "react-router-dom";
 import QRCode from "qrcode";
 import DashboardShell from "@/components/DashboardShell";
+import ReorderControls from "@/components/ReorderControls";
 import AsyncState from "@/components/ui/async-state";
 
 import { Badge } from "@/components/ui/badge";
@@ -1077,6 +1078,15 @@ const DashboardUsers = () => {
     }));
     clearSocialDragState();
   };
+  const moveSocialLink = useCallback((from: number, to: number) => {
+    if (!canEditBasicFields || from === to) {
+      return;
+    }
+    setFormState((prev) => ({
+      ...prev,
+      socials: reorderItems(prev.socials, from, to),
+    }));
+  }, [canEditBasicFields]);
 
   const reorderUsers = (orderedActiveIds: string[], orderedRetiredIds: string[]) => {
     setUsers((prev) => {
@@ -1134,6 +1144,59 @@ const DashboardUsers = () => {
     reorderUsers(activeIds, nextRetiredIds);
   };
 
+  const persistUserOrder = useCallback(
+    async (orderedIds: string[], retiredIds: string[], snapshot: UserRecord[]) => {
+      try {
+        const response = await apiFetch(apiBase, "/api/users/reorder", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          auth: true,
+          body: JSON.stringify({ orderedIds, retiredIds }),
+        });
+        if (!response.ok) {
+          setUsers(snapshot);
+          toast({
+            title: "Nao foi possivel salvar a nova ordem",
+            description: "A lista foi restaurada para a ordem anterior.",
+            variant: "destructive",
+          });
+          return;
+        }
+        toast({
+          title: "Ordem dos usuarios atualizada",
+          description: "A nova ordenacao foi salva.",
+          intent: "success",
+        });
+      } catch {
+        setUsers(snapshot);
+        toast({
+          title: "Nao foi possivel salvar a nova ordem",
+          description: "A lista foi restaurada para a ordem anterior.",
+          variant: "destructive",
+        });
+      }
+    },
+    [apiBase],
+  );
+
+  const moveUserWithinGroup = useCallback(
+    (group: "active" | "retired", from: number, to: number) => {
+      if (!canManageUsers || from === to) {
+        return;
+      }
+      const snapshot = users.map((userItem) => ({ ...userItem }));
+      const activeIds = activeUsers.map((user) => user.id);
+      const retiredIds = retiredUsers.map((user) => user.id);
+      const nextActiveIds =
+        group === "active" ? reorderItems(activeIds, from, to) : activeIds;
+      const nextRetiredIds =
+        group === "retired" ? reorderItems(retiredIds, from, to) : retiredIds;
+      reorderUsers(nextActiveIds, nextRetiredIds);
+      void persistUserOrder(nextActiveIds, nextRetiredIds, snapshot);
+    },
+    [activeUsers, canManageUsers, persistUserOrder, retiredUsers, users],
+  );
+
   const handleDragEnd = async () => {
     if (!canManageUsers) {
       setDragId(null);
@@ -1151,38 +1214,8 @@ const DashboardUsers = () => {
     }
     const orderedIds = activeUsers.map((user) => user.id);
     const retiredIds = retiredUsers.map((user) => user.id);
-    try {
-      const response = await apiFetch(apiBase, "/api/users/reorder", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        auth: true,
-        body: JSON.stringify({ orderedIds, retiredIds }),
-      });
-      if (!response.ok) {
-        if (snapshot) {
-          setUsers(snapshot);
-        }
-        toast({
-          title: "Não foi possível salvar a nova ordem",
-          description: "A lista foi restaurada para a ordem anterior.",
-          variant: "destructive",
-        });
-      } else {
-        toast({
-          title: "Ordem dos usuários atualizada",
-          description: "A nova ordenação foi salva.",
-          intent: "success",
-        });
-      }
-    } catch {
-      if (snapshot) {
-        setUsers(snapshot);
-      }
-      toast({
-        title: "Não foi possível salvar a nova ordem",
-        description: "A lista foi restaurada para a ordem anterior.",
-        variant: "destructive",
-      });
+    if (snapshot) {
+      await persistUserOrder(orderedIds, retiredIds, snapshot);
     }
     setDragId(null);
     setDragGroup(null);
@@ -1212,7 +1245,7 @@ const DashboardUsers = () => {
                   className="mt-2 text-sm text-muted-foreground animate-slide-up opacity-0"
                   style={{ animationDelay: "0.2s" }}
                 >
-                  Reordene arrastando para refletir a ordem na página pública.
+                  Reordene arrastando ou pelos botoes para refletir a ordem na pagina publica.
                 </p>
               </div>
               {canManageUsers && (
@@ -1263,6 +1296,7 @@ const DashboardUsers = () => {
               ) : (
                 <div className="mt-6 grid gap-4 md:grid-cols-2">
                   {activeUsers.map((user, index) => {
+                    const canEditUser = canOpenEdit(user);
                     const isLoneLastActiveCard =
                       activeUsers.length % 2 === 1 && index === activeUsers.length - 1;
                     return (
@@ -1284,15 +1318,6 @@ const DashboardUsers = () => {
                         }}
                         onDragOver={(event) => handleDragOverActive(event, user.id)}
                         onDragEnd={handleDragEnd}
-                        onClick={() => handleUserCardClick(user)}
-                        role="button"
-                        tabIndex={0}
-                        onKeyDown={(event) => {
-                          if (event.key === "Enter" || event.key === " ") {
-                            event.preventDefault();
-                            handleUserCardClick(user);
-                          }
-                        }}
                       >
                         <div className="flex items-start justify-between gap-4">
                           <div className="flex gap-4">
@@ -1338,6 +1363,29 @@ const DashboardUsers = () => {
                               )}
                             </div>
                           </div>
+                          <div className="flex flex-wrap items-center gap-2">
+                            {canManageUsers ? (
+                              <ReorderControls
+                                label={`usuario ${user.name}`}
+                                index={index}
+                                total={activeUsers.length}
+                                onMove={(targetIndex) =>
+                                  moveUserWithinGroup("active", index, targetIndex)
+                                }
+                                buttonClassName="h-9 w-9"
+                              />
+                            ) : null}
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleUserCardClick(user)}
+                              aria-label={`Editar usuario ${user.name}`}
+                              disabled={!canEditUser}
+                            >
+                              Editar
+                            </Button>
+                          </div>
                         </div>
                       </div>
                     );
@@ -1355,6 +1403,7 @@ const DashboardUsers = () => {
                   </div>
                   <div className="mt-6 grid gap-4 md:grid-cols-2">
                     {retiredUsers.map((user, index) => {
+                      const canEditUser = canOpenEdit(user);
                       const isLoneLastRetiredCard =
                         retiredUsers.length % 2 === 1 && index === retiredUsers.length - 1;
                       return (
@@ -1376,15 +1425,6 @@ const DashboardUsers = () => {
                           }}
                           onDragOver={(event) => handleDragOverRetired(event, user.id)}
                           onDragEnd={handleDragEnd}
-                          onClick={() => handleUserCardClick(user)}
-                          role="button"
-                          tabIndex={0}
-                          onKeyDown={(event) => {
-                            if (event.key === "Enter" || event.key === " ") {
-                              event.preventDefault();
-                              handleUserCardClick(user);
-                            }
-                          }}
                         >
                           <div className="flex items-start justify-between gap-4">
                             <div className="flex gap-4">
@@ -1402,11 +1442,11 @@ const DashboardUsers = () => {
                                   <Badge className="bg-card/80 text-muted-foreground">
                                     Aposentado
                                   </Badge>
-                                  {isAdminRecord(user) && (
+                                  {isAdminRecord(user) ? (
                                     <Badge className="bg-card/80 text-muted-foreground">
                                       Administrador
                                     </Badge>
-                                  )}
+                                  ) : null}
                                 </div>
                                 <p className="text-sm text-muted-foreground">
                                   {user.phrase || "-"}
@@ -1414,7 +1454,7 @@ const DashboardUsers = () => {
                                 <p className="mt-2 text-xs text-muted-foreground line-clamp-2">
                                   {user.bio || "Sem biografia cadastrada."}
                                 </p>
-                                {user.roles && user.roles.length > 0 && (
+                                {user.roles && user.roles.length > 0 ? (
                                   <div className="mt-3 flex flex-wrap gap-2">
                                     {(ownerIds.includes(user.id)
                                       ? user.roles
@@ -1429,8 +1469,31 @@ const DashboardUsers = () => {
                                       </Badge>
                                     ))}
                                   </div>
-                                )}
+                                ) : null}
                               </div>
+                            </div>
+                            <div className="flex flex-wrap items-center gap-2">
+                              {canManageUsers ? (
+                                <ReorderControls
+                                  label={`usuario ${user.name}`}
+                                  index={index}
+                                  total={retiredUsers.length}
+                                  onMove={(targetIndex) =>
+                                    moveUserWithinGroup("retired", index, targetIndex)
+                                  }
+                                  buttonClassName="h-9 w-9"
+                                />
+                              ) : null}
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handleUserCardClick(user)}
+                                aria-label={`Editar usuario ${user.name}`}
+                                disabled={!canEditUser}
+                              >
+                                Editar
+                              </Button>
                             </div>
                           </div>
                         </div>
@@ -1582,6 +1645,13 @@ const DashboardUsers = () => {
                     >
                       <GripVertical className="h-4 w-4" />
                     </button>
+                    <ReorderControls
+                      label={`rede ${social.label || index + 1}`}
+                      index={index}
+                      total={formState.socials.length}
+                      onMove={(targetIndex) => moveSocialLink(index, targetIndex)}
+                      disabled={!canEditBasicFields}
+                    />
                     <Select
                       value={social.label}
                       onValueChange={(value) =>

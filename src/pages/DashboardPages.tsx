@@ -2,6 +2,7 @@ import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } fro
 import { useNavigate, useSearchParams } from "react-router-dom";
 import DashboardAutosaveStatus from "@/components/DashboardAutosaveStatus";
 import DashboardShell from "@/components/DashboardShell";
+import ReorderControls from "@/components/ReorderControls";
 import AsyncState from "@/components/ui/async-state";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -69,7 +70,7 @@ type FAQItem = { question: string; answer: string };
 type FAQGroup = { title: string; icon: string; items: FAQItem[] };
 type FAQIntro = { title: string; icon: string; text: string; note: string };
 type RecruitmentRole = { title: string; description: string; icon: string };
-type PageWithShareImage = { shareImage: string };
+type PageWithShareImage = { shareImage: string; shareImageAlt: string };
 type PublicPageKey = "about" | "donations" | "faq" | "team" | "recruitment";
 type ShareImagePageKey = "home" | "projects" | PublicPageKey;
 type DashboardPagesTabKey = PublicPageKey | "preview";
@@ -181,12 +182,15 @@ const editorIconMap: Record<string, typeof Heart> = {
 const emptyPages: PagesConfig = {
   home: {
     shareImage: "",
+    shareImageAlt: "",
   },
   projects: {
     shareImage: "",
+    shareImageAlt: "",
   },
   about: {
     shareImage: "",
+    shareImageAlt: "",
     heroBadge: "",
     heroTitle: "",
     heroSubtitle: "",
@@ -200,6 +204,7 @@ const emptyPages: PagesConfig = {
   },
   donations: {
     shareImage: "",
+    shareImageAlt: "",
     heroTitle: "",
     heroSubtitle: "",
     costs: [],
@@ -216,6 +221,7 @@ const emptyPages: PagesConfig = {
   },
   faq: {
     shareImage: "",
+    shareImageAlt: "",
     heroTitle: "",
     heroSubtitle: "",
     introCards: [],
@@ -223,6 +229,7 @@ const emptyPages: PagesConfig = {
   },
   team: {
     shareImage: "",
+    shareImageAlt: "",
     heroBadge: "",
     heroTitle: "",
     heroSubtitle: "",
@@ -231,6 +238,7 @@ const emptyPages: PagesConfig = {
   },
   recruitment: {
     shareImage: "",
+    shareImageAlt: "",
     heroBadge: "",
     heroTitle: "",
     heroSubtitle: "",
@@ -292,6 +300,17 @@ const shareImagePageLabels: Record<ShareImagePageKey, string> = {
   team: "Equipe",
   recruitment: "Recrutamento",
 };
+
+const getShareImageAltErrors = (pages: PagesConfig) =>
+  shareImagePageKeys.reduce<Record<ShareImagePageKey, string>>((acc, pageKey) => {
+    const shareImage = String(pages[pageKey]?.shareImage || "").trim();
+    const shareImageAlt = String(pages[pageKey]?.shareImageAlt || "").trim();
+    acc[pageKey] =
+      shareImage && !shareImageAlt
+        ? `Informe um texto alternativo para ${shareImagePageLabels[pageKey]}.`
+        : "";
+    return acc;
+  }, {} as Record<ShareImagePageKey, string>);
 
 const DASHBOARD_PAGES_DEFAULT_TAB: DashboardPagesTabKey = "donations";
 const DASHBOARD_PAGES_TAB_SET = new Set<DashboardPagesTabKey>(
@@ -453,6 +472,10 @@ const DashboardPages = () => {
 
   const savePages = useCallback(
     async (nextPages: PagesConfig) => {
+      const shareImageAltErrors = getShareImageAltErrors(nextPages);
+      if (Object.values(shareImageAltErrors).some(Boolean)) {
+        throw new Error("share_image_alt_required");
+      }
       const response = await apiFetch(apiBase, "/api/pages", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
@@ -512,6 +535,15 @@ const DashboardPages = () => {
   }, [hasPendingChanges, isLoading]);
 
   const handleSave = useCallback(async () => {
+    const currentShareImageAltErrors = getShareImageAltErrors(pages);
+    if (Object.values(currentShareImageAltErrors).some(Boolean)) {
+      toast({
+        title: "Texto alternativo obrigatório",
+        description: "Preencha o texto alternativo das imagens de compartilhamento.",
+        variant: "destructive",
+      });
+      return;
+    }
     const ok = await pagesAutosave.flushNow();
     if (!ok) {
       toast({
@@ -526,7 +558,7 @@ const DashboardPages = () => {
       description: "As alterações foram aplicadas com sucesso.",
       intent: "success",
     });
-  }, [pagesAutosave]);
+  }, [pages, pagesAutosave]);
 
   const updateAbout = (patch: Partial<PagesConfig["about"]>) =>
     setPages((prev) => ({ ...prev, about: { ...prev.about, ...patch } }));
@@ -542,12 +574,25 @@ const DashboardPages = () => {
     (pageKey: ShareImagePageKey) => String(pages[pageKey]?.shareImage || "").trim(),
     [pages],
   );
+  const readPageShareImageAlt = useCallback(
+    (pageKey: ShareImagePageKey) => String(pages[pageKey]?.shareImageAlt || "").trim(),
+    [pages],
+  );
   const updatePageShareImage = useCallback((pageKey: ShareImagePageKey, shareImage: string) => {
     setPages((prev) => ({
       ...prev,
       [pageKey]: {
         ...prev[pageKey],
         shareImage,
+      },
+    }));
+  }, []);
+  const updatePageShareImageAlt = useCallback((pageKey: ShareImagePageKey, shareImageAlt: string) => {
+    setPages((prev) => ({
+      ...prev,
+      [pageKey]: {
+        ...prev[pageKey],
+        shareImageAlt,
       },
     }));
   }, []);
@@ -559,19 +604,14 @@ const DashboardPages = () => {
     () => readPageShareImage(previewLibraryTarget),
     [previewLibraryTarget, readPageShareImage],
   );
+  const shareImageAltErrors = useMemo(() => getShareImageAltErrors(pages), [pages]);
 
   const handleDragStart = (list: string, index: number) => {
     setDragState({ list, index });
   };
 
-  const handleDrop = (list: string, index: number) => {
-    if (!dragState || dragState.list !== list) {
-      return;
-    }
-    const from = dragState.index;
-    const to = index;
+  const moveListItem = (list: string, from: number, to: number) => {
     if (from === to) {
-      setDragState(null);
       return;
     }
     if (list === "about.highlights") {
@@ -601,6 +641,13 @@ const DashboardPages = () => {
         updateFaq({ groups });
       }
     }
+  };
+
+  const handleDrop = (list: string, index: number) => {
+    if (!dragState || dragState.list !== list) {
+      return;
+    }
+    moveListItem(list, dragState.index, index);
     setDragState(null);
   };
 
@@ -740,6 +787,8 @@ const DashboardPages = () => {
                   <div className="grid gap-4 md:grid-cols-2">
                     {shareImagePageKeys.map((pageKey) => {
                       const shareImage = readPageShareImage(pageKey);
+                      const shareImageAlt = readPageShareImageAlt(pageKey);
+                      const shareImageAltError = shareImageAltErrors[pageKey];
                       return (
                         <div
                           key={pageKey}
@@ -787,6 +836,38 @@ const DashboardPages = () => {
                             />
                           </div>
 
+                          <div className="space-y-2">
+                            <Label htmlFor={`page-preview-alt-${pageKey}`}>Texto alternativo</Label>
+                            <Input
+                              id={`page-preview-alt-${pageKey}`}
+                              value={shareImageAlt}
+                              placeholder={`Descreva a imagem de ${shareImagePageLabels[pageKey]}`}
+                              onChange={(event) =>
+                                updatePageShareImageAlt(
+                                  pageKey,
+                                  String(event.target.value || ""),
+                                )
+                              }
+                              aria-invalid={Boolean(shareImageAltError)}
+                              aria-describedby={
+                                shareImageAltError ? `page-preview-alt-error-${pageKey}` : undefined
+                              }
+                            />
+                            {shareImageAltError ? (
+                              <p
+                                id={`page-preview-alt-error-${pageKey}`}
+                                role="alert"
+                                className="text-xs text-destructive"
+                              >
+                                {shareImageAltError}
+                              </p>
+                            ) : (
+                              <p className="text-xs text-muted-foreground">
+                                Obrigatório quando a imagem de compartilhamento estiver definida.
+                              </p>
+                            )}
+                          </div>
+
                           <div className="flex flex-wrap gap-2">
                             <Button
                               type="button"
@@ -801,7 +882,10 @@ const DashboardPages = () => {
                               variant="ghost"
                               size="sm"
                               disabled={!shareImage}
-                              onClick={() => updatePageShareImage(pageKey, "")}
+                              onClick={() => {
+                                updatePageShareImage(pageKey, "");
+                                updatePageShareImageAlt(pageKey, "");
+                              }}
                             >
                               Limpar
                             </Button>
@@ -915,17 +999,27 @@ const DashboardPages = () => {
                             <GripVertical className="h-4 w-4" />
                             Arraste para reordenar
                           </div>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() =>
-                              updateAbout({
-                                highlights: pages.about.highlights.filter((_, i) => i !== index),
-                              })
-                            }
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+                          <div className="flex items-center gap-2">
+                            <ReorderControls
+                              label={`destaque ${index + 1}`}
+                              index={index}
+                              total={pages.about.highlights.length}
+                              onMove={(targetIndex) =>
+                                moveListItem("about.highlights", index, targetIndex)
+                              }
+                            />
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() =>
+                                updateAbout({
+                                  highlights: pages.about.highlights.filter((_, i) => i !== index),
+                                })
+                              }
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
                         </div>
                         <div className="mt-3 grid gap-2">
                           <Input
@@ -1056,17 +1150,27 @@ const DashboardPages = () => {
                             <GripVertical className="h-4 w-4" />
                             Arraste para reordenar
                           </div>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() =>
-                              updateAbout({
-                                pillars: pages.about.pillars.filter((_, i) => i !== index),
-                              })
-                            }
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+                          <div className="flex items-center gap-2">
+                            <ReorderControls
+                              label={`pilar ${index + 1}`}
+                              index={index}
+                              total={pages.about.pillars.length}
+                              onMove={(targetIndex) =>
+                                moveListItem("about.pillars", index, targetIndex)
+                              }
+                            />
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() =>
+                                updateAbout({
+                                  pillars: pages.about.pillars.filter((_, i) => i !== index),
+                                })
+                              }
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
                         </div>
                         <div className="mt-3 grid gap-2">
                           <Input
@@ -1140,17 +1244,27 @@ const DashboardPages = () => {
                             <GripVertical className="h-4 w-4" />
                             Arraste para reordenar
                           </div>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() =>
-                              updateAbout({
-                                values: pages.about.values.filter((_, i) => i !== index),
-                              })
-                            }
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+                          <div className="flex items-center gap-2">
+                            <ReorderControls
+                              label={`valor ${index + 1}`}
+                              index={index}
+                              total={pages.about.values.length}
+                              onMove={(targetIndex) =>
+                                moveListItem("about.values", index, targetIndex)
+                              }
+                            />
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() =>
+                                updateAbout({
+                                  values: pages.about.values.filter((_, i) => i !== index),
+                                })
+                              }
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
                         </div>
                         <div className="mt-3 grid gap-2">
                           <Input
@@ -1245,17 +1359,27 @@ const DashboardPages = () => {
                             <GripVertical className="h-4 w-4" />
                             Arraste para reordenar
                           </div>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() =>
-                              updateDonations({
-                                costs: pages.donations.costs.filter((_, i) => i !== index),
-                              })
-                            }
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+                          <div className="flex items-center gap-2">
+                            <ReorderControls
+                              label={`custo ${index + 1}`}
+                              index={index}
+                              total={pages.donations.costs.length}
+                              onMove={(targetIndex) =>
+                                moveListItem("donations.costs", index, targetIndex)
+                              }
+                            />
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() =>
+                                updateDonations({
+                                  costs: pages.donations.costs.filter((_, i) => i !== index),
+                                })
+                              }
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
                         </div>
                         <div className="mt-3 grid gap-2">
                           <Input
@@ -1399,17 +1523,27 @@ const DashboardPages = () => {
                             <GripVertical className="h-4 w-4" />
                             Arraste para reordenar
                           </div>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() =>
-                              updateDonations({
-                                donors: pages.donations.donors.filter((_, i) => i !== index),
-                              })
-                            }
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+                          <div className="flex items-center gap-2">
+                            <ReorderControls
+                              label={`doador ${index + 1}`}
+                              index={index}
+                              total={pages.donations.donors.length}
+                              onMove={(targetIndex) =>
+                                moveListItem("donations.donors", index, targetIndex)
+                              }
+                            />
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() =>
+                                updateDonations({
+                                  donors: pages.donations.donors.filter((_, i) => i !== index),
+                                })
+                              }
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
                         </div>
                         <div className="mt-3 grid gap-2 md:grid-cols-4">
                           <Input
@@ -1513,17 +1647,25 @@ const DashboardPages = () => {
                             <GripVertical className="h-4 w-4" />
                             Arraste para reordenar
                           </div>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() =>
-                              updateFaq({
-                                introCards: pages.faq.introCards.filter((_, i) => i !== index),
-                              })
-                            }
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+                          <div className="flex items-center gap-2">
+                            <ReorderControls
+                              label={`card introdutorio ${index + 1}`}
+                              index={index}
+                              total={pages.faq.introCards.length}
+                              onMove={(targetIndex) => moveListItem("faq.intro", index, targetIndex)}
+                            />
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() =>
+                                updateFaq({
+                                  introCards: pages.faq.introCards.filter((_, i) => i !== index),
+                                })
+                              }
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
                         </div>
                         <div className="mt-3 grid gap-2">
                           <Input
@@ -1602,17 +1744,27 @@ const DashboardPages = () => {
                             <GripVertical className="h-4 w-4" />
                             Arraste para reordenar
                           </div>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() =>
-                              updateFaq({
-                                groups: pages.faq.groups.filter((_, i) => i !== groupIndex),
-                              })
-                            }
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+                          <div className="flex items-center gap-2">
+                            <ReorderControls
+                              label={`grupo de faq ${groupIndex + 1}`}
+                              index={groupIndex}
+                              total={pages.faq.groups.length}
+                              onMove={(targetIndex) =>
+                                moveListItem("faq.groups", groupIndex, targetIndex)
+                              }
+                            />
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() =>
+                                updateFaq({
+                                  groups: pages.faq.groups.filter((_, i) => i !== groupIndex),
+                                })
+                              }
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
                         </div>
                         <div className="mt-3 grid gap-2">
                           <Input
@@ -1675,18 +1827,28 @@ const DashboardPages = () => {
                                     <GripVertical className="h-4 w-4" />
                                     Arraste para reordenar
                                   </div>
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    onClick={() => {
-                                      const next = [...pages.faq.groups];
-                                      const items = group.items.filter((_, i) => i !== itemIndex);
-                                      next[groupIndex] = { ...group, items };
-                                      updateFaq({ groups: next });
-                                    }}
-                                  >
-                                    <Trash2 className="h-4 w-4" />
-                                  </Button>
+                                  <div className="flex items-center gap-2">
+                                    <ReorderControls
+                                      label={`pergunta ${itemIndex + 1}`}
+                                      index={itemIndex}
+                                      total={group.items.length}
+                                      onMove={(targetIndex) =>
+                                        moveListItem(`faq.items.${groupIndex}`, itemIndex, targetIndex)
+                                      }
+                                    />
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      onClick={() => {
+                                        const next = [...pages.faq.groups];
+                                        const items = group.items.filter((_, i) => i !== itemIndex);
+                                        next[groupIndex] = { ...group, items };
+                                        updateFaq({ groups: next });
+                                      }}
+                                    >
+                                      <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                  </div>
                                 </div>
                                 <div className="mt-2 grid gap-2">
                                   <Input
@@ -1827,17 +1989,27 @@ const DashboardPages = () => {
                             <GripVertical className="h-4 w-4" />
                             Arraste para reordenar
                           </div>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() =>
-                              updateRecruitment({
-                                roles: pages.recruitment.roles.filter((_, i) => i !== index),
-                              })
-                            }
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+                          <div className="flex items-center gap-2">
+                            <ReorderControls
+                              label={`funcao ${index + 1}`}
+                              index={index}
+                              total={pages.recruitment.roles.length}
+                              onMove={(targetIndex) =>
+                                moveListItem("recruitment.roles", index, targetIndex)
+                              }
+                            />
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() =>
+                                updateRecruitment({
+                                  roles: pages.recruitment.roles.filter((_, i) => i !== index),
+                                })
+                              }
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
                         </div>
                         <div className="mt-3 grid gap-2 md:grid-cols-2">
                           <Input

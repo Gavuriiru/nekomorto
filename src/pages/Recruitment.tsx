@@ -37,6 +37,8 @@ type RecruitmentRole = {
 };
 
 const defaultRecruitment = {
+  shareImage: "",
+  shareImageAlt: "",
   heroBadge: "Recrutamento",
   heroTitle: "Venha fazer parte da equipe",
   heroSubtitle:
@@ -94,11 +96,15 @@ const defaultRecruitment = {
 };
 
 const Recruitment = () => {
-  usePageMeta({ title: "Recrutamento" });
   const { settings } = useSiteSettings();
   const discordUrl = settings.community.discordUrl || "#";
   const apiBase = getApiBase();
   const [recruitment, setRecruitment] = useState(defaultRecruitment);
+  usePageMeta({
+    title: "Recrutamento",
+    image: recruitment.shareImage || undefined,
+    imageAlt: recruitment.shareImageAlt || undefined,
+  });
 
   useEffect(() => {
     let isActive = true;

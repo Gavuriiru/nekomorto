@@ -47,17 +47,17 @@
     --secondary-foreground: 0 0% 100%;
 
     --muted: 220 8% 19%;
-    --muted-foreground: 220 10% 78%;
+    --muted-foreground: 220 10% 82%;
 
-    --accent: 273 60% 66%;
+    --accent: 273 42% 30%;
     --accent-foreground: 0 0% 100%;
 
-    --destructive: 0 84.2% 60.2%;
+    --destructive: 0 72% 46%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 220 8% 24%;
+    --border: 220 8% 28%;
     --input: 220 10% 16%;
-    --ring: 263 66% 64%;
+    --ring: 263 72% 70%;
 
     --radius: 0.75rem;
 
@@ -79,10 +79,10 @@
     --sidebar-foreground: 0 0% 100%;
     --sidebar-primary: 263 66% 64%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 220 10% 16%;
+    --sidebar-accent: 220 10% 18%;
     --sidebar-accent-foreground: 0 0% 100%;
-    --sidebar-border: 220 8% 24%;
-    --sidebar-ring: 263 66% 64%;
+    --sidebar-border: 220 8% 28%;
+    --sidebar-ring: 263 72% 70%;
   }
 
   .dark {
@@ -109,17 +109,17 @@
     --secondary-foreground: 224 41% 16%;
 
     --muted: 212 30% 92%;
-    --muted-foreground: 220 18% 42%;
+    --muted-foreground: 220 20% 34%;
 
-    --accent: 266 72% 94%;
-    --accent-foreground: 224 41% 14%;
+    --accent: 266 42% 86%;
+    --accent-foreground: 224 41% 12%;
 
     --destructive: 0 76% 52%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 216 24% 84%;
-    --input: 216 24% 90%;
-    --ring: 263 66% 56%;
+    --border: 216 24% 76%;
+    --input: 216 24% 88%;
+    --ring: 263 70% 44%;
 
     --gradient-hero: linear-gradient(180deg, hsl(210 33% 98% / 0.35) 0%, hsl(210 33% 98% / 0.97) 100%);
     --gradient-rainbow: linear-gradient(135deg,
@@ -138,10 +138,10 @@
     --sidebar-foreground: 224 41% 12%;
     --sidebar-primary: 263 66% 56%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 212 36% 91%;
+    --sidebar-accent: 212 36% 88%;
     --sidebar-accent-foreground: 224 41% 12%;
-    --sidebar-border: 216 24% 82%;
-    --sidebar-ring: 263 66% 56%;
+    --sidebar-border: 216 24% 76%;
+    --sidebar-ring: 263 70% 44%;
   }
 }
 
@@ -223,6 +223,44 @@
   ::-moz-selection {
     background-color: hsl(var(--accent));
     color: hsl(var(--accent-foreground));
+  }
+
+  .a11y-focus-target {
+    scroll-margin-top: 6rem;
+  }
+
+  .a11y-skip-links {
+    position: absolute;
+    left: 0.75rem;
+    top: 0.75rem;
+    z-index: 400;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .a11y-skip-link {
+    transform: translateY(-160%);
+    border-radius: 0.75rem;
+    border: 1px solid hsl(var(--border));
+    background: hsl(var(--background));
+    color: hsl(var(--foreground));
+    padding: 0.625rem 0.875rem;
+    font-size: 0.875rem;
+    font-weight: 600;
+    text-decoration: none;
+    box-shadow: 0 10px 24px -18px hsl(var(--foreground) / 0.65);
+    transition:
+      transform 160ms ease,
+      box-shadow 160ms ease;
+  }
+
+  .a11y-skip-link:focus-visible {
+    transform: translateY(0);
+    outline: none;
+    box-shadow:
+      0 0 0 2px hsl(var(--ring)),
+      0 10px 24px -18px hsl(var(--foreground) / 0.65);
   }
 
   .avatar-cropper-shell {

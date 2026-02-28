@@ -7,6 +7,7 @@ type PageMetaOptions = {
   title?: string;
   description?: string;
   image?: string;
+  imageAlt?: string;
   type?: "website" | "article";
   noIndex?: boolean;
   separator?: string;
@@ -40,6 +41,7 @@ export const usePageMeta = ({
   title,
   description,
   image,
+  imageAlt,
   type = "website",
   noIndex = false,
   separator,
@@ -62,6 +64,7 @@ export const usePageMeta = ({
     const candidate = image ?? settings.site.defaultShareImage ?? "";
     return normalizeAssetUrl(candidate);
   }, [image, settings.site.defaultShareImage]);
+  const pageImageAlt = imageAlt ?? settings.site.defaultShareImageAlt ?? "";
 
   useLayoutEffect(() => {
     if (isLoading) {
@@ -86,6 +89,10 @@ export const usePageMeta = ({
     ogSiteName?.setAttribute("content", siteName);
     const ogImage = ensureMeta('meta[property="og:image"]', { property: "og:image" });
     ogImage?.setAttribute("content", pageImage);
+    const ogImageAlt = ensureMeta('meta[property="og:image:alt"]', {
+      property: "og:image:alt",
+    });
+    ogImageAlt?.setAttribute("content", pageImageAlt);
     const ogType = ensureMeta('meta[property="og:type"]', { property: "og:type" });
     ogType?.setAttribute("content", type);
     const ogUrl = ensureMeta('meta[property="og:url"]', { property: "og:url" });
@@ -99,6 +106,10 @@ export const usePageMeta = ({
     twitterDescription?.setAttribute("content", pageDescription);
     const twitterImage = ensureMeta('meta[name="twitter:image"]', { name: "twitter:image" });
     twitterImage?.setAttribute("content", pageImage);
+    const twitterImageAlt = ensureMeta('meta[name="twitter:image:alt"]', {
+      name: "twitter:image:alt",
+    });
+    twitterImageAlt?.setAttribute("content", pageImageAlt);
     const twitterCard = ensureMeta('meta[name="twitter:card"]', { name: "twitter:card" });
     twitterCard?.setAttribute("content", pageImage ? "summary_large_image" : "summary");
 
@@ -108,5 +119,5 @@ export const usePageMeta = ({
     return () => {
       delete document.documentElement.dataset.pageMeta;
     };
-  }, [isLoading, noIndex, pageDescription, pageImage, pageTitle, siteName, type]);
+  }, [isLoading, noIndex, pageDescription, pageImage, pageImageAlt, pageTitle, siteName, type]);
 };

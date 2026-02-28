@@ -180,6 +180,11 @@ describe("DashboardPages autosave", () => {
       selector: "#page-preview-home",
     });
     fireEvent.change(homePreviewInput, { target: { value: "/uploads/shared/home-og.jpg" } });
+    fireEvent.change(await screen.findByLabelText(/Texto alternativo/i, {
+      selector: "#page-preview-alt-home",
+    }), {
+      target: { value: "Capa do compartilhamento da pagina inicial" },
+    });
 
     await act(async () => {
       await waitMs(1300);
@@ -204,6 +209,11 @@ describe("DashboardPages autosave", () => {
 
     const saveFromLibrary = await screen.findByRole("button", { name: /Mock salvar biblioteca/i });
     fireEvent.click(saveFromLibrary);
+    fireEvent.change(await screen.findByLabelText(/Texto alternativo/i, {
+      selector: "#page-preview-alt-home",
+    }), {
+      target: { value: "Capa da imagem selecionada" },
+    });
 
     await act(async () => {
       await waitMs(1300);
@@ -338,6 +348,7 @@ describe("DashboardPages autosave", () => {
           pages: {
             about: {
               shareImage: "/uploads/shared/about-og.jpg",
+              shareImageAlt: "Capa da pagina sobre",
               heroBadge: "",
               heroTitle: "",
               heroSubtitle: "",

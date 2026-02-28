@@ -113,7 +113,7 @@ describe("DashboardUsers socials reorder", () => {
       </MemoryRouter>,
     );
 
-    fireEvent.click(await screen.findByRole("heading", { name: "Admin" }));
+    fireEvent.click(await screen.findByRole("button", { name: /Editar usuario Admin/i }));
     const dialog = await screen.findByRole("dialog");
 
     const dragHandle = within(dialog).getByRole("button", { name: /Arrastar rede discord/i });
@@ -193,19 +193,7 @@ describe("DashboardUsers socials reorder", () => {
       </MemoryRouter>,
     );
 
-    const alphaCard = await screen.findByRole("button", { name: /Alpha/i });
-    const betaCard = await screen.findByRole("button", { name: /Beta/i });
-    const dataTransfer = {
-      effectAllowed: "move",
-      dropEffect: "move",
-      setData: vi.fn(),
-      getData: vi.fn(),
-      clearData: vi.fn(),
-    };
-
-    fireEvent.dragStart(betaCard, { dataTransfer });
-    fireEvent.dragOver(alphaCard, { dataTransfer });
-    fireEvent.dragEnd(betaCard, { dataTransfer });
+    fireEvent.click(await screen.findByRole("button", { name: /Mover usuario Beta para cima/i }));
 
     await waitFor(() => {
       const reorderCall = apiFetchMock.mock.calls.find((call) => {
@@ -266,19 +254,7 @@ describe("DashboardUsers socials reorder", () => {
       </MemoryRouter>,
     );
 
-    const alphaCard = await screen.findByRole("button", { name: /Alpha/i });
-    const betaCard = await screen.findByRole("button", { name: /Beta/i });
-    const dataTransfer = {
-      effectAllowed: "move",
-      dropEffect: "move",
-      setData: vi.fn(),
-      getData: vi.fn(),
-      clearData: vi.fn(),
-    };
-
-    fireEvent.dragStart(betaCard, { dataTransfer });
-    fireEvent.dragOver(alphaCard, { dataTransfer });
-    fireEvent.dragEnd(betaCard, { dataTransfer });
+    fireEvent.click(await screen.findByRole("button", { name: /Mover usuario Beta para cima/i }));
 
     await waitFor(() => {
       expect(toastMock).toHaveBeenCalledWith(

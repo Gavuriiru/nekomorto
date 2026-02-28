@@ -37,6 +37,7 @@
     "uploads:backfill-media": "node scripts/backfill-upload-media.mjs",
     "users:migrate-permissions-v2": "node scripts/migrate-permissions-v2.mjs",
     "test": "vitest run",
+    "test:a11y": "vitest run --config vitest.a11y.config.ts",
     "test:watch": "vitest"
   },
   "dependencies": {
@@ -152,7 +153,9 @@
     "@types/react": "^18.3.23",
     "@types/react-dom": "^18.3.7",
     "@vitejs/plugin-react-swc": "^3.11.0",
+    "axe-core": "^4.11.1",
     "cross-env": "^10.0.0",
+    "jest-axe": "^10.0.0",
     "jsdom": "^20.0.3",
     "lovable-tagger": "^1.1.13",
     "prisma": "^7.4.1",

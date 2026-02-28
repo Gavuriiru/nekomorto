@@ -16,8 +16,11 @@ describe("public bootstrap payload", () => {
           status: "Em andamento",
           tags: ["acao"],
           cover: "/uploads/cover.jpg",
+          coverAlt: "Capa do projeto",
           banner: "/uploads/banner.jpg",
+          bannerAlt: "Banner do projeto",
           heroImageUrl: "/uploads/hero.jpg",
+          heroImageAlt: "Hero do projeto",
           forceHero: true,
           trailerUrl: "https://example.com/trailer",
           deletedAt: "2026-01-01T00:00:00.000Z",
@@ -29,6 +32,8 @@ describe("public bootstrap payload", () => {
               content: "{\"root\":{}}",
               sources: [{ label: "Drive", url: "https://example.com/file" }],
               completedStages: ["traducao"],
+              coverImageUrl: "/uploads/episode-3.jpg",
+              coverImageAlt: "Capa do episodio 3",
             },
           ],
         },
@@ -83,10 +88,14 @@ describe("public bootstrap payload", () => {
 
     const project = payload.projects[0] as Record<string, unknown>;
     expect(project).not.toHaveProperty("deletedAt");
+    expect(project.coverAlt).toBe("Capa do projeto");
+    expect(project.bannerAlt).toBe("Banner do projeto");
+    expect(project.heroImageAlt).toBe("Hero do projeto");
     expect(project.episodeDownloads).toEqual([
       expect.objectContaining({
         number: 3,
         hasContent: true,
+        coverImageAlt: "Capa do episodio 3",
       }),
     ]);
     expect((project.episodeDownloads as Array<Record<string, unknown>>)[0]).not.toHaveProperty("content");

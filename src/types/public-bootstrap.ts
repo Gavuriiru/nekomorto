@@ -8,6 +8,7 @@ export type PublicBootstrapEpisode = {
   releaseDate: string;
   duration: string;
   coverImageUrl: string;
+  coverImageAlt: string;
   sourceType: string;
   sources: Array<{ label: string; url: string }>;
   progressStage: string;
@@ -25,8 +26,11 @@ export type PublicBootstrapProject = {
   status: string;
   tags: string[];
   cover: string;
+  coverAlt: string;
   banner: string;
+  bannerAlt: string;
   heroImageUrl: string;
+  heroImageAlt: string;
   forceHero: boolean;
   trailerUrl: string;
   episodeDownloads: PublicBootstrapEpisode[];

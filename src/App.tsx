@@ -6,6 +6,7 @@ import { Suspense, lazy, useLayoutEffect } from "react";
 import { SiteSettingsProvider } from "@/hooks/site-settings-provider";
 import { ThemeModeProvider } from "@/hooks/theme-mode-provider";
 import { GlobalShortcutsProvider } from "@/hooks/global-shortcuts-provider";
+import { AccessibilityAnnouncerProvider } from "@/hooks/accessibility-announcer";
 import { useReveal } from "@/hooks/use-reveal";
 
 const Index = lazy(() => import("./pages/Index"));
@@ -234,15 +235,17 @@ const App = ({
   <QueryClientProvider client={queryClient}>
     <SiteSettingsProvider initialSettings={initialSettings} initiallyLoaded={initiallyLoaded}>
       <ThemeModeProvider>
-        <TooltipProvider>
-          <Sonner />
-          <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
-            <GlobalShortcutsProvider>
-              <ScrollToTop />
-              <RouterShell />
-            </GlobalShortcutsProvider>
-          </BrowserRouter>
-        </TooltipProvider>
+        <AccessibilityAnnouncerProvider>
+          <TooltipProvider>
+            <Sonner />
+            <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+              <GlobalShortcutsProvider>
+                <ScrollToTop />
+                <RouterShell />
+              </GlobalShortcutsProvider>
+            </BrowserRouter>
+          </TooltipProvider>
+        </AccessibilityAnnouncerProvider>
       </ThemeModeProvider>
     </SiteSettingsProvider>
   </QueryClientProvider>

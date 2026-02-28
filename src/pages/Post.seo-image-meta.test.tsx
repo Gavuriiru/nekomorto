@@ -18,7 +18,10 @@ vi.mock("@/lib/api-client", () => ({
 vi.mock("@/hooks/use-site-settings", () => ({
   useSiteSettings: () => ({
     settings: {
-      site: { defaultShareImage: "/uploads/default-og.jpg" },
+      site: {
+        defaultShareImage: "/uploads/default-og.jpg",
+        defaultShareImageAlt: "Imagem padrao",
+      },
     },
   }),
 }));
@@ -118,6 +121,7 @@ describe("Post SEO image meta", () => {
         expect.objectContaining({
           title: "Post de Teste",
           image: "http://localhost:3000/uploads/seo.jpg",
+          imageAlt: "Capa",
           type: "article",
         }),
       );

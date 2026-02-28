@@ -50,8 +50,14 @@ describe("Public pages share image meta", () => {
       if (path === "/api/public/pages") {
         return mockJsonResponse(true, {
           pages: {
-            home: { shareImage: "/uploads/home-og.jpg" },
-            projects: { shareImage: "/uploads/projects-og.jpg" },
+            home: {
+              shareImage: "/uploads/home-og.jpg",
+              shareImageAlt: "Capa da pagina inicial",
+            },
+            projects: {
+              shareImage: "/uploads/projects-og.jpg",
+              shareImageAlt: "Capa da pagina de projetos",
+            },
           },
         });
       }
@@ -76,7 +82,8 @@ describe("Public pages share image meta", () => {
       expect(usePageMetaMock).toHaveBeenCalledWith(
         expect.objectContaining({
           title: "Início",
-          image: "/uploads/home-og.jpg",
+            image: "/uploads/home-og.jpg",
+            imageAlt: "Capa da pagina inicial",
         }),
       );
     });
@@ -93,7 +100,8 @@ describe("Public pages share image meta", () => {
       expect(usePageMetaMock).toHaveBeenCalledWith(
         expect.objectContaining({
           title: "Projetos",
-          image: "/uploads/projects-og.jpg",
+            image: "/uploads/projects-og.jpg",
+            imageAlt: "Capa da pagina de projetos",
         }),
       );
     });

@@ -74,6 +74,8 @@ const ProjectPage = () => {
     title: project?.title || "Projeto",
     description: project?.synopsis || "",
     image: shareImage,
+    imageAlt:
+      project?.coverAlt || project?.bannerAlt || settings.site.defaultShareImageAlt || undefined,
     type: "article",
   });
 

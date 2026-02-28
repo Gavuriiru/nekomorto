@@ -3,6 +3,7 @@ import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import DashboardShell from "@/components/DashboardShell";
 import DashboardPageContainer from "@/components/dashboard/DashboardPageContainer";
 import DashboardPageHeader from "@/components/dashboard/DashboardPageHeader";
+import ReorderControls from "@/components/ReorderControls";
 import { dashboardPageLayoutTokens } from "@/components/dashboard/dashboard-page-tokens";
 import AsyncState from "@/components/ui/async-state";
 import { Badge } from "@/components/ui/badge";
@@ -538,6 +539,10 @@ const DashboardPosts = () => {
     () => getImageFileNameFromUrl(editorResolvedCover.coverImageUrl),
     [editorResolvedCover.coverImageUrl],
   );
+  const coverAltError =
+    editorResolvedCover.coverImageUrl && !String(formState.coverAlt || "").trim()
+      ? "Informe um texto alternativo para a capa."
+      : "";
 
   const allowPopRef = useRef(false);
   const hasPushedBlockRef = useRef(false);
@@ -1459,6 +1464,21 @@ const DashboardPosts = () => {
     });
     setDraggedTag(null);
   };
+  const moveTag = useCallback(
+    (tag: string, targetIndex: number) => {
+      setTagOrder((prev) => {
+        const source = prev.length > 0 ? [...prev] : [...mergedTags];
+        const fromIndex = source.indexOf(tag);
+        if (fromIndex === -1 || fromIndex === targetIndex) {
+          return prev.length > 0 ? prev : source;
+        }
+        source.splice(fromIndex, 1);
+        source.splice(targetIndex, 0, tag);
+        return source;
+      });
+    },
+    [mergedTags],
+  );
 
   const openLibrary = () => {
     setIsLibraryOpen(true);
@@ -1568,6 +1588,14 @@ const DashboardPosts = () => {
       toast({
         title: "Preencha os campos obrigatórios",
         description: "Título e slug são necessários para criar a postagem.",
+      });
+      return;
+    }
+    if (editorResolvedCover.coverImageUrl && !coverAlt) {
+      toast({
+        title: "Texto alternativo obrigatório",
+        description: "Posts com capa precisam de um texto alternativo.",
+        variant: "destructive",
       });
       return;
     }
@@ -1943,6 +1971,35 @@ const DashboardPosts = () => {
                               >
                                 Biblioteca
                               </Button>
+                              <div className="space-y-2">
+                                <Label htmlFor="post-cover-alt">Texto alternativo da capa</Label>
+                                <Input
+                                  id="post-cover-alt"
+                                  value={formState.coverAlt}
+                                  onChange={(event) =>
+                                    setFormState((prev) => ({
+                                      ...prev,
+                                      coverAlt: event.target.value,
+                                    }))
+                                  }
+                                  aria-invalid={Boolean(coverAltError)}
+                                  aria-describedby={coverAltError ? "post-cover-alt-error" : undefined}
+                                  placeholder="Descreva a imagem principal da postagem"
+                                />
+                                {coverAltError ? (
+                                  <p
+                                    id="post-cover-alt-error"
+                                    role="alert"
+                                    className="text-xs text-destructive"
+                                  >
+                                    {coverAltError}
+                                  </p>
+                                ) : (
+                                  <p className="text-xs text-muted-foreground">
+                                    Obrigatório sempre que a postagem tiver capa.
+                                  </p>
+                                )}
+                              </div>
                             </div>
                           </CardContent>
                         </Card>
@@ -1983,33 +2040,42 @@ const DashboardPosts = () => {
                               <div className="flex flex-wrap gap-2">
                                 {mergedTags.map((tag) => {
                                   const isProjectTag = projectTags.includes(tag);
+                                  const tagIndex = mergedTags.indexOf(tag);
                                   return (
-                                    <button
-                                      key={`tag-${tag}`}
-                                      type="button"
-                                      className="group"
-                                      draggable
-                                      onDragStart={() => handleTagDragStart(tag)}
-                                      onDragOver={(event) => event.preventDefault()}
-                                      onDrop={() => handleTagDrop(tag)}
-                                      onClick={() => {
-                                        if (!isProjectTag) {
-                                          handleRemoveTag(tag);
-                                        }
-                                      }}
-                                    >
-                                      <Badge
-                                        variant={isProjectTag ? "secondary" : "outline"}
-                                        className="text-[10px] uppercase"
+                                    <div key={`tag-${tag}`} className="flex items-center gap-1">
+                                      <button
+                                        type="button"
+                                        className="group"
+                                        draggable
+                                        onDragStart={() => handleTagDragStart(tag)}
+                                        onDragOver={(event) => event.preventDefault()}
+                                        onDrop={() => handleTagDrop(tag)}
+                                        onClick={() => {
+                                          if (!isProjectTag) {
+                                            handleRemoveTag(tag);
+                                          }
+                                        }}
                                       >
-                                        {displayTag(tag)}
-                                        {isProjectTag ? null : (
-                                          <span className="ml-2 text-[10px] text-muted-foreground group-hover:text-foreground">
-                                            ?
-                                          </span>
-                                        )}
-                                      </Badge>
-                                    </button>
+                                        <Badge
+                                          variant={isProjectTag ? "secondary" : "outline"}
+                                          className="text-[10px] uppercase"
+                                        >
+                                          {displayTag(tag)}
+                                          {isProjectTag ? null : (
+                                            <span className="ml-2 text-[10px] text-muted-foreground group-hover:text-foreground">
+                                              ?
+                                            </span>
+                                          )}
+                                        </Badge>
+                                      </button>
+                                      <ReorderControls
+                                        label={`tag ${displayTag(tag)}`}
+                                        index={tagIndex}
+                                        total={mergedTags.length}
+                                        onMove={(targetIndex) => moveTag(tag, targetIndex)}
+                                        buttonClassName="h-7 w-7"
+                                      />
+                                    </div>
                                   );
                                 })}
                                 {mergedTags.length === 0 ? (

@@ -152,6 +152,7 @@ const Post = () => {
     title: post?.seoTitle || post?.title || "Postagem",
     description: post?.seoDescription || post?.excerpt || "",
     image: shareImage,
+    imageAlt: post?.coverAlt || settings.site.defaultShareImageAlt || undefined,
     type: "article",
   });
 

@@ -40,6 +40,8 @@ const iconMap: Record<string, typeof Heart> = {
 };
 
 const defaultAbout = {
+  shareImage: "",
+  shareImageAlt: "",
   heroBadge: "Sobre",
   heroTitle: "Uma fansub com identidade própria",
   heroSubtitle:
@@ -120,10 +122,13 @@ type HighlightItem = {
 };
 
 const About = () => {
-  usePageMeta({ title: "Sobre" });
-
   const apiBase = getApiBase();
   const [about, setAbout] = useState(defaultAbout);
+  usePageMeta({
+    title: "Sobre",
+    image: about.shareImage || undefined,
+    imageAlt: about.shareImageAlt || undefined,
+  });
 
   useEffect(() => {
     let isActive = true;
