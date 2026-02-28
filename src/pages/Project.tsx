@@ -593,7 +593,7 @@ const ProjectPage = () => {
     <div className="min-h-screen bg-background text-foreground">
 
       <main>
-        <section data-testid="project-hero" className="relative overflow-hidden border-b border-border/60">
+        <section data-testid="project-hero" className="relative overflow-hidden">
           <UploadPicture
             src={heroBannerSrc}
             alt={heroBannerAlt}
@@ -610,7 +610,7 @@ const ProjectPage = () => {
           <div className="absolute inset-0 bg-linear-to-t from-background via-background/70 to-transparent" />
           <div className="absolute inset-x-0 bottom-0 h-32 bg-linear-to-b from-transparent via-background/80 to-background" />
 
-          <div className="relative mx-auto w-full max-w-6xl px-6 pb-20 pt-24 md:px-10 md:pb-24 lg:pt-28 lg:pb-28">
+          <div className="relative mx-auto w-full max-w-6xl px-6 pb-14 pt-24 md:px-10 md:pb-16 lg:pt-28 lg:pb-20">
             <div
               data-testid="project-hero-layout"
               className="grid items-start gap-10 lg:gap-12 reveal md:items-stretch md:grid-cols-[320px_minmax(0,1fr)] lg:grid-cols-[340px_minmax(0,1fr)]"
@@ -709,7 +709,7 @@ const ProjectPage = () => {
           </div>
         </section>
 
-        <section className="relative z-10 -mt-8 mx-auto w-full max-w-6xl px-6 pb-12 pt-12 md:-mt-10 md:px-10 md:pt-14 reveal" data-reveal>
+        <section className="relative z-10 -mt-8 mx-auto w-full max-w-6xl px-6 pb-12 pt-8 md:-mt-10 md:px-10 md:pt-10 reveal" data-reveal>
           <div className="grid gap-8 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
             <div className="space-y-8">
               <Card className="border-border/60 bg-card/80 shadow-lg transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:bg-card/90 hover:shadow-lg">

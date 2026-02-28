@@ -138,6 +138,7 @@ const Post = () => {
     trackedViewsRef.current.add(post.slug);
     void apiFetch(apiBase, `/api/public/posts/${post.slug}/view`, { method: "POST" });
   }, [apiBase, post?.slug]);
+
   const shareImage = useMemo(
     () =>
       normalizeAssetUrl(post?.seoImageUrl) ||
@@ -157,7 +158,7 @@ const Post = () => {
     if (!post?.publishedAt) {
       return "";
     }
-    return formatDateTime(post.publishedAt)
+    return formatDateTime(post.publishedAt);
   }, [post?.publishedAt]);
 
   const readTime = useMemo(() => {
@@ -166,31 +167,58 @@ const Post = () => {
     }
     return estimateReadTime(post.content || "");
   }, [post]);
+
   const canEditPost = useMemo(() => {
     const permissions = Array.isArray(currentUser?.permissions) ? currentUser.permissions : [];
     return permissions.includes("*") || permissions.includes("posts");
   }, [currentUser]);
 
+  const heroCoverSrc = post?.coverImageUrl || post?.seoImageUrl || "/placeholder.svg";
+  const heroCoverAlt = post?.coverAlt || `Capa do post: ${post?.title || ""}`;
+
   return (
     <div className="min-h-screen bg-background">
+      <main className="pb-20">
+        {isLoading ? (
+          <div className="mx-auto max-w-6xl rounded-2xl border border-border/60 bg-card/60 px-6 py-10 pt-20 text-sm text-muted-foreground md:px-10">
+            Carregando postagem...
+          </div>
+        ) : loadError || !post ? (
+          <div className="mx-auto max-w-6xl rounded-2xl border border-dashed border-border/60 bg-card/60 px-6 py-10 pt-20 text-sm text-muted-foreground md:px-10">
+            Postagem não encontrada.
+          </div>
+        ) : (
+          <>
+            <section
+              data-testid="post-reader-hero"
+              className="relative overflow-hidden"
+            >
+              <UploadPicture
+                src={heroCoverSrc}
+                alt=""
+                preset="hero"
+                mediaVariants={mediaVariants}
+                className="absolute inset-0 h-full w-full"
+                imgClassName="h-full w-full object-cover object-top md:object-[center_18%]"
+                loading="eager"
+                decoding="async"
+                {...({ fetchpriority: "high" } as Record<string, string>)}
+              />
+              <div className="absolute inset-0 bg-background/28 backdrop-blur-[1.5px]" />
+              <div className="absolute inset-0 bg-linear-to-r from-background/84 via-background/34 to-background/78" />
+              <div className="absolute inset-0 bg-linear-to-t from-background via-background/70 to-transparent" />
 
-      <main className="px-6 pb-20 pt-20 md:px-12">
-        <div className="mx-auto flex max-w-6xl flex-col gap-10">
-          {isLoading ? (
-            <div className="rounded-2xl border border-border/60 bg-card/60 px-6 py-10 text-sm text-muted-foreground">
-              Carregando postagem...
-            </div>
-          ) : loadError || !post ? (
-            <div className="rounded-2xl border border-dashed border-border/60 bg-card/60 px-6 py-10 text-sm text-muted-foreground">
-              Postagem não encontrada.
-            </div>
-          ) : (
-            <>
-              <section className="space-y-6">
-                <div className="space-y-3">
-                  <h1 className="text-3xl font-bold text-foreground md:text-4xl">{post.title}</h1>
-                  <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-muted-foreground">
-                    <div className="flex flex-wrap items-center gap-3">
+              <div className="relative mx-auto w-full max-w-6xl px-6 pb-10 pt-24 md:px-10 md:pb-32 md:pt-20 lg:pb-36 lg:pt-24">
+                <div
+                  data-testid="post-reader-hero-layout"
+                  className="grid items-start gap-8"
+                >
+                  <div
+                    data-testid="post-reader-hero-info"
+                    className="flex flex-col items-center gap-4 text-center md:items-start md:text-left"
+                  >
+                    <h1 className="text-3xl font-bold text-foreground md:text-4xl lg:text-5xl">{post.title}</h1>
+                    <div className="flex w-full flex-wrap items-center justify-center gap-3 text-xs text-muted-foreground md:justify-start">
                       <span className="inline-flex items-center gap-2">
                         <User className="h-4 w-4 text-primary/70" aria-hidden="true" />
                         {post.author || "Autor"}
@@ -204,7 +232,7 @@ const Post = () => {
                         {readTime}
                       </span>
                     </div>
-                    <div className="flex flex-wrap justify-end gap-2">
+                    <div className="flex w-full flex-wrap justify-center gap-2 md:justify-start">
                       <Badge variant="outline" className="text-xs uppercase tracking-wide">
                         Postagem
                       </Badge>
@@ -218,28 +246,45 @@ const Post = () => {
                     </div>
                   </div>
                 </div>
+              </div>
+            </section>
 
-                <div className="relative aspect-3/2 overflow-hidden rounded-2xl border border-border bg-card shadow-xs">
+            <section
+              data-testid="post-reader-cover-bridge"
+              className="relative z-20 -mt-24 mx-auto hidden w-full max-w-6xl px-6 md:block md:-mt-28 md:px-10"
+            >
+              <div data-testid="post-reader-cover-shell" className="w-full">
+                <div
+                  data-testid="post-reader-cover-frame"
+                  className="relative aspect-3/2 overflow-hidden rounded-2xl border border-border/80 bg-card/40 shadow-[0_42px_120px_-48px_rgba(0,0,0,0.95)]"
+                >
                   <UploadPicture
-                    src={post.coverImageUrl}
-                    alt={post.coverAlt || `Capa do post: ${post.title}`}
+                    src={heroCoverSrc}
+                    alt={heroCoverAlt}
                     preset="hero"
                     mediaVariants={mediaVariants}
                     className="absolute inset-0 block h-full w-full"
-                    imgClassName="absolute inset-0 block h-full w-full object-cover object-center"
-                    loading="lazy"
+                    imgClassName="absolute inset-0 block h-full w-full object-cover object-top"
+                    loading="eager"
+                    decoding="async"
+                    {...({ fetchpriority: "high" } as Record<string, string>)}
                   />
                 </div>
-              </section>
+              </div>
+            </section>
 
-              <section className="grid gap-8 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
-                <article className="min-w-0 space-y-8">
-                  <Card className="border-border bg-card shadow-xs">
-                    <CardContent className="min-w-0 space-y-7 p-6 text-sm leading-relaxed text-muted-foreground">
+            <section className="relative z-10 mx-auto w-full max-w-6xl px-6 pb-12 pt-4 md:px-10 md:pt-10">
+              <section
+                data-testid="post-reader-layout"
+                className="grid gap-8 lg:grid-cols-[minmax(0,1.75fr)_minmax(280px,1fr)]"
+              >
+                <article data-testid="post-reader-main" className="min-w-0 space-y-8">
+                  <Card className="border-border/60 bg-card/85 shadow-[0_20px_60px_-40px_rgba(0,0,0,0.75)]">
+                    <CardContent className="min-w-0 space-y-7 p-6 text-sm leading-relaxed text-muted-foreground md:p-8">
                       <Suspense fallback={<LexicalViewerFallback />}>
                         <LexicalViewer
                           value={post.content || ""}
-                          className="post-content reader-content min-w-0 w-full space-y-4 text-muted-foreground"
+                          className="post-content reader-content min-w-0 w-full space-y-4 text-muted-foreground leading-relaxed md:text-base"
                           pollTarget={post?.slug ? { type: "post", slug: post.slug } : undefined}
                         />
                       </Suspense>
@@ -251,25 +296,21 @@ const Post = () => {
                   <CommentsSection targetType="post" targetId={post.slug} />
                 </article>
 
-                <aside className="min-w-0 space-y-6">
+                <aside
+                  data-testid="post-reader-sidebar"
+                  className="min-w-0 space-y-6 self-start lg:sticky lg:top-24"
+                >
                   <LatestEpisodeCard />
                   <WorkStatusCard />
                   <DiscordInviteCard />
                 </aside>
               </section>
-            </>
-          )}
-        </div>
+            </section>
+          </>
+        )}
       </main>
     </div>
   );
 };
 
 export default Post;
-
-
-
-
-
-
-

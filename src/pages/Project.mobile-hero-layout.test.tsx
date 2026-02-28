@@ -139,6 +139,8 @@ describe("Project mobile hero layout", () => {
     );
 
     const hero = await screen.findByTestId("project-hero");
+    const heroTokens = classTokens(hero);
+    expect(heroTokens).not.toContain("border-b");
     const bannerImage = within(hero).getByRole("img", { name: "Banner do projeto Projeto Teste" });
     const coverImage = within(hero).getByRole("img", { name: "Projeto Teste" });
     expect(bannerImage.getAttribute("src")).toContain("/uploads/banner-default.jpg");
@@ -166,6 +168,19 @@ describe("Project mobile hero layout", () => {
     expect(heroLayoutTokens).toContain("lg:gap-12");
     expect(heroLayoutTokens).toContain("md:grid-cols-[320px_minmax(0,1fr)]");
     expect(heroLayoutTokens).toContain("lg:grid-cols-[340px_minmax(0,1fr)]");
+
+    const heroInnerContainer = heroLayout.parentElement as HTMLElement | null;
+    expect(heroInnerContainer).not.toBeNull();
+    const heroInnerTokens = classTokens(heroInnerContainer as HTMLElement);
+    expect(heroInnerTokens).toContain("pb-14");
+    expect(heroInnerTokens).toContain("md:pb-16");
+    expect(heroInnerTokens).toContain("lg:pb-20");
+
+    const contentSection = hero.nextElementSibling as HTMLElement | null;
+    expect(contentSection).not.toBeNull();
+    const contentSectionTokens = classTokens(contentSection as HTMLElement);
+    expect(contentSectionTokens).toContain("pt-8");
+    expect(contentSectionTokens).toContain("md:pt-10");
 
     const infoPanel = screen.getByTestId("project-hero-info-panel");
     const infoPanelTokens = classTokens(infoPanel);

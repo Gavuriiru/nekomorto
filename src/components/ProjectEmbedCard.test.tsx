@@ -92,6 +92,7 @@ describe("ProjectEmbedCard", () => {
     const studioBadge = screen.getByTestId("project-embed-studio-badge");
     const title = screen.getByText("Projeto Embed");
     const synopsis = screen.getByText("Sinopse");
+    const row = screen.getByTestId("project-embed-row");
     const synopsisColumn = container.querySelector<HTMLElement>('[data-synopsis-role="column"]');
     const synopsisTitle = container.querySelector<HTMLElement>('[data-synopsis-role="title"]');
     const synopsisText = container.querySelector<HTMLElement>('[data-synopsis-role="synopsis"]');
@@ -108,8 +109,12 @@ describe("ProjectEmbedCard", () => {
     expect(studioBadge).toHaveClass("max-w-[8.5rem]", "truncate");
     expect(title).toHaveClass("line-clamp-2");
     expect(title).not.toHaveClass("sm:line-clamp-none");
-    expect(synopsis).toHaveClass("break-normal", "[overflow-wrap:normal]", "[word-break:normal]");
-    expect(synopsis).toHaveAttribute("data-synopsis-lines", "2");
+    expect(row).toHaveClass("group", "flex", "items-stretch", "gap-4");
+    expect(synopsis).toHaveClass("mt-2", "break-normal", "[overflow-wrap:normal]", "[word-break:normal]");
+    const synopsisLines = Number(synopsis.getAttribute("data-synopsis-lines"));
+    expect(Number.isFinite(synopsisLines)).toBe(true);
+    expect(synopsisLines).toBeGreaterThanOrEqual(1);
+    expect(synopsisLines).toBeLessThanOrEqual(4);
     expect(String(synopsis.getAttribute("style") || "")).toMatch(/display:\s*-webkit-box/i);
     expect(String(synopsis.getAttribute("style") || "")).toMatch(/overflow:\s*hidden/i);
     expect(synopsisColumn).toHaveAttribute("data-synopsis-role", "column");
@@ -117,6 +122,7 @@ describe("ProjectEmbedCard", () => {
     expect(synopsisTitle).toHaveAttribute("data-synopsis-role", "title");
     expect(synopsisText).toHaveAttribute("data-synopsis-role", "synopsis");
     expect(synopsisBadges).toHaveAttribute("data-synopsis-role", "badges");
+    expect(synopsisBadges).toHaveClass("pt-2");
     expect(synopsisTitle).not.toBeNull();
     expect(synopsisText).not.toBeNull();
     expect(synopsisBadges).not.toBeNull();
@@ -168,7 +174,7 @@ describe("ProjectEmbedCard", () => {
 
     await screen.findByText("Projeto Embed");
 
-    const row = container.querySelector("div.group");
+    const row = screen.getByTestId("project-embed-row");
     expect(row).not.toBeNull();
     expect(row).toHaveClass("flex", "items-stretch", "gap-4");
     expect(row).toHaveStyle({ height: "calc(8rem * 65 / 46)" });

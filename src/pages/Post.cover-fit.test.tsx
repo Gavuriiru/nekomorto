@@ -117,15 +117,19 @@ describe("Post cover fit", () => {
     );
 
     await screen.findByRole("heading", { name: "Post de Teste" });
-    const coverImage = await screen.findByRole("img", { name: "Capa de teste" });
-    expect(coverImage).toHaveClass("absolute", "inset-0", "block", "h-full", "w-full", "object-cover", "object-center");
+    const hero = screen.getByTestId("post-reader-hero");
+    expect(hero).toBeInTheDocument();
+    expect(hero).not.toHaveClass("border-b");
+    expect(screen.getByTestId("post-reader-cover-bridge")).toBeInTheDocument();
 
-    const coverContainer = coverImage.parentElement?.parentElement;
-    expect(coverContainer).not.toBeNull();
-    expect(coverContainer).toHaveClass("relative", "aspect-3/2", "overflow-hidden");
+    const coverImage = await screen.findByRole("img", { name: "Capa de teste" });
+    expect(coverImage).toHaveClass("absolute", "inset-0", "block", "h-full", "w-full", "object-cover", "object-top");
+
+    const coverFrame = screen.getByTestId("post-reader-cover-frame");
+    expect(coverFrame).toHaveClass("relative", "aspect-3/2", "overflow-hidden");
   });
 
-  it("remove breadcrumb e CTAs de navegacao e aplica offset do header", async () => {
+  it("remove breadcrumb e CTAs de navegacao e inicia sem offset global no main", async () => {
     setupApiMock({
       projectId: "project-1",
     });
@@ -144,7 +148,7 @@ describe("Post cover fit", () => {
 
     const main = document.querySelector("main");
     expect(main).not.toBeNull();
-    expect(main).toHaveClass("pt-20");
+    expect(main).not.toHaveClass("pt-20");
   });
 });
 

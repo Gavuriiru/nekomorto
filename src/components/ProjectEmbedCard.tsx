@@ -27,18 +27,18 @@ const ProjectEmbedCard = ({ projectId }: ProjectEmbedCardProps) => {
   const { rootRef: synopsisRootRef, lineByKey } = useDynamicSynopsisClamp({
     enabled: Boolean(projectId),
     keys: [synopsisKey],
-    maxLines: 5,
+    maxLines: 4,
   });
   const sortedTags = useMemo(() => {
     const tags = Array.isArray(project?.tags) ? project.tags : [];
     return sortByTranslatedLabel(tags, (tag) => translateTag(tag, tagTranslationMap));
   }, [project?.tags, tagTranslationMap]);
   const synopsisMaxLines = (() => {
-    const lines = lineByKey[synopsisKey] ?? 0;
-    if (lines <= 0) {
+    const lines = lineByKey[synopsisKey];
+    if (typeof lines !== "number") {
       return 2;
     }
-    return Math.min(lines, 5);
+    return Math.max(1, Math.min(lines, 4));
   })();
 
   useEffect(() => {
@@ -113,7 +113,12 @@ const ProjectEmbedCard = ({ projectId }: ProjectEmbedCardProps) => {
     >
       <Card className="border-border bg-card shadow-xs transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:bg-card/90 hover:shadow-lg">
         <CardContent className="space-y-4 p-4">
-          <div ref={synopsisRootRef} className="group flex items-stretch gap-4" style={{ height: COVER_HEIGHT_CALC }}>
+          <div
+            ref={synopsisRootRef}
+            data-testid="project-embed-row"
+            className="group flex items-stretch gap-4"
+            style={{ height: COVER_HEIGHT_CALC }}
+          >
             <div className="h-full w-32 shrink-0 self-start overflow-hidden rounded-xl">
               <img
                 src={project?.cover || "/placeholder.svg"}
@@ -137,7 +142,7 @@ const ProjectEmbedCard = ({ projectId }: ProjectEmbedCardProps) => {
               <p
                 data-synopsis-role="synopsis"
                 data-synopsis-lines={synopsisMaxLines}
-                className="text-sm text-muted-foreground break-normal [overflow-wrap:normal] [word-break:normal]"
+                className="mt-2 text-sm text-muted-foreground break-normal [overflow-wrap:normal] [word-break:normal]"
                 style={{
                   display: "-webkit-box",
                   WebkitBoxOrient: "vertical",
@@ -147,7 +152,7 @@ const ProjectEmbedCard = ({ projectId }: ProjectEmbedCardProps) => {
               >
                 {project?.synopsis || ""}
               </p>
-              <div data-synopsis-role="badges" className="mt-auto space-y-2">
+              <div data-synopsis-role="badges" className="mt-auto space-y-2 pt-2">
                 <div data-testid="project-embed-primary-badges" className="flex flex-nowrap items-center gap-2 overflow-hidden text-xs sm:flex-wrap">
                   {project?.status ? (
                     <Badge data-testid="project-embed-status-badge" variant="outline" className="max-w-[8.5rem] truncate">
