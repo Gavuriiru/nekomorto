@@ -167,7 +167,7 @@ const Recruitment = () => {
                 >
                   <CardContent className="space-y-3 p-5">
                     <div className="flex items-center gap-3">
-                      <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-card/60 text-primary transition-all duration-300 group-hover:scale-105 group-hover:bg-primary/15">
+                      <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-secondary/80 text-primary transition-all duration-300 group-hover:scale-105 group-hover:bg-primary/15">
                         <Icon className="h-5 w-5" />
                       </span>
                       <h2 className="text-base font-semibold text-foreground transition-colors duration-300 group-hover:text-primary">
