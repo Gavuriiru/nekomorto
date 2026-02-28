@@ -23,11 +23,22 @@ import { useSiteSettings } from "@/hooks/use-site-settings";
 import { usePublicBootstrap } from "@/hooks/use-public-bootstrap";
 import { getNavbarIcon } from "@/lib/navbar-icons";
 import { resolveBranding } from "@/lib/branding";
-import { rankPosts, rankProjects, selectVisibleTags, sortAlphabeticallyPtBr } from "@/lib/search-ranking";
+import {
+  rankPosts,
+  rankProjects,
+  selectVisibleTags,
+  sortAlphabeticallyPtBr,
+} from "@/lib/search-ranking";
 import { buildTranslationMap, translateTag } from "@/lib/project-taxonomy";
 import { useDynamicSynopsisClamp } from "@/hooks/use-dynamic-synopsis-clamp";
-import { buildDashboardMenuFromGrants, resolveGrants } from "@/lib/access-control";
+import { useGlobalShortcuts } from "@/hooks/use-global-shortcuts";
+import {
+  buildDashboardMenuFromGrants,
+  getFirstAllowedDashboardRoute,
+  resolveGrants,
+} from "@/lib/access-control";
 import { sanitizePublicHref } from "@/lib/url-safety";
+import { uiCopy } from "@/lib/ui-copy";
 import type { SearchSuggestion } from "@/types/search-suggestion";
 
 type HeaderProps = {
@@ -57,6 +68,7 @@ const Header = ({ variant = "fixed", leading, className }: HeaderProps) => {
     grants?: Partial<Record<string, boolean>>;
   } | null>(null);
   const searchRef = useRef<HTMLDivElement | null>(null);
+  const searchInputRef = useRef<HTMLInputElement | null>(null);
   const location = useLocation();
   const apiBase = getApiBase();
   const { settings } = useSiteSettings();
@@ -168,10 +180,14 @@ const Header = ({ variant = "fixed", leading, className }: HeaderProps) => {
           scope: "all",
           limit: "8",
         });
-        const response = await apiFetch(apiBase, `/api/public/search/suggest?${params.toString()}`, {
-          cache: "no-store",
-          signal: controller.signal,
-        });
+        const response = await apiFetch(
+          apiBase,
+          `/api/public/search/suggest?${params.toString()}`,
+          {
+            cache: "no-store",
+            signal: controller.signal,
+          },
+        );
         if (!response.ok) {
           throw new Error(`search_suggest_${response.status}`);
         }
@@ -186,7 +202,8 @@ const Header = ({ variant = "fixed", leading, className }: HeaderProps) => {
                   return null;
                 }
                 const candidate = item as Partial<SearchSuggestion>;
-                const kind = candidate.kind === "project" || candidate.kind === "post" ? candidate.kind : null;
+                const kind =
+                  candidate.kind === "project" || candidate.kind === "post" ? candidate.kind : null;
                 const id = String(candidate.id || "").trim();
                 const label = String(candidate.label || "").trim();
                 const href = String(candidate.href || "").trim();
@@ -277,7 +294,8 @@ const Header = ({ variant = "fixed", leading, className }: HeaderProps) => {
   const activeProjects = hasSearchRequestFailed ? fallbackProjects : remoteProjects;
   const activePosts = hasSearchRequestFailed ? fallbackPosts : remotePosts;
   const showResults = isSearchOpen && queryTrimmed.length > 0;
-  const hasResults = hasMinimumSearchQueryLength && (activeProjects.length > 0 || activePosts.length > 0);
+  const hasResults =
+    hasMinimumSearchQueryLength && (activeProjects.length > 0 || activePosts.length > 0);
   const synopsisKeys = useMemo(() => activeProjects.map((item) => item.href), [activeProjects]);
   const { rootRef: synopsisRootRef, lineByKey: synopsisLineByKey } = useDynamicSynopsisClamp({
     enabled: showResults,
@@ -356,6 +374,23 @@ const Header = ({ variant = "fixed", leading, className }: HeaderProps) => {
     const grants = resolveGrants(currentUser);
     return buildDashboardMenuFromGrants(dashboardMenuItems, grants);
   }, [currentUser]);
+  const dashboardHomeHref = useMemo(
+    () =>
+      currentUser
+        ? getFirstAllowedDashboardRoute(resolveGrants(currentUser), { allowUsersForSelf: true })
+        : "/dashboard",
+    [currentUser],
+  );
+
+  useGlobalShortcuts({
+    getDashboardHref: () => dashboardHomeHref,
+    onOpenSearch: () => {
+      setIsSearchOpen(true);
+      window.requestAnimationFrame(() => {
+        searchInputRef.current?.focus();
+      });
+    },
+  });
 
   const handleLogout = async () => {
     if (isLoggingOut) {
@@ -369,8 +404,8 @@ const Header = ({ variant = "fixed", leading, className }: HeaderProps) => {
       });
       if (!response.ok) {
         toast({
-          title: "Não foi possível sair",
-          description: "Tente novamente em alguns instantes.",
+          title: uiCopy.feedback.logoutFailedTitle,
+          description: uiCopy.feedback.logoutFailedDescription,
           variant: "destructive",
         });
         return;
@@ -378,7 +413,7 @@ const Header = ({ variant = "fixed", leading, className }: HeaderProps) => {
       window.location.href = "/";
     } catch {
       toast({
-        title: "Não foi possível sair",
+        title: uiCopy.feedback.logoutFailedTitle,
         description: "Ocorreu um erro inesperado ao encerrar a sessão.",
         variant: "destructive",
       });
@@ -414,7 +449,10 @@ const Header = ({ variant = "fixed", leading, className }: HeaderProps) => {
           )}
         >
           {leading}
-          <Link to="/" className="flex items-center gap-3 text-2xl md:text-3xl font-black tracking-wider text-foreground">
+          <Link
+            to="/"
+            className="flex items-center gap-3 text-2xl md:text-3xl font-black tracking-wider text-foreground"
+          >
             {showWordmarkInNavbar ? (
               <>
                 <img
@@ -450,7 +488,9 @@ const Header = ({ variant = "fixed", leading, className }: HeaderProps) => {
               const isInternal = isInternalHref(item.href);
               const isActive = isNavbarLinkActive(item.href);
               const className = `transition-colors ${
-                isActive ? "text-foreground font-semibold" : "text-foreground/80 hover:text-foreground"
+                isActive
+                  ? "text-foreground font-semibold"
+                  : "text-foreground/80 hover:text-foreground"
               }`;
               if (isInternal) {
                 return (
@@ -491,7 +531,7 @@ const Header = ({ variant = "fixed", leading, className }: HeaderProps) => {
                 type="button"
                 variant="ghost"
                 size="icon"
-                aria-label="Abrir pesquisa"
+                aria-label={uiCopy.search.openAriaLabel}
                 onClick={() => setIsSearchOpen((prev) => !prev)}
                 className={cn(
                   "shrink-0 rounded-full text-foreground/80 hover:text-foreground",
@@ -515,9 +555,10 @@ const Header = ({ variant = "fixed", leading, className }: HeaderProps) => {
               {isSearchOpen && (
                 <input
                   autoFocus
+                  ref={searchInputRef}
                   value={query}
                   onChange={(event) => setQuery(event.target.value)}
-                  placeholder="Pesquisar projetos e posts"
+                  placeholder={uiCopy.search.inputPlaceholder}
                   className="w-full bg-transparent text-sm text-foreground outline-hidden placeholder:text-muted-foreground"
                 />
               )}
@@ -530,9 +571,11 @@ const Header = ({ variant = "fixed", leading, className }: HeaderProps) => {
                 className="search-popover-enter absolute top-12 left-0 right-0 mx-auto max-h-[78vh] w-[min(24rem,calc(100vw-1rem))] overflow-hidden rounded-xl border border-border/60 bg-background/95 p-4 shadow-lg backdrop-blur-sm md:left-auto md:right-0 md:mx-0 md:w-80"
               >
                 {!hasMinimumSearchQueryLength ? (
-                  <p className="text-sm text-muted-foreground">Digite ao menos 2 caracteres para ver sugestões.</p>
+                  <p className="text-sm text-muted-foreground">{uiCopy.search.minimumPrompt}</p>
                 ) : isSearchLoading ? (
-                  <p className="text-sm text-muted-foreground">Buscando sugestões...</p>
+                  <p className="text-sm text-muted-foreground">
+                    {uiCopy.search.loadingSuggestions}
+                  </p>
                 ) : null}
 
                 {hasMinimumSearchQueryLength && activeProjects.length > 0 && (
@@ -559,7 +602,10 @@ const Header = ({ variant = "fixed", leading, className }: HeaderProps) => {
                               data-synopsis-key={item.href}
                               className="h-28 min-w-0 flex flex-col overflow-hidden"
                             >
-                              <p data-synopsis-role="title" className="line-clamp-1 shrink-0 text-sm font-semibold text-foreground group-hover:text-primary">
+                              <p
+                                data-synopsis-role="title"
+                                className="line-clamp-1 shrink-0 text-sm font-semibold text-foreground group-hover:text-primary"
+                              >
                                 {item.label}
                               </p>
                               <p
@@ -577,7 +623,11 @@ const Header = ({ variant = "fixed", leading, className }: HeaderProps) => {
                                   className="mt-auto flex min-w-0 flex-nowrap gap-1.5 overflow-hidden pt-2"
                                 >
                                   {item.tags.map((tag) => (
-                                    <Badge key={tag} variant="secondary" className="shrink-0 whitespace-nowrap text-[9px] uppercase">
+                                    <Badge
+                                      key={tag}
+                                      variant="secondary"
+                                      className="shrink-0 whitespace-nowrap text-[9px] uppercase"
+                                    >
                                       {tag}
                                     </Badge>
                                   ))}
@@ -612,9 +662,7 @@ const Header = ({ variant = "fixed", leading, className }: HeaderProps) => {
                 )}
 
                 {hasMinimumSearchQueryLength && !isSearchLoading && !hasResults && (
-                  <p className="text-sm text-muted-foreground">
-                    Nenhum resultado encontrado para a sua pesquisa.
-                  </p>
+                  <p className="text-sm text-muted-foreground">{uiCopy.search.noResults}</p>
                 )}
               </div>
             )}
@@ -629,7 +677,6 @@ const Header = ({ variant = "fixed", leading, className }: HeaderProps) => {
                 : "opacity-100 visible pointer-events-auto",
             )}
           >
-
             <ThemeModeSwitcher />
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -646,14 +693,23 @@ const Header = ({ variant = "fixed", leading, className }: HeaderProps) => {
                 {navbarLinks.map((item) => {
                   const ItemIcon = getNavbarIcon(item.icon);
                   return (
-                    <DropdownMenuItem key={`${item.label}-${item.href}`} asChild className={headerMenuItemClass}>
+                    <DropdownMenuItem
+                      key={`${item.label}-${item.href}`}
+                      asChild
+                      className={headerMenuItemClass}
+                    >
                       {isInternalHref(item.href) ? (
                         <Link to={item.href} className="flex items-center gap-2">
                           <ItemIcon className="h-4 w-4" />
                           {item.label}
                         </Link>
                       ) : (
-                        <a href={item.href} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2">
+                        <a
+                          href={item.href}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-2"
+                        >
                           <ItemIcon className="h-4 w-4" />
                           {item.label}
                         </a>
@@ -682,18 +738,17 @@ const Header = ({ variant = "fixed", leading, className }: HeaderProps) => {
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className={`w-56 ${headerMenuContentClass}`}>
-                  {dashboardMenuForUser
-                    .map((item) => {
-                      const ItemIcon = item.icon;
-                      return (
-                        <DropdownMenuItem key={item.href} asChild className={headerMenuItemClass}>
-                          <Link to={item.href} className="flex items-center gap-2">
-                            <ItemIcon className="h-4 w-4" />
-                            {item.label}
-                          </Link>
-                        </DropdownMenuItem>
-                      );
-                    })}
+                  {dashboardMenuForUser.map((item) => {
+                    const ItemIcon = item.icon;
+                    return (
+                      <DropdownMenuItem key={item.href} asChild className={headerMenuItemClass}>
+                        <Link to={item.href} className="flex items-center gap-2">
+                          <ItemIcon className="h-4 w-4" />
+                          {item.label}
+                        </Link>
+                      </DropdownMenuItem>
+                    );
+                  })}
                   <DropdownMenuSeparator className="bg-border/70" />
                   <DropdownMenuItem
                     className={headerMenuItemClass}
@@ -701,7 +756,7 @@ const Header = ({ variant = "fixed", leading, className }: HeaderProps) => {
                     disabled={isLoggingOut}
                   >
                     <LogOut className="h-4 w-4" />
-                    {isLoggingOut ? "Saindo..." : "Sair"}
+                    {isLoggingOut ? uiCopy.actions.loggingOut : uiCopy.actions.logout}
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
@@ -714,10 +769,3 @@ const Header = ({ variant = "fixed", leading, className }: HeaderProps) => {
 };
 
 export default Header;
-
-
-
-
-
-
-

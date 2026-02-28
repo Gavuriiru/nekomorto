@@ -5,7 +5,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@/components/DashboardHeader", () => ({
   default: ({ menuItems }: { menuItems?: Array<{ label: string }> }) => (
-    <div data-testid="dashboard-header">{(menuItems || []).map((item) => item.label).join("|")}</div>
+    <div data-testid="dashboard-header">
+      {(menuItems || []).map((item) => item.label).join("|")}
+    </div>
   ),
 }));
 
@@ -26,7 +28,9 @@ vi.mock("@/components/ui/sidebar", () => ({
   ),
   SidebarMenu: ({ children }: { children: ReactNode }) => <div>{children}</div>,
   SidebarMenuItem: ({ children }: { children: ReactNode }) => <div>{children}</div>,
-  SidebarMenuButton: ({ children }: { children: ReactNode; asChild?: boolean }) => <div>{children}</div>,
+  SidebarMenuButton: ({ children }: { children: ReactNode; asChild?: boolean }) => (
+    <div>{children}</div>
+  ),
   SidebarSeparator: () => <hr />,
 }));
 
@@ -77,7 +81,7 @@ describe("DashboardShell menu permissions", () => {
 
     const headerText = screen.getByTestId("dashboard-header").textContent || "";
     expect(headerText).toContain("Início");
-    expect(headerText).toContain("Analytics");
+    expect(headerText).toContain("Análises");
     expect(headerText).toContain("Postagens");
     expect(screen.getByTestId("sidebar-inset").className).toContain("min-w-0");
     expect(screen.getByTestId("sidebar-inset").className).toContain("overflow-x-hidden");
@@ -156,7 +160,7 @@ describe("DashboardShell menu permissions", () => {
     );
 
     expect(screen.queryByText("Maria Persist")).not.toBeInTheDocument();
-    expect(screen.getByText("Usuario")).toBeInTheDocument();
+    expect(screen.getByText("Usuário")).toBeInTheDocument();
 
     rerender(
       <MemoryRouter initialEntries={["/dashboard/posts"]}>
@@ -166,8 +170,7 @@ describe("DashboardShell menu permissions", () => {
       </MemoryRouter>,
     );
 
-    expect(screen.getByText("Carregando usuario...")).toBeInTheDocument();
+    expect(screen.getByText("Carregando usuário...")).toBeInTheDocument();
     expect(screen.getByText("Aguarde")).toBeInTheDocument();
   });
 });
-

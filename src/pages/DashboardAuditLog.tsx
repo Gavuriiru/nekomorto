@@ -13,8 +13,21 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import {
   MuiBrazilDateField,
   MuiBrazilTimeField,
@@ -123,7 +136,9 @@ const parseLimit = (value: string | null) => {
 };
 
 const normalizeStatusFilter = (value: string | null) => {
-  const normalized = String(value || "").trim().toLowerCase();
+  const normalized = String(value || "")
+    .trim()
+    .toLowerCase();
   if (["all", "success", "failed", "denied"].includes(normalized)) {
     return normalized;
   }
@@ -234,7 +249,7 @@ const formatMetaValue = (value: unknown) => {
 };
 
 const DashboardAuditLog = () => {
-  usePageMeta({ title: "Audit Log", noIndex: true });
+  usePageMeta({ title: "Auditoria", noIndex: true });
   const navigate = useNavigate();
   const apiBase = getApiBase();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -350,7 +365,9 @@ const DashboardAuditLog = () => {
         if (!params.get("limit")) {
           params.set("limit", "50");
         }
-        const response = await apiFetch(apiBase, `/api/audit-log?${params.toString()}`, { auth: true });
+        const response = await apiFetch(apiBase, `/api/audit-log?${params.toString()}`, {
+          auth: true,
+        });
         if (!isMounted) {
           return;
         }
@@ -406,7 +423,8 @@ const DashboardAuditLog = () => {
     if (form.action.trim()) next.set("action", form.action.trim());
     if (form.resource.trim()) next.set("resource", form.resource.trim());
     if (form.actorId.trim()) next.set("actorId", form.actorId.trim());
-    if (normalizeStatusFilter(form.status) !== "all") next.set("status", normalizeStatusFilter(form.status));
+    if (normalizeStatusFilter(form.status) !== "all")
+      next.set("status", normalizeStatusFilter(form.status));
     if (form.dateFrom) {
       const dateFromIso = new Date(form.dateFrom);
       if (!Number.isNaN(dateFromIso.getTime())) {
@@ -455,7 +473,9 @@ const DashboardAuditLog = () => {
     try {
       const params = new URLSearchParams(searchParams);
       params.set("format", "csv");
-      const response = await apiFetch(apiBase, `/api/audit-log?${params.toString()}`, { auth: true });
+      const response = await apiFetch(apiBase, `/api/audit-log?${params.toString()}`, {
+        auth: true,
+      });
       if (!response.ok) {
         setError("Não foi possível exportar o CSV.");
         toast({
@@ -515,16 +535,28 @@ const DashboardAuditLog = () => {
             <header className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
               <div>
                 <div className="inline-flex items-center gap-3 rounded-full border border-border/60 bg-card/60 px-4 py-2 text-xs uppercase tracking-[0.3em] text-muted-foreground animate-fade-in">
-                  Audit Log
+                  Auditoria
                 </div>
-                <h1 className="mt-4 text-3xl font-semibold lg:text-4xl animate-slide-up">Registro de Auditoria</h1>
-                <p className="mt-2 text-sm text-muted-foreground animate-slide-up opacity-0" style={{ animationDelay: "0.2s" }}>
+                <h1 className="mt-4 text-3xl font-semibold lg:text-4xl animate-slide-up">
+                  Registro de Auditoria
+                </h1>
+                <p
+                  className="mt-2 text-sm text-muted-foreground animate-slide-up opacity-0"
+                  style={{ animationDelay: "0.2s" }}
+                >
                   Eventos mutáveis e de segurança dos últimos 30 dias.
                 </p>
               </div>
-              <div className="flex items-center gap-3 animate-slide-up opacity-0" style={{ animationDelay: "0.24s" }}>
+              <div
+                className="flex items-center gap-3 animate-slide-up opacity-0"
+                style={{ animationDelay: "0.24s" }}
+              >
                 <Badge className="bg-card/80 text-muted-foreground">{formattedTotal} eventos</Badge>
-                <Button variant="outline" onClick={() => void handleExportCsv()} disabled={isExporting || forbidden}>
+                <Button
+                  variant="outline"
+                  onClick={() => void handleExportCsv()}
+                  disabled={isExporting || forbidden}
+                >
                   {isExporting ? "Exportando..." : "Exportar CSV"}
                 </Button>
                 <Button variant="outline" onClick={() => setRefreshTick((value) => value + 1)}>
@@ -533,7 +565,10 @@ const DashboardAuditLog = () => {
               </div>
             </header>
 
-            <div className="mt-8 rounded-2xl border border-border/60 bg-card/60 p-4 md:p-5 animate-slide-up opacity-0" style={{ animationDelay: "0.28s" }}>
+            <div
+              className="mt-8 rounded-2xl border border-border/60 bg-card/60 p-4 md:p-5 animate-slide-up opacity-0"
+              style={{ animationDelay: "0.28s" }}
+            >
               <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
                 <div className="grid gap-2">
                   <Label htmlFor="audit-q">Busca</Label>
@@ -549,7 +584,9 @@ const DashboardAuditLog = () => {
                   <Input
                     id="audit-action"
                     value={form.action}
-                    onChange={(event) => setForm((prev) => ({ ...prev, action: event.target.value }))}
+                    onChange={(event) =>
+                      setForm((prev) => ({ ...prev, action: event.target.value }))
+                    }
                     placeholder="ex.: posts.update"
                   />
                 </div>
@@ -558,7 +595,9 @@ const DashboardAuditLog = () => {
                   <Input
                     id="audit-resource"
                     value={form.resource}
-                    onChange={(event) => setForm((prev) => ({ ...prev, resource: event.target.value }))}
+                    onChange={(event) =>
+                      setForm((prev) => ({ ...prev, resource: event.target.value }))
+                    }
                     placeholder="ex.: posts"
                   />
                 </div>
@@ -567,13 +606,18 @@ const DashboardAuditLog = () => {
                   <Input
                     id="audit-actor"
                     value={form.actorId}
-                    onChange={(event) => setForm((prev) => ({ ...prev, actorId: event.target.value }))}
+                    onChange={(event) =>
+                      setForm((prev) => ({ ...prev, actorId: event.target.value }))
+                    }
                     placeholder="ID do Discord"
                   />
                 </div>
                 <div className="grid gap-2">
                   <Label>Status</Label>
-                  <Select value={form.status} onValueChange={(value) => setForm((prev) => ({ ...prev, status: value }))}>
+                  <Select
+                    value={form.status}
+                    onValueChange={(value) => setForm((prev) => ({ ...prev, status: value }))}
+                  >
                     <SelectTrigger>
                       <SelectValue placeholder="Todos" />
                     </SelectTrigger>
@@ -623,7 +667,10 @@ const DashboardAuditLog = () => {
                 </div>
                 <div className="grid gap-2">
                   <Label>Itens por página</Label>
-                  <Select value={form.limit} onValueChange={(value) => setForm((prev) => ({ ...prev, limit: value }))}>
+                  <Select
+                    value={form.limit}
+                    onValueChange={(value) => setForm((prev) => ({ ...prev, limit: value }))}
+                  >
                     <SelectTrigger>
                       <SelectValue placeholder="50" />
                     </SelectTrigger>
@@ -638,11 +685,16 @@ const DashboardAuditLog = () => {
               </div>
               <div className="mt-4 flex flex-wrap items-center gap-2">
                 <Button onClick={applyFilters}>Aplicar filtros</Button>
-                <Button variant="outline" onClick={clearFilters}>Limpar</Button>
+                <Button variant="outline" onClick={clearFilters}>
+                  Limpar
+                </Button>
               </div>
             </div>
 
-            <div className="mt-6 rounded-2xl border border-border/60 bg-card/60 p-2 md:p-4 animate-slide-up opacity-0" style={{ animationDelay: "0.32s" }}>
+            <div
+              className="mt-6 rounded-2xl border border-border/60 bg-card/60 p-2 md:p-4 animate-slide-up opacity-0"
+              style={{ animationDelay: "0.32s" }}
+            >
               {forbidden ? (
                 <AsyncState
                   kind="error"
@@ -652,7 +704,7 @@ const DashboardAuditLog = () => {
               ) : isLoading ? (
                 <AsyncState
                   kind="loading"
-                  title="Carregando audit log"
+                  title="Carregando auditoria"
                   description="Buscando eventos mais recentes."
                 />
               ) : error ? (
@@ -692,23 +744,39 @@ const DashboardAuditLog = () => {
                         <TableCell>{formatDateTime(entry.ts)}</TableCell>
                         <TableCell className="max-w-44">
                           <div className="truncate">{entry.actorName || "anonymous"}</div>
-                          <div className="truncate text-xs text-muted-foreground">{entry.actorId}</div>
+                          <div className="truncate text-xs text-muted-foreground">
+                            {entry.actorId}
+                          </div>
                         </TableCell>
                         <TableCell className="max-w-56">
-                          <div className="truncate text-sm">{humanizeAuditAction(entry.action)}</div>
-                          <div className="truncate font-mono text-xs text-muted-foreground">{entry.action}</div>
+                          <div className="truncate text-sm">
+                            {humanizeAuditAction(entry.action)}
+                          </div>
+                          <div className="truncate font-mono text-xs text-muted-foreground">
+                            {entry.action}
+                          </div>
                         </TableCell>
                         <TableCell>
                           <div>{entry.resource || "-"}</div>
-                          <div className="text-xs text-muted-foreground">{entry.resourceId || "-"}</div>
+                          <div className="text-xs text-muted-foreground">
+                            {entry.resourceId || "-"}
+                          </div>
                         </TableCell>
                         <TableCell>
-                          <Badge className={statusBadgeClass(entry.status)}>{humanizeAuditStatus(entry.status)}</Badge>
+                          <Badge className={statusBadgeClass(entry.status)}>
+                            {humanizeAuditStatus(entry.status)}
+                          </Badge>
                         </TableCell>
                         <TableCell className="font-mono text-xs">{entry.ip || "-"}</TableCell>
-                        <TableCell className="font-mono text-xs">{entry.resourceId || "-"}</TableCell>
+                        <TableCell className="font-mono text-xs">
+                          {entry.resourceId || "-"}
+                        </TableCell>
                         <TableCell className="text-right">
-                          <Button size="sm" variant="outline" onClick={() => setSelectedEntry(entry)}>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => setSelectedEntry(entry)}
+                          >
                             Ver
                           </Button>
                         </TableCell>
@@ -720,12 +788,20 @@ const DashboardAuditLog = () => {
             </div>
 
             {!forbidden && !error && !isLoading ? (
-              <div className="mt-4 flex items-center justify-between gap-3 animate-slide-up opacity-0" style={{ animationDelay: "0.36s" }}>
+              <div
+                className="mt-4 flex items-center justify-between gap-3 animate-slide-up opacity-0"
+                style={{ animationDelay: "0.36s" }}
+              >
                 <p className="text-sm text-muted-foreground">
                   Página {page} de {totalPages}
                 </p>
                 <div className="flex items-center gap-2">
-                  <Button variant="outline" size="sm" onClick={() => goToPage(page - 1)} disabled={page <= 1 || isLoading}>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => goToPage(page - 1)}
+                    disabled={page <= 1 || isLoading}
+                  >
                     Anterior
                   </Button>
                   <Button
@@ -743,7 +819,10 @@ const DashboardAuditLog = () => {
         </main>
       </DashboardShell>
 
-      <Dialog open={Boolean(selectedEntry)} onOpenChange={(open) => !open && setSelectedEntry(null)}>
+      <Dialog
+        open={Boolean(selectedEntry)}
+        onOpenChange={(open) => !open && setSelectedEntry(null)}
+      >
         <DialogContent className="w-[95vw] max-w-3xl">
           <DialogHeader>
             <DialogTitle>Detalhes do evento</DialogTitle>
@@ -756,7 +835,9 @@ const DashboardAuditLog = () => {
               <div className="grid gap-2 rounded-xl border border-border/60 bg-card/60 p-4 text-sm md:grid-cols-2">
                 <div>
                   <p className="text-muted-foreground">Ator</p>
-                  <p>{selectedEntry.actorName} ({selectedEntry.actorId})</p>
+                  <p>
+                    {selectedEntry.actorName} ({selectedEntry.actorId})
+                  </p>
                 </div>
                 <div>
                   <p className="text-muted-foreground">Request ID</p>
@@ -768,7 +849,9 @@ const DashboardAuditLog = () => {
                 </div>
                 <div>
                   <p className="text-muted-foreground">Status</p>
-                  <Badge className={statusBadgeClass(selectedEntry.status)}>{humanizeAuditStatus(selectedEntry.status)}</Badge>
+                  <Badge className={statusBadgeClass(selectedEntry.status)}>
+                    {humanizeAuditStatus(selectedEntry.status)}
+                  </Badge>
                 </div>
               </div>
               <div className="rounded-xl border border-border/60 bg-card/80 p-4">
@@ -778,7 +861,9 @@ const DashboardAuditLog = () => {
                     summarizeMeta(selectedEntry.meta || {}).map((item) => (
                       <div key={`${item.label}-${item.value}`} className="min-w-0">
                         <p className="text-xs text-muted-foreground">{item.label}</p>
-                        <p className="truncate" title={item.value}>{item.value}</p>
+                        <p className="truncate" title={item.value}>
+                          {item.value}
+                        </p>
                       </div>
                     ))
                   ) : (
@@ -793,7 +878,10 @@ const DashboardAuditLog = () => {
                   <p className="mb-2 text-sm text-muted-foreground">Mudanças</p>
                   <div className="space-y-2">
                     {getAuditChanges(selectedEntry.meta || {}).map((change) => (
-                      <div key={change.field} className="rounded-lg border border-border/60 bg-background/50 p-3">
+                      <div
+                        key={change.field}
+                        className="rounded-lg border border-border/60 bg-background/50 p-3"
+                      >
                         <p className="text-xs font-medium text-muted-foreground">{change.field}</p>
                         <div className="mt-2 grid gap-2 text-xs md:grid-cols-2">
                           <div>
@@ -810,11 +898,14 @@ const DashboardAuditLog = () => {
                   </div>
                 </div>
               ) : null}
-              {selectedEntry.meta?.before !== undefined || selectedEntry.meta?.after !== undefined ? (
+              {selectedEntry.meta?.before !== undefined ||
+              selectedEntry.meta?.after !== undefined ? (
                 <div className="space-y-2">
                   {selectedEntry.meta?.before !== undefined ? (
                     <details className="rounded-xl border border-border/60 bg-card/80 p-4">
-                      <summary className="cursor-pointer text-sm text-muted-foreground">Antes (raw)</summary>
+                      <summary className="cursor-pointer text-sm text-muted-foreground">
+                        Antes (raw)
+                      </summary>
                       <pre className="mt-3 max-h-[25vh] overflow-auto text-xs leading-relaxed text-foreground">
                         {JSON.stringify(selectedEntry.meta.before, null, 2)}
                       </pre>
@@ -822,7 +913,9 @@ const DashboardAuditLog = () => {
                   ) : null}
                   {selectedEntry.meta?.after !== undefined ? (
                     <details className="rounded-xl border border-border/60 bg-card/80 p-4">
-                      <summary className="cursor-pointer text-sm text-muted-foreground">Depois (raw)</summary>
+                      <summary className="cursor-pointer text-sm text-muted-foreground">
+                        Depois (raw)
+                      </summary>
                       <pre className="mt-3 max-h-[25vh] overflow-auto text-xs leading-relaxed text-foreground">
                         {JSON.stringify(selectedEntry.meta.after, null, 2)}
                       </pre>
@@ -845,4 +938,3 @@ const DashboardAuditLog = () => {
 };
 
 export default DashboardAuditLog;
-

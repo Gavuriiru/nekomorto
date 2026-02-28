@@ -19,6 +19,7 @@ import {
   CommandList,
   CommandShortcut,
 } from "@/components/ui/command";
+import { uiCopy } from "@/lib/ui-copy";
 
 type DashboardCommandPaletteProps = {
   open: boolean;
@@ -140,7 +141,7 @@ const DashboardCommandPalette = ({
       },
       {
         id: "settings-footer",
-        label: "Footer",
+        label: uiCopy.navigation.footer,
         href: "/dashboard/configuracoes?tab=footer",
         icon: settingsIcon,
         available: settingsEnabled,
@@ -149,7 +150,7 @@ const DashboardCommandPalette = ({
       },
       {
         id: "settings-navbar",
-        label: "Navbar",
+        label: uiCopy.navigation.navbar,
         href: "/dashboard/configuracoes?tab=navbar",
         icon: settingsIcon,
         available: settingsEnabled,
@@ -229,7 +230,7 @@ const DashboardCommandPalette = ({
       },
       {
         id: "pages-preview",
-        label: "Preview",
+        label: uiCopy.navigation.preview,
         href: "/dashboard/paginas?tab=preview",
         icon: pagesIcon,
         available: pagesEnabled,
@@ -287,9 +288,9 @@ const DashboardCommandPalette = ({
 
   return (
     <CommandDialog open={open} onOpenChange={onOpenChange}>
-      <CommandInput placeholder="Buscar navega\u00e7\u00e3o, abas e a\u00e7\u00f5es..." />
+      <CommandInput placeholder={uiCopy.commandPalette.placeholder} />
       <CommandList>
-        <CommandEmpty>Nenhum resultado encontrado.</CommandEmpty>
+        <CommandEmpty>{uiCopy.commandPalette.empty}</CommandEmpty>
         {renderGroup("A\u00e7\u00f5es r\u00e1pidas", quickActions)}
         {renderGroup("Abas - Configura\u00e7\u00f5es", settingsTabActions)}
         {renderGroup("Abas - P\u00e1ginas", pageTabActions)}

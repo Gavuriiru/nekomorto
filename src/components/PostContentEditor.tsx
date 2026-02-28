@@ -125,17 +125,32 @@ const PostContentEditor = ({
 }: PostContentEditorProps) => (
   <div className="space-y-8">
     <div className="space-y-4">
-      <Tabs value={format} onValueChange={(value) => onFormatChange(value === "html" ? "html" : "markdown")}>
+      <Tabs
+        value={format}
+        onValueChange={(value) => onFormatChange(value === "html" ? "html" : "markdown")}
+      >
         <div className="flex flex-wrap items-center justify-between gap-4">
           <TabsList>
             <TabsTrigger value="markdown">Markdown</TabsTrigger>
             <TabsTrigger value="html">HTML</TabsTrigger>
           </TabsList>
           <div className="flex flex-wrap items-center gap-2">
-            <Button type="button" variant="ghost" size="icon" onClick={() => onApplyWrap("**")} title="Negrito">
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              onClick={() => onApplyWrap("**")}
+              title="Negrito"
+            >
               <Bold className="h-4 w-4" />
             </Button>
-            <Button type="button" variant="ghost" size="icon" onClick={() => onApplyWrap("*")} title="Itálico">
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              onClick={() => onApplyWrap("*")}
+              title="Itálico"
+            >
               <Italic className="h-4 w-4" />
             </Button>
             <Button
@@ -147,13 +162,31 @@ const PostContentEditor = ({
             >
               <Underline className="h-4 w-4" />
             </Button>
-            <Button type="button" variant="ghost" size="icon" onClick={() => onApplyWrap("~~")} title="Tachado">
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              onClick={() => onApplyWrap("~~")}
+              title="Tachado"
+            >
               <Strikethrough className="h-4 w-4" />
             </Button>
-            <Button type="button" variant="ghost" size="icon" onClick={onApplyHeading} title="Título">
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              onClick={onApplyHeading}
+              title="Título"
+            >
               <Heading1 className="h-4 w-4" />
             </Button>
-            <Button type="button" variant="ghost" size="icon" onClick={onApplyUnorderedList} title="Lista">
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              onClick={onApplyUnorderedList}
+              title="Lista"
+            >
               <List className="h-4 w-4" />
             </Button>
             <Button
@@ -165,13 +198,31 @@ const PostContentEditor = ({
             >
               <ListOrdered className="h-4 w-4" />
             </Button>
-            <Button type="button" variant="ghost" size="icon" onClick={() => onAlign("left")} title="Alinhar à esquerda">
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              onClick={() => onAlign("left")}
+              title="Alinhar à esquerda"
+            >
               <AlignLeft className="h-4 w-4" />
             </Button>
-            <Button type="button" variant="ghost" size="icon" onClick={() => onAlign("center")} title="Centralizar">
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              onClick={() => onAlign("center")}
+              title="Centralizar"
+            >
               <AlignCenter className="h-4 w-4" />
             </Button>
-            <Button type="button" variant="ghost" size="icon" onClick={() => onAlign("right")} title="Alinhar à direita">
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              onClick={() => onAlign("right")}
+              title="Alinhar à direita"
+            >
               <AlignRight className="h-4 w-4" />
             </Button>
             <ColorPicker
@@ -265,13 +316,31 @@ const PostContentEditor = ({
                 </div>
               </PopoverContent>
             </Popover>
-            <Button type="button" variant="ghost" size="icon" onClick={onOpenImageDialog} title="Imagem">
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              onClick={onOpenImageDialog}
+              title="Imagem"
+            >
               <FileImage className="h-4 w-4" />
             </Button>
-            <Button type="button" variant="ghost" size="icon" onClick={onOpenLinkDialog} title="Inserir link">
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              onClick={onOpenLinkDialog}
+              title="Inserir link"
+            >
               <LinkIcon className="h-4 w-4" />
             </Button>
-            <Button type="button" variant="ghost" size="icon" onClick={onEmbedVideo} title="Incorporar vídeo">
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              onClick={onEmbedVideo}
+              title="Incorporar vídeo"
+            >
               <Video className="h-4 w-4" />
             </Button>
             <Button type="button" variant="ghost" size="icon" onClick={onUndo} title="Desfazer">
@@ -307,7 +376,7 @@ const PostContentEditor = ({
 
     {showPreview ? (
       <div className="rounded-2xl border border-border/60 bg-card/80 p-6">
-        <h2 className="text-lg font-semibold text-foreground">Preview</h2>
+        <h2 className="text-lg font-semibold text-foreground">Prévia</h2>
         <div className="mt-6 space-y-6">
           {previewMeta}
           <h3 className="text-2xl font-semibold text-foreground">{title || "Sem título"}</h3>
@@ -331,4 +400,3 @@ const PostContentEditor = ({
 );
 
 export default PostContentEditor;
-

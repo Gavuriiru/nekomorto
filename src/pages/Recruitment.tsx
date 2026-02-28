@@ -3,6 +3,7 @@ import { usePageMeta } from "@/hooks/use-page-meta";
 import { useSiteSettings } from "@/hooks/use-site-settings";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { publicPageLayoutTokens } from "@/components/public-page-tokens";
 import {
   Languages,
   ScanText,
@@ -133,8 +134,11 @@ const Recruitment = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      <main className="px-6 pb-20 pt-20 md:px-12">
-        <section className="mx-auto w-full max-w-6xl pb-10 pt-6 reveal" data-reveal>
+      <main className="pb-20 pt-20">
+        <section
+          className={`${publicPageLayoutTokens.sectionBase} max-w-6xl pb-10 pt-6 reveal`}
+          data-reveal
+        >
           <div className="space-y-4">
             <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground animate-fade-in">
               {recruitment.heroBadge}
@@ -151,7 +155,7 @@ const Recruitment = () => {
           </div>
         </section>
 
-        <section className="mx-auto w-full max-w-6xl reveal" data-reveal>
+        <section className={`${publicPageLayoutTokens.sectionBase} max-w-6xl reveal`} data-reveal>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {recruitment.roles.map((role, index) => {
               const Icon = iconMap[role.icon || "Sparkles"] || Sparkles;
@@ -180,7 +184,10 @@ const Recruitment = () => {
           </div>
         </section>
 
-        <section className="mx-auto mt-12 w-full max-w-6xl reveal" data-reveal>
+        <section
+          className={`${publicPageLayoutTokens.sectionBase} mt-12 max-w-6xl reveal`}
+          data-reveal
+        >
           <Card
             className="group bg-card/70 animate-fade-in opacity-0 transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:bg-card/90 hover:shadow-lg"
             style={{ animationDelay: "0.4s" }}
@@ -211,9 +218,3 @@ const Recruitment = () => {
 };
 
 export default Recruitment;
-
-
-
-
-
-

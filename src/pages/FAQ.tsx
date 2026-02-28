@@ -4,6 +4,7 @@ import { Separator } from "@/components/ui/separator";
 import { HelpCircle, Info, Users, Rocket, Shield, Sparkles } from "lucide-react";
 import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
+import { publicPageLayoutTokens } from "@/components/public-page-tokens";
 import { usePageMeta } from "@/hooks/use-page-meta";
 
 const iconMap: Record<string, typeof HelpCircle> = {
@@ -39,34 +40,59 @@ const defaultFaq = {
       items: [
         {
           question: "O que é a Nekomata Fansub?",
-          answer: "Somos um grupo de fãs que traduz e adapta conteúdos com foco em qualidade, estilo e respeito à obra.",
+          answer:
+            "Somos um grupo de fãs que traduz e adapta conteúdos com foco em qualidade, estilo e respeito à obra.",
         },
-        { question: "Vocês cobram pelos lançamentos?", answer: "Não. Nosso trabalho é feito por paixão e sem fins lucrativos." },
-        { question: "Qual a prioridade da equipe?", answer: "Entregar algo bonito, legível e consistente, mesmo que isso leve mais tempo." },
+        {
+          question: "Vocês cobram pelos lançamentos?",
+          answer: "Não. Nosso trabalho é feito por paixão e sem fins lucrativos.",
+        },
+        {
+          question: "Qual a prioridade da equipe?",
+          answer: "Entregar algo bonito, legível e consistente, mesmo que isso leve mais tempo.",
+        },
       ],
     },
     {
       title: "Recrutamento",
       icon: "Users",
       items: [
-        { question: "Posso entrar para a equipe?", answer: "Sim! Sempre buscamos pessoas comprometidas. Entre em contato pelo Discord." },
-        { question: "Preciso ter experiência?", answer: "Ajuda, mas não é obrigatório. O principal é vontade de aprender e consistência." },
+        {
+          question: "Posso entrar para a equipe?",
+          answer: "Sim! Sempre buscamos pessoas comprometidas. Entre em contato pelo Discord.",
+        },
+        {
+          question: "Preciso ter experiência?",
+          answer: "Ajuda, mas não é obrigatório. O principal é vontade de aprender e consistência.",
+        },
       ],
     },
     {
       title: "Projetos e lançamentos",
       icon: "Rocket",
       items: [
-        { question: "Quando sai o próximo episódio?", answer: "Quando estiver pronto. Evitamos datas exatas para priorizar qualidade." },
-        { question: "Posso sugerir um projeto?", answer: "Pode sim! Levamos em conta a demanda e a capacidade da equipe." },
+        {
+          question: "Quando sai o próximo episódio?",
+          answer: "Quando estiver pronto. Evitamos datas exatas para priorizar qualidade.",
+        },
+        {
+          question: "Posso sugerir um projeto?",
+          answer: "Pode sim! Levamos em conta a demanda e a capacidade da equipe.",
+        },
       ],
     },
     {
       title: "Qualidade e suporte",
       icon: "Shield",
       items: [
-        { question: "Como reporto um erro?", answer: "Fale com a equipe pelo Discord. Quanto mais detalhes, melhor." },
-        { question: "A legenda não aparece. O que faço?", answer: "Verifique o player e o arquivo. Recomendamos players como MPV e VLC." },
+        {
+          question: "Como reporto um erro?",
+          answer: "Fale com a equipe pelo Discord. Quanto mais detalhes, melhor.",
+        },
+        {
+          question: "A legenda não aparece. O que faço?",
+          answer: "Verifique o player e o arquivo. Recomendamos players como MPV e VLC.",
+        },
       ],
     },
   ],
@@ -102,13 +128,15 @@ const FAQ = () => {
 
   return (
     <div className="min-h-screen bg-background text-foreground">
-
       <main>
         <section className="relative overflow-hidden border-b border-border/60">
           <div className="absolute inset-0 bg-linear-to-b from-primary/15 via-background to-background" />
           <div className="absolute -left-24 top-10 h-64 w-64 rounded-full bg-primary/20 blur-[120px]" />
           <div className="absolute -right-24 bottom-10 h-64 w-64 rounded-full bg-accent/20 blur-[120px]" />
-          <div className="relative mx-auto flex w-full max-w-6xl flex-col gap-6 px-6 pb-16 pt-20 md:px-10 reveal" data-reveal>
+          <div
+            className={`${publicPageLayoutTokens.sectionBase} relative flex max-w-6xl flex-col gap-6 pb-16 pt-20 reveal`}
+            data-reveal
+          >
             <div className="max-w-3xl space-y-4">
               <h1 className="text-3xl font-semibold text-foreground md:text-5xl animate-slide-up">
                 {faq.heroTitle}
@@ -123,7 +151,10 @@ const FAQ = () => {
           </div>
         </section>
 
-        <section className="mx-auto w-full max-w-6xl px-6 pb-16 pt-10 md:px-10 reveal" data-reveal>
+        <section
+          className={`${publicPageLayoutTokens.sectionBase} max-w-6xl pb-16 pt-10 reveal`}
+          data-reveal
+        >
           <div className="grid gap-6 md:grid-cols-2">
             {faq.introCards.map((card) => {
               const Icon = iconMap[card.icon] || HelpCircle;
@@ -137,9 +168,13 @@ const FAQ = () => {
                       <Icon className="h-4 w-4 text-primary/80 transition-colors duration-300 group-hover:text-primary" />
                       {card.title}
                     </div>
-                    <p className="text-sm text-muted-foreground transition-colors duration-300 group-hover:text-foreground/80">{card.text}</p>
+                    <p className="text-sm text-muted-foreground transition-colors duration-300 group-hover:text-foreground/80">
+                      {card.text}
+                    </p>
                     <Separator className="bg-border/60" />
-                    <p className="text-sm text-muted-foreground transition-colors duration-300 group-hover:text-foreground/80">{card.note}</p>
+                    <p className="text-sm text-muted-foreground transition-colors duration-300 group-hover:text-foreground/80">
+                      {card.note}
+                    </p>
                   </CardContent>
                 </Card>
               );
@@ -147,15 +182,15 @@ const FAQ = () => {
           </div>
         </section>
 
-        <section className="mx-auto w-full max-w-6xl px-6 pb-24 pt-2 md:px-10 reveal" data-reveal>
+        <section
+          className={`${publicPageLayoutTokens.sectionBase} max-w-6xl pb-24 pt-2 reveal`}
+          data-reveal
+        >
           <div className="grid gap-6">
             {faq.groups.map((group) => {
               const Icon = iconMap[group.icon] || HelpCircle;
               return (
-                <Card
-                  key={group.title}
-                  className="border-border/60 bg-card/80 shadow-lg"
-                >
+                <Card key={group.title} className="border-border/60 bg-card/80 shadow-lg">
                   <CardContent className="space-y-5 p-6">
                     <div className="flex items-center gap-3 text-sm font-semibold uppercase tracking-widest text-muted-foreground">
                       <Icon className="h-4 w-4 text-primary/80" />
@@ -167,8 +202,12 @@ const FAQ = () => {
                           key={item.question}
                           className="group/item rounded-2xl border border-border/60 bg-background/60 p-4 transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:bg-background/70 hover:shadow-lg"
                         >
-                          <p className="text-sm font-semibold text-foreground transition-colors duration-300 group-hover/item:text-primary">{item.question}</p>
-                          <p className="mt-2 text-sm text-muted-foreground transition-colors duration-300 group-hover/item:text-foreground/80">{item.answer}</p>
+                          <p className="text-sm font-semibold text-foreground transition-colors duration-300 group-hover/item:text-primary">
+                            {item.question}
+                          </p>
+                          <p className="mt-2 text-sm text-muted-foreground transition-colors duration-300 group-hover/item:text-foreground/80">
+                            {item.answer}
+                          </p>
                         </div>
                       ))}
                     </div>
@@ -184,9 +223,3 @@ const FAQ = () => {
 };
 
 export default FAQ;
-
-
-
-
-
-

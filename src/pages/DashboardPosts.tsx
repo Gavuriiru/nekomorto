@@ -332,11 +332,11 @@ type ComparablePostSnapshot = {
 };
 
 const normalizeComparableTags = (value?: string[] | null) =>
-  (Array.isArray(value) ? value : [])
-    .map((tag) => String(tag || "").trim())
-    .filter(Boolean);
+  (Array.isArray(value) ? value : []).map((tag) => String(tag || "").trim()).filter(Boolean);
 
-const buildComparableSnapshotFromPost = (post?: PostRecord | null): ComparablePostSnapshot | null => {
+const buildComparableSnapshotFromPost = (
+  post?: PostRecord | null,
+): ComparablePostSnapshot | null => {
   if (!post) {
     return null;
   }
@@ -359,7 +359,9 @@ const buildComparableSnapshotFromPost = (post?: PostRecord | null): ComparablePo
   };
 };
 
-const normalizeComparableVersionSnapshot = (snapshot?: ContentVersion["snapshot"] | null): ComparablePostSnapshot => ({
+const normalizeComparableVersionSnapshot = (
+  snapshot?: ContentVersion["snapshot"] | null,
+): ComparablePostSnapshot => ({
   title: String(snapshot?.title || "").trim(),
   slug: String(snapshot?.slug || "").trim(),
   status:
@@ -408,7 +410,11 @@ const hasRestorableVersionForPost = (
   post?: PostRecord | null,
   nextCursor?: string | null,
 ) => {
-  if ((Array.isArray(versions) ? versions : []).some((version) => isVersionRestorableAgainstPost(version, post))) {
+  if (
+    (Array.isArray(versions) ? versions : []).some((version) =>
+      isVersionRestorableAgainstPost(version, post),
+    )
+  ) {
     return true;
   }
   return Boolean(nextCursor);
@@ -454,12 +460,14 @@ const DashboardPosts = () => {
   const [calendarTz, setCalendarTz] = useState(timeZone);
   const [isCalendarLoading, setIsCalendarLoading] = useState(false);
   const [hasCalendarError, setHasCalendarError] = useState(false);
-  const [sortMode, setSortMode] = useState<"recent" | "alpha" | "tags" | "projects" | "status" | "views" | "comments">(() =>
-    parseSortParam(searchParams.get("sort")),
-  );
+  const [sortMode, setSortMode] = useState<
+    "recent" | "alpha" | "tags" | "projects" | "status" | "views" | "comments"
+  >(() => parseSortParam(searchParams.get("sort")));
   const [currentPage, setCurrentPage] = useState(() => parsePageParam(searchParams.get("page")));
   const [searchQuery, setSearchQuery] = useState(() => searchParams.get("q") || "");
-  const [projectFilterId, setProjectFilterId] = useState<string>(() => searchParams.get("project") || "all");
+  const [projectFilterId, setProjectFilterId] = useState<string>(
+    () => searchParams.get("project") || "all",
+  );
   const [projectFilterQuery, setProjectFilterQuery] = useState("");
   const [deleteTarget, setDeleteTarget] = useState<PostRecord | null>(null);
   const [tagInput, setTagInput] = useState("");
@@ -599,7 +607,8 @@ const DashboardPosts = () => {
         setPostVersions(versions);
         setVersionsNextCursor(nextCursor);
         const currentPostForComparison =
-          posts.find((post) => post.id === postId) || (editingPost?.id === postId ? editingPost : null);
+          posts.find((post) => post.id === postId) ||
+          (editingPost?.id === postId ? editingPost : null);
         setVersionHistoryAvailabilityByPostId((prev) => ({
           ...prev,
           [postId]: hasRestorableVersionForPost(versions, currentPostForComparison, nextCursor),
@@ -833,7 +842,9 @@ const DashboardPosts = () => {
     };
     if (isEditorOpen && isDirty) {
       setConfirmTitle("Criar nova postagem?");
-      setConfirmDescription("Há alterações não salvas. Deseja descartar e criar uma nova postagem?");
+      setConfirmDescription(
+        "Há alterações não salvas. Deseja descartar e criar uma nova postagem?",
+      );
       confirmActionRef.current = () => {
         setEditingPost(null);
         setIsSlugCustom(false);
@@ -909,7 +920,7 @@ const DashboardPosts = () => {
     } catch {
       toast({
         title: "Não foi possível criar a versão",
-        description: "Tente novamente em alguns segundos.",
+        description: "Tente novamente em alguns instantes.",
       });
     } finally {
       setIsCreatingManualVersion(false);
@@ -922,7 +933,11 @@ const DashboardPosts = () => {
     }
     setIsRollingBackVersion(true);
     try {
-      const response = await rollbackPostVersion<PostRecord>(apiBase, editingPost.id, rollbackTargetVersion.id);
+      const response = await rollbackPostVersion<PostRecord>(
+        apiBase,
+        editingPost.id,
+        rollbackTargetVersion.id,
+      );
       await loadPosts();
       if (response?.post) {
         openEdit(response.post);
@@ -945,7 +960,15 @@ const DashboardPosts = () => {
     } finally {
       setIsRollingBackVersion(false);
     }
-  }, [apiBase, checkRestorableHistoryAvailability, editingPost?.id, loadPosts, loadVersionHistory, openEdit, rollbackTargetVersion]);
+  }, [
+    apiBase,
+    checkRestorableHistoryAvailability,
+    editingPost?.id,
+    loadPosts,
+    loadVersionHistory,
+    openEdit,
+    rollbackTargetVersion,
+  ]);
 
   useEffect(() => {
     const editTarget = (searchParams.get("edit") || "").trim();
@@ -1084,16 +1107,19 @@ const DashboardPosts = () => {
       return ordered;
     });
   }, [projectTags, formState.tags]);
-  const isRestorable = useCallback((post: PostRecord) => {
-    if (!post.deletedAt) {
-      return false;
-    }
-    const ts = new Date(post.deletedAt).getTime();
-    if (!Number.isFinite(ts)) {
-      return false;
-    }
-    return Date.now() - ts <= restoreWindowMs;
-  }, [restoreWindowMs]);
+  const isRestorable = useCallback(
+    (post: PostRecord) => {
+      if (!post.deletedAt) {
+        return false;
+      }
+      const ts = new Date(post.deletedAt).getTime();
+      if (!Number.isFinite(ts)) {
+        return false;
+      }
+      return Date.now() - ts <= restoreWindowMs;
+    },
+    [restoreWindowMs],
+  );
   const getRestoreRemainingLabel = (post: PostRecord) => {
     if (!post.deletedAt) {
       return "";
@@ -1149,7 +1175,11 @@ const DashboardPosts = () => {
       return activePosts;
     }
     return activePosts.filter((post) => {
-      if (sortMode === "projects" && projectFilterId !== "all" && post.projectId !== projectFilterId) {
+      if (
+        sortMode === "projects" &&
+        projectFilterId !== "all" &&
+        post.projectId !== projectFilterId
+      ) {
         return false;
       }
       const project = post.projectId ? projectMap.get(post.projectId) : null;
@@ -1453,8 +1483,6 @@ const DashboardPosts = () => {
     [editorResolvedCover.coverImageUrl, editorResolvedCover.source],
   );
 
-
-
   const handleCopyLink = async (slug: string) => {
     const url = `${window.location.origin}/postagem/${slug}`;
     try {
@@ -1473,8 +1501,11 @@ const DashboardPosts = () => {
         ? new Date(parsedPublishAtMs).toISOString()
         : null;
     const nowIso = new Date().toISOString();
-    const originalPublishAtLocal = editingPost ? toLocalDateTimeFromIso(editingPost.publishedAt) : "";
-    const didPublishAtChange = Boolean(editingPost) && formState.publishAt !== originalPublishAtLocal;
+    const originalPublishAtLocal = editingPost
+      ? toLocalDateTimeFromIso(editingPost.publishedAt)
+      : "";
+    const didPublishAtChange =
+      Boolean(editingPost) && formState.publishAt !== originalPublishAtLocal;
     let resolvedPublishedAt = editingPost?.publishedAt || nowIso;
     if (overrideStatus === "published") {
       resolvedPublishedAt = nowIso;
@@ -1483,7 +1514,8 @@ const DashboardPosts = () => {
     } else if (publishAtValue) {
       resolvedPublishedAt = publishAtValue;
     }
-    const scheduledDateSource = editingPost && !didPublishAtChange ? editingPost.publishedAt : publishAtValue;
+    const scheduledDateSource =
+      editingPost && !didPublishAtChange ? editingPost.publishedAt : publishAtValue;
     const hasScheduledDate = resolvedStatus !== "scheduled" || Boolean(scheduledDateSource);
     if (!hasScheduledDate) {
       toast({
@@ -1639,7 +1671,10 @@ const DashboardPosts = () => {
     if (editingPost && deleteTarget.id === editingPost.id) {
       closeEditor();
     }
-    toast({ title: "Postagem movida para a lixeira", description: "Você pode restaurar por 3 dias." });
+    toast({
+      title: "Postagem movida para a lixeira",
+      description: "Você pode restaurar por 3 dias.",
+    });
   };
   const handleRestorePost = async (post: PostRecord) => {
     const response = await apiFetch(apiBase, `/api/posts/${post.id}/restore`, {
@@ -1660,13 +1695,13 @@ const DashboardPosts = () => {
     toast({ title: "Postagem restaurada" });
   };
 
-  const persistedEditingPost =
-    editingPost?.id ? posts.find((post) => post.id === editingPost.id) || editingPost : null;
+  const persistedEditingPost = editingPost?.id
+    ? posts.find((post) => post.id === editingPost.id) || editingPost
+    : null;
 
   const editingPostHasRestorableHistory = Boolean(
     editingPost?.id && versionHistoryAvailabilityByPostId[editingPost.id] === true,
   );
-
 
   return (
     <>
@@ -1683,936 +1718,980 @@ const DashboardPosts = () => {
         }}
       >
         <DashboardPageContainer>
-            <DashboardPageHeader
-              badge="Postagens"
-              title="Gerenciar posts"
-              description="Visualize, edite e publique os posts mais recentes do site."
-              actions={canManagePosts ? (
+          <DashboardPageHeader
+            badge="Postagens"
+            title="Gerenciar posts"
+            description="Visualize, edite e publique os posts mais recentes do site."
+            actions={
+              canManagePosts ? (
                 <Button className="gap-2" onClick={openCreate}>
                   <Plus className="h-4 w-4" />
                   Nova postagem
                 </Button>
-              ) : undefined}
-            />
+              ) : undefined
+            }
+          />
 
-            {isEditorOpen && canManagePosts ? (
-              <>
-                <div
-                  className="pointer-events-auto fixed inset-0 z-40 bg-black/80 backdrop-blur-xs"
-                  aria-hidden="true"
-                />
-                <Dialog open={isEditorOpen} onOpenChange={handleEditorOpenChange} modal={false}>
-                  <DialogContent
-                    className={`max-w-6xl max-h-[92vh] overflow-y-auto no-scrollbar ${
-                      isEditorDialogScrolled ? "editor-modal-scrolled" : ""
-                    }`}
-                    onScroll={(event) => {
-                      const nextScrolled = event.currentTarget.scrollTop > 0;
-                      setIsEditorDialogScrolled((prev) =>
-                        prev === nextScrolled ? prev : nextScrolled,
-                      );
-                    }}
-                    onPointerDownOutside={(event) => {
-                      if (isLibraryOpen) {
-                        event.preventDefault();
-                        return;
-                      }
+          {isEditorOpen && canManagePosts ? (
+            <>
+              <div
+                className="pointer-events-auto fixed inset-0 z-40 bg-black/80 backdrop-blur-xs"
+                aria-hidden="true"
+              />
+              <Dialog open={isEditorOpen} onOpenChange={handleEditorOpenChange} modal={false}>
+                <DialogContent
+                  className={`max-w-6xl max-h-[92vh] overflow-y-auto no-scrollbar ${
+                    isEditorDialogScrolled ? "editor-modal-scrolled" : ""
+                  }`}
+                  onScroll={(event) => {
+                    const nextScrolled = event.currentTarget.scrollTop > 0;
+                    setIsEditorDialogScrolled((prev) =>
+                      prev === nextScrolled ? prev : nextScrolled,
+                    );
+                  }}
+                  onPointerDownOutside={(event) => {
+                    if (isLibraryOpen) {
+                      event.preventDefault();
+                      return;
+                    }
+                    const target = event.target as HTMLElement | null;
+                    if (target?.closest(".lexical-playground")) {
+                      event.preventDefault();
+                    }
+                  }}
+                  onInteractOutside={(event) => {
+                    if (isLibraryOpen) {
+                      event.preventDefault();
+                      return;
+                    }
+                    const target = event.target as HTMLElement | null;
+                    if (target?.closest(".lexical-playground")) {
+                      event.preventDefault();
+                    }
+                  }}
+                >
+                  <DialogHeader>
+                    <DialogTitle>{editingPost ? "Editar postagem" : "Nova postagem"}</DialogTitle>
+                    <DialogDescription>
+                      Crie, edite e publique conteúdos sem sair da listagem.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div
+                    className="mt-2 space-y-8"
+                    onFocusCapture={(event) => {
                       const target = event.target as HTMLElement | null;
                       if (target?.closest(".lexical-playground")) {
-                        event.preventDefault();
-                      }
-                    }}
-                    onInteractOutside={(event) => {
-                      if (isLibraryOpen) {
-                        event.preventDefault();
                         return;
                       }
-                      const target = event.target as HTMLElement | null;
-                      if (target?.closest(".lexical-playground")) {
-                        event.preventDefault();
-                      }
+                      editorRef.current?.blur();
                     }}
                   >
-                    <DialogHeader>
-                      <DialogTitle>{editingPost ? "Editar postagem" : "Nova postagem"}</DialogTitle>
-                      <DialogDescription>
-                        Crie, edite e publique conteúdos sem sair da listagem.
-                      </DialogDescription>
-                    </DialogHeader>
-                    <div
-                      className="mt-2 space-y-8"
-                      onFocusCapture={(event) => {
-                        const target = event.target as HTMLElement | null;
-                        if (target?.closest(".lexical-playground")) {
-                          return;
-                        }
-                        editorRef.current?.blur();
-                      }}
-                    >
-                <div className="grid gap-8 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
-                  <Suspense fallback={<LexicalEditorFallback />}>
-                    <LexicalEditor
-                      ref={editorRef}
-                      value={formState.contentLexical}
-                      onChange={(value) =>
-                        setFormState((prev) => ({
-                          ...prev,
-                          contentLexical: value,
-                        }))
-                      }
-                      placeholder="Escreva o conteúdo do post..."
-                      className="lexical-playground--stretch lexical-playground--modal min-w-0 w-full"
-                      imageLibraryOptions={postImageLibraryOptions}
-                    />
-                  </Suspense>
+                    <div className="grid gap-8 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+                      <Suspense fallback={<LexicalEditorFallback />}>
+                        <LexicalEditor
+                          ref={editorRef}
+                          value={formState.contentLexical}
+                          onChange={(value) =>
+                            setFormState((prev) => ({
+                              ...prev,
+                              contentLexical: value,
+                            }))
+                          }
+                          placeholder="Escreva o conteúdo do post..."
+                          className="lexical-playground--stretch lexical-playground--modal min-w-0 w-full"
+                          imageLibraryOptions={postImageLibraryOptions}
+                        />
+                      </Suspense>
 
-                  <aside className="min-w-0 space-y-6">
-                    <Card className="border-border/60 bg-card/80">
-                      <CardContent className="space-y-5 p-6">
-                        <div className="space-y-2">
-                          <Label htmlFor="post-title">{"T\u00edtulo"}</Label>
-                          <Input
-                            id="post-title"
-                            value={formState.title}
-                            onChange={(event) =>
-                              setFormState((prev) => ({ ...prev, title: event.target.value }))
-                            }
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <div className="flex items-center justify-between">
-                            <Label htmlFor="post-slug">Link</Label>
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => setIsSlugCustom((prev) => !prev)}
-                            >
-                              {isSlugCustom ? "Automático" : "Personalizar"}
-                            </Button>
-                          </div>
-                          <Input
-                            id="post-slug"
-                            value={formState.slug}
-                            onChange={(event) => {
-                              setIsSlugCustom(true);
-                              setFormState((prev) => ({ ...prev, slug: event.target.value }));
-                            }}
-                            disabled={!isSlugCustom}
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="post-author">Autor</Label>
-                          <Input
-                            id="post-author"
-                            value={formState.author}
-                            onChange={(event) =>
-                              setFormState((prev) => ({ ...prev, author: event.target.value }))
-                            }
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="post-status">Status</Label>
-                          <Select
-                            value={formState.status}
-                            onValueChange={(value) =>
-                              setFormState((prev) => ({
-                                ...prev,
-                                status: value as "draft" | "scheduled" | "published",
-                              }))
-                            }
-                          >
-                            <SelectTrigger id="post-status">
-                              <SelectValue placeholder="Selecione" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="draft">Rascunho</SelectItem>
-                              <SelectItem value="scheduled">Agendado</SelectItem>
-                              <SelectItem value="published">Publicado</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="post-date">{"Publica\u00e7\u00e3o"}</Label>
-                          <MuiDateTimeFieldsProvider>
-                            <div className="grid gap-3 md:grid-cols-[1.2fr_0.8fr]">
-                              <MuiBrazilDateField
-                                id="post-date"
-                                value={publishDateValue}
-                                onChange={handlePublishDateChange}
+                      <aside className="min-w-0 space-y-6">
+                        <Card className="border-border/60 bg-card/80">
+                          <CardContent className="space-y-5 p-6">
+                            <div className="space-y-2">
+                              <Label htmlFor="post-title">{"T\u00edtulo"}</Label>
+                              <Input
+                                id="post-title"
+                                value={formState.title}
+                                onChange={(event) =>
+                                  setFormState((prev) => ({ ...prev, title: event.target.value }))
+                                }
                               />
-                              <div className="flex items-center gap-2">
-                                <MuiBrazilTimeField
-                                  id="post-time"
-                                  value={publishTimeValue}
-                                  onChange={handlePublishTimeChange}
-                                  className="flex-1"
-                                />
+                            </div>
+                            <div className="space-y-2">
+                              <div className="flex items-center justify-between">
+                                <Label htmlFor="post-slug">Link</Label>
                                 <Button
                                   type="button"
-                                  size="sm"
                                   variant="ghost"
-                                  className="h-8 px-2 text-xs"
-                                  onClick={handleSetNow}
+                                  size="sm"
+                                  onClick={() => setIsSlugCustom((prev) => !prev)}
                                 >
-                                  Agora
+                                  {isSlugCustom ? "Automático" : "Personalizar"}
                                 </Button>
                               </div>
+                              <Input
+                                id="post-slug"
+                                value={formState.slug}
+                                onChange={(event) => {
+                                  setIsSlugCustom(true);
+                                  setFormState((prev) => ({ ...prev, slug: event.target.value }));
+                                }}
+                                disabled={!isSlugCustom}
+                              />
                             </div>
-                          </MuiDateTimeFieldsProvider>
-                        </div>
-                      </CardContent>
-                    </Card>
-
-                    <Card className="border-border/60 bg-card/80">
-                      <CardContent className="space-y-4 p-6">
-                        <div className="space-y-2">
-                          <Label>Capa</Label>
-                          {editorResolvedCover.coverImageUrl ? (
                             <div className="space-y-2">
-                              <div className="overflow-hidden rounded-lg border border-border bg-muted/20">
-                                <img
-                                  src={normalizeAssetUrl(editorResolvedCover.coverImageUrl)}
-                                  alt={editorResolvedCover.coverAlt}
-                                  className="aspect-3/2 w-full object-cover"
-                                />
-                              </div>
-                              <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
-                                <span className="min-w-0 truncate">
-                                  {editorCoverFileName || "Imagem"}
-                                </span>
-                                <Badge
-                                  variant={editorResolvedCover.source === "manual" ? "secondary" : "outline"}
-                                  className="shrink-0 text-[10px] uppercase"
-                                >
-                                  {editorResolvedCover.source === "manual" ? "Manual" : "Automática"}
-                                </Badge>
+                              <Label htmlFor="post-author">Autor</Label>
+                              <Input
+                                id="post-author"
+                                value={formState.author}
+                                onChange={(event) =>
+                                  setFormState((prev) => ({ ...prev, author: event.target.value }))
+                                }
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <Label htmlFor="post-status">Status</Label>
+                              <Select
+                                value={formState.status}
+                                onValueChange={(value) =>
+                                  setFormState((prev) => ({
+                                    ...prev,
+                                    status: value as "draft" | "scheduled" | "published",
+                                  }))
+                                }
+                              >
+                                <SelectTrigger id="post-status">
+                                  <SelectValue placeholder="Selecione" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="draft">Rascunho</SelectItem>
+                                  <SelectItem value="scheduled">Agendado</SelectItem>
+                                  <SelectItem value="published">Publicado</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            <div className="space-y-2">
+                              <Label htmlFor="post-date">{"Publica\u00e7\u00e3o"}</Label>
+                              <MuiDateTimeFieldsProvider>
+                                <div className="grid gap-3 md:grid-cols-[1.2fr_0.8fr]">
+                                  <MuiBrazilDateField
+                                    id="post-date"
+                                    value={publishDateValue}
+                                    onChange={handlePublishDateChange}
+                                  />
+                                  <div className="flex items-center gap-2">
+                                    <MuiBrazilTimeField
+                                      id="post-time"
+                                      value={publishTimeValue}
+                                      onChange={handlePublishTimeChange}
+                                      className="flex-1"
+                                    />
+                                    <Button
+                                      type="button"
+                                      size="sm"
+                                      variant="ghost"
+                                      className="h-8 px-2 text-xs"
+                                      onClick={handleSetNow}
+                                    >
+                                      Agora
+                                    </Button>
+                                  </div>
+                                </div>
+                              </MuiDateTimeFieldsProvider>
+                            </div>
+                          </CardContent>
+                        </Card>
+
+                        <Card className="border-border/60 bg-card/80">
+                          <CardContent className="space-y-4 p-6">
+                            <div className="space-y-2">
+                              <Label>Capa</Label>
+                              {editorResolvedCover.coverImageUrl ? (
+                                <div className="space-y-2">
+                                  <div className="overflow-hidden rounded-lg border border-border bg-muted/20">
+                                    <img
+                                      src={normalizeAssetUrl(editorResolvedCover.coverImageUrl)}
+                                      alt={editorResolvedCover.coverAlt}
+                                      className="aspect-3/2 w-full object-cover"
+                                    />
+                                  </div>
+                                  <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
+                                    <span className="min-w-0 truncate">
+                                      {editorCoverFileName || "Imagem"}
+                                    </span>
+                                    <Badge
+                                      variant={
+                                        editorResolvedCover.source === "manual"
+                                          ? "secondary"
+                                          : "outline"
+                                      }
+                                      className="shrink-0 text-[10px] uppercase"
+                                    >
+                                      {editorResolvedCover.source === "manual"
+                                        ? "Manual"
+                                        : "Automática"}
+                                    </Badge>
+                                  </div>
+                                </div>
+                              ) : (
+                                <p className="text-xs text-muted-foreground">Sem capa definida.</p>
+                              )}
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={openLibrary}
+                              >
+                                Biblioteca
+                              </Button>
+                            </div>
+                          </CardContent>
+                        </Card>
+
+                        <Card className="border-border/60 bg-card/80">
+                          <CardContent className="space-y-4 p-6">
+                            <div className="space-y-2">
+                              <Label>Projeto associado</Label>
+                              <Select
+                                value={formState.projectId || "none"}
+                                onValueChange={(value) =>
+                                  setFormState((prev) => ({
+                                    ...prev,
+                                    projectId: value === "none" ? "" : value,
+                                  }))
+                                }
+                              >
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Selecione" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="none">Nenhum</SelectItem>
+                                  {projects.map((project) => (
+                                    <SelectItem key={project.id} value={project.id}>
+                                      {project.title}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                          </CardContent>
+                        </Card>
+
+                        <Card className="border-border/60 bg-card/80">
+                          <CardContent className="space-y-4 p-6">
+                            <div className="space-y-2">
+                              <Label>Tags</Label>
+                              <div className="flex flex-wrap gap-2">
+                                {mergedTags.map((tag) => {
+                                  const isProjectTag = projectTags.includes(tag);
+                                  return (
+                                    <button
+                                      key={`tag-${tag}`}
+                                      type="button"
+                                      className="group"
+                                      draggable
+                                      onDragStart={() => handleTagDragStart(tag)}
+                                      onDragOver={(event) => event.preventDefault()}
+                                      onDrop={() => handleTagDrop(tag)}
+                                      onClick={() => {
+                                        if (!isProjectTag) {
+                                          handleRemoveTag(tag);
+                                        }
+                                      }}
+                                    >
+                                      <Badge
+                                        variant={isProjectTag ? "secondary" : "outline"}
+                                        className="text-[10px] uppercase"
+                                      >
+                                        {displayTag(tag)}
+                                        {isProjectTag ? null : (
+                                          <span className="ml-2 text-[10px] text-muted-foreground group-hover:text-foreground">
+                                            ?
+                                          </span>
+                                        )}
+                                      </Badge>
+                                    </button>
+                                  );
+                                })}
+                                {mergedTags.length === 0 ? (
+                                  <span className="text-xs text-muted-foreground">
+                                    Sem tags ainda.
+                                  </span>
+                                ) : null}
                               </div>
                             </div>
-                          ) : (
-                            <p className="text-xs text-muted-foreground">Sem capa definida.</p>
-                          )}
-                          <Button type="button" variant="outline" size="sm" onClick={openLibrary}>
-                            Biblioteca
-                          </Button>
-                        </div>
-                      </CardContent>
-                    </Card>
+                            <div className="flex flex-wrap gap-2">
+                              <Input
+                                ref={tagInputRef}
+                                value={tagInput}
+                                onChange={(event) => setTagInput(event.target.value)}
+                                placeholder="Adicionar tag"
+                                list="post-tag-options"
+                                onBlur={() => {
+                                  if (tagInput.trim()) {
+                                    handleAddTag();
+                                  }
+                                }}
+                                onKeyDown={(event) => {
+                                  if (event.key === "Enter" || event.key === ",") {
+                                    event.preventDefault();
+                                    handleAddTag();
+                                  }
+                                }}
+                              />
+                              <datalist id="post-tag-options">
+                                {availableTags.map((tag) => (
+                                  <option key={tag} value={tag} />
+                                ))}
+                              </datalist>
+                              <Button type="button" variant="secondary" onClick={handleAddTag}>
+                                Adicionar
+                              </Button>
+                            </div>
+                          </CardContent>
+                        </Card>
 
-                    <Card className="border-border/60 bg-card/80">
-                      <CardContent className="space-y-4 p-6">
-                        <div className="space-y-2">
-                          <Label>Projeto associado</Label>
-                          <Select
-                            value={formState.projectId || "none"}
-                            onValueChange={(value) =>
-                              setFormState((prev) => ({
-                                ...prev,
-                                projectId: value === "none" ? "" : value,
-                              }))
-                            }
-                          >
-                            <SelectTrigger>
-                              <SelectValue placeholder="Selecione" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="none">Nenhum</SelectItem>
-                              {projects.map((project) => (
-                                <SelectItem key={project.id} value={project.id}>
-                                  {project.title}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      </CardContent>
-                    </Card>
+                        <div className="flex flex-wrap gap-3" />
+                      </aside>
+                    </div>
 
-                    <Card className="border-border/60 bg-card/80">
-                      <CardContent className="space-y-4 p-6">
-                        <div className="space-y-2">
-                          <Label>Tags</Label>
-                          <div className="flex flex-wrap gap-2">
-                            {mergedTags.map((tag) => {
-                              const isProjectTag = projectTags.includes(tag);
-                              return (
-                                <button
-                                  key={`tag-${tag}`}
-                                  type="button"
-                                  className="group"
-                                  draggable
-                                  onDragStart={() => handleTagDragStart(tag)}
-                                  onDragOver={(event) => event.preventDefault()}
-                                  onDrop={() => handleTagDrop(tag)}
-                                  onClick={() => {
-                                    if (!isProjectTag) {
-                                      handleRemoveTag(tag);
-                                    }
-                                  }}
-                                >
-                                  <Badge
-                                    variant={isProjectTag ? "secondary" : "outline"}
-                                    className="text-[10px] uppercase"
-                                  >
-                                    {displayTag(tag)}
-                                    {isProjectTag ? null : (
-                                      <span className="ml-2 text-[10px] text-muted-foreground group-hover:text-foreground">
-                                        ?
-                                      </span>
-                                    )}
-                                  </Badge>
-                                </button>
-                              );
-                            })}
-                            {mergedTags.length === 0 ? (
-                              <span className="text-xs text-muted-foreground">Sem tags ainda.</span>
-                            ) : null}
-                          </div>
-                        </div>
-                        <div className="flex flex-wrap gap-2">
-                          <Input
-                            ref={tagInputRef}
-                            value={tagInput}
-                            onChange={(event) => setTagInput(event.target.value)}
-                            placeholder="Adicionar tag"
-                            list="post-tag-options"
-                            onBlur={() => {
-                              if (tagInput.trim()) {
-                                handleAddTag();
-                              }
-                            }}
-                            onKeyDown={(event) => {
-                              if (event.key === "Enter" || event.key === ",") {
-                                event.preventDefault();
-                                handleAddTag();
-                              }
-                            }}
-                          />
-                          <datalist id="post-tag-options">
-                            {availableTags.map((tag) => (
-                              <option key={tag} value={tag} />
-                            ))}
-                          </datalist>
-                          <Button type="button" variant="secondary" onClick={handleAddTag}>
-                            Adicionar
-                          </Button>
-                        </div>
-                      </CardContent>
-                    </Card>
-
-                    <div className="flex flex-wrap gap-3" />
-                  </aside>
-                </div>
-
-                {formState.projectId ? <ProjectEmbedCard projectId={formState.projectId} /> : null}
-                      <div className="flex flex-wrap justify-end gap-3">
-                        <Button variant="ghost" onClick={requestCloseEditor} className="gap-2">
-                          <X className="h-4 w-4" />
-                          Fechar
-                        </Button>
-                        {editingPost ? (
-                          <>
-                            {editingPostHasRestorableHistory ? (
-                            <Button variant="outline" onClick={() => void openVersionHistory()} className="gap-2">
+                    {formState.projectId ? (
+                      <ProjectEmbedCard projectId={formState.projectId} />
+                    ) : null}
+                    <div className="flex flex-wrap justify-end gap-3">
+                      <Button variant="ghost" onClick={requestCloseEditor} className="gap-2">
+                        <X className="h-4 w-4" />
+                        Fechar
+                      </Button>
+                      {editingPost ? (
+                        <>
+                          {editingPostHasRestorableHistory ? (
+                            <Button
+                              variant="outline"
+                              onClick={() => void openVersionHistory()}
+                              className="gap-2"
+                            >
                               <History className="h-4 w-4" />
                               Histórico
                             </Button>
-                            ) : null}
-                            <Button variant="outline" onClick={handleDelete} className="gap-2">
-                              <Trash2 className="h-4 w-4" />
-                              Excluir
-                            </Button>
-                            <Button onClick={() => handleSave()} className="gap-2">
-                              <Edit3 className="h-4 w-4" />
-                              Salvar
-                            </Button>
-                            {formState.status === "draft" ? (
-                              <Button onClick={() => handleSave("published")} className="gap-2">
-                                <Plus className="h-4 w-4" />
-                                Publicar agora
-                              </Button>
-                            ) : null}
-                          </>
-                        ) : (
-                          <>
-                            <Button variant="ghost" onClick={() => handleSave("draft")}>
-                              Salvar rascunho
-                            </Button>
-                            <Button variant="secondary" onClick={() => handleSave("scheduled")}>
-                              Agendar
-                            </Button>
+                          ) : null}
+                          <Button variant="outline" onClick={handleDelete} className="gap-2">
+                            <Trash2 className="h-4 w-4" />
+                            Excluir
+                          </Button>
+                          <Button onClick={() => handleSave()} className="gap-2">
+                            <Edit3 className="h-4 w-4" />
+                            Salvar
+                          </Button>
+                          {formState.status === "draft" ? (
                             <Button onClick={() => handleSave("published")} className="gap-2">
                               <Plus className="h-4 w-4" />
                               Publicar agora
                             </Button>
-                          </>
-                        )}
-                      </div>
+                          ) : null}
+                        </>
+                      ) : (
+                        <>
+                          <Button variant="ghost" onClick={() => handleSave("draft")}>
+                            Salvar rascunho
+                          </Button>
+                          <Button variant="secondary" onClick={() => handleSave("scheduled")}>
+                            Agendar
+                          </Button>
+                          <Button onClick={() => handleSave("published")} className="gap-2">
+                            <Plus className="h-4 w-4" />
+                            Publicar agora
+                          </Button>
+                        </>
+                      )}
                     </div>
-                  </DialogContent>
-                </Dialog>
-              </>
-            ) : null}
-
-            <section className="mt-10 space-y-6">
-              <div className="flex flex-wrap items-center justify-between gap-3 animate-slide-up opacity-0">
-                <div className="flex flex-1 flex-wrap items-center gap-3">
-                  <div className="w-full max-w-sm">
-                    <Input
-                      value={searchQuery}
-                      onChange={(event) => {
-                        setCurrentPage(1);
-                        setSearchQuery(event.target.value);
-                      }}
-                      placeholder="Buscar por título, slug, autor, tags..."
-                    />
                   </div>
+                </DialogContent>
+              </Dialog>
+            </>
+          ) : null}
+
+          <section className="mt-10 space-y-6">
+            <div className="flex flex-wrap items-center justify-between gap-3 animate-slide-up opacity-0">
+              <div className="flex flex-1 flex-wrap items-center gap-3">
+                <div className="w-full max-w-sm">
+                  <Input
+                    value={searchQuery}
+                    onChange={(event) => {
+                      setCurrentPage(1);
+                      setSearchQuery(event.target.value);
+                    }}
+                    placeholder="Buscar por título, slug, autor, tags..."
+                  />
+                </div>
+                <Select
+                  value={sortMode}
+                  onValueChange={(value) => {
+                    setCurrentPage(1);
+                    setSortMode(value as typeof sortMode);
+                  }}
+                >
+                  <SelectTrigger className="w-[200px]">
+                    <SelectValue placeholder="Ordenar por" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="recent">Mais recentes</SelectItem>
+                    <SelectItem value="alpha">Ordem alfabética</SelectItem>
+                    <SelectItem value="tags">Tags</SelectItem>
+                    <SelectItem value="projects">Projetos</SelectItem>
+                    <SelectItem value="status">Status</SelectItem>
+                    <SelectItem value="views">Visualizações</SelectItem>
+                    <SelectItem value="comments">Comentários</SelectItem>
+                  </SelectContent>
+                </Select>
+                {sortMode === "projects" ? (
                   <Select
-                    value={sortMode}
+                    value={projectFilterId}
                     onValueChange={(value) => {
                       setCurrentPage(1);
-                      setSortMode(value as typeof sortMode);
+                      setProjectFilterId(value);
                     }}
                   >
-                    <SelectTrigger className="w-[200px]">
-                      <SelectValue placeholder="Ordenar por" />
+                    <SelectTrigger className="w-[240px]">
+                      <SelectValue placeholder="Selecionar projeto" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="recent">Mais recentes</SelectItem>
-                      <SelectItem value="alpha">Ordem alfabética</SelectItem>
-                      <SelectItem value="tags">Tags</SelectItem>
-                      <SelectItem value="projects">Projetos</SelectItem>
-                      <SelectItem value="status">Status</SelectItem>
-                      <SelectItem value="views">Visualizações</SelectItem>
-                      <SelectItem value="comments">Comentários</SelectItem>
+                      <div className="p-2">
+                        <Input
+                          value={projectFilterQuery}
+                          onChange={(event) => setProjectFilterQuery(event.target.value)}
+                          placeholder="Buscar projeto..."
+                        />
+                      </div>
+                      <SelectItem value="all">Todos os projetos</SelectItem>
+                      {projects
+                        .filter((project) =>
+                          project.title.toLowerCase().includes(projectFilterQuery.toLowerCase()),
+                        )
+                        .map((project) => (
+                          <SelectItem key={project.id} value={project.id}>
+                            {project.title}
+                          </SelectItem>
+                        ))}
                     </SelectContent>
                   </Select>
-                  {sortMode === "projects" ? (
-                    <Select
-                      value={projectFilterId}
-                      onValueChange={(value) => {
-                        setCurrentPage(1);
-                        setProjectFilterId(value);
+                ) : null}
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="inline-flex items-center rounded-lg border border-border/60 bg-card/70 p-1">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant={listViewMode === "list" ? "secondary" : "ghost"}
+                    className="h-8 gap-2 px-3"
+                    onClick={() => setListViewMode("list")}
+                  >
+                    <ListIcon className="h-4 w-4" />
+                    Lista
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant={listViewMode === "calendar" ? "secondary" : "ghost"}
+                    className="h-8 gap-2 px-3"
+                    onClick={() => setListViewMode("calendar")}
+                  >
+                    <CalendarDays className="h-4 w-4" />
+                    Calendário
+                  </Button>
+                </div>
+                <Badge variant="secondary" className="text-xs uppercase animate-slide-up opacity-0">
+                  {sortedPosts.length} posts
+                </Badge>
+              </div>
+            </div>
+            {isLoading ? (
+              <AsyncState
+                kind="loading"
+                title="Carregando postagens"
+                description="Buscando os dados mais recentes do painel."
+                className={dashboardPageLayoutTokens.surfaceDefault}
+              />
+            ) : hasLoadError ? (
+              <AsyncState
+                kind="error"
+                title="Não foi possível carregar as postagens"
+                description="Confira a conexao e tente atualizar os dados."
+                className={dashboardPageLayoutTokens.surfaceDefault}
+                action={
+                  <Button
+                    variant="outline"
+                    onClick={() => setLoadVersion((previous) => previous + 1)}
+                  >
+                    Recarregar
+                  </Button>
+                }
+              />
+            ) : sortedPosts.length === 0 ? (
+              <AsyncState
+                kind="empty"
+                title="Nenhuma postagem cadastrada"
+                description="Crie uma nova postagem para iniciar o fluxo editorial."
+                className={dashboardPageLayoutTokens.surfaceMuted}
+                action={
+                  canManagePosts ? (
+                    <Button
+                      onClick={openCreate}
+                      className="bg-primary text-primary-foreground hover:bg-primary/90"
+                    >
+                      <Plus className="mr-2 h-4 w-4" />
+                      Criar primeira postagem
+                    </Button>
+                  ) : null
+                }
+              />
+            ) : listViewMode === "calendar" ? (
+              <Card className={dashboardPageLayoutTokens.surfaceDefault}>
+                <CardContent className="space-y-4 p-4 md:p-6">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                      <h3 className="text-base font-semibold capitalize">{calendarMonthLabel}</h3>
+                      <p className="text-xs text-muted-foreground">
+                        Agenda de postagens (agendadas e publicadas) ({calendarTz || timeZone})
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() =>
+                          setCalendarMonthCursor(
+                            (prev) => new Date(prev.getFullYear(), prev.getMonth() - 1, 1),
+                          )
+                        }
+                      >
+                        Mês anterior
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() =>
+                          setCalendarMonthCursor(
+                            (prev) => new Date(prev.getFullYear(), prev.getMonth() + 1, 1),
+                          )
+                        }
+                      >
+                        Próximo mês
+                      </Button>
+                    </div>
+                  </div>
+                  {isCalendarLoading ? (
+                    <AsyncState
+                      kind="loading"
+                      title="Carregando calendário editorial"
+                      description="Buscando postagens do m?s."
+                      className="border-0 bg-transparent p-0"
+                    />
+                  ) : hasCalendarError ? (
+                    <AsyncState
+                      kind="error"
+                      title="Não foi possível carregar o calendário"
+                      description="Tente novamente em alguns instantes."
+                      className="border-0 bg-transparent p-0"
+                      action={
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => void loadEditorialCalendar(calendarMonthCursor)}
+                        >
+                          Recarregar
+                        </Button>
+                      }
+                    />
+                  ) : (
+                    <div className="space-y-3">
+                      <div className="grid grid-cols-7 gap-2 text-center text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                        {["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"].map((label) => (
+                          <div key={label} className="py-1">
+                            {label}
+                          </div>
+                        ))}
+                      </div>
+                      <div className="grid gap-2">
+                        {calendarWeeks.map((week, weekIndex) => (
+                          <div
+                            key={`calendar-week-${weekIndex}`}
+                            className="grid grid-cols-7 gap-2"
+                          >
+                            {week.map((day) => {
+                              const dayKey = toLocalDateKey(day);
+                              const dayItems = calendarDayItemsMap.get(dayKey) || [];
+                              const isCurrentMonth =
+                                day.getMonth() === calendarMonthCursor.getMonth();
+                              const isToday = dayKey === toLocalDateKey(new Date());
+                              return (
+                                <div
+                                  key={dayKey}
+                                  className={`min-h-[120px] rounded-lg border p-2 ${
+                                    isCurrentMonth
+                                      ? "border-border/60 bg-card/40"
+                                      : "border-border/30 bg-muted/20"
+                                  } ${isToday ? "ring-1 ring-primary/50" : ""}`}
+                                >
+                                  <div className="mb-2 flex items-center justify-between gap-2">
+                                    <span
+                                      className={`text-xs font-medium ${
+                                        isCurrentMonth ? "text-foreground" : "text-muted-foreground"
+                                      }`}
+                                    >
+                                      {day.getDate()}
+                                    </span>
+                                    {dayItems.length > 0 ? (
+                                      <Badge variant="secondary" className="text-[10px] uppercase">
+                                        {dayItems.length}
+                                      </Badge>
+                                    ) : null}
+                                  </div>
+                                  <div className="space-y-1">
+                                    {dayItems.length === 0 ? (
+                                      <span className="text-[11px] text-muted-foreground">
+                                        Sem postagens
+                                      </span>
+                                    ) : (
+                                      dayItems.slice(0, 4).map((item) => (
+                                        <button
+                                          key={item.id}
+                                          type="button"
+                                          className="block w-full rounded-md border border-border/60 bg-background/60 px-2 py-1 text-left hover:border-primary/40"
+                                          onClick={() => {
+                                            const target = posts.find(
+                                              (post) => post.id === item.id,
+                                            );
+                                            if (target && canManagePosts) {
+                                              openEdit(target);
+                                            }
+                                          }}
+                                        >
+                                          <div className="flex items-center justify-between gap-1">
+                                            <div className="truncate text-[11px] font-medium text-foreground">
+                                              {item.title}
+                                            </div>
+                                            <Badge
+                                              variant={
+                                                item.status === "published"
+                                                  ? "outline"
+                                                  : "secondary"
+                                              }
+                                              className="shrink-0 text-[9px] uppercase"
+                                            >
+                                              {getCalendarItemStatusLabel(item.status)}
+                                            </Badge>
+                                          </div>
+                                          <div className="truncate text-[10px] text-muted-foreground">
+                                            {formatLocalTimeShort(getCalendarItemDisplayTime(item))}
+                                          </div>
+                                        </button>
+                                      ))
+                                    )}
+                                    {dayItems.length > 4 ? (
+                                      <span className="text-[10px] text-muted-foreground">
+                                        +{dayItems.length - 4} postagens
+                                      </span>
+                                    ) : null}
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        ))}
+                      </div>
+                      {!isCalendarLoading && !hasCalendarError && calendarItems.length === 0 ? (
+                        <p className="text-sm text-muted-foreground">
+                          Nenhuma postagem publicada/agendada neste m?s.
+                        </p>
+                      ) : null}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="grid gap-6">
+                {paginatedPosts.map((post, index) => {
+                  const formattedDate = post.publishedAt
+                    ? formatDateTimeShort(post.publishedAt)
+                    : "Sem data";
+                  const project = post.projectId ? projectMap.get(post.projectId) : null;
+                  const tags = Array.from(
+                    new Set([
+                      ...(project?.tags || []),
+                      ...(Array.isArray(post.tags) ? post.tags : []),
+                    ]),
+                  );
+                  const sortedCardTags = sortByTranslatedLabel(tags, (tag) => displayTag(tag));
+                  const visibleCardTags = sortedCardTags.slice(0, 3);
+                  const extraTagCount = Math.max(0, sortedCardTags.length - visibleCardTags.length);
+                  const statusLabel = getPostStatusLabel(post.status);
+                  const resolvedCardCover = resolvePostCoverPreview({
+                    coverImageUrl: post.coverImageUrl,
+                    coverAlt: post.coverAlt,
+                    content: post.content,
+                    contentFormat: post.contentFormat || "lexical",
+                    title: post.title,
+                  });
+                  return (
+                    <Card
+                      key={post.id}
+                      data-testid={`post-card-${post.id}`}
+                      className={`${dashboardPageLayoutTokens.listCard} group cursor-pointer overflow-hidden transition hover:border-primary/40 animate-slide-up opacity-0`}
+                      style={{ animationDelay: `${Math.min(index * 35, 210)}ms` }}
+                      role={canManagePosts ? "button" : undefined}
+                      tabIndex={canManagePosts ? 0 : -1}
+                      onKeyDown={(event) => {
+                        if (!canManagePosts) {
+                          return;
+                        }
+                        if (event.key === "Enter" || event.key === " ") {
+                          event.preventDefault();
+                          openEdit(post);
+                        }
+                      }}
+                      onClick={() => {
+                        if (canManagePosts) {
+                          openEdit(post);
+                        }
                       }}
                     >
-                      <SelectTrigger className="w-[240px]">
-                        <SelectValue placeholder="Selecionar projeto" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <div className="p-2">
-                          <Input
-                            value={projectFilterQuery}
-                            onChange={(event) => setProjectFilterQuery(event.target.value)}
-                            placeholder="Buscar projeto..."
-                          />
-                        </div>
-                        <SelectItem value="all">Todos os projetos</SelectItem>
-                        {projects
-                          .filter((project) =>
-                            project.title.toLowerCase().includes(projectFilterQuery.toLowerCase()),
-                          )
-                          .map((project) => (
-                            <SelectItem key={project.id} value={project.id}>
-                              {project.title}
-                            </SelectItem>
-                          ))}
-                      </SelectContent>
-                    </Select>
-                  ) : null}
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="inline-flex items-center rounded-lg border border-border/60 bg-card/70 p-1">
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant={listViewMode === "list" ? "secondary" : "ghost"}
-                      className="h-8 gap-2 px-3"
-                      onClick={() => setListViewMode("list")}
-                    >
-                      <ListIcon className="h-4 w-4" />
-                      Lista
-                    </Button>
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant={listViewMode === "calendar" ? "secondary" : "ghost"}
-                      className="h-8 gap-2 px-3"
-                      onClick={() => setListViewMode("calendar")}
-                    >
-                      <CalendarDays className="h-4 w-4" />
-                      Calendário
-                    </Button>
-                  </div>
-                  <Badge variant="secondary" className="text-xs uppercase animate-slide-up opacity-0">
-                    {sortedPosts.length} posts
-                  </Badge>
-                </div>
-              </div>
-              {isLoading ? (
-                <AsyncState
-                  kind="loading"
-                  title="Carregando postagens"
-                  description="Buscando os dados mais recentes do painel."
-                  className={dashboardPageLayoutTokens.surfaceDefault}
-                />
-              ) : hasLoadError ? (
-                <AsyncState
-                  kind="error"
-                  title="Não foi possível carregar as postagens"
-                  description="Confira a conexao e tente atualizar os dados."
-                  className={dashboardPageLayoutTokens.surfaceDefault}
-                  action={
-                    <Button
-                      variant="outline"
-                      onClick={() => setLoadVersion((previous) => previous + 1)}
-                    >
-                      Recarregar
-                    </Button>
-                  }
-                />
-              ) : sortedPosts.length === 0 ? (
-                <AsyncState
-                  kind="empty"
-                  title="Nenhuma postagem cadastrada"
-                  description="Crie uma nova postagem para iniciar o fluxo editorial."
-                  className={dashboardPageLayoutTokens.surfaceMuted}
-                  action={
-                    canManagePosts ? (
-                      <Button onClick={openCreate} className="bg-primary text-primary-foreground hover:bg-primary/90">
-                        <Plus className="mr-2 h-4 w-4" />
-                        Criar primeira postagem
-                      </Button>
-                    ) : null
-                  }
-                />
-              ) : listViewMode === "calendar" ? (
-                <Card className={dashboardPageLayoutTokens.surfaceDefault}>
-                  <CardContent className="space-y-4 p-4 md:p-6">
-                    <div className="flex flex-wrap items-center justify-between gap-3">
-                      <div>
-                        <h3 className="text-base font-semibold capitalize">{calendarMonthLabel}</h3>
-                        <p className="text-xs text-muted-foreground">
-                          Agenda de postagens (agendadas e publicadas) ({calendarTz || timeZone})
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={() =>
-                            setCalendarMonthCursor(
-                              (prev) => new Date(prev.getFullYear(), prev.getMonth() - 1, 1),
-                            )
-                          }
-                        >
-                          Mês anterior
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={() =>
-                            setCalendarMonthCursor(
-                              (prev) => new Date(prev.getFullYear(), prev.getMonth() + 1, 1),
-                            )
-                          }
-                        >
-                          Próximo mês
-                        </Button>
-                      </div>
-                    </div>
-                    {isCalendarLoading ? (
-                      <AsyncState
-                        kind="loading"
-                        title="Carregando calendário editorial"
-                        description="Buscando postagens do m?s."
-                        className="border-0 bg-transparent p-0"
-                      />
-                    ) : hasCalendarError ? (
-                      <AsyncState
-                        kind="error"
-                        title="Não foi possível carregar o calendário"
-                        description="Tente novamente em alguns segundos."
-                        className="border-0 bg-transparent p-0"
-                        action={
-                          <Button
-                            type="button"
-                            variant="outline"
-                            onClick={() => void loadEditorialCalendar(calendarMonthCursor)}
-                          >
-                            Recarregar
-                          </Button>
-                        }
-                      />
-                    ) : (
-                      <div className="space-y-3">
-                        <div className="grid grid-cols-7 gap-2 text-center text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-                          {["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"].map((label) => (
-                            <div key={label} className="py-1">
-                              {label}
-                            </div>
-                          ))}
-                        </div>
-                        <div className="grid gap-2">
-                          {calendarWeeks.map((week, weekIndex) => (
-                            <div key={`calendar-week-${weekIndex}`} className="grid grid-cols-7 gap-2">
-                              {week.map((day) => {
-                                const dayKey = toLocalDateKey(day);
-                                const dayItems = calendarDayItemsMap.get(dayKey) || [];
-                                const isCurrentMonth = day.getMonth() === calendarMonthCursor.getMonth();
-                                const isToday = dayKey === toLocalDateKey(new Date());
-                                return (
-                                  <div
-                                    key={dayKey}
-                                    className={`min-h-[120px] rounded-lg border p-2 ${
-                                      isCurrentMonth
-                                        ? "border-border/60 bg-card/40"
-                                        : "border-border/30 bg-muted/20"
-                                    } ${isToday ? "ring-1 ring-primary/50" : ""}`}
+                      <CardContent className="p-0">
+                        <div className="grid min-h-[360px] gap-0 lg:h-[280px] lg:min-h-0 lg:grid-cols-[220px_1fr]">
+                          <div className="relative h-52 w-full overflow-hidden lg:h-full">
+                            {resolvedCardCover.coverImageUrl ? (
+                              <img
+                                src={normalizeAssetUrl(resolvedCardCover.coverImageUrl)}
+                                alt={resolvedCardCover.coverAlt || post.title}
+                                className="absolute inset-0 block h-full w-full object-cover object-center"
+                                loading="lazy"
+                                onError={(event) => {
+                                  event.currentTarget.src = "/placeholder.svg";
+                                }}
+                              />
+                            ) : (
+                              <div className="absolute inset-0 flex h-full w-full items-center justify-center bg-muted/30 text-xs text-muted-foreground">
+                                Sem capa
+                              </div>
+                            )}
+                          </div>
+                          <div className="grid h-full min-h-0 overflow-hidden grid-rows-[auto_auto_minmax(0,1fr)_auto] gap-2 p-4 lg:pb-5">
+                            <div data-slot="top" className="flex items-start justify-between gap-3">
+                              <div className="flex min-w-0 flex-wrap items-center gap-2">
+                                <Badge variant="outline" className="text-[10px] uppercase">
+                                  {statusLabel}
+                                </Badge>
+                                {project ? (
+                                  <Badge
+                                    variant="secondary"
+                                    className="max-w-60 truncate text-[10px] uppercase"
                                   >
-                                    <div className="mb-2 flex items-center justify-between gap-2">
-                                      <span
-                                        className={`text-xs font-medium ${
-                                          isCurrentMonth ? "text-foreground" : "text-muted-foreground"
-                                        }`}
-                                      >
-                                        {day.getDate()}
-                                      </span>
-                                      {dayItems.length > 0 ? (
-                                        <Badge variant="secondary" className="text-[10px] uppercase">
-                                          {dayItems.length}
-                                        </Badge>
-                                      ) : null}
-                                    </div>
-                                    <div className="space-y-1">
-                                      {dayItems.length === 0 ? (
-                                        <span className="text-[11px] text-muted-foreground">Sem postagens</span>
-                                      ) : (
-                                        dayItems.slice(0, 4).map((item) => (
-                                          <button
-                                            key={item.id}
-                                            type="button"
-                                            className="block w-full rounded-md border border-border/60 bg-background/60 px-2 py-1 text-left hover:border-primary/40"
-                                            onClick={() => {
-                                              const target = posts.find((post) => post.id === item.id);
-                                              if (target && canManagePosts) {
-                                                openEdit(target);
-                                              }
-                                            }}
-                                          >
-                                            <div className="flex items-center justify-between gap-1">
-                                              <div className="truncate text-[11px] font-medium text-foreground">
-                                                {item.title}
-                                              </div>
-                                              <Badge
-                                                variant={item.status === "published" ? "outline" : "secondary"}
-                                                className="shrink-0 text-[9px] uppercase"
-                                              >
-                                                {getCalendarItemStatusLabel(item.status)}
-                                              </Badge>
-                                            </div>
-                                            <div className="truncate text-[10px] text-muted-foreground">
-                                              {formatLocalTimeShort(getCalendarItemDisplayTime(item))}
-                                            </div>
-                                          </button>
-                                        ))
-                                      )}
-                                      {dayItems.length > 4 ? (
-                                        <span className="text-[10px] text-muted-foreground">
-                                          +{dayItems.length - 4} postagens
-                                        </span>
-                                      ) : null}
-                                    </div>
-                                  </div>
-                                );
-                              })}
-                            </div>
-                          ))}
-                        </div>
-                        {!isCalendarLoading && !hasCalendarError && calendarItems.length === 0 ? (
-                          <p className="text-sm text-muted-foreground">
-                            Nenhuma postagem publicada/agendada neste m?s.
-                          </p>
-                        ) : null}
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-              ) : (
-                <div className="grid gap-6">
-                  {paginatedPosts.map((post, index) => {
-                    const formattedDate = post.publishedAt ? formatDateTimeShort(post.publishedAt) : "Sem data";
-                    const project = post.projectId ? projectMap.get(post.projectId) : null;
-                    const tags = Array.from(
-                      new Set([
-                        ...(project?.tags || []),
-                        ...(Array.isArray(post.tags) ? post.tags : []),
-                      ]),
-                    );
-                    const sortedCardTags = sortByTranslatedLabel(tags, (tag) => displayTag(tag));
-                    const visibleCardTags = sortedCardTags.slice(0, 3);
-                    const extraTagCount = Math.max(0, sortedCardTags.length - visibleCardTags.length);
-                    const statusLabel = getPostStatusLabel(post.status);
-                    const resolvedCardCover = resolvePostCoverPreview({
-                      coverImageUrl: post.coverImageUrl,
-                      coverAlt: post.coverAlt,
-                      content: post.content,
-                      contentFormat: post.contentFormat || "lexical",
-                      title: post.title,
-                    });
-                    return (
-                      <Card
-                        key={post.id}
-                        data-testid={`post-card-${post.id}`}
-                        className={`${dashboardPageLayoutTokens.listCard} group cursor-pointer overflow-hidden transition hover:border-primary/40 animate-slide-up opacity-0`}
-                        style={{ animationDelay: `${Math.min(index * 35, 210)}ms` }}
-                        role={canManagePosts ? "button" : undefined}
-                        tabIndex={canManagePosts ? 0 : -1}
-                        onKeyDown={(event) => {
-                          if (!canManagePosts) {
-                            return;
-                          }
-                          if (event.key === "Enter" || event.key === " ") {
-                            event.preventDefault();
-                            openEdit(post);
-                          }
-                        }}
-                        onClick={() => {
-                          if (canManagePosts) {
-                            openEdit(post);
-                          }
-                        }}
-                      >
-                        <CardContent className="p-0">
-                          <div className="grid min-h-[360px] gap-0 lg:h-[280px] lg:min-h-0 lg:grid-cols-[220px_1fr]">
-                            <div className="relative h-52 w-full overflow-hidden lg:h-full">
-                              {resolvedCardCover.coverImageUrl ? (
-                                <img
-                                  src={normalizeAssetUrl(resolvedCardCover.coverImageUrl)}
-                                  alt={resolvedCardCover.coverAlt || post.title}
-                                  className="absolute inset-0 block h-full w-full object-cover object-center"
-                                  loading="lazy"
-                                  onError={(event) => {
-                                    event.currentTarget.src = "/placeholder.svg";
-                                  }}
-                                />
-                              ) : (
-                                <div className="absolute inset-0 flex h-full w-full items-center justify-center bg-muted/30 text-xs text-muted-foreground">
-                                  Sem capa
-                                </div>
-                              )}
-                            </div>
-                            <div className="grid h-full min-h-0 overflow-hidden grid-rows-[auto_auto_minmax(0,1fr)_auto] gap-2 p-4 lg:pb-5">
-                              <div data-slot="top" className="flex items-start justify-between gap-3">
-                                <div className="flex min-w-0 flex-wrap items-center gap-2">
-                                  <Badge variant="outline" className="text-[10px] uppercase">
-                                    {statusLabel}
+                                    {project.title}
                                   </Badge>
-                                  {project ? (
-                                    <Badge variant="secondary" className="max-w-60 truncate text-[10px] uppercase">
-                                      {project.title}
-                                    </Badge>
-                                  ) : null}
-                                </div>
-                                <div className="flex shrink-0 items-center gap-1">
+                                ) : null}
+                              </div>
+                              <div className="flex shrink-0 items-center gap-1">
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  title="Visualizar"
+                                  className="h-8 w-8"
+                                  onClick={(event) => event.stopPropagation()}
+                                  asChild
+                                >
+                                  <Link to={`/postagem/${post.slug}`}>
+                                    <Eye className="h-3.5 w-3.5" />
+                                  </Link>
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  title="Copiar link"
+                                  className="h-8 w-8"
+                                  onClick={(event) => {
+                                    event.stopPropagation();
+                                    handleCopyLink(post.slug);
+                                  }}
+                                >
+                                  <Copy className="h-3.5 w-3.5" />
+                                </Button>
+                                {canManagePosts ? (
                                   <Button
                                     variant="ghost"
                                     size="icon"
-                                    title="Visualizar"
-                                    className="h-8 w-8"
-                                    onClick={(event) => event.stopPropagation()}
-                                    asChild
-                                  >
-                                    <Link to={`/postagem/${post.slug}`}>
-                                      <Eye className="h-3.5 w-3.5" />
-                                    </Link>
-                                  </Button>
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    title="Copiar link"
+                                    title="Excluir"
                                     className="h-8 w-8"
                                     onClick={(event) => {
                                       event.stopPropagation();
-                                      handleCopyLink(post.slug);
+                                      handleDeletePost(post);
                                     }}
                                   >
-                                    <Copy className="h-3.5 w-3.5" />
+                                    <Trash2 className="h-3.5 w-3.5 text-destructive" />
                                   </Button>
-                                  {canManagePosts ? (
-                                    <Button
-                                      variant="ghost"
-                                      size="icon"
-                                      title="Excluir"
-                                      className="h-8 w-8"
-                                      onClick={(event) => {
-                                        event.stopPropagation();
-                                        handleDeletePost(post);
-                                      }}
-                                    >
-                                      <Trash2 className="h-3.5 w-3.5 text-destructive" />
-                                    </Button>
-                                  ) : null}
-                                </div>
+                                ) : null}
+                              </div>
+                            </div>
+
+                            <div data-slot="headline" className="min-h-11">
+                              <h3 className="line-clamp-2 text-lg font-semibold leading-tight text-foreground lg:line-clamp-1">
+                                {post.title}
+                              </h3>
+                              <span className="text-xs text-muted-foreground">{formattedDate}</span>
+                            </div>
+
+                            <p
+                              data-slot="excerpt"
+                              className="line-clamp-2 min-h-0 overflow-hidden text-sm text-muted-foreground [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2] lg:line-clamp-1 lg:[-webkit-line-clamp:1]"
+                            >
+                              {post.excerpt || "Sem prévia cadastrada."}
+                            </p>
+
+                            <div className="flex min-h-0 shrink-0 flex-col gap-2">
+                              <div data-slot="tags" className="min-h-6">
+                                {visibleCardTags.length > 0 ? (
+                                  <div className="flex min-w-0 items-center gap-2 overflow-hidden">
+                                    {visibleCardTags.map((tag) => (
+                                      <Badge
+                                        key={tag}
+                                        variant="secondary"
+                                        className="min-w-0 max-w-34 overflow-hidden text-[10px] uppercase"
+                                      >
+                                        <span className="block min-w-0 truncate">
+                                          {displayTag(tag)}
+                                        </span>
+                                      </Badge>
+                                    ))}
+                                    {extraTagCount > 0 ? (
+                                      <Badge variant="secondary" className="text-[10px] uppercase">
+                                        +{extraTagCount}
+                                      </Badge>
+                                    ) : null}
+                                  </div>
+                                ) : (
+                                  <span className="invisible text-[10px]">placeholder</span>
+                                )}
                               </div>
 
-                              <div data-slot="headline" className="min-h-11">
-                                <h3 className="line-clamp-2 text-lg font-semibold leading-tight text-foreground lg:line-clamp-1">
-                                  {post.title}
-                                </h3>
-                                <span className="text-xs text-muted-foreground">{formattedDate}</span>
-                              </div>
-
-                              <p
-                                data-slot="excerpt"
-                                className="line-clamp-2 min-h-0 overflow-hidden text-sm text-muted-foreground [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2] lg:line-clamp-1 lg:[-webkit-line-clamp:1]"
+                              <div
+                                data-slot="meta"
+                                className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground lg:flex-nowrap lg:gap-y-0"
                               >
-                                {post.excerpt || "Sem prévia cadastrada."}
-                              </p>
-
-                              <div className="flex min-h-0 shrink-0 flex-col gap-2">
-                                <div data-slot="tags" className="min-h-6">
-                                  {visibleCardTags.length > 0 ? (
-                                    <div className="flex min-w-0 items-center gap-2 overflow-hidden">
-                                      {visibleCardTags.map((tag) => (
-                                        <Badge
-                                          key={tag}
-                                          variant="secondary"
-                                          className="min-w-0 max-w-34 overflow-hidden text-[10px] uppercase"
-                                        >
-                                          <span className="block min-w-0 truncate">{displayTag(tag)}</span>
-                                        </Badge>
-                                      ))}
-                                      {extraTagCount > 0 ? (
-                                        <Badge variant="secondary" className="text-[10px] uppercase">
-                                          +{extraTagCount}
-                                        </Badge>
-                                      ) : null}
-                                    </div>
-                                  ) : (
-                                    <span className="invisible text-[10px]">placeholder</span>
-                                  )}
-                                </div>
-
-                                <div
-                                  data-slot="meta"
-                                  className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground lg:flex-nowrap lg:gap-y-0"
-                                >
-                                  <span className="inline-flex min-w-0 max-w-full items-center gap-2">
-                                    <UserRound className="h-4 w-4 shrink-0" />
-                                    <span className="truncate">{post.author || "Autor não definido"}</span>
+                                <span className="inline-flex min-w-0 max-w-full items-center gap-2">
+                                  <UserRound className="h-4 w-4 shrink-0" />
+                                  <span className="truncate">
+                                    {post.author || "Autor não definido"}
                                   </span>
-                                  <span className="inline-flex shrink-0 items-center gap-2 whitespace-nowrap">
-                                    <Eye className="h-4 w-4" />
-                                    {post.views}
-                                    {" visualiza\u00e7\u00f5es"}
-                                  </span>
-                                  <span className="inline-flex shrink-0 items-center gap-2 whitespace-nowrap">
-                                    <MessageSquare className="h-4 w-4" />
-                                    {post.commentsCount}
-                                    {" coment\u00e1rios"}
-                                  </span>
-                                  <span className="ml-auto hidden max-w-44 truncate text-right text-xs text-muted-foreground lg:block">
-                                    /{post.slug}
-                                  </span>
-                                </div>
+                                </span>
+                                <span className="inline-flex shrink-0 items-center gap-2 whitespace-nowrap">
+                                  <Eye className="h-4 w-4" />
+                                  {post.views}
+                                  {" visualiza\u00e7\u00f5es"}
+                                </span>
+                                <span className="inline-flex shrink-0 items-center gap-2 whitespace-nowrap">
+                                  <MessageSquare className="h-4 w-4" />
+                                  {post.commentsCount}
+                                  {" coment\u00e1rios"}
+                                </span>
+                                <span className="ml-auto hidden max-w-44 truncate text-right text-xs text-muted-foreground lg:block">
+                                  /{post.slug}
+                                </span>
                               </div>
                             </div>
                           </div>
-                        </CardContent>
-                      </Card>
-                    );
-                  })}
-                </div>
-              )}
-              {listViewMode === "list" && sortedPosts.length > postsPerPage ? (
-                <div className="mt-6 flex justify-center">
-                  <Pagination>
-                    <PaginationContent>
-                      <PaginationItem>
-                        <PaginationPrevious
-                          href="#"
-                          onClick={(event) => {
-                            event.preventDefault();
-                            setCurrentPage((page) => Math.max(1, page - 1));
-                          }}
-                        />
-                      </PaginationItem>
-                      {Array.from({ length: totalPages }, (_, index) => index + 1).map((page) => (
-                        <PaginationItem key={page}>
-                          <PaginationLink
-                            href="#"
-                            isActive={page === currentPage}
-                            onClick={(event) => {
-                              event.preventDefault();
-                              setCurrentPage(page);
-                            }}
-                          >
-                            {page}
-                          </PaginationLink>
-                        </PaginationItem>
-                      ))}
-                      <PaginationItem>
-                        <PaginationNext
-                          href="#"
-                          onClick={(event) => {
-                            event.preventDefault();
-                            setCurrentPage((page) => Math.min(totalPages, page + 1));
-                          }}
-                        />
-                      </PaginationItem>
-                    </PaginationContent>
-                  </Pagination>
-                </div>
-              ) : null}
-              {listViewMode === "list" && trashedPosts.length > 0 ? (
-                <Card className="mt-8 border-border/60 bg-card/60">
-                  <CardContent className="space-y-4 p-6">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <h3 className="text-lg font-semibold">Lixeira</h3>
-                        <p className="text-xs text-muted-foreground">
-                          Restaure em até 3 dias após a exclusão.
-                        </p>
-                      </div>
-                      <Badge variant="secondary" className="text-xs uppercase">
-                        {trashedPosts.length} itens
-                      </Badge>
-                    </div>
-                    <div className="grid gap-3">
-                      {trashedPosts.map((post, index) => (
-                        <div
-                          key={`trash-${post.id}`}
-                          className={`${dashboardPageLayoutTokens.surfaceDefault} flex flex-wrap items-center justify-between gap-3 px-4 py-3 animate-slide-up opacity-0`}
-                          style={{ animationDelay: `${Math.min(index * 35, 210)}ms` }}
-                        >
-                          <div className="min-w-0">
-                            <p className="text-sm font-medium text-foreground">{post.title}</p>
-                            <p className="text-xs text-muted-foreground">/{post.slug}</p>
-                          </div>
-                          <div className="flex items-center gap-3">
-                            <span className="text-xs text-muted-foreground">
-                              Restam {getRestoreRemainingLabel(post)}
-                            </span>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => handleRestorePost(post)}
-                            >
-                              Restaurar
-                            </Button>
-                          </div>
                         </div>
-                      ))}
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
+            )}
+            {listViewMode === "list" && sortedPosts.length > postsPerPage ? (
+              <div className="mt-6 flex justify-center">
+                <Pagination>
+                  <PaginationContent>
+                    <PaginationItem>
+                      <PaginationPrevious
+                        href="#"
+                        onClick={(event) => {
+                          event.preventDefault();
+                          setCurrentPage((page) => Math.max(1, page - 1));
+                        }}
+                      />
+                    </PaginationItem>
+                    {Array.from({ length: totalPages }, (_, index) => index + 1).map((page) => (
+                      <PaginationItem key={page}>
+                        <PaginationLink
+                          href="#"
+                          isActive={page === currentPage}
+                          onClick={(event) => {
+                            event.preventDefault();
+                            setCurrentPage(page);
+                          }}
+                        >
+                          {page}
+                        </PaginationLink>
+                      </PaginationItem>
+                    ))}
+                    <PaginationItem>
+                      <PaginationNext
+                        href="#"
+                        onClick={(event) => {
+                          event.preventDefault();
+                          setCurrentPage((page) => Math.min(totalPages, page + 1));
+                        }}
+                      />
+                    </PaginationItem>
+                  </PaginationContent>
+                </Pagination>
+              </div>
+            ) : null}
+            {listViewMode === "list" && trashedPosts.length > 0 ? (
+              <Card className="mt-8 border-border/60 bg-card/60">
+                <CardContent className="space-y-4 p-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="text-lg font-semibold">Lixeira</h3>
+                      <p className="text-xs text-muted-foreground">
+                        Restaure em até 3 dias após a exclusão.
+                      </p>
                     </div>
-                  </CardContent>
-                </Card>
-              ) : null}
-            </section>
-          </DashboardPageContainer>
+                    <Badge variant="secondary" className="text-xs uppercase">
+                      {trashedPosts.length} itens
+                    </Badge>
+                  </div>
+                  <div className="grid gap-3">
+                    {trashedPosts.map((post, index) => (
+                      <div
+                        key={`trash-${post.id}`}
+                        className={`${dashboardPageLayoutTokens.surfaceDefault} flex flex-wrap items-center justify-between gap-3 px-4 py-3 animate-slide-up opacity-0`}
+                        style={{ animationDelay: `${Math.min(index * 35, 210)}ms` }}
+                      >
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium text-foreground">{post.title}</p>
+                          <p className="text-xs text-muted-foreground">/{post.slug}</p>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <span className="text-xs text-muted-foreground">
+                            Restam {getRestoreRemainingLabel(post)}
+                          </span>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleRestorePost(post)}
+                          >
+                            Restaurar
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            ) : null}
+          </section>
+        </DashboardPageContainer>
       </DashboardShell>
-
 
       <Suspense fallback={null}>
         <ImageLibraryDialog
@@ -2628,7 +2707,9 @@ const DashboardPosts = () => {
           projectImagesView={postImageLibraryOptions.projectImagesView}
           allowDeselect
           mode="single"
-          currentSelectionUrls={editorResolvedCover.coverImageUrl ? [editorResolvedCover.coverImageUrl] : []}
+          currentSelectionUrls={
+            editorResolvedCover.coverImageUrl ? [editorResolvedCover.coverImageUrl] : []
+          }
           onSave={({ urls }) => handleLibrarySelect(urls[0] || "")}
         />
       </Suspense>
@@ -2646,13 +2727,16 @@ const DashboardPosts = () => {
           <DialogHeader>
             <DialogTitle>Histórico de versões</DialogTitle>
             <DialogDescription>
-              {editingPost ? `Postagem: ${editingPost.title}` : "Selecione uma postagem para visualizar versões."}
+              {editingPost
+                ? `Postagem: ${editingPost.title}`
+                : "Selecione uma postagem para visualizar versões."}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <p className="text-xs text-muted-foreground">
-                Versões mais recentes primeiro. Rollback restaura o conteúdo editorial da versão escolhida.
+                Versões mais recentes primeiro. Rollback restaura o conteúdo editorial da versão
+                escolhida.
               </p>
               {editingPost ? (
                 <Button
@@ -2677,11 +2761,15 @@ const DashboardPosts = () => {
               <AsyncState
                 kind="error"
                 title="Não foi possível carregar o histórico"
-                description="Tente novamente em alguns segundos."
+                description="Tente novamente em alguns instantes."
                 className="border-0 bg-transparent p-0"
                 action={
                   editingPost ? (
-                    <Button type="button" variant="outline" onClick={() => void loadVersionHistory(editingPost.id)}>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => void loadVersionHistory(editingPost.id)}
+                    >
                       Recarregar
                     </Button>
                   ) : null
@@ -2697,54 +2785,58 @@ const DashboardPosts = () => {
             ) : (
               <div className="max-h-[55vh] space-y-3 overflow-auto pr-1">
                 {postVersions.map((version) => {
-                  const isRestorable = isVersionRestorableAgainstPost(version, persistedEditingPost);
+                  const isRestorable = isVersionRestorableAgainstPost(
+                    version,
+                    persistedEditingPost,
+                  );
                   return (
-                  <div
-                    key={version.id}
-                    className="flex flex-wrap items-start justify-between gap-3 rounded-lg border border-border/60 bg-card/60 p-3"
-                  >
-                    <div className="min-w-0 space-y-1">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <Badge variant="outline" className="text-[10px] uppercase">
-                          v{version.versionNumber}
-                        </Badge>
-                        <Badge variant="secondary" className="text-[10px] uppercase">
-                          {version.reasonLabel || version.reason}
-                        </Badge>
-                        {version.label ? (
-                          <Badge variant="secondary" className="text-[10px]">
-                            {version.label}
-                          </Badge>
-                        ) : null}
-                        {!isRestorable ? (
+                    <div
+                      key={version.id}
+                      className="flex flex-wrap items-start justify-between gap-3 rounded-lg border border-border/60 bg-card/60 p-3"
+                    >
+                      <div className="min-w-0 space-y-1">
+                        <div className="flex flex-wrap items-center gap-2">
                           <Badge variant="outline" className="text-[10px] uppercase">
-                            Estado atual
+                            v{version.versionNumber}
                           </Badge>
+                          <Badge variant="secondary" className="text-[10px] uppercase">
+                            {version.reasonLabel || version.reason}
+                          </Badge>
+                          {version.label ? (
+                            <Badge variant="secondary" className="text-[10px]">
+                              {version.label}
+                            </Badge>
+                          ) : null}
+                          {!isRestorable ? (
+                            <Badge variant="outline" className="text-[10px] uppercase">
+                              Estado atual
+                            </Badge>
+                          ) : null}
+                        </div>
+                        <p className="text-sm font-medium text-foreground">
+                          {formatDateTimeShort(version.createdAt)}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {version.actorName || "Sistema"} {"\u2022"} /{version.slug}
+                        </p>
+                      </div>
+                      <div className="shrink-0 self-start">
+                        {isRestorable ? (
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            className="gap-2"
+                            onClick={() => setRollbackTargetVersion(version)}
+                          >
+                            <RotateCcw className="h-4 w-4" />
+                            {"Restaurar esta vers\u00e3o"}
+                          </Button>
                         ) : null}
                       </div>
-                      <p className="text-sm font-medium text-foreground">
-                        {formatDateTimeShort(version.createdAt)}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {version.actorName || "Sistema"} {"\u2022"} /{version.slug}
-                      </p>
                     </div>
-                    <div className="shrink-0 self-start">
-                      {isRestorable ? (
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="outline"
-                          className="gap-2"
-                          onClick={() => setRollbackTargetVersion(version)}
-                        >
-                          <RotateCcw className="h-4 w-4" />
-                          {"Restaurar esta vers\u00e3o"}
-                        </Button>
-                      ) : null}
-                    </div>
-                  </div>
-                )})}
+                  );
+                })}
                 {versionsNextCursor ? (
                   <p className="text-xs text-muted-foreground">
                     Há mais versões antigas disponíveis. (Paginação v1 ainda não exposta na UI)
@@ -2753,7 +2845,11 @@ const DashboardPosts = () => {
               </div>
             )}
             <div className="flex justify-end">
-              <Button type="button" variant="outline" onClick={() => setIsVersionHistoryOpen(false)}>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setIsVersionHistoryOpen(false)}
+              >
                 Fechar
               </Button>
             </div>
@@ -2761,7 +2857,10 @@ const DashboardPosts = () => {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={Boolean(rollbackTargetVersion)} onOpenChange={(open) => !open && setRollbackTargetVersion(null)}>
+      <Dialog
+        open={Boolean(rollbackTargetVersion)}
+        onOpenChange={(open) => !open && setRollbackTargetVersion(null)}
+      >
         <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle>Restaurar versão?</DialogTitle>
@@ -2794,45 +2893,68 @@ const DashboardPosts = () => {
                 </div>
                 <div className="grid gap-2 text-sm sm:grid-cols-2">
                   <div>
-                    <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Título</p>
-                    <p className="font-medium text-foreground">{rollbackTargetVersion.snapshot?.title || "-"}</p>
+                    <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
+                      Título
+                    </p>
+                    <p className="font-medium text-foreground">
+                      {rollbackTargetVersion.snapshot?.title || "-"}
+                    </p>
                   </div>
                   <div>
-                    <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Slug</p>
-                    <p className="font-medium text-foreground">/{rollbackTargetVersion.snapshot?.slug || "-"}</p>
+                    <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
+                      Slug
+                    </p>
+                    <p className="font-medium text-foreground">
+                      /{rollbackTargetVersion.snapshot?.slug || "-"}
+                    </p>
                   </div>
                   <div>
-                    <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Versão salva</p>
-                    <p className="text-foreground">{formatDateTimeShort(rollbackTargetVersion.createdAt)}</p>
+                    <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
+                      Versão salva
+                    </p>
+                    <p className="text-foreground">
+                      {formatDateTimeShort(rollbackTargetVersion.createdAt)}
+                    </p>
                   </div>
                   <div>
-                    <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Data editorial</p>
+                    <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
+                      Data editorial
+                    </p>
                     <p className="text-foreground">
                       {(() => {
                         const editorialAt =
                           rollbackTargetVersion.snapshot?.status === "scheduled"
-                            ? rollbackTargetVersion.snapshot?.scheduledAt || rollbackTargetVersion.snapshot?.publishedAt
+                            ? rollbackTargetVersion.snapshot?.scheduledAt ||
+                              rollbackTargetVersion.snapshot?.publishedAt
                             : rollbackTargetVersion.snapshot?.publishedAt;
                         return editorialAt ? formatDateTimeShort(editorialAt) : "Sem data";
                       })()}
                     </p>
                   </div>
                   <div>
-                    <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Autor</p>
-                    <p className="text-foreground">{rollbackTargetVersion.snapshot?.author || "Não definido"}</p>
+                    <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
+                      Autor
+                    </p>
+                    <p className="text-foreground">
+                      {rollbackTargetVersion.snapshot?.author || "Não definido"}
+                    </p>
                   </div>
                   <div>
-                    <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Projeto</p>
+                    <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
+                      Projeto
+                    </p>
                     <p className="text-foreground">
                       {rollbackTargetVersion.snapshot?.projectId
-                        ? projectMap.get(String(rollbackTargetVersion.snapshot.projectId || ""))?.title ||
-                          `ID ${rollbackTargetVersion.snapshot.projectId}`
+                        ? projectMap.get(String(rollbackTargetVersion.snapshot.projectId || ""))
+                            ?.title || `ID ${rollbackTargetVersion.snapshot.projectId}`
                         : "Sem projeto"}
                     </p>
                   </div>
                 </div>
                 <div className="space-y-1">
-                  <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Resumo</p>
+                  <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
+                    Resumo
+                  </p>
                   <p className="line-clamp-3 text-sm text-foreground/90">
                     {String(rollbackTargetVersion.snapshot?.excerpt || "").trim() || "Sem resumo"}
                   </p>
@@ -2849,7 +2971,11 @@ const DashboardPosts = () => {
             >
               Cancelar
             </Button>
-            <Button type="button" disabled={isRollingBackVersion} onClick={() => void handleConfirmRollbackVersion()}>
+            <Button
+              type="button"
+              disabled={isRollingBackVersion}
+              onClick={() => void handleConfirmRollbackVersion()}
+            >
               {isRollingBackVersion ? "Restaurando..." : "Confirmar rollback"}
             </Button>
           </div>
@@ -2896,7 +3022,9 @@ const DashboardPosts = () => {
           <DialogHeader>
             <DialogTitle>Excluir postagem?</DialogTitle>
             <DialogDescription>
-              {deleteTarget ? `Excluir "${deleteTarget.title}"? Você pode restaurar por até 3 dias.` : ""}
+              {deleteTarget
+                ? `Excluir "${deleteTarget.title}"? Você pode restaurar por até 3 dias.`
+                : ""}
             </DialogDescription>
           </DialogHeader>
           <div className="flex justify-end gap-3">
@@ -2914,11 +3042,3 @@ const DashboardPosts = () => {
 };
 
 export default DashboardPosts;
-
-
-
-
-
-
-
-

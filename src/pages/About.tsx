@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
+import { publicPageLayoutTokens } from "@/components/public-page-tokens";
 import { usePageMeta } from "@/hooks/use-page-meta";
 
 const iconMap: Record<string, typeof Heart> = {
@@ -48,8 +49,7 @@ const defaultAbout = {
     {
       label: "Somos movidos por histórias",
       icon: "Sparkles",
-      text:
-        "Trabalhamos em equipe para traduzir, adaptar e manter a identidade de cada obra com cuidado editorial.",
+      text: "Trabalhamos em equipe para traduzir, adaptar e manter a identidade de cada obra com cuidado editorial.",
     },
     {
       label: "Processo claro e constante",
@@ -59,8 +59,7 @@ const defaultAbout = {
     {
       label: "Respeito à obra",
       icon: "Sparkles",
-      text:
-        "Apoiamos o consumo legal e preservamos a experiência original, com o toque da comunidade.",
+      text: "Apoiamos o consumo legal e preservamos a experiência original, com o toque da comunidade.",
     },
   ],
   manifestoTitle: "Manifesto",
@@ -95,7 +94,8 @@ const defaultAbout = {
     },
     {
       title: "Qualidade em cada etapa",
-      description: "Do timing ao encode, mantemos um fluxo cuidadoso para entregar consistência e leitura confortável.",
+      description:
+        "Do timing ao encode, mantemos um fluxo cuidadoso para entregar consistência e leitura confortável.",
       icon: "Sparkles",
     },
     {
@@ -106,7 +106,8 @@ const defaultAbout = {
     },
     {
       title: "Criatividade e estilo",
-      description: "Tipografia, efeitos e ritmo contam história. O typesetting é parte essencial da narrativa visual.",
+      description:
+        "Tipografia, efeitos e ritmo contam história. O typesetting é parte essencial da narrativa visual.",
       icon: "Wand2",
     },
   ],
@@ -135,10 +136,12 @@ const About = () => {
         const data = await response.json();
         if (isActive && data.pages?.about) {
           const incoming = data.pages.about;
-          const highlights = (incoming.highlights || defaultAbout.highlights).map((item: HighlightItem) => ({
-            icon: "Sparkles",
-            ...item,
-          }));
+          const highlights = (incoming.highlights || defaultAbout.highlights).map(
+            (item: HighlightItem) => ({
+              icon: "Sparkles",
+              ...item,
+            }),
+          );
           setAbout({
             ...defaultAbout,
             ...incoming,
@@ -158,15 +161,20 @@ const About = () => {
 
   return (
     <div className="min-h-screen bg-background text-foreground">
-
       <main>
         <section className="relative overflow-hidden border-b border-border/60">
           <div className="absolute inset-0 bg-linear-to-b from-primary/20 via-background to-background" />
           <div className="absolute -left-24 top-10 h-64 w-64 rounded-full bg-primary/20 blur-[120px]" />
           <div className="absolute -right-24 bottom-10 h-64 w-64 rounded-full bg-accent/20 blur-[120px]" />
-          <div className="relative mx-auto grid w-full max-w-6xl gap-8 px-6 pb-16 pt-24 md:grid-cols-[1.2fr_0.8fr] md:px-10 md:pt-28 reveal" data-reveal>
+          <div
+            className={`${publicPageLayoutTokens.sectionBase} relative grid max-w-6xl gap-8 pb-16 pt-24 md:grid-cols-[1.2fr_0.8fr] md:pt-28 reveal`}
+            data-reveal
+          >
             <div className="space-y-5">
-              <Badge variant="secondary" className="text-xs uppercase tracking-widest animate-fade-in">
+              <Badge
+                variant="secondary"
+                className="text-xs uppercase tracking-widest animate-fade-in"
+              >
                 {about.heroBadge}
               </Badge>
               <h1 className="text-3xl font-semibold text-foreground md:text-5xl animate-slide-up">
@@ -178,9 +186,16 @@ const About = () => {
               >
                 {about.heroSubtitle}
               </p>
-              <div className="flex flex-wrap gap-3 animate-slide-up opacity-0" style={{ animationDelay: "0.4s" }}>
+              <div
+                className="flex flex-wrap gap-3 animate-slide-up opacity-0"
+                style={{ animationDelay: "0.4s" }}
+              >
                 {about.heroBadges.map((badge) => (
-                  <Badge key={badge} variant="secondary" className="text-xs uppercase tracking-widest">
+                  <Badge
+                    key={badge}
+                    variant="secondary"
+                    className="text-xs uppercase tracking-widest"
+                  >
                     {badge}
                   </Badge>
                 ))}
@@ -189,7 +204,10 @@ const About = () => {
           </div>
         </section>
 
-        <section className="mx-auto w-full max-w-6xl px-6 pb-16 pt-10 md:px-10 reveal" data-reveal>
+        <section
+          className={`${publicPageLayoutTokens.sectionBase} max-w-6xl pb-16 pt-10 reveal`}
+          data-reveal
+        >
           <div className="grid gap-6 lg:grid-cols-[0.9fr_1.1fr]">
             <div className="space-y-4">
               {about.highlights.map((item) => {
@@ -203,7 +221,9 @@ const About = () => {
                       <HighlightIcon className="h-4 w-4 text-primary/80 transition-colors duration-300 group-hover:text-primary" />
                       {item.label}
                     </div>
-                    <p className="mt-2 text-sm text-muted-foreground transition-colors duration-300 group-hover:text-foreground/80">{item.text}</p>
+                    <p className="mt-2 text-sm text-muted-foreground transition-colors duration-300 group-hover:text-foreground/80">
+                      {item.text}
+                    </p>
                   </div>
                 );
               })}
@@ -213,12 +233,17 @@ const About = () => {
                 <div className="flex items-center gap-3 text-sm font-semibold uppercase tracking-widest text-muted-foreground transition-colors duration-300 group-hover:text-primary">
                   {(() => {
                     const ManifestoIcon = iconMap[about.manifestoIcon] || Flame;
-                    return <ManifestoIcon className="h-4 w-4 text-primary/80 transition-colors duration-300 group-hover:text-primary" />;
+                    return (
+                      <ManifestoIcon className="h-4 w-4 text-primary/80 transition-colors duration-300 group-hover:text-primary" />
+                    );
                   })()}
                   {about.manifestoTitle}
                 </div>
                 {about.manifestoParagraphs.map((paragraph) => (
-                  <p key={paragraph} className="text-sm text-muted-foreground transition-colors duration-300 group-hover:text-foreground/80 md:text-base">
+                  <p
+                    key={paragraph}
+                    className="text-sm text-muted-foreground transition-colors duration-300 group-hover:text-foreground/80 md:text-base"
+                  >
                     {paragraph}
                   </p>
                 ))}
@@ -227,7 +252,10 @@ const About = () => {
           </div>
         </section>
 
-        <section className="mx-auto w-full max-w-6xl px-6 pb-16 pt-2 md:px-10 reveal" data-reveal>
+        <section
+          className={`${publicPageLayoutTokens.sectionBase} max-w-6xl pb-16 pt-2 reveal`}
+          data-reveal
+        >
           <div className="grid gap-6 md:grid-cols-3">
             {about.pillars.map((pillar) => {
               const Icon = iconMap[pillar.icon] || Sparkles;
@@ -241,7 +269,9 @@ const About = () => {
                       <Icon className="h-4 w-4 text-primary/80 transition-colors duration-300 group-hover:text-primary" />
                       {pillar.title}
                     </div>
-                    <p className="text-sm text-muted-foreground transition-colors duration-300 group-hover:text-foreground/80">{pillar.description}</p>
+                    <p className="text-sm text-muted-foreground transition-colors duration-300 group-hover:text-foreground/80">
+                      {pillar.description}
+                    </p>
                   </CardContent>
                 </Card>
               );
@@ -249,7 +279,10 @@ const About = () => {
           </div>
         </section>
 
-        <section className="mx-auto w-full max-w-6xl px-6 pb-24 pt-4 md:px-10 reveal" data-reveal>
+        <section
+          className={`${publicPageLayoutTokens.sectionBase} max-w-6xl pb-24 pt-4 reveal`}
+          data-reveal
+        >
           <div className="grid gap-6 md:grid-cols-2">
             {about.values.map((value) => {
               const Icon = iconMap[value.icon] || Sparkles;
@@ -263,7 +296,9 @@ const About = () => {
                       <Icon className="h-4 w-4 text-primary/80 transition-colors duration-300 group-hover:text-primary" />
                       {value.title}
                     </div>
-                    <p className="text-sm text-muted-foreground transition-colors duration-300 group-hover:text-foreground/80">{value.description}</p>
+                    <p className="text-sm text-muted-foreground transition-colors duration-300 group-hover:text-foreground/80">
+                      {value.description}
+                    </p>
                   </CardContent>
                 </Card>
               );
@@ -276,10 +311,3 @@ const About = () => {
 };
 
 export default About;
-
-
-
-
-
-
-

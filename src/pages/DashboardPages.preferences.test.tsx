@@ -100,7 +100,7 @@ describe("DashboardPages query sync", () => {
     expect(getPreferenceCalls()).toHaveLength(0);
   });
 
-  it("aplica aba Preview vinda de ?tab=preview", async () => {
+  it("aplica aba Prévia vinda de ?tab=preview", async () => {
     setupApiMock();
 
     render(
@@ -112,7 +112,7 @@ describe("DashboardPages query sync", () => {
 
     await screen.findByRole("heading", { name: /Gerenciar/i });
     await waitFor(() => {
-      expect(screen.getByRole("tab", { name: /Preview/i })).toHaveAttribute("aria-selected", "true");
+      expect(screen.getByRole("tab", { name: /Prévia/i })).toHaveAttribute("aria-selected", "true");
       expect(screen.getByTestId("location-search").textContent).toBe("?tab=preview");
     });
     expect(getPreferenceCalls()).toHaveLength(0);
@@ -150,7 +150,7 @@ describe("DashboardPages query sync", () => {
 
     await screen.findByRole("heading", { name: /Gerenciar/i });
     await waitFor(() => {
-      expect(screen.getByRole("tab", { name: /Preview/i })).toHaveAttribute("aria-selected", "true");
+      expect(screen.getByRole("tab", { name: /Prévia/i })).toHaveAttribute("aria-selected", "true");
       expect(screen.getByTestId("location-path").textContent).toBe("/dashboard/paginas");
       expect(screen.getByTestId("location-search").textContent).toBe("?tab=preview");
     });

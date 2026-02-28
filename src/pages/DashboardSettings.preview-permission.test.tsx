@@ -84,7 +84,7 @@ describe("DashboardSettings sem preview de paginas", () => {
     });
   });
 
-  it("nao renderiza a aba Preview e nao chama /api/pages", async () => {
+  it("nao renderiza a aba Prévia e nao chama /api/pages", async () => {
     render(
       <MemoryRouter initialEntries={["/dashboard/configuracoes"]}>
         <DashboardSettings />
@@ -93,9 +93,9 @@ describe("DashboardSettings sem preview de paginas", () => {
     await screen.findByRole("heading", { name: /Painel/i });
 
     const tablist = screen.getByRole("tablist");
-    expect(within(tablist).queryByRole("tab", { name: /Preview/i })).not.toBeInTheDocument();
-    expect(
-      apiFetchMock.mock.calls.some((call) => String(call[1] || "") === "/api/pages"),
-    ).toBe(false);
+    expect(within(tablist).queryByRole("tab", { name: /Prévia/i })).not.toBeInTheDocument();
+    expect(apiFetchMock.mock.calls.some((call) => String(call[1] || "") === "/api/pages")).toBe(
+      false,
+    );
   });
 });

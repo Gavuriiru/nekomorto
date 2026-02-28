@@ -50,7 +50,8 @@ const mockJsonResponse = (ok: boolean, payload: unknown, status = ok ? 200 : 500
     json: async () => payload,
   }) as Response;
 
-const classTokens = (element: HTMLElement) => String(element.className).split(/\s+/).filter(Boolean);
+const classTokens = (element: HTMLElement) =>
+  String(element.className).split(/\s+/).filter(Boolean);
 
 const projectFixture = {
   id: "project-1",
@@ -104,26 +105,28 @@ const lightNovelProjectFixture = {
 
 const setupApiMock = (project = projectFixture) => {
   apiFetchMock.mockReset();
-  apiFetchMock.mockImplementation(async (_apiBase: string, endpoint: string, options?: RequestInit) => {
-    const method = String(options?.method || "GET").toUpperCase();
+  apiFetchMock.mockImplementation(
+    async (_apiBase: string, endpoint: string, options?: RequestInit) => {
+      const method = String(options?.method || "GET").toUpperCase();
 
-    if (endpoint === "/api/public/projects/project-1" && method === "GET") {
-      return mockJsonResponse(true, { project });
-    }
-    if (endpoint === "/api/public/projects" && method === "GET") {
-      return mockJsonResponse(true, { projects: [project] });
-    }
-    if (endpoint === "/api/public/tag-translations" && method === "GET") {
-      return mockJsonResponse(true, { tags: {}, genres: {}, staffRoles: {} });
-    }
-    if (endpoint === "/api/public/projects/project-1/view" && method === "POST") {
-      return mockJsonResponse(true, { views: 1 });
-    }
-    if (endpoint === "/api/public/me" && method === "GET") {
-      return mockJsonResponse(true, { user: null });
-    }
-    return mockJsonResponse(false, { error: "not_found" }, 404);
-  });
+      if (endpoint === "/api/public/projects/project-1" && method === "GET") {
+        return mockJsonResponse(true, { project });
+      }
+      if (endpoint === "/api/public/projects" && method === "GET") {
+        return mockJsonResponse(true, { projects: [project] });
+      }
+      if (endpoint === "/api/public/tag-translations" && method === "GET") {
+        return mockJsonResponse(true, { tags: {}, genres: {}, staffRoles: {} });
+      }
+      if (endpoint === "/api/public/projects/project-1/view" && method === "POST") {
+        return mockJsonResponse(true, { views: 1 });
+      }
+      if (endpoint === "/api/public/me" && method === "GET") {
+        return mockJsonResponse(true, { user: null });
+      }
+      return mockJsonResponse(false, { error: "not_found" }, 404);
+    },
+  );
 };
 
 describe("Project mobile hero layout", () => {
@@ -219,7 +222,7 @@ describe("Project mobile hero layout", () => {
     expect(metaRowTokens).toContain("md:justify-start");
     expect(metaRowTokens).toContain("md:text-left");
 
-    expect(within(metaRow as HTMLElement).getByText(/•|â€¢/)).toBeInTheDocument();
+    expect(within(metaRow as HTMLElement).getByText(/•/)).toBeInTheDocument();
     expect(within(metaRow as HTMLElement).getByText("Em andamento")).toBeInTheDocument();
 
     const synopsis = within(contentColumn as HTMLElement).getByText("Sinopse de teste");
@@ -280,26 +283,28 @@ describe("Project mobile hero layout", () => {
 
   it("renderiza CTA de leitura para light novel com capitulo publicado", async () => {
     apiFetchMock.mockReset();
-    apiFetchMock.mockImplementation(async (_apiBase: string, endpoint: string, options?: RequestInit) => {
-      const method = String(options?.method || "GET").toUpperCase();
+    apiFetchMock.mockImplementation(
+      async (_apiBase: string, endpoint: string, options?: RequestInit) => {
+        const method = String(options?.method || "GET").toUpperCase();
 
-      if (endpoint === "/api/public/projects/project-1" && method === "GET") {
-        return mockJsonResponse(true, { project: lightNovelProjectFixture });
-      }
-      if (endpoint === "/api/public/projects" && method === "GET") {
-        return mockJsonResponse(true, { projects: [lightNovelProjectFixture] });
-      }
-      if (endpoint === "/api/public/tag-translations" && method === "GET") {
-        return mockJsonResponse(true, { tags: {}, genres: {}, staffRoles: {} });
-      }
-      if (endpoint === "/api/public/projects/project-1/view" && method === "POST") {
-        return mockJsonResponse(true, { views: 1 });
-      }
-      if (endpoint === "/api/public/me" && method === "GET") {
-        return mockJsonResponse(true, { user: null });
-      }
-      return mockJsonResponse(false, { error: "not_found" }, 404);
-    });
+        if (endpoint === "/api/public/projects/project-1" && method === "GET") {
+          return mockJsonResponse(true, { project: lightNovelProjectFixture });
+        }
+        if (endpoint === "/api/public/projects" && method === "GET") {
+          return mockJsonResponse(true, { projects: [lightNovelProjectFixture] });
+        }
+        if (endpoint === "/api/public/tag-translations" && method === "GET") {
+          return mockJsonResponse(true, { tags: {}, genres: {}, staffRoles: {} });
+        }
+        if (endpoint === "/api/public/projects/project-1/view" && method === "POST") {
+          return mockJsonResponse(true, { views: 1 });
+        }
+        if (endpoint === "/api/public/me" && method === "GET") {
+          return mockJsonResponse(true, { user: null });
+        }
+        return mockJsonResponse(false, { error: "not_found" }, 404);
+      },
+    );
 
     render(
       <MemoryRouter>

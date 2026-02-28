@@ -4,6 +4,7 @@ import { Switch } from "@/components/ui/switch";
 import type { AutosaveStatus } from "@/hooks/use-autosave";
 import { AlertCircle, CheckCircle2, Loader2, Save } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { uiCopy } from "@/lib/ui-copy";
 
 type DashboardAutosaveStatusProps = {
   title?: string;
@@ -27,7 +28,7 @@ const DashboardAutosaveStatus = ({
   errorMessage,
   toggleDisabled = false,
   onManualSave,
-  manualActionLabel = "Salvar agora",
+  manualActionLabel = uiCopy.actions.saveNow,
   manualActionDisabled = false,
 }: DashboardAutosaveStatusProps) => {
   const [showSavedFeedback, setShowSavedFeedback] = useState(false);
@@ -92,7 +93,7 @@ const DashboardAutosaveStatus = ({
   }, [enabled, status]);
 
   const showErrorState = enabled && status === "error";
-  const errorFeedbackText = errorMessage?.trim() || "Falha ao salvar";
+  const errorFeedbackText = errorMessage?.trim() || uiCopy.feedback.saveFailedTitle;
   const isManualActionCritical = !enabled || status === "pending" || status === "error";
 
   const manualButtonToneClass = useMemo(() => {
@@ -121,7 +122,9 @@ const DashboardAutosaveStatus = ({
             )}
             aria-hidden="true"
           />
-          <p className="truncate text-xs font-semibold uppercase tracking-widest text-muted-foreground">{title}</p>
+          <p className="truncate text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+            {title}
+          </p>
           <span
             className={cn(
               "inline-flex h-4 w-4 items-center justify-center text-destructive transition-opacity duration-200",
@@ -170,14 +173,14 @@ const DashboardAutosaveStatus = ({
                 aria-hidden="true"
               >
                 <Loader2 className="h-4 w-4" />
-                Salvando...
+                {uiCopy.actions.saving}
               </span>
               <span
                 className="invisible col-start-1 row-start-1 inline-flex items-center justify-center gap-2 whitespace-nowrap"
                 aria-hidden="true"
               >
                 <CheckCircle2 className="h-4 w-4" />
-                Salvo
+                {uiCopy.actions.saved}
               </span>
               <span
                 className={cn(
@@ -197,7 +200,7 @@ const DashboardAutosaveStatus = ({
                 aria-hidden={buttonMode !== "saving"}
               >
                 <Loader2 className="h-4 w-4 animate-spin" />
-                Salvando...
+                {uiCopy.actions.saving}
               </span>
               <span
                 className={cn(
@@ -207,7 +210,7 @@ const DashboardAutosaveStatus = ({
                 aria-hidden={buttonMode !== "saved"}
               >
                 <CheckCircle2 className="h-4 w-4" />
-                Salvo
+                {uiCopy.actions.saved}
               </span>
             </span>
           </Button>

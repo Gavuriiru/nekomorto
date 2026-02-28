@@ -1,5 +1,6 @@
 import type { CSSProperties, ReactNode } from "react";
 import { cn } from "@/lib/utils";
+import { dashboardPageLayoutTokens } from "@/components/dashboard/dashboard-page-tokens";
 
 type DashboardPageHeaderProps = {
   badge: string;
@@ -21,17 +22,13 @@ const DashboardPageHeader = ({
   actionsDelayMs = 160,
 }: DashboardPageHeaderProps) => {
   return (
-    <header
-      className={cn("flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between", className)}
-    >
+    <header className={cn(dashboardPageLayoutTokens.header, className)}>
       <div>
-        <div className="inline-flex items-center gap-3 rounded-full border border-border/60 bg-card/60 px-4 py-2 text-xs uppercase tracking-[0.3em] text-muted-foreground animate-fade-in">
-          {badge}
-        </div>
-        <h1 className="mt-4 text-3xl font-semibold text-foreground lg:text-4xl animate-slide-up">{title}</h1>
+        <div className={dashboardPageLayoutTokens.headerBadge}>{badge}</div>
+        <h1 className={dashboardPageLayoutTokens.headerTitle}>{title}</h1>
         {description ? (
           <p
-            className="mt-2 text-sm text-muted-foreground animate-slide-up opacity-0"
+            className={dashboardPageLayoutTokens.headerDescription}
             style={{ animationDelay: `${descriptionDelayMs}ms` } as CSSProperties}
           >
             {description}
@@ -40,7 +37,7 @@ const DashboardPageHeader = ({
       </div>
       {actions ? (
         <div
-          className="flex flex-wrap items-center gap-3 animate-slide-up opacity-0"
+          className={dashboardPageLayoutTokens.headerActions}
           style={{ animationDelay: `${actionsDelayMs}ms` } as CSSProperties}
         >
           {actions}
@@ -51,4 +48,3 @@ const DashboardPageHeader = ({
 };
 
 export default DashboardPageHeader;
-

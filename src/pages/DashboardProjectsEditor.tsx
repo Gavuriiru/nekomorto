@@ -250,7 +250,17 @@ const emptyProject: ProjectForm = {
   episodeDownloads: [],
 };
 
-const defaultFormatOptions = ["Anime", "Mangá", "Webtoon", "Light Novel", "Filme", "OVA", "ONA", "Especial", "Spin-off"];
+const defaultFormatOptions = [
+  "Anime",
+  "Mangá",
+  "Webtoon",
+  "Light Novel",
+  "Filme",
+  "OVA",
+  "ONA",
+  "Especial",
+  "Spin-off",
+];
 const statusOptions = ["Em andamento", "Finalizado", "Pausado", "Cancelado"];
 const fansubRoleOptions = [
   "Tradução",
@@ -505,7 +515,13 @@ const canonicalToDisplayTime = (value?: string | null) => {
     const [hoursPart, minutesPart] = trimmed.split(":");
     const hours = Number(hoursPart);
     const minutes = Number(minutesPart);
-    if (Number.isFinite(hours) && Number.isFinite(minutes) && hours >= 0 && minutes >= 0 && minutes <= 59) {
+    if (
+      Number.isFinite(hours) &&
+      Number.isFinite(minutes) &&
+      hours >= 0 &&
+      minutes >= 0 &&
+      minutes <= 59
+    ) {
       canonical = `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:00`;
     }
   } else {
@@ -580,7 +596,13 @@ const normalizeCanonicalTimeFromUnknown = (value?: string | null) => {
     const [hoursPart, minutesPart] = trimmed.split(":");
     const hours = Number(hoursPart);
     const minutes = Number(minutesPart);
-    if (Number.isFinite(hours) && Number.isFinite(minutes) && hours >= 0 && minutes >= 0 && minutes <= 59) {
+    if (
+      Number.isFinite(hours) &&
+      Number.isFinite(minutes) &&
+      hours >= 0 &&
+      minutes >= 0 &&
+      minutes <= 59
+    ) {
       return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:00`;
     }
     return "";
@@ -621,7 +643,10 @@ const shiftDraftAfterRemoval = (draft: Record<number, string>, removedIndex: num
   return next;
 };
 
-const shiftCollapsedEpisodesAfterRemoval = (collapsed: Record<number, boolean>, removedIndex: number) => {
+const shiftCollapsedEpisodesAfterRemoval = (
+  collapsed: Record<number, boolean>,
+  removedIndex: number,
+) => {
   const next: Record<number, boolean> = {};
   Object.entries(collapsed).forEach(([key, value]) => {
     const index = Number(key);
@@ -751,19 +776,21 @@ const DashboardProjectsEditor = () => {
   const [loadVersion, setLoadVersion] = useState(0);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchParams, setSearchParams] = useSearchParams();
-  const [sortMode, setSortMode] = useState<"alpha" | "status" | "views" | "comments" | "recent">(() => {
-    const sortParam = searchParams.get("sort");
-    if (
-      sortParam === "alpha" ||
-      sortParam === "status" ||
-      sortParam === "views" ||
-      sortParam === "comments" ||
-      sortParam === "recent"
-    ) {
-      return sortParam;
-    }
-    return "alpha";
-  });
+  const [sortMode, setSortMode] = useState<"alpha" | "status" | "views" | "comments" | "recent">(
+    () => {
+      const sortParam = searchParams.get("sort");
+      if (
+        sortParam === "alpha" ||
+        sortParam === "status" ||
+        sortParam === "views" ||
+        sortParam === "comments" ||
+        sortParam === "recent"
+      ) {
+        return sortParam;
+      }
+      return "alpha";
+    },
+  );
   const [currentPage, setCurrentPage] = useState(() => parsePageParam(searchParams.get("page")));
   const [selectedType, setSelectedType] = useState(() => parseTypeParam(searchParams.get("type")));
   const [isEditorOpen, setIsEditorOpen] = useState(false);
@@ -868,9 +895,9 @@ const DashboardProjectsEditor = () => {
   const [collapsedEpisodes, setCollapsedEpisodes] = useState<Record<number, boolean>>({});
   const [editorAccordionValue, setEditorAccordionValue] = useState<string[]>(["dados-principais"]);
   const [isLibraryOpen, setIsLibraryOpen] = useState(false);
-  const [libraryTarget, setLibraryTarget] = useState<
-    "cover" | "banner" | "hero" | "episode-cover"
-  >("cover");
+  const [libraryTarget, setLibraryTarget] = useState<"cover" | "banner" | "hero" | "episode-cover">(
+    "cover",
+  );
   const [episodeCoverIndex, setEpisodeCoverIndex] = useState<number | null>(null);
   const chapterEditorsRef = useRef<Record<number, LexicalEditorHandle | null>>({});
   const episodeSizeInputRefs = useRef<Record<number, HTMLInputElement | null>>({});
@@ -895,7 +922,8 @@ const DashboardProjectsEditor = () => {
   const hasInitializedListFiltersRef = useRef(false);
   const editorInitialSnapshotRef = useRef<string>(buildProjectEditorSnapshot(emptyProject, ""));
   const isDirty = useMemo(
-    () => buildProjectEditorSnapshot(formState, anilistIdInput) !== editorInitialSnapshotRef.current,
+    () =>
+      buildProjectEditorSnapshot(formState, anilistIdInput) !== editorInitialSnapshotRef.current,
     [anilistIdInput, formState],
   );
   const canManageProjects = useMemo(() => {
@@ -971,8 +999,14 @@ const DashboardProjectsEditor = () => {
   }, [publicSettings.teamRoles, formState.staff]);
 
   const tagTranslationMap = useMemo(() => buildTranslationMap(tagTranslations), [tagTranslations]);
-  const genreTranslationMap = useMemo(() => buildTranslationMap(genreTranslations), [genreTranslations]);
-  const staffRoleTranslationMap = useMemo(() => buildTranslationMap(staffRoleTranslations), [staffRoleTranslations]);
+  const genreTranslationMap = useMemo(
+    () => buildTranslationMap(genreTranslations),
+    [genreTranslations],
+  );
+  const staffRoleTranslationMap = useMemo(
+    () => buildTranslationMap(staffRoleTranslations),
+    [staffRoleTranslations],
+  );
 
   const translatedSortedEditorTags = useMemo(
     () => sortByTranslatedLabel(formState.tags, (tag) => translateTag(tag, tagTranslationMap)),
@@ -980,7 +1014,10 @@ const DashboardProjectsEditor = () => {
   );
 
   const translatedSortedEditorGenres = useMemo(
-    () => sortByTranslatedLabel(formState.genres, (genre) => translateGenre(genre, genreTranslationMap)),
+    () =>
+      sortByTranslatedLabel(formState.genres, (genre) =>
+        translateGenre(genre, genreTranslationMap),
+      ),
     [formState.genres, genreTranslationMap],
   );
 
@@ -1065,7 +1102,9 @@ const DashboardProjectsEditor = () => {
       selectedType: currentSelectedType,
     } = queryStateRef.current;
     const shouldApply =
-      currentSortMode !== nextSort || currentCurrentPage !== nextPage || currentSelectedType !== nextType;
+      currentSortMode !== nextSort ||
+      currentCurrentPage !== nextPage ||
+      currentSelectedType !== nextType;
     if (!shouldApply) {
       return;
     }
@@ -1148,7 +1187,8 @@ const DashboardProjectsEditor = () => {
     [projectEpisodesFolder, projectRootFolder, scopedProjectImageIds],
   );
   const activeLibraryOptions = useMemo(
-    () => (libraryTarget === "episode-cover" ? episodeAssetLibraryOptions : projectAssetLibraryOptions),
+    () =>
+      libraryTarget === "episode-cover" ? episodeAssetLibraryOptions : projectAssetLibraryOptions,
     [episodeAssetLibraryOptions, libraryTarget, projectAssetLibraryOptions],
   );
 
@@ -1332,9 +1372,7 @@ const DashboardProjectsEditor = () => {
     }
     const data = await response.json();
     const remoteTypes = Array.isArray(data?.types)
-      ? data.types
-          .map((item: unknown) => String(item || "").trim())
-          .filter(Boolean)
+      ? data.types.map((item: unknown) => String(item || "").trim()).filter(Boolean)
       : [];
     const uniqueTypes = Array.from(new Set([...remoteTypes, ...defaultFormatOptions]));
     setProjectTypeOptions(uniqueTypes.length > 0 ? uniqueTypes : defaultFormatOptions);
@@ -1348,16 +1386,19 @@ const DashboardProjectsEditor = () => {
         setHasLoadError(false);
       }
       try {
-        const [projectsResult, projectTypesResult, usersResult, translationsResult] = await Promise.allSettled([
-          loadProjects(),
-          loadProjectTypes(),
-          apiFetch(apiBase, "/api/users", { auth: true }),
-          apiFetch(apiBase, "/api/public/tag-translations", { cache: "no-store" }),
-        ]);
+        const [projectsResult, projectTypesResult, usersResult, translationsResult] =
+          await Promise.allSettled([
+            loadProjects(),
+            loadProjectTypes(),
+            apiFetch(apiBase, "/api/users", { auth: true }),
+            apiFetch(apiBase, "/api/public/tag-translations", { cache: "no-store" }),
+          ]);
         if (usersResult.status === "fulfilled") {
           const response = usersResult.value;
           if (response.ok) {
-            const data = (await response.json()) as { users?: Array<{ name?: string; status?: string }> };
+            const data = (await response.json()) as {
+              users?: Array<{ name?: string; status?: string }>;
+            };
             const names = Array.isArray(data.users)
               ? data.users
                   .filter((user) => user.status === "active")
@@ -1365,7 +1406,9 @@ const DashboardProjectsEditor = () => {
                   .filter((name): name is string => Boolean(name))
               : [];
             if (isActive) {
-              setMemberDirectory(Array.from(new Set(names)).sort((a, b) => a.localeCompare(b, "pt-BR")));
+              setMemberDirectory(
+                Array.from(new Set(names)).sort((a, b) => a.localeCompare(b, "pt-BR")),
+              );
             }
           }
         } else if (isActive) {
@@ -1424,16 +1467,19 @@ const DashboardProjectsEditor = () => {
     }
   }, [isLibraryOpen]);
 
-  const isRestorable = useCallback((project: ProjectRecord) => {
-    if (!project.deletedAt) {
-      return false;
-    }
-    const ts = new Date(project.deletedAt).getTime();
-    if (!Number.isFinite(ts)) {
-      return false;
-    }
-    return Date.now() - ts <= restoreWindowMs;
-  }, [restoreWindowMs]);
+  const isRestorable = useCallback(
+    (project: ProjectRecord) => {
+      if (!project.deletedAt) {
+        return false;
+      }
+      const ts = new Date(project.deletedAt).getTime();
+      if (!Number.isFinite(ts)) {
+        return false;
+      }
+      return Date.now() - ts <= restoreWindowMs;
+    },
+    [restoreWindowMs],
+  );
 
   const getRestoreRemainingLabel = (project: ProjectRecord) => {
     if (!project.deletedAt) {
@@ -1451,13 +1497,18 @@ const DashboardProjectsEditor = () => {
     return `${remainingDays} dias`;
   };
 
-  const activeProjects = useMemo(() => projects.filter((project) => !project.deletedAt), [projects]);
+  const activeProjects = useMemo(
+    () => projects.filter((project) => !project.deletedAt),
+    [projects],
+  );
   const trashedProjects = useMemo(
     () => projects.filter((project) => project.deletedAt && isRestorable(project)),
     [isRestorable, projects],
   );
   const typeOptions = useMemo(() => {
-    const types = activeProjects.map((project) => String(project.type || "").trim()).filter(Boolean);
+    const types = activeProjects
+      .map((project) => String(project.type || "").trim())
+      .filter(Boolean);
     const unique = Array.from(new Set(types));
     const sorted = unique.sort((a, b) => a.localeCompare(b, "pt-BR"));
     return ["Todos", ...sorted];
@@ -1465,7 +1516,9 @@ const DashboardProjectsEditor = () => {
   const formatSelectOptions = useMemo(() => {
     const fromApi = Array.isArray(projectTypeOptions) ? projectTypeOptions : [];
     const currentType = String(formState.type || "").trim();
-    const merged = Array.from(new Set([...fromApi, ...defaultFormatOptions, currentType].filter(Boolean)));
+    const merged = Array.from(
+      new Set([...fromApi, ...defaultFormatOptions, currentType].filter(Boolean)),
+    );
     return merged.sort((a, b) => a.localeCompare(b, "pt-BR"));
   }, [formState.type, projectTypeOptions]);
 
@@ -1595,11 +1648,13 @@ const DashboardProjectsEditor = () => {
 
   const openEdit = useCallback((project: ProjectRecord) => {
     const initialEpisodes: ProjectEpisode[] = Array.isArray(project.episodeDownloads)
-      ? project.episodeDownloads.map((episode): ProjectEpisode => ({
-          ...episode,
-          content: episode.content || "",
-          contentFormat: "lexical",
-        }))
+      ? project.episodeDownloads.map(
+          (episode): ProjectEpisode => ({
+            ...episode,
+            content: episode.content || "",
+            contentFormat: "lexical",
+          }),
+        )
       : [];
     const mergedSynopsis = project.synopsis || project.description || "";
     const nextForm = {
@@ -1744,7 +1799,9 @@ const DashboardProjectsEditor = () => {
 
     const normalizedEpisodesForSave = formState.episodeDownloads.map((episode) => ({
       ...episode,
-      sources: Array.isArray(episode.sources) ? episode.sources.map((source) => ({ ...source })) : [],
+      sources: Array.isArray(episode.sources)
+        ? episode.sources.map((source) => ({ ...source }))
+        : [],
     }));
     const nextEpisodeSizeDrafts = { ...episodeSizeDrafts };
     const nextEpisodeSizeErrors = { ...episodeSizeErrors };
@@ -1871,7 +1928,9 @@ const DashboardProjectsEditor = () => {
           if (!key) {
             return true;
           }
-          return arr.findIndex((rel) => (rel.projectId || rel.anilistId || rel.title) === key) === index;
+          return (
+            arr.findIndex((rel) => (rel.projectId || rel.anilistId || rel.title) === key) === index
+          );
         }),
       staff: staffWithPending.filter((item) => item.role || item.members.length > 0),
       animeStaff: formState.animeStaff.filter((item) => item.role || item.members.length > 0),
@@ -1958,7 +2017,7 @@ const DashboardProjectsEditor = () => {
       }
       toast({
         title: "Não foi possível salvar o projeto",
-        description: "Tente novamente em instantes.",
+        description: "Tente novamente em alguns instantes.",
         variant: "destructive",
       });
       return;
@@ -1971,7 +2030,10 @@ const DashboardProjectsEditor = () => {
     } else {
       setProjects((prev) => [...prev, data.project]);
     }
-    editorInitialSnapshotRef.current = buildProjectEditorSnapshot(payload as ProjectForm, anilistIdInput);
+    editorInitialSnapshotRef.current = buildProjectEditorSnapshot(
+      payload as ProjectForm,
+      anilistIdInput,
+    );
     toast({
       title: editingProject ? "Projeto atualizado" : "Projeto criado",
       description: "As alterações foram salvas com sucesso.",
@@ -2000,7 +2062,10 @@ const DashboardProjectsEditor = () => {
     if (editingProject && deleteTarget.id === editingProject.id) {
       closeEditor();
     }
-    toast({ title: "Projeto movido para a lixeira", description: "Você pode restaurar por 3 dias." });
+    toast({
+      title: "Projeto movido para a lixeira",
+      description: "Você pode restaurar por 3 dias.",
+    });
   };
 
   const handleRestoreProject = async (project: ProjectRecord) => {
@@ -2044,26 +2109,29 @@ const DashboardProjectsEditor = () => {
       relationIdMap.set(Number(item.id), item.id);
     });
     const seenRelationIds = new Set<string>();
-    const relations: ProjectRelation[] = relationNodes.reduce<ProjectRelation[]>((acc, node, index) => {
-      const projectId = relationIdMap.get(node.id) || "";
-      const relationKey = projectId || String(node.id) || node.title?.romaji || "";
-      if (relationKey && seenRelationIds.has(relationKey)) {
+    const relations: ProjectRelation[] = relationNodes.reduce<ProjectRelation[]>(
+      (acc, node, index) => {
+        const projectId = relationIdMap.get(node.id) || "";
+        const relationKey = projectId || String(node.id) || node.title?.romaji || "";
+        if (relationKey && seenRelationIds.has(relationKey)) {
+          return acc;
+        }
+        if (relationKey) {
+          seenRelationIds.add(relationKey);
+        }
+        acc.push({
+          relation: translateRelation(relationEdges[index]?.relationType || ""),
+          title: node.title?.romaji || "",
+          format: formatType(node.format || ""),
+          status: formatStatus(node.status || ""),
+          image: node.coverImage?.large || "",
+          anilistId: node.id,
+          projectId,
+        });
         return acc;
-      }
-      if (relationKey) {
-        seenRelationIds.add(relationKey);
-      }
-      acc.push({
-        relation: translateRelation(relationEdges[index]?.relationType || ""),
-        title: node.title?.romaji || "",
-        format: formatType(node.format || ""),
-        status: formatStatus(node.status || ""),
-        image: node.coverImage?.large || "",
-        anilistId: node.id,
-        projectId,
-      });
-      return acc;
-    }, []);
+      },
+      [],
+    );
     const staffEdges = media.staff?.edges || [];
     const staffNodes = media.staff?.nodes || [];
     const staffMap = new Map<string, string[]>();
@@ -2339,7 +2407,10 @@ const DashboardProjectsEditor = () => {
       return { ...prev, episodeDownloads: next };
     });
     setCollapsedEpisodes((prev) => {
-      const flags = Array.from({ length: formState.episodeDownloads.length }, (_, idx) => prev[idx] ?? false);
+      const flags = Array.from(
+        { length: formState.episodeDownloads.length },
+        (_, idx) => prev[idx] ?? false,
+      );
       const [moved] = flags.splice(episodeDragId, 1);
       flags.splice(targetIndex, 0, moved);
       const next: Record<number, boolean> = {};
@@ -2370,320 +2441,340 @@ const DashboardProjectsEditor = () => {
         isLoadingUser={!hasLoadedCurrentUser}
         onUserCardClick={() => navigate("/dashboard/usuarios?edit=me")}
       >
-          <DashboardPageContainer>
-            <DashboardPageHeader
-              badge="Projetos"
-              title="Gerenciar projetos"
-              description="Crie, edite e organize os projetos visíveis no site."
-              actions={(
-                <Button className="gap-2" onClick={openCreate}>
-                  <Plus className="h-4 w-4" />
-                  Novo projeto
-                </Button>
-              )}
-            />
+        <DashboardPageContainer>
+          <DashboardPageHeader
+            badge="Projetos"
+            title="Gerenciar projetos"
+            description="Crie, edite e organize os projetos visíveis no site."
+            actions={
+              <Button className="gap-2" onClick={openCreate}>
+                <Plus className="h-4 w-4" />
+                Novo projeto
+              </Button>
+            }
+          />
 
-            <section className="mt-8 space-y-6">
-              <div className="flex flex-wrap items-center justify-between gap-3 animate-slide-up opacity-0">
-                <div className="flex flex-1 flex-wrap items-center gap-3">
-                  <div className="w-full max-w-sm">
-                    <Input
-                      value={searchQuery}
-                      onChange={(event) => setSearchQuery(event.target.value)}
-                      placeholder="Buscar por título, tags, estúdio..."
-                    />
-                  </div>
-                  <Select value={sortMode} onValueChange={(value) => setSortMode(value as typeof sortMode)}>
-                    <SelectTrigger className="w-[210px]">
-                      <SelectValue placeholder="Ordenar por" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="recent">Mais recentes</SelectItem>
-                      <SelectItem value="alpha">Ordem alfabética</SelectItem>
-                      <SelectItem value="status">Status</SelectItem>
-                      <SelectItem value="views">Visualizações</SelectItem>
-                      <SelectItem value="comments">Comentários</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <Select value={selectedType} onValueChange={setSelectedType}>
-                    <SelectTrigger className="w-[210px]" aria-label="Filtrar por formato">
-                      <SelectValue placeholder="Todos os formatos" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {typeOptions.map((type) => (
-                        <SelectItem key={type} value={type}>
-                          {type}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+          <section className="mt-8 space-y-6">
+            <div className="flex flex-wrap items-center justify-between gap-3 animate-slide-up opacity-0">
+              <div className="flex flex-1 flex-wrap items-center gap-3">
+                <div className="w-full max-w-sm">
+                  <Input
+                    value={searchQuery}
+                    onChange={(event) => setSearchQuery(event.target.value)}
+                    placeholder="Buscar por título, tags, estúdio..."
+                  />
                 </div>
-                <Badge variant="secondary" className="text-xs uppercase animate-slide-up opacity-0">
-                  {sortedProjects.length} projetos
-                </Badge>
+                <Select
+                  value={sortMode}
+                  onValueChange={(value) => setSortMode(value as typeof sortMode)}
+                >
+                  <SelectTrigger className="w-[210px]">
+                    <SelectValue placeholder="Ordenar por" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="recent">Mais recentes</SelectItem>
+                    <SelectItem value="alpha">Ordem alfabética</SelectItem>
+                    <SelectItem value="status">Status</SelectItem>
+                    <SelectItem value="views">Visualizações</SelectItem>
+                    <SelectItem value="comments">Comentários</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Select value={selectedType} onValueChange={setSelectedType}>
+                  <SelectTrigger className="w-[210px]" aria-label="Filtrar por formato">
+                    <SelectValue placeholder="Todos os formatos" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {typeOptions.map((type) => (
+                      <SelectItem key={type} value={type}>
+                        {type}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
+              <Badge variant="secondary" className="text-xs uppercase animate-slide-up opacity-0">
+                {sortedProjects.length} projetos
+              </Badge>
+            </div>
 
-              {isLoading ? (
-                <AsyncState
-                  kind="loading"
-                  title="Carregando projetos"
-                  description="Buscando os projetos no banco de dados."
-                  className={dashboardPageLayoutTokens.surfaceDefault}
-                />
-              ) : hasLoadError ? (
-                <AsyncState
-                  kind="error"
-                  title="Nao foi possivel carregar os projetos"
-                  description="Tente recarregar os dados do painel."
-                  className={dashboardPageLayoutTokens.surfaceDefault}
-                  action={
-                    <Button
-                      variant="outline"
-                      onClick={() => setLoadVersion((previous) => previous + 1)}
-                    >
-                      Recarregar
-                    </Button>
-                  }
-                />
-              ) : sortedProjects.length === 0 ? (
-                <AsyncState
-                  kind="empty"
-                  title="Nenhum projeto encontrado"
-                  description="Ajuste os filtros ou crie um novo projeto."
-                  className={dashboardPageLayoutTokens.surfaceMuted}
-                  action={
-                    <Button onClick={openCreate} className="bg-primary text-primary-foreground hover:bg-primary/90">
-                      <Plus className="mr-2 h-4 w-4" />
-                      Criar primeiro projeto
-                    </Button>
-                  }
-                />
-              ) : (
-                <div className="grid gap-6">
-                  {paginatedProjects.map((project, index) => (
-                    <Card
-                      key={project.id}
-                      className={`${dashboardPageLayoutTokens.listCard} group cursor-pointer overflow-hidden transition hover:border-primary/40 animate-slide-up opacity-0`}
-                      style={{ animationDelay: `${Math.min(index * 35, 210)}ms` }}
-                      role="button"
-                      tabIndex={0}
-                      onKeyDown={(event) => {
-                        if (event.key === "Enter" || event.key === " ") {
-                          event.preventDefault();
-                          openEdit(project);
-                        }
-                      }}
-                      onClick={() => openEdit(project)}
-                    >
-                      <CardContent className="p-0">
-                        <div className="grid gap-6 md:grid-cols-[220px_1fr]">
+            {isLoading ? (
+              <AsyncState
+                kind="loading"
+                title="Carregando projetos"
+                description="Buscando os projetos no banco de dados."
+                className={dashboardPageLayoutTokens.surfaceDefault}
+              />
+            ) : hasLoadError ? (
+              <AsyncState
+                kind="error"
+                title="Nao foi possivel carregar os projetos"
+                description="Tente recarregar os dados do painel."
+                className={dashboardPageLayoutTokens.surfaceDefault}
+                action={
+                  <Button
+                    variant="outline"
+                    onClick={() => setLoadVersion((previous) => previous + 1)}
+                  >
+                    Recarregar
+                  </Button>
+                }
+              />
+            ) : sortedProjects.length === 0 ? (
+              <AsyncState
+                kind="empty"
+                title="Nenhum projeto encontrado"
+                description="Ajuste os filtros ou crie um novo projeto."
+                className={dashboardPageLayoutTokens.surfaceMuted}
+                action={
+                  <Button
+                    onClick={openCreate}
+                    className="bg-primary text-primary-foreground hover:bg-primary/90"
+                  >
+                    <Plus className="mr-2 h-4 w-4" />
+                    Criar primeiro projeto
+                  </Button>
+                }
+              />
+            ) : (
+              <div className="grid gap-6">
+                {paginatedProjects.map((project, index) => (
+                  <Card
+                    key={project.id}
+                    className={`${dashboardPageLayoutTokens.listCard} group cursor-pointer overflow-hidden transition hover:border-primary/40 animate-slide-up opacity-0`}
+                    style={{ animationDelay: `${Math.min(index * 35, 210)}ms` }}
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter" || event.key === " ") {
+                        event.preventDefault();
+                        openEdit(project);
+                      }
+                    }}
+                    onClick={() => openEdit(project)}
+                  >
+                    <CardContent className="p-0">
+                      <div className="grid gap-6 md:grid-cols-[220px_1fr]">
                         <div className="relative aspect-2/3 w-full">
-                            <img
-                              src={project.cover || "/placeholder.svg"}
-                              alt={project.title}
-                              className="h-full w-full object-cover object-center"
-                              loading="lazy"
-                            />
-                            {project.tags[0] ? (
-                              <Badge className="absolute right-3 top-3 text-[10px] uppercase bg-background/85 text-foreground">
-                                {translateTag(
-                                  sortByTranslatedLabel(project.tags || [], (tag) =>
-                                    translateTag(tag, tagTranslationMap),
-                                  )[0] || "",
-                                  tagTranslationMap,
-                                )}
-                              </Badge>
-                            ) : null}
-                          </div>
-                          <div className="flex flex-1 flex-col gap-4 p-6">
-                            <div className="flex flex-wrap items-start justify-between gap-4">
-                              <div className="space-y-2">
-                                <div className="flex flex-wrap items-center gap-2">
-                                  <Badge variant="outline" className="text-[10px] uppercase">
-                                    {project.status}
-                                  </Badge>
-                                  <Badge variant="secondary" className="text-[10px] uppercase">
-                                    {project.type}
-                                  </Badge>
-                                </div>
-                                <h3 className="text-lg font-semibold text-foreground">{project.title}</h3>
-                                <p className="text-xs text-muted-foreground">{project.studio}</p>
-                              </div>
-                              <div className="flex items-center gap-2">
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  title="Visualizar"
-                                  asChild
-                                  onClick={(event) => event.stopPropagation()}
-                                >
-                                  <Link to={`/projeto/${project.id}`}>
-                                    <Eye className="h-4 w-4" />
-                                  </Link>
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  title="Copiar link"
-                                  onClick={(event) => {
-                                    event.stopPropagation();
-                                    const url = `${window.location.origin}/projeto/${project.id}`;
-                                    navigator.clipboard
-                                      .writeText(url)
-                                      .catch(() => {
-                                        const textarea = document.createElement("textarea");
-                                        textarea.value = url;
-                                        document.body.appendChild(textarea);
-                                        textarea.select();
-                                        document.execCommand("copy");
-                                        document.body.removeChild(textarea);
-                                      });
-                                  }}
-                                >
-                                  <Copy className="h-4 w-4" />
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  title="Excluir"
-                                  onClick={(event) => {
-                                    event.stopPropagation();
-                                    setDeleteTarget(project);
-                                  }}
-                                >
-                                  <Trash2 className="h-4 w-4 text-destructive" />
-                                </Button>
-                              </div>
-                            </div>
-
-                            <p className="text-sm text-muted-foreground line-clamp-3">{project.synopsis}</p>
-
-                            {project.tags.length > 0 ? (
-                              <div className="flex flex-wrap gap-2">
-                                {sortByTranslatedLabel(project.tags || [], (tag) =>
+                          <img
+                            src={project.cover || "/placeholder.svg"}
+                            alt={project.title}
+                            className="h-full w-full object-cover object-center"
+                            loading="lazy"
+                          />
+                          {project.tags[0] ? (
+                            <Badge className="absolute right-3 top-3 text-[10px] uppercase bg-background/85 text-foreground">
+                              {translateTag(
+                                sortByTranslatedLabel(project.tags || [], (tag) =>
                                   translateTag(tag, tagTranslationMap),
-                                )
-                                  .slice(0, 4)
-                                  .map((tag) => (
-                                  <Badge key={tag} variant="secondary" className="text-[10px] uppercase">
+                                )[0] || "",
+                                tagTranslationMap,
+                              )}
+                            </Badge>
+                          ) : null}
+                        </div>
+                        <div className="flex flex-1 flex-col gap-4 p-6">
+                          <div className="flex flex-wrap items-start justify-between gap-4">
+                            <div className="space-y-2">
+                              <div className="flex flex-wrap items-center gap-2">
+                                <Badge variant="outline" className="text-[10px] uppercase">
+                                  {project.status}
+                                </Badge>
+                                <Badge variant="secondary" className="text-[10px] uppercase">
+                                  {project.type}
+                                </Badge>
+                              </div>
+                              <h3 className="text-lg font-semibold text-foreground">
+                                {project.title}
+                              </h3>
+                              <p className="text-xs text-muted-foreground">{project.studio}</p>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                title="Visualizar"
+                                asChild
+                                onClick={(event) => event.stopPropagation()}
+                              >
+                                <Link to={`/projeto/${project.id}`}>
+                                  <Eye className="h-4 w-4" />
+                                </Link>
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                title="Copiar link"
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  const url = `${window.location.origin}/projeto/${project.id}`;
+                                  navigator.clipboard.writeText(url).catch(() => {
+                                    const textarea = document.createElement("textarea");
+                                    textarea.value = url;
+                                    document.body.appendChild(textarea);
+                                    textarea.select();
+                                    document.execCommand("copy");
+                                    document.body.removeChild(textarea);
+                                  });
+                                }}
+                              >
+                                <Copy className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                title="Excluir"
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  setDeleteTarget(project);
+                                }}
+                              >
+                                <Trash2 className="h-4 w-4 text-destructive" />
+                              </Button>
+                            </div>
+                          </div>
+
+                          <p className="text-sm text-muted-foreground line-clamp-3">
+                            {project.synopsis}
+                          </p>
+
+                          {project.tags.length > 0 ? (
+                            <div className="flex flex-wrap gap-2">
+                              {sortByTranslatedLabel(project.tags || [], (tag) =>
+                                translateTag(tag, tagTranslationMap),
+                              )
+                                .slice(0, 4)
+                                .map((tag) => (
+                                  <Badge
+                                    key={tag}
+                                    variant="secondary"
+                                    className="text-[10px] uppercase"
+                                  >
                                     {translateTag(tag, tagTranslationMap)}
                                   </Badge>
                                 ))}
-                              </div>
-                            ) : null}
-                            {project.genres?.length ? (
-                              <div className="flex flex-wrap gap-2">
-                                {sortByTranslatedLabel(project.genres || [], (genre) =>
-                                  translateGenre(genre, genreTranslationMap),
-                                )
-                                  .slice(0, 4)
-                                  .map((genre) => (
-                                  <Badge key={genre} variant="outline" className="text-[10px] uppercase">
+                            </div>
+                          ) : null}
+                          {project.genres?.length ? (
+                            <div className="flex flex-wrap gap-2">
+                              {sortByTranslatedLabel(project.genres || [], (genre) =>
+                                translateGenre(genre, genreTranslationMap),
+                              )
+                                .slice(0, 4)
+                                .map((genre) => (
+                                  <Badge
+                                    key={genre}
+                                    variant="outline"
+                                    className="text-[10px] uppercase"
+                                  >
                                     {translateGenre(genre, genreTranslationMap)}
                                   </Badge>
                                 ))}
-                              </div>
-                            ) : null}
-
-                            <div className="flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
-                              <span className="inline-flex items-center gap-2">{project.views} visualizações</span>
-                              <span className="inline-flex items-center gap-2">
-                                {project.commentsCount} comentários
-                              </span>
-                              <span className="ml-auto text-xs text-muted-foreground">ID {project.id}</span>
                             </div>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              )}
-              {sortedProjects.length > projectsPerPage ? (
-                <div className="mt-6 flex justify-center">
-                  <Pagination>
-                    <PaginationContent>
-                      <PaginationItem>
-                        <PaginationPrevious
-                          href="#"
-                          onClick={(event) => {
-                            event.preventDefault();
-                            setCurrentPage((page) => Math.max(1, page - 1));
-                          }}
-                        />
-                      </PaginationItem>
-                      {Array.from({ length: totalPages }, (_, index) => index + 1).map((page) => (
-                        <PaginationItem key={page}>
-                          <PaginationLink
-                            href="#"
-                            isActive={page === currentPage}
-                            onClick={(event) => {
-                              event.preventDefault();
-                              setCurrentPage(page);
-                            }}
-                          >
-                            {page}
-                          </PaginationLink>
-                        </PaginationItem>
-                      ))}
-                      <PaginationItem>
-                        <PaginationNext
-                          href="#"
-                          onClick={(event) => {
-                            event.preventDefault();
-                            setCurrentPage((page) => Math.min(totalPages, page + 1));
-                          }}
-                        />
-                      </PaginationItem>
-                    </PaginationContent>
-                  </Pagination>
-                </div>
-              ) : null}
-              {trashedProjects.length > 0 ? (
-                <Card className="mt-8 border-border/60 bg-card/60">
-                  <CardContent className="space-y-4 p-6">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <h3 className="text-lg font-semibold">Lixeira</h3>
-                        <p className="text-xs text-muted-foreground">
-                          Restaure em até 3 dias após a exclusão.
-                        </p>
-                      </div>
-                      <Badge variant="secondary" className="text-xs uppercase">
-                        {trashedProjects.length} itens
-                      </Badge>
-                    </div>
-                    <div className="grid gap-3">
-                      {trashedProjects.map((project, index) => (
-                        <div
-                          key={`trash-${project.id}`}
-                          className={`${dashboardPageLayoutTokens.surfaceDefault} flex flex-wrap items-center justify-between gap-3 px-4 py-3 animate-slide-up opacity-0`}
-                          style={{ animationDelay: `${Math.min(index * 35, 210)}ms` }}
-                        >
-                          <div className="min-w-0">
-                            <p className="text-sm font-medium text-foreground">{project.title}</p>
-                            <p className="text-xs text-muted-foreground">ID {project.id}</p>
-                          </div>
-                          <div className="flex items-center gap-3">
-                            <span className="text-xs text-muted-foreground">
-                              Restam {getRestoreRemainingLabel(project)}
+                          ) : null}
+
+                          <div className="flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
+                            <span className="inline-flex items-center gap-2">
+                              {project.views} visualizações
                             </span>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => handleRestoreProject(project)}
-                            >
-                              Restaurar
-                            </Button>
+                            <span className="inline-flex items-center gap-2">
+                              {project.commentsCount} comentários
+                            </span>
+                            <span className="ml-auto text-xs text-muted-foreground">
+                              ID {project.id}
+                            </span>
                           </div>
                         </div>
-                      ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+            {sortedProjects.length > projectsPerPage ? (
+              <div className="mt-6 flex justify-center">
+                <Pagination>
+                  <PaginationContent>
+                    <PaginationItem>
+                      <PaginationPrevious
+                        href="#"
+                        onClick={(event) => {
+                          event.preventDefault();
+                          setCurrentPage((page) => Math.max(1, page - 1));
+                        }}
+                      />
+                    </PaginationItem>
+                    {Array.from({ length: totalPages }, (_, index) => index + 1).map((page) => (
+                      <PaginationItem key={page}>
+                        <PaginationLink
+                          href="#"
+                          isActive={page === currentPage}
+                          onClick={(event) => {
+                            event.preventDefault();
+                            setCurrentPage(page);
+                          }}
+                        >
+                          {page}
+                        </PaginationLink>
+                      </PaginationItem>
+                    ))}
+                    <PaginationItem>
+                      <PaginationNext
+                        href="#"
+                        onClick={(event) => {
+                          event.preventDefault();
+                          setCurrentPage((page) => Math.min(totalPages, page + 1));
+                        }}
+                      />
+                    </PaginationItem>
+                  </PaginationContent>
+                </Pagination>
+              </div>
+            ) : null}
+            {trashedProjects.length > 0 ? (
+              <Card className="mt-8 border-border/60 bg-card/60">
+                <CardContent className="space-y-4 p-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="text-lg font-semibold">Lixeira</h3>
+                      <p className="text-xs text-muted-foreground">
+                        Restaure em até 3 dias após a exclusão.
+                      </p>
                     </div>
-                  </CardContent>
-                </Card>
-              ) : null}
-            </section>
-          </DashboardPageContainer>
+                    <Badge variant="secondary" className="text-xs uppercase">
+                      {trashedProjects.length} itens
+                    </Badge>
+                  </div>
+                  <div className="grid gap-3">
+                    {trashedProjects.map((project, index) => (
+                      <div
+                        key={`trash-${project.id}`}
+                        className={`${dashboardPageLayoutTokens.surfaceDefault} flex flex-wrap items-center justify-between gap-3 px-4 py-3 animate-slide-up opacity-0`}
+                        style={{ animationDelay: `${Math.min(index * 35, 210)}ms` }}
+                      >
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium text-foreground">{project.title}</p>
+                          <p className="text-xs text-muted-foreground">ID {project.id}</p>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <span className="text-xs text-muted-foreground">
+                            Restam {getRestoreRemainingLabel(project)}
+                          </span>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleRestoreProject(project)}
+                          >
+                            Restaurar
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            ) : null}
+          </section>
+        </DashboardPageContainer>
       </DashboardShell>
 
       {isEditorOpen ? (
@@ -2741,12 +2832,17 @@ const DashboardProjectsEditor = () => {
                     {editingProject ? "Editar projeto" : "Novo projeto"}
                   </DialogTitle>
                   <DialogDescription className="max-w-2xl text-xs md:text-sm">
-                    Busque no AniList para preencher automaticamente ou ajuste todos os dados manualmente.
+                    Busque no AniList para preencher automaticamente ou ajuste todos os dados
+                    manualmente.
                   </DialogDescription>
                 </div>
                 <div className="rounded-xl border border-border/60 bg-card/65 px-3 py-2 text-right">
-                  <p className="text-[11px] uppercase tracking-[0.12em] text-muted-foreground">Projeto</p>
-                  <p className="max-w-[210px] truncate text-sm font-medium text-foreground">{editorProjectTitle}</p>
+                  <p className="text-[11px] uppercase tracking-[0.12em] text-muted-foreground">
+                    Projeto
+                  </p>
+                  <p className="max-w-[210px] truncate text-sm font-medium text-foreground">
+                    {editorProjectTitle}
+                  </p>
                 </div>
               </div>
             </DialogHeader>
@@ -2782,17 +2878,17 @@ const DashboardProjectsEditor = () => {
                 </AccordionTrigger>
                 <AccordionContent className={editorSectionContentClassName}>
                   <div className="grid gap-4 md:grid-cols-[1fr_auto]">
-                <div className="space-y-2">
-                  <Label>ID AniList</Label>
-                  <Input
-                    value={anilistIdInput}
-                    onChange={(event) => setAnilistIdInput(event.target.value)}
-                    placeholder="Ex.: 21366"
-                  />
-                </div>
-                <Button className="self-end" onClick={handleImportAniList}>
-                  Importar do AniList
-                </Button>
+                    <div className="space-y-2">
+                      <Label>ID AniList</Label>
+                      <Input
+                        value={anilistIdInput}
+                        onChange={(event) => setAnilistIdInput(event.target.value)}
+                        placeholder="Ex.: 21366"
+                      />
+                    </div>
+                    <Button className="self-end" onClick={handleImportAniList}>
+                      Importar do AniList
+                    </Button>
                   </div>
                 </AccordionContent>
               </AccordionItem>
@@ -2801,75 +2897,81 @@ const DashboardProjectsEditor = () => {
                 <AccordionTrigger className={editorSectionTriggerClassName}>
                   <div className="flex w-full items-center justify-between gap-4 text-left">
                     <span>Dados principais</span>
-                    <span className="text-xs text-muted-foreground">{formState.title || "ID e títulos"}</span>
+                    <span className="text-xs text-muted-foreground">
+                      {formState.title || "ID e títulos"}
+                    </span>
                   </div>
                 </AccordionTrigger>
                 <AccordionContent className={editorSectionContentClassName}>
                   <div className="grid gap-4 md:grid-cols-2">
-              <div className="space-y-2">
-                <Label>ID do projeto</Label>
-                <Input
-                  value={formState.id}
-                  onChange={(event) => {
-                    const nextValue = event.target.value;
-                    const hasAniList =
-                      Boolean(formState.anilistId) || Number.isFinite(Number(anilistIdInput));
-                    const trimmed = nextValue.trim();
-                    if (!hasAniList && trimmed && /^\d+$/.test(trimmed)) {
-                      return;
-                    }
-                    setFormState((prev) => ({ ...prev, id: nextValue }));
-                  }}
-                  placeholder="Mesmo ID do AniList ou slug manual"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Título</Label>
-                <Input
-                  value={formState.title}
-                  onChange={(event) => setFormState((prev) => ({ ...prev, title: event.target.value }))}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Título original</Label>
-                <Input
-                  value={formState.titleOriginal}
-                  onChange={(event) =>
-                    setFormState((prev) => ({ ...prev, titleOriginal: event.target.value }))
-                  }
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Título em inglês</Label>
-                <Input
-                  value={formState.titleEnglish}
-                  onChange={(event) =>
-                    setFormState((prev) => ({ ...prev, titleEnglish: event.target.value }))
-                  }
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Forçar no carrossel</Label>
-                <div className="flex items-center justify-between gap-4 rounded-2xl border border-border/60 bg-card/60 px-4 py-3">
-                  <span className="text-sm text-muted-foreground">
-                    Exibe no carrossel da home mesmo sem lançamento recente.
-                  </span>
-                  <Switch
-                    checked={Boolean(formState.forceHero)}
-                    onCheckedChange={(checked) =>
-                      setFormState((prev) => ({ ...prev, forceHero: checked }))
-                    }
-                  />
-                </div>
-              </div>
-              <div className="space-y-2 md:col-span-2">
-                <Label>Sinopse</Label>
-                <Textarea
-                  value={formState.synopsis}
-                  onChange={(event) => setFormState((prev) => ({ ...prev, synopsis: event.target.value }))}
-                  rows={6}
-                />
-              </div>
+                    <div className="space-y-2">
+                      <Label>ID do projeto</Label>
+                      <Input
+                        value={formState.id}
+                        onChange={(event) => {
+                          const nextValue = event.target.value;
+                          const hasAniList =
+                            Boolean(formState.anilistId) || Number.isFinite(Number(anilistIdInput));
+                          const trimmed = nextValue.trim();
+                          if (!hasAniList && trimmed && /^\d+$/.test(trimmed)) {
+                            return;
+                          }
+                          setFormState((prev) => ({ ...prev, id: nextValue }));
+                        }}
+                        placeholder="Mesmo ID do AniList ou slug manual"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Título</Label>
+                      <Input
+                        value={formState.title}
+                        onChange={(event) =>
+                          setFormState((prev) => ({ ...prev, title: event.target.value }))
+                        }
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Título original</Label>
+                      <Input
+                        value={formState.titleOriginal}
+                        onChange={(event) =>
+                          setFormState((prev) => ({ ...prev, titleOriginal: event.target.value }))
+                        }
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Título em inglês</Label>
+                      <Input
+                        value={formState.titleEnglish}
+                        onChange={(event) =>
+                          setFormState((prev) => ({ ...prev, titleEnglish: event.target.value }))
+                        }
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Forçar no carrossel</Label>
+                      <div className="flex items-center justify-between gap-4 rounded-2xl border border-border/60 bg-card/60 px-4 py-3">
+                        <span className="text-sm text-muted-foreground">
+                          Exibe no carrossel da home mesmo sem lançamento recente.
+                        </span>
+                        <Switch
+                          checked={Boolean(formState.forceHero)}
+                          onCheckedChange={(checked) =>
+                            setFormState((prev) => ({ ...prev, forceHero: checked }))
+                          }
+                        />
+                      </div>
+                    </div>
+                    <div className="space-y-2 md:col-span-2">
+                      <Label>Sinopse</Label>
+                      <Textarea
+                        value={formState.synopsis}
+                        onChange={(event) =>
+                          setFormState((prev) => ({ ...prev, synopsis: event.target.value }))
+                        }
+                        rows={6}
+                      />
+                    </div>
                   </div>
                 </AccordionContent>
               </AccordionItem>
@@ -2879,79 +2981,91 @@ const DashboardProjectsEditor = () => {
                   <div className="flex w-full items-center justify-between gap-4 text-left">
                     <span>Mídias</span>
                     <span className="text-xs text-muted-foreground">
-                      {[formState.heroImageUrl, formState.cover, formState.banner].filter(Boolean).length}/3 selecionadas
+                      {
+                        [formState.heroImageUrl, formState.cover, formState.banner].filter(Boolean)
+                          .length
+                      }
+                      /3 selecionadas
                     </span>
                   </div>
                 </AccordionTrigger>
                 <AccordionContent className={editorSectionContentClassName}>
                   <div className="grid gap-3 md:grid-cols-3">
-              <div className="space-y-2">
-                <Label>Imagem do carrossel</Label>
-                <div className="flex items-center gap-3 rounded-2xl border border-border/60 bg-card/60 px-3 py-2">
-                  {formState.heroImageUrl ? (
-                    <img
-                      src={formState.heroImageUrl}
-                      alt="Imagem do carrossel"
-                      className="h-12 w-12 rounded-lg object-cover"
-                    />
-                  ) : (
-                    <div className="flex h-12 w-12 items-center justify-center rounded-lg border border-dashed border-border/60 text-center text-[10px] text-muted-foreground leading-tight">
-                      Sem imagem
+                    <div className="space-y-2">
+                      <Label>Imagem do carrossel</Label>
+                      <div className="flex items-center gap-3 rounded-2xl border border-border/60 bg-card/60 px-3 py-2">
+                        {formState.heroImageUrl ? (
+                          <img
+                            src={formState.heroImageUrl}
+                            alt="Imagem do carrossel"
+                            className="h-12 w-12 rounded-lg object-cover"
+                          />
+                        ) : (
+                          <div className="flex h-12 w-12 items-center justify-center rounded-lg border border-dashed border-border/60 text-center text-[10px] text-muted-foreground leading-tight">
+                            Sem imagem
+                          </div>
+                        )}
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="ml-auto"
+                          onClick={() => openLibraryForProjectImage("hero")}
+                        >
+                          Biblioteca
+                        </Button>
+                      </div>
                     </div>
-                  )}
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="ml-auto"
-                    onClick={() => openLibraryForProjectImage("hero")}
-                  >
-                    Biblioteca
-                  </Button>
-                </div>
-              </div>
-              <div className="space-y-2">
-                <Label>Capa</Label>
-                <div className="flex items-center gap-3 rounded-2xl border border-border/60 bg-card/60 px-3 py-2">
-                  {formState.cover ? (
-                    <img src={formState.cover} alt="Capa" className="h-12 w-12 rounded-lg object-cover" />
-                  ) : (
-                    <div className="flex h-12 w-12 items-center justify-center rounded-lg border border-dashed border-border/60 text-center text-[10px] text-muted-foreground leading-tight">
-                      Sem imagem
+                    <div className="space-y-2">
+                      <Label>Capa</Label>
+                      <div className="flex items-center gap-3 rounded-2xl border border-border/60 bg-card/60 px-3 py-2">
+                        {formState.cover ? (
+                          <img
+                            src={formState.cover}
+                            alt="Capa"
+                            className="h-12 w-12 rounded-lg object-cover"
+                          />
+                        ) : (
+                          <div className="flex h-12 w-12 items-center justify-center rounded-lg border border-dashed border-border/60 text-center text-[10px] text-muted-foreground leading-tight">
+                            Sem imagem
+                          </div>
+                        )}
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="ml-auto"
+                          onClick={() => openLibraryForProjectImage("cover")}
+                        >
+                          Biblioteca
+                        </Button>
+                      </div>
                     </div>
-                  )}
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="ml-auto"
-                    onClick={() => openLibraryForProjectImage("cover")}
-                  >
-                    Biblioteca
-                  </Button>
-                </div>
-              </div>
-              <div className="space-y-2">
-                <Label>Banner</Label>
-                <div className="flex items-center gap-3 rounded-2xl border border-border/60 bg-card/60 px-3 py-2">
-                  {formState.banner ? (
-                    <img src={formState.banner} alt="Banner" className="h-12 w-12 rounded-lg object-cover" />
-                  ) : (
-                    <div className="flex h-12 w-12 items-center justify-center rounded-lg border border-dashed border-border/60 text-center text-[10px] text-muted-foreground leading-tight">
-                      Sem imagem
+                    <div className="space-y-2">
+                      <Label>Banner</Label>
+                      <div className="flex items-center gap-3 rounded-2xl border border-border/60 bg-card/60 px-3 py-2">
+                        {formState.banner ? (
+                          <img
+                            src={formState.banner}
+                            alt="Banner"
+                            className="h-12 w-12 rounded-lg object-cover"
+                          />
+                        ) : (
+                          <div className="flex h-12 w-12 items-center justify-center rounded-lg border border-dashed border-border/60 text-center text-[10px] text-muted-foreground leading-tight">
+                            Sem imagem
+                          </div>
+                        )}
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="ml-auto"
+                          onClick={() => openLibraryForProjectImage("banner")}
+                        >
+                          Biblioteca
+                        </Button>
+                      </div>
                     </div>
-                  )}
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="ml-auto"
-                    onClick={() => openLibraryForProjectImage("banner")}
-                  >
-                    Biblioteca
-                  </Button>
-                </div>
-              </div>
                   </div>
                 </AccordionContent>
               </AccordionItem>
@@ -2967,97 +3081,113 @@ const DashboardProjectsEditor = () => {
                 </AccordionTrigger>
                 <AccordionContent className={editorSectionContentClassName}>
                   <div className="grid gap-4 md:grid-cols-2">
-              <div className="space-y-2">
-                <Label>Formato</Label>
-                <Select
-                  value={formState.type}
-                  onValueChange={(value) => setFormState((prev) => ({ ...prev, type: value }))}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Formato" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {formatSelectOptions.map((option) => (
-                      <SelectItem key={option} value={option}>
-                        {option}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label>Status</Label>
-                <Select
-                  value={formState.status}
-                  onValueChange={(value) => setFormState((prev) => ({ ...prev, status: value }))}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {statusOptions.map((option) => (
-                      <SelectItem key={option} value={option}>
-                        {option}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label>Ano</Label>
-                <Input
-                  value={formState.year}
-                  onChange={(event) => setFormState((prev) => ({ ...prev, year: event.target.value }))}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Temporada</Label>
-                <Input
-                  value={formState.season}
-                  onChange={(event) => setFormState((prev) => ({ ...prev, season: event.target.value }))}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Estúdio</Label>
-                <Input
-                  value={formState.studio}
-                  onChange={(event) => setFormState((prev) => ({ ...prev, studio: event.target.value }))}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Episódios/Capítulos</Label>
-                <Input
-                  value={formState.episodes}
-                  onChange={(event) => setFormState((prev) => ({ ...prev, episodes: event.target.value }))}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>País de origem</Label>
-                <Input
-                  value={formState.country}
-                  onChange={(event) => setFormState((prev) => ({ ...prev, country: event.target.value }))}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Fonte</Label>
-                <Input
-                  value={formState.source}
-                  onChange={(event) => setFormState((prev) => ({ ...prev, source: event.target.value }))}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Cargo Discord (ID)</Label>
-                <Input
-                  value={formState.discordRoleId || ""}
-                  onChange={(event) =>
-                    setFormState((prev) => ({
-                      ...prev,
-                      discordRoleId: event.target.value.replace(/\D/g, ""),
-                    }))
-                  }
-                  placeholder="Opcional: ID numerico do cargo"
-                />
-              </div>
+                    <div className="space-y-2">
+                      <Label>Formato</Label>
+                      <Select
+                        value={formState.type}
+                        onValueChange={(value) =>
+                          setFormState((prev) => ({ ...prev, type: value }))
+                        }
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Formato" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {formatSelectOptions.map((option) => (
+                            <SelectItem key={option} value={option}>
+                              {option}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Status</Label>
+                      <Select
+                        value={formState.status}
+                        onValueChange={(value) =>
+                          setFormState((prev) => ({ ...prev, status: value }))
+                        }
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Status" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {statusOptions.map((option) => (
+                            <SelectItem key={option} value={option}>
+                              {option}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Ano</Label>
+                      <Input
+                        value={formState.year}
+                        onChange={(event) =>
+                          setFormState((prev) => ({ ...prev, year: event.target.value }))
+                        }
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Temporada</Label>
+                      <Input
+                        value={formState.season}
+                        onChange={(event) =>
+                          setFormState((prev) => ({ ...prev, season: event.target.value }))
+                        }
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Estúdio</Label>
+                      <Input
+                        value={formState.studio}
+                        onChange={(event) =>
+                          setFormState((prev) => ({ ...prev, studio: event.target.value }))
+                        }
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Episódios/Capítulos</Label>
+                      <Input
+                        value={formState.episodes}
+                        onChange={(event) =>
+                          setFormState((prev) => ({ ...prev, episodes: event.target.value }))
+                        }
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>País de origem</Label>
+                      <Input
+                        value={formState.country}
+                        onChange={(event) =>
+                          setFormState((prev) => ({ ...prev, country: event.target.value }))
+                        }
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Fonte</Label>
+                      <Input
+                        value={formState.source}
+                        onChange={(event) =>
+                          setFormState((prev) => ({ ...prev, source: event.target.value }))
+                        }
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Cargo Discord (ID)</Label>
+                      <Input
+                        value={formState.discordRoleId || ""}
+                        onChange={(event) =>
+                          setFormState((prev) => ({
+                            ...prev,
+                            discordRoleId: event.target.value.replace(/\D/g, ""),
+                          }))
+                        }
+                        placeholder="Opcional: ID numerico do cargo"
+                      />
+                    </div>
                   </div>
                 </AccordionContent>
               </AccordionItem>
@@ -3073,103 +3203,110 @@ const DashboardProjectsEditor = () => {
                 </AccordionTrigger>
                 <AccordionContent className={editorSectionContentClassName}>
                   <div className="grid gap-4 md:grid-cols-2">
-              <div className="space-y-2">
-                <Label>Tags</Label>
-                <div className="flex flex-wrap items-center gap-2">
-                  <Input
-                    value={tagInput}
-                    onChange={(event) => setTagInput(event.target.value)}
-                    onKeyDown={(event) => {
-                      if (event.key === "Enter") {
-                        event.preventDefault();
-                        handleAddTag();
-                      }
-                    }}
-                    placeholder="Adicionar tag"
-                  />
-                </div>
-                {tagSuggestions.length > 0 ? (
-                  <div className="mt-2 flex flex-wrap gap-2">
-                    {tagSuggestions.map((tag) => (
-                      <Button
-                        key={`tag-suggestion-${tag}`}
-                        type="button"
-                        size="sm"
-                        variant="ghost"
-                        className="h-7 px-2 text-xs"
-                        onClick={() => {
-                          setTagInput(tag);
-                          setFormState((prev) => ({
-                            ...prev,
-                            tags: prev.tags.includes(tag) ? prev.tags : [...prev.tags, tag],
-                          }));
-                          setTagInput("");
-                        }}
-                      >
-                        {tag}
-                      </Button>
-                    ))}
-                  </div>
-                ) : null}
-                <div className="mt-2 flex flex-wrap gap-2">
-                  {translatedSortedEditorTags.map((tag, index) => (
-                    <Badge
-                      key={`${tag}-${index}`}
-                      variant="secondary"
-                      onClick={() => handleRemoveTag(tag)}
-                      className="cursor-pointer"
-                    >
-                      {translateTag(tag, tagTranslationMap)}
-                    </Badge>
-                  ))}
-                </div>
-              </div>
-              <div className="space-y-2">
-                <Label>Gêneros</Label>
-                <div className="flex flex-wrap items-center gap-2">
-                  <Input
-                    value={genreInput}
-                    onChange={(event) => setGenreInput(event.target.value)}
-                    onKeyDown={(event) => {
-                      if (event.key === "Enter") {
-                        event.preventDefault();
-                        handleAddGenre();
-                      }
-                    }}
-                    placeholder="Adicionar gênero"
-                  />
-                </div>
-                {genreSuggestions.length > 0 ? (
-                  <div className="mt-2 flex flex-wrap gap-2">
-                    {genreSuggestions.map((genre) => (
-                      <Button
-                        key={`genre-suggestion-${genre}`}
-                        type="button"
-                        size="sm"
-                        variant="ghost"
-                        className="h-7 px-2 text-xs"
-                        onClick={() => {
-                          setGenreInput(genre);
-                          setFormState((prev) => ({
-                            ...prev,
-                            genres: prev.genres.includes(genre) ? prev.genres : [...prev.genres, genre],
-                          }));
-                          setGenreInput("");
-                        }}
-                      >
-                        {genre}
-                      </Button>
-                    ))}
-                  </div>
-                ) : null}
-                <div className="mt-2 flex flex-wrap gap-2">
-                  {translatedSortedEditorGenres.map((genre, index) => (
-                    <Badge key={`${genre}-${index}`} variant="secondary" onClick={() => handleRemoveGenre(genre)} className="cursor-pointer">
-                      {translateGenre(genre, genreTranslationMap)}
-                    </Badge>
-                  ))}
-                </div>
-              </div>
+                    <div className="space-y-2">
+                      <Label>Tags</Label>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Input
+                          value={tagInput}
+                          onChange={(event) => setTagInput(event.target.value)}
+                          onKeyDown={(event) => {
+                            if (event.key === "Enter") {
+                              event.preventDefault();
+                              handleAddTag();
+                            }
+                          }}
+                          placeholder="Adicionar tag"
+                        />
+                      </div>
+                      {tagSuggestions.length > 0 ? (
+                        <div className="mt-2 flex flex-wrap gap-2">
+                          {tagSuggestions.map((tag) => (
+                            <Button
+                              key={`tag-suggestion-${tag}`}
+                              type="button"
+                              size="sm"
+                              variant="ghost"
+                              className="h-7 px-2 text-xs"
+                              onClick={() => {
+                                setTagInput(tag);
+                                setFormState((prev) => ({
+                                  ...prev,
+                                  tags: prev.tags.includes(tag) ? prev.tags : [...prev.tags, tag],
+                                }));
+                                setTagInput("");
+                              }}
+                            >
+                              {tag}
+                            </Button>
+                          ))}
+                        </div>
+                      ) : null}
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        {translatedSortedEditorTags.map((tag, index) => (
+                          <Badge
+                            key={`${tag}-${index}`}
+                            variant="secondary"
+                            onClick={() => handleRemoveTag(tag)}
+                            className="cursor-pointer"
+                          >
+                            {translateTag(tag, tagTranslationMap)}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Gêneros</Label>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Input
+                          value={genreInput}
+                          onChange={(event) => setGenreInput(event.target.value)}
+                          onKeyDown={(event) => {
+                            if (event.key === "Enter") {
+                              event.preventDefault();
+                              handleAddGenre();
+                            }
+                          }}
+                          placeholder="Adicionar gênero"
+                        />
+                      </div>
+                      {genreSuggestions.length > 0 ? (
+                        <div className="mt-2 flex flex-wrap gap-2">
+                          {genreSuggestions.map((genre) => (
+                            <Button
+                              key={`genre-suggestion-${genre}`}
+                              type="button"
+                              size="sm"
+                              variant="ghost"
+                              className="h-7 px-2 text-xs"
+                              onClick={() => {
+                                setGenreInput(genre);
+                                setFormState((prev) => ({
+                                  ...prev,
+                                  genres: prev.genres.includes(genre)
+                                    ? prev.genres
+                                    : [...prev.genres, genre],
+                                }));
+                                setGenreInput("");
+                              }}
+                            >
+                              {genre}
+                            </Button>
+                          ))}
+                        </div>
+                      ) : null}
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        {translatedSortedEditorGenres.map((genre, index) => (
+                          <Badge
+                            key={`${genre}-${index}`}
+                            variant="secondary"
+                            onClick={() => handleRemoveGenre(genre)}
+                            className="cursor-pointer"
+                          >
+                            {translateGenre(genre, genreTranslationMap)}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
                   </div>
                 </AccordionContent>
               </AccordionItem>
@@ -3178,87 +3315,89 @@ const DashboardProjectsEditor = () => {
                 <AccordionTrigger className={editorSectionTriggerClassName}>
                   <div className="flex w-full items-center justify-between gap-4 text-left">
                     <span>Relações</span>
-                    <span className="text-xs text-muted-foreground">{formState.relations.length} itens</span>
+                    <span className="text-xs text-muted-foreground">
+                      {formState.relations.length} itens
+                    </span>
                   </div>
                 </AccordionTrigger>
                 <AccordionContent className={editorSectionContentClassName}>
                   <div className="space-y-3">
-              <div className="flex items-center justify-end">
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  onClick={() =>
-                    setFormState((prev) => ({
-                      ...prev,
-                      relations: [
-                        ...prev.relations,
-                        { relation: "", title: "", format: "", status: "", image: "" },
-                      ],
-                    }))
-                  }
-                >
-                  Adicionar relação
-                </Button>
-              </div>
-              <div className="grid gap-3">
-                {formState.relations.map((relation, index) => (
-                  <div
-                    key={`${relation.title}-${index}`}
-                    className="grid gap-2 rounded-2xl border border-border/60 bg-card/60 p-3 md:grid-cols-[1.35fr_1fr_1fr_auto]"
-                    draggable
-                    onDragStart={() => setRelationDragIndex(index)}
-                    onDragOver={(event) => event.preventDefault()}
-                    onDrop={() => handleRelationDrop(index)}
-                  >
-                    <Input
-                      value={relation.title}
-                      onChange={(event) =>
-                        setFormState((prev) => {
-                          const next = [...prev.relations];
-                          next[index] = { ...next[index], title: event.target.value };
-                          return { ...prev, relations: next };
-                        })
-                      }
-                      placeholder="Título"
-                    />
-                    <Input
-                      value={relation.relation}
-                      onChange={(event) =>
-                        setFormState((prev) => {
-                          const next = [...prev.relations];
-                          next[index] = { ...next[index], relation: event.target.value };
-                          return { ...prev, relations: next };
-                        })
-                      }
-                      placeholder="Relação"
-                    />
-                    <Input
-                      value={relation.projectId || relation.anilistId || ""}
-                      onChange={(event) =>
-                        setFormState((prev) => {
-                          const next = [...prev.relations];
-                          next[index] = { ...next[index], projectId: event.target.value };
-                          return { ...prev, relations: next };
-                        })
-                      }
-                      placeholder="ID relacionado"
-                    />
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      onClick={() =>
-                        setFormState((prev) => ({
-                          ...prev,
-                          relations: prev.relations.filter((_, idx) => idx !== index),
-                        }))
-                      }
-                    >
-                      Remover
-                    </Button>
-                  </div>
-                ))}
-              </div>
+                    <div className="flex items-center justify-end">
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={() =>
+                          setFormState((prev) => ({
+                            ...prev,
+                            relations: [
+                              ...prev.relations,
+                              { relation: "", title: "", format: "", status: "", image: "" },
+                            ],
+                          }))
+                        }
+                      >
+                        Adicionar relação
+                      </Button>
+                    </div>
+                    <div className="grid gap-3">
+                      {formState.relations.map((relation, index) => (
+                        <div
+                          key={`${relation.title}-${index}`}
+                          className="grid gap-2 rounded-2xl border border-border/60 bg-card/60 p-3 md:grid-cols-[1.35fr_1fr_1fr_auto]"
+                          draggable
+                          onDragStart={() => setRelationDragIndex(index)}
+                          onDragOver={(event) => event.preventDefault()}
+                          onDrop={() => handleRelationDrop(index)}
+                        >
+                          <Input
+                            value={relation.title}
+                            onChange={(event) =>
+                              setFormState((prev) => {
+                                const next = [...prev.relations];
+                                next[index] = { ...next[index], title: event.target.value };
+                                return { ...prev, relations: next };
+                              })
+                            }
+                            placeholder="Título"
+                          />
+                          <Input
+                            value={relation.relation}
+                            onChange={(event) =>
+                              setFormState((prev) => {
+                                const next = [...prev.relations];
+                                next[index] = { ...next[index], relation: event.target.value };
+                                return { ...prev, relations: next };
+                              })
+                            }
+                            placeholder="Relação"
+                          />
+                          <Input
+                            value={relation.projectId || relation.anilistId || ""}
+                            onChange={(event) =>
+                              setFormState((prev) => {
+                                const next = [...prev.relations];
+                                next[index] = { ...next[index], projectId: event.target.value };
+                                return { ...prev, relations: next };
+                              })
+                            }
+                            placeholder="ID relacionado"
+                          />
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            onClick={() =>
+                              setFormState((prev) => ({
+                                ...prev,
+                                relations: prev.relations.filter((_, idx) => idx !== index),
+                              }))
+                            }
+                          >
+                            Remover
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 </AccordionContent>
               </AccordionItem>
@@ -3267,115 +3406,120 @@ const DashboardProjectsEditor = () => {
                 <AccordionTrigger className={editorSectionTriggerClassName}>
                   <div className="flex w-full items-center justify-between gap-4 text-left">
                     <span>Equipe da fansub</span>
-                    <span className="text-xs text-muted-foreground">{formState.staff.length} funções</span>
+                    <span className="text-xs text-muted-foreground">
+                      {formState.staff.length} funções
+                    </span>
                   </div>
                 </AccordionTrigger>
                 <AccordionContent className={editorSectionContentClassName}>
                   <div className="space-y-3">
-              <div className="flex items-center justify-end">
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  onClick={() =>
-                    setFormState((prev) => ({
-                      ...prev,
-                      staff: [...prev.staff, { role: "", members: [] }],
-                    }))
-                  }
-                >
-                  Adicionar função
-                </Button>
-              </div>
-              <div className="grid gap-3">
-                {formState.staff.map((role, index) => (
-                  <div
-                    key={`${role.role}-${index}`}
-                    className="rounded-2xl border border-border/60 bg-card/60 p-3"
-                    draggable
-                    onDragStart={() => setStaffDragIndex(index)}
-                    onDragOver={(event) => event.preventDefault()}
-                    onDrop={() => handleStaffDrop(index)}
-                  >
-                    <div className="grid gap-3 md:grid-cols-[1fr_auto]">
-                      <Select
-                        value={role.role || ""}
-                        onValueChange={(value) =>
-                          setFormState((prev) => {
-                            const next = [...prev.staff];
-                            next[index] = { ...next[index], role: value };
-                            return { ...prev, staff: next };
-                          })
-                        }
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Função" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {(role.role && !staffRoleOptions.includes(role.role)
-                            ? [role.role, ...staffRoleOptions]
-                            : staffRoleOptions
-                          ).map((option) => (
-                            <SelectItem key={option} value={option}>
-                              {option}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                    <div className="flex items-center justify-end">
                       <Button
                         type="button"
-                        variant="ghost"
+                        size="sm"
+                        variant="outline"
                         onClick={() =>
                           setFormState((prev) => ({
                             ...prev,
-                            staff: prev.staff.filter((_, idx) => idx !== index),
+                            staff: [...prev.staff, { role: "", members: [] }],
                           }))
                         }
                       >
-                        Remover
+                        Adicionar função
                       </Button>
                     </div>
-                    <div className="mt-3 flex flex-wrap items-center gap-2">
-                      <Input
-                        list="staff-directory"
-                        value={staffMemberInput[index] || ""}
-                        onChange={(event) =>
-                          setStaffMemberInput((prev) => ({ ...prev, [index]: event.target.value }))
-                        }
-                        placeholder="Adicionar membro"
-                      />
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() =>
-                          setFormState((prev) => {
-                            const next = [...prev.staff];
-                            const name = (staffMemberInput[index] || "").trim();
-                            if (!name) {
-                              return prev;
-                            }
-                            const members = next[index].members || [];
-                            next[index] = {
-                              ...next[index],
-                              members: members.includes(name) ? members : [...members, name],
-                            };
-                            return { ...prev, staff: next };
-                          })
-                        }
-                      >
-                        Adicionar
-                      </Button>
-                    </div>
-                    <div className="mt-2 flex flex-wrap gap-2">
-                      {(role.members || []).map((member) => (
-                        <Badge key={member} variant="secondary">
-                          {member}
-                        </Badge>
+                    <div className="grid gap-3">
+                      {formState.staff.map((role, index) => (
+                        <div
+                          key={`${role.role}-${index}`}
+                          className="rounded-2xl border border-border/60 bg-card/60 p-3"
+                          draggable
+                          onDragStart={() => setStaffDragIndex(index)}
+                          onDragOver={(event) => event.preventDefault()}
+                          onDrop={() => handleStaffDrop(index)}
+                        >
+                          <div className="grid gap-3 md:grid-cols-[1fr_auto]">
+                            <Select
+                              value={role.role || ""}
+                              onValueChange={(value) =>
+                                setFormState((prev) => {
+                                  const next = [...prev.staff];
+                                  next[index] = { ...next[index], role: value };
+                                  return { ...prev, staff: next };
+                                })
+                              }
+                            >
+                              <SelectTrigger>
+                                <SelectValue placeholder="Função" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {(role.role && !staffRoleOptions.includes(role.role)
+                                  ? [role.role, ...staffRoleOptions]
+                                  : staffRoleOptions
+                                ).map((option) => (
+                                  <SelectItem key={option} value={option}>
+                                    {option}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              onClick={() =>
+                                setFormState((prev) => ({
+                                  ...prev,
+                                  staff: prev.staff.filter((_, idx) => idx !== index),
+                                }))
+                              }
+                            >
+                              Remover
+                            </Button>
+                          </div>
+                          <div className="mt-3 flex flex-wrap items-center gap-2">
+                            <Input
+                              list="staff-directory"
+                              value={staffMemberInput[index] || ""}
+                              onChange={(event) =>
+                                setStaffMemberInput((prev) => ({
+                                  ...prev,
+                                  [index]: event.target.value,
+                                }))
+                              }
+                              placeholder="Adicionar membro"
+                            />
+                            <Button
+                              type="button"
+                              variant="outline"
+                              onClick={() =>
+                                setFormState((prev) => {
+                                  const next = [...prev.staff];
+                                  const name = (staffMemberInput[index] || "").trim();
+                                  if (!name) {
+                                    return prev;
+                                  }
+                                  const members = next[index].members || [];
+                                  next[index] = {
+                                    ...next[index],
+                                    members: members.includes(name) ? members : [...members, name],
+                                  };
+                                  return { ...prev, staff: next };
+                                })
+                              }
+                            >
+                              Adicionar
+                            </Button>
+                          </div>
+                          <div className="mt-2 flex flex-wrap gap-2">
+                            {(role.members || []).map((member) => (
+                              <Badge key={member} variant="secondary">
+                                {member}
+                              </Badge>
+                            ))}
+                          </div>
+                        </div>
                       ))}
                     </div>
-                  </div>
-                ))}
-              </div>
                   </div>
                 </AccordionContent>
               </AccordionItem>
@@ -3384,7 +3528,9 @@ const DashboardProjectsEditor = () => {
                 <AccordionTrigger className={editorSectionTriggerClassName}>
                   <div className="flex w-full items-center justify-between gap-4 text-left">
                     <span>Staff do anime</span>
-                    <span className="text-xs text-muted-foreground">{formState.animeStaff.length} funções</span>
+                    <span className="text-xs text-muted-foreground">
+                      {formState.animeStaff.length} funções
+                    </span>
                   </div>
                 </AccordionTrigger>
                 <AccordionContent className={editorSectionContentClassName}>
@@ -3441,7 +3587,9 @@ const DashboardProjectsEditor = () => {
                                   ...prev,
                                   animeStaff: prev.animeStaff.filter((_, idx) => idx !== index),
                                 }));
-                                setAnimeStaffMemberInput((prev) => shiftDraftAfterRemoval(prev, index));
+                                setAnimeStaffMemberInput((prev) =>
+                                  shiftDraftAfterRemoval(prev, index),
+                                );
                               }}
                             >
                               Remover
@@ -3452,7 +3600,10 @@ const DashboardProjectsEditor = () => {
                               list="staff-directory"
                               value={animeStaffMemberInput[index] || ""}
                               onChange={(event) =>
-                                setAnimeStaffMemberInput((prev) => ({ ...prev, [index]: event.target.value }))
+                                setAnimeStaffMemberInput((prev) => ({
+                                  ...prev,
+                                  [index]: event.target.value,
+                                }))
                               }
                               placeholder="Adicionar membro"
                             />
@@ -3481,7 +3632,11 @@ const DashboardProjectsEditor = () => {
                           </div>
                           <div className="mt-2 flex flex-wrap gap-2">
                             {(role.members || []).map((member) => (
-                              <Badge key={member} variant="secondary" className="flex items-center gap-1">
+                              <Badge
+                                key={member}
+                                variant="secondary"
+                                className="flex items-center gap-1"
+                              >
                                 <span>{member}</span>
                                 <button
                                   type="button"
@@ -3491,7 +3646,9 @@ const DashboardProjectsEditor = () => {
                                       const next = [...prev.animeStaff];
                                       next[index] = {
                                         ...next[index],
-                                        members: (next[index].members || []).filter((item) => item !== member),
+                                        members: (next[index].members || []).filter(
+                                          (item) => item !== member,
+                                        ),
                                       };
                                       return { ...prev, animeStaff: next };
                                     })
@@ -3515,610 +3672,682 @@ const DashboardProjectsEditor = () => {
                   <div className="flex w-full items-center justify-between gap-4 text-left">
                     <span>{isChapterBased ? "Capítulos" : "Episódios"}</span>
                     <span className="text-xs text-muted-foreground">
-                      {formState.episodeDownloads.length} {isChapterBased ? "capítulos" : "episódios"}
+                      {formState.episodeDownloads.length}{" "}
+                      {isChapterBased ? "capítulos" : "episódios"}
                     </span>
                   </div>
                 </AccordionTrigger>
                 <AccordionContent className={editorSectionContentClassName}>
                   <div className="space-y-3">
-              <div className="flex items-center justify-end">
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  onClick={handleAddEpisodeDownload}
-                >
-                  {isChapterBased ? "Adicionar capítulo" : "Adicionar episódio"}
-                </Button>
-              </div>
-              <Accordion
-                type="multiple"
-                value={episodeOpenValues}
-                onValueChange={handleEpisodeAccordionChange}
-                className="space-y-4"
-              >
-                {sortedEpisodeDownloads.map(({ episode, index }) => {
-                  const isEpisodeCollapsed = collapsedEpisodes[index] ?? false;
-                  const episodeUnitLabel = isChapterBased ? "Capítulo" : "Episódio";
-                  const episodeNumberLabel = `${episodeUnitLabel} ${episode.number || index + 1}`;
-                  const episodeTitleLabel = String(episode.title || "").trim() || "Sem título";
-                  const hasDownloadSource = episode.sources.some((source) => source.url);
-                  const currentProgressStageLabel =
-                    stageOptions.find(
-                      (stage) =>
-                        stage.id === getProgressStage(formState.type || "", episode.completedStages),
-                    )?.label || "Aguardando Raw";
-                  const collapsedHeaderMeta: string[] = [];
-
-                  if (isLightNovel && String(episode.content || "").trim().length > 0) {
-                    collapsedHeaderMeta.push("Conteúdo");
-                  }
-                  if (!isChapterBased && !hasDownloadSource) {
-                    collapsedHeaderMeta.push(currentProgressStageLabel);
-                  }
-                  if (hasDownloadSource) {
-                    collapsedHeaderMeta.push("Download");
-                  }
-
-                  return (
-                  <AccordionItem
-                    key={`${episode.number}-${index}`}
-                    value={getEpisodeAccordionValue(index)}
-                    className="border-none"
-                  >
-                  <Card
-                    ref={(node) => {
-                      if (node) {
-                        episodeCardNodeMapRef.current.set(episode, node);
-                      }
-                    }}
-                    className="project-editor-episode-card border-border/60 bg-card/70 !shadow-none hover:!shadow-none"
-                    data-testid={`episode-card-${index}`}
-                    onDragStart={() => setEpisodeDragId(null)}
-                  >
-                    <CardContent className={`project-editor-episode-content space-y-3 ${isEpisodeCollapsed ? "p-4" : "p-5"}`}>
-                      <div
-                        className="project-editor-episode-header flex flex-wrap items-start justify-between gap-2"
-                        data-testid={`episode-header-${index}`}
-                        onClick={(event) => handleEpisodeHeaderClick(index, event)}
+                    <div className="flex items-center justify-end">
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={handleAddEpisodeDownload}
                       >
-                        <div className="min-w-0 flex-1">
-                          <AccordionTrigger
-                            data-episode-accordion-trigger
-                            className="project-editor-episode-trigger py-0 text-left text-foreground hover:no-underline [&>svg]:mt-0.5 [&>svg]:shrink-0"
+                        {isChapterBased ? "Adicionar capítulo" : "Adicionar episódio"}
+                      </Button>
+                    </div>
+                    <Accordion
+                      type="multiple"
+                      value={episodeOpenValues}
+                      onValueChange={handleEpisodeAccordionChange}
+                      className="space-y-4"
+                    >
+                      {sortedEpisodeDownloads.map(({ episode, index }) => {
+                        const isEpisodeCollapsed = collapsedEpisodes[index] ?? false;
+                        const episodeUnitLabel = isChapterBased ? "Capítulo" : "Episódio";
+                        const episodeNumberLabel = `${episodeUnitLabel} ${episode.number || index + 1}`;
+                        const episodeTitleLabel =
+                          String(episode.title || "").trim() || "Sem título";
+                        const hasDownloadSource = episode.sources.some((source) => source.url);
+                        const currentProgressStageLabel =
+                          stageOptions.find(
+                            (stage) =>
+                              stage.id ===
+                              getProgressStage(formState.type || "", episode.completedStages),
+                          )?.label || "Aguardando Raw";
+                        const collapsedHeaderMeta: string[] = [];
+
+                        if (isLightNovel && String(episode.content || "").trim().length > 0) {
+                          collapsedHeaderMeta.push("Conteúdo");
+                        }
+                        if (!isChapterBased && !hasDownloadSource) {
+                          collapsedHeaderMeta.push(currentProgressStageLabel);
+                        }
+                        if (hasDownloadSource) {
+                          collapsedHeaderMeta.push("Download");
+                        }
+
+                        return (
+                          <AccordionItem
+                            key={`${episode.number}-${index}`}
+                            value={getEpisodeAccordionValue(index)}
+                            className="border-none"
                           >
-                            <div className="flex min-w-0 flex-col py-0.5">
-                              <span className="text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground">
-                                {episodeNumberLabel}
-                              </span>
-                              <span className="line-clamp-1 text-sm font-semibold leading-tight">
-                                {episodeTitleLabel}
-                              </span>
-                              {episode.releaseDate ? (
-                                <span className="text-[11px] text-muted-foreground">
-                                  {formatEpisodeReleaseDate(episode.releaseDate, episode.duration)}
-                                </span>
-                              ) : null}
-                            </div>
-                          </AccordionTrigger>
-                        </div>
-                        <div className="flex flex-wrap items-center gap-2">
-                          {isEpisodeCollapsed && collapsedHeaderMeta.length > 0 ? (
-                            <span className="text-[11px] text-muted-foreground">
-                              {collapsedHeaderMeta.join(" • ")}
-                            </span>
-                          ) : null}
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant="ghost"
-                            className="h-7 px-2 text-[11px] text-destructive hover:text-destructive"
-                            data-no-toggle
-                            onClick={() =>
-                              {
-                                setFormState((prev) => ({
-                                  ...prev,
-                                  episodeDownloads: prev.episodeDownloads.filter((_, idx) => idx !== index),
-                                }));
-                                setEpisodeDateDraft((prev) => shiftDraftAfterRemoval(prev, index));
-                                setEpisodeTimeDraft((prev) => shiftDraftAfterRemoval(prev, index));
-                                setEpisodeSizeDrafts((prev) => shiftDraftAfterRemoval(prev, index));
-                                setEpisodeSizeErrors((prev) => shiftDraftAfterRemoval(prev, index));
-                                setCollapsedEpisodes((prev) => shiftCollapsedEpisodesAfterRemoval(prev, index));
-                              }
-                            }
-                          >
-                            {isChapterBased ? "Remover capítulo" : "Remover episódio"}
-                          </Button>
-                        </div>
-                      </div>
-                      <AccordionContent className="project-editor-episode-panel pt-3 pb-0 px-1">
-                          <div className="project-editor-episode-group project-editor-episode-basics grid gap-3 md:grid-cols-[minmax(84px,0.7fr)_minmax(84px,0.7fr)_minmax(180px,1.4fr)_minmax(150px,1fr)_minmax(110px,0.8fr)_minmax(130px,0.9fr)]">
-                            <Input
-                              type="number"
-                              value={episode.number}
-                              onChange={(event) =>
-                                setFormState((prev) => {
-                                  const next = [...prev.episodeDownloads];
-                                  next[index] = { ...next[index], number: Number(event.target.value) };
-                                  return { ...prev, episodeDownloads: next };
-                                })
-                              }
-                              placeholder="Número"
-                            />
-                            {isManga ? (
-                              <Input
-                                type="number"
-                                value={episode.volume || ""}
-                                onChange={(event) =>
-                                  setFormState((prev) => {
-                                    const next = [...prev.episodeDownloads];
-                                    next[index] = {
-                                      ...next[index],
-                                      volume: event.target.value ? Number(event.target.value) : undefined,
-                                    };
-                                    return { ...prev, episodeDownloads: next };
-                                  })
-                                }
-                                placeholder="Volume"
-                              />
-                            ) : null}
-                            <Input
-                              value={episode.title}
-                              onChange={(event) =>
-                                setFormState((prev) => {
-                                  const next = [...prev.episodeDownloads];
-                                  next[index] = { ...next[index], title: event.target.value };
-                                  return { ...prev, episodeDownloads: next };
-                                })
-                              }
-                              placeholder="Título"
-                            />
-                            <Input
-                              type="text"
-                              inputMode="numeric"
-                              value={episodeDateDraft[index] ?? isoToDisplayDate(episode.releaseDate)}
-                              onChange={(event) => {
-                                const masked = formatDateDigitsToDisplay(event.target.value);
-                                const digits = digitsOnly(masked);
-                                setEpisodeDateDraft((prev) => ({ ...prev, [index]: masked }));
-                                if (digits.length === 8) {
-                                  const iso = displayDateToIso(masked);
-                                  if (iso) {
-                                    setFormState((prev) => {
-                                      const next = [...prev.episodeDownloads];
-                                      next[index] = { ...next[index], releaseDate: iso };
-                                      return { ...prev, episodeDownloads: next };
-                                    });
-                                  }
-                                } else if (digits.length === 0) {
-                                  setFormState((prev) => {
-                                    const next = [...prev.episodeDownloads];
-                                    next[index] = { ...next[index], releaseDate: "" };
-                                    return { ...prev, episodeDownloads: next };
-                                  });
+                            <Card
+                              ref={(node) => {
+                                if (node) {
+                                  episodeCardNodeMapRef.current.set(episode, node);
                                 }
                               }}
-                              onBlur={(event) => {
-                                const masked = formatDateDigitsToDisplay(event.target.value);
-                                const digits = digitsOnly(masked);
-                                if (digits.length === 8) {
-                                  const iso = displayDateToIso(masked);
-                                  if (iso) {
-                                    setFormState((prev) => {
-                                      const next = [...prev.episodeDownloads];
-                                      next[index] = { ...next[index], releaseDate: iso };
-                                      return { ...prev, episodeDownloads: next };
-                                    });
-                                  }
-                                } else if (digits.length === 0) {
-                                  setFormState((prev) => {
-                                    const next = [...prev.episodeDownloads];
-                                    next[index] = { ...next[index], releaseDate: "" };
-                                    return { ...prev, episodeDownloads: next };
-                                  });
-                                }
-                                setEpisodeDateDraft((prev) => {
-                                  const next = { ...prev };
-                                  delete next[index];
-                                  return next;
-                                });
-                              }}
-                              placeholder="DD/MM/AAAA"
-                              className="md:min-w-[150px]"
-                            />
-                            {!isChapterBased ? (
-                              <Input
-                                type="text"
-                                inputMode="numeric"
-                                value={episodeTimeDraft[index] ?? canonicalToDisplayTime(episode.duration)}
-                                onChange={(event) => {
-                                  const masked = formatTimeDigitsToDisplay(event.target.value);
-                                  const digits = digitsOnly(masked);
-                                  setEpisodeTimeDraft((prev) => ({ ...prev, [index]: masked }));
-                                  const canonical = displayTimeToCanonical(masked);
-                                  if (canonical) {
-                                    setFormState((prev) => {
-                                      const next = [...prev.episodeDownloads];
-                                      next[index] = { ...next[index], duration: canonical };
-                                      return { ...prev, episodeDownloads: next };
-                                    });
-                                  } else if (digits.length === 0) {
-                                    setFormState((prev) => {
-                                      const next = [...prev.episodeDownloads];
-                                      next[index] = { ...next[index], duration: "" };
-                                      return { ...prev, episodeDownloads: next };
-                                    });
-                                  }
-                                }}
-                                onBlur={(event) => {
-                                  const masked = formatTimeDigitsToDisplay(event.target.value);
-                                  const digits = digitsOnly(masked);
-                                  const canonical = displayTimeToCanonical(masked);
-                                  if (canonical) {
-                                    setFormState((prev) => {
-                                      const next = [...prev.episodeDownloads];
-                                      next[index] = { ...next[index], duration: canonical };
-                                      return { ...prev, episodeDownloads: next };
-                                    });
-                                  } else if (digits.length === 0) {
-                                    setFormState((prev) => {
-                                      const next = [...prev.episodeDownloads];
-                                      next[index] = { ...next[index], duration: "" };
-                                      return { ...prev, episodeDownloads: next };
-                                    });
-                                  }
-                                  setEpisodeTimeDraft((prev) => {
-                                    const next = { ...prev };
-                                    delete next[index];
-                                    return next;
-                                  });
-                                }}
-                                placeholder="MM:SS ou H:MM:SS"
-                                className="md:min-w-[150px]"
-                              />
-                            ) : null}
-                            {!isChapterBased ? (
-                              <Select
-                                value={episode.sourceType}
-                                onValueChange={(value) =>
-                                  setFormState((prev) => {
-                                    const next = [...prev.episodeDownloads];
-                                    next[index] = {
-                                      ...next[index],
-                                      sourceType: value as ProjectEpisode["sourceType"],
-                                    };
-                                    return { ...prev, episodeDownloads: next };
-                                  })
-                                }
+                              className="project-editor-episode-card border-border/60 bg-card/70 !shadow-none hover:!shadow-none"
+                              data-testid={`episode-card-${index}`}
+                              onDragStart={() => setEpisodeDragId(null)}
+                            >
+                              <CardContent
+                                className={`project-editor-episode-content space-y-3 ${isEpisodeCollapsed ? "p-4" : "p-5"}`}
                               >
-                                <SelectTrigger>
-                                  <SelectValue placeholder="Origem" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="TV">TV</SelectItem>
-                                  <SelectItem value="Web">Web</SelectItem>
-                                  <SelectItem value="Blu-ray">Blu-ray</SelectItem>
-                                </SelectContent>
-                              </Select>
-                            ) : null}
-                          </div>
-                          {!episode.sources.some((source) => source.url) && !isChapterBased ? (
-                            <div className="project-editor-episode-group mt-3 space-y-2">
-                              <Label className="text-xs">Etapa atual</Label>
-                              <div className="rounded-md border border-border/60 bg-background/70 px-3 py-2 text-xs text-muted-foreground">
-                                {currentProgressStageLabel}
-                              </div>
-                            </div>
-                          ) : null}
-                          <div className="project-editor-episode-group mt-3 space-y-2">
-                            <Label className="text-xs">
-                              {isChapterBased ? "Capa do capítulo" : "Capa do episódio"}
-                            </Label>
-                            <div className="flex flex-wrap items-center gap-3">
-                              {episode.coverImageUrl ? (
-                                <div className="flex items-center gap-3 rounded-2xl border border-border/60 bg-card/60 px-3 py-2">
-                                  <img
-                                    src={episode.coverImageUrl}
-                                    alt={episode.title || "Capa"}
-                                    className="h-12 w-12 rounded-lg object-cover"
-                                  />
-                                </div>
-                              ) : (
-                                <div className="flex h-12 w-12 items-center justify-center rounded-lg border border-dashed border-border/60 text-center text-[10px] text-muted-foreground leading-tight">
-                                  Sem imagem
-                                </div>
-                              )}
-                              <Button
-                                type="button"
-                                size="sm"
-                                variant="outline"
-                                onClick={() => openLibraryForEpisodeCover(index)}
-                              >
-                                Biblioteca
-                              </Button>
-                            </div>
-                          </div>
-                          {isLightNovel ? (
-                            <div className="project-editor-episode-group mt-4">
-                              <Label className="text-xs">Conteúdo do capítulo</Label>
-                        <div
-                          className="mt-3"
-                          onFocusCapture={(event) => {
-                            const target = event.target as HTMLElement | null;
-                            if (target?.closest(".lexical-playground")) {
-                              return;
-                            }
-                            const editor = chapterEditorsRef.current[index];
-                            editor?.blur?.();
-                          }}
-                        >
-                          <EpisodeContentEditor
-                            value={episode.content || ""}
-                            imageLibraryOptions={episodeAssetLibraryOptions}
-                            onRegister={(handlers) => {
-                              chapterEditorsRef.current[index] = handlers;
-                            }}
-                            onChange={(nextValue) =>
-                              setFormState((prev) => {
-                                const next = [...prev.episodeDownloads];
-                                next[index] = { ...next[index], content: nextValue };
-                                return { ...prev, episodeDownloads: next };
-                              })
-                            }
-                          />
-                              </div>
-                            </div>
-                          ) : null}
-                          {!episode.sources.some((source) => source.url) && !isChapterBased ? (
-                            <div className="project-editor-episode-group mt-3">
-                              <Label className="text-xs">Etapas concluídas</Label>
-                              <div className="mt-2 flex flex-wrap gap-2">
-                                {stageOptions.map((stage) => {
-                                  const completed = (episode.completedStages || []).includes(stage.id);
-                                  return (
+                                <div
+                                  className="project-editor-episode-header flex flex-wrap items-start justify-between gap-2"
+                                  data-testid={`episode-header-${index}`}
+                                  onClick={(event) => handleEpisodeHeaderClick(index, event)}
+                                >
+                                  <div className="min-w-0 flex-1">
+                                    <AccordionTrigger
+                                      data-episode-accordion-trigger
+                                      className="project-editor-episode-trigger py-0 text-left text-foreground hover:no-underline [&>svg]:mt-0.5 [&>svg]:shrink-0"
+                                    >
+                                      <div className="flex min-w-0 flex-col py-0.5">
+                                        <span className="text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground">
+                                          {episodeNumberLabel}
+                                        </span>
+                                        <span className="line-clamp-1 text-sm font-semibold leading-tight">
+                                          {episodeTitleLabel}
+                                        </span>
+                                        {episode.releaseDate ? (
+                                          <span className="text-[11px] text-muted-foreground">
+                                            {formatEpisodeReleaseDate(
+                                              episode.releaseDate,
+                                              episode.duration,
+                                            )}
+                                          </span>
+                                        ) : null}
+                                      </div>
+                                    </AccordionTrigger>
+                                  </div>
+                                  <div className="flex flex-wrap items-center gap-2">
+                                    {isEpisodeCollapsed && collapsedHeaderMeta.length > 0 ? (
+                                      <span className="text-[11px] text-muted-foreground">
+                                        {collapsedHeaderMeta.join(" • ")}
+                                      </span>
+                                    ) : null}
                                     <Button
-                                      key={stage.id}
                                       type="button"
                                       size="sm"
-                                      variant={completed ? "default" : "outline"}
-                                      onClick={() =>
+                                      variant="ghost"
+                                      className="h-7 px-2 text-[11px] text-destructive hover:text-destructive"
+                                      data-no-toggle
+                                      onClick={() => {
+                                        setFormState((prev) => ({
+                                          ...prev,
+                                          episodeDownloads: prev.episodeDownloads.filter(
+                                            (_, idx) => idx !== index,
+                                          ),
+                                        }));
+                                        setEpisodeDateDraft((prev) =>
+                                          shiftDraftAfterRemoval(prev, index),
+                                        );
+                                        setEpisodeTimeDraft((prev) =>
+                                          shiftDraftAfterRemoval(prev, index),
+                                        );
+                                        setEpisodeSizeDrafts((prev) =>
+                                          shiftDraftAfterRemoval(prev, index),
+                                        );
+                                        setEpisodeSizeErrors((prev) =>
+                                          shiftDraftAfterRemoval(prev, index),
+                                        );
+                                        setCollapsedEpisodes((prev) =>
+                                          shiftCollapsedEpisodesAfterRemoval(prev, index),
+                                        );
+                                      }}
+                                    >
+                                      {isChapterBased ? "Remover capítulo" : "Remover episódio"}
+                                    </Button>
+                                  </div>
+                                </div>
+                                <AccordionContent className="project-editor-episode-panel pt-3 pb-0 px-1">
+                                  <div className="project-editor-episode-group project-editor-episode-basics grid gap-3 md:grid-cols-[minmax(84px,0.7fr)_minmax(84px,0.7fr)_minmax(180px,1.4fr)_minmax(150px,1fr)_minmax(110px,0.8fr)_minmax(130px,0.9fr)]">
+                                    <Input
+                                      type="number"
+                                      value={episode.number}
+                                      onChange={(event) =>
                                         setFormState((prev) => {
                                           const next = [...prev.episodeDownloads];
-                                          const current = next[index].completedStages || [];
                                           next[index] = {
                                             ...next[index],
-                                            completedStages: completed
-                                              ? current.filter((item) => item !== stage.id)
-                                              : [...current, stage.id],
+                                            number: Number(event.target.value),
                                           };
                                           return { ...prev, episodeDownloads: next };
                                         })
                                       }
-                                    >
-                                      {stage.label}
-                                    </Button>
-                                  );
-                                })}
-                              </div>
-                            </div>
-                          ) : null}
-                          {!isLightNovel ? (
-                            <div className="project-editor-episode-group mt-3 space-y-3">
-                              <div>
-                                <Label className="text-xs">Arquivo do episódio</Label>
-                                <div className="mt-2 grid gap-2 md:grid-cols-2">
-                                  <div className="space-y-1">
-                                    <Input
-                                      ref={(node) => {
-                                        episodeSizeInputRefs.current[index] = node;
-                                      }}
-                                      value={
-                                        episodeSizeDrafts[index] ??
-                                        (episode.sizeBytes ? formatBytesCompact(episode.sizeBytes) : "")
-                                      }
-                                      onChange={(event) => {
-                                        const nextValue = event.target.value;
-                                        setEpisodeSizeDrafts((prev) => ({ ...prev, [index]: nextValue }));
-                                        setEpisodeSizeErrors((prev) => {
-                                          if (!prev[index]) {
-                                            return prev;
-                                          }
-                                          const next = { ...prev };
-                                          delete next[index];
-                                          return next;
-                                        });
-                                      }}
-                                      onBlur={(event) => {
-                                        const rawValue = episodeSizeDrafts[index] ?? event.target.value;
-                                        const trimmedSize = String(rawValue || "").trim();
-                                        if (!trimmedSize) {
+                                      placeholder="Número"
+                                    />
+                                    {isManga ? (
+                                      <Input
+                                        type="number"
+                                        value={episode.volume || ""}
+                                        onChange={(event) =>
                                           setFormState((prev) => {
                                             const next = [...prev.episodeDownloads];
                                             next[index] = {
                                               ...next[index],
-                                              sizeBytes: undefined,
+                                              volume: event.target.value
+                                                ? Number(event.target.value)
+                                                : undefined,
                                             };
                                             return { ...prev, episodeDownloads: next };
-                                          });
-                                          setEpisodeSizeDrafts((prev) => {
-                                            const next = { ...prev };
-                                            delete next[index];
-                                            return next;
-                                          });
-                                          setEpisodeSizeErrors((prev) => {
-                                            const next = { ...prev };
-                                            delete next[index];
-                                            return next;
-                                          });
-                                          return;
+                                          })
                                         }
-
-                                        const parsedSize = parseHumanSizeToBytes(trimmedSize);
-                                        if (!parsedSize) {
-                                          setEpisodeSizeErrors((prev) => ({
-                                            ...prev,
-                                            [index]: "Use formatos como 700 MB ou 1.4 GB.",
-                                          }));
-                                          setEpisodeSizeDrafts((prev) => ({ ...prev, [index]: rawValue }));
-                                          return;
-                                        }
-
+                                        placeholder="Volume"
+                                      />
+                                    ) : null}
+                                    <Input
+                                      value={episode.title}
+                                      onChange={(event) =>
                                         setFormState((prev) => {
                                           const next = [...prev.episodeDownloads];
                                           next[index] = {
                                             ...next[index],
-                                            sizeBytes: parsedSize,
+                                            title: event.target.value,
                                           };
                                           return { ...prev, episodeDownloads: next };
-                                        });
-                                        setEpisodeSizeDrafts((prev) => {
-                                          const next = { ...prev };
-                                          delete next[index];
-                                          return next;
-                                        });
-                                        setEpisodeSizeErrors((prev) => {
+                                        })
+                                      }
+                                      placeholder="Título"
+                                    />
+                                    <Input
+                                      type="text"
+                                      inputMode="numeric"
+                                      value={
+                                        episodeDateDraft[index] ??
+                                        isoToDisplayDate(episode.releaseDate)
+                                      }
+                                      onChange={(event) => {
+                                        const masked = formatDateDigitsToDisplay(
+                                          event.target.value,
+                                        );
+                                        const digits = digitsOnly(masked);
+                                        setEpisodeDateDraft((prev) => ({
+                                          ...prev,
+                                          [index]: masked,
+                                        }));
+                                        if (digits.length === 8) {
+                                          const iso = displayDateToIso(masked);
+                                          if (iso) {
+                                            setFormState((prev) => {
+                                              const next = [...prev.episodeDownloads];
+                                              next[index] = { ...next[index], releaseDate: iso };
+                                              return { ...prev, episodeDownloads: next };
+                                            });
+                                          }
+                                        } else if (digits.length === 0) {
+                                          setFormState((prev) => {
+                                            const next = [...prev.episodeDownloads];
+                                            next[index] = { ...next[index], releaseDate: "" };
+                                            return { ...prev, episodeDownloads: next };
+                                          });
+                                        }
+                                      }}
+                                      onBlur={(event) => {
+                                        const masked = formatDateDigitsToDisplay(
+                                          event.target.value,
+                                        );
+                                        const digits = digitsOnly(masked);
+                                        if (digits.length === 8) {
+                                          const iso = displayDateToIso(masked);
+                                          if (iso) {
+                                            setFormState((prev) => {
+                                              const next = [...prev.episodeDownloads];
+                                              next[index] = { ...next[index], releaseDate: iso };
+                                              return { ...prev, episodeDownloads: next };
+                                            });
+                                          }
+                                        } else if (digits.length === 0) {
+                                          setFormState((prev) => {
+                                            const next = [...prev.episodeDownloads];
+                                            next[index] = { ...next[index], releaseDate: "" };
+                                            return { ...prev, episodeDownloads: next };
+                                          });
+                                        }
+                                        setEpisodeDateDraft((prev) => {
                                           const next = { ...prev };
                                           delete next[index];
                                           return next;
                                         });
                                       }}
-                                      placeholder="Tamanho (ex.: 700 MB ou 1.4 GB)"
+                                      placeholder="DD/MM/AAAA"
+                                      className="md:min-w-[150px]"
                                     />
-                                    {episodeSizeErrors[index] ? (
-                                      <p className="text-[11px] text-destructive">{episodeSizeErrors[index]}</p>
-                                    ) : (
-                                      <p className="text-[11px] text-muted-foreground">
-                                        Campo opcional. Valor salvo em bytes.
-                                      </p>
-                                    )}
-                                  </div>
-                                  <Input
-                                    value={episode.hash || ""}
-                                    onChange={(event) =>
-                                      setFormState((prev) => {
-                                        const next = [...prev.episodeDownloads];
-                                        next[index] = {
-                                          ...next[index],
-                                          hash: event.target.value,
-                                        };
-                                        return { ...prev, episodeDownloads: next };
-                                      })
-                                    }
-                                    placeholder="Hash (ex.: SHA-256: ...)"
-                                  />
-                                </div>
-                              </div>
-
-                              <div>
-                                <Label className="text-xs">Fontes de download</Label>
-                                <div className="mt-2 grid gap-2">
-                                  {(episode.sources || []).map((source, sourceIndex) => (
-                                    <div
-                                      key={`${source.label}-${sourceIndex}`}
-                                      className="rounded-xl border border-border/60 bg-background/40 p-3"
-                                    >
-                                      <div className="grid items-start gap-2 md:grid-cols-[minmax(180px,1fr)_minmax(240px,2fr)_auto]">
-                                        <Select
-                                          value={source.label}
-                                          onValueChange={(value) =>
+                                    {!isChapterBased ? (
+                                      <Input
+                                        type="text"
+                                        inputMode="numeric"
+                                        value={
+                                          episodeTimeDraft[index] ??
+                                          canonicalToDisplayTime(episode.duration)
+                                        }
+                                        onChange={(event) => {
+                                          const masked = formatTimeDigitsToDisplay(
+                                            event.target.value,
+                                          );
+                                          const digits = digitsOnly(masked);
+                                          setEpisodeTimeDraft((prev) => ({
+                                            ...prev,
+                                            [index]: masked,
+                                          }));
+                                          const canonical = displayTimeToCanonical(masked);
+                                          if (canonical) {
                                             setFormState((prev) => {
                                               const next = [...prev.episodeDownloads];
-                                              const sources = [...(next[index].sources || [])];
-                                              sources[sourceIndex] = {
-                                                ...sources[sourceIndex],
-                                                label: value,
-                                              };
-                                              next[index] = { ...next[index], sources };
-                                              return { ...prev, episodeDownloads: next };
-                                            })
-                                          }
-                                        >
-                                          <SelectTrigger>
-                                            <SelectValue placeholder="Fonte" />
-                                          </SelectTrigger>
-                                          <SelectContent>
-                                            {downloadSourceOptions.map((option) => (
-                                              <SelectItem key={option.label} value={option.label}>
-                                                <span className="flex items-center gap-2">
-                                                  {renderDownloadIcon(
-                                                    option.icon,
-                                                    option.color,
-                                                    option.label,
-                                                    option.tintIcon,
-                                                  )}
-                                                  <span>{option.label}</span>
-                                                </span>
-                                              </SelectItem>
-                                            ))}
-                                          </SelectContent>
-                                        </Select>
-                                        <Input
-                                          value={source.url}
-                                          onChange={(event) =>
-                                            setFormState((prev) => {
-                                              const next = [...prev.episodeDownloads];
-                                              const sources = [...(next[index].sources || [])];
-                                              sources[sourceIndex] = {
-                                                ...sources[sourceIndex],
-                                                url: event.target.value,
-                                              };
-                                              next[index] = { ...next[index], sources };
-                                              return { ...prev, episodeDownloads: next };
-                                            })
-                                          }
-                                          placeholder="URL"
-                                        />
-                                        <Button
-                                          type="button"
-                                          variant="ghost"
-                                          size="icon"
-                                          className="h-9 w-9"
-                                          onClick={() => {
-                                            setFormState((prev) => {
-                                              const next = [...prev.episodeDownloads];
-                                              const sources = (next[index].sources || []).filter(
-                                                (_, idx) => idx !== sourceIndex,
-                                              );
-                                              next[index] = { ...next[index], sources };
+                                              next[index] = { ...next[index], duration: canonical };
                                               return { ...prev, episodeDownloads: next };
                                             });
-                                          }}
-                                        >
-                                          <Trash2 className="h-4 w-4" />
-                                        </Button>
+                                          } else if (digits.length === 0) {
+                                            setFormState((prev) => {
+                                              const next = [...prev.episodeDownloads];
+                                              next[index] = { ...next[index], duration: "" };
+                                              return { ...prev, episodeDownloads: next };
+                                            });
+                                          }
+                                        }}
+                                        onBlur={(event) => {
+                                          const masked = formatTimeDigitsToDisplay(
+                                            event.target.value,
+                                          );
+                                          const digits = digitsOnly(masked);
+                                          const canonical = displayTimeToCanonical(masked);
+                                          if (canonical) {
+                                            setFormState((prev) => {
+                                              const next = [...prev.episodeDownloads];
+                                              next[index] = { ...next[index], duration: canonical };
+                                              return { ...prev, episodeDownloads: next };
+                                            });
+                                          } else if (digits.length === 0) {
+                                            setFormState((prev) => {
+                                              const next = [...prev.episodeDownloads];
+                                              next[index] = { ...next[index], duration: "" };
+                                              return { ...prev, episodeDownloads: next };
+                                            });
+                                          }
+                                          setEpisodeTimeDraft((prev) => {
+                                            const next = { ...prev };
+                                            delete next[index];
+                                            return next;
+                                          });
+                                        }}
+                                        placeholder="MM:SS ou H:MM:SS"
+                                        className="md:min-w-[150px]"
+                                      />
+                                    ) : null}
+                                    {!isChapterBased ? (
+                                      <Select
+                                        value={episode.sourceType}
+                                        onValueChange={(value) =>
+                                          setFormState((prev) => {
+                                            const next = [...prev.episodeDownloads];
+                                            next[index] = {
+                                              ...next[index],
+                                              sourceType: value as ProjectEpisode["sourceType"],
+                                            };
+                                            return { ...prev, episodeDownloads: next };
+                                          })
+                                        }
+                                      >
+                                        <SelectTrigger>
+                                          <SelectValue placeholder="Origem" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                          <SelectItem value="TV">TV</SelectItem>
+                                          <SelectItem value="Web">Web</SelectItem>
+                                          <SelectItem value="Blu-ray">Blu-ray</SelectItem>
+                                        </SelectContent>
+                                      </Select>
+                                    ) : null}
+                                  </div>
+                                  {!episode.sources.some((source) => source.url) &&
+                                  !isChapterBased ? (
+                                    <div className="project-editor-episode-group mt-3 space-y-2">
+                                      <Label className="text-xs">Etapa atual</Label>
+                                      <div className="rounded-md border border-border/60 bg-background/70 px-3 py-2 text-xs text-muted-foreground">
+                                        {currentProgressStageLabel}
                                       </div>
                                     </div>
-                                  ))}
-                                  <Button
-                                    type="button"
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={() =>
-                                      setFormState((prev) => {
-                                        const next = [...prev.episodeDownloads];
-                                        const existingSources = next[index].sources || [];
-                                        next[index] = {
-                                          ...next[index],
-                                          sources: [...existingSources, { label: "", url: "" }],
-                                        };
-                                        return { ...prev, episodeDownloads: next };
-                                      })
-                                    }
-                                  >
-                                    Adicionar fonte
-                                  </Button>
-                                </div>
-                              </div>
-                            </div>
-                          ) : null}
-                      </AccordionContent>
-                    </CardContent>
-                  </Card>
-                  </AccordionItem>
-                  );
-                })}
-              </Accordion>
+                                  ) : null}
+                                  <div className="project-editor-episode-group mt-3 space-y-2">
+                                    <Label className="text-xs">
+                                      {isChapterBased ? "Capa do capítulo" : "Capa do episódio"}
+                                    </Label>
+                                    <div className="flex flex-wrap items-center gap-3">
+                                      {episode.coverImageUrl ? (
+                                        <div className="flex items-center gap-3 rounded-2xl border border-border/60 bg-card/60 px-3 py-2">
+                                          <img
+                                            src={episode.coverImageUrl}
+                                            alt={episode.title || "Capa"}
+                                            className="h-12 w-12 rounded-lg object-cover"
+                                          />
+                                        </div>
+                                      ) : (
+                                        <div className="flex h-12 w-12 items-center justify-center rounded-lg border border-dashed border-border/60 text-center text-[10px] text-muted-foreground leading-tight">
+                                          Sem imagem
+                                        </div>
+                                      )}
+                                      <Button
+                                        type="button"
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={() => openLibraryForEpisodeCover(index)}
+                                      >
+                                        Biblioteca
+                                      </Button>
+                                    </div>
+                                  </div>
+                                  {isLightNovel ? (
+                                    <div className="project-editor-episode-group mt-4">
+                                      <Label className="text-xs">Conteúdo do capítulo</Label>
+                                      <div
+                                        className="mt-3"
+                                        onFocusCapture={(event) => {
+                                          const target = event.target as HTMLElement | null;
+                                          if (target?.closest(".lexical-playground")) {
+                                            return;
+                                          }
+                                          const editor = chapterEditorsRef.current[index];
+                                          editor?.blur?.();
+                                        }}
+                                      >
+                                        <EpisodeContentEditor
+                                          value={episode.content || ""}
+                                          imageLibraryOptions={episodeAssetLibraryOptions}
+                                          onRegister={(handlers) => {
+                                            chapterEditorsRef.current[index] = handlers;
+                                          }}
+                                          onChange={(nextValue) =>
+                                            setFormState((prev) => {
+                                              const next = [...prev.episodeDownloads];
+                                              next[index] = { ...next[index], content: nextValue };
+                                              return { ...prev, episodeDownloads: next };
+                                            })
+                                          }
+                                        />
+                                      </div>
+                                    </div>
+                                  ) : null}
+                                  {!episode.sources.some((source) => source.url) &&
+                                  !isChapterBased ? (
+                                    <div className="project-editor-episode-group mt-3">
+                                      <Label className="text-xs">Etapas concluídas</Label>
+                                      <div className="mt-2 flex flex-wrap gap-2">
+                                        {stageOptions.map((stage) => {
+                                          const completed = (
+                                            episode.completedStages || []
+                                          ).includes(stage.id);
+                                          return (
+                                            <Button
+                                              key={stage.id}
+                                              type="button"
+                                              size="sm"
+                                              variant={completed ? "default" : "outline"}
+                                              onClick={() =>
+                                                setFormState((prev) => {
+                                                  const next = [...prev.episodeDownloads];
+                                                  const current = next[index].completedStages || [];
+                                                  next[index] = {
+                                                    ...next[index],
+                                                    completedStages: completed
+                                                      ? current.filter((item) => item !== stage.id)
+                                                      : [...current, stage.id],
+                                                  };
+                                                  return { ...prev, episodeDownloads: next };
+                                                })
+                                              }
+                                            >
+                                              {stage.label}
+                                            </Button>
+                                          );
+                                        })}
+                                      </div>
+                                    </div>
+                                  ) : null}
+                                  {!isLightNovel ? (
+                                    <div className="project-editor-episode-group mt-3 space-y-3">
+                                      <div>
+                                        <Label className="text-xs">Arquivo do episódio</Label>
+                                        <div className="mt-2 grid gap-2 md:grid-cols-2">
+                                          <div className="space-y-1">
+                                            <Input
+                                              ref={(node) => {
+                                                episodeSizeInputRefs.current[index] = node;
+                                              }}
+                                              value={
+                                                episodeSizeDrafts[index] ??
+                                                (episode.sizeBytes
+                                                  ? formatBytesCompact(episode.sizeBytes)
+                                                  : "")
+                                              }
+                                              onChange={(event) => {
+                                                const nextValue = event.target.value;
+                                                setEpisodeSizeDrafts((prev) => ({
+                                                  ...prev,
+                                                  [index]: nextValue,
+                                                }));
+                                                setEpisodeSizeErrors((prev) => {
+                                                  if (!prev[index]) {
+                                                    return prev;
+                                                  }
+                                                  const next = { ...prev };
+                                                  delete next[index];
+                                                  return next;
+                                                });
+                                              }}
+                                              onBlur={(event) => {
+                                                const rawValue =
+                                                  episodeSizeDrafts[index] ?? event.target.value;
+                                                const trimmedSize = String(rawValue || "").trim();
+                                                if (!trimmedSize) {
+                                                  setFormState((prev) => {
+                                                    const next = [...prev.episodeDownloads];
+                                                    next[index] = {
+                                                      ...next[index],
+                                                      sizeBytes: undefined,
+                                                    };
+                                                    return { ...prev, episodeDownloads: next };
+                                                  });
+                                                  setEpisodeSizeDrafts((prev) => {
+                                                    const next = { ...prev };
+                                                    delete next[index];
+                                                    return next;
+                                                  });
+                                                  setEpisodeSizeErrors((prev) => {
+                                                    const next = { ...prev };
+                                                    delete next[index];
+                                                    return next;
+                                                  });
+                                                  return;
+                                                }
+
+                                                const parsedSize =
+                                                  parseHumanSizeToBytes(trimmedSize);
+                                                if (!parsedSize) {
+                                                  setEpisodeSizeErrors((prev) => ({
+                                                    ...prev,
+                                                    [index]: "Use formatos como 700 MB ou 1.4 GB.",
+                                                  }));
+                                                  setEpisodeSizeDrafts((prev) => ({
+                                                    ...prev,
+                                                    [index]: rawValue,
+                                                  }));
+                                                  return;
+                                                }
+
+                                                setFormState((prev) => {
+                                                  const next = [...prev.episodeDownloads];
+                                                  next[index] = {
+                                                    ...next[index],
+                                                    sizeBytes: parsedSize,
+                                                  };
+                                                  return { ...prev, episodeDownloads: next };
+                                                });
+                                                setEpisodeSizeDrafts((prev) => {
+                                                  const next = { ...prev };
+                                                  delete next[index];
+                                                  return next;
+                                                });
+                                                setEpisodeSizeErrors((prev) => {
+                                                  const next = { ...prev };
+                                                  delete next[index];
+                                                  return next;
+                                                });
+                                              }}
+                                              placeholder="Tamanho (ex.: 700 MB ou 1.4 GB)"
+                                            />
+                                            {episodeSizeErrors[index] ? (
+                                              <p className="text-[11px] text-destructive">
+                                                {episodeSizeErrors[index]}
+                                              </p>
+                                            ) : (
+                                              <p className="text-[11px] text-muted-foreground">
+                                                Campo opcional. Valor salvo em bytes.
+                                              </p>
+                                            )}
+                                          </div>
+                                          <Input
+                                            value={episode.hash || ""}
+                                            onChange={(event) =>
+                                              setFormState((prev) => {
+                                                const next = [...prev.episodeDownloads];
+                                                next[index] = {
+                                                  ...next[index],
+                                                  hash: event.target.value,
+                                                };
+                                                return { ...prev, episodeDownloads: next };
+                                              })
+                                            }
+                                            placeholder="Hash (ex.: SHA-256: ...)"
+                                          />
+                                        </div>
+                                      </div>
+
+                                      <div>
+                                        <Label className="text-xs">Fontes de download</Label>
+                                        <div className="mt-2 grid gap-2">
+                                          {(episode.sources || []).map((source, sourceIndex) => (
+                                            <div
+                                              key={`${source.label}-${sourceIndex}`}
+                                              className="rounded-xl border border-border/60 bg-background/40 p-3"
+                                            >
+                                              <div className="grid items-start gap-2 md:grid-cols-[minmax(180px,1fr)_minmax(240px,2fr)_auto]">
+                                                <Select
+                                                  value={source.label}
+                                                  onValueChange={(value) =>
+                                                    setFormState((prev) => {
+                                                      const next = [...prev.episodeDownloads];
+                                                      const sources = [
+                                                        ...(next[index].sources || []),
+                                                      ];
+                                                      sources[sourceIndex] = {
+                                                        ...sources[sourceIndex],
+                                                        label: value,
+                                                      };
+                                                      next[index] = { ...next[index], sources };
+                                                      return { ...prev, episodeDownloads: next };
+                                                    })
+                                                  }
+                                                >
+                                                  <SelectTrigger>
+                                                    <SelectValue placeholder="Fonte" />
+                                                  </SelectTrigger>
+                                                  <SelectContent>
+                                                    {downloadSourceOptions.map((option) => (
+                                                      <SelectItem
+                                                        key={option.label}
+                                                        value={option.label}
+                                                      >
+                                                        <span className="flex items-center gap-2">
+                                                          {renderDownloadIcon(
+                                                            option.icon,
+                                                            option.color,
+                                                            option.label,
+                                                            option.tintIcon,
+                                                          )}
+                                                          <span>{option.label}</span>
+                                                        </span>
+                                                      </SelectItem>
+                                                    ))}
+                                                  </SelectContent>
+                                                </Select>
+                                                <Input
+                                                  value={source.url}
+                                                  onChange={(event) =>
+                                                    setFormState((prev) => {
+                                                      const next = [...prev.episodeDownloads];
+                                                      const sources = [
+                                                        ...(next[index].sources || []),
+                                                      ];
+                                                      sources[sourceIndex] = {
+                                                        ...sources[sourceIndex],
+                                                        url: event.target.value,
+                                                      };
+                                                      next[index] = { ...next[index], sources };
+                                                      return { ...prev, episodeDownloads: next };
+                                                    })
+                                                  }
+                                                  placeholder="URL"
+                                                />
+                                                <Button
+                                                  type="button"
+                                                  variant="ghost"
+                                                  size="icon"
+                                                  className="h-9 w-9"
+                                                  onClick={() => {
+                                                    setFormState((prev) => {
+                                                      const next = [...prev.episodeDownloads];
+                                                      const sources = (
+                                                        next[index].sources || []
+                                                      ).filter((_, idx) => idx !== sourceIndex);
+                                                      next[index] = { ...next[index], sources };
+                                                      return { ...prev, episodeDownloads: next };
+                                                    });
+                                                  }}
+                                                >
+                                                  <Trash2 className="h-4 w-4" />
+                                                </Button>
+                                              </div>
+                                            </div>
+                                          ))}
+                                          <Button
+                                            type="button"
+                                            size="sm"
+                                            variant="outline"
+                                            onClick={() =>
+                                              setFormState((prev) => {
+                                                const next = [...prev.episodeDownloads];
+                                                const existingSources = next[index].sources || [];
+                                                next[index] = {
+                                                  ...next[index],
+                                                  sources: [
+                                                    ...existingSources,
+                                                    { label: "", url: "" },
+                                                  ],
+                                                };
+                                                return { ...prev, episodeDownloads: next };
+                                              })
+                                            }
+                                          >
+                                            Adicionar fonte
+                                          </Button>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  ) : null}
+                                </AccordionContent>
+                              </CardContent>
+                            </Card>
+                          </AccordionItem>
+                        );
+                      })}
+                    </Accordion>
                   </div>
                 </AccordionContent>
               </AccordionItem>
@@ -4138,10 +4367,7 @@ const DashboardProjectsEditor = () => {
         </DialogContent>
       </Dialog>
 
-      <Dialog
-        open={confirmOpen}
-        onOpenChange={setConfirmOpen}
-      >
+      <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>{confirmTitle}</DialogTitle>
@@ -4182,7 +4408,9 @@ const DashboardProjectsEditor = () => {
           <DialogHeader>
             <DialogTitle>Excluir projeto?</DialogTitle>
             <DialogDescription>
-              {deleteTarget ? `Excluir "${deleteTarget.title}"? Você pode restaurar por até 3 dias.` : ""}
+              {deleteTarget
+                ? `Excluir "${deleteTarget.title}"? Você pode restaurar por até 3 dias.`
+                : ""}
             </DialogDescription>
           </DialogHeader>
           <div className="flex justify-end gap-3">
@@ -4213,13 +4441,8 @@ const DashboardProjectsEditor = () => {
           onSave={({ urls }) => applyLibraryImage(urls[0] || "")}
         />
       </Suspense>
-
     </>
   );
 };
 
 export default DashboardProjectsEditor;
-
-
-
-

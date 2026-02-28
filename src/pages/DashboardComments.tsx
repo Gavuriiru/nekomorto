@@ -24,7 +24,6 @@ import { apiFetch } from "@/lib/api-client";
 import { formatDateTime } from "@/lib/date";
 import { usePageMeta } from "@/hooks/use-page-meta";
 
-
 type PendingComment = {
   id: string;
   targetType: string;
@@ -57,7 +56,9 @@ const COMMENT_TARGET_TYPE_LABELS: Record<string, string> = {
 };
 
 const getCommentTargetTypeLabel = (targetType: string) => {
-  const normalizedTargetType = String(targetType || "").trim().toLowerCase();
+  const normalizedTargetType = String(targetType || "")
+    .trim()
+    .toLowerCase();
   if (!normalizedTargetType) {
     return "ITEM";
   }
@@ -79,7 +80,9 @@ const DashboardComments = () => {
   } | null>(null);
   const [isLoadingUser, setIsLoadingUser] = useState(true);
   const [deleteTarget, setDeleteTarget] = useState<PendingComment | null>(null);
-  const [pendingActionById, setPendingActionById] = useState<Record<string, "approve" | "delete">>({});
+  const [pendingActionById, setPendingActionById] = useState<Record<string, "approve" | "delete">>(
+    {},
+  );
   const [isDeleteConfirmLoading, setIsDeleteConfirmLoading] = useState(false);
   const [isBulkActionLoading, setIsBulkActionLoading] = useState(false);
   const [bulkActionType, setBulkActionType] = useState<CommentsBulkAction | null>(null);
@@ -296,124 +299,134 @@ const DashboardComments = () => {
       onUserCardClick={() => navigate("/dashboard/usuarios?edit=me")}
     >
       <main className="px-6 pb-20 pt-24 md:px-10">
-          <div className="mx-auto flex w-full max-w-6xl flex-col gap-6">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <h1 className="text-2xl font-semibold text-foreground animate-slide-up">Comentários pendentes</h1>
-                <p
-                  className="text-sm text-muted-foreground animate-slide-up opacity-0"
-                  style={{ animationDelay: "0.2s" }}
-                >
-                  Aprove ou exclua comentários enviados pelos visitantes.
-                </p>
-              </div>
-              <div className="flex flex-wrap items-center gap-2">
-                {!isLoading && comments.length > 0 ? (
-                  <>
-                    <Button
-                      size="sm"
-                      variant="secondary"
-                      disabled={isBulkActionLoading}
-                      onClick={() => void handleApproveAll()}
-                    >
-                      {isBulkActionLoading && bulkActionType === "approve_all" ? "Aprovando..." : "Aprovar todos"}
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="destructive"
-                      disabled={isBulkActionLoading}
-                      onClick={() => setIsBulkDeleteConfirmOpen(true)}
-                    >
-                      {isBulkActionLoading && bulkActionType === "delete_all" ? "Excluindo..." : "Excluir todos"}
-                    </Button>
-                  </>
-                ) : null}
-                <Badge variant="secondary" className="text-xs uppercase animate-fade-in">
-                  {comments.length} pendentes
-                </Badge>
-              </div>
+        <div className="mx-auto flex w-full max-w-6xl flex-col gap-6">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h1 className="text-2xl font-semibold text-foreground animate-slide-up">
+                Comentários pendentes
+              </h1>
+              <p
+                className="text-sm text-muted-foreground animate-slide-up opacity-0"
+                style={{ animationDelay: "0.2s" }}
+              >
+                Aprove ou exclua comentários enviados pelos visitantes.
+              </p>
             </div>
-
-            {isLoading ? (
-              <AsyncState
-                kind="loading"
-                title="Carregando comentarios"
-                description="Buscando a fila de moderacao."
-              />
-            ) : hasLoadError ? (
-              <AsyncState
-                kind="error"
-                title="Nao foi possivel carregar os comentarios"
-                description="Tente novamente em instantes."
-                action={
-                  <Button variant="outline" onClick={() => void loadComments()}>
-                    Recarregar fila
-                  </Button>
-                }
-              />
-            ) : comments.length === 0 ? (
-              <AsyncState
-                kind="empty"
-                title="Nenhum comentario pendente"
-                description="A fila de moderacao esta em dia."
-              />
-            ) : (
-              <div className="grid gap-4">
-                {comments.map((comment, index) => (
-                  <Card
-                    key={comment.id}
-                    className="border-border/60 bg-card/80 shadow-lg animate-slide-up opacity-0"
-                    style={{ animationDelay: `${index * 60}ms` }}
+            <div className="flex flex-wrap items-center gap-2">
+              {!isLoading && comments.length > 0 ? (
+                <>
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    disabled={isBulkActionLoading}
+                    onClick={() => void handleApproveAll()}
                   >
-                    <CardContent className="space-y-4 p-6">
-                      <div className="flex flex-wrap items-start justify-between gap-4">
-                        <div className="min-w-0 flex-1 space-y-1">
-                          <div className="flex min-w-0 items-center gap-2 text-xs text-muted-foreground">
-                            <Badge variant="outline" className="shrink-0 text-[10px] uppercase">
-                              {getCommentTargetTypeLabel(comment.targetType)}
-                            </Badge>
-                            <span className="min-w-0 truncate" title={comment.targetLabel}>
-                              {comment.targetLabel}
-                            </span>
-                            <span className="ml-auto shrink-0 whitespace-nowrap">{formatDateTime(comment.createdAt)}</span>
-                          </div>
-                          <p className="text-sm font-semibold text-foreground">{comment.name}</p>
-                          <p className="text-sm text-muted-foreground whitespace-pre-line">{comment.content}</p>
-                        </div>
-                        <div className="flex flex-wrap items-center gap-2">
-                          <Button
-                            size="sm"
-                            variant="secondary"
-                            disabled={Boolean(pendingActionById[comment.id]) || isBulkActionLoading}
-                            onClick={() => handleApprove(comment.id)}
-                          >
-                            <CheckCircle2 className="mr-2 h-4 w-4" />
-                            {pendingActionById[comment.id] === "approve" ? "Aprovando..." : "Aprovar"}
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="destructive"
-                            disabled={Boolean(pendingActionById[comment.id]) || isBulkActionLoading}
-                            onClick={() => handleDelete(comment)}
-                          >
-                            <Trash2 className="mr-2 h-4 w-4" />
-                            {pendingActionById[comment.id] === "delete" ? "Excluindo..." : "Excluir"}
-                          </Button>
-                          <Button size="sm" variant="outline" asChild>
-                            <a href={comment.targetUrl} target="_blank" rel="noreferrer">
-                              <ExternalLink className="mr-2 h-4 w-4" />
-                              Ver página
-                            </a>
-                          </Button>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            )}
+                    {isBulkActionLoading && bulkActionType === "approve_all"
+                      ? "Aprovando..."
+                      : "Aprovar todos"}
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="destructive"
+                    disabled={isBulkActionLoading}
+                    onClick={() => setIsBulkDeleteConfirmOpen(true)}
+                  >
+                    {isBulkActionLoading && bulkActionType === "delete_all"
+                      ? "Excluindo..."
+                      : "Excluir todos"}
+                  </Button>
+                </>
+              ) : null}
+              <Badge variant="secondary" className="text-xs uppercase animate-fade-in">
+                {comments.length} pendentes
+              </Badge>
+            </div>
           </div>
-        </main>
+
+          {isLoading ? (
+            <AsyncState
+              kind="loading"
+              title="Carregando comentários"
+              description="Buscando a fila de moderacao."
+            />
+          ) : hasLoadError ? (
+            <AsyncState
+              kind="error"
+              title="Nao foi possivel carregar os comentarios"
+              description="Tente novamente em alguns instantes."
+              action={
+                <Button variant="outline" onClick={() => void loadComments()}>
+                  Recarregar fila
+                </Button>
+              }
+            />
+          ) : comments.length === 0 ? (
+            <AsyncState
+              kind="empty"
+              title="Nenhum comentario pendente"
+              description="A fila de moderacao esta em dia."
+            />
+          ) : (
+            <div className="grid gap-4">
+              {comments.map((comment, index) => (
+                <Card
+                  key={comment.id}
+                  className="border-border/60 bg-card/80 shadow-lg animate-slide-up opacity-0"
+                  style={{ animationDelay: `${index * 60}ms` }}
+                >
+                  <CardContent className="space-y-4 p-6">
+                    <div className="flex flex-wrap items-start justify-between gap-4">
+                      <div className="min-w-0 flex-1 space-y-1">
+                        <div className="flex min-w-0 items-center gap-2 text-xs text-muted-foreground">
+                          <Badge variant="outline" className="shrink-0 text-[10px] uppercase">
+                            {getCommentTargetTypeLabel(comment.targetType)}
+                          </Badge>
+                          <span className="min-w-0 truncate" title={comment.targetLabel}>
+                            {comment.targetLabel}
+                          </span>
+                          <span className="ml-auto shrink-0 whitespace-nowrap">
+                            {formatDateTime(comment.createdAt)}
+                          </span>
+                        </div>
+                        <p className="text-sm font-semibold text-foreground">{comment.name}</p>
+                        <p className="text-sm text-muted-foreground whitespace-pre-line">
+                          {comment.content}
+                        </p>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          disabled={Boolean(pendingActionById[comment.id]) || isBulkActionLoading}
+                          onClick={() => handleApprove(comment.id)}
+                        >
+                          <CheckCircle2 className="mr-2 h-4 w-4" />
+                          {pendingActionById[comment.id] === "approve" ? "Aprovando..." : "Aprovar"}
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          disabled={Boolean(pendingActionById[comment.id]) || isBulkActionLoading}
+                          onClick={() => handleDelete(comment)}
+                        >
+                          <Trash2 className="mr-2 h-4 w-4" />
+                          {pendingActionById[comment.id] === "delete" ? "Excluindo..." : "Excluir"}
+                        </Button>
+                        <Button size="sm" variant="outline" asChild>
+                          <a href={comment.targetUrl} target="_blank" rel="noreferrer">
+                            <ExternalLink className="mr-2 h-4 w-4" />
+                            Ver página
+                          </a>
+                        </Button>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+        </div>
+      </main>
       <AlertDialog
         open={Boolean(deleteTarget)}
         onOpenChange={(open) => {
@@ -460,12 +473,14 @@ const DashboardComments = () => {
           <AlertDialogHeader>
             <AlertDialogTitle>Excluir todos os comentários pendentes?</AlertDialogTitle>
             <AlertDialogDescription>
-              Esta ação remove permanentemente todos os comentários pendentes da fila. Digite EXCLUIR para confirmar.
+              Esta ação remove permanentemente todos os comentários pendentes da fila. Digite
+              EXCLUIR para confirmar.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <div className="space-y-2">
             <p className="text-sm text-muted-foreground">
-              Pendentes na fila: <span className="font-semibold text-foreground">{comments.length}</span>
+              Pendentes na fila:{" "}
+              <span className="font-semibold text-foreground">{comments.length}</span>
             </p>
             <Input
               value={bulkDeleteConfirmText}
@@ -484,7 +499,9 @@ const DashboardComments = () => {
                 void handleConfirmBulkDelete();
               }}
             >
-              {isBulkActionLoading && bulkActionType === "delete_all" ? "Excluindo..." : "Excluir todos"}
+              {isBulkActionLoading && bulkActionType === "delete_all"
+                ? "Excluindo..."
+                : "Excluir todos"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

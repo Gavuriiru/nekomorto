@@ -34,12 +34,37 @@ type MenuFlags = {
 
 const createMenuItems = (flags: MenuFlags = {}): DashboardMenuItem[] => [
   { label: "In\u00edcio", href: "/dashboard", icon: LayoutGrid, enabled: true },
-  { label: "Analytics", href: "/dashboard/analytics", icon: LayoutGrid, enabled: flags.analytics ?? true },
+  {
+    label: "Análises",
+    href: "/dashboard/analytics",
+    icon: LayoutGrid,
+    enabled: flags.analytics ?? true,
+  },
   { label: "Postagens", href: "/dashboard/posts", icon: LayoutGrid, enabled: flags.posts ?? true },
-  { label: "Projetos", href: "/dashboard/projetos", icon: LayoutGrid, enabled: flags.projects ?? true },
-  { label: "Usu\u00e1rios", href: "/dashboard/usuarios", icon: LayoutGrid, enabled: flags.users ?? true },
-  { label: "P\u00e1ginas", href: "/dashboard/paginas", icon: LayoutGrid, enabled: flags.pages ?? true },
-  { label: "Configura\u00e7\u00f5es", href: "/dashboard/configuracoes", icon: LayoutGrid, enabled: flags.settings ?? true },
+  {
+    label: "Projetos",
+    href: "/dashboard/projetos",
+    icon: LayoutGrid,
+    enabled: flags.projects ?? true,
+  },
+  {
+    label: "Usu\u00e1rios",
+    href: "/dashboard/usuarios",
+    icon: LayoutGrid,
+    enabled: flags.users ?? true,
+  },
+  {
+    label: "P\u00e1ginas",
+    href: "/dashboard/paginas",
+    icon: LayoutGrid,
+    enabled: flags.pages ?? true,
+  },
+  {
+    label: "Configura\u00e7\u00f5es",
+    href: "/dashboard/configuracoes",
+    icon: LayoutGrid,
+    enabled: flags.settings ?? true,
+  },
 ];
 
 const renderPalette = (menuItems: DashboardMenuItem[] = createMenuItems()) => {
@@ -139,7 +164,7 @@ describe("DashboardCommandPalette shortcuts", () => {
   it("mantem a navegacao padrao a partir de menuItems", () => {
     const { onOpenChange, onNavigate } = renderPalette();
 
-    fireEvent.click(screen.getByText("Analytics"));
+    fireEvent.click(screen.getByText("Análises"));
 
     expect(onOpenChange).toHaveBeenCalledWith(false);
     expect(onNavigate).toHaveBeenCalledWith("/dashboard/analytics");

@@ -22,7 +22,13 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { publicPageLayoutTokens } from "@/components/public-page-tokens";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 import ThemedSvgLogo from "@/components/ThemedSvgLogo";
 import { getApiBase } from "@/lib/api-base";
 import { isChapterBasedType, isLightNovelType, isMangaType } from "@/lib/project-utils";
@@ -108,7 +114,7 @@ const ProjectPage = () => {
     return () => {
       isActive = false;
     };
-    }, [apiBase, slug]);
+  }, [apiBase, slug]);
 
   useEffect(() => {
     if (!project?.id) {
@@ -205,8 +211,14 @@ const ProjectPage = () => {
   }, [project]);
 
   const tagTranslationMap = useMemo(() => buildTranslationMap(tagTranslations), [tagTranslations]);
-  const genreTranslationMap = useMemo(() => buildTranslationMap(genreTranslations), [genreTranslations]);
-  const staffRoleTranslationMap = useMemo(() => buildTranslationMap(staffRoleTranslations), [staffRoleTranslations]);
+  const genreTranslationMap = useMemo(
+    () => buildTranslationMap(genreTranslations),
+    [genreTranslations],
+  );
+  const staffRoleTranslationMap = useMemo(
+    () => buildTranslationMap(staffRoleTranslations),
+    [staffRoleTranslations],
+  );
 
   const sortedTags = useMemo(() => {
     const tags = Array.isArray(project?.tags) ? project.tags : [];
@@ -341,7 +353,8 @@ const ProjectPage = () => {
     }
     const ids = new Set(projectDirectory.map((item) => String(item.id)));
     return project.relations.filter((relation) => {
-      const relationId = relation.projectId || (relation.anilistId ? String(relation.anilistId) : "");
+      const relationId =
+        relation.projectId || (relation.anilistId ? String(relation.anilistId) : "");
       return relationId && ids.has(relationId);
     });
   }, [project?.relations, projectDirectory]);
@@ -418,7 +431,7 @@ const ProjectPage = () => {
           <div className="w-full overflow-hidden rounded-xl border border-border/60 bg-background/50 shadow-inner md:h-[153px] md:w-[272px]">
             <UploadPicture
               src={episode.coverImageUrl || project.banner || project.cover || "/placeholder.svg"}
-              alt={`Preview de ${episode.title}`}
+              alt={`Prévia de ${episode.title}`}
               preset="card"
               mediaVariants={mediaVariants}
               className="h-full w-full"
@@ -428,12 +441,17 @@ const ProjectPage = () => {
           <div className="relative h-full min-h-[153px] md:pr-0">
             <div className="space-y-2.5 pb-12 md:pb-[52px]">
               <div className="flex min-w-0 items-center gap-2 pr-20">
-                <Badge variant="secondary" className="rounded-full px-2.5 py-0.5 text-[10px] uppercase">
+                <Badge
+                  variant="secondary"
+                  className="rounded-full px-2.5 py-0.5 text-[10px] uppercase"
+                >
                   {isManga
                     ? `Cap ${episode.number}${episode.volume ? ` • Vol. ${episode.volume}` : ""}`
                     : `EP ${episode.number}`}
                 </Badge>
-                <p className="truncate text-base font-semibold text-foreground md:text-lg">{episode.title}</p>
+                <p className="truncate text-base font-semibold text-foreground md:text-lg">
+                  {episode.title}
+                </p>
               </div>
               <div className="flex flex-col items-start gap-1.5 text-xs text-muted-foreground">
                 {episode.duration ? (
@@ -512,7 +530,10 @@ const ProjectPage = () => {
     const groups = new Map<string, { label: string; volume?: number; items: EpisodeItem[] }>();
     const allItems = isLightNovel ? sortedLightNovelChapters : sortedDownloadableEpisodes;
     allItems.forEach((item) => {
-      const volumeKey = typeof item.volume === "number" && !Number.isNaN(item.volume) ? String(item.volume) : "none";
+      const volumeKey =
+        typeof item.volume === "number" && !Number.isNaN(item.volume)
+          ? String(item.volume)
+          : "none";
       if (!groups.has(volumeKey)) {
         groups.set(volumeKey, {
           label: volumeKey === "none" ? "Sem volume" : `Volume ${volumeKey}`,
@@ -542,7 +563,10 @@ const ProjectPage = () => {
   }, [project?.id]);
 
   const episodesPerPage = 24;
-  const totalEpisodePages = Math.max(1, Math.ceil(filteredDownloadableEpisodes.length / episodesPerPage));
+  const totalEpisodePages = Math.max(
+    1,
+    Math.ceil(filteredDownloadableEpisodes.length / episodesPerPage),
+  );
   const episodePageStart = (episodePage - 1) * episodesPerPage;
   const paginatedEpisodes = filteredDownloadableEpisodes.slice(
     episodePageStart,
@@ -585,13 +609,13 @@ const ProjectPage = () => {
     return null;
   }
 
-  const heroBannerSrc = project.banner || project.heroImageUrl || project.cover || "/placeholder.svg";
+  const heroBannerSrc =
+    project.banner || project.heroImageUrl || project.cover || "/placeholder.svg";
   const heroCoverSrc = project.cover || project.banner || "/placeholder.svg";
   const heroBannerAlt = `Banner do projeto ${project.title}`;
 
   return (
     <div className="min-h-screen bg-background text-foreground">
-
       <main>
         <section data-testid="project-hero" className="relative overflow-hidden">
           <UploadPicture
@@ -610,7 +634,9 @@ const ProjectPage = () => {
           <div className="absolute inset-0 bg-linear-to-t from-background via-background/70 to-transparent" />
           <div className="absolute inset-x-0 bottom-0 h-32 bg-linear-to-b from-transparent via-background/80 to-background" />
 
-          <div className="relative mx-auto w-full max-w-6xl px-6 pb-14 pt-24 md:px-10 md:pb-16 lg:pt-28 lg:pb-20">
+          <div
+            className={`${publicPageLayoutTokens.sectionBase} relative max-w-6xl pb-14 pt-24 md:pb-16 lg:pt-28 lg:pb-20`}
+          >
             <div
               data-testid="project-hero-layout"
               className="grid items-start gap-10 lg:gap-12 reveal md:items-stretch md:grid-cols-[320px_minmax(0,1fr)] lg:grid-cols-[340px_minmax(0,1fr)]"
@@ -656,9 +682,16 @@ const ProjectPage = () => {
                   {project.synopsis}
                 </p>
                 {project.tags?.length ? (
-                  <div className="flex w-full flex-wrap justify-center gap-2 animate-slide-up opacity-0 md:justify-start" style={{ animationDelay: "0.3s" }}>
+                  <div
+                    className="flex w-full flex-wrap justify-center gap-2 animate-slide-up opacity-0 md:justify-start"
+                    style={{ animationDelay: "0.3s" }}
+                  >
                     {sortedTags.map((tag) => (
-                      <Link key={tag} to={`/projetos?tag=${encodeURIComponent(tag)}`} className="inline-flex">
+                      <Link
+                        key={tag}
+                        to={`/projetos?tag=${encodeURIComponent(tag)}`}
+                        className="inline-flex"
+                      >
                         <Badge variant="secondary" className="text-[10px] uppercase">
                           {translateTag(tag, tagTranslationMap)}
                         </Badge>
@@ -681,7 +714,9 @@ const ProjectPage = () => {
                     <Button asChild variant="outline" className="gap-2">
                       <Link
                         to={`/projeto/${project.id}/leitura/${firstReadableChapter.number}${
-                          firstReadableChapter.volume ? `?volume=${firstReadableChapter.volume}` : ""
+                          firstReadableChapter.volume
+                            ? `?volume=${firstReadableChapter.volume}`
+                            : ""
                         }`}
                       >
                         Começar leitura
@@ -709,23 +744,30 @@ const ProjectPage = () => {
           </div>
         </section>
 
-        <section className="relative z-10 -mt-8 mx-auto w-full max-w-6xl px-6 pb-12 pt-8 md:-mt-10 md:px-10 md:pt-10 reveal" data-reveal>
+        <section
+          className={`${publicPageLayoutTokens.sectionBase} relative z-10 -mt-8 max-w-6xl pb-12 pt-8 md:-mt-10 md:pt-10 reveal`}
+          data-reveal
+        >
           <div className="grid gap-8 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
             <div className="space-y-8">
               <Card className="border-border/60 bg-card/80 shadow-lg transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:bg-card/90 hover:shadow-lg">
                 <CardContent className="space-y-4 p-6">
-                    <div className="flex items-center gap-3 text-sm font-semibold uppercase tracking-widest text-muted-foreground">
-                      {isChapterBased ? (
-                        <BookOpen className="h-4 w-4 text-primary" />
-                      ) : (
-                        <Film className="h-4 w-4 text-primary" />
-                      )}
-                      Sobre o projeto
-                    </div>
+                  <div className="flex items-center gap-3 text-sm font-semibold uppercase tracking-widest text-muted-foreground">
+                    {isChapterBased ? (
+                      <BookOpen className="h-4 w-4 text-primary" />
+                    ) : (
+                      <Film className="h-4 w-4 text-primary" />
+                    )}
+                    Sobre o projeto
+                  </div>
                   {project.genres?.length ? (
                     <div className="flex flex-wrap gap-2">
                       {sortedGenres.map((genre) => (
-                        <Link key={genre} to={`/projetos?genero=${encodeURIComponent(genre)}`} className="inline-flex">
+                        <Link
+                          key={genre}
+                          to={`/projetos?genero=${encodeURIComponent(genre)}`}
+                          className="inline-flex"
+                        >
                           <Badge variant="outline" className="text-[10px] uppercase">
                             {translateGenre(genre, genreTranslationMap)}
                           </Badge>
@@ -736,11 +778,16 @@ const ProjectPage = () => {
                   {projectDetails.length ? (
                     <div className="grid gap-4 md:grid-cols-2">
                       {projectDetails.map((detail) => (
-                        <div key={detail.label} className="rounded-xl border border-border/50 bg-background/60 px-4 py-3">
+                        <div
+                          key={detail.label}
+                          className="rounded-xl border border-border/50 bg-background/60 px-4 py-3"
+                        >
                           <span className="block text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
                             {detail.label}
                           </span>
-                          <p className="mt-1 text-sm font-semibold text-foreground">{detail.value}</p>
+                          <p className="mt-1 text-sm font-semibold text-foreground">
+                            {detail.value}
+                          </p>
                         </div>
                       ))}
                     </div>
@@ -757,7 +804,9 @@ const ProjectPage = () => {
                     </div>
                     <div className="grid gap-4 sm:grid-cols-2">
                       {visibleRelations.map((relation) => {
-                        const relationId = relation.projectId || (relation.anilistId ? String(relation.anilistId) : "");
+                        const relationId =
+                          relation.projectId ||
+                          (relation.anilistId ? String(relation.anilistId) : "");
                         const projectId = relationProjectIds.get(relationId);
                         const targetId = projectId || relationId;
                         return (
@@ -847,25 +896,28 @@ const ProjectPage = () => {
 
         <section
           id="downloads"
-          className="mx-auto w-full max-w-6xl px-6 pb-20 pt-4 md:px-10 reveal"
+          className={`${publicPageLayoutTokens.sectionBase} max-w-6xl pb-20 pt-4 reveal`}
           data-reveal
         >
           <div className="flex flex-col gap-6">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <div>
-                  <h2 className="text-2xl font-semibold text-foreground">
-                    {isChapterBased ? "Capítulos" : "Downloads"}
-                  </h2>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h2 className="text-2xl font-semibold text-foreground">
+                  {isChapterBased ? "Capítulos" : "Downloads"}
+                </h2>
                 <p className="text-sm text-muted-foreground">
                   {isLightNovel
                     ? "Leia os capítulos disponíveis diretamente no site."
                     : isManga
-                    ? "Selecione um capítulo disponível para download."
-                    : "Selecione uma fonte de download para cada item disponível."}
+                      ? "Selecione um capítulo disponível para download."
+                      : "Selecione uma fonte de download para cada item disponível."}
                 </p>
               </div>
               <Badge variant="secondary" className="text-xs uppercase">
-                {isLightNovel ? filteredLightNovelChapters.length : filteredDownloadableEpisodes.length} disponíveis
+                {isLightNovel
+                  ? filteredLightNovelChapters.length
+                  : filteredDownloadableEpisodes.length}{" "}
+                disponíveis
               </Badge>
             </div>
 
@@ -877,7 +929,10 @@ const ProjectPage = () => {
               ) : (
                 <div className="grid gap-6">
                   {volumeGroups.map((group) => (
-                    <Card key={group.label} className="border-border/60 bg-card/80 shadow-lg transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:bg-card/90 hover:shadow-lg">
+                    <Card
+                      key={group.label}
+                      className="border-border/60 bg-card/80 shadow-lg transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:bg-card/90 hover:shadow-lg"
+                    >
                       <CardContent className="space-y-4 p-6">
                         <Accordion type="multiple" defaultValue={[group.label]}>
                           <AccordionItem value={group.label} className="border-none">
@@ -891,50 +946,59 @@ const ProjectPage = () => {
                             </AccordionTrigger>
                             <AccordionContent className="pt-4">
                               <div className="grid gap-4">
-                            {group.items.map((chapter) => {
-                              const hasContent =
-                                (chapter as { hasContent?: boolean }).hasContent ||
-                                (typeof chapter.content === "string" && chapter.content.trim().length > 0);
-                              const search = chapter.volume ? `?volume=${chapter.volume}` : "";
-                              return (
-                                <Card
-                                  key={`${chapter.number}-${chapter.volume || 0}`}
-                                  className="border-border/60 bg-background/60 transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:bg-background/80 hover:shadow-lg"
-                                >
-                                  <CardContent className="space-y-3 p-4">
-                                    <div className="flex flex-wrap items-start justify-between gap-4">
-                                      <div className="space-y-1">
-                                        <Badge variant="secondary" className="text-xs uppercase">
-                                          Cap {chapter.number}
-                                          {chapter.volume ? ` • Vol. ${chapter.volume}` : ""}
-                                        </Badge>
-                                        <p className="text-base font-semibold text-foreground">
-                                          {chapter.title || "Capítulo"}
-                                        </p>
-                                      </div>
-                                      <div className="flex items-center gap-2">
-                                        {hasContent ? (
-                                          <Button asChild size="sm">
-                                            <Link
-                                              to={`/projeto/${project.id}/leitura/${chapter.number}${search}`}
+                                {group.items.map((chapter) => {
+                                  const hasContent =
+                                    (chapter as { hasContent?: boolean }).hasContent ||
+                                    (typeof chapter.content === "string" &&
+                                      chapter.content.trim().length > 0);
+                                  const search = chapter.volume ? `?volume=${chapter.volume}` : "";
+                                  return (
+                                    <Card
+                                      key={`${chapter.number}-${chapter.volume || 0}`}
+                                      className="border-border/60 bg-background/60 transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:bg-background/80 hover:shadow-lg"
+                                    >
+                                      <CardContent className="space-y-3 p-4">
+                                        <div className="flex flex-wrap items-start justify-between gap-4">
+                                          <div className="space-y-1">
+                                            <Badge
+                                              variant="secondary"
+                                              className="text-xs uppercase"
                                             >
-                                              Ler capítulo
-                                            </Link>
-                                          </Button>
-                                        ) : (
-                                          <Badge variant="outline" className="text-[10px] uppercase">
-                                            Em breve
-                                          </Badge>
-                                        )}
-                                      </div>
-                                    </div>
-                                    {chapter.synopsis ? (
-                                      <p className="text-sm text-muted-foreground">{chapter.synopsis}</p>
-                                    ) : null}
-                                  </CardContent>
-                                </Card>
-                              );
-                            })}
+                                              Cap {chapter.number}
+                                              {chapter.volume ? ` • Vol. ${chapter.volume}` : ""}
+                                            </Badge>
+                                            <p className="text-base font-semibold text-foreground">
+                                              {chapter.title || "Capítulo"}
+                                            </p>
+                                          </div>
+                                          <div className="flex items-center gap-2">
+                                            {hasContent ? (
+                                              <Button asChild size="sm">
+                                                <Link
+                                                  to={`/projeto/${project.id}/leitura/${chapter.number}${search}`}
+                                                >
+                                                  Ler capítulo
+                                                </Link>
+                                              </Button>
+                                            ) : (
+                                              <Badge
+                                                variant="outline"
+                                                className="text-[10px] uppercase"
+                                              >
+                                                Em breve
+                                              </Badge>
+                                            )}
+                                          </div>
+                                        </div>
+                                        {chapter.synopsis ? (
+                                          <p className="text-sm text-muted-foreground">
+                                            {chapter.synopsis}
+                                          </p>
+                                        ) : null}
+                                      </CardContent>
+                                    </Card>
+                                  );
+                                })}
                               </div>
                             </AccordionContent>
                           </AccordionItem>
@@ -953,7 +1017,10 @@ const ProjectPage = () => {
               <div className="grid gap-6 justify-items-center">
                 {isManga
                   ? volumeGroups.map((group) => (
-                      <Card key={group.label} className="border-border/60 bg-card/80 shadow-lg transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:bg-card/90 hover:shadow-lg">
+                      <Card
+                        key={group.label}
+                        className="border-border/60 bg-card/80 shadow-lg transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:bg-card/90 hover:shadow-lg"
+                      >
                         <CardContent className="space-y-4 p-6">
                           <Accordion type="multiple" defaultValue={[group.label]}>
                             <AccordionItem value={group.label} className="border-none">
@@ -1013,7 +1080,10 @@ const ProjectPage = () => {
           </div>
         </section>
 
-        <section className="mx-auto w-full max-w-6xl px-6 pb-24 pt-4 md:px-10 reveal" data-reveal>
+        <section
+          className={`${publicPageLayoutTokens.sectionBase} max-w-6xl pb-24 pt-4 reveal`}
+          data-reveal
+        >
           <div className="grid gap-6">
             <Card className="border-border bg-card transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:bg-card/90 hover:shadow-lg">
               <CardHeader>
@@ -1039,13 +1109,3 @@ const ProjectPage = () => {
 };
 
 export default ProjectPage;
-
-
-
-
-
-
-
-
-
-

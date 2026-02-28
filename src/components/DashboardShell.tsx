@@ -18,9 +18,11 @@ import {
 import { dashboardMenuItems, type DashboardMenuItem } from "@/components/dashboard-menu";
 import {
   buildDashboardMenuFromGrants,
+  getFirstAllowedDashboardRoute,
   resolveAccessRole,
   resolveGrants,
 } from "@/lib/access-control";
+import { uiCopy } from "@/lib/ui-copy";
 
 type DashboardUser = {
   id?: string;
@@ -42,10 +44,7 @@ type DashboardShellProps = {
   onUserCardClick?: () => void;
   userLabel?: string;
   userSubLabel?: string;
-  onMenuItemClick?: (
-    item: DashboardMenuItem,
-    event: MouseEvent<HTMLAnchorElement>,
-  ) => void;
+  onMenuItemClick?: (item: DashboardMenuItem, event: MouseEvent<HTMLAnchorElement>) => void;
 };
 
 let lastResolvedDashboardUser: DashboardUser | null = null;
@@ -83,12 +82,10 @@ const DashboardShell = ({
 
   const resolvedMenuItems = useMemo(() => {
     const accessRole = resolveAccessRole(effectiveUser || null);
-    const isOwner =
-      accessRole === "owner_primary" || accessRole === "owner_secondary";
+    const isOwner = accessRole === "owner_primary" || accessRole === "owner_secondary";
     if (Array.isArray(menuItems)) {
       return menuItems.filter(
-        (item) =>
-          item.enabled && (item.href !== "/dashboard/seguranca" || isOwner),
+        (item) => item.enabled && (item.href !== "/dashboard/seguranca" || isOwner),
       );
     }
     const grants = resolveGrants(effectiveUser || null);
@@ -96,10 +93,24 @@ const DashboardShell = ({
       (item) => item.href !== "/dashboard/seguranca" || isOwner,
     );
   }, [effectiveUser, menuItems]);
+  const dashboardHomeHref = useMemo(
+    () =>
+      getFirstAllowedDashboardRoute(resolveGrants(effectiveUser || null), {
+        allowUsersForSelf: Boolean(effectiveUser),
+      }),
+    [effectiveUser],
+  );
   const userName =
-    userLabel ?? (effectiveUser?.name ?? (isLoadingUser ? "Carregando usuario..." : "Usuario"));
+    userLabel ??
+    effectiveUser?.name ??
+    (isLoadingUser ? uiCopy.user.loading : uiCopy.user.singular);
   const userHandle =
-    userSubLabel ?? (effectiveUser?.username ? `@${effectiveUser.username}` : isLoadingUser ? "Aguarde" : "Dashboard");
+    userSubLabel ??
+    (effectiveUser?.username
+      ? `@${effectiveUser.username}`
+      : isLoadingUser
+        ? uiCopy.user.waiting
+        : uiCopy.dashboard.home);
   const initialsRaw = (effectiveUser?.name ?? effectiveUser?.username ?? "")
     .split(" ")
     .filter(Boolean)
@@ -135,7 +146,9 @@ const DashboardShell = ({
               }}
             >
               <Avatar className="h-11 w-11 border border-sidebar-border">
-                {effectiveUser?.avatarUrl ? <AvatarImage src={effectiveUser.avatarUrl} alt={userName} /> : null}
+                {effectiveUser?.avatarUrl ? (
+                  <AvatarImage src={effectiveUser.avatarUrl} alt={userName} />
+                ) : null}
                 <AvatarFallback className="bg-sidebar-primary/10 text-xs text-sidebar-foreground">
                   {initials}
                 </AvatarFallback>
@@ -162,7 +175,9 @@ const DashboardShell = ({
               }}
             >
               <Avatar className="h-8 w-8 border border-sidebar-border shadow-xs">
-                {effectiveUser?.avatarUrl ? <AvatarImage src={effectiveUser.avatarUrl} alt={userName} /> : null}
+                {effectiveUser?.avatarUrl ? (
+                  <AvatarImage src={effectiveUser.avatarUrl} alt={userName} />
+                ) : null}
                 <AvatarFallback className="bg-sidebar-primary/10 text-[10px] text-sidebar-foreground">
                   {initials}
                 </AvatarFallback>
@@ -190,7 +205,9 @@ const DashboardShell = ({
                       {item.enabled ? (
                         <Link
                           to={item.href}
-                          onClick={onMenuItemClick ? (event) => onMenuItemClick(item, event) : undefined}
+                          onClick={
+                            onMenuItemClick ? (event) => onMenuItemClick(item, event) : undefined
+                          }
                         >
                           <ItemIcon />
                           <span className="group-data-[collapsible=icon]:hidden">{item.label}</span>
@@ -227,7 +244,11 @@ const DashboardShell = ({
         </Sidebar>
 
         <SidebarInset className="min-w-0 overflow-x-hidden flex min-h-screen flex-col bg-linear-to-b from-background via-[hsl(var(--primary)/0.12)] to-background text-foreground md:peer-data-[variant=inset]:shadow-none md:peer-data-[variant=inset]:rounded-none">
-          <DashboardHeader currentUser={effectiveUser} menuItems={resolvedMenuItems} />
+          <DashboardHeader
+            currentUser={effectiveUser}
+            menuItems={resolvedMenuItems}
+            dashboardHomeHref={dashboardHomeHref}
+          />
           <div className="min-w-0 w-full flex-1">{children}</div>
           <Footer />
         </SidebarInset>

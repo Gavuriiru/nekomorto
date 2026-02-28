@@ -11,9 +11,20 @@ import {
   ContextMenuSeparator,
   ContextMenuTrigger,
 } from "@/components/ui/context-menu";
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "@/components/ui/use-toast";
@@ -94,7 +105,8 @@ const fileToDataUrl = (file: File) =>
     reader.readAsDataURL(file);
   });
 
-const toEffectiveName = (item: LibraryImageItem) => item.name || item.fileName || item.label || "Imagem";
+const toEffectiveName = (item: LibraryImageItem) =>
+  item.name || item.fileName || item.label || "Imagem";
 
 const stripUrlQueryAndHash = (value: string) => value.split(/[?#]/)[0] || "";
 
@@ -237,7 +249,8 @@ const areSelectionsSemanticallyEqual = (left: string[], right: string[]) => {
   return true;
 };
 
-const toSelectionSignature = (urls: string[]) => urls.map((url) => toComparableSelectionKey(url)).join("\u0001");
+const toSelectionSignature = (urls: string[]) =>
+  urls.map((url) => toComparableSelectionKey(url)).join("\u0001");
 
 const normalizeProjectIdList = (value: unknown) => {
   const seen = new Set<string>();
@@ -291,7 +304,9 @@ const buildSelectionSeed = ({
   mode: "single" | "multiple";
 }) => {
   const fromArray =
-    Array.isArray(currentSelectionUrls) && currentSelectionUrls.length > 0 ? currentSelectionUrls : undefined;
+    Array.isArray(currentSelectionUrls) && currentSelectionUrls.length > 0
+      ? currentSelectionUrls
+      : undefined;
   const baseUrls = fromArray ?? (currentSelectionUrl ? [currentSelectionUrl] : []);
   const deduped = dedupeUrlsByComparableKey(baseUrls);
   if (mode === "multiple") {
@@ -313,7 +328,12 @@ type AvatarCropWorkspaceProps = {
   onApplyCrop: (dataUrl: string) => Promise<void>;
 };
 
-const AvatarCropWorkspace = ({ src, isApplyingCrop, onCancel, onApplyCrop }: AvatarCropWorkspaceProps) => {
+const AvatarCropWorkspace = ({
+  src,
+  isApplyingCrop,
+  onCancel,
+  onApplyCrop,
+}: AvatarCropWorkspaceProps) => {
   const cropperRef = useRef<FixedCropperRef | null>(null);
   const [isCropReady, setIsCropReady] = useState(false);
   const [cropperRevision, setCropperRevision] = useState(0);
@@ -345,7 +365,7 @@ const AvatarCropWorkspace = ({ src, isApplyingCrop, onCancel, onApplyCrop }: Ava
     } catch {
       toast({
         title: "N\u00E3o foi poss\u00EDvel gerar a imagem recortada.",
-        description: "Tente novamente em alguns segundos.",
+        description: "Tente novamente em alguns instantes.",
       });
     }
   }, [isCropReady, onApplyCrop]);
@@ -355,7 +375,9 @@ const AvatarCropWorkspace = ({ src, isApplyingCrop, onCancel, onApplyCrop }: Ava
       <div className="grid gap-4">
         <div className="rounded-xl border border-border/60 bg-card/60 p-3">
           <p className="mb-1 text-sm font-medium text-foreground">Área de recorte</p>
-          <p className="mb-3 text-xs text-muted-foreground">Arraste a imagem e use scroll para ajustar o zoom.</p>
+          <p className="mb-3 text-xs text-muted-foreground">
+            Arraste a imagem e use scroll para ajustar o zoom.
+          </p>
           <div
             className="avatar-cropper-preview relative mx-auto overflow-hidden rounded-xl bg-background/40"
             style={{ width: CROPPER_BOUNDARY_SIZE, height: CROPPER_BOUNDARY_SIZE }}
@@ -411,7 +433,11 @@ const AvatarCropWorkspace = ({ src, isApplyingCrop, onCancel, onApplyCrop }: Ava
         <Button type="button" variant="outline" onClick={handleReset} disabled={!isCropReady}>
           Resetar
         </Button>
-        <Button type="button" onClick={() => void handleApply()} disabled={isApplyingCrop || !isCropReady}>
+        <Button
+          type="button"
+          onClick={() => void handleApply()}
+          disabled={isApplyingCrop || !isCropReady}
+        >
           {isApplyingCrop ? "Aplicando..." : "Aplicar avatar"}
         </Button>
       </div>
@@ -455,7 +481,9 @@ const ImageLibraryDialog = ({
   const [renameValue, setRenameValue] = useState("");
   const [deleteTarget, setDeleteTarget] = useState<LibraryImageItem | null>(null);
   const [focalTarget, setFocalTarget] = useState<LibraryImageItem | null>(null);
-  const [focalDraft, setFocalDraft] = useState<{ x: number; y: number }>(() => normalizeFocalPointForUi(null));
+  const [focalDraft, setFocalDraft] = useState<{ x: number; y: number }>(() =>
+    normalizeFocalPointForUi(null),
+  );
   const [isRenaming, setIsRenaming] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isSavingFocal, setIsSavingFocal] = useState(false);
@@ -471,7 +499,10 @@ const ImageLibraryDialog = ({
     [projectImageProjectIdsSignature],
   );
   const listFoldersSignature = useMemo(() => toStableFolderSignature(listFolders), [listFolders]);
-  const normalizedListFolders = useMemo(() => parseStableFolderSignature(listFoldersSignature), [listFoldersSignature]);
+  const normalizedListFolders = useMemo(
+    () => parseStableFolderSignature(listFoldersSignature),
+    [listFoldersSignature],
+  );
   const allowedProjectImageIdSet = useMemo(
     () => new Set(normalizedProjectImageProjectIds),
     [normalizedProjectImageProjectIds],
@@ -523,7 +554,8 @@ const ImageLibraryDialog = ({
       if (!trimmed) {
         return;
       }
-      const matchedItem = allItems.get(trimmed) ?? allItemsByComparableKey.get(toComparableSelectionKey(trimmed));
+      const matchedItem =
+        allItems.get(trimmed) ?? allItemsByComparableKey.get(toComparableSelectionKey(trimmed));
       if (!matchedItem?.url) {
         return;
       }
@@ -595,7 +627,9 @@ const ImageLibraryDialog = ({
       uploadsFolderFilter === "__all__"
         ? bySearch
         : bySearch.filter(
-            (item) => sanitizeUploadFolderForComparison(item.folder) === sanitizeUploadFolderForComparison(uploadsFolderFilter),
+            (item) =>
+              sanitizeUploadFolderForComparison(item.folder) ===
+              sanitizeUploadFolderForComparison(uploadsFolderFilter),
           );
     return sortLibraryItems(byFolder);
   }, [matchesSearch, sortLibraryItems, uploadsFolderFilter, visibleUploads]);
@@ -632,7 +666,10 @@ const ImageLibraryDialog = ({
       }),
     [currentSelectionUrl, currentSelectionUrls, mode],
   );
-  const selectionSeedSignature = useMemo(() => toSelectionSignature(selectionSeed), [selectionSeed]);
+  const selectionSeedSignature = useMemo(
+    () => toSelectionSignature(selectionSeed),
+    [selectionSeed],
+  );
   const selectionSeedRef = useRef<string[]>(selectionSeed);
 
   useEffect(() => {
@@ -648,7 +685,8 @@ const ImageLibraryDialog = ({
         if (!trimmed) {
           return;
         }
-        const matched = allItems.get(trimmed) ?? allItemsByComparableKey.get(toComparableSelectionKey(trimmed));
+        const matched =
+          allItems.get(trimmed) ?? allItemsByComparableKey.get(toComparableSelectionKey(trimmed));
         if (!matched) {
           return;
         }
@@ -727,7 +765,9 @@ const ImageLibraryDialog = ({
               ? Number(file.variantsVersion)
               : 1,
             variants: file.variants && typeof file.variants === "object" ? file.variants : {},
-            variantBytes: Number.isFinite(Number(file.variantBytes)) ? Number(file.variantBytes) : 0,
+            variantBytes: Number.isFinite(Number(file.variantBytes))
+              ? Number(file.variantBytes)
+              : 0,
             area: typeof file.area === "string" ? file.area : "",
           });
         }
@@ -758,33 +798,32 @@ const ImageLibraryDialog = ({
         setProjectImages([]);
         return;
       }
-      const mapped = data.items
-        .map(
-          (item: {
-            url: string;
-            label?: string;
-            projectId?: string;
-            projectTitle?: string;
-            kind?: string;
-            source?: string;
-          }) => {
-            const normalizedProjectUrl = normalizeComparableUploadUrl(item?.url);
-            if (!normalizedProjectUrl.startsWith("/uploads/projects/")) {
-              return null;
-            }
-            return {
-              source: "project",
-              url: normalizedProjectUrl,
-              name: String(item.label || normalizedProjectUrl),
-              label: String(item.label || normalizedProjectUrl),
-              projectId: item.projectId ? String(item.projectId) : "",
-              projectTitle: item.projectTitle ? String(item.projectTitle) : "",
-              kind: item.kind ? String(item.kind) : "",
-              inUse: true,
-              canDelete: false,
-            } as LibraryImageItem;
-          },
-        );
+      const mapped = data.items.map(
+        (item: {
+          url: string;
+          label?: string;
+          projectId?: string;
+          projectTitle?: string;
+          kind?: string;
+          source?: string;
+        }) => {
+          const normalizedProjectUrl = normalizeComparableUploadUrl(item?.url);
+          if (!normalizedProjectUrl.startsWith("/uploads/projects/")) {
+            return null;
+          }
+          return {
+            source: "project",
+            url: normalizedProjectUrl,
+            name: String(item.label || normalizedProjectUrl),
+            label: String(item.label || normalizedProjectUrl),
+            projectId: item.projectId ? String(item.projectId) : "",
+            projectTitle: item.projectTitle ? String(item.projectTitle) : "",
+            kind: item.kind ? String(item.kind) : "",
+            inUse: true,
+            canDelete: false,
+          } as LibraryImageItem;
+        },
+      );
       const filtered =
         allowedProjectImageIdSet.size > 0
           ? mapped.filter(
@@ -936,7 +975,10 @@ const ImageLibraryDialog = ({
             setSelectedUrls([uploadedUrls[uploadedUrls.length - 1]]);
           }
           toast({
-            title: uploadedUrls.length === 1 ? "Imagem enviada" : `${uploadedUrls.length} imagens enviadas`,
+            title:
+              uploadedUrls.length === 1
+                ? "Imagem enviada"
+                : `${uploadedUrls.length} imagens enviadas`,
             description:
               uploadedUrls.length === 1
                 ? "Upload concluído com sucesso."
@@ -1092,7 +1134,10 @@ const ImageLibraryDialog = ({
         }),
       });
       if (response.status === 409) {
-        toast({ title: "Conflito de nome", description: "J\u00E1 existe um arquivo com esse nome." });
+        toast({
+          title: "Conflito de nome",
+          description: "J\u00E1 existe um arquivo com esse nome.",
+        });
         return;
       }
       if (!response.ok) {
@@ -1137,15 +1182,19 @@ const ImageLibraryDialog = ({
     }
     setIsSavingFocal(true);
     try {
-      const response = await apiFetch(apiBase, `/api/uploads/${encodeURIComponent(focalTarget.id)}/focal-point`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        auth: true,
-        body: JSON.stringify({
-          x: focalDraft.x,
-          y: focalDraft.y,
-        }),
-      });
+      const response = await apiFetch(
+        apiBase,
+        `/api/uploads/${encodeURIComponent(focalTarget.id)}/focal-point`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          auth: true,
+          body: JSON.stringify({
+            x: focalDraft.x,
+            y: focalDraft.y,
+          }),
+        },
+      );
       if (!response.ok) {
         toast({
           title: "Nao foi possivel salvar o ponto focal.",
@@ -1202,62 +1251,69 @@ const ImageLibraryDialog = ({
     onOpenChange(false);
   };
 
-  const applyCrop = useCallback(async (dataUrl: string) => {
-    const nextDataUrl = dataUrl.trim();
-    if (!nextDataUrl) {
-      toast({
-        title: "N\u00E3o foi poss\u00EDvel gerar a imagem recortada.",
-        description: "Tente novamente em alguns segundos.",
-      });
-      return;
-    }
-    const normalizedCropSlot = String(cropSlot || "").trim();
-    if (cropAvatar && !normalizedCropSlot) {
-      toast({ title: "Preencha o ID do usu\u00E1rio antes de aplicar o recorte." });
-      return;
-    }
-    const targetFolder = cropAvatar ? (cropTargetFolder || "users") : (cropTargetFolder || uploadFolder || undefined);
-    const targetFilename = cropAvatar ? `${normalizedCropSlot}.png` : `avatar-crop-${Date.now()}.png`;
-
-    setIsApplyingCrop(true);
-    try {
-      const response = await apiFetch(apiBase, "/api/uploads/image", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        auth: true,
-        body: JSON.stringify({
-          dataUrl: nextDataUrl,
-          filename: targetFilename,
-          folder: targetFolder,
-          slot: cropAvatar ? normalizedCropSlot : undefined,
-        }),
-      });
-      if (!response.ok) {
-        throw new Error("apply_crop_upload_failed");
+  const applyCrop = useCallback(
+    async (dataUrl: string) => {
+      const nextDataUrl = dataUrl.trim();
+      if (!nextDataUrl) {
+        toast({
+          title: "N\u00E3o foi poss\u00EDvel gerar a imagem recortada.",
+          description: "Tente novamente em alguns instantes.",
+        });
+        return;
       }
-      const data = await response.json();
-      const nextUrl = String(data.url || "");
-      if (!nextUrl) {
-        throw new Error("apply_crop_upload_missing_url");
+      const normalizedCropSlot = String(cropSlot || "").trim();
+      if (cropAvatar && !normalizedCropSlot) {
+        toast({ title: "Preencha o ID do usu\u00E1rio antes de aplicar o recorte." });
+        return;
       }
+      const targetFolder = cropAvatar
+        ? cropTargetFolder || "users"
+        : cropTargetFolder || uploadFolder || undefined;
+      const targetFilename = cropAvatar
+        ? `${normalizedCropSlot}.png`
+        : `avatar-crop-${Date.now()}.png`;
 
-      await loadUploads();
-      setSelectedUrls([nextUrl]);
-      setIsCropDialogOpen(false);
-      toast({
-        title: "Avatar atualizado",
-        description: "A imagem recortada foi aplicada com sucesso.",
-        intent: "success",
-      });
-    } catch {
-      toast({
-        title: "N\u00E3o foi poss\u00EDvel gerar a imagem recortada.",
-        description: "Tente novamente em alguns segundos.",
-      });
-    } finally {
-      setIsApplyingCrop(false);
-    }
-  }, [apiBase, cropAvatar, cropSlot, cropTargetFolder, loadUploads, uploadFolder]);
+      setIsApplyingCrop(true);
+      try {
+        const response = await apiFetch(apiBase, "/api/uploads/image", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          auth: true,
+          body: JSON.stringify({
+            dataUrl: nextDataUrl,
+            filename: targetFilename,
+            folder: targetFolder,
+            slot: cropAvatar ? normalizedCropSlot : undefined,
+          }),
+        });
+        if (!response.ok) {
+          throw new Error("apply_crop_upload_failed");
+        }
+        const data = await response.json();
+        const nextUrl = String(data.url || "");
+        if (!nextUrl) {
+          throw new Error("apply_crop_upload_missing_url");
+        }
+
+        await loadUploads();
+        setSelectedUrls([nextUrl]);
+        setIsCropDialogOpen(false);
+        toast({
+          title: "Avatar atualizado",
+          description: "A imagem recortada foi aplicada com sucesso.",
+          intent: "success",
+        });
+      } catch {
+        toast({
+          title: "N\u00E3o foi poss\u00EDvel gerar a imagem recortada.",
+          description: "Tente novamente em alguns instantes.",
+        });
+      } finally {
+        setIsApplyingCrop(false);
+      }
+    },
+    [apiBase, cropAvatar, cropSlot, cropTargetFolder, loadUploads, uploadFolder],
+  );
 
   const renderGrid = (items: LibraryImageItem[], emptyText: string) => {
     if (isLoading) {
@@ -1287,14 +1343,20 @@ const ImageLibraryDialog = ({
                     })
                   }
                 >
-                  <img src={item.url} alt={toEffectiveName(item)} className="h-28 w-full object-cover" />
+                  <img
+                    src={item.url}
+                    alt={toEffectiveName(item)}
+                    className="h-28 w-full object-cover"
+                  />
                   <div className="p-2 text-xs text-muted-foreground line-clamp-2">
                     {item.label || toEffectiveName(item)}
                   </div>
                 </button>
               </ContextMenuTrigger>
               <ContextMenuContent className="w-56 z-230">
-                <ContextMenuLabel>{item.source === "upload" ? "Upload do servidor" : "Imagem de projeto"}</ContextMenuLabel>
+                <ContextMenuLabel>
+                  {item.source === "upload" ? "Upload do servidor" : "Imagem de projeto"}
+                </ContextMenuLabel>
                 <ContextMenuSeparator />
                 {cropAvatar && mode === "single" ? (
                   <ContextMenuItem
@@ -1368,7 +1430,10 @@ const ImageLibraryDialog = ({
       return <p className="mt-3 text-xs text-muted-foreground">{emptyText}</p>;
     }
     return (
-      <Accordion type="multiple" className="mt-3 overflow-hidden rounded-xl border border-border/60 bg-card/40 px-3">
+      <Accordion
+        type="multiple"
+        className="mt-3 overflow-hidden rounded-xl border border-border/60 bg-card/40 px-3"
+      >
         {groups.map((group) => (
           <AccordionItem key={group.key} value={group.key} className="border-border/50">
             <AccordionTrigger className="py-3 text-sm hover:no-underline">
@@ -1417,7 +1482,9 @@ const ImageLibraryDialog = ({
               }}
               onDrop={handleDrop}
             >
-              <p className="font-medium text-foreground">Arraste, cole (Ctrl+V) ou escolha arquivos</p>
+              <p className="font-medium text-foreground">
+                Arraste, cole (Ctrl+V) ou escolha arquivos
+              </p>
               <p className="mt-1 text-xs text-muted-foreground">Upload direto para o servidor.</p>
               <div className="mt-3">
                 <Input
@@ -1429,7 +1496,9 @@ const ImageLibraryDialog = ({
                     void handleUploadFiles(event.target.files);
                   }}
                 />
-                {isUploading ? <p className="text-xs text-muted-foreground">Processando...</p> : null}
+                {isUploading ? (
+                  <p className="text-xs text-muted-foreground">Processando...</p>
+                ) : null}
               </div>
             </div>
             <div className="rounded-2xl border border-border/60 bg-card/70 p-4 space-y-3">
@@ -1471,7 +1540,9 @@ const ImageLibraryDialog = ({
                 <div className="flex flex-col gap-3">
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <h3 className="text-sm font-semibold text-foreground">Uploads do servidor</h3>
-                    <p className="text-xs text-muted-foreground">Selecionadas: {selectedUrls.length}</p>
+                    <p className="text-xs text-muted-foreground">
+                      Selecionadas: {selectedUrls.length}
+                    </p>
                   </div>
                   <div className="flex flex-col gap-2 lg:flex-row lg:items-center">
                     <Input
@@ -1495,7 +1566,9 @@ const ImageLibraryDialog = ({
                       </select>
                       <select
                         value={sortMode}
-                        onChange={(event) => setSortMode(event.target.value as "recent" | "oldest" | "name")}
+                        onChange={(event) =>
+                          setSortMode(event.target.value as "recent" | "oldest" | "name")
+                        }
                         className="h-9 rounded-md border border-input bg-background px-3 text-sm"
                       >
                         <option value="recent">Mais recentes</option>
@@ -1503,7 +1576,12 @@ const ImageLibraryDialog = ({
                         <option value="name">Nome</option>
                       </select>
                       {allowDeselect ? (
-                        <Button type="button" size="sm" variant="outline" onClick={() => setSelectedUrls([])}>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          onClick={() => setSelectedUrls([])}
+                        >
                           Limpar seleção
                         </Button>
                       ) : null}
@@ -1521,7 +1599,12 @@ const ImageLibraryDialog = ({
                     className="h-9 sm:w-72"
                   />
                   {allowDeselect ? (
-                    <Button type="button" size="sm" variant="outline" onClick={() => setSelectedUrls([])}>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setSelectedUrls([])}
+                    >
                       Limpar seleção
                     </Button>
                   ) : null}
@@ -1539,29 +1622,45 @@ const ImageLibraryDialog = ({
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <h3 className="text-sm font-semibold text-foreground">Imagens dos projetos</h3>
                 <span className="text-xs text-muted-foreground">
-                  Ordenação: {sortMode === "recent" ? "mais recentes" : sortMode === "oldest" ? "mais antigos" : "nome"}
+                  Ordenação:{" "}
+                  {sortMode === "recent"
+                    ? "mais recentes"
+                    : sortMode === "oldest"
+                      ? "mais antigos"
+                      : "nome"}
                 </span>
               </div>
-              {includeProjectImages
-                ? projectImagesView === "by-project"
-                  ? renderProjectGroups(
-                      projectImageGroups,
-                      normalizedSearch
-                        ? "Nenhuma imagem de projeto encontrada para essa pesquisa."
-                        : "Nenhuma imagem de projeto encontrada.",
-                    )
-                  : renderGrid(
-                      filteredProjectImages,
-                      normalizedSearch
-                        ? "Nenhuma imagem de projeto encontrada para essa pesquisa."
-                        : "Nenhuma imagem de projeto encontrada.",
-                    )
-                : <p className="mt-3 text-xs text-muted-foreground">Imagens de projeto ocultas neste contexto.</p>}
+              {includeProjectImages ? (
+                projectImagesView === "by-project" ? (
+                  renderProjectGroups(
+                    projectImageGroups,
+                    normalizedSearch
+                      ? "Nenhuma imagem de projeto encontrada para essa pesquisa."
+                      : "Nenhuma imagem de projeto encontrada.",
+                  )
+                ) : (
+                  renderGrid(
+                    filteredProjectImages,
+                    normalizedSearch
+                      ? "Nenhuma imagem de projeto encontrada para essa pesquisa."
+                      : "Nenhuma imagem de projeto encontrada.",
+                  )
+                )
+              ) : (
+                <p className="mt-3 text-xs text-muted-foreground">
+                  Imagens de projeto ocultas neste contexto.
+                </p>
+              )}
             </div>
           </div>
 
           <div className="mt-4 flex flex-col-reverse justify-end gap-2 sm:flex-row">
-            <Button type="button" variant="outline" className="w-full sm:w-auto" onClick={() => onOpenChange(false)}>
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full sm:w-auto"
+              onClick={() => onOpenChange(false)}
+            >
               Cancelar
             </Button>
             <Button type="button" className="w-full sm:w-auto" onClick={handleSave}>
@@ -1588,7 +1687,8 @@ const ImageLibraryDialog = ({
           <DialogHeader>
             <DialogTitle>Editor de avatar</DialogTitle>
             <DialogDescription>
-              Defina o enquadramento final do avatar e clique em Aplicar avatar para liberar o salvamento.
+              Defina o enquadramento final do avatar e clique em Aplicar avatar para liberar o
+              salvamento.
             </DialogDescription>
           </DialogHeader>
           {primarySelectedUrl ? (
@@ -1600,7 +1700,9 @@ const ImageLibraryDialog = ({
               onApplyCrop={applyCrop}
             />
           ) : (
-            <p className="text-sm text-muted-foreground">Selecione um avatar na biblioteca antes de abrir o editor.</p>
+            <p className="text-sm text-muted-foreground">
+              Selecione um avatar na biblioteca antes de abrir o editor.
+            </p>
           )}
         </DialogContent>
       </Dialog>
@@ -1616,7 +1718,8 @@ const ImageLibraryDialog = ({
           <DialogHeader>
             <DialogTitle>Definir ponto focal</DialogTitle>
             <DialogDescription>
-              Clique na imagem para posicionar o foco principal e regenerar as variantes automáticas.
+              Clique na imagem para posicionar o foco principal e regenerar as variantes
+              automáticas.
             </DialogDescription>
           </DialogHeader>
           {focalTarget ? (
@@ -1633,7 +1736,11 @@ const ImageLibraryDialog = ({
                   });
                 }}
               >
-                <img src={focalTarget.url} alt={toEffectiveName(focalTarget)} className="h-72 w-full object-cover" />
+                <img
+                  src={focalTarget.url}
+                  alt={toEffectiveName(focalTarget)}
+                  className="h-72 w-full object-cover"
+                />
                 <div
                   className="pointer-events-none absolute h-5 w-5 rounded-full border-2 border-primary bg-primary/40 shadow"
                   style={{
@@ -1688,7 +1795,11 @@ const ImageLibraryDialog = ({
                 >
                   Cancelar
                 </Button>
-                <Button type="button" disabled={isSavingFocal} onClick={() => void saveFocalPoint()}>
+                <Button
+                  type="button"
+                  disabled={isSavingFocal}
+                  onClick={() => void saveFocalPoint()}
+                >
                   {isSavingFocal ? "Salvando..." : "Salvar ponto focal"}
                 </Button>
               </div>
@@ -1707,7 +1818,12 @@ const ImageLibraryDialog = ({
             </DialogDescription>
           </DialogHeader>
           <div className="flex justify-end gap-2">
-            <Button type="button" variant="outline" onClick={() => setDeleteTarget(null)} disabled={isDeleting}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setDeleteTarget(null)}
+              disabled={isDeleting}
+            >
               Cancelar
             </Button>
             <Button
@@ -1749,7 +1865,11 @@ const ImageLibraryDialog = ({
               <Button type="button" variant="outline" onClick={() => setRenameTarget(null)}>
                 Cancelar
               </Button>
-              <Button type="button" disabled={isRenaming || !renameValue.trim()} onClick={() => void handleRenameConfirm()}>
+              <Button
+                type="button"
+                disabled={isRenaming || !renameValue.trim()}
+                onClick={() => void handleRenameConfirm()}
+              >
                 {isRenaming ? "Renomeando..." : "Renomear"}
               </Button>
             </div>
@@ -1761,6 +1881,3 @@ const ImageLibraryDialog = ({
 };
 
 export default ImageLibraryDialog;
-
-
-

@@ -5,6 +5,7 @@ import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
 import { Suspense, lazy, useLayoutEffect } from "react";
 import { SiteSettingsProvider } from "@/hooks/site-settings-provider";
 import { ThemeModeProvider } from "@/hooks/theme-mode-provider";
+import { GlobalShortcutsProvider } from "@/hooks/global-shortcuts-provider";
 import { useReveal } from "@/hooks/use-reveal";
 
 const Index = lazy(() => import("./pages/Index"));
@@ -47,7 +48,9 @@ const ScrollToTop = () => {
   const location = useLocation();
 
   useLayoutEffect(() => {
-    const normalizedHash = String(location.hash || "").replace(/^#/, "").trim();
+    const normalizedHash = String(location.hash || "")
+      .replace(/^#/, "")
+      .trim();
     if (!normalizedHash) {
       window.scrollTo({ top: 0, left: 0, behavior: "auto" });
       return;
@@ -234,8 +237,10 @@ const App = ({
         <TooltipProvider>
           <Sonner />
           <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
-            <ScrollToTop />
-            <RouterShell />
+            <GlobalShortcutsProvider>
+              <ScrollToTop />
+              <RouterShell />
+            </GlobalShortcutsProvider>
           </BrowserRouter>
         </TooltipProvider>
       </ThemeModeProvider>

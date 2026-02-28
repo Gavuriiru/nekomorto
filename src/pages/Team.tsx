@@ -27,6 +27,7 @@ import { isIconUrlSource, sanitizeIconSource, sanitizePublicHref } from "@/lib/u
 import { usePageMeta } from "@/hooks/use-page-meta";
 import { useSiteSettings } from "@/hooks/use-site-settings";
 import ThemedSvgMaskIcon from "@/components/ThemedSvgMaskIcon";
+import { publicPageLayoutTokens } from "@/components/public-page-tokens";
 
 type PublicUser = {
   id: string;
@@ -55,9 +56,7 @@ const TeamMemberAvatar = ({ imageSrc, name }: TeamMemberAvatarProps) => {
   }, [imageSrc]);
 
   return (
-    <div
-      className="absolute bottom-0 left-1/2 h-56 w-56 -translate-x-1/2 overflow-hidden rounded-full transition-transform duration-500 group-hover:scale-105 sm:h-64 sm:w-64 md:h-72 md:w-72 lg:h-80 lg:w-80"
-    >
+    <div className="absolute bottom-0 left-1/2 h-56 w-56 -translate-x-1/2 overflow-hidden rounded-full transition-transform duration-500 group-hover:scale-105 sm:h-64 sm:w-64 md:h-72 md:w-72 lg:h-80 lg:w-80">
       <img
         src={resolvedSrc}
         alt={name}
@@ -83,7 +82,9 @@ const Team = () => {
   const [members, setMembers] = useState<PublicUser[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [cacheBust, setCacheBust] = useState(Date.now());
-  const [linkTypes, setLinkTypes] = useState<Array<{ id: string; label: string; icon: string }>>([]);
+  const [linkTypes, setLinkTypes] = useState<Array<{ id: string; label: string; icon: string }>>(
+    [],
+  );
   const [pageCopy, setPageCopy] = useState({
     heroBadge: "Equipe",
     heroTitle: "Conheça quem faz o projeto acontecer",
@@ -238,24 +239,32 @@ const Team = () => {
   const retiredMembers = members
     .filter(
       (member) =>
-        normalizedStatus(member.status) === "retired" || normalizedStatus(member.status) === "aposentado",
+        normalizedStatus(member.status) === "retired" ||
+        normalizedStatus(member.status) === "aposentado",
     )
     .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
   const activeMembers = members
     .filter(
-      (member) => normalizedStatus(member.status) !== "retired" && normalizedStatus(member.status) !== "aposentado",
+      (member) =>
+        normalizedStatus(member.status) !== "retired" &&
+        normalizedStatus(member.status) !== "aposentado",
     )
     .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
 
   return (
     <div className="min-h-screen bg-background text-foreground">
-
       <main>
         <section className="relative overflow-hidden">
           <div className="absolute inset-0 bg-linear-to-b from-primary/15 via-background to-background" />
-          <div className="relative mx-auto flex w-full max-w-6xl flex-col gap-6 px-6 pb-12 pt-24 md:px-10 md:pt-28 reveal" data-reveal>
+          <div
+            className={`${publicPageLayoutTokens.sectionBase} relative flex max-w-6xl flex-col gap-6 pb-12 pt-24 md:pt-28 reveal`}
+            data-reveal
+          >
             <div className="max-w-3xl space-y-4">
-              <Badge variant="secondary" className="text-xs uppercase tracking-widest animate-fade-in">
+              <Badge
+                variant="secondary"
+                className="text-xs uppercase tracking-widest animate-fade-in"
+              >
                 {pageCopy.heroBadge}
               </Badge>
               <h1 className="text-3xl font-semibold text-foreground md:text-5xl animate-slide-up">
@@ -271,7 +280,10 @@ const Team = () => {
           </div>
         </section>
 
-        <section className="mx-auto w-full max-w-6xl px-6 pb-20 pt-6 md:px-10 reveal" data-reveal>
+        <section
+          className={`${publicPageLayoutTokens.sectionBase} max-w-6xl pb-20 pt-6 reveal`}
+          data-reveal
+        >
           {isLoading ? (
             <div className="mt-10 rounded-2xl border border-border/60 bg-card/60 px-6 py-10 text-sm text-muted-foreground">
               Carregando equipe...
@@ -350,45 +362,61 @@ const Team = () => {
                               {member.bio || "Sem biografia cadastrada."}
                             </p>
                             <div className="flex flex-wrap gap-2">
-                              {(member.roles || []).includes("Dono") && (() => {
-                                const RoleIcon = getRoleIcon("Dono");
-                                return (
-                                  <Badge variant="secondary" className="text-[10px] uppercase gap-1">
-                                    {RoleIcon ? <RoleIcon className="h-3 w-3" /> : null}
-                                    Dono
-                                  </Badge>
-                                );
-                              })()}
-                              {!(member.roles || []).includes("Dono") && member.isAdmin && (() => {
-                                const RoleIcon = getRoleIcon("Administrador");
-                                return (
-                                  <Badge variant="secondary" className="text-[10px] uppercase gap-1">
-                                    {RoleIcon ? <RoleIcon className="h-3 w-3" /> : null}
-                                    Administrador
-                                  </Badge>
-                                );
-                              })()}
-                              {areas.length > 0 ? (
-                                areas.map((area) => {
-                                  const RoleIcon = getRoleIcon(area);
+                              {(member.roles || []).includes("Dono") &&
+                                (() => {
+                                  const RoleIcon = getRoleIcon("Dono");
                                   return (
-                                    <Badge key={area} variant="secondary" className="text-[10px] uppercase gap-1">
+                                    <Badge
+                                      variant="secondary"
+                                      className="text-[10px] uppercase gap-1"
+                                    >
                                       {RoleIcon ? <RoleIcon className="h-3 w-3" /> : null}
-                                      {area}
+                                      Dono
                                     </Badge>
                                   );
-                                })
-                              ) : (
-                                !(member.roles || []).includes("Dono") && !member.isAdmin && (() => {
-                                  const RoleIcon = getRoleIcon("Membro");
+                                })()}
+                              {!(member.roles || []).includes("Dono") &&
+                                member.isAdmin &&
+                                (() => {
+                                  const RoleIcon = getRoleIcon("Administrador");
                                   return (
-                                    <Badge variant="secondary" className="text-[10px] uppercase gap-1">
+                                    <Badge
+                                      variant="secondary"
+                                      className="text-[10px] uppercase gap-1"
+                                    >
                                       {RoleIcon ? <RoleIcon className="h-3 w-3" /> : null}
-                                      Membro
+                                      Administrador
                                     </Badge>
                                   );
-                                })()
-                              )}
+                                })()}
+                              {areas.length > 0
+                                ? areas.map((area) => {
+                                    const RoleIcon = getRoleIcon(area);
+                                    return (
+                                      <Badge
+                                        key={area}
+                                        variant="secondary"
+                                        className="text-[10px] uppercase gap-1"
+                                      >
+                                        {RoleIcon ? <RoleIcon className="h-3 w-3" /> : null}
+                                        {area}
+                                      </Badge>
+                                    );
+                                  })
+                                : !(member.roles || []).includes("Dono") &&
+                                  !member.isAdmin &&
+                                  (() => {
+                                    const RoleIcon = getRoleIcon("Membro");
+                                    return (
+                                      <Badge
+                                        variant="secondary"
+                                        className="text-[10px] uppercase gap-1"
+                                      >
+                                        {RoleIcon ? <RoleIcon className="h-3 w-3" /> : null}
+                                        Membro
+                                      </Badge>
+                                    );
+                                  })()}
                             </div>
                           </div>
                         </div>
@@ -401,7 +429,9 @@ const Team = () => {
               {retiredMembers.length > 0 && (
                 <div className="mt-16 space-y-6">
                   <div>
-                    <h2 className="text-lg font-semibold text-foreground">{pageCopy.retiredTitle}</h2>
+                    <h2 className="text-lg font-semibold text-foreground">
+                      {pageCopy.retiredTitle}
+                    </h2>
                     <p className="text-sm text-muted-foreground">{pageCopy.retiredSubtitle}</p>
                   </div>
                   <div className="mt-16 grid gap-24">
@@ -474,44 +504,61 @@ const Team = () => {
                                   {member.bio || "Sem biografia cadastrada."}
                                 </p>
                                 <div className="flex flex-wrap gap-2">
-                                  {member.status === "retired" && (() => {
-                                    const RoleIcon = getRoleIcon("Aposentado");
-                                    return (
-                                      <Badge variant="secondary" className="text-[10px] uppercase gap-1">
-                                        {RoleIcon ? <RoleIcon className="h-3 w-3" /> : null}
-                                        Aposentado
-                                      </Badge>
-                                    );
-                                  })()}
-                                  {(member.roles || []).includes("Dono") && (() => {
-                                    const RoleIcon = getRoleIcon("Dono");
-                                    return (
-                                      <Badge variant="secondary" className="text-[10px] uppercase gap-1">
-                                        {RoleIcon ? <RoleIcon className="h-3 w-3" /> : null}
-                                        Dono
-                                      </Badge>
-                                    );
-                                  })()}
-                                  {!(member.roles || []).includes("Dono") && member.isAdmin && (() => {
-                                    const RoleIcon = getRoleIcon("Administrador");
-                                    return (
-                                      <Badge variant="secondary" className="text-[10px] uppercase gap-1">
-                                        {RoleIcon ? <RoleIcon className="h-3 w-3" /> : null}
-                                        Administrador
-                                      </Badge>
-                                    );
-                                  })()}
-                                  {areas.length > 0 ? (
-                                    areas.map((area) => {
-                                      const RoleIcon = getRoleIcon(area);
+                                  {member.status === "retired" &&
+                                    (() => {
+                                      const RoleIcon = getRoleIcon("Aposentado");
                                       return (
-                                        <Badge key={area} variant="secondary" className="text-[10px] uppercase gap-1">
+                                        <Badge
+                                          variant="secondary"
+                                          className="text-[10px] uppercase gap-1"
+                                        >
                                           {RoleIcon ? <RoleIcon className="h-3 w-3" /> : null}
-                                          {area}
+                                          Aposentado
                                         </Badge>
                                       );
-                                    })
-                                  ) : null}
+                                    })()}
+                                  {(member.roles || []).includes("Dono") &&
+                                    (() => {
+                                      const RoleIcon = getRoleIcon("Dono");
+                                      return (
+                                        <Badge
+                                          variant="secondary"
+                                          className="text-[10px] uppercase gap-1"
+                                        >
+                                          {RoleIcon ? <RoleIcon className="h-3 w-3" /> : null}
+                                          Dono
+                                        </Badge>
+                                      );
+                                    })()}
+                                  {!(member.roles || []).includes("Dono") &&
+                                    member.isAdmin &&
+                                    (() => {
+                                      const RoleIcon = getRoleIcon("Administrador");
+                                      return (
+                                        <Badge
+                                          variant="secondary"
+                                          className="text-[10px] uppercase gap-1"
+                                        >
+                                          {RoleIcon ? <RoleIcon className="h-3 w-3" /> : null}
+                                          Administrador
+                                        </Badge>
+                                      );
+                                    })()}
+                                  {areas.length > 0
+                                    ? areas.map((area) => {
+                                        const RoleIcon = getRoleIcon(area);
+                                        return (
+                                          <Badge
+                                            key={area}
+                                            variant="secondary"
+                                            className="text-[10px] uppercase gap-1"
+                                          >
+                                            {RoleIcon ? <RoleIcon className="h-3 w-3" /> : null}
+                                            {area}
+                                          </Badge>
+                                        );
+                                      })
+                                    : null}
                                 </div>
                               </div>
                             </div>
@@ -531,7 +578,3 @@ const Team = () => {
 };
 
 export default Team;
-
-
-
-

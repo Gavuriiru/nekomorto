@@ -24,6 +24,7 @@ import { apiFetch } from "@/lib/api-client";
 import type { Project } from "@/data/projects";
 import { usePageMeta } from "@/hooks/use-page-meta";
 import { useDynamicSynopsisClamp } from "@/hooks/use-dynamic-synopsis-clamp";
+import { publicPageLayoutTokens } from "@/components/public-page-tokens";
 import { prepareProjectBadges } from "@/lib/project-card-layout";
 import { normalizeSearchText } from "@/lib/search-ranking";
 import { cn } from "@/lib/utils";
@@ -33,7 +34,9 @@ const PROJECTS_LIST_STATE_STORAGE_KEY = "public.projects.list-state.v1";
 const MAX_QUERY_LENGTH = 80;
 
 const parseLetterParam = (value: string | null) => {
-  const normalized = String(value || "").trim().toUpperCase();
+  const normalized = String(value || "")
+    .trim()
+    .toUpperCase();
   if (/^[A-Z]$/.test(normalized)) {
     return normalized;
   }
@@ -55,7 +58,6 @@ const parseProjectsPageParam = (value: string | null) => {
   }
   return Math.floor(parsed);
 };
-
 
 type ProjectCardProps = {
   project: Project;
@@ -184,9 +186,15 @@ const ProjectCard = ({
           {project.synopsis}
         </p>
 
-        <div data-synopsis-role="badges" className="relative mt-auto flex shrink-0 flex-col gap-2 pt-3">
+        <div
+          data-synopsis-role="badges"
+          className="relative mt-auto flex shrink-0 flex-col gap-2 pt-3"
+        >
           {visibleItems.length > 0 || extraCount > 0 ? (
-            <div ref={badgesRowRef} className="hidden min-w-0 flex-nowrap items-center gap-1 overflow-hidden sm:flex">
+            <div
+              ref={badgesRowRef}
+              className="hidden min-w-0 flex-nowrap items-center gap-1 overflow-hidden sm:flex"
+            >
               {visibleItems.map((item) =>
                 item.href ? (
                   <button
@@ -249,7 +257,9 @@ const ProjectCard = ({
 
           <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
             {project.status ? (
-              <span className="shrink-0 rounded-full bg-background/50 px-3 py-1 truncate">{project.status}</span>
+              <span className="shrink-0 rounded-full bg-background/50 px-3 py-1 truncate">
+                {project.status}
+              </span>
             ) : null}
             {project.studio ? (
               <span
@@ -281,9 +291,13 @@ const Projects = () => {
   const [projectsLoadVersion, setProjectsLoadVersion] = useState(0);
   const [shareImage, setShareImage] = useState("");
   const [searchParams, setSearchParams] = useSearchParams();
-  const [selectedLetter, setSelectedLetter] = useState(() => parseLetterParam(searchParams.get("letter")));
+  const [selectedLetter, setSelectedLetter] = useState(() =>
+    parseLetterParam(searchParams.get("letter")),
+  );
   const [selectedType, setSelectedType] = useState(() => parseTypeParam(searchParams.get("type")));
-  const [currentPage, setCurrentPage] = useState(() => parseProjectsPageParam(searchParams.get("page")));
+  const [currentPage, setCurrentPage] = useState(() =>
+    parseProjectsPageParam(searchParams.get("page")),
+  );
   const listUiStateRef = useRef({
     selectedLetter: parseLetterParam(searchParams.get("letter")),
     selectedType: parseTypeParam(searchParams.get("type")),
@@ -375,7 +389,9 @@ const Projects = () => {
     let isActive = true;
     const loadTranslations = async () => {
       try {
-        const response = await apiFetch(apiBase, "/api/public/tag-translations", { cache: "no-store" });
+        const response = await apiFetch(apiBase, "/api/public/tag-translations", {
+          cache: "no-store",
+        });
         if (!response.ok) {
           return;
         }
@@ -412,46 +428,49 @@ const Projects = () => {
     }
   }, [searchParams, setSearchParams]);
 
-  const updateFilterQuery = useCallback((
-    tag: string,
-    genre: string,
-    options?: {
-      resetPage?: boolean;
-      query?: string;
-    },
-  ) => {
-    const nextParams = new URLSearchParams(searchParams);
-    if (tag === "Todas") {
-      nextParams.delete("tag");
-    } else {
-      nextParams.set("tag", tag);
-    }
-
-    if (genre === "Todos") {
-      nextParams.delete("genero");
-      nextParams.delete("genre");
-    } else {
-      nextParams.set("genero", genre);
-      nextParams.delete("genre");
-    }
-
-    if (typeof options?.query === "string") {
-      const normalizedQuery = options.query.trim().slice(0, MAX_QUERY_LENGTH);
-      if (!normalizedQuery) {
-        nextParams.delete("q");
+  const updateFilterQuery = useCallback(
+    (
+      tag: string,
+      genre: string,
+      options?: {
+        resetPage?: boolean;
+        query?: string;
+      },
+    ) => {
+      const nextParams = new URLSearchParams(searchParams);
+      if (tag === "Todas") {
+        nextParams.delete("tag");
       } else {
-        nextParams.set("q", normalizedQuery);
+        nextParams.set("tag", tag);
       }
-    }
 
-    if (options?.resetPage !== false) {
-      nextParams.delete("page");
-    }
+      if (genre === "Todos") {
+        nextParams.delete("genero");
+        nextParams.delete("genre");
+      } else {
+        nextParams.set("genero", genre);
+        nextParams.delete("genre");
+      }
 
-    if (nextParams.toString() !== searchParams.toString()) {
-      setSearchParams(nextParams, { replace: true });
-    }
-  }, [searchParams, setSearchParams]);
+      if (typeof options?.query === "string") {
+        const normalizedQuery = options.query.trim().slice(0, MAX_QUERY_LENGTH);
+        if (!normalizedQuery) {
+          nextParams.delete("q");
+        } else {
+          nextParams.set("q", normalizedQuery);
+        }
+      }
+
+      if (options?.resetPage !== false) {
+        nextParams.delete("page");
+      }
+
+      if (nextParams.toString() !== searchParams.toString()) {
+        setSearchParams(nextParams, { replace: true });
+      }
+    },
+    [searchParams, setSearchParams],
+  );
 
   useEffect(() => {
     const nextParams = new URLSearchParams(searchParams);
@@ -650,7 +669,10 @@ const Projects = () => {
 
   const pageStart = (currentPage - 1) * projectsPerPage;
   const paginatedProjects = filteredProjects.slice(pageStart, pageStart + projectsPerPage);
-  const synopsisKeys = useMemo(() => paginatedProjects.map((project) => project.id), [paginatedProjects]);
+  const synopsisKeys = useMemo(
+    () => paginatedProjects.map((project) => project.id),
+    [paginatedProjects],
+  );
   const { rootRef: listRootRef, lineByKey } = useDynamicSynopsisClamp({
     enabled: paginatedProjects.length > 0,
     keys: synopsisKeys,
@@ -690,7 +712,10 @@ const Projects = () => {
   return (
     <div className="min-h-screen bg-linear-to-b from-background via-[hsl(var(--primary)/0.12)] to-background text-foreground">
       <main className="pt-28">
-        <section className="mx-auto w-full max-w-6xl px-6 pb-20 md:px-10 reveal" data-reveal>
+        <section
+          className={`${publicPageLayoutTokens.sectionBase} max-w-6xl pb-20 reveal`}
+          data-reveal
+        >
           <div className="grid gap-4 rounded-2xl bg-card/70 p-6 shadow-lg md:grid-cols-4">
             <div className="md:col-span-4 flex flex-col gap-2">
               <span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
@@ -732,7 +757,10 @@ const Projects = () => {
               <span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
                 Tags
               </span>
-              <Select value={selectedTag} onValueChange={(value) => updateFilterQuery(value, selectedGenre)}>
+              <Select
+                value={selectedTag}
+                onValueChange={(value) => updateFilterQuery(value, selectedGenre)}
+              >
                 <SelectTrigger className="bg-background/60">
                   <SelectValue placeholder="Todas as tags" />
                 </SelectTrigger>
@@ -750,7 +778,10 @@ const Projects = () => {
               <span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
                 Gêneros
               </span>
-              <Select value={selectedGenre} onValueChange={(value) => updateFilterQuery(selectedTag, value)}>
+              <Select
+                value={selectedGenre}
+                onValueChange={(value) => updateFilterQuery(selectedTag, value)}
+              >
                 <SelectTrigger className="bg-background/60">
                   <SelectValue placeholder="Todos os generos" />
                 </SelectTrigger>
@@ -839,7 +870,7 @@ const Projects = () => {
               {paginatedProjects.map((project, index) => {
                 const isLastSingle =
                   paginatedProjects.length % 2 === 1 && index === paginatedProjects.length - 1;
-                                const card = (
+                const card = (
                   <ProjectCard
                     key={project.id}
                     project={project}
@@ -863,46 +894,48 @@ const Projects = () => {
             </div>
           )}
 
-          {!isLoadingProjects && !hasProjectsLoadError && filteredProjects.length > projectsPerPage && (
-            <div className="mt-12 flex justify-center">
-              <Pagination>
-                <PaginationContent>
-                  <PaginationItem>
-                    <PaginationPrevious
-                      href="#"
-                      onClick={(event) => {
-                        event.preventDefault();
-                        setCurrentPage((page) => Math.max(1, page - 1));
-                      }}
-                    />
-                  </PaginationItem>
-                  {Array.from({ length: totalPages }, (_, index) => index + 1).map((page) => (
-                    <PaginationItem key={page}>
-                      <PaginationLink
+          {!isLoadingProjects &&
+            !hasProjectsLoadError &&
+            filteredProjects.length > projectsPerPage && (
+              <div className="mt-12 flex justify-center">
+                <Pagination>
+                  <PaginationContent>
+                    <PaginationItem>
+                      <PaginationPrevious
                         href="#"
-                        isActive={page === currentPage}
                         onClick={(event) => {
                           event.preventDefault();
-                          setCurrentPage(page);
+                          setCurrentPage((page) => Math.max(1, page - 1));
                         }}
-                      >
-                        {page}
-                      </PaginationLink>
+                      />
                     </PaginationItem>
-                  ))}
-                  <PaginationItem>
-                    <PaginationNext
-                      href="#"
-                      onClick={(event) => {
-                        event.preventDefault();
-                        setCurrentPage((page) => Math.min(totalPages, page + 1));
-                      }}
-                    />
-                  </PaginationItem>
-                </PaginationContent>
-              </Pagination>
-            </div>
-          )}
+                    {Array.from({ length: totalPages }, (_, index) => index + 1).map((page) => (
+                      <PaginationItem key={page}>
+                        <PaginationLink
+                          href="#"
+                          isActive={page === currentPage}
+                          onClick={(event) => {
+                            event.preventDefault();
+                            setCurrentPage(page);
+                          }}
+                        >
+                          {page}
+                        </PaginationLink>
+                      </PaginationItem>
+                    ))}
+                    <PaginationItem>
+                      <PaginationNext
+                        href="#"
+                        onClick={(event) => {
+                          event.preventDefault();
+                          setCurrentPage((page) => Math.min(totalPages, page + 1));
+                        }}
+                      />
+                    </PaginationItem>
+                  </PaginationContent>
+                </Pagination>
+              </div>
+            )}
         </section>
       </main>
     </div>
@@ -910,30 +943,3 @@ const Projects = () => {
 };
 
 export default Projects;
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

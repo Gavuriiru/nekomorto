@@ -2,17 +2,32 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { CartesianGrid, Line, LineChart, XAxis, YAxis } from "recharts";
 
+import DashboardPageContainer from "@/components/dashboard/DashboardPageContainer";
 import DashboardShell from "@/components/DashboardShell";
 import AsyncState from "@/components/ui/async-state";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
 import { usePageMeta } from "@/hooks/use-page-meta";
+import { uiCopy } from "@/lib/ui-copy";
 
 type RangeValue = "7d" | "30d" | "90d";
 type TypeValue = "all" | "post" | "project";
@@ -89,7 +104,10 @@ const parseRange = (value: string | null): RangeValue =>
 const parseType = (value: string | null): TypeValue =>
   value === "post" || value === "project" || value === "all" ? value : "all";
 const parseMetric = (value: string | null): MetricValue =>
-  value === "unique_views" || value === "chapter_views" || value === "download_clicks" || value === "views"
+  value === "unique_views" ||
+  value === "chapter_views" ||
+  value === "download_clicks" ||
+  value === "views"
     ? value
     : "views";
 
@@ -121,7 +139,7 @@ const buildAnalyticsSearchParams = (
 };
 
 const DashboardAnalytics = () => {
-  usePageMeta({ title: "Analytics", noIndex: true });
+  usePageMeta({ title: uiCopy.navigation.analytics, noIndex: true });
 
   const apiBase = getApiBase();
   const navigate = useNavigate();
@@ -174,13 +192,17 @@ const DashboardAnalytics = () => {
       try {
         const [overviewRes, timeseriesRes, topRes, acquisitionRes] = await Promise.all([
           apiFetch(apiBase, `/api/analytics/overview?${params.toString()}`, { auth: true }),
-          apiFetch(apiBase, `/api/analytics/timeseries?${params.toString()}&metric=${metric}`, { auth: true }),
-          apiFetch(apiBase, `/api/analytics/top-content?${params.toString()}&limit=10`, { auth: true }),
+          apiFetch(apiBase, `/api/analytics/timeseries?${params.toString()}&metric=${metric}`, {
+            auth: true,
+          }),
+          apiFetch(apiBase, `/api/analytics/top-content?${params.toString()}&limit=10`, {
+            auth: true,
+          }),
           apiFetch(apiBase, `/api/analytics/acquisition?${params.toString()}`, { auth: true }),
         ]);
         if (!isActive) return;
         if (!overviewRes.ok || !timeseriesRes.ok || !topRes.ok || !acquisitionRes.ok) {
-          setError("Não foi possível carregar analytics.");
+          setError("Não foi possível carregar as análises.");
           setOverview({});
           setTimeseries({ series: [] });
           setTopContent({ entries: [] });
@@ -200,7 +222,7 @@ const DashboardAnalytics = () => {
         setAcquisition((acquisitionData || {}) as AcquisitionResponse);
       } catch {
         if (!isActive) return;
-        setError("Erro de conexão ao carregar analytics.");
+        setError("Erro de conexão ao carregar as análises.");
         setOverview({});
         setTimeseries({ series: [] });
         setTopContent({ entries: [] });
@@ -282,7 +304,9 @@ const DashboardAnalytics = () => {
     );
 
     lines.push("acquisition_referrer,host,count");
-    referrerEntries.forEach((entry) => lines.push(`acquisition_referrer,${entry.key},${entry.count}`));
+    referrerEntries.forEach((entry) =>
+      lines.push(`acquisition_referrer,${entry.key},${entry.count}`),
+    );
 
     lines.push("acquisition_source,source,count");
     sourceEntries.forEach((entry) => lines.push(`acquisition_source,${entry.key},${entry.count}`));
@@ -304,26 +328,27 @@ const DashboardAnalytics = () => {
       isLoadingUser={isLoadingUser}
       onUserCardClick={() => navigate("/dashboard/usuarios?edit=me")}
     >
-      <main className="pt-24">
-        <section className="mx-auto w-full max-w-6xl space-y-6 px-6 pb-20 md:px-10">
-          <header className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-            <div>
-              <div className="inline-flex animate-fade-in items-center gap-3 rounded-full border border-border/60 bg-card/60 px-4 py-2 text-xs uppercase tracking-[0.3em] text-muted-foreground">
-                Analytics
-              </div>
-              <h1 className="mt-3 animate-slide-up text-3xl font-semibold lg:text-4xl">Performance e aquisição</h1>
-              <p
-                className="mt-2 animate-slide-up text-sm text-muted-foreground opacity-0"
-                style={{ animationDelay: "0.2s" }}
-              >
-                Foco em consumo de conteúdo, retenção e tendências de audiência.
-              </p>
+      <DashboardPageContainer>
+        <header className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div>
+            <div className="inline-flex animate-fade-in items-center gap-3 rounded-full border border-border/60 bg-card/60 px-4 py-2 text-xs uppercase tracking-[0.3em] text-muted-foreground">
+              {uiCopy.navigation.analytics}
             </div>
-            <div
-              className="flex flex-col gap-3 animate-slide-up opacity-0 lg:flex-row lg:items-center"
-              style={{ animationDelay: "0.24s" }}
+            <h1 className="mt-3 animate-slide-up text-3xl font-semibold lg:text-4xl">
+              Performance e aquisição
+            </h1>
+            <p
+              className="mt-2 animate-slide-up text-sm text-muted-foreground opacity-0"
+              style={{ animationDelay: "0.2s" }}
             >
-              <div className="flex flex-wrap items-center gap-3 lg:flex-nowrap">
+              Foco em consumo de conteúdo, retenção e tendências de audiência.
+            </p>
+          </div>
+          <div
+            className="flex flex-col gap-3 animate-slide-up opacity-0 lg:flex-row lg:items-center"
+            style={{ animationDelay: "0.24s" }}
+          >
+            <div className="flex flex-wrap items-center gap-3 lg:flex-nowrap">
               <Select value={range} onValueChange={(value) => setRangeFilter(value as RangeValue)}>
                 <SelectTrigger className="w-[130px]">
                   <SelectValue placeholder="Período" />
@@ -344,7 +369,10 @@ const DashboardAnalytics = () => {
                   <SelectItem value="project">Projetos</SelectItem>
                 </SelectContent>
               </Select>
-              <Select value={metric} onValueChange={(value) => setMetricFilter(value as MetricValue)}>
+              <Select
+                value={metric}
+                onValueChange={(value) => setMetricFilter(value as MetricValue)}
+              >
                 <SelectTrigger className="w-[210px]">
                   <SelectValue placeholder="Métrica do gráfico" />
                 </SelectTrigger>
@@ -355,190 +383,229 @@ const DashboardAnalytics = () => {
                   <SelectItem value="download_clicks">Cliques em downloads</SelectItem>
                 </SelectContent>
               </Select>
-              </div>
-              <Button className="self-start lg:ml-auto lg:self-auto" variant="outline" onClick={exportCsv}>
-                Exportar
-              </Button>
             </div>
-          </header>
-
-          {isLoading ? (
-            <AsyncState
-              kind="loading"
-              title="Carregando analytics"
-              description="Buscando métricas, série temporal e aquisição."
-            />
-          ) : error ? (
-            <AsyncState
-              kind="error"
-              title="Não foi possível carregar analytics"
-              description={error}
-              action={
-                <Button variant="outline" onClick={() => setReloadTick((previous) => previous + 1)}>
-                  Tentar novamente
-                </Button>
-              }
-            />
-          ) : (
-            <>
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-            <Card className="animate-slide-up opacity-0" style={{ animationDelay: "40ms" }}>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm text-muted-foreground">Views</CardTitle>
-              </CardHeader>
-              <CardContent className="text-3xl font-semibold">{formatInt(metrics.views || 0)}</CardContent>
-            </Card>
-            <Card className="animate-slide-up opacity-0" style={{ animationDelay: "80ms" }}>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm text-muted-foreground">Views únicas</CardTitle>
-              </CardHeader>
-              <CardContent className="text-3xl font-semibold">{formatInt(metrics.uniqueViews || 0)}</CardContent>
-            </Card>
-            <Card className="animate-slide-up opacity-0" style={{ animationDelay: "120ms" }}>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm text-muted-foreground">Leituras de capítulos</CardTitle>
-              </CardHeader>
-              <CardContent className="text-3xl font-semibold">{formatInt(metrics.chapterViews || 0)}</CardContent>
-            </Card>
-            <Card className="animate-slide-up opacity-0" style={{ animationDelay: "160ms" }}>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm text-muted-foreground">Cliques em downloads</CardTitle>
-              </CardHeader>
-              <CardContent className="text-3xl font-semibold">{formatInt(metrics.downloadClicks || 0)}</CardContent>
-            </Card>
+            <Button
+              className="self-start lg:ml-auto lg:self-auto"
+              variant="outline"
+              onClick={exportCsv}
+            >
+              Exportar
+            </Button>
           </div>
+        </header>
 
-          <Card className="animate-slide-up opacity-0" style={{ animationDelay: "190ms" }}>
-            <CardHeader>
-              <CardTitle>Comunidade e moderação</CardTitle>
-            </CardHeader>
-            <CardContent className="grid gap-4 md:grid-cols-3">
-              <div className="rounded-xl border border-border/60 bg-card/60 p-4">
-                <p className="text-xs uppercase tracking-wide text-muted-foreground">Comentários criados</p>
-                <p className="mt-2 text-2xl font-semibold">{formatInt(commentsCreated)}</p>
-              </div>
-              <div className="rounded-xl border border-border/60 bg-card/60 p-4">
-                <p className="text-xs uppercase tracking-wide text-muted-foreground">Comentários aprovados</p>
-                <p className="mt-2 text-2xl font-semibold">{formatInt(commentsApproved)}</p>
-              </div>
-              <div className="rounded-xl border border-border/60 bg-card/60 p-4">
-                <p className="text-xs uppercase tracking-wide text-muted-foreground">Taxa de aprovação</p>
-                <p className="mt-2 text-2xl font-semibold">
-                  {commentsApprovalRate === null ? "0,0%" : formatPercent(commentsApprovalRate)}
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-
-          <div className="grid min-w-0 gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
-            <Card className="min-w-0 animate-slide-up opacity-0" style={{ animationDelay: "220ms" }}>
-              <CardHeader>
-                <CardTitle>Série temporal ({formatMetricLabel(metric)})</CardTitle>
-              </CardHeader>
-              <CardContent className="min-w-0">
-                {chartData.length ? (
-                  <ChartContainer
-                    className="min-w-0 w-full max-w-full h-52 sm:h-60 lg:h-[280px]"
-                    config={{ metric: { label: formatMetricLabel(metric), color: "hsl(var(--accent))" } }}
-                  >
-                    <LineChart data={chartData} margin={{ left: 12, right: 12, top: 12, bottom: 8 }}>
-                      <CartesianGrid vertical={false} />
-                      <XAxis
-                        dataKey="date"
-                        tickLine={false}
-                        axisLine={false}
-                        tickFormatter={formatChartDateLabel}
-                        interval="preserveStartEnd"
-                        minTickGap={18}
-                        tickMargin={8}
-                      />
-                      <YAxis tickLine={false} axisLine={false} width={32} tickMargin={8} />
-                      <ChartTooltip content={<ChartTooltipContent />} />
-                      <Line type="monotone" dataKey="value" stroke="var(--color-metric)" strokeWidth={2} dot={false} />
-                    </LineChart>
-                  </ChartContainer>
-                ) : (
-                  <AsyncState
-                    kind="empty"
-                    title="Sem dados para o período selecionado."
-                    className="border-dashed bg-card/40 py-8"
-                  />
-                )}
-              </CardContent>
-            </Card>
-
-            <Card className="min-w-0 animate-slide-up opacity-0" style={{ animationDelay: "260ms" }}>
-              <CardHeader>
-                <CardTitle>Aquisição (origens)</CardTitle>
-              </CardHeader>
-              <CardContent className="min-w-0 space-y-3">
-                {referrerEntries.length ? (
-                  referrerEntries.slice(0, 8).map((entry) => (
-                    <div key={entry.key} className="flex min-w-0 items-center gap-2 text-sm">
-                      <span
-                        title={formatAcquisitionLabel(entry.key)}
-                        className="min-w-0 flex-1 truncate text-muted-foreground"
-                      >
-                        {formatAcquisitionLabel(entry.key)}
-                      </span>
-                      <Badge variant="secondary" className="shrink-0">
-                        {formatInt(entry.count)}
-                      </Badge>
-                    </div>
-                  ))
-                ) : (
-                  <AsyncState
-                    kind="empty"
-                    title="Sem dados de aquisição."
-                    className="border-dashed bg-card/40 py-8"
-                  />
-                )}
-              </CardContent>
-            </Card>
-          </div>
-
-              <Card className="animate-slide-up opacity-0" style={{ animationDelay: "300ms" }}>
-            <CardHeader>
-              <CardTitle>Top conteúdos</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {topEntries.length ? (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Tipo</TableHead>
-                      <TableHead>Título</TableHead>
-                      <TableHead className="text-right">Views</TableHead>
-                      <TableHead className="text-right">Únicas</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {topEntries.map((entry) => (
-                      <TableRow key={`${entry.resourceType}:${entry.resourceId}`}>
-                        <TableCell>{formatResourceType(entry.resourceType)}</TableCell>
-                        <TableCell>{entry.title}</TableCell>
-                        <TableCell className="text-right">{formatInt(entry.views)}</TableCell>
-                        <TableCell className="text-right">{formatInt(entry.uniqueViews)}</TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              ) : (
-                <AsyncState
-                  kind="empty"
-                  title="Nenhum conteúdo com views no período."
-                  className="border-dashed bg-card/40 py-8"
-                />
-              )}
-            </CardContent>
+        {isLoading ? (
+          <AsyncState
+            kind="loading"
+            title="Carregando análises"
+            description="Buscando métricas, série temporal e aquisição."
+          />
+        ) : error ? (
+          <AsyncState
+            kind="error"
+            title="Não foi possível carregar as análises"
+            description={error}
+            action={
+              <Button variant="outline" onClick={() => setReloadTick((previous) => previous + 1)}>
+                Tentar novamente
+              </Button>
+            }
+          />
+        ) : (
+          <>
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+              <Card className="animate-slide-up opacity-0" style={{ animationDelay: "40ms" }}>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm text-muted-foreground">Views</CardTitle>
+                </CardHeader>
+                <CardContent className="text-3xl font-semibold">
+                  {formatInt(metrics.views || 0)}
+                </CardContent>
               </Card>
-            </>
-          )}
-        </section>
-      </main>
+              <Card className="animate-slide-up opacity-0" style={{ animationDelay: "80ms" }}>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm text-muted-foreground">Views únicas</CardTitle>
+                </CardHeader>
+                <CardContent className="text-3xl font-semibold">
+                  {formatInt(metrics.uniqueViews || 0)}
+                </CardContent>
+              </Card>
+              <Card className="animate-slide-up opacity-0" style={{ animationDelay: "120ms" }}>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm text-muted-foreground">
+                    Leituras de capítulos
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="text-3xl font-semibold">
+                  {formatInt(metrics.chapterViews || 0)}
+                </CardContent>
+              </Card>
+              <Card className="animate-slide-up opacity-0" style={{ animationDelay: "160ms" }}>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm text-muted-foreground">
+                    Cliques em downloads
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="text-3xl font-semibold">
+                  {formatInt(metrics.downloadClicks || 0)}
+                </CardContent>
+              </Card>
+            </div>
+
+            <Card className="animate-slide-up opacity-0" style={{ animationDelay: "190ms" }}>
+              <CardHeader>
+                <CardTitle>Comunidade e moderação</CardTitle>
+              </CardHeader>
+              <CardContent className="grid gap-4 md:grid-cols-3">
+                <div className="rounded-xl border border-border/60 bg-card/60 p-4">
+                  <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                    Comentários criados
+                  </p>
+                  <p className="mt-2 text-2xl font-semibold">{formatInt(commentsCreated)}</p>
+                </div>
+                <div className="rounded-xl border border-border/60 bg-card/60 p-4">
+                  <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                    Comentários aprovados
+                  </p>
+                  <p className="mt-2 text-2xl font-semibold">{formatInt(commentsApproved)}</p>
+                </div>
+                <div className="rounded-xl border border-border/60 bg-card/60 p-4">
+                  <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                    Taxa de aprovação
+                  </p>
+                  <p className="mt-2 text-2xl font-semibold">
+                    {commentsApprovalRate === null ? "0,0%" : formatPercent(commentsApprovalRate)}
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+
+            <div className="grid min-w-0 gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+              <Card
+                className="min-w-0 animate-slide-up opacity-0"
+                style={{ animationDelay: "220ms" }}
+              >
+                <CardHeader>
+                  <CardTitle>Série temporal ({formatMetricLabel(metric)})</CardTitle>
+                </CardHeader>
+                <CardContent className="min-w-0">
+                  {chartData.length ? (
+                    <ChartContainer
+                      className="min-w-0 w-full max-w-full h-52 sm:h-60 lg:h-[280px]"
+                      config={{
+                        metric: { label: formatMetricLabel(metric), color: "hsl(var(--accent))" },
+                      }}
+                    >
+                      <LineChart
+                        data={chartData}
+                        margin={{ left: 12, right: 12, top: 12, bottom: 8 }}
+                      >
+                        <CartesianGrid vertical={false} />
+                        <XAxis
+                          dataKey="date"
+                          tickLine={false}
+                          axisLine={false}
+                          tickFormatter={formatChartDateLabel}
+                          interval="preserveStartEnd"
+                          minTickGap={18}
+                          tickMargin={8}
+                        />
+                        <YAxis tickLine={false} axisLine={false} width={32} tickMargin={8} />
+                        <ChartTooltip content={<ChartTooltipContent />} />
+                        <Line
+                          type="monotone"
+                          dataKey="value"
+                          stroke="var(--color-metric)"
+                          strokeWidth={2}
+                          dot={false}
+                        />
+                      </LineChart>
+                    </ChartContainer>
+                  ) : (
+                    <AsyncState
+                      kind="empty"
+                      title="Sem dados para o período selecionado."
+                      className="border-dashed bg-card/40 py-8"
+                    />
+                  )}
+                </CardContent>
+              </Card>
+
+              <Card
+                className="min-w-0 animate-slide-up opacity-0"
+                style={{ animationDelay: "260ms" }}
+              >
+                <CardHeader>
+                  <CardTitle>Aquisição (origens)</CardTitle>
+                </CardHeader>
+                <CardContent className="min-w-0 space-y-3">
+                  {referrerEntries.length ? (
+                    referrerEntries.slice(0, 8).map((entry) => (
+                      <div key={entry.key} className="flex min-w-0 items-center gap-2 text-sm">
+                        <span
+                          title={formatAcquisitionLabel(entry.key)}
+                          className="min-w-0 flex-1 truncate text-muted-foreground"
+                        >
+                          {formatAcquisitionLabel(entry.key)}
+                        </span>
+                        <Badge variant="secondary" className="shrink-0">
+                          {formatInt(entry.count)}
+                        </Badge>
+                      </div>
+                    ))
+                  ) : (
+                    <AsyncState
+                      kind="empty"
+                      title="Sem dados de aquisição."
+                      className="border-dashed bg-card/40 py-8"
+                    />
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+
+            <Card className="animate-slide-up opacity-0" style={{ animationDelay: "300ms" }}>
+              <CardHeader>
+                <CardTitle>Top conteúdos</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {topEntries.length ? (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Tipo</TableHead>
+                        <TableHead>Título</TableHead>
+                        <TableHead className="text-right">Views</TableHead>
+                        <TableHead className="text-right">Únicas</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {topEntries.map((entry) => (
+                        <TableRow key={`${entry.resourceType}:${entry.resourceId}`}>
+                          <TableCell>{formatResourceType(entry.resourceType)}</TableCell>
+                          <TableCell>{entry.title}</TableCell>
+                          <TableCell className="text-right">{formatInt(entry.views)}</TableCell>
+                          <TableCell className="text-right">
+                            {formatInt(entry.uniqueViews)}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                ) : (
+                  <AsyncState
+                    kind="empty"
+                    title="Nenhum conteúdo com views no período."
+                    className="border-dashed bg-card/40 py-8"
+                  />
+                )}
+              </CardContent>
+            </Card>
+          </>
+        )}
+      </DashboardPageContainer>
     </DashboardShell>
   );
 };
 
 export default DashboardAnalytics;
-

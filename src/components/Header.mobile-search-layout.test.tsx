@@ -1,9 +1,10 @@
-import { act, render, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import Header from "@/components/Header";
+import { GlobalShortcutsProvider } from "@/hooks/global-shortcuts-provider";
 import { defaultSettings, mergeSettings } from "@/hooks/site-settings-context";
 import type { SiteSettings } from "@/types/site-settings";
 
@@ -57,9 +58,11 @@ const mockJsonResponse = (ok: boolean, payload: unknown, status = ok ? 200 : 500
     json: async () => payload,
   }) as Response;
 
-const createSettings = (override: Partial<SiteSettings> = {}) => mergeSettings(defaultSettings, override);
+const createSettings = (override: Partial<SiteSettings> = {}) =>
+  mergeSettings(defaultSettings, override);
 
-const classTokens = (element: HTMLElement) => String(element.className).split(/\s+/).filter(Boolean);
+const classTokens = (element: HTMLElement) =>
+  String(element.className).split(/\s+/).filter(Boolean);
 const setWindowScrollY = (value: number) => {
   Object.defineProperty(window, "scrollY", {
     value,
@@ -75,35 +78,43 @@ const setupApiMock = (options?: {
 }) => {
   const { logoutOk = true, searchSuggestOk = false, searchSuggestions = [] } = options || {};
   apiFetchMock.mockReset();
-  apiFetchMock.mockImplementation(async (_apiBase: string, endpoint: string, options?: RequestInit) => {
-    const method = String(options?.method || "GET").toUpperCase();
-    if (endpoint === "/api/public/me" && method === "GET") {
-      return mockJsonResponse(true, {
-        user: {
-          id: "user-1",
-          name: "Admin",
-          username: "admin",
-          avatarUrl: null,
-        },
-      });
-    }
-    if (endpoint === "/api/logout" && method === "POST") {
-      return mockJsonResponse(logoutOk, logoutOk ? { ok: true } : { error: "logout_failed" }, logoutOk ? 200 : 500);
-    }
-    if (endpoint.startsWith("/api/public/search/suggest?") && method === "GET") {
-      if (searchSuggestOk) {
+  apiFetchMock.mockImplementation(
+    async (_apiBase: string, endpoint: string, options?: RequestInit) => {
+      const method = String(options?.method || "GET").toUpperCase();
+      if (endpoint === "/api/public/me" && method === "GET") {
         return mockJsonResponse(true, {
-          suggestions: searchSuggestions,
+          user: {
+            id: "user-1",
+            name: "Admin",
+            username: "admin",
+            avatarUrl: null,
+          },
         });
       }
-      return mockJsonResponse(false, { error: "search_suggest_failed" }, 500);
-    }
-    return mockJsonResponse(false, { error: "not_found" }, 404);
-  });
+      if (endpoint === "/api/logout" && method === "POST") {
+        return mockJsonResponse(
+          logoutOk,
+          logoutOk ? { ok: true } : { error: "logout_failed" },
+          logoutOk ? 200 : 500,
+        );
+      }
+      if (endpoint.startsWith("/api/public/search/suggest?") && method === "GET") {
+        if (searchSuggestOk) {
+          return mockJsonResponse(true, {
+            suggestions: searchSuggestions,
+          });
+        }
+        return mockJsonResponse(false, { error: "search_suggest_failed" }, 500);
+      }
+      return mockJsonResponse(false, { error: "not_found" }, 404);
+    },
+  );
 };
 
 const getSearchSuggestCalls = () =>
-  apiFetchMock.mock.calls.filter((call) => String(call[1] || "").startsWith("/api/public/search/suggest?"));
+  apiFetchMock.mock.calls.filter((call) =>
+    String(call[1] || "").startsWith("/api/public/search/suggest?"),
+  );
 
 describe("Header mobile search layout", () => {
   beforeEach(() => {
@@ -232,9 +243,9 @@ describe("Header mobile search layout", () => {
     const searchCluster = screen.getByTestId("public-header-search-cluster");
     const actionsCluster = screen.getByTestId("public-header-actions-cluster");
 
-    await user.click(screen.getByRole("button", { name: "Abrir pesquisa" }));
+    await user.click(screen.getByRole("button", { name: "Abrir busca" }));
 
-    const searchInput = await screen.findByPlaceholderText("Pesquisar projetos e posts");
+    const searchInput = await screen.findByPlaceholderText("Buscar projetos e posts");
     expect(searchInput).toBeInTheDocument();
     expect(searchInput).toHaveFocus();
     expect(classTokens(leftCluster)).toContain("opacity-0");
@@ -261,7 +272,7 @@ describe("Header mobile search layout", () => {
     await user.click(document.body);
 
     await waitFor(() => {
-      expect(screen.queryByPlaceholderText("Pesquisar projetos e posts")).not.toBeInTheDocument();
+      expect(screen.queryByPlaceholderText("Buscar projetos e posts")).not.toBeInTheDocument();
     });
     expect(classTokens(leftCluster)).toContain("opacity-100");
     expect(classTokens(leftCluster)).toContain("visible");
@@ -299,8 +310,8 @@ describe("Header mobile search layout", () => {
       expect(apiFetchMock).toHaveBeenCalledTimes(1);
     });
 
-    await user.click(screen.getByRole("button", { name: "Abrir pesquisa" }));
-    const searchInput = await screen.findByPlaceholderText("Pesquisar projetos e posts");
+    await user.click(screen.getByRole("button", { name: "Abrir busca" }));
+    const searchInput = await screen.findByPlaceholderText("Buscar projetos e posts");
     await user.type(searchInput, "re");
 
     expect(getSearchSuggestCalls()).toHaveLength(0);
@@ -337,20 +348,24 @@ describe("Header mobile search layout", () => {
       expect(apiFetchMock).toHaveBeenCalledTimes(1);
     });
 
-    await user.click(screen.getByRole("button", { name: "Abrir pesquisa" }));
-    const searchInput = await screen.findByPlaceholderText("Pesquisar projetos e posts");
+    await user.click(screen.getByRole("button", { name: "Abrir busca" }));
+    const searchInput = await screen.findByPlaceholderText("Buscar projetos e posts");
     await user.type(searchInput, "ba");
 
     const projectLink = await screen.findByRole("link", { name: /Projeto Remoto Badges/i });
     const projectCard = projectLink.closest("a");
     expect(projectCard).not.toBeNull();
 
-    const coverColumn = projectCard?.querySelector('[data-synopsis-role="column"]') as HTMLElement | null;
+    const coverColumn = projectCard?.querySelector(
+      '[data-synopsis-role="column"]',
+    ) as HTMLElement | null;
     expect(coverColumn).not.toBeNull();
     expect(classTokens(coverColumn as HTMLElement)).toContain("h-28");
     expect(classTokens(coverColumn as HTMLElement)).toContain("overflow-hidden");
 
-    const badgesRow = projectCard?.querySelector('[data-synopsis-role="badges"]') as HTMLElement | null;
+    const badgesRow = projectCard?.querySelector(
+      '[data-synopsis-role="badges"]',
+    ) as HTMLElement | null;
     expect(badgesRow).not.toBeNull();
     expect(classTokens(badgesRow as HTMLElement)).toContain("flex-nowrap");
     expect(classTokens(badgesRow as HTMLElement)).toContain("overflow-hidden");
@@ -377,8 +392,8 @@ describe("Header mobile search layout", () => {
       expect(apiFetchMock).toHaveBeenCalledTimes(1);
     });
 
-    await user.click(screen.getByRole("button", { name: "Abrir pesquisa" }));
-    const searchInput = await screen.findByPlaceholderText("Pesquisar projetos e posts");
+    await user.click(screen.getByRole("button", { name: "Abrir busca" }));
+    const searchInput = await screen.findByPlaceholderText("Buscar projetos e posts");
     await user.type(searchInput, "teste");
 
     await waitFor(() => {
@@ -405,8 +420,12 @@ describe("Header mobile search layout", () => {
     const searchCluster = screen.getByTestId("public-header-search-cluster");
     const actionsCluster = screen.getByTestId("public-header-actions-cluster");
 
-    expect(aboutLink.compareDocumentPosition(searchCluster) & Node.DOCUMENT_POSITION_FOLLOWING).not.toBe(0);
-    expect(searchCluster.compareDocumentPosition(actionsCluster) & Node.DOCUMENT_POSITION_FOLLOWING).not.toBe(0);
+    expect(
+      aboutLink.compareDocumentPosition(searchCluster) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).not.toBe(0);
+    expect(
+      searchCluster.compareDocumentPosition(actionsCluster) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).not.toBe(0);
   });
 
   it("usa breakpoint lg para navbar completa, hamburguer e nome do usuario", async () => {
@@ -447,13 +466,51 @@ describe("Header mobile search layout", () => {
     await waitFor(() => {
       expect(apiFetchMock).toHaveBeenCalledTimes(1);
     });
-    const searchButton = screen.getByRole("button", { name: "Abrir pesquisa" });
+    const searchButton = screen.getByRole("button", { name: "Abrir busca" });
     const themeToggle = screen.getByRole("button", { name: /Alternar para tema/i });
 
     expect(classTokens(searchButton)).toContain("text-foreground/80");
     expect(themeToggle).toBeInTheDocument();
     expect(classTokens(themeToggle)).toContain("text-foreground/80");
     expect(setThemePreferenceMock).not.toHaveBeenCalled();
+  });
+
+  it("abre a busca com / quando o foco nao esta em elementos interativos", async () => {
+    render(
+      <MemoryRouter initialEntries={["/"]}>
+        <GlobalShortcutsProvider>
+          <Header />
+        </GlobalShortcutsProvider>
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(apiFetchMock).toHaveBeenCalledTimes(1);
+    });
+
+    fireEvent.keyDown(window, { key: "/" });
+
+    const searchInput = await screen.findByPlaceholderText("Buscar projetos e posts");
+    expect(searchInput).toHaveFocus();
+  });
+
+  it("ignora / quando o foco esta em um botao", async () => {
+    render(
+      <MemoryRouter initialEntries={["/"]}>
+        <GlobalShortcutsProvider>
+          <Header />
+        </GlobalShortcutsProvider>
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(apiFetchMock).toHaveBeenCalledTimes(1);
+    });
+
+    const searchButton = screen.getByRole("button", { name: "Abrir busca" });
+    fireEvent.keyDown(searchButton, { key: "/" });
+
+    expect(screen.queryByPlaceholderText("Buscar projetos e posts")).not.toBeInTheDocument();
   });
 
   it("não redireciona e exibe toast quando logout falha", async () => {
@@ -485,4 +542,3 @@ describe("Header mobile search layout", () => {
     });
   });
 });
-

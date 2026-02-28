@@ -1,4 +1,4 @@
-﻿import type { ReactNode } from "react";
+import type { ReactNode } from "react";
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -86,7 +86,8 @@ const waitMs = (delayMs: number) =>
   new Promise<void>((resolve) => {
     setTimeout(resolve, delayMs);
   });
-const classTokens = (element: HTMLElement) => String(element.className).split(/\s+/).filter(Boolean);
+const classTokens = (element: HTMLElement) =>
+  String(element.className).split(/\s+/).filter(Boolean);
 const renderDashboardPages = () =>
   render(
     <MemoryRouter initialEntries={["/dashboard/paginas"]}>
@@ -153,7 +154,7 @@ describe("DashboardPages autosave", () => {
     });
   });
 
-  it("edita campo e dispara PUT /api/pages apÃ³s debounce", async () => {
+  it("edita campo e dispara PUT /api/pages após debounce", async () => {
     renderDashboardPages();
     await screen.findByRole("heading", { name: /Gerenciar/i });
 
@@ -172,7 +173,7 @@ describe("DashboardPages autosave", () => {
     renderDashboardPages();
     await screen.findByRole("heading", { name: /Gerenciar/i });
 
-    fireEvent.mouseDown(screen.getByRole("tab", { name: /Preview/i }));
+    fireEvent.mouseDown(screen.getByRole("tab", { name: /Prévia/i }));
     apiFetchMock.mockClear();
 
     const homePreviewInput = await screen.findByLabelText(/URL da imagem/i, {
@@ -195,7 +196,7 @@ describe("DashboardPages autosave", () => {
     renderDashboardPages();
     await screen.findByRole("heading", { name: /Gerenciar/i });
 
-    fireEvent.mouseDown(screen.getByRole("tab", { name: /Preview/i }));
+    fireEvent.mouseDown(screen.getByRole("tab", { name: /Prévia/i }));
     apiFetchMock.mockClear();
 
     const libraryButtons = await screen.findAllByRole("button", { name: /Biblioteca/i });
@@ -278,7 +279,8 @@ describe("DashboardPages autosave", () => {
     const movedQuestionInput = await screen.findByDisplayValue("Pergunta B");
     const originalQuestionInput = await screen.findByDisplayValue("Pergunta A");
     expect(
-      movedQuestionInput.compareDocumentPosition(originalQuestionInput) & Node.DOCUMENT_POSITION_FOLLOWING,
+      movedQuestionInput.compareDocumentPosition(originalQuestionInput) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
     ).not.toBe(0);
 
     await act(async () => {
@@ -290,13 +292,12 @@ describe("DashboardPages autosave", () => {
     expect(putCalls.length).toBeGreaterThan(0);
     const lastPutCall = putCalls[putCalls.length - 1];
     const payload = JSON.parse(String(((lastPutCall?.[2] || {}) as RequestInit).body || "{}"));
-    expect(payload.pages?.faq?.groups?.[0]?.items?.map((item: { question: string }) => item.question)).toEqual([
-      "Pergunta B",
-      "Pergunta A",
-    ]);
+    expect(
+      payload.pages?.faq?.groups?.[0]?.items?.map((item: { question: string }) => item.question),
+    ).toEqual(["Pergunta B", "Pergunta A"]);
   });
 
-  it("toggle desligado bloqueia autosave, mas botÃ£o manual continua salvando", async () => {
+  it("toggle desligado bloqueia autosave, mas botão manual continua salvando", async () => {
     renderDashboardPages();
     await screen.findByRole("heading", { name: /Gerenciar/i });
 
@@ -326,7 +327,7 @@ describe("DashboardPages autosave", () => {
     );
   });
 
-  it("mantÃ©m shareImage existente no payload ao editar conteÃºdo de pÃ¡gina", async () => {
+  it("mantém shareImage existente no payload ao editar conteúdo de página", async () => {
     apiFetchMock.mockImplementation(async (_base, path, options) => {
       const method = String((options as RequestInit | undefined)?.method || "GET").toUpperCase();
       if (path === "/api/me") {
@@ -386,7 +387,9 @@ describe("DashboardPages autosave", () => {
 
     const putCalls = getPutPageCalls();
     expect(putCalls.length).toBeGreaterThan(0);
-    const payload = JSON.parse(String(((putCalls[putCalls.length - 1]?.[2] || {}) as RequestInit).body || "{}"));
+    const payload = JSON.parse(
+      String(((putCalls[putCalls.length - 1]?.[2] || {}) as RequestInit).body || "{}"),
+    );
     expect(payload.pages?.about?.shareImage).toBe("/uploads/shared/about-og.jpg");
     expect(payload.pages?.donations?.pixKey).toBe("pix-editado");
   });
@@ -449,6 +452,3 @@ describe("DashboardPages autosave", () => {
     );
   });
 });
-
-
-

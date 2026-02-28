@@ -11,6 +11,7 @@ import UploadPicture from "@/components/UploadPicture";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { publicPageLayoutTokens } from "@/components/public-page-tokens";
 import { estimateReadTime } from "@/lib/post-content";
 import { normalizeAssetUrl } from "@/lib/asset-url";
 import { getApiBase } from "@/lib/api-base";
@@ -180,19 +181,20 @@ const Post = () => {
     <div className="min-h-screen bg-background">
       <main className="pb-20">
         {isLoading ? (
-          <div className="mx-auto max-w-6xl rounded-2xl border border-border/60 bg-card/60 px-6 py-10 pt-20 text-sm text-muted-foreground md:px-10">
+          <div
+            className={`${publicPageLayoutTokens.sectionBase} max-w-6xl rounded-2xl border border-border/60 py-10 pt-20 text-sm text-muted-foreground bg-card/60`}
+          >
             Carregando postagem...
           </div>
         ) : loadError || !post ? (
-          <div className="mx-auto max-w-6xl rounded-2xl border border-dashed border-border/60 bg-card/60 px-6 py-10 pt-20 text-sm text-muted-foreground md:px-10">
+          <div
+            className={`${publicPageLayoutTokens.sectionBase} max-w-6xl rounded-2xl border border-dashed border-border/60 py-10 pt-20 text-sm text-muted-foreground bg-card/60`}
+          >
             Postagem não encontrada.
           </div>
         ) : (
           <>
-            <section
-              data-testid="post-reader-hero"
-              className="relative overflow-hidden"
-            >
+            <section data-testid="post-reader-hero" className="relative overflow-hidden">
               <UploadPicture
                 src={heroCoverSrc}
                 alt=""
@@ -208,16 +210,17 @@ const Post = () => {
               <div className="absolute inset-0 bg-linear-to-r from-background/84 via-background/34 to-background/78" />
               <div className="absolute inset-0 bg-linear-to-t from-background via-background/70 to-transparent" />
 
-              <div className="relative mx-auto w-full max-w-6xl px-6 pb-10 pt-24 md:px-10 md:pb-32 md:pt-20 lg:pb-36 lg:pt-24">
-                <div
-                  data-testid="post-reader-hero-layout"
-                  className="grid items-start gap-8"
-                >
+              <div
+                className={`${publicPageLayoutTokens.sectionBase} relative max-w-6xl pb-10 pt-24 md:pb-32 md:pt-20 lg:pb-36 lg:pt-24`}
+              >
+                <div data-testid="post-reader-hero-layout" className="grid items-start gap-8">
                   <div
                     data-testid="post-reader-hero-info"
                     className="flex flex-col items-center gap-4 text-center md:items-start md:text-left"
                   >
-                    <h1 className="text-3xl font-bold text-foreground md:text-4xl lg:text-5xl">{post.title}</h1>
+                    <h1 className="text-3xl font-bold text-foreground md:text-4xl lg:text-5xl">
+                      {post.title}
+                    </h1>
                     <div className="flex w-full flex-wrap items-center justify-center gap-3 text-xs text-muted-foreground md:justify-start">
                       <span className="inline-flex items-center gap-2">
                         <User className="h-4 w-4 text-primary/70" aria-hidden="true" />
@@ -237,7 +240,12 @@ const Post = () => {
                         Postagem
                       </Badge>
                       {canEditPost ? (
-                        <Button asChild size="sm" variant="outline" className="h-7 px-2.5 text-[10px] uppercase">
+                        <Button
+                          asChild
+                          size="sm"
+                          variant="outline"
+                          className="h-7 px-2.5 text-[10px] uppercase"
+                        >
                           <Link to={`/dashboard/posts?edit=${encodeURIComponent(post.id)}`}>
                             Editar postagem
                           </Link>
@@ -251,7 +259,7 @@ const Post = () => {
 
             <section
               data-testid="post-reader-cover-bridge"
-              className="relative z-20 -mt-24 mx-auto hidden w-full max-w-6xl px-6 md:block md:-mt-28 md:px-10"
+              className={`${publicPageLayoutTokens.sectionBase} relative z-20 -mt-24 hidden max-w-6xl md:block md:-mt-28`}
             >
               <div data-testid="post-reader-cover-shell" className="w-full">
                 <div
@@ -273,7 +281,9 @@ const Post = () => {
               </div>
             </section>
 
-            <section className="relative z-10 mx-auto w-full max-w-6xl px-6 pb-12 pt-4 md:px-10 md:pt-10">
+            <section
+              className={`${publicPageLayoutTokens.sectionBase} relative z-10 max-w-6xl pb-12 pt-4 md:pt-10`}
+            >
               <section
                 data-testid="post-reader-layout"
                 className="grid gap-8 lg:grid-cols-[minmax(0,1.75fr)_minmax(280px,1fr)]"

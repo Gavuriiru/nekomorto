@@ -2,6 +2,7 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { publicPageLayoutTokens } from "@/components/public-page-tokens";
 import { usePageMeta } from "@/hooks/use-page-meta";
 
 const NotFound = () => {
@@ -12,14 +13,15 @@ const NotFound = () => {
 
   return (
     <div className="min-h-screen bg-background text-foreground">
-
       <main>
         <section className="relative min-h-screen overflow-hidden border-b border-border/60">
           <div className="absolute inset-0 bg-linear-to-b from-primary/15 via-background to-background" />
           <div className="absolute -left-24 top-10 h-64 w-64 rounded-full bg-primary/20 blur-[120px]" />
           <div className="absolute -right-24 bottom-10 h-64 w-64 rounded-full bg-accent/20 blur-[120px]" />
 
-          <div className="relative mx-auto grid min-h-screen w-full max-w-6xl items-center gap-8 px-6 pb-16 pt-24 md:grid-cols-[1.2fr_0.8fr] md:px-10 md:pt-28">
+          <div
+            className={`${publicPageLayoutTokens.sectionBase} relative grid min-h-screen max-w-6xl items-center gap-8 pb-16 pt-24 md:grid-cols-[1.2fr_0.8fr] md:pt-28`}
+          >
             <div className="space-y-5">
               <Badge variant="secondary" className="text-xs uppercase tracking-widest">
                 Erro 404
@@ -72,7 +74,3 @@ const NotFound = () => {
 };
 
 export default NotFound;
-
-
-
-

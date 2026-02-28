@@ -3,6 +3,7 @@ import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import DashboardHeader from "@/components/DashboardHeader";
+import { GlobalShortcutsProvider } from "@/hooks/global-shortcuts-provider";
 import { defaultSettings, mergeSettings } from "@/hooks/site-settings-context";
 import type { SiteSettings } from "@/types/site-settings";
 
@@ -59,57 +60,65 @@ const mockJsonResponse = (ok: boolean, payload: unknown, status = ok ? 200 : 500
     json: async () => payload,
   }) as Response;
 
-const createSettings = (override: Partial<SiteSettings> = {}) => mergeSettings(defaultSettings, override);
+const createSettings = (override: Partial<SiteSettings> = {}) =>
+  mergeSettings(defaultSettings, override);
 
-const classTokens = (element: HTMLElement) => String(element.className).split(/\s+/).filter(Boolean);
+const classTokens = (element: HTMLElement) =>
+  String(element.className).split(/\s+/).filter(Boolean);
 
 const setupApiMock = (options?: { logoutOk?: boolean }) => {
   const { logoutOk = true } = options || {};
   apiFetchMock.mockReset();
-  apiFetchMock.mockImplementation(async (_apiBase: string, endpoint: string, options?: RequestInit) => {
-    const method = String(options?.method || "GET").toUpperCase();
-    if (endpoint === "/api/public/projects" && method === "GET") {
-      return mockJsonResponse(true, {
-        projects: [
-          {
-            id: "project-1",
-            title: "Projeto Dashboard",
-            synopsis: "Sinopse dashboard",
-            tags: ["acao"],
-            cover: "/placeholder.svg",
-          },
-        ],
-      });
-    }
-    if (endpoint === "/api/public/posts" && method === "GET") {
-      return mockJsonResponse(true, {
-        posts: [
-          {
-            title: "Post Dashboard",
-            slug: "post-dashboard",
-            excerpt: "Resumo dashboard",
-          },
-        ],
-      });
-    }
-    if (endpoint === "/api/public/tag-translations" && method === "GET") {
-      return mockJsonResponse(true, { tags: { acao: "Acao" } });
-    }
-    if (endpoint === "/api/dashboard/notifications?limit=30" && method === "GET") {
-      return mockJsonResponse(true, {
-        generatedAt: new Date().toISOString(),
-        items: [],
-        summary: { total: 0, pending: 0, error: 0, approval: 0 },
-      });
-    }
-    if (endpoint === "/api/me/preferences" && method === "GET") {
-      return mockJsonResponse(true, { preferences: {} });
-    }
-    if (endpoint === "/api/logout" && method === "POST") {
-      return mockJsonResponse(logoutOk, logoutOk ? { ok: true } : { error: "logout_failed" }, logoutOk ? 200 : 500);
-    }
-    return mockJsonResponse(false, { error: "not_found" }, 404);
-  });
+  apiFetchMock.mockImplementation(
+    async (_apiBase: string, endpoint: string, options?: RequestInit) => {
+      const method = String(options?.method || "GET").toUpperCase();
+      if (endpoint === "/api/public/projects" && method === "GET") {
+        return mockJsonResponse(true, {
+          projects: [
+            {
+              id: "project-1",
+              title: "Projeto Dashboard",
+              synopsis: "Sinopse dashboard",
+              tags: ["acao"],
+              cover: "/placeholder.svg",
+            },
+          ],
+        });
+      }
+      if (endpoint === "/api/public/posts" && method === "GET") {
+        return mockJsonResponse(true, {
+          posts: [
+            {
+              title: "Post Dashboard",
+              slug: "post-dashboard",
+              excerpt: "Resumo dashboard",
+            },
+          ],
+        });
+      }
+      if (endpoint === "/api/public/tag-translations" && method === "GET") {
+        return mockJsonResponse(true, { tags: { acao: "Acao" } });
+      }
+      if (endpoint === "/api/dashboard/notifications?limit=30" && method === "GET") {
+        return mockJsonResponse(true, {
+          generatedAt: new Date().toISOString(),
+          items: [],
+          summary: { total: 0, pending: 0, error: 0, approval: 0 },
+        });
+      }
+      if (endpoint === "/api/me/preferences" && method === "GET") {
+        return mockJsonResponse(true, { preferences: {} });
+      }
+      if (endpoint === "/api/logout" && method === "POST") {
+        return mockJsonResponse(
+          logoutOk,
+          logoutOk ? { ok: true } : { error: "logout_failed" },
+          logoutOk ? 200 : 500,
+        );
+      }
+      return mockJsonResponse(false, { error: "not_found" }, 404);
+    },
+  );
 };
 
 describe("DashboardHeader mobile search layout", () => {
@@ -145,9 +154,9 @@ describe("DashboardHeader mobile search layout", () => {
     const searchCluster = screen.getByTestId("dashboard-header-search-cluster");
     const actionsCluster = screen.getByTestId("dashboard-header-actions-cluster");
 
-    fireEvent.click(screen.getByRole("button", { name: "Abrir pesquisa" }));
+    fireEvent.click(screen.getByRole("button", { name: "Abrir busca" }));
 
-    const searchInput = await screen.findByPlaceholderText("Pesquisar projetos e posts");
+    const searchInput = await screen.findByPlaceholderText("Buscar projetos e posts");
     expect(searchInput).toBeInTheDocument();
     expect(searchInput).toHaveFocus();
     expect(classTokens(leftCluster)).toContain("opacity-0");
@@ -178,7 +187,7 @@ describe("DashboardHeader mobile search layout", () => {
     fireEvent.mouseDown(document.body);
 
     await waitFor(() => {
-      expect(screen.queryByPlaceholderText("Pesquisar projetos e posts")).not.toBeInTheDocument();
+      expect(screen.queryByPlaceholderText("Buscar projetos e posts")).not.toBeInTheDocument();
     });
     expect(classTokens(leftCluster)).toContain("opacity-100");
     expect(classTokens(leftCluster)).toContain("visible");
@@ -212,8 +221,43 @@ describe("DashboardHeader mobile search layout", () => {
     const searchCluster = screen.getByTestId("dashboard-header-search-cluster");
     const actionsCluster = screen.getByTestId("dashboard-header-actions-cluster");
 
-    expect(aboutLink.compareDocumentPosition(searchCluster) & Node.DOCUMENT_POSITION_FOLLOWING).not.toBe(0);
-    expect(searchCluster.compareDocumentPosition(actionsCluster) & Node.DOCUMENT_POSITION_FOLLOWING).not.toBe(0);
+    expect(
+      aboutLink.compareDocumentPosition(searchCluster) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).not.toBe(0);
+    expect(
+      searchCluster.compareDocumentPosition(actionsCluster) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).not.toBe(0);
+  });
+
+  it("abre a busca com / e ignora Ctrl/Cmd+K dentro do campo de busca", async () => {
+    render(
+      <MemoryRouter initialEntries={["/dashboard"]}>
+        <GlobalShortcutsProvider>
+          <DashboardHeader
+            currentUser={{
+              name: "Admin",
+              username: "admin",
+              avatarUrl: null,
+            }}
+          />
+        </GlobalShortcutsProvider>
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(apiFetchMock.mock.calls.length).toBeGreaterThanOrEqual(3);
+    });
+
+    fireEvent.keyDown(window, { key: "/" });
+
+    const searchInput = await screen.findByPlaceholderText("Buscar projetos e posts");
+    expect(searchInput).toHaveFocus();
+
+    fireEvent.keyDown(searchInput, { key: "k", ctrlKey: true });
+
+    expect(
+      screen.queryByPlaceholderText("Buscar navegação, abas e ações..."),
+    ).not.toBeInTheDocument();
   });
 
   it("não redireciona e exibe toast quando logout falha", async () => {
@@ -265,7 +309,7 @@ describe("DashboardHeader mobile search layout", () => {
     await waitFor(() => {
       expect(apiFetchMock.mock.calls.length).toBeGreaterThanOrEqual(3);
     });
-    const searchButton = screen.getByRole("button", { name: "Abrir pesquisa" });
+    const searchButton = screen.getByRole("button", { name: "Abrir busca" });
     const themeToggle = screen.getByRole("button", { name: /Alternar para tema/i });
 
     expect(classTokens(searchButton)).toContain("text-foreground/80");
@@ -274,5 +318,3 @@ describe("DashboardHeader mobile search layout", () => {
     expect(setThemePreferenceMock).not.toHaveBeenCalled();
   });
 });
-
-

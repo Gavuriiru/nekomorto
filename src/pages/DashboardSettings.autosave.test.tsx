@@ -71,7 +71,8 @@ const waitMs = (delayMs: number) =>
   new Promise<void>((resolve) => {
     setTimeout(resolve, delayMs);
   });
-const classTokens = (element: HTMLElement) => String(element.className).split(/\s+/).filter(Boolean);
+const classTokens = (element: HTMLElement) =>
+  String(element.className).split(/\s+/).filter(Boolean);
 const renderDashboardSettings = () =>
   render(
     <MemoryRouter initialEntries={["/dashboard/configuracoes"]}>
@@ -278,9 +279,7 @@ describe("DashboardSettings autosave", () => {
       await flushMicrotasks();
     });
 
-    expect(
-      addEventListenerSpy.mock.calls.some((call) => call[0] === "beforeunload"),
-    ).toBe(true);
+    expect(addEventListenerSpy.mock.calls.some((call) => call[0] === "beforeunload")).toBe(true);
 
     addEventListenerSpy.mockRestore();
   });
@@ -299,7 +298,7 @@ describe("DashboardSettings autosave", () => {
     renderDashboardSettings();
     await screen.findByRole("heading", { name: /Painel/i });
 
-    fireEvent.mouseDown(screen.getByRole("tab", { name: /Footer/i }));
+    fireEvent.mouseDown(screen.getByRole("tab", { name: /Rodapé/i }));
     await screen.findByRole("heading", { name: /Redes sociais/i });
 
     apiFetchMock.mockClear();
@@ -329,14 +328,9 @@ describe("DashboardSettings autosave", () => {
     expect(putCalls).toHaveLength(1);
     expect(putCalls[0][1]).toBe("/api/settings");
     const payload = JSON.parse(String(((putCalls[0][2] || {}) as RequestInit).body || "{}"));
-    const socialLabels = (payload?.settings?.footer?.socialLinks || []).map((item: { label: string }) =>
-      String(item?.label || ""),
+    const socialLabels = (payload?.settings?.footer?.socialLinks || []).map(
+      (item: { label: string }) => String(item?.label || ""),
     );
     expect(socialLabels[0]).toBe("Discord");
   });
 });
-
-
-
-
-

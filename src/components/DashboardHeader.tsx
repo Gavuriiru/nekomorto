@@ -1,9 +1,12 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { LogOut, Menu } from "lucide-react";
 import ThemedSvgLogo from "@/components/ThemedSvgLogo";
 import ThemeModeSwitcher from "@/components/ThemeModeSwitcher";
-import { dashboardMenuItems as defaultMenuItems, type DashboardMenuItem } from "@/components/dashboard-menu";
+import {
+  dashboardMenuItems as defaultMenuItems,
+  type DashboardMenuItem,
+} from "@/components/dashboard-menu";
 import DashboardCommandPalette from "@/components/dashboard/DashboardCommandPalette";
 import DashboardNotificationsPopover from "@/components/dashboard/DashboardNotificationsPopover";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -26,10 +29,18 @@ import { apiFetch } from "@/lib/api-client";
 import { cn } from "@/lib/utils";
 import { getNavbarIcon } from "@/lib/navbar-icons";
 import { resolveBranding } from "@/lib/branding";
-import { rankPosts, rankProjects, selectVisibleTags, sortAlphabeticallyPtBr } from "@/lib/search-ranking";
+import {
+  rankPosts,
+  rankProjects,
+  selectVisibleTags,
+  sortAlphabeticallyPtBr,
+} from "@/lib/search-ranking";
 import { buildTranslationMap, translateTag } from "@/lib/project-taxonomy";
 import { useDynamicSynopsisClamp } from "@/hooks/use-dynamic-synopsis-clamp";
+import { useGlobalShortcuts } from "@/hooks/use-global-shortcuts";
+import { isEditableShortcutTarget } from "@/lib/keyboard-shortcuts";
 import { sanitizePublicHref } from "@/lib/url-safety";
+import { uiCopy } from "@/lib/ui-copy";
 
 type DashboardHeaderUser = {
   name?: string;
@@ -39,12 +50,14 @@ type DashboardHeaderUser = {
 
 type DashboardHeaderProps = {
   currentUser?: DashboardHeaderUser | null;
+  dashboardHomeHref?: string;
   menuItems?: DashboardMenuItem[];
   className?: string;
 };
 
 const DashboardHeader = ({
   currentUser,
+  dashboardHomeHref = "/dashboard",
   menuItems = defaultMenuItems,
   className,
 }: DashboardHeaderProps) => {
@@ -70,6 +83,7 @@ const DashboardHeader = ({
   const [tagTranslations, setTagTranslations] = useState<Record<string, string>>({});
   const tagTranslationMap = useMemo(() => buildTranslationMap(tagTranslations), [tagTranslations]);
   const searchRef = useRef<HTMLDivElement | null>(null);
+  const searchInputRef = useRef<HTMLInputElement | null>(null);
 
   const activeMenuItem = useMemo(() => {
     const exactMatch = menuItems.find((item) => item.href === location.pathname);
@@ -116,7 +130,7 @@ const DashboardHeader = ({
     }
     return currentPath === targetPath || currentPath.startsWith(`${targetPath}/`);
   };
-  const userName = currentUser?.name || currentUser?.username || "Conta";
+  const userName = currentUser?.name || currentUser?.username || uiCopy.user.account;
   const userInitials = (currentUser?.name || currentUser?.username || "??")
     .split(" ")
     .filter(Boolean)
@@ -189,11 +203,32 @@ const DashboardHeader = ({
     return "line-clamp-4";
   };
 
+  const focusSearchInput = useCallback(() => {
+    window.requestAnimationFrame(() => {
+      searchInputRef.current?.focus();
+    });
+  }, []);
+
+  const openSearchFromShortcut = useCallback(() => {
+    setIsSearchOpen(true);
+    focusSearchInput();
+  }, [focusSearchInput]);
+
+  const resolveDashboardHomeHref = useCallback(() => dashboardHomeHref, [dashboardHomeHref]);
+
+  useGlobalShortcuts({
+    getDashboardHref: resolveDashboardHomeHref,
+    onOpenSearch: openSearchFromShortcut,
+  });
+
   useEffect(() => {
     if (!location.pathname.startsWith("/dashboard")) {
       return;
     }
     const handler = (event: KeyboardEvent) => {
+      if (isEditableShortcutTarget(event.target)) {
+        return;
+      }
       if ((event.metaKey || event.ctrlKey) && String(event.key || "").toLowerCase() === "k") {
         event.preventDefault();
         setIsCommandPaletteOpen((previous) => !previous);
@@ -257,7 +292,9 @@ const DashboardHeader = ({
   useEffect(() => {
     const loadTranslations = async () => {
       try {
-        const response = await apiFetch(apiBase, "/api/public/tag-translations", { cache: "no-store" });
+        const response = await apiFetch(apiBase, "/api/public/tag-translations", {
+          cache: "no-store",
+        });
         if (!response.ok) {
           return;
         }
@@ -283,8 +320,8 @@ const DashboardHeader = ({
       });
       if (!response.ok) {
         toast({
-          title: "Não foi possível sair",
-          description: "Tente novamente em alguns instantes.",
+          title: uiCopy.feedback.logoutFailedTitle,
+          description: uiCopy.feedback.logoutFailedDescription,
           variant: "destructive",
         });
         return;
@@ -292,7 +329,7 @@ const DashboardHeader = ({
       window.location.href = "/";
     } catch {
       toast({
-        title: "Não foi possível sair",
+        title: uiCopy.feedback.logoutFailedTitle,
         description: "Ocorreu um erro inesperado ao encerrar a sessão.",
         variant: "destructive",
       });
@@ -308,10 +345,7 @@ const DashboardHeader = ({
           ? "0px"
           : "calc(var(--sidebar-offset) - (0.3125rem + min(0.1875rem, max(0rem, calc(var(--sidebar-width-current) - var(--sidebar-width-icon))))))",
       }}
-      className={cn(
-        "fixed left-0 right-0 top-0 z-40 bg-sidebar",
-        className,
-      )}
+      className={cn("fixed left-0 right-0 top-0 z-40 bg-sidebar", className)}
     >
       <div className="relative flex h-19 items-center justify-between gap-2 px-3 sm:px-4 lg:px-6 2xl:px-8">
         <div
@@ -362,9 +396,11 @@ const DashboardHeader = ({
             </span>
           </Link>
           <div className="min-w-0 hidden lg:block">
-            <p className="text-[10px] uppercase tracking-[0.28em] text-muted-foreground">Painel interno</p>
+            <p className="text-[10px] uppercase tracking-[0.28em] text-muted-foreground">
+              {uiCopy.dashboard.internal}
+            </p>
             <p className="truncate text-sm font-semibold text-foreground">
-              {activeMenuItem?.label || "Dashboard"}
+              {activeMenuItem?.label || uiCopy.dashboard.home}
             </p>
           </div>
         </div>
@@ -375,7 +411,9 @@ const DashboardHeader = ({
               const isInternal = isInternalHref(item.href);
               const isActive = isNavbarLinkActive(item.href);
               const className = `transition-colors ${
-                isActive ? "text-foreground font-semibold" : "text-foreground/80 hover:text-foreground"
+                isActive
+                  ? "text-foreground font-semibold"
+                  : "text-foreground/80 hover:text-foreground"
               }`;
               if (isInternal) {
                 return (
@@ -409,14 +447,16 @@ const DashboardHeader = ({
           >
             <div
               className={`flex h-10 items-center gap-2 rounded-full transition-all duration-300 ${
-                isSearchOpen ? "w-full bg-secondary/70 pl-3 pr-2 xl:w-52 2xl:w-64" : "w-10 justify-center"
+                isSearchOpen
+                  ? "w-full bg-secondary/70 pl-3 pr-2 xl:w-52 2xl:w-64"
+                  : "w-10 justify-center"
               }`}
             >
               <Button
                 type="button"
                 variant="ghost"
                 size="icon"
-                aria-label="Abrir pesquisa"
+                aria-label={uiCopy.search.openAriaLabel}
                 onClick={() => setIsSearchOpen((prev) => !prev)}
                 className={cn(
                   "shrink-0 rounded-full text-foreground/80 hover:text-foreground",
@@ -440,9 +480,10 @@ const DashboardHeader = ({
               {isSearchOpen && (
                 <input
                   autoFocus
+                  ref={searchInputRef}
                   value={query}
                   onChange={(event) => setQuery(event.target.value)}
-                  placeholder="Pesquisar projetos e posts"
+                  placeholder={uiCopy.search.inputPlaceholder}
                   className="w-full bg-transparent text-sm text-foreground outline-hidden placeholder:text-muted-foreground"
                 />
               )}
@@ -476,8 +517,15 @@ const DashboardHeader = ({
                                 className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
                               />
                             </div>
-                            <div data-synopsis-role="column" data-synopsis-key={item.href} className="min-w-0 h-full flex flex-col">
-                              <p data-synopsis-role="title" className="line-clamp-1 shrink-0 text-sm font-semibold text-foreground group-hover:text-primary">
+                            <div
+                              data-synopsis-role="column"
+                              data-synopsis-key={item.href}
+                              className="min-w-0 h-full flex flex-col"
+                            >
+                              <p
+                                data-synopsis-role="title"
+                                className="line-clamp-1 shrink-0 text-sm font-semibold text-foreground group-hover:text-primary"
+                              >
                                 {item.label}
                               </p>
                               <p
@@ -490,9 +538,16 @@ const DashboardHeader = ({
                                 {item.synopsis}
                               </p>
                               {item.tags.length > 0 && (
-                                <div data-synopsis-role="badges" className="mt-auto pt-2 flex min-w-0 flex-wrap gap-1.5">
+                                <div
+                                  data-synopsis-role="badges"
+                                  className="mt-auto pt-2 flex min-w-0 flex-wrap gap-1.5"
+                                >
                                   {item.tags.map((tag) => (
-                                    <Badge key={tag} variant="secondary" className="text-[9px] uppercase whitespace-nowrap">
+                                    <Badge
+                                      key={tag}
+                                      variant="secondary"
+                                      className="text-[9px] uppercase whitespace-nowrap"
+                                    >
                                       {tag}
                                     </Badge>
                                   ))}
@@ -527,9 +582,7 @@ const DashboardHeader = ({
                 )}
 
                 {!hasResults && (
-                  <p className="text-sm text-muted-foreground">
-                    Nenhum resultado encontrado para a sua pesquisa.
-                  </p>
+                  <p className="text-sm text-muted-foreground">{uiCopy.search.noResults}</p>
                 )}
               </div>
             )}
@@ -551,7 +604,9 @@ const DashboardHeader = ({
               onClick={() => setIsCommandPaletteOpen(true)}
             >
               <span>Comandos</span>
-              <span className="rounded-md border border-border/70 px-1.5 py-0.5 text-[10px]">Ctrl/Cmd+K</span>
+              <span className="rounded-md border border-border/70 px-1.5 py-0.5 text-[10px]">
+                Ctrl/Cmd+K
+              </span>
             </Button>
 
             <DashboardNotificationsPopover
@@ -576,14 +631,23 @@ const DashboardHeader = ({
                 {navbarLinks.map((item) => {
                   const ItemIcon = getNavbarIcon(item.icon);
                   return (
-                    <DropdownMenuItem key={`${item.label}-${item.href}`} asChild className={headerMenuItemClass}>
+                    <DropdownMenuItem
+                      key={`${item.label}-${item.href}`}
+                      asChild
+                      className={headerMenuItemClass}
+                    >
                       {isInternalHref(item.href) ? (
                         <Link to={item.href} className="flex items-center gap-2">
                           <ItemIcon className="h-4 w-4" />
                           {item.label}
                         </Link>
                       ) : (
-                        <a href={item.href} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2">
+                        <a
+                          href={item.href}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-2"
+                        >
                           <ItemIcon className="h-4 w-4" />
                           {item.label}
                         </a>
@@ -601,8 +665,12 @@ const DashboardHeader = ({
                   className="h-10 rounded-full border border-border/60 bg-card/50 px-2 text-foreground hover:bg-accent"
                 >
                   <Avatar className="h-8 w-8 border border-border/70">
-                    {currentUser?.avatarUrl ? <AvatarImage src={currentUser.avatarUrl} alt={userName} /> : null}
-                    <AvatarFallback className="bg-card/80 text-xs text-foreground">{userInitials}</AvatarFallback>
+                    {currentUser?.avatarUrl ? (
+                      <AvatarImage src={currentUser.avatarUrl} alt={userName} />
+                    ) : null}
+                    <AvatarFallback className="bg-card/80 text-xs text-foreground">
+                      {userInitials}
+                    </AvatarFallback>
                   </Avatar>
                   <span className="hidden max-w-40 truncate text-sm font-medium text-foreground xl:inline">
                     {userName}
@@ -618,7 +686,11 @@ const DashboardHeader = ({
                   .map((item) => {
                     const ItemIcon = item.icon;
                     return (
-                      <DropdownMenuItem key={item.href} asChild className="focus:bg-accent focus:text-accent-foreground">
+                      <DropdownMenuItem
+                        key={item.href}
+                        asChild
+                        className="focus:bg-accent focus:text-accent-foreground"
+                      >
                         <Link to={item.href} className="flex items-center gap-2">
                           <ItemIcon className="h-4 w-4" />
                           {item.label}
@@ -633,7 +705,7 @@ const DashboardHeader = ({
                   className="focus:bg-accent focus:text-accent-foreground"
                 >
                   <LogOut className="h-4 w-4" />
-                  {isLoggingOut ? "Saindo..." : "Sair"}
+                  {isLoggingOut ? uiCopy.actions.loggingOut : uiCopy.actions.logout}
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>

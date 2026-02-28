@@ -86,7 +86,9 @@ const DashboardSecurity = () => {
     try {
       const [meRes, sessionsRes] = await Promise.all([
         apiFetch(apiBase, "/api/me", { auth: true }),
-        apiFetch(apiBase, "/api/admin/sessions/active?page=" + page + "&limit=" + limit, { auth: true }),
+        apiFetch(apiBase, "/api/admin/sessions/active?page=" + page + "&limit=" + limit, {
+          auth: true,
+        }),
       ]);
 
       if (!meRes.ok) {
@@ -218,7 +220,12 @@ const DashboardSecurity = () => {
                 </Badge>
               </div>
               <div className="flex items-center gap-2">
-                <Button size="sm" variant="outline" onClick={() => void load()} disabled={isLoading}>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => void load()}
+                  disabled={isLoading}
+                >
                   Atualizar
                 </Button>
                 {hasPrevious ? (
@@ -245,7 +252,7 @@ const DashboardSecurity = () => {
             </div>
 
             {isLoading ? (
-              <p className="text-sm text-muted-foreground">Carregando sessoes...</p>
+              <p className="text-sm text-muted-foreground">Carregando sessões...</p>
             ) : hasLoadError ? (
               <p className="text-sm text-amber-300">
                 Nao foi possivel carregar a lista de sessoes ativas.
@@ -280,7 +287,9 @@ const DashboardSecurity = () => {
                       </div>
                       <div className="flex flex-wrap gap-2">
                         {session.currentForViewer ? (
-                          <Badge className="bg-emerald-500/20 text-emerald-200">Sua sessao atual</Badge>
+                          <Badge className="bg-emerald-500/20 text-emerald-200">
+                            Sua sessao atual
+                          </Badge>
                         ) : null}
                         {session.isPendingMfa ? (
                           <Badge className="bg-amber-500/20 text-amber-200">Pendente MFA</Badge>
@@ -322,7 +331,8 @@ const DashboardSecurity = () => {
           <AlertDialogHeader>
             <AlertDialogTitle>Encerrar sessao ativa?</AlertDialogTitle>
             <AlertDialogDescription>
-              Esta acao encerra a sessao de {pendingRevokeSession?.userName || pendingRevokeSession?.userId || "-"}.
+              Esta acao encerra a sessao de{" "}
+              {pendingRevokeSession?.userName || pendingRevokeSession?.userId || "-"}.
               <br />
               IP: {pendingRevokeSession?.lastIp || "-"}
               <br />

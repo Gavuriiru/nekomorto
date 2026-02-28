@@ -1,12 +1,4 @@
-﻿import {
-  Suspense,
-  lazy,
-  useCallback,
-  useEffect,
-  useMemo,
-  useState,
-  type DragEvent,
-} from "react";
+﻿import { Suspense, lazy, useCallback, useEffect, useMemo, useState, type DragEvent } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import QRCode from "qrcode";
 import DashboardShell from "@/components/DashboardShell";
@@ -128,7 +120,9 @@ const DashboardAvatar = ({
   }
 
   return (
-    <div className={`${sizeClassName} ${frameClassName} relative shrink-0 overflow-hidden rounded-full`}>
+    <div
+      className={`${sizeClassName} ${frameClassName} relative shrink-0 overflow-hidden rounded-full`}
+    >
       <img
         src={String(avatarUrl)}
         alt={name}
@@ -160,11 +154,11 @@ const permissionOptions: Array<{ id: (typeof permissionIds)[number]; label: stri
   { id: "comentarios", label: "Comentários" },
   { id: "paginas", label: "Páginas" },
   { id: "uploads", label: "Uploads" },
-  { id: "analytics", label: "Analytics" },
+  { id: "analytics", label: "Análises" },
   { id: "usuarios_basico", label: "Usuários (básico)" },
   { id: "usuarios_acesso", label: "Usuários (acesso)" },
   { id: "configuracoes", label: "Configurações" },
-  { id: "audit_log", label: "Audit Log" },
+  { id: "audit_log", label: "Auditoria" },
   { id: "integracoes", label: "Integrações" },
 ];
 
@@ -267,7 +261,9 @@ const didUserOrderChange = (before: UserRecord[], after: UserRecord[]) => {
   if (beforeBuckets.retiredIds.length !== afterBuckets.retiredIds.length) {
     return true;
   }
-  const activeChanged = beforeBuckets.activeIds.some((id, index) => id !== afterBuckets.activeIds[index]);
+  const activeChanged = beforeBuckets.activeIds.some(
+    (id, index) => id !== afterBuckets.activeIds[index],
+  );
   if (activeChanged) {
     return true;
   }
@@ -347,7 +343,9 @@ const DashboardUsers = () => {
   const [deleteTarget, setDeleteTarget] = useState<UserRecord | null>(null);
   const [isLibraryOpen, setIsLibraryOpen] = useState(false);
   const [avatarCacheVersion, setAvatarCacheVersion] = useState(0);
-  const [linkTypes, setLinkTypes] = useState<Array<{ id: string; label: string; icon: string }>>([]);
+  const [linkTypes, setLinkTypes] = useState<Array<{ id: string; label: string; icon: string }>>(
+    [],
+  );
   const [securitySummary, setSecuritySummary] = useState<SecuritySummary | null>(null);
   const [securitySessions, setSecuritySessions] = useState<SecuritySessionRow[]>([]);
   const [isLoadingSecurity, setIsLoadingSecurity] = useState(false);
@@ -413,12 +411,15 @@ const DashboardUsers = () => {
   const canManageUsers =
     actorCanUsersAccess && (isPrimaryOwnerActor || isSecondaryOwnerActor || isAdminActor);
   const canManageOwners = isPrimaryOwnerActor;
-  const isOwnerUser = useCallback((user: UserRecord | null | undefined) => {
-    if (!user) {
-      return false;
-    }
-    return ownerIds.includes(user.id);
-  }, [ownerIds]);
+  const isOwnerUser = useCallback(
+    (user: UserRecord | null | undefined) => {
+      if (!user) {
+        return false;
+      }
+      return ownerIds.includes(user.id);
+    },
+    [ownerIds],
+  );
   const currentUserRecord = currentUser
     ? users.find((user) => user.id === currentUser.id) || null
     : null;
@@ -452,36 +453,36 @@ const DashboardUsers = () => {
       avatarUrl: url,
     }));
   }, []);
-  const openEditDialog = useCallback((user: UserRecord) => {
-    const normalizedPermissions = Array.from(
-      new Set(
-        (Array.isArray(user.permissions) ? user.permissions : [])
-          .map((permission) => String(permission || "").trim())
-          .filter((permission) => permissionOptions.some((option) => option.id === permission)),
-      ),
-    ) as Array<(typeof permissionIds)[number]>;
-    const normalizedRoles = stripOwnerRole(Array.isArray(user.roles) ? user.roles : []);
-    const userAccessRole = resolveUserAccessRole(user);
-    setEditingUser(user);
-    setFormState({
-      id: user.id,
-      name: user.name,
-      phrase: user.phrase,
-      bio: user.bio,
-      avatarUrl: user.avatarUrl || "",
-      socials: user.socials ? [...user.socials] : [],
-      status: user.status,
-      accessRole:
-        userAccessRole === "admin"
-          ? "admin"
-          : "normal",
-      permissions: normalizedPermissions,
-      roles: normalizedRoles ? [...normalizedRoles] : [],
-    });
-    setOwnerToggle(isOwnerUser(user));
-    clearSocialDragState();
-    setIsDialogOpen(true);
-  }, [clearSocialDragState, isOwnerUser, resolveUserAccessRole]);
+  const openEditDialog = useCallback(
+    (user: UserRecord) => {
+      const normalizedPermissions = Array.from(
+        new Set(
+          (Array.isArray(user.permissions) ? user.permissions : [])
+            .map((permission) => String(permission || "").trim())
+            .filter((permission) => permissionOptions.some((option) => option.id === permission)),
+        ),
+      ) as Array<(typeof permissionIds)[number]>;
+      const normalizedRoles = stripOwnerRole(Array.isArray(user.roles) ? user.roles : []);
+      const userAccessRole = resolveUserAccessRole(user);
+      setEditingUser(user);
+      setFormState({
+        id: user.id,
+        name: user.name,
+        phrase: user.phrase,
+        bio: user.bio,
+        avatarUrl: user.avatarUrl || "",
+        socials: user.socials ? [...user.socials] : [],
+        status: user.status,
+        accessRole: userAccessRole === "admin" ? "admin" : "normal",
+        permissions: normalizedPermissions,
+        roles: normalizedRoles ? [...normalizedRoles] : [],
+      });
+      setOwnerToggle(isOwnerUser(user));
+      clearSocialDragState();
+      setIsDialogOpen(true);
+    },
+    [clearSocialDragState, isOwnerUser, resolveUserAccessRole],
+  );
 
   const activeUsers = useMemo(
     () => users.filter((user) => user.status === "active").sort((a, b) => a.order - b.order),
@@ -505,15 +506,21 @@ const DashboardUsers = () => {
     ? canCreateUsers
     : isEditingSelf ||
       (actorCanUsersBasic &&
-        (isPrimaryOwnerActor || (isSecondaryOwnerActor && !isOwnerRecord) || (isAdminActor && !isOwnerRecord)));
+        (isPrimaryOwnerActor ||
+          (isSecondaryOwnerActor && !isOwnerRecord) ||
+          (isAdminActor && !isOwnerRecord)));
   const canEditRoles = !editingUser
     ? canCreateUsers
     : actorCanUsersAccess &&
-      (isPrimaryOwnerActor || (isSecondaryOwnerActor && !isOwnerRecord) || (isAdminActor && !isOwnerRecord));
+      (isPrimaryOwnerActor ||
+        (isSecondaryOwnerActor && !isOwnerRecord) ||
+        (isAdminActor && !isOwnerRecord));
   const canEditAccessControls = !editingUser
     ? canCreateUsers
     : actorCanUsersAccess &&
-      (isPrimaryOwnerActor || (isSecondaryOwnerActor && !isOwnerRecord) || (isAdminActor && !isOwnerRecord));
+      (isPrimaryOwnerActor ||
+        (isSecondaryOwnerActor && !isOwnerRecord) ||
+        (isAdminActor && !isOwnerRecord));
   const canEditStatus = canEditAccessControls && !isEditingSelf && !isPrimaryOwnerRecord;
   const basicProfileOnlyEdit = Boolean(editingUser && canEditBasicFields && !canEditAccessControls);
 
@@ -710,7 +717,11 @@ const DashboardUsers = () => {
     const enrollmentToken = String(body.enrollmentToken || body.token || "").trim();
     if (!enrollmentToken) {
       setSecurityEnrollment(null);
-      toast({ title: "Falha ao iniciar 2FA", description: "Token de ativacao ausente.", variant: "destructive" });
+      toast({
+        title: "Falha ao iniciar 2FA",
+        description: "Token de ativacao ausente.",
+        variant: "destructive",
+      });
       return;
     }
     setSecurityEnrollment({
@@ -948,7 +959,9 @@ const DashboardUsers = () => {
             }
           } else {
             toast({
-              title: shouldKeepOwner ? "Não foi possível promover para dono" : "Não foi possível rebaixar o dono",
+              title: shouldKeepOwner
+                ? "Não foi possível promover para dono"
+                : "Não foi possível rebaixar o dono",
               variant: "destructive",
             });
           }
@@ -1181,16 +1194,20 @@ const DashboardUsers = () => {
       <DashboardShell
         currentUser={currentUser}
         isLoadingUser={isLoading}
-        onUserCardClick={currentUserRecord ? () => handleUserCardClick(currentUserRecord) : undefined}
+        onUserCardClick={
+          currentUserRecord ? () => handleUserCardClick(currentUserRecord) : undefined
+        }
       >
-      <main className="pt-24">
+        <main className="pt-24">
           <section className="mx-auto w-full max-w-6xl px-6 pb-20 md:px-10">
             <header className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
               <div>
                 <div className="inline-flex items-center gap-3 rounded-full border border-border/60 bg-card/60 px-4 py-2 text-xs uppercase tracking-[0.3em] text-muted-foreground animate-fade-in">
                   Usuários
                 </div>
-                <h1 className="mt-4 text-3xl font-semibold lg:text-4xl animate-slide-up">Gestão de Usuários</h1>
+                <h1 className="mt-4 text-3xl font-semibold lg:text-4xl animate-slide-up">
+                  Gestão de Usuários
+                </h1>
                 <p
                   className="mt-2 text-sm text-muted-foreground animate-slide-up opacity-0"
                   style={{ animationDelay: "0.2s" }}
@@ -1199,14 +1216,16 @@ const DashboardUsers = () => {
                 </p>
               </div>
               {canManageUsers && (
-                <Button className="bg-primary text-primary-foreground hover:bg-primary/90" onClick={openNewDialog}>
+                <Button
+                  className="bg-primary text-primary-foreground hover:bg-primary/90"
+                  onClick={openNewDialog}
+                >
                   Adicionar usuário
                 </Button>
               )}
             </header>
 
             <div className="mt-10">
-
               <div className="flex items-center justify-between">
                 <h2 className="text-lg font-semibold">Usuários ativos</h2>
                 <Badge className="bg-card/80 text-muted-foreground">{activeUsers.length}</Badge>
@@ -1215,7 +1234,7 @@ const DashboardUsers = () => {
               {isLoading ? (
                 <AsyncState
                   kind="loading"
-                  title="Carregando usuarios"
+                  title="Carregando usuários"
                   description="Buscando membros e permissoes."
                   className="mt-6"
                 />
@@ -1223,10 +1242,13 @@ const DashboardUsers = () => {
                 <AsyncState
                   kind="error"
                   title="Não foi possível carregar os usuários"
-                  description="Tente novamente em instantes."
+                  description="Tente novamente em alguns instantes."
                   className="mt-6"
                   action={
-                    <Button variant="outline" onClick={() => setLoadVersion((previous) => previous + 1)}>
+                    <Button
+                      variant="outline"
+                      onClick={() => setLoadVersion((previous) => previous + 1)}
+                    >
                       Tentar novamente
                     </Button>
                   }
@@ -1244,92 +1266,12 @@ const DashboardUsers = () => {
                     const isLoneLastActiveCard =
                       activeUsers.length % 2 === 1 && index === activeUsers.length - 1;
                     return (
-                    <div
-                      key={user.id}
-                      className={`relative rounded-2xl border border-border/60 bg-card/60 p-5 transition hover:border-primary/40 hover:bg-primary/5 animate-slide-up opacity-0 ${
-                        isLoneLastActiveCard ? "md:col-span-2 md:mx-auto md:w-[calc(50%-0.5rem)]" : ""
-                      }`}
-                      style={{ animationDelay: `${index * 60}ms` }}
-                      draggable={canManageUsers}
-                      onDragStart={() => {
-                        setDragUsersSnapshot((prev) =>
-                          prev ? prev : users.map((userItem) => ({ ...userItem })),
-                        );
-                        setDragId(user.id);
-                        setDragGroup("active");
-                      }}
-                      onDragOver={(event) => handleDragOverActive(event, user.id)}
-                      onDragEnd={handleDragEnd}
-                      onClick={() => handleUserCardClick(user)}
-                      role="button"
-                      tabIndex={0}
-                      onKeyDown={(event) => {
-                        if (event.key === "Enter" || event.key === " ") {
-                          event.preventDefault();
-                          handleUserCardClick(user);
-                        }
-                      }}
-                    >
-                        <div className="flex items-start justify-between gap-4">
-                          <div className="flex gap-4">
-                            <DashboardAvatar
-                              avatarUrl={toAvatarRenderUrl(user.avatarUrl)}
-                              name={user.name}
-                              sizeClassName="h-14 w-14"
-                              frameClassName="border border-border/60 bg-card/60"
-                              fallbackClassName="flex h-14 w-14 items-center justify-center rounded-full border border-border/60 bg-card/80 text-sm text-foreground"
-                              fallbackText={user.name.slice(0, 2).toUpperCase()}
-                            />
-                            <div>
-                            <div className="flex items-center gap-2">
-                              <h3 className="text-lg font-semibold">{user.name}</h3>
-                              {ownerIds.includes(user.id) && (
-                                <Badge className="bg-primary/20 text-primary">Dono</Badge>
-                              )}
-                              {!ownerIds.includes(user.id) && isAdminRecord(user) && (
-                                <Badge className="bg-card/80 text-muted-foreground">Administrador</Badge>
-                              )}
-                            </div>
-                            <p className="text-sm text-muted-foreground">{user.phrase || "-"}</p>
-                            <p className="mt-2 text-xs text-muted-foreground line-clamp-2">
-                              {user.bio || "Sem biografia cadastrada."}
-                            </p>
-                            {user.roles && user.roles.length > 0 && (
-                              <div className="mt-3 flex flex-wrap gap-2">
-                                {(ownerIds.includes(user.id)
-                                  ? user.roles
-                                  : stripOwnerRole(user.roles)
-                                ).map((role) => (
-                                  <Badge key={role} variant="secondary" className="text-[10px] uppercase">
-                                    {role}
-                                  </Badge>
-                                ))}
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                  })}
-                </div>
-              )}
-
-              {retiredUsers.length > 0 && (
-                <div className="mt-12">
-                  <div className="flex items-center justify-between">
-                    <h2 className="text-lg font-semibold">Usuários aposentados</h2>
-                    <Badge className="bg-card/80 text-muted-foreground">{retiredUsers.length}</Badge>
-                  </div>
-                  <div className="mt-6 grid gap-4 md:grid-cols-2">
-                    {retiredUsers.map((user, index) => {
-                      const isLoneLastRetiredCard =
-                        retiredUsers.length % 2 === 1 && index === retiredUsers.length - 1;
-                      return (
                       <div
                         key={user.id}
-                        className={`rounded-2xl border border-border/60 bg-card/60 p-5 animate-slide-up opacity-0 ${
-                          isLoneLastRetiredCard ? "md:col-span-2 md:mx-auto md:w-[calc(50%-0.5rem)]" : ""
+                        className={`relative rounded-2xl border border-border/60 bg-card/60 p-5 transition hover:border-primary/40 hover:bg-primary/5 animate-slide-up opacity-0 ${
+                          isLoneLastActiveCard
+                            ? "md:col-span-2 md:mx-auto md:w-[calc(50%-0.5rem)]"
+                            : ""
                         }`}
                         style={{ animationDelay: `${index * 60}ms` }}
                         draggable={canManageUsers}
@@ -1338,9 +1280,9 @@ const DashboardUsers = () => {
                             prev ? prev : users.map((userItem) => ({ ...userItem })),
                           );
                           setDragId(user.id);
-                          setDragGroup("retired");
+                          setDragGroup("active");
                         }}
-                        onDragOver={(event) => handleDragOverRetired(event, user.id)}
+                        onDragOver={(event) => handleDragOverActive(event, user.id)}
                         onDragEnd={handleDragEnd}
                         onClick={() => handleUserCardClick(user)}
                         role="button"
@@ -1365,9 +1307,13 @@ const DashboardUsers = () => {
                             <div>
                               <div className="flex items-center gap-2">
                                 <h3 className="text-lg font-semibold">{user.name}</h3>
-                                <Badge className="bg-card/80 text-muted-foreground">Aposentado</Badge>
-                                {isAdminRecord(user) && (
-                                  <Badge className="bg-card/80 text-muted-foreground">Administrador</Badge>
+                                {ownerIds.includes(user.id) && (
+                                  <Badge className="bg-primary/20 text-primary">Dono</Badge>
+                                )}
+                                {!ownerIds.includes(user.id) && isAdminRecord(user) && (
+                                  <Badge className="bg-card/80 text-muted-foreground">
+                                    Administrador
+                                  </Badge>
                                 )}
                               </div>
                               <p className="text-sm text-muted-foreground">{user.phrase || "-"}</p>
@@ -1380,7 +1326,11 @@ const DashboardUsers = () => {
                                     ? user.roles
                                     : stripOwnerRole(user.roles)
                                   ).map((role) => (
-                                    <Badge key={role} variant="secondary" className="text-[10px] uppercase">
+                                    <Badge
+                                      key={role}
+                                      variant="secondary"
+                                      className="text-[10px] uppercase"
+                                    >
                                       {role}
                                     </Badge>
                                   ))}
@@ -1391,6 +1341,100 @@ const DashboardUsers = () => {
                         </div>
                       </div>
                     );
+                  })}
+                </div>
+              )}
+
+              {retiredUsers.length > 0 && (
+                <div className="mt-12">
+                  <div className="flex items-center justify-between">
+                    <h2 className="text-lg font-semibold">Usuários aposentados</h2>
+                    <Badge className="bg-card/80 text-muted-foreground">
+                      {retiredUsers.length}
+                    </Badge>
+                  </div>
+                  <div className="mt-6 grid gap-4 md:grid-cols-2">
+                    {retiredUsers.map((user, index) => {
+                      const isLoneLastRetiredCard =
+                        retiredUsers.length % 2 === 1 && index === retiredUsers.length - 1;
+                      return (
+                        <div
+                          key={user.id}
+                          className={`rounded-2xl border border-border/60 bg-card/60 p-5 animate-slide-up opacity-0 ${
+                            isLoneLastRetiredCard
+                              ? "md:col-span-2 md:mx-auto md:w-[calc(50%-0.5rem)]"
+                              : ""
+                          }`}
+                          style={{ animationDelay: `${index * 60}ms` }}
+                          draggable={canManageUsers}
+                          onDragStart={() => {
+                            setDragUsersSnapshot((prev) =>
+                              prev ? prev : users.map((userItem) => ({ ...userItem })),
+                            );
+                            setDragId(user.id);
+                            setDragGroup("retired");
+                          }}
+                          onDragOver={(event) => handleDragOverRetired(event, user.id)}
+                          onDragEnd={handleDragEnd}
+                          onClick={() => handleUserCardClick(user)}
+                          role="button"
+                          tabIndex={0}
+                          onKeyDown={(event) => {
+                            if (event.key === "Enter" || event.key === " ") {
+                              event.preventDefault();
+                              handleUserCardClick(user);
+                            }
+                          }}
+                        >
+                          <div className="flex items-start justify-between gap-4">
+                            <div className="flex gap-4">
+                              <DashboardAvatar
+                                avatarUrl={toAvatarRenderUrl(user.avatarUrl)}
+                                name={user.name}
+                                sizeClassName="h-14 w-14"
+                                frameClassName="border border-border/60 bg-card/60"
+                                fallbackClassName="flex h-14 w-14 items-center justify-center rounded-full border border-border/60 bg-card/80 text-sm text-foreground"
+                                fallbackText={user.name.slice(0, 2).toUpperCase()}
+                              />
+                              <div>
+                                <div className="flex items-center gap-2">
+                                  <h3 className="text-lg font-semibold">{user.name}</h3>
+                                  <Badge className="bg-card/80 text-muted-foreground">
+                                    Aposentado
+                                  </Badge>
+                                  {isAdminRecord(user) && (
+                                    <Badge className="bg-card/80 text-muted-foreground">
+                                      Administrador
+                                    </Badge>
+                                  )}
+                                </div>
+                                <p className="text-sm text-muted-foreground">
+                                  {user.phrase || "-"}
+                                </p>
+                                <p className="mt-2 text-xs text-muted-foreground line-clamp-2">
+                                  {user.bio || "Sem biografia cadastrada."}
+                                </p>
+                                {user.roles && user.roles.length > 0 && (
+                                  <div className="mt-3 flex flex-wrap gap-2">
+                                    {(ownerIds.includes(user.id)
+                                      ? user.roles
+                                      : stripOwnerRole(user.roles)
+                                    ).map((role) => (
+                                      <Badge
+                                        key={role}
+                                        variant="secondary"
+                                        className="text-[10px] uppercase"
+                                      >
+                                        {role}
+                                      </Badge>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      );
                     })}
                   </div>
                 </div>
@@ -1451,7 +1495,9 @@ const DashboardUsers = () => {
               <Input
                 id="user-name"
                 value={formState.name}
-                onChange={(event) => setFormState((prev) => ({ ...prev, name: event.target.value }))}
+                onChange={(event) =>
+                  setFormState((prev) => ({ ...prev, name: event.target.value }))
+                }
                 placeholder="Nome exibido"
                 disabled={!canEditBasicFields}
               />
@@ -1461,7 +1507,9 @@ const DashboardUsers = () => {
               <Input
                 id="user-phrase"
                 value={formState.phrase}
-                onChange={(event) => setFormState((prev) => ({ ...prev, phrase: event.target.value }))}
+                onChange={(event) =>
+                  setFormState((prev) => ({ ...prev, phrase: event.target.value }))
+                }
                 placeholder="Frase curta"
                 disabled={!canEditBasicFields}
               />
@@ -1516,7 +1564,9 @@ const DashboardUsers = () => {
                     key={`${social.label}-${index}`}
                     data-testid={`user-social-row-${index}`}
                     className={`grid items-center gap-2 rounded-xl border p-2 transition md:grid-cols-[auto_1fr_2fr_auto] ${
-                      socialDragOverIndex === index ? "border-primary/40 bg-primary/5" : "border-transparent"
+                      socialDragOverIndex === index
+                        ? "border-primary/40 bg-primary/5"
+                        : "border-transparent"
                     }`}
                     onDragOver={(event) => handleSocialDragOver(event, index)}
                     onDrop={(event) => handleSocialDrop(event, index)}
@@ -1689,10 +1739,15 @@ const DashboardUsers = () => {
                                 variant="outline"
                                 onClick={async () => {
                                   try {
-                                    await navigator.clipboard.writeText(securityEnrollment.manualSecret);
+                                    await navigator.clipboard.writeText(
+                                      securityEnrollment.manualSecret,
+                                    );
                                     toast({ title: "Segredo copiado" });
                                   } catch {
-                                    toast({ title: "Nao foi possivel copiar", variant: "destructive" });
+                                    toast({
+                                      title: "Nao foi possivel copiar",
+                                      variant: "destructive",
+                                    });
                                   }
                                 }}
                               >
@@ -1703,10 +1758,15 @@ const DashboardUsers = () => {
                                 variant="outline"
                                 onClick={async () => {
                                   try {
-                                    await navigator.clipboard.writeText(securityEnrollment.otpauthUrl);
+                                    await navigator.clipboard.writeText(
+                                      securityEnrollment.otpauthUrl,
+                                    );
                                     toast({ title: "URL OTP copiada" });
                                   } catch {
-                                    toast({ title: "Nao foi possivel copiar", variant: "destructive" });
+                                    toast({
+                                      title: "Nao foi possivel copiar",
+                                      variant: "destructive",
+                                    });
                                   }
                                 }}
                               >
@@ -1724,7 +1784,9 @@ const DashboardUsers = () => {
                             <Button
                               size="sm"
                               onClick={confirmSelfEnrollment}
-                              disabled={!securityEnrollCode.trim() || !securityEnrollment.enrollmentToken}
+                              disabled={
+                                !securityEnrollCode.trim() || !securityEnrollment.enrollmentToken
+                              }
                             >
                               Confirmar ativacao
                             </Button>
@@ -1772,7 +1834,7 @@ const DashboardUsers = () => {
                     </Button>
                   </div>
                   {isLoadingSecurity ? (
-                    <p className="text-xs text-muted-foreground">Carregando sessoes...</p>
+                    <p className="text-xs text-muted-foreground">Carregando sessões...</p>
                   ) : securitySessions.length === 0 ? (
                     <p className="text-xs text-muted-foreground">Nenhuma sessao ativa.</p>
                   ) : (
@@ -1785,13 +1847,17 @@ const DashboardUsers = () => {
                           <div className="space-y-1">
                             <div className="flex flex-wrap items-center gap-2">
                               <p className="text-xs font-medium">
-                                {isCurrentSecuritySession(session) ? "Sessao atual" : "Sessao remota"}
+                                {isCurrentSecuritySession(session)
+                                  ? "Sessao atual"
+                                  : "Sessao remota"}
                               </p>
                               {isCurrentSecuritySession(session) ? (
                                 <Badge className="bg-emerald-500/20 text-emerald-200">Atual</Badge>
                               ) : null}
                               {session.isPendingMfa ? (
-                                <Badge className="bg-amber-500/20 text-amber-200">Pendente MFA</Badge>
+                                <Badge className="bg-amber-500/20 text-amber-200">
+                                  Pendente MFA
+                                </Badge>
                               ) : null}
                             </div>
                             <p className="text-[11px] text-muted-foreground">
@@ -1800,7 +1866,9 @@ const DashboardUsers = () => {
                             <p className="text-[11px] text-muted-foreground">
                               Criada em: {formatSecurityDateTime(session.createdAt)}
                             </p>
-                            <p className="text-[11px] text-muted-foreground">IP: {session.lastIp || "-"}</p>
+                            <p className="text-[11px] text-muted-foreground">
+                              IP: {session.lastIp || "-"}
+                            </p>
                             <p className="max-w-[360px] truncate text-[11px] text-muted-foreground">
                               {session.userAgent || "-"}
                             </p>
@@ -1838,7 +1906,9 @@ const DashboardUsers = () => {
                       key={role}
                       type="button"
                       variant={isSelected ? "default" : "outline"}
-                      className={isSelected ? "bg-primary text-primary-foreground hover:bg-primary/90" : ""}
+                      className={
+                        isSelected ? "bg-primary text-primary-foreground hover:bg-primary/90" : ""
+                      }
                       onClick={() => toggleRole(role)}
                       disabled={!canEditRoles}
                     >
@@ -1899,7 +1969,9 @@ const DashboardUsers = () => {
             </div>
             <div className="grid gap-2">
               <Label>Permissões</Label>
-              {isOwnerRecord && <Badge className="w-fit bg-primary/20 text-primary">Acesso total</Badge>}
+              {isOwnerRecord && (
+                <Badge className="w-fit bg-primary/20 text-primary">Acesso total</Badge>
+              )}
               {!isOwnerRecord && isAdminForm && (
                 <Badge className="w-fit bg-card/80 text-muted-foreground">Administrador</Badge>
               )}
@@ -1911,7 +1983,9 @@ const DashboardUsers = () => {
                       key={permission.id}
                       type="button"
                       variant={isSelected ? "default" : "outline"}
-                      className={isSelected ? "bg-primary text-primary-foreground hover:bg-primary/90" : ""}
+                      className={
+                        isSelected ? "bg-primary text-primary-foreground hover:bg-primary/90" : ""
+                      }
                       onClick={() => togglePermission(permission.id)}
                       disabled={!canEditAccessControls || isOwnerRecord}
                     >
@@ -1984,7 +2058,10 @@ const DashboardUsers = () => {
               <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
                 Cancelar
               </Button>
-              <Button className="bg-primary text-primary-foreground hover:bg-primary/90" onClick={handleSave}>
+              <Button
+                className="bg-primary text-primary-foreground hover:bg-primary/90"
+                onClick={handleSave}
+              >
                 Salvar
               </Button>
             </div>
@@ -2003,7 +2080,9 @@ const DashboardUsers = () => {
           <DialogHeader>
             <DialogTitle>Excluir usuário?</DialogTitle>
             <DialogDescription>
-              {deleteTarget ? `Excluir "${deleteTarget.name}"? Esta ação não pode ser desfeita.` : ""}
+              {deleteTarget
+                ? `Excluir "${deleteTarget.name}"? Esta ação não pode ser desfeita.`
+                : ""}
             </DialogDescription>
           </DialogHeader>
           <div className="flex justify-end gap-3">
@@ -2021,8 +2100,3 @@ const DashboardUsers = () => {
 };
 
 export default DashboardUsers;
-
-
-
-
-

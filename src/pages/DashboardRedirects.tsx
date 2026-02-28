@@ -327,9 +327,12 @@ const DashboardRedirects = () => {
             <AsyncState
               kind="error"
               title="Nao foi possivel carregar redirecionamentos"
-              description="Tente novamente em instantes."
+              description="Tente novamente em alguns instantes."
               action={
-                <Button variant="outline" onClick={() => setLoadVersion((previous) => previous + 1)}>
+                <Button
+                  variant="outline"
+                  onClick={() => setLoadVersion((previous) => previous + 1)}
+                >
                   Tentar novamente
                 </Button>
               }

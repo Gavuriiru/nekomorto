@@ -175,8 +175,8 @@ const setupApiMock = (projects = [projectFixture]) => {
 };
 
 const scrollIntoViewMock = vi.fn();
-const episode1TriggerPattern = /(Epis[oó]dio|EpisÃ³dio)\s+1/i;
-const episode2TriggerPattern = /(Epis[oó]dio|EpisÃ³dio)\s+2/i;
+const episode1TriggerPattern = /(Epis[oó]dio|Episódio)\s+1/i;
+const episode2TriggerPattern = /(Epis[oó]dio|Episódio)\s+2/i;
 
 const openEpisodeEditor = async ({
   projectTitle = "Projeto Teste",
