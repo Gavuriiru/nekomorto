@@ -837,6 +837,10 @@ export const buildEditorialEventContext = ({
   const normalizedOrigin = String(origin || "").replace(/\/+$/, "");
   const resolvedAuthorName = String(safeAuthor.name || safePost.author || "").trim();
   const resolvedAuthorAvatarUrl = String(safeAuthor.avatarUrl || safePost.authorAvatarUrl || "").trim();
+  const chapterCoverImageUrl =
+    String(safeChapter.coverImageUrl || "").trim() ||
+    String(safeProject.heroImageUrl || "").trim() ||
+    "";
 
   return {
     event: {
@@ -912,7 +916,7 @@ export const buildEditorialEventContext = ({
       synopsis: String(safeChapter.synopsis || ""),
       releaseDate: String(safeChapter.releaseDate || ""),
       updatedAt: String(safeChapter.updatedAt || ""),
-      coverImageUrl: String(safeChapter.coverImageUrl || ""),
+      coverImageUrl: chapterCoverImageUrl,
     },
     update: {
       kind: String(safeUpdate.kind || ""),

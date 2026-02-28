@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { dispatchWebhookMessage } from "../../server/lib/webhooks/dispatcher.js";
 import {
+  buildEditorialEventContext,
   buildEditorialMentions,
   migrateEditorialMentionPlaceholdersInSettings,
   normalizeEditorialWebhookSettings,
@@ -248,6 +249,29 @@ describe("webhooks", () => {
     expect(rendered.embed.imageUrl).toBe("https://example.com/banner.jpg");
     expect(rendered.embed.description).toContain("Sinopse do projeto");
     expect(rendered.embed.description).toContain("Sinopse do capítulo");
+  });
+
+  it("aplica fallback de chapter.coverImageUrl para project.heroImageUrl no contexto", () => {
+    const withChapterCover = buildEditorialEventContext({
+      origin: "https://example.com",
+      project: { heroImageUrl: "https://example.com/hero.jpg" },
+      chapter: { coverImageUrl: "https://example.com/chapter.jpg" },
+    });
+    expect(withChapterCover.chapter.coverImageUrl).toBe("https://example.com/chapter.jpg");
+
+    const withHeroFallback = buildEditorialEventContext({
+      origin: "https://example.com",
+      project: { heroImageUrl: "https://example.com/hero.jpg" },
+      chapter: { coverImageUrl: "   " },
+    });
+    expect(withHeroFallback.chapter.coverImageUrl).toBe("https://example.com/hero.jpg");
+
+    const withoutSources = buildEditorialEventContext({
+      origin: "https://example.com",
+      project: { heroImageUrl: "" },
+      chapter: { coverImageUrl: "" },
+    });
+    expect(withoutSources.chapter.coverImageUrl).toBe("");
   });
 });
 
