@@ -1,15 +1,25 @@
 import { Link, useNavigate } from "react-router-dom";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import DashboardShell from "@/components/DashboardShell";
 import AsyncState from "@/components/ui/async-state";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import type { Project } from "@/data/projects";
 import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
 import { formatDateTime } from "@/lib/date";
 import { usePageMeta } from "@/hooks/use-page-meta";
 import type { OperationalAlertsResponse } from "@/types/operational-alerts";
+import { ArrowDown, ArrowUp, SlidersHorizontal } from "lucide-react";
+import { toast } from "@/components/ui/use-toast";
 
 type DashboardPost = {
   id: string;
@@ -45,6 +55,104 @@ type AnalyticsTimeseriesResponse = {
   }>;
 };
 
+type DashboardHomeRole = "editor" | "moderador" | "admin";
+type DashboardWidgetId =
+  | "metrics_overview"
+  | "analytics_summary"
+  | "projects_rank"
+  | "recent_posts"
+  | "comments_queue"
+  | "ops_status"
+  | "projects_quick";
+
+const DASHBOARD_WIDGET_LABELS: Record<DashboardWidgetId, string> = {
+  metrics_overview: "Visão de métricas",
+  analytics_summary: "Resumo de analytics",
+  projects_rank: "Ranking de projetos",
+  recent_posts: "Posts recentes",
+  comments_queue: "Fila de comentários",
+  ops_status: "Status operacional",
+  projects_quick: "Acesso rápido a projetos",
+};
+
+const DASHBOARD_WIDGET_IDS: DashboardWidgetId[] = [
+  "metrics_overview",
+  "analytics_summary",
+  "projects_rank",
+  "recent_posts",
+  "comments_queue",
+  "ops_status",
+  "projects_quick",
+];
+
+const DASHBOARD_ROLE_PRESETS: Record<DashboardHomeRole, DashboardWidgetId[]> = {
+  editor: [
+    "analytics_summary",
+    "recent_posts",
+    "projects_rank",
+    "projects_quick",
+    "ops_status",
+  ],
+  moderador: [
+    "comments_queue",
+    "ops_status",
+    "recent_posts",
+    "analytics_summary",
+  ],
+  admin: [
+    "ops_status",
+    "analytics_summary",
+    "comments_queue",
+    "projects_rank",
+    "recent_posts",
+    "metrics_overview",
+  ],
+};
+
+const readGrant = (source: Record<string, unknown>, key: string) => source[key] === true;
+
+const inferDashboardRole = (user: Record<string, unknown> | null): DashboardHomeRole => {
+  const grants =
+    user?.grants && typeof user.grants === "object"
+      ? (user.grants as Record<string, unknown>)
+      : {};
+  const permissions = Array.isArray(user?.permissions)
+    ? user.permissions.map((item) => String(item || "").trim().toLowerCase())
+    : [];
+  const hasPermission = (id: string) =>
+    readGrant(grants, id) || permissions.includes(id) || permissions.includes("*");
+
+  const isAdmin =
+    hasPermission("configuracoes") ||
+    hasPermission("usuarios_acesso") ||
+    hasPermission("audit_log") ||
+    hasPermission("integracoes");
+  if (isAdmin) {
+    return "admin";
+  }
+  const isModerador =
+    hasPermission("comentarios") && !hasPermission("posts") && !hasPermission("projetos");
+  if (isModerador) {
+    return "moderador";
+  }
+  return "editor";
+};
+
+const normalizeDashboardWidgets = (value: unknown): DashboardWidgetId[] => {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  const dedupe = new Set<DashboardWidgetId>();
+  value.forEach((item) => {
+    const normalized = String(item || "").trim() as DashboardWidgetId;
+    if (!DASHBOARD_WIDGET_IDS.includes(normalized)) {
+      return;
+    }
+    dedupe.add(normalized);
+  });
+  return Array.from(dedupe);
+};
+
 const Dashboard = () => {
   usePageMeta({ title: "Dashboard", noIndex: true });
 
@@ -55,8 +163,15 @@ const Dashboard = () => {
     username: string;
     email?: string | null;
     avatarUrl?: string | null;
+    grants?: Partial<Record<string, boolean>>;
+    permissions?: string[];
   } | null>(null);
   const [isLoadingUser, setIsLoadingUser] = useState(true);
+  const [isCustomizeOpen, setIsCustomizeOpen] = useState(false);
+  const [homePreferences, setHomePreferences] = useState<Partial<Record<DashboardHomeRole, DashboardWidgetId[]>>>({});
+  const [allPreferences, setAllPreferences] = useState<Record<string, unknown>>({});
+  const [customDraftWidgets, setCustomDraftWidgets] = useState<DashboardWidgetId[]>([]);
+  const [isSavingPreferences, setIsSavingPreferences] = useState(false);
   const [projects, setProjects] = useState<Project[]>([]);
   const [posts, setPosts] = useState<DashboardPost[]>([]);
   const [recentComments, setRecentComments] = useState<DashboardComment[]>([]);
@@ -73,6 +188,10 @@ const Dashboard = () => {
   const [operationalAlertsError, setOperationalAlertsError] = useState("");
   const [hideOperationalAlertsCard, setHideOperationalAlertsCard] = useState(false);
   const apiBase = getApiBase();
+  const homeRole = useMemo<DashboardHomeRole>(
+    () => inferDashboardRole((currentUser as Record<string, unknown> | null) || null),
+    [currentUser],
+  );
 
   useEffect(() => {
     const loadUser = async () => {
@@ -92,6 +211,60 @@ const Dashboard = () => {
       }
     };
     void loadUser();
+  }, [apiBase]);
+
+  useEffect(() => {
+    let isActive = true;
+    const loadPreferences = async () => {
+      try {
+        const response = await apiFetch(apiBase, "/api/me/preferences", {
+          auth: true,
+          cache: "no-store",
+        });
+        if (!response.ok) {
+          if (isActive) {
+            setHomePreferences({});
+            setAllPreferences({});
+          }
+          return;
+        }
+        const payload = (await response.json()) as { preferences?: Record<string, unknown> };
+        const preferences =
+          payload?.preferences && typeof payload.preferences === "object" ? payload.preferences : {};
+        const dashboard =
+          preferences.dashboard && typeof preferences.dashboard === "object"
+            ? (preferences.dashboard as Record<string, unknown>)
+            : {};
+        const homeByRole =
+          dashboard.homeByRole && typeof dashboard.homeByRole === "object"
+            ? (dashboard.homeByRole as Record<string, unknown>)
+            : {};
+        const nextHomePrefs: Partial<Record<DashboardHomeRole, DashboardWidgetId[]>> = {
+          editor: normalizeDashboardWidgets(
+            (homeByRole.editor as { widgets?: unknown } | undefined)?.widgets,
+          ),
+          moderador: normalizeDashboardWidgets(
+            (homeByRole.moderador as { widgets?: unknown } | undefined)?.widgets,
+          ),
+          admin: normalizeDashboardWidgets(
+            (homeByRole.admin as { widgets?: unknown } | undefined)?.widgets,
+          ),
+        };
+        if (isActive) {
+          setAllPreferences(preferences);
+          setHomePreferences(nextHomePrefs);
+        }
+      } catch {
+        if (isActive) {
+          setHomePreferences({});
+          setAllPreferences({});
+        }
+      }
+    };
+    void loadPreferences();
+    return () => {
+      isActive = false;
+    };
   }, [apiBase]);
 
   useEffect(() => {
@@ -278,7 +451,6 @@ const Dashboard = () => {
   const totalProjectViewsLast7 = analyticsProjectViews7d;
   const totalPostViewsLast7 = analyticsPostViews7d;
   const totalViewsLast7 = analyticsTotalViews7d;
-  const pendingPostsCount = posts.filter((post) => post.status !== "published").length;
   const analyticsAllHref = "/dashboard/analytics?range=30d&type=all";
   const analyticsProjectHref = "/dashboard/analytics?range=30d&type=project";
   const analyticsPostHref = "/dashboard/analytics?range=30d&type=post";
@@ -339,6 +511,124 @@ const Dashboard = () => {
     if (severity === "warning") return "bg-amber-500/20 text-amber-200";
     return "bg-card/80 text-muted-foreground";
   };
+  const rolePresetWidgets = DASHBOARD_ROLE_PRESETS[homeRole];
+  const selectedWidgetsByRole = useMemo(
+    () =>
+      homePreferences[homeRole] && homePreferences[homeRole]!.length > 0
+        ? homePreferences[homeRole]!
+        : rolePresetWidgets,
+    [homePreferences, homeRole, rolePresetWidgets],
+  );
+  const selectedWidgetSet = useMemo(
+    () => new Set<DashboardWidgetId>(selectedWidgetsByRole),
+    [selectedWidgetsByRole],
+  );
+
+  useEffect(() => {
+    if (!isCustomizeOpen) {
+      return;
+    }
+    setCustomDraftWidgets(selectedWidgetsByRole);
+  }, [isCustomizeOpen, selectedWidgetsByRole]);
+
+  const persistHomeWidgetsByRole = useCallback(
+    async (role: DashboardHomeRole, widgets: DashboardWidgetId[]) => {
+      const normalizedWidgets = normalizeDashboardWidgets(widgets);
+      const dashboard =
+        allPreferences.dashboard && typeof allPreferences.dashboard === "object"
+          ? (allPreferences.dashboard as Record<string, unknown>)
+          : {};
+      const homeByRole =
+        dashboard.homeByRole && typeof dashboard.homeByRole === "object"
+          ? (dashboard.homeByRole as Record<string, unknown>)
+          : {};
+      const nextPreferences = {
+        ...allPreferences,
+        dashboard: {
+          ...dashboard,
+          homeByRole: {
+            ...homeByRole,
+            [role]: {
+              widgets: normalizedWidgets,
+            },
+          },
+        },
+      };
+      setIsSavingPreferences(true);
+      try {
+        const response = await apiFetch(apiBase, "/api/me/preferences", {
+          method: "PUT",
+          auth: true,
+          json: { preferences: nextPreferences },
+        });
+        if (!response.ok) {
+          throw new Error("preferences_save_failed");
+        }
+        setAllPreferences(nextPreferences);
+        setHomePreferences((previous) => ({
+          ...previous,
+          [role]: normalizedWidgets,
+        }));
+        toast({
+          title: "Painel personalizado",
+          description: "Preferências do dashboard salvas.",
+          intent: "success",
+        });
+      } catch {
+        toast({
+          title: "Falha ao salvar painel",
+          description: "Tente novamente em alguns instantes.",
+          variant: "destructive",
+        });
+      } finally {
+        setIsSavingPreferences(false);
+      }
+    },
+    [allPreferences, apiBase],
+  );
+
+  const toggleDraftWidget = useCallback((widgetId: DashboardWidgetId) => {
+    setCustomDraftWidgets((previous) => {
+      const hasWidget = previous.includes(widgetId);
+      if (hasWidget) {
+        if (previous.length <= 1) {
+          return previous;
+        }
+        return previous.filter((item) => item !== widgetId);
+      }
+      return [...previous, widgetId];
+    });
+  }, []);
+
+  const moveDraftWidget = useCallback((widgetId: DashboardWidgetId, direction: -1 | 1) => {
+    setCustomDraftWidgets((previous) => {
+      const index = previous.indexOf(widgetId);
+      if (index === -1) {
+        return previous;
+      }
+      const target = index + direction;
+      if (target < 0 || target >= previous.length) {
+        return previous;
+      }
+      const next = [...previous];
+      const [moved] = next.splice(index, 1);
+      next.splice(target, 0, moved);
+      return next;
+    });
+  }, []);
+
+  const applyCustomDraft = useCallback(async () => {
+    if (customDraftWidgets.length === 0) {
+      return;
+    }
+    await persistHomeWidgetsByRole(homeRole, customDraftWidgets);
+    setIsCustomizeOpen(false);
+  }, [customDraftWidgets, homeRole, persistHomeWidgetsByRole]);
+
+  const restoreRolePreset = useCallback(async () => {
+    await persistHomeWidgetsByRole(homeRole, DASHBOARD_ROLE_PRESETS[homeRole]);
+    setCustomDraftWidgets(DASHBOARD_ROLE_PRESETS[homeRole]);
+  }, [homeRole, persistHomeWidgetsByRole]);
 
   const handleExportReport = () => {
     const escapeCsv = (value: string | number | null | undefined) => {
@@ -428,8 +718,15 @@ const Dashboard = () => {
                 comentários estiverem ativas, os dados aparecem aqui automaticamente.
               </p>
             </div>
-            <div className="flex flex-wrap items-center gap-3">
-              <Badge className="bg-card/80 text-muted-foreground">Acesso restrito</Badge>
+            <div className="flex items-center gap-3 overflow-x-auto whitespace-nowrap pb-1">
+              <Button
+                variant="outline"
+                className="border-border/70 bg-card/60 px-4 text-muted-foreground hover:text-foreground"
+                onClick={() => setIsCustomizeOpen(true)}
+              >
+                <SlidersHorizontal className="mr-2 h-4 w-4" />
+                Personalizar painel
+              </Button>
               {currentUser ? (
                 <Button
                   variant="outline"
@@ -470,7 +767,8 @@ const Dashboard = () => {
             />
           ) : (
             <>
-              <div className="mt-10 grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+              {selectedWidgetSet.has("metrics_overview") ? (
+                <div className="mt-10 grid gap-4 md:grid-cols-2 lg:grid-cols-4">
             <div
               className="rounded-2xl border border-border/60 bg-linear-to-br from-card/70 to-background/60 p-5 animate-slide-up opacity-0"
               style={{ animationDelay: "0ms" }}
@@ -503,11 +801,13 @@ const Dashboard = () => {
               <div className="mt-3 text-2xl font-semibold">{finishedProjects}</div>
               <p className="mt-2 text-xs text-muted-foreground">Completo ou lançado.</p>
             </div>
-          </div>
+                </div>
+              ) : null}
 
               <section className="mt-10 grid gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] reveal" data-reveal>
                 <div className="space-y-6">
-              <div
+                  {selectedWidgetSet.has("analytics_summary") ? (
+                    <div
                 className="rounded-3xl border border-border/60 bg-card/60 p-6 shadow-[0_20px_60px_-40px_rgba(0,0,0,0.8)] animate-slide-up opacity-0"
                 style={{ animationDelay: "120ms" }}
               >
@@ -568,9 +868,11 @@ const Dashboard = () => {
                     </div>
                   </div>
                 </div>
-              </div>
+                    </div>
+                  ) : null}
 
-              <div
+                  {selectedWidgetSet.has("projects_rank") ? (
+                    <div
                 className="rounded-3xl border border-border/60 bg-card/60 p-6 animate-slide-up opacity-0"
                 style={{ animationDelay: "200ms" }}
               >
@@ -610,9 +912,11 @@ const Dashboard = () => {
                     Conecte o backend de analytics para ver o ranking de acesso por projeto.
                   </div>
                 )}
-              </div>
+                    </div>
+                  ) : null}
 
-              <div
+                  {selectedWidgetSet.has("recent_posts") ? (
+                    <div
                 className="rounded-3xl border border-border/60 bg-card/60 p-6 animate-slide-up opacity-0"
                 style={{ animationDelay: "280ms" }}
               >
@@ -657,11 +961,12 @@ const Dashboard = () => {
                     ))}
                   </div>
                 )}
-              </div>
+                    </div>
+                  ) : null}
             </div>
 
                 <aside className="space-y-6">
-              {!hideOperationalAlertsCard ? (
+              {selectedWidgetSet.has("ops_status") && !hideOperationalAlertsCard ? (
                 <div
                   className="rounded-3xl border border-border/60 bg-card/60 p-6 animate-slide-up opacity-0"
                   style={{ animationDelay: "320ms" }}
@@ -713,7 +1018,8 @@ const Dashboard = () => {
                   )}
                 </div>
               ) : null}
-              <div
+              {selectedWidgetSet.has("comments_queue") ? (
+                <div
                 className="rounded-3xl border border-border/60 bg-card/60 p-6 animate-slide-up opacity-0"
                 style={{ animationDelay: "360ms" }}
               >
@@ -748,9 +1054,11 @@ const Dashboard = () => {
                     ))}
                   </div>
                 )}
-              </div>
+                </div>
+              ) : null}
 
-              <div
+              {selectedWidgetSet.has("projects_quick") ? (
+                <div
                 className="rounded-3xl border border-border/60 bg-card/60 p-6 overflow-hidden animate-slide-up opacity-0"
                 style={{ animationDelay: "440ms" }}
               >
@@ -776,13 +1084,73 @@ const Dashboard = () => {
                     </Link>
                   )}
                 </div>
-              </div>
+                </div>
+              ) : null}
                 </aside>
               </section>
             </>
           )}
           </section>
         </main>
+      <Dialog open={isCustomizeOpen} onOpenChange={setIsCustomizeOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Personalizar painel</DialogTitle>
+            <DialogDescription>
+              Função atual: <strong>{homeRole}</strong>. Preferências salvas por função.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            {DASHBOARD_WIDGET_IDS.map((widgetId) => {
+              const isSelected = customDraftWidgets.includes(widgetId);
+              const index = customDraftWidgets.indexOf(widgetId);
+              return (
+                <div
+                  key={widgetId}
+                  className="flex items-center justify-between rounded-lg border border-border/70 bg-card/60 px-3 py-2"
+                >
+                  <p className="text-sm">{DASHBOARD_WIDGET_LABELS[widgetId]}</p>
+                  <div className="flex items-center gap-1">
+                    <Button
+                      type="button"
+                      size="icon"
+                      variant="ghost"
+                      onClick={() => moveDraftWidget(widgetId, -1)}
+                      disabled={!isSelected || index <= 0}
+                    >
+                      <ArrowUp className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      type="button"
+                      size="icon"
+                      variant="ghost"
+                      onClick={() => moveDraftWidget(widgetId, 1)}
+                      disabled={!isSelected || index < 0 || index >= customDraftWidgets.length - 1}
+                    >
+                      <ArrowDown className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      type="button"
+                      variant={isSelected ? "default" : "outline"}
+                      onClick={() => toggleDraftWidget(widgetId)}
+                    >
+                      {isSelected ? "Ativo" : "Oculto"}
+                    </Button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          <DialogFooter className="gap-2 sm:justify-between">
+            <Button type="button" variant="outline" onClick={() => void restoreRolePreset()} disabled={isSavingPreferences}>
+              Restaurar padrão da função
+            </Button>
+            <Button type="button" onClick={() => void applyCustomDraft()} disabled={isSavingPreferences || customDraftWidgets.length === 0}>
+              {isSavingPreferences ? "Salvando..." : "Salvar painel"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </DashboardShell>
   );
 };

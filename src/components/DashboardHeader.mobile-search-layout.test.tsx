@@ -95,6 +95,16 @@ const setupApiMock = (options?: { logoutOk?: boolean }) => {
     if (endpoint === "/api/public/tag-translations" && method === "GET") {
       return mockJsonResponse(true, { tags: { acao: "Acao" } });
     }
+    if (endpoint === "/api/dashboard/notifications?limit=30" && method === "GET") {
+      return mockJsonResponse(true, {
+        generatedAt: new Date().toISOString(),
+        items: [],
+        summary: { total: 0, pending: 0, error: 0, approval: 0 },
+      });
+    }
+    if (endpoint === "/api/me/preferences" && method === "GET") {
+      return mockJsonResponse(true, { preferences: {} });
+    }
     if (endpoint === "/api/logout" && method === "POST") {
       return mockJsonResponse(logoutOk, logoutOk ? { ok: true } : { error: "logout_failed" }, logoutOk ? 200 : 500);
     }
@@ -195,7 +205,7 @@ describe("DashboardHeader mobile search layout", () => {
     );
 
     await waitFor(() => {
-      expect(apiFetchMock).toHaveBeenCalledTimes(3);
+      expect(apiFetchMock.mock.calls.length).toBeGreaterThanOrEqual(3);
     });
 
     const aboutLink = screen.getByRole("link", { name: "Sobre" });
@@ -222,7 +232,7 @@ describe("DashboardHeader mobile search layout", () => {
     );
 
     await waitFor(() => {
-      expect(apiFetchMock).toHaveBeenCalledTimes(3);
+      expect(apiFetchMock.mock.calls.length).toBeGreaterThanOrEqual(3);
     });
 
     const profileButton = screen.getByText("Admin").closest("button");
@@ -253,7 +263,7 @@ describe("DashboardHeader mobile search layout", () => {
     );
 
     await waitFor(() => {
-      expect(apiFetchMock).toHaveBeenCalledTimes(3);
+      expect(apiFetchMock.mock.calls.length).toBeGreaterThanOrEqual(3);
     });
     const searchButton = screen.getByRole("button", { name: "Abrir pesquisa" });
     const themeToggle = screen.getByRole("button", { name: /Alternar para tema/i });
@@ -264,4 +274,5 @@ describe("DashboardHeader mobile search layout", () => {
     expect(setThemePreferenceMock).not.toHaveBeenCalled();
   });
 });
+
 

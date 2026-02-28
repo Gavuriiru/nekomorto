@@ -143,6 +143,23 @@ const LocationProbe = () => {
 };
 
 describe("DashboardProjectsEditor edit query", () => {
+  it("abre criacao automaticamente com ?edit=new e limpa a query", async () => {
+    setupApiMock({ canManageProjects: true, projects: [projectFixture] });
+
+    render(
+      <MemoryRouter initialEntries={["/dashboard/projetos?edit=new"]}>
+        <DashboardProjectsEditor />
+        <LocationProbe />
+      </MemoryRouter>,
+    );
+
+    await screen.findByRole("heading", { name: "Gerenciar projetos" });
+    await screen.findByText("Novo projeto");
+    await waitFor(() => {
+      expect(screen.getByTestId("location-search").textContent).toBe("");
+    });
+  });
+
   it("abre editor automaticamente com ?edit e limpa a query", async () => {
     setupApiMock({ canManageProjects: true, projects: [projectFixture] });
 

@@ -963,16 +963,20 @@ const DashboardPosts = () => {
 
     const nextParams = new URLSearchParams(searchParams);
     nextParams.delete("edit");
-    const target = canManagePosts
-      ? posts.find((post) => post.id === editTarget || post.slug === editTarget) || null
-      : null;
-    if (target) {
-      openEdit(target);
+    if (canManagePosts && editTarget === "new") {
+      openCreate();
+    } else {
+      const target = canManagePosts
+        ? posts.find((post) => post.id === editTarget || post.slug === editTarget) || null
+        : null;
+      if (target) {
+        openEdit(target);
+      }
     }
     if (nextParams.toString() !== searchParams.toString()) {
       setSearchParams(nextParams, { replace: true });
     }
-  }, [canManagePosts, isLoading, openEdit, posts, searchParams, setSearchParams]);
+  }, [canManagePosts, isLoading, openCreate, openEdit, posts, searchParams, setSearchParams]);
 
   const closeEditor = () => {
     setIsEditorOpen(false);

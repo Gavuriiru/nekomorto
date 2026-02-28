@@ -306,7 +306,7 @@ const roleIconRegistry: Record<string, typeof Globe> = {
 const DashboardUsers = () => {
   usePageMeta({ title: "Usuários", noIndex: true });
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const apiBase = getApiBase();
   const { settings } = useSiteSettings();
   const roleOptions = useMemo(() => {
@@ -410,7 +410,8 @@ const DashboardUsers = () => {
   const isAdminActor = actorAccessRole === "admin";
   const actorCanUsersBasic = currentUser?.grants?.usuarios_basico === true;
   const actorCanUsersAccess = currentUser?.grants?.usuarios_acesso === true;
-  const canManageUsers = (isPrimaryOwnerActor || isSecondaryOwnerActor) && actorCanUsersAccess;
+  const canManageUsers =
+    actorCanUsersAccess && (isPrimaryOwnerActor || isSecondaryOwnerActor || isAdminActor);
   const canManageOwners = isPrimaryOwnerActor;
   const isOwnerUser = useCallback((user: UserRecord | null | undefined) => {
     if (!user) {
@@ -507,10 +508,12 @@ const DashboardUsers = () => {
         (isPrimaryOwnerActor || (isSecondaryOwnerActor && !isOwnerRecord) || (isAdminActor && !isOwnerRecord)));
   const canEditRoles = !editingUser
     ? canCreateUsers
-    : actorCanUsersAccess && (isPrimaryOwnerActor || (isSecondaryOwnerActor && !isOwnerRecord));
+    : actorCanUsersAccess &&
+      (isPrimaryOwnerActor || (isSecondaryOwnerActor && !isOwnerRecord) || (isAdminActor && !isOwnerRecord));
   const canEditAccessControls = !editingUser
     ? canCreateUsers
-    : actorCanUsersAccess && (isPrimaryOwnerActor || (isSecondaryOwnerActor && !isOwnerRecord));
+    : actorCanUsersAccess &&
+      (isPrimaryOwnerActor || (isSecondaryOwnerActor && !isOwnerRecord) || (isAdminActor && !isOwnerRecord));
   const canEditStatus = canEditAccessControls && !isEditingSelf && !isPrimaryOwnerRecord;
   const basicProfileOnlyEdit = Boolean(editingUser && canEditBasicFields && !canEditAccessControls);
 
@@ -567,6 +570,26 @@ const DashboardUsers = () => {
     openEditDialog(currentUserRecord);
     navigate("/dashboard/usuarios", { replace: true });
   }, [currentUserRecord, isDialogOpen, navigate, openEditDialog, searchParams]);
+
+  useEffect(() => {
+    const createQuery = String(searchParams.get("create") || "").trim();
+    if (createQuery !== "1") {
+      return;
+    }
+    if (!canCreateUsers || isDialogOpen) {
+      return;
+    }
+    setEditingUser(null);
+    setFormState({ ...emptyForm, accessRole: "normal", permissions: [] });
+    setOwnerToggle(false);
+    clearSocialDragState();
+    setIsDialogOpen(true);
+    const nextParams = new URLSearchParams(searchParams);
+    nextParams.delete("create");
+    if (nextParams.toString() !== searchParams.toString()) {
+      setSearchParams(nextParams, { replace: true });
+    }
+  }, [canCreateUsers, clearSocialDragState, isDialogOpen, searchParams, setSearchParams]);
 
   useEffect(() => {
     if (!showSelfSecuritySection || !editingUser?.id) {

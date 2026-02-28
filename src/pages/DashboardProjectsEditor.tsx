@@ -1624,11 +1624,15 @@ const DashboardProjectsEditor = () => {
 
     const nextParams = new URLSearchParams(searchParams);
     nextParams.delete("edit");
-    const target = canManageProjects
-      ? projects.find((project) => project.id === editTarget) || null
-      : null;
-    if (target) {
-      openEdit(target);
+    if (canManageProjects && editTarget === "new") {
+      openCreate();
+    } else {
+      const target = canManageProjects
+        ? projects.find((project) => project.id === editTarget) || null
+        : null;
+      if (target) {
+        openEdit(target);
+      }
     }
     if (nextParams.toString() !== searchParams.toString()) {
       setSearchParams(nextParams, { replace: true });
@@ -1637,6 +1641,7 @@ const DashboardProjectsEditor = () => {
     canManageProjects,
     hasLoadedCurrentUser,
     isLoading,
+    openCreate,
     openEdit,
     projects,
     searchParams,

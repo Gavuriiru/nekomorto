@@ -168,6 +168,23 @@ const LocationProbe = () => {
 };
 
 describe("DashboardPosts edit query", () => {
+  it("abre criacao automaticamente com ?edit=new e limpa a query", async () => {
+    setupApiMock({ canManagePosts: true });
+
+    render(
+      <MemoryRouter initialEntries={["/dashboard/posts?edit=new"]}>
+        <DashboardPosts />
+        <LocationProbe />
+      </MemoryRouter>,
+    );
+
+    await screen.findByRole("heading", { name: "Gerenciar posts" });
+    await screen.findByText("Nova postagem");
+    await waitFor(() => {
+      expect(screen.getByTestId("location-search").textContent).toBe("");
+    });
+  });
+
   it("abre editor automaticamente com ?edit e limpa a query", async () => {
     setupApiMock({ canManagePosts: true });
 

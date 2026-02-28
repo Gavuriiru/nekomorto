@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { LogOut, Menu } from "lucide-react";
 import ThemedSvgLogo from "@/components/ThemedSvgLogo";
 import ThemeModeSwitcher from "@/components/ThemeModeSwitcher";
 import { dashboardMenuItems as defaultMenuItems, type DashboardMenuItem } from "@/components/dashboard-menu";
+import DashboardCommandPalette from "@/components/dashboard/DashboardCommandPalette";
+import DashboardNotificationsPopover from "@/components/dashboard/DashboardNotificationsPopover";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -47,12 +49,15 @@ const DashboardHeader = ({
   className,
 }: DashboardHeaderProps) => {
   const location = useLocation();
+  const navigate = useNavigate();
   const apiBase = getApiBase();
   const { settings } = useSiteSettings();
   const isMobile = useIsMobile();
 
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
+  const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [projects, setProjects] = useState<Project[]>([]);
   const [posts, setPosts] = useState<
@@ -183,6 +188,20 @@ const DashboardHeader = ({
     }
     return "line-clamp-4";
   };
+
+  useEffect(() => {
+    if (!location.pathname.startsWith("/dashboard")) {
+      return;
+    }
+    const handler = (event: KeyboardEvent) => {
+      if ((event.metaKey || event.ctrlKey) && String(event.key || "").toLowerCase() === "k") {
+        event.preventDefault();
+        setIsCommandPaletteOpen((previous) => !previous);
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [location.pathname]);
 
   useEffect(() => {
     const handleOutsideClick = (event: MouseEvent) => {
@@ -525,6 +544,21 @@ const DashboardHeader = ({
                 : "opacity-100 visible pointer-events-auto",
             )}
           >
+            <Button
+              type="button"
+              variant="ghost"
+              className="hidden h-10 items-center gap-2 rounded-full border border-border/60 bg-card/50 px-3 text-xs text-muted-foreground hover:bg-accent hover:text-accent-foreground md:inline-flex"
+              onClick={() => setIsCommandPaletteOpen(true)}
+            >
+              <span>Comandos</span>
+              <span className="rounded-md border border-border/70 px-1.5 py-0.5 text-[10px]">Ctrl/Cmd+K</span>
+            </Button>
+
+            <DashboardNotificationsPopover
+              apiBase={apiBase}
+              open={isNotificationsOpen}
+              onOpenChange={setIsNotificationsOpen}
+            />
 
             <ThemeModeSwitcher />
             <DropdownMenu>
@@ -606,6 +640,17 @@ const DashboardHeader = ({
           </div>
         </div>
       </div>
+      <DashboardCommandPalette
+        open={isCommandPaletteOpen}
+        onOpenChange={setIsCommandPaletteOpen}
+        menuItems={menuItems}
+        onNavigate={(href) => {
+          navigate(href);
+        }}
+        onOpenNotifications={() => {
+          setIsNotificationsOpen(true);
+        }}
+      />
     </header>
   );
 };

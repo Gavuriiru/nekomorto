@@ -71,6 +71,7 @@ import {
   publicSearchConfig,
 } from "./lib/public-search.js";
 import { createRateLimiter } from "./lib/rate-limiter.js";
+import { createRevisionToken } from "./lib/revision-token.js";
 import { importRemoteImageFile } from "./lib/remote-image-import.js";
 import { createResponseCache } from "./lib/response-cache.js";
 import { buildRssXml } from "./lib/rss-xml.js";
@@ -1085,6 +1086,16 @@ const PUBLIC_ANALYTICS_EVENT_TYPE_SET = new Set([
   "pwa_installed",
 ]);
 const PUBLIC_ANALYTICS_RESOURCE_TYPE_SET = new Set(["chapter", "pwa"]);
+const DASHBOARD_WIDGET_IDS = new Set([
+  "metrics_overview",
+  "analytics_summary",
+  "projects_rank",
+  "recent_posts",
+  "comments_queue",
+  "ops_status",
+  "projects_quick",
+]);
+const DASHBOARD_HOME_ROLE_IDS = new Set(["editor", "moderador", "admin"]);
 
 const rateLimiter = await createRateLimiter({
   redisUrl: REDIS_URL,
@@ -2635,6 +2646,55 @@ const USER_PREFERENCES_DENSITY_SET = new Set(["comfortable", "compact"]);
 const isPlainObject = (value) =>
   Boolean(value) && typeof value === "object" && !Array.isArray(value);
 
+const normalizeDashboardWidgetsPreference = (value) => {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  const dedupe = new Set();
+  return value
+    .map((item) => String(item || "").trim())
+    .filter(Boolean)
+    .filter((item) => DASHBOARD_WIDGET_IDS.has(item))
+    .filter((item) => {
+      if (dedupe.has(item)) {
+        return false;
+      }
+      dedupe.add(item);
+      return true;
+    })
+    .slice(0, 20);
+};
+
+const normalizeDashboardHomeByRolePreference = (value) => {
+  if (!isPlainObject(value)) {
+    return {};
+  }
+  const normalized = {};
+  Array.from(DASHBOARD_HOME_ROLE_IDS).forEach((roleId) => {
+    const roleInput = value[roleId];
+    const widgets = normalizeDashboardWidgetsPreference(roleInput?.widgets);
+    if (widgets.length > 0) {
+      normalized[roleId] = { widgets };
+    }
+  });
+  return normalized;
+};
+
+const normalizeDashboardNotificationsPreference = (value) => {
+  if (!isPlainObject(value)) {
+    return {};
+  }
+  const normalized = {};
+  const lastSeenAtRaw = String(value.lastSeenAt || "").trim();
+  if (lastSeenAtRaw) {
+    const parsedTs = new Date(lastSeenAtRaw).getTime();
+    if (Number.isFinite(parsedTs)) {
+      normalized.lastSeenAt = new Date(parsedTs).toISOString();
+    }
+  }
+  return normalized;
+};
+
 const normalizeUserPreferences = (value) => {
   if (!isPlainObject(value)) {
     return {};
@@ -2651,6 +2711,21 @@ const normalizeUserPreferences = (value) => {
     .toLowerCase();
   if (USER_PREFERENCES_DENSITY_SET.has(density)) {
     normalized.density = density;
+  }
+  const dashboardInput = isPlainObject(value.dashboard) ? value.dashboard : null;
+  if (dashboardInput) {
+    const dashboard = {};
+    const homeByRole = normalizeDashboardHomeByRolePreference(dashboardInput.homeByRole);
+    if (Object.keys(homeByRole).length > 0) {
+      dashboard.homeByRole = homeByRole;
+    }
+    const notifications = normalizeDashboardNotificationsPreference(dashboardInput.notifications);
+    if (Object.keys(notifications).length > 0) {
+      dashboard.notifications = notifications;
+    }
+    if (Object.keys(dashboard).length > 0) {
+      normalized.dashboard = dashboard;
+    }
   }
   return normalized;
 };
@@ -2677,6 +2752,18 @@ const writeUserPreferences = (userId, preferences) => {
   dataRepository.writeUserPreferences(normalizedId, normalized);
   return normalized;
 };
+
+const parseEditRevisionOptions = (value) => {
+  if (!isPlainObject(value)) {
+    return { ifRevision: "", forceOverride: false };
+  }
+  return {
+    ifRevision: String(value.ifRevision || "").trim(),
+    forceOverride: value.forceOverride === true,
+  };
+};
+
+const ensureNoEditConflict = () => true;
 
 const loadUserMfaTotpRecord = (userId) => {
   const normalizedId = String(userId || "").trim();
@@ -8127,6 +8214,140 @@ const canManageIntegrations = (userId) => {
   return canManageProjects(userId) || canManageSettings(userId);
 };
 
+const parseDashboardNotificationsLimit = (value) => {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) {
+    return 30;
+  }
+  return Math.min(Math.max(Math.floor(parsed), 1), 100);
+};
+
+const toDashboardNotificationId = (value) =>
+  crypto.createHash("sha256").update(String(value || "")).digest("hex").slice(0, 16);
+
+app.get("/api/dashboard/notifications", requireAuth, async (req, res) => {
+  res.setHeader("Cache-Control", "no-store");
+  const userId = req.session?.user?.id;
+  if (!userId) {
+    return res.status(401).json({ error: "unauthorized" });
+  }
+
+  const items = [];
+  const nowTs = Date.now();
+  const limit = parseDashboardNotificationsLimit(req.query.limit);
+
+  if (canManageComments(userId)) {
+    const comments = loadComments();
+    const pendingCount = comments.filter((comment) => comment.status === "pending").length;
+    if (pendingCount > 0) {
+      const ts = new Date().toISOString();
+      items.push({
+        id: toDashboardNotificationId(`comments:pending:${pendingCount}`),
+        kind: "pending",
+        source: "comments",
+        severity: pendingCount > 20 ? "critical" : "warning",
+        title: "Comentários pendentes",
+        description:
+          pendingCount === 1
+            ? "Há 1 comentário aguardando moderação."
+            : `Há ${pendingCount} comentários aguardando moderação.`,
+        href: "/dashboard/comentarios",
+        ts,
+      });
+    }
+    const approvedSince = nowTs - 24 * 60 * 60 * 1000;
+    const approvedRecent = comments.filter((comment) => {
+      if (comment.status !== "approved") {
+        return false;
+      }
+      const createdTs = new Date(comment.createdAt || 0).getTime();
+      return Number.isFinite(createdTs) && createdTs >= approvedSince;
+    }).length;
+    if (approvedRecent > 0) {
+      const ts = new Date().toISOString();
+      items.push({
+        id: toDashboardNotificationId(`comments:approved:${approvedRecent}`),
+        kind: "approval",
+        source: "comments",
+        severity: "info",
+        title: "Aprovações recentes",
+        description:
+          approvedRecent === 1
+            ? "1 comentário foi aprovado nas últimas 24h."
+            : `${approvedRecent} comentários foram aprovados nas últimas 24h.`,
+        href: "/dashboard/comentarios",
+        ts,
+      });
+    }
+  }
+
+  if (canManageSettings(userId)) {
+    try {
+      const snapshot = await evaluateOperationalMonitoring();
+      const operationalAlerts = Array.isArray(snapshot?.alerts?.alerts) ? snapshot.alerts.alerts : [];
+      operationalAlerts.forEach((alert) => {
+        if (!alert || (alert.severity !== "critical" && alert.severity !== "warning")) {
+          return;
+        }
+        items.push({
+          id: toDashboardNotificationId(`ops:${alert.code}:${alert.since || snapshot.ts}`),
+          kind: "error",
+          source: "operations",
+          severity: alert.severity,
+          title: alert.title || "Alerta operacional",
+          description: alert.description || "Falha operacional detectada.",
+          href: "/dashboard",
+          ts: alert.since || snapshot.ts || new Date().toISOString(),
+        });
+      });
+    } catch {
+      // ignore transient monitoring errors in notifications endpoint
+    }
+  }
+
+  if (canManageIntegrations(userId)) {
+    const webhookFailures = loadAuditLog()
+      .filter((entry) => ["editorial_webhook.failed", "ops_alerts.webhook.failed"].includes(entry.action))
+      .sort((a, b) => new Date(b.ts).getTime() - new Date(a.ts).getTime())
+      .slice(0, 10);
+    webhookFailures.forEach((entry) => {
+      items.push({
+        id: toDashboardNotificationId(`webhook:${entry.id}:${entry.ts}`),
+        kind: "error",
+        source: "webhooks",
+        severity: "warning",
+        title: "Falha em webhook",
+        description:
+          String(entry?.meta?.code || "").trim() || String(entry?.meta?.error || "").trim() || "Entrega falhou.",
+        href: "/dashboard/webhooks",
+        ts: entry.ts || new Date().toISOString(),
+      });
+    });
+  }
+
+  const sorted = items
+    .slice()
+    .sort((a, b) => new Date(b.ts || 0).getTime() - new Date(a.ts || 0).getTime())
+    .slice(0, limit);
+  const summary = sorted.reduce(
+    (acc, item) => {
+      acc.total += 1;
+      if (item.kind === "pending") acc.pending += 1;
+      if (item.kind === "error") acc.error += 1;
+      if (item.kind === "approval") acc.approval += 1;
+      return acc;
+    },
+    { total: 0, pending: 0, error: 0, approval: 0 },
+  );
+
+  return res.json({
+    generatedAt: new Date().toISOString(),
+    items: sorted,
+    summary,
+  });
+});
+
+
 const canManageUsersBasic = (userId) => {
   if (!userId) {
     return false;
@@ -8318,9 +8539,13 @@ app.get("/api/users", requireAuth, (req, res) => {
   writeUsers(users);
   syncAllowedUsers(users);
   const ownerIds = loadOwnerIds().map((id) => String(id));
-  const responseUsers = users.map((user) =>
-    applyOwnerRole(userWithAccessForResponse(user, ownerIds)),
-  );
+  const responseUsers = users.map((user) => {
+    const apiUser = applyOwnerRole(userWithAccessForResponse(user, ownerIds));
+    return {
+      ...apiUser,
+      revision: createRevisionToken(apiUser),
+    };
+  });
   appendAuditLog(req, "users.read", "users", {});
   res.json({
     users: responseUsers,
@@ -8509,31 +8734,49 @@ app.get("/api/public/users", (req, res) => {
 
 app.get("/api/link-types", (req, res) => {
   const items = loadLinkTypes();
-  res.json({ items });
+  const revision = createRevisionToken(items);
+  res.json({ items, revision });
 });
 
 app.put("/api/link-types", requireAuth, (req, res) => {
   if (!canManageSettings(req.session?.user?.id)) {
     return res.status(403).json({ error: "forbidden" });
   }
+  const options = parseEditRevisionOptions(req.body);
   const { items } = req.body || {};
   if (!Array.isArray(items)) {
     return res.status(400).json({ error: "items_required" });
   }
   const previousLinkTypes = loadLinkTypes();
+  const currentRevision = createRevisionToken(previousLinkTypes);
+  const noConflict = ensureNoEditConflict({
+    req,
+    res,
+    resourceType: "link_types",
+    resourceId: "global",
+    current: previousLinkTypes,
+    currentRevision,
+    options,
+  });
+  if (!noConflict) {
+    return noConflict;
+  }
   const previousIcons = collectLinkTypeIconUploads(previousLinkTypes);
   const normalized = normalizeLinkTypes(items);
   writeLinkTypes(normalized);
   const nextIcons = collectLinkTypeIconUploads(normalized);
   const removedIcons = Array.from(previousIcons).filter((url) => !nextIcons.has(url));
   removedIcons.forEach((url) => deletePrivateUploadByUrl(url));
-  return res.json({ items: normalized });
+  return res.json({ items: normalized, revision: createRevisionToken(normalized) });
 });
 
 app.get("/api/posts", requireAuth, (req, res) => {
-  const posts = normalizePosts(loadPosts()).sort(
-    (a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime(),
-  );
+  const posts = normalizePosts(loadPosts())
+    .sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime())
+    .map((post) => ({
+      ...post,
+      revision: createRevisionToken(post),
+    }));
   res.json({ posts });
 });
 
@@ -9262,6 +9505,7 @@ app.put("/api/posts/:id", requireAuth, async (req, res) => {
   if (!canManagePosts(sessionUser?.id)) {
     return res.status(403).json({ error: "forbidden" });
   }
+  const options = parseEditRevisionOptions(req.body);
 
   const { id } = req.params;
   const {
@@ -9286,6 +9530,20 @@ app.put("/api/posts/:id", requireAuth, async (req, res) => {
   if (index === -1) {
     return res.status(404).json({ error: "not_found" });
   }
+  const existing = posts[index];
+  const currentRevision = createRevisionToken(existing);
+  const noConflict = ensureNoEditConflict({
+    req,
+    res,
+    resourceType: "post",
+    resourceId: existing.id,
+    current: existing,
+    currentRevision,
+    options,
+  });
+  if (!noConflict) {
+    return noConflict;
+  }
 
   const normalizedSlug = slug ? createSlug(slug) : "";
   if (
@@ -9295,7 +9553,6 @@ app.put("/api/posts/:id", requireAuth, async (req, res) => {
     return res.status(409).json({ error: "slug_exists" });
   }
 
-  const existing = posts[index];
   const statusCandidate =
     status === "draft" || status === "scheduled" || status === "published"
       ? status
@@ -9347,7 +9604,12 @@ app.put("/api/posts/:id", requireAuth, async (req, res) => {
       req,
     });
   }
-  return res.json({ post: persistedPost });
+  return res.json({
+    post: {
+      ...persistedPost,
+      revision: createRevisionToken(persistedPost),
+    },
+  });
 });
 
 app.delete("/api/posts/:id", requireAuth, (req, res) => {
@@ -9589,7 +9851,12 @@ app.get("/api/projects", requireAuth, (req, res) => {
   if (!canManageProjects(sessionUser?.id)) {
     return res.status(403).json({ error: "forbidden" });
   }
-  const projects = normalizeProjects(loadProjects()).sort((a, b) => a.order - b.order);
+  const projects = normalizeProjects(loadProjects())
+    .sort((a, b) => a.order - b.order)
+    .map((project) => ({
+      ...project,
+      revision: createRevisionToken(project),
+    }));
   res.json({ projects });
 });
 
@@ -9744,6 +10011,7 @@ app.put("/api/projects/:id", requireAuth, async (req, res) => {
   if (!canManageProjects(sessionUser?.id)) {
     return res.status(403).json({ error: "forbidden" });
   }
+  const options = parseEditRevisionOptions(req.body);
 
   const { id } = req.params;
   let projects = normalizeProjects(loadProjects());
@@ -9753,6 +10021,19 @@ app.put("/api/projects/:id", requireAuth, async (req, res) => {
   }
 
   const existing = projects[index];
+  const currentRevision = createRevisionToken(existing);
+  const noConflict = ensureNoEditConflict({
+    req,
+    res,
+    resourceType: "project",
+    resourceId: existing.id,
+    current: existing,
+    currentRevision,
+    options,
+  });
+  if (!noConflict) {
+    return noConflict;
+  }
   const payload = req.body || {};
   const now = new Date().toISOString();
   const mergedRaw = normalizeProjects([
@@ -9865,7 +10146,12 @@ app.put("/api/projects/:id", requireAuth, async (req, res) => {
       req,
     });
   }
-  return res.json({ project: persistedProject });
+  return res.json({
+    project: {
+      ...persistedProject,
+      revision: createRevisionToken(persistedProject),
+    },
+  });
 });
 
 app.delete("/api/projects/:id", requireAuth, (req, res) => {
@@ -10635,7 +10921,7 @@ app.get("/api/integrations/webhooks/editorial", requireAuth, (req, res) => {
   appendAuditLog(req, "integrations.webhooks_editorial.read", "integrations", {
     channel: "all",
   });
-  return res.json({ settings, projectTypes });
+  return res.json({ settings, projectTypes, revision: createRevisionToken(settings) });
 });
 
 app.put("/api/integrations/webhooks/editorial", requireAuth, (req, res) => {
@@ -10643,12 +10929,29 @@ app.put("/api/integrations/webhooks/editorial", requireAuth, (req, res) => {
   if (!canManageIntegrations(sessionUser?.id)) {
     return res.status(403).json({ error: "forbidden" });
   }
+  const options = parseEditRevisionOptions(req.body);
   const payload = req.body?.settings ?? req.body;
   if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
     return res.status(400).json({ error: "invalid_payload" });
   }
 
   const projectTypes = getActiveProjectTypes({ includeDefaults: true });
+  const currentSettings = migrateEditorialMentionPlaceholdersInSettings(
+    normalizeEditorialWebhookSettings(loadIntegrationSettings(), { projectTypes }),
+  );
+  const currentRevision = createRevisionToken(currentSettings);
+  const noConflict = ensureNoEditConflict({
+    req,
+    res,
+    resourceType: "editorial_webhooks",
+    resourceId: "global",
+    current: currentSettings,
+    currentRevision,
+    options,
+  });
+  if (!noConflict) {
+    return noConflict;
+  }
   const normalized = normalizeEditorialWebhookSettings(payload, { projectTypes });
   const migrated = migrateEditorialMentionPlaceholdersInSettings(normalized);
   const validation = validateEditorialWebhookSettingsPlaceholders(migrated);
@@ -10666,7 +10969,7 @@ app.put("/api/integrations/webhooks/editorial", requireAuth, (req, res) => {
   appendAuditLog(req, "integrations.webhooks_editorial.update", "integrations", {
     count: Array.isArray(settings?.typeRoles) ? settings.typeRoles.length : 0,
   });
-  return res.json({ settings, projectTypes });
+  return res.json({ settings, projectTypes, revision: createRevisionToken(settings) });
 });
 
 app.post("/api/integrations/webhooks/editorial/test", requireAuth, async (req, res) => {
@@ -10846,15 +11149,18 @@ app.post("/api/integrations/webhooks/editorial/test", requireAuth, async (req, r
 });
 
 app.get("/api/public/settings", (req, res) => {
-  return res.json({ settings: loadSiteSettings() });
+  const settings = loadSiteSettings();
+  return res.json({ settings, revision: createRevisionToken(settings) });
 });
 
 app.get("/api/public/tag-translations", (req, res) => {
   const translations = loadTagTranslations();
+  const revision = createRevisionToken(translations);
   res.json({
     tags: translations.tags,
     genres: translations.genres,
     staffRoles: translations.staffRoles,
+    revision,
   });
 });
 
@@ -10910,7 +11216,8 @@ app.post("/api/tag-translations/anilist-sync", requireAuth, async (req, res) => 
 });
 
 app.get("/api/public/pages", (req, res) => {
-  return res.json({ pages: loadPages() });
+  const pages = loadPages();
+  return res.json({ pages, revision: createRevisionToken(pages) });
 });
 
 app.get("/api/settings", requireAuth, (req, res) => {
@@ -10918,19 +11225,35 @@ app.get("/api/settings", requireAuth, (req, res) => {
   if (!canManageSettings(userId)) {
     return res.status(403).json({ error: "Sem permissão para gerenciar configurações." });
   }
-  return res.json({ settings: loadSiteSettings() });
+  const settings = loadSiteSettings();
+  return res.json({ settings, revision: createRevisionToken(settings) });
 });
 
 app.put("/api/settings", requireAuth, (req, res) => {
   const userId = req.session?.user?.id;
+  const options = parseEditRevisionOptions(req.body);
   if (!canManageSettings(userId)) {
     return res.status(403).json({ error: "Sem permissão para gerenciar configurações." });
+  }
+  const currentSettings = loadSiteSettings();
+  const currentRevision = createRevisionToken(currentSettings);
+  const noConflict = ensureNoEditConflict({
+    req,
+    res,
+    resourceType: "settings",
+    resourceId: "global",
+    current: currentSettings,
+    currentRevision,
+    options,
+  });
+  if (!noConflict) {
+    return noConflict;
   }
   const settings = req.body?.settings;
   if (!settings || typeof settings !== "object") {
     return res.status(400).json({ error: "Payload inválido." });
   }
-  const previousSettings = loadSiteSettings();
+  const previousSettings = currentSettings;
   const previousDownloadIcons = collectDownloadIconUploads(previousSettings);
   const normalized = normalizeSiteSettings(settings);
   writeSiteSettings(normalized);
@@ -10940,7 +11263,7 @@ app.put("/api/settings", requireAuth, (req, res) => {
   );
   removedIcons.forEach((url) => deletePrivateUploadByUrl(url));
   appendAuditLog(req, "settings.update", "settings", {});
-  return res.json({ settings: normalized });
+  return res.json({ settings: normalized, revision: createRevisionToken(normalized) });
 });
 
 app.get("/api/pages", requireAuth, (req, res) => {
@@ -10948,13 +11271,29 @@ app.get("/api/pages", requireAuth, (req, res) => {
   if (!canManagePages(userId)) {
     return res.status(403).json({ error: "Sem permissão para gerenciar páginas." });
   }
-  return res.json({ pages: loadPages() });
+  const pages = loadPages();
+  return res.json({ pages, revision: createRevisionToken(pages) });
 });
 
 app.put("/api/pages", requireAuth, (req, res) => {
   const userId = req.session?.user?.id;
+  const options = parseEditRevisionOptions(req.body);
   if (!canManagePages(userId)) {
     return res.status(403).json({ error: "Sem permissão para gerenciar páginas." });
+  }
+  const currentPages = loadPages();
+  const currentRevision = createRevisionToken(currentPages);
+  const noConflict = ensureNoEditConflict({
+    req,
+    res,
+    resourceType: "pages",
+    resourceId: "global",
+    current: currentPages,
+    currentRevision,
+    options,
+  });
+  if (!noConflict) {
+    return noConflict;
   }
   const pages = req.body?.pages;
   if (!pages || typeof pages !== "object") {
@@ -10962,7 +11301,7 @@ app.put("/api/pages", requireAuth, (req, res) => {
   }
   writePages(pages);
   appendAuditLog(req, "pages.update", "pages", {});
-  return res.json({ pages });
+  return res.json({ pages, revision: createRevisionToken(pages) });
 });
 
 app.post("/api/tag-translations/sync", requireAuth, (req, res) => {
@@ -11010,6 +11349,7 @@ app.put("/api/tag-translations", requireAuth, (req, res) => {
   if (!canManageSettings(sessionUser?.id)) {
     return res.status(403).json({ error: "forbidden" });
   }
+  const options = parseEditRevisionOptions(req.body);
   const tags = req.body?.tags;
   const genres = req.body?.genres;
   const staffRoles = req.body?.staffRoles;
@@ -11021,6 +11361,19 @@ app.put("/api/tag-translations", requireAuth, (req, res) => {
     return res.status(400).json({ error: "translations_required" });
   }
   const current = loadTagTranslations();
+  const currentRevision = createRevisionToken(current);
+  const noConflict = ensureNoEditConflict({
+    req,
+    res,
+    resourceType: "tag_translations",
+    resourceId: "global",
+    current,
+    currentRevision,
+    options,
+  });
+  if (!noConflict) {
+    return noConflict;
+  }
   const normalizedTags =
     tags && typeof tags === "object"
       ? Object.fromEntries(
@@ -11045,7 +11398,7 @@ app.put("/api/tag-translations", requireAuth, (req, res) => {
     staffRoles: normalizedStaffRoles,
   };
   writeTagTranslations(payload);
-  return res.json(payload);
+  return res.json({ ...payload, revision: createRevisionToken(payload) });
 });
 
 app.get("/api/anilist/:id", requireAuth, async (req, res) => {
@@ -12264,6 +12617,7 @@ app.put("/api/users/:id", (req, res) => {
     return res.status(401).json({ error: "unauthorized" });
   }
 
+  const options = parseEditRevisionOptions(req.body);
   const targetId = String(req.params.id);
   let users = normalizeUsers(loadUsers());
   const index = users.findIndex((user) => user.id === targetId);
@@ -12274,6 +12628,9 @@ app.put("/api/users/:id", (req, res) => {
   const sessionUser = req.session.user;
   const update = req.body || {};
   const existing = users[index];
+  const ownerIds = loadOwnerIds().map((id) => String(id));
+  const currentUserSnapshot = toUserApiResponse(existing, ownerIds);
+  const currentRevision = createRevisionToken(currentUserSnapshot);
 
   if (!isRbacV2Enabled) {
     const isOwnerRequest = isOwner(sessionUser.id);
@@ -12288,6 +12645,18 @@ app.put("/api/users/:id", (req, res) => {
       if (!onlyRoles) {
         return res.status(403).json({ error: "roles_only" });
       }
+    }
+    const noConflict = ensureNoEditConflict({
+      req,
+      res,
+      resourceType: "user",
+      resourceId: targetId,
+      current: currentUserSnapshot,
+      currentRevision,
+      options,
+    });
+    if (!noConflict) {
+      return noConflict;
     }
 
     const updated = {
@@ -12333,10 +12702,15 @@ app.put("/api/users/:id", (req, res) => {
       });
     }
     appendAuditLog(req, "users.update", "users", { id: targetId });
-    return res.json({ user: applyOwnerRole(updated) });
+    const responseUser = applyOwnerRole(updated);
+    return res.json({
+      user: {
+        ...responseUser,
+        revision: createRevisionToken(responseUser),
+      },
+    });
   }
 
-  const ownerIds = loadOwnerIds().map((id) => String(id));
   const actorContext = getUserAccessContextById(sessionUser.id, users);
   const targetContext = getUserAccessContextById(targetId, users);
   const updateKeys = Object.keys(update);
@@ -12394,6 +12768,18 @@ app.put("/api/users/:id", (req, res) => {
     String(update.accessRole || "").includes("owner")
   ) {
     return res.status(403).json({ error: "owner_role_requires_owner_governance" });
+  }
+  const noConflict = ensureNoEditConflict({
+    req,
+    res,
+    resourceType: "user",
+    resourceId: targetId,
+    current: currentUserSnapshot,
+    currentRevision,
+    options,
+  });
+  if (!noConflict) {
+    return noConflict;
   }
 
   const basicPatch = pickBasicProfilePatch(update);
@@ -12499,7 +12885,12 @@ app.put("/api/users/:id", (req, res) => {
       },
     });
   }
-  return res.json({ user: afterSnapshot });
+  return res.json({
+    user: {
+      ...afterSnapshot,
+      revision: createRevisionToken(afterSnapshot),
+    },
+  });
 });
 
 app.delete("/api/users/:id", requireAuth, (req, res) => {
@@ -12629,6 +13020,7 @@ app.delete("/api/users/:id", requireAuth, (req, res) => {
 
 app.put("/api/users/self", requireAuth, (req, res) => {
   const sessionUser = req.session.user;
+  const options = parseEditRevisionOptions(req.body);
   let users = normalizeUsers(loadUsers());
   const index = users.findIndex((user) => user.id === String(sessionUser.id));
   if (index === -1) {
@@ -12637,6 +13029,21 @@ app.put("/api/users/self", requireAuth, (req, res) => {
 
   const update = req.body || {};
   const existing = users[index];
+  const ownerIds = loadOwnerIds().map((id) => String(id));
+  const currentUserSnapshot = toUserApiResponse(existing, ownerIds);
+  const currentRevision = createRevisionToken(currentUserSnapshot);
+  const noConflict = ensureNoEditConflict({
+    req,
+    res,
+    resourceType: "user",
+    resourceId: existing.id,
+    current: currentUserSnapshot,
+    currentRevision,
+    options,
+  });
+  if (!noConflict) {
+    return noConflict;
+  }
   const basicPatch = pickBasicProfilePatch(update);
   const updated = {
     ...existing,
@@ -12653,7 +13060,6 @@ app.put("/api/users/self", requireAuth, (req, res) => {
       : existing.socials,
   };
 
-  const ownerIds = loadOwnerIds().map((id) => String(id));
   const beforeSnapshot = toUserApiResponse(existing, ownerIds);
   users[index] = updated;
   users = isRbacV2Enabled
@@ -12671,7 +13077,12 @@ app.put("/api/users/self", requireAuth, (req, res) => {
     after: afterSnapshot,
     changes: diffUserFields(beforeSnapshot, afterSnapshot, BASIC_PROFILE_FIELDS),
   });
-  return res.json({ user: afterSnapshot });
+  return res.json({
+    user: {
+      ...afterSnapshot,
+      revision: createRevisionToken(afterSnapshot),
+    },
+  });
 });
 
 app.post("/api/logout", (req, res) => {
@@ -12817,3 +13228,4 @@ httpServer.on("close", () => {
   }
   void rateLimiter.close();
 });
+

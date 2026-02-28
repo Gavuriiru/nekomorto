@@ -96,6 +96,23 @@ const LocationProbe = () => {
 };
 
 describe("DashboardUsers edit query", () => {
+  it("abre criacao automaticamente com ?create=1 e limpa a query", async () => {
+    setupApiMock();
+
+    render(
+      <MemoryRouter initialEntries={["/dashboard/usuarios?create=1"]}>
+        <DashboardUsers />
+        <LocationProbe />
+      </MemoryRouter>,
+    );
+
+    await screen.findByRole("heading", { name: /gest.o de usu.rios/i });
+    await screen.findByText(/novo usu.rio/i);
+    await waitFor(() => {
+      expect(screen.getByTestId("location-search").textContent).toBe("");
+    });
+  });
+
   it("abre editor automaticamente com ?edit=me e limpa a query", async () => {
     setupApiMock();
 
@@ -106,8 +123,8 @@ describe("DashboardUsers edit query", () => {
       </MemoryRouter>,
     );
 
-    await screen.findByRole("heading", { name: "Gestão de Usuários" });
-    await screen.findByText("Editar usuário");
+    await screen.findByRole("heading", { name: /gest.o de usu.rios/i });
+    await screen.findByText(/editar usu.rio/i);
     await waitFor(() => {
       expect(screen.getByTestId("location-search").textContent).toBe("");
     });
