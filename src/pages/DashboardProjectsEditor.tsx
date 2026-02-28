@@ -3526,26 +3526,7 @@ const DashboardProjectsEditor = () => {
                   type="button"
                   size="sm"
                   variant="outline"
-                  onClick={() =>
-                    setFormState((prev) => {
-                      const newEpisode: ProjectEpisode = {
-                        number: prev.episodeDownloads.length + 1,
-                        volume: undefined,
-                        title: "",
-                        releaseDate: "",
-                        duration: "",
-                        coverImageUrl: "",
-                        sourceType: "TV",
-                        sources: [],
-                        progressStage: "aguardando-raw",
-                        completedStages: [],
-                        content: "",
-                        contentFormat: "lexical",
-                      };
-                      const next = [...prev.episodeDownloads, newEpisode];
-                      return { ...prev, episodeDownloads: next };
-                    })
-                  }
+                  onClick={handleAddEpisodeDownload}
                 >
                   {isChapterBased ? "Adicionar capítulo" : "Adicionar episódio"}
                 </Button>
@@ -3586,6 +3567,11 @@ const DashboardProjectsEditor = () => {
                     className="border-none"
                   >
                   <Card
+                    ref={(node) => {
+                      if (node) {
+                        episodeCardNodeMapRef.current.set(episode, node);
+                      }
+                    }}
                     className="project-editor-episode-card border-border/60 bg-card/70 !shadow-none hover:!shadow-none"
                     data-testid={`episode-card-${index}`}
                     onDragStart={() => setEpisodeDragId(null)}

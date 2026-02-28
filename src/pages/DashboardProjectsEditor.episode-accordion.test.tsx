@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { MemoryRouter } from "react-router-dom";
 import DashboardProjectsEditor from "@/pages/DashboardProjectsEditor";
@@ -130,7 +130,63 @@ const projectFixture = {
   order: 0,
 };
 
-const openEpisodeEditor = async () => {
+const lightNovelProjectFixture = {
+  ...projectFixture,
+  id: "project-ln-1",
+  title: "Projeto Light Novel",
+  type: "Light Novel",
+  episodes: "1 capítulo",
+  episodeDownloads: [
+    {
+      number: 1,
+      title: "Capitulo 1",
+      releaseDate: "",
+      duration: "",
+      sourceType: "TV",
+      sources: [],
+      progressStage: "aguardando-raw",
+      completedStages: [],
+      content: "",
+      contentFormat: "lexical",
+    },
+  ],
+};
+
+const setupApiMock = (projects = [projectFixture]) => {
+  apiFetchMock.mockReset();
+  apiFetchMock.mockImplementation(async (_base, path, options) => {
+    const method = String((options as RequestInit | undefined)?.method || "GET").toUpperCase();
+
+    if (path === "/api/me" && method === "GET") {
+      return mockJsonResponse(true, { id: "1", name: "Admin", username: "admin" });
+    }
+    if (path === "/api/projects" && method === "GET") {
+      return mockJsonResponse(true, { projects });
+    }
+    if (path === "/api/users" && method === "GET") {
+      return mockJsonResponse(true, { users: [] });
+    }
+    if (path === "/api/public/tag-translations" && method === "GET") {
+      return mockJsonResponse(true, { tags: {}, genres: {}, staffRoles: {} });
+    }
+
+    return mockJsonResponse(false, { error: "not_found" }, 404);
+  });
+};
+
+const scrollIntoViewMock = vi.fn();
+const episode1TriggerPattern = /(Epis[oó]dio|EpisÃ³dio)\s+1/i;
+const episode2TriggerPattern = /(Epis[oó]dio|EpisÃ³dio)\s+2/i;
+
+const openEpisodeEditor = async ({
+  projectTitle = "Projeto Teste",
+  sectionNamePattern = /Epis/i,
+  removeButtonPattern = /Remover (epis|cap)/i,
+}: {
+  projectTitle?: string;
+  sectionNamePattern?: RegExp;
+  removeButtonPattern?: RegExp;
+} = {}) => {
   render(
     <MemoryRouter>
       <DashboardProjectsEditor />
@@ -139,40 +195,28 @@ const openEpisodeEditor = async () => {
 
   await screen.findByRole("heading", { name: "Gerenciar projetos" });
 
-  fireEvent.click(await screen.findByText("Projeto Teste"));
+  fireEvent.click(await screen.findByText(projectTitle));
   await screen.findByRole("heading", { name: "Editar projeto" });
 
-  fireEvent.click(screen.getByRole("button", { name: /Episódios/i }));
-  await screen.findAllByRole("button", { name: "Remover episódio" });
+  fireEvent.click(screen.getByRole("button", { name: sectionNamePattern }));
+  await screen.findAllByRole("button", { name: removeButtonPattern });
 };
 
 describe("DashboardProjectsEditor episode accordion", () => {
   beforeEach(() => {
-    apiFetchMock.mockReset();
-    apiFetchMock.mockImplementation(async (_base, path, options) => {
-      const method = String((options as RequestInit | undefined)?.method || "GET").toUpperCase();
-
-      if (path === "/api/me" && method === "GET") {
-        return mockJsonResponse(true, { id: "1", name: "Admin", username: "admin" });
-      }
-      if (path === "/api/projects" && method === "GET") {
-        return mockJsonResponse(true, { projects: [projectFixture] });
-      }
-      if (path === "/api/users" && method === "GET") {
-        return mockJsonResponse(true, { users: [] });
-      }
-      if (path === "/api/public/tag-translations" && method === "GET") {
-        return mockJsonResponse(true, { tags: {}, genres: {}, staffRoles: {} });
-      }
-
-      return mockJsonResponse(false, { error: "not_found" }, 404);
+    setupApiMock();
+    scrollIntoViewMock.mockReset();
+    Object.defineProperty(HTMLElement.prototype, "scrollIntoView", {
+      configurable: true,
+      writable: true,
+      value: scrollIntoViewMock,
     });
   });
 
   it("nao fecha ao clicar no fundo do card", async () => {
     await openEpisodeEditor();
 
-    fireEvent.click(screen.getByRole("button", { name: /Epis[oó]dio\s+1/i }));
+    fireEvent.click(screen.getByRole("button", { name: episode1TriggerPattern }));
     expect(screen.getByDisplayValue("Primeiro episodio")).toBeInTheDocument();
 
     fireEvent.click(screen.getByTestId("episode-card-0"));
@@ -194,7 +238,7 @@ describe("DashboardProjectsEditor episode accordion", () => {
   it("abre e fecha ao clicar no topo (trigger)", async () => {
     await openEpisodeEditor();
 
-    const episodeTrigger = screen.getByRole("button", { name: /Epis[oó]dio\s+1/i });
+    const episodeTrigger = screen.getByRole("button", { name: episode1TriggerPattern });
     expect(screen.queryByDisplayValue("Primeiro episodio")).not.toBeInTheDocument();
 
     fireEvent.click(episodeTrigger);
@@ -207,8 +251,8 @@ describe("DashboardProjectsEditor episode accordion", () => {
   it("permite abrir multiplos episodios ao mesmo tempo", async () => {
     await openEpisodeEditor();
 
-    fireEvent.click(screen.getByRole("button", { name: /Epis[oó]dio\s+1/i }));
-    fireEvent.click(screen.getByRole("button", { name: /Epis[oó]dio\s+2/i }));
+    fireEvent.click(screen.getByRole("button", { name: episode1TriggerPattern }));
+    fireEvent.click(screen.getByRole("button", { name: episode2TriggerPattern }));
 
     expect(screen.getByDisplayValue("Primeiro episodio")).toBeInTheDocument();
     expect(screen.getByDisplayValue("Segundo episodio")).toBeInTheDocument();
@@ -217,13 +261,13 @@ describe("DashboardProjectsEditor episode accordion", () => {
   it("mantem alinhamento do estado ao remover episodio", async () => {
     await openEpisodeEditor();
 
-    fireEvent.click(screen.getByRole("button", { name: /Epis[oó]dio\s+2/i }));
+    fireEvent.click(screen.getByRole("button", { name: episode2TriggerPattern }));
     expect(screen.getByDisplayValue("Segundo episodio")).toBeInTheDocument();
 
-    fireEvent.click(screen.getAllByRole("button", { name: "Remover episódio" })[0]);
+    fireEvent.click(screen.getAllByRole("button", { name: /Remover epis/i })[0]);
     expect(screen.getByDisplayValue("Segundo episodio")).toBeInTheDocument();
 
-    const remainingTrigger = screen.getByRole("button", { name: /Epis[oó]dio\s+2/i });
+    const remainingTrigger = screen.getByRole("button", { name: episode2TriggerPattern });
     fireEvent.click(remainingTrigger);
     expect(screen.queryByDisplayValue("Segundo episodio")).not.toBeInTheDocument();
     fireEvent.click(remainingTrigger);
@@ -236,11 +280,50 @@ describe("DashboardProjectsEditor episode accordion", () => {
     expect(screen.queryByDisplayValue("Segundo episodio")).not.toBeInTheDocument();
 
     fireEvent.click(screen.getAllByRole("button", { name: /Remover epis/i })[0]);
-    expect(screen.queryByRole("button", { name: /Epis[oó]dio\s+1/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: episode1TriggerPattern })).not.toBeInTheDocument();
     expect(screen.queryByDisplayValue("Segundo episodio")).not.toBeInTheDocument();
 
-    const remainingTrigger = screen.getByRole("button", { name: /Epis[oó]dio\s+2/i });
+    const remainingTrigger = screen.getByRole("button", { name: episode2TriggerPattern });
     fireEvent.click(remainingTrigger);
     expect(screen.getByDisplayValue("Segundo episodio")).toBeInTheDocument();
+  });
+
+  it("faz scroll suave ao adicionar episodio e mantem item aberto", async () => {
+    await openEpisodeEditor();
+
+    fireEvent.click(screen.getByRole("button", { name: /Adicionar epis/i }));
+
+    await waitFor(() => {
+      expect(scrollIntoViewMock).toHaveBeenCalledWith({
+        behavior: "smooth",
+        block: "center",
+        inline: "nearest",
+      });
+    });
+
+    const newEpisodeCard = await screen.findByTestId("episode-card-2");
+    expect(within(newEpisodeCard).getByDisplayValue("3")).toBeInTheDocument();
+  });
+
+  it("faz scroll suave ao adicionar capitulo e mantem item aberto", async () => {
+    setupApiMock([lightNovelProjectFixture]);
+    await openEpisodeEditor({
+      projectTitle: "Projeto Light Novel",
+      sectionNamePattern: /Cap/i,
+      removeButtonPattern: /Remover cap/i,
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /Adicionar cap/i }));
+
+    await waitFor(() => {
+      expect(scrollIntoViewMock).toHaveBeenCalledWith({
+        behavior: "smooth",
+        block: "center",
+        inline: "nearest",
+      });
+    });
+
+    const newChapterCard = await screen.findByTestId("episode-card-1");
+    expect(within(newChapterCard).getByDisplayValue("2")).toBeInTheDocument();
   });
 });
