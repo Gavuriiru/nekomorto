@@ -39,7 +39,7 @@ export default defineConfig(({ mode }) => {
       react(),
       mode === "development" && componentTagger(),
       VitePWA({
-        registerType: "prompt",
+        registerType: "autoUpdate",
         injectRegister: false,
         devOptions: {
           enabled: isPwaDevEnabled,
@@ -104,7 +104,7 @@ export default defineConfig(({ mode }) => {
         workbox: {
           cleanupOutdatedCaches: true,
           clientsClaim: true,
-          skipWaiting: false,
+          skipWaiting: true,
           runtimeCaching: [
             {
               urlPattern: ({ request, url }) =>
@@ -112,18 +112,7 @@ export default defineConfig(({ mode }) => {
                 !url.pathname.startsWith("/dashboard") &&
                 !url.pathname.startsWith("/auth") &&
                 !url.pathname.startsWith("/api"),
-              handler: "NetworkFirst",
-              options: {
-                cacheName: "public-pages-v1",
-                networkTimeoutSeconds: 4,
-                expiration: {
-                  maxEntries: 80,
-                  maxAgeSeconds: 7 * 24 * 60 * 60,
-                },
-                cacheableResponse: {
-                  statuses: [0, 200],
-                },
-              },
+              handler: "NetworkOnly",
             },
             {
               urlPattern: ({ request, url }) =>
@@ -154,21 +143,6 @@ export default defineConfig(({ mode }) => {
                 expiration: {
                   maxEntries: 300,
                   maxAgeSeconds: 14 * 24 * 60 * 60,
-                },
-                cacheableResponse: {
-                  statuses: [0, 200],
-                },
-              },
-            },
-            {
-              urlPattern: ({ url, request }) => request.method === "GET" && url.pathname.startsWith("/api/public/"),
-              handler: "NetworkFirst",
-              options: {
-                cacheName: "public-api-v1",
-                networkTimeoutSeconds: 4,
-                expiration: {
-                  maxEntries: 200,
-                  maxAgeSeconds: 3 * 24 * 60 * 60,
                 },
                 cacheableResponse: {
                   statuses: [0, 200],

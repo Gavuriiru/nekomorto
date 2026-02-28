@@ -36,9 +36,14 @@ export const registerPwa = (callbacks: PwaRegisterCallbacks = {}) => {
             return;
           }
           hasNeedRefreshNotified = true;
-          callbacks.onNeedRefresh?.(() => {
+          const applyUpdate = () => {
             void updateServiceWorker(true);
-          });
+          };
+          if (callbacks.onNeedRefresh) {
+            callbacks.onNeedRefresh(applyUpdate);
+            return;
+          }
+          applyUpdate();
         },
         onOfflineReady: () => {
           if (hasOfflineReadyNotified) {

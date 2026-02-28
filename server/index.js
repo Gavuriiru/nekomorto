@@ -8538,6 +8538,7 @@ app.get("/api/posts", requireAuth, (req, res) => {
 });
 
 app.get("/api/public/posts", (req, res) => {
+  res.setHeader("Cache-Control", "no-store");
   const cached = readPublicCachedJson(req);
   if (cached) {
     res.setHeader("X-Cache", "HIT");
@@ -8594,6 +8595,7 @@ app.get("/api/public/posts", (req, res) => {
 });
 
 app.get("/api/public/posts/:slug", (req, res) => {
+  res.setHeader("Cache-Control", "no-store");
   const now = Date.now();
   const slug = String(req.params.slug || "");
   const posts = normalizePosts(loadPosts());
@@ -10193,9 +10195,9 @@ app.get("/api/public/rss.xml", (req, res) => {
 });
 
 app.get("/api/public/bootstrap", (req, res) => {
+  res.setHeader("Cache-Control", "no-store");
   const cached = readPublicCachedJson(req);
   if (cached) {
-    res.setHeader("Cache-Control", "public, max-age=30, stale-while-revalidate=120");
     res.setHeader("X-Cache", "HIT");
     return res.status(cached.statusCode).json(cached.payload);
   }
@@ -10259,12 +10261,12 @@ app.get("/api/public/bootstrap", (req, res) => {
     ttlMs: 30000,
     tags: [PUBLIC_READ_CACHE_TAGS.BOOTSTRAP],
   });
-  res.setHeader("Cache-Control", "public, max-age=30, stale-while-revalidate=120");
   res.setHeader("X-Cache", "MISS");
   return res.json(payload);
 });
 
 app.get("/api/public/search/suggest", (req, res) => {
+  res.setHeader("Cache-Control", "no-store");
   const cached = readPublicCachedJson(req);
   if (cached) {
     res.setHeader("X-Cache", "HIT");
@@ -10322,6 +10324,7 @@ app.get("/api/public/search/suggest", (req, res) => {
 });
 
 app.get("/api/public/projects", (req, res) => {
+  res.setHeader("Cache-Control", "no-store");
   const cached = readPublicCachedJson(req);
   if (cached) {
     res.setHeader("X-Cache", "HIT");
@@ -10395,6 +10398,7 @@ app.get("/api/public/projects", (req, res) => {
 });
 
 app.get("/api/public/projects/:id", (req, res) => {
+  res.setHeader("Cache-Control", "no-store");
   const id = String(req.params.id || "");
   const projects = normalizeProjects(loadProjects());
   const project = projects.find((item) => item.id === id);

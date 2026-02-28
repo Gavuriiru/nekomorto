@@ -67,13 +67,9 @@ if (!self.define) {
     });
   };
 }
-define(['./workbox-6d565866'], (function (workbox) { 'use strict';
+define(['./workbox-330e221d'], (function (workbox) { 'use strict';
 
-  self.addEventListener('message', event => {
-    if (event.data && event.data.type === 'SKIP_WAITING') {
-      self.skipWaiting();
-    }
-  });
+  self.skipWaiting();
   workbox.clientsClaim();
 
   /**
@@ -86,7 +82,7 @@ define(['./workbox-6d565866'], (function (workbox) { 'use strict';
     "revision": "d41d8cd98f00b204e9800998ecf8427e"
   }, {
     "url": "index.html",
-    "revision": "0.446atrhemb8"
+    "revision": "0.10dfgs0ialo"
   }], {});
   workbox.cleanupOutdatedCaches();
   workbox.registerRoute(new workbox.NavigationRoute(workbox.createHandlerBoundToURL("index.html"), {
@@ -95,16 +91,7 @@ define(['./workbox-6d565866'], (function (workbox) { 'use strict';
   workbox.registerRoute(({
     request,
     url
-  }) => request.mode === "navigate" && !url.pathname.startsWith("/dashboard") && !url.pathname.startsWith("/auth") && !url.pathname.startsWith("/api"), new workbox.NetworkFirst({
-    "cacheName": "public-pages-v1",
-    "networkTimeoutSeconds": 4,
-    plugins: [new workbox.ExpirationPlugin({
-      maxEntries: 80,
-      maxAgeSeconds: 604800
-    }), new workbox.CacheableResponsePlugin({
-      statuses: [0, 200]
-    })]
-  }), 'GET');
+  }) => request.mode === "navigate" && !url.pathname.startsWith("/dashboard") && !url.pathname.startsWith("/auth") && !url.pathname.startsWith("/api"), new workbox.NetworkOnly(), 'GET');
   workbox.registerRoute(({
     request,
     url
@@ -125,19 +112,6 @@ define(['./workbox-6d565866'], (function (workbox) { 'use strict';
     plugins: [new workbox.ExpirationPlugin({
       maxEntries: 300,
       maxAgeSeconds: 1209600
-    }), new workbox.CacheableResponsePlugin({
-      statuses: [0, 200]
-    })]
-  }), 'GET');
-  workbox.registerRoute(({
-    url,
-    request
-  }) => request.method === "GET" && url.pathname.startsWith("/api/public/"), new workbox.NetworkFirst({
-    "cacheName": "public-api-v1",
-    "networkTimeoutSeconds": 4,
-    plugins: [new workbox.ExpirationPlugin({
-      maxEntries: 200,
-      maxAgeSeconds: 259200
     }), new workbox.CacheableResponsePlugin({
       statuses: [0, 200]
     })]
