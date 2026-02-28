@@ -3,6 +3,16 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import DashboardShell from "@/components/DashboardShell";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { toast } from "@/components/ui/use-toast";
 import { usePageMeta } from "@/hooks/use-page-meta";
 import { getApiBase } from "@/lib/api-base";
@@ -62,6 +72,7 @@ const DashboardSecurity = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [hasLoadError, setHasLoadError] = useState(false);
   const [revokingSid, setRevokingSid] = useState<string | null>(null);
+  const [pendingRevokeSession, setPendingRevokeSession] = useState<ActiveSessionRow | null>(null);
 
   const pageCount = useMemo(() => {
     if (!total) {
@@ -118,8 +129,11 @@ const DashboardSecurity = () => {
     setPage(pageCount);
   }, [page, pageCount]);
 
-  const handleRevokeSession = useCallback(
-    async (session: ActiveSessionRow) => {
+  const hasPrevious = page > 1;
+  const hasNext = page < pageCount;
+
+  const requestRevokeSession = useCallback(
+    (session: ActiveSessionRow) => {
       const sid = String(session.sid || "").trim();
       const userId = String(session.userId || "").trim();
       if (!sid || !userId || session.currentForViewer) {
@@ -128,42 +142,60 @@ const DashboardSecurity = () => {
       if (revokingSid) {
         return;
       }
-      const deviceSnippet = String(session.userAgent || "")
-        .trim()
-        .slice(0, 80);
-      const shouldProceed = window.confirm(
-        `Encerrar sessao de ${session.userName || userId} (${userId})?\nIP: ${
-          session.lastIp || "-"
-        }\nDevice: ${deviceSnippet || "-"}`,
+      setPendingRevokeSession(session);
+    },
+    [revokingSid],
+  );
+
+  const cancelRevokeSession = useCallback(() => {
+    if (revokingSid) {
+      return;
+    }
+    setPendingRevokeSession(null);
+  }, [revokingSid]);
+
+  const confirmRevokeSession = useCallback(async () => {
+    if (revokingSid) {
+      return;
+    }
+    const session = pendingRevokeSession;
+    if (!session) {
+      return;
+    }
+    const sid = String(session.sid || "").trim();
+    const userId = String(session.userId || "").trim();
+    if (!sid || !userId || session.currentForViewer) {
+      setPendingRevokeSession(null);
+      return;
+    }
+
+    setRevokingSid(sid);
+    try {
+      const response = await apiFetch(
+        apiBase,
+        `/api/admin/users/${encodeURIComponent(userId)}/sessions/${encodeURIComponent(sid)}`,
+        {
+          method: "DELETE",
+          auth: true,
+        },
       );
-      if (!shouldProceed) {
+      if (!response.ok) {
+        toast({ title: "Falha ao encerrar sessao", variant: "destructive" });
         return;
       }
+      toast({ title: "Sessao encerrada" });
+      await load();
+    } catch {
+      toast({ title: "Falha ao encerrar sessao", variant: "destructive" });
+    } finally {
+      setRevokingSid(null);
+      setPendingRevokeSession(null);
+    }
+  }, [apiBase, load, pendingRevokeSession, revokingSid]);
 
-      setRevokingSid(sid);
-      try {
-        const response = await apiFetch(
-          apiBase,
-          `/api/admin/users/${encodeURIComponent(userId)}/sessions/${encodeURIComponent(sid)}`,
-          {
-            method: "DELETE",
-            auth: true,
-          },
-        );
-        if (!response.ok) {
-          toast({ title: "Falha ao encerrar sessao", variant: "destructive" });
-          return;
-        }
-        toast({ title: "Sessao encerrada" });
-        await load();
-      } catch {
-        toast({ title: "Falha ao encerrar sessao", variant: "destructive" });
-      } finally {
-        setRevokingSid(null);
-      }
-    },
-    [apiBase, load, revokingSid],
-  );
+  const pendingDeviceSnippet = String(pendingRevokeSession?.userAgent || "")
+    .trim()
+    .slice(0, 120);
 
   return (
     <DashboardShell currentUser={me} isLoadingUser={isLoading}>
@@ -189,22 +221,26 @@ const DashboardSecurity = () => {
                 <Button size="sm" variant="outline" onClick={() => void load()} disabled={isLoading}>
                   Atualizar
                 </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => setPage((prev) => Math.max(1, prev - 1))}
-                  disabled={isLoading || page <= 1}
-                >
-                  Anterior
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => setPage((prev) => Math.min(pageCount, prev + 1))}
-                  disabled={isLoading || page >= pageCount}
-                >
-                  Proxima
-                </Button>
+                {hasPrevious ? (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setPage((prev) => Math.max(1, prev - 1))}
+                    disabled={isLoading}
+                  >
+                    Anterior
+                  </Button>
+                ) : null}
+                {hasNext ? (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setPage((prev) => Math.min(pageCount, prev + 1))}
+                    disabled={isLoading}
+                  >
+                    Proxima
+                  </Button>
+                ) : null}
               </div>
             </div>
 
@@ -253,7 +289,7 @@ const DashboardSecurity = () => {
                           <Button
                             size="sm"
                             variant="outline"
-                            onClick={() => void handleRevokeSession(session)}
+                            onClick={() => requestRevokeSession(session)}
                             disabled={Boolean(revokingSid)}
                           >
                             {revokingSid === session.sid ? "Encerrando..." : "Encerrar"}
@@ -274,6 +310,42 @@ const DashboardSecurity = () => {
           </section>
         </section>
       </main>
+      <AlertDialog
+        open={Boolean(pendingRevokeSession)}
+        onOpenChange={(nextOpen) => {
+          if (!nextOpen) {
+            cancelRevokeSession();
+          }
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Encerrar sessao ativa?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta acao encerra a sessao de {pendingRevokeSession?.userName || pendingRevokeSession?.userId || "-"}.
+              <br />
+              IP: {pendingRevokeSession?.lastIp || "-"}
+              <br />
+              Device: {pendingDeviceSnippet || "-"}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={Boolean(revokingSid)} onClick={cancelRevokeSession}>
+              Cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={Boolean(revokingSid)}
+              onClick={(event) => {
+                event.preventDefault();
+                void confirmRevokeSession();
+              }}
+            >
+              {revokingSid ? "Encerrando..." : "Encerrar sessao"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </DashboardShell>
   );
 };

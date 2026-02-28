@@ -91,7 +91,26 @@ const Login = () => {
         json: { codeOrRecoveryCode: normalizedCode },
       });
       if (!response.ok) {
-        setMfaError("Código inválido. Tente novamente.");
+        let errorCode = "";
+        try {
+          const body = await response.json();
+          errorCode = String(body?.error || "").trim();
+        } catch {
+          errorCode = "";
+        }
+        if (errorCode === "invalid_mfa_code") {
+          setMfaError("Código inválido. Tente novamente.");
+          return;
+        }
+        if (errorCode === "mfa_not_pending" || errorCode === "unauthorized") {
+          setMfaError("Sessão de login expirou. Entre com Discord novamente.");
+          return;
+        }
+        if (errorCode === "mfa_required") {
+          setMfaError("Sua sessão ainda exige MFA. Tente novamente.");
+          return;
+        }
+        setMfaError("Não foi possível validar o código de segurança.");
         return;
       }
       const body = await response.json();
@@ -156,18 +175,20 @@ const Login = () => {
                   </div>
                 )}
 
-                <div className="login-actions">
-                  <Button
-                    className="w-full bg-primary text-primary-foreground shadow-[0_16px_34px_-24px_hsl(var(--primary)/0.85)] hover:bg-primary/90 sm:w-auto"
-                    onClick={() => {
-                      const target = next
-                        ? `${apiBase}/auth/discord?next=${encodeURIComponent(next)}`
-                        : `${apiBase}/auth/discord`;
-                      window.location.href = target;
-                    }}
-                  >
-                    Entrar com Discord
-                  </Button>
+                <div className={`login-actions ${showMfaForm ? "justify-end" : ""}`}>
+                  {!showMfaForm ? (
+                    <Button
+                      className="w-full bg-primary text-primary-foreground shadow-[0_16px_34px_-24px_hsl(var(--primary)/0.85)] hover:bg-primary/90 sm:w-auto"
+                      onClick={() => {
+                        const target = next
+                          ? `${apiBase}/auth/discord?next=${encodeURIComponent(next)}`
+                          : `${apiBase}/auth/discord`;
+                        window.location.href = target;
+                      }}
+                    >
+                      Entrar com Discord
+                    </Button>
+                  ) : null}
                   <Link to="/" className="text-sm text-muted-foreground hover:text-foreground">
                     Voltar
                   </Link>

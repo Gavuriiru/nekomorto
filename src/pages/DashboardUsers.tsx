@@ -684,8 +684,14 @@ const DashboardUsers = () => {
       return;
     }
     const body = await response.json();
+    const enrollmentToken = String(body.enrollmentToken || body.token || "").trim();
+    if (!enrollmentToken) {
+      setSecurityEnrollment(null);
+      toast({ title: "Falha ao iniciar 2FA", description: "Token de ativacao ausente.", variant: "destructive" });
+      return;
+    }
     setSecurityEnrollment({
-      enrollmentToken: String(body.enrollmentToken || ""),
+      enrollmentToken,
       manualSecret: String(body.manualSecret || ""),
       otpauthUrl: String(body.otpauthUrl || ""),
       issuer: String(body.issuer || ""),
@@ -697,19 +703,58 @@ const DashboardUsers = () => {
   };
 
   const confirmSelfEnrollment = async () => {
-    if (!securityEnrollment || !securityEnrollCode.trim()) {
+    const enrollmentToken = String(securityEnrollment?.enrollmentToken || "").trim();
+    const normalizedCode = String(securityEnrollCode || "")
+      .trim()
+      .replace(/\s+/g, "");
+    if (!securityEnrollment || !enrollmentToken || !normalizedCode) {
+      if (!enrollmentToken) {
+        toast({
+          title: "Sessao de ativacao expirada",
+          description: "Inicie novamente para confirmar o 2FA.",
+          variant: "destructive",
+        });
+      }
       return;
     }
     const response = await apiFetch(apiBase, "/api/me/security/totp/enroll/confirm", {
       method: "POST",
       auth: true,
       json: {
-        enrollmentToken: securityEnrollment.enrollmentToken,
-        code: securityEnrollCode.trim(),
+        enrollmentToken,
+        code: normalizedCode,
+        codeOrRecoveryCode: normalizedCode,
       },
     });
     if (!response.ok) {
-      toast({ title: "Codigo invalido", variant: "destructive" });
+      let errorCode = "";
+      try {
+        const errorPayload = await response.json();
+        errorCode = String(errorPayload?.error || "").trim();
+      } catch {
+        errorCode = "";
+      }
+      if (errorCode === "invalid_or_expired_enrollment") {
+        setSecurityEnrollment(null);
+        toast({
+          title: "Sessao de ativacao expirada",
+          description: "Inicie novamente para confirmar o 2FA.",
+          variant: "destructive",
+        });
+        return;
+      }
+      if (errorCode === "enrollment_token_and_code_required") {
+        toast({
+          title: "Dados de confirmacao ausentes",
+          variant: "destructive",
+        });
+        return;
+      }
+      if (errorCode === "invalid_totp_code") {
+        toast({ title: "Codigo TOTP invalido", variant: "destructive" });
+        return;
+      }
+      toast({ title: "Nao foi possivel confirmar 2FA", variant: "destructive" });
       return;
     }
     const body = await response.json();
@@ -1644,6 +1689,9 @@ const DashboardUsers = () => {
                               >
                                 Copiar URL OTP
                               </Button>
+                              <Button size="sm" variant="outline" onClick={startSelfEnrollment}>
+                                Reiniciar ativacao
+                              </Button>
                             </div>
                             <Input
                               value={securityEnrollCode}
@@ -1653,7 +1701,7 @@ const DashboardUsers = () => {
                             <Button
                               size="sm"
                               onClick={confirmSelfEnrollment}
-                              disabled={!securityEnrollCode.trim()}
+                              disabled={!securityEnrollCode.trim() || !securityEnrollment.enrollmentToken}
                             >
                               Confirmar ativacao
                             </Button>

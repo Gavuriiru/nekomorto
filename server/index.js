@@ -2385,13 +2385,13 @@ app.use((req, _res, next) => {
   return next();
 });
 const PENDING_MFA_ALLOWED_API_PATHS = new Set([
-  "/api/auth/mfa/verify",
-  "/api/logout",
-  "/api/public/me",
-  "/api/version",
-  "/api/contracts",
-  "/api/contracts/v1",
-  "/api/contracts/v1.json",
+  "/auth/mfa/verify",
+  "/logout",
+  "/public/me",
+  "/version",
+  "/contracts",
+  "/contracts/v1",
+  "/contracts/v1.json",
 ]);
 app.use("/api", (req, res, next) => {
   const hasPendingMfa = Boolean(req.session?.pendingMfaUser?.id && !req.session?.user?.id);
@@ -2975,6 +2975,21 @@ const clearEnrollmentFromSession = (req) => {
   }
   req.session.mfaEnrollment = null;
 };
+
+const saveSessionState = (req) =>
+  new Promise((resolve, reject) => {
+    if (!req?.session || typeof req.session.save !== "function") {
+      reject(new Error("session_unavailable"));
+      return;
+    }
+    req.session.save((error) => {
+      if (error) {
+        reject(error);
+        return;
+      }
+      resolve();
+    });
+  });
 
 const buildMySecuritySummary = ({ req, userId } = {}) => {
   const record = loadUserMfaTotpRecord(userId);
@@ -5668,7 +5683,15 @@ app.get("/auth/discord", async (req, res) => {
   res.redirect(`https://discord.com/oauth2/authorize?${params.toString()}`);
 });
 
-app.get("/login", async (req, res) => {
+app.get("/login", async (req, res, next) => {
+  const hasOAuthCallbackParams = Boolean(
+    (typeof req.query?.code === "string" && req.query.code.trim()) ||
+    (typeof req.query?.state === "string" && req.query.state.trim()),
+  );
+  if (!hasOAuthCallbackParams) {
+    return next();
+  }
+
   const ip = req.headers["x-forwarded-for"]?.split(",")[0]?.trim() || req.ip;
   if (!(await canAttemptAuth(ip))) {
     metricsRegistry.inc("auth_login_total", { status: "rate_limited" });
@@ -6423,7 +6446,7 @@ app.get("/api/me/security", requireAuth, (req, res) => {
   }
   return res.json(buildMySecuritySummary({ req, userId }));
 });
-app.post("/api/me/security/totp/enroll/start", requireAuth, (req, res) => {
+app.post("/api/me/security/totp/enroll/start", requireAuth, async (req, res) => {
   res.setHeader("Cache-Control", "no-store");
   const userId = String(req.session?.user?.id || "").trim();
   if (!userId) {
@@ -6447,6 +6470,16 @@ app.post("/api/me/security/totp/enroll/start", requireAuth, (req, res) => {
   if (!enrollment) {
     return res.status(500).json({ error: "enrollment_unavailable" });
   }
+  try {
+    await saveSessionState(req);
+  } catch {
+    clearEnrollmentFromSession(req);
+    appendAuditLog(req, "auth.mfa.enroll.failed", "auth", {
+      userId,
+      error: "enrollment_persist_failed",
+    });
+    return res.status(500).json({ error: "enrollment_persist_failed" });
+  }
   appendAuditLog(req, "auth.mfa.enroll.start", "auth", { userId });
   return res.json({
     enrollmentToken: enrollment.enrollmentToken,
@@ -6463,13 +6496,23 @@ app.post("/api/me/security/totp/enroll/confirm", requireAuth, (req, res) => {
   if (!userId) {
     return res.status(401).json({ error: "unauthorized" });
   }
-  const enrollmentToken = String(req.body?.enrollmentToken || "").trim();
-  const code = String(req.body?.code || "").trim();
+  const enrollmentToken = String(req.body?.enrollmentToken || req.body?.token || "").trim();
+  const code = String(req.body?.code || req.body?.codeOrRecoveryCode || "")
+    .trim()
+    .replace(/\s+/g, "");
   if (!enrollmentToken || !code) {
+    appendAuditLog(req, "auth.mfa.enroll.failed", "auth", {
+      userId,
+      error: "enrollment_token_and_code_required",
+    });
     return res.status(400).json({ error: "enrollment_token_and_code_required" });
   }
   const enrollment = resolveEnrollmentFromSession({ req, enrollmentToken, userId });
   if (!enrollment) {
+    appendAuditLog(req, "auth.mfa.enroll.failed", "auth", {
+      userId,
+      error: "invalid_or_expired_enrollment",
+    });
     return res.status(400).json({ error: "invalid_or_expired_enrollment" });
   }
   if (!verifyTotpCode({ secret: enrollment.secret, code })) {
@@ -6477,6 +6520,10 @@ app.post("/api/me/security/totp/enroll/confirm", requireAuth, (req, res) => {
       req,
       userId,
       error: "enroll_confirm_invalid_code",
+    });
+    appendAuditLog(req, "auth.mfa.enroll.failed", "auth", {
+      userId,
+      error: "invalid_totp_code",
     });
     return res.status(401).json({ error: "invalid_totp_code" });
   }
