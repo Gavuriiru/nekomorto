@@ -1,11 +1,6 @@
 ﻿import { Suspense, lazy, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
-import { BookOpen } from "lucide-react";
-
 import CommentsSection from "@/components/CommentsSection";
-import DiscordInviteCard from "@/components/DiscordInviteCard";
-import LatestEpisodeCard from "@/components/LatestEpisodeCard";
-import WorkStatusCard from "@/components/WorkStatusCard";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -264,15 +259,22 @@ const ProjectReading = () => {
                 Cap {chapterData?.number ?? chapterNumber}
                 {chapterData?.volume ? ` • Vol. ${chapterData.volume}` : ""}
               </Badge>
-              <h1 className="text-2xl font-semibold text-foreground md:text-3xl">
-                {chapterContent?.title || chapterData?.title || project.title}
-              </h1>
-              <p className="text-sm text-muted-foreground">{project.title} • Leitura de Light Novel</p>
+              <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                <div className="min-w-0 space-y-2">
+                  <h1 className="text-2xl font-semibold text-foreground md:text-3xl">
+                    {chapterContent?.title || chapterData?.title || project.title}
+                  </h1>
+                  <p className="text-sm text-muted-foreground">{project.title} • Leitura de Light Novel</p>
+                </div>
+                <Button asChild size="sm" variant="outline" className="shrink-0">
+                  <Link to={`/projeto/${project.id}`}>Voltar ao projeto</Link>
+                </Button>
+              </div>
             </div>
 
           </div>
 
-          <section className="mt-8 grid gap-8 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+          <section className="mt-8">
             <article className="min-w-0 space-y-6">
               <Card className="group border-border/60 bg-card/80 shadow-lg transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:bg-card/90 hover:shadow-lg">
                 <CardContent className="min-w-0 space-y-6 p-6">
@@ -312,18 +314,7 @@ const ProjectReading = () => {
                 chapterNumber={chapterData?.number ?? chapterNumber}
                 volume={chapterData?.volume ?? (Number.isFinite(volumeParam) ? volumeParam : undefined)}
               />
-
-              <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                <BookOpen className="h-4 w-4 text-primary/70" />
-                Capítulos publicados diretamente no site.
-              </div>
             </article>
-
-            <aside className="min-w-0 space-y-6">
-              <LatestEpisodeCard />
-              <WorkStatusCard />
-              <DiscordInviteCard />
-            </aside>
           </section>
         </section>
       </main>

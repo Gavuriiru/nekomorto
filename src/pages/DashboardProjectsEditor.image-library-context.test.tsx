@@ -173,6 +173,9 @@ describe("DashboardProjectsEditor image library context", () => {
     const projectCardButton = await screen.findByRole("button", {
       name: "Abrir projeto Projeto Teste",
     });
+    expect(
+      screen.queryByRole("button", { name: "Editar projeto Projeto Teste" }),
+    ).not.toBeInTheDocument();
     fireEvent.click(projectCardButton);
     await screen.findByText("Editar projeto");
 

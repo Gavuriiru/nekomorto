@@ -405,14 +405,14 @@ const DashboardAuditLog = () => {
     };
   }, [apiBase, refreshTick, searchParams]);
 
-  const statusBadgeClass = (status: AuditStatus) => {
+  const statusBadgeVariant = (status: AuditStatus) => {
     if (status === "failed") {
-      return "bg-red-500/20 text-red-200";
+      return "danger";
     }
     if (status === "denied") {
-      return "bg-amber-500/20 text-amber-200";
+      return "warning";
     }
-    return "bg-emerald-500/20 text-emerald-200";
+    return "success";
   };
 
   const applyFilters = () => {
@@ -763,7 +763,7 @@ const DashboardAuditLog = () => {
                           </div>
                         </TableCell>
                         <TableCell>
-                          <Badge className={statusBadgeClass(entry.status)}>
+                          <Badge variant={statusBadgeVariant(entry.status)}>
                             {humanizeAuditStatus(entry.status)}
                           </Badge>
                         </TableCell>
@@ -849,7 +849,7 @@ const DashboardAuditLog = () => {
                 </div>
                 <div>
                   <p className="text-muted-foreground">Status</p>
-                  <Badge className={statusBadgeClass(selectedEntry.status)}>
+                  <Badge variant={statusBadgeVariant(selectedEntry.status)}>
                     {humanizeAuditStatus(selectedEntry.status)}
                   </Badge>
                 </div>

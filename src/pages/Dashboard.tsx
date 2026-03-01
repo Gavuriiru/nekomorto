@@ -523,16 +523,16 @@ const Dashboard = () => {
       : operationalAlerts?.status === "degraded"
         ? "Degradado"
         : "OK";
-  const operationalStatusClass =
+  const operationalStatusVariant: "danger" | "warning" | "success" =
     operationalAlerts?.status === "fail"
-      ? "bg-red-500/20 text-red-200"
+      ? "danger"
       : operationalAlerts?.status === "degraded"
-        ? "bg-amber-500/20 text-amber-200"
-        : "bg-emerald-500/20 text-emerald-200";
-  const alertSeverityClass = (severity?: string) => {
-    if (severity === "critical") return "bg-red-500/20 text-red-200";
-    if (severity === "warning") return "bg-amber-500/20 text-amber-200";
-    return "bg-card/80 text-muted-foreground";
+        ? "warning"
+        : "success";
+  const alertSeverityVariant = (severity?: string): "danger" | "warning" | null => {
+    if (severity === "critical") return "danger";
+    if (severity === "warning") return "warning";
+    return null;
   };
   const rolePresetWidgets = DASHBOARD_ROLE_PRESETS[homeRole];
   const selectedWidgetsByRole = useMemo(
@@ -1024,7 +1024,7 @@ const Dashboard = () => {
                             Healthchecks e alertas internos
                           </p>
                         </div>
-                        <Badge className={operationalStatusClass}>{operationalStatusLabel}</Badge>
+                        <Badge variant={operationalStatusVariant}>{operationalStatusLabel}</Badge>
                       </div>
                       {isLoadingOperationalAlerts ? (
                         <div className="mt-4 rounded-2xl border border-dashed border-border/60 bg-card/60 px-4 py-6 text-sm text-muted-foreground">
@@ -1052,7 +1052,14 @@ const Dashboard = () => {
                             >
                               <div className="flex items-center justify-between gap-2">
                                 <p className="text-sm font-medium">{alert.title}</p>
-                                <Badge className={alertSeverityClass(alert.severity)}>
+                                <Badge
+                                  variant={alertSeverityVariant(alert.severity) ?? undefined}
+                                  className={
+                                    alertSeverityVariant(alert.severity)
+                                      ? undefined
+                                      : "bg-card/80 text-muted-foreground"
+                                  }
+                                >
                                   {alert.severity === "critical"
                                     ? "Crítico"
                                     : alert.severity === "warning"

@@ -35,15 +35,15 @@ vi.mock("@/components/CommentsSection", () => ({
 }));
 
 vi.mock("@/components/DiscordInviteCard", () => ({
-  default: () => null,
+  default: () => <div data-testid="discord-invite-card" />,
 }));
 
 vi.mock("@/components/LatestEpisodeCard", () => ({
-  default: () => null,
+  default: () => <div data-testid="latest-episode-card" />,
 }));
 
 vi.mock("@/components/WorkStatusCard", () => ({
-  default: () => null,
+  default: () => <div data-testid="work-status-card" />,
 }));
 
 const mockJsonResponse = (ok: boolean, payload: unknown, status = ok ? 200 : 500) =>
@@ -159,8 +159,13 @@ describe("ProjectReading analytics", () => {
     await screen.findByRole("heading", { name: /Cap.tulo 1/i });
 
     expect(screen.queryByRole("navigation", { name: /breadcrumb/i })).not.toBeInTheDocument();
-    expect(screen.queryByRole("link", { name: "Voltar ao projeto" })).not.toBeInTheDocument();
+    const backLink = screen.getByRole("link", { name: "Voltar ao projeto" });
+    expect(backLink).toHaveAttribute("href", "/projeto/projeto-teste");
     expect(screen.queryByRole("link", { name: "Ir para projetos" })).not.toBeInTheDocument();
+    expect(screen.queryByText("Capítulos publicados diretamente no site.")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("discord-invite-card")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("latest-episode-card")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("work-status-card")).not.toBeInTheDocument();
 
     const rootSection = document.querySelector("main > section");
     expect(rootSection).not.toBeNull();

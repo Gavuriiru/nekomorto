@@ -110,6 +110,20 @@ describe("Dashboard overview async states", () => {
           ],
         });
       }
+      if (path === "/api/admin/operational-alerts" && method === "GET") {
+        return mockJsonResponse(true, {
+          ok: true,
+          status: "ok",
+          generatedAt: "2026-02-20T10:00:00.000Z",
+          alerts: [],
+          summary: {
+            total: 0,
+            critical: 0,
+            warning: 0,
+            info: 0,
+          },
+        });
+      }
       return mockJsonResponse(false, { error: "not_found" }, 404);
     });
 
@@ -129,5 +143,84 @@ describe("Dashboard overview async states", () => {
     });
     await screen.findByRole("heading", { name: "Projetos cadastrados" });
     expect(projectsRequestCount).toBeGreaterThanOrEqual(2);
+  });
+
+  it("aplica variantes semanticas nas badges operacionais", async () => {
+    apiFetchMock.mockImplementation(async (_base: string, path: string, options?: RequestInit) => {
+      const method = String(options?.method || "GET").toUpperCase();
+      if (path === "/api/me" && method === "GET") {
+        return mockJsonResponse(true, {
+          id: "u-1",
+          name: "Admin",
+          username: "admin",
+          permissions: ["*"],
+        });
+      }
+      if (path === "/api/projects" && method === "GET") {
+        return mockJsonResponse(true, { projects: [] });
+      }
+      if (path === "/api/posts" && method === "GET") {
+        return mockJsonResponse(true, { posts: [] });
+      }
+      if (path === "/api/comments/recent?limit=3" && method === "GET") {
+        return mockJsonResponse(true, { comments: [], pendingCount: 0 });
+      }
+      if (path.startsWith("/api/analytics/overview?") && method === "GET") {
+        return mockJsonResponse(true, {
+          metrics: {
+            views: 20,
+          },
+        });
+      }
+      if (path === "/api/analytics/timeseries?range=7d&type=all&metric=views" && method === "GET") {
+        return mockJsonResponse(true, {
+          series: [
+            { date: "2026-02-20", value: 10 },
+            { date: "2026-02-21", value: 12 },
+          ],
+        });
+      }
+      if (path === "/api/admin/operational-alerts" && method === "GET") {
+        return mockJsonResponse(true, {
+          ok: true,
+          status: "degraded",
+          generatedAt: "2026-02-20T10:00:00.000Z",
+          alerts: [
+            {
+              code: "db-latency",
+              severity: "critical",
+              title: "Banco de dados",
+              description: "Latencia acima do esperado.",
+            },
+          ],
+          summary: {
+            total: 1,
+            critical: 1,
+            warning: 0,
+            info: 0,
+          },
+        });
+      }
+      return mockJsonResponse(false, { error: "not_found" }, 404);
+    });
+
+    render(
+      <MemoryRouter initialEntries={["/dashboard"]}>
+        <Dashboard />
+      </MemoryRouter>,
+    );
+
+    await screen.findByRole("heading", { name: /Painel de controle da comunidade/i });
+
+    expect(await screen.findByText("Degradado")).toHaveClass(
+      "bg-amber-500/20",
+      "text-amber-900",
+      "dark:text-amber-200",
+    );
+    expect(screen.getByText(/Cr.*tico/i)).toHaveClass(
+      "bg-red-500/20",
+      "text-red-800",
+      "dark:text-red-200",
+    );
   });
 });

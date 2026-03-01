@@ -933,7 +933,7 @@ const ProjectPage = () => {
                   {volumeGroups.map((group) => (
                     <Card
                       key={group.label}
-                      className="border-border/60 bg-card/80 shadow-lg transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:bg-card/90 hover:shadow-lg"
+                      className="border-border/60 bg-card/80 shadow-[0_10px_20px_-18px_rgba(0,0,0,0.08),0_24px_48px_-34px_rgba(0,0,0,0.12)] transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:bg-card/90 hover:shadow-[0_14px_28px_-20px_rgba(0,0,0,0.1),0_28px_56px_-32px_rgba(0,0,0,0.16)]"
                     >
                       <CardContent className="space-y-4 p-6">
                         <Accordion type="multiple" defaultValue={[group.label]}>
@@ -946,7 +946,7 @@ const ProjectPage = () => {
                                 </span>
                               </div>
                             </AccordionTrigger>
-                            <AccordionContent className="pt-4">
+                            <AccordionContent className="px-5 pt-4 pb-8">
                               <div className="grid gap-4">
                                 {group.items.map((chapter) => {
                                   const hasContent =
@@ -957,7 +957,7 @@ const ProjectPage = () => {
                                   return (
                                     <Card
                                       key={`${chapter.number}-${chapter.volume || 0}`}
-                                      className="border-border/60 bg-background/60 transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:bg-background/80 hover:shadow-lg"
+                                      className="border-border/60 bg-background/60 shadow-[0_6px_14px_-12px_rgba(0,0,0,0.06),0_16px_32px_-24px_rgba(0,0,0,0.1)] transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:bg-background/80 hover:shadow-[0_10px_20px_-14px_rgba(0,0,0,0.08),0_20px_38px_-22px_rgba(0,0,0,0.13)]"
                                     >
                                       <CardContent className="space-y-3 p-4">
                                         <div className="flex flex-wrap items-start justify-between gap-4">

@@ -48,7 +48,6 @@ import { toast } from "@/components/ui/use-toast";
 import {
   Eye,
   FileText,
-  FolderCog,
   LayoutGrid,
   MessageSquare,
   Plus,
@@ -2690,15 +2689,6 @@ const DashboardProjectsEditor = () => {
                             </div>
                             <div className="pointer-events-auto relative z-20 flex items-center gap-2">
                               <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => openEdit(project)}
-                                aria-label={`Editar projeto ${project.title}`}
-                              >
-                                <FolderCog className="mr-2 h-4 w-4" aria-hidden="true" />
-                                Editar
-                              </Button>
-                              <Button
                                 variant="ghost"
                                 size="icon"
                                 title="Visualizar"
@@ -3831,7 +3821,10 @@ const DashboardProjectsEditor = () => {
                         const episodeNumberLabel = `${episodeUnitLabel} ${episode.number || index + 1}`;
                         const episodeTitleLabel =
                           String(episode.title || "").trim() || "Sem título";
+                        const hasEpisodeContent = String(episode.content || "").trim().length > 0;
                         const hasDownloadSource = episode.sources.some((source) => source.url);
+                        const isProgressOnlyEntry =
+                          !hasDownloadSource && !(isLightNovel && hasEpisodeContent);
                         const currentProgressStageLabel =
                           stageOptions.find(
                             (stage) =>
@@ -3840,10 +3833,10 @@ const DashboardProjectsEditor = () => {
                           )?.label || "Aguardando Raw";
                         const collapsedHeaderMeta: string[] = [];
 
-                        if (isLightNovel && String(episode.content || "").trim().length > 0) {
+                        if (isLightNovel && hasEpisodeContent) {
                           collapsedHeaderMeta.push("Conteúdo");
                         }
-                        if (!isChapterBased && !hasDownloadSource) {
+                        if (isProgressOnlyEntry) {
                           collapsedHeaderMeta.push(currentProgressStageLabel);
                         }
                         if (hasDownloadSource) {
@@ -3870,14 +3863,14 @@ const DashboardProjectsEditor = () => {
                                 className={`project-editor-episode-content space-y-3 ${isEpisodeCollapsed ? "p-4" : "p-5"}`}
                               >
                                 <div
-                                  className="project-editor-episode-header flex flex-wrap items-start justify-between gap-2"
+                                  className="project-editor-episode-header flex flex-wrap items-center justify-between gap-2"
                                   data-testid={`episode-header-${index}`}
                                   onClick={(event) => handleEpisodeHeaderClick(index, event)}
                                 >
                                   <div className="min-w-0 flex-1">
                                     <AccordionTrigger
                                       data-episode-accordion-trigger
-                                      className="project-editor-episode-trigger py-0 text-left text-foreground hover:no-underline [&>svg]:mt-0.5 [&>svg]:shrink-0"
+                                      className="project-editor-episode-trigger gap-3 py-0 text-left text-foreground hover:no-underline [&>svg]:mt-0 [&>svg]:self-center [&>svg]:shrink-0"
                                     >
                                       <div className="flex min-w-0 flex-col py-0.5">
                                         <span className="text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground">
@@ -4143,8 +4136,7 @@ const DashboardProjectsEditor = () => {
                                       </Select>
                                     ) : null}
                                   </div>
-                                  {!episode.sources.some((source) => source.url) &&
-                                  !isChapterBased ? (
+                                  {isProgressOnlyEntry ? (
                                     <div className="project-editor-episode-group mt-3 space-y-2">
                                       <Label className="text-xs">Etapa atual</Label>
                                       <div className="rounded-md border border-border/60 bg-background/70 px-3 py-2 text-xs text-muted-foreground">
@@ -4211,8 +4203,7 @@ const DashboardProjectsEditor = () => {
                                       </div>
                                     </div>
                                   ) : null}
-                                  {!episode.sources.some((source) => source.url) &&
-                                  !isChapterBased ? (
+                                  {isProgressOnlyEntry ? (
                                     <div className="project-editor-episode-group mt-3">
                                       <Label className="text-xs">Etapas concluídas</Label>
                                       <div className="mt-2 flex flex-wrap gap-2">

@@ -287,12 +287,10 @@ const DashboardSecurity = () => {
                       </div>
                       <div className="flex flex-wrap gap-2">
                         {session.currentForViewer ? (
-                          <Badge className="bg-emerald-500/20 text-emerald-200">
-                            Sua sessao atual
-                          </Badge>
+                          <Badge variant="success">Sua sessao atual</Badge>
                         ) : null}
                         {session.isPendingMfa ? (
-                          <Badge className="bg-amber-500/20 text-amber-200">Pendente MFA</Badge>
+                          <Badge variant="warning">Pendente MFA</Badge>
                         ) : null}
                         {session.sid && session.userId && !session.currentForViewer ? (
                           <Button

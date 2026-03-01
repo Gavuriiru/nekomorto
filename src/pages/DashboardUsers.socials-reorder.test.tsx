@@ -113,11 +113,19 @@ describe("DashboardUsers socials reorder", () => {
       </MemoryRouter>,
     );
 
-    fireEvent.click(await screen.findByRole("button", { name: /Editar usuario Admin/i }));
+    const openEditorButton = await screen.findByRole("button", { name: /Abrir usuario Admin/i });
+    expect(screen.queryByRole("button", { name: /Editar usuario Admin/i })).not.toBeInTheDocument();
+    fireEvent.click(openEditorButton);
     const dialog = await screen.findByRole("dialog");
 
     const dragHandle = within(dialog).getByRole("button", { name: /Arrastar rede discord/i });
     const dropTarget = within(dialog).getByTestId("user-social-row-0");
+    expect(dropTarget.className).toContain("overflow-x-auto");
+    const socialGrid = dropTarget.firstElementChild as HTMLElement;
+    expect(socialGrid.className).toContain("grid-cols-[auto_auto_auto_minmax(0,1fr)_auto]");
+    expect(socialGrid.className).not.toContain("min-w-[720px]");
+    const socialSelectTrigger = within(dialog).getByRole("combobox", { name: "Instagram" });
+    expect(socialSelectTrigger.className).toContain("w-14");
     const dataTransfer = {
       effectAllowed: "move",
       dropEffect: "move",

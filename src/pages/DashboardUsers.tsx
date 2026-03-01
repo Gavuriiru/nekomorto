@@ -1390,16 +1390,6 @@ const DashboardUsers = () => {
                                 buttonClassName="h-9 w-9"
                               />
                             ) : null}
-                            <Button
-                              type="button"
-                              size="sm"
-                              variant="outline"
-                              onClick={() => handleUserCardClick(user)}
-                              aria-label={`Editar usuario ${user.name}`}
-                              disabled={!canEditUser}
-                            >
-                              Editar
-                            </Button>
                           </div>
                         </div>
                       </div>
@@ -1513,16 +1503,6 @@ const DashboardUsers = () => {
                                   buttonClassName="h-9 w-9"
                                 />
                               ) : null}
-                              <Button
-                                type="button"
-                                size="sm"
-                                variant="outline"
-                                onClick={() => handleUserCardClick(user)}
-                                aria-label={`Editar usuario ${user.name}`}
-                                disabled={!canEditUser}
-                              >
-                                Editar
-                              </Button>
                             </div>
                           </div>
                         </div>
@@ -1651,110 +1631,145 @@ const DashboardUsers = () => {
                 {formState.socials.length === 0 ? (
                   <p className="text-xs text-muted-foreground">Nenhum link adicionado.</p>
                 ) : null}
-                {formState.socials.map((social, index) => (
-                  <div
-                    key={`${social.label}-${index}`}
-                    data-testid={`user-social-row-${index}`}
-                    className={`overflow-x-auto rounded-xl border p-2 transition ${
-                      socialDragOverIndex === index
-                        ? "border-primary/40 bg-primary/5"
-                        : "border-transparent"
-                    }`}
-                    onDragOver={(event) => handleSocialDragOver(event, index)}
-                    onDrop={(event) => handleSocialDrop(event, index)}
-                  >
-                    <div className="grid min-w-[720px] items-center gap-2 md:grid-cols-[auto_auto_minmax(180px,0.95fr)_minmax(260px,1.55fr)_auto]">
-                    <button
-                      type="button"
-                      draggable={canEditBasicFields}
-                      className="inline-flex h-9 w-9 cursor-grab items-center justify-center rounded-md border border-border/60 bg-background/60 text-muted-foreground transition hover:border-primary/40 hover:text-primary active:cursor-grabbing disabled:cursor-not-allowed disabled:opacity-50"
-                      aria-label={`Arrastar rede ${social.label || index + 1}`}
-                      onDragStart={(event) => handleSocialDragStart(event, index)}
-                      onDragEnd={clearSocialDragState}
-                      disabled={!canEditBasicFields}
+                {formState.socials.map((social, index) => {
+                  const availableLinkTypes = linkTypes.length > 0 ? linkTypes : fallbackLinkTypes;
+                  const selectedOption =
+                    availableLinkTypes.find((option) => option.id === social.label) ||
+                    availableLinkTypes.find((option) => option.label === social.label) ||
+                    null;
+                  const isCustomSelectedIcon = Boolean(
+                    selectedOption && isIconUrl(selectedOption.icon),
+                  );
+                  const SelectedIcon =
+                    !isCustomSelectedIcon && selectedOption
+                      ? socialIconMap[selectedOption.icon] || Globe
+                      : Globe;
+                  const selectedLabel = selectedOption?.label || "Selecione a rede";
+
+                  return (
+                    <div
+                      key={`${social.label}-${index}`}
+                      data-testid={`user-social-row-${index}`}
+                      className={`overflow-x-auto rounded-xl border p-2 transition ${
+                        socialDragOverIndex === index
+                          ? "border-primary/40 bg-primary/5"
+                          : "border-transparent"
+                      }`}
+                      onDragOver={(event) => handleSocialDragOver(event, index)}
+                      onDrop={(event) => handleSocialDrop(event, index)}
                     >
-                      <GripVertical className="h-4 w-4" />
-                    </button>
-                    <ReorderControls
-                      label={`rede ${social.label || index + 1}`}
-                      index={index}
-                      total={formState.socials.length}
-                      onMove={(targetIndex) => moveSocialLink(index, targetIndex)}
-                      disabled={!canEditBasicFields}
-                    />
-                    <Select
-                      value={social.label}
-                      onValueChange={(value) =>
-                        setFormState((prev) => {
-                          const next = [...prev.socials];
-                          next[index] = { ...next[index], label: value };
-                          return { ...prev, socials: next };
-                        })
-                      }
-                      disabled={!canEditBasicFields}
-                    >
-                      <SelectTrigger className="min-w-0 bg-background/60 justify-start text-left">
-                        <SelectValue placeholder="Selecione a rede" />
-                      </SelectTrigger>
-                      <SelectContent align="start">
-                        {(linkTypes.length > 0 ? linkTypes : fallbackLinkTypes).map((option) => {
-                          const isCustomIcon = isIconUrl(option.icon);
-                          const Icon = !isCustomIcon ? socialIconMap[option.icon] || Globe : null;
-                          return (
-                            <SelectItem
-                              key={option.id}
-                              value={option.id}
-                              className="pl-2 pr-2 [&>span:first-child]:hidden"
-                            >
-                              <div className="flex items-center gap-2">
-                                {isCustomIcon ? (
-                                  <ThemedSvgLogo
-                                    url={option.icon}
-                                    label={option.label}
-                                    className="h-4 w-4 text-primary"
-                                  />
-                                ) : (
-                                  <Icon className="h-4 w-4" />
-                                )}
-                                <span>{option.label}</span>
-                              </div>
-                            </SelectItem>
-                          );
-                        })}
-                      </SelectContent>
-                    </Select>
-                    <Input
-                      className="min-w-0"
-                      value={social.href}
-                      onChange={(event) =>
-                        setFormState((prev) => {
-                          const next = [...prev.socials];
-                          next[index] = { ...next[index], href: event.target.value };
-                          return { ...prev, socials: next };
-                        })
-                      }
-                      placeholder="https://"
-                      disabled={!canEditBasicFields}
-                    />
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      className="h-9 w-9 shrink-0 text-destructive hover:text-destructive"
-                      aria-label={`Remover rede ${social.label || index + 1}`}
-                      onClick={() =>
-                        setFormState((prev) => ({
-                          ...prev,
-                          socials: prev.socials.filter((_, idx) => idx !== index),
-                        }))
-                      }
-                      disabled={!canEditBasicFields}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                      <div className="grid grid-cols-[auto_auto_auto_minmax(0,1fr)_auto] items-center gap-2">
+                        <button
+                          type="button"
+                          draggable={canEditBasicFields}
+                          className="inline-flex h-9 w-9 cursor-grab items-center justify-center rounded-md border border-border/60 bg-background/60 text-muted-foreground transition hover:border-primary/40 hover:text-primary active:cursor-grabbing disabled:cursor-not-allowed disabled:opacity-50"
+                          aria-label={`Arrastar rede ${social.label || index + 1}`}
+                          onDragStart={(event) => handleSocialDragStart(event, index)}
+                          onDragEnd={clearSocialDragState}
+                          disabled={!canEditBasicFields}
+                        >
+                          <GripVertical className="h-4 w-4" />
+                        </button>
+                        <ReorderControls
+                          label={`rede ${social.label || index + 1}`}
+                          index={index}
+                          total={formState.socials.length}
+                          onMove={(targetIndex) => moveSocialLink(index, targetIndex)}
+                          disabled={!canEditBasicFields}
+                        />
+                        <Select
+                          value={social.label}
+                          onValueChange={(value) =>
+                            setFormState((prev) => {
+                              const next = [...prev.socials];
+                              next[index] = { ...next[index], label: value };
+                              return { ...prev, socials: next };
+                            })
+                          }
+                          disabled={!canEditBasicFields}
+                        >
+                          <SelectTrigger
+                            className="h-10 w-14 shrink-0 justify-center gap-1 bg-background/60 px-2"
+                            aria-label={selectedLabel}
+                            title={selectedLabel}
+                          >
+                            <span className="flex items-center justify-center">
+                              {isCustomSelectedIcon && selectedOption ? (
+                                <ThemedSvgLogo
+                                  url={selectedOption.icon}
+                                  label={selectedLabel}
+                                  className="h-4 w-4 text-primary"
+                                />
+                              ) : (
+                                <SelectedIcon
+                                  className={`h-4 w-4 ${
+                                    selectedOption ? "text-foreground" : "text-muted-foreground"
+                                  }`}
+                                />
+                              )}
+                            </span>
+                            <span className="sr-only">{selectedLabel}</span>
+                          </SelectTrigger>
+                          <SelectContent align="start">
+                            {availableLinkTypes.map((option) => {
+                              const isCustomIcon = isIconUrl(option.icon);
+                              const Icon = !isCustomIcon ? socialIconMap[option.icon] || Globe : null;
+                              return (
+                                <SelectItem
+                                  key={option.id}
+                                  value={option.id}
+                                  className="pl-2 pr-2 [&>span:first-child]:hidden"
+                                >
+                                  <div className="flex items-center gap-2">
+                                    {isCustomIcon ? (
+                                      <ThemedSvgLogo
+                                        url={option.icon}
+                                        label={option.label}
+                                        className="h-4 w-4 text-primary"
+                                      />
+                                    ) : (
+                                      <Icon className="h-4 w-4" />
+                                    )}
+                                    <span>{option.label}</span>
+                                  </div>
+                                </SelectItem>
+                              );
+                            })}
+                          </SelectContent>
+                        </Select>
+                        <Input
+                          className="min-w-0"
+                          value={social.href}
+                          onChange={(event) =>
+                            setFormState((prev) => {
+                              const next = [...prev.socials];
+                              next[index] = { ...next[index], href: event.target.value };
+                              return { ...prev, socials: next };
+                            })
+                          }
+                          placeholder="https://"
+                          disabled={!canEditBasicFields}
+                        />
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="h-9 w-9 shrink-0 text-destructive hover:text-destructive"
+                          aria-label={`Remover rede ${social.label || index + 1}`}
+                          onClick={() =>
+                            setFormState((prev) => ({
+                              ...prev,
+                              socials: prev.socials.filter((_, idx) => idx !== index),
+                            }))
+                          }
+                          disabled={!canEditBasicFields}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
                 <Button
                   type="button"
                   variant="outline"
@@ -1956,12 +1971,10 @@ const DashboardUsers = () => {
                                   : "Sessao remota"}
                               </p>
                               {isCurrentSecuritySession(session) ? (
-                                <Badge className="bg-emerald-500/20 text-emerald-200">Atual</Badge>
+                                <Badge variant="success">Atual</Badge>
                               ) : null}
                               {session.isPendingMfa ? (
-                                <Badge className="bg-amber-500/20 text-amber-200">
-                                  Pendente MFA
-                                </Badge>
+                                <Badge variant="warning">Pendente MFA</Badge>
                               ) : null}
                             </div>
                             <p className="text-[11px] text-muted-foreground">
