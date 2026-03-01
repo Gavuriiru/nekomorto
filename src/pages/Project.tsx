@@ -649,11 +649,12 @@ const ProjectPage = () => {
             >
               <div
                 data-testid="project-hero-cover-shell"
-                className="order-1 mx-auto w-64 md:mx-0 md:h-full md:w-[320px] lg:w-[340px]"
+                className="order-1 mx-auto w-64 self-start md:mx-0 md:w-[320px] lg:w-[340px]"
               >
                 <div
                   data-testid="project-hero-cover-frame"
-                  className="h-full overflow-hidden rounded-2xl border border-border/70 bg-secondary/90 shadow-[0_30px_100px_-55px_rgba(0,0,0,0.95)] animate-slide-up opacity-0 md:max-h-[620px]"
+                  className="overflow-hidden rounded-2xl border border-border/70 bg-secondary/90 shadow-[0_30px_100px_-55px_rgba(0,0,0,0.95)] animate-slide-up opacity-0"
+                  style={{ aspectRatio: "9 / 14" }}
                 >
                   <img
                     src={heroCoverDisplaySrc}

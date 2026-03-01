@@ -103,6 +103,7 @@ import {
   normalizeRecoveryCode,
   verifyTotpCode,
 } from "./lib/totp.js";
+import { runUploadsCleanup } from "./lib/uploads-cleanup.js";
 import { runUploadsReorganization } from "./lib/uploads-reorganizer.js";
 import {
   attachUploadMediaMetadata,
@@ -12110,6 +12111,69 @@ app.get("/api/uploads/storage/areas", requireAuth, (req, res) => {
   return res.json(summary);
 });
 
+app.get("/api/uploads/storage/cleanup", requireAuth, (req, res) => {
+  const sessionUser = req.session.user;
+  if (!canManageUploads(sessionUser?.id)) {
+    return res.status(403).json({ error: "forbidden" });
+  }
+
+  const report = runUploadsCleanup({
+    datasets: loadUploadsCleanupDatasets(),
+    uploadsDir: path.join(__dirname, "..", "public", "uploads"),
+    applyChanges: false,
+    exampleLimit: 8,
+  });
+
+  return res.json({
+    generatedAt: report.generatedAt,
+    unusedCount: report.unusedCount,
+    totals: report.totals,
+    areas: report.areas,
+    examples: report.examples,
+  });
+});
+
+app.post("/api/uploads/storage/cleanup", requireAuth, (req, res) => {
+  const sessionUser = req.session.user;
+  if (!canManageUploads(sessionUser?.id)) {
+    return res.status(403).json({ error: "forbidden" });
+  }
+
+  if (String(req.body?.confirm || "").trim() !== "EXCLUIR") {
+    return res.status(400).json({ error: "confirm_required" });
+  }
+
+  try {
+    const report = runUploadsCleanup({
+      datasets: loadUploadsCleanupDatasets(),
+      uploadsDir: path.join(__dirname, "..", "public", "uploads"),
+      applyChanges: true,
+      exampleLimit: 8,
+    });
+
+    if (report.changed) {
+      writeUploads(report.rewritten.uploads);
+    }
+
+    appendAuditLog(req, "uploads.cleanup_unused", "uploads", {
+      deletedCount: report.deletedCount,
+      failedCount: report.failedCount,
+      freedBytes: Number(report.deletedTotals?.totalBytes || 0),
+      failures: report.failures,
+    });
+
+    return res.json({
+      ok: report.failedCount === 0,
+      deletedCount: report.deletedCount,
+      failedCount: report.failedCount,
+      deletedTotals: report.deletedTotals,
+      failures: report.failures,
+    });
+  } catch {
+    return res.status(500).json({ error: "cleanup_failed" });
+  }
+});
+
 const collectProjectImageItems = (projects) => {
   const dedupe = new Set();
   const items = [];
@@ -12397,6 +12461,17 @@ const getUsedUploadUrls = () => {
   collectUploadUrls(loadUpdates(), urls);
   return urls;
 };
+
+const loadUploadsCleanupDatasets = () => ({
+  siteSettings: loadSiteSettings(),
+  posts: loadPosts(),
+  projects: loadProjects(),
+  users: loadUsers(),
+  pages: loadPages(),
+  comments: loadComments(),
+  updates: loadUpdates(),
+  uploads: loadUploads(),
+});
 
 const escapeRegExp = (value) => String(value || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 

@@ -3,8 +3,20 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import DashboardShell from "@/components/DashboardShell";
 import DashboardPageContainer from "@/components/dashboard/DashboardPageContainer";
 import DashboardPageHeader from "@/components/dashboard/DashboardPageHeader";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { toast } from "@/components/ui/use-toast";
 import { usePageMeta } from "@/hooks/use-page-meta";
 import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
@@ -34,6 +46,39 @@ type StorageSummaryPayload = {
   areas: StorageAreaRow[];
 };
 
+type CleanupExampleRow = {
+  id: string | null;
+  url: string;
+  fileName: string;
+  folder: string;
+  area: string;
+  createdAt: string | null;
+  originalBytes: number;
+  variantBytes: number;
+  totalBytes: number;
+};
+
+type CleanupPreviewPayload = {
+  generatedAt: string;
+  unusedCount: number;
+  totals: StorageAreaRow;
+  areas: StorageAreaRow[];
+  examples: CleanupExampleRow[];
+};
+
+type CleanupRunPayload = {
+  ok: boolean;
+  deletedCount: number;
+  failedCount: number;
+  deletedTotals: StorageAreaRow;
+  failures: Array<{
+    url: string;
+    reason: string;
+  }>;
+};
+
+const CLEANUP_CONFIRM_TEXT = "EXCLUIR";
+
 const emptyTotals: StorageAreaRow = {
   area: "total",
   originalBytes: 0,
@@ -42,6 +87,85 @@ const emptyTotals: StorageAreaRow = {
   originalFiles: 0,
   variantFiles: 0,
   totalFiles: 0,
+};
+
+const emptySummary: StorageSummaryPayload = {
+  generatedAt: "",
+  totals: emptyTotals,
+  areas: [],
+};
+
+const emptyCleanupPreview: CleanupPreviewPayload = {
+  generatedAt: "",
+  unusedCount: 0,
+  totals: emptyTotals,
+  areas: [],
+  examples: [],
+};
+
+const normalizeStorageAreaRow = (
+  value: Partial<StorageAreaRow> | null | undefined,
+  fallbackArea: string,
+): StorageAreaRow => ({
+  ...emptyTotals,
+  ...(value && typeof value === "object" ? value : {}),
+  area: String(value?.area || fallbackArea),
+});
+
+const normalizeStorageSummaryPayload = (payload: unknown): StorageSummaryPayload => {
+  const source = payload && typeof payload === "object" ? (payload as Partial<StorageSummaryPayload>) : {};
+  return {
+    generatedAt: String(source.generatedAt || ""),
+    totals: normalizeStorageAreaRow(source.totals, "total"),
+    areas: Array.isArray(source.areas)
+      ? source.areas.map((item) => normalizeStorageAreaRow(item, String(item?.area || "root")))
+      : [],
+  };
+};
+
+const normalizeCleanupPreviewPayload = (payload: unknown): CleanupPreviewPayload => {
+  const source = payload && typeof payload === "object" ? (payload as Partial<CleanupPreviewPayload>) : {};
+  const examples = Array.isArray(source.examples) ? source.examples : [];
+  return {
+    generatedAt: String(source.generatedAt || ""),
+    unusedCount: Number.isFinite(Number(source.unusedCount)) ? Number(source.unusedCount) : 0,
+    totals: normalizeStorageAreaRow(source.totals, "total"),
+    areas: Array.isArray(source.areas)
+      ? source.areas.map((item) => normalizeStorageAreaRow(item, String(item?.area || "root")))
+      : [],
+    examples: examples.map((item) => {
+      const example = item && typeof item === "object" ? (item as Partial<CleanupExampleRow>) : {};
+      return {
+        id: example.id ? String(example.id) : null,
+        url: String(example.url || ""),
+        fileName: String(example.fileName || ""),
+        folder: String(example.folder || ""),
+        area: String(example.area || "root"),
+        createdAt: example.createdAt ? String(example.createdAt) : null,
+        originalBytes: Number.isFinite(Number(example.originalBytes)) ? Number(example.originalBytes) : 0,
+        variantBytes: Number.isFinite(Number(example.variantBytes)) ? Number(example.variantBytes) : 0,
+        totalBytes: Number.isFinite(Number(example.totalBytes)) ? Number(example.totalBytes) : 0,
+      };
+    }),
+  };
+};
+
+const normalizeCleanupRunPayload = (payload: unknown): CleanupRunPayload => {
+  const source = payload && typeof payload === "object" ? (payload as Partial<CleanupRunPayload>) : {};
+  const failures = Array.isArray(source.failures) ? source.failures : [];
+  return {
+    ok: source.ok !== false,
+    deletedCount: Number.isFinite(Number(source.deletedCount)) ? Number(source.deletedCount) : 0,
+    failedCount: Number.isFinite(Number(source.failedCount)) ? Number(source.failedCount) : 0,
+    deletedTotals: normalizeStorageAreaRow(source.deletedTotals, "total"),
+    failures: failures.map((item) => {
+      const failure = item && typeof item === "object" ? item : {};
+      return {
+        url: String((failure as { url?: string }).url || ""),
+        reason: String((failure as { reason?: string }).reason || ""),
+      };
+    }),
+  };
 };
 
 const formatBytes = (value: number) => {
@@ -71,68 +195,82 @@ const formatDateTime = (value: string | null | undefined) => {
   return parsed.toLocaleString("pt-BR");
 };
 
+const getCleanupActionLabel = (count: number) =>
+  count === 1 ? "Limpar 1 upload" : `Limpar ${count} uploads`;
+
 const DashboardUploads = () => {
   usePageMeta({ title: "Uploads", noIndex: true });
   const apiBase = getApiBase();
   const [me, setMe] = useState<MeUser | null>(null);
-  const [summary, setSummary] = useState<StorageSummaryPayload>({
-    generatedAt: "",
-    totals: emptyTotals,
-    areas: [],
-  });
+  const [summary, setSummary] = useState<StorageSummaryPayload>(emptySummary);
+  const [cleanupPreview, setCleanupPreview] = useState<CleanupPreviewPayload>(emptyCleanupPreview);
   const [isLoading, setIsLoading] = useState(true);
   const [hasError, setHasError] = useState(false);
+  const [isCleanupLoading, setIsCleanupLoading] = useState(true);
+  const [hasCleanupError, setHasCleanupError] = useState(false);
   const [isForbidden, setIsForbidden] = useState(false);
+  const [isCleanupConfirmOpen, setIsCleanupConfirmOpen] = useState(false);
+  const [cleanupConfirmText, setCleanupConfirmText] = useState("");
+  const [isCleanupRunning, setIsCleanupRunning] = useState(false);
 
   const load = useCallback(async () => {
     setIsLoading(true);
     setHasError(false);
+    setIsCleanupLoading(true);
+    setHasCleanupError(false);
     setIsForbidden(false);
+
     try {
-      const [meResponse, summaryResponse] = await Promise.all([
+      const [meResponse, summaryResponse, cleanupResponse] = await Promise.all([
         apiFetch(apiBase, "/api/me", { auth: true }),
         apiFetch(apiBase, "/api/uploads/storage/areas", { auth: true }),
+        apiFetch(apiBase, "/api/uploads/storage/cleanup", { auth: true }),
       ]);
+
       if (meResponse.ok) {
         setMe(await meResponse.json());
       } else {
         setMe(null);
       }
-      if (summaryResponse.status === 403) {
+
+      if (summaryResponse.status === 403 || cleanupResponse.status === 403) {
         setIsForbidden(true);
-        setSummary({
-          generatedAt: "",
-          totals: emptyTotals,
-          areas: [],
-        });
+        setSummary(emptySummary);
+        setCleanupPreview(emptyCleanupPreview);
         return;
       }
-      if (!summaryResponse.ok) {
+
+      if (summaryResponse.ok) {
+        try {
+          setSummary(normalizeStorageSummaryPayload(await summaryResponse.json()));
+        } catch {
+          setHasError(true);
+          setSummary(emptySummary);
+        }
+      } else {
         setHasError(true);
-        return;
+        setSummary(emptySummary);
       }
-      const payload = await summaryResponse.json();
-      setSummary({
-        generatedAt: String(payload?.generatedAt || ""),
-        totals:
-          payload?.totals && typeof payload.totals === "object"
-            ? {
-                ...emptyTotals,
-                ...payload.totals,
-              }
-            : emptyTotals,
-        areas: Array.isArray(payload?.areas)
-          ? payload.areas.map((item: Partial<StorageAreaRow>) => ({
-              ...emptyTotals,
-              ...item,
-              area: String(item?.area || "root"),
-            }))
-          : [],
-      });
+
+      if (cleanupResponse.ok) {
+        try {
+          setCleanupPreview(normalizeCleanupPreviewPayload(await cleanupResponse.json()));
+        } catch {
+          setHasCleanupError(true);
+          setCleanupPreview(emptyCleanupPreview);
+        }
+      } else {
+        setHasCleanupError(true);
+        setCleanupPreview(emptyCleanupPreview);
+      }
     } catch {
       setHasError(true);
+      setHasCleanupError(true);
+      setSummary(emptySummary);
+      setCleanupPreview(emptyCleanupPreview);
     } finally {
       setIsLoading(false);
+      setIsCleanupLoading(false);
     }
   }, [apiBase]);
 
@@ -161,19 +299,83 @@ const DashboardUploads = () => {
     [summary.totals],
   );
 
+  const cleanupActionLabel = useMemo(
+    () => getCleanupActionLabel(cleanupPreview.unusedCount),
+    [cleanupPreview.unusedCount],
+  );
+
+  const handleConfirmCleanup = useCallback(async () => {
+    if (cleanupConfirmText !== CLEANUP_CONFIRM_TEXT || isCleanupRunning) {
+      return;
+    }
+
+    setIsCleanupRunning(true);
+    try {
+      const response = await apiFetch(apiBase, "/api/uploads/storage/cleanup", {
+        auth: true,
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          confirm: CLEANUP_CONFIRM_TEXT,
+        }),
+      });
+
+      if (!response.ok) {
+        toast({
+          title: "Nao foi possivel limpar os uploads",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const payload = normalizeCleanupRunPayload(await response.json());
+      setIsCleanupConfirmOpen(false);
+      setCleanupConfirmText("");
+      await load();
+
+      if (payload.failedCount > 0) {
+        toast({
+          title: "Limpeza parcial concluida",
+          description: `${payload.deletedCount} removidos; ${payload.failedCount} falharam.`,
+          variant: "destructive",
+        });
+        return;
+      }
+
+      toast({
+        title: "Uploads nao utilizados removidos",
+        description: `${payload.deletedCount} uploads removidos e ${formatBytes(payload.deletedTotals.totalBytes)} liberados.`,
+      });
+    } catch {
+      toast({
+        title: "Nao foi possivel limpar os uploads",
+        variant: "destructive",
+      });
+    } finally {
+      setIsCleanupRunning(false);
+    }
+  }, [apiBase, cleanupConfirmText, isCleanupRunning, load]);
+
   return (
     <DashboardShell currentUser={me} isLoadingUser={isLoading}>
       <DashboardPageContainer maxWidth="7xl">
         <DashboardPageHeader
-          badge="Mídia"
+          badge="Midia"
           title="Uploads e Storage"
-          description="Consumo por área com separação entre originais e variantes automáticas."
+          description="Consumo por area com separacao entre originais e variantes automaticas."
           actions={
             <div className="flex items-center gap-2">
               <Badge className="bg-card/80 text-muted-foreground">
                 Atualizado: {formatDateTime(summary.generatedAt)}
               </Badge>
-              <Button size="sm" variant="outline" onClick={() => void load()} disabled={isLoading}>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => void load()}
+                disabled={isLoading || isCleanupLoading || isCleanupRunning}
+              >
                 Atualizar
               </Button>
             </div>
@@ -183,7 +385,7 @@ const DashboardUploads = () => {
         <section className="mt-8 space-y-6">
           {isForbidden ? (
             <article className="rounded-2xl border border-border/60 bg-card/60 p-5 text-sm text-muted-foreground">
-              Você não possui permissão para visualizar o painel de uploads.
+              Voce nao possui permissao para visualizar o painel de uploads.
             </article>
           ) : null}
 
@@ -202,20 +404,20 @@ const DashboardUploads = () => {
           {!isForbidden ? (
             <article className="overflow-hidden rounded-2xl border border-border/60 bg-card/60">
               <div className="border-b border-border/60 px-5 py-4">
-                <h2 className="text-sm font-semibold text-foreground">Consumo por área</h2>
+                <h2 className="text-sm font-semibold text-foreground">Consumo por area</h2>
               </div>
               {isLoading ? (
                 <p className="px-5 py-4 text-sm text-muted-foreground">Carregando dados de storage...</p>
               ) : hasError ? (
-                <p className="px-5 py-4 text-sm text-amber-300">Não foi possível carregar os dados de storage.</p>
+                <p className="px-5 py-4 text-sm text-amber-300">Nao foi possivel carregar os dados de storage.</p>
               ) : summary.areas.length === 0 ? (
-                <p className="px-5 py-4 text-sm text-muted-foreground">Nenhuma área encontrada no inventário.</p>
+                <p className="px-5 py-4 text-sm text-muted-foreground">Nenhuma area encontrada no inventario.</p>
               ) : (
                 <div className="overflow-x-auto">
                   <table className="w-full min-w-[760px] text-sm">
                     <thead className="bg-background/60 text-xs uppercase tracking-[0.12em] text-muted-foreground">
                       <tr>
-                        <th className="px-4 py-3 text-left">Área</th>
+                        <th className="px-4 py-3 text-left">Area</th>
                         <th className="px-4 py-3 text-right">Originais</th>
                         <th className="px-4 py-3 text-right">Variantes</th>
                         <th className="px-4 py-3 text-right">Total</th>
@@ -244,8 +446,143 @@ const DashboardUploads = () => {
               )}
             </article>
           ) : null}
+
+          {!isForbidden ? (
+            <article className="overflow-hidden rounded-2xl border border-border/60 bg-card/60">
+              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/60 px-5 py-4">
+                <div className="space-y-1">
+                  <h2 className="text-sm font-semibold text-foreground">Limpeza de uploads nao utilizados</h2>
+                  <p className="text-sm text-muted-foreground">
+                    Remove apenas uploads do inventario que nao sao mais referenciados pelo site.
+                  </p>
+                </div>
+                <Badge className="bg-card/80 text-muted-foreground">
+                  Analise: {formatDateTime(cleanupPreview.generatedAt)}
+                </Badge>
+              </div>
+
+              {isCleanupLoading ? (
+                <p className="px-5 py-4 text-sm text-muted-foreground">Analisando uploads nao utilizados...</p>
+              ) : hasCleanupError ? (
+                <p className="px-5 py-4 text-sm text-amber-300">
+                  Nao foi possivel analisar os uploads nao utilizados.
+                </p>
+              ) : cleanupPreview.unusedCount === 0 ? (
+                <p className="px-5 py-4 text-sm text-muted-foreground">Nenhum upload elegivel para limpeza.</p>
+              ) : (
+                <div className="space-y-4 px-5 py-4">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div className="space-y-1">
+                      <p className="text-sm font-medium text-foreground">
+                        {cleanupPreview.unusedCount} uploads elegiveis
+                      </p>
+                      <p className="text-sm text-muted-foreground">
+                        {formatBytes(cleanupPreview.totals.totalBytes)} recuperaveis
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {formatBytes(cleanupPreview.totals.originalBytes)} em originais e{" "}
+                        {formatBytes(cleanupPreview.totals.variantBytes)} em variantes.
+                      </p>
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="destructive"
+                      disabled={isCleanupRunning}
+                      onClick={() => setIsCleanupConfirmOpen(true)}
+                    >
+                      {isCleanupRunning ? "Limpando..." : cleanupActionLabel}
+                    </Button>
+                  </div>
+
+                  {cleanupPreview.examples.length > 0 ? (
+                    <div className="overflow-x-auto">
+                      <table className="w-full min-w-[760px] text-sm">
+                        <thead className="bg-background/60 text-xs uppercase tracking-[0.12em] text-muted-foreground">
+                          <tr>
+                            <th className="px-4 py-3 text-left">Arquivo</th>
+                            <th className="px-4 py-3 text-left">Area</th>
+                            <th className="px-4 py-3 text-left">Criado em</th>
+                            <th className="px-4 py-3 text-right">Recuperavel</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {cleanupPreview.examples.map((item) => (
+                            <tr key={`${item.id || item.url}`} className="border-t border-border/50">
+                              <td className="px-4 py-3">
+                                <p className="font-medium text-foreground">{item.fileName || item.url}</p>
+                                <p className="text-xs text-muted-foreground">{item.url}</p>
+                              </td>
+                              <td className="px-4 py-3 text-muted-foreground">{item.area}</td>
+                              <td className="px-4 py-3 text-muted-foreground">{formatDateTime(item.createdAt)}</td>
+                              <td className="px-4 py-3 text-right text-foreground">
+                                {formatBytes(item.totalBytes)}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : null}
+                </div>
+              )}
+            </article>
+          ) : null}
         </section>
       </DashboardPageContainer>
+
+      <AlertDialog
+        open={isCleanupConfirmOpen}
+        onOpenChange={(open) => {
+          if (isCleanupRunning) {
+            return;
+          }
+          setIsCleanupConfirmOpen(open);
+          if (!open) {
+            setCleanupConfirmText("");
+          }
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Limpar uploads nao utilizados?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta acao remove permanentemente os uploads nao utilizados e tambem apaga as variantes
+              geradas automaticamente. Digite EXCLUIR para confirmar.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="space-y-2">
+            <p className="text-sm text-muted-foreground">
+              Elegiveis agora:{" "}
+              <span className="font-semibold text-foreground">{cleanupPreview.unusedCount}</span>
+            </p>
+            <p className="text-sm text-muted-foreground">
+              Espaco recuperavel:{" "}
+              <span className="font-semibold text-foreground">
+                {formatBytes(cleanupPreview.totals.totalBytes)}
+              </span>
+            </p>
+            <Input
+              value={cleanupConfirmText}
+              onChange={(event) => setCleanupConfirmText(event.target.value)}
+              placeholder="Digite EXCLUIR"
+              disabled={isCleanupRunning}
+            />
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isCleanupRunning}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={isCleanupRunning || cleanupConfirmText !== CLEANUP_CONFIRM_TEXT}
+              onClick={(event) => {
+                event.preventDefault();
+                void handleConfirmCleanup();
+              }}
+            >
+              {isCleanupRunning ? "Limpando..." : cleanupActionLabel}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </DashboardShell>
   );
 };

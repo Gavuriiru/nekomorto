@@ -110,6 +110,19 @@ const CONTRACT_BASE = Object.freeze({
     },
     {
       method: "GET",
+      path: "/api/uploads/storage/cleanup",
+      auth: "session",
+      cache: "no-store",
+    },
+    {
+      method: "POST",
+      path: "/api/uploads/storage/cleanup",
+      auth: "session",
+      cache: "no-store",
+      idempotent: "optional_by_header",
+    },
+    {
+      method: "GET",
       path: "/api/me/security",
       auth: "session",
       cache: "no-store",

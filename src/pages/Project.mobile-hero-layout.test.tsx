@@ -217,8 +217,10 @@ describe("Project mobile hero layout", () => {
     expect(coverWrapperTokens).toContain("mx-auto");
     expect(coverWrapperTokens).toContain("md:mx-0");
     expect(coverWrapperTokens).toContain("w-64");
+    expect(coverWrapperTokens).toContain("self-start");
     expect(coverWrapperTokens).toContain("md:w-[320px]");
     expect(coverWrapperTokens).toContain("lg:w-[340px]");
+    expect(coverWrapperTokens).not.toContain("md:h-full");
 
     const heroLayout = screen.getByTestId("project-hero-layout");
     const heroLayoutTokens = classTokens(heroLayout);
@@ -251,11 +253,11 @@ describe("Project mobile hero layout", () => {
     expect(infoPanelTokens).not.toContain("border");
     expect(infoPanelTokens).not.toContain("backdrop-blur-md");
 
-    expect(coverWrapperTokens).toContain("md:h-full");
     const coverFrame = screen.getByTestId("project-hero-cover-frame");
     const coverFrameTokens = classTokens(coverFrame);
-    expect(coverFrameTokens).toContain("h-full");
-    expect(coverFrameTokens).toContain("md:max-h-[620px]");
+    expect(coverFrameTokens).not.toContain("h-full");
+    expect(coverFrameTokens).not.toContain("md:max-h-[620px]");
+    expect(coverFrame.style.aspectRatio).toBe("9 / 14");
 
     const contentColumn = heading.parentElement as HTMLElement | null;
     expect(contentColumn).not.toBeNull();
