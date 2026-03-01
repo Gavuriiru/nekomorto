@@ -271,7 +271,7 @@ const Post = () => {
                   <UploadPicture
                     src={heroCoverSrc}
                     alt={heroCoverAlt}
-                    preset="hero"
+                    preset="card"
                     mediaVariants={mediaVariants}
                     className="absolute inset-0 block h-full w-full"
                     imgClassName="absolute inset-0 block h-full w-full object-cover object-top"

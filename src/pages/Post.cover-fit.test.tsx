@@ -85,12 +85,29 @@ const setupApiMock = (postOverrides: Partial<typeof postFixture> = {}) => {
     ...postFixture,
     ...postOverrides,
   };
+  const mediaVariants = {
+    "/uploads/capa-post.jpg": {
+      variantsVersion: 1,
+      variants: {
+        card: {
+          formats: {
+            fallback: { url: "/uploads/_variants/post-1/card-v1.jpeg" },
+          },
+        },
+        hero: {
+          formats: {
+            fallback: { url: "/uploads/_variants/post-1/hero-v1.jpeg" },
+          },
+        },
+      },
+    },
+  };
   apiFetchMock.mockReset();
   apiFetchMock.mockImplementation(async (_apiBase: string, endpoint: string, options?: RequestInit) => {
     const method = String(options?.method || "GET").toUpperCase();
 
     if (endpoint === "/api/public/posts/post-teste" && method === "GET") {
-      return mockJsonResponse(true, { post });
+      return mockJsonResponse(true, { post, mediaVariants });
     }
     if (endpoint === "/api/public/posts/post-teste/view" && method === "POST") {
       return mockJsonResponse(true, { views: 11 });
@@ -123,7 +140,19 @@ describe("Post cover fit", () => {
     expect(screen.getByTestId("post-reader-cover-bridge")).toBeInTheDocument();
 
     const coverImage = await screen.findByRole("img", { name: "Capa de teste" });
-    expect(coverImage).toHaveClass("absolute", "inset-0", "block", "h-full", "w-full", "object-cover", "object-top");
+    expect(coverImage).toHaveAttribute(
+      "src",
+      expect.stringContaining("/uploads/_variants/post-1/card-v1.jpeg"),
+    );
+    expect(coverImage).toHaveClass(
+      "absolute",
+      "inset-0",
+      "block",
+      "h-full",
+      "w-full",
+      "object-cover",
+      "object-top",
+    );
 
     const coverFrame = screen.getByTestId("post-reader-cover-frame");
     expect(coverFrame).toHaveClass("relative", "aspect-3/2", "overflow-hidden");

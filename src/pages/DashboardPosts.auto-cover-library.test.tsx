@@ -37,7 +37,7 @@ vi.mock("@/components/ImageLibraryDialog", () => ({
   default: (props: {
     open?: boolean;
     currentSelectionUrls?: string[];
-    onSave: (payload: { urls: string[]; items: [] }) => void;
+    onSave: (payload: { urls: string[]; items: Array<Record<string, unknown>> }) => void;
   }) => {
     imageLibraryPropsSpy(props);
     if (!props.open) {
@@ -49,7 +49,19 @@ vi.mock("@/components/ImageLibraryDialog", () => ({
         onClick={() =>
           props.onSave({
             urls: [props.currentSelectionUrls?.[0] || ""],
-            items: [],
+            items: [
+              {
+                url: props.currentSelectionUrls?.[0] || "",
+                variantsVersion: 1,
+                variants: {
+                  card: {
+                    formats: {
+                      fallback: { url: "/uploads/_variants/post-1/card-v1.jpeg" },
+                    },
+                  },
+                },
+              },
+            ],
           })
         }
       >
@@ -140,6 +152,7 @@ describe("DashboardPosts biblioteca com capa automatica", () => {
               commentsCount: 2,
             },
           ],
+          mediaVariants: {},
         });
       }
       if (path === "/api/users" && method === "GET") {
@@ -186,5 +199,8 @@ describe("DashboardPosts biblioteca com capa automatica", () => {
       expect(within(dialog).getByText(/Autom.+tica$/i)).toBeInTheDocument();
       expect(within(dialog).queryByText("Manual")).not.toBeInTheDocument();
     });
+
+    const sidebarImage = within(dialog).getByAltText(/Primeira autom/i);
+    expect(sidebarImage.getAttribute("src") || "").toContain("/uploads/_variants/post-1/card-v1.jpeg");
   });
 });

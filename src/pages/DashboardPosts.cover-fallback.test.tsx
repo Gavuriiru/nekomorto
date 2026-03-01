@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -114,6 +114,18 @@ describe("DashboardPosts cover fallback", () => {
               commentsCount: 2,
             },
           ],
+          mediaVariants: {
+            "/uploads/primeira-capa.png": {
+              variantsVersion: 1,
+              variants: {
+                card: {
+                  formats: {
+                    fallback: { url: "/uploads/_variants/post-1/card-v1.jpeg" },
+                  },
+                },
+              },
+            },
+          },
         });
       }
       if (path === "/api/users" && method === "GET") {
@@ -144,9 +156,11 @@ describe("DashboardPosts cover fallback", () => {
 
     await screen.findByRole("heading", { name: "Gerenciar posts" });
     const card = await screen.findByTestId("post-card-post-1");
-    const cardImage = card.querySelector("img");
-    expect(cardImage).not.toBeNull();
-    expect(cardImage?.getAttribute("src") || "").toContain("/uploads/primeira-capa.png");
+    await waitFor(() => {
+      const cardImage = card.querySelector("img");
+      expect(cardImage).not.toBeNull();
+      expect(cardImage?.getAttribute("src") || "").toContain("/uploads/_variants/post-1/card-v1.jpeg");
+    });
     expect(within(card).queryByText("Sem capa")).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByText("Post sem capa manual"));
@@ -157,7 +171,9 @@ describe("DashboardPosts cover fallback", () => {
     expect(within(dialog).queryByText("/uploads/primeira-capa.png")).not.toBeInTheDocument();
     expect(within(dialog).getByText(/Autom.+tica$/i)).toBeInTheDocument();
 
-    const sidebarImage = within(dialog).getByAltText(/Primeira autom/i);
-    expect(sidebarImage.getAttribute("src") || "").toContain("/uploads/primeira-capa.png");
+    await waitFor(() => {
+      const sidebarImage = within(dialog).getByAltText(/Primeira autom/i);
+      expect(sidebarImage.getAttribute("src") || "").toContain("/uploads/_variants/post-1/card-v1.jpeg");
+    });
   });
 });

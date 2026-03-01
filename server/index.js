@@ -8939,7 +8939,14 @@ app.get("/api/posts", requireAuth, (req, res) => {
       ...post,
       revision: createRevisionToken(post),
     }));
-  res.json({ posts });
+  const resolvedCoverSources = posts.map((post) => {
+    const resolvedCover = resolvePostCover(post);
+    return { coverImageUrl: resolvedCover.coverImageUrl };
+  });
+  res.json({
+    posts,
+    mediaVariants: buildPublicMediaVariants(resolvedCoverSources),
+  });
 });
 
 app.get("/api/public/posts", (req, res) => {

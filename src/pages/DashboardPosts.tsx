@@ -3,6 +3,7 @@ import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import DashboardShell from "@/components/DashboardShell";
 import DashboardPageContainer from "@/components/dashboard/DashboardPageContainer";
 import DashboardPageHeader from "@/components/dashboard/DashboardPageHeader";
+import UploadPicture from "@/components/UploadPicture";
 import ReorderControls from "@/components/ReorderControls";
 import { dashboardPageLayoutTokens } from "@/components/dashboard/dashboard-page-tokens";
 import AsyncState from "@/components/ui/async-state";
@@ -60,7 +61,10 @@ import { buildTranslationMap, sortByTranslatedLabel, translateTag } from "@/lib/
 import { usePageMeta } from "@/hooks/use-page-meta";
 import { useEditorScrollLock } from "@/hooks/use-editor-scroll-lock";
 import { useEditorScrollStability } from "@/hooks/use-editor-scroll-stability";
-import { normalizeAssetUrl } from "@/lib/asset-url";
+import {
+  normalizeUploadVariantUrlKey,
+  type UploadMediaVariantsMap,
+} from "@/lib/upload-variants";
 import type { ContentVersion, EditorialCalendarItem } from "@/types/editorial";
 import {
   MuiBrazilDateField,
@@ -436,6 +440,7 @@ const DashboardPosts = () => {
   const restoreWindowMs = 3 * 24 * 60 * 60 * 1000;
   const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
   const [posts, setPosts] = useState<PostRecord[]>([]);
+  const [mediaVariants, setMediaVariants] = useState<UploadMediaVariantsMap>({});
   const [projects, setProjects] = useState<Project[]>([]);
   const [users, setUsers] = useState<UserRecord[]>([]);
   const [ownerIds, setOwnerIds] = useState<string[]>([]);
@@ -562,6 +567,9 @@ const DashboardPosts = () => {
     }
     const data = await response.json();
     const nextPosts = Array.isArray(data.posts) ? data.posts : [];
+    setMediaVariants(
+      data?.mediaVariants && typeof data.mediaVariants === "object" ? data.mediaVariants : {},
+    );
     setPosts(nextPosts);
   };
 
@@ -679,11 +687,17 @@ const DashboardPosts = () => {
           const data = await postsRes.json();
           if (isActive) {
             const nextPosts = Array.isArray(data.posts) ? data.posts : [];
+            setMediaVariants(
+              data?.mediaVariants && typeof data.mediaVariants === "object"
+                ? data.mediaVariants
+                : {},
+            );
             setPosts(nextPosts);
           }
         } else {
           failed = true;
           if (isActive) {
+            setMediaVariants({});
             setPosts([]);
           }
         }
@@ -736,6 +750,7 @@ const DashboardPosts = () => {
         }
       } catch {
         if (isActive) {
+          setMediaVariants({});
           setPosts([]);
           setUsers([]);
           setOwnerIds([]);
@@ -1481,8 +1496,34 @@ const DashboardPosts = () => {
   };
 
   const handleLibrarySelect = useCallback(
-    (url: string, altText?: string) => {
+    (
+      url: string,
+      altText?: string,
+      selectedItem?: {
+        url?: string | null;
+        variants?: unknown;
+        variantsVersion?: number | null;
+      },
+    ) => {
       const nextUrl = String(url || "").trim();
+      const variantKey = normalizeUploadVariantUrlKey(selectedItem?.url || nextUrl);
+      const nextVariants =
+        selectedItem?.variants && typeof selectedItem.variants === "object"
+          ? selectedItem.variants
+          : null;
+      if (variantKey && nextVariants) {
+        const variantsVersionRaw = Number(selectedItem?.variantsVersion);
+        const nextVariantsVersion = Number.isFinite(variantsVersionRaw)
+          ? Math.max(1, Math.floor(variantsVersionRaw))
+          : 1;
+        setMediaVariants((prev) => ({
+          ...prev,
+          [variantKey]: {
+            variantsVersion: nextVariantsVersion,
+            variants: nextVariants as UploadMediaVariantsMap[string]["variants"],
+          },
+        }));
+      }
       setFormState((prev) => {
         const hasManualCover = Boolean(String(prev.coverImageUrl || "").trim());
         const shouldKeepAutomatic =
@@ -1928,10 +1969,13 @@ const DashboardPosts = () => {
                               {editorResolvedCover.coverImageUrl ? (
                                 <div className="space-y-2">
                                   <div className="overflow-hidden rounded-lg border border-border bg-muted/20">
-                                    <img
-                                      src={normalizeAssetUrl(editorResolvedCover.coverImageUrl)}
+                                    <UploadPicture
+                                      src={editorResolvedCover.coverImageUrl}
                                       alt={editorResolvedCover.coverAlt}
-                                      className="aspect-3/2 w-full object-cover"
+                                      preset="card"
+                                      mediaVariants={mediaVariants}
+                                      className="block w-full"
+                                      imgClassName="aspect-3/2 w-full object-cover"
                                     />
                                   </div>
                                   <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
@@ -2490,14 +2534,14 @@ const DashboardPosts = () => {
                         <div className="grid min-h-[360px] gap-0 lg:h-[280px] lg:min-h-0 lg:grid-cols-[220px_1fr]">
                           <div className="relative h-52 w-full overflow-hidden lg:h-full">
                             {resolvedCardCover.coverImageUrl ? (
-                              <img
-                                src={normalizeAssetUrl(resolvedCardCover.coverImageUrl)}
+                              <UploadPicture
+                                src={resolvedCardCover.coverImageUrl}
                                 alt={resolvedCardCover.coverAlt || post.title}
-                                className="absolute inset-0 block h-full w-full object-cover object-center"
+                                preset="card"
+                                mediaVariants={mediaVariants}
+                                className="absolute inset-0 block h-full w-full"
+                                imgClassName="absolute inset-0 block h-full w-full object-cover object-center"
                                 loading="lazy"
-                                onError={(event) => {
-                                  event.currentTarget.src = "/placeholder.svg";
-                                }}
                               />
                             ) : (
                               <div className="absolute inset-0 flex h-full w-full items-center justify-center bg-muted/30 text-xs text-muted-foreground">
@@ -2740,7 +2784,7 @@ const DashboardPosts = () => {
             editorResolvedCover.coverImageUrl ? [editorResolvedCover.coverImageUrl] : []
           }
           onSave={({ urls, items }) =>
-            handleLibrarySelect(urls[0] || "", items[0]?.altText)
+            handleLibrarySelect(urls[0] || "", items[0]?.altText, items[0])
           }
         />
       </Suspense>
