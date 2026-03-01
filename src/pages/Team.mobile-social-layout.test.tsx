@@ -110,16 +110,20 @@ const getMemberLayoutByName = (memberName: string) => {
   const contentPanel = heading.closest("div.rounded-2xl");
   expect(contentPanel).not.toBeNull();
 
-  const layoutRow = contentPanel?.parentElement as HTMLElement | null;
-  expect(layoutRow).not.toBeNull();
+  const layoutStack = contentPanel?.parentElement as HTMLElement | null;
+  expect(layoutStack).not.toBeNull();
 
-  const avatarColumn = layoutRow?.firstElementChild as HTMLElement | null;
-  expect(avatarColumn).not.toBeNull();
+  const avatarImage = screen.getByRole("img", { name: memberName });
+  const avatarPicture = avatarImage.parentElement as HTMLElement | null;
+  expect(avatarPicture).not.toBeNull();
 
-  const avatarStage = avatarColumn?.firstElementChild as HTMLElement | null;
+  const avatarStage = avatarPicture?.parentElement as HTMLElement | null;
   expect(avatarStage).not.toBeNull();
 
-  const card = layoutRow?.closest("div.rounded-lg") as HTMLElement | null;
+  const avatarSlot = avatarStage?.parentElement as HTMLElement | null;
+  expect(avatarSlot).not.toBeNull();
+
+  const card = layoutStack?.parentElement?.parentElement as HTMLElement | null;
   expect(card).not.toBeNull();
 
   const links = within(contentPanel as HTMLElement).getAllByRole("link");
@@ -129,47 +133,65 @@ const getMemberLayoutByName = (memberName: string) => {
   expect(socialContainer).not.toBeNull();
 
   return {
+    avatarImage,
     heading,
     headingRow: heading.parentElement as HTMLElement,
-    layoutRow: layoutRow as HTMLElement,
-    avatarColumn: avatarColumn as HTMLElement,
+    layoutStack: layoutStack as HTMLElement,
+    avatarSlot: avatarSlot as HTMLElement,
     avatarStage: avatarStage as HTMLElement,
+    contentPanel: contentPanel as HTMLElement,
     card: card as HTMLElement,
     socialContainer: socialContainer as HTMLElement,
   };
 };
 
-const assertTabletStructure = (layoutRow: HTMLElement, avatarColumn: HTMLElement) => {
-  const layoutTokens = classTokens(layoutRow);
-  expect(layoutTokens).toContain("lg:flex-row");
-  expect(layoutTokens).not.toContain("sm:flex-row");
-  expect(layoutTokens).not.toContain("md:flex-row");
-
-  const avatarColumnTokens = classTokens(avatarColumn);
-  expect(avatarColumnTokens).toContain("lg:w-80");
-  expect(avatarColumnTokens).toContain("lg:flex");
-  expect(avatarColumnTokens).toContain("lg:flex-col");
-  expect(avatarColumnTokens).toContain("lg:justify-end");
-  expect(avatarColumnTokens).not.toContain("sm:w-56");
-  expect(avatarColumnTokens).not.toContain("md:w-72");
-};
-
-const assertAvatarStageStructure = (avatarStage: HTMLElement) => {
-  const avatarStageTokens = classTokens(avatarStage);
-  expect(avatarStageTokens).toContain("h-64");
-  expect(avatarStageTokens).toContain("sm:h-72");
-  expect(avatarStageTokens).toContain("md:h-80");
-  expect(avatarStageTokens).not.toContain("sm:h-full");
-};
-
-const assertAvatarStageLgHeight = (
+const assertResponsiveSideLayout = (
+  layoutStack: HTMLElement,
+  avatarSlot: HTMLElement,
   avatarStage: HTMLElement,
-  expectedClassName: "lg:h-80" | "lg:h-full",
+  contentPanel: HTMLElement,
 ) => {
+  const layoutTokens = classTokens(layoutStack);
+  expect(layoutTokens).toContain("flex");
+  expect(layoutTokens).toContain("flex-col");
+  expect(layoutTokens).toContain("gap-5");
+  expect(layoutTokens).toContain("lg:grid");
+  expect(layoutTokens).toContain("lg:grid-cols-[260px_minmax(0,1fr)]");
+  expect(layoutTokens).toContain("lg:items-stretch");
+
+  const avatarSlotTokens = classTokens(avatarSlot);
+  expect(avatarSlotTokens).toContain("flex");
+  expect(avatarSlotTokens).toContain("items-center");
+  expect(avatarSlotTokens).toContain("justify-center");
+  expect(avatarSlotTokens).toContain("min-h-64");
+  expect(avatarSlotTokens).toContain("sm:min-h-72");
+  expect(avatarSlotTokens).toContain("lg:min-h-[280px]");
+  expect(avatarSlotTokens).not.toContain("rounded-3xl");
+  expect(avatarSlotTokens).not.toContain("overflow-hidden");
+
   const avatarStageTokens = classTokens(avatarStage);
-  const unexpectedClassName = expectedClassName === "lg:h-80" ? "lg:h-full" : "lg:h-80";
-  expect(avatarStageTokens).toContain(expectedClassName);
-  expect(avatarStageTokens).not.toContain(unexpectedClassName);
+  expect(avatarStageTokens).toContain("relative");
+  expect(avatarStageTokens).toContain("h-56");
+  expect(avatarStageTokens).toContain("w-56");
+  expect(avatarStageTokens).toContain("sm:h-60");
+  expect(avatarStageTokens).toContain("md:h-64");
+  expect(avatarStageTokens).toContain("lg:h-64");
+  expect(avatarStageTokens).toContain("z-10");
+  expect(avatarStageTokens).toContain("rounded-full");
+  expect(avatarStageTokens).not.toContain("h-full");
+  expect(avatarStageTokens).not.toContain("w-full");
+  expect(avatarStageTokens).not.toContain("absolute");
+
+  expect(layoutStack.firstElementChild).toBe(avatarSlot);
+  expect(avatarSlot.compareDocumentPosition(contentPanel) & Node.DOCUMENT_POSITION_FOLLOWING).not.toBe(0);
+};
+
+const assertSocialFlow = (socialContainer: HTMLElement) => {
+  const socialTokens = classTokens(socialContainer);
+  expect(socialTokens).not.toContain("absolute");
+  expect(socialTokens).not.toContain("lg:absolute");
+  expect(socialTokens).toContain("flex-wrap");
+  expect(socialTokens).toContain("gap-2");
 };
 
 const setupApiMock = (users = usersFixture) => {
@@ -206,27 +228,17 @@ describe("Team mobile social layout", () => {
     );
 
     await screen.findByRole("heading", { name: activeMemberName });
-    const { heading, headingRow, layoutRow, avatarColumn, avatarStage, socialContainer } =
+    const { heading, headingRow, layoutStack, avatarSlot, avatarStage, contentPanel, card, socialContainer } =
       getMemberLayoutByName(activeMemberName);
 
-    assertTabletStructure(layoutRow, avatarColumn);
-    assertAvatarStageStructure(avatarStage);
-    assertAvatarStageLgHeight(avatarStage, "lg:h-80");
+    assertResponsiveSideLayout(layoutStack, avatarSlot, avatarStage, contentPanel);
 
     expect(classTokens(heading)).toContain("break-words");
     expect(classTokens(headingRow)).toContain("min-w-0");
-    expect(classTokens(headingRow)).toContain("lg:pr-44");
+    expect(classTokens(headingRow)).toContain("space-y-3");
+    expect(classTokens(card)).not.toContain("mt-20");
 
-    const socialTokens = classTokens(socialContainer);
-    expect(socialTokens).toContain("lg:absolute");
-    expect(socialTokens).not.toContain("absolute");
-    expect(socialTokens).not.toContain("sm:absolute");
-    expect(socialTokens).not.toContain("md:absolute");
-    expect(socialTokens).toContain("justify-start");
-    expect(socialTokens).toContain("gap-3");
-    expect(socialTokens).toContain("flex-wrap");
-    expect(socialTokens).not.toContain("mt-2");
-    expect(socialTokens).toContain("lg:mt-0");
+    assertSocialFlow(socialContainer);
 
     expect(heading.compareDocumentPosition(socialContainer) & Node.DOCUMENT_POSITION_FOLLOWING).not.toBe(0);
   });
@@ -239,28 +251,19 @@ describe("Team mobile social layout", () => {
     );
 
     await screen.findByRole("heading", { name: retiredMemberName });
-    const { heading, headingRow, layoutRow, avatarColumn, avatarStage, card, socialContainer } =
+    const { heading, headingRow, layoutStack, avatarSlot, avatarStage, contentPanel, card, socialContainer } =
       getMemberLayoutByName(retiredMemberName);
 
-    assertTabletStructure(layoutRow, avatarColumn);
-    assertAvatarStageStructure(avatarStage);
-    assertAvatarStageLgHeight(avatarStage, "lg:h-full");
+    assertResponsiveSideLayout(layoutStack, avatarSlot, avatarStage, contentPanel);
 
     expect(classTokens(heading)).toContain("break-words");
     expect(classTokens(headingRow)).toContain("min-w-0");
-    expect(classTokens(headingRow)).toContain("lg:pr-44");
-    expect(classTokens(card)).toContain("mt-20");
+    expect(classTokens(headingRow)).toContain("space-y-3");
+    expect(classTokens(card)).not.toContain("mt-20");
+    expect(classTokens(card)).not.toContain("grayscale");
+    expect(screen.getByText("Aposentado")).toBeInTheDocument();
 
-    const socialTokens = classTokens(socialContainer);
-    expect(socialTokens).toContain("lg:absolute");
-    expect(socialTokens).not.toContain("absolute");
-    expect(socialTokens).not.toContain("sm:absolute");
-    expect(socialTokens).not.toContain("md:absolute");
-    expect(socialTokens).toContain("justify-start");
-    expect(socialTokens).toContain("gap-3");
-    expect(socialTokens).toContain("flex-wrap");
-    expect(socialTokens).not.toContain("mt-2");
-    expect(socialTokens).toContain("lg:mt-0");
+    assertSocialFlow(socialContainer);
 
     expect(heading.compareDocumentPosition(socialContainer) & Node.DOCUMENT_POSITION_FOLLOWING).not.toBe(0);
   });
@@ -282,7 +285,7 @@ describe("Team mobile social layout", () => {
     expect(avatarImage).toHaveAttribute("src", expect.stringContaining("/square-v2.png"));
   });
 
-  it("aplica o ajuste pontual ao primeiro aposentado quando nao ha membros ativos", async () => {
+  it("mantem o mesmo layout empilhado quando ha apenas membros aposentados", async () => {
     setupApiMock([usersFixture[1]]);
 
     render(
@@ -292,11 +295,12 @@ describe("Team mobile social layout", () => {
     );
 
     await screen.findByRole("heading", { name: retiredMemberName });
-    const { layoutRow, avatarColumn, avatarStage, card } = getMemberLayoutByName(retiredMemberName);
+    const { layoutStack, avatarSlot, avatarStage, contentPanel, card, socialContainer } =
+      getMemberLayoutByName(retiredMemberName);
 
-    assertTabletStructure(layoutRow, avatarColumn);
-    assertAvatarStageStructure(avatarStage);
-    assertAvatarStageLgHeight(avatarStage, "lg:h-80");
-    expect(classTokens(card)).toContain("mt-20");
+    assertResponsiveSideLayout(layoutStack, avatarSlot, avatarStage, contentPanel);
+    assertSocialFlow(socialContainer);
+    expect(classTokens(card)).not.toContain("mt-20");
+    expect(classTokens(card)).not.toContain("grayscale");
   });
 });

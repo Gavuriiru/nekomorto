@@ -24,6 +24,7 @@ import {
 import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
 import { isIconUrlSource, sanitizeIconSource, sanitizePublicHref } from "@/lib/url-safety";
+import { cn } from "@/lib/utils";
 import { usePageMeta } from "@/hooks/use-page-meta";
 import { useSiteSettings } from "@/hooks/use-site-settings";
 import ThemedSvgMaskIcon from "@/components/ThemedSvgMaskIcon";
@@ -59,7 +60,7 @@ const TeamMemberAvatar = ({ imageSrc, name, mediaVariants }: TeamMemberAvatarPro
   }, [imageSrc]);
 
   return (
-    <div className="absolute bottom-0 left-1/2 h-56 w-56 -translate-x-1/2 overflow-hidden rounded-full transition-transform duration-500 group-hover:scale-105 sm:h-64 sm:w-64 md:h-72 md:w-72 lg:h-80 lg:w-80">
+    <div className="relative z-10 h-56 w-56 overflow-hidden rounded-full border border-white/10 ring-4 ring-background/70 shadow-[0_20px_46px_-24px_rgba(0,0,0,0.82)] transition-transform duration-500 group-hover:scale-105 sm:h-60 sm:w-60 md:h-64 md:w-64 lg:h-64 lg:w-64">
       <UploadPicture
         src={resolvedSrc}
         alt={name}
@@ -170,9 +171,6 @@ const Team = () => {
     );
   };
 
-  const getAvatarStageClassName = (isFirstPageCard: boolean) =>
-    `relative h-64 sm:h-72 md:h-80 ${isFirstPageCard ? "lg:h-80" : "lg:h-full"}`;
-
   const resolveSocialLink = (
     social: { label?: string; href?: string },
     linkTypeMap: Map<string, { id: string; label: string; icon: string }>,
@@ -281,6 +279,153 @@ const Team = () => {
     )
     .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
 
+  const renderRoleBadge = (label: string, key: string, tone: "default" | "retired" = "default") => {
+    const RoleIcon = getRoleIcon(label);
+    return (
+      <Badge
+        key={key}
+        variant="secondary"
+        className={cn(
+          "gap-1 border px-2.5 py-1 text-[10px] uppercase tracking-[0.14em]",
+          tone === "retired"
+            ? "border-primary/20 bg-primary/10 text-primary/90"
+            : "border-white/5 bg-white/[0.04] text-foreground/80",
+        )}
+      >
+        {RoleIcon ? <RoleIcon className="h-3 w-3" /> : null}
+        {label}
+      </Badge>
+    );
+  };
+
+  const renderMemberBadges = (member: PublicUser, isRetiredCard: boolean) => {
+    const areas = (member.roles || []).filter((item) => item !== "Dono");
+    const badges: Array<JSX.Element> = [];
+
+    if (isRetiredCard) {
+      badges.push(renderRoleBadge("Aposentado", `${member.id}-retired`, "retired"));
+    }
+
+    if ((member.roles || []).includes("Dono")) {
+      badges.push(renderRoleBadge("Dono", `${member.id}-owner`));
+    } else if (member.isAdmin) {
+      badges.push(renderRoleBadge("Administrador", `${member.id}-admin`));
+    }
+
+    if (areas.length > 0) {
+      for (const area of areas) {
+        badges.push(renderRoleBadge(area, `${member.id}-${area}`));
+      }
+    } else if (!isRetiredCard && !(member.roles || []).includes("Dono") && !member.isAdmin) {
+      badges.push(renderRoleBadge("Membro", `${member.id}-member`));
+    }
+
+    return <div className="flex flex-wrap gap-2 pt-1">{badges}</div>;
+  };
+
+  const getMemberImageSrc = (member: PublicUser) => {
+    const image = member.avatarUrl || "/placeholder.svg";
+    return image && image !== "/placeholder.svg"
+      ? image.includes("?")
+        ? `${image}&v=${cacheBust}`
+        : `${image}?v=${cacheBust}`
+      : "/placeholder.svg";
+  };
+
+  const renderMemberCard = (member: PublicUser, options?: { retired?: boolean }) => {
+    const isRetiredCard = options?.retired ?? false;
+    const imageSrc = getMemberImageSrc(member);
+    const socials = (member.socials || []).filter((social) => social.href);
+    const linkTypeMap = new Map(linkTypes.map((item) => [item.id, item]));
+
+    return (
+      <Card
+        key={member.id}
+        className={cn(
+          "group overflow-hidden rounded-[28px] border shadow-[0_24px_70px_-36px_rgba(0,0,0,0.75)] transition-colors duration-300",
+          isRetiredCard
+            ? "border-border/35 bg-card/80 hover:border-primary/20 hover:bg-card/85"
+            : "border-border/50 bg-card/85 hover:border-primary/30 hover:bg-card/90",
+        )}
+      >
+        <CardContent className="p-5 sm:p-6">
+          <div className="flex flex-col gap-5 lg:grid lg:grid-cols-[260px_minmax(0,1fr)] lg:items-stretch">
+            <div
+              className={cn(
+                "relative flex min-h-64 items-center justify-center py-2 sm:min-h-72 lg:min-h-[280px]",
+                isRetiredCard ? "text-foreground/80" : "text-foreground",
+              )}
+            >
+              {renderMemberAvatar(member, imageSrc)}
+            </div>
+
+            <div
+              className={cn(
+                "flex h-full flex-col gap-4 rounded-2xl border p-5 sm:p-6 lg:p-6",
+                isRetiredCard
+                  ? "border-white/[0.04] bg-black/10"
+                  : "border-white/5 bg-black/15",
+              )}
+            >
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                <div className="min-w-0 space-y-3 sm:pr-4">
+                  <h3 className="break-words text-lg font-semibold text-foreground">{member.name}</h3>
+                </div>
+                {socials.length > 0 && (
+                  <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+                    {socials.map((social) => {
+                      const resolved = resolveSocialLink(social, linkTypeMap);
+                      if (!resolved) {
+                        return null;
+                      }
+                      return (
+                        <a
+                          key={`${member.id}-${social.href}`}
+                          href={resolved.href}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex h-8 w-8 items-center justify-center rounded-full border border-primary/15 bg-background/60 text-primary/80 transition hover:border-primary/35 hover:text-primary"
+                          aria-label={resolved.label}
+                        >
+                          {resolved.customIcon ? (
+                            <ThemedSvgMaskIcon
+                              url={resolved.iconSource}
+                              label={resolved.label}
+                              className="h-4 w-4"
+                            />
+                          ) : (
+                            <resolved.Icon className="h-4 w-4" />
+                          )}
+                        </a>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              <p
+                className={cn(
+                  "rounded-2xl border px-3 py-2 text-xs italic leading-6",
+                  isRetiredCard
+                    ? "border-white/[0.04] bg-white/[0.02] text-muted-foreground/90"
+                    : "border-primary/10 bg-primary/[0.06] text-muted-foreground/90",
+                )}
+              >
+                {member.phrase ? `"${member.phrase}"` : "-"}
+              </p>
+
+              <p className="text-sm leading-7 text-muted-foreground">
+                {member.bio || "Sem biografia cadastrada."}
+              </p>
+
+              {renderMemberBadges(member, isRetiredCard)}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  };
+
   return (
     <div className="min-h-screen bg-background text-foreground">
       <main>
@@ -324,137 +469,8 @@ const Team = () => {
             </div>
           ) : (
             <>
-              <div className="mt-10 grid gap-24">
-                {activeMembers.map((member, index) => {
-                  const image = member.avatarUrl || "/placeholder.svg";
-                  const imageSrc =
-                    image && image !== "/placeholder.svg"
-                      ? image.includes("?")
-                        ? `${image}&v=${cacheBust}`
-                        : `${image}?v=${cacheBust}`
-                      : "/placeholder.svg";
-                  const socials = (member.socials || []).filter((social) => social.href);
-                  const linkTypeMap = new Map(linkTypes.map((item) => [item.id, item]));
-                  const areas = (member.roles || []).filter((item) => item !== "Dono");
-                  const avatarStageClassName = getAvatarStageClassName(index === 0);
-                  return (
-                    <Card
-                      key={member.id}
-                      className="group overflow-visible border-border/60 bg-card/80 shadow-lg transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:bg-card/90 hover:shadow-lg"
-                    >
-                      <CardContent className="relative p-8 sm:p-9">
-                        <div className="flex flex-col gap-6 lg:flex-row lg:items-stretch">
-                          <div className="relative lg:flex lg:w-80 lg:flex-col lg:justify-end">
-                            <div className={avatarStageClassName}>
-                              {renderMemberAvatar(member, imageSrc)}
-                            </div>
-                          </div>
-
-                          <div className="relative mt-10 flex flex-1 flex-col gap-5 rounded-2xl bg-secondary/60 p-7 lg:mt-0 lg:px-8 lg:py-8">
-                            <div className="min-w-0 flex items-center justify-between gap-2 lg:pr-44">
-                              <h3 className="break-words text-base font-semibold text-foreground">
-                                {member.name}
-                              </h3>
-                            </div>
-                            {socials.length > 0 && (
-                              <div className="flex flex-wrap items-center justify-start gap-3 lg:absolute lg:right-6 lg:top-6 lg:mt-0 lg:justify-end">
-                                {socials.map((social) => {
-                                  const resolved = resolveSocialLink(social, linkTypeMap);
-                                  if (!resolved) {
-                                    return null;
-                                  }
-                                  return (
-                                    <a
-                                      key={`${member.id}-${social.href}`}
-                                      href={resolved.href}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      className="flex h-8 w-8 items-center justify-center rounded-full border border-primary/20 bg-background/70 text-primary/80 transition hover:border-primary/50 hover:text-primary"
-                                      aria-label={resolved.label}
-                                    >
-                                      {resolved.customIcon ? (
-                                        <ThemedSvgMaskIcon
-                                          url={resolved.iconSource}
-                                          label={resolved.label}
-                                          className="h-4 w-4"
-                                        />
-                                      ) : (
-                                        <resolved.Icon className="h-4 w-4" />
-                                      )}
-                                    </a>
-                                  );
-                                })}
-                              </div>
-                            )}
-                            <p className="text-xs italic text-muted-foreground/80">
-                              {member.phrase ? `"${member.phrase}"` : "-"}
-                            </p>
-                            <p className="text-sm text-muted-foreground">
-                              {member.bio || "Sem biografia cadastrada."}
-                            </p>
-                            <div className="flex flex-wrap gap-2">
-                              {(member.roles || []).includes("Dono") &&
-                                (() => {
-                                  const RoleIcon = getRoleIcon("Dono");
-                                  return (
-                                    <Badge
-                                      variant="secondary"
-                                      className="text-[10px] uppercase gap-1"
-                                    >
-                                      {RoleIcon ? <RoleIcon className="h-3 w-3" /> : null}
-                                      Dono
-                                    </Badge>
-                                  );
-                                })()}
-                              {!(member.roles || []).includes("Dono") &&
-                                member.isAdmin &&
-                                (() => {
-                                  const RoleIcon = getRoleIcon("Administrador");
-                                  return (
-                                    <Badge
-                                      variant="secondary"
-                                      className="text-[10px] uppercase gap-1"
-                                    >
-                                      {RoleIcon ? <RoleIcon className="h-3 w-3" /> : null}
-                                      Administrador
-                                    </Badge>
-                                  );
-                                })()}
-                              {areas.length > 0
-                                ? areas.map((area) => {
-                                    const RoleIcon = getRoleIcon(area);
-                                    return (
-                                      <Badge
-                                        key={area}
-                                        variant="secondary"
-                                        className="text-[10px] uppercase gap-1"
-                                      >
-                                        {RoleIcon ? <RoleIcon className="h-3 w-3" /> : null}
-                                        {area}
-                                      </Badge>
-                                    );
-                                  })
-                                : !(member.roles || []).includes("Dono") &&
-                                  !member.isAdmin &&
-                                  (() => {
-                                    const RoleIcon = getRoleIcon("Membro");
-                                    return (
-                                      <Badge
-                                        variant="secondary"
-                                        className="text-[10px] uppercase gap-1"
-                                      >
-                                        {RoleIcon ? <RoleIcon className="h-3 w-3" /> : null}
-                                        Membro
-                                      </Badge>
-                                    );
-                                  })()}
-                            </div>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  );
-                })}
+              <div className="mt-10 grid gap-8 md:gap-10">
+                {activeMembers.map((member) => renderMemberCard(member))}
               </div>
 
               {retiredMembers.length > 0 && (
@@ -465,141 +481,8 @@ const Team = () => {
                     </h2>
                     <p className="text-sm text-muted-foreground">{pageCopy.retiredSubtitle}</p>
                   </div>
-                  <div className="mt-16 grid gap-24">
-                    {retiredMembers.map((member, index) => {
-                      const image = member.avatarUrl || "/placeholder.svg";
-                      const imageSrc =
-                        image && image !== "/placeholder.svg"
-                          ? image.includes("?")
-                            ? `${image}&v=${cacheBust}`
-                            : `${image}?v=${cacheBust}`
-                          : "/placeholder.svg";
-                      const socials = (member.socials || []).filter((social) => social.href);
-                      const linkTypeMap = new Map(linkTypes.map((item) => [item.id, item]));
-                      const areas = (member.roles || []).filter((item) => item !== "Dono");
-                      const avatarStageClassName = getAvatarStageClassName(
-                        activeMembers.length === 0 && index === 0,
-                      );
-                      return (
-                        <Card
-                          key={member.id}
-                          className={`group overflow-visible border-border/60 bg-card/80 shadow-lg grayscale transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:bg-card/90 hover:shadow-lg ${
-                            index === 0 ? "mt-20" : ""
-                          }`}
-                        >
-                          <CardContent className="relative p-8 sm:p-9">
-                            <div className="flex flex-col gap-6 lg:flex-row lg:items-stretch">
-                              <div className="relative lg:flex lg:w-80 lg:flex-col lg:justify-end">
-                                <div className={avatarStageClassName}>
-                                  {renderMemberAvatar(member, imageSrc)}
-                                </div>
-                              </div>
-
-                              <div className="relative mt-10 flex flex-1 flex-col gap-5 rounded-2xl bg-secondary/60 p-7 lg:mt-0 lg:px-8 lg:py-8">
-                                <div className="min-w-0 flex items-center justify-between gap-2 lg:pr-44">
-                                  <h3 className="break-words text-base font-semibold text-foreground">
-                                    {member.name}
-                                  </h3>
-                                </div>
-                                {socials.length > 0 && (
-                                  <div className="flex flex-wrap items-center justify-start gap-3 lg:absolute lg:right-6 lg:top-6 lg:mt-0 lg:justify-end">
-                                    {socials.map((social) => {
-                                      const resolved = resolveSocialLink(social, linkTypeMap);
-                                      if (!resolved) {
-                                        return null;
-                                      }
-                                      return (
-                                        <a
-                                          key={`${member.id}-${social.href}`}
-                                          href={resolved.href}
-                                          target="_blank"
-                                          rel="noopener noreferrer"
-                                          className="flex h-8 w-8 items-center justify-center rounded-full border border-primary/20 bg-background/70 text-primary/80 transition hover:border-primary/50 hover:text-primary"
-                                          aria-label={resolved.label}
-                                        >
-                                          {resolved.customIcon ? (
-                                            <ThemedSvgMaskIcon
-                                              url={resolved.iconSource}
-                                              label={resolved.label}
-                                              className="h-4 w-4"
-                                            />
-                                          ) : (
-                                            <resolved.Icon className="h-4 w-4" />
-                                          )}
-                                        </a>
-                                      );
-                                    })}
-                                  </div>
-                                )}
-                                <p className="text-xs italic text-muted-foreground/80">
-                                  {member.phrase ? `"${member.phrase}"` : "-"}
-                                </p>
-                                <p className="text-sm text-muted-foreground">
-                                  {member.bio || "Sem biografia cadastrada."}
-                                </p>
-                                <div className="flex flex-wrap gap-2">
-                                  {member.status === "retired" &&
-                                    (() => {
-                                      const RoleIcon = getRoleIcon("Aposentado");
-                                      return (
-                                        <Badge
-                                          variant="secondary"
-                                          className="text-[10px] uppercase gap-1"
-                                        >
-                                          {RoleIcon ? <RoleIcon className="h-3 w-3" /> : null}
-                                          Aposentado
-                                        </Badge>
-                                      );
-                                    })()}
-                                  {(member.roles || []).includes("Dono") &&
-                                    (() => {
-                                      const RoleIcon = getRoleIcon("Dono");
-                                      return (
-                                        <Badge
-                                          variant="secondary"
-                                          className="text-[10px] uppercase gap-1"
-                                        >
-                                          {RoleIcon ? <RoleIcon className="h-3 w-3" /> : null}
-                                          Dono
-                                        </Badge>
-                                      );
-                                    })()}
-                                  {!(member.roles || []).includes("Dono") &&
-                                    member.isAdmin &&
-                                    (() => {
-                                      const RoleIcon = getRoleIcon("Administrador");
-                                      return (
-                                        <Badge
-                                          variant="secondary"
-                                          className="text-[10px] uppercase gap-1"
-                                        >
-                                          {RoleIcon ? <RoleIcon className="h-3 w-3" /> : null}
-                                          Administrador
-                                        </Badge>
-                                      );
-                                    })()}
-                                  {areas.length > 0
-                                    ? areas.map((area) => {
-                                        const RoleIcon = getRoleIcon(area);
-                                        return (
-                                          <Badge
-                                            key={area}
-                                            variant="secondary"
-                                            className="text-[10px] uppercase gap-1"
-                                          >
-                                            {RoleIcon ? <RoleIcon className="h-3 w-3" /> : null}
-                                            {area}
-                                          </Badge>
-                                        );
-                                      })
-                                    : null}
-                                </div>
-                              </div>
-                            </div>
-                          </CardContent>
-                        </Card>
-                      );
-                    })}
+                  <div className="mt-8 grid gap-8 md:gap-10">
+                    {retiredMembers.map((member) => renderMemberCard(member, { retired: true }))}
                   </div>
                 </div>
               )}

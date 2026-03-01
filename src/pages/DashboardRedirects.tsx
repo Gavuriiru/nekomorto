@@ -385,7 +385,7 @@ const DashboardRedirects = () => {
                 <div>
                   <h2 className="text-lg font-semibold">Regras de redirecionamento 301</h2>
                   <p className="text-xs text-muted-foreground">
-                    A query string da URL antiga e preservada automaticamente.
+                    A query string da URL antiga é preservada automaticamente.
                   </p>
                 </div>
                 <Button

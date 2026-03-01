@@ -3,7 +3,10 @@ import os from "os";
 import path from "path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { runUploadsCleanup } from "../../server/lib/uploads-cleanup.js";
+import {
+  buildDiskStorageAreaSummary,
+  runUploadsCleanup,
+} from "../../server/lib/uploads-cleanup.js";
 
 const tempRoots: string[] = [];
 
@@ -59,6 +62,168 @@ afterEach(() => {
     }
     fs.rmSync(root, { recursive: true, force: true });
   }
+});
+
+describe("buildDiskStorageAreaSummary", () => {
+  it("ignora uploads do inventario quando o arquivo original nao existe no disco", () => {
+    const { uploadsDir, datasets } = createTempWorkspace(
+      {
+        uploads: [
+          {
+            id: "u-missing",
+            url: "/uploads/posts/missing.png",
+            fileName: "missing.png",
+            folder: "posts",
+            size: 999,
+          },
+          {
+            id: "u-present",
+            url: "/uploads/posts/present.png",
+            fileName: "present.png",
+            folder: "posts",
+            size: 888,
+          },
+        ],
+      },
+      [{ relativePath: "posts/present.png", content: Buffer.alloc(40) }],
+    );
+
+    const result = buildDiskStorageAreaSummary({
+      uploads: datasets.uploads,
+      uploadsDir,
+    });
+    const posts = result.areas.find((item) => item.area === "posts");
+
+    expect(posts).toEqual(
+      expect.objectContaining({
+        area: "posts",
+        originalBytes: 40,
+        originalFiles: 1,
+        variantBytes: 0,
+        variantFiles: 0,
+        totalBytes: 40,
+        totalFiles: 1,
+      }),
+    );
+  });
+
+  it("conta arquivos presentes em disco mesmo sem registro no inventario", () => {
+    const { uploadsDir, datasets } = createTempWorkspace(
+      {
+        uploads: [],
+      },
+      [{ relativePath: "posts/manual.png", content: Buffer.alloc(25) }],
+    );
+
+    const result = buildDiskStorageAreaSummary({
+      uploads: datasets.uploads,
+      uploadsDir,
+    });
+
+    expect(result.areas).toEqual([
+      expect.objectContaining({
+        area: "posts",
+        originalBytes: 25,
+        originalFiles: 1,
+        totalBytes: 25,
+        totalFiles: 1,
+      }),
+    ]);
+  });
+
+  it("atribui bytes de variantes existentes para a area do upload dono", () => {
+    const { uploadsDir, datasets } = createTempWorkspace(
+      {
+        uploads: [
+          {
+            id: "u-active",
+            url: "/uploads/posts/cover.png",
+            fileName: "cover.png",
+            folder: "posts",
+          },
+        ],
+      },
+      [
+        { relativePath: "posts/cover.png", content: Buffer.alloc(100) },
+        { relativePath: "_variants/u-active/card.avif", content: Buffer.alloc(30) },
+        { relativePath: "_variants/u-active/hero.avif", content: Buffer.alloc(20) },
+      ],
+    );
+
+    const result = buildDiskStorageAreaSummary({
+      uploads: datasets.uploads,
+      uploadsDir,
+    });
+
+    expect(result.areas).toEqual([
+      expect.objectContaining({
+        area: "posts",
+        originalBytes: 100,
+        variantBytes: 50,
+        totalBytes: 150,
+        originalFiles: 1,
+        variantFiles: 2,
+        totalFiles: 3,
+      }),
+    ]);
+  });
+
+  it("agrupa variantes orfas em _variants e mantem totais ordenados por bytes", () => {
+    const { uploadsDir, datasets } = createTempWorkspace(
+      {
+        uploads: [
+          {
+            id: "u-project",
+            url: "/uploads/projects/cover.png",
+            fileName: "cover.png",
+            folder: "projects",
+          },
+        ],
+      },
+      [
+        { relativePath: "projects/cover.png", content: Buffer.alloc(10) },
+        { relativePath: "posts/manual.png", content: Buffer.alloc(50) },
+        { relativePath: "_variants/ghost/a.webp", content: Buffer.alloc(70) },
+        { relativePath: "_variants/ghost/nested/b.webp", content: Buffer.alloc(30) },
+      ],
+    );
+
+    const result = buildDiskStorageAreaSummary({
+      uploads: datasets.uploads,
+      uploadsDir,
+    });
+
+    expect(result.areas).toEqual([
+      expect.objectContaining({
+        area: "_variants",
+        originalBytes: 0,
+        variantBytes: 100,
+        totalBytes: 100,
+        originalFiles: 0,
+        variantFiles: 2,
+        totalFiles: 2,
+      }),
+      expect.objectContaining({
+        area: "posts",
+        originalBytes: 50,
+        totalBytes: 50,
+      }),
+      expect.objectContaining({
+        area: "projects",
+        originalBytes: 10,
+        totalBytes: 10,
+      }),
+    ]);
+    expect(result.totals).toEqual({
+      area: "total",
+      originalBytes: 60,
+      variantBytes: 100,
+      totalBytes: 160,
+      originalFiles: 2,
+      variantFiles: 2,
+      totalFiles: 4,
+    });
+  });
 });
 
 describe("runUploadsCleanup", () => {

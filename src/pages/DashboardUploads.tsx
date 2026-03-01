@@ -438,7 +438,7 @@ const DashboardUploads = () => {
         <DashboardPageHeader
           badge="Midia"
           title="Uploads e Storage"
-          description="Consumo por área com separação entre originais e variantes automáticas."
+          description="Consumo real por área com base nos arquivos presentes em disco."
           actions={
             <div className="flex items-center gap-2">
               <Badge className="bg-card/80 text-muted-foreground">

@@ -1,6 +1,6 @@
 import fs from "fs";
 import path from "path";
-import { buildStorageAreaSummary, normalizeVariants } from "./upload-media.js";
+import { buildStorageAreaSummary, deriveUploadArea, normalizeVariants } from "./upload-media.js";
 import { extractUploadUrlsFromText, normalizeUploadUrl } from "./uploads-reorganizer.js";
 
 const DATASETS_TO_SCAN = [
@@ -363,47 +363,57 @@ const buildOrphanedVariantSummary = (orphanedVariantCandidates) => {
   };
 };
 
-const mergeStorageSummaries = (...summaries) => {
-  const areasMap = new Map();
-
-  const addArea = (row) => {
-    const normalized = normalizeStorageAreaRow(row, String(row?.area || "root"));
-    const key = String(normalized.area || "root");
-    const current = areasMap.get(key) || normalizeStorageAreaRow({ area: key }, key);
-    areasMap.set(key, {
-      area: key,
-      originalBytes: current.originalBytes + normalized.originalBytes,
-      variantBytes: current.variantBytes + normalized.variantBytes,
-      totalBytes: current.totalBytes + normalized.totalBytes,
-      originalFiles: current.originalFiles + normalized.originalFiles,
-      variantFiles: current.variantFiles + normalized.variantFiles,
-      totalFiles: current.totalFiles + normalized.totalFiles,
-    });
-  };
-
-  summaries.forEach((summary) => {
-    (Array.isArray(summary?.areas) ? summary.areas : []).forEach((row) => addArea(row));
-  });
-
-  const areas = Array.from(areasMap.values()).sort((left, right) => {
+const sortStorageAreaRows = (rows) =>
+  [...(Array.isArray(rows) ? rows : [])].sort((left, right) => {
     if (left.totalBytes !== right.totalBytes) {
       return right.totalBytes - left.totalBytes;
     }
     return String(left.area || "").localeCompare(String(right.area || ""), "en");
   });
 
-  const totals = areas.reduce(
+const sumStorageAreaRows = (rows) =>
+  (Array.isArray(rows) ? rows : []).reduce(
     (acc, row) => ({
       area: "total",
-      originalBytes: acc.originalBytes + row.originalBytes,
-      variantBytes: acc.variantBytes + row.variantBytes,
-      totalBytes: acc.totalBytes + row.totalBytes,
-      originalFiles: acc.originalFiles + row.originalFiles,
-      variantFiles: acc.variantFiles + row.variantFiles,
-      totalFiles: acc.totalFiles + row.totalFiles,
+      originalBytes: acc.originalBytes + Number(row?.originalBytes || 0),
+      variantBytes: acc.variantBytes + Number(row?.variantBytes || 0),
+      totalBytes: acc.totalBytes + Number(row?.totalBytes || 0),
+      originalFiles: acc.originalFiles + Number(row?.originalFiles || 0),
+      variantFiles: acc.variantFiles + Number(row?.variantFiles || 0),
+      totalFiles: acc.totalFiles + Number(row?.totalFiles || 0),
     }),
     { ...EMPTY_TOTALS },
   );
+
+const mergeStorageAreaRow = (areasMap, row, fallbackArea = "root") => {
+  const normalized = normalizeStorageAreaRow(row, fallbackArea);
+  const key = String(normalized.area || fallbackArea);
+  const current = areasMap.get(key) || normalizeStorageAreaRow({ area: key }, key);
+
+  areasMap.set(key, {
+    area: key,
+    originalBytes: current.originalBytes + normalized.originalBytes,
+    variantBytes: current.variantBytes + normalized.variantBytes,
+    totalBytes: current.totalBytes + normalized.totalBytes,
+    originalFiles: current.originalFiles + normalized.originalFiles,
+    variantFiles: current.variantFiles + normalized.variantFiles,
+    totalFiles: current.totalFiles + normalized.totalFiles,
+  });
+};
+
+const mergeStorageSummaries = (...summaries) => {
+  const areasMap = new Map();
+
+  const addArea = (row) => {
+    mergeStorageAreaRow(areasMap, row, String(row?.area || "root"));
+  };
+
+  summaries.forEach((summary) => {
+    (Array.isArray(summary?.areas) ? summary.areas : []).forEach((row) => addArea(row));
+  });
+
+  const areas = sortStorageAreaRows(Array.from(areasMap.values()));
+  const totals = sumStorageAreaRows(areas);
 
   return {
     totals,
@@ -540,6 +550,165 @@ const createRewrittenDatasets = (datasets, nextUploads) => ({
   ...(datasets && typeof datasets === "object" ? datasets : {}),
   uploads: nextUploads,
 });
+
+const scanOriginalUploadFilesRecursive = ({ absoluteDir, relativeDir = "" }) => {
+  if (!fs.existsSync(absoluteDir)) {
+    return [];
+  }
+
+  const entries = fs.readdirSync(absoluteDir, { withFileTypes: true });
+  const files = [];
+
+  entries.forEach((entry) => {
+    const nextAbsolute = path.join(absoluteDir, entry.name);
+    const nextRelative = relativeDir ? toPosix(path.join(relativeDir, entry.name)) : entry.name;
+
+    if (entry.isDirectory()) {
+      if (!relativeDir && entry.name === VARIANTS_ROOT_SEGMENT) {
+        return;
+      }
+      files.push(...scanOriginalUploadFilesRecursive({ absoluteDir: nextAbsolute, relativeDir: nextRelative }));
+      return;
+    }
+
+    if (!entry.isFile()) {
+      return;
+    }
+
+    const stat = fs.statSync(nextAbsolute);
+    files.push({
+      absolutePath: nextAbsolute,
+      relativePath: toPosix(nextRelative),
+      bytes: Number(stat.size || 0),
+    });
+  });
+
+  return files.sort((left, right) =>
+    String(left.relativePath || "").localeCompare(String(right.relativePath || ""), "en"),
+  );
+};
+
+const deriveOriginalAreaFromRelativePath = (relativePath) => {
+  const normalized = toPosix(relativePath).replace(/^\/+/, "");
+  const folder = path.posix.dirname(normalized).replace(/^\.$/, "");
+  return deriveUploadArea(folder);
+};
+
+const scanLooseVariantFiles = (variantsRootDir) => {
+  if (!fs.existsSync(variantsRootDir)) {
+    return [];
+  }
+
+  return fs
+    .readdirSync(variantsRootDir, { withFileTypes: true })
+    .filter((entry) => entry.isFile())
+    .map((entry) => {
+      const absolutePath = path.join(variantsRootDir, entry.name);
+      const stat = fs.statSync(absolutePath);
+      return {
+        absolutePath,
+        relativePath: toPosix(path.join(VARIANTS_ROOT_SEGMENT, entry.name)),
+        bytes: Number(stat.size || 0),
+      };
+    })
+    .sort((left, right) =>
+      String(left.relativePath || "").localeCompare(String(right.relativePath || ""), "en"),
+    );
+};
+
+export const buildDiskStorageAreaSummary = ({
+  uploads,
+  uploadsDir = path.join(process.cwd(), "public", "uploads"),
+} = {}) => {
+  const uploadsRootDir = path.resolve(uploadsDir);
+  const variantsRootDir = path.join(uploadsRootDir, VARIANTS_ROOT_SEGMENT);
+  const managedUploads = getManagedUploads(uploads);
+  const uploadsById = new Map(
+    managedUploads
+      .map((upload) => [String(upload?.id || "").trim(), upload])
+      .filter(([uploadId]) => Boolean(uploadId)),
+  );
+  const areasMap = new Map();
+
+  scanOriginalUploadFilesRecursive({ absoluteDir: uploadsRootDir }).forEach((file) => {
+    const bytes = Number(file?.bytes || 0);
+    if (!Number.isFinite(bytes) || bytes < 0) {
+      return;
+    }
+
+    const area = deriveOriginalAreaFromRelativePath(file.relativePath);
+    mergeStorageAreaRow(
+      areasMap,
+      {
+        area,
+        originalBytes: bytes,
+        variantBytes: 0,
+        totalBytes: bytes,
+        originalFiles: 1,
+        variantFiles: 0,
+        totalFiles: 1,
+      },
+      area,
+    );
+  });
+
+  scanVariantDirectoryEntries(variantsRootDir, uploadsRootDir).forEach((directoryEntry) => {
+    const variantDirUploadId = String(directoryEntry?.variantDirUploadId || "").trim();
+    const ownerUpload = uploadsById.get(variantDirUploadId);
+    const area = ownerUpload
+      ? deriveUploadArea(ownerUpload?.area || ownerUpload?.folder || "")
+      : VARIANTS_ROOT_SEGMENT;
+    const variantFiles = Array.isArray(directoryEntry?.files) ? directoryEntry.files.length : 0;
+    const variantBytes = Number(directoryEntry?.totalBytes || 0);
+    if (!Number.isFinite(variantBytes) || variantBytes < 0) {
+      return;
+    }
+
+    mergeStorageAreaRow(
+      areasMap,
+      {
+        area,
+        originalBytes: 0,
+        variantBytes,
+        totalBytes: variantBytes,
+        originalFiles: 0,
+        variantFiles,
+        totalFiles: variantFiles,
+      },
+      area,
+    );
+  });
+
+  scanLooseVariantFiles(variantsRootDir).forEach((file) => {
+    const bytes = Number(file?.bytes || 0);
+    if (!Number.isFinite(bytes) || bytes < 0) {
+      return;
+    }
+
+    mergeStorageAreaRow(
+      areasMap,
+      {
+        area: VARIANTS_ROOT_SEGMENT,
+        originalBytes: 0,
+        variantBytes: bytes,
+        totalBytes: bytes,
+        originalFiles: 0,
+        variantFiles: 1,
+        totalFiles: 1,
+      },
+      VARIANTS_ROOT_SEGMENT,
+    );
+  });
+
+  const areas = sortStorageAreaRows(Array.from(areasMap.values()));
+  const totals = sumStorageAreaRows(areas);
+
+  return {
+    generatedAt: new Date().toISOString(),
+    totals,
+    areas,
+  };
+};
 
 const sortFailures = (failures) =>
   [...(Array.isArray(failures) ? failures : [])].sort((left, right) => {
@@ -696,6 +865,7 @@ export const runUploadsCleanup = ({
 };
 
 export const __testing = {
+  buildDiskStorageAreaSummary,
   buildCombinedCleanupExamples,
   buildOrphanedVariantSummary,
   collectExpectedVariantFilesByUploadId,

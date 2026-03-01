@@ -103,11 +103,10 @@ import {
   normalizeRecoveryCode,
   verifyTotpCode,
 } from "./lib/totp.js";
-import { runUploadsCleanup } from "./lib/uploads-cleanup.js";
+import { buildDiskStorageAreaSummary, runUploadsCleanup } from "./lib/uploads-cleanup.js";
 import { runUploadsReorganization } from "./lib/uploads-reorganizer.js";
 import {
   attachUploadMediaMetadata,
-  buildStorageAreaSummary,
   computeBufferSha256,
   deriveFocalPointsFromCrops,
   findUploadByHash,
@@ -12111,7 +12110,10 @@ app.get("/api/uploads/storage/areas", requireAuth, (req, res) => {
   if (!canManageUploads(sessionUser?.id)) {
     return res.status(403).json({ error: "forbidden" });
   }
-  const summary = buildStorageAreaSummary(loadUploads());
+  const summary = buildDiskStorageAreaSummary({
+    uploads: loadUploads(),
+    uploadsDir: path.join(__dirname, "..", "public", "uploads"),
+  });
   return res.json(summary);
 });
 

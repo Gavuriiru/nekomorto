@@ -2066,17 +2066,19 @@ const ImageLibraryDialog = ({
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent
-          className="flex h-[90vh] w-[92vw] max-w-5xl flex-col overflow-hidden z-200 data-[state=open]:animate-none data-[state=closed]:animate-none [&>button]:hidden"
+          className="z-200 flex h-[92vh] w-[96vw] max-w-5xl flex-col overflow-hidden p-3 data-[state=open]:animate-none data-[state=closed]:animate-none sm:h-[90vh] sm:w-[92vw] sm:p-6 [&>button]:hidden"
           overlayClassName="z-190 data-[state=open]:animate-none data-[state=closed]:animate-none"
           onEscapeKeyDown={(event) => event.preventDefault()}
         >
-          <DialogHeader>
+          <DialogHeader className="space-y-1">
             <DialogTitle>{title}</DialogTitle>
-            <DialogDescription>{description}</DialogDescription>
+            <DialogDescription className="text-xs leading-snug sm:text-sm">
+              {description}
+            </DialogDescription>
           </DialogHeader>
-          <div className="mt-2 grid gap-3 lg:grid-cols-[1.25fr_0.95fr]">
+          <div className="mt-2 grid gap-2 sm:gap-3 lg:grid-cols-[1.25fr_0.95fr]">
             <div
-              className={`flex h-full flex-col justify-center rounded-2xl border border-dashed border-border/70 bg-card/50 p-4 text-sm text-muted-foreground transition ${
+              className={`flex h-full flex-col justify-center rounded-2xl border border-dashed border-border/70 bg-card/50 p-3 text-sm text-muted-foreground transition sm:p-4 ${
                 isDragActive ? "ring-2 ring-primary/60 border-primary/60" : ""
               }`}
               onDragOver={(event) => {
@@ -2112,11 +2114,11 @@ const ImageLibraryDialog = ({
                 ) : null}
               </div>
             </div>
-            <div className="rounded-2xl border border-border/60 bg-card/70 p-4 space-y-3">
+            <div className="rounded-2xl border border-border/60 bg-card/70 p-3 space-y-3 sm:p-4">
               {showUrlImport ? (
                 <div className="space-y-2">
                   <Label>Importar por URL</Label>
-                  <div className="flex gap-2">
+                  <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2">
                     <Input
                       value={urlInput}
                       onChange={(event) => setUrlInput(event.target.value)}
@@ -2125,6 +2127,7 @@ const ImageLibraryDialog = ({
                     <Button
                       type="button"
                       size="sm"
+                      className="shrink-0 px-3"
                       onClick={() => void handleImportFromUrl()}
                       disabled={isUploading || !urlInput.trim()}
                     >
@@ -2145,10 +2148,13 @@ const ImageLibraryDialog = ({
             </div>
           </div>
 
-          <div className="mt-4 min-h-0 flex-1 space-y-8 overflow-auto no-scrollbar">
+          <div className="mt-3 min-h-0 flex-1 space-y-6 overflow-auto no-scrollbar sm:mt-4 sm:space-y-8">
             <div>
-              <div className="sticky top-0 z-10 -mx-1 mb-2 rounded-xl border border-border/60 bg-background/95 px-3 py-3 backdrop-blur">
-                <div className="flex flex-col gap-3">
+              <div
+                data-testid="image-library-uploads-toolbar"
+                className="sm:sticky sm:top-0 z-10 -mx-1 mb-2 rounded-xl border border-border/60 bg-background/95 px-2.5 py-2 backdrop-blur sm:px-3 sm:py-3"
+              >
+                <div className="flex flex-col gap-2 sm:gap-3">
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <h3 className="text-sm font-semibold text-foreground">Uploads do servidor</h3>
                     <p className="text-xs text-muted-foreground">
@@ -2160,13 +2166,13 @@ const ImageLibraryDialog = ({
                       value={searchQuery}
                       onChange={(event) => setSearchQuery(event.target.value)}
                       placeholder="Pesquisar por nome, projeto ou URL..."
-                      className="h-9 lg:w-80"
+                      className="h-9 w-full"
                     />
-                    <div className="flex flex-1 flex-wrap items-center gap-2">
+                    <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-1 sm:flex-wrap sm:items-center">
                       <select
                         value={uploadsFolderFilter}
                         onChange={(event) => setUploadsFolderFilter(event.target.value)}
-                        className="h-9 rounded-md border border-input bg-background px-3 text-sm"
+                        className="h-9 min-w-0 w-full rounded-md border border-input bg-background px-3 text-sm sm:w-auto"
                       >
                         <option value="__all__">Todas as pastas</option>
                         {uploadFolderFilterOptions.map((folder) => (
@@ -2180,7 +2186,7 @@ const ImageLibraryDialog = ({
                         onChange={(event) =>
                           setSortMode(event.target.value as "recent" | "oldest" | "name")
                         }
-                        className="h-9 rounded-md border border-input bg-background px-3 text-sm"
+                        className="h-9 min-w-0 w-full rounded-md border border-input bg-background px-3 text-sm sm:w-auto"
                       >
                         <option value="recent">Mais recentes</option>
                         <option value="oldest">Mais antigos</option>
@@ -2191,6 +2197,7 @@ const ImageLibraryDialog = ({
                           type="button"
                           size="sm"
                           variant="outline"
+                          className="col-span-2 w-full sm:w-auto"
                           onClick={() => setSelectedUrls([])}
                         >
                           Limpar seleção
@@ -2200,28 +2207,6 @@ const ImageLibraryDialog = ({
                   </div>
                 </div>
               </div>
-              <div className="hidden flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                <h3 className="text-sm font-semibold text-foreground">Uploads do servidor</h3>
-                <div className="flex w-full items-center gap-2 sm:w-auto">
-                  <Input
-                    value={searchQuery}
-                    onChange={(event) => setSearchQuery(event.target.value)}
-                    placeholder="Pesquisar por nome ou projeto..."
-                    className="h-9 sm:w-72"
-                  />
-                  {allowDeselect ? (
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="outline"
-                      onClick={() => setSelectedUrls([])}
-                    >
-                      Limpar seleção
-                    </Button>
-                  ) : null}
-                </div>
-              </div>
-              <p className="hidden mt-2 text-xs text-muted-foreground" aria-hidden="true" />
               {renderGrid(
                 filteredUploads,
                 normalizedSearch || uploadsFolderFilter !== "__all__"
