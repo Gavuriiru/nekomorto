@@ -184,4 +184,27 @@ describe("upload-variants", () => {
       }),
     ).toBe("/uploads/_variants/u1/square-v5.png");
   });
+
+  it("prefere o src original antes de avif quando nao ha fallback seguro", () => {
+    const mediaVariants: UploadMediaVariantsMap = {
+      "/uploads/posts/capa.png": {
+        variantsVersion: 2,
+        variants: {
+          og: {
+            formats: {
+              avif: { url: "/uploads/_variants/u1/og-v2.avif" },
+            },
+          },
+        },
+      },
+    };
+
+    expect(
+      resolveUploadVariantUrl({
+        src: "/uploads/posts/capa.png",
+        preset: "og",
+        mediaVariants,
+      }),
+    ).toBe("/uploads/posts/capa.png");
+  });
 });

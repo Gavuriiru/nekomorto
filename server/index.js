@@ -4603,11 +4603,15 @@ const readVariantAssetUrl = (formats, fallbackUrl) => {
   if (webp) {
     return webp;
   }
+  const source = String(fallbackUrl || "").trim();
+  if (source) {
+    return source;
+  }
   const avif = String(record?.avif?.url || "").trim();
   if (avif) {
     return avif;
   }
-  return String(fallbackUrl || "").trim();
+  return "";
 };
 
 const resolveUploadVariantUrlFromEntry = ({ entry, preset, fallbackUrl }) => {

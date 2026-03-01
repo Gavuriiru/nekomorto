@@ -73,11 +73,17 @@ const sanitizeVariantVersion = (value) => {
 
 const normalizeVariantFormats = (value) => {
   const source = value && typeof value === "object" ? value : {};
-  return {
-    avif: source.avif && typeof source.avif === "object" ? source.avif : null,
-    webp: source.webp && typeof source.webp === "object" ? source.webp : null,
-    fallback: source.fallback && typeof source.fallback === "object" ? source.fallback : null,
-  };
+  const next = {};
+  if (source.avif && typeof source.avif === "object") {
+    next.avif = source.avif;
+  }
+  if (source.webp && typeof source.webp === "object") {
+    next.webp = source.webp;
+  }
+  if (source.fallback && typeof source.fallback === "object") {
+    next.fallback = source.fallback;
+  }
+  return next;
 };
 
 const normalizeVariantRecord = (value) => {
@@ -162,12 +168,8 @@ const resetVariantDirectory = (uploadsDir, uploadId) => {
 const createBaseVariantPipeline = ({ sourcePath, rect, preset }) =>
   sharp(sourcePath, { animated: false }).extract(rect).resize(preset.width, preset.height, {
     fit: "fill",
+    withoutEnlargement: true,
   });
-
-const toFallbackFormat = (hasAlpha) =>
-  hasAlpha
-    ? { format: "png", mime: "image/png", extension: "png" }
-    : { format: "jpeg", mime: "image/jpeg", extension: "jpeg" };
 
 const createVariantFilePath = ({ dir, preset, version, extension }) =>
   path.join(dir, `${preset}-v${version}.${extension}`);
@@ -513,8 +515,6 @@ export const generateUploadVariants = async ({
   if (!Number.isFinite(sourceWidth) || !Number.isFinite(sourceHeight)) {
     throw new Error("source_image_dimensions_unavailable");
   }
-  const hasAlpha = metadata?.hasAlpha === true || Number(metadata?.channels || 0) >= 4;
-  const fallback = toFallbackFormat(hasAlpha);
   const safeVersion = sanitizeVariantVersion(variantsVersion);
   const safeFocalPoints = normalizeFocalPoints(focalPoints, focalPoint);
   const safeFocalCrops =
@@ -590,26 +590,7 @@ export const generateUploadVariants = async ({
       version: safeVersion,
       extension: "avif",
     });
-    const webpPath = createVariantFilePath({
-      dir: variantDir,
-      preset: presetKey,
-      version: safeVersion,
-      extension: "webp",
-    });
-    const fallbackPath = createVariantFilePath({
-      dir: variantDir,
-      preset: presetKey,
-      version: safeVersion,
-      extension: fallback.extension,
-    });
-
-    const [avifInfo, webpInfo, fallbackInfo] = await Promise.all([
-      base.clone().avif({ quality: 52 }).toFile(avifPath),
-      base.clone().webp({ quality: 74 }).toFile(webpPath),
-      fallback.format === "png"
-        ? base.clone().png({ quality: 90, compressionLevel: 9 }).toFile(fallbackPath)
-        : base.clone().jpeg({ quality: 84, mozjpeg: true }).toFile(fallbackPath),
-    ]);
+    const avifInfo = await base.clone().avif({ quality: 52 }).toFile(avifPath);
 
     variants[presetKey] = {
       width: preset.width,
@@ -625,32 +606,10 @@ export const generateUploadVariants = async ({
           mime: "image/avif",
           size: Number(avifInfo?.size || 0),
         },
-        webp: {
-          url: toUploadVariantUrl({
-            uploadId,
-            preset: presetKey,
-            version: safeVersion,
-            extension: "webp",
-          }),
-          mime: "image/webp",
-          size: Number(webpInfo?.size || 0),
-        },
-        fallback: {
-          url: toUploadVariantUrl({
-            uploadId,
-            preset: presetKey,
-            version: safeVersion,
-            extension: fallback.extension,
-          }),
-          mime: fallback.mime,
-          size: Number(fallbackInfo?.size || 0),
-        },
       },
     };
 
     variantBytes += Number(avifInfo?.size || 0);
-    variantBytes += Number(webpInfo?.size || 0);
-    variantBytes += Number(fallbackInfo?.size || 0);
   }
 
   return {

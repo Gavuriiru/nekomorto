@@ -53,6 +53,36 @@ describe("UploadPicture", () => {
     expect(img).toHaveAttribute("src", expect.stringContaining("/uploads/posts/original.jpg"));
   });
 
+  it("usa o src original no img quando a variante salva apenas avif", () => {
+    const mediaVariants: UploadMediaVariantsMap = {
+      "/uploads/posts/capa.png": {
+        variantsVersion: 6,
+        variants: {
+          hero: {
+            formats: {
+              avif: { url: "/uploads/_variants/u123/hero-v6.avif" },
+            },
+          },
+        },
+      },
+    };
+
+    const { container } = render(
+      <UploadPicture
+        src="/uploads/posts/capa.png"
+        alt="Somente avif"
+        preset="hero"
+        mediaVariants={mediaVariants}
+      />,
+    );
+
+    const sources = Array.from(container.querySelectorAll("source"));
+    expect(sources).toHaveLength(1);
+    expect(sources[0]).toHaveAttribute("type", "image/avif");
+    expect(sources[0]).toHaveAttribute("srcset", expect.stringContaining("/uploads/_variants/u123/hero-v6.avif"));
+    expect(container.querySelector("img")).toHaveAttribute("src", expect.stringContaining("/uploads/posts/capa.png"));
+  });
+
   it("resolve a variante cardWide quando disponivel", () => {
     const mediaVariants: UploadMediaVariantsMap = {
       "/uploads/posts/capa.png": {

@@ -164,5 +164,6 @@ export const resolveUploadVariantUrl = ({
   mediaVariants?: UploadMediaVariantsMap | null;
 }) => {
   const resolved = resolveUploadVariantSources({ src, preset, mediaVariants });
-  return resolved.fallback || resolved.webp || resolved.avif || String(src || "").trim();
+  const sourceUrl = String(src || "").trim();
+  return resolved.fallback || resolved.webp || sourceUrl || resolved.avif;
 };
