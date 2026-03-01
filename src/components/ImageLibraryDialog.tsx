@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent, type SyntheticEvent } from "react";
 import { CircleStencil, FixedCropper, type FixedCropperRef } from "react-advanced-cropper";
 import { ImageRestriction } from "advanced-cropper";
 import "react-advanced-cropper/dist/style.css";
@@ -30,6 +30,7 @@ import { Label } from "@/components/ui/label";
 import { toast } from "@/components/ui/use-toast";
 import { apiFetch } from "@/lib/api-client";
 import {
+  computeUploadContainFitRect,
   UPLOAD_VARIANT_PRESET_DIMENSIONS,
   UPLOAD_VARIANT_PRESET_KEYS,
   computeUploadFocalCoverRect,
@@ -485,36 +486,31 @@ const FocalPointWorkspace = ({
   onSave,
 }: FocalPointWorkspaceProps) => {
   const frameRef = useRef<HTMLDivElement | null>(null);
-  const imageRef = useRef<HTMLImageElement | null>(null);
-  const [renderedRect, setRenderedRect] = useState({ left: 0, top: 0, width: 0, height: 0 });
+  const [stageSize, setStageSize] = useState({ width: 0, height: 0 });
   const [naturalSize, setNaturalSize] = useState(() => ({
     width: typeof item.width === "number" ? Math.max(0, item.width) : 0,
     height: typeof item.height === "number" ? Math.max(0, item.height) : 0,
   }));
 
-  const syncPreviewMetrics = useCallback(() => {
+  const syncStageMetrics = useCallback(() => {
     const frame = frameRef.current;
-    const image = imageRef.current;
-    if (!frame || !image) {
+    if (!frame) {
       return;
     }
     const frameRect = frame.getBoundingClientRect();
-    const imageRect = image.getBoundingClientRect();
-    const nextRect = {
-      left: Math.max(0, imageRect.left - frameRect.left),
-      top: Math.max(0, imageRect.top - frameRect.top),
-      width: Math.max(0, imageRect.width),
-      height: Math.max(0, imageRect.height),
+    const nextSize = {
+      width: Math.max(0, frameRect.width),
+      height: Math.max(0, frameRect.height),
     };
-    setRenderedRect((prev) =>
-      prev.left === nextRect.left &&
-      prev.top === nextRect.top &&
-      prev.width === nextRect.width &&
-      prev.height === nextRect.height
+    setStageSize((prev) =>
+      prev.width === nextSize.width && prev.height === nextSize.height
         ? prev
-        : nextRect,
+        : nextSize,
     );
+  }, []);
 
+  const handleImageLoad = useCallback((event: SyntheticEvent<HTMLImageElement>) => {
+    const image = event.currentTarget;
     const naturalWidth = Number(image.naturalWidth || 0);
     const naturalHeight = Number(image.naturalHeight || 0);
     if (naturalWidth > 0 && naturalHeight > 0) {
@@ -524,10 +520,11 @@ const FocalPointWorkspace = ({
           : { width: naturalWidth, height: naturalHeight },
       );
     }
-  }, []);
+    syncStageMetrics();
+  }, [syncStageMetrics]);
 
   useEffect(() => {
-    setRenderedRect({ left: 0, top: 0, width: 0, height: 0 });
+    setStageSize({ width: 0, height: 0 });
     setNaturalSize({
       width: typeof item.width === "number" ? Math.max(0, item.width) : 0,
       height: typeof item.height === "number" ? Math.max(0, item.height) : 0,
@@ -535,23 +532,47 @@ const FocalPointWorkspace = ({
   }, [item.height, item.url, item.width]);
 
   useEffect(() => {
+    const frame = frameRef.current;
     const rafId = window.requestAnimationFrame(() => {
-      syncPreviewMetrics();
+      syncStageMetrics();
     });
-    const handleResize = () => {
-      syncPreviewMetrics();
-    };
-    window.addEventListener("resize", handleResize);
+    if (!frame) {
+      return () => {
+        window.cancelAnimationFrame(rafId);
+      };
+    }
+
+    if (typeof ResizeObserver === "function") {
+      const observer = new ResizeObserver(() => {
+        syncStageMetrics();
+      });
+      observer.observe(frame);
+      return () => {
+        window.cancelAnimationFrame(rafId);
+        observer.disconnect();
+      };
+    }
+
+    window.addEventListener("resize", syncStageMetrics);
     return () => {
       window.cancelAnimationFrame(rafId);
-      window.removeEventListener("resize", handleResize);
+      window.removeEventListener("resize", syncStageMetrics);
     };
-  }, [activePreset, draft, item.url, syncPreviewMetrics]);
+  }, [item.url, syncStageMetrics]);
 
-  const sourceWidth = naturalSize.width > 0 ? naturalSize.width : Math.max(1, Math.round(renderedRect.width) || 1);
-  const sourceHeight =
-    naturalSize.height > 0 ? naturalSize.height : Math.max(1, Math.round(renderedRect.height) || 1);
+  const sourceWidth = naturalSize.width > 0 ? naturalSize.width : 1;
+  const sourceHeight = naturalSize.height > 0 ? naturalSize.height : 1;
   const activePoint = draft[activePreset];
+  const fitRect = useMemo(
+    () =>
+      computeUploadContainFitRect({
+        stageWidth: stageSize.width,
+        stageHeight: stageSize.height,
+        sourceWidth,
+        sourceHeight,
+      }),
+    [sourceHeight, sourceWidth, stageSize.height, stageSize.width],
+  );
 
   const previewRects = useMemo(() => {
     const next = {} as Record<UploadVariantPresetKey, { left: number; top: number; width: number; height: number }>;
@@ -569,27 +590,27 @@ const FocalPointWorkspace = ({
   }, [draft, sourceHeight, sourceWidth]);
 
   const activeOverlayRect = useMemo(() => {
-    if (renderedRect.width <= 0 || renderedRect.height <= 0) {
+    if (fitRect.width <= 0 || fitRect.height <= 0) {
       return null;
     }
     const rect = previewRects[activePreset];
     return {
-      left: renderedRect.left + (rect.left / sourceWidth) * renderedRect.width,
-      top: renderedRect.top + (rect.top / sourceHeight) * renderedRect.height,
-      width: (rect.width / sourceWidth) * renderedRect.width,
-      height: (rect.height / sourceHeight) * renderedRect.height,
+      left: fitRect.left + (rect.left / sourceWidth) * fitRect.width,
+      top: fitRect.top + (rect.top / sourceHeight) * fitRect.height,
+      width: (rect.width / sourceWidth) * fitRect.width,
+      height: (rect.height / sourceHeight) * fitRect.height,
     };
-  }, [activePreset, previewRects, renderedRect, sourceHeight, sourceWidth]);
+  }, [activePreset, fitRect, previewRects, sourceHeight, sourceWidth]);
 
   const activeMarker = useMemo(() => {
-    if (renderedRect.width <= 0 || renderedRect.height <= 0) {
+    if (fitRect.width <= 0 || fitRect.height <= 0) {
       return null;
     }
     return {
-      left: renderedRect.left + activePoint.x * renderedRect.width,
-      top: renderedRect.top + activePoint.y * renderedRect.height,
+      left: fitRect.left + activePoint.x * fitRect.width,
+      top: fitRect.top + activePoint.y * fitRect.height,
     };
-  }, [activePoint.x, activePoint.y, renderedRect]);
+  }, [activePoint.x, activePoint.y, fitRect]);
 
   const updateActivePresetPoint = useCallback(
     (nextPoint: { x: number; y: number }) => {
@@ -603,13 +624,14 @@ const FocalPointWorkspace = ({
 
   const handleFrameClick = useCallback(
     (event: MouseEvent<HTMLDivElement>) => {
-      const image = imageRef.current;
-      if (!image) {
+      if (fitRect.width <= 0 || fitRect.height <= 0) {
         return;
       }
-      const imageRect = image.getBoundingClientRect();
-      const nextX = imageRect.width > 0 ? (event.clientX - imageRect.left) / imageRect.width : 0.5;
-      const nextY = imageRect.height > 0 ? (event.clientY - imageRect.top) / imageRect.height : 0.5;
+      const frameRect = event.currentTarget.getBoundingClientRect();
+      const localX = event.clientX - frameRect.left;
+      const localY = event.clientY - frameRect.top;
+      const nextX = (localX - fitRect.left) / fitRect.width;
+      const nextY = (localY - fitRect.top) / fitRect.height;
       if (nextX < 0 || nextX > 1 || nextY < 0 || nextY > 1) {
         return;
       }
@@ -618,7 +640,7 @@ const FocalPointWorkspace = ({
         y: Math.min(1, Math.max(0, nextY)),
       });
     },
-    [updateActivePresetPoint],
+    [fitRect, updateActivePresetPoint],
   );
 
   const handleAxisChange = useCallback(
@@ -685,17 +707,27 @@ const FocalPointWorkspace = ({
 
       <div
         ref={frameRef}
-        className="relative grid h-80 cursor-crosshair place-items-center overflow-hidden rounded-xl border border-border/60 bg-background/40"
+        className="relative w-full cursor-crosshair overflow-hidden rounded-xl border border-border/60 bg-background/40"
+        style={{ height: "min(60vh, 28rem)" }}
         onClick={handleFrameClick}
       >
-        <img
-          ref={imageRef}
-          src={item.url}
-          alt={toEffectiveName(item)}
-          className="block max-h-full max-w-full select-none"
-          draggable={false}
-          onLoad={syncPreviewMetrics}
-        />
+        <div
+          className="pointer-events-none absolute"
+          style={{
+            left: `${fitRect.left}px`,
+            top: `${fitRect.top}px`,
+            width: `${fitRect.width}px`,
+            height: `${fitRect.height}px`,
+          }}
+        >
+          <img
+            src={item.url}
+            alt={toEffectiveName(item)}
+            className="block h-full w-full select-none object-contain object-center"
+            draggable={false}
+            onLoad={handleImageLoad}
+          />
+        </div>
         {activeOverlayRect ? (
           <div
             className="pointer-events-none absolute rounded-md border-2 border-primary/70 bg-primary/10"

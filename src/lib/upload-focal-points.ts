@@ -7,6 +7,14 @@ export type UploadFocalPoint = {
 
 export type UploadFocalPoints = Record<UploadVariantPresetKey, UploadFocalPoint>;
 
+export type UploadContainFitRect = {
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+  scale: number;
+};
+
 export const UPLOAD_VARIANT_PRESET_DIMENSIONS: Record<
   UploadVariantPresetKey,
   { width: number; height: number }
@@ -84,6 +92,45 @@ export const deriveLegacyUploadFocalPoint = (
   fallbackValue?: unknown,
 ): UploadFocalPoint =>
   normalizeUploadFocalPoint(resolvePresetFocalSource({ value, fallback: fallbackValue, preset: "card" }));
+
+export const computeUploadContainFitRect = ({
+  stageWidth,
+  stageHeight,
+  sourceWidth,
+  sourceHeight,
+}: {
+  stageWidth: number;
+  stageHeight: number;
+  sourceWidth: number;
+  sourceHeight: number;
+}): UploadContainFitRect => {
+  const safeStageWidth = Math.max(0, Number(stageWidth || 0));
+  const safeStageHeight = Math.max(0, Number(stageHeight || 0));
+  const safeSourceWidth = Math.max(1, Number(sourceWidth || 1));
+  const safeSourceHeight = Math.max(1, Number(sourceHeight || 1));
+
+  if (safeStageWidth <= 0 || safeStageHeight <= 0) {
+    return {
+      left: 0,
+      top: 0,
+      width: 0,
+      height: 0,
+      scale: 0,
+    };
+  }
+
+  const scale = Math.min(safeStageWidth / safeSourceWidth, safeStageHeight / safeSourceHeight);
+  const width = safeSourceWidth * scale;
+  const height = safeSourceHeight * scale;
+
+  return {
+    left: (safeStageWidth - width) / 2,
+    top: (safeStageHeight - height) / 2,
+    width,
+    height,
+    scale,
+  };
+};
 
 export const computeUploadFocalCoverRect = ({
   sourceWidth,

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  computeUploadContainFitRect,
   computeUploadFocalCoverRect,
   deriveLegacyUploadFocalPoint,
   normalizeUploadFocalPoints,
@@ -35,5 +36,20 @@ describe("upload-focal-points", () => {
     expect(rect.height).toBe(563);
     expect(rect.left).toBe(0);
     expect(rect.top).toBe(1437);
+  });
+
+  it("calcula o retangulo de contain para exibir a imagem inteira", () => {
+    const rect = computeUploadContainFitRect({
+      stageWidth: 800,
+      stageHeight: 320,
+      sourceWidth: 1000,
+      sourceHeight: 2000,
+    });
+
+    expect(rect.width).toBe(160);
+    expect(rect.height).toBe(320);
+    expect(rect.left).toBe(320);
+    expect(rect.top).toBe(0);
+    expect(rect.scale).toBeCloseTo(0.16);
   });
 });

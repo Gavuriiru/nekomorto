@@ -3044,19 +3044,15 @@ const DashboardProjectsEditor = () => {
                         }
                       />
                     </div>
-                    <div className="space-y-2">
-                      <Label>Forçar no carrossel</Label>
-                      <div className="flex items-center justify-between gap-4 rounded-2xl border border-border/60 bg-card/60 px-4 py-3">
-                        <span className="text-sm text-muted-foreground">
-                          Exibe no carrossel da home mesmo sem lançamento recente.
-                        </span>
-                        <Switch
-                          checked={Boolean(formState.forceHero)}
-                          onCheckedChange={(checked) =>
-                            setFormState((prev) => ({ ...prev, forceHero: checked }))
-                          }
-                        />
-                      </div>
+                    <div className="flex items-center justify-between gap-4">
+                      <Label htmlFor="force-hero-switch">Forçar no carrossel</Label>
+                      <Switch
+                        id="force-hero-switch"
+                        checked={Boolean(formState.forceHero)}
+                        onCheckedChange={(checked) =>
+                          setFormState((prev) => ({ ...prev, forceHero: checked }))
+                        }
+                      />
                     </div>
                     <div className="space-y-2 md:col-span-2">
                       <Label>Sinopse</Label>

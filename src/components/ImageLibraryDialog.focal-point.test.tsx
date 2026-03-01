@@ -183,4 +183,56 @@ describe("ImageLibraryDialog focal point editor", () => {
       og: { x: 0.2, y: 0.8 },
     });
   });
+
+  it("ignora cliques fora da area util da imagem", async () => {
+    render(
+      <ImageLibraryDialog
+        open
+        onOpenChange={() => undefined}
+        apiBase="http://api.local"
+        onSave={() => undefined}
+      />,
+    );
+
+    const uploadButton = await screen.findByRole("button", { name: /focal\.png/i });
+    fireEvent.contextMenu(uploadButton);
+    fireEvent.click(await screen.findByText("Definir ponto focal"));
+
+    const dialogs = await screen.findAllByRole("dialog");
+    const focalDialog = dialogs[dialogs.length - 1];
+    const editorImage = within(focalDialog).getByRole("img", { name: /focal\.png/i });
+    const stage = editorImage.parentElement?.parentElement as HTMLDivElement | null;
+
+    expect(stage).not.toBeNull();
+    if (!stage) {
+      return;
+    }
+
+    stage.getBoundingClientRect = () => DOMRect.fromRect({ x: 100, y: 50, width: 800, height: 320 });
+    fireEvent(window, new Event("resize"));
+
+    fireEvent.click(stage, {
+      clientX: 150,
+      clientY: 150,
+    });
+
+    fireEvent.click(within(focalDialog).getByRole("button", { name: "Salvar ponto focal" }));
+
+    await waitFor(() => {
+      const patchCall = apiFetchMock.mock.calls.find(
+        (call) => String(call[1] || "") === "/api/uploads/upload-1/focal-point",
+      );
+      expect(patchCall).toBeTruthy();
+    });
+
+    const patchCall = apiFetchMock.mock.calls.find(
+      (call) => String(call[1] || "") === "/api/uploads/upload-1/focal-point",
+    );
+    const request = (patchCall?.[2] || {}) as { body?: string };
+    const payload = JSON.parse(String(request.body || "{}")) as {
+      focalPoints?: Record<string, { x: number; y: number }>;
+    };
+
+    expect(payload.focalPoints?.card).toEqual({ x: 0.2, y: 0.8 });
+  });
 });

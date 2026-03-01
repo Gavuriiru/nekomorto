@@ -172,6 +172,11 @@ describe("DashboardProjectsEditor edit query", () => {
 
     await screen.findByRole("heading", { name: "Gerenciar projetos" });
     await screen.findByText("Editar projeto");
+    expect(screen.getByText("Forçar no carrossel")).toBeInTheDocument();
+    expect(
+      screen.queryByText("Exibe no carrossel da home mesmo sem lançamento recente."),
+    ).not.toBeInTheDocument();
+    expect(screen.getByRole("switch", { name: "Forçar no carrossel" })).toBeInTheDocument();
     await waitFor(() => {
       expect(screen.getByTestId("location-search").textContent).toBe("");
     });
