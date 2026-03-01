@@ -45,7 +45,7 @@ const setupBootstrapMock = () => {
           title: "Projeto Teste",
         },
       ],
-      tagTranslations: { tags: {} },
+      tagTranslations: { tags: { acao: "Ação" } },
     },
   });
 };
@@ -97,6 +97,7 @@ describe("ReleasesSection cover fit", () => {
     expect(document.getElementById("lancamentos")).toBeInTheDocument();
     const postLink = await screen.findByRole("link", { name: /post de teste/i });
     expect(postLink).toHaveAttribute("href", "/postagem/post-teste");
+    expect(screen.queryByText("Ação")).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /Ler postagem/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /Ver projeto/i })).not.toBeInTheDocument();
   });

@@ -1,7 +1,6 @@
 import { useCallback, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Pagination,
@@ -26,10 +25,8 @@ const ReleasesSection = () => {
   const postsSectionRef = useRef<HTMLDivElement | null>(null);
   const { data: bootstrapData, isLoading } = usePublicBootstrap();
   const posts = bootstrapData?.posts || [];
-  const projects = bootstrapData?.projects || [];
   const mediaVariants = bootstrapData?.mediaVariants || {};
   const isLoadingPosts = isLoading && !bootstrapData;
-  const tagTranslations = bootstrapData?.tagTranslations?.tags || {};
   const totalPages = Math.ceil(posts.length / pageSize) || 1;
   const pagedReleases = useMemo(() => {
     const startIndex = (currentPage - 1) * pageSize;
@@ -82,11 +79,6 @@ const ReleasesSection = () => {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
                 {pagedReleases.map((release, index) => {
                   const isOrphan = pagedReleases.length % 2 === 1 && index === pagedReleases.length - 1;
-                  const projectTag = release.projectId
-                    ? projects.find((project) => project.id === release.projectId)?.tags?.[0] || ""
-                    : "";
-                  const mainTag = Array.isArray(release.tags) && release.tags.length > 0 ? release.tags[0] : projectTag;
-                  const displayTag = mainTag ? tagTranslations[mainTag] || mainTag : "";
                   return (
                     <Link
                       key={release.id}
@@ -110,16 +102,6 @@ const ReleasesSection = () => {
                                 imgClassName="absolute inset-0 block h-full w-full object-cover object-center transition-transform duration-300 group-hover:scale-105"
                                 loading="lazy"
                               />
-                              {displayTag ? (
-                                <div className="absolute right-3 top-3 flex flex-wrap gap-2">
-                                  <Badge
-                                    variant="secondary"
-                                    className="text-[10px] uppercase tracking-wide bg-background/85 text-foreground shadow-xs"
-                                  >
-                                    {displayTag}
-                                  </Badge>
-                                </div>
-                              ) : null}
                             </div>
                             <div className="p-5 space-y-2">
                               <h3 className="text-xl md:text-2xl font-semibold text-foreground group-hover:text-primary transition-colors leading-snug">
