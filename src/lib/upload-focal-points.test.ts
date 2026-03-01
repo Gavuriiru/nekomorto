@@ -5,6 +5,7 @@ import {
   computeUploadFocalCoverRect,
   deriveDefaultUploadFocalCropRect,
   deriveUploadFocalPointsFromCrops,
+  deriveUploadViewportCoverRect,
   normalizeUploadFocalCropRect,
   normalizeUploadFocalPoints,
 } from "@/lib/upload-focal-points";
@@ -49,9 +50,9 @@ describe("upload-focal-points", () => {
     expect(focalPoints.hero).toEqual({ x: 0.5, y: 0.2 });
   });
 
-  it("deriva o crop legado com o mesmo enquadramento logico do foco atual", () => {
+  it("deriva o crop legado de card usando a nova base 3:2", () => {
     const rect = deriveDefaultUploadFocalCropRect({
-      preset: "hero",
+      preset: "card",
       sourceWidth: 1000,
       sourceHeight: 2000,
       focalPoint: { x: 0.5, y: 1 },
@@ -59,9 +60,9 @@ describe("upload-focal-points", () => {
 
     expect(rect).toEqual({
       left: 0,
-      top: 1437 / 2000,
+      top: 1334 / 2000,
       width: 1,
-      height: 563 / 2000,
+      height: 666 / 2000,
     });
   });
 
@@ -78,6 +79,23 @@ describe("upload-focal-points", () => {
     expect(rect.height).toBe(563);
     expect(rect.left).toBe(0);
     expect(rect.top).toBe(1437);
+  });
+
+  it("deriva o recorte aplicado por um viewport com object-cover", () => {
+    const rect = deriveUploadViewportCoverRect({
+      rect: { left: 0, top: 0, width: 1, height: 1 },
+      sourceWidth: 1280,
+      sourceHeight: 853,
+      viewportWidth: 1280,
+      viewportHeight: 720,
+    });
+
+    expect(rect).toEqual({
+      left: 0,
+      top: 67 / 853,
+      width: 1,
+      height: 720 / 853,
+    });
   });
 
   it("calcula o retangulo de contain para exibir a imagem inteira", () => {

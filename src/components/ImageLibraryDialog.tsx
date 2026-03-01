@@ -41,7 +41,6 @@ import {
   computeUploadContainFitRect,
   UPLOAD_FOCAL_PRESET_KEYS,
   UPLOAD_VARIANT_PRESET_DIMENSIONS,
-  UPLOAD_VARIANT_PRESET_KEYS,
   deriveUploadFocalPointsFromCrops,
   normalizeUploadFocalCropRect,
   normalizeUploadFocalCrops,
@@ -50,7 +49,6 @@ import {
   type UploadFocalCrops,
   type UploadFocalPoints,
 } from "@/lib/upload-focal-points";
-import type { UploadVariantPresetKey } from "@/lib/upload-variants";
 
 export type LibraryImageSource = "upload" | "project";
 
@@ -503,22 +501,16 @@ type FocalPointWorkspaceProps = {
   item: LibraryImageItem;
   draft: UploadFocalCrops;
   activePreset: UploadFocalPresetKey;
-  isSaving: boolean;
   onDraftChange: (next: UploadFocalCrops) => void;
   onActivePresetChange: (preset: UploadFocalPresetKey) => void;
-  onCancel: () => void;
-  onSave: () => void;
 };
 
 const FocalPointWorkspace = ({
   item,
   draft,
   activePreset,
-  isSaving,
   onDraftChange,
   onActivePresetChange,
-  onCancel,
-  onSave,
 }: FocalPointWorkspaceProps) => {
   const frameRef = useRef<HTMLDivElement | null>(null);
   const [stageSize, setStageSize] = useState({ width: 0, height: 0 });
@@ -643,14 +635,6 @@ const FocalPointWorkspace = ({
       height: activeCrop.height * fitRect.height,
     };
   }, [activeCrop.height, activeCrop.left, activeCrop.top, activeCrop.width, fitRect.height, fitRect.width]);
-
-  const previewRects = useMemo(() => {
-    const next = {} as Record<UploadVariantPresetKey, UploadFocalCropRect>;
-    UPLOAD_VARIANT_PRESET_KEYS.forEach((preset) => {
-      next[preset] = preset === "og" ? draft.card : draft[preset];
-    });
-    return next;
-  }, [draft]);
 
   const syncInteractionFromPointer = useCallback(
     (clientX: number, clientY: number) => {
@@ -821,21 +805,29 @@ const FocalPointWorkspace = ({
   );
 
   return (
-    <div className="space-y-4">
-      <div className="space-y-2">
-        <p className="text-xs text-muted-foreground">
-          Edite CARD ou HERO com um recorte real. O preset OG continua derivado de CARD.
-        </p>
-        <div className="grid gap-3 sm:grid-cols-2">
+    <div
+      data-testid="focal-layout"
+      className="grid min-h-0 gap-4 lg:grid-cols-[18rem_minmax(0,1fr)] xl:grid-cols-[20rem_minmax(0,1fr)]"
+    >
+      <aside
+        data-testid="focal-sidebar"
+        className="flex min-h-0 flex-col gap-3 rounded-xl border border-border/60 bg-card/60 p-3"
+      >
+        <div className="space-y-1">
+          <p className="text-sm font-medium text-foreground">Presets</p>
+          <p className="text-xs text-muted-foreground">
+            Selecione um preset para editar. OG e CARDWIDE continuam derivados de CARD.
+          </p>
+        </div>
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
           {UPLOAD_FOCAL_PRESET_KEYS.map((preset) => {
             const dimensions = UPLOAD_VARIANT_PRESET_DIMENSIONS[preset];
-            const rect = previewRects[preset];
             const isActive = preset === activePreset;
             return (
               <button
                 key={preset}
                 type="button"
-                className={`rounded-xl border p-2 text-left transition ${
+                className={`w-full rounded-xl border p-2 text-left transition ${
                   isActive
                     ? "border-primary/60 bg-primary/10 ring-2 ring-primary/40"
                     : "border-border/60 bg-card/60 hover:border-primary/40"
@@ -849,6 +841,7 @@ const FocalPointWorkspace = ({
                   </span>
                 </div>
                 <div
+                  data-testid={`focal-preview-${preset}`}
                   className="relative overflow-hidden rounded-lg border border-border/40 bg-background/60"
                   style={{ aspectRatio: `${dimensions.width} / ${dimensions.height}` }}
                 >
@@ -856,17 +849,21 @@ const FocalPointWorkspace = ({
                     src={item.url}
                     alt=""
                     aria-hidden="true"
+                    data-testid={`focal-preview-${preset}-image`}
                     className="pointer-events-none absolute max-w-none select-none"
-                    style={buildFocalPreviewImageStyle({ rect })}
+                    style={buildFocalPreviewImageStyle({ rect: draft[preset] })}
                   />
                 </div>
               </button>
             );
           })}
         </div>
-      </div>
+      </aside>
 
-      <div className="rounded-xl border border-border/60 bg-card/60 p-3">
+      <section
+        data-testid="focal-editor-panel"
+        className="flex min-h-0 min-w-0 flex-col rounded-xl border border-border/60 bg-card/60 p-3 lg:p-4"
+      >
         <p className="mb-1 text-sm font-medium text-foreground">
           Preset ativo: {activePreset.toUpperCase()}
         </p>
@@ -877,7 +874,7 @@ const FocalPointWorkspace = ({
           ref={frameRef}
           data-testid="focal-stage"
           className="relative w-full overflow-hidden rounded-xl border border-border/60 bg-background/40"
-          style={{ height: "min(60vh, 28rem)" }}
+          style={{ height: "min(68vh, 46rem)" }}
           onPointerMove={handleStagePointerMove}
           onPointerUp={handleStagePointerEnd}
           onPointerCancel={handleStagePointerEnd}
@@ -943,16 +940,7 @@ const FocalPointWorkspace = ({
             ) : null}
           </div>
         </div>
-      </div>
-
-      <div className="flex justify-end gap-2">
-        <Button type="button" variant="outline" disabled={isSaving} onClick={onCancel}>
-          Cancelar
-        </Button>
-        <Button type="button" disabled={isSaving} onClick={onSave}>
-          {isSaving ? "Salvando..." : "Salvar ponto focal"}
-        </Button>
-      </div>
+      </section>
     </div>
   );
 };
@@ -2314,7 +2302,7 @@ const ImageLibraryDialog = ({
         }}
       >
         <DialogContent
-          className="max-h-[92vh] max-w-4xl overflow-auto z-240 data-[state=open]:animate-none data-[state=closed]:animate-none"
+          className="flex h-[92vh] w-[96vw] max-w-[96vw] flex-col overflow-hidden z-240 data-[state=open]:animate-none data-[state=closed]:animate-none"
           overlayClassName="z-230 data-[state=open]:animate-none data-[state=closed]:animate-none"
         >
           <DialogHeader>
@@ -2325,16 +2313,34 @@ const ImageLibraryDialog = ({
             </DialogDescription>
           </DialogHeader>
           {focalTarget ? (
-            <FocalPointWorkspace
-              item={focalTarget}
-              draft={focalCropDraft}
-              activePreset={activeFocalPreset}
-              isSaving={isSavingFocal}
-              onDraftChange={setFocalCropDraft}
-              onActivePresetChange={setActiveFocalPreset}
-              onCancel={() => setFocalTarget(null)}
-              onSave={() => void saveFocalPoint()}
-            />
+            <>
+              <div className="min-h-0 flex-1 overflow-auto pr-1">
+                <FocalPointWorkspace
+                  item={focalTarget}
+                  draft={focalCropDraft}
+                  activePreset={activeFocalPreset}
+                  onDraftChange={setFocalCropDraft}
+                  onActivePresetChange={setActiveFocalPreset}
+                />
+              </div>
+              <div className="mt-4 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={isSavingFocal}
+                  onClick={() => setFocalTarget(null)}
+                >
+                  Cancelar
+                </Button>
+                <Button
+                  type="button"
+                  disabled={isSavingFocal}
+                  onClick={() => void saveFocalPoint()}
+                >
+                  {isSavingFocal ? "Salvando..." : "Salvar ponto focal"}
+                </Button>
+              </div>
+            </>
           ) : null}
         </DialogContent>
       </Dialog>

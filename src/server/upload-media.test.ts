@@ -60,18 +60,18 @@ describe("upload-media focal points", () => {
       regenerateVariants: false,
     });
 
-    expect(result.focalPoint).toEqual({ x: 0.5, y: 0.8 });
+    expect(result.focalPoint).toEqual({ x: 0.5, y: 0.8025 });
     expect(result.focalPoints).toEqual({
-      card: { x: 0.5, y: 0.8 },
+      card: { x: 0.5, y: 0.8025 },
       hero: { x: 0.5, y: 0.8 },
     });
     expect(result.focalCrops).toEqual({
-      card: { left: 0, top: 0.66, width: 1, height: 0.28 },
+      card: { left: 0, top: 0.635, width: 1, height: 0.335 },
       hero: { left: 0, top: 0.66, width: 1, height: 0.28 },
     });
   });
 
-  it("gera card e og com o mesmo enquadramento logico e mantem hero independente", async () => {
+  it("gera card 3:2, deriva cardWide e og dele, e mantem hero independente", async () => {
     const uploadsDir = createTempUploadsDir();
     const sourcePath = path.join(uploadsDir, "source.png");
 
@@ -106,21 +106,40 @@ describe("upload-media focal points", () => {
       sourcePath,
       sourceMime: "image/png",
       focalCrops: {
-        card: { left: 0, top: 0, width: 1, height: 0.28125 },
-        hero: { left: 0, top: 0.71875, width: 1, height: 0.28125 },
+        card: { left: 0, top: 0, width: 1, height: 67 / 200 },
+        hero: { left: 0, top: 144 / 200, width: 1, height: 56 / 200 },
       },
       variantsVersion: 1,
     });
 
     const cardPath = toDiskPath(uploadsDir, String(generated.variants.card?.formats?.fallback?.url || ""));
+    const cardWidePath = toDiskPath(
+      uploadsDir,
+      String(generated.variants.cardWide?.formats?.fallback?.url || ""),
+    );
     const ogPath = toDiskPath(uploadsDir, String(generated.variants.og?.formats?.fallback?.url || ""));
     const heroPath = toDiskPath(uploadsDir, String(generated.variants.hero?.formats?.fallback?.url || ""));
+    const cardMeta = await sharp(cardPath).metadata();
+    const cardWideMeta = await sharp(cardWidePath).metadata();
+    const ogMeta = await sharp(ogPath).metadata();
+    const heroMeta = await sharp(heroPath).metadata();
     const cardStats = await sharp(cardPath).stats();
+    const cardWideStats = await sharp(cardWidePath).stats();
     const ogStats = await sharp(ogPath).stats();
     const heroStats = await sharp(heroPath).stats();
 
     expect(generated.variants).not.toHaveProperty("thumb");
+    expect(generated.variants).toHaveProperty("cardWide");
+    expect(cardMeta.width).toBe(1280);
+    expect(cardMeta.height).toBe(853);
+    expect(cardWideMeta.width).toBe(1280);
+    expect(cardWideMeta.height).toBe(720);
+    expect(ogMeta.width).toBe(1200);
+    expect(ogMeta.height).toBe(675);
+    expect(heroMeta.width).toBe(1600);
+    expect(heroMeta.height).toBe(900);
     expect(cardStats.channels[0]?.mean ?? 0).toBeGreaterThan(cardStats.channels[2]?.mean ?? 0);
+    expect(cardWideStats.channels[0]?.mean ?? 0).toBeGreaterThan(cardWideStats.channels[2]?.mean ?? 0);
     expect(ogStats.channels[0]?.mean ?? 0).toBeGreaterThan(ogStats.channels[2]?.mean ?? 0);
     expect(heroStats.channels[2]?.mean ?? 0).toBeGreaterThan(heroStats.channels[0]?.mean ?? 0);
   });

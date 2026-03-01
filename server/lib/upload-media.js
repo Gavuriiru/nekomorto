@@ -4,7 +4,8 @@ import path from "path";
 import sharp from "sharp";
 
 export const UPLOAD_VARIANT_PRESETS = Object.freeze({
-  card: Object.freeze({ width: 1280, height: 720 }),
+  card: Object.freeze({ width: 1280, height: 853 }),
+  cardWide: Object.freeze({ width: 1280, height: 720 }),
   hero: Object.freeze({ width: 1600, height: 900 }),
   og: Object.freeze({ width: 1200, height: 675 }),
 });
@@ -378,12 +379,6 @@ export const deriveFocalPointsFromCrops = (value, fallbackValue) =>
 
 export const getPrimaryFocalPoint = (value, fallbackValue) => normalizeFocalPoints(value, fallbackValue).card;
 
-const resolveVariantFocalPoint = ({ presetKey, focalPoints }) =>
-  presetKey === "og" ? focalPoints?.card : focalPoints?.[presetKey];
-
-const resolveVariantFocalCrop = ({ presetKey, focalCrops }) =>
-  presetKey === "og" ? focalCrops?.card : focalCrops?.[presetKey];
-
 const computeFocalCoverRectFromCrop = ({
   sourceWidth,
   sourceHeight,
@@ -430,6 +425,36 @@ const computeFocalCoverRectFromCrop = ({
     top: clamp(Math.round(normalizedCrop.top * safeSourceHeight), 0, Math.max(0, safeSourceHeight - cropHeight)),
     width: cropWidth,
     height: cropHeight,
+  };
+};
+
+const deriveNestedCoverRect = ({
+  baseRect,
+  targetWidth,
+  targetHeight,
+  positionX = 0.5,
+  positionY = 0.5,
+}) => {
+  const safeBaseWidth = Math.max(1, Math.floor(Number(baseRect?.width || 1)));
+  const safeBaseHeight = Math.max(1, Math.floor(Number(baseRect?.height || 1)));
+  const safeBaseLeft = Math.max(0, Math.floor(Number(baseRect?.left || 0)));
+  const safeBaseTop = Math.max(0, Math.floor(Number(baseRect?.top || 0)));
+  const nestedRect = computeFocalCoverRect({
+    sourceWidth: safeBaseWidth,
+    sourceHeight: safeBaseHeight,
+    targetWidth,
+    targetHeight,
+    focalPoint: normalizeFocalPoint({
+      x: positionX,
+      y: positionY,
+    }),
+  });
+
+  return {
+    left: safeBaseLeft + nestedRect.left,
+    top: safeBaseTop + nestedRect.top,
+    width: nestedRect.width,
+    height: nestedRect.height,
   };
 };
 
@@ -505,19 +530,41 @@ export const generateUploadVariants = async ({
   const effectiveFocalPoints =
     typeof focalCrops !== "undefined" ? deriveFocalPointsFromCrops(safeFocalCrops) : safeFocalPoints;
   const variantDir = resetVariantDirectory(uploadsDir, uploadId);
+  const cardBaseRect = computeFocalCoverRectFromCrop({
+    sourceWidth,
+    sourceHeight,
+    targetWidth: UPLOAD_VARIANT_PRESETS.card.width,
+    targetHeight: UPLOAD_VARIANT_PRESETS.card.height,
+    focalCrop: safeFocalCrops.card,
+    fallbackFocalPoint: effectiveFocalPoints.card,
+  });
+  const variantRects = {
+    card: cardBaseRect,
+    cardWide: deriveNestedCoverRect({
+      baseRect: cardBaseRect,
+      targetWidth: UPLOAD_VARIANT_PRESETS.cardWide.width,
+      targetHeight: UPLOAD_VARIANT_PRESETS.cardWide.height,
+    }),
+    hero: computeFocalCoverRectFromCrop({
+      sourceWidth,
+      sourceHeight,
+      targetWidth: UPLOAD_VARIANT_PRESETS.hero.width,
+      targetHeight: UPLOAD_VARIANT_PRESETS.hero.height,
+      focalCrop: safeFocalCrops.hero,
+      fallbackFocalPoint: effectiveFocalPoints.hero,
+    }),
+    og: deriveNestedCoverRect({
+      baseRect: cardBaseRect,
+      targetWidth: UPLOAD_VARIANT_PRESETS.og.width,
+      targetHeight: UPLOAD_VARIANT_PRESETS.og.height,
+    }),
+  };
 
   const variants = {};
   let variantBytes = 0;
 
   for (const [presetKey, preset] of Object.entries(UPLOAD_VARIANT_PRESETS)) {
-    const rect = computeFocalCoverRectFromCrop({
-      sourceWidth,
-      sourceHeight,
-      targetWidth: preset.width,
-      targetHeight: preset.height,
-      focalCrop: resolveVariantFocalCrop({ presetKey, focalCrops: safeFocalCrops }),
-      fallbackFocalPoint: resolveVariantFocalPoint({ presetKey, focalPoints: effectiveFocalPoints }),
-    });
+    const rect = variantRects[presetKey];
     const base = createBaseVariantPipeline({ sourcePath, rect, preset });
     const avifPath = createVariantFilePath({
       dir: variantDir,

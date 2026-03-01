@@ -199,8 +199,28 @@ describe("ImageLibraryDialog focal point editor", () => {
 
     const dialogs = await screen.findAllByRole("dialog");
     const focalDialog = dialogs[dialogs.length - 1];
+    const layout = within(focalDialog).getByTestId("focal-layout");
+    const sidebar = within(focalDialog).getByTestId("focal-sidebar");
+    const editorPanel = within(focalDialog).getByTestId("focal-editor-panel");
+    const cardPreview = within(focalDialog).getByTestId("focal-preview-card");
+    const cardPreviewImage = within(focalDialog).getByTestId("focal-preview-card-image");
+    const heroPreview = within(focalDialog).getByTestId("focal-preview-hero");
     const stage = within(focalDialog).getByTestId("focal-stage");
     const imageShell = within(focalDialog).getByTestId("focal-image-shell");
+
+    expect(layout).toBeInTheDocument();
+    expect(sidebar).toBeInTheDocument();
+    expect(editorPanel).toBeInTheDocument();
+    expect(cardPreview).toBeInTheDocument();
+    expect(cardPreviewImage).toBeInTheDocument();
+    expect(heroPreview).toBeInTheDocument();
+    expect(within(sidebar).getByRole("button", { name: /card/i })).toBeInTheDocument();
+    expect(within(sidebar).getByRole("button", { name: /hero/i })).toBeInTheDocument();
+    expect(within(sidebar).getByText("1280x853")).toBeInTheDocument();
+    expect(within(sidebar).getByText("1600x900")).toBeInTheDocument();
+    expect(within(focalDialog).getByRole("button", { name: "Salvar ponto focal" })).toBeInTheDocument();
+    expect(cardPreviewImage.style.left).toBe("-0%");
+    expect(Number.parseFloat(cardPreviewImage.style.top)).toBeCloseTo(-189.552239, 5);
 
     await waitFor(() => {
       expect(imageShell.style.left).toBe("320px");
@@ -243,9 +263,9 @@ describe("ImageLibraryDialog focal point editor", () => {
     };
 
     expect(payload.focalCrops?.card?.left).toBe(0);
-    expect(payload.focalCrops?.card?.top).toBeCloseTo(0.66, 6);
+    expect(payload.focalCrops?.card?.top).toBeCloseTo(0.635, 6);
     expect(payload.focalCrops?.card?.width).toBe(1);
-    expect(payload.focalCrops?.card?.height).toBeCloseTo(0.28, 6);
+    expect(payload.focalCrops?.card?.height).toBeCloseTo(0.335, 6);
   });
 
   it("move e redimensiona a caixa mantendo drafts independentes por preset", async () => {
@@ -264,6 +284,7 @@ describe("ImageLibraryDialog focal point editor", () => {
 
     const dialogs = await screen.findAllByRole("dialog");
     const focalDialog = dialogs[dialogs.length - 1];
+    const sidebar = within(focalDialog).getByTestId("focal-sidebar");
     const stage = within(focalDialog).getByTestId("focal-stage");
     const imageShell = within(focalDialog).getByTestId("focal-image-shell");
 
@@ -288,7 +309,9 @@ describe("ImageLibraryDialog focal point editor", () => {
       pointerId: 2,
     });
 
-    fireEvent.click(within(focalDialog).getByRole("button", { name: /hero/i }));
+    fireEvent.click(within(sidebar).getByRole("button", { name: /hero/i }));
+
+    expect(within(focalDialog).getByText(/Preset ativo:\s*HERO/i)).toBeInTheDocument();
 
     const resizeHandle = within(focalDialog).getByTestId("focal-crop-handle-se");
     dispatchPointerEvent(resizeHandle, "pointerdown", {
@@ -323,9 +346,9 @@ describe("ImageLibraryDialog focal point editor", () => {
     };
 
     expect(payload.focalCrops?.card?.left).toBe(0);
-    expect(payload.focalCrops?.card?.top).toBeCloseTo(0.535, 6);
+    expect(payload.focalCrops?.card?.top).toBeCloseTo(0.51, 6);
     expect(payload.focalCrops?.card?.width).toBe(1);
-    expect(payload.focalCrops?.card?.height).toBeCloseTo(0.28, 6);
+    expect(payload.focalCrops?.card?.height).toBeCloseTo(0.335, 6);
 
     expect(payload.focalCrops?.hero?.left).toBe(0);
     expect(payload.focalCrops?.hero?.top).toBeCloseTo(0.66, 6);

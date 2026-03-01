@@ -435,7 +435,7 @@ const ProjectPage = () => {
             <UploadPicture
               src={episode.coverImageUrl || project.banner || project.cover || "/placeholder.svg"}
               alt={`Prévia de ${episode.title}`}
-              preset="card"
+              preset="cardWide"
               mediaVariants={mediaVariants}
               className="h-full w-full"
               imgClassName="h-full w-full aspect-video object-cover object-center transition-transform duration-300 group-hover:scale-[1.03]"
@@ -656,7 +656,7 @@ const ProjectPage = () => {
                   <UploadPicture
                     src={heroCoverSrc}
                     alt={project.title || "Capa do projeto"}
-                    preset="card"
+                    preset="cardWide"
                     mediaVariants={mediaVariants}
                     className="block h-full w-full"
                     imgClassName="h-full w-full object-cover object-center"

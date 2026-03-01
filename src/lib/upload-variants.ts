@@ -1,4 +1,4 @@
-export type UploadVariantPresetKey = "card" | "hero" | "og";
+export type UploadVariantPresetKey = "card" | "cardWide" | "hero" | "og";
 
 export type UploadVariantFormat = {
   url?: string | null;

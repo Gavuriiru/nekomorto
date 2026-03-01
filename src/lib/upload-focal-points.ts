@@ -30,7 +30,8 @@ export const UPLOAD_VARIANT_PRESET_DIMENSIONS: Record<
   UploadVariantPresetKey,
   { width: number; height: number }
 > = Object.freeze({
-  card: Object.freeze({ width: 1280, height: 720 }),
+  card: Object.freeze({ width: 1280, height: 853 }),
+  cardWide: Object.freeze({ width: 1280, height: 720 }),
   hero: Object.freeze({ width: 1600, height: 900 }),
   og: Object.freeze({ width: 1200, height: 675 }),
 });
@@ -63,6 +64,16 @@ type NormalizeUploadFocalCropsOptions = {
   sourceHeight?: number | null;
   fallbackPoints?: unknown;
   fallbackPoint?: unknown;
+};
+
+type DeriveUploadViewportCoverRectArgs = {
+  rect: UploadFocalCropRect;
+  sourceWidth: number;
+  sourceHeight: number;
+  viewportWidth: number;
+  viewportHeight: number;
+  positionX?: number;
+  positionY?: number;
 };
 
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
@@ -309,6 +320,39 @@ export const deriveLegacyUploadFocalPoint = (
 
 export const deriveUploadFocalPointsFromCrops = (value?: unknown, fallbackValue?: unknown): UploadFocalPoints =>
   normalizeUploadFocalPoints(value, fallbackValue);
+
+export const deriveUploadViewportCoverRect = ({
+  rect,
+  sourceWidth,
+  sourceHeight,
+  viewportWidth,
+  viewportHeight,
+  positionX = 0.5,
+  positionY = 0.5,
+}: DeriveUploadViewportCoverRectArgs): UploadFocalCropRect => {
+  const normalizedRect = normalizeUploadFocalCropRect(rect);
+  const safeSourceWidth = Math.max(1, Math.floor(Number(sourceWidth || 1)));
+  const safeSourceHeight = Math.max(1, Math.floor(Number(sourceHeight || 1)));
+  const safeViewportWidth = Math.max(1, Math.floor(Number(viewportWidth || 1)));
+  const safeViewportHeight = Math.max(1, Math.floor(Number(viewportHeight || 1)));
+  const nestedRect = computeUploadFocalCoverRect({
+    sourceWidth: safeSourceWidth,
+    sourceHeight: safeSourceHeight,
+    targetWidth: safeViewportWidth,
+    targetHeight: safeViewportHeight,
+    focalPoint: normalizeUploadFocalPoint({
+      x: positionX,
+      y: positionY,
+    }),
+  });
+
+  return normalizeUploadFocalCropRect({
+    left: normalizedRect.left + normalizedRect.width * (nestedRect.left / safeSourceWidth),
+    top: normalizedRect.top + normalizedRect.height * (nestedRect.top / safeSourceHeight),
+    width: normalizedRect.width * (nestedRect.width / safeSourceWidth),
+    height: normalizedRect.height * (nestedRect.height / safeSourceHeight),
+  });
+};
 
 export const computeUploadContainFitRect = ({
   stageWidth,
