@@ -40,6 +40,7 @@ const usersFixture = [
   {
     id: "member-active",
     name: activeMemberName,
+    avatarUrl: "/uploads/users/active-avatar.png",
     phrase: "Frase ativa",
     bio: "Bio ativa",
     status: "active",
@@ -54,6 +55,7 @@ const usersFixture = [
   {
     id: "member-retired",
     name: retiredMemberName,
+    avatarUrl: "/uploads/users/retired-avatar.png",
     phrase: "Frase aposentado",
     bio: "Bio aposentado",
     status: "retired",
@@ -66,6 +68,33 @@ const usersFixture = [
     ],
   },
 ];
+
+const usersMediaVariantsFixture = {
+  "/uploads/users/active-avatar.png": {
+    variantsVersion: 2,
+    variants: {
+      square: {
+        formats: {
+          avif: { url: "/uploads/_variants/u-active/square-v2.avif" },
+          webp: { url: "/uploads/_variants/u-active/square-v2.webp" },
+          fallback: { url: "/uploads/_variants/u-active/square-v2.png" },
+        },
+      },
+    },
+  },
+  "/uploads/users/retired-avatar.png": {
+    variantsVersion: 2,
+    variants: {
+      square: {
+        formats: {
+          avif: { url: "/uploads/_variants/u-retired/square-v2.avif" },
+          webp: { url: "/uploads/_variants/u-retired/square-v2.webp" },
+          fallback: { url: "/uploads/_variants/u-retired/square-v2.png" },
+        },
+      },
+    },
+  },
+};
 
 const linkTypesFixture = [
   { id: "instagram", label: "Instagram", icon: "instagram" },
@@ -130,7 +159,10 @@ const setupApiMock = () => {
     const method = String(options?.method || "GET").toUpperCase();
 
     if (endpoint === "/api/public/users" && method === "GET") {
-      return mockJsonResponse(true, { users: usersFixture });
+      return mockJsonResponse(true, {
+        users: usersFixture,
+        mediaVariants: usersMediaVariantsFixture,
+      });
     }
     if (endpoint === "/api/link-types" && method === "GET") {
       return mockJsonResponse(true, { items: linkTypesFixture });
@@ -207,5 +239,22 @@ describe("Team mobile social layout", () => {
     expect(socialTokens).toContain("lg:mt-0");
 
     expect(heading.compareDocumentPosition(socialContainer) & Node.DOCUMENT_POSITION_FOLLOWING).not.toBe(0);
+  });
+
+  it("renderiza avatar otimizado com variants square quando disponiveis", async () => {
+    render(
+      <MemoryRouter>
+        <Team />
+      </MemoryRouter>,
+    );
+
+    const avatarImage = await screen.findByRole("img", { name: activeMemberName });
+    const picture = avatarImage.parentElement;
+    const sources = Array.from(picture?.querySelectorAll("source") || []);
+
+    expect(sources).toHaveLength(2);
+    expect(sources[0]).toHaveAttribute("srcset", expect.stringContaining("/square-v2.avif"));
+    expect(sources[1]).toHaveAttribute("srcset", expect.stringContaining("/square-v2.webp"));
+    expect(avatarImage).toHaveAttribute("src", expect.stringContaining("/square-v2.png"));
   });
 });

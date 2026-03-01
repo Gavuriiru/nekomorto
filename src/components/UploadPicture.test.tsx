@@ -97,6 +97,88 @@ describe("UploadPicture", () => {
     );
   });
 
+  it("resolve a variante poster quando disponivel", () => {
+    const mediaVariants: UploadMediaVariantsMap = {
+      "/uploads/projects/capa.png": {
+        variantsVersion: 2,
+        variants: {
+          poster: {
+            formats: {
+              avif: { url: "/uploads/_variants/u123/poster-v2.avif" },
+              webp: { url: "/uploads/_variants/u123/poster-v2.webp" },
+              fallback: { url: "/uploads/_variants/u123/poster-v2.jpeg" },
+            },
+          },
+        },
+      },
+    };
+
+    const { container } = render(
+      <UploadPicture
+        src="/uploads/projects/capa.png"
+        alt="Poster"
+        preset="poster"
+        mediaVariants={mediaVariants}
+      />,
+    );
+
+    const sources = Array.from(container.querySelectorAll("source"));
+    expect(sources).toHaveLength(2);
+    expect(sources[0]).toHaveAttribute(
+      "srcset",
+      expect.stringContaining("/uploads/_variants/u123/poster-v2.avif"),
+    );
+    expect(sources[1]).toHaveAttribute(
+      "srcset",
+      expect.stringContaining("/uploads/_variants/u123/poster-v2.webp"),
+    );
+    expect(container.querySelector("img")).toHaveAttribute(
+      "src",
+      expect.stringContaining("/uploads/_variants/u123/poster-v2.jpeg"),
+    );
+  });
+
+  it("resolve a variante square quando disponivel", () => {
+    const mediaVariants: UploadMediaVariantsMap = {
+      "/uploads/users/avatar.png": {
+        variantsVersion: 7,
+        variants: {
+          square: {
+            formats: {
+              avif: { url: "/uploads/_variants/u123/square-v7.avif" },
+              webp: { url: "/uploads/_variants/u123/square-v7.webp" },
+              fallback: { url: "/uploads/_variants/u123/square-v7.png" },
+            },
+          },
+        },
+      },
+    };
+
+    const { container } = render(
+      <UploadPicture
+        src="/uploads/users/avatar.png"
+        alt="Avatar"
+        preset="square"
+        mediaVariants={mediaVariants}
+      />,
+    );
+
+    const sources = Array.from(container.querySelectorAll("source"));
+    expect(sources).toHaveLength(2);
+    expect(sources[0]).toHaveAttribute(
+      "srcset",
+      expect.stringContaining("/uploads/_variants/u123/square-v7.avif"),
+    );
+    expect(sources[1]).toHaveAttribute(
+      "srcset",
+      expect.stringContaining("/uploads/_variants/u123/square-v7.webp"),
+    );
+    expect(container.querySelector("img")).toHaveAttribute(
+      "src",
+      expect.stringContaining("/uploads/_variants/u123/square-v7.png"),
+    );
+  });
+
   it("aplica object-position quando solicitado e ha foco disponivel", () => {
     const mediaVariants: UploadMediaVariantsMap = {
       "/uploads/posts/capa.png": {

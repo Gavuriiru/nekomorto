@@ -33,6 +33,7 @@ const CONTRACT_BASE = Object.freeze({
       path: "/api/public/search/suggest",
       auth: "public",
       cache: "public-read",
+      responseExtends: ["mediaVariants"],
     },
     {
       method: "GET",
@@ -58,6 +59,13 @@ const CONTRACT_BASE = Object.freeze({
     {
       method: "GET",
       path: "/api/public/projects/:id",
+      auth: "public",
+      cache: "public-read",
+      responseExtends: ["mediaVariants"],
+    },
+    {
+      method: "GET",
+      path: "/api/public/users",
       auth: "public",
       cache: "public-read",
       responseExtends: ["mediaVariants"],

@@ -60,12 +60,18 @@ const createProject = (
 const createProjects = (count: number, overrides?: Parameters<typeof createProject>[1]) =>
   Array.from({ length: count }, (_, index) => createProject(index + 1, overrides));
 
-const setupApiMock = ({ projects = createProjects(24) }: { projects?: ReturnType<typeof createProject>[] } = {}) => {
+const setupApiMock = ({
+  projects = createProjects(24),
+  mediaVariants = {},
+}: {
+  projects?: ReturnType<typeof createProject>[];
+  mediaVariants?: unknown;
+} = {}) => {
   apiFetchMock.mockReset();
   apiFetchMock.mockImplementation(async (_apiBase: string, endpoint: string, options?: RequestInit) => {
     const method = String(options?.method || "GET").toUpperCase();
     if (endpoint === "/api/public/projects" && method === "GET") {
-      return mockJsonResponse(true, { projects });
+      return mockJsonResponse(true, { projects, mediaVariants });
     }
     if (endpoint === "/api/public/tag-translations" && method === "GET") {
       return mockJsonResponse(true, {
@@ -304,6 +310,46 @@ describe("Projects query sync", () => {
 
     expect(await screen.findByPlaceholderText("Buscar por t\u00EDtulo, sinopse, tag ou g\u00EAnero")).toBeInTheDocument();
     expect(screen.getByText("G\u00EAneros")).toBeInTheDocument();
+  });
+
+  it("renderiza variants poster para as capas publicas quando disponiveis", async () => {
+    setupApiMock({
+      projects: [
+        {
+          ...createProject(1),
+          cover: "/uploads/projects/projeto-1.png",
+        },
+      ],
+      mediaVariants: {
+        "/uploads/projects/projeto-1.png": {
+          variantsVersion: 3,
+          variants: {
+            poster: {
+              formats: {
+                avif: { url: "/uploads/_variants/p1/poster-v3.avif" },
+                webp: { url: "/uploads/_variants/p1/poster-v3.webp" },
+                fallback: { url: "/uploads/_variants/p1/poster-v3.jpeg" },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    const { container } = render(
+      <MemoryRouter initialEntries={["/projetos"]}>
+        <Projects />
+        <LocationProbe />
+      </MemoryRouter>,
+    );
+
+    const coverImage = await screen.findByRole("img", { name: "Projeto 1" });
+    const sources = Array.from(container.querySelectorAll("source"));
+
+    expect(sources).toHaveLength(2);
+    expect(sources[0]).toHaveAttribute("srcset", expect.stringContaining("/poster-v3.avif"));
+    expect(sources[1]).toHaveAttribute("srcset", expect.stringContaining("/poster-v3.webp"));
+    expect(coverImage).toHaveAttribute("src", expect.stringContaining("/poster-v3.jpeg"));
   });
 });
 

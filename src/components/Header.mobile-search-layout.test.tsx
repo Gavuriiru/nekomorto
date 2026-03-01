@@ -75,8 +75,14 @@ const setupApiMock = (options?: {
   logoutOk?: boolean;
   searchSuggestOk?: boolean;
   searchSuggestions?: unknown[];
+  searchMediaVariants?: unknown;
 }) => {
-  const { logoutOk = true, searchSuggestOk = false, searchSuggestions = [] } = options || {};
+  const {
+    logoutOk = true,
+    searchSuggestOk = false,
+    searchSuggestions = [],
+    searchMediaVariants = {},
+  } = options || {};
   apiFetchMock.mockReset();
   apiFetchMock.mockImplementation(
     async (_apiBase: string, endpoint: string, options?: RequestInit) => {
@@ -102,6 +108,7 @@ const setupApiMock = (options?: {
         if (searchSuggestOk) {
           return mockJsonResponse(true, {
             suggestions: searchSuggestions,
+            mediaVariants: searchMediaVariants,
           });
         }
         return mockJsonResponse(false, { error: "search_suggest_failed" }, 500);
@@ -147,6 +154,7 @@ describe("Header mobile search layout", () => {
             excerpt: "Resumo do post",
           },
         ],
+        mediaVariants: {},
         tagTranslations: {
           tags: { acao: "Acao" },
         },
@@ -540,5 +548,64 @@ describe("Header mobile search layout", () => {
         }),
       );
     });
+  });
+
+  it("renderiza poster otimizado para thumbnails remotos da busca", async () => {
+    const user = userEvent.setup();
+    setupApiMock({
+      searchSuggestOk: true,
+      searchSuggestions: [
+        {
+          kind: "project",
+          id: "project-remote",
+          label: "Projeto Remoto",
+          href: "/projeto/project-remote",
+          description: "Resultado remoto",
+          image: "/uploads/projects/remoto.png",
+          tags: ["acao"],
+        },
+      ],
+      searchMediaVariants: {
+        "/uploads/projects/remoto.png": {
+          variantsVersion: 4,
+          variants: {
+            poster: {
+              formats: {
+                avif: { url: "/uploads/_variants/remote/poster-v4.avif" },
+                webp: { url: "/uploads/_variants/remote/poster-v4.webp" },
+                fallback: { url: "/uploads/_variants/remote/poster-v4.jpeg" },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    render(
+      <MemoryRouter initialEntries={["/"]}>
+        <Header />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(apiFetchMock).toHaveBeenCalledTimes(1);
+    });
+
+    await user.click(screen.getByRole("button", { name: "Abrir busca" }));
+    const searchInput = await screen.findByPlaceholderText("Buscar projetos e posts");
+    await user.type(searchInput, "remoto");
+
+    await waitFor(() => {
+      expect(getSearchSuggestCalls().length).toBeGreaterThan(0);
+    });
+
+    const coverImage = await screen.findByRole("img", { name: "Projeto Remoto" });
+    const picture = coverImage.parentElement;
+    const sources = Array.from(picture?.querySelectorAll("source") || []);
+
+    expect(sources).toHaveLength(2);
+    expect(sources[0]).toHaveAttribute("srcset", expect.stringContaining("/poster-v4.avif"));
+    expect(sources[1]).toHaveAttribute("srcset", expect.stringContaining("/poster-v4.webp"));
+    expect(coverImage).toHaveAttribute("src", expect.stringContaining("/poster-v4.jpeg"));
   });
 });

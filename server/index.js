@@ -8894,7 +8894,10 @@ app.get("/api/public/users", (req, res) => {
       };
     });
 
-  res.json({ users });
+  res.json({
+    users,
+    mediaVariants: buildPublicMediaVariants(users),
+  });
 });
 
 app.get("/api/link-types", (req, res) => {
@@ -10772,6 +10775,7 @@ app.get("/api/public/search/suggest", (req, res) => {
     q,
     scope,
     suggestions,
+    mediaVariants: buildPublicMediaVariants(suggestions),
   };
   writePublicCachedJson(req, payload, {
     ttlMs: Math.min(PUBLIC_READ_CACHE_TTL_MS, 15000),

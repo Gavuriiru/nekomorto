@@ -6,11 +6,13 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Clock, Sparkles } from "lucide-react";
 import { Link } from "react-router-dom";
 import { usePublicBootstrap } from "@/hooks/use-public-bootstrap";
+import UploadPicture from "@/components/UploadPicture";
 import { formatDate } from "@/lib/date";
 
 const LatestEpisodeCard = () => {
   const { data: bootstrapData, isLoading } = usePublicBootstrap();
   const recentUpdates = bootstrapData?.updates || [];
+  const mediaVariants = bootstrapData?.mediaVariants || {};
   const isLoadingUpdates = isLoading && !bootstrapData;
   const projectTypes = useMemo(() => {
     const map: Record<string, string> = {};
@@ -103,10 +105,13 @@ const LatestEpisodeCard = () => {
                   >
                     <div className="absolute inset-(--card-pad) flex items-start gap-4">
                       <div className="shrink-0 overflow-hidden rounded-xl bg-secondary/60 h-full aspect-46/65">
-                        <img
+                        <UploadPicture
                           src={update.image || "/placeholder.svg"}
                           alt={update.projectTitle}
-                          className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                          preset="poster"
+                          mediaVariants={mediaVariants}
+                          className="block h-full w-full"
+                          imgClassName="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
                         />
                       </div>
                       <div className="flex min-w-0 flex-1 flex-col gap-3 h-full">

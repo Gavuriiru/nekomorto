@@ -188,12 +188,81 @@ describe("ProjectEmbedCard", () => {
     expect(contentColumn).toHaveAttribute("data-synopsis-key", "project-1");
 
     const coverImage = screen.getByRole("img", { name: "Projeto Embed" });
-    const coverWrapper = coverImage.parentElement;
+    const coverPicture = coverImage.parentElement;
+    const coverWrapper = coverPicture?.parentElement;
+    expect(coverPicture).not.toBeNull();
+    expect(coverPicture).toHaveClass("block", "h-full", "w-full");
     expect(coverWrapper).not.toBeNull();
     expect(coverWrapper).toHaveClass("h-full", "w-32", "shrink-0", "self-start");
     expect(coverWrapper).not.toHaveClass("w-full");
     expect(coverWrapper).not.toHaveClass("border", "border-border", "group-hover:border-primary/40");
     expect(String(coverWrapper?.getAttribute("style") || "")).not.toMatch(/aspect-ratio/i);
     expect(String(coverImage.getAttribute("style") || "")).not.toMatch(/aspect-ratio/i);
+  });
+
+  it("renderiza variants poster quando o endpoint entrega mediaVariants", async () => {
+    const project = {
+      id: "project-1",
+      title: "Projeto Embed",
+      synopsis: "Sinopse",
+      description: "Descricao",
+      type: "Anime",
+      status: "Em andamento",
+      year: "2025",
+      studio: "Studio Teste",
+      episodes: "12",
+      tags: ["Drama"],
+      genres: [],
+      cover: "/uploads/projects/embed-cover.png",
+      banner: "/placeholder.svg",
+      season: "",
+      schedule: "",
+      rating: "",
+      episodeDownloads: [],
+      staff: [],
+    };
+
+    apiFetchMock.mockImplementation(async (_apiBase: string, endpoint: string) => {
+      if (endpoint === "/api/public/projects/project-1") {
+        return {
+          ok: true,
+          json: async () => ({
+            project,
+            mediaVariants: {
+              "/uploads/projects/embed-cover.png": {
+                variantsVersion: 2,
+                variants: {
+                  poster: {
+                    formats: {
+                      avif: { url: "/uploads/_variants/p1/poster-v2.avif" },
+                      webp: { url: "/uploads/_variants/p1/poster-v2.webp" },
+                      fallback: { url: "/uploads/_variants/p1/poster-v2.jpeg" },
+                    },
+                  },
+                },
+              },
+            },
+          }),
+        };
+      }
+      if (endpoint === "/api/public/tag-translations") {
+        return { ok: true, json: async () => ({ tags: {}, genres: {}, staffRoles: {} }) };
+      }
+      return { ok: false, json: async () => ({}) };
+    });
+
+    const { container } = render(
+      <MemoryRouter>
+        <ProjectEmbedCard projectId="project-1" />
+      </MemoryRouter>,
+    );
+
+    const coverImage = await screen.findByRole("img", { name: "Projeto Embed" });
+    const sources = Array.from(container.querySelectorAll("source"));
+
+    expect(sources).toHaveLength(2);
+    expect(sources[0]).toHaveAttribute("srcset", expect.stringContaining("/poster-v2.avif"));
+    expect(sources[1]).toHaveAttribute("srcset", expect.stringContaining("/poster-v2.webp"));
+    expect(coverImage).toHaveAttribute("src", expect.stringContaining("/poster-v2.jpeg"));
   });
 });

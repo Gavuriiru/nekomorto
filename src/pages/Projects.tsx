@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import AsyncState from "@/components/ui/async-state";
 import { Input } from "@/components/ui/input";
+import UploadPicture from "@/components/UploadPicture";
 import {
   Select,
   SelectContent,
@@ -66,6 +67,7 @@ type ProjectCardProps = {
   genreTranslations: Record<string, string>;
   navigate: ReturnType<typeof useNavigate>;
   synopsisClampClass: string;
+  mediaVariants: UploadMediaVariantsMap;
 };
 
 const ProjectCard = ({
@@ -74,6 +76,7 @@ const ProjectCard = ({
   genreTranslations,
   navigate,
   synopsisClampClass,
+  mediaVariants,
 }: ProjectCardProps) => {
   const [badgesRowWidth, setBadgesRowWidth] = useState(0);
   const [badgeWidths, setBadgeWidths] = useState<Record<string, number>>({});
@@ -157,10 +160,13 @@ const ProjectCard = ({
       className="projects-public-card group flex h-50 w-full items-start gap-5 overflow-hidden rounded-2xl border border-border/60 bg-gradient-card p-5 shadow-[0_28px_120px_-60px_rgba(0,0,0,0.55)] transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:shadow-lg focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:ring-offset-2 focus-visible:ring-offset-background md:h-60"
     >
       <div className="h-39 w-28 shrink-0 overflow-hidden rounded-xl bg-secondary shadow-inner md:h-50 md:w-36">
-        <img
+        <UploadPicture
           src={project.cover}
           alt={project.title}
-          className="h-full w-full object-cover object-center transition-transform duration-300 group-hover:scale-105"
+          preset="poster"
+          mediaVariants={mediaVariants}
+          className="block h-full w-full"
+          imgClassName="h-full w-full object-cover object-center transition-transform duration-300 group-hover:scale-105"
         />
       </div>
       <div
@@ -292,6 +298,7 @@ const Projects = () => {
   const [projectsLoadVersion, setProjectsLoadVersion] = useState(0);
   const [shareImage, setShareImage] = useState("");
   const [shareImageAlt, setShareImageAlt] = useState("");
+  const [projectsMediaVariants, setProjectsMediaVariants] = useState<UploadMediaVariantsMap>({});
   const [pageMediaVariants, setPageMediaVariants] = useState<UploadMediaVariantsMap>({});
   const [searchParams, setSearchParams] = useSearchParams();
   const [selectedLetter, setSelectedLetter] = useState(() =>
@@ -370,6 +377,7 @@ const Projects = () => {
         if (!response.ok) {
           if (isActive) {
             setProjects([]);
+            setProjectsMediaVariants({});
             setHasProjectsLoadError(true);
           }
           return;
@@ -377,11 +385,15 @@ const Projects = () => {
         const data = await response.json();
         if (isActive) {
           setProjects(Array.isArray(data.projects) ? data.projects : []);
+          setProjectsMediaVariants(
+            data?.mediaVariants && typeof data.mediaVariants === "object" ? data.mediaVariants : {},
+          );
           setHasProjectsLoadError(false);
         }
       } catch {
         if (isActive) {
           setProjects([]);
+          setProjectsMediaVariants({});
           setHasProjectsLoadError(true);
         }
       } finally {
@@ -890,6 +902,7 @@ const Projects = () => {
                     genreTranslations={genreTranslations}
                     navigate={navigate}
                     synopsisClampClass={getSynopsisClampClass(project.id)}
+                    mediaVariants={projectsMediaVariants}
                   />
                 );
 

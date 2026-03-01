@@ -8,6 +8,7 @@ import {
   attachUploadMediaMetadata,
   generateUploadVariants,
   normalizeFocalPoints,
+  normalizeVariants,
 } from "../../server/lib/upload-media.js";
 
 const tempDirs: string[] = [];
@@ -71,7 +72,7 @@ describe("upload-media focal points", () => {
     });
   });
 
-  it("gera card 3:2, deriva cardWide e og dele, e mantem hero independente", async () => {
+  it("gera presets publicos incluindo poster e square", async () => {
     const uploadsDir = createTempUploadsDir();
     const sourcePath = path.join(uploadsDir, "source.png");
 
@@ -119,10 +120,20 @@ describe("upload-media focal points", () => {
     );
     const ogPath = toDiskPath(uploadsDir, String(generated.variants.og?.formats?.fallback?.url || ""));
     const heroPath = toDiskPath(uploadsDir, String(generated.variants.hero?.formats?.fallback?.url || ""));
+    const posterPath = toDiskPath(
+      uploadsDir,
+      String(generated.variants.poster?.formats?.fallback?.url || ""),
+    );
+    const squarePath = toDiskPath(
+      uploadsDir,
+      String(generated.variants.square?.formats?.fallback?.url || ""),
+    );
     const cardMeta = await sharp(cardPath).metadata();
     const cardWideMeta = await sharp(cardWidePath).metadata();
     const ogMeta = await sharp(ogPath).metadata();
     const heroMeta = await sharp(heroPath).metadata();
+    const posterMeta = await sharp(posterPath).metadata();
+    const squareMeta = await sharp(squarePath).metadata();
     const cardStats = await sharp(cardPath).stats();
     const cardWideStats = await sharp(cardWidePath).stats();
     const ogStats = await sharp(ogPath).stats();
@@ -138,10 +149,51 @@ describe("upload-media focal points", () => {
     expect(ogMeta.height).toBe(675);
     expect(heroMeta.width).toBe(1600);
     expect(heroMeta.height).toBe(900);
+    expect(posterMeta.width).toBe(920);
+    expect(posterMeta.height).toBe(1300);
+    expect(squareMeta.width).toBe(512);
+    expect(squareMeta.height).toBe(512);
     expect(cardStats.channels[0]?.mean ?? 0).toBeGreaterThan(cardStats.channels[2]?.mean ?? 0);
     expect(cardWideStats.channels[0]?.mean ?? 0).toBeGreaterThan(cardWideStats.channels[2]?.mean ?? 0);
     expect(ogStats.channels[0]?.mean ?? 0).toBeGreaterThan(ogStats.channels[2]?.mean ?? 0);
     expect(heroStats.channels[2]?.mean ?? 0).toBeGreaterThan(heroStats.channels[0]?.mean ?? 0);
+  });
+
+  it("preserva presets extras ao normalizar variants existentes", () => {
+    const normalized = normalizeVariants({
+      poster: {
+        width: 920,
+        height: 1300,
+        formats: {
+          fallback: { url: "/uploads/_variants/u1/poster-v2.jpeg" },
+        },
+      },
+      square: {
+        width: 512,
+        height: 512,
+        formats: {
+          fallback: { url: "/uploads/_variants/u1/square-v2.png" },
+        },
+      },
+    });
+
+    expect(normalized.poster?.formats?.fallback?.url).toBe("/uploads/_variants/u1/poster-v2.jpeg");
+    expect(normalized.square?.formats?.fallback?.url).toBe("/uploads/_variants/u1/square-v2.png");
+  });
+
+  it("nao gera variants para uploads nao raster", async () => {
+    await expect(
+      generateUploadVariants({
+        uploadsDir: createTempUploadsDir(),
+        uploadId: "upload-svg",
+        sourceMime: "image/svg+xml",
+      }),
+    ).resolves.toEqual({
+      variants: {},
+      sourceWidth: null,
+      sourceHeight: null,
+      variantBytes: 0,
+    });
   });
 
   it("persiste focalCrops e deriva aliases de focalPoints a partir do centro", async () => {

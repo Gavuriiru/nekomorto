@@ -2,11 +2,13 @@
 import { Link } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
+import UploadPicture from "@/components/UploadPicture";
 import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
 import { buildTranslationMap, sortByTranslatedLabel, translateTag } from "@/lib/project-taxonomy";
 import { useDynamicSynopsisClamp } from "@/hooks/use-dynamic-synopsis-clamp";
 import type { Project } from "@/data/projects";
+import type { UploadMediaVariantsMap } from "@/lib/upload-variants";
 
 type ProjectEmbedCardProps = {
   projectId?: string | null;
@@ -20,6 +22,7 @@ const COVER_HEIGHT_CALC = `calc(${COVER_WIDTH_REM}rem * ${COVER_ASPECT_HEIGHT} /
 const ProjectEmbedCard = ({ projectId }: ProjectEmbedCardProps) => {
   const apiBase = getApiBase();
   const [project, setProject] = useState<Project | null>(null);
+  const [projectMediaVariants, setProjectMediaVariants] = useState<UploadMediaVariantsMap>({});
   const [hasLoaded, setHasLoaded] = useState(false);
   const [tagTranslations, setTagTranslations] = useState<Record<string, string>>({});
   const tagTranslationMap = useMemo(() => buildTranslationMap(tagTranslations), [tagTranslations]);
@@ -52,16 +55,21 @@ const ProjectEmbedCard = ({ projectId }: ProjectEmbedCardProps) => {
         if (!response.ok) {
           if (isActive) {
             setProject(null);
+            setProjectMediaVariants({});
           }
           return;
         }
         const data = await response.json();
         if (isActive) {
           setProject(data.project || null);
+          setProjectMediaVariants(
+            data?.mediaVariants && typeof data.mediaVariants === "object" ? data.mediaVariants : {},
+          );
         }
       } catch {
         if (isActive) {
           setProject(null);
+          setProjectMediaVariants({});
         }
       } finally {
         if (isActive) {
@@ -120,10 +128,13 @@ const ProjectEmbedCard = ({ projectId }: ProjectEmbedCardProps) => {
             style={{ height: COVER_HEIGHT_CALC }}
           >
             <div className="h-full w-32 shrink-0 self-start overflow-hidden rounded-xl">
-              <img
+              <UploadPicture
                 src={project?.cover || "/placeholder.svg"}
                 alt={project?.title || "Projeto"}
-                className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                preset="poster"
+                mediaVariants={projectMediaVariants}
+                className="block h-full w-full"
+                imgClassName="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
               />
             </div>
             <div

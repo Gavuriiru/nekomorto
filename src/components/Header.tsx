@@ -15,6 +15,7 @@ import { toast } from "@/components/ui/use-toast";
 import { LogOut, Menu } from "lucide-react";
 import ThemedSvgLogo from "@/components/ThemedSvgLogo";
 import ThemeModeSwitcher from "@/components/ThemeModeSwitcher";
+import UploadPicture from "@/components/UploadPicture";
 import { dashboardMenuItems } from "@/components/dashboard-menu";
 import { cn } from "@/lib/utils";
 import { getApiBase } from "@/lib/api-base";
@@ -40,6 +41,7 @@ import {
 import { sanitizePublicHref } from "@/lib/url-safety";
 import { uiCopy } from "@/lib/ui-copy";
 import type { SearchSuggestion } from "@/types/search-suggestion";
+import type { UploadMediaVariantsMap } from "@/lib/upload-variants";
 
 type HeaderProps = {
   variant?: "fixed" | "static";
@@ -52,6 +54,7 @@ const Header = ({ variant = "fixed", leading, className }: HeaderProps) => {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [remoteSuggestions, setRemoteSuggestions] = useState<SearchSuggestion[]>([]);
+  const [remoteMediaVariants, setRemoteMediaVariants] = useState<UploadMediaVariantsMap>({});
   const [isSearchLoading, setIsSearchLoading] = useState(false);
   const [hasSearchRequestFailed, setHasSearchRequestFailed] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
@@ -75,6 +78,7 @@ const Header = ({ variant = "fixed", leading, className }: HeaderProps) => {
   const { data: bootstrapData } = usePublicBootstrap();
   const projects = bootstrapData?.projects || [];
   const posts = bootstrapData?.posts || [];
+  const bootstrapMediaVariants = bootstrapData?.mediaVariants || {};
   const tagTranslations = bootstrapData?.tagTranslations?.tags || {};
   const tagTranslationMap = useMemo(() => buildTranslationMap(tagTranslations), [tagTranslations]);
 
@@ -165,6 +169,7 @@ const Header = ({ variant = "fixed", leading, className }: HeaderProps) => {
   useEffect(() => {
     if (!isSearchOpen || !hasMinimumSearchQueryLength) {
       setRemoteSuggestions([]);
+      setRemoteMediaVariants({});
       setHasSearchRequestFailed(false);
       setIsSearchLoading(false);
       return;
@@ -191,7 +196,10 @@ const Header = ({ variant = "fixed", leading, className }: HeaderProps) => {
         if (!response.ok) {
           throw new Error(`search_suggest_${response.status}`);
         }
-        const payload = (await response.json()) as { suggestions?: unknown[] };
+        const payload = (await response.json()) as {
+          suggestions?: unknown[];
+          mediaVariants?: unknown;
+        };
         if (!isActive) {
           return;
         }
@@ -229,6 +237,11 @@ const Header = ({ variant = "fixed", leading, className }: HeaderProps) => {
               .filter(Boolean)
           : [];
         setRemoteSuggestions(nextSuggestions as SearchSuggestion[]);
+        setRemoteMediaVariants(
+          payload?.mediaVariants && typeof payload.mediaVariants === "object"
+            ? (payload.mediaVariants as UploadMediaVariantsMap)
+            : {},
+        );
         setHasSearchRequestFailed(false);
       } catch (error) {
         if (!isActive) {
@@ -243,6 +256,7 @@ const Header = ({ variant = "fixed", leading, className }: HeaderProps) => {
           return;
         }
         setRemoteSuggestions([]);
+        setRemoteMediaVariants({});
         setHasSearchRequestFailed(true);
       } finally {
         if (isActive) {
@@ -293,6 +307,16 @@ const Header = ({ variant = "fixed", leading, className }: HeaderProps) => {
 
   const activeProjects = hasSearchRequestFailed ? fallbackProjects : remoteProjects;
   const activePosts = hasSearchRequestFailed ? fallbackPosts : remotePosts;
+  const activeProjectMediaVariants = useMemo<UploadMediaVariantsMap>(
+    () =>
+      hasSearchRequestFailed
+        ? bootstrapMediaVariants
+        : {
+            ...bootstrapMediaVariants,
+            ...remoteMediaVariants,
+          },
+    [bootstrapMediaVariants, hasSearchRequestFailed, remoteMediaVariants],
+  );
   const showResults = isSearchOpen && queryTrimmed.length > 0;
   const hasResults =
     hasMinimumSearchQueryLength && (activeProjects.length > 0 || activePosts.length > 0);
@@ -591,10 +615,13 @@ const Header = ({ variant = "fixed", leading, className }: HeaderProps) => {
                             className="group flex h-36 items-start gap-4 overflow-hidden rounded-xl border border-border/60 bg-gradient-card p-4 transition hover:border-primary/40 hover:bg-primary/5"
                           >
                             <div className="h-28 w-20 shrink-0 self-start overflow-hidden rounded-lg bg-secondary">
-                              <img
+                              <UploadPicture
                                 src={item.image}
                                 alt={item.label}
-                                className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                                preset="poster"
+                                mediaVariants={activeProjectMediaVariants}
+                                className="block h-full w-full"
+                                imgClassName="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
                               />
                             </div>
                             <div

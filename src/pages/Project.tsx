@@ -615,6 +615,7 @@ const ProjectPage = () => {
   const heroBannerSrc =
     project.banner || project.heroImageUrl || project.cover || "/placeholder.svg";
   const heroCoverSrc = project.cover || project.banner || "/placeholder.svg";
+  const heroCoverDisplaySrc = normalizeAssetUrl(heroCoverSrc) || "/placeholder.svg";
   const heroBannerAlt = `Banner do projeto ${project.title}`;
 
   return (
@@ -654,13 +655,10 @@ const ProjectPage = () => {
                   data-testid="project-hero-cover-frame"
                   className="h-full overflow-hidden rounded-2xl border border-border/70 bg-secondary/90 shadow-[0_30px_100px_-55px_rgba(0,0,0,0.95)] animate-slide-up opacity-0 md:max-h-[620px]"
                 >
-                  <UploadPicture
-                    src={heroCoverSrc}
+                  <img
+                    src={heroCoverDisplaySrc}
                     alt={project.title || "Capa do projeto"}
-                    preset="cardWide"
-                    mediaVariants={mediaVariants}
-                    className="block h-full w-full"
-                    imgClassName="h-full w-full object-cover object-center"
+                    className="block h-full w-full object-cover object-center"
                     loading="eager"
                     decoding="async"
                     {...({ fetchpriority: "high" } as Record<string, string>)}

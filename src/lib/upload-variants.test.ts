@@ -130,4 +130,58 @@ describe("upload-variants", () => {
       }),
     ).toBeNull();
   });
+
+  it("resolve a variante poster quando disponivel", () => {
+    const mediaVariants: UploadMediaVariantsMap = {
+      "/uploads/projects/capa.png": {
+        variantsVersion: 2,
+        variants: {
+          poster: {
+            formats: {
+              avif: { url: "/uploads/_variants/u1/poster-v2.avif" },
+              webp: { url: "/uploads/_variants/u1/poster-v2.webp" },
+              fallback: { url: "/uploads/_variants/u1/poster-v2.jpeg" },
+            },
+          },
+        },
+      },
+    };
+
+    expect(
+      resolveUploadVariantSources({
+        src: "/uploads/projects/capa.png",
+        preset: "poster",
+        mediaVariants,
+      }),
+    ).toEqual({
+      avif: "/uploads/_variants/u1/poster-v2.avif",
+      webp: "/uploads/_variants/u1/poster-v2.webp",
+      fallback: "/uploads/_variants/u1/poster-v2.jpeg",
+    });
+  });
+
+  it("resolve a variante square quando disponivel", () => {
+    const mediaVariants: UploadMediaVariantsMap = {
+      "/uploads/users/avatar.png": {
+        variantsVersion: 5,
+        variants: {
+          square: {
+            formats: {
+              avif: { url: "/uploads/_variants/u1/square-v5.avif" },
+              webp: { url: "/uploads/_variants/u1/square-v5.webp" },
+              fallback: { url: "/uploads/_variants/u1/square-v5.png" },
+            },
+          },
+        },
+      },
+    };
+
+    expect(
+      resolveUploadVariantUrl({
+        src: "/uploads/users/avatar.png",
+        preset: "square",
+        mediaVariants,
+      }),
+    ).toBe("/uploads/_variants/u1/square-v5.png");
+  });
 });

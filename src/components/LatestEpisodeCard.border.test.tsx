@@ -48,6 +48,32 @@ const setupBootstrapMock = () => {
           unit: "Episodio",
         },
       ],
+      mediaVariants: {
+        "/uploads/alpha.jpg": {
+          variantsVersion: 1,
+          variants: {
+            poster: {
+              formats: {
+                avif: { url: "/uploads/_variants/u1/poster-v1.avif" },
+                webp: { url: "/uploads/_variants/u1/poster-v1.webp" },
+                fallback: { url: "/uploads/_variants/u1/poster-v1.jpeg" },
+              },
+            },
+          },
+        },
+        "/uploads/beta.jpg": {
+          variantsVersion: 1,
+          variants: {
+            poster: {
+              formats: {
+                avif: { url: "/uploads/_variants/u2/poster-v1.avif" },
+                webp: { url: "/uploads/_variants/u2/poster-v1.webp" },
+                fallback: { url: "/uploads/_variants/u2/poster-v1.jpeg" },
+              },
+            },
+          },
+        },
+      },
     },
   });
 };
@@ -78,5 +104,23 @@ describe("LatestEpisodeCard border styles", () => {
     });
 
     expect(container.querySelector(".soft-divider")).toBeNull();
+  });
+
+  it("renderiza poster otimizado para as imagens das atualizacoes", async () => {
+    setupBootstrapMock();
+
+    const { container } = render(
+      <MemoryRouter>
+        <LatestEpisodeCard />
+      </MemoryRouter>,
+    );
+
+    const coverImage = await screen.findByRole("img", { name: "Projeto Alpha" });
+    const sources = Array.from(container.querySelectorAll("source"));
+
+    expect(sources).toHaveLength(4);
+    expect(sources[0]).toHaveAttribute("srcset", expect.stringContaining("/uploads/_variants/u1/poster-v1.avif"));
+    expect(sources[1]).toHaveAttribute("srcset", expect.stringContaining("/uploads/_variants/u1/poster-v1.webp"));
+    expect(coverImage).toHaveAttribute("src", expect.stringContaining("/uploads/_variants/u1/poster-v1.jpeg"));
   });
 });

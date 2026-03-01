@@ -8,6 +8,8 @@ export const UPLOAD_VARIANT_PRESETS = Object.freeze({
   cardWide: Object.freeze({ width: 1280, height: 720 }),
   hero: Object.freeze({ width: 1600, height: 900 }),
   og: Object.freeze({ width: 1200, height: 675 }),
+  poster: Object.freeze({ width: 920, height: 1300 }),
+  square: Object.freeze({ width: 512, height: 512 }),
 });
 
 export const UPLOAD_VARIANT_PRESET_KEYS = Object.freeze(Object.keys(UPLOAD_VARIANT_PRESETS));
@@ -557,6 +559,22 @@ export const generateUploadVariants = async ({
       baseRect: cardBaseRect,
       targetWidth: UPLOAD_VARIANT_PRESETS.og.width,
       targetHeight: UPLOAD_VARIANT_PRESETS.og.height,
+    }),
+    poster: computeFocalCoverRectFromCrop({
+      sourceWidth,
+      sourceHeight,
+      targetWidth: UPLOAD_VARIANT_PRESETS.poster.width,
+      targetHeight: UPLOAD_VARIANT_PRESETS.poster.height,
+      focalCrop: safeFocalCrops.card,
+      fallbackFocalPoint: effectiveFocalPoints.card,
+    }),
+    square: computeFocalCoverRectFromCrop({
+      sourceWidth,
+      sourceHeight,
+      targetWidth: UPLOAD_VARIANT_PRESETS.square.width,
+      targetHeight: UPLOAD_VARIANT_PRESETS.square.height,
+      focalCrop: safeFocalCrops.card,
+      fallbackFocalPoint: effectiveFocalPoints.card,
     }),
   };
 

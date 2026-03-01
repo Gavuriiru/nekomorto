@@ -27,6 +27,7 @@ import { isIconUrlSource, sanitizeIconSource, sanitizePublicHref } from "@/lib/u
 import { usePageMeta } from "@/hooks/use-page-meta";
 import { useSiteSettings } from "@/hooks/use-site-settings";
 import ThemedSvgMaskIcon from "@/components/ThemedSvgMaskIcon";
+import UploadPicture from "@/components/UploadPicture";
 import { publicPageLayoutTokens } from "@/components/public-page-tokens";
 import type { UploadMediaVariantsMap } from "@/lib/upload-variants";
 
@@ -47,9 +48,10 @@ type PublicUser = {
 type TeamMemberAvatarProps = {
   imageSrc: string;
   name: string;
+  mediaVariants?: UploadMediaVariantsMap;
 };
 
-const TeamMemberAvatar = ({ imageSrc, name }: TeamMemberAvatarProps) => {
+const TeamMemberAvatar = ({ imageSrc, name, mediaVariants }: TeamMemberAvatarProps) => {
   const [resolvedSrc, setResolvedSrc] = useState(imageSrc || "/placeholder.svg");
 
   useEffect(() => {
@@ -58,12 +60,15 @@ const TeamMemberAvatar = ({ imageSrc, name }: TeamMemberAvatarProps) => {
 
   return (
     <div className="absolute bottom-0 left-1/2 h-56 w-56 -translate-x-1/2 overflow-hidden rounded-full transition-transform duration-500 group-hover:scale-105 sm:h-64 sm:w-64 md:h-72 md:w-72 lg:h-80 lg:w-80">
-      <img
+      <UploadPicture
         src={resolvedSrc}
         alt={name}
+        preset="square"
+        mediaVariants={mediaVariants}
         referrerPolicy="no-referrer"
         crossOrigin="anonymous"
-        className="h-full w-full object-cover"
+        className="block h-full w-full"
+        imgClassName="h-full w-full object-cover"
         onError={() => {
           if (resolvedSrc === "/placeholder.svg") {
             return;
@@ -84,6 +89,7 @@ const Team = () => {
   const [linkTypes, setLinkTypes] = useState<Array<{ id: string; label: string; icon: string }>>(
     [],
   );
+  const [memberMediaVariants, setMemberMediaVariants] = useState<UploadMediaVariantsMap>({});
   const [pageCopy, setPageCopy] = useState({
     shareImage: "",
     shareImageAlt: "",
@@ -159,7 +165,9 @@ const Team = () => {
   };
 
   const renderMemberAvatar = (member: PublicUser, imageSrc: string) => {
-    return <TeamMemberAvatar imageSrc={imageSrc} name={member.name} />;
+    return (
+      <TeamMemberAvatar imageSrc={imageSrc} name={member.name} mediaVariants={memberMediaVariants} />
+    );
   };
 
   const resolveSocialLink = (
@@ -197,8 +205,14 @@ const Team = () => {
           const data = await usersRes.json();
           if (isActive) {
             setMembers(Array.isArray(data.users) ? data.users : []);
+            setMemberMediaVariants(
+              data?.mediaVariants && typeof data.mediaVariants === "object" ? data.mediaVariants : {},
+            );
             setCacheBust(Date.now());
           }
+        } else if (isActive) {
+          setMembers([]);
+          setMemberMediaVariants({});
         }
         if (linkRes.ok) {
           const data = await linkRes.json();

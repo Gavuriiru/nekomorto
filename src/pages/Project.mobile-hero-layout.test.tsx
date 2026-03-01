@@ -148,6 +148,19 @@ const setupApiMock = (project = projectFixture) => {
             hero: { x: 0.3, y: 0.7 },
           },
         },
+        "/uploads/banner-only.jpg": {
+          variantsVersion: 1,
+          variants: {
+            hero: {
+              formats: {
+                fallback: { url: "/uploads/_variants/project-1/banner-only-hero-v1.jpeg" },
+              },
+            },
+          },
+          focalPoints: {
+            hero: { x: 0.35, y: 0.65 },
+          },
+        },
       };
 
       if (endpoint === "/api/public/projects/project-1" && method === "GET") {
@@ -176,7 +189,7 @@ describe("Project mobile hero layout", () => {
   });
 
   it("centraliza todo o hero no mobile e preserva alinhamento desktop", async () => {
-    render(
+    const secondRender = render(
       <MemoryRouter>
         <ProjectPage />
       </MemoryRouter>,
@@ -190,6 +203,8 @@ describe("Project mobile hero layout", () => {
     expect(bannerImage.getAttribute("src")).toContain("/uploads/_variants/project-1/hero-v1.jpeg");
     expect(bannerImage).toHaveStyle({ objectPosition: "20% 80%" });
     expect(coverImage.getAttribute("src")).toContain("/uploads/cover-default.jpg");
+    expect(coverImage).toHaveClass("object-cover", "object-center");
+    expect(coverImage).not.toHaveClass("object-contain");
 
     const heading = await screen.findByRole("heading", { name: "Projeto Teste" });
     const headingTokens = classTokens(heading);
@@ -312,7 +327,7 @@ describe("Project mobile hero layout", () => {
       cover: "/uploads/cover-only.jpg",
     });
 
-    render(
+    const secondRender = render(
       <MemoryRouter>
         <ProjectPage />
       </MemoryRouter>,
@@ -327,6 +342,36 @@ describe("Project mobile hero layout", () => {
       "/uploads/_variants/project-1/cover-only-hero-v1.jpeg",
     );
     expect(bannerFromCover).toHaveStyle({ objectPosition: "30% 70%" });
+
+    const secondRenderCoverImage = within(heroWithCoverFallback).getByRole("img", {
+      name: "Projeto Teste",
+    });
+    expect(secondRenderCoverImage.getAttribute("src")).toContain("/uploads/cover-only.jpg");
+    expect(secondRenderCoverImage).toHaveClass("object-cover", "object-center");
+    expect(secondRenderCoverImage).not.toHaveClass("object-contain");
+    secondRender.unmount();
+
+    setupApiMock({
+      ...projectFixture,
+      banner: "/uploads/banner-only.jpg",
+      heroImageUrl: "",
+      cover: "",
+    });
+
+    render(
+      <MemoryRouter>
+        <ProjectPage />
+      </MemoryRouter>,
+    );
+
+    await screen.findByRole("heading", { name: "Projeto Teste" });
+    const heroWithBannerCoverFallback = screen.getByTestId("project-hero");
+    const coverFromBannerFallback = within(heroWithBannerCoverFallback).getByRole("img", {
+      name: "Projeto Teste",
+    });
+    expect(coverFromBannerFallback.getAttribute("src")).toContain("/uploads/banner-only.jpg");
+    expect(coverFromBannerFallback).toHaveClass("object-cover", "object-center");
+    expect(coverFromBannerFallback).not.toHaveClass("object-contain");
   });
 
   it("renderiza CTA de leitura para light novel com capitulo publicado", async () => {
