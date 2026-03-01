@@ -229,6 +229,27 @@ describe("ImageLibraryDialog focal point editor", () => {
       expect(imageShell.style.height).toBe("320px");
     });
 
+    const handleNw = within(focalDialog).getByTestId("focal-crop-handle-nw");
+    const handleNe = within(focalDialog).getByTestId("focal-crop-handle-ne");
+    const handleSw = within(focalDialog).getByTestId("focal-crop-handle-sw");
+    const handleSe = within(focalDialog).getByTestId("focal-crop-handle-se");
+
+    expect(handleNw.style.left).toBe("-2px");
+    expect(handleNw.style.top).toBe("-2px");
+    expect(handleNw.style.transform).toBe("translate(-50%, -50%)");
+
+    expect(handleNe.style.right).toBe("-2px");
+    expect(handleNe.style.top).toBe("-2px");
+    expect(handleNe.style.transform).toBe("translate(50%, -50%)");
+
+    expect(handleSw.style.left).toBe("-2px");
+    expect(handleSw.style.bottom).toBe("-2px");
+    expect(handleSw.style.transform).toBe("translate(-50%, 50%)");
+
+    expect(handleSe.style.right).toBe("-2px");
+    expect(handleSe.style.bottom).toBe("-2px");
+    expect(handleSe.style.transform).toBe("translate(50%, 50%)");
+
     expect(within(focalDialog).getByRole("img", { name: /focal\.png/i })).toBeInTheDocument();
 
     fireEvent.pointerDown(stage, {

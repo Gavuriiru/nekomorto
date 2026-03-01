@@ -4,6 +4,7 @@ import {
   useMemo,
   useRef,
   useState,
+  type CSSProperties,
   type PointerEvent as ReactPointerEvent,
   type SyntheticEvent,
 } from "react";
@@ -478,6 +479,7 @@ const areFocalCropRectsEqual = (left: UploadFocalCropRect, right: UploadFocalCro
   Math.abs(left.height - right.height) < 0.0001;
 
 const MIN_FOCAL_CROP_DISPLAY_PX = 32;
+const FOCAL_CROP_BORDER_OFFSET_PX = 2;
 const FOCAL_CROP_HANDLE_KEYS = ["nw", "ne", "sw", "se"] as const;
 
 type FocalCropHandle = (typeof FOCAL_CROP_HANDLE_KEYS)[number];
@@ -496,6 +498,39 @@ type FocalCropInteraction =
       handle: FocalCropHandle;
       startCrop: UploadFocalCropRect;
     };
+
+const getFocalCropHandleStyle = (handle: FocalCropHandle): CSSProperties => {
+  if (handle === "nw") {
+    return {
+      left: -FOCAL_CROP_BORDER_OFFSET_PX,
+      top: -FOCAL_CROP_BORDER_OFFSET_PX,
+      cursor: "nwse-resize",
+      transform: "translate(-50%, -50%)",
+    };
+  }
+  if (handle === "ne") {
+    return {
+      right: -FOCAL_CROP_BORDER_OFFSET_PX,
+      top: -FOCAL_CROP_BORDER_OFFSET_PX,
+      cursor: "nesw-resize",
+      transform: "translate(50%, -50%)",
+    };
+  }
+  if (handle === "sw") {
+    return {
+      left: -FOCAL_CROP_BORDER_OFFSET_PX,
+      bottom: -FOCAL_CROP_BORDER_OFFSET_PX,
+      cursor: "nesw-resize",
+      transform: "translate(-50%, 50%)",
+    };
+  }
+  return {
+    right: -FOCAL_CROP_BORDER_OFFSET_PX,
+    bottom: -FOCAL_CROP_BORDER_OFFSET_PX,
+    cursor: "nwse-resize",
+    transform: "translate(50%, 50%)",
+  };
+};
 
 type FocalPointWorkspaceProps = {
   item: LibraryImageItem;
@@ -912,24 +947,13 @@ const FocalPointWorkspace = ({
                 onPointerDown={beginMoveInteraction}
               >
                 {FOCAL_CROP_HANDLE_KEYS.map((handle) => {
-                  const style =
-                    handle === "nw"
-                      ? { left: 0, top: 0, cursor: "nwse-resize" }
-                      : handle === "ne"
-                        ? { right: 0, top: 0, cursor: "nesw-resize" }
-                        : handle === "sw"
-                          ? { left: 0, bottom: 0, cursor: "nesw-resize" }
-                          : { right: 0, bottom: 0, cursor: "nwse-resize" };
                   return (
                     <div
                       key={handle}
                       data-testid={`focal-crop-handle-${handle}`}
-                      className="absolute h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-background bg-primary shadow"
+                      className="absolute z-10 h-4 w-4 rounded-full border-2 border-background bg-primary shadow"
                       style={{
-                        ...style,
-                        ...(handle === "ne" || handle === "se" ? { transform: "translate(50%, -50%)" } : {}),
-                        ...(handle === "sw" ? { transform: "translate(-50%, 50%)" } : {}),
-                        ...(handle === "se" ? { transform: "translate(50%, 50%)" } : {}),
+                        ...getFocalCropHandleStyle(handle),
                         touchAction: "none",
                       }}
                       onPointerDown={(event) => beginResizeInteraction(handle, event)}
