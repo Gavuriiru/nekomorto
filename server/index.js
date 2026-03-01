@@ -111,6 +111,7 @@ import {
   findUploadByHash,
   getPrimaryFocalPoint,
   normalizeFocalPoints,
+  normalizeVariants,
   resolveUploadAbsolutePath,
 } from "./lib/upload-media.js";
 import {
@@ -1717,7 +1718,7 @@ const renderMetaHtml = ({
 }) => {
   let html = getIndexHtml();
   const safeUrl = url || PRIMARY_APP_ORIGIN;
-  const safeImage = image ? toAbsoluteUrl(image) : "";
+  const safeImage = image ? toAbsoluteUrl(resolveMetaImageVariantUrl(image)) : "";
   html = replaceTitle(html, title);
   html = upsertMeta(html, "name", "description", description);
   html = upsertMeta(html, "property", "og:title", title);
@@ -4371,11 +4372,13 @@ const upsertUploadEntries = (incomingEntries) => {
           ? Number(current.variantsVersion)
           : 1,
       variants:
-        entry?.variants && typeof entry.variants === "object"
-          ? entry.variants
-          : current?.variants && typeof current.variants === "object"
-            ? current.variants
-            : {},
+        normalizeVariants(
+          entry?.variants && typeof entry.variants === "object"
+            ? entry.variants
+            : current?.variants && typeof current.variants === "object"
+              ? current.variants
+              : {},
+        ),
       variantBytes: Number.isFinite(Number(entry?.variantBytes))
         ? Number(entry.variantBytes)
         : Number.isFinite(Number(current?.variantBytes))
@@ -4531,7 +4534,7 @@ const buildPublicMediaVariants = (...sources) => {
     if (isPrivateUploadFolder(folder)) {
       return;
     }
-    const variants = entry?.variants && typeof entry.variants === "object" ? entry.variants : null;
+    const variants = normalizeVariants(entry?.variants);
     if (!variants || Object.keys(variants).length === 0) {
       return;
     }
@@ -4545,6 +4548,55 @@ const buildPublicMediaVariants = (...sources) => {
     };
   });
   return mediaVariants;
+};
+
+const readVariantAssetUrl = (formats, fallbackUrl) => {
+  const record = formats && typeof formats === "object" ? formats : {};
+  const fallback = String(record?.fallback?.url || "").trim();
+  if (fallback) {
+    return fallback;
+  }
+  const webp = String(record?.webp?.url || "").trim();
+  if (webp) {
+    return webp;
+  }
+  const avif = String(record?.avif?.url || "").trim();
+  if (avif) {
+    return avif;
+  }
+  return String(fallbackUrl || "").trim();
+};
+
+const resolveUploadVariantUrlFromEntry = ({ entry, preset, fallbackUrl }) => {
+  const variants = normalizeVariants(entry?.variants);
+  const presetRecord = variants?.[preset];
+  if (!presetRecord || typeof presetRecord !== "object") {
+    return String(fallbackUrl || "").trim();
+  }
+  const formats =
+    presetRecord.formats && typeof presetRecord.formats === "object" ? presetRecord.formats : null;
+  return readVariantAssetUrl(formats, fallbackUrl);
+};
+
+const resolveMetaImageVariantUrl = (value) => {
+  const fallbackUrl = String(value || "").trim();
+  if (!fallbackUrl) {
+    return "";
+  }
+  const normalizedUrl = normalizeUploadUrlValue(fallbackUrl);
+  if (!normalizedUrl) {
+    return fallbackUrl;
+  }
+  const entry =
+    loadUploads().find((item) => normalizeUploadUrlValue(item?.url) === normalizedUrl) || null;
+  if (!entry) {
+    return fallbackUrl;
+  }
+  return resolveUploadVariantUrlFromEntry({
+    entry,
+    preset: "og",
+    fallbackUrl,
+  });
 };
 
 const collectDownloadIconUploads = (settings) => {
@@ -11288,7 +11340,14 @@ app.post("/api/tag-translations/anilist-sync", requireAuth, async (req, res) => 
 
 app.get("/api/public/pages", (req, res) => {
   const pages = loadPages();
-  return res.json({ pages, revision: createRevisionToken(pages) });
+  const settings = loadSiteSettings();
+  return res.json({
+    pages,
+    mediaVariants: buildPublicMediaVariants(pages, {
+      image: settings?.site?.defaultShareImage || "",
+    }),
+    revision: createRevisionToken(pages),
+  });
 });
 
 app.get("/api/settings", requireAuth, (req, res) => {
@@ -11600,10 +11659,7 @@ app.post("/api/uploads/image", requireAuth, async (req, res) => {
   const uploads = loadUploads();
   const dedupeEntry = findUploadByHash(uploads, hashSha256);
   if (dedupeEntry) {
-    const dedupeVariantsGenerated =
-      dedupeEntry?.variants &&
-      typeof dedupeEntry.variants === "object" &&
-      Object.keys(dedupeEntry.variants).length > 0;
+    const dedupeVariantsGenerated = Object.keys(normalizeVariants(dedupeEntry?.variants)).length > 0;
     const dedupeFocalState = readUploadFocalState(dedupeEntry);
     appendAuditLog(req, "uploads.image", "uploads", {
       uploadId: dedupeEntry.id,
@@ -11622,7 +11678,7 @@ app.post("/api/uploads/image", requireAuth, async (req, res) => {
       dedupeHit: true,
       focalPoints: dedupeFocalState.focalPoints,
       focalPoint: dedupeFocalState.focalPoint,
-      variants: dedupeEntry.variants || {},
+      variants: normalizeVariants(dedupeEntry.variants),
       area: dedupeEntry.area || "",
       variantsGenerated: dedupeVariantsGenerated,
     });
@@ -11719,7 +11775,7 @@ app.post("/api/uploads/image", requireAuth, async (req, res) => {
     dedupeHit: false,
     focalPoints: uploadFocalState.focalPoints,
     focalPoint: uploadFocalState.focalPoint,
-    variants: uploadEntry.variants || {},
+    variants: normalizeVariants(uploadEntry.variants),
     area: uploadEntry.area || "",
     variantsGenerated,
     ...(variantGenerationError ? { variantGenerationError } : {}),
@@ -11792,7 +11848,7 @@ app.get("/api/uploads/list", requireAuth, (req, res) => {
           variantsVersion: Number.isFinite(Number(meta?.variantsVersion))
             ? Number(meta.variantsVersion)
             : 1,
-          variants: meta?.variants && typeof meta.variants === "object" ? meta.variants : {},
+          variants: normalizeVariants(meta?.variants),
           variantBytes: Number.isFinite(Number(meta?.variantBytes)) ? Number(meta.variantBytes) : 0,
           area:
             typeof meta?.area === "string" && meta.area
@@ -11836,7 +11892,7 @@ app.get("/api/uploads/list", requireAuth, (req, res) => {
               variantsVersion: Number.isFinite(Number(meta?.variantsVersion))
                 ? Number(meta.variantsVersion)
                 : 1,
-              variants: meta?.variants && typeof meta.variants === "object" ? meta.variants : {},
+              variants: normalizeVariants(meta?.variants),
               variantBytes: Number.isFinite(Number(meta?.variantBytes)) ? Number(meta.variantBytes) : 0,
               area:
                 typeof meta?.area === "string" && meta.area
@@ -11929,7 +11985,7 @@ app.patch("/api/uploads/:id/focal-point", requireAuth, async (req, res) => {
       variantsVersion: Number.isFinite(Number(updated.variantsVersion))
         ? Number(updated.variantsVersion)
         : 1,
-      variants: updated.variants || {},
+      variants: normalizeVariants(updated.variants),
       variantBytes: Number.isFinite(Number(updated.variantBytes)) ? Number(updated.variantBytes) : 0,
       area: updated.area || "",
       altText: readUploadAltText(updated),
@@ -12094,10 +12150,7 @@ app.post("/api/uploads/image-from-url", requireAuth, async (req, res) => {
       String(item?.hashSha256 || "").trim().toLowerCase() === hashSha256,
   );
   if (dedupeEntry) {
-    const dedupeVariantsGenerated =
-      dedupeEntry?.variants &&
-      typeof dedupeEntry.variants === "object" &&
-      Object.keys(dedupeEntry.variants).length > 0;
+    const dedupeVariantsGenerated = Object.keys(normalizeVariants(dedupeEntry?.variants)).length > 0;
     const dedupeFocalState = readUploadFocalState(dedupeEntry);
     try {
       fs.unlinkSync(sourcePath);
@@ -12121,7 +12174,7 @@ app.post("/api/uploads/image-from-url", requireAuth, async (req, res) => {
       dedupeHit: true,
       focalPoints: dedupeFocalState.focalPoints,
       focalPoint: dedupeFocalState.focalPoint,
-      variants: dedupeEntry.variants || {},
+      variants: normalizeVariants(dedupeEntry.variants),
       area: dedupeEntry.area || "",
       variantsGenerated: dedupeVariantsGenerated,
     });
@@ -12184,7 +12237,7 @@ app.post("/api/uploads/image-from-url", requireAuth, async (req, res) => {
     dedupeHit: false,
     focalPoints: enrichedFocalState.focalPoints,
     focalPoint: enrichedFocalState.focalPoint,
-    variants: enrichedEntry.variants || {},
+    variants: normalizeVariants(enrichedEntry.variants),
     area: enrichedEntry.area || "",
     variantsGenerated,
     ...(variantGenerationError ? { variantGenerationError } : {}),

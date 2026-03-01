@@ -27,6 +27,7 @@ import { useDynamicSynopsisClamp } from "@/hooks/use-dynamic-synopsis-clamp";
 import { publicPageLayoutTokens } from "@/components/public-page-tokens";
 import { prepareProjectBadges } from "@/lib/project-card-layout";
 import { normalizeSearchText } from "@/lib/search-ranking";
+import type { UploadMediaVariantsMap } from "@/lib/upload-variants";
 import { cn } from "@/lib/utils";
 
 const alphabetOptions = ["Todas", ..."ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("")];
@@ -291,6 +292,7 @@ const Projects = () => {
   const [projectsLoadVersion, setProjectsLoadVersion] = useState(0);
   const [shareImage, setShareImage] = useState("");
   const [shareImageAlt, setShareImageAlt] = useState("");
+  const [pageMediaVariants, setPageMediaVariants] = useState<UploadMediaVariantsMap>({});
   const [searchParams, setSearchParams] = useSearchParams();
   const [selectedLetter, setSelectedLetter] = useState(() =>
     parseLetterParam(searchParams.get("letter")),
@@ -316,6 +318,7 @@ const Projects = () => {
     title: "Projetos",
     image: shareImage || undefined,
     imageAlt: shareImageAlt || undefined,
+    mediaVariants: pageMediaVariants,
   });
 
   useEffect(() => {
@@ -341,6 +344,9 @@ const Projects = () => {
         if (isActive) {
           setShareImage(String(data?.pages?.projects?.shareImage || "").trim());
           setShareImageAlt(String(data?.pages?.projects?.shareImageAlt || "").trim());
+          setPageMediaVariants(
+            data?.mediaVariants && typeof data.mediaVariants === "object" ? data.mediaVariants : {},
+          );
         }
       } catch {
         // ignore

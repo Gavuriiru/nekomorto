@@ -76,6 +76,7 @@ const ProjectPage = () => {
     image: shareImage,
     imageAlt:
       project?.coverAlt || project?.bannerAlt || settings.site.defaultShareImageAlt || undefined,
+    mediaVariants,
     type: "article",
   });
 

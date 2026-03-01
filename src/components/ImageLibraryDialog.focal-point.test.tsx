@@ -119,10 +119,8 @@ describe("ImageLibraryDialog focal point editor", () => {
             id: "upload-1",
             url: "/uploads/posts/focal.png",
             focalPoints: {
-              thumb: { x: 0.2, y: 0.8 },
               card: { x: 0.2, y: 0.8 },
               hero: { x: 0.75, y: 0.8 },
-              og: { x: 0.2, y: 0.8 },
             },
             focalPoint: { x: 0.2, y: 0.8 },
             variantsVersion: 2,
@@ -154,6 +152,10 @@ describe("ImageLibraryDialog focal point editor", () => {
     const dialogs = await screen.findAllByRole("dialog");
     const focalDialog = dialogs[dialogs.length - 1];
 
+    expect(within(focalDialog).queryByRole("button", { name: /thumb/i })).toBeNull();
+    expect(within(focalDialog).queryByRole("button", { name: /^og/i })).toBeNull();
+    expect(within(focalDialog).queryByText(/OG \(derivado de CARD\)/i)).toBeNull();
+
     fireEvent.click(within(focalDialog).getByRole("button", { name: /hero/i }));
     fireEvent.change(within(focalDialog).getByLabelText(/Eixo X/i), {
       target: { value: "75" },
@@ -177,10 +179,8 @@ describe("ImageLibraryDialog focal point editor", () => {
     };
 
     expect(payload.focalPoints).toEqual({
-      thumb: { x: 0.2, y: 0.8 },
       card: { x: 0.2, y: 0.8 },
       hero: { x: 0.75, y: 0.8 },
-      og: { x: 0.2, y: 0.8 },
     });
   });
 

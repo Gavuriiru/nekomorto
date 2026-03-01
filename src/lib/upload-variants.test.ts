@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   normalizeUploadVariantUrlKey,
+  resolveUploadVariantUrl,
   resolveUploadVariantSources,
   type UploadMediaVariantsMap,
 } from "@/lib/upload-variants";
@@ -48,5 +49,29 @@ describe("upload-variants", () => {
     });
     expect(resolved).toEqual({ avif: "", webp: "", fallback: "" });
   });
-});
 
+  it("prefere a URL fallback ao resolver uma variante unica", () => {
+    const mediaVariants: UploadMediaVariantsMap = {
+      "/uploads/posts/capa.png": {
+        variantsVersion: 1,
+        variants: {
+          og: {
+            formats: {
+              avif: { url: "/uploads/_variants/u1/og-v1.avif" },
+              webp: { url: "/uploads/_variants/u1/og-v1.webp" },
+              fallback: { url: "/uploads/_variants/u1/og-v1.jpeg" },
+            },
+          },
+        },
+      },
+    };
+
+    expect(
+      resolveUploadVariantUrl({
+        src: "/uploads/posts/capa.png",
+        preset: "og",
+        mediaVariants,
+      }),
+    ).toBe("/uploads/_variants/u1/og-v1.jpeg");
+  });
+});

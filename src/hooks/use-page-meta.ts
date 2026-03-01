@@ -2,12 +2,17 @@ import { useLayoutEffect, useMemo } from "react";
 import { useSiteSettings } from "@/hooks/use-site-settings";
 import { normalizeAssetUrl } from "@/lib/asset-url";
 import { getCanonicalPageUrl } from "@/lib/canonical-url";
+import {
+  resolveUploadVariantUrl,
+  type UploadMediaVariantsMap,
+} from "@/lib/upload-variants";
 
 type PageMetaOptions = {
   title?: string;
   description?: string;
   image?: string;
   imageAlt?: string;
+  mediaVariants?: UploadMediaVariantsMap | null;
   type?: "website" | "article";
   noIndex?: boolean;
   separator?: string;
@@ -42,6 +47,7 @@ export const usePageMeta = ({
   description,
   image,
   imageAlt,
+  mediaVariants,
   type = "website",
   noIndex = false,
   separator,
@@ -60,10 +66,33 @@ export const usePageMeta = ({
     return `${title}${effectiveSeparator}${siteName}`;
   }, [effectiveSeparator, siteName, title]);
   const pageDescription = description ?? settings.site.description ?? "";
+  const bootstrapMediaVariants = useMemo<UploadMediaVariantsMap>(() => {
+    if (typeof window === "undefined") {
+      return {};
+    }
+    const globalWindow = window as Window & typeof globalThis & {
+      __BOOTSTRAP_PUBLIC__?: { mediaVariants?: unknown } | null;
+    };
+    const value = globalWindow.__BOOTSTRAP_PUBLIC__?.mediaVariants;
+    return value && typeof value === "object" ? (value as UploadMediaVariantsMap) : {};
+  }, []);
+  const effectiveMediaVariants = useMemo<UploadMediaVariantsMap>(
+    () => ({
+      ...bootstrapMediaVariants,
+      ...(mediaVariants && typeof mediaVariants === "object" ? mediaVariants : {}),
+    }),
+    [bootstrapMediaVariants, mediaVariants],
+  );
   const pageImage = useMemo(() => {
     const candidate = image ?? settings.site.defaultShareImage ?? "";
-    return normalizeAssetUrl(candidate);
-  }, [image, settings.site.defaultShareImage]);
+    return normalizeAssetUrl(
+      resolveUploadVariantUrl({
+        src: candidate,
+        preset: "og",
+        mediaVariants: effectiveMediaVariants,
+      }),
+    );
+  }, [effectiveMediaVariants, image, settings.site.defaultShareImage]);
   const pageImageAlt = imageAlt ?? settings.site.defaultShareImageAlt ?? "";
 
   useLayoutEffect(() => {

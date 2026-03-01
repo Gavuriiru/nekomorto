@@ -1,6 +1,7 @@
 import { render } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { usePageMeta } from "@/hooks/use-page-meta";
+import type { UploadMediaVariantsMap } from "@/lib/upload-variants";
 
 vi.mock("@/hooks/use-site-settings", () => ({
   useSiteSettings: () => ({
@@ -17,11 +18,18 @@ vi.mock("@/hooks/use-site-settings", () => ({
   }),
 }));
 
-const TestMeta = ({ imageAlt }: { imageAlt?: string }) => {
+const TestMeta = ({
+  imageAlt,
+  mediaVariants,
+}: {
+  imageAlt?: string;
+  mediaVariants?: UploadMediaVariantsMap;
+}) => {
   usePageMeta({
     title: "Pagina de teste",
     image: "/uploads/custom-og.jpg",
     imageAlt,
+    mediaVariants,
   });
   return null;
 };
@@ -30,6 +38,8 @@ describe("usePageMeta accessibility metadata", () => {
   beforeEach(() => {
     document.head.innerHTML = "";
     document.title = "";
+    (window as Window & typeof globalThis & { __BOOTSTRAP_PUBLIC__?: unknown }).__BOOTSTRAP_PUBLIC__ =
+      undefined;
   });
 
   it("writes og:image:alt and twitter:image:alt", () => {
@@ -60,5 +70,35 @@ describe("usePageMeta accessibility metadata", () => {
         .querySelector('meta[name="twitter:image:alt"]')
         ?.getAttribute("content"),
     ).toBe("Imagem padrao");
+  });
+
+  it("usa a variante og quando ela estiver disponivel", () => {
+    render(
+      <TestMeta
+        mediaVariants={{
+          "/uploads/custom-og.jpg": {
+            variantsVersion: 1,
+            variants: {
+              og: {
+                formats: {
+                  fallback: { url: "/uploads/_variants/upload-1/og-v1.jpeg" },
+                },
+              },
+            },
+          },
+        }}
+      />,
+    );
+
+    expect(
+      document
+        .querySelector('meta[property="og:image"]')
+        ?.getAttribute("content"),
+    ).toContain("/uploads/_variants/upload-1/og-v1.jpeg");
+    expect(
+      document
+        .querySelector('meta[name="twitter:image"]')
+        ?.getAttribute("content"),
+    ).toContain("/uploads/_variants/upload-1/og-v1.jpeg");
   });
 });

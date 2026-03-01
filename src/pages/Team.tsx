@@ -28,6 +28,7 @@ import { usePageMeta } from "@/hooks/use-page-meta";
 import { useSiteSettings } from "@/hooks/use-site-settings";
 import ThemedSvgMaskIcon from "@/components/ThemedSvgMaskIcon";
 import { publicPageLayoutTokens } from "@/components/public-page-tokens";
+import type { UploadMediaVariantsMap } from "@/lib/upload-variants";
 
 type PublicUser = {
   id: string;
@@ -93,10 +94,12 @@ const Team = () => {
     retiredTitle: "Membros aposentados",
     retiredSubtitle: "Agradecemos por todas as contribuições.",
   });
+  const [pageMediaVariants, setPageMediaVariants] = useState<UploadMediaVariantsMap>({});
   usePageMeta({
     title: "Equipe",
     image: pageCopy.shareImage || undefined,
     imageAlt: pageCopy.shareImageAlt || undefined,
+    mediaVariants: pageMediaVariants,
   });
   const socialIcons = useMemo(
     () => ({
@@ -227,6 +230,11 @@ const Team = () => {
           return;
         }
         const data = await response.json();
+        if (isActive) {
+          setPageMediaVariants(
+            data?.mediaVariants && typeof data.mediaVariants === "object" ? data.mediaVariants : {},
+          );
+        }
         if (isActive && data.pages?.team) {
           setPageCopy((prev) => ({ ...prev, ...data.pages.team }));
         }

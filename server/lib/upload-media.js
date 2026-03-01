@@ -4,13 +4,17 @@ import path from "path";
 import sharp from "sharp";
 
 export const UPLOAD_VARIANT_PRESETS = Object.freeze({
-  thumb: Object.freeze({ width: 320, height: 320 }),
-  card: Object.freeze({ width: 640, height: 360 }),
+  card: Object.freeze({ width: 1280, height: 720 }),
   hero: Object.freeze({ width: 1600, height: 900 }),
-  og: Object.freeze({ width: 1200, height: 630 }),
+  og: Object.freeze({ width: 1200, height: 675 }),
 });
 
 export const UPLOAD_VARIANT_PRESET_KEYS = Object.freeze(Object.keys(UPLOAD_VARIANT_PRESETS));
+const UPLOAD_FOCAL_PRESET_KEYS = Object.freeze(["card", "hero"]);
+const UPLOAD_FOCAL_PRESET_FALLBACK_ORDER = Object.freeze({
+  card: Object.freeze(["card", "og", "thumb"]),
+  hero: Object.freeze(["hero"]),
+});
 
 const RASTER_UPLOAD_MIMES = new Set([
   "image/png",
@@ -158,11 +162,14 @@ const toFallbackFormat = (hasAlpha) =>
 const createVariantFilePath = ({ dir, preset, version, extension }) =>
   path.join(dir, `${preset}-v${version}.${extension}`);
 
-const normalizeVariants = (value) => {
+export const normalizeVariants = (value) => {
   const source = value && typeof value === "object" ? value : {};
   const next = {};
-  Object.entries(source).forEach(([key, record]) => {
-    next[key] = normalizeVariantRecord(record);
+  UPLOAD_VARIANT_PRESET_KEYS.forEach((key) => {
+    if (!Object.prototype.hasOwnProperty.call(source, key)) {
+      return;
+    }
+    next[key] = normalizeVariantRecord(source[key]);
   });
   return next;
 };
@@ -186,26 +193,29 @@ const resolvePresetFocalSource = ({ value, fallback, presetKey }) => {
   if (isFocalPointValue(value)) {
     return value;
   }
-  if (value && typeof value === "object" && value[presetKey] && typeof value[presetKey] === "object") {
-    return value[presetKey];
+  if (value && typeof value === "object") {
+    for (const key of UPLOAD_FOCAL_PRESET_FALLBACK_ORDER[presetKey] || []) {
+      if (value[key] && typeof value[key] === "object") {
+        return value[key];
+      }
+    }
   }
   if (isFocalPointValue(fallback)) {
     return fallback;
   }
-  if (
-    fallback &&
-    typeof fallback === "object" &&
-    fallback[presetKey] &&
-    typeof fallback[presetKey] === "object"
-  ) {
-    return fallback[presetKey];
+  if (fallback && typeof fallback === "object") {
+    for (const key of UPLOAD_FOCAL_PRESET_FALLBACK_ORDER[presetKey] || []) {
+      if (fallback[key] && typeof fallback[key] === "object") {
+        return fallback[key];
+      }
+    }
   }
   return null;
 };
 
 export const normalizeFocalPoints = (value, fallbackValue) => {
   const next = {};
-  UPLOAD_VARIANT_PRESET_KEYS.forEach((presetKey) => {
+  UPLOAD_FOCAL_PRESET_KEYS.forEach((presetKey) => {
     next[presetKey] = normalizeFocalPoint(
       resolvePresetFocalSource({ value, fallback: fallbackValue, presetKey }),
     );
@@ -215,6 +225,9 @@ export const normalizeFocalPoints = (value, fallbackValue) => {
 
 export const getPrimaryFocalPoint = (value, fallbackValue) =>
   normalizeFocalPoint(resolvePresetFocalSource({ value, fallback: fallbackValue, presetKey: "card" }));
+
+const resolveVariantFocalPoint = ({ presetKey, focalPoints }) =>
+  presetKey === "og" ? focalPoints?.card : focalPoints?.[presetKey];
 
 export const deriveUploadArea = (folder) => toArea(folder);
 
@@ -283,7 +296,7 @@ export const generateUploadVariants = async ({
       sourceHeight,
       targetWidth: preset.width,
       targetHeight: preset.height,
-      focalPoint: safeFocalPoints[presetKey],
+      focalPoint: resolveVariantFocalPoint({ presetKey, focalPoints: safeFocalPoints }),
     });
     const base = createBaseVariantPipeline({ sourcePath, rect, preset });
     const avifPath = createVariantFilePath({

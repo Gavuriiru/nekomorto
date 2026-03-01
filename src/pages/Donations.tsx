@@ -26,6 +26,7 @@ import { publicPageLayoutTokens } from "@/components/public-page-tokens";
 import { usePageMeta } from "@/hooks/use-page-meta";
 import { usePixQrCode } from "@/hooks/use-pix-qr-code";
 import { useSiteSettings } from "@/hooks/use-site-settings";
+import type { UploadMediaVariantsMap } from "@/lib/upload-variants";
 
 const iconMap: Record<string, typeof Server> = {
   Server,
@@ -70,12 +71,14 @@ const Donations = () => {
   const { settings } = useSiteSettings();
   const [copied, setCopied] = useState(false);
   const [donations, setDonations] = useState(defaultDonations);
+  const [pageMediaVariants, setPageMediaVariants] = useState<UploadMediaVariantsMap>({});
   const merchantName =
     String(settings.site.name || settings.footer.brandName || "NEKOMATA").trim() || "NEKOMATA";
   usePageMeta({
     title: "Doações",
     image: donations.shareImage || undefined,
     imageAlt: donations.shareImageAlt || undefined,
+    mediaVariants: pageMediaVariants,
   });
 
   useEffect(() => {
@@ -87,6 +90,11 @@ const Donations = () => {
           return;
         }
         const data = await response.json();
+        if (isActive) {
+          setPageMediaVariants(
+            data?.mediaVariants && typeof data.mediaVariants === "object" ? data.mediaVariants : {},
+          );
+        }
         if (isActive && data.pages?.donations) {
           const incoming = data.pages.donations;
           setDonations({

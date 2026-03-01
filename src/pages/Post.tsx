@@ -153,6 +153,7 @@ const Post = () => {
     description: post?.seoDescription || post?.excerpt || "",
     image: shareImage,
     imageAlt: post?.coverAlt || settings.site.defaultShareImageAlt || undefined,
+    mediaVariants,
     type: "article",
   });
 

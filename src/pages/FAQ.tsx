@@ -6,6 +6,7 @@ import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
 import { publicPageLayoutTokens } from "@/components/public-page-tokens";
 import { usePageMeta } from "@/hooks/use-page-meta";
+import type { UploadMediaVariantsMap } from "@/lib/upload-variants";
 
 const iconMap: Record<string, typeof HelpCircle> = {
   HelpCircle,
@@ -103,10 +104,12 @@ const defaultFaq = {
 const FAQ = () => {
   const apiBase = getApiBase();
   const [faq, setFaq] = useState(defaultFaq);
+  const [pageMediaVariants, setPageMediaVariants] = useState<UploadMediaVariantsMap>({});
   usePageMeta({
     title: "FAQ",
     image: faq.shareImage || undefined,
     imageAlt: faq.shareImageAlt || undefined,
+    mediaVariants: pageMediaVariants,
   });
 
   useEffect(() => {
@@ -118,6 +121,11 @@ const FAQ = () => {
           return;
         }
         const data = await response.json();
+        if (isActive) {
+          setPageMediaVariants(
+            data?.mediaVariants && typeof data.mediaVariants === "object" ? data.mediaVariants : {},
+          );
+        }
         if (isActive && data.pages?.faq) {
           setFaq({ ...defaultFaq, ...data.pages.faq });
         }

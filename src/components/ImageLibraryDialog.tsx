@@ -31,11 +31,13 @@ import { toast } from "@/components/ui/use-toast";
 import { apiFetch } from "@/lib/api-client";
 import {
   computeUploadContainFitRect,
+  UPLOAD_FOCAL_PRESET_KEYS,
   UPLOAD_VARIANT_PRESET_DIMENSIONS,
   UPLOAD_VARIANT_PRESET_KEYS,
   computeUploadFocalCoverRect,
   deriveLegacyUploadFocalPoint,
   normalizeUploadFocalPoints,
+  type UploadFocalPresetKey,
   type UploadFocalPoints,
 } from "@/lib/upload-focal-points";
 import type { UploadVariantPresetKey } from "@/lib/upload-variants";
@@ -467,10 +469,10 @@ const buildFocalPreviewImageStyle = ({
 type FocalPointWorkspaceProps = {
   item: LibraryImageItem;
   draft: UploadFocalPoints;
-  activePreset: UploadVariantPresetKey;
+  activePreset: UploadFocalPresetKey;
   isSaving: boolean;
   onDraftChange: (next: UploadFocalPoints) => void;
-  onActivePresetChange: (preset: UploadVariantPresetKey) => void;
+  onActivePresetChange: (preset: UploadFocalPresetKey) => void;
   onCancel: () => void;
   onSave: () => void;
 };
@@ -578,12 +580,13 @@ const FocalPointWorkspace = ({
     const next = {} as Record<UploadVariantPresetKey, { left: number; top: number; width: number; height: number }>;
     UPLOAD_VARIANT_PRESET_KEYS.forEach((preset) => {
       const dimensions = UPLOAD_VARIANT_PRESET_DIMENSIONS[preset];
+      const focalPoint = preset === "og" ? draft.card : draft[preset];
       next[preset] = computeUploadFocalCoverRect({
         sourceWidth,
         sourceHeight,
         targetWidth: dimensions.width,
         targetHeight: dimensions.height,
-        focalPoint: draft[preset],
+        focalPoint,
       });
     });
     return next;
@@ -658,11 +661,11 @@ const FocalPointWorkspace = ({
     <div className="space-y-4">
       <div className="space-y-2">
         <p className="text-xs text-muted-foreground">
-          Escolha o preset, clique sobre a imagem inteira e ajuste os eixos. Cliques fora da imagem
-          visivel sao ignorados.
+          Edite CARD ou HERO, clique sobre a imagem inteira e ajuste os eixos. Cliques fora da
+          imagem visivel sao ignorados.
         </p>
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          {UPLOAD_VARIANT_PRESET_KEYS.map((preset) => {
+        <div className="grid gap-3 sm:grid-cols-2">
+          {UPLOAD_FOCAL_PRESET_KEYS.map((preset) => {
             const dimensions = UPLOAD_VARIANT_PRESET_DIMENSIONS[preset];
             const rect = previewRects[preset];
             const isActive = preset === activePreset;
@@ -834,7 +837,7 @@ const ImageLibraryDialog = ({
   const [deleteTarget, setDeleteTarget] = useState<LibraryImageItem | null>(null);
   const [focalTarget, setFocalTarget] = useState<LibraryImageItem | null>(null);
   const [focalDraft, setFocalDraft] = useState<UploadFocalPoints>(() => normalizeUploadFocalPoints());
-  const [activeFocalPreset, setActiveFocalPreset] = useState<UploadVariantPresetKey>("card");
+  const [activeFocalPreset, setActiveFocalPreset] = useState<UploadFocalPresetKey>("card");
   const [isRenaming, setIsRenaming] = useState(false);
   const [isSavingAltText, setIsSavingAltText] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);

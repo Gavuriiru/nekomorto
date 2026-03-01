@@ -1,4 +1,4 @@
-export type UploadVariantPresetKey = "thumb" | "card" | "hero" | "og";
+export type UploadVariantPresetKey = "card" | "hero" | "og";
 
 export type UploadVariantFormat = {
   url?: string | null;
@@ -18,7 +18,7 @@ export type UploadVariantPreset = {
 
 export type UploadMediaVariantEntry = {
   variantsVersion?: number | null;
-  variants?: Record<string, UploadVariantPreset | null> | null;
+  variants?: Partial<Record<UploadVariantPresetKey, UploadVariantPreset | null>> | null;
 };
 
 export type UploadMediaVariantsMap = Record<string, UploadMediaVariantEntry>;
@@ -96,4 +96,17 @@ export const resolveUploadVariantSources = ({
     webp: toFormatUrl(formats.webp),
     fallback: toFormatUrl(formats.fallback),
   };
+};
+
+export const resolveUploadVariantUrl = ({
+  src,
+  preset,
+  mediaVariants,
+}: {
+  src: string | null | undefined;
+  preset: UploadVariantPresetKey;
+  mediaVariants?: UploadMediaVariantsMap | null;
+}) => {
+  const resolved = resolveUploadVariantSources({ src, preset, mediaVariants });
+  return resolved.fallback || resolved.webp || resolved.avif || String(src || "").trim();
 };

@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
+import type { UploadMediaVariantsMap } from "@/lib/upload-variants";
 
 const iconMap = {
   Languages,
@@ -100,10 +101,12 @@ const Recruitment = () => {
   const discordUrl = settings.community.discordUrl || "#";
   const apiBase = getApiBase();
   const [recruitment, setRecruitment] = useState(defaultRecruitment);
+  const [pageMediaVariants, setPageMediaVariants] = useState<UploadMediaVariantsMap>({});
   usePageMeta({
     title: "Recrutamento",
     image: recruitment.shareImage || undefined,
     imageAlt: recruitment.shareImageAlt || undefined,
+    mediaVariants: pageMediaVariants,
   });
 
   useEffect(() => {
@@ -115,6 +118,11 @@ const Recruitment = () => {
           return;
         }
         const data = await response.json();
+        if (isActive) {
+          setPageMediaVariants(
+            data?.mediaVariants && typeof data.mediaVariants === "object" ? data.mediaVariants : {},
+          );
+        }
         if (!isActive || !data.pages?.recruitment) {
           return;
         }

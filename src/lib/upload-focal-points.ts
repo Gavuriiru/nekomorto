@@ -5,7 +5,9 @@ export type UploadFocalPoint = {
   y: number;
 };
 
-export type UploadFocalPoints = Record<UploadVariantPresetKey, UploadFocalPoint>;
+export type UploadFocalPresetKey = "card" | "hero";
+
+export type UploadFocalPoints = Record<UploadFocalPresetKey, UploadFocalPoint>;
 
 export type UploadContainFitRect = {
   left: number;
@@ -19,15 +21,26 @@ export const UPLOAD_VARIANT_PRESET_DIMENSIONS: Record<
   UploadVariantPresetKey,
   { width: number; height: number }
 > = Object.freeze({
-  thumb: Object.freeze({ width: 320, height: 320 }),
-  card: Object.freeze({ width: 640, height: 360 }),
+  card: Object.freeze({ width: 1280, height: 720 }),
   hero: Object.freeze({ width: 1600, height: 900 }),
-  og: Object.freeze({ width: 1200, height: 630 }),
+  og: Object.freeze({ width: 1200, height: 675 }),
 });
 
 export const UPLOAD_VARIANT_PRESET_KEYS = Object.freeze(
   Object.keys(UPLOAD_VARIANT_PRESET_DIMENSIONS) as UploadVariantPresetKey[],
 );
+
+export const UPLOAD_FOCAL_PRESET_KEYS = Object.freeze(["card", "hero"] as UploadFocalPresetKey[]);
+
+type UploadLegacyFocalPresetKey = UploadFocalPresetKey | "og" | "thumb";
+
+const UPLOAD_FOCAL_PRESET_FALLBACK_ORDER: Record<
+  UploadFocalPresetKey,
+  readonly UploadLegacyFocalPresetKey[]
+> = Object.freeze({
+  card: Object.freeze(["card", "og", "thumb"]),
+  hero: Object.freeze(["hero"]),
+});
 
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
 
@@ -41,24 +54,28 @@ const resolvePresetFocalSource = ({
 }: {
   value: unknown;
   fallback?: unknown;
-  preset: UploadVariantPresetKey;
+  preset: UploadFocalPresetKey;
 }) => {
   if (isUploadFocalPointValue(value)) {
     return value;
   }
   if (value && typeof value === "object") {
-    const record = value as Partial<Record<UploadVariantPresetKey, unknown>>;
-    if (record[preset] && typeof record[preset] === "object") {
-      return record[preset];
+    const record = value as Partial<Record<UploadLegacyFocalPresetKey, unknown>>;
+    for (const key of UPLOAD_FOCAL_PRESET_FALLBACK_ORDER[preset]) {
+      if (record[key] && typeof record[key] === "object") {
+        return record[key];
+      }
     }
   }
   if (isUploadFocalPointValue(fallback)) {
     return fallback;
   }
   if (fallback && typeof fallback === "object") {
-    const record = fallback as Partial<Record<UploadVariantPresetKey, unknown>>;
-    if (record[preset] && typeof record[preset] === "object") {
-      return record[preset];
+    const record = fallback as Partial<Record<UploadLegacyFocalPresetKey, unknown>>;
+    for (const key of UPLOAD_FOCAL_PRESET_FALLBACK_ORDER[preset]) {
+      if (record[key] && typeof record[key] === "object") {
+        return record[key];
+      }
     }
   }
   return null;
@@ -79,7 +96,7 @@ export const normalizeUploadFocalPoints = (
   fallbackValue?: unknown,
 ): UploadFocalPoints => {
   const next = {} as UploadFocalPoints;
-  UPLOAD_VARIANT_PRESET_KEYS.forEach((preset) => {
+  UPLOAD_FOCAL_PRESET_KEYS.forEach((preset) => {
     next[preset] = normalizeUploadFocalPoint(
       resolvePresetFocalSource({ value, fallback: fallbackValue, preset }),
     );

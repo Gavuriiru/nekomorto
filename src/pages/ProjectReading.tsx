@@ -9,6 +9,7 @@ import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
 import { isLightNovelType } from "@/lib/project-utils";
 import type { Project } from "@/data/projects";
+import type { UploadMediaVariantsMap } from "@/lib/upload-variants";
 import NotFound from "./NotFound";
 
 const LexicalViewer = lazy(() => import("@/components/lexical/LexicalViewer"));
@@ -33,6 +34,7 @@ const ProjectReading = () => {
     contentFormat?: "lexical";
   } | null>(null);
   const [hasLoaded, setHasLoaded] = useState(false);
+  const [mediaVariants, setMediaVariants] = useState<UploadMediaVariantsMap>({});
   const trackedChapterViewsRef = useRef<Set<string>>(new Set());
 
   const pageTitle = useMemo(() => {
@@ -49,6 +51,7 @@ const ProjectReading = () => {
     title: pageTitle,
     description: chapterContent?.synopsis || project?.synopsis || "",
     image: project?.cover,
+    mediaVariants,
     type: "article",
   });
 
@@ -64,16 +67,21 @@ const ProjectReading = () => {
         if (!response.ok) {
           if (isActive) {
             setProject(null);
+            setMediaVariants({});
           }
           return;
         }
         const data = await response.json();
         if (isActive) {
           setProject(data.project || null);
+          setMediaVariants(
+            data?.mediaVariants && typeof data.mediaVariants === "object" ? data.mediaVariants : {},
+          );
         }
       } catch {
         if (isActive) {
           setProject(null);
+          setMediaVariants({});
         }
       } finally {
         if (isActive) {

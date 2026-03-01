@@ -32,18 +32,16 @@ afterEach(() => {
 });
 
 describe("upload-media focal points", () => {
-  it("expande foco legado para todos os presets e preserva merge por preset", () => {
+  it("normaliza focos legados com fallback de og para card", () => {
     const focalPoints = normalizeFocalPoints(
       {
+        og: { x: 0.2, y: 0.8 },
         hero: { x: 0.9, y: 0.1 },
       },
-      { x: 0.2, y: 0.8 },
     );
 
-    expect(focalPoints.thumb).toEqual({ x: 0.2, y: 0.8 });
     expect(focalPoints.card).toEqual({ x: 0.2, y: 0.8 });
     expect(focalPoints.hero).toEqual({ x: 0.9, y: 0.1 });
-    expect(focalPoints.og).toEqual({ x: 0.2, y: 0.8 });
   });
 
   it("migra uploads legados para focalPoints e mantem focalPoint como alias", async () => {
@@ -62,14 +60,12 @@ describe("upload-media focal points", () => {
 
     expect(result.focalPoint).toEqual({ x: 0.2, y: 0.8 });
     expect(result.focalPoints).toEqual({
-      thumb: { x: 0.2, y: 0.8 },
       card: { x: 0.2, y: 0.8 },
       hero: { x: 0.2, y: 0.8 },
-      og: { x: 0.2, y: 0.8 },
     });
   });
 
-  it("gera variantes usando o foco especifico de cada preset", async () => {
+  it("gera card e og com o mesmo enquadramento logico e mantem hero independente", async () => {
     const uploadsDir = createTempUploadsDir();
     const sourcePath = path.join(uploadsDir, "source.png");
 
@@ -104,20 +100,22 @@ describe("upload-media focal points", () => {
       sourcePath,
       sourceMime: "image/png",
       focalPoints: {
-        thumb: { x: 0.5, y: 0 },
-        card: { x: 0.5, y: 0.5 },
+        card: { x: 0.5, y: 0 },
         hero: { x: 0.5, y: 1 },
-        og: { x: 0.5, y: 0.5 },
       },
       variantsVersion: 1,
     });
 
-    const thumbPath = toDiskPath(uploadsDir, String(generated.variants.thumb?.formats?.fallback?.url || ""));
+    const cardPath = toDiskPath(uploadsDir, String(generated.variants.card?.formats?.fallback?.url || ""));
+    const ogPath = toDiskPath(uploadsDir, String(generated.variants.og?.formats?.fallback?.url || ""));
     const heroPath = toDiskPath(uploadsDir, String(generated.variants.hero?.formats?.fallback?.url || ""));
-    const thumbStats = await sharp(thumbPath).stats();
+    const cardStats = await sharp(cardPath).stats();
+    const ogStats = await sharp(ogPath).stats();
     const heroStats = await sharp(heroPath).stats();
 
-    expect(thumbStats.channels[0]?.mean ?? 0).toBeGreaterThan(thumbStats.channels[2]?.mean ?? 0);
+    expect(generated.variants).not.toHaveProperty("thumb");
+    expect(cardStats.channels[0]?.mean ?? 0).toBeGreaterThan(cardStats.channels[2]?.mean ?? 0);
+    expect(ogStats.channels[0]?.mean ?? 0).toBeGreaterThan(ogStats.channels[2]?.mean ?? 0);
     expect(heroStats.channels[2]?.mean ?? 0).toBeGreaterThan(heroStats.channels[0]?.mean ?? 0);
   });
 });

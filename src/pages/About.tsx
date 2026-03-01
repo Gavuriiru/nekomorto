@@ -21,6 +21,7 @@ import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
 import { publicPageLayoutTokens } from "@/components/public-page-tokens";
 import { usePageMeta } from "@/hooks/use-page-meta";
+import type { UploadMediaVariantsMap } from "@/lib/upload-variants";
 
 const iconMap: Record<string, typeof Heart> = {
   Heart,
@@ -124,10 +125,12 @@ type HighlightItem = {
 const About = () => {
   const apiBase = getApiBase();
   const [about, setAbout] = useState(defaultAbout);
+  const [pageMediaVariants, setPageMediaVariants] = useState<UploadMediaVariantsMap>({});
   usePageMeta({
     title: "Sobre",
     image: about.shareImage || undefined,
     imageAlt: about.shareImageAlt || undefined,
+    mediaVariants: pageMediaVariants,
   });
 
   useEffect(() => {
@@ -139,6 +142,11 @@ const About = () => {
           return;
         }
         const data = await response.json();
+        if (isActive) {
+          setPageMediaVariants(
+            data?.mediaVariants && typeof data.mediaVariants === "object" ? data.mediaVariants : {},
+          );
+        }
         if (isActive && data.pages?.about) {
           const incoming = data.pages.about;
           const highlights = (incoming.highlights || defaultAbout.highlights).map(

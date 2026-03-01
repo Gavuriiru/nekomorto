@@ -88,6 +88,10 @@ const bootstrap = async () => {
     initialSettings = initialSettings || undefined;
   }
 
+  if (initialBootstrap) {
+    globalWindow.__BOOTSTRAP_PUBLIC__ = initialBootstrap;
+  }
+
   const settings = (initialSettings as { site?: { name?: string; titleSeparator?: string } }) || {};
   const siteName =
     (settings.site?.name || "").trim() || (document.title || "NEKOMATA").trim() || "NEKOMATA";
