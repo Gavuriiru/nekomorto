@@ -1,4 +1,12 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent, type SyntheticEvent } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type PointerEvent as ReactPointerEvent,
+  type SyntheticEvent,
+} from "react";
 import { CircleStencil, FixedCropper, type FixedCropperRef } from "react-advanced-cropper";
 import { ImageRestriction } from "advanced-cropper";
 import "react-advanced-cropper/dist/style.css";
@@ -34,10 +42,12 @@ import {
   UPLOAD_FOCAL_PRESET_KEYS,
   UPLOAD_VARIANT_PRESET_DIMENSIONS,
   UPLOAD_VARIANT_PRESET_KEYS,
-  computeUploadFocalCoverRect,
-  deriveLegacyUploadFocalPoint,
-  normalizeUploadFocalPoints,
+  deriveUploadFocalPointsFromCrops,
+  normalizeUploadFocalCropRect,
+  normalizeUploadFocalCrops,
   type UploadFocalPresetKey,
+  type UploadFocalCropRect,
+  type UploadFocalCrops,
   type UploadFocalPoints,
 } from "@/lib/upload-focal-points";
 import type { UploadVariantPresetKey } from "@/lib/upload-variants";
@@ -63,6 +73,7 @@ export type LibraryImageItem = {
   projectTitle?: string;
   kind?: string;
   hashSha256?: string;
+  focalCrops?: UploadFocalCrops;
   focalPoints?: UploadFocalPoints;
   focalPoint?: { x: number; y: number };
   variantsVersion?: number;
@@ -452,26 +463,48 @@ const AvatarCropWorkspace = ({
 };
 
 const buildFocalPreviewImageStyle = ({
-  sourceWidth,
-  sourceHeight,
   rect,
 }: {
-  sourceWidth: number;
-  sourceHeight: number;
-  rect: { left: number; top: number; width: number; height: number };
+  rect: UploadFocalCropRect;
 }) => ({
-  width: `${(sourceWidth / rect.width) * 100}%`,
-  height: `${(sourceHeight / rect.height) * 100}%`,
-  left: `-${(rect.left / rect.width) * 100}%`,
-  top: `-${(rect.top / rect.height) * 100}%`,
+  width: `${(1 / Math.max(rect.width, Number.EPSILON)) * 100}%`,
+  height: `${(1 / Math.max(rect.height, Number.EPSILON)) * 100}%`,
+  left: `-${(rect.left / Math.max(rect.width, Number.EPSILON)) * 100}%`,
+  top: `-${(rect.top / Math.max(rect.height, Number.EPSILON)) * 100}%`,
 });
+
+const areFocalCropRectsEqual = (left: UploadFocalCropRect, right: UploadFocalCropRect) =>
+  Math.abs(left.left - right.left) < 0.0001 &&
+  Math.abs(left.top - right.top) < 0.0001 &&
+  Math.abs(left.width - right.width) < 0.0001 &&
+  Math.abs(left.height - right.height) < 0.0001;
+
+const MIN_FOCAL_CROP_DISPLAY_PX = 32;
+const FOCAL_CROP_HANDLE_KEYS = ["nw", "ne", "sw", "se"] as const;
+
+type FocalCropHandle = (typeof FOCAL_CROP_HANDLE_KEYS)[number];
+
+type FocalCropInteraction =
+  | {
+      mode: "move";
+      pointerId: number | null;
+      startClientX: number;
+      startClientY: number;
+      startCrop: UploadFocalCropRect;
+    }
+  | {
+      mode: "resize";
+      pointerId: number | null;
+      handle: FocalCropHandle;
+      startCrop: UploadFocalCropRect;
+    };
 
 type FocalPointWorkspaceProps = {
   item: LibraryImageItem;
-  draft: UploadFocalPoints;
+  draft: UploadFocalCrops;
   activePreset: UploadFocalPresetKey;
   isSaving: boolean;
-  onDraftChange: (next: UploadFocalPoints) => void;
+  onDraftChange: (next: UploadFocalCrops) => void;
   onActivePresetChange: (preset: UploadFocalPresetKey) => void;
   onCancel: () => void;
   onSave: () => void;
@@ -493,6 +526,10 @@ const FocalPointWorkspace = ({
     width: typeof item.width === "number" ? Math.max(0, item.width) : 0,
     height: typeof item.height === "number" ? Math.max(0, item.height) : 0,
   }));
+  const [interaction, setInteraction] = useState<FocalCropInteraction | null>(null);
+  const activeCrop = draft[activePreset];
+  const activePresetDimensions = UPLOAD_VARIANT_PRESET_DIMENSIONS[activePreset];
+  const activeAspectRatio = activePresetDimensions.width / activePresetDimensions.height;
 
   const syncStageMetrics = useCallback(() => {
     const frame = frameRef.current;
@@ -511,27 +548,33 @@ const FocalPointWorkspace = ({
     );
   }, []);
 
-  const handleImageLoad = useCallback((event: SyntheticEvent<HTMLImageElement>) => {
-    const image = event.currentTarget;
-    const naturalWidth = Number(image.naturalWidth || 0);
-    const naturalHeight = Number(image.naturalHeight || 0);
-    if (naturalWidth > 0 && naturalHeight > 0) {
-      setNaturalSize((prev) =>
-        prev.width === naturalWidth && prev.height === naturalHeight
-          ? prev
-          : { width: naturalWidth, height: naturalHeight },
-      );
-    }
-    syncStageMetrics();
-  }, [syncStageMetrics]);
+  const handleImageLoad = useCallback(
+    (event: SyntheticEvent<HTMLImageElement>) => {
+      const image = event.currentTarget;
+      const naturalWidth = Number(image.naturalWidth || 0);
+      const naturalHeight = Number(image.naturalHeight || 0);
+      if (naturalWidth > 0 && naturalHeight > 0) {
+        setNaturalSize((prev) =>
+          prev.width === naturalWidth && prev.height === naturalHeight
+            ? prev
+            : { width: naturalWidth, height: naturalHeight },
+        );
+      }
+      syncStageMetrics();
+    },
+    [syncStageMetrics],
+  );
 
   useEffect(() => {
-    setStageSize({ width: 0, height: 0 });
     setNaturalSize({
       width: typeof item.width === "number" ? Math.max(0, item.width) : 0,
       height: typeof item.height === "number" ? Math.max(0, item.height) : 0,
     });
   }, [item.height, item.url, item.width]);
+
+  useEffect(() => {
+    setInteraction(null);
+  }, [activePreset, item.url]);
 
   useEffect(() => {
     const frame = frameRef.current;
@@ -562,9 +605,22 @@ const FocalPointWorkspace = ({
     };
   }, [item.url, syncStageMetrics]);
 
+  const updateActivePresetCrop = useCallback(
+    (nextCrop: UploadFocalCropRect) => {
+      const normalizedCrop = normalizeUploadFocalCropRect(nextCrop, draft[activePreset]);
+      if (areFocalCropRectsEqual(draft[activePreset], normalizedCrop)) {
+        return;
+      }
+      onDraftChange({
+        ...draft,
+        [activePreset]: normalizedCrop,
+      });
+    },
+    [activePreset, draft, onDraftChange],
+  );
+
   const sourceWidth = naturalSize.width > 0 ? naturalSize.width : 1;
   const sourceHeight = naturalSize.height > 0 ? naturalSize.height : 1;
-  const activePoint = draft[activePreset];
   const fitRect = useMemo(
     () =>
       computeUploadContainFitRect({
@@ -576,93 +632,199 @@ const FocalPointWorkspace = ({
     [sourceHeight, sourceWidth, stageSize.height, stageSize.width],
   );
 
+  const activeCropDisplayRect = useMemo(() => {
+    if (fitRect.width <= 0 || fitRect.height <= 0) {
+      return null;
+    }
+    return {
+      left: activeCrop.left * fitRect.width,
+      top: activeCrop.top * fitRect.height,
+      width: activeCrop.width * fitRect.width,
+      height: activeCrop.height * fitRect.height,
+    };
+  }, [activeCrop.height, activeCrop.left, activeCrop.top, activeCrop.width, fitRect.height, fitRect.width]);
+
   const previewRects = useMemo(() => {
-    const next = {} as Record<UploadVariantPresetKey, { left: number; top: number; width: number; height: number }>;
+    const next = {} as Record<UploadVariantPresetKey, UploadFocalCropRect>;
     UPLOAD_VARIANT_PRESET_KEYS.forEach((preset) => {
-      const dimensions = UPLOAD_VARIANT_PRESET_DIMENSIONS[preset];
-      const focalPoint = preset === "og" ? draft.card : draft[preset];
-      next[preset] = computeUploadFocalCoverRect({
-        sourceWidth,
-        sourceHeight,
-        targetWidth: dimensions.width,
-        targetHeight: dimensions.height,
-        focalPoint,
-      });
+      next[preset] = preset === "og" ? draft.card : draft[preset];
     });
     return next;
-  }, [draft, sourceHeight, sourceWidth]);
+  }, [draft]);
 
-  const activeOverlayRect = useMemo(() => {
-    if (fitRect.width <= 0 || fitRect.height <= 0) {
-      return null;
-    }
-    const rect = previewRects[activePreset];
-    return {
-      left: fitRect.left + (rect.left / sourceWidth) * fitRect.width,
-      top: fitRect.top + (rect.top / sourceHeight) * fitRect.height,
-      width: (rect.width / sourceWidth) * fitRect.width,
-      height: (rect.height / sourceHeight) * fitRect.height,
-    };
-  }, [activePreset, fitRect, previewRects, sourceHeight, sourceWidth]);
+  const syncInteractionFromPointer = useCallback(
+    (clientX: number, clientY: number) => {
+      if (!interaction || fitRect.width <= 0 || fitRect.height <= 0) {
+        return;
+      }
 
-  const activeMarker = useMemo(() => {
-    if (fitRect.width <= 0 || fitRect.height <= 0) {
-      return null;
-    }
-    return {
-      left: fitRect.left + activePoint.x * fitRect.width,
-      top: fitRect.top + activePoint.y * fitRect.height,
-    };
-  }, [activePoint.x, activePoint.y, fitRect]);
+      if (interaction.mode === "move") {
+        const deltaXNorm = (clientX - interaction.startClientX) / fitRect.width;
+        const deltaYNorm = (clientY - interaction.startClientY) / fitRect.height;
+        updateActivePresetCrop({
+          left: Math.min(1 - interaction.startCrop.width, Math.max(0, interaction.startCrop.left + deltaXNorm)),
+          top: Math.min(1 - interaction.startCrop.height, Math.max(0, interaction.startCrop.top + deltaYNorm)),
+          width: interaction.startCrop.width,
+          height: interaction.startCrop.height,
+        });
+        return;
+      }
 
-  const updateActivePresetPoint = useCallback(
-    (nextPoint: { x: number; y: number }) => {
-      onDraftChange({
-        ...draft,
-        [activePreset]: nextPoint,
+      const frame = frameRef.current;
+      if (!frame) {
+        return;
+      }
+
+      const frameRect = frame.getBoundingClientRect();
+      const localX = Math.min(fitRect.width, Math.max(0, clientX - frameRect.left - fitRect.left));
+      const localY = Math.min(
+        fitRect.height,
+        Math.max(0, clientY - frameRect.top - fitRect.top),
+      );
+      const startLeftPx = interaction.startCrop.left * fitRect.width;
+      const startTopPx = interaction.startCrop.top * fitRect.height;
+      const startWidthPx = interaction.startCrop.width * fitRect.width;
+      const startHeightPx = interaction.startCrop.height * fitRect.height;
+      const startRightPx = startLeftPx + startWidthPx;
+      const startBottomPx = startTopPx + startHeightPx;
+      const anchorX =
+        interaction.handle === "nw" || interaction.handle === "sw" ? startRightPx : startLeftPx;
+      const anchorY =
+        interaction.handle === "nw" || interaction.handle === "ne" ? startBottomPx : startTopPx;
+      const maxWidthPx =
+        interaction.handle === "nw" || interaction.handle === "sw" ? anchorX : fitRect.width - anchorX;
+      const maxHeightPx =
+        interaction.handle === "nw" || interaction.handle === "ne" ? anchorY : fitRect.height - anchorY;
+      const minWidthPx = Math.min(fitRect.width, MIN_FOCAL_CROP_DISPLAY_PX);
+      const minHeightPx = Math.min(fitRect.height, MIN_FOCAL_CROP_DISPLAY_PX);
+      const maxAllowedWidthPx = Math.max(0, Math.min(maxWidthPx, maxHeightPx * activeAspectRatio));
+      const minAllowedWidthPx = Math.min(
+        maxAllowedWidthPx,
+        Math.max(minWidthPx, minHeightPx * activeAspectRatio),
+      );
+      const rawWidthPx = Math.abs(localX - anchorX);
+      const rawHeightPx = Math.abs(localY - anchorY);
+      const requestedWidthPx = Math.min(rawWidthPx, rawHeightPx * activeAspectRatio, maxAllowedWidthPx);
+      const nextWidthPx = Math.max(minAllowedWidthPx, requestedWidthPx);
+      const nextHeightPx = nextWidthPx / activeAspectRatio;
+      let nextLeftPx = anchorX;
+      let nextTopPx = anchorY;
+
+      if (interaction.handle === "nw") {
+        nextLeftPx = anchorX - nextWidthPx;
+        nextTopPx = anchorY - nextHeightPx;
+      } else if (interaction.handle === "ne") {
+        nextTopPx = anchorY - nextHeightPx;
+      } else if (interaction.handle === "sw") {
+        nextLeftPx = anchorX - nextWidthPx;
+      }
+
+      updateActivePresetCrop({
+        left: nextLeftPx / fitRect.width,
+        top: nextTopPx / fitRect.height,
+        width: nextWidthPx / fitRect.width,
+        height: nextHeightPx / fitRect.height,
       });
     },
-    [activePreset, draft, onDraftChange],
+    [activeAspectRatio, fitRect.height, fitRect.left, fitRect.top, fitRect.width, interaction, updateActivePresetCrop],
   );
 
-  const handleFrameClick = useCallback(
-    (event: MouseEvent<HTMLDivElement>) => {
+  const handleStagePointerMove = useCallback(
+    (event: ReactPointerEvent<HTMLDivElement>) => {
+      if (
+        !interaction ||
+        (interaction.pointerId !== null &&
+          event.pointerId > 0 &&
+          event.pointerId !== interaction.pointerId)
+      ) {
+        return;
+      }
+      event.preventDefault();
+      syncInteractionFromPointer(event.clientX, event.clientY);
+    },
+    [interaction, syncInteractionFromPointer],
+  );
+
+  const handleStagePointerEnd = useCallback(
+    (event: ReactPointerEvent<HTMLDivElement>) => {
+      if (
+        !interaction ||
+        (interaction.pointerId !== null &&
+          event.pointerId > 0 &&
+          event.pointerId !== interaction.pointerId)
+      ) {
+        return;
+      }
+      event.preventDefault();
+      const frame = frameRef.current;
+      if (frame && interaction.pointerId !== null && interaction.pointerId > 0) {
+        try {
+          frame.releasePointerCapture(interaction.pointerId);
+        } catch {
+          // Ignore unsupported pointer-capture environments.
+        }
+      }
+      setInteraction(null);
+    },
+    [interaction],
+  );
+
+  const beginMoveInteraction = useCallback(
+    (event: ReactPointerEvent<HTMLDivElement>) => {
       if (fitRect.width <= 0 || fitRect.height <= 0) {
         return;
       }
-      const frameRect = event.currentTarget.getBoundingClientRect();
-      const localX = event.clientX - frameRect.left;
-      const localY = event.clientY - frameRect.top;
-      const nextX = (localX - fitRect.left) / fitRect.width;
-      const nextY = (localY - fitRect.top) / fitRect.height;
-      if (nextX < 0 || nextX > 1 || nextY < 0 || nextY > 1) {
-        return;
+      event.preventDefault();
+      event.stopPropagation();
+      const frame = frameRef.current;
+      if (frame && event.pointerId > 0) {
+        try {
+          frame.setPointerCapture(event.pointerId);
+        } catch {
+          // Ignore unsupported pointer-capture environments.
+        }
       }
-      updateActivePresetPoint({
-        x: Math.min(1, Math.max(0, nextX)),
-        y: Math.min(1, Math.max(0, nextY)),
+      setInteraction({
+        mode: "move",
+        pointerId: event.pointerId > 0 ? event.pointerId : null,
+        startClientX: event.clientX,
+        startClientY: event.clientY,
+        startCrop: activeCrop,
       });
     },
-    [fitRect, updateActivePresetPoint],
+    [activeCrop, fitRect.height, fitRect.width],
   );
 
-  const handleAxisChange = useCallback(
-    (axis: "x" | "y", value: number) => {
-      const normalized = Math.min(1, Math.max(0, value / 100));
-      updateActivePresetPoint({
-        ...draft[activePreset],
-        [axis]: normalized,
+  const beginResizeInteraction = useCallback(
+    (handle: FocalCropHandle, event: ReactPointerEvent<HTMLDivElement>) => {
+      if (fitRect.width <= 0 || fitRect.height <= 0) {
+        return;
+      }
+      event.preventDefault();
+      event.stopPropagation();
+      const frame = frameRef.current;
+      if (frame && event.pointerId > 0) {
+        try {
+          frame.setPointerCapture(event.pointerId);
+        } catch {
+          // Ignore unsupported pointer-capture environments.
+        }
+      }
+      setInteraction({
+        mode: "resize",
+        handle,
+        pointerId: event.pointerId > 0 ? event.pointerId : null,
+        startCrop: activeCrop,
       });
     },
-    [activePreset, draft, updateActivePresetPoint],
+    [activeCrop, fitRect.height, fitRect.width],
   );
 
   return (
     <div className="space-y-4">
       <div className="space-y-2">
         <p className="text-xs text-muted-foreground">
-          Edite CARD ou HERO, clique sobre a imagem inteira e ajuste os eixos. Cliques fora da
-          imagem visivel sao ignorados.
+          Edite CARD ou HERO com um recorte real. O preset OG continua derivado de CARD.
         </p>
         <div className="grid gap-3 sm:grid-cols-2">
           {UPLOAD_FOCAL_PRESET_KEYS.map((preset) => {
@@ -695,11 +857,7 @@ const FocalPointWorkspace = ({
                     alt=""
                     aria-hidden="true"
                     className="pointer-events-none absolute max-w-none select-none"
-                    style={buildFocalPreviewImageStyle({
-                      sourceWidth,
-                      sourceHeight,
-                      rect,
-                    })}
+                    style={buildFocalPreviewImageStyle({ rect })}
                   />
                 </div>
               </button>
@@ -708,81 +866,82 @@ const FocalPointWorkspace = ({
         </div>
       </div>
 
-      <div
-        ref={frameRef}
-        className="relative w-full cursor-crosshair overflow-hidden rounded-xl border border-border/60 bg-background/40"
-        style={{ height: "min(60vh, 28rem)" }}
-        onClick={handleFrameClick}
-      >
-        <div
-          className="pointer-events-none absolute"
-          style={{
-            left: `${fitRect.left}px`,
-            top: `${fitRect.top}px`,
-            width: `${fitRect.width}px`,
-            height: `${fitRect.height}px`,
-          }}
-        >
-          <img
-            src={item.url}
-            alt={toEffectiveName(item)}
-            className="block h-full w-full select-none object-contain object-center"
-            draggable={false}
-            onLoad={handleImageLoad}
-          />
-        </div>
-        {activeOverlayRect ? (
-          <div
-            className="pointer-events-none absolute rounded-md border-2 border-primary/70 bg-primary/10"
-            style={{
-              left: `${activeOverlayRect.left}px`,
-              top: `${activeOverlayRect.top}px`,
-              width: `${activeOverlayRect.width}px`,
-              height: `${activeOverlayRect.height}px`,
-            }}
-          />
-        ) : null}
-        {activeMarker ? (
-          <div
-            className="pointer-events-none absolute h-5 w-5 rounded-full border-2 border-primary bg-primary/40 shadow"
-            style={{
-              left: `${activeMarker.left}px`,
-              top: `${activeMarker.top}px`,
-              transform: "translate(-50%, -50%)",
-            }}
-          />
-        ) : null}
-      </div>
-
       <div className="rounded-xl border border-border/60 bg-card/60 p-3">
-        <p className="mb-3 text-sm font-medium text-foreground">
+        <p className="mb-1 text-sm font-medium text-foreground">
           Preset ativo: {activePreset.toUpperCase()}
         </p>
-        <div className="grid gap-3 sm:grid-cols-2">
-          <label className="space-y-2 text-xs text-muted-foreground">
-            Eixo X ({Math.round(activePoint.x * 100)}%)
-            <input
-              type="range"
-              min={0}
-              max={100}
-              step={1}
-              value={Math.round(activePoint.x * 100)}
-              onChange={(event) => handleAxisChange("x", Number(event.target.value))}
-              className="w-full accent-primary"
+        <p className="mb-3 text-xs text-muted-foreground">
+          Arraste e redimensione a caixa para definir o enquadramento final.
+        </p>
+        <div
+          ref={frameRef}
+          data-testid="focal-stage"
+          className="relative w-full overflow-hidden rounded-xl border border-border/60 bg-background/40"
+          style={{ height: "min(60vh, 28rem)" }}
+          onPointerMove={handleStagePointerMove}
+          onPointerUp={handleStagePointerEnd}
+          onPointerCancel={handleStagePointerEnd}
+        >
+          <div
+            data-testid="focal-image-shell"
+            className="absolute"
+            style={{
+              left: `${fitRect.left}px`,
+              top: `${fitRect.top}px`,
+              width: `${fitRect.width}px`,
+              height: `${fitRect.height}px`,
+            }}
+          >
+            <img
+              src={item.url}
+              alt={toEffectiveName(item)}
+              data-testid="focal-stage-image"
+              className="pointer-events-none block h-full w-full select-none object-contain object-center"
+              draggable={false}
+              onLoad={handleImageLoad}
             />
-          </label>
-          <label className="space-y-2 text-xs text-muted-foreground">
-            Eixo Y ({Math.round(activePoint.y * 100)}%)
-            <input
-              type="range"
-              min={0}
-              max={100}
-              step={1}
-              value={Math.round(activePoint.y * 100)}
-              onChange={(event) => handleAxisChange("y", Number(event.target.value))}
-              className="w-full accent-primary"
-            />
-          </label>
+            {activeCropDisplayRect ? (
+              <div
+                data-testid="focal-crop-body"
+                className="absolute border-2 border-primary/70 bg-primary/10"
+                style={{
+                  left: `${activeCropDisplayRect.left}px`,
+                  top: `${activeCropDisplayRect.top}px`,
+                  width: `${activeCropDisplayRect.width}px`,
+                  height: `${activeCropDisplayRect.height}px`,
+                  cursor: interaction?.mode === "move" ? "grabbing" : "grab",
+                  touchAction: "none",
+                }}
+                onPointerDown={beginMoveInteraction}
+              >
+                {FOCAL_CROP_HANDLE_KEYS.map((handle) => {
+                  const style =
+                    handle === "nw"
+                      ? { left: 0, top: 0, cursor: "nwse-resize" }
+                      : handle === "ne"
+                        ? { right: 0, top: 0, cursor: "nesw-resize" }
+                        : handle === "sw"
+                          ? { left: 0, bottom: 0, cursor: "nesw-resize" }
+                          : { right: 0, bottom: 0, cursor: "nwse-resize" };
+                  return (
+                    <div
+                      key={handle}
+                      data-testid={`focal-crop-handle-${handle}`}
+                      className="absolute h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-background bg-primary shadow"
+                      style={{
+                        ...style,
+                        ...(handle === "ne" || handle === "se" ? { transform: "translate(50%, -50%)" } : {}),
+                        ...(handle === "sw" ? { transform: "translate(-50%, 50%)" } : {}),
+                        ...(handle === "se" ? { transform: "translate(50%, 50%)" } : {}),
+                        touchAction: "none",
+                      }}
+                      onPointerDown={(event) => beginResizeInteraction(handle, event)}
+                    />
+                  );
+                })}
+              </div>
+            ) : null}
+          </div>
         </div>
       </div>
 
@@ -836,7 +995,7 @@ const ImageLibraryDialog = ({
   const [altTextValue, setAltTextValue] = useState("");
   const [deleteTarget, setDeleteTarget] = useState<LibraryImageItem | null>(null);
   const [focalTarget, setFocalTarget] = useState<LibraryImageItem | null>(null);
-  const [focalDraft, setFocalDraft] = useState<UploadFocalPoints>(() => normalizeUploadFocalPoints());
+  const [focalCropDraft, setFocalCropDraft] = useState<UploadFocalCrops>(() => normalizeUploadFocalCrops());
   const [activeFocalPreset, setActiveFocalPreset] = useState<UploadFocalPresetKey>("card");
   const [isRenaming, setIsRenaming] = useState(false);
   const [isSavingAltText, setIsSavingAltText] = useState(false);
@@ -1101,6 +1260,13 @@ const ImageLibraryDialog = ({
           if (!file?.url) {
             continue;
           }
+          const focalCrops = normalizeUploadFocalCrops(file.focalCrops, undefined, {
+            sourceWidth: typeof file.width === "number" ? file.width : null,
+            sourceHeight: typeof file.height === "number" ? file.height : null,
+            fallbackPoints: file.focalPoints,
+            fallbackPoint: file.focalPoint,
+          });
+          const focalPoints = deriveUploadFocalPointsFromCrops(focalCrops);
           files.push({
             id: typeof file.id === "string" ? file.id : null,
             source: "upload",
@@ -1117,8 +1283,9 @@ const ImageLibraryDialog = ({
             inUse: Boolean(file.inUse),
             canDelete: typeof file.canDelete === "boolean" ? file.canDelete : !file.inUse,
             hashSha256: typeof file.hashSha256 === "string" ? file.hashSha256 : "",
-            focalPoints: normalizeUploadFocalPoints(file.focalPoints, file.focalPoint),
-            focalPoint: deriveLegacyUploadFocalPoint(file.focalPoints, file.focalPoint),
+            focalCrops,
+            focalPoints,
+            focalPoint: focalPoints.card,
             variantsVersion: Number.isFinite(Number(file.variantsVersion))
               ? Number(file.variantsVersion)
               : 1,
@@ -1586,7 +1753,14 @@ const ImageLibraryDialog = ({
       return;
     }
     setFocalTarget(item);
-    setFocalDraft(normalizeUploadFocalPoints(item.focalPoints, item.focalPoint));
+    setFocalCropDraft(
+      normalizeUploadFocalCrops(item.focalCrops, undefined, {
+        sourceWidth: item.width,
+        sourceHeight: item.height,
+        fallbackPoints: item.focalPoints,
+        fallbackPoint: item.focalPoint,
+      }),
+    );
     setActiveFocalPreset("card");
   }, []);
 
@@ -1604,7 +1778,7 @@ const ImageLibraryDialog = ({
           headers: { "Content-Type": "application/json" },
           auth: true,
           body: JSON.stringify({
-            focalPoints: focalDraft,
+            focalCrops: focalCropDraft,
           }),
         },
       );
@@ -1630,7 +1804,7 @@ const ImageLibraryDialog = ({
     } finally {
       setIsSavingFocal(false);
     }
-  }, [apiBase, focalDraft, focalTarget?.id, loadUploads]);
+  }, [apiBase, focalCropDraft, focalTarget?.id, loadUploads]);
 
   const handleSave = () => {
     if (cropAvatar && selectedUrls.length > 0) {
@@ -2153,10 +2327,10 @@ const ImageLibraryDialog = ({
           {focalTarget ? (
             <FocalPointWorkspace
               item={focalTarget}
-              draft={focalDraft}
+              draft={focalCropDraft}
               activePreset={activeFocalPreset}
               isSaving={isSavingFocal}
-              onDraftChange={setFocalDraft}
+              onDraftChange={setFocalCropDraft}
               onActivePresetChange={setActiveFocalPreset}
               onCancel={() => setFocalTarget(null)}
               onSave={() => void saveFocalPoint()}

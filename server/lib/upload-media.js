@@ -15,6 +15,12 @@ const UPLOAD_FOCAL_PRESET_FALLBACK_ORDER = Object.freeze({
   card: Object.freeze(["card", "og", "thumb"]),
   hero: Object.freeze(["hero"]),
 });
+const FULL_FOCAL_CROP_RECT = Object.freeze({
+  left: 0,
+  top: 0,
+  width: 1,
+  height: 1,
+});
 
 const RASTER_UPLOAD_MIMES = new Set([
   "image/png",
@@ -33,6 +39,7 @@ const toNumberOrNull = (value) => {
 };
 
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
+const roundNormalized = (value) => Math.round(value * 1_000_000) / 1_000_000;
 
 const normalizeUploadMime = (value) => {
   const normalized = String(value || "").trim().toLowerCase();
@@ -189,6 +196,13 @@ export const normalizeFocalPoint = (value) => {
 const isFocalPointValue = (value) =>
   Boolean(value && typeof value === "object" && ("x" in value || "y" in value));
 
+const isFocalCropRectValue = (value) =>
+  Boolean(
+    value &&
+      typeof value === "object" &&
+      ("left" in value || "top" in value || "width" in value || "height" in value),
+  );
+
 const resolvePresetFocalSource = ({ value, fallback, presetKey }) => {
   if (isFocalPointValue(value)) {
     return value;
@@ -213,21 +227,211 @@ const resolvePresetFocalSource = ({ value, fallback, presetKey }) => {
   return null;
 };
 
-export const normalizeFocalPoints = (value, fallbackValue) => {
+const resolvePresetFocalCropSource = ({ value, fallback, presetKey }) => {
+  if (isFocalCropRectValue(value)) {
+    return value;
+  }
+  if (value && typeof value === "object" && isFocalCropRectValue(value[presetKey])) {
+    return value[presetKey];
+  }
+  if (isFocalCropRectValue(fallback)) {
+    return fallback;
+  }
+  if (fallback && typeof fallback === "object" && isFocalCropRectValue(fallback[presetKey])) {
+    return fallback[presetKey];
+  }
+  return null;
+};
+
+export const normalizeFocalCropRect = (value, fallbackValue) => {
+  const source = value && typeof value === "object" ? value : null;
+  const fallback =
+    fallbackValue && typeof fallbackValue === "object" ? fallbackValue : FULL_FOCAL_CROP_RECT;
+  const fallbackLeft = Number(fallback.left);
+  const fallbackTop = Number(fallback.top);
+  const fallbackWidth = Number(fallback.width);
+  const fallbackHeight = Number(fallback.height);
+  let width = Number(source?.width);
+  let height = Number(source?.height);
+
+  if (!Number.isFinite(width) || width <= 0) {
+    width = Number.isFinite(fallbackWidth) && fallbackWidth > 0 ? fallbackWidth : 1;
+  }
+  if (!Number.isFinite(height) || height <= 0) {
+    height = Number.isFinite(fallbackHeight) && fallbackHeight > 0 ? fallbackHeight : 1;
+  }
+
+  width = clamp(width, Number.EPSILON, 1);
+  height = clamp(height, Number.EPSILON, 1);
+
+  let left = Number(source?.left);
+  let top = Number(source?.top);
+  if (!Number.isFinite(left)) {
+    left = Number.isFinite(fallbackLeft) ? fallbackLeft : 0;
+  }
+  if (!Number.isFinite(top)) {
+    top = Number.isFinite(fallbackTop) ? fallbackTop : 0;
+  }
+
+  left = clamp(left, 0, 1);
+  top = clamp(top, 0, 1);
+
+  if (left + width > 1) {
+    left = Math.max(0, 1 - width);
+  }
+  if (top + height > 1) {
+    top = Math.max(0, 1 - height);
+  }
+
+  return {
+    left,
+    top,
+    width,
+    height,
+  };
+};
+
+export const deriveFocalPointFromCropRect = (value) => {
+  const rect = normalizeFocalCropRect(value);
+  return normalizeFocalPoint({
+    x: roundNormalized(rect.left + rect.width / 2),
+    y: roundNormalized(rect.top + rect.height / 2),
+  });
+};
+
+export const deriveDefaultFocalCropRect = ({
+  presetKey,
+  sourceWidth,
+  sourceHeight,
+  focalPoint,
+}) => {
+  const preset = UPLOAD_VARIANT_PRESETS[presetKey];
+  const safeSourceWidth = Math.max(1, Math.floor(Number(sourceWidth || 1000)));
+  const safeSourceHeight = Math.max(1, Math.floor(Number(sourceHeight || 1000)));
+  const rect = computeFocalCoverRect({
+    sourceWidth: safeSourceWidth,
+    sourceHeight: safeSourceHeight,
+    targetWidth: preset.width,
+    targetHeight: preset.height,
+    focalPoint: normalizeFocalPoint(focalPoint),
+  });
+  return {
+    left: rect.left / safeSourceWidth,
+    top: rect.top / safeSourceHeight,
+    width: rect.width / safeSourceWidth,
+    height: rect.height / safeSourceHeight,
+  };
+};
+
+export const deriveFocalCropsFromPoints = ({
+  value,
+  fallbackValue,
+  sourceWidth,
+  sourceHeight,
+} = {}) => {
   const next = {};
   UPLOAD_FOCAL_PRESET_KEYS.forEach((presetKey) => {
-    next[presetKey] = normalizeFocalPoint(
-      resolvePresetFocalSource({ value, fallback: fallbackValue, presetKey }),
+    next[presetKey] = deriveDefaultFocalCropRect({
+      presetKey,
+      sourceWidth,
+      sourceHeight,
+      focalPoint: resolvePresetFocalSource({ value, fallback: fallbackValue, presetKey }),
+    });
+  });
+  return next;
+};
+
+export const normalizeFocalCrops = (
+  value,
+  fallbackValue,
+  { sourceWidth, sourceHeight, fallbackPoints, fallbackPoint } = {},
+) => {
+  const next = {};
+  const fallbackFromPoints = deriveFocalCropsFromPoints({
+    value: fallbackPoints,
+    fallbackValue: fallbackPoint,
+    sourceWidth,
+    sourceHeight,
+  });
+  UPLOAD_FOCAL_PRESET_KEYS.forEach((presetKey) => {
+    next[presetKey] = normalizeFocalCropRect(
+      resolvePresetFocalCropSource({ value, fallback: fallbackValue, presetKey }),
+      fallbackFromPoints[presetKey],
     );
   });
   return next;
 };
 
-export const getPrimaryFocalPoint = (value, fallbackValue) =>
-  normalizeFocalPoint(resolvePresetFocalSource({ value, fallback: fallbackValue, presetKey: "card" }));
+export const normalizeFocalPoints = (value, fallbackValue) => {
+  const next = {};
+  UPLOAD_FOCAL_PRESET_KEYS.forEach((presetKey) => {
+    const cropSource = resolvePresetFocalCropSource({ value, fallback: fallbackValue, presetKey });
+    next[presetKey] = cropSource
+      ? deriveFocalPointFromCropRect(cropSource)
+      : normalizeFocalPoint(resolvePresetFocalSource({ value, fallback: fallbackValue, presetKey }));
+  });
+  return next;
+};
+
+export const deriveFocalPointsFromCrops = (value, fallbackValue) =>
+  normalizeFocalPoints(value, fallbackValue);
+
+export const getPrimaryFocalPoint = (value, fallbackValue) => normalizeFocalPoints(value, fallbackValue).card;
 
 const resolveVariantFocalPoint = ({ presetKey, focalPoints }) =>
   presetKey === "og" ? focalPoints?.card : focalPoints?.[presetKey];
+
+const resolveVariantFocalCrop = ({ presetKey, focalCrops }) =>
+  presetKey === "og" ? focalCrops?.card : focalCrops?.[presetKey];
+
+const computeFocalCoverRectFromCrop = ({
+  sourceWidth,
+  sourceHeight,
+  targetWidth,
+  targetHeight,
+  focalCrop,
+  fallbackFocalPoint,
+}) => {
+  const fallbackRect = computeFocalCoverRect({
+    sourceWidth,
+    sourceHeight,
+    targetWidth,
+    targetHeight,
+    focalPoint: fallbackFocalPoint,
+  });
+  const safeSourceWidth = Math.max(1, Math.floor(Number(sourceWidth || 1)));
+  const safeSourceHeight = Math.max(1, Math.floor(Number(sourceHeight || 1)));
+  const safeTargetWidth = Math.max(1, Math.floor(Number(targetWidth || 1)));
+  const safeTargetHeight = Math.max(1, Math.floor(Number(targetHeight || 1)));
+  const normalizedCrop = normalizeFocalCropRect(focalCrop, {
+    left: fallbackRect.left / safeSourceWidth,
+    top: fallbackRect.top / safeSourceHeight,
+    width: fallbackRect.width / safeSourceWidth,
+    height: fallbackRect.height / safeSourceHeight,
+  });
+  const rawWidth = normalizedCrop.width * safeSourceWidth;
+  const rawHeight = normalizedCrop.height * safeSourceHeight;
+  if (!Number.isFinite(rawWidth) || !Number.isFinite(rawHeight) || rawWidth <= 0 || rawHeight <= 0) {
+    return fallbackRect;
+  }
+  const targetRatio = safeTargetWidth / safeTargetHeight;
+  const rawRatioDelta = Math.abs(rawWidth / rawHeight - targetRatio);
+  if (rawRatioDelta > 0.03) {
+    return fallbackRect;
+  }
+  const cropWidth = clamp(Math.round(rawWidth), 1, safeSourceWidth);
+  const cropHeight = clamp(Math.round(rawHeight), 1, safeSourceHeight);
+  const roundedRatioDelta = Math.abs(cropWidth / cropHeight - targetRatio);
+  if (roundedRatioDelta > 0.04) {
+    return fallbackRect;
+  }
+  return {
+    left: clamp(Math.round(normalizedCrop.left * safeSourceWidth), 0, Math.max(0, safeSourceWidth - cropWidth)),
+    top: clamp(Math.round(normalizedCrop.top * safeSourceHeight), 0, Math.max(0, safeSourceHeight - cropHeight)),
+    width: cropWidth,
+    height: cropHeight,
+  };
+};
 
 export const deriveUploadArea = (folder) => toArea(folder);
 
@@ -266,6 +470,7 @@ export const generateUploadVariants = async ({
   sourceMime,
   focalPoint,
   focalPoints,
+  focalCrops,
   variantsVersion = 1,
 } = {}) => {
   if (!isRasterUploadMime(sourceMime)) {
@@ -285,18 +490,33 @@ export const generateUploadVariants = async ({
   const fallback = toFallbackFormat(hasAlpha);
   const safeVersion = sanitizeVariantVersion(variantsVersion);
   const safeFocalPoints = normalizeFocalPoints(focalPoints, focalPoint);
+  const safeFocalCrops =
+    typeof focalCrops !== "undefined"
+      ? normalizeFocalCrops(focalCrops, undefined, {
+          sourceWidth,
+          sourceHeight,
+          fallbackPoints: safeFocalPoints,
+        })
+      : deriveFocalCropsFromPoints({
+          value: safeFocalPoints,
+          sourceWidth,
+          sourceHeight,
+        });
+  const effectiveFocalPoints =
+    typeof focalCrops !== "undefined" ? deriveFocalPointsFromCrops(safeFocalCrops) : safeFocalPoints;
   const variantDir = resetVariantDirectory(uploadsDir, uploadId);
 
   const variants = {};
   let variantBytes = 0;
 
   for (const [presetKey, preset] of Object.entries(UPLOAD_VARIANT_PRESETS)) {
-    const rect = computeFocalCoverRect({
+    const rect = computeFocalCoverRectFromCrop({
       sourceWidth,
       sourceHeight,
       targetWidth: preset.width,
       targetHeight: preset.height,
-      focalPoint: resolveVariantFocalPoint({ presetKey, focalPoints: safeFocalPoints }),
+      focalCrop: resolveVariantFocalCrop({ presetKey, focalCrops: safeFocalCrops }),
+      fallbackFocalPoint: resolveVariantFocalPoint({ presetKey, focalPoints: effectiveFocalPoints }),
     });
     const base = createBaseVariantPipeline({ sourcePath, rect, preset });
     const avifPath = createVariantFilePath({
@@ -384,17 +604,17 @@ export const attachUploadMediaMetadata = async ({
   hashSha256,
   focalPoint,
   focalPoints,
+  focalCrops,
   variantsVersion,
   regenerateVariants = true,
 } = {}) => {
   const current = entry && typeof entry === "object" ? { ...entry } : {};
-  const normalizedFocalPoints =
+  const incomingFocalPoints =
     typeof focalPoints !== "undefined"
       ? normalizeFocalPoints(focalPoints, current?.focalPoints ?? current?.focalPoint)
       : typeof focalPoint !== "undefined"
         ? normalizeFocalPoints(focalPoint)
         : normalizeFocalPoints(current?.focalPoints, current?.focalPoint);
-  const normalizedFocal = getPrimaryFocalPoint(normalizedFocalPoints);
   const normalizedHash = String(hashSha256 || current.hashSha256 || "").trim().toLowerCase();
   const nextVersion = sanitizeVariantVersion(variantsVersion ?? current.variantsVersion ?? 1);
   let nextVariants = normalizeVariants(current.variants);
@@ -408,7 +628,8 @@ export const attachUploadMediaMetadata = async ({
       uploadId: String(current.id || ""),
       sourcePath,
       sourceMime,
-      focalPoints: normalizedFocalPoints,
+      focalPoints: incomingFocalPoints,
+      focalCrops,
       variantsVersion: nextVersion,
     });
     nextVariants = normalizeVariants(generated.variants);
@@ -417,9 +638,32 @@ export const attachUploadMediaMetadata = async ({
     variantBytes = Number(generated.variantBytes || 0);
   }
 
+  const normalizedFocalCrops =
+    typeof focalCrops !== "undefined"
+      ? normalizeFocalCrops(focalCrops, current?.focalCrops, {
+          sourceWidth,
+          sourceHeight,
+          fallbackPoints: incomingFocalPoints,
+        })
+      : typeof focalPoints !== "undefined" || typeof focalPoint !== "undefined"
+        ? deriveFocalCropsFromPoints({
+            value: incomingFocalPoints,
+            sourceWidth,
+            sourceHeight,
+          })
+        : normalizeFocalCrops(current?.focalCrops, undefined, {
+            sourceWidth,
+            sourceHeight,
+            fallbackPoints: current?.focalPoints,
+            fallbackPoint: current?.focalPoint,
+          });
+  const normalizedFocalPoints = deriveFocalPointsFromCrops(normalizedFocalCrops);
+  const normalizedFocal = getPrimaryFocalPoint(normalizedFocalPoints);
+
   return {
     ...current,
     hashSha256: normalizedHash || "",
+    focalCrops: normalizedFocalCrops,
     focalPoints: normalizedFocalPoints,
     focalPoint: normalizedFocal,
     variantsVersion: nextVersion,

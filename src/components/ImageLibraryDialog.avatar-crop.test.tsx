@@ -43,6 +43,7 @@ vi.mock("react-advanced-cropper", async () => {
     Cropper: FixedCropper,
     FixedCropper,
     CircleStencil: () => null,
+    RectangleStencil: () => null,
   };
 });
 

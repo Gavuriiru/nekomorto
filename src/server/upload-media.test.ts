@@ -50,6 +50,8 @@ describe("upload-media focal points", () => {
       entry: {
         id: "upload-legacy",
         folder: "posts",
+        width: 100,
+        height: 200,
         focalPoint: { x: 0.2, y: 0.8 },
         variants: {},
         variantsVersion: 1,
@@ -58,10 +60,14 @@ describe("upload-media focal points", () => {
       regenerateVariants: false,
     });
 
-    expect(result.focalPoint).toEqual({ x: 0.2, y: 0.8 });
+    expect(result.focalPoint).toEqual({ x: 0.5, y: 0.8 });
     expect(result.focalPoints).toEqual({
-      card: { x: 0.2, y: 0.8 },
-      hero: { x: 0.2, y: 0.8 },
+      card: { x: 0.5, y: 0.8 },
+      hero: { x: 0.5, y: 0.8 },
+    });
+    expect(result.focalCrops).toEqual({
+      card: { left: 0, top: 0.66, width: 1, height: 0.28 },
+      hero: { left: 0, top: 0.66, width: 1, height: 0.28 },
     });
   });
 
@@ -99,9 +105,9 @@ describe("upload-media focal points", () => {
       uploadId: "upload-1",
       sourcePath,
       sourceMime: "image/png",
-      focalPoints: {
-        card: { x: 0.5, y: 0 },
-        hero: { x: 0.5, y: 1 },
+      focalCrops: {
+        card: { left: 0, top: 0, width: 1, height: 0.28125 },
+        hero: { left: 0, top: 0.71875, width: 1, height: 0.28125 },
       },
       variantsVersion: 1,
     });
@@ -117,5 +123,35 @@ describe("upload-media focal points", () => {
     expect(cardStats.channels[0]?.mean ?? 0).toBeGreaterThan(cardStats.channels[2]?.mean ?? 0);
     expect(ogStats.channels[0]?.mean ?? 0).toBeGreaterThan(ogStats.channels[2]?.mean ?? 0);
     expect(heroStats.channels[2]?.mean ?? 0).toBeGreaterThan(heroStats.channels[0]?.mean ?? 0);
+  });
+
+  it("persiste focalCrops e deriva aliases de focalPoints a partir do centro", async () => {
+    const result = await attachUploadMediaMetadata({
+      uploadsDir: createTempUploadsDir(),
+      entry: {
+        id: "upload-crop",
+        folder: "posts",
+        width: 1600,
+        height: 1600,
+        variants: {},
+        variantsVersion: 1,
+      },
+      hashSha256: "abc123",
+      focalCrops: {
+        card: { left: 0.1, top: 0.2, width: 0.4, height: 0.5 },
+        hero: { left: 0.25, top: 0.3, width: 0.5, height: 0.4 },
+      },
+      regenerateVariants: false,
+    });
+
+    expect(result.focalCrops).toEqual({
+      card: { left: 0.1, top: 0.2, width: 0.4, height: 0.5 },
+      hero: { left: 0.25, top: 0.3, width: 0.5, height: 0.4 },
+    });
+    expect(result.focalPoints).toEqual({
+      card: { x: 0.3, y: 0.45 },
+      hero: { x: 0.5, y: 0.5 },
+    });
+    expect(result.focalPoint).toEqual({ x: 0.3, y: 0.45 });
   });
 });

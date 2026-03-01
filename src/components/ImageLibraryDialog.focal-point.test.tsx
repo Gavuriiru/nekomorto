@@ -1,5 +1,5 @@
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import ImageLibraryDialog from "@/components/ImageLibraryDialog";
 
@@ -77,114 +77,113 @@ const ensureDomRectFromRect = () => {
   globalScope.DOMRect = domRectCtor;
 };
 
+const ensurePointerEvent = () => {
+  const globalScope = globalThis as typeof globalThis & { PointerEvent?: typeof PointerEvent };
+  const windowScope = window as Window & typeof globalThis & { PointerEvent?: typeof PointerEvent };
+
+  if (!windowScope.PointerEvent && !globalScope.PointerEvent) {
+    class PointerEventPolyfill extends MouseEvent {
+      pointerId: number;
+
+      constructor(type: string, init?: MouseEventInit & { pointerId?: number }) {
+        super(type, init);
+        this.pointerId = init?.pointerId ?? 0;
+      }
+    }
+
+    windowScope.PointerEvent = PointerEventPolyfill as unknown as typeof PointerEvent;
+    globalScope.PointerEvent = PointerEventPolyfill as unknown as typeof PointerEvent;
+    return;
+  }
+
+  const pointerEventCtor = windowScope.PointerEvent || globalScope.PointerEvent;
+  if (!pointerEventCtor) {
+    return;
+  }
+
+  windowScope.PointerEvent = pointerEventCtor;
+  globalScope.PointerEvent = pointerEventCtor;
+};
+
+const dispatchPointerEvent = (
+  target: EventTarget,
+  type: string,
+  init: MouseEventInit & { pointerId?: number },
+) => {
+  act(() => {
+    target.dispatchEvent(
+      new window.PointerEvent(type, {
+        bubbles: true,
+        cancelable: true,
+        ...init,
+      }),
+    );
+  });
+};
+
 describe("ImageLibraryDialog focal point editor", () => {
+  let originalGetBoundingClientRect: typeof HTMLElement.prototype.getBoundingClientRect;
+
   beforeEach(() => {
     ensureDomRectFromRect();
+    ensurePointerEvent();
+    originalGetBoundingClientRect = HTMLElement.prototype.getBoundingClientRect;
+    HTMLElement.prototype.getBoundingClientRect = function getBoundingClientRect() {
+      return DOMRect.fromRect({ x: 0, y: 0, width: 800, height: 320 });
+    };
+
     apiFetchMock.mockReset();
     toastMock.mockReset();
 
-    let listCalls = 0;
-    apiFetchMock.mockImplementation(async (_base: string, path: string, options?: { method?: string; body?: string }) => {
-      if (path.startsWith("/api/uploads/list")) {
-        listCalls += 1;
-        return mockJsonResponse(true, {
-          files: [
-            {
+    apiFetchMock.mockImplementation(
+      async (_base: string, path: string, options?: { method?: string; body?: string }) => {
+        if (path.startsWith("/api/uploads/list")) {
+          return mockJsonResponse(true, {
+            files: [
+              {
+                id: "upload-1",
+                url: "/uploads/posts/focal.png",
+                name: "focal.png",
+                fileName: "focal.png",
+                width: 100,
+                height: 200,
+                focalPoint: { x: 0.2, y: 0.8 },
+              },
+            ],
+          });
+        }
+
+        if (path === "/api/uploads/upload-1/focal-point" && options?.method === "PATCH") {
+          return mockJsonResponse(true, {
+            ok: true,
+            item: {
               id: "upload-1",
               url: "/uploads/posts/focal.png",
-              name: "focal.png",
-              fileName: "focal.png",
-              width: 100,
-              height: 200,
-              focalPoint: { x: 0.2, y: 0.8 },
-              ...(listCalls > 1
-                ? {
-                    focalPoints: {
-                      thumb: { x: 0.2, y: 0.8 },
-                      card: { x: 0.2, y: 0.8 },
-                      hero: { x: 0.75, y: 0.8 },
-                      og: { x: 0.2, y: 0.8 },
-                    },
-                  }
-                : {}),
+              focalCrops: {
+                card: { left: 0.1, top: 0.1, width: 0.4, height: 0.25 },
+                hero: { left: 0.05, top: 0.6, width: 0.9, height: 0.3 },
+              },
+              focalPoints: {
+                card: { x: 0.3, y: 0.225 },
+                hero: { x: 0.5, y: 0.75 },
+              },
+              focalPoint: { x: 0.3, y: 0.225 },
+              variantsVersion: 2,
+              variants: {},
             },
-          ],
-        });
-      }
+          });
+        }
 
-      if (path === "/api/uploads/upload-1/focal-point" && options?.method === "PATCH") {
-        return mockJsonResponse(true, {
-          ok: true,
-          item: {
-            id: "upload-1",
-            url: "/uploads/posts/focal.png",
-            focalPoints: {
-              card: { x: 0.2, y: 0.8 },
-              hero: { x: 0.75, y: 0.8 },
-            },
-            focalPoint: { x: 0.2, y: 0.8 },
-            variantsVersion: 2,
-            variants: {},
-          },
-        });
-      }
-
-      return mockJsonResponse(false, { error: "not_found" }, 404);
-    });
+        return mockJsonResponse(false, { error: "not_found" }, 404);
+      },
+    );
   });
 
-  it("carrega foco legado, permite editar um preset e envia o mapa completo", async () => {
-    render(
-      <ImageLibraryDialog
-        open
-        onOpenChange={() => undefined}
-        apiBase="http://api.local"
-        onSave={() => undefined}
-      />,
-    );
-
-    const uploadButton = await screen.findByRole("button", { name: /focal\.png/i });
-    fireEvent.contextMenu(uploadButton);
-
-    const menuItem = await screen.findByText("Definir ponto focal");
-    fireEvent.click(menuItem);
-
-    const dialogs = await screen.findAllByRole("dialog");
-    const focalDialog = dialogs[dialogs.length - 1];
-
-    expect(within(focalDialog).queryByRole("button", { name: /thumb/i })).toBeNull();
-    expect(within(focalDialog).queryByRole("button", { name: /^og/i })).toBeNull();
-    expect(within(focalDialog).queryByText(/OG \(derivado de CARD\)/i)).toBeNull();
-
-    fireEvent.click(within(focalDialog).getByRole("button", { name: /hero/i }));
-    fireEvent.change(within(focalDialog).getByLabelText(/Eixo X/i), {
-      target: { value: "75" },
-    });
-
-    fireEvent.click(within(focalDialog).getByRole("button", { name: "Salvar ponto focal" }));
-
-    await waitFor(() => {
-      const patchCall = apiFetchMock.mock.calls.find(
-        (call) => String(call[1] || "") === "/api/uploads/upload-1/focal-point",
-      );
-      expect(patchCall).toBeTruthy();
-    });
-
-    const patchCall = apiFetchMock.mock.calls.find(
-      (call) => String(call[1] || "") === "/api/uploads/upload-1/focal-point",
-    );
-    const request = (patchCall?.[2] || {}) as { body?: string };
-    const payload = JSON.parse(String(request.body || "{}")) as {
-      focalPoints?: Record<string, { x: number; y: number }>;
-    };
-
-    expect(payload.focalPoints).toEqual({
-      card: { x: 0.2, y: 0.8 },
-      hero: { x: 0.75, y: 0.8 },
-    });
+  afterEach(() => {
+    HTMLElement.prototype.getBoundingClientRect = originalGetBoundingClientRect;
   });
 
-  it("ignora cliques fora da area util da imagem", async () => {
+  it("renderiza a imagem inteira em contain e ignora interacoes fora da area util", async () => {
     render(
       <ImageLibraryDialog
         open
@@ -200,20 +199,30 @@ describe("ImageLibraryDialog focal point editor", () => {
 
     const dialogs = await screen.findAllByRole("dialog");
     const focalDialog = dialogs[dialogs.length - 1];
-    const editorImage = within(focalDialog).getByRole("img", { name: /focal\.png/i });
-    const stage = editorImage.parentElement?.parentElement as HTMLDivElement | null;
+    const stage = within(focalDialog).getByTestId("focal-stage");
+    const imageShell = within(focalDialog).getByTestId("focal-image-shell");
 
-    expect(stage).not.toBeNull();
-    if (!stage) {
-      return;
-    }
+    await waitFor(() => {
+      expect(imageShell.style.left).toBe("320px");
+      expect(imageShell.style.top).toBe("0px");
+      expect(imageShell.style.width).toBe("160px");
+      expect(imageShell.style.height).toBe("320px");
+    });
 
-    stage.getBoundingClientRect = () => DOMRect.fromRect({ x: 100, y: 50, width: 800, height: 320 });
-    fireEvent(window, new Event("resize"));
+    expect(within(focalDialog).getByRole("img", { name: /focal\.png/i })).toBeInTheDocument();
 
-    fireEvent.click(stage, {
-      clientX: 150,
-      clientY: 150,
+    fireEvent.pointerDown(stage, {
+      pointerId: 1,
+      clientX: 100,
+      clientY: 100,
+    });
+    fireEvent.pointerMove(window, {
+      pointerId: 1,
+      clientX: 60,
+      clientY: 60,
+    });
+    fireEvent.pointerUp(window, {
+      pointerId: 1,
     });
 
     fireEvent.click(within(focalDialog).getByRole("button", { name: "Salvar ponto focal" }));
@@ -230,9 +239,97 @@ describe("ImageLibraryDialog focal point editor", () => {
     );
     const request = (patchCall?.[2] || {}) as { body?: string };
     const payload = JSON.parse(String(request.body || "{}")) as {
-      focalPoints?: Record<string, { x: number; y: number }>;
+      focalCrops?: Record<string, { left: number; top: number; width: number; height: number }>;
     };
 
-    expect(payload.focalPoints?.card).toEqual({ x: 0.2, y: 0.8 });
+    expect(payload.focalCrops?.card?.left).toBe(0);
+    expect(payload.focalCrops?.card?.top).toBeCloseTo(0.66, 6);
+    expect(payload.focalCrops?.card?.width).toBe(1);
+    expect(payload.focalCrops?.card?.height).toBeCloseTo(0.28, 6);
+  });
+
+  it("move e redimensiona a caixa mantendo drafts independentes por preset", async () => {
+    render(
+      <ImageLibraryDialog
+        open
+        onOpenChange={() => undefined}
+        apiBase="http://api.local"
+        onSave={() => undefined}
+      />,
+    );
+
+    const uploadButton = await screen.findByRole("button", { name: /focal\.png/i });
+    fireEvent.contextMenu(uploadButton);
+    fireEvent.click(await screen.findByText("Definir ponto focal"));
+
+    const dialogs = await screen.findAllByRole("dialog");
+    const focalDialog = dialogs[dialogs.length - 1];
+    const stage = within(focalDialog).getByTestId("focal-stage");
+    const imageShell = within(focalDialog).getByTestId("focal-image-shell");
+
+    await waitFor(() => {
+      expect(imageShell.style.width).toBe("160px");
+    });
+
+    const cropBody = within(focalDialog).getByTestId("focal-crop-body");
+    expect(cropBody.style.width).toBe("160px");
+
+    dispatchPointerEvent(cropBody, "pointerdown", {
+      pointerId: 2,
+      clientX: 400,
+      clientY: 240,
+    });
+    dispatchPointerEvent(stage, "pointermove", {
+      pointerId: 2,
+      clientX: 400,
+      clientY: 200,
+    });
+    dispatchPointerEvent(stage, "pointerup", {
+      pointerId: 2,
+    });
+
+    fireEvent.click(within(focalDialog).getByRole("button", { name: /hero/i }));
+
+    const resizeHandle = within(focalDialog).getByTestId("focal-crop-handle-se");
+    dispatchPointerEvent(resizeHandle, "pointerdown", {
+      pointerId: 3,
+      clientX: 480,
+      clientY: 300,
+    });
+    dispatchPointerEvent(stage, "pointermove", {
+      pointerId: 3,
+      clientX: 440,
+      clientY: 270,
+    });
+    dispatchPointerEvent(stage, "pointerup", {
+      pointerId: 3,
+    });
+
+    fireEvent.click(within(focalDialog).getByRole("button", { name: "Salvar ponto focal" }));
+
+    await waitFor(() => {
+      const patchCall = apiFetchMock.mock.calls.find(
+        (call) => String(call[1] || "") === "/api/uploads/upload-1/focal-point",
+      );
+      expect(patchCall).toBeTruthy();
+    });
+
+    const patchCall = apiFetchMock.mock.calls.find(
+      (call) => String(call[1] || "") === "/api/uploads/upload-1/focal-point",
+    );
+    const request = (patchCall?.[2] || {}) as { body?: string };
+    const payload = JSON.parse(String(request.body || "{}")) as {
+      focalCrops?: Record<string, { left: number; top: number; width: number; height: number }>;
+    };
+
+    expect(payload.focalCrops?.card?.left).toBe(0);
+    expect(payload.focalCrops?.card?.top).toBeCloseTo(0.535, 6);
+    expect(payload.focalCrops?.card?.width).toBe(1);
+    expect(payload.focalCrops?.card?.height).toBeCloseTo(0.28, 6);
+
+    expect(payload.focalCrops?.hero?.left).toBe(0);
+    expect(payload.focalCrops?.hero?.top).toBeCloseTo(0.66, 6);
+    expect(payload.focalCrops?.hero?.width).toBeCloseTo(0.653333, 6);
+    expect(payload.focalCrops?.hero?.height).toBeCloseTo(0.18375, 6);
   });
 });
