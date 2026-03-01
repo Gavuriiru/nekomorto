@@ -90,7 +90,7 @@ type CleanupRunPayload = {
 };
 
 const CLEANUP_CONFIRM_TEXT = "EXCLUIR";
-const CLEANUP_ACTION_LABEL = "Limpar armazenamento nao utilizado";
+const CLEANUP_ACTION_LABEL = "Limpar armazenamento não utilizado";
 
 const emptyTotals: StorageAreaRow = {
   area: "total",
@@ -253,7 +253,7 @@ const formatCleanupDescription = ({
   deletedOrphanedVariantDirsCount: number;
   totalBytes: number;
 }) =>
-  `${deletedUnusedUploadsCount} uploads removidos, ${deletedOrphanedVariantFilesCount} variantes orfas removidas, ${deletedOrphanedVariantDirsCount} diretorios orfaos removidos e ${formatBytes(totalBytes)} liberados.`;
+  `${deletedUnusedUploadsCount} uploads removidos, ${deletedOrphanedVariantFilesCount} variantes órfãs removidas, ${deletedOrphanedVariantDirsCount} diretórios órfãos removidos e ${formatBytes(totalBytes)} liberados.`;
 
 const DashboardUploads = () => {
   usePageMeta({ title: "Uploads", noIndex: true });
@@ -388,7 +388,7 @@ const DashboardUploads = () => {
 
       if (!response.ok) {
         toast({
-          title: "Nao foi possivel limpar o armazenamento",
+          title: "Não foi possível limpar o armazenamento",
           variant: "destructive",
         });
         return;
@@ -414,7 +414,7 @@ const DashboardUploads = () => {
       }
 
       toast({
-        title: "Armazenamento nao utilizado removido",
+        title: "Armazenamento não utilizado removido",
         description: formatCleanupDescription({
           deletedUnusedUploadsCount: payload.deletedUnusedUploadsCount,
           deletedOrphanedVariantFilesCount: payload.deletedOrphanedVariantFilesCount,
@@ -424,7 +424,7 @@ const DashboardUploads = () => {
       });
     } catch {
       toast({
-        title: "Nao foi possivel limpar o armazenamento",
+        title: "Não foi possível limpar o armazenamento",
         variant: "destructive",
       });
     } finally {
@@ -438,7 +438,7 @@ const DashboardUploads = () => {
         <DashboardPageHeader
           badge="Midia"
           title="Uploads e Storage"
-          description="Consumo por area com separacao entre originais e variantes automaticas."
+          description="Consumo por área com separação entre originais e variantes automáticas."
           actions={
             <div className="flex items-center gap-2">
               <Badge className="bg-card/80 text-muted-foreground">
@@ -459,7 +459,7 @@ const DashboardUploads = () => {
         <section className="mt-8 space-y-6">
           {isForbidden ? (
             <article className="rounded-2xl border border-border/60 bg-card/60 p-5 text-sm text-muted-foreground">
-              Voce nao possui permissao para visualizar o painel de uploads.
+              Você não possui permissão para visualizar o painel de uploads.
             </article>
           ) : null}
 
@@ -478,20 +478,20 @@ const DashboardUploads = () => {
           {!isForbidden ? (
             <article className="overflow-hidden rounded-2xl border border-border/60 bg-card/60">
               <div className="border-b border-border/60 px-5 py-4">
-                <h2 className="text-sm font-semibold text-foreground">Consumo por area</h2>
+                <h2 className="text-sm font-semibold text-foreground">Consumo por área</h2>
               </div>
               {isLoading ? (
                 <p className="px-5 py-4 text-sm text-muted-foreground">Carregando dados de storage...</p>
               ) : hasError ? (
-                <p className="px-5 py-4 text-sm text-amber-300">Nao foi possivel carregar os dados de storage.</p>
+                <p className="px-5 py-4 text-sm text-amber-300">Não foi possível carregar os dados de storage.</p>
               ) : summary.areas.length === 0 ? (
-                <p className="px-5 py-4 text-sm text-muted-foreground">Nenhuma area encontrada no inventario.</p>
+                <p className="px-5 py-4 text-sm text-muted-foreground">Nenhuma área encontrada no inventário.</p>
               ) : (
                 <div className="overflow-x-auto">
                   <table className="w-full min-w-[760px] text-sm">
                     <thead className="bg-background/60 text-xs uppercase tracking-[0.12em] text-muted-foreground">
                       <tr>
-                        <th className="px-4 py-3 text-left">Area</th>
+                        <th className="px-4 py-3 text-left">Área</th>
                         <th className="px-4 py-3 text-right">Originais</th>
                         <th className="px-4 py-3 text-right">Variantes</th>
                         <th className="px-4 py-3 text-right">Total</th>
@@ -526,28 +526,28 @@ const DashboardUploads = () => {
               <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/60 px-5 py-4">
                 <div className="space-y-1">
                   <h2 className="text-sm font-semibold text-foreground">
-                    Limpeza de armazenamento nao utilizado
+                    Limpeza de armazenamento não utilizado
                   </h2>
                   <p className="text-sm text-muted-foreground">
-                    Remove uploads sem referencia e variantes orfas encontradas em _variants.
+                    Remove uploads sem referência e variantes órfãs encontradas em _variants.
                   </p>
                 </div>
                 <Badge className="bg-card/80 text-muted-foreground">
-                  Analise: {formatDateTime(cleanupPreview.generatedAt)}
+                  Análise: {formatDateTime(cleanupPreview.generatedAt)}
                 </Badge>
               </div>
 
               {isCleanupLoading ? (
                 <p className="px-5 py-4 text-sm text-muted-foreground">
-                  Analisando armazenamento nao utilizado...
+                  Analisando armazenamento não utilizado...
                 </p>
               ) : hasCleanupError ? (
                 <p className="px-5 py-4 text-sm text-amber-300">
-                  Nao foi possivel analisar o armazenamento nao utilizado.
+                  Não foi possível analisar o armazenamento não utilizado.
                 </p>
               ) : !hasCleanupCandidates ? (
                 <p className="px-5 py-4 text-sm text-muted-foreground">
-                  Nenhum arquivo elegivel para limpeza.
+                  Nenhum arquivo elegível para limpeza.
                 </p>
               ) : (
                 <div className="space-y-4 px-5 py-4">
@@ -557,13 +557,13 @@ const DashboardUploads = () => {
                         {cleanupPreview.unusedUploadCount} uploads sem uso
                       </p>
                       <p className="text-sm text-muted-foreground">
-                        {cleanupPreview.orphanedVariantFilesCount} arquivos de variante orfaos
+                        {cleanupPreview.orphanedVariantFilesCount} arquivos de variante órfãos
                       </p>
                       <p className="text-sm text-muted-foreground">
-                        {cleanupPreview.orphanedVariantDirsCount} diretorios de variantes orfaos
+                        {cleanupPreview.orphanedVariantDirsCount} diretórios de variantes órfãos
                       </p>
                       <p className="text-sm text-muted-foreground">
-                        {formatBytes(cleanupPreview.totals.totalBytes)} recuperaveis no total
+                        {formatBytes(cleanupPreview.totals.totalBytes)} recuperáveis no total
                       </p>
                       <p className="text-xs text-muted-foreground">
                         {formatBytes(cleanupPreview.totals.originalBytes)} em originais e{" "}
@@ -587,9 +587,9 @@ const DashboardUploads = () => {
                           <tr>
                             <th className="px-4 py-3 text-left">Tipo</th>
                             <th className="px-4 py-3 text-left">Arquivo</th>
-                            <th className="px-4 py-3 text-left">Area</th>
+                            <th className="px-4 py-3 text-left">Área</th>
                             <th className="px-4 py-3 text-left">Criado em</th>
-                            <th className="px-4 py-3 text-right">Recuperavel</th>
+                            <th className="px-4 py-3 text-right">Recuperável</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -599,7 +599,7 @@ const DashboardUploads = () => {
                               className="border-t border-border/50"
                             >
                               <td className="px-4 py-3 text-muted-foreground">
-                                {item.kind === "variant" ? "Variante orfa" : "Upload"}
+                                {item.kind === "variant" ? "Variante órfã" : "Upload"}
                               </td>
                               <td className="px-4 py-3">
                                 <p className="font-medium text-foreground">{item.fileName || item.url}</p>
@@ -637,10 +637,10 @@ const DashboardUploads = () => {
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Limpar armazenamento nao utilizado?</AlertDialogTitle>
+            <AlertDialogTitle>Limpar armazenamento não utilizado?</AlertDialogTitle>
             <AlertDialogDescription>
-              Esta acao remove uploads sem uso e variantes orfas encontradas em _variants.
-              Variantes validas referenciadas pelo metadata atual serao preservadas. Digite EXCLUIR
+              Esta ação remove uploads sem uso e variantes órfãs encontradas em _variants.
+              Variantes válidas referenciadas pelo metadata atual serão preservadas. Digite EXCLUIR
               para confirmar.
             </AlertDialogDescription>
           </AlertDialogHeader>
@@ -650,17 +650,17 @@ const DashboardUploads = () => {
               <span className="font-semibold text-foreground">{cleanupPreview.unusedUploadCount}</span>
             </p>
             <p className="text-sm text-muted-foreground">
-              Variantes orfas:{" "}
+              Variantes órfãs:{" "}
               <span className="font-semibold text-foreground">
                 {cleanupPreview.orphanedVariantFilesCount}
               </span>
             </p>
             <p className="text-sm text-muted-foreground">
-              Diretorios orfaos:{" "}
+              Diretórios órfãos:{" "}
               <span className="font-semibold text-foreground">{cleanupPreview.orphanedVariantDirsCount}</span>
             </p>
             <p className="text-sm text-muted-foreground">
-              Espaco recuperavel:{" "}
+              Espaço recuperável:{" "}
               <span className="font-semibold text-foreground">
                 {formatBytes(cleanupPreview.totals.totalBytes)}
               </span>

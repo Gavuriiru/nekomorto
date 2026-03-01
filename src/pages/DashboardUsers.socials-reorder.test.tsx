@@ -113,8 +113,8 @@ describe("DashboardUsers socials reorder", () => {
       </MemoryRouter>,
     );
 
-    const openEditorButton = await screen.findByRole("button", { name: /Abrir usuario Admin/i });
-    expect(screen.queryByRole("button", { name: /Editar usuario Admin/i })).not.toBeInTheDocument();
+    const openEditorButton = await screen.findByRole("button", { name: /Abrir usuário Admin/i });
+    expect(screen.queryByRole("button", { name: /Editar usuário Admin/i })).not.toBeInTheDocument();
     fireEvent.click(openEditorButton);
     const dialog = await screen.findByRole("dialog");
 
@@ -201,7 +201,7 @@ describe("DashboardUsers socials reorder", () => {
       </MemoryRouter>,
     );
 
-    fireEvent.click(await screen.findByRole("button", { name: /Mover usuario Beta para cima/i }));
+    fireEvent.click(await screen.findByRole("button", { name: /Mover usuário Beta para cima/i }));
 
     await waitFor(() => {
       const reorderCall = apiFetchMock.mock.calls.find((call) => {
@@ -262,7 +262,7 @@ describe("DashboardUsers socials reorder", () => {
       </MemoryRouter>,
     );
 
-    fireEvent.click(await screen.findByRole("button", { name: /Mover usuario Beta para cima/i }));
+    fireEvent.click(await screen.findByRole("button", { name: /Mover usuário Beta para cima/i }));
 
     await waitFor(() => {
       expect(toastMock).toHaveBeenCalledWith(

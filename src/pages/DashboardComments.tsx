@@ -347,12 +347,12 @@ const DashboardComments = () => {
             <AsyncState
               kind="loading"
               title="Carregando comentários"
-              description="Buscando a fila de moderacao."
+              description="Buscando a fila de moderação."
             />
           ) : hasLoadError ? (
             <AsyncState
               kind="error"
-              title="Nao foi possivel carregar os comentarios"
+              title="Não foi possível carregar os comentários"
               description="Tente novamente em alguns instantes."
               action={
                 <Button variant="outline" onClick={() => void loadComments()}>
@@ -363,8 +363,8 @@ const DashboardComments = () => {
           ) : comments.length === 0 ? (
             <AsyncState
               kind="empty"
-              title="Nenhum comentario pendente"
-              description="A fila de moderacao esta em dia."
+              title="Nenhum comentário pendente"
+              description="A fila de moderação está em dia."
             />
           ) : (
             <div className="grid gap-4">

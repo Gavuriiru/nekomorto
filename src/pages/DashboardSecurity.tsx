@@ -61,7 +61,7 @@ const userInitials = (name: string) =>
     .toUpperCase() || "??";
 
 const DashboardSecurity = () => {
-  usePageMeta({ title: "Seguranca", noIndex: true });
+  usePageMeta({ title: "Segurança", noIndex: true });
 
   const apiBase = getApiBase();
   const [me, setMe] = useState<MeUser | null>(null);
@@ -182,13 +182,13 @@ const DashboardSecurity = () => {
         },
       );
       if (!response.ok) {
-        toast({ title: "Falha ao encerrar sessao", variant: "destructive" });
+        toast({ title: "Falha ao encerrar sessão", variant: "destructive" });
         return;
       }
-      toast({ title: "Sessao encerrada" });
+      toast({ title: "Sessão encerrada" });
       await load();
     } catch {
-      toast({ title: "Falha ao encerrar sessao", variant: "destructive" });
+      toast({ title: "Falha ao encerrar sessão", variant: "destructive" });
     } finally {
       setRevokingSid(null);
       setPendingRevokeSession(null);
@@ -204,10 +204,10 @@ const DashboardSecurity = () => {
       <main className="pt-24">
         <section className="mx-auto w-full max-w-6xl space-y-6 px-6 pb-20 md:px-10">
           <header className="space-y-2">
-            <p className="text-xs uppercase tracking-[0.25em] text-muted-foreground">Seguranca</p>
-            <h1 className="text-3xl font-semibold">Sessoes Ativas</h1>
+            <p className="text-xs uppercase tracking-[0.25em] text-muted-foreground">Segurança</p>
+            <h1 className="text-3xl font-semibold">Sessões Ativas</h1>
             <p className="text-sm text-muted-foreground">
-              Painel somente leitura com sessoes ativas e usuario responsavel por cada sessao.
+              Painel somente leitura com sessões ativas e usuário responsável por cada sessão.
             </p>
           </header>
 
@@ -216,7 +216,7 @@ const DashboardSecurity = () => {
               <div className="flex flex-wrap items-center gap-2">
                 <Badge className="bg-card/80 text-muted-foreground">Total ativo: {total}</Badge>
                 <Badge className="bg-card/80 text-muted-foreground">
-                  Pagina {page} de {pageCount}
+                  Página {page} de {pageCount}
                 </Badge>
               </div>
               <div className="flex items-center gap-2">
@@ -245,7 +245,7 @@ const DashboardSecurity = () => {
                     onClick={() => setPage((prev) => Math.min(pageCount, prev + 1))}
                     disabled={isLoading}
                   >
-                    Proxima
+                    Próxima
                   </Button>
                 ) : null}
               </div>
@@ -255,10 +255,10 @@ const DashboardSecurity = () => {
               <p className="text-sm text-muted-foreground">Carregando sessões...</p>
             ) : hasLoadError ? (
               <p className="text-sm text-amber-300">
-                Nao foi possivel carregar a lista de sessoes ativas.
+                Não foi possível carregar a lista de sessões ativas.
               </p>
             ) : sessions.length === 0 ? (
-              <p className="text-sm text-muted-foreground">Nenhuma sessao ativa encontrada.</p>
+              <p className="text-sm text-muted-foreground">Nenhuma sessão ativa encontrada.</p>
             ) : (
               <div className="space-y-3">
                 {sessions.map((session) => (
@@ -287,7 +287,7 @@ const DashboardSecurity = () => {
                       </div>
                       <div className="flex flex-wrap gap-2">
                         {session.currentForViewer ? (
-                          <Badge variant="success">Sua sessao atual</Badge>
+                          <Badge variant="success">Sua sessão atual</Badge>
                         ) : null}
                         {session.isPendingMfa ? (
                           <Badge variant="warning">Pendente MFA</Badge>
@@ -306,7 +306,7 @@ const DashboardSecurity = () => {
                     </div>
                     <div className="grid gap-1 text-xs text-muted-foreground md:grid-cols-2">
                       <p>Criada em: {formatDateTime(session.createdAt)}</p>
-                      <p>Ultima atividade: {formatDateTime(session.lastSeenAt)}</p>
+                      <p>Última atividade: {formatDateTime(session.lastSeenAt)}</p>
                       <p>IP: {session.lastIp || "-"}</p>
                       <p className="truncate">User-Agent: {session.userAgent || "-"}</p>
                     </div>
@@ -327,9 +327,9 @@ const DashboardSecurity = () => {
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Encerrar sessao ativa?</AlertDialogTitle>
+            <AlertDialogTitle>Encerrar sessão ativa?</AlertDialogTitle>
             <AlertDialogDescription>
-              Esta acao encerra a sessao de{" "}
+              Esta ação encerra a sessão de{" "}
               {pendingRevokeSession?.userName || pendingRevokeSession?.userId || "-"}.
               <br />
               IP: {pendingRevokeSession?.lastIp || "-"}
@@ -349,7 +349,7 @@ const DashboardSecurity = () => {
                 void confirmRevokeSession();
               }}
             >
-              {revokingSid ? "Encerrando..." : "Encerrar sessao"}
+              {revokingSid ? "Encerrando..." : "Encerrar sessão"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

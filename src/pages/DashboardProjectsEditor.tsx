@@ -2598,7 +2598,7 @@ const DashboardProjectsEditor = () => {
             ) : hasLoadError ? (
               <AsyncState
                 kind="error"
-                title="Nao foi possivel carregar os projetos"
+                title="Não foi possível carregar os projetos"
                 description="Tente recarregar os dados do painel."
                 className={dashboardPageLayoutTokens.surfaceDefault}
                 action={
@@ -3482,7 +3482,7 @@ const DashboardProjectsEditor = () => {
                             placeholder="ID relacionado"
                           />
                           <ReorderControls
-                            label={`relacao ${index + 1}`}
+                            label={`relação ${index + 1}`}
                             index={index}
                             total={formState.relations.length}
                             onMove={(targetIndex) => moveRelationItem(index, targetIndex)}

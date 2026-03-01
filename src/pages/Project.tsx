@@ -423,15 +423,6 @@ const ProjectPage = () => {
         className="group w-full overflow-hidden rounded-2xl border border-border/60 bg-gradient-card shadow-[0_24px_90px_-55px_rgba(0,0,0,0.75)] transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:shadow-[0_28px_100px_-50px_rgba(0,0,0,0.85)] md:h-[185px] md:w-[920px]"
       >
         <CardContent className="relative grid h-full gap-4 p-4 md:grid-cols-[272px_minmax(0,1fr)] md:items-start md:gap-4 md:p-4">
-          {showRawBadge ? (
-            <Badge
-              variant="outline"
-              className="absolute right-4 top-4 inline-flex items-center gap-1 rounded-full border-primary/25 bg-background/70 text-[10px] uppercase tracking-wide"
-            >
-              <HardDrive className="h-3 w-3" />
-              {episode.sourceType}
-            </Badge>
-          ) : null}
           <div className="w-full overflow-hidden rounded-xl border border-border/60 bg-background/50 shadow-inner md:h-[153px] md:w-[272px]">
             <UploadPicture
               src={episode.coverImageUrl || project.banner || project.cover || "/placeholder.svg"}
@@ -442,9 +433,9 @@ const ProjectPage = () => {
               imgClassName="h-full w-full aspect-video object-cover object-center transition-transform duration-300 group-hover:scale-[1.03]"
             />
           </div>
-          <div className="relative h-full min-h-[153px] md:pr-0">
-            <div className="space-y-2.5 pb-12 md:pb-[52px]">
-              <div className="flex min-w-0 items-center gap-2 pr-20">
+          <div className="relative h-full md:min-h-[153px] md:pr-0">
+            <div className="space-y-2.5 md:pb-[52px]">
+              <div className="flex min-w-0 flex-wrap items-center gap-2 md:pr-20">
                 <Badge
                   variant="secondary"
                   className="rounded-full px-2.5 py-0.5 text-[10px] uppercase"
@@ -453,7 +444,16 @@ const ProjectPage = () => {
                     ? `Cap ${episode.number}${episode.volume ? ` • Vol. ${episode.volume}` : ""}`
                     : `EP ${episode.number}`}
                 </Badge>
-                <p className="truncate text-base font-semibold text-foreground md:text-lg">
+                {showRawBadge ? (
+                  <Badge
+                    variant="outline"
+                    className="inline-flex items-center gap-1 rounded-full border-primary/25 bg-background/70 text-[10px] uppercase tracking-wide md:absolute md:right-0 md:top-0"
+                  >
+                    <HardDrive className="h-3 w-3" />
+                    {episode.sourceType}
+                  </Badge>
+                ) : null}
+                <p className="min-w-0 flex-1 basis-full text-base font-semibold text-foreground md:basis-auto md:truncate md:text-lg">
                   {episode.title}
                 </p>
               </div>
@@ -491,7 +491,7 @@ const ProjectPage = () => {
               </div>
             </div>
 
-            <div className="flex flex-wrap items-center justify-end gap-2 md:absolute md:-bottom-2 md:left-0 md:right-0">
+            <div className="mt-2 flex flex-wrap items-center justify-end gap-2 md:absolute md:-bottom-2 md:left-0 md:right-0 md:mt-0 md:justify-end">
               {episode.sources.map((source, sourceIndex) => {
                 const theme = sourceThemeMap.get(source.label.toLowerCase());
                 const color = theme?.color || "#4b5563";
@@ -507,18 +507,20 @@ const ProjectPage = () => {
                     asChild
                     variant="outline"
                     size="sm"
-                    className="h-9 rounded-full bg-card/70 px-4 text-sm hover:bg-primary/10"
+                    className="h-9 w-9 rounded-full bg-card/70 px-0 text-sm hover:bg-primary/10 md:w-auto md:px-4"
                     style={{ borderColor: `${color}99`, color }}
                   >
                     <a
                       href={source.url}
                       target="_blank"
                       rel="noreferrer"
-                      className="inline-flex items-center gap-2"
+                      aria-label={source.label}
+                      title={source.label}
+                      className="inline-flex items-center justify-center gap-0 md:gap-2"
                       onClick={() => trackDownloadClick(episode, source.label)}
                     >
                       {icon}
-                      {source.label}
+                      <span className="sr-only md:not-sr-only">{source.label}</span>
                     </a>
                   </Button>
                 );

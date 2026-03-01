@@ -170,6 +170,9 @@ const Team = () => {
     );
   };
 
+  const getAvatarStageClassName = (isFirstPageCard: boolean) =>
+    `relative h-64 sm:h-72 md:h-80 ${isFirstPageCard ? "lg:h-80" : "lg:h-full"}`;
+
   const resolveSocialLink = (
     social: { label?: string; href?: string },
     linkTypeMap: Map<string, { id: string; label: string; icon: string }>,
@@ -322,7 +325,7 @@ const Team = () => {
           ) : (
             <>
               <div className="mt-10 grid gap-24">
-                {activeMembers.map((member) => {
+                {activeMembers.map((member, index) => {
                   const image = member.avatarUrl || "/placeholder.svg";
                   const imageSrc =
                     image && image !== "/placeholder.svg"
@@ -333,6 +336,7 @@ const Team = () => {
                   const socials = (member.socials || []).filter((social) => social.href);
                   const linkTypeMap = new Map(linkTypes.map((item) => [item.id, item]));
                   const areas = (member.roles || []).filter((item) => item !== "Dono");
+                  const avatarStageClassName = getAvatarStageClassName(index === 0);
                   return (
                     <Card
                       key={member.id}
@@ -340,8 +344,8 @@ const Team = () => {
                     >
                       <CardContent className="relative p-8 sm:p-9">
                         <div className="flex flex-col gap-6 lg:flex-row lg:items-stretch">
-                          <div className="relative lg:w-80">
-                            <div className="relative h-64 sm:h-72 md:h-80 lg:h-full">
+                          <div className="relative lg:flex lg:w-80 lg:flex-col lg:justify-end">
+                            <div className={avatarStageClassName}>
                               {renderMemberAvatar(member, imageSrc)}
                             </div>
                           </div>
@@ -473,6 +477,9 @@ const Team = () => {
                       const socials = (member.socials || []).filter((social) => social.href);
                       const linkTypeMap = new Map(linkTypes.map((item) => [item.id, item]));
                       const areas = (member.roles || []).filter((item) => item !== "Dono");
+                      const avatarStageClassName = getAvatarStageClassName(
+                        activeMembers.length === 0 && index === 0,
+                      );
                       return (
                         <Card
                           key={member.id}
@@ -482,8 +489,8 @@ const Team = () => {
                         >
                           <CardContent className="relative p-8 sm:p-9">
                             <div className="flex flex-col gap-6 lg:flex-row lg:items-stretch">
-                              <div className="relative lg:w-80">
-                                <div className="relative h-64 sm:h-72 md:h-80 lg:h-full">
+                              <div className="relative lg:flex lg:w-80 lg:flex-col lg:justify-end">
+                                <div className={avatarStageClassName}>
                                   {renderMemberAvatar(member, imageSrc)}
                                 </div>
                               </div>

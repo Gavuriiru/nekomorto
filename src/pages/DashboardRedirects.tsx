@@ -48,7 +48,7 @@ const normalizeSeoRedirectFromDraft = (value: string) => {
 const validateSeoRedirectFrom = (value: string) => {
   const raw = String(value || "").trim();
   if (raw.includes("?") || raw.includes("#")) {
-    return "A origem nao pode conter query string ou hash.";
+    return "A origem não pode conter query string ou hash.";
   }
   const normalized = normalizeSeoRedirectFromDraft(value);
   if (!normalized) {
@@ -67,7 +67,7 @@ const validateSeoRedirectTo = (value: string) => {
   }
   if (trimmed.startsWith("/")) {
     if (trimmed.startsWith("//")) {
-      return "Destino interno invalido.";
+      return "Destino interno inválido.";
     }
     return "";
   }
@@ -79,7 +79,7 @@ const validateSeoRedirectTo = (value: string) => {
     }
     return "Destino absoluto precisa usar http ou https.";
   } catch {
-    return "Destino invalido.";
+    return "Destino inválido.";
   }
 };
 
@@ -247,7 +247,7 @@ const DashboardRedirects = () => {
     }
     if (hasValidationErrors) {
       toast({
-        title: "Campos invalidos",
+        title: "Campos inválidos",
         description: "Revise as regras de redirecionamento antes de salvar.",
         variant: "destructive",
       });
@@ -287,7 +287,7 @@ const DashboardRedirects = () => {
     } catch {
       toast({
         title: "Falha ao salvar",
-        description: "Nao foi possivel salvar os redirecionamentos.",
+        description: "Não foi possível salvar os redirecionamentos.",
         variant: "destructive",
       });
     } finally {
@@ -326,7 +326,7 @@ const DashboardRedirects = () => {
           <section className="mx-auto w-full max-w-5xl px-6 pb-20 md:px-10">
             <AsyncState
               kind="error"
-              title="Nao foi possivel carregar redirecionamentos"
+              title="Não foi possível carregar redirecionamentos"
               description="Tente novamente em alguns instantes."
               action={
                 <Button

@@ -171,7 +171,7 @@ describe("DashboardSettings autosave", () => {
     await screen.findByRole("heading", { name: /Painel/i });
 
     apiFetchMock.mockClear();
-    const communityCardTitleInput = await screen.findByLabelText(/Titulo do card/i);
+    const communityCardTitleInput = await screen.findByLabelText(/Título do card/i);
     fireEvent.change(communityCardTitleInput, { target: { value: "Entre na comunidade" } });
 
     await act(async () => {
@@ -189,7 +189,7 @@ describe("DashboardSettings autosave", () => {
     await screen.findByRole("heading", { name: /Painel/i });
 
     apiFetchMock.mockClear();
-    const communityCardTitleInput = await screen.findByLabelText(/Titulo do card/i);
+    const communityCardTitleInput = await screen.findByLabelText(/Título do card/i);
     fireEvent.change(communityCardTitleInput, { target: { value: "Tema no payload" } });
 
     await act(async () => {

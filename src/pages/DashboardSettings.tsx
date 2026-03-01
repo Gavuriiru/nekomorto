@@ -1512,13 +1512,13 @@ const DashboardSettings = () => {
                     <div>
                       <h2 className="text-lg font-semibold">Card de comunidade</h2>
                       <p className="text-xs text-muted-foreground">
-                        Configure os textos e o botao principal do card de Discord.
+                        Configure os textos e o botão principal do card de Discord.
                       </p>
                     </div>
 
                     <div className="grid gap-4 md:grid-cols-2">
                       <div className="space-y-2">
-                        <Label htmlFor="community-card-title">Titulo do card</Label>
+                        <Label htmlFor="community-card-title">Título do card</Label>
                         <Input
                           id="community-card-title"
                           value={settings.community.inviteCard.title}
@@ -1538,7 +1538,7 @@ const DashboardSettings = () => {
                       </div>
 
                       <div className="space-y-2">
-                        <Label htmlFor="community-card-button-label">Texto do botao</Label>
+                        <Label htmlFor="community-card-button-label">Texto do botão</Label>
                         <Input
                           id="community-card-button-label"
                           value={settings.community.inviteCard.ctaLabel}
@@ -1558,7 +1558,7 @@ const DashboardSettings = () => {
                       </div>
 
                       <div className="space-y-2 md:col-span-2">
-                        <Label htmlFor="community-card-subtitle">Subtitulo</Label>
+                        <Label htmlFor="community-card-subtitle">Subtítulo</Label>
                         <Textarea
                           id="community-card-subtitle"
                           value={settings.community.inviteCard.subtitle}
@@ -1578,7 +1578,7 @@ const DashboardSettings = () => {
                       </div>
 
                       <div className="space-y-2">
-                        <Label htmlFor="community-card-panel-title">Titulo do bloco interno</Label>
+                        <Label htmlFor="community-card-panel-title">Título do bloco interno</Label>
                         <Input
                           id="community-card-panel-title"
                           value={settings.community.inviteCard.panelTitle}
@@ -1598,7 +1598,7 @@ const DashboardSettings = () => {
                       </div>
 
                       <div className="space-y-2">
-                        <Label htmlFor="community-card-cta-url">URL do botao</Label>
+                        <Label htmlFor="community-card-cta-url">URL do botão</Label>
                         <Input
                           id="community-card-cta-url"
                           value={settings.community.inviteCard.ctaUrl}
@@ -3078,12 +3078,12 @@ const DashboardSettings = () => {
                         }
                       >
                         <Plus className="h-4 w-4" />
-                        Adicionar paragrafo
+                        Adicionar parágrafo
                       </Button>
                     </div>
                     <div className="grid gap-4 md:grid-cols-2">
                       <div className="space-y-2">
-                        <Label>Titulo do destaque</Label>
+                        <Label>Título do destaque</Label>
                         <Input
                           value={settings.footer.highlightTitle}
                           onChange={(event) =>
@@ -3131,7 +3131,7 @@ const DashboardSettings = () => {
           open={isLibraryOpen}
           onOpenChange={setIsLibraryOpen}
           apiBase={apiBase}
-          description="Selecione uma imagem ja enviada para reutilizar ou exclua itens que nao estejam em uso."
+          description="Selecione uma imagem já enviada para reutilizar ou exclua itens que não estejam em uso."
           uploadFolder="branding"
           listFolders={rootLibraryFolders}
           includeProjectImages={false}

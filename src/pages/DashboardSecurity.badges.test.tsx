@@ -83,7 +83,7 @@ describe("DashboardSecurity semantic badges", () => {
 
     await screen.findByRole("heading", { name: /Ativas/i });
 
-    expect(await screen.findByText("Sua sessao atual")).toHaveClass(
+    expect(await screen.findByText("Sua sessão atual")).toHaveClass(
       "bg-emerald-500/20",
       "text-emerald-800",
       "dark:text-emerald-200",

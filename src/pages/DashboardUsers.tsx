@@ -721,7 +721,7 @@ const DashboardUsers = () => {
       setSecurityEnrollment(null);
       toast({
         title: "Falha ao iniciar 2FA",
-        description: "Token de ativacao ausente.",
+        description: "Token de ativação ausente.",
         variant: "destructive",
       });
       return;
@@ -746,7 +746,7 @@ const DashboardUsers = () => {
     if (!securityEnrollment || !enrollmentToken || !normalizedCode) {
       if (!enrollmentToken) {
         toast({
-          title: "Sessao de ativacao expirada",
+          title: "Sessão de ativação expirada",
           description: "Inicie novamente para confirmar o 2FA.",
           variant: "destructive",
         });
@@ -773,7 +773,7 @@ const DashboardUsers = () => {
       if (errorCode === "invalid_or_expired_enrollment") {
         setSecurityEnrollment(null);
         toast({
-          title: "Sessao de ativacao expirada",
+          title: "Sessão de ativação expirada",
           description: "Inicie novamente para confirmar o 2FA.",
           variant: "destructive",
         });
@@ -781,16 +781,16 @@ const DashboardUsers = () => {
       }
       if (errorCode === "enrollment_token_and_code_required") {
         toast({
-          title: "Dados de confirmacao ausentes",
+          title: "Dados de confirmação ausentes",
           variant: "destructive",
         });
         return;
       }
       if (errorCode === "invalid_totp_code") {
-        toast({ title: "Codigo TOTP invalido", variant: "destructive" });
+        toast({ title: "Código TOTP inválido", variant: "destructive" });
         return;
       }
-      toast({ title: "Nao foi possivel confirmar 2FA", variant: "destructive" });
+      toast({ title: "Não foi possível confirmar 2FA", variant: "destructive" });
       return;
     }
     const body = await response.json();
@@ -811,7 +811,7 @@ const DashboardUsers = () => {
       json: { codeOrRecoveryCode: securityDisableCode.trim() },
     });
     if (!response.ok) {
-      toast({ title: "Nao foi possivel desativar", variant: "destructive" });
+      toast({ title: "Não foi possível desativar", variant: "destructive" });
       return;
     }
     setSecurityDisableCode("");
@@ -826,7 +826,7 @@ const DashboardUsers = () => {
       auth: true,
     });
     if (!response.ok) {
-      toast({ title: "Falha ao encerrar sessao", variant: "destructive" });
+      toast({ title: "Falha ao encerrar sessão", variant: "destructive" });
       return;
     }
     await refreshSelfSecurity();
@@ -838,7 +838,7 @@ const DashboardUsers = () => {
       auth: true,
     });
     if (!response.ok) {
-      toast({ title: "Falha ao encerrar outras sessoes", variant: "destructive" });
+      toast({ title: "Falha ao encerrar outras sessões", variant: "destructive" });
       return;
     }
     await refreshSelfSecurity();
@@ -1157,21 +1157,21 @@ const DashboardUsers = () => {
         if (!response.ok) {
           setUsers(snapshot);
           toast({
-            title: "Nao foi possivel salvar a nova ordem",
+            title: "Não foi possível salvar a nova ordem",
             description: "A lista foi restaurada para a ordem anterior.",
             variant: "destructive",
           });
           return;
         }
         toast({
-          title: "Ordem dos usuarios atualizada",
-          description: "A nova ordenacao foi salva.",
+          title: "Ordem dos usuários atualizada",
+          description: "A nova ordenação foi salva.",
           intent: "success",
         });
       } catch {
         setUsers(snapshot);
         toast({
-          title: "Nao foi possivel salvar a nova ordem",
+          title: "Não foi possível salvar a nova ordem",
           description: "A lista foi restaurada para a ordem anterior.",
           variant: "destructive",
         });
@@ -1246,7 +1246,7 @@ const DashboardUsers = () => {
                   className="mt-2 text-sm text-muted-foreground animate-slide-up opacity-0"
                   style={{ animationDelay: "0.2s" }}
                 >
-                  Reordene arrastando ou pelos botoes para refletir a ordem na pagina publica.
+                  Reordene arrastando ou pelos botões para refletir a ordem na página pública.
                 </p>
               </div>
               {canManageUsers && (
@@ -1290,8 +1290,8 @@ const DashboardUsers = () => {
               ) : activeUsers.length === 0 ? (
                 <AsyncState
                   kind="empty"
-                  title="Nenhum usuario ativo"
-                  description="Adicione um novo membro para comecar."
+                  title="Nenhum usuário ativo"
+                  description="Adicione um novo membro para começar."
                   className="mt-6"
                 />
               ) : (
@@ -1328,10 +1328,10 @@ const DashboardUsers = () => {
                               <button
                                 type="button"
                                 className="absolute inset-0 z-0 rounded-2xl focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary/60"
-                                aria-label={`Abrir usuario ${user.name}`}
+                                aria-label={`Abrir usuário ${user.name}`}
                                 onClick={() => handleUserCardClick(user)}
                               >
-                                <span className="sr-only">{`Abrir usuario ${user.name}`}</span>
+                                <span className="sr-only">{`Abrir usuário ${user.name}`}</span>
                               </button>
                             ) : null}
                             <div className="pointer-events-none flex gap-4">
@@ -1381,7 +1381,7 @@ const DashboardUsers = () => {
                           <div className="relative z-10 flex flex-wrap items-center gap-2">
                             {canManageUsers ? (
                               <ReorderControls
-                                label={`usuario ${user.name}`}
+                                label={`usuário ${user.name}`}
                                 index={index}
                                 total={activeUsers.length}
                                 onMove={(targetIndex) =>
@@ -1439,10 +1439,10 @@ const DashboardUsers = () => {
                                 <button
                                   type="button"
                                   className="absolute inset-0 z-0 rounded-2xl focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary/60"
-                                  aria-label={`Abrir usuario ${user.name}`}
+                                  aria-label={`Abrir usuário ${user.name}`}
                                   onClick={() => handleUserCardClick(user)}
                                 >
-                                  <span className="sr-only">{`Abrir usuario ${user.name}`}</span>
+                                  <span className="sr-only">{`Abrir usuário ${user.name}`}</span>
                                 </button>
                               ) : null}
                               <div className="pointer-events-none flex gap-4">
@@ -1494,7 +1494,7 @@ const DashboardUsers = () => {
                             <div className="relative z-10 flex flex-wrap items-center gap-2">
                               {canManageUsers ? (
                                 <ReorderControls
-                                  label={`usuario ${user.name}`}
+                                  label={`usuário ${user.name}`}
                                   index={index}
                                   total={retiredUsers.length}
                                   onMove={(targetIndex) =>
@@ -1789,9 +1789,9 @@ const DashboardUsers = () => {
               <div className="grid gap-3 rounded-2xl border border-border/60 bg-card/60 p-4">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div className="space-y-1">
-                    <Label className="text-sm font-medium">Seguranca da conta</Label>
+                    <Label className="text-sm font-medium">Segurança da conta</Label>
                     <p className="text-xs text-muted-foreground">
-                      Configure 2FA opcional e gerencie suas sessoes ativas.
+                      Configure 2FA opcional e gerencie suas sessões ativas.
                     </p>
                   </div>
                   <Button size="sm" variant="outline" onClick={() => void refreshSelfSecurity()}>
@@ -1807,7 +1807,7 @@ const DashboardUsers = () => {
                     Recovery: {securitySummary?.recoveryCodesRemaining ?? 0}
                   </Badge>
                   <Badge className="bg-card/80 text-muted-foreground">
-                    Sessoes: {securitySummary?.activeSessionsCount ?? 0}
+                    Sessões: {securitySummary?.activeSessionsCount ?? 0}
                   </Badge>
                 </div>
 
@@ -1864,7 +1864,7 @@ const DashboardUsers = () => {
                                     toast({ title: "Segredo copiado" });
                                   } catch {
                                     toast({
-                                      title: "Nao foi possivel copiar",
+                                      title: "Não foi possível copiar",
                                       variant: "destructive",
                                     });
                                   }
@@ -1883,7 +1883,7 @@ const DashboardUsers = () => {
                                     toast({ title: "URL OTP copiada" });
                                   } catch {
                                     toast({
-                                      title: "Nao foi possivel copiar",
+                                      title: "Não foi possível copiar",
                                       variant: "destructive",
                                     });
                                   }
@@ -1892,13 +1892,13 @@ const DashboardUsers = () => {
                                 Copiar URL OTP
                               </Button>
                               <Button size="sm" variant="outline" onClick={startSelfEnrollment}>
-                                Reiniciar ativacao
+                                Reiniciar ativação
                               </Button>
                             </div>
                             <Input
                               value={securityEnrollCode}
                               onChange={(event) => setSecurityEnrollCode(event.target.value)}
-                              placeholder="Codigo de 6 digitos"
+                              placeholder="Código de 6 dígitos"
                             />
                             <Button
                               size="sm"
@@ -1907,7 +1907,7 @@ const DashboardUsers = () => {
                                 !securityEnrollCode.trim() || !securityEnrollment.enrollmentToken
                               }
                             >
-                              Confirmar ativacao
+                              Confirmar ativação
                             </Button>
                           </div>
                         </div>
@@ -1919,7 +1919,7 @@ const DashboardUsers = () => {
                     <Input
                       value={securityDisableCode}
                       onChange={(event) => setSecurityDisableCode(event.target.value)}
-                      placeholder="Codigo TOTP ou recovery code"
+                      placeholder="Código TOTP ou código de recuperação"
                     />
                     <Button
                       size="sm"
@@ -1947,7 +1947,7 @@ const DashboardUsers = () => {
 
                 <div className="space-y-2 rounded-2xl border border-border/60 bg-background/60 p-3">
                   <div className="flex items-center justify-between gap-2">
-                    <p className="text-sm font-medium">Sessoes ativas</p>
+                    <p className="text-sm font-medium">Sessões ativas</p>
                     <Button size="sm" variant="outline" onClick={revokeSelfOthers}>
                       Encerrar outras
                     </Button>
@@ -1955,7 +1955,7 @@ const DashboardUsers = () => {
                   {isLoadingSecurity ? (
                     <p className="text-xs text-muted-foreground">Carregando sessões...</p>
                   ) : securitySessions.length === 0 ? (
-                    <p className="text-xs text-muted-foreground">Nenhuma sessao ativa.</p>
+                    <p className="text-xs text-muted-foreground">Nenhuma sessão ativa.</p>
                   ) : (
                     <div className="space-y-2">
                       {securitySessions.map((session) => (
@@ -1967,8 +1967,8 @@ const DashboardUsers = () => {
                             <div className="flex flex-wrap items-center gap-2">
                               <p className="text-xs font-medium">
                                 {isCurrentSecuritySession(session)
-                                  ? "Sessao atual"
-                                  : "Sessao remota"}
+                                  ? "Sessão atual"
+                                  : "Sessão remota"}
                               </p>
                               {isCurrentSecuritySession(session) ? (
                                 <Badge variant="success">Atual</Badge>
@@ -1978,7 +1978,7 @@ const DashboardUsers = () => {
                               ) : null}
                             </div>
                             <p className="text-[11px] text-muted-foreground">
-                              Ultima atividade: {formatSecurityDateTime(session.lastSeenAt)}
+                              Última atividade: {formatSecurityDateTime(session.lastSeenAt)}
                             </p>
                             <p className="text-[11px] text-muted-foreground">
                               Criada em: {formatSecurityDateTime(session.createdAt)}

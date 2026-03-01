@@ -34,7 +34,7 @@ const mockJsonResponse = (ok: boolean, payload: unknown, status = ok ? 200 : 500
     json: async () => payload,
   }) as Response;
 
-const CLEANUP_ACTION_LABEL = "Limpar armazenamento nao utilizado";
+const CLEANUP_ACTION_LABEL = "Limpar armazenamento não utilizado";
 
 const baseSummary = {
   generatedAt: "2026-03-01T10:00:00.000Z",
@@ -204,23 +204,23 @@ describe("DashboardUploads cleanup", () => {
     toastMock.mockReset();
   });
 
-  it("renderiza a secao de armazenamento nao utilizado com contagens separadas e linhas mistas", async () => {
+  it("renderiza a seção de armazenamento não utilizado com contagens separadas e linhas mistas", async () => {
     setupApi();
 
     render(<DashboardUploads />);
 
-    await screen.findByText("Limpeza de armazenamento nao utilizado");
+    await screen.findByText("Limpeza de armazenamento não utilizado");
     expect(screen.getByText("2 uploads sem uso")).toBeInTheDocument();
-    expect(screen.getByText("3 arquivos de variante orfaos")).toBeInTheDocument();
-    expect(screen.getByText("1 diretorios de variantes orfaos")).toBeInTheDocument();
+    expect(screen.getByText("3 arquivos de variante órfãos")).toBeInTheDocument();
+    expect(screen.getByText("1 diretórios de variantes órfãos")).toBeInTheDocument();
     expect(screen.getByText("unused-1.png")).toBeInTheDocument();
     expect(screen.getByText("old-card.webp")).toBeInTheDocument();
     expect(screen.getByText("Upload")).toBeInTheDocument();
-    expect(screen.getByText("Variante orfa")).toBeInTheDocument();
+    expect(screen.getByText("Variante órfã")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: CLEANUP_ACTION_LABEL })).toBeInTheDocument();
   });
 
-  it("exibe estado vazio quando nao ha nada elegivel para limpeza", async () => {
+  it("exibe estado vazio quando não há nada elegível para limpeza", async () => {
     setupApi({
       initialCleanupPreview: emptyCleanupPreview,
       cleanupPreviewAfterRun: emptyCleanupPreview,
@@ -228,11 +228,11 @@ describe("DashboardUploads cleanup", () => {
 
     render(<DashboardUploads />);
 
-    await screen.findByText("Nenhum arquivo elegivel para limpeza.");
+    await screen.findByText("Nenhum arquivo elegível para limpeza.");
     expect(screen.queryByRole("button", { name: CLEANUP_ACTION_LABEL })).not.toBeInTheDocument();
   });
 
-  it("abre o modal, menciona variantes orfas e exige EXCLUIR antes de habilitar a confirmacao", async () => {
+  it("abre o modal, menciona variantes órfãs e exige EXCLUIR antes de habilitar a confirmação", async () => {
     setupApi();
 
     render(<DashboardUploads />);
@@ -240,7 +240,7 @@ describe("DashboardUploads cleanup", () => {
     fireEvent.click(await screen.findByRole("button", { name: CLEANUP_ACTION_LABEL }));
 
     const alertDialog = await screen.findByRole("alertdialog");
-    expect(within(alertDialog).getByText(/variantes orfas encontradas em _variants/i)).toBeInTheDocument();
+    expect(within(alertDialog).getByText(/variantes órfãs encontradas em _variants/i)).toBeInTheDocument();
 
     const confirmButton = within(alertDialog).getByRole("button", { name: CLEANUP_ACTION_LABEL });
     const confirmInput = within(alertDialog).getByPlaceholderText("Digite EXCLUIR");
@@ -267,7 +267,7 @@ describe("DashboardUploads cleanup", () => {
     fireEvent.click(within(alertDialog).getByRole("button", { name: CLEANUP_ACTION_LABEL }));
 
     await waitFor(() => {
-      expect(screen.getByText("Nenhum arquivo elegivel para limpeza.")).toBeInTheDocument();
+      expect(screen.getByText("Nenhum arquivo elegível para limpeza.")).toBeInTheDocument();
     });
 
     const cleanupPostCall = apiFetchMock.mock.calls.find((call) => {
@@ -296,8 +296,8 @@ describe("DashboardUploads cleanup", () => {
     expect(cleanupGetCalls.length).toBeGreaterThanOrEqual(2);
     expect(toastMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        title: "Armazenamento nao utilizado removido",
-        description: expect.stringContaining("2 uploads removidos, 3 variantes orfas removidas"),
+        title: "Armazenamento não utilizado removido",
+        description: expect.stringContaining("2 uploads removidos, 3 variantes órfãs removidas"),
       }),
     );
   });

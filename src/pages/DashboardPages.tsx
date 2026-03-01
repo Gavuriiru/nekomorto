@@ -1437,7 +1437,7 @@ const DashboardPages = () => {
                       value={pages.donations.pixKey}
                       onChange={(e) => updateDonations({ pixKey: e.target.value })}
                     />
-                    <Label>DescriÃ§Ã£o no QR (opcional)</Label>
+                    <Label>Descrição no QR (opcional)</Label>
                     <Input
                       value={pages.donations.pixNote}
                       onChange={(e) => updateDonations({ pixNote: e.target.value })}

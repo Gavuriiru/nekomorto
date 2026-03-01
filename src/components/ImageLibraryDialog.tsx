@@ -1738,7 +1738,7 @@ const ImageLibraryDialog = ({
       );
       if (!response.ok) {
         toast({
-          title: "Nao foi possivel salvar o texto alternativo.",
+          title: "Não foi possível salvar o texto alternativo.",
           variant: "destructive",
         });
         return;
@@ -1752,7 +1752,7 @@ const ImageLibraryDialog = ({
       });
     } catch {
       toast({
-        title: "Nao foi possivel salvar o texto alternativo.",
+        title: "Não foi possível salvar o texto alternativo.",
         variant: "destructive",
       });
     } finally {
@@ -1796,7 +1796,7 @@ const ImageLibraryDialog = ({
       );
       if (!response.ok) {
         toast({
-          title: "Nao foi possivel salvar o ponto focal.",
+          title: "Não foi possível salvar o ponto focal.",
           variant: "destructive",
         });
         return;
@@ -1810,7 +1810,7 @@ const ImageLibraryDialog = ({
       });
     } catch {
       toast({
-        title: "Nao foi possivel salvar o ponto focal.",
+        title: "Não foi possível salvar o ponto focal.",
         variant: "destructive",
       });
     } finally {
