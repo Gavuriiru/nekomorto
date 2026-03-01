@@ -7,6 +7,7 @@ import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
 import { buildTranslationMap, sortByTranslatedLabel, translateTag } from "@/lib/project-taxonomy";
 import { useDynamicSynopsisClamp } from "@/hooks/use-dynamic-synopsis-clamp";
+import { PROJECT_COVER_ASPECT_RATIO } from "@/lib/project-card-layout";
 import type { Project } from "@/data/projects";
 import type { UploadMediaVariantsMap } from "@/lib/upload-variants";
 
@@ -14,10 +15,7 @@ type ProjectEmbedCardProps = {
   projectId?: string | null;
 };
 
-const COVER_WIDTH_REM = 8;
-const COVER_ASPECT_WIDTH = 46;
-const COVER_ASPECT_HEIGHT = 65;
-const COVER_HEIGHT_CALC = `calc(${COVER_WIDTH_REM}rem * ${COVER_ASPECT_HEIGHT} / ${COVER_ASPECT_WIDTH})`;
+const COVER_ROW_HEIGHT = "calc(8rem * 65 / 46)";
 
 const ProjectEmbedCard = ({ projectId }: ProjectEmbedCardProps) => {
   const apiBase = getApiBase();
@@ -125,9 +123,12 @@ const ProjectEmbedCard = ({ projectId }: ProjectEmbedCardProps) => {
             ref={synopsisRootRef}
             data-testid="project-embed-row"
             className="group flex items-stretch gap-4"
-            style={{ height: COVER_HEIGHT_CALC }}
+            style={{ height: COVER_ROW_HEIGHT }}
           >
-            <div className="h-full w-32 shrink-0 self-start overflow-hidden rounded-xl">
+            <div
+              className="h-full shrink-0 self-start overflow-hidden rounded-xl"
+              style={{ aspectRatio: PROJECT_COVER_ASPECT_RATIO }}
+            >
               <UploadPicture
                 src={project?.cover || "/placeholder.svg"}
                 alt={project?.title || "Projeto"}

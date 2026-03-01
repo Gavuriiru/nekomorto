@@ -7,6 +7,8 @@ export type ProjectBadgeItem = {
   href?: string;
 };
 
+export const PROJECT_COVER_ASPECT_RATIO = "9 / 14";
+
 type PrepareProjectBadgesParams = {
   tags: string[];
   genres?: string[];

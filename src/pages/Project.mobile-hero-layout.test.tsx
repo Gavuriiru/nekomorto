@@ -376,6 +376,61 @@ describe("Project mobile hero layout", () => {
     expect(coverFromBannerFallback).not.toHaveClass("object-contain");
   });
 
+  it("aplica proporcao 9:14 nas capas dos projetos relacionados", async () => {
+    const projectWithRelation = {
+      ...projectFixture,
+      relations: [
+        {
+          relation: "SEQUEL",
+          title: "Projeto Relacionado",
+          format: "Anime",
+          status: "Em andamento",
+          image: "/uploads/related-cover.jpg",
+          projectId: "project-2",
+        },
+      ],
+    };
+
+    apiFetchMock.mockReset();
+    apiFetchMock.mockImplementation(
+      async (_apiBase: string, endpoint: string, options?: RequestInit) => {
+        const method = String(options?.method || "GET").toUpperCase();
+
+        if (endpoint === "/api/public/projects/project-1" && method === "GET") {
+          return mockJsonResponse(true, { project: projectWithRelation });
+        }
+        if (endpoint === "/api/public/projects" && method === "GET") {
+          return mockJsonResponse(true, {
+            projects: [projectWithRelation, { id: "project-2", title: "Projeto Relacionado" }],
+          });
+        }
+        if (endpoint === "/api/public/tag-translations" && method === "GET") {
+          return mockJsonResponse(true, { tags: {}, genres: {}, staffRoles: {} });
+        }
+        if (endpoint === "/api/public/projects/project-1/view" && method === "POST") {
+          return mockJsonResponse(true, { views: 1 });
+        }
+        if (endpoint === "/api/public/me" && method === "GET") {
+          return mockJsonResponse(true, { user: null });
+        }
+        return mockJsonResponse(false, { error: "not_found" }, 404);
+      },
+    );
+
+    render(
+      <MemoryRouter>
+        <ProjectPage />
+      </MemoryRouter>,
+    );
+
+    const relationImage = await screen.findByRole("img", { name: "Projeto Relacionado" });
+    const relationCover = relationImage.parentElement as HTMLElement | null;
+    expect(relationCover).not.toBeNull();
+    expect(classTokens(relationCover as HTMLElement)).toContain("w-16");
+    expect(classTokens(relationCover as HTMLElement)).not.toContain("aspect-2/3");
+    expect(relationCover?.style.aspectRatio).toBe("9 / 14");
+  });
+
   it("renderiza CTA de leitura para light novel com capitulo publicado", async () => {
     apiFetchMock.mockReset();
     apiFetchMock.mockImplementation(

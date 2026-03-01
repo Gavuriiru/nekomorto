@@ -344,12 +344,18 @@ describe("Projects query sync", () => {
     );
 
     const coverImage = await screen.findByRole("img", { name: "Projeto 1" });
+    const coverPicture = coverImage.parentElement;
+    const coverWrapper = coverPicture?.parentElement;
     const sources = Array.from(container.querySelectorAll("source"));
 
     expect(sources).toHaveLength(2);
     expect(sources[0]).toHaveAttribute("srcset", expect.stringContaining("/poster-v3.avif"));
     expect(sources[1]).toHaveAttribute("srcset", expect.stringContaining("/poster-v3.webp"));
     expect(coverImage).toHaveAttribute("src", expect.stringContaining("/poster-v3.jpeg"));
+    expect(coverWrapper).not.toBeNull();
+    expect(coverWrapper).toHaveClass("h-39", "md:h-50");
+    expect(coverWrapper).not.toHaveClass("w-28", "md:w-36");
+    expect(coverWrapper?.style.aspectRatio).toBe("9 / 14");
   });
 });
 

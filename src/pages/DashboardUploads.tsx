@@ -46,8 +46,17 @@ type StorageSummaryPayload = {
   areas: StorageAreaRow[];
 };
 
+type CleanupFailure = {
+  kind: "upload" | "variant";
+  url: string;
+  reason: string;
+};
+
 type CleanupExampleRow = {
+  kind: "upload" | "variant";
+  scope: "unused_upload" | "orphaned_variant";
   id: string | null;
+  ownerUploadId: string | null;
   url: string;
   fileName: string;
   folder: string;
@@ -61,6 +70,9 @@ type CleanupExampleRow = {
 type CleanupPreviewPayload = {
   generatedAt: string;
   unusedCount: number;
+  unusedUploadCount: number;
+  orphanedVariantFilesCount: number;
+  orphanedVariantDirsCount: number;
   totals: StorageAreaRow;
   areas: StorageAreaRow[];
   examples: CleanupExampleRow[];
@@ -69,15 +81,16 @@ type CleanupPreviewPayload = {
 type CleanupRunPayload = {
   ok: boolean;
   deletedCount: number;
+  deletedUnusedUploadsCount: number;
+  deletedOrphanedVariantFilesCount: number;
+  deletedOrphanedVariantDirsCount: number;
   failedCount: number;
   deletedTotals: StorageAreaRow;
-  failures: Array<{
-    url: string;
-    reason: string;
-  }>;
+  failures: CleanupFailure[];
 };
 
 const CLEANUP_CONFIRM_TEXT = "EXCLUIR";
+const CLEANUP_ACTION_LABEL = "Limpar armazenamento nao utilizado";
 
 const emptyTotals: StorageAreaRow = {
   area: "total",
@@ -98,6 +111,9 @@ const emptySummary: StorageSummaryPayload = {
 const emptyCleanupPreview: CleanupPreviewPayload = {
   generatedAt: "",
   unusedCount: 0,
+  unusedUploadCount: 0,
+  orphanedVariantFilesCount: 0,
+  orphanedVariantDirsCount: 0,
   totals: emptyTotals,
   areas: [],
   examples: [],
@@ -126,17 +142,34 @@ const normalizeStorageSummaryPayload = (payload: unknown): StorageSummaryPayload
 const normalizeCleanupPreviewPayload = (payload: unknown): CleanupPreviewPayload => {
   const source = payload && typeof payload === "object" ? (payload as Partial<CleanupPreviewPayload>) : {};
   const examples = Array.isArray(source.examples) ? source.examples : [];
+  const unusedUploadCount = Number.isFinite(Number(source.unusedUploadCount))
+    ? Number(source.unusedUploadCount)
+    : Number.isFinite(Number(source.unusedCount))
+      ? Number(source.unusedCount)
+      : 0;
+
   return {
     generatedAt: String(source.generatedAt || ""),
-    unusedCount: Number.isFinite(Number(source.unusedCount)) ? Number(source.unusedCount) : 0,
+    unusedCount: Number.isFinite(Number(source.unusedCount)) ? Number(source.unusedCount) : unusedUploadCount,
+    unusedUploadCount,
+    orphanedVariantFilesCount: Number.isFinite(Number(source.orphanedVariantFilesCount))
+      ? Number(source.orphanedVariantFilesCount)
+      : 0,
+    orphanedVariantDirsCount: Number.isFinite(Number(source.orphanedVariantDirsCount))
+      ? Number(source.orphanedVariantDirsCount)
+      : 0,
     totals: normalizeStorageAreaRow(source.totals, "total"),
     areas: Array.isArray(source.areas)
       ? source.areas.map((item) => normalizeStorageAreaRow(item, String(item?.area || "root")))
       : [],
     examples: examples.map((item) => {
       const example = item && typeof item === "object" ? (item as Partial<CleanupExampleRow>) : {};
+      const kind = example.kind === "variant" ? "variant" : "upload";
       return {
+        kind,
+        scope: example.scope === "orphaned_variant" ? "orphaned_variant" : "unused_upload",
         id: example.id ? String(example.id) : null,
+        ownerUploadId: example.ownerUploadId ? String(example.ownerUploadId) : null,
         url: String(example.url || ""),
         fileName: String(example.fileName || ""),
         folder: String(example.folder || ""),
@@ -153,14 +186,28 @@ const normalizeCleanupPreviewPayload = (payload: unknown): CleanupPreviewPayload
 const normalizeCleanupRunPayload = (payload: unknown): CleanupRunPayload => {
   const source = payload && typeof payload === "object" ? (payload as Partial<CleanupRunPayload>) : {};
   const failures = Array.isArray(source.failures) ? source.failures : [];
+  const deletedUnusedUploadsCount = Number.isFinite(Number(source.deletedUnusedUploadsCount))
+    ? Number(source.deletedUnusedUploadsCount)
+    : Number.isFinite(Number(source.deletedCount))
+      ? Number(source.deletedCount)
+      : 0;
+
   return {
     ok: source.ok !== false,
-    deletedCount: Number.isFinite(Number(source.deletedCount)) ? Number(source.deletedCount) : 0,
+    deletedCount: Number.isFinite(Number(source.deletedCount)) ? Number(source.deletedCount) : deletedUnusedUploadsCount,
+    deletedUnusedUploadsCount,
+    deletedOrphanedVariantFilesCount: Number.isFinite(Number(source.deletedOrphanedVariantFilesCount))
+      ? Number(source.deletedOrphanedVariantFilesCount)
+      : 0,
+    deletedOrphanedVariantDirsCount: Number.isFinite(Number(source.deletedOrphanedVariantDirsCount))
+      ? Number(source.deletedOrphanedVariantDirsCount)
+      : 0,
     failedCount: Number.isFinite(Number(source.failedCount)) ? Number(source.failedCount) : 0,
     deletedTotals: normalizeStorageAreaRow(source.deletedTotals, "total"),
     failures: failures.map((item) => {
       const failure = item && typeof item === "object" ? item : {};
       return {
+        kind: (failure as { kind?: string }).kind === "variant" ? "variant" : "upload",
         url: String((failure as { url?: string }).url || ""),
         reason: String((failure as { reason?: string }).reason || ""),
       };
@@ -195,8 +242,18 @@ const formatDateTime = (value: string | null | undefined) => {
   return parsed.toLocaleString("pt-BR");
 };
 
-const getCleanupActionLabel = (count: number) =>
-  count === 1 ? "Limpar 1 upload" : `Limpar ${count} uploads`;
+const formatCleanupDescription = ({
+  deletedUnusedUploadsCount,
+  deletedOrphanedVariantFilesCount,
+  deletedOrphanedVariantDirsCount,
+  totalBytes,
+}: {
+  deletedUnusedUploadsCount: number;
+  deletedOrphanedVariantFilesCount: number;
+  deletedOrphanedVariantDirsCount: number;
+  totalBytes: number;
+}) =>
+  `${deletedUnusedUploadsCount} uploads removidos, ${deletedOrphanedVariantFilesCount} variantes orfas removidas, ${deletedOrphanedVariantDirsCount} diretorios orfaos removidos e ${formatBytes(totalBytes)} liberados.`;
 
 const DashboardUploads = () => {
   usePageMeta({ title: "Uploads", noIndex: true });
@@ -299,9 +356,16 @@ const DashboardUploads = () => {
     [summary.totals],
   );
 
-  const cleanupActionLabel = useMemo(
-    () => getCleanupActionLabel(cleanupPreview.unusedCount),
-    [cleanupPreview.unusedCount],
+  const hasCleanupCandidates = useMemo(
+    () =>
+      cleanupPreview.unusedUploadCount > 0 ||
+      cleanupPreview.orphanedVariantFilesCount > 0 ||
+      cleanupPreview.orphanedVariantDirsCount > 0,
+    [
+      cleanupPreview.orphanedVariantDirsCount,
+      cleanupPreview.orphanedVariantFilesCount,
+      cleanupPreview.unusedUploadCount,
+    ],
   );
 
   const handleConfirmCleanup = useCallback(async () => {
@@ -324,7 +388,7 @@ const DashboardUploads = () => {
 
       if (!response.ok) {
         toast({
-          title: "Nao foi possivel limpar os uploads",
+          title: "Nao foi possivel limpar o armazenamento",
           variant: "destructive",
         });
         return;
@@ -338,19 +402,29 @@ const DashboardUploads = () => {
       if (payload.failedCount > 0) {
         toast({
           title: "Limpeza parcial concluida",
-          description: `${payload.deletedCount} removidos; ${payload.failedCount} falharam.`,
+          description: `${formatCleanupDescription({
+            deletedUnusedUploadsCount: payload.deletedUnusedUploadsCount,
+            deletedOrphanedVariantFilesCount: payload.deletedOrphanedVariantFilesCount,
+            deletedOrphanedVariantDirsCount: payload.deletedOrphanedVariantDirsCount,
+            totalBytes: payload.deletedTotals.totalBytes,
+          })} ${payload.failedCount} falharam.`,
           variant: "destructive",
         });
         return;
       }
 
       toast({
-        title: "Uploads nao utilizados removidos",
-        description: `${payload.deletedCount} uploads removidos e ${formatBytes(payload.deletedTotals.totalBytes)} liberados.`,
+        title: "Armazenamento nao utilizado removido",
+        description: formatCleanupDescription({
+          deletedUnusedUploadsCount: payload.deletedUnusedUploadsCount,
+          deletedOrphanedVariantFilesCount: payload.deletedOrphanedVariantFilesCount,
+          deletedOrphanedVariantDirsCount: payload.deletedOrphanedVariantDirsCount,
+          totalBytes: payload.deletedTotals.totalBytes,
+        }),
       });
     } catch {
       toast({
-        title: "Nao foi possivel limpar os uploads",
+        title: "Nao foi possivel limpar o armazenamento",
         variant: "destructive",
       });
     } finally {
@@ -451,9 +525,11 @@ const DashboardUploads = () => {
             <article className="overflow-hidden rounded-2xl border border-border/60 bg-card/60">
               <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/60 px-5 py-4">
                 <div className="space-y-1">
-                  <h2 className="text-sm font-semibold text-foreground">Limpeza de uploads nao utilizados</h2>
+                  <h2 className="text-sm font-semibold text-foreground">
+                    Limpeza de armazenamento nao utilizado
+                  </h2>
                   <p className="text-sm text-muted-foreground">
-                    Remove apenas uploads do inventario que nao sao mais referenciados pelo site.
+                    Remove uploads sem referencia e variantes orfas encontradas em _variants.
                   </p>
                 </div>
                 <Badge className="bg-card/80 text-muted-foreground">
@@ -462,22 +538,32 @@ const DashboardUploads = () => {
               </div>
 
               {isCleanupLoading ? (
-                <p className="px-5 py-4 text-sm text-muted-foreground">Analisando uploads nao utilizados...</p>
+                <p className="px-5 py-4 text-sm text-muted-foreground">
+                  Analisando armazenamento nao utilizado...
+                </p>
               ) : hasCleanupError ? (
                 <p className="px-5 py-4 text-sm text-amber-300">
-                  Nao foi possivel analisar os uploads nao utilizados.
+                  Nao foi possivel analisar o armazenamento nao utilizado.
                 </p>
-              ) : cleanupPreview.unusedCount === 0 ? (
-                <p className="px-5 py-4 text-sm text-muted-foreground">Nenhum upload elegivel para limpeza.</p>
+              ) : !hasCleanupCandidates ? (
+                <p className="px-5 py-4 text-sm text-muted-foreground">
+                  Nenhum arquivo elegivel para limpeza.
+                </p>
               ) : (
                 <div className="space-y-4 px-5 py-4">
                   <div className="flex flex-wrap items-center justify-between gap-3">
                     <div className="space-y-1">
                       <p className="text-sm font-medium text-foreground">
-                        {cleanupPreview.unusedCount} uploads elegiveis
+                        {cleanupPreview.unusedUploadCount} uploads sem uso
                       </p>
                       <p className="text-sm text-muted-foreground">
-                        {formatBytes(cleanupPreview.totals.totalBytes)} recuperaveis
+                        {cleanupPreview.orphanedVariantFilesCount} arquivos de variante orfaos
+                      </p>
+                      <p className="text-sm text-muted-foreground">
+                        {cleanupPreview.orphanedVariantDirsCount} diretorios de variantes orfaos
+                      </p>
+                      <p className="text-sm text-muted-foreground">
+                        {formatBytes(cleanupPreview.totals.totalBytes)} recuperaveis no total
                       </p>
                       <p className="text-xs text-muted-foreground">
                         {formatBytes(cleanupPreview.totals.originalBytes)} em originais e{" "}
@@ -490,15 +576,16 @@ const DashboardUploads = () => {
                       disabled={isCleanupRunning}
                       onClick={() => setIsCleanupConfirmOpen(true)}
                     >
-                      {isCleanupRunning ? "Limpando..." : cleanupActionLabel}
+                      {isCleanupRunning ? "Limpando..." : CLEANUP_ACTION_LABEL}
                     </Button>
                   </div>
 
                   {cleanupPreview.examples.length > 0 ? (
                     <div className="overflow-x-auto">
-                      <table className="w-full min-w-[760px] text-sm">
+                      <table className="w-full min-w-[820px] text-sm">
                         <thead className="bg-background/60 text-xs uppercase tracking-[0.12em] text-muted-foreground">
                           <tr>
+                            <th className="px-4 py-3 text-left">Tipo</th>
                             <th className="px-4 py-3 text-left">Arquivo</th>
                             <th className="px-4 py-3 text-left">Area</th>
                             <th className="px-4 py-3 text-left">Criado em</th>
@@ -507,7 +594,13 @@ const DashboardUploads = () => {
                         </thead>
                         <tbody>
                           {cleanupPreview.examples.map((item) => (
-                            <tr key={`${item.id || item.url}`} className="border-t border-border/50">
+                            <tr
+                              key={`${item.kind}:${item.id || item.url}`}
+                              className="border-t border-border/50"
+                            >
+                              <td className="px-4 py-3 text-muted-foreground">
+                                {item.kind === "variant" ? "Variante orfa" : "Upload"}
+                              </td>
                               <td className="px-4 py-3">
                                 <p className="font-medium text-foreground">{item.fileName || item.url}</p>
                                 <p className="text-xs text-muted-foreground">{item.url}</p>
@@ -544,16 +637,27 @@ const DashboardUploads = () => {
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Limpar uploads nao utilizados?</AlertDialogTitle>
+            <AlertDialogTitle>Limpar armazenamento nao utilizado?</AlertDialogTitle>
             <AlertDialogDescription>
-              Esta acao remove permanentemente os uploads nao utilizados e tambem apaga as variantes
-              geradas automaticamente. Digite EXCLUIR para confirmar.
+              Esta acao remove uploads sem uso e variantes orfas encontradas em _variants.
+              Variantes validas referenciadas pelo metadata atual serao preservadas. Digite EXCLUIR
+              para confirmar.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <div className="space-y-2">
             <p className="text-sm text-muted-foreground">
-              Elegiveis agora:{" "}
-              <span className="font-semibold text-foreground">{cleanupPreview.unusedCount}</span>
+              Uploads sem uso:{" "}
+              <span className="font-semibold text-foreground">{cleanupPreview.unusedUploadCount}</span>
+            </p>
+            <p className="text-sm text-muted-foreground">
+              Variantes orfas:{" "}
+              <span className="font-semibold text-foreground">
+                {cleanupPreview.orphanedVariantFilesCount}
+              </span>
+            </p>
+            <p className="text-sm text-muted-foreground">
+              Diretorios orfaos:{" "}
+              <span className="font-semibold text-foreground">{cleanupPreview.orphanedVariantDirsCount}</span>
             </p>
             <p className="text-sm text-muted-foreground">
               Espaco recuperavel:{" "}
@@ -578,7 +682,7 @@ const DashboardUploads = () => {
                 void handleConfirmCleanup();
               }}
             >
-              {isCleanupRunning ? "Limpando..." : cleanupActionLabel}
+              {isCleanupRunning ? "Limpando..." : CLEANUP_ACTION_LABEL}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

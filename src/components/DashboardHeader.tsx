@@ -35,6 +35,7 @@ import {
   selectVisibleTags,
   sortAlphabeticallyPtBr,
 } from "@/lib/search-ranking";
+import { PROJECT_COVER_ASPECT_RATIO } from "@/lib/project-card-layout";
 import { buildTranslationMap, translateTag } from "@/lib/project-taxonomy";
 import { useDynamicSynopsisClamp } from "@/hooks/use-dynamic-synopsis-clamp";
 import { useGlobalShortcuts } from "@/hooks/use-global-shortcuts";
@@ -508,8 +509,8 @@ const DashboardHeader = ({
                             className="group flex h-36 items-start gap-4 overflow-hidden rounded-xl border border-border/60 bg-gradient-card p-4 transition hover:border-primary/40 hover:bg-primary/5"
                           >
                             <div
-                              className="w-20 shrink-0 self-start overflow-hidden rounded-lg bg-secondary"
-                              style={{ aspectRatio: "46 / 65" }}
+                              className="h-28 shrink-0 self-start overflow-hidden rounded-lg bg-secondary"
+                              style={{ aspectRatio: PROJECT_COVER_ASPECT_RATIO }}
                             >
                               <img
                                 src={item.image}
@@ -520,7 +521,7 @@ const DashboardHeader = ({
                             <div
                               data-synopsis-role="column"
                               data-synopsis-key={item.href}
-                              className="min-w-0 h-full flex flex-col"
+                              className="h-28 min-w-0 flex flex-col"
                             >
                               <p
                                 data-synopsis-role="title"

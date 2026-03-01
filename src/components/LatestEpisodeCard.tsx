@@ -8,6 +8,7 @@ import { Link } from "react-router-dom";
 import { usePublicBootstrap } from "@/hooks/use-public-bootstrap";
 import UploadPicture from "@/components/UploadPicture";
 import { formatDate } from "@/lib/date";
+import { PROJECT_COVER_ASPECT_RATIO } from "@/lib/project-card-layout";
 
 const LatestEpisodeCard = () => {
   const { data: bootstrapData, isLoading } = usePublicBootstrap();
@@ -104,7 +105,10 @@ const LatestEpisodeCard = () => {
                     data-reveal
                   >
                     <div className="absolute inset-(--card-pad) flex items-start gap-4">
-                      <div className="shrink-0 overflow-hidden rounded-xl bg-secondary/60 h-full aspect-46/65">
+                      <div
+                        className="h-full shrink-0 overflow-hidden rounded-xl bg-secondary/60"
+                        style={{ aspectRatio: PROJECT_COVER_ASPECT_RATIO }}
+                      >
                         <UploadPicture
                           src={update.image || "/placeholder.svg"}
                           alt={update.projectTitle}

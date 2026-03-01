@@ -371,6 +371,14 @@ describe("Header mobile search layout", () => {
     expect(classTokens(coverColumn as HTMLElement)).toContain("h-28");
     expect(classTokens(coverColumn as HTMLElement)).toContain("overflow-hidden");
 
+    const coverImage = screen.getByRole("img", { name: "Projeto Remoto Badges" });
+    const coverPicture = coverImage.parentElement;
+    const coverWrapper = coverPicture?.parentElement as HTMLElement | null;
+    expect(coverWrapper).not.toBeNull();
+    expect(classTokens(coverWrapper as HTMLElement)).toContain("h-28");
+    expect(classTokens(coverWrapper as HTMLElement)).not.toContain("w-20");
+    expect(coverWrapper?.style.aspectRatio).toBe("9 / 14");
+
     const badgesRow = projectCard?.querySelector(
       '[data-synopsis-role="badges"]',
     ) as HTMLElement | null;

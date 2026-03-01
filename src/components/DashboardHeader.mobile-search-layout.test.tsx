@@ -178,6 +178,19 @@ describe("DashboardHeader mobile search layout", () => {
     expect(await screen.findByText("Acao")).toBeInTheDocument();
     expect(screen.queryByText("acao")).not.toBeInTheDocument();
 
+    const coverImage = screen.getByRole("img", { name: "Projeto Dashboard" });
+    const coverWrapper = coverImage.parentElement as HTMLElement | null;
+    expect(coverWrapper).not.toBeNull();
+    expect(classTokens(coverWrapper as HTMLElement)).toContain("h-28");
+    expect(classTokens(coverWrapper as HTMLElement)).not.toContain("w-20");
+    expect(coverWrapper?.style.aspectRatio).toBe("9 / 14");
+
+    const coverColumn = screen.getByText("Projeto Dashboard").closest(
+      '[data-synopsis-role="column"]',
+    ) as HTMLElement | null;
+    expect(coverColumn).not.toBeNull();
+    expect(classTokens(coverColumn as HTMLElement)).toContain("h-28");
+
     const results = screen.getByTestId("dashboard-header-results");
     expect(classTokens(results)).toContain("w-[min(24rem,calc(100vw-1rem))]");
     expect(classTokens(results)).toContain("xl:w-80");

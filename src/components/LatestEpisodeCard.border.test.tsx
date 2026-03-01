@@ -116,11 +116,17 @@ describe("LatestEpisodeCard border styles", () => {
     );
 
     const coverImage = await screen.findByRole("img", { name: "Projeto Alpha" });
+    const coverPicture = coverImage.parentElement;
+    const coverWrapper = coverPicture?.parentElement;
     const sources = Array.from(container.querySelectorAll("source"));
 
     expect(sources).toHaveLength(4);
     expect(sources[0]).toHaveAttribute("srcset", expect.stringContaining("/uploads/_variants/u1/poster-v1.avif"));
     expect(sources[1]).toHaveAttribute("srcset", expect.stringContaining("/uploads/_variants/u1/poster-v1.webp"));
     expect(coverImage).toHaveAttribute("src", expect.stringContaining("/uploads/_variants/u1/poster-v1.jpeg"));
+    expect(coverWrapper).not.toBeNull();
+    expect(coverWrapper).toHaveClass("h-full");
+    expect(coverWrapper).not.toHaveClass("aspect-46/65");
+    expect(coverWrapper?.style.aspectRatio).toBe("9 / 14");
   });
 });

@@ -12127,6 +12127,9 @@ app.get("/api/uploads/storage/cleanup", requireAuth, (req, res) => {
   return res.json({
     generatedAt: report.generatedAt,
     unusedCount: report.unusedCount,
+    unusedUploadCount: report.unusedUploadCount,
+    orphanedVariantFilesCount: report.orphanedVariantFilesCount,
+    orphanedVariantDirsCount: report.orphanedVariantDirsCount,
     totals: report.totals,
     areas: report.areas,
     examples: report.examples,
@@ -12157,6 +12160,9 @@ app.post("/api/uploads/storage/cleanup", requireAuth, (req, res) => {
 
     appendAuditLog(req, "uploads.cleanup_unused", "uploads", {
       deletedCount: report.deletedCount,
+      deletedUnusedUploadsCount: report.deletedUnusedUploadsCount,
+      deletedOrphanedVariantFilesCount: report.deletedOrphanedVariantFilesCount,
+      deletedOrphanedVariantDirsCount: report.deletedOrphanedVariantDirsCount,
       failedCount: report.failedCount,
       freedBytes: Number(report.deletedTotals?.totalBytes || 0),
       failures: report.failures,
@@ -12165,6 +12171,9 @@ app.post("/api/uploads/storage/cleanup", requireAuth, (req, res) => {
     return res.json({
       ok: report.failedCount === 0,
       deletedCount: report.deletedCount,
+      deletedUnusedUploadsCount: report.deletedUnusedUploadsCount,
+      deletedOrphanedVariantFilesCount: report.deletedOrphanedVariantFilesCount,
+      deletedOrphanedVariantDirsCount: report.deletedOrphanedVariantDirsCount,
       failedCount: report.failedCount,
       deletedTotals: report.deletedTotals,
       failures: report.failures,

@@ -193,10 +193,10 @@ describe("ProjectEmbedCard", () => {
     expect(coverPicture).not.toBeNull();
     expect(coverPicture).toHaveClass("block", "h-full", "w-full");
     expect(coverWrapper).not.toBeNull();
-    expect(coverWrapper).toHaveClass("h-full", "w-32", "shrink-0", "self-start");
+    expect(coverWrapper).toHaveClass("h-full", "shrink-0", "self-start");
+    expect(coverWrapper?.style.aspectRatio).toBe("9 / 14");
     expect(coverWrapper).not.toHaveClass("w-full");
     expect(coverWrapper).not.toHaveClass("border", "border-border", "group-hover:border-primary/40");
-    expect(String(coverWrapper?.getAttribute("style") || "")).not.toMatch(/aspect-ratio/i);
     expect(String(coverImage.getAttribute("style") || "")).not.toMatch(/aspect-ratio/i);
   });
 

@@ -26,7 +26,7 @@ import type { Project } from "@/data/projects";
 import { usePageMeta } from "@/hooks/use-page-meta";
 import { useDynamicSynopsisClamp } from "@/hooks/use-dynamic-synopsis-clamp";
 import { publicPageLayoutTokens } from "@/components/public-page-tokens";
-import { prepareProjectBadges } from "@/lib/project-card-layout";
+import { prepareProjectBadges, PROJECT_COVER_ASPECT_RATIO } from "@/lib/project-card-layout";
 import { normalizeSearchText } from "@/lib/search-ranking";
 import type { UploadMediaVariantsMap } from "@/lib/upload-variants";
 import { cn } from "@/lib/utils";
@@ -159,7 +159,10 @@ const ProjectCard = ({
       to={`/projeto/${project.id}`}
       className="projects-public-card group flex h-50 w-full items-start gap-5 overflow-hidden rounded-2xl border border-border/60 bg-gradient-card p-5 shadow-[0_28px_120px_-60px_rgba(0,0,0,0.55)] transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:shadow-lg focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:ring-offset-2 focus-visible:ring-offset-background md:h-60"
     >
-      <div className="h-39 w-28 shrink-0 overflow-hidden rounded-xl bg-secondary shadow-inner md:h-50 md:w-36">
+      <div
+        className="h-39 shrink-0 overflow-hidden rounded-xl bg-secondary shadow-inner md:h-50"
+        style={{ aspectRatio: PROJECT_COVER_ASPECT_RATIO }}
+      >
         <UploadPicture
           src={project.cover}
           alt={project.title}

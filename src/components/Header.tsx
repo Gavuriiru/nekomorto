@@ -33,6 +33,7 @@ import {
 import { buildTranslationMap, translateTag } from "@/lib/project-taxonomy";
 import { useDynamicSynopsisClamp } from "@/hooks/use-dynamic-synopsis-clamp";
 import { useGlobalShortcuts } from "@/hooks/use-global-shortcuts";
+import { PROJECT_COVER_ASPECT_RATIO } from "@/lib/project-card-layout";
 import {
   buildDashboardMenuFromGrants,
   getFirstAllowedDashboardRoute,
@@ -614,7 +615,10 @@ const Header = ({ variant = "fixed", leading, className }: HeaderProps) => {
                             to={item.href}
                             className="group flex h-36 items-start gap-4 overflow-hidden rounded-xl border border-border/60 bg-gradient-card p-4 transition hover:border-primary/40 hover:bg-primary/5"
                           >
-                            <div className="h-28 w-20 shrink-0 self-start overflow-hidden rounded-lg bg-secondary">
+                            <div
+                              className="h-28 shrink-0 self-start overflow-hidden rounded-lg bg-secondary"
+                              style={{ aspectRatio: PROJECT_COVER_ASPECT_RATIO }}
+                            >
                               <UploadPicture
                                 src={item.image}
                                 alt={item.label}

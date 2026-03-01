@@ -34,6 +34,8 @@ const mockJsonResponse = (ok: boolean, payload: unknown, status = ok ? 200 : 500
     json: async () => payload,
   }) as Response;
 
+const CLEANUP_ACTION_LABEL = "Limpar armazenamento nao utilizado";
+
 const baseSummary = {
   generatedAt: "2026-03-01T10:00:00.000Z",
   totals: {
@@ -61,14 +63,17 @@ const baseSummary = {
 const cleanupPreviewWithItems = {
   generatedAt: "2026-03-01T10:00:00.000Z",
   unusedCount: 2,
+  unusedUploadCount: 2,
+  orphanedVariantFilesCount: 3,
+  orphanedVariantDirsCount: 1,
   totals: {
     area: "total",
     originalBytes: 800,
-    variantBytes: 200,
-    totalBytes: 1000,
+    variantBytes: 1200,
+    totalBytes: 2000,
     originalFiles: 2,
-    variantFiles: 2,
-    totalFiles: 4,
+    variantFiles: 3,
+    totalFiles: 5,
   },
   areas: [
     {
@@ -77,13 +82,25 @@ const cleanupPreviewWithItems = {
       variantBytes: 200,
       totalBytes: 1000,
       originalFiles: 2,
+      variantFiles: 1,
+      totalFiles: 3,
+    },
+    {
+      area: "_variants",
+      originalBytes: 0,
+      variantBytes: 1000,
+      totalBytes: 1000,
+      originalFiles: 0,
       variantFiles: 2,
-      totalFiles: 4,
+      totalFiles: 2,
     },
   ],
   examples: [
     {
+      kind: "upload",
+      scope: "unused_upload",
       id: "u-1",
+      ownerUploadId: null,
       url: "/uploads/posts/unused-1.png",
       fileName: "unused-1.png",
       folder: "posts",
@@ -94,14 +111,17 @@ const cleanupPreviewWithItems = {
       totalBytes: 600,
     },
     {
-      id: "u-2",
-      url: "/uploads/posts/unused-2.png",
-      fileName: "unused-2.png",
-      folder: "posts",
-      area: "posts",
+      kind: "variant",
+      scope: "orphaned_variant",
+      id: null,
+      ownerUploadId: "u-9",
+      url: "/uploads/_variants/u-9/old-card.webp",
+      fileName: "old-card.webp",
+      folder: "_variants/u-9",
+      area: "_variants",
       createdAt: "2026-03-01T09:30:00.000Z",
-      originalBytes: 300,
-      variantBytes: 100,
+      originalBytes: 0,
+      variantBytes: 400,
       totalBytes: 400,
     },
   ],
@@ -110,6 +130,9 @@ const cleanupPreviewWithItems = {
 const emptyCleanupPreview = {
   generatedAt: "2026-03-01T10:05:00.000Z",
   unusedCount: 0,
+  unusedUploadCount: 0,
+  orphanedVariantFilesCount: 0,
+  orphanedVariantDirsCount: 0,
   totals: {
     area: "total",
     originalBytes: 0,
@@ -124,14 +147,17 @@ const emptyCleanupPreview = {
 };
 
 const setupApi = (options?: {
-  initialCleanupPreview?: typeof cleanupPreviewWithItems;
-  cleanupPreviewAfterRun?: typeof emptyCleanupPreview | typeof cleanupPreviewWithItems;
+  initialCleanupPreview?: typeof cleanupPreviewWithItems | typeof emptyCleanupPreview;
+  cleanupPreviewAfterRun?: typeof cleanupPreviewWithItems | typeof emptyCleanupPreview;
   cleanupResult?: {
     ok: boolean;
     deletedCount: number;
+    deletedUnusedUploadsCount: number;
+    deletedOrphanedVariantFilesCount: number;
+    deletedOrphanedVariantDirsCount: number;
     failedCount: number;
     deletedTotals: typeof emptyCleanupPreview.totals;
-    failures: Array<{ url: string; reason: string }>;
+    failures: Array<{ kind: "upload" | "variant"; url: string; reason: string }>;
   };
 }) => {
   const initialCleanupPreview = options?.initialCleanupPreview || cleanupPreviewWithItems;
@@ -141,6 +167,9 @@ const setupApi = (options?: {
     ({
       ok: true,
       deletedCount: 2,
+      deletedUnusedUploadsCount: 2,
+      deletedOrphanedVariantFilesCount: 3,
+      deletedOrphanedVariantDirsCount: 1,
       failedCount: 0,
       deletedTotals: cleanupPreviewWithItems.totals,
       failures: [],
@@ -175,18 +204,23 @@ describe("DashboardUploads cleanup", () => {
     toastMock.mockReset();
   });
 
-  it("renderiza a secao de limpeza quando ha uploads elegiveis", async () => {
+  it("renderiza a secao de armazenamento nao utilizado com contagens separadas e linhas mistas", async () => {
     setupApi();
 
     render(<DashboardUploads />);
 
-    await screen.findByText("Limpeza de uploads nao utilizados");
-    expect(screen.getByText("2 uploads elegiveis")).toBeInTheDocument();
+    await screen.findByText("Limpeza de armazenamento nao utilizado");
+    expect(screen.getByText("2 uploads sem uso")).toBeInTheDocument();
+    expect(screen.getByText("3 arquivos de variante orfaos")).toBeInTheDocument();
+    expect(screen.getByText("1 diretorios de variantes orfaos")).toBeInTheDocument();
     expect(screen.getByText("unused-1.png")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Limpar 2 uploads" })).toBeInTheDocument();
+    expect(screen.getByText("old-card.webp")).toBeInTheDocument();
+    expect(screen.getByText("Upload")).toBeInTheDocument();
+    expect(screen.getByText("Variante orfa")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: CLEANUP_ACTION_LABEL })).toBeInTheDocument();
   });
 
-  it("exibe estado vazio quando nao ha uploads elegiveis", async () => {
+  it("exibe estado vazio quando nao ha nada elegivel para limpeza", async () => {
     setupApi({
       initialCleanupPreview: emptyCleanupPreview,
       cleanupPreviewAfterRun: emptyCleanupPreview,
@@ -194,20 +228,21 @@ describe("DashboardUploads cleanup", () => {
 
     render(<DashboardUploads />);
 
-    await screen.findByText("Nenhum upload elegivel para limpeza.");
-    expect(screen.queryByRole("button", { name: /Limpar .* uploads/i })).not.toBeInTheDocument();
+    await screen.findByText("Nenhum arquivo elegivel para limpeza.");
+    expect(screen.queryByRole("button", { name: CLEANUP_ACTION_LABEL })).not.toBeInTheDocument();
   });
 
-  it("abre o modal e exige EXCLUIR antes de habilitar a confirmacao", async () => {
+  it("abre o modal, menciona variantes orfas e exige EXCLUIR antes de habilitar a confirmacao", async () => {
     setupApi();
 
     render(<DashboardUploads />);
 
-    const openButton = await screen.findByRole("button", { name: "Limpar 2 uploads" });
-    fireEvent.click(openButton);
+    fireEvent.click(await screen.findByRole("button", { name: CLEANUP_ACTION_LABEL }));
 
     const alertDialog = await screen.findByRole("alertdialog");
-    const confirmButton = within(alertDialog).getByRole("button", { name: "Limpar 2 uploads" });
+    expect(within(alertDialog).getByText(/variantes orfas encontradas em _variants/i)).toBeInTheDocument();
+
+    const confirmButton = within(alertDialog).getByRole("button", { name: CLEANUP_ACTION_LABEL });
     const confirmInput = within(alertDialog).getByPlaceholderText("Digite EXCLUIR");
 
     expect(confirmButton).toBeDisabled();
@@ -218,21 +253,21 @@ describe("DashboardUploads cleanup", () => {
     expect(confirmButton).not.toBeDisabled();
   });
 
-  it("envia o body correto no cleanup e recarrega preview e resumo", async () => {
+  it("envia o body correto, recarrega os dados e mostra toast combinado de sucesso", async () => {
     setupApi();
 
     render(<DashboardUploads />);
 
-    fireEvent.click(await screen.findByRole("button", { name: "Limpar 2 uploads" }));
+    fireEvent.click(await screen.findByRole("button", { name: CLEANUP_ACTION_LABEL }));
 
     const alertDialog = await screen.findByRole("alertdialog");
     fireEvent.change(within(alertDialog).getByPlaceholderText("Digite EXCLUIR"), {
       target: { value: "EXCLUIR" },
     });
-    fireEvent.click(within(alertDialog).getByRole("button", { name: "Limpar 2 uploads" }));
+    fireEvent.click(within(alertDialog).getByRole("button", { name: CLEANUP_ACTION_LABEL }));
 
     await waitFor(() => {
-      expect(screen.getByText("Nenhum upload elegivel para limpeza.")).toBeInTheDocument();
+      expect(screen.getByText("Nenhum arquivo elegivel para limpeza.")).toBeInTheDocument();
     });
 
     const cleanupPostCall = apiFetchMock.mock.calls.find((call) => {
@@ -261,46 +296,51 @@ describe("DashboardUploads cleanup", () => {
     expect(cleanupGetCalls.length).toBeGreaterThanOrEqual(2);
     expect(toastMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        title: "Uploads nao utilizados removidos",
+        title: "Armazenamento nao utilizado removido",
+        description: expect.stringContaining("2 uploads removidos, 3 variantes orfas removidas"),
       }),
     );
   });
 
-  it("mostra feedback de limpeza parcial quando ha falhas", async () => {
+  it("mostra feedback de limpeza parcial quando ha falha de variante", async () => {
     setupApi({
       cleanupPreviewAfterRun: cleanupPreviewWithItems,
       cleanupResult: {
         ok: false,
         deletedCount: 1,
+        deletedUnusedUploadsCount: 1,
+        deletedOrphanedVariantFilesCount: 2,
+        deletedOrphanedVariantDirsCount: 1,
         failedCount: 1,
         deletedTotals: {
           area: "total",
           originalBytes: 500,
-          variantBytes: 100,
-          totalBytes: 600,
+          variantBytes: 300,
+          totalBytes: 800,
           originalFiles: 1,
-          variantFiles: 1,
-          totalFiles: 2,
+          variantFiles: 2,
+          totalFiles: 3,
         },
-        failures: [{ url: "/uploads/posts/unused-2.png", reason: "eperm" }],
+        failures: [{ kind: "variant", url: "/uploads/_variants/u-9/old-card.webp", reason: "eperm" }],
       },
     });
 
     render(<DashboardUploads />);
 
-    fireEvent.click(await screen.findByRole("button", { name: "Limpar 2 uploads" }));
+    fireEvent.click(await screen.findByRole("button", { name: CLEANUP_ACTION_LABEL }));
 
     const alertDialog = await screen.findByRole("alertdialog");
     fireEvent.change(within(alertDialog).getByPlaceholderText("Digite EXCLUIR"), {
       target: { value: "EXCLUIR" },
     });
-    fireEvent.click(within(alertDialog).getByRole("button", { name: "Limpar 2 uploads" }));
+    fireEvent.click(within(alertDialog).getByRole("button", { name: CLEANUP_ACTION_LABEL }));
 
     await waitFor(() => {
       expect(toastMock).toHaveBeenCalledWith(
         expect.objectContaining({
           title: "Limpeza parcial concluida",
           variant: "destructive",
+          description: expect.stringContaining("1 falharam."),
         }),
       );
     });

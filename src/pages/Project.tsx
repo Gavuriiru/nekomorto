@@ -46,6 +46,7 @@ import { formatBytesCompact } from "@/lib/file-size";
 import { useSiteSettings } from "@/hooks/use-site-settings";
 import { usePageMeta } from "@/hooks/use-page-meta";
 import { normalizeAssetUrl } from "@/lib/asset-url";
+import { PROJECT_COVER_ASPECT_RATIO } from "@/lib/project-card-layout";
 import type { UploadMediaVariantsMap } from "@/lib/upload-variants";
 import NotFound from "./NotFound";
 import type { Project } from "@/data/projects";
@@ -654,7 +655,7 @@ const ProjectPage = () => {
                 <div
                   data-testid="project-hero-cover-frame"
                   className="overflow-hidden rounded-2xl border border-border/70 bg-secondary/90 shadow-[0_30px_100px_-55px_rgba(0,0,0,0.95)] animate-slide-up opacity-0"
-                  style={{ aspectRatio: "9 / 14" }}
+                  style={{ aspectRatio: PROJECT_COVER_ASPECT_RATIO }}
                 >
                   <img
                     src={heroCoverDisplaySrc}
@@ -818,7 +819,10 @@ const ProjectPage = () => {
                             to={targetId ? `/projeto/${targetId}` : "#"}
                             className="group flex gap-4 rounded-xl border border-border/50 bg-background/60 p-4 transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:bg-background/80 hover:shadow-lg"
                           >
-                            <div className="w-16 shrink-0 overflow-hidden rounded-lg bg-secondary aspect-2/3">
+                            <div
+                              className="w-16 shrink-0 overflow-hidden rounded-lg bg-secondary"
+                              style={{ aspectRatio: PROJECT_COVER_ASPECT_RATIO }}
+                            >
                               <img
                                 src={relation.image}
                                 alt={relation.title}

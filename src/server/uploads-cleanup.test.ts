@@ -62,24 +62,12 @@ afterEach(() => {
 });
 
 describe("runUploadsCleanup", () => {
-  it("retorna apenas uploads do inventario sem referencia no dry-run", () => {
+  it("mantem a analise de uploads sem uso e ignora uploads referenciados", () => {
     const { uploadsDir, datasets } = createTempWorkspace({
-      posts: [{ coverImageUrl: "/uploads/posts/used-post.png" }],
-      projects: [{ cover: "/uploads/projects/project-1/used-project.png" }],
-      users: [{ avatarUrl: "/uploads/users/avatar.png" }],
-      pages: { about: { heroImageUrl: "/uploads/pages/about-hero.png" } },
-      comments: [{ attachments: [{ image: "/uploads/comments/comment-image.png" }] }],
-      updates: [{ image: "/uploads/updates/update-image.png" }],
-      siteSettings: { site: { logoUrl: "/uploads/branding/logo.png" } },
+      posts: [{ coverImageUrl: "/uploads/posts/used.png" }],
       uploads: [
-        { id: "u-1", url: "/uploads/posts/used-post.png", fileName: "used-post.png" },
-        { id: "u-2", url: "/uploads/projects/project-1/used-project.png", fileName: "used-project.png" },
-        { id: "u-3", url: "/uploads/users/avatar.png", fileName: "avatar.png" },
-        { id: "u-4", url: "/uploads/pages/about-hero.png", fileName: "about-hero.png" },
-        { id: "u-5", url: "/uploads/comments/comment-image.png", fileName: "comment-image.png" },
-        { id: "u-6", url: "/uploads/updates/update-image.png", fileName: "update-image.png" },
-        { id: "u-7", url: "/uploads/branding/logo.png", fileName: "logo.png" },
-        { id: "u-8", url: "/uploads/posts/unused.png", fileName: "unused.png" },
+        { id: "u-used", url: "/uploads/posts/used.png", fileName: "used.png" },
+        { id: "u-unused", url: "/uploads/posts/unused.png", fileName: "unused.png", size: 120 },
       ],
     });
 
@@ -87,169 +75,272 @@ describe("runUploadsCleanup", () => {
 
     expect(result.mode).toBe("dry-run");
     expect(result.unusedCount).toBe(1);
+    expect(result.unusedUploadCount).toBe(1);
+    expect(result.orphanedVariantFilesCount).toBe(0);
+    expect(result.orphanedVariantDirsCount).toBe(0);
     expect(result.examples).toEqual([
       expect.objectContaining({
-        id: "u-8",
+        kind: "upload",
+        scope: "unused_upload",
         url: "/uploads/posts/unused.png",
-        fileName: "unused.png",
       }),
     ]);
-    expect(result.changed).toBe(false);
-    expect(result.deletedCount).toBe(0);
-    expect(result.failedCount).toBe(0);
-    expect(result.rewritten.uploads).toHaveLength(8);
   });
 
-  it("resume bytes de originais e variantes no dry-run", () => {
-    const { uploadsDir, datasets } = createTempWorkspace({
-      uploads: [
-        {
-          id: "u-media",
-          url: "/uploads/posts/media.png",
-          fileName: "media.png",
-          folder: "posts",
-          size: 120,
-          variants: {
-            card: {
-              formats: {
-                fallback: { url: "/uploads/_variants/u-media/card.jpeg", size: 40 },
-                webp: { url: "/uploads/_variants/u-media/card.webp", size: 20 },
-              },
-            },
-          },
-        },
+  it("inclui diretorio de variantes sem upload correspondente como orfao", () => {
+    const { uploadsDir, datasets } = createTempWorkspace(
+      {
+        uploads: [],
+      },
+      [
+        { relativePath: "_variants/ghost/card.webp", content: Buffer.alloc(40) },
+        { relativePath: "_variants/ghost/card.jpeg", content: Buffer.alloc(20) },
       ],
-    });
+    );
 
     const result = runUploadsCleanup({ datasets, uploadsDir, applyChanges: false });
 
+    expect(result.unusedUploadCount).toBe(0);
+    expect(result.orphanedVariantFilesCount).toBe(2);
+    expect(result.orphanedVariantDirsCount).toBe(1);
     expect(result.totals).toEqual(
       expect.objectContaining({
-        area: "total",
-        originalBytes: 120,
+        originalBytes: 0,
         variantBytes: 60,
-        totalBytes: 180,
-        originalFiles: 1,
+        totalBytes: 60,
         variantFiles: 2,
-        totalFiles: 3,
+        totalFiles: 2,
       }),
     );
-    expect(result.examples[0]).toEqual(
+    expect(result.examples).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          kind: "variant",
+          scope: "orphaned_variant",
+          url: "/uploads/_variants/ghost/card.webp",
+          totalBytes: 40,
+        }),
+      ]),
+    );
+  });
+
+  it("preserva variantes esperadas e remove apenas arquivos extras de uploads ativos", () => {
+    const { uploadsDir, datasets } = createTempWorkspace(
+      {
+        posts: [{ coverImageUrl: "/uploads/posts/cover.png" }],
+        uploads: [
+          {
+            id: "u-active",
+            url: "/uploads/posts/cover.png",
+            fileName: "cover.png",
+            folder: "posts",
+            variants: {
+              card: {
+                formats: {
+                  webp: { url: "/uploads/_variants/u-active/card-v1.webp", size: 50 },
+                },
+              },
+            },
+          },
+        ],
+      },
+      [
+        { relativePath: "_variants/u-active/card-v1.webp", content: Buffer.alloc(50) },
+        { relativePath: "_variants/u-active/old-card.webp", content: Buffer.alloc(35) },
+      ],
+    );
+
+    const result = runUploadsCleanup({ datasets, uploadsDir, applyChanges: true });
+
+    expect(result.deletedUnusedUploadsCount).toBe(0);
+    expect(result.deletedOrphanedVariantFilesCount).toBe(1);
+    expect(result.deletedOrphanedVariantDirsCount).toBe(0);
+    expect(result.failedCount).toBe(0);
+    expect(fs.existsSync(path.join(uploadsDir, "_variants", "u-active", "card-v1.webp"))).toBe(true);
+    expect(fs.existsSync(path.join(uploadsDir, "_variants", "u-active", "old-card.webp"))).toBe(false);
+  });
+
+  it("nao duplica contagem de variantes quando o upload ja sera removido por estar sem uso", () => {
+    const { uploadsDir, datasets } = createTempWorkspace(
+      {
+        uploads: [
+          {
+            id: "u-unused",
+            url: "/uploads/posts/unused.png",
+            fileName: "unused.png",
+            folder: "posts",
+            size: 100,
+            variants: {
+              card: {
+                formats: {
+                  webp: { url: "/uploads/_variants/u-unused/card-v1.webp", size: 60 },
+                },
+              },
+            },
+          },
+        ],
+      },
+      [
+        { relativePath: "_variants/u-unused/card-v1.webp", content: Buffer.alloc(60) },
+        { relativePath: "_variants/u-unused/orphan-extra.webp", content: Buffer.alloc(90) },
+      ],
+    );
+
+    const result = runUploadsCleanup({ datasets, uploadsDir, applyChanges: false });
+
+    expect(result.unusedUploadCount).toBe(1);
+    expect(result.orphanedVariantFilesCount).toBe(0);
+    expect(result.orphanedVariantDirsCount).toBe(0);
+    expect(result.totals).toEqual(
       expect.objectContaining({
-        originalBytes: 120,
+        originalBytes: 100,
         variantBytes: 60,
-        totalBytes: 180,
+        totalBytes: 160,
       }),
     );
   });
 
-  it("remove arquivo original e pasta de variantes no apply", () => {
+  it("soma corretamente bytes de multiplos arquivos em um diretorio orfao", () => {
     const { uploadsDir, datasets } = createTempWorkspace(
       {
+        uploads: [],
+      },
+      [
+        { relativePath: "_variants/ghost/a.webp", content: Buffer.alloc(10) },
+        { relativePath: "_variants/ghost/b.webp", content: Buffer.alloc(20) },
+        { relativePath: "_variants/ghost/nested/c.webp", content: Buffer.alloc(30) },
+      ],
+    );
+
+    const result = runUploadsCleanup({ datasets, uploadsDir, applyChanges: false });
+
+    expect(result.orphanedVariantFilesCount).toBe(3);
+    expect(result.orphanedVariantDirsCount).toBe(1);
+    expect(result.totals.variantBytes).toBe(60);
+    expect(result.totals.variantFiles).toBe(3);
+  });
+
+  it("remove diretorios vazios apos limpar variantes orfas em upload ativo", () => {
+    const { uploadsDir, datasets } = createTempWorkspace(
+      {
+        posts: [{ coverImageUrl: "/uploads/posts/cover.png" }],
         uploads: [
           {
-            id: "u-clean",
-            url: "/uploads/posts/unused-clean.png",
-            fileName: "unused-clean.png",
+            id: "u-active",
+            url: "/uploads/posts/cover.png",
+            fileName: "cover.png",
             folder: "posts",
-            size: 10,
+            variants: {},
           },
         ],
       },
-      [
-        { relativePath: "posts/unused-clean.png" },
-        { relativePath: "_variants/u-clean/card.webp" },
-        { relativePath: "_variants/u-clean/card.jpeg" },
-      ],
+      [{ relativePath: "_variants/u-active/nested/old.webp", content: Buffer.alloc(12) }],
     );
 
     const result = runUploadsCleanup({ datasets, uploadsDir, applyChanges: true });
 
-    expect(result.mode).toBe("apply");
-    expect(result.deletedCount).toBe(1);
+    expect(result.deletedOrphanedVariantFilesCount).toBe(1);
     expect(result.failedCount).toBe(0);
-    expect(result.changed).toBe(true);
-    expect(result.rewritten.uploads).toHaveLength(0);
-    expect(fs.existsSync(path.join(uploadsDir, "posts", "unused-clean.png"))).toBe(false);
-    expect(fs.existsSync(path.join(uploadsDir, "_variants", "u-clean"))).toBe(false);
+    expect(fs.existsSync(path.join(uploadsDir, "_variants", "u-active", "nested"))).toBe(false);
+    expect(fs.existsSync(path.join(uploadsDir, "_variants", "u-active"))).toBe(false);
   });
 
-  it("trata ausencia de arquivo e variantes como operacao idempotente", () => {
-    const { uploadsDir, datasets } = createTempWorkspace({
-      uploads: [
-        {
-          id: "u-missing",
-          url: "/uploads/posts/missing.png",
-          fileName: "missing.png",
-          folder: "posts",
-        },
-      ],
-    });
-
-    const result = runUploadsCleanup({ datasets, uploadsDir, applyChanges: true });
-
-    expect(result.deletedCount).toBe(1);
-    expect(result.failedCount).toBe(0);
-    expect(result.rewritten.uploads).toHaveLength(0);
-  });
-
-  it("mantem o item no inventario quando ocorre falha de filesystem", () => {
+  it("registra falha de variante sem bloquear outras remocoes", () => {
     const { uploadsDir, datasets } = createTempWorkspace(
       {
+        posts: [{ coverImageUrl: "/uploads/posts/cover.png" }],
         uploads: [
           {
-            id: "u-fail",
-            url: "/uploads/posts/fail.png",
-            fileName: "fail.png",
+            id: "u-active",
+            url: "/uploads/posts/cover.png",
+            fileName: "cover.png",
             folder: "posts",
+            variants: {},
           },
         ],
       },
       [
-        { relativePath: "posts/fail.png" },
-        { relativePath: "_variants/u-fail/card.webp" },
+        { relativePath: "_variants/u-active/fail.webp", content: Buffer.alloc(10) },
+        { relativePath: "_variants/u-active/ok.webp", content: Buffer.alloc(20) },
       ],
     );
 
-    const targetPath = path.join(uploadsDir, "posts", "fail.png");
+    const failingPath = path.join(uploadsDir, "_variants", "u-active", "fail.webp");
     const originalRmSync = fs.rmSync;
     vi.spyOn(fs, "rmSync").mockImplementation((target, options) => {
-      if (String(target) === targetPath) {
-        throw new Error("eprem");
+      if (String(target) === failingPath) {
+        throw new Error("eperm");
       }
       return originalRmSync(target as fs.PathLike, options as fs.RmOptions);
     });
 
     const result = runUploadsCleanup({ datasets, uploadsDir, applyChanges: true });
 
-    expect(result.deletedCount).toBe(0);
+    expect(result.deletedOrphanedVariantFilesCount).toBe(1);
     expect(result.failedCount).toBe(1);
-    expect(result.changed).toBe(false);
     expect(result.failures).toEqual([
       {
-        url: "/uploads/posts/fail.png",
-        reason: "eprem",
+        kind: "variant",
+        url: "/uploads/_variants/u-active/fail.webp",
+        reason: "eperm",
       },
     ]);
-    expect(result.rewritten.uploads).toHaveLength(1);
-    expect(fs.existsSync(targetPath)).toBe(true);
+    expect(fs.existsSync(path.join(uploadsDir, "_variants", "u-active", "ok.webp"))).toBe(false);
+    expect(fs.existsSync(path.join(uploadsDir, "_variants", "u-active", "fail.webp"))).toBe(true);
   });
 
-  it("limita exemplos a oito itens e ordena pelo maior total recuperavel", () => {
-    const uploads = Array.from({ length: 9 }, (_, index) => ({
-      id: `u-${index + 1}`,
-      url: `/uploads/posts/item-${index + 1}.png`,
-      fileName: `item-${index + 1}.png`,
-      folder: "posts",
-      size: (index + 1) * 10,
-    }));
-    const { uploadsDir, datasets } = createTempWorkspace({ uploads });
+  it("mistura exemplos de upload e variante e respeita exampleLimit", () => {
+    const { uploadsDir, datasets } = createTempWorkspace(
+      {
+        posts: [
+          { coverImageUrl: "/uploads/posts/used.png" },
+          { coverImageUrl: "/uploads/posts/active.png" },
+        ],
+        uploads: [
+          { id: "u-used", url: "/uploads/posts/used.png", fileName: "used.png" },
+          {
+            id: "u-unused",
+            url: "/uploads/posts/unused-big.png",
+            fileName: "unused-big.png",
+            folder: "posts",
+            size: 200,
+          },
+          {
+            id: "u-active",
+            url: "/uploads/posts/active.png",
+            fileName: "active.png",
+            folder: "posts",
+            variants: {},
+          },
+        ],
+      },
+      [
+        { relativePath: "_variants/u-active/big-extra.webp", content: Buffer.alloc(250) },
+        { relativePath: "_variants/ghost/medium.webp", content: Buffer.alloc(180) },
+      ],
+    );
 
-    const result = runUploadsCleanup({ datasets, uploadsDir, applyChanges: false });
+    const result = runUploadsCleanup({
+      datasets,
+      uploadsDir,
+      applyChanges: false,
+      exampleLimit: 2,
+    });
 
-    expect(result.examples).toHaveLength(8);
-    expect(result.examples[0]?.url).toBe("/uploads/posts/item-9.png");
-    expect(result.examples.at(-1)?.url).toBe("/uploads/posts/item-2.png");
-    expect(result.examples.some((item) => item.url === "/uploads/posts/item-1.png")).toBe(false);
+    expect(result.examples).toHaveLength(2);
+    expect(result.examples[0]).toEqual(
+      expect.objectContaining({
+        kind: "variant",
+        url: "/uploads/_variants/u-active/big-extra.webp",
+        totalBytes: 250,
+      }),
+    );
+    expect(result.examples[1]).toEqual(
+      expect.objectContaining({
+        kind: "upload",
+        url: "/uploads/posts/unused-big.png",
+        totalBytes: 200,
+      }),
+    );
   });
 });
