@@ -428,6 +428,7 @@ const HeroSection = () => {
                         alt=""
                         preset="hero"
                         mediaVariants={shouldLoadImage ? mediaVariants : undefined}
+                        applyFocalObjectPosition
                         className="h-full w-full"
                         imgClassName="h-full w-full object-cover object-center"
                         aria-hidden="true"

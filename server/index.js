@@ -4581,9 +4581,12 @@ const buildPublicMediaVariants = (...sources) => {
     const variantsVersion = Number.isFinite(variantsVersionRaw)
       ? Math.max(1, Math.floor(variantsVersionRaw))
       : 1;
+    const focalState = readUploadFocalState(entry);
     mediaVariants[normalizedUrl] = {
       variantsVersion,
       variants,
+      focalPoints: focalState.focalPoints,
+      focalPoint: focalState.focalPoint,
     };
   });
   return mediaVariants;

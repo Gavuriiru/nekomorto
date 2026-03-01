@@ -108,9 +108,50 @@ const setupApiMock = (project = projectFixture) => {
   apiFetchMock.mockImplementation(
     async (_apiBase: string, endpoint: string, options?: RequestInit) => {
       const method = String(options?.method || "GET").toUpperCase();
+      const mediaVariants = {
+        "/uploads/banner-default.jpg": {
+          variantsVersion: 1,
+          variants: {
+            hero: {
+              formats: {
+                fallback: { url: "/uploads/_variants/project-1/hero-v1.jpeg" },
+              },
+            },
+          },
+          focalPoints: {
+            hero: { x: 0.2, y: 0.8 },
+          },
+        },
+        "/uploads/hero-fallback.jpg": {
+          variantsVersion: 1,
+          variants: {
+            hero: {
+              formats: {
+                fallback: { url: "/uploads/_variants/project-1/hero-fallback-v1.jpeg" },
+              },
+            },
+          },
+          focalPoints: {
+            hero: { x: 0.25, y: 0.75 },
+          },
+        },
+        "/uploads/cover-only.jpg": {
+          variantsVersion: 1,
+          variants: {
+            hero: {
+              formats: {
+                fallback: { url: "/uploads/_variants/project-1/cover-only-hero-v1.jpeg" },
+              },
+            },
+          },
+          focalPoints: {
+            hero: { x: 0.3, y: 0.7 },
+          },
+        },
+      };
 
       if (endpoint === "/api/public/projects/project-1" && method === "GET") {
-        return mockJsonResponse(true, { project });
+        return mockJsonResponse(true, { project, mediaVariants });
       }
       if (endpoint === "/api/public/projects" && method === "GET") {
         return mockJsonResponse(true, { projects: [project] });
@@ -146,7 +187,8 @@ describe("Project mobile hero layout", () => {
     expect(heroTokens).not.toContain("border-b");
     const bannerImage = within(hero).getByRole("img", { name: "Banner do projeto Projeto Teste" });
     const coverImage = within(hero).getByRole("img", { name: "Projeto Teste" });
-    expect(bannerImage.getAttribute("src")).toContain("/uploads/banner-default.jpg");
+    expect(bannerImage.getAttribute("src")).toContain("/uploads/_variants/project-1/hero-v1.jpeg");
+    expect(bannerImage).toHaveStyle({ objectPosition: "20% 80%" });
     expect(coverImage.getAttribute("src")).toContain("/uploads/cover-default.jpg");
 
     const heading = await screen.findByRole("heading", { name: "Projeto Teste" });
@@ -257,7 +299,10 @@ describe("Project mobile hero layout", () => {
     const bannerFromHeroImage = within(heroWithHeroFallback).getByRole("img", {
       name: "Banner do projeto Projeto Teste",
     });
-    expect(bannerFromHeroImage.getAttribute("src")).toContain("/uploads/hero-fallback.jpg");
+    expect(bannerFromHeroImage.getAttribute("src")).toContain(
+      "/uploads/_variants/project-1/hero-fallback-v1.jpeg",
+    );
+    expect(bannerFromHeroImage).toHaveStyle({ objectPosition: "25% 75%" });
     firstRender.unmount();
 
     setupApiMock({
@@ -278,7 +323,10 @@ describe("Project mobile hero layout", () => {
     const bannerFromCover = within(heroWithCoverFallback).getByRole("img", {
       name: "Banner do projeto Projeto Teste",
     });
-    expect(bannerFromCover.getAttribute("src")).toContain("/uploads/cover-only.jpg");
+    expect(bannerFromCover.getAttribute("src")).toContain(
+      "/uploads/_variants/project-1/cover-only-hero-v1.jpeg",
+    );
+    expect(bannerFromCover).toHaveStyle({ objectPosition: "30% 70%" });
   });
 
   it("renderiza CTA de leitura para light novel com capitulo publicado", async () => {

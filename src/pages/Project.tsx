@@ -626,6 +626,7 @@ const ProjectPage = () => {
             alt={heroBannerAlt}
             preset="hero"
             mediaVariants={mediaVariants}
+            applyFocalObjectPosition
             className="absolute inset-0 h-full w-full"
             imgClassName="h-full w-full object-cover object-center"
             loading="eager"

@@ -81,6 +81,21 @@ const setupBootstrapMock = () => {
           updatedAt: "2026-02-10T12:00:00.000Z",
         },
       ],
+      mediaVariants: {
+        "/uploads/hero-fit.jpg": {
+          variantsVersion: 1,
+          variants: {
+            hero: {
+              formats: {
+                fallback: { url: "/uploads/_variants/project-1/hero-v1.jpeg" },
+              },
+            },
+          },
+          focalPoints: {
+            hero: { x: 0.2, y: 0.8 },
+          },
+        },
+      },
     },
   });
 };
@@ -116,6 +131,8 @@ describe("HeroSection cover fit", () => {
       "object-cover",
       "object-center",
     );
+    expect(backgroundImage?.getAttribute("src")).toContain("/uploads/_variants/project-1/hero-v1.jpeg");
+    expect(backgroundImage).toHaveStyle({ objectPosition: "20% 80%" });
     expect(backgroundImage?.getAttribute("fetchpriority")).toBe("high");
     expect(backgroundImage?.getAttribute("loading")).toBe("eager");
   });

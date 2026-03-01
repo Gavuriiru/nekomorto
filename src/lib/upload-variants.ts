@@ -6,6 +6,11 @@ export type UploadVariantFormat = {
   size?: number | null;
 };
 
+export type UploadMediaVariantFocalPoint = {
+  x?: number | null;
+  y?: number | null;
+};
+
 export type UploadVariantPreset = {
   width?: number | null;
   height?: number | null;
@@ -19,6 +24,8 @@ export type UploadVariantPreset = {
 export type UploadMediaVariantEntry = {
   variantsVersion?: number | null;
   variants?: Partial<Record<UploadVariantPresetKey, UploadVariantPreset | null>> | null;
+  focalPoints?: Partial<Record<"card" | "hero", UploadMediaVariantFocalPoint | null>> | null;
+  focalPoint?: UploadMediaVariantFocalPoint | null;
 };
 
 export type UploadMediaVariantsMap = Record<string, UploadMediaVariantEntry>;
@@ -59,6 +66,28 @@ const toFormatUrl = (format: UploadVariantFormat | null | undefined) => {
   return url;
 };
 
+const normalizeFocalAxis = (value: unknown) => {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) {
+    return null;
+  }
+  return Math.min(1, Math.max(0, numeric));
+};
+
+const normalizeFocalPoint = (
+  value: UploadMediaVariantFocalPoint | null | undefined,
+): { x: number; y: number } | null => {
+  if (!value || typeof value !== "object") {
+    return null;
+  }
+  const x = normalizeFocalAxis(value.x);
+  const y = normalizeFocalAxis(value.y);
+  if (x === null || y === null) {
+    return null;
+  }
+  return { x, y };
+};
+
 export const resolveUploadVariantSources = ({
   src,
   preset,
@@ -96,6 +125,33 @@ export const resolveUploadVariantSources = ({
     webp: toFormatUrl(formats.webp),
     fallback: toFormatUrl(formats.fallback),
   };
+};
+
+export const resolveUploadVariantFocalPoint = ({
+  src,
+  preset,
+  mediaVariants,
+}: {
+  src: string | null | undefined;
+  preset: UploadVariantPresetKey;
+  mediaVariants?: UploadMediaVariantsMap | null;
+}) => {
+  const key = normalizeUploadVariantUrlKey(src);
+  if (!key || !mediaVariants || typeof mediaVariants !== "object") {
+    return null;
+  }
+  const entry = mediaVariants[key];
+  if (!entry || typeof entry !== "object") {
+    return null;
+  }
+  const mappedPreset = preset === "hero" ? "hero" : "card";
+  const focalPoints =
+    entry.focalPoints && typeof entry.focalPoints === "object" ? entry.focalPoints : null;
+  const presetFocal = focalPoints ? normalizeFocalPoint(focalPoints[mappedPreset]) : null;
+  if (presetFocal) {
+    return presetFocal;
+  }
+  return normalizeFocalPoint(entry.focalPoint);
 };
 
 export const resolveUploadVariantUrl = ({

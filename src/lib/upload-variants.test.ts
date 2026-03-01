@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   normalizeUploadVariantUrlKey,
+  resolveUploadVariantFocalPoint,
   resolveUploadVariantUrl,
   resolveUploadVariantSources,
   type UploadMediaVariantsMap,
@@ -73,5 +74,60 @@ describe("upload-variants", () => {
         mediaVariants,
       }),
     ).toBe("/uploads/_variants/u1/og-v1.jpeg");
+  });
+
+  it("resolve focalPoints por preset e aplica fallback/clamp", () => {
+    const mediaVariants: UploadMediaVariantsMap = {
+      "/uploads/posts/capa.png": {
+        variantsVersion: 1,
+        variants: {},
+        focalPoints: {
+          hero: { x: 0.2, y: 0.8 },
+          card: { x: 1.4, y: -0.2 },
+        },
+      },
+      "/uploads/posts/sem-focal-preset.png": {
+        variantsVersion: 1,
+        variants: {},
+        focalPoint: { x: 0.3, y: 0.7 },
+      },
+      "/uploads/posts/invalida.png": {
+        variantsVersion: 1,
+        variants: {},
+        focalPoint: { x: Number.NaN, y: null },
+      },
+    };
+
+    expect(
+      resolveUploadVariantFocalPoint({
+        src: "/uploads/posts/capa.png",
+        preset: "hero",
+        mediaVariants,
+      }),
+    ).toEqual({ x: 0.2, y: 0.8 });
+
+    expect(
+      resolveUploadVariantFocalPoint({
+        src: "/uploads/posts/capa.png",
+        preset: "cardWide",
+        mediaVariants,
+      }),
+    ).toEqual({ x: 1, y: 0 });
+
+    expect(
+      resolveUploadVariantFocalPoint({
+        src: "/uploads/posts/sem-focal-preset.png",
+        preset: "hero",
+        mediaVariants,
+      }),
+    ).toEqual({ x: 0.3, y: 0.7 });
+
+    expect(
+      resolveUploadVariantFocalPoint({
+        src: "/uploads/posts/invalida.png",
+        preset: "hero",
+        mediaVariants,
+      }),
+    ).toBeNull();
   });
 });
