@@ -29,6 +29,12 @@ type ChannelKey = "posts" | "projects";
 type EventKey = "post_create" | "post_update" | "project_release" | "project_adjust";
 type SaveSectionKey = "types" | "posts" | "projects";
 
+const SECTION_REVEAL_DELAYS: Record<SaveSectionKey, number> = {
+  types: 0,
+  posts: 60,
+  projects: 120,
+};
+
 type TemplateField = { name: string; value: string; inline: boolean };
 type TemplateEmbed = {
   title: string;
@@ -739,7 +745,12 @@ const DashboardWebhooks = () => {
           onValueChange={(value) => setOpenSections(Array.isArray(value) ? value : [])}
           className="space-y-4"
         >
-          <AccordionItem value="types" className="rounded-xl border border-border/60 bg-card/80 px-4">
+          <AccordionItem
+            value="types"
+            className="rounded-xl border border-border/60 bg-card/80 px-4 animate-slide-up opacity-0"
+            style={{ animationDelay: `${SECTION_REVEAL_DELAYS.types}ms` }}
+            data-testid="dashboard-webhooks-section-types"
+          >
             <div className="relative">
               <AccordionTrigger className="hover:no-underline">Tipos e menções</AccordionTrigger>
               {isSectionOpen("types") ? (
@@ -758,47 +769,52 @@ const DashboardWebhooks = () => {
               ) : null}
             </div>
             <AccordionContent className="space-y-4">
+              <div
+                className="space-y-4 animate-slide-up opacity-0"
+                style={{ animationDelay: `${SECTION_REVEAL_DELAYS.types + 40}ms` }}
+                data-testid="dashboard-webhooks-section-content-types"
+              >
+                <div className="space-y-2">
+                  <Label>Role geral de lançamentos (ID)</Label>
+                  <Input
+                    value={settings.generalReleaseRoleId}
+                    onChange={(event) =>
+                      setSettings((previous) => ({
+                        ...previous,
+                        generalReleaseRoleId: event.target.value.replace(/\D/g, ""),
+                      }))
+                    }
+                    placeholder="Opcional: usada em project_release"
+                  />
+                </div>
 
-              <div className="space-y-2">
-                <Label>Role geral de lançamentos (ID)</Label>
-                <Input
-                  value={settings.generalReleaseRoleId}
-                  onChange={(event) =>
-                    setSettings((previous) => ({
-                      ...previous,
-                      generalReleaseRoleId: event.target.value.replace(/\D/g, ""),
-                    }))
-                  }
-                  placeholder="Opcional: usada em project_release"
-                />
-              </div>
-
-              <div className="space-y-3">
-                {settings.typeRoles.map((typeRole, index) => (
-                  <div key={`${typeRole.type}-${index}`} className="grid gap-3 rounded-xl border border-border/60 bg-background/40 p-3 md:grid-cols-[1fr_280px]">
-                    <div>
-                      <p className="text-sm font-medium">{typeRole.type}</p>
-                      <p className="text-xs text-muted-foreground">ID do cargo do Discord para este tipo.</p>
+                <div className="space-y-3">
+                  {settings.typeRoles.map((typeRole, index) => (
+                    <div key={`${typeRole.type}-${index}`} className="grid gap-3 rounded-xl border border-border/60 bg-background/40 p-3 md:grid-cols-[1fr_280px]">
+                      <div>
+                        <p className="text-sm font-medium">{typeRole.type}</p>
+                        <p className="text-xs text-muted-foreground">ID do cargo do Discord para este tipo.</p>
+                      </div>
+                      <Input
+                        value={typeRole.roleId}
+                        onChange={(event) =>
+                          setSettings((previous) => ({
+                            ...previous,
+                            typeRoles: previous.typeRoles.map((item, itemIndex) =>
+                              itemIndex !== index
+                                ? item
+                                : {
+                                    ...item,
+                                    roleId: event.target.value.replace(/\D/g, ""),
+                                  },
+                            ),
+                          }))
+                        }
+                        placeholder="ID do cargo do Discord"
+                      />
                     </div>
-                    <Input
-                      value={typeRole.roleId}
-                      onChange={(event) =>
-                        setSettings((previous) => ({
-                          ...previous,
-                          typeRoles: previous.typeRoles.map((item, itemIndex) =>
-                            itemIndex !== index
-                              ? item
-                              : {
-                                  ...item,
-                                  roleId: event.target.value.replace(/\D/g, ""),
-                                },
-                          ),
-                        }))
-                      }
-                      placeholder="ID do cargo do Discord"
-                    />
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
             </AccordionContent>
           </AccordionItem>
@@ -807,7 +823,13 @@ const DashboardWebhooks = () => {
             const channel = settings.channels[channelKey];
             const sectionKey = channelKey as Extract<SaveSectionKey, ChannelKey>;
             return (
-              <AccordionItem key={channelKey} value={channelKey} className="rounded-xl border border-border/60 bg-card/80 px-4">
+              <AccordionItem
+                key={channelKey}
+                value={channelKey}
+                className="rounded-xl border border-border/60 bg-card/80 px-4 animate-slide-up opacity-0"
+                style={{ animationDelay: `${SECTION_REVEAL_DELAYS[sectionKey]}ms` }}
+                data-testid={`dashboard-webhooks-section-${sectionKey}`}
+              >
                 <div className="relative">
                   <AccordionTrigger className="hover:no-underline">{CHANNEL_LABELS[channelKey]}</AccordionTrigger>
                   {isSectionOpen(sectionKey) ? (
@@ -826,7 +848,11 @@ const DashboardWebhooks = () => {
                   ) : null}
                 </div>
                 <AccordionContent className="space-y-4">
-
+                  <div
+                    className="space-y-4 animate-slide-up opacity-0"
+                    style={{ animationDelay: `${SECTION_REVEAL_DELAYS[sectionKey] + 40}ms` }}
+                    data-testid={`dashboard-webhooks-section-content-${sectionKey}`}
+                  >
                   <div className="grid gap-3 md:grid-cols-3">
                     <div className="space-y-2 md:col-span-2">
                       <Label>Webhook URL</Label>
@@ -887,14 +913,20 @@ const DashboardWebhooks = () => {
                   </div>
 
                   <Accordion type="multiple" className="space-y-3">
-                    {CHANNEL_EVENTS[channelKey].map((eventKey) => {
+                    {CHANNEL_EVENTS[channelKey].map((eventKey, eventIndex) => {
                       const template = channel.templates[eventKey];
                       const displayEmbedColor = normalizeHexColor(
                         template.embed.color,
                         DEFAULT_EVENT_COLORS[eventKey],
                       );
                       return (
-                        <AccordionItem key={eventKey} value={`${channelKey}-${eventKey}`} className="rounded-xl border border-border/60 bg-background/40 px-3">
+                        <AccordionItem
+                          key={eventKey}
+                          value={`${channelKey}-${eventKey}`}
+                          className="rounded-xl border border-border/60 bg-background/40 px-3 animate-slide-up opacity-0"
+                          style={{ animationDelay: `${eventIndex * 40}ms` }}
+                          data-testid={`dashboard-webhooks-event-${channelKey}-${eventKey}`}
+                        >
                           <AccordionTrigger className="hover:no-underline">
                             <div className="flex items-center gap-2">
                               <span className="text-sm font-semibold">{EVENT_LABELS[eventKey]}</span>
@@ -903,6 +935,11 @@ const DashboardWebhooks = () => {
                           </AccordionTrigger>
 
                           <AccordionContent className="space-y-4">
+                            <div
+                              className="space-y-4 animate-slide-up opacity-0"
+                              style={{ animationDelay: `${eventIndex * 40 + 40}ms` }}
+                              data-testid={`dashboard-webhooks-event-content-${channelKey}-${eventKey}`}
+                            >
                             <div className="flex flex-wrap items-center gap-2">
                               <span className="text-xs text-muted-foreground">Evento ativo</span>
                               <Switch
@@ -1117,11 +1154,13 @@ const DashboardWebhooks = () => {
                                 Aliases legados de menção são convertidos automaticamente ao salvar.
                               </p>
                             </div>
+                            </div>
                           </AccordionContent>
                         </AccordionItem>
                       );
                     })}
                   </Accordion>
+                  </div>
                 </AccordionContent>
               </AccordionItem>
             );

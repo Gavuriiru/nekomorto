@@ -203,18 +203,33 @@ const DashboardSecurity = () => {
   return (
     <DashboardShell currentUser={me} isLoadingUser={isLoading}>
       <main className="pt-24">
-        <section className="mx-auto w-full max-w-6xl space-y-6 px-6 pb-20 md:px-10">
+        <section className="mx-auto w-full max-w-6xl space-y-6 px-6 pb-20 md:px-10 reveal" data-reveal>
           <header className="space-y-2">
-            <p className="text-xs uppercase tracking-[0.25em] text-muted-foreground">Segurança</p>
-            <h1 className="text-3xl font-semibold">Sessões Ativas</h1>
-            <p className="text-sm text-muted-foreground">
+            <div
+              className="inline-flex items-center gap-3 rounded-full border border-border/60 bg-card/60 px-4 py-2 text-xs uppercase tracking-[0.3em] text-muted-foreground animate-fade-in"
+              data-testid="dashboard-security-header-badge"
+            >
+              Segurança
+            </div>
+            <h1 className="mt-4 text-3xl font-semibold animate-slide-up">Sessões Ativas</h1>
+            <p
+              className="mt-2 text-sm text-muted-foreground animate-slide-up opacity-0"
+              style={{ animationDelay: "0.2s" }}
+            >
               Painel somente leitura com sessões ativas e usuário responsável por cada sessão.
             </p>
           </header>
 
-          <section className="space-y-4 rounded-3xl border border-border/60 bg-card/60 p-6">
+          <section
+            className="space-y-4 rounded-3xl border border-border/60 bg-card/60 p-6 animate-slide-up opacity-0"
+            style={{ animationDelay: "160ms" }}
+            data-testid="dashboard-security-sessions-card"
+          >
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <div className="flex flex-wrap items-center gap-2">
+              <div
+                className="flex flex-wrap items-center gap-2 animate-slide-up opacity-0"
+                style={{ animationDelay: "220ms" }}
+              >
                 {isLoading ? (
                   <>
                     <Skeleton className="h-6 w-24 rounded-full" />
@@ -222,14 +237,19 @@ const DashboardSecurity = () => {
                   </>
                 ) : (
                   <>
-                    <Badge className="bg-card/80 text-muted-foreground">Total ativo: {total}</Badge>
-                    <Badge className="bg-card/80 text-muted-foreground">
+                    <Badge className="bg-card/80 text-muted-foreground animate-fade-in">
+                      Total ativo: {total}
+                    </Badge>
+                    <Badge className="bg-card/80 text-muted-foreground animate-fade-in">
                       Página {page} de {pageCount}
                     </Badge>
                   </>
                 )}
               </div>
-              <div className="flex items-center gap-2">
+              <div
+                className="flex items-center gap-2 animate-slide-up opacity-0"
+                style={{ animationDelay: "260ms" }}
+              >
                 <Button
                   size="sm"
                   variant="outline"
@@ -263,7 +283,8 @@ const DashboardSecurity = () => {
 
             {isLoading ? (
               <div
-                className="space-y-3"
+                className="space-y-3 animate-slide-up opacity-0"
+                style={{ animationDelay: "300ms" }}
                 data-testid="dashboard-security-loading"
                 role="status"
                 aria-live="polite"
@@ -298,17 +319,26 @@ const DashboardSecurity = () => {
                 <span className="sr-only">Carregando sessões...</span>
               </div>
             ) : hasLoadError ? (
-              <p className="text-sm text-amber-300">
-                Não foi possível carregar a lista de sessões ativas.
-              </p>
-            ) : sessions.length === 0 ? (
-              <p className="text-sm text-muted-foreground">Nenhuma sessão ativa encontrada.</p>
-            ) : (
-              <div className="space-y-3">
-                {sessions.map((session) => (
+                <p
+                  className="text-sm text-amber-300 animate-slide-up opacity-0"
+                  style={{ animationDelay: "300ms" }}
+                >
+                  Não foi possível carregar a lista de sessões ativas.
+                </p>
+              ) : sessions.length === 0 ? (
+                <p
+                  className="text-sm text-muted-foreground animate-slide-up opacity-0"
+                  style={{ animationDelay: "300ms" }}
+                >
+                  Nenhuma sessão ativa encontrada.
+                </p>
+              ) : (
+                <div className="space-y-3">
+                  {sessions.map((session, index) => (
                   <article
                     key={session.sid}
-                    className="space-y-3 rounded-2xl border border-border/60 bg-background/60 p-4"
+                    className="space-y-3 rounded-2xl border border-border/60 bg-background/60 p-4 animate-slide-up opacity-0"
+                    style={{ animationDelay: `${300 + index * 50}ms` }}
                   >
                     <div className="flex flex-wrap items-start justify-between gap-3">
                       <div className="flex items-center gap-3">

@@ -33,6 +33,8 @@ const mockJsonResponse = (ok: boolean, payload: unknown, status = ok ? 200 : 500
     status,
     json: async () => payload,
   }) as Response;
+const classTokens = (element: HTMLElement) =>
+  String(element.className).split(/\s+/).filter(Boolean);
 
 const CLEANUP_ACTION_LABEL = "Limpar armazenamento não utilizado";
 
@@ -212,6 +214,15 @@ describe("DashboardUploads cleanup", () => {
     expect(screen.getByTestId("dashboard-uploads-summary-loading")).toBeInTheDocument();
     expect(screen.getByTestId("dashboard-uploads-storage-loading")).toBeInTheDocument();
     expect(screen.getByTestId("dashboard-uploads-cleanup-loading")).toBeInTheDocument();
+    expect(classTokens(screen.getByTestId("dashboard-uploads-summary-loading"))).toContain(
+      "animate-slide-up",
+    );
+    expect(classTokens(screen.getByTestId("dashboard-uploads-storage-loading"))).toContain(
+      "animate-slide-up",
+    );
+    expect(classTokens(screen.getByTestId("dashboard-uploads-cleanup-loading"))).toContain(
+      "animate-slide-up",
+    );
     expect(screen.queryByText(/Atualizado:/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/Análise:/i)).not.toBeInTheDocument();
   });
@@ -233,6 +244,15 @@ describe("DashboardUploads cleanup", () => {
     expect(screen.getByText("Upload")).toBeInTheDocument();
     expect(screen.getByText("Variante órfã")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: CLEANUP_ACTION_LABEL })).toBeInTheDocument();
+    expect(classTokens(screen.getByTestId("dashboard-uploads-summary-grid"))).toContain(
+      "animate-slide-up",
+    );
+    expect(classTokens(screen.getByTestId("dashboard-uploads-storage-card"))).toContain(
+      "animate-slide-up",
+    );
+    expect(classTokens(screen.getByTestId("dashboard-uploads-cleanup-card"))).toContain(
+      "animate-slide-up",
+    );
   });
 
   it("exibe estado vazio quando não há nada elegível para limpeza", async () => {

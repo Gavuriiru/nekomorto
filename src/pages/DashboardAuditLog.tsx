@@ -531,7 +531,7 @@ const DashboardAuditLog = () => {
         onUserCardClick={() => navigate("/dashboard/usuarios?edit=me")}
       >
         <main className="pt-24">
-          <section className="mx-auto w-full max-w-7xl px-6 pb-20 md:px-10">
+          <section className="mx-auto w-full max-w-7xl px-6 pb-20 md:px-10 reveal" data-reveal>
             <header className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
               <div>
                 <div className="inline-flex items-center gap-3 rounded-full border border-border/60 bg-card/60 px-4 py-2 text-xs uppercase tracking-[0.3em] text-muted-foreground animate-fade-in">
@@ -551,7 +551,9 @@ const DashboardAuditLog = () => {
                 className="flex items-center gap-3 animate-slide-up opacity-0"
                 style={{ animationDelay: "0.24s" }}
               >
-                <Badge className="bg-card/80 text-muted-foreground">{formattedTotal} eventos</Badge>
+                <Badge className="bg-card/80 text-muted-foreground animate-fade-in">
+                  {formattedTotal} eventos
+                </Badge>
                 <Button
                   variant="outline"
                   onClick={() => void handleExportCsv()}

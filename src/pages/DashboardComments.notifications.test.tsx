@@ -348,6 +348,29 @@ describe("DashboardComments notifications", () => {
     expect(screen.getByText("PROJETO")).toBeInTheDocument();
     expect(screen.getByText("CAPÍTULO")).toBeInTheDocument();
   });
+
+  it("renderiza a badge superior e anima a badge de contagem pendente", async () => {
+    setupApi({
+      pendingComments: [pendingCommentFixture, secondPendingCommentFixture],
+    });
+
+    render(
+      <MemoryRouter initialEntries={["/dashboard/comentarios"]}>
+        <DashboardComments />
+      </MemoryRouter>,
+    );
+
+    await screen.findByText(pendingCommentFixture.content);
+
+    const headerBadge = screen.getByTestId("dashboard-comments-header-badge");
+    const pendingCountBadge = screen.getByTestId("dashboard-comments-pending-count-badge");
+
+    expect(headerBadge).toHaveTextContent("Comentários");
+    expect(classTokens(headerBadge)).toContain("animate-fade-in");
+    expect(classTokens(pendingCountBadge)).toContain("animate-fade-in");
+    expect(pendingCountBadge).toHaveStyle({ animationDelay: "220ms" });
+  });
+
   it("aplica reveal ao container das acoes em massa", async () => {
     setupApi({
       pendingComments: [pendingCommentFixture, secondPendingCommentFixture],

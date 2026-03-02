@@ -466,7 +466,7 @@ const DashboardUploads = () => {
 
         <section className="mt-8 space-y-6">
           {isForbidden ? (
-            <article className="rounded-2xl border border-border/60 bg-card/60 p-5 text-sm text-muted-foreground">
+            <article className="rounded-2xl border border-border/60 bg-card/60 p-5 text-sm text-muted-foreground animate-slide-up opacity-0">
               Você não possui permissão para visualizar o painel de uploads.
             </article>
           ) : null}
@@ -474,7 +474,8 @@ const DashboardUploads = () => {
           {!isForbidden ? (
             isLoading ? (
               <div
-                className="grid gap-4 md:grid-cols-3"
+                className="grid gap-4 md:grid-cols-3 animate-slide-up opacity-0"
+                style={{ animationDelay: "40ms" }}
                 data-testid="dashboard-uploads-summary-loading"
                 role="status"
                 aria-live="polite"
@@ -483,7 +484,8 @@ const DashboardUploads = () => {
                 {Array.from({ length: 3 }).map((_, index) => (
                   <article
                     key={`dashboard-uploads-summary-loading-${index}`}
-                    className="rounded-2xl border border-border/60 bg-card/60 p-5"
+                    className="rounded-2xl border border-border/60 bg-card/60 p-5 animate-slide-up opacity-0"
+                    style={{ animationDelay: `${(index + 1) * 40}ms` }}
                   >
                     <Skeleton className="h-3 w-16" />
                     <Skeleton className="mt-3 h-8 w-28" />
@@ -493,9 +495,17 @@ const DashboardUploads = () => {
                 <span className="sr-only">Carregando resumo de storage...</span>
               </div>
             ) : (
-              <div className="grid gap-4 md:grid-cols-3">
-                {cards.map((card) => (
-                  <article key={card.label} className="rounded-2xl border border-border/60 bg-card/60 p-5">
+              <div
+                className="grid gap-4 md:grid-cols-3 animate-slide-up opacity-0"
+                style={{ animationDelay: "40ms" }}
+                data-testid="dashboard-uploads-summary-grid"
+              >
+                {cards.map((card, index) => (
+                  <article
+                    key={card.label}
+                    className="rounded-2xl border border-border/60 bg-card/60 p-5 animate-slide-up opacity-0"
+                    style={{ animationDelay: `${(index + 1) * 40}ms` }}
+                  >
                     <p className="text-xs uppercase tracking-[0.22em] text-muted-foreground">{card.label}</p>
                     <p className="mt-3 text-2xl font-semibold text-foreground">{card.value}</p>
                     <p className="mt-1 text-xs text-muted-foreground">{card.files} arquivos</p>
@@ -506,13 +516,18 @@ const DashboardUploads = () => {
           ) : null}
 
           {!isForbidden ? (
-            <article className="overflow-hidden rounded-2xl border border-border/60 bg-card/60">
+            <article
+              className="overflow-hidden rounded-2xl border border-border/60 bg-card/60 animate-slide-up opacity-0"
+              style={{ animationDelay: "160ms" }}
+              data-testid="dashboard-uploads-storage-card"
+            >
               <div className="border-b border-border/60 px-5 py-4">
                 <h2 className="text-sm font-semibold text-foreground">Consumo por área</h2>
               </div>
               {isLoading ? (
                 <div
-                  className="space-y-3 px-5 py-4"
+                  className="space-y-3 px-5 py-4 animate-slide-up opacity-0"
+                  style={{ animationDelay: "200ms" }}
                   data-testid="dashboard-uploads-storage-loading"
                   role="status"
                   aria-live="polite"
@@ -531,9 +546,19 @@ const DashboardUploads = () => {
                   <span className="sr-only">Carregando dados de storage...</span>
                 </div>
               ) : hasError ? (
-                <p className="px-5 py-4 text-sm text-amber-300">Não foi possível carregar os dados de storage.</p>
+                <p
+                  className="px-5 py-4 text-sm text-amber-300 animate-slide-up opacity-0"
+                  style={{ animationDelay: "200ms" }}
+                >
+                  Não foi possível carregar os dados de storage.
+                </p>
               ) : summary.areas.length === 0 ? (
-                <p className="px-5 py-4 text-sm text-muted-foreground">Nenhuma área encontrada no inventário.</p>
+                <p
+                  className="px-5 py-4 text-sm text-muted-foreground animate-slide-up opacity-0"
+                  style={{ animationDelay: "200ms" }}
+                >
+                  Nenhuma área encontrada no inventário.
+                </p>
               ) : (
                 <div className="overflow-x-auto">
                   <table className="w-full min-w-[760px] text-sm">
@@ -547,8 +572,12 @@ const DashboardUploads = () => {
                       </tr>
                     </thead>
                     <tbody>
-                      {summary.areas.map((area) => (
-                        <tr key={area.area} className="border-t border-border/50">
+                      {summary.areas.map((area, index) => (
+                        <tr
+                          key={area.area}
+                          className="border-t border-border/50 animate-slide-up opacity-0"
+                          style={{ animationDelay: `${200 + index * 30}ms` }}
+                        >
                           <td className="px-4 py-3 font-medium text-foreground">{area.area}</td>
                           <td className="px-4 py-3 text-right text-muted-foreground">
                             {formatBytes(area.originalBytes)}
@@ -570,7 +599,11 @@ const DashboardUploads = () => {
           ) : null}
 
           {!isForbidden ? (
-            <article className="overflow-hidden rounded-2xl border border-border/60 bg-card/60">
+            <article
+              className="overflow-hidden rounded-2xl border border-border/60 bg-card/60 animate-slide-up opacity-0"
+              style={{ animationDelay: "220ms" }}
+              data-testid="dashboard-uploads-cleanup-card"
+            >
               <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/60 px-5 py-4">
                 <div className="space-y-1">
                   <h2 className="text-sm font-semibold text-foreground">
@@ -594,7 +627,8 @@ const DashboardUploads = () => {
 
               {isCleanupLoading ? (
                 <div
-                  className="space-y-4 px-5 py-4"
+                  className="space-y-4 px-5 py-4 animate-slide-up opacity-0"
+                  style={{ animationDelay: "260ms" }}
                   data-testid="dashboard-uploads-cleanup-loading"
                   role="status"
                   aria-live="polite"
@@ -626,16 +660,25 @@ const DashboardUploads = () => {
                   <span className="sr-only">Analisando armazenamento não utilizado...</span>
                 </div>
               ) : hasCleanupError ? (
-                <p className="px-5 py-4 text-sm text-amber-300">
+                <p
+                  className="px-5 py-4 text-sm text-amber-300 animate-slide-up opacity-0"
+                  style={{ animationDelay: "260ms" }}
+                >
                   Não foi possível analisar o armazenamento não utilizado.
                 </p>
               ) : !hasCleanupCandidates ? (
-                <p className="px-5 py-4 text-sm text-muted-foreground">
+                <p
+                  className="px-5 py-4 text-sm text-muted-foreground animate-slide-up opacity-0"
+                  style={{ animationDelay: "260ms" }}
+                >
                   Nenhum arquivo elegível para limpeza.
                 </p>
               ) : (
                 <div className="space-y-4 px-5 py-4">
-                  <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div
+                    className="flex flex-wrap items-center justify-between gap-3 animate-slide-up opacity-0"
+                    style={{ animationDelay: "260ms" }}
+                  >
                     <div className="space-y-1">
                       <p className="text-sm font-medium text-foreground">
                         {cleanupPreview.unusedUploadCount} uploads sem uso
@@ -677,10 +720,11 @@ const DashboardUploads = () => {
                           </tr>
                         </thead>
                         <tbody>
-                          {cleanupPreview.examples.map((item) => (
+                          {cleanupPreview.examples.map((item, index) => (
                             <tr
                               key={`${item.kind}:${item.id || item.url}`}
-                              className="border-t border-border/50"
+                              className="border-t border-border/50 animate-slide-up opacity-0"
+                              style={{ animationDelay: `${300 + index * 30}ms` }}
                             >
                               <td className="px-4 py-3 text-muted-foreground">
                                 {item.kind === "variant" ? "Variante órfã" : "Upload"}

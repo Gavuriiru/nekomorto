@@ -33,6 +33,8 @@ const mockJsonResponse = (ok: boolean, payload: unknown, status = ok ? 200 : 500
     status,
     json: async () => payload,
   }) as Response;
+const classTokens = (element: HTMLElement) =>
+  String(element.className).split(/\s+/).filter(Boolean);
 
 describe("DashboardSecurity semantic badges", () => {
   beforeEach(() => {
@@ -82,7 +84,19 @@ describe("DashboardSecurity semantic badges", () => {
     render(<DashboardSecurity />);
 
     await screen.findByRole("heading", { name: /Ativas/i });
+    await screen.findByText("Admin");
 
+    const headerBadge = screen.getByTestId("dashboard-security-header-badge");
+    const sessionsCard = screen.getByTestId("dashboard-security-sessions-card");
+    const firstSessionCard = screen.getByText("Admin").closest("article");
+
+    expect(headerBadge).toHaveTextContent("Segurança");
+    expect(classTokens(headerBadge)).toContain("animate-fade-in");
+    expect(classTokens(sessionsCard)).toContain("animate-slide-up");
+    expect(classTokens(sessionsCard)).toContain("opacity-0");
+    expect(firstSessionCard).not.toBeNull();
+    expect(classTokens(firstSessionCard as HTMLElement)).toContain("animate-slide-up");
+    expect(classTokens(firstSessionCard as HTMLElement)).toContain("opacity-0");
     expect(await screen.findByText("Sua sessão atual")).toHaveClass(
       "bg-emerald-500/20",
       "text-emerald-800",

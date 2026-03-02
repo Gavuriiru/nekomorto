@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -115,6 +115,15 @@ describe("DashboardUsers load error", () => {
     const addUserButton = screen.getByRole("button", { name: "Adicionar usuário" });
     expect(classTokens(addUserButton)).toContain("animate-slide-up");
     expect(classTokens(addUserButton)).toContain("opacity-0");
+    const activeUsersHeader = screen.getByText("Usuários ativos").parentElement;
+    expect(activeUsersHeader).not.toBeNull();
+    const countBadge = within(activeUsersHeader as HTMLElement).getByTestId(
+      "dashboard-users-active-count-badge",
+    );
+    const countReveal = countBadge.parentElement;
+    expect(countReveal).not.toBeNull();
+    expect(classTokens(countReveal as HTMLElement)).toContain("animate-slide-up");
+    expect(classTokens(countReveal as HTMLElement)).toContain("opacity-0");
     expect(usersRequestCount).toBeGreaterThanOrEqual(2);
   });
 });

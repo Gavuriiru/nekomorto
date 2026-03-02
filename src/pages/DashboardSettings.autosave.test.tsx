@@ -336,13 +336,27 @@ describe("DashboardSettings autosave", () => {
 
   it("aplica reveal ao bloco de autosave no header", async () => {
     renderDashboardSettings();
-    await screen.findByRole("heading", { name: /Painel/i });
+    const heading = await screen.findByRole("heading", { name: /Painel/i });
 
     const autosaveReveal = screen.getByTestId("dashboard-settings-autosave-reveal");
     const tokens = classTokens(autosaveReveal);
+    const rootSection = heading.closest("section");
+    const headerBadge = screen.getByText(
+      (_content, element) =>
+        element?.tagName.toLowerCase() === "div" &&
+        element.textContent?.trim() === "Configura\u00e7\u00f5es",
+    );
+    const headerBadgeReveal = headerBadge.parentElement;
 
     expect(tokens).toContain("animate-slide-up");
     expect(tokens).toContain("opacity-0");
     expect(autosaveReveal).toHaveStyle({ animationDelay: "160ms" });
+    expect(rootSection).not.toBeNull();
+    expect(classTokens(rootSection as HTMLElement)).not.toContain("reveal");
+    expect(rootSection).not.toHaveAttribute("data-reveal");
+    expect(headerBadgeReveal).not.toBeNull();
+    expect(classTokens(headerBadgeReveal as HTMLElement)).toContain("reveal");
+    expect(classTokens(headerBadgeReveal as HTMLElement)).toContain("reveal-delay-1");
+    expect(headerBadgeReveal).toHaveAttribute("data-reveal");
   });
 });

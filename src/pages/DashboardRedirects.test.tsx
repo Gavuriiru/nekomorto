@@ -48,6 +48,8 @@ const mockJsonResponse = (ok: boolean, payload: unknown, status = ok ? 200 : 500
     status,
     json: async () => payload,
   }) as Response;
+const classTokens = (element: HTMLElement) =>
+  String(element.className).split(/\s+/).filter(Boolean);
 
 const waitMs = (delayMs: number) =>
   new Promise<void>((resolve) => {
@@ -97,8 +99,26 @@ describe("DashboardRedirects", () => {
       </MemoryRouter>,
     );
 
-    expect(await screen.findByRole("heading", { name: /Regras 301/i })).toBeInTheDocument();
+    const heading = await screen.findByRole("heading", { name: /Regras 301/i });
+    expect(heading).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Nova regra/i })).toBeInTheDocument();
+    const rootSection = heading.closest("section");
+    expect(rootSection).not.toBeNull();
+    expect(classTokens(rootSection as HTMLElement)).not.toContain("reveal");
+    expect(rootSection).not.toHaveAttribute("data-reveal");
+    const headerBadge = screen.getByText(
+      (_content, element) =>
+        element?.tagName.toLowerCase() === "div" &&
+        element.textContent?.trim() === "Redirecionamentos",
+    );
+    const headerBadgeReveal = headerBadge.parentElement;
+    expect(headerBadgeReveal).not.toBeNull();
+    expect(classTokens(headerBadgeReveal as HTMLElement)).toContain("reveal");
+    expect(classTokens(headerBadgeReveal as HTMLElement)).toContain("reveal-delay-1");
+    expect(headerBadgeReveal).toHaveAttribute("data-reveal");
+    const saveButton = screen.getByRole("button", { name: /Salvar redirecionamentos/i });
+    expect(classTokens(saveButton)).toContain("animate-slide-up");
+    expect(classTokens(saveButton)).toContain("opacity-0");
   });
 
   it("nao salva automaticamente durante edicao e salva apenas no clique manual", async () => {

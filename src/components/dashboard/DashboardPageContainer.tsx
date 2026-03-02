@@ -27,9 +27,11 @@ const DashboardPageContainer = ({
         className={cn(
           dashboardPageLayoutTokens.sectionBase,
           dashboardPageLayoutTokens.sectionSpacing,
+          "reveal",
           maxWidthClassMap[maxWidth],
           className,
         )}
+        data-reveal
       >
         {children}
       </section>

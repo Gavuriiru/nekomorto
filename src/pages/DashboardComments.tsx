@@ -300,14 +300,20 @@ const DashboardComments = () => {
       onUserCardClick={() => navigate("/dashboard/usuarios?edit=me")}
     >
       <main className="px-6 pb-20 pt-24 md:px-10">
-        <div className="mx-auto flex w-full max-w-6xl flex-col gap-6">
+        <div className="mx-auto flex w-full max-w-6xl flex-col gap-6 reveal" data-reveal>
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
-              <h1 className="text-2xl font-semibold text-foreground animate-slide-up">
+              <div
+                className="inline-flex items-center gap-3 rounded-full border border-border/60 bg-card/60 px-4 py-2 text-xs uppercase tracking-[0.3em] text-muted-foreground animate-fade-in"
+                data-testid="dashboard-comments-header-badge"
+              >
+                Comentários
+              </div>
+              <h1 className="mt-4 text-2xl font-semibold text-foreground animate-slide-up">
                 Comentários pendentes
               </h1>
               <p
-                className="text-sm text-muted-foreground animate-slide-up opacity-0"
+                className="mt-2 text-sm text-muted-foreground animate-slide-up opacity-0"
                 style={{ animationDelay: "0.2s" }}
               >
                 Aprove ou exclua comentários enviados pelos visitantes.
@@ -412,7 +418,12 @@ const DashboardComments = () => {
                   </Button>
                 </div>
               ) : null}
-              <Badge variant="secondary" className="text-xs uppercase animate-fade-in">
+              <Badge
+                variant="secondary"
+                className="text-xs uppercase animate-fade-in"
+                style={{ animationDelay: "220ms" }}
+                data-testid="dashboard-comments-pending-count-badge"
+              >
                 {comments.length} pendentes
               </Badge>
             </div>

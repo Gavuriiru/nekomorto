@@ -350,12 +350,14 @@ const DashboardRedirects = () => {
       onUserCardClick={() => navigate("/dashboard/usuarios?edit=me")}
     >
       <main className="pt-24">
-        <section className="mx-auto w-full max-w-6xl px-6 pb-20 md:px-10">
+          <section className="mx-auto w-full max-w-6xl px-6 pb-20 md:px-10">
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div>
-              <div className="inline-flex items-center gap-3 rounded-full border border-border/60 bg-card/60 px-4 py-2 text-xs uppercase tracking-[0.3em] text-muted-foreground animate-fade-in">
-                Redirecionamentos
-              </div>
+              <span className="inline-flex reveal reveal-delay-1" data-reveal>
+                <div className="inline-flex items-center gap-3 rounded-full border border-border/60 bg-card/60 px-4 py-2 text-xs uppercase tracking-[0.3em] text-muted-foreground">
+                  Redirecionamentos
+                </div>
+              </span>
               <h1 className="mt-4 text-3xl font-semibold text-foreground animate-slide-up">
                 Regras 301
               </h1>
@@ -368,7 +370,8 @@ const DashboardRedirects = () => {
             </div>
             <Button
               type="button"
-              className="gap-2"
+              className="gap-2 animate-slide-up opacity-0"
+              style={{ animationDelay: "160ms" }}
               onClick={() => {
                 void handleSave();
               }}

@@ -1331,9 +1331,11 @@ const DashboardSettings = () => {
         <section className="mx-auto w-full max-w-6xl px-6 pb-20 md:px-10">
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div>
-              <div className="inline-flex items-center gap-3 rounded-full border border-border/60 bg-card/60 px-4 py-2 text-xs uppercase tracking-[0.3em] text-muted-foreground animate-fade-in">
+              <span className="inline-flex reveal reveal-delay-1" data-reveal>
+                <div className="inline-flex items-center gap-3 rounded-full border border-border/60 bg-card/60 px-4 py-2 text-xs uppercase tracking-[0.3em] text-muted-foreground">
                 Configurações
-              </div>
+                </div>
+              </span>
               <h1 className="mt-4 text-3xl font-semibold text-foreground animate-slide-up">
                 Painel de ajustes
               </h1>

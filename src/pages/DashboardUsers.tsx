@@ -1235,7 +1235,7 @@ const DashboardUsers = () => {
         }
       >
         <main className="pt-24">
-          <section className="mx-auto w-full max-w-6xl px-6 pb-20 md:px-10">
+          <section className="mx-auto w-full max-w-6xl px-6 pb-20 md:px-10 reveal" data-reveal>
             <header className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
               <div>
                 <div className="inline-flex items-center gap-3 rounded-full border border-border/60 bg-card/60 px-4 py-2 text-xs uppercase tracking-[0.3em] text-muted-foreground animate-fade-in">
@@ -1265,7 +1265,27 @@ const DashboardUsers = () => {
             <div className="mt-10">
               <div className="flex items-center justify-between">
                 <h2 className="text-lg font-semibold">Usuários ativos</h2>
-                <Badge className="bg-card/80 text-muted-foreground">{activeUsers.length}</Badge>
+                {isLoading ? (
+                  <span className="inline-flex min-h-6 min-w-[2.5rem] items-center justify-center">
+                    <Skeleton
+                      className="h-6 w-10 rounded-full"
+                      data-testid="dashboard-users-active-count-loading"
+                    />
+                  </span>
+                ) : (
+                  <span
+                    key={`active-count-${activeUsers.length}`}
+                    className="inline-flex min-h-6 min-w-[2.5rem] items-center justify-center animate-slide-up opacity-0"
+                    style={{ animationDelay: "80ms" }}
+                  >
+                    <Badge
+                      className="min-w-[2.5rem] justify-center bg-card/80 text-muted-foreground"
+                      data-testid="dashboard-users-active-count-badge"
+                    >
+                      {activeUsers.length}
+                    </Badge>
+                  </span>
+                )}
               </div>
 
               {isLoading ? (
@@ -1401,13 +1421,22 @@ const DashboardUsers = () => {
                 </div>
               )}
 
-              {retiredUsers.length > 0 && (
+              {!isLoading && retiredUsers.length > 0 && (
                 <div className="mt-12">
                   <div className="flex items-center justify-between">
                     <h2 className="text-lg font-semibold">Usuários aposentados</h2>
-                    <Badge className="bg-card/80 text-muted-foreground">
-                      {retiredUsers.length}
-                    </Badge>
+                    <span
+                      key={`retired-count-${retiredUsers.length}`}
+                      className="inline-flex min-h-6 min-w-[2.5rem] items-center justify-center animate-slide-up opacity-0"
+                      style={{ animationDelay: "120ms" }}
+                    >
+                      <Badge
+                        className="min-w-[2.5rem] justify-center bg-card/80 text-muted-foreground"
+                        data-testid="dashboard-users-retired-count-badge"
+                      >
+                        {retiredUsers.length}
+                      </Badge>
+                    </span>
                   </div>
                   <div className="mt-6 grid gap-4 md:grid-cols-2">
                     {retiredUsers.map((user, index) => {

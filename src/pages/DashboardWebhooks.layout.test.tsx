@@ -47,6 +47,8 @@ const mockJsonResponse = (ok: boolean, payload: unknown, status = ok ? 200 : 500
     status,
     json: async () => payload,
   }) as Response;
+const classTokens = (element: HTMLElement) =>
+  String(element.className).split(/\s+/).filter(Boolean);
 
 const baseSettings = {
   version: 1,
@@ -248,6 +250,44 @@ describe("DashboardWebhooks layout", () => {
     expectBefore(/Campos da embed/i, /URL da imagem/i);
     expectBefore(/URL da imagem/i, /Rodap/i);
     expectBefore(/Rodap/i, /Cor da embed/i);
+  });
+
+  it("aplica motion aos accordions principais e aos blocos internos", async () => {
+    setupApiMock();
+
+    render(
+      <MemoryRouter initialEntries={["/dashboard/webhooks"]}>
+        <DashboardWebhooks />
+      </MemoryRouter>,
+    );
+
+    await screen.findByRole("heading", { name: /Webhooks editoriais/i });
+    await screen.findByText(/Role geral de lan/i);
+
+    const typesSection = screen.getByTestId("dashboard-webhooks-section-types");
+    const postsSection = screen.getByTestId("dashboard-webhooks-section-posts");
+    const typesContent = screen.getByTestId("dashboard-webhooks-section-content-types");
+    const postsContent = screen.getByTestId("dashboard-webhooks-section-content-posts");
+    const eventItem = screen.getByTestId("dashboard-webhooks-event-posts-post_create");
+
+    expect(classTokens(typesSection)).toContain("animate-slide-up");
+    expect(classTokens(typesSection)).toContain("opacity-0");
+    expect(classTokens(postsSection)).toContain("animate-slide-up");
+    expect(classTokens(typesContent)).toContain("animate-slide-up");
+    expect(classTokens(postsContent)).toContain("animate-slide-up");
+    expect(classTokens(eventItem)).toContain("animate-slide-up");
+
+    fireEvent.click(screen.getByRole("button", { name: /Novo post/i }));
+
+    await waitFor(() => {
+      expect(
+        screen.getByTestId("dashboard-webhooks-event-content-posts-post_create"),
+      ).toBeInTheDocument();
+    });
+
+    expect(
+      classTokens(screen.getByTestId("dashboard-webhooks-event-content-posts-post_create")),
+    ).toContain("animate-slide-up");
   });
 
   it("salva apenas a secao de posts e mantem rascunhos das outras secoes", async () => {
