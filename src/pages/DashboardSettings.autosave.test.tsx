@@ -333,4 +333,16 @@ describe("DashboardSettings autosave", () => {
     );
     expect(socialLabels[0]).toBe("Discord");
   });
+
+  it("aplica reveal ao bloco de autosave no header", async () => {
+    renderDashboardSettings();
+    await screen.findByRole("heading", { name: /Painel/i });
+
+    const autosaveReveal = screen.getByTestId("dashboard-settings-autosave-reveal");
+    const tokens = classTokens(autosaveReveal);
+
+    expect(tokens).toContain("animate-slide-up");
+    expect(tokens).toContain("opacity-0");
+    expect(autosaveReveal).toHaveStyle({ animationDelay: "160ms" });
+  });
 });

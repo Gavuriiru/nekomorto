@@ -35,6 +35,8 @@ const mockJsonResponse = (ok: boolean, payload: unknown, status = ok ? 200 : 500
     status,
     json: async () => payload,
   }) as Response;
+const classTokens = (element: HTMLElement) =>
+  String(element.className).split(/\s+/).filter(Boolean);
 
 const pendingCommentFixture = {
   id: "comment-1",
@@ -345,5 +347,93 @@ describe("DashboardComments notifications", () => {
     expect(screen.getByText("POST")).toBeInTheDocument();
     expect(screen.getByText("PROJETO")).toBeInTheDocument();
     expect(screen.getByText("CAPÍTULO")).toBeInTheDocument();
+  });
+  it("aplica reveal ao container das acoes em massa", async () => {
+    setupApi({
+      pendingComments: [pendingCommentFixture, secondPendingCommentFixture],
+    });
+
+    render(
+      <MemoryRouter initialEntries={["/dashboard/comentarios"]}>
+        <DashboardComments />
+      </MemoryRouter>,
+    );
+
+    await screen.findByText(pendingCommentFixture.content);
+    const bulkActions = screen.getByTestId("dashboard-comments-bulk-actions");
+
+    expect(classTokens(bulkActions)).toContain("animate-slide-up");
+    expect(classTokens(bulkActions)).toContain("opacity-0");
+  });
+
+  it("mostra spinner ao aprovar todos enquanto a request em massa esta pendente", async () => {
+    apiFetchMock.mockImplementation(async (_base: string, path: string, request?: RequestInit) => {
+      const method = String(request?.method || "GET").toUpperCase();
+      if (path === "/api/comments/pending" && method === "GET") {
+        return mockJsonResponse(true, {
+          comments: [pendingCommentFixture, secondPendingCommentFixture],
+        });
+      }
+      if (path === "/api/me" && method === "GET") {
+        return mockJsonResponse(true, { id: "user-1", name: "Admin", username: "admin" });
+      }
+      if (path === "/api/comments/pending/bulk" && method === "POST") {
+        return new Promise<Response>(() => undefined);
+      }
+      return mockJsonResponse(false, { error: "not_found" }, 404);
+    });
+
+    render(
+      <MemoryRouter initialEntries={["/dashboard/comentarios"]}>
+        <DashboardComments />
+      </MemoryRouter>,
+    );
+
+    await screen.findByText(pendingCommentFixture.content);
+    fireEvent.click(screen.getByRole("button", { name: "Aprovar todos" }));
+
+    const bulkActions = screen.getByTestId("dashboard-comments-bulk-actions");
+    const approvingButton = within(bulkActions).getByRole("button", { name: /Aprovando/i });
+    expect(approvingButton).toHaveTextContent("Aprovando...");
+    expect(approvingButton.querySelector(".animate-spin")).not.toBeNull();
+  });
+
+  it("mostra spinner ao excluir todos enquanto a request em massa esta pendente", async () => {
+    apiFetchMock.mockImplementation(async (_base: string, path: string, request?: RequestInit) => {
+      const method = String(request?.method || "GET").toUpperCase();
+      if (path === "/api/comments/pending" && method === "GET") {
+        return mockJsonResponse(true, {
+          comments: [pendingCommentFixture, secondPendingCommentFixture],
+        });
+      }
+      if (path === "/api/me" && method === "GET") {
+        return mockJsonResponse(true, { id: "user-1", name: "Admin", username: "admin" });
+      }
+      if (path === "/api/comments/pending/bulk" && method === "POST") {
+        return new Promise<Response>(() => undefined);
+      }
+      return mockJsonResponse(false, { error: "not_found" }, 404);
+    });
+
+    render(
+      <MemoryRouter initialEntries={["/dashboard/comentarios"]}>
+        <DashboardComments />
+      </MemoryRouter>,
+    );
+
+    await screen.findByText(pendingCommentFixture.content);
+    fireEvent.click(screen.getByRole("button", { name: "Excluir todos" }));
+
+    const bulkDialog = await screen.findByRole("alertdialog");
+    const confirmInput = within(bulkDialog).getByPlaceholderText("Digite EXCLUIR");
+    const confirmButton = within(bulkDialog).getByRole("button", { name: "Excluir todos" });
+
+    fireEvent.change(confirmInput, { target: { value: "EXCLUIR" } });
+    fireEvent.click(confirmButton);
+
+    const bulkActions = screen.getByTestId("dashboard-comments-bulk-actions");
+    const deletingButton = within(bulkActions).getByRole("button", { name: /Excluindo/i, hidden: true });
+    expect(deletingButton).toHaveTextContent("Excluindo...");
+    expect(deletingButton.querySelector(".animate-spin")).not.toBeNull();
   });
 });

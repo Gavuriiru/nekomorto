@@ -12,6 +12,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Skeleton } from "@/components/ui/skeleton";
 import type { Project } from "@/data/projects";
 import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
@@ -1024,11 +1025,28 @@ const Dashboard = () => {
                             Healthchecks e alertas internos
                           </p>
                         </div>
-                        <Badge variant={operationalStatusVariant}>{operationalStatusLabel}</Badge>
+                        {isLoadingOperationalAlerts ? (
+                          <Skeleton
+                            className="h-6 w-16 rounded-full"
+                            data-testid="dashboard-ops-loading-badge"
+                          />
+                        ) : (
+                          <Badge variant={operationalStatusVariant}>{operationalStatusLabel}</Badge>
+                        )}
                       </div>
                       {isLoadingOperationalAlerts ? (
-                        <div className="mt-4 rounded-2xl border border-dashed border-border/60 bg-card/60 px-4 py-6 text-sm text-muted-foreground">
-                          Carregando status operacional...
+                        <div
+                          className="mt-4 space-y-3 rounded-2xl border border-dashed border-border/60 bg-card/60 px-4 py-6"
+                          data-testid="dashboard-ops-loading"
+                          role="status"
+                          aria-live="polite"
+                          aria-busy="true"
+                        >
+                          <Skeleton className="h-4 w-2/5" />
+                          <Skeleton className="h-3 w-full" />
+                          <Skeleton className="h-3 w-5/6" />
+                          <Skeleton className="h-10 w-full rounded-xl" />
+                          <span className="sr-only">Carregando status operacional...</span>
                         </div>
                       ) : operationalAlertsError ? (
                         <div className="mt-4 space-y-3">
@@ -1079,7 +1097,11 @@ const Dashboard = () => {
                             </div>
                           )}
                           <div className="pt-1">
-                            <Button variant="outline" className="w-full" asChild>
+                            <Button
+                              variant="outline"
+                              className="w-full border-border/70 bg-card/60 px-4 text-muted-foreground hover:text-foreground"
+                              asChild
+                            >
                               <Link to="/dashboard/audit-log">Ver audit log</Link>
                             </Button>
                           </div>

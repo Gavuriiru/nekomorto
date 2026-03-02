@@ -4,6 +4,7 @@ import { AlertTriangle, Bell, CheckCircle2, CircleDot, Clock3 } from "lucide-rea
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Skeleton } from "@/components/ui/skeleton";
 import { apiFetch } from "@/lib/api-client";
 
 type DashboardNotificationItem = {
@@ -189,7 +190,33 @@ const DashboardNotificationsPopover = ({
         </div>
         <div className="max-h-[70vh] overflow-y-auto px-3 py-2">
           {isLoading ? (
-            <p className="px-2 py-4 text-sm text-muted-foreground">Carregando notificações...</p>
+            <div
+              className="space-y-2 px-1 py-2"
+              data-testid="dashboard-notifications-loading"
+              role="status"
+              aria-live="polite"
+              aria-busy="true"
+            >
+              {Array.from({ length: 3 }).map((_, index) => (
+                <div
+                  key={`dashboard-notifications-loading-${index}`}
+                  className="rounded-xl border border-border/60 bg-card/60 p-3"
+                >
+                  <div className="flex items-start gap-3">
+                    <Skeleton className="h-7 w-7 rounded-full" />
+                    <div className="min-w-0 flex-1 space-y-2">
+                      <div className="flex items-center gap-2">
+                        <Skeleton className="h-4 w-36" />
+                        <Skeleton className="h-5 w-14 rounded-full" />
+                      </div>
+                      <Skeleton className="h-3 w-full" />
+                      <Skeleton className="h-3 w-4/5" />
+                    </div>
+                  </div>
+                </div>
+              ))}
+              <span className="sr-only">Carregando notificações...</span>
+            </div>
           ) : items.length === 0 ? (
             <p className="px-2 py-4 text-sm text-muted-foreground">Nenhuma pendência operacional no momento.</p>
           ) : (
@@ -232,4 +259,3 @@ const DashboardNotificationsPopover = ({
 };
 
 export default DashboardNotificationsPopover;
-

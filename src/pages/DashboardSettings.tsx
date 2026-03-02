@@ -11,6 +11,7 @@ import {
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import DashboardAutosaveStatus from "@/components/DashboardAutosaveStatus";
 import DashboardShell from "@/components/DashboardShell";
+import { ImageLibraryDialogLoadingFallback } from "@/components/ImageLibraryDialogLoading";
 import ReorderControls from "@/components/ReorderControls";
 import AsyncState from "@/components/ui/async-state";
 import { Button } from "@/components/ui/button";
@@ -1343,7 +1344,12 @@ const DashboardSettings = () => {
                 Atualize identidade, traduções e links globais do site.
               </p>
             </div>
-            <DashboardAutosaveStatus
+            <div
+              className="animate-slide-up opacity-0"
+              style={{ animationDelay: "160ms" }}
+              data-testid="dashboard-settings-autosave-reveal"
+            >
+              <DashboardAutosaveStatus
               title="Autosave das configurações"
               status={combinedAutosaveStatus}
               enabled={autosaveEnabled}
@@ -1356,7 +1362,8 @@ const DashboardSettings = () => {
               }}
               manualActionLabel={isSaving ? "Salvando..." : "Salvar ajustes"}
               manualActionDisabled={isSaving}
-            />
+              />
+            </div>
           </div>
 
           <Tabs
@@ -3126,7 +3133,17 @@ const DashboardSettings = () => {
           </Tabs>
         </section>
       </main>
-      <Suspense fallback={null}>
+      <Suspense
+        fallback={
+          isLibraryOpen ? (
+            <ImageLibraryDialogLoadingFallback
+              open={isLibraryOpen}
+              onOpenChange={setIsLibraryOpen}
+              description="Selecione uma imagem já enviada para reutilizar ou exclua itens que não estejam em uso."
+            />
+          ) : null
+        }
+      >
         <ImageLibraryDialog
           open={isLibraryOpen}
           onOpenChange={setIsLibraryOpen}

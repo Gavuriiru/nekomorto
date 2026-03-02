@@ -94,4 +94,13 @@ describe("DashboardSecurity semantic badges", () => {
       "dark:text-amber-200",
     );
   });
+
+  it("shows loading placeholders before the session payload resolves", () => {
+    apiFetchMock.mockImplementation(async () => new Promise<Response>(() => undefined));
+
+    render(<DashboardSecurity />);
+
+    expect(screen.getByTestId("dashboard-security-loading")).toBeInTheDocument();
+    expect(screen.queryByText(/Total ativo:/i)).not.toBeInTheDocument();
+  });
 });

@@ -4,6 +4,7 @@ import DashboardShell from "@/components/DashboardShell";
 import DashboardPageContainer from "@/components/dashboard/DashboardPageContainer";
 import DashboardPageHeader from "@/components/dashboard/DashboardPageHeader";
 import UploadPicture from "@/components/UploadPicture";
+import { ImageLibraryDialogLoadingFallback } from "@/components/ImageLibraryDialogLoading";
 import ReorderControls from "@/components/ReorderControls";
 import { dashboardPageLayoutTokens } from "@/components/dashboard/dashboard-page-tokens";
 import AsyncState from "@/components/ui/async-state";
@@ -19,6 +20,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Select,
   SelectContent,
@@ -304,8 +306,35 @@ const LexicalEditor = lazy(() => import("@/components/lexical/LexicalEditor"));
 const ImageLibraryDialog = lazy(() => import("@/components/ImageLibraryDialog"));
 
 const LexicalEditorFallback = () => (
-  <div className="min-h-[460px] w-full rounded-2xl border border-border/60 bg-card/60 p-6 text-sm text-muted-foreground">
-    Carregando editor...
+  <div
+    className="min-h-[460px] w-full rounded-2xl border border-border/60 bg-card/60 p-6"
+    role="status"
+    aria-live="polite"
+    aria-busy="true"
+  >
+    <div className="space-y-6">
+      <div className="flex flex-wrap gap-3">
+        <Skeleton className="h-9 w-28" />
+        <Skeleton className="h-9 w-24" />
+        <Skeleton className="h-9 w-32" />
+      </div>
+      <div className="grid gap-8 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+        <div className="space-y-4">
+          <Skeleton className="h-10 w-full rounded-xl" />
+          <Skeleton className="h-32 w-full rounded-xl" />
+          <Skeleton className="h-4 w-11/12" />
+          <Skeleton className="h-4 w-full" />
+          <Skeleton className="h-4 w-5/6" />
+          <Skeleton className="h-52 w-full rounded-xl" />
+        </div>
+        <div className="space-y-4">
+          <Skeleton className="h-28 w-full rounded-xl" />
+          <Skeleton className="h-20 w-full rounded-xl" />
+          <Skeleton className="h-20 w-full rounded-xl" />
+        </div>
+      </div>
+    </div>
+    <span className="sr-only">Carregando editor...</span>
   </div>
 );
 
@@ -2766,7 +2795,17 @@ const DashboardPosts = () => {
         </DashboardPageContainer>
       </DashboardShell>
 
-      <Suspense fallback={null}>
+      <Suspense
+        fallback={
+          isLibraryOpen ? (
+            <ImageLibraryDialogLoadingFallback
+              open={isLibraryOpen}
+              onOpenChange={setIsLibraryOpen}
+              description="Escolha uma imagem já enviada ou use capas/banners de projetos."
+            />
+          ) : null
+        }
+      >
         <ImageLibraryDialog
           open={isLibraryOpen}
           onOpenChange={setIsLibraryOpen}

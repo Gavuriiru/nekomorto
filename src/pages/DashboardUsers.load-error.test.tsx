@@ -41,6 +41,8 @@ const mockJsonResponse = (ok: boolean, payload: unknown, status = ok ? 200 : 500
     status,
     json: async () => payload,
   }) as Response;
+const classTokens = (element: HTMLElement) =>
+  String(element.className).split(/\s+/).filter(Boolean);
 
 describe("DashboardUsers load error", () => {
   beforeEach(() => {
@@ -110,6 +112,9 @@ describe("DashboardUsers load error", () => {
       expect(screen.queryByText(/Não foi possível carregar os usuários/i)).not.toBeInTheDocument();
     });
     await screen.findByText("Admin");
+    const addUserButton = screen.getByRole("button", { name: "Adicionar usuário" });
+    expect(classTokens(addUserButton)).toContain("animate-slide-up");
+    expect(classTokens(addUserButton)).toContain("opacity-0");
     expect(usersRequestCount).toBeGreaterThanOrEqual(2);
   });
 });

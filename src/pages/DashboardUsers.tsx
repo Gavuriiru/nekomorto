@@ -2,6 +2,7 @@
 import { useNavigate, useSearchParams } from "react-router-dom";
 import QRCode from "qrcode";
 import DashboardShell from "@/components/DashboardShell";
+import { ImageLibraryDialogLoadingFallback } from "@/components/ImageLibraryDialogLoading";
 import ReorderControls from "@/components/ReorderControls";
 import AsyncState from "@/components/ui/async-state";
 
@@ -16,6 +17,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Select,
   SelectContent,
@@ -1251,7 +1253,8 @@ const DashboardUsers = () => {
               </div>
               {canManageUsers && (
                 <Button
-                  className="bg-primary text-primary-foreground hover:bg-primary/90"
+                  className="bg-primary text-primary-foreground hover:bg-primary/90 animate-slide-up opacity-0"
+                  style={{ animationDelay: "160ms" }}
                   onClick={openNewDialog}
                 >
                   Adicionar usuário
@@ -1515,7 +1518,17 @@ const DashboardUsers = () => {
           </section>
         </main>
       </DashboardShell>
-      <Suspense fallback={null}>
+      <Suspense
+        fallback={
+          isLibraryOpen ? (
+            <ImageLibraryDialogLoadingFallback
+              open={isLibraryOpen}
+              onOpenChange={handleLibraryOpenChange}
+              description="Selecione uma imagem já enviada para reutilizar ou envie um novo arquivo."
+            />
+          ) : null
+        }
+      >
         <ImageLibraryDialog
           open={isLibraryOpen}
           onOpenChange={handleLibraryOpenChange}
@@ -1948,12 +1961,39 @@ const DashboardUsers = () => {
                 <div className="space-y-2 rounded-2xl border border-border/60 bg-background/60 p-3">
                   <div className="flex items-center justify-between gap-2">
                     <p className="text-sm font-medium">Sessões ativas</p>
-                    <Button size="sm" variant="outline" onClick={revokeSelfOthers}>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={revokeSelfOthers}
+                      disabled={isLoadingSecurity}
+                    >
                       Encerrar outras
                     </Button>
                   </div>
                   {isLoadingSecurity ? (
-                    <p className="text-xs text-muted-foreground">Carregando sessões...</p>
+                    <div
+                      className="space-y-2"
+                      data-testid="dashboard-users-security-loading"
+                      role="status"
+                      aria-live="polite"
+                      aria-busy="true"
+                    >
+                      {Array.from({ length: 2 }).map((_, index) => (
+                        <div
+                          key={`dashboard-users-security-loading-${index}`}
+                          className="rounded-xl border border-border/60 bg-card/50 p-2"
+                        >
+                          <div className="flex flex-wrap items-start justify-between gap-2">
+                            <div className="space-y-2">
+                              <Skeleton className="h-3 w-24" />
+                              <Skeleton className="h-3 w-36" />
+                            </div>
+                            <Skeleton className="h-6 w-20 rounded-full" />
+                          </div>
+                        </div>
+                      ))}
+                      <span className="sr-only">Carregando sessões...</span>
+                    </div>
                   ) : securitySessions.length === 0 ? (
                     <p className="text-xs text-muted-foreground">Nenhuma sessão ativa.</p>
                   ) : (

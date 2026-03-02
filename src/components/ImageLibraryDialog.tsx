@@ -28,6 +28,9 @@ import {
 } from "@/components/ui/accordion";
 import { Button } from "@/components/ui/button";
 import {
+  ImageLibraryDialogLoadingGrid,
+} from "@/components/ImageLibraryDialogLoading";
+import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -37,6 +40,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "@/components/ui/use-toast";
+import { Loader2 } from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
 import {
   computeUploadContainFitRect,
@@ -1916,7 +1920,7 @@ const ImageLibraryDialog = ({
 
   const renderGrid = (items: LibraryImageItem[], emptyText: string) => {
     if (isLoading) {
-      return <p className="mt-3 text-xs text-muted-foreground">Carregando...</p>;
+      return <ImageLibraryDialogLoadingGrid className="mt-3" testId="image-library-loading-grid" />;
     }
     if (items.length === 0) {
       return <p className="mt-3 text-xs text-muted-foreground">{emptyText}</p>;
@@ -2035,7 +2039,7 @@ const ImageLibraryDialog = ({
 
   const renderProjectGroups = (groups: ProjectImageGroup[], emptyText: string) => {
     if (isLoading) {
-      return <p className="mt-3 text-xs text-muted-foreground">Carregando...</p>;
+      return <ImageLibraryDialogLoadingGrid className="mt-3" testId="image-library-loading-grid" />;
     }
     if (groups.length === 0) {
       return <p className="mt-3 text-xs text-muted-foreground">{emptyText}</p>;
@@ -2081,6 +2085,7 @@ const ImageLibraryDialog = ({
               className={`flex h-full flex-col justify-center rounded-2xl border border-dashed border-border/70 bg-card/50 p-3 text-sm text-muted-foreground transition sm:p-4 ${
                 isDragActive ? "ring-2 ring-primary/60 border-primary/60" : ""
               }`}
+              aria-busy={isUploading}
               onDragOver={(event) => {
                 event.preventDefault();
                 setIsDragActive(true);
@@ -2110,11 +2115,17 @@ const ImageLibraryDialog = ({
                   }}
                 />
                 {isUploading ? (
-                  <p className="text-xs text-muted-foreground">Processando...</p>
+                  <p className="inline-flex items-center gap-2 text-xs text-muted-foreground">
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    Processando upload...
+                  </p>
                 ) : null}
               </div>
             </div>
-            <div className="rounded-2xl border border-border/60 bg-card/70 p-3 space-y-3 sm:p-4">
+            <div
+              className="rounded-2xl border border-border/60 bg-card/70 p-3 space-y-3 sm:p-4"
+              aria-busy={isUploading}
+            >
               {showUrlImport ? (
                 <div className="space-y-2">
                   <Label>Importar por URL</Label>
@@ -2130,8 +2141,16 @@ const ImageLibraryDialog = ({
                       className="shrink-0 px-3"
                       onClick={() => void handleImportFromUrl()}
                       disabled={isUploading || !urlInput.trim()}
+                      aria-busy={isUploading}
                     >
-                      Importar URL
+                      {isUploading ? (
+                        <>
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          Importando...
+                        </>
+                      ) : (
+                        "Importar URL"
+                      )}
                     </Button>
                   </div>
                 </div>

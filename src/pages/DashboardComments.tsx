@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { CheckCircle2, Trash2, ExternalLink } from "lucide-react";
+import { CheckCircle2, Trash2, ExternalLink, Loader2 } from "lucide-react";
 
 import DashboardShell from "@/components/DashboardShell";
 import {
@@ -23,6 +23,7 @@ import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
 import { formatDateTime } from "@/lib/date";
 import { usePageMeta } from "@/hooks/use-page-meta";
+import { cn } from "@/lib/utils";
 
 type PendingComment = {
   id: string;
@@ -314,16 +315,55 @@ const DashboardComments = () => {
             </div>
             <div className="flex flex-wrap items-center gap-2">
               {!isLoading && comments.length > 0 ? (
-                <>
+                <div
+                  className="flex flex-wrap items-center gap-2 animate-slide-up opacity-0"
+                  style={{ animationDelay: "160ms" }}
+                  data-testid="dashboard-comments-bulk-actions"
+                >
                   <Button
                     size="sm"
                     variant="secondary"
                     disabled={isBulkActionLoading}
                     onClick={() => void handleApproveAll()}
                   >
-                    {isBulkActionLoading && bulkActionType === "approve_all"
-                      ? "Aprovando..."
-                      : "Aprovar todos"}
+                    <span className="relative inline-grid h-5 items-center justify-items-center">
+                      <span
+                        className="invisible col-start-1 row-start-1 inline-flex items-center justify-center gap-2 whitespace-nowrap"
+                        aria-hidden="true"
+                      >
+                        Aprovar todos
+                      </span>
+                      <span
+                        className="invisible col-start-1 row-start-1 inline-flex items-center justify-center gap-2 whitespace-nowrap"
+                        aria-hidden="true"
+                      >
+                        <Loader2 className="h-4 w-4" />
+                        Aprovando...
+                      </span>
+                      <span
+                        className={cn(
+                          "col-start-1 row-start-1 inline-flex items-center justify-center gap-2 transition-opacity duration-150",
+                          isBulkActionLoading && bulkActionType === "approve_all"
+                            ? "opacity-0"
+                            : "opacity-100",
+                        )}
+                        aria-hidden={isBulkActionLoading && bulkActionType === "approve_all"}
+                      >
+                        Aprovar todos
+                      </span>
+                      <span
+                        className={cn(
+                          "col-start-1 row-start-1 inline-flex items-center justify-center gap-2 transition-opacity duration-150",
+                          isBulkActionLoading && bulkActionType === "approve_all"
+                            ? "opacity-100"
+                            : "opacity-0",
+                        )}
+                        aria-hidden={!(isBulkActionLoading && bulkActionType === "approve_all")}
+                      >
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Aprovando...
+                      </span>
+                    </span>
                   </Button>
                   <Button
                     size="sm"
@@ -331,11 +371,46 @@ const DashboardComments = () => {
                     disabled={isBulkActionLoading}
                     onClick={() => setIsBulkDeleteConfirmOpen(true)}
                   >
-                    {isBulkActionLoading && bulkActionType === "delete_all"
-                      ? "Excluindo..."
-                      : "Excluir todos"}
+                    <span className="relative inline-grid h-5 items-center justify-items-center">
+                      <span
+                        className="invisible col-start-1 row-start-1 inline-flex items-center justify-center gap-2 whitespace-nowrap"
+                        aria-hidden="true"
+                      >
+                        Excluir todos
+                      </span>
+                      <span
+                        className="invisible col-start-1 row-start-1 inline-flex items-center justify-center gap-2 whitespace-nowrap"
+                        aria-hidden="true"
+                      >
+                        <Loader2 className="h-4 w-4" />
+                        Excluindo...
+                      </span>
+                      <span
+                        className={cn(
+                          "col-start-1 row-start-1 inline-flex items-center justify-center gap-2 transition-opacity duration-150",
+                          isBulkActionLoading && bulkActionType === "delete_all"
+                            ? "opacity-0"
+                            : "opacity-100",
+                        )}
+                        aria-hidden={isBulkActionLoading && bulkActionType === "delete_all"}
+                      >
+                        Excluir todos
+                      </span>
+                      <span
+                        className={cn(
+                          "col-start-1 row-start-1 inline-flex items-center justify-center gap-2 transition-opacity duration-150",
+                          isBulkActionLoading && bulkActionType === "delete_all"
+                            ? "opacity-100"
+                            : "opacity-0",
+                        )}
+                        aria-hidden={!(isBulkActionLoading && bulkActionType === "delete_all")}
+                      >
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Excluindo...
+                      </span>
+                    </span>
                   </Button>
-                </>
+                </div>
               ) : null}
               <Badge variant="secondary" className="text-xs uppercase animate-fade-in">
                 {comments.length} pendentes

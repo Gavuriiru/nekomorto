@@ -2,6 +2,7 @@ import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } fro
 import { useNavigate, useSearchParams } from "react-router-dom";
 import DashboardAutosaveStatus from "@/components/DashboardAutosaveStatus";
 import DashboardShell from "@/components/DashboardShell";
+import { ImageLibraryDialogLoadingFallback } from "@/components/ImageLibraryDialogLoading";
 import ReorderControls from "@/components/ReorderControls";
 import AsyncState from "@/components/ui/async-state";
 import { Button } from "@/components/ui/button";
@@ -739,7 +740,12 @@ const DashboardPages = () => {
                 Edite textos e previews de compartilhamento das páginas públicas.
               </p>
             </div>
-            <DashboardAutosaveStatus
+            <div
+              className="animate-slide-up opacity-0"
+              style={{ animationDelay: "160ms" }}
+              data-testid="dashboard-pages-autosave-reveal"
+            >
+              <DashboardAutosaveStatus
               title="Autosave das páginas"
               status={pagesAutosave.status}
               enabled={pagesAutosave.enabled}
@@ -763,7 +769,8 @@ const DashboardPages = () => {
                 pagesAutosave.status === "saving" ? "Salvando..." : "Salvar alterações"
               }
               manualActionDisabled={pagesAutosave.status === "saving"}
-            />
+              />
+            </div>
           </div>
 
           <Tabs
@@ -2057,7 +2064,17 @@ const DashboardPages = () => {
           </Tabs>
         </section>
       </main>
-      <Suspense fallback={null}>
+      <Suspense
+        fallback={
+          isPreviewLibraryOpen ? (
+            <ImageLibraryDialogLoadingFallback
+              open={isPreviewLibraryOpen}
+              onOpenChange={setIsPreviewLibraryOpen}
+              description="Escolha uma imagem para o preview de compartilhamento da página."
+            />
+          ) : null
+        }
+      >
         <ImageLibraryDialog
           open={isPreviewLibraryOpen}
           onOpenChange={setIsPreviewLibraryOpen}

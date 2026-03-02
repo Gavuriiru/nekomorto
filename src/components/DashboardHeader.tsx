@@ -22,7 +22,6 @@ import {
 import { toast } from "@/components/ui/use-toast";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { useSiteSettings } from "@/hooks/use-site-settings";
-import { useIsMobile } from "@/hooks/use-mobile";
 import type { Project } from "@/data/projects";
 import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
@@ -66,7 +65,6 @@ const DashboardHeader = ({
   const navigate = useNavigate();
   const apiBase = getApiBase();
   const { settings } = useSiteSettings();
-  const isMobile = useIsMobile();
 
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
@@ -342,9 +340,7 @@ const DashboardHeader = ({
   return (
     <header
       style={{
-        left: isMobile
-          ? "0px"
-          : "calc(var(--sidebar-offset) - (0.3125rem + min(0.1875rem, max(0rem, calc(var(--sidebar-width-current) - var(--sidebar-width-icon))))))",
+        left: "var(--sidebar-header-left)",
       }}
       className={cn("fixed left-0 right-0 top-0 z-40 bg-sidebar", className)}
     >

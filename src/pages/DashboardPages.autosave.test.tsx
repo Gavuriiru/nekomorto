@@ -465,4 +465,16 @@ describe("DashboardPages autosave", () => {
       { timeout: 7000 },
     );
   });
+
+  it("aplica reveal ao bloco de autosave no header", async () => {
+    renderDashboardPages();
+    await screen.findByRole("heading", { name: /Gerenciar/i });
+
+    const autosaveReveal = screen.getByTestId("dashboard-pages-autosave-reveal");
+    const tokens = classTokens(autosaveReveal);
+
+    expect(tokens).toContain("animate-slide-up");
+    expect(tokens).toContain("opacity-0");
+    expect(autosaveReveal).toHaveStyle({ animationDelay: "160ms" });
+  });
 });

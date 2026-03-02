@@ -18,6 +18,7 @@ const SIDEBAR_WIDTH = "16rem";
 const SIDEBAR_WIDTH_MOBILE = "18rem";
 const SIDEBAR_MOBILE_HEADER_HEIGHT = "4.75rem";
 const SIDEBAR_WIDTH_ICON = "3rem";
+const SIDEBAR_HEADER_LEFT_COLLAPSED = `calc(${SIDEBAR_WIDTH_ICON} + 1.5rem)`;
 const SIDEBAR_KEYBOARD_SHORTCUT = "b";
 
 type SidebarContext = {
@@ -41,6 +42,28 @@ function useSidebar() {
   return context;
 }
 
+const getStoredDesktopSidebarState = () => {
+  if (typeof document === "undefined") {
+    return null;
+  }
+
+  const storedValue = document.cookie
+    .split(";")
+    .map((entry) => entry.trim())
+    .find((entry) => entry.startsWith(`${SIDEBAR_COOKIE_NAME}=`))
+    ?.slice(SIDEBAR_COOKIE_NAME.length + 1);
+
+  if (storedValue === "true") {
+    return true;
+  }
+
+  if (storedValue === "false") {
+    return false;
+  }
+
+  return null;
+};
+
 const SidebarProvider = React.forwardRef<
   HTMLDivElement,
   React.ComponentProps<"div"> & {
@@ -54,7 +77,7 @@ const SidebarProvider = React.forwardRef<
 
   // This is the internal state of the sidebar.
   // We use openProp and setOpenProp for control from outside the component.
-  const [_open, _setOpen] = React.useState(defaultOpen);
+  const [_open, _setOpen] = React.useState(() => getStoredDesktopSidebarState() ?? defaultOpen);
   const open = openProp ?? _open;
   const setOpen = React.useCallback(
     (value: boolean | ((value: boolean) => boolean)) => {
@@ -64,9 +87,6 @@ const SidebarProvider = React.forwardRef<
       } else {
         _setOpen(openState);
       }
-
-      // This sets the cookie to keep the sidebar state.
-      document.cookie = `${SIDEBAR_COOKIE_NAME}=${openState}; path=/; max-age=${SIDEBAR_COOKIE_MAX_AGE}`;
     },
     [setOpenProp, open],
   );
@@ -97,6 +117,14 @@ const SidebarProvider = React.forwardRef<
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [toggleSidebar]);
 
+  React.useEffect(() => {
+    if (isMobile || typeof document === "undefined") {
+      return;
+    }
+
+    document.cookie = `${SIDEBAR_COOKIE_NAME}=${open}; path=/; max-age=${SIDEBAR_COOKIE_MAX_AGE}`;
+  }, [isMobile, open]);
+
   // We add a state so that we can do data-state="expanded" or "collapsed".
   // This makes it easier to style the sidebar with Tailwind classes.
   const state = open ? "expanded" : "collapsed";
@@ -122,16 +150,16 @@ const SidebarProvider = React.forwardRef<
             {
               "--sidebar-width": SIDEBAR_WIDTH,
               "--sidebar-width-icon": SIDEBAR_WIDTH_ICON,
-              "--sidebar-width-current": isMobile
-                ? "0px"
-                : open
-                  ? SIDEBAR_WIDTH
-                  : SIDEBAR_WIDTH_ICON,
               "--sidebar-offset": isMobile
                 ? "0px"
                 : open
                   ? `calc(${SIDEBAR_WIDTH} + 0.5rem)`
                   : `calc(${SIDEBAR_WIDTH_ICON} + 1.8125rem)`,
+              "--sidebar-header-left": isMobile
+                ? "0px"
+                : open
+                  ? SIDEBAR_WIDTH
+                  : SIDEBAR_HEADER_LEFT_COLLAPSED,
               ...style,
             } as React.CSSProperties
           }

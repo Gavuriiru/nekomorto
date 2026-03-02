@@ -16,6 +16,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "@/components/ui/use-toast";
 import { usePageMeta } from "@/hooks/use-page-meta";
 import { getApiBase } from "@/lib/api-base";
@@ -441,9 +442,16 @@ const DashboardUploads = () => {
           description="Consumo real por área com base nos arquivos presentes em disco."
           actions={
             <div className="flex items-center gap-2">
-              <Badge className="bg-card/80 text-muted-foreground">
-                Atualizado: {formatDateTime(summary.generatedAt)}
-              </Badge>
+              {isLoading ? (
+                <Skeleton
+                  className="h-6 w-36 rounded-full"
+                  data-testid="dashboard-uploads-summary-timestamp-loading"
+                />
+              ) : (
+                <Badge className="bg-card/80 text-muted-foreground">
+                  Atualizado: {formatDateTime(summary.generatedAt)}
+                </Badge>
+              )}
               <Button
                 size="sm"
                 variant="outline"
@@ -464,15 +472,37 @@ const DashboardUploads = () => {
           ) : null}
 
           {!isForbidden ? (
-            <div className="grid gap-4 md:grid-cols-3">
-              {cards.map((card) => (
-                <article key={card.label} className="rounded-2xl border border-border/60 bg-card/60 p-5">
-                  <p className="text-xs uppercase tracking-[0.22em] text-muted-foreground">{card.label}</p>
-                  <p className="mt-3 text-2xl font-semibold text-foreground">{card.value}</p>
-                  <p className="mt-1 text-xs text-muted-foreground">{card.files} arquivos</p>
-                </article>
-              ))}
-            </div>
+            isLoading ? (
+              <div
+                className="grid gap-4 md:grid-cols-3"
+                data-testid="dashboard-uploads-summary-loading"
+                role="status"
+                aria-live="polite"
+                aria-busy="true"
+              >
+                {Array.from({ length: 3 }).map((_, index) => (
+                  <article
+                    key={`dashboard-uploads-summary-loading-${index}`}
+                    className="rounded-2xl border border-border/60 bg-card/60 p-5"
+                  >
+                    <Skeleton className="h-3 w-16" />
+                    <Skeleton className="mt-3 h-8 w-28" />
+                    <Skeleton className="mt-2 h-3 w-20" />
+                  </article>
+                ))}
+                <span className="sr-only">Carregando resumo de storage...</span>
+              </div>
+            ) : (
+              <div className="grid gap-4 md:grid-cols-3">
+                {cards.map((card) => (
+                  <article key={card.label} className="rounded-2xl border border-border/60 bg-card/60 p-5">
+                    <p className="text-xs uppercase tracking-[0.22em] text-muted-foreground">{card.label}</p>
+                    <p className="mt-3 text-2xl font-semibold text-foreground">{card.value}</p>
+                    <p className="mt-1 text-xs text-muted-foreground">{card.files} arquivos</p>
+                  </article>
+                ))}
+              </div>
+            )
           ) : null}
 
           {!isForbidden ? (
@@ -481,7 +511,25 @@ const DashboardUploads = () => {
                 <h2 className="text-sm font-semibold text-foreground">Consumo por área</h2>
               </div>
               {isLoading ? (
-                <p className="px-5 py-4 text-sm text-muted-foreground">Carregando dados de storage...</p>
+                <div
+                  className="space-y-3 px-5 py-4"
+                  data-testid="dashboard-uploads-storage-loading"
+                  role="status"
+                  aria-live="polite"
+                  aria-busy="true"
+                >
+                  <Skeleton className="h-4 w-40" />
+                  {Array.from({ length: 4 }).map((_, index) => (
+                    <div key={`dashboard-uploads-storage-loading-${index}`} className="grid grid-cols-5 gap-3">
+                      <Skeleton className="h-4 w-full" />
+                      <Skeleton className="h-4 w-full" />
+                      <Skeleton className="h-4 w-full" />
+                      <Skeleton className="h-4 w-full" />
+                      <Skeleton className="h-4 w-full" />
+                    </div>
+                  ))}
+                  <span className="sr-only">Carregando dados de storage...</span>
+                </div>
               ) : hasError ? (
                 <p className="px-5 py-4 text-sm text-amber-300">Não foi possível carregar os dados de storage.</p>
               ) : summary.areas.length === 0 ? (
@@ -532,15 +580,51 @@ const DashboardUploads = () => {
                     Remove uploads sem referência e variantes órfãs encontradas em _variants.
                   </p>
                 </div>
-                <Badge className="bg-card/80 text-muted-foreground">
-                  Análise: {formatDateTime(cleanupPreview.generatedAt)}
-                </Badge>
+                {isCleanupLoading ? (
+                  <Skeleton
+                    className="h-6 w-32 rounded-full"
+                    data-testid="dashboard-uploads-cleanup-timestamp-loading"
+                  />
+                ) : (
+                  <Badge className="bg-card/80 text-muted-foreground">
+                    Análise: {formatDateTime(cleanupPreview.generatedAt)}
+                  </Badge>
+                )}
               </div>
 
               {isCleanupLoading ? (
-                <p className="px-5 py-4 text-sm text-muted-foreground">
-                  Analisando armazenamento não utilizado...
-                </p>
+                <div
+                  className="space-y-4 px-5 py-4"
+                  data-testid="dashboard-uploads-cleanup-loading"
+                  role="status"
+                  aria-live="polite"
+                  aria-busy="true"
+                >
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div className="space-y-2">
+                      <Skeleton className="h-4 w-36" />
+                      <Skeleton className="h-4 w-44" />
+                      <Skeleton className="h-4 w-40" />
+                      <Skeleton className="h-4 w-32" />
+                    </div>
+                    <Skeleton className="h-9 w-56" />
+                  </div>
+                  <div className="space-y-3">
+                    {Array.from({ length: 3 }).map((_, index) => (
+                      <div
+                        key={`dashboard-uploads-cleanup-loading-${index}`}
+                        className="grid grid-cols-[1fr_1.6fr_1fr_1fr_1fr] gap-3"
+                      >
+                        <Skeleton className="h-4 w-full" />
+                        <Skeleton className="h-4 w-full" />
+                        <Skeleton className="h-4 w-full" />
+                        <Skeleton className="h-4 w-full" />
+                        <Skeleton className="h-4 w-full" />
+                      </div>
+                    ))}
+                  </div>
+                  <span className="sr-only">Analisando armazenamento não utilizado...</span>
+                </div>
               ) : hasCleanupError ? (
                 <p className="px-5 py-4 text-sm text-amber-300">
                   Não foi possível analisar o armazenamento não utilizado.

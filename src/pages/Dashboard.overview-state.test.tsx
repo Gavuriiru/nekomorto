@@ -223,4 +223,57 @@ describe("Dashboard overview async states", () => {
       "dark:text-red-200",
     );
   });
+
+  it("mantem placeholders operacionais sem expor badge OK durante o carregamento", async () => {
+    apiFetchMock.mockImplementation(async (_base: string, path: string, options?: RequestInit) => {
+      const method = String(options?.method || "GET").toUpperCase();
+      if (path === "/api/me" && method === "GET") {
+        return mockJsonResponse(true, {
+          id: "u-1",
+          name: "Admin",
+          username: "admin",
+          permissions: ["*"],
+        });
+      }
+      if (path === "/api/projects" && method === "GET") {
+        return mockJsonResponse(true, { projects: [] });
+      }
+      if (path === "/api/posts" && method === "GET") {
+        return mockJsonResponse(true, { posts: [] });
+      }
+      if (path === "/api/comments/recent?limit=3" && method === "GET") {
+        return mockJsonResponse(true, { comments: [], pendingCount: 0 });
+      }
+      if (path.startsWith("/api/analytics/overview?") && method === "GET") {
+        return mockJsonResponse(true, {
+          metrics: {
+            views: 20,
+          },
+        });
+      }
+      if (path === "/api/analytics/timeseries?range=7d&type=all&metric=views" && method === "GET") {
+        return mockJsonResponse(true, {
+          series: [
+            { date: "2026-02-20", value: 10 },
+            { date: "2026-02-21", value: 12 },
+          ],
+        });
+      }
+      if (path === "/api/admin/operational-alerts" && method === "GET") {
+        return new Promise<Response>(() => undefined);
+      }
+      return mockJsonResponse(false, { error: "not_found" }, 404);
+    });
+
+    render(
+      <MemoryRouter initialEntries={["/dashboard"]}>
+        <Dashboard />
+      </MemoryRouter>,
+    );
+
+    await screen.findByRole("heading", { name: /Painel de controle da comunidade/i });
+
+    expect(screen.getByTestId("dashboard-ops-loading")).toBeInTheDocument();
+    expect(screen.queryByText("OK")).not.toBeInTheDocument();
+  });
 });

@@ -6,6 +6,7 @@ import ReorderControls from "@/components/ReorderControls";
 import DashboardPageContainer from "@/components/dashboard/DashboardPageContainer";
 import DashboardPageHeader from "@/components/dashboard/DashboardPageHeader";
 import { dashboardPageLayoutTokens } from "@/components/dashboard/dashboard-page-tokens";
+import { ImageLibraryDialogLoadingFallback } from "@/components/ImageLibraryDialogLoading";
 import type { ImageLibraryOptions } from "@/components/ImageLibraryDialog";
 import ThemedSvgLogo from "@/components/ThemedSvgLogo";
 import AsyncState from "@/components/ui/async-state";
@@ -27,6 +28,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Select,
   SelectContent,
@@ -92,8 +94,25 @@ const LexicalEditor = lazy(() => import("@/components/lexical/LexicalEditor"));
 const ImageLibraryDialog = lazy(() => import("@/components/ImageLibraryDialog"));
 
 const LexicalEditorFallback = () => (
-  <div className="min-h-[380px] w-full rounded-2xl border border-border/60 bg-card/60 p-4 text-sm text-muted-foreground">
-    Carregando editor...
+  <div
+    className="min-h-[380px] w-full rounded-2xl border border-border/60 bg-card/60 p-4"
+    role="status"
+    aria-live="polite"
+    aria-busy="true"
+  >
+    <div className="space-y-4">
+      <div className="flex flex-wrap gap-2">
+        <Skeleton className="h-8 w-20" />
+        <Skeleton className="h-8 w-24" />
+        <Skeleton className="h-8 w-32" />
+      </div>
+      <Skeleton className="h-10 w-full rounded-xl" />
+      <Skeleton className="h-24 w-full rounded-xl" />
+      <Skeleton className="h-4 w-full" />
+      <Skeleton className="h-4 w-10/12" />
+      <Skeleton className="h-40 w-full rounded-xl" />
+    </div>
+    <span className="sr-only">Carregando editor...</span>
   </div>
 );
 
@@ -4548,7 +4567,17 @@ const DashboardProjectsEditor = () => {
         </DialogContent>
       </Dialog>
 
-      <Suspense fallback={null}>
+      <Suspense
+        fallback={
+          isLibraryOpen ? (
+            <ImageLibraryDialogLoadingFallback
+              open={isLibraryOpen}
+              onOpenChange={setIsLibraryOpen}
+              description="Envie novas imagens ou selecione uma existente para usar no projeto."
+            />
+          ) : null
+        }
+      >
         <ImageLibraryDialog
           open={isLibraryOpen}
           onOpenChange={setIsLibraryOpen}

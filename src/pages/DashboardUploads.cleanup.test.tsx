@@ -204,6 +204,18 @@ describe("DashboardUploads cleanup", () => {
     toastMock.mockReset();
   });
 
+  it("mostra skeletons e esconde contadores derivados do estado vazio enquanto carrega", () => {
+    apiFetchMock.mockImplementation(async () => new Promise<Response>(() => undefined));
+
+    render(<DashboardUploads />);
+
+    expect(screen.getByTestId("dashboard-uploads-summary-loading")).toBeInTheDocument();
+    expect(screen.getByTestId("dashboard-uploads-storage-loading")).toBeInTheDocument();
+    expect(screen.getByTestId("dashboard-uploads-cleanup-loading")).toBeInTheDocument();
+    expect(screen.queryByText(/Atualizado:/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Análise:/i)).not.toBeInTheDocument();
+  });
+
   it("renderiza a seção de armazenamento não utilizado com contagens separadas e linhas mistas", async () => {
     setupApi();
 

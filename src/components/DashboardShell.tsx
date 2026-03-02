@@ -3,7 +3,6 @@ import { Link, useLocation } from "react-router-dom";
 import { Home } from "lucide-react";
 import DashboardHeader from "@/components/DashboardHeader";
 import Footer from "@/components/Footer";
-import SkipLinks from "@/components/SkipLinks";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   Sidebar,
@@ -128,11 +127,6 @@ const DashboardShell = ({
 
   return (
     <div className="min-h-screen overflow-x-hidden bg-background text-foreground">
-      <SkipLinks
-        links={[
-          { href: "#dashboard-navigation", label: "Pular para a navegação" },
-        ]}
-      />
       <SidebarProvider defaultOpen>
         <Sidebar variant="inset" collapsible="icon">
           <SidebarHeader

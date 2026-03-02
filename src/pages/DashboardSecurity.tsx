@@ -13,6 +13,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "@/components/ui/use-toast";
 import { usePageMeta } from "@/hooks/use-page-meta";
 import { getApiBase } from "@/lib/api-base";
@@ -214,10 +215,19 @@ const DashboardSecurity = () => {
           <section className="space-y-4 rounded-3xl border border-border/60 bg-card/60 p-6">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="flex flex-wrap items-center gap-2">
-                <Badge className="bg-card/80 text-muted-foreground">Total ativo: {total}</Badge>
-                <Badge className="bg-card/80 text-muted-foreground">
-                  Página {page} de {pageCount}
-                </Badge>
+                {isLoading ? (
+                  <>
+                    <Skeleton className="h-6 w-24 rounded-full" />
+                    <Skeleton className="h-6 w-20 rounded-full" />
+                  </>
+                ) : (
+                  <>
+                    <Badge className="bg-card/80 text-muted-foreground">Total ativo: {total}</Badge>
+                    <Badge className="bg-card/80 text-muted-foreground">
+                      Página {page} de {pageCount}
+                    </Badge>
+                  </>
+                )}
               </div>
               <div className="flex items-center gap-2">
                 <Button
@@ -252,7 +262,41 @@ const DashboardSecurity = () => {
             </div>
 
             {isLoading ? (
-              <p className="text-sm text-muted-foreground">Carregando sessões...</p>
+              <div
+                className="space-y-3"
+                data-testid="dashboard-security-loading"
+                role="status"
+                aria-live="polite"
+                aria-busy="true"
+              >
+                {Array.from({ length: 3 }).map((_, index) => (
+                  <article
+                    key={`dashboard-security-loading-${index}`}
+                    className="space-y-3 rounded-2xl border border-border/60 bg-background/60 p-4"
+                  >
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div className="flex items-center gap-3">
+                        <Skeleton className="h-10 w-10 rounded-full" />
+                        <div className="space-y-2">
+                          <Skeleton className="h-4 w-28" />
+                          <Skeleton className="h-3 w-20" />
+                        </div>
+                      </div>
+                      <div className="flex gap-2">
+                        <Skeleton className="h-6 w-24 rounded-full" />
+                        <Skeleton className="h-8 w-20" />
+                      </div>
+                    </div>
+                    <div className="grid gap-2 md:grid-cols-2">
+                      <Skeleton className="h-3 w-full" />
+                      <Skeleton className="h-3 w-5/6" />
+                      <Skeleton className="h-3 w-2/3" />
+                      <Skeleton className="h-3 w-full" />
+                    </div>
+                  </article>
+                ))}
+                <span className="sr-only">Carregando sessões...</span>
+              </div>
             ) : hasLoadError ? (
               <p className="text-sm text-amber-300">
                 Não foi possível carregar a lista de sessões ativas.
