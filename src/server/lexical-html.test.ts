@@ -85,6 +85,29 @@ describe("server lexical HTML bridge", () => {
     expect(String(children[0]?.editorialStyle || "")).toContain("vertical-align: middle");
   });
 
+  it("preserva font-size inline em text nodes estilizados", () => {
+    const serialized = htmlToLexicalJson('<span style="font-size: 1.5em">texto grande</span>');
+    const children = getRootChildren(serialized);
+    const textNode = ((children[0]?.children || []) as Array<Record<string, unknown>>)[0];
+
+    expect(textNode).toEqual(
+      expect.objectContaining({
+        type: "text",
+        text: "texto grande",
+      }),
+    );
+    expect(String(textNode?.style || "")).toContain("font-size: 1.5em");
+  });
+
+  it("preserva font-size inline e formato italico em inline estilizado", () => {
+    const serialized = htmlToLexicalJson('<em style="font-size: 1.5em">texto italico</em>');
+    const children = getRootChildren(serialized);
+    const textNode = ((children[0]?.children || []) as Array<Record<string, unknown>>)[0];
+
+    expect(String(textNode?.style || "")).toContain("font-size: 1.5em");
+    expect(Number(textNode?.format || 0)).toBeGreaterThan(0);
+  });
+
   it("mapeia imagem block centralizada para epub-image com align", () => {
     const serialized = htmlToLexicalJson(
       '<img src="/uploads/tmp/epub-imports/test/image.jpg" alt="Ilustracao" style="display: block; max-width: 100%" data-epub-align="center">',

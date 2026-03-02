@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import { MemoryRouter, useLocation } from "react-router-dom";
 import { describe, expect, it, vi } from "vitest";
 
@@ -98,10 +98,61 @@ const projectFixture = {
   trailerUrl: "",
   forceHero: false,
   heroImageUrl: "",
+  heroImageAlt: "",
+  volumeCovers: [],
   episodeDownloads: [],
   views: 0,
   commentsCount: 0,
   order: 0,
+};
+
+const chapterProjectFixture = {
+  ...projectFixture,
+  id: "project-ln-1",
+  title: "Projeto Light Novel",
+  type: "Light Novel",
+  episodes: "2 capítulos",
+  episodeDownloads: [
+    {
+      number: 1,
+      volume: 1,
+      title: "Capítulo 1 - Volume 1",
+      releaseDate: "",
+      duration: "",
+      sourceType: "TV",
+      sources: [],
+      progressStage: "aguardando-raw",
+      completedStages: [],
+      content: "",
+      contentFormat: "lexical",
+      publicationStatus: "published",
+    },
+    {
+      number: 1,
+      volume: 2,
+      title: "Capítulo 1 - Volume 2",
+      releaseDate: "",
+      duration: "",
+      sourceType: "TV",
+      sources: [],
+      progressStage: "aguardando-raw",
+      completedStages: [],
+      content: "",
+      contentFormat: "lexical",
+      publicationStatus: "published",
+    },
+  ],
+};
+
+const scrollIntoViewMock = vi.fn();
+const getEpisodeTrigger = (card: HTMLElement) => {
+  const trigger = within(card)
+    .getAllByRole("button")
+    .find((element) => element.hasAttribute("data-episode-accordion-trigger"));
+  if (!trigger) {
+    throw new Error("Episode trigger not found");
+  }
+  return trigger;
 };
 
 const setupApiMock = ({
@@ -132,6 +183,21 @@ const setupApiMock = ({
     if (path === "/api/public/tag-translations" && method === "GET") {
       return mockJsonResponse(true, { tags: {}, genres: {}, staffRoles: {} });
     }
+    if (path === "/api/contracts/v1.json" && method === "GET") {
+      return mockJsonResponse(true, {
+        version: "v1",
+        generatedAt: "2026-03-02T16:00:00Z",
+        capabilities: {
+          project_epub_import: true,
+          project_epub_export: true,
+        },
+        build: {
+          commitSha: "abcdef123456",
+          builtAt: "2026-03-02T16:00:00Z",
+        },
+        endpoints: [],
+      });
+    }
 
     return mockJsonResponse(false, { error: "not_found" }, 404);
   });
@@ -143,6 +209,15 @@ const LocationProbe = () => {
 };
 
 describe("DashboardProjectsEditor edit query", () => {
+  beforeEach(() => {
+    scrollIntoViewMock.mockReset();
+    Object.defineProperty(HTMLElement.prototype, "scrollIntoView", {
+      configurable: true,
+      writable: true,
+      value: scrollIntoViewMock,
+    });
+  });
+
   it("abre criacao automaticamente com ?edit=new e limpa a query", async () => {
     setupApiMock({ canManageProjects: true, projects: [projectFixture] });
 
@@ -212,5 +287,51 @@ describe("DashboardProjectsEditor edit query", () => {
       expect(screen.getByTestId("location-search").textContent).toBe("");
     });
     expect(screen.queryByText("Editar projeto")).not.toBeInTheDocument();
+  });
+
+  it("abre o card do capítulo correto ao receber deep link com chapter e volume", async () => {
+    setupApiMock({ canManageProjects: true, projects: [chapterProjectFixture] });
+
+    render(
+      <MemoryRouter initialEntries={["/dashboard/projetos?edit=project-ln-1&chapter=1&volume=1"]}>
+        <DashboardProjectsEditor />
+        <LocationProbe />
+      </MemoryRouter>,
+    );
+
+    await screen.findByRole("heading", { name: "Gerenciar projetos" });
+    await screen.findByText("Editar projeto");
+    await waitFor(() => {
+      expect(screen.getByTestId("location-search").textContent).toBe("");
+    });
+
+    const firstCard = await screen.findByTestId("episode-card-0");
+    const secondCard = await screen.findByTestId("episode-card-1");
+    await waitFor(() => {
+      expect(getEpisodeTrigger(firstCard)).toHaveAttribute("aria-expanded", "true");
+    });
+    expect(getEpisodeTrigger(secondCard)).toHaveAttribute("aria-expanded", "false");
+    await waitFor(() => {
+      expect(scrollIntoViewMock).toHaveBeenCalled();
+    });
+  });
+
+  it("não foca capítulo quando a query vem ambígua sem volume", async () => {
+    setupApiMock({ canManageProjects: true, projects: [chapterProjectFixture] });
+
+    render(
+      <MemoryRouter initialEntries={["/dashboard/projetos?edit=project-ln-1&chapter=1"]}>
+        <DashboardProjectsEditor />
+        <LocationProbe />
+      </MemoryRouter>,
+    );
+
+    await screen.findByRole("heading", { name: "Gerenciar projetos" });
+    await screen.findByText("Editar projeto");
+    await waitFor(() => {
+      expect(screen.getByTestId("location-search").textContent).toBe("");
+    });
+
+    expect(scrollIntoViewMock).not.toHaveBeenCalled();
   });
 });

@@ -73,13 +73,22 @@ import {
 import {
   buildEpisodeKey,
   findDuplicateEpisodeKey,
-  hasEpisodeContent,
-  isPublishedEpisode,
   resolveEpisodeLookup,
 } from "./lib/project-episodes.js";
+import {
+  buildPublicReadableProjects,
+  buildPublicVisibleProjects,
+} from "./lib/public-projects.js";
 import { findDuplicateVolumeCover } from "./lib/project-volume-covers.js";
+import { deriveChapterSynopsis } from "./lib/chapter-synopsis.js";
 import { exportProjectEpub } from "./lib/project-epub-export.js";
 import { importProjectEpub } from "./lib/project-epub-import.js";
+import {
+  buildProjectOgCardModel,
+  buildProjectOgImagePath,
+  buildProjectOgImageResponse,
+  loadProjectOgArtworkDataUrl,
+} from "./lib/project-og.js";
 import { buildPublicBootstrapPayload } from "./lib/public-bootstrap.js";
 import {
   buildPublicSearchSuggestions,
@@ -1987,14 +1996,8 @@ const buildProjectMeta = (project) => {
   const title = project?.title ? `${project.title} | ${siteName}` : siteName;
   const description =
     stripHtml(project?.synopsis || project?.description || "") || settings.site?.description || "";
-  const image = project?.banner || project?.cover || settings.site?.defaultShareImage || "";
-  const imageAlt =
-    String(image === project?.banner ? project?.bannerAlt || "" : "").trim() ||
-    String(image === project?.cover ? project?.coverAlt || "" : "").trim() ||
-    String(project?.coverAlt || "").trim() ||
-    String(project?.bannerAlt || "").trim() ||
-    settings.site?.defaultShareImageAlt ||
-    "";
+  const image = buildProjectOgImagePath(project?.id || "");
+  const imageAlt = `Card de compartilhamento do projeto ${String(project?.title || "Projeto").trim() || "Projeto"}`;
   return {
     title,
     description,
@@ -4632,7 +4635,7 @@ const resolveUploadVariantUrlFromEntry = ({ entry, preset, fallbackUrl }) => {
   return readVariantAssetUrl(formats, fallbackUrl);
 };
 
-const resolveMetaImageVariantUrl = (value) => {
+const resolveMetaImageVariantUrl = (value, preset = "og") => {
   const fallbackUrl = String(value || "").trim();
   if (!fallbackUrl) {
     return "";
@@ -4648,7 +4651,7 @@ const resolveMetaImageVariantUrl = (value) => {
   }
   return resolveUploadVariantUrlFromEntry({
     entry,
-    preset: "og",
+    preset,
     fallbackUrl,
   });
 };
@@ -5676,11 +5679,6 @@ const isLightNovelType = (type) => {
   return normalized.includes("light") || normalized.includes("novel");
 };
 
-const getPubliclyVisibleEpisodes = (project) =>
-  (Array.isArray(project?.episodeDownloads) ? project.episodeDownloads : []).filter((episode) =>
-    isPublishedEpisode(episode),
-  );
-
 const collectEpisodeUpdates = (prevProject, nextProject) => {
   const updates = [];
   const prevEpisodes = Array.isArray(prevProject?.episodeDownloads)
@@ -5784,38 +5782,6 @@ const resolveProjectWebhookEventKey = (kind) => {
     return "project_adjust";
   }
   return "";
-};
-
-const chapterContentToPlainText = (value) => {
-  const source = String(value || "");
-  if (!source) {
-    return "";
-  }
-  const withoutImages = source.replace(/!\[[^\]]*]\([^)]*\)/g, " ");
-  const withoutLinks = withoutImages.replace(/\[([^\]]+)\]\(([^)]+)\)/g, "$1");
-  const withoutInlineCode = withoutLinks.replace(/`{1,3}[^`]*`{1,3}/g, " ");
-  const withoutMarkdownTokens = withoutInlineCode
-    .replace(/^#{1,6}\s+/gm, "")
-    .replace(/[*_~>|`]/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-  return stripHtml(withoutMarkdownTokens).replace(/\s+/g, " ").trim();
-};
-
-const deriveChapterSynopsis = (chapter, maxLength = 280) => {
-  const explicit = String(chapter?.synopsis || "").trim();
-  if (explicit) {
-    return explicit.length <= maxLength
-      ? explicit
-      : `${explicit.slice(0, Math.max(0, maxLength - 3)).trimEnd()}...`;
-  }
-  const fromContent = chapterContentToPlainText(chapter?.content || "");
-  if (!fromContent) {
-    return "";
-  }
-  return fromContent.length <= maxLength
-    ? fromContent
-    : `${fromContent.slice(0, Math.max(0, maxLength - 3)).trimEnd()}...`;
 };
 
 const findProjectChapterByEpisodeNumber = (project, episodeNumber, volume) => {
@@ -10737,22 +10703,10 @@ const SITEMAP_STATIC_PUBLIC_PATHS = [
   "/doacoes",
 ];
 
-const toPublicEpisode = (episode) => ({
-  ...episode,
-  content: undefined,
-  hasContent: hasEpisodeContent(episode),
-});
-
-const toPublicProject = (project) => ({
-  ...project,
-  episodeDownloads: getPubliclyVisibleEpisodes(project).map(toPublicEpisode),
-});
-
+const getPublicReadableProjects = () =>
+  buildPublicReadableProjects(normalizeProjects(loadProjects()));
 const getPublicVisibleProjects = () =>
-  normalizeProjects(loadProjects())
-    .filter((project) => !project.deletedAt)
-    .sort((a, b) => a.order - b.order)
-    .map(toPublicProject);
+  buildPublicVisibleProjects(normalizeProjects(loadProjects()));
 
 const getPublicVisiblePosts = () => {
   const now = Date.now();
@@ -11228,7 +11182,7 @@ app.get("/api/public/projects/:id/chapters/:number", (req, res) => {
   if (!Number.isFinite(chapterNumber)) {
     return res.status(400).json({ error: "invalid_chapter" });
   }
-  const projects = getPublicVisibleProjects();
+  const projects = getPublicReadableProjects();
   const project = projects.find((item) => item.id === id);
   if (!project) {
     return res.status(404).json({ error: "not_found" });
@@ -13704,6 +13658,45 @@ app.post("/api/logout", (req, res) => {
   req.session?.destroy(() => undefined);
   res.clearCookie(sessionCookieConfig.name, { path: "/" });
   res.json({ ok: true });
+});
+
+app.get("/api/og/project/:id", async (req, res) => {
+  const id = String(req.params.id || "").trim();
+  const project = getPublicVisibleProjects().find((item) => String(item?.id || "").trim() === id);
+  if (!project) {
+    return res.status(404).type("text/plain").send("not_found");
+  }
+
+  try {
+    const uploadsDir = path.join(__dirname, "..", "public", "uploads");
+    const settings = loadSiteSettings();
+    const translations = loadTagTranslations();
+    const baseModel = buildProjectOgCardModel({
+      project,
+      settings,
+      tagTranslations: translations?.tags,
+      genreTranslations: translations?.genres,
+      origin: PRIMARY_APP_ORIGIN,
+      resolveVariantUrl: resolveMetaImageVariantUrl,
+    });
+    const artworkDataUrl = await loadProjectOgArtworkDataUrl({
+      artworkUrl: baseModel.artworkUrl,
+      uploadsDir,
+    });
+    const imageResponse = buildProjectOgImageResponse({
+      ...baseModel,
+      artworkDataUrl,
+    });
+    const arrayBuffer = await imageResponse.arrayBuffer();
+    const contentType =
+      imageResponse.headers.get("content-type") || "image/png";
+
+    res.setHeader("Content-Type", contentType);
+    res.setHeader("Cache-Control", "public, max-age=300, stale-while-revalidate=86400");
+    return res.status(200).send(Buffer.from(arrayBuffer));
+  } catch {
+    return res.status(500).type("text/plain").send("image_generation_failed");
+  }
 });
 
 app.use((req, res, next) => {

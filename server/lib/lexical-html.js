@@ -4,14 +4,16 @@ import {
   $createParagraphNode,
   $getRoot,
   $isElementNode,
+  $isTextNode,
   createEditor,
   DecoratorNode,
   ParagraphNode,
+  TextNode,
 } from "lexical";
 import { $generateHtmlFromNodes, $generateNodesFromDOM } from "@lexical/html";
 import { HeadingNode, QuoteNode } from "@lexical/rich-text";
 import { ListItemNode, ListNode } from "@lexical/list";
-import { LinkNode, AutoLinkNode } from "@lexical/link";
+import { $createLinkNode, LinkNode, AutoLinkNode } from "@lexical/link";
 import { CodeNode, CodeHighlightNode } from "@lexical/code";
 import { TableCellNode, TableNode, TableRowNode } from "@lexical/table";
 
@@ -35,6 +37,8 @@ const IMAGE_STYLE_KEYS = [
   "margin-bottom",
   "vertical-align",
 ];
+
+const INLINE_TEXT_STYLE_KEYS = ["font-size", "font-style", "font-weight", "font-family"];
 
 const ZERO_LIKE_VALUES = new Set([
   "",
@@ -178,6 +182,72 @@ const extractImageEditorialStyle = (style) => {
     IMAGE_STYLE_KEYS.map((property) => [property, isMeaningfulValue(record[property]) ? record[property] : ""]),
   );
 };
+
+const extractInlineEditorialTextStyle = (style) => {
+  const record = getStyleRecord(style);
+  return buildStyleDeclaration(
+    INLINE_TEXT_STYLE_KEYS.map((property) => {
+      if (!isMeaningfulValue(record[property])) {
+        return [property, ""];
+      }
+      if (property === "font-family") {
+        return [property, normalizeFontFamilyBucket(record[property])];
+      }
+      return [property, record[property]];
+    }),
+  );
+};
+
+const mergeStyleDeclarations = (baseStyle, nextStyle) => {
+  const baseRecord = parseStyleDeclaration(baseStyle);
+  const nextRecord = parseStyleDeclaration(nextStyle);
+  return buildStyleDeclaration([...Object.entries(baseRecord), ...Object.entries(nextRecord)]);
+};
+
+const applyInlineEditorialStyleToTextNode = (lexicalNode, editorialStyle, impliedFormat) => {
+  if (!$isTextNode(lexicalNode)) {
+    return lexicalNode;
+  }
+  const styleRecord = parseStyleDeclaration(editorialStyle);
+  if (editorialStyle) {
+    const mergedStyle = mergeStyleDeclarations(lexicalNode.getStyle(), editorialStyle);
+    if (mergedStyle && mergedStyle !== lexicalNode.getStyle()) {
+      lexicalNode.setStyle(mergedStyle);
+    }
+  }
+  const fontWeight = String(styleRecord["font-weight"] || "").trim().toLowerCase();
+  const fontStyle = String(styleRecord["font-style"] || "").trim().toLowerCase();
+  if ((fontWeight === "bold" || Number(fontWeight) >= 600) && !lexicalNode.hasFormat("bold")) {
+    lexicalNode.toggleFormat("bold");
+  }
+  if (fontStyle === "italic" && !lexicalNode.hasFormat("italic")) {
+    lexicalNode.toggleFormat("italic");
+  }
+  if (impliedFormat && !lexicalNode.hasFormat(impliedFormat)) {
+    lexicalNode.toggleFormat(impliedFormat);
+  }
+  return lexicalNode;
+};
+
+const createInlineEditorialTextConversion =
+  ({ createNode, impliedFormat } = {}) =>
+  () => ({
+    conversion: (node) => {
+      if (!node || node.nodeType !== 1) {
+        return null;
+      }
+      const editorialStyle = extractInlineEditorialTextStyle(node.style);
+      if (!editorialStyle && !createNode && !impliedFormat) {
+        return null;
+      }
+      return {
+        node: typeof createNode === "function" ? createNode(node) : null,
+        forChild: (lexicalNode) =>
+          applyInlineEditorialStyleToTextNode(lexicalNode, editorialStyle, impliedFormat),
+      };
+    },
+    priority: 3,
+  });
 
 const hasEditorialBlockStyle = (style) => Boolean(extractBlockEditorialStyle(style).editorialStyle);
 const hasEditorialImageStyle = (style) => Boolean(extractImageEditorialStyle(style));
@@ -405,6 +475,51 @@ class ServerEpubImageNode extends DecoratorNode {
 
 const $createServerEpubImageNode = ({ src, altText = "", editorialStyle = "", align }) =>
   $applyNodeReplacement(new ServerEpubImageNode(src, altText, editorialStyle, align));
+
+class ServerInlineEditorialStyleBridgeNode extends TextNode {
+  static getType() {
+    return "__inline-editorial-style-bridge";
+  }
+
+  static clone(node) {
+    return new ServerInlineEditorialStyleBridgeNode(node.__text, node.__key);
+  }
+
+  constructor(text = "", key) {
+    super(text, key);
+  }
+
+  static importJSON() {
+    return new ServerInlineEditorialStyleBridgeNode("");
+  }
+
+  static importDOM() {
+    return {
+      span: createInlineEditorialTextConversion(),
+      em: createInlineEditorialTextConversion({ impliedFormat: "italic" }),
+      strong: createInlineEditorialTextConversion({ impliedFormat: "bold" }),
+      i: createInlineEditorialTextConversion({ impliedFormat: "italic" }),
+      b: createInlineEditorialTextConversion({ impliedFormat: "bold" }),
+      u: createInlineEditorialTextConversion({ impliedFormat: "underline" }),
+      s: createInlineEditorialTextConversion({ impliedFormat: "strikethrough" }),
+      sub: createInlineEditorialTextConversion({ impliedFormat: "subscript" }),
+      sup: createInlineEditorialTextConversion({ impliedFormat: "superscript" }),
+      a: createInlineEditorialTextConversion({
+        createNode: (node) => {
+          const href = node.getAttribute?.("href") || "";
+          if (((node.textContent || "") !== "" || node.children.length > 0)) {
+            return $createLinkNode(href, {
+              rel: node.getAttribute?.("rel"),
+              target: node.getAttribute?.("target"),
+              title: node.getAttribute?.("title"),
+            });
+          }
+          return null;
+        },
+      }),
+    };
+  }
+}
 
 class ServerVideoNode extends DecoratorNode {
   static getType() {
@@ -713,6 +828,7 @@ const lexicalNodes = [
   TableNode,
   TableRowNode,
   TableCellNode,
+  ServerInlineEditorialStyleBridgeNode,
   ServerEpubParagraphNode,
   ServerEpubHeadingNode,
   ServerEpubImageNode,

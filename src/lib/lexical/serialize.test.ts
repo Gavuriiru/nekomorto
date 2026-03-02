@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { EMPTY_LEXICAL_JSON, normalizeLexicalJson } from "@/lib/lexical/serialize";
+import {
+  EMPTY_LEXICAL_JSON,
+  htmlToLexicalJson,
+  normalizeLexicalJson,
+} from "@/lib/lexical/serialize";
 
 const createTextNode = (type: string, text: string) => ({
   detail: 0,
@@ -185,5 +189,21 @@ describe("client lexical serialize", () => {
     expect(String(JSON.parse(String(normalized)).root.children[0].editorialStyle)).toContain(
       "font-size: 2em",
     );
+  });
+
+  it("preserva font-size inline ao converter html para lexical", () => {
+    const serialized = htmlToLexicalJson('<span style="font-size: 1.5em">texto grande</span>');
+    const textNode = JSON.parse(serialized).root.children[0].children[0];
+
+    expect(textNode.type).toBe("text");
+    expect(String(textNode.style || "")).toContain("font-size: 1.5em");
+  });
+
+  it("preserva font-size inline e italico ao converter html para lexical", () => {
+    const serialized = htmlToLexicalJson('<em style="font-size: 1.5em">texto italico</em>');
+    const textNode = JSON.parse(serialized).root.children[0].children[0];
+
+    expect(String(textNode.style || "")).toContain("font-size: 1.5em");
+    expect(Number(textNode.format || 0)).toBeGreaterThan(0);
   });
 });

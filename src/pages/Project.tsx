@@ -67,18 +67,23 @@ const ProjectPage = () => {
   const [mediaVariants, setMediaVariants] = useState<UploadMediaVariantsMap>({});
   const { settings } = useSiteSettings();
   const trackedViewsRef = useRef<Set<string>>(new Set());
+  const projectOgImageAlt = project?.title
+    ? `Card de compartilhamento do projeto ${project.title}`
+    : undefined;
 
   const shareImage = useMemo(
-    () => normalizeAssetUrl(project?.cover) || normalizeAssetUrl(settings.site.defaultShareImage),
-    [project?.cover, settings.site.defaultShareImage],
+    () =>
+      project?.id
+        ? normalizeAssetUrl(`/api/og/project/${encodeURIComponent(project.id)}`)
+        : normalizeAssetUrl(settings.site.defaultShareImage),
+    [project?.id, settings.site.defaultShareImage],
   );
 
   usePageMeta({
     title: project?.title || "Projeto",
     description: project?.synopsis || "",
     image: shareImage,
-    imageAlt:
-      project?.coverAlt || project?.bannerAlt || settings.site.defaultShareImageAlt || undefined,
+    imageAlt: projectOgImageAlt || settings.site.defaultShareImageAlt || undefined,
     mediaVariants,
     type: "article",
   });

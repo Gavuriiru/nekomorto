@@ -22,22 +22,24 @@
     <meta name="twitter:image" content="/placeholder.svg" />
     <link rel="icon" href="/favicon.ico" />
     <link rel="manifest" href="/manifest.webmanifest" />
-    <meta name="theme-color" content="#101114" />
+    <meta name="theme-color" content="#9667e0" />
     <script>
       (function () {
         var THEME_STORAGE_KEY = "nekomata:theme-mode-preference";
-        var THEME_COLOR_DARK = "#101114";
-        var THEME_COLOR_LIGHT = "#f8fafc";
+        var DEFAULT_THEME_COLOR = "#9667e0";
         var normalizeThemeMode = function (value) {
           return String(value || "").toLowerCase() === "light" ? "light" : "dark";
         };
-        var resolveThemeColor = function (mode) {
-          return normalizeThemeMode(mode) === "light" ? THEME_COLOR_LIGHT : THEME_COLOR_DARK;
+        var normalizeThemeColor = function (value) {
+          var normalized = String(value || "").trim();
+          return /^#(?:[0-9a-fA-F]{3}){1,2}$/.test(normalized)
+            ? normalized
+            : DEFAULT_THEME_COLOR;
         };
-        var applyThemeColor = function (mode) {
+        var applyThemeColor = function (color) {
           var meta = document.querySelector('meta[name="theme-color"]');
           if (!meta) return;
-          meta.setAttribute("content", resolveThemeColor(mode));
+          meta.setAttribute("content", normalizeThemeColor(color));
         };
         var applyThemeMode = function (mode) {
           var resolved = normalizeThemeMode(mode);
@@ -67,7 +69,7 @@
             ? localThemePreference
             : "dark";
         applyThemeMode(initialMode);
-        applyThemeColor(initialMode);
+        applyThemeColor(DEFAULT_THEME_COLOR);
         fetch("/api/public/settings")
           .then(function (res) {
             return res.ok ? res.json() : null;
@@ -84,8 +86,7 @@
             if (localThemePreference === "global") {
               applyThemeMode(globalMode);
             }
-            var effectiveMode = localThemePreference === "global" ? globalMode : localThemePreference;
-            applyThemeColor(effectiveMode);
+            applyThemeColor(data.settings.theme && data.settings.theme.accent);
           })
           .catch(function () {});
       })();

@@ -9,13 +9,16 @@ import {
 } from "@/hooks/theme-mode-context";
 
 const normalizeMode = (value: unknown): ThemeMode => (value === "light" ? "light" : "dark");
-const PWA_THEME_COLOR_DARK = "#101114";
-const PWA_THEME_COLOR_LIGHT = "#f8fafc";
+const DEFAULT_THEME_COLOR = "#9667e0";
 const normalizePreference = (value: unknown): ThemeModePreference => {
   if (value === "light" || value === "dark" || value === "global") {
     return value;
   }
   return "global";
+};
+const normalizeThemeColor = (value: unknown) => {
+  const normalized = String(value || "").trim();
+  return /^#(?:[0-9a-fA-F]{3}){1,2}$/.test(normalized) ? normalized : DEFAULT_THEME_COLOR;
 };
 
 const readInitialPreference = (): ThemeModePreference => {
@@ -30,7 +33,7 @@ const readInitialPreference = (): ThemeModePreference => {
   }
 };
 
-const applyThemeToDocument = (mode: ThemeMode) => {
+const applyThemeToDocument = (mode: ThemeMode, themeColor: string) => {
   if (typeof document === "undefined") {
     return;
   }
@@ -44,7 +47,7 @@ const applyThemeToDocument = (mode: ThemeMode) => {
   }
   const themeColorMeta = document.querySelector('meta[name="theme-color"]');
   if (themeColorMeta) {
-    themeColorMeta.setAttribute("content", mode === "light" ? PWA_THEME_COLOR_LIGHT : PWA_THEME_COLOR_DARK);
+    themeColorMeta.setAttribute("content", themeColor);
   }
 };
 
@@ -55,6 +58,7 @@ export const ThemeModeProvider = ({ children }: { children: ReactNode }) => {
   const globalMode = normalizeMode(settings.theme?.mode);
   const effectiveMode = preference === "global" ? globalMode : preference;
   const isOverridden = preference !== "global";
+  const themeColor = normalizeThemeColor(settings.theme?.accent);
 
   const setPreference = useCallback((next: ThemeModePreference) => {
     setPreferenceState(normalizePreference(next));
@@ -76,8 +80,8 @@ export const ThemeModeProvider = ({ children }: { children: ReactNode }) => {
   }, [preference]);
 
   useEffect(() => {
-    applyThemeToDocument(effectiveMode);
-  }, [effectiveMode]);
+    applyThemeToDocument(effectiveMode, themeColor);
+  }, [effectiveMode, themeColor]);
 
   const value = useMemo<ThemeModeContextValue>(
     () => ({

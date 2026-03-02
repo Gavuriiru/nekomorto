@@ -29,6 +29,7 @@ const ProjectReading = () => {
   const [searchParams] = useSearchParams();
   const apiBase = getApiBase();
   const [project, setProject] = useState<Project | null>(null);
+  const [currentUser, setCurrentUser] = useState<{ permissions?: string[] } | null>(null);
   const [chapterContent, setChapterContent] = useState<{
     number: number;
     volume?: number;
@@ -92,6 +93,34 @@ const ProjectReading = () => {
       isActive = false;
     };
   }, [apiBase, slug]);
+
+  useEffect(() => {
+    let isActive = true;
+    const loadCurrentUser = async () => {
+      try {
+        const response = await apiFetch(apiBase, "/api/public/me", { auth: true });
+        if (!response.ok) {
+          if (isActive) {
+            setCurrentUser(null);
+          }
+          return;
+        }
+        const data = await response.json();
+        if (isActive) {
+          setCurrentUser(data?.user ?? null);
+        }
+      } catch {
+        if (isActive) {
+          setCurrentUser(null);
+        }
+      }
+    };
+
+    loadCurrentUser();
+    return () => {
+      isActive = false;
+    };
+  }, [apiBase]);
 
   const chapterNumber = Number(chapter);
   const volumeParam = Number(searchParams.get("volume"));
@@ -210,6 +239,27 @@ const ProjectReading = () => {
     currentIndex >= 0 && currentIndex < sortedChapters.length - 1
       ? sortedChapters[currentIndex + 1]
       : null;
+  const canEditChapter = useMemo(() => {
+    const permissions = Array.isArray(currentUser?.permissions) ? currentUser.permissions : [];
+    return permissions.includes("*") || permissions.includes("projetos");
+  }, [currentUser]);
+  const editChapterHref = useMemo(() => {
+    if (!project?.id) {
+      return "";
+    }
+    const chapterNumberValue = chapterData?.number ?? chapterContent?.number ?? chapterNumber;
+    if (!Number.isFinite(chapterNumberValue)) {
+      return "";
+    }
+    const params = new URLSearchParams({
+      edit: project.id,
+      chapter: String(chapterNumberValue),
+    });
+    if (Number.isFinite(activeVolume)) {
+      params.set("volume", String(activeVolume));
+    }
+    return `/dashboard/projetos?${params.toString()}`;
+  }, [activeVolume, chapterContent?.number, chapterData?.number, chapterNumber, project?.id]);
 
   useEffect(() => {
     let isActive = true;
@@ -313,10 +363,45 @@ const ProjectReading = () => {
           <div className="absolute inset-0 bg-linear-to-t from-background via-background/70 to-transparent" />
 
           <div
-            className={`${publicPageLayoutTokens.sectionBase} relative max-w-6xl pb-10 pt-24 md:pb-24 md:pt-20 lg:pb-28 lg:pt-24`}
+            className={`${publicPageLayoutTokens.sectionBase} relative max-w-6xl pb-10 pt-24 md:pb-16 md:pt-20 lg:pb-20 lg:pt-24`}
           >
-            <div className="grid items-start gap-8 md:grid-cols-[220px_minmax(0,1fr)] lg:grid-cols-[240px_minmax(0,1fr)]">
-              <div className="mx-auto w-48 md:mx-0 md:w-[220px] lg:w-[240px]">
+            <div className="grid items-center gap-6 md:grid-cols-[minmax(0,1fr)_220px] lg:grid-cols-[minmax(0,1fr)_240px]">
+              <div className="order-2 mx-auto w-48 md:order-1 md:w-full">
+                <div className="flex w-full flex-wrap items-center gap-2">
+                  <Badge variant="outline" className="text-xs uppercase tracking-wide">
+                    Light Novel
+                  </Badge>
+                  <Badge variant="secondary" className="text-xs uppercase">
+                    Cap {chapterData?.number ?? chapterNumber}
+                    {Number.isFinite(activeVolume) ? ` • Vol. ${activeVolume}` : ""}
+                  </Badge>
+                </div>
+                <div className="mt-4 space-y-2">
+                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-primary/85">
+                    {project.title}
+                  </p>
+                  <h1 className="text-3xl font-bold text-foreground md:text-4xl lg:text-5xl">
+                    {chapterContent?.title || chapterData?.title || project.title}
+                  </h1>
+                </div>
+                {chapterContent?.synopsis || chapterData?.synopsis ? (
+                  <p className="project-reading-hero-synopsis mt-4 max-w-3xl text-sm text-muted-foreground">
+                    {chapterContent?.synopsis || chapterData?.synopsis}
+                  </p>
+                ) : null}
+                <div className="mt-5 flex w-full flex-wrap gap-2">
+                  <Button asChild size="sm" variant="outline" className="shrink-0">
+                    <Link to={`/projeto/${project.id}`}>Voltar ao projeto</Link>
+                  </Button>
+                  {canEditChapter && editChapterHref ? (
+                    <Button asChild size="sm" variant="outline">
+                      <Link to={editChapterHref}>Editar capítulo</Link>
+                    </Button>
+                  ) : null}
+                </div>
+              </div>
+
+              <div className="order-1 mx-auto w-48 md:order-2 md:ml-auto md:w-[220px] lg:w-[240px]">
                 <div
                   className="overflow-hidden rounded-2xl border border-border/70 bg-secondary/90 shadow-[0_30px_100px_-55px_rgba(0,0,0,0.95)]"
                   style={{ aspectRatio: "9 / 14" }}
@@ -334,63 +419,11 @@ const ProjectReading = () => {
                   />
                 </div>
               </div>
-
-              <div className="flex min-h-full flex-col items-center gap-4 text-center md:items-start md:text-left">
-                <div className="flex w-full flex-wrap items-center justify-center gap-2 md:justify-start">
-                  <Badge variant="outline" className="text-xs uppercase tracking-wide">
-                    Light Novel
-                  </Badge>
-                  <Badge variant="secondary" className="text-xs uppercase">
-                    Cap {chapterData?.number ?? chapterNumber}
-                    {Number.isFinite(activeVolume) ? ` • Vol. ${activeVolume}` : ""}
-                  </Badge>
-                </div>
-                <div className="space-y-2">
-                  <h1 className="text-3xl font-bold text-foreground md:text-4xl lg:text-5xl">
-                    {chapterContent?.title || chapterData?.title || project.title}
-                  </h1>
-                  <p className="text-sm text-muted-foreground">
-                    {project.title} • Leitura de Light Novel
-                  </p>
-                </div>
-                {chapterContent?.synopsis || chapterData?.synopsis ? (
-                  <p className="max-w-3xl text-sm text-muted-foreground">
-                    {chapterContent?.synopsis || chapterData?.synopsis}
-                  </p>
-                ) : null}
-                <div className="flex w-full flex-wrap justify-center gap-2 md:mt-auto md:justify-start">
-                  <Button asChild size="sm" variant="outline" className="shrink-0">
-                    <Link to={`/projeto/${project.id}`}>Voltar ao projeto</Link>
-                  </Button>
-                  {previousChapter ? (
-                    <Button asChild size="sm" variant="outline">
-                      <Link
-                        to={`/projeto/${project.id}/leitura/${previousChapter.number}${
-                          previousChapter.volume ? `?volume=${previousChapter.volume}` : ""
-                        }`}
-                      >
-                        Capítulo anterior
-                      </Link>
-                    </Button>
-                  ) : null}
-                  {nextChapter ? (
-                    <Button asChild size="sm">
-                      <Link
-                        to={`/projeto/${project.id}/leitura/${nextChapter.number}${
-                          nextChapter.volume ? `?volume=${nextChapter.volume}` : ""
-                        }`}
-                      >
-                        Próximo capítulo
-                      </Link>
-                    </Button>
-                  ) : null}
-                </div>
-              </div>
             </div>
           </div>
         </section>
 
-        <section className="mx-auto mt-8 w-full max-w-6xl px-6 pb-16 md:px-10">
+        <section className="mx-auto mt-6 w-full max-w-6xl px-6 pb-16 md:px-10">
           <section>
             <article className="min-w-0 space-y-6">
               <Card className="group border-border/60 bg-card/80 shadow-lg transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:bg-card/90 hover:shadow-lg">
@@ -419,6 +452,37 @@ const ProjectReading = () => {
                   )}
                 </CardContent>
               </Card>
+
+              {previousChapter || nextChapter ? (
+                <nav
+                  data-testid="project-reading-chapter-nav"
+                  aria-label="Navegação de capítulos"
+                  className="flex flex-wrap items-center gap-2"
+                >
+                  {previousChapter ? (
+                    <Button asChild size="sm" variant="outline">
+                      <Link
+                        to={`/projeto/${project.id}/leitura/${previousChapter.number}${
+                          previousChapter.volume ? `?volume=${previousChapter.volume}` : ""
+                        }`}
+                      >
+                        Capítulo anterior
+                      </Link>
+                    </Button>
+                  ) : null}
+                  {nextChapter ? (
+                    <Button asChild size="sm">
+                      <Link
+                        to={`/projeto/${project.id}/leitura/${nextChapter.number}${
+                          nextChapter.volume ? `?volume=${nextChapter.volume}` : ""
+                        }`}
+                      >
+                        Próximo capítulo
+                      </Link>
+                    </Button>
+                  ) : null}
+                </nav>
+              ) : null}
 
               <CommentsSection
                 targetType="chapter"

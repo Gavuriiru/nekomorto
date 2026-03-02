@@ -1052,6 +1052,7 @@ const DashboardProjectsEditor = () => {
   const episodeSizeInputRefs = useRef<Record<number, HTMLInputElement | null>>({});
   const pendingAddAutoScrollRef = useRef(false);
   const pendingEpisodeToScrollRef = useRef<ProjectEpisode | null>(null);
+  const pendingEpisodeFocusRef = useRef<{ number: number; volume?: number } | null>(null);
   const previousEpisodeCountRef = useRef(0);
   const episodeCardNodeMapRef = useRef<WeakMap<ProjectEpisode, HTMLDivElement>>(new WeakMap());
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -2023,6 +2024,8 @@ const DashboardProjectsEditor = () => {
   };
 
   const openEdit = useCallback((project: ProjectRecord) => {
+    const pendingEpisodeFocus = pendingEpisodeFocusRef.current;
+    const shouldOpenEpisodesSection = Boolean(pendingEpisodeFocus);
     const initialEpisodes: ProjectEpisode[] = Array.isArray(project.episodeDownloads)
         ? project.episodeDownloads.map(
           (episode): ProjectEpisode => ({
@@ -2039,6 +2042,32 @@ const DashboardProjectsEditor = () => {
           }),
         )
       : [];
+    const focusedEpisodeIndex = (() => {
+      if (!pendingEpisodeFocus) {
+        return -1;
+      }
+      const matches = initialEpisodes
+        .map((episode, index) => ({ episode, index }))
+        .filter(({ episode }) => {
+          if (Number(episode.number) !== pendingEpisodeFocus.number) {
+            return false;
+          }
+          if (!Number.isFinite(pendingEpisodeFocus.volume)) {
+            return true;
+          }
+          return (
+            buildEpisodeKey(episode.number, episode.volume) ===
+            buildEpisodeKey(pendingEpisodeFocus.number, pendingEpisodeFocus.volume)
+          );
+        });
+      if (!matches.length) {
+        return -1;
+      }
+      if (!Number.isFinite(pendingEpisodeFocus.volume) && matches.length !== 1) {
+        return -1;
+      }
+      return matches[0]?.index ?? -1;
+    })();
     const mergedSynopsis = project.synopsis || project.description || "";
     const nextForm = {
       id: project.id,
@@ -2107,7 +2136,9 @@ const DashboardProjectsEditor = () => {
     setEpubImportAsDraft(true);
     setEpubExportVolume("");
     setEpubExportIncludeDrafts(false);
-    setEditorAccordionValue(["dados-principais"]);
+    setEditorAccordionValue(
+      shouldOpenEpisodesSection ? ["dados-principais", "episodios"] : ["dados-principais"],
+    );
     setEpisodeDateDraft({});
     setEpisodeTimeDraft({});
     setEpisodeSizeDrafts({});
@@ -2115,10 +2146,12 @@ const DashboardProjectsEditor = () => {
     episodeSizeInputRefs.current = {};
     setAnimeStaffMemberInput({});
     editorInitialSnapshotRef.current = buildProjectEditorSnapshot(nextForm, nextAniListInput);
+    pendingEpisodeToScrollRef.current =
+      focusedEpisodeIndex >= 0 ? initialEpisodes[focusedEpisodeIndex] || null : null;
     setCollapsedEpisodes(() => {
       const next: Record<number, boolean> = {};
       initialEpisodes.forEach((_, index) => {
-        next[index] = true;
+        next[index] = focusedEpisodeIndex >= 0 ? index !== focusedEpisodeIndex : true;
       });
       return next;
     });
@@ -2127,28 +2160,48 @@ const DashboardProjectsEditor = () => {
 
   useEffect(() => {
     const editTarget = (searchParams.get("edit") || "").trim();
+    const chapterTarget = (searchParams.get("chapter") || "").trim();
+    const volumeTarget = (searchParams.get("volume") || "").trim();
     if (!editTarget) {
       autoEditHandledRef.current = null;
+      pendingEpisodeFocusRef.current = null;
       return;
     }
-    if (autoEditHandledRef.current === editTarget) {
+    const autoEditToken = `${editTarget}|chapter=${chapterTarget}|volume=${volumeTarget}`;
+    if (autoEditHandledRef.current === autoEditToken) {
       return;
     }
     if (isLoading || !hasLoadedCurrentUser) {
       return;
     }
-    autoEditHandledRef.current = editTarget;
+    autoEditHandledRef.current = autoEditToken;
 
     const nextParams = new URLSearchParams(searchParams);
     nextParams.delete("edit");
+    nextParams.delete("chapter");
+    nextParams.delete("volume");
+    const parsedChapterNumber = Number(chapterTarget);
+    const hasChapterTarget = chapterTarget.length > 0 && Number.isFinite(parsedChapterNumber);
+    const parsedVolumeNumber = Number(volumeTarget);
+    const resolvedVolumeTarget =
+      volumeTarget.length > 0 && Number.isFinite(parsedVolumeNumber) ? parsedVolumeNumber : undefined;
     if (canManageProjects && editTarget === "new") {
+      pendingEpisodeFocusRef.current = null;
       openCreate();
     } else {
       const target = canManageProjects
         ? projects.find((project) => project.id === editTarget) || null
         : null;
       if (target) {
+        pendingEpisodeFocusRef.current = hasChapterTarget
+          ? {
+              number: parsedChapterNumber,
+              volume: resolvedVolumeTarget,
+            }
+          : null;
         openEdit(target);
+      } else {
+        pendingEpisodeFocusRef.current = null;
       }
     }
     if (nextParams.toString() !== searchParams.toString()) {
@@ -2166,6 +2219,7 @@ const DashboardProjectsEditor = () => {
   ]);
 
   const closeEditor = () => {
+    pendingEpisodeFocusRef.current = null;
     setIsEditorOpen(false);
     setEditingProject(null);
   };
@@ -2196,6 +2250,50 @@ const DashboardProjectsEditor = () => {
       [index]: false,
     }));
   }, [formState.episodeDownloads]);
+
+  useEffect(() => {
+    const pendingEpisodeFocus = pendingEpisodeFocusRef.current;
+    if (!isEditorOpen || !pendingEpisodeFocus) {
+      return;
+    }
+    if (!sortedEpisodeDownloads.length) {
+      return;
+    }
+
+    const matches = sortedEpisodeDownloads.filter(({ episode }) => {
+      if (Number(episode.number) !== pendingEpisodeFocus.number) {
+        return false;
+      }
+      if (!Number.isFinite(pendingEpisodeFocus.volume)) {
+        return true;
+      }
+      return (
+        buildEpisodeKey(episode.number, episode.volume) ===
+        buildEpisodeKey(pendingEpisodeFocus.number, pendingEpisodeFocus.volume)
+      );
+    });
+
+    if (!matches.length) {
+      pendingEpisodeFocusRef.current = null;
+      return;
+    }
+    if (!Number.isFinite(pendingEpisodeFocus.volume) && matches.length !== 1) {
+      pendingEpisodeFocusRef.current = null;
+      return;
+    }
+
+    const targetIndex = matches[0]?.index;
+    if (!Number.isInteger(targetIndex) || targetIndex < 0) {
+      pendingEpisodeFocusRef.current = null;
+      return;
+    }
+
+    setEditorAccordionValue((prev) =>
+      prev.includes("episodios") ? prev : [...prev, "episodios"],
+    );
+    revealEpisodeAtIndex(targetIndex);
+    pendingEpisodeFocusRef.current = null;
+  }, [isEditorOpen, revealEpisodeAtIndex, sortedEpisodeDownloads]);
 
   const downloadBinaryResponse = async (response: Response, fallbackName: string) => {
     const disposition = String(response.headers.get("Content-Disposition") || "");
@@ -5065,6 +5163,20 @@ const DashboardProjectsEditor = () => {
                               ref={(node) => {
                                 if (node) {
                                   episodeCardNodeMapRef.current.set(episode, node);
+                                  if (pendingEpisodeToScrollRef.current === episode) {
+                                    requestAnimationFrame(() => {
+                                      const latestNode = episodeCardNodeMapRef.current.get(episode);
+                                      if (!latestNode || pendingEpisodeToScrollRef.current !== episode) {
+                                        return;
+                                      }
+                                      latestNode.scrollIntoView({
+                                        behavior: "smooth",
+                                        block: "center",
+                                        inline: "nearest",
+                                      });
+                                      pendingEpisodeToScrollRef.current = null;
+                                    });
+                                  }
                                 }
                               }}
                               className="project-editor-episode-card border-border/60 bg-card/70 !shadow-none hover:!shadow-none"

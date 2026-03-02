@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -66,32 +66,55 @@ const createProjectFixture = (episodeDownloads?: Array<Record<string, unknown>>)
       {
         number: 1,
         volume: 2,
-        title: "CapÃ­tulo 1",
-        synopsis: "Resumo do capÃ­tulo",
-        content: "<p>ConteÃºdo</p>",
+        title: "Capitulo 1",
+        synopsis: "Resumo do capitulo",
+        content: "<p>Conteudo</p>",
       },
     ],
 });
 
-const setupProjectReadingApiMock = (episodeDownloads?: Array<Record<string, unknown>>) => {
+const setupProjectReadingApiMock = (
+  episodeDownloads?: Array<Record<string, unknown>>,
+  permissions: string[] | null = null,
+) => {
   const project = createProjectFixture(episodeDownloads);
 
   apiFetchMock.mockReset();
   apiFetchMock.mockImplementation(async (_apiBase: string, endpoint: string, options?: RequestInit) => {
-    if (endpoint === "/api/public/projects/projeto-teste" && (!options?.method || options.method === "GET")) {
+    if (
+      endpoint === "/api/public/projects/projeto-teste" &&
+      (!options?.method || options.method === "GET")
+    ) {
       return mockJsonResponse(true, { project });
     }
-    if (endpoint === "/api/public/projects/projeto-teste/chapters/1?volume=2" && (!options?.method || options.method === "GET")) {
+    if (
+      endpoint === "/api/public/projects/projeto-teste/chapters/1?volume=2" &&
+      (!options?.method || options.method === "GET")
+    ) {
       return mockJsonResponse(true, {
         chapter: {
           number: 1,
           volume: 2,
-          title: "CapÃ­tulo 1",
-          synopsis: "Resumo do capÃ­tulo",
-          content: "<p>ConteÃºdo</p>",
+          title: "Capitulo 1",
+          synopsis: "Resumo do capitulo",
+          content: "<p>Conteudo</p>",
           contentFormat: "lexical",
         },
       });
+    }
+    if (endpoint === "/api/public/me" && (!options?.method || options.method === "GET")) {
+      return mockJsonResponse(
+        true,
+        permissions
+          ? {
+              user: {
+                id: "1",
+                name: "Admin",
+                permissions,
+              },
+            }
+          : { user: null },
+      );
     }
     if (endpoint === "/api/public/analytics/event" && options?.method === "POST") {
       return mockJsonResponse(true, { ok: true });
@@ -118,7 +141,9 @@ describe("ProjectReading analytics", () => {
     await screen.findByRole("heading", { name: /Cap.*tulo 1/i });
 
     await waitFor(() => {
-      const analyticsCall = apiFetchMock.mock.calls.find((call) => call[1] === "/api/public/analytics/event");
+      const analyticsCall = apiFetchMock.mock.calls.find(
+        (call) => call[1] === "/api/public/analytics/event",
+      );
       expect(analyticsCall).toBeDefined();
       const requestOptions = (analyticsCall?.[2] || {}) as RequestInit;
       expect(String(requestOptions.method || "").toUpperCase()).toBe("POST");
@@ -151,7 +176,7 @@ describe("ProjectReading analytics", () => {
     expect(screen.queryByRole("button", { name: /Restaurar padr.o/i })).not.toBeInTheDocument();
   });
 
-  it("remove breadcrumb e CTAs de projeto, mantendo o capitulo visivel", async () => {
+  it("remove ruido visual e mantem acoes principais no hero", async () => {
     setupProjectReadingApiMock();
 
     render(
@@ -165,16 +190,77 @@ describe("ProjectReading analytics", () => {
     expect(screen.queryByRole("navigation", { name: /breadcrumb/i })).not.toBeInTheDocument();
     const backLink = screen.getByRole("link", { name: "Voltar ao projeto" });
     expect(backLink).toHaveAttribute("href", "/projeto/projeto-teste");
-    expect(screen.queryByRole("link", { name: "Ir para projetos" })).not.toBeInTheDocument();
-    expect(screen.queryByText("CapÃ­tulos publicados diretamente no site.")).not.toBeInTheDocument();
-    expect(screen.queryByTestId("discord-invite-card")).not.toBeInTheDocument();
-    expect(screen.queryByTestId("latest-episode-card")).not.toBeInTheDocument();
-    expect(screen.queryByTestId("work-status-card")).not.toBeInTheDocument();
+    expect(screen.queryByText(/Leitura de Light Novel/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Volume 1/i)).not.toBeInTheDocument();
 
     expect(screen.getByTestId("project-reading-hero")).toBeInTheDocument();
     const contentSection = document.querySelector("main > section + section");
     expect(contentSection).not.toBeNull();
-    expect(contentSection).toHaveClass("mt-8");
+    expect(contentSection).toHaveClass("mt-6");
+  });
+
+  it("exibe CTA de editar capitulo para staff com permissao de projetos", async () => {
+    setupProjectReadingApiMock(undefined, ["projetos"]);
+
+    render(
+      <MemoryRouter initialEntries={["/projeto/projeto-teste/leitura/1?volume=2"]}>
+        <ProjectReading />
+      </MemoryRouter>,
+    );
+
+    await screen.findByRole("heading", { name: /Cap.*tulo 1/i });
+    const editLink = await screen.findByRole("link", { name: /Editar cap.tulo/i });
+    expect(editLink).toHaveAttribute(
+      "href",
+      "/dashboard/projetos?edit=projeto-teste&chapter=1&volume=2",
+    );
+  });
+
+  it("nao exibe CTA de editar capitulo sem permissao", async () => {
+    setupProjectReadingApiMock(undefined, ["posts"]);
+
+    render(
+      <MemoryRouter initialEntries={["/projeto/projeto-teste/leitura/1?volume=2"]}>
+        <ProjectReading />
+      </MemoryRouter>,
+    );
+
+    await screen.findByRole("heading", { name: /Cap.*tulo 1/i });
+    expect(screen.queryByRole("link", { name: /Editar cap.tulo/i })).not.toBeInTheDocument();
+  });
+
+  it("move navegacao anterior/proximo para bloco pos-conteudo", async () => {
+    setupProjectReadingApiMock([
+      {
+        number: 1,
+        volume: 2,
+        title: "Capitulo 1",
+        synopsis: "Resumo do capitulo",
+        content: "<p>Conteudo</p>",
+        hasContent: true,
+      },
+      {
+        number: 2,
+        volume: 2,
+        title: "Capitulo 2",
+        synopsis: "Resumo do capitulo 2",
+        content: "<p>Conteudo 2</p>",
+        hasContent: true,
+      },
+    ]);
+
+    render(
+      <MemoryRouter initialEntries={["/projeto/projeto-teste/leitura/1?volume=2"]}>
+        <ProjectReading />
+      </MemoryRouter>,
+    );
+
+    await screen.findByRole("heading", { name: /Cap.*tulo 1/i });
+    const hero = screen.getByTestId("project-reading-hero");
+    expect(within(hero).queryByRole("link", { name: /Pr.ximo cap.tulo/i })).not.toBeInTheDocument();
+
+    const chapterNav = screen.getByTestId("project-reading-chapter-nav");
+    expect(within(chapterNav).getByRole("link", { name: /Pr.ximo cap.tulo/i })).toBeInTheDocument();
   });
 
   it("ignora capitulos sem leitura na navegacao publica", async () => {
@@ -182,15 +268,15 @@ describe("ProjectReading analytics", () => {
       {
         number: 1,
         volume: 2,
-        title: "CapÃ­tulo 1",
-        synopsis: "Resumo do capÃ­tulo",
-        content: "<p>ConteÃºdo</p>",
+        title: "Capitulo 1",
+        synopsis: "Resumo do capitulo",
+        content: "<p>Conteudo</p>",
         hasContent: true,
       },
       {
         number: 2,
         volume: 2,
-        title: "CapÃ­tulo 2",
+        title: "Capitulo 2",
         synopsis: "So download",
         hasContent: false,
         sources: [{ label: "Drive", url: "https://example.com/file" }],
@@ -204,7 +290,6 @@ describe("ProjectReading analytics", () => {
     );
 
     await screen.findByRole("heading", { name: /Cap.*tulo 1/i });
-
     expect(screen.queryByRole("link", { name: /Pr.ximo cap.tulo/i })).not.toBeInTheDocument();
   });
 
@@ -220,20 +305,29 @@ describe("ProjectReading analytics", () => {
 
     apiFetchMock.mockReset();
     apiFetchMock.mockImplementation(async (_apiBase: string, endpoint: string, options?: RequestInit) => {
-      if (endpoint === "/api/public/projects/projeto-teste" && (!options?.method || options.method === "GET")) {
+      if (
+        endpoint === "/api/public/projects/projeto-teste" &&
+        (!options?.method || options.method === "GET")
+      ) {
         return mockJsonResponse(true, { project });
       }
-      if (endpoint === "/api/public/projects/projeto-teste/chapters/1?volume=2" && (!options?.method || options.method === "GET")) {
+      if (
+        endpoint === "/api/public/projects/projeto-teste/chapters/1?volume=2" &&
+        (!options?.method || options.method === "GET")
+      ) {
         return mockJsonResponse(true, {
           chapter: {
             number: 1,
             volume: 2,
-            title: "CapÃƒÂ­tulo 1",
-            synopsis: "Resumo do capÃƒÂ­tulo",
-            content: "<p>ConteÃƒÂºdo</p>",
+            title: "Capitulo 1",
+            synopsis: "Resumo do capitulo",
+            content: "<p>Conteudo</p>",
             contentFormat: "lexical",
           },
         });
+      }
+      if (endpoint === "/api/public/me" && (!options?.method || options.method === "GET")) {
+        return mockJsonResponse(true, { user: null });
       }
       if (endpoint === "/api/public/analytics/event" && options?.method === "POST") {
         return mockJsonResponse(true, { ok: true });

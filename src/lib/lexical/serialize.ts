@@ -1,11 +1,170 @@
-import { createEditor, $getRoot, $createParagraphNode, $isElementNode, DecoratorNode } from "lexical";
+import {
+  createEditor,
+  $getRoot,
+  $createParagraphNode,
+  $isElementNode,
+  $isTextNode,
+  DecoratorNode,
+  TextNode,
+} from "lexical";
 import { $generateHtmlFromNodes, $generateNodesFromDOM } from "@lexical/html";
+import { $createLinkNode } from "@lexical/link";
 import PlaygroundNodes from "@/lexical-playground/nodes/PlaygroundNodes";
 import { lexicalNodes as bridgeLexicalNodes } from "@/lib/lexical/nodes";
+import {
+  buildStyleDeclaration,
+  normalizeFontFamilyBucket,
+  parseStyleDeclaration,
+} from "@/components/lexical/nodes/epub-style";
+
+const INLINE_TEXT_STYLE_KEYS = ["font-size", "font-style", "font-weight", "font-family"] as const;
+const ZERO_LIKE_VALUES = new Set([
+  "",
+  "0",
+  "0px",
+  "0em",
+  "0rem",
+  "0%",
+  "normal",
+  "auto",
+  "none",
+  "initial",
+  "inherit",
+]);
+
+const isMeaningfulStyleValue = (value: string) =>
+  !ZERO_LIKE_VALUES.has(String(value || "").trim().toLowerCase());
+
+const extractInlineEditorialTextStyle = (style: CSSStyleDeclaration | string) => {
+  const record = parseStyleDeclaration(typeof style === "string" ? style : style.cssText);
+  return buildStyleDeclaration(
+    INLINE_TEXT_STYLE_KEYS.map((property) => {
+      if (!isMeaningfulStyleValue(record[property] || "")) {
+        return [property, ""] as const;
+      }
+      if (property === "font-family") {
+        return [property, normalizeFontFamilyBucket(record[property] || "")] as const;
+      }
+      return [property, record[property] || ""] as const;
+    }),
+  );
+};
+
+const mergeStyleDeclarations = (baseStyle: string, nextStyle: string) =>
+  buildStyleDeclaration([
+    ...Object.entries(parseStyleDeclaration(baseStyle)),
+    ...Object.entries(parseStyleDeclaration(nextStyle)),
+  ]);
+
+const applyInlineEditorialStyleToTextNode = (
+  lexicalNode: unknown,
+  editorialStyle: string,
+  impliedFormat?: "bold" | "italic" | "underline" | "strikethrough" | "subscript" | "superscript",
+) => {
+  if (!$isTextNode(lexicalNode)) {
+    return lexicalNode;
+  }
+  const styleRecord = parseStyleDeclaration(editorialStyle);
+  if (editorialStyle) {
+    const mergedStyle = mergeStyleDeclarations(lexicalNode.getStyle(), editorialStyle);
+    if (mergedStyle && mergedStyle !== lexicalNode.getStyle()) {
+      lexicalNode.setStyle(mergedStyle);
+    }
+  }
+  const fontWeight = String(styleRecord["font-weight"] || "").trim().toLowerCase();
+  const fontStyle = String(styleRecord["font-style"] || "").trim().toLowerCase();
+  if ((fontWeight === "bold" || Number(fontWeight) >= 600) && !lexicalNode.hasFormat("bold")) {
+    lexicalNode.toggleFormat("bold");
+  }
+  if (fontStyle === "italic" && !lexicalNode.hasFormat("italic")) {
+    lexicalNode.toggleFormat("italic");
+  }
+  if (impliedFormat && !lexicalNode.hasFormat(impliedFormat)) {
+    lexicalNode.toggleFormat(impliedFormat);
+  }
+  return lexicalNode;
+};
+
+const createInlineEditorialTextConversion =
+  ({
+    createNode,
+    impliedFormat,
+  }: {
+    createNode?: ((node: Element) => unknown) | undefined;
+    impliedFormat?:
+      | "bold"
+      | "italic"
+      | "underline"
+      | "strikethrough"
+      | "subscript"
+      | "superscript";
+  } = {}) =>
+  () => ({
+    conversion: (node: Node) => {
+      if (!(node instanceof Element)) {
+        return null;
+      }
+      const editorialStyle = extractInlineEditorialTextStyle(node.getAttribute("style") || "");
+      if (!editorialStyle && !createNode && !impliedFormat) {
+        return null;
+      }
+      return {
+        node: typeof createNode === "function" ? createNode(node) : null,
+        forChild: (lexicalNode: unknown) =>
+          applyInlineEditorialStyleToTextNode(lexicalNode, editorialStyle, impliedFormat),
+      };
+    },
+    priority: 3 as const,
+  });
+
+class InlineEditorialStyleBridgeNode extends TextNode {
+  static getType() {
+    return "__inline-editorial-style-bridge";
+  }
+
+  static clone(node: InlineEditorialStyleBridgeNode) {
+    return new InlineEditorialStyleBridgeNode(node.getTextContent(), node.__key);
+  }
+
+  constructor(text = "", key?: string) {
+    super(text, key);
+  }
+
+  static importJSON() {
+    return new InlineEditorialStyleBridgeNode("");
+  }
+
+  static importDOM() {
+    return {
+      span: createInlineEditorialTextConversion(),
+      em: createInlineEditorialTextConversion({ impliedFormat: "italic" }),
+      strong: createInlineEditorialTextConversion({ impliedFormat: "bold" }),
+      i: createInlineEditorialTextConversion({ impliedFormat: "italic" }),
+      b: createInlineEditorialTextConversion({ impliedFormat: "bold" }),
+      u: createInlineEditorialTextConversion({ impliedFormat: "underline" }),
+      s: createInlineEditorialTextConversion({ impliedFormat: "strikethrough" }),
+      sub: createInlineEditorialTextConversion({ impliedFormat: "subscript" }),
+      sup: createInlineEditorialTextConversion({ impliedFormat: "superscript" }),
+      a: createInlineEditorialTextConversion({
+        createNode: (node) => {
+          const href = node.getAttribute("href") || "";
+          if (((node.textContent || "") !== "" || node.children.length > 0)) {
+            return $createLinkNode(href, {
+              rel: node.getAttribute("rel"),
+              target: node.getAttribute("target"),
+              title: node.getAttribute("title"),
+            });
+          }
+          return null;
+        },
+      }),
+    };
+  }
+}
 
 const createBridgeLexicalEditor = () =>
   createEditor({
-    nodes: bridgeLexicalNodes,
+    nodes: [...bridgeLexicalNodes, InlineEditorialStyleBridgeNode],
     onError: () => {},
   });
 

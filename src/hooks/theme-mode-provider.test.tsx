@@ -51,8 +51,11 @@ const assertDocumentTheme = (mode: "light" | "dark") => {
   expect(document.documentElement.dataset.themeMode).toBe(mode);
   expect(document.documentElement.style.colorScheme).toBe(mode);
   expect(document.documentElement.classList.contains("dark")).toBe(mode === "dark");
+};
+
+const assertThemeColor = (color: string) => {
   const themeColorMeta = document.querySelector('meta[name="theme-color"]');
-  expect(themeColorMeta?.getAttribute("content")).toBe(mode === "light" ? "#f8fafc" : "#101114");
+  expect(themeColorMeta?.getAttribute("content")).toBe(color);
 };
 
 describe("ThemeModeProvider", () => {
@@ -77,6 +80,7 @@ describe("ThemeModeProvider", () => {
     expect(screen.getByTestId("effective-mode")).toHaveTextContent("light");
     expect(screen.getByTestId("preference")).toHaveTextContent("global");
     assertDocumentTheme("light");
+    assertThemeColor("#9667e0");
   });
 
   it("keeps local override above global mode", async () => {
@@ -87,6 +91,7 @@ describe("ThemeModeProvider", () => {
     expect(screen.getByTestId("effective-mode")).toHaveTextContent("dark");
     expect(screen.getByTestId("preference")).toHaveTextContent("dark");
     assertDocumentTheme("dark");
+    assertThemeColor("#9667e0");
   });
 
   it("returns to global mode after clearing override", async () => {
@@ -105,6 +110,7 @@ describe("ThemeModeProvider", () => {
     expect(screen.getByTestId("preference")).toHaveTextContent("global");
     expect(window.localStorage.getItem(THEME_MODE_STORAGE_KEY)).toBeNull();
     assertDocumentTheme("light");
+    assertThemeColor("#9667e0");
   });
 
   it("normalizes unknown local preference to global", async () => {
@@ -115,5 +121,31 @@ describe("ThemeModeProvider", () => {
     expect(screen.getByTestId("effective-mode")).toHaveTextContent("dark");
     expect(window.localStorage.getItem(THEME_MODE_STORAGE_KEY)).toBeNull();
     assertDocumentTheme("dark");
+    assertThemeColor("#9667e0");
+  });
+
+  it("updates theme-color when the accent changes", async () => {
+    const view = renderWithSettings(createSettings({ theme: { accent: "#9667e0", mode: "dark" } }));
+
+    assertDocumentTheme("dark");
+    assertThemeColor("#9667e0");
+
+    view.rerender(
+      <SiteSettingsContext.Provider
+        value={{
+          settings: createSettings({ theme: { accent: "#34A853", mode: "dark" } }),
+          isLoading: false,
+          refresh: async () => undefined,
+        }}
+      >
+        <ThemeModeProvider>
+          <ThemeProbe />
+        </ThemeModeProvider>
+      </SiteSettingsContext.Provider>,
+    );
+
+    await waitFor(() => {
+      assertThemeColor("#34A853");
+    });
   });
 });
