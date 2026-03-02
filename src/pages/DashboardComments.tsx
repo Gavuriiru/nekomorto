@@ -3,6 +3,12 @@ import { useNavigate } from "react-router-dom";
 import { CheckCircle2, Trash2, ExternalLink, Loader2 } from "lucide-react";
 
 import DashboardShell from "@/components/DashboardShell";
+import DashboardPageBadge from "@/components/dashboard/DashboardPageBadge";
+import {
+  dashboardAnimationDelay,
+  dashboardClampedStaggerMs,
+  dashboardMotionDelays,
+} from "@/components/dashboard/dashboard-motion";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -303,18 +309,15 @@ const DashboardComments = () => {
         <div className="mx-auto flex w-full max-w-6xl flex-col gap-6 reveal" data-reveal>
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
-              <div
-                className="inline-flex items-center gap-3 rounded-full border border-border/60 bg-card/60 px-4 py-2 text-xs uppercase tracking-[0.3em] text-muted-foreground animate-fade-in"
-                data-testid="dashboard-comments-header-badge"
-              >
+              <DashboardPageBadge data-testid="dashboard-comments-header-badge">
                 Comentários
-              </div>
+              </DashboardPageBadge>
               <h1 className="mt-4 text-2xl font-semibold text-foreground animate-slide-up">
                 Comentários pendentes
               </h1>
               <p
                 className="mt-2 text-sm text-muted-foreground animate-slide-up opacity-0"
-                style={{ animationDelay: "0.2s" }}
+                style={dashboardAnimationDelay(dashboardMotionDelays.headerDescriptionMs)}
               >
                 Aprove ou exclua comentários enviados pelos visitantes.
               </p>
@@ -323,7 +326,7 @@ const DashboardComments = () => {
               {!isLoading && comments.length > 0 ? (
                 <div
                   className="flex flex-wrap items-center gap-2 animate-slide-up opacity-0"
-                  style={{ animationDelay: "160ms" }}
+                  style={dashboardAnimationDelay(dashboardMotionDelays.headerActionsMs)}
                   data-testid="dashboard-comments-bulk-actions"
                 >
                   <Button
@@ -421,7 +424,7 @@ const DashboardComments = () => {
               <Badge
                 variant="secondary"
                 className="text-xs uppercase animate-fade-in"
-                style={{ animationDelay: "220ms" }}
+                style={dashboardAnimationDelay(dashboardMotionDelays.headerMetaMs)}
                 data-testid="dashboard-comments-pending-count-badge"
               >
                 {comments.length} pendentes
@@ -458,7 +461,7 @@ const DashboardComments = () => {
                 <Card
                   key={comment.id}
                   className="border-border/60 bg-card/80 shadow-lg animate-slide-up opacity-0"
-                  style={{ animationDelay: `${index * 60}ms` }}
+                  style={dashboardAnimationDelay(dashboardClampedStaggerMs(index))}
                 >
                   <CardContent className="space-y-4 p-6">
                     <div className="flex flex-wrap items-start justify-between gap-4">

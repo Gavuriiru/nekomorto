@@ -87,11 +87,15 @@ describe("DashboardSecurity semantic badges", () => {
     await screen.findByText("Admin");
 
     const headerBadge = screen.getByTestId("dashboard-security-header-badge");
+    const headerBadgeReveal = headerBadge.parentElement;
     const sessionsCard = screen.getByTestId("dashboard-security-sessions-card");
     const firstSessionCard = screen.getByText("Admin").closest("article");
 
     expect(headerBadge).toHaveTextContent("Segurança");
-    expect(classTokens(headerBadge)).toContain("animate-fade-in");
+    expect(headerBadgeReveal).not.toBeNull();
+    expect(classTokens(headerBadgeReveal as HTMLElement)).toContain("reveal");
+    expect(classTokens(headerBadgeReveal as HTMLElement)).toContain("reveal-delay-1");
+    expect(headerBadgeReveal).toHaveAttribute("data-reveal");
     expect(classTokens(sessionsCard)).toContain("animate-slide-up");
     expect(classTokens(sessionsCard)).toContain("opacity-0");
     expect(firstSessionCard).not.toBeNull();

@@ -214,9 +214,11 @@ describe("DashboardUploads cleanup", () => {
     expect(screen.getByTestId("dashboard-uploads-summary-loading")).toBeInTheDocument();
     expect(screen.getByTestId("dashboard-uploads-storage-loading")).toBeInTheDocument();
     expect(screen.getByTestId("dashboard-uploads-cleanup-loading")).toBeInTheDocument();
-    expect(classTokens(screen.getByTestId("dashboard-uploads-summary-loading"))).toContain(
-      "animate-slide-up",
-    );
+    const summaryLoadingCards = screen
+      .getByTestId("dashboard-uploads-summary-loading")
+      .querySelectorAll("article");
+    expect(summaryLoadingCards.length).toBeGreaterThan(0);
+    expect(classTokens(summaryLoadingCards[0] as HTMLElement)).toContain("animate-slide-up");
     expect(classTokens(screen.getByTestId("dashboard-uploads-storage-loading"))).toContain(
       "animate-slide-up",
     );
@@ -244,9 +246,11 @@ describe("DashboardUploads cleanup", () => {
     expect(screen.getByText("Upload")).toBeInTheDocument();
     expect(screen.getByText("Variante órfã")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: CLEANUP_ACTION_LABEL })).toBeInTheDocument();
-    expect(classTokens(screen.getByTestId("dashboard-uploads-summary-grid"))).toContain(
-      "animate-slide-up",
-    );
+    const summaryCards = screen
+      .getByTestId("dashboard-uploads-summary-grid")
+      .querySelectorAll("article");
+    expect(summaryCards.length).toBeGreaterThan(0);
+    expect(classTokens(summaryCards[0] as HTMLElement)).toContain("animate-slide-up");
     expect(classTokens(screen.getByTestId("dashboard-uploads-storage-card"))).toContain(
       "animate-slide-up",
     );

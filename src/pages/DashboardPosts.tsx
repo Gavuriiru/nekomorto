@@ -3,6 +3,10 @@ import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import DashboardShell from "@/components/DashboardShell";
 import DashboardPageContainer from "@/components/dashboard/DashboardPageContainer";
 import DashboardPageHeader from "@/components/dashboard/DashboardPageHeader";
+import {
+  dashboardAnimationDelay,
+  dashboardClampedStaggerMs,
+} from "@/components/dashboard/dashboard-motion";
 import UploadPicture from "@/components/UploadPicture";
 import { ImageLibraryDialogLoadingFallback } from "@/components/ImageLibraryDialogLoading";
 import ReorderControls from "@/components/ReorderControls";
@@ -2541,7 +2545,7 @@ const DashboardPosts = () => {
                       key={post.id}
                       data-testid={`post-card-${post.id}`}
                       className={`${dashboardPageLayoutTokens.listCard} group cursor-pointer overflow-hidden transition hover:border-primary/40 animate-slide-up opacity-0`}
-                      style={{ animationDelay: `${Math.min(index * 35, 210)}ms` }}
+                      style={dashboardAnimationDelay(dashboardClampedStaggerMs(index))}
                       role={canManagePosts ? "button" : undefined}
                       tabIndex={canManagePosts ? 0 : -1}
                       onKeyDown={(event) => {
@@ -2767,7 +2771,7 @@ const DashboardPosts = () => {
                       <div
                         key={`trash-${post.id}`}
                         className={`${dashboardPageLayoutTokens.surfaceDefault} flex flex-wrap items-center justify-between gap-3 px-4 py-3 animate-slide-up opacity-0`}
-                        style={{ animationDelay: `${Math.min(index * 35, 210)}ms` }}
+                        style={dashboardAnimationDelay(dashboardClampedStaggerMs(index))}
                       >
                         <div className="min-w-0">
                           <p className="text-sm font-medium text-foreground">{post.title}</p>

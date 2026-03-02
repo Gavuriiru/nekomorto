@@ -21,8 +21,15 @@ vi.mock("@/components/ui/sidebar", () => ({
   SidebarHeader: ({ children }: { children: ReactNode }) => <div>{children}</div>,
   SidebarContent: ({ children }: { children: ReactNode }) => <div>{children}</div>,
   SidebarFooter: ({ children }: { children: ReactNode }) => <div>{children}</div>,
-  SidebarInset: ({ children, className }: { children: ReactNode; className?: string }) => (
-    <main data-testid="sidebar-inset" className={className}>
+  SidebarInset: ({
+    children,
+    className,
+    ...props
+  }: {
+    children: ReactNode;
+    className?: string;
+  } & Record<string, unknown>) => (
+    <main data-testid="sidebar-inset" className={className} {...props}>
       {children}
     </main>
   ),
@@ -87,6 +94,7 @@ describe("DashboardShell menu permissions", () => {
     expect(screen.queryByRole("link", { name: "Pular para o conteúdo" })).not.toBeInTheDocument();
     expect(screen.getByTestId("sidebar-inset").className).toContain("min-w-0");
     expect(screen.getByTestId("sidebar-inset").className).toContain("overflow-x-hidden");
+    expect(screen.getByTestId("sidebar-inset")).toHaveAttribute("data-dashboard-motion", "true");
     expect(screen.queryByText("Painel de gestao")).not.toBeInTheDocument();
     expect(screen.queryByText(/Usu[áa]rios/i)).not.toBeInTheDocument();
     expect(screen.queryByText("Webhooks")).not.toBeInTheDocument();

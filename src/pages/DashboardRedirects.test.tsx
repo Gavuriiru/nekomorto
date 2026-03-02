@@ -106,11 +106,7 @@ describe("DashboardRedirects", () => {
     expect(rootSection).not.toBeNull();
     expect(classTokens(rootSection as HTMLElement)).not.toContain("reveal");
     expect(rootSection).not.toHaveAttribute("data-reveal");
-    const headerBadge = screen.getByText(
-      (_content, element) =>
-        element?.tagName.toLowerCase() === "div" &&
-        element.textContent?.trim() === "Redirecionamentos",
-    );
+    const headerBadge = screen.getByText("Redirecionamentos");
     const headerBadgeReveal = headerBadge.parentElement;
     expect(headerBadgeReveal).not.toBeNull();
     expect(classTokens(headerBadgeReveal as HTMLElement)).toContain("reveal");

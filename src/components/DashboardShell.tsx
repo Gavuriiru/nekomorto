@@ -1,7 +1,8 @@
-import { useEffect, useMemo, type MouseEvent, type ReactNode } from "react";
+import { useEffect, useMemo, type CSSProperties, type MouseEvent, type ReactNode } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { Home } from "lucide-react";
 import DashboardHeader from "@/components/DashboardHeader";
+import { dashboardMotionDurations } from "@/components/dashboard/dashboard-motion";
 import Footer from "@/components/Footer";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -246,7 +247,14 @@ const DashboardShell = ({
         <SidebarInset
           id="dashboard-main-content"
           tabIndex={-1}
+          data-dashboard-motion="true"
           className="a11y-focus-target min-w-0 overflow-x-hidden flex min-h-screen flex-col bg-linear-to-b from-background via-[hsl(var(--primary)/0.12)] to-background text-foreground md:peer-data-[variant=inset]:shadow-none md:peer-data-[variant=inset]:rounded-none"
+          style={
+            {
+              "--dashboard-motion-enter-duration": `${dashboardMotionDurations.enterMs}ms`,
+              "--dashboard-motion-reveal-duration": `${dashboardMotionDurations.revealMs}ms`,
+            } as CSSProperties
+          }
         >
           <DashboardHeader
             currentUser={effectiveUser}

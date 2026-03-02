@@ -3,6 +3,7 @@ import { fireEvent, render, screen, waitFor, within } from "@testing-library/rea
 import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { dashboardMotionDelays } from "@/components/dashboard/dashboard-motion";
 import DashboardComments from "@/pages/DashboardComments";
 import { formatDateTime } from "@/lib/date";
 
@@ -363,12 +364,18 @@ describe("DashboardComments notifications", () => {
     await screen.findByText(pendingCommentFixture.content);
 
     const headerBadge = screen.getByTestId("dashboard-comments-header-badge");
+    const headerBadgeReveal = headerBadge.parentElement;
     const pendingCountBadge = screen.getByTestId("dashboard-comments-pending-count-badge");
 
     expect(headerBadge).toHaveTextContent("Comentários");
-    expect(classTokens(headerBadge)).toContain("animate-fade-in");
+    expect(headerBadgeReveal).not.toBeNull();
+    expect(classTokens(headerBadgeReveal as HTMLElement)).toContain("reveal");
+    expect(classTokens(headerBadgeReveal as HTMLElement)).toContain("reveal-delay-1");
+    expect(headerBadgeReveal).toHaveAttribute("data-reveal");
     expect(classTokens(pendingCountBadge)).toContain("animate-fade-in");
-    expect(pendingCountBadge).toHaveStyle({ animationDelay: "220ms" });
+    expect(pendingCountBadge).toHaveStyle({
+      animationDelay: `${dashboardMotionDelays.headerMetaMs}ms`,
+    });
   });
 
   it("aplica reveal ao container das acoes em massa", async () => {

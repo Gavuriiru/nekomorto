@@ -1,4 +1,9 @@
 import type { CSSProperties, ReactNode } from "react";
+import DashboardPageBadge from "@/components/dashboard/DashboardPageBadge";
+import {
+  dashboardAnimationDelay,
+  dashboardMotionDelays,
+} from "@/components/dashboard/dashboard-motion";
 import { cn } from "@/lib/utils";
 import { dashboardPageLayoutTokens } from "@/components/dashboard/dashboard-page-tokens";
 
@@ -18,18 +23,18 @@ const DashboardPageHeader = ({
   description,
   actions,
   className,
-  descriptionDelayMs = 140,
-  actionsDelayMs = 160,
+  descriptionDelayMs = dashboardMotionDelays.headerDescriptionMs,
+  actionsDelayMs = dashboardMotionDelays.headerActionsMs,
 }: DashboardPageHeaderProps) => {
   return (
     <header className={cn(dashboardPageLayoutTokens.header, className)}>
       <div>
-        <div className={dashboardPageLayoutTokens.headerBadge}>{badge}</div>
+        <DashboardPageBadge>{badge}</DashboardPageBadge>
         <h1 className={dashboardPageLayoutTokens.headerTitle}>{title}</h1>
         {description ? (
           <p
             className={dashboardPageLayoutTokens.headerDescription}
-            style={{ animationDelay: `${descriptionDelayMs}ms` } as CSSProperties}
+            style={dashboardAnimationDelay(descriptionDelayMs) as CSSProperties}
           >
             {description}
           </p>
@@ -38,7 +43,7 @@ const DashboardPageHeader = ({
       {actions ? (
         <div
           className={dashboardPageLayoutTokens.headerActions}
-          style={{ animationDelay: `${actionsDelayMs}ms` } as CSSProperties}
+          style={dashboardAnimationDelay(actionsDelayMs) as CSSProperties}
         >
           {actions}
         </div>

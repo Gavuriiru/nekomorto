@@ -5,6 +5,10 @@ import DashboardShell from "@/components/DashboardShell";
 import ReorderControls from "@/components/ReorderControls";
 import DashboardPageContainer from "@/components/dashboard/DashboardPageContainer";
 import DashboardPageHeader from "@/components/dashboard/DashboardPageHeader";
+import {
+  dashboardAnimationDelay,
+  dashboardClampedStaggerMs,
+} from "@/components/dashboard/dashboard-motion";
 import { dashboardPageLayoutTokens } from "@/components/dashboard/dashboard-page-tokens";
 import { ImageLibraryDialogLoadingFallback } from "@/components/ImageLibraryDialogLoading";
 import type { ImageLibraryOptions } from "@/components/ImageLibraryDialog";
@@ -2651,10 +2655,10 @@ const DashboardProjectsEditor = () => {
                   <Card
                     key={project.id}
                     className={`${dashboardPageLayoutTokens.listCard} group overflow-hidden transition hover:border-primary/40 animate-slide-up opacity-0`}
-                    style={{ animationDelay: `${Math.min(index * 35, 210)}ms` }}
+                    style={dashboardAnimationDelay(dashboardClampedStaggerMs(index))}
                   >
                     <CardContent className="p-0">
-                      <div className="grid gap-6 md:grid-cols-[220px_1fr]">
+                      <div className="grid gap-2 md:gap-6 md:grid-cols-[220px_1fr]">
                         <div className="relative aspect-2/3 w-full">
                           <button
                             type="button"
@@ -2864,7 +2868,7 @@ const DashboardProjectsEditor = () => {
                       <div
                         key={`trash-${project.id}`}
                         className={`${dashboardPageLayoutTokens.surfaceDefault} flex flex-wrap items-center justify-between gap-3 px-4 py-3 animate-slide-up opacity-0`}
-                        style={{ animationDelay: `${Math.min(index * 35, 210)}ms` }}
+                        style={dashboardAnimationDelay(dashboardClampedStaggerMs(index))}
                       >
                         <div className="min-w-0">
                           <p className="text-sm font-medium text-foreground">{project.title}</p>

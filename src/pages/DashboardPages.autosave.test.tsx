@@ -2,6 +2,8 @@ import type { ReactNode } from "react";
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+
+import { dashboardMotionDelays } from "@/components/dashboard/dashboard-motion";
 import DashboardPages from "@/pages/DashboardPages";
 
 const { apiFetchMock, navigateMock } = vi.hoisted(() => ({
@@ -473,15 +475,14 @@ describe("DashboardPages autosave", () => {
     const autosaveReveal = screen.getByTestId("dashboard-pages-autosave-reveal");
     const tokens = classTokens(autosaveReveal);
     const rootSection = heading.closest("section");
-    const headerBadge = screen.getByText(
-      (_content, element) =>
-        element?.tagName.toLowerCase() === "div" && element.textContent?.trim() === "P\u00e1ginas",
-    );
+    const headerBadge = screen.getByText("P\u00e1ginas");
     const headerBadgeReveal = headerBadge.parentElement;
 
     expect(tokens).toContain("animate-slide-up");
     expect(tokens).toContain("opacity-0");
-    expect(autosaveReveal).toHaveStyle({ animationDelay: "160ms" });
+    expect(autosaveReveal).toHaveStyle({
+      animationDelay: `${dashboardMotionDelays.headerActionsMs}ms`,
+    });
     expect(rootSection).not.toBeNull();
     expect(classTokens(rootSection as HTMLElement)).not.toContain("reveal");
     expect(rootSection).not.toHaveAttribute("data-reveal");

@@ -1,6 +1,11 @@
 import { Link, useNavigate } from "react-router-dom";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import DashboardShell from "@/components/DashboardShell";
+import DashboardPageBadge from "@/components/dashboard/DashboardPageBadge";
+import {
+  dashboardAnimationDelay,
+  dashboardMotionDelays,
+} from "@/components/dashboard/dashboard-motion";
 import AsyncState from "@/components/ui/async-state";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -728,21 +733,22 @@ const Dashboard = () => {
         <section className="mx-auto w-full max-w-6xl px-6 pb-20 md:px-10 reveal" data-reveal>
           <header className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
             <div className="space-y-3">
-              <div className="inline-flex items-center gap-3 rounded-full border border-border/60 bg-card/60 px-4 py-2 text-xs uppercase tracking-[0.3em] text-muted-foreground animate-fade-in">
-                Painel interno
-              </div>
+              <DashboardPageBadge>Painel interno</DashboardPageBadge>
               <h1 className="text-3xl font-semibold lg:text-4xl animate-slide-up">
                 Painel de controle da comunidade
               </h1>
               <p
                 className="max-w-2xl text-sm text-muted-foreground animate-slide-up opacity-0"
-                style={{ animationDelay: "0.2s" }}
+                style={dashboardAnimationDelay(dashboardMotionDelays.headerDescriptionMs)}
               >
                 Visão geral dos projetos e do conteúdo. Assim que as integrações de analytics e
                 comentários estiverem ativas, os dados aparecem aqui automaticamente.
               </p>
             </div>
-            <div className="flex items-center gap-3 overflow-x-auto whitespace-nowrap pb-1">
+            <div
+              className="flex items-center gap-3 overflow-x-auto whitespace-nowrap pb-1 animate-slide-up opacity-0"
+              style={dashboardAnimationDelay(dashboardMotionDelays.headerActionsMs)}
+            >
               <Button
                 variant="outline"
                 className="border-border/70 bg-card/60 px-4 text-muted-foreground hover:text-foreground"
@@ -795,7 +801,7 @@ const Dashboard = () => {
                 <div className="mt-10 grid gap-4 md:grid-cols-2 lg:grid-cols-4">
                   <div
                     className="rounded-2xl border border-border/60 bg-linear-to-br from-card/70 to-background/60 p-5 animate-slide-up opacity-0"
-                    style={{ animationDelay: "0ms" }}
+                    style={dashboardAnimationDelay(0)}
                   >
                     <p className="text-sm text-muted-foreground">Projetos cadastrados</p>
                     <div className="mt-3 text-2xl font-semibold">{totalProjects}</div>
@@ -803,7 +809,7 @@ const Dashboard = () => {
                   </div>
                   <div
                     className="rounded-2xl border border-border/60 bg-linear-to-br from-card/70 to-background/60 p-5 animate-slide-up opacity-0"
-                    style={{ animationDelay: "80ms" }}
+                    style={dashboardAnimationDelay(dashboardMotionDelays.sectionStepMs)}
                   >
                     <p className="text-sm text-muted-foreground">Mídias disponíveis</p>
                     <div className="mt-3 text-2xl font-semibold">{totalMedia}</div>
@@ -813,7 +819,7 @@ const Dashboard = () => {
                   </div>
                   <div
                     className="rounded-2xl border border-border/60 bg-linear-to-br from-card/70 to-background/60 p-5 animate-slide-up opacity-0"
-                    style={{ animationDelay: "160ms" }}
+                    style={dashboardAnimationDelay(dashboardMotionDelays.sectionStepMs * 2)}
                   >
                     <p className="text-sm text-muted-foreground">Projetos ativos</p>
                     <div className="mt-3 text-2xl font-semibold">{activeProjects}</div>
@@ -821,7 +827,7 @@ const Dashboard = () => {
                   </div>
                   <div
                     className="rounded-2xl border border-border/60 bg-linear-to-br from-card/70 to-background/60 p-5 animate-slide-up opacity-0"
-                    style={{ animationDelay: "240ms" }}
+                    style={dashboardAnimationDelay(dashboardMotionDelays.sectionStepMs * 3)}
                   >
                     <p className="text-sm text-muted-foreground">Projetos finalizados</p>
                     <div className="mt-3 text-2xl font-semibold">{finishedProjects}</div>
@@ -838,7 +844,7 @@ const Dashboard = () => {
                   {selectedWidgetSet.has("analytics_summary") ? (
                     <div
                       className="rounded-3xl border border-border/60 bg-card/60 p-6 shadow-[0_20px_60px_-40px_rgba(0,0,0,0.8)] animate-slide-up opacity-0"
-                      style={{ animationDelay: "120ms" }}
+                      style={dashboardAnimationDelay(dashboardMotionDelays.headerActionsMs)}
                     >
                       <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
                         <div>
@@ -913,7 +919,7 @@ const Dashboard = () => {
                   {selectedWidgetSet.has("projects_rank") ? (
                     <div
                       className="rounded-3xl border border-border/60 bg-card/60 p-6 animate-slide-up opacity-0"
-                      style={{ animationDelay: "200ms" }}
+                      style={dashboardAnimationDelay(dashboardMotionDelays.sectionLeadMs)}
                     >
                       <div className="flex items-center justify-between">
                         <div>
@@ -961,7 +967,9 @@ const Dashboard = () => {
                   {selectedWidgetSet.has("recent_posts") ? (
                     <div
                       className="rounded-3xl border border-border/60 bg-card/60 p-6 animate-slide-up opacity-0"
-                      style={{ animationDelay: "280ms" }}
+                      style={dashboardAnimationDelay(
+                        dashboardMotionDelays.sectionLeadMs + dashboardMotionDelays.sectionStepMs,
+                      )}
                     >
                       <div className="flex items-center justify-between">
                         <div>
@@ -1016,7 +1024,9 @@ const Dashboard = () => {
                   {selectedWidgetSet.has("ops_status") && !hideOperationalAlertsCard ? (
                     <div
                       className="rounded-3xl border border-border/60 bg-card/60 p-6 animate-slide-up opacity-0"
-                      style={{ animationDelay: "320ms" }}
+                      style={dashboardAnimationDelay(
+                        dashboardMotionDelays.sectionLeadMs + dashboardMotionDelays.sectionStepMs * 2,
+                      )}
                     >
                       <div className="flex items-center justify-between gap-3">
                         <div>
@@ -1112,7 +1122,9 @@ const Dashboard = () => {
                   {selectedWidgetSet.has("comments_queue") ? (
                     <div
                       className="rounded-3xl border border-border/60 bg-card/60 p-6 animate-slide-up opacity-0"
-                      style={{ animationDelay: "360ms" }}
+                      style={dashboardAnimationDelay(
+                        dashboardMotionDelays.sectionLeadMs + dashboardMotionDelays.sectionStepMs * 3,
+                      )}
                     >
                       <div className="flex items-center justify-between">
                         <div>
@@ -1153,7 +1165,9 @@ const Dashboard = () => {
                   {selectedWidgetSet.has("projects_quick") ? (
                     <div
                       className="rounded-3xl border border-border/60 bg-card/60 p-6 overflow-hidden animate-slide-up opacity-0"
-                      style={{ animationDelay: "440ms" }}
+                      style={dashboardAnimationDelay(
+                        dashboardMotionDelays.sectionLeadMs + dashboardMotionDelays.sectionStepMs * 4,
+                      )}
                     >
                       <h2 className="text-lg font-semibold">Projetos cadastrados</h2>
                       <p className="text-sm text-muted-foreground">Acesso rápido ao catálogo.</p>

@@ -10,9 +10,14 @@ import {
 } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import DashboardAutosaveStatus from "@/components/DashboardAutosaveStatus";
+import DashboardPageBadge from "@/components/dashboard/DashboardPageBadge";
 import DashboardShell from "@/components/DashboardShell";
 import { ImageLibraryDialogLoadingFallback } from "@/components/ImageLibraryDialogLoading";
 import ReorderControls from "@/components/ReorderControls";
+import {
+  dashboardAnimationDelay,
+  dashboardMotionDelays,
+} from "@/components/dashboard/dashboard-motion";
 import AsyncState from "@/components/ui/async-state";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -1331,24 +1336,22 @@ const DashboardSettings = () => {
         <section className="mx-auto w-full max-w-6xl px-6 pb-20 md:px-10">
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div>
-              <span className="inline-flex reveal reveal-delay-1" data-reveal>
-                <div className="inline-flex items-center gap-3 rounded-full border border-border/60 bg-card/60 px-4 py-2 text-xs uppercase tracking-[0.3em] text-muted-foreground">
+              <DashboardPageBadge>
                 Configurações
-                </div>
-              </span>
+              </DashboardPageBadge>
               <h1 className="mt-4 text-3xl font-semibold text-foreground animate-slide-up">
                 Painel de ajustes
               </h1>
               <p
                 className="mt-2 text-sm text-muted-foreground animate-slide-up opacity-0"
-                style={{ animationDelay: "0.2s" }}
+                style={dashboardAnimationDelay(dashboardMotionDelays.headerDescriptionMs)}
               >
                 Atualize identidade, traduções e links globais do site.
               </p>
             </div>
             <div
               className="animate-slide-up opacity-0"
-              style={{ animationDelay: "160ms" }}
+              style={dashboardAnimationDelay(dashboardMotionDelays.headerActionsMs)}
               data-testid="dashboard-settings-autosave-reveal"
             >
               <DashboardAutosaveStatus
@@ -1372,7 +1375,7 @@ const DashboardSettings = () => {
             value={activeTab}
             onValueChange={(value) => setActiveTab(value as SettingsTabKey)}
             className="mt-8 animate-slide-up opacity-0"
-            style={{ animationDelay: "0.2s" }}
+            style={dashboardAnimationDelay(dashboardMotionDelays.sectionLeadMs)}
           >
             <TabsList
               className={`no-scrollbar flex w-full flex-nowrap justify-start overflow-x-auto overscroll-x-contain md:grid ${settingsTabsGridClass} md:overflow-visible`}

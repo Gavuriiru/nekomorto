@@ -11,6 +11,11 @@ import {
 import DashboardShell from "@/components/DashboardShell";
 import DashboardPageContainer from "@/components/dashboard/DashboardPageContainer";
 import DashboardPageHeader from "@/components/dashboard/DashboardPageHeader";
+import {
+  dashboardAnimationDelay,
+  dashboardClampedStaggerMs,
+  dashboardMotionDelays,
+} from "@/components/dashboard/dashboard-motion";
 import AsyncState from "@/components/ui/async-state";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -31,8 +36,8 @@ type SaveSectionKey = "types" | "posts" | "projects";
 
 const SECTION_REVEAL_DELAYS: Record<SaveSectionKey, number> = {
   types: 0,
-  posts: 60,
-  projects: 120,
+  posts: dashboardMotionDelays.sectionStepMs,
+  projects: dashboardMotionDelays.sectionStepMs * 2,
 };
 
 type TemplateField = { name: string; value: string; inline: boolean };
@@ -748,7 +753,7 @@ const DashboardWebhooks = () => {
           <AccordionItem
             value="types"
             className="rounded-xl border border-border/60 bg-card/80 px-4 animate-slide-up opacity-0"
-            style={{ animationDelay: `${SECTION_REVEAL_DELAYS.types}ms` }}
+            style={dashboardAnimationDelay(SECTION_REVEAL_DELAYS.types)}
             data-testid="dashboard-webhooks-section-types"
           >
             <div className="relative">
@@ -771,7 +776,9 @@ const DashboardWebhooks = () => {
             <AccordionContent className="space-y-4">
               <div
                 className="space-y-4 animate-slide-up opacity-0"
-                style={{ animationDelay: `${SECTION_REVEAL_DELAYS.types + 40}ms` }}
+                style={dashboardAnimationDelay(
+                  SECTION_REVEAL_DELAYS.types + dashboardMotionDelays.sectionStepMs,
+                )}
                 data-testid="dashboard-webhooks-section-content-types"
               >
                 <div className="space-y-2">
@@ -827,7 +834,7 @@ const DashboardWebhooks = () => {
                 key={channelKey}
                 value={channelKey}
                 className="rounded-xl border border-border/60 bg-card/80 px-4 animate-slide-up opacity-0"
-                style={{ animationDelay: `${SECTION_REVEAL_DELAYS[sectionKey]}ms` }}
+                style={dashboardAnimationDelay(SECTION_REVEAL_DELAYS[sectionKey])}
                 data-testid={`dashboard-webhooks-section-${sectionKey}`}
               >
                 <div className="relative">
@@ -850,7 +857,9 @@ const DashboardWebhooks = () => {
                 <AccordionContent className="space-y-4">
                   <div
                     className="space-y-4 animate-slide-up opacity-0"
-                    style={{ animationDelay: `${SECTION_REVEAL_DELAYS[sectionKey] + 40}ms` }}
+                    style={dashboardAnimationDelay(
+                      SECTION_REVEAL_DELAYS[sectionKey] + dashboardMotionDelays.sectionStepMs,
+                    )}
                     data-testid={`dashboard-webhooks-section-content-${sectionKey}`}
                   >
                   <div className="grid gap-3 md:grid-cols-3">
@@ -924,7 +933,7 @@ const DashboardWebhooks = () => {
                           key={eventKey}
                           value={`${channelKey}-${eventKey}`}
                           className="rounded-xl border border-border/60 bg-background/40 px-3 animate-slide-up opacity-0"
-                          style={{ animationDelay: `${eventIndex * 40}ms` }}
+                          style={dashboardAnimationDelay(dashboardClampedStaggerMs(eventIndex))}
                           data-testid={`dashboard-webhooks-event-${channelKey}-${eventKey}`}
                         >
                           <AccordionTrigger className="hover:no-underline">
@@ -937,7 +946,12 @@ const DashboardWebhooks = () => {
                           <AccordionContent className="space-y-4">
                             <div
                               className="space-y-4 animate-slide-up opacity-0"
-                              style={{ animationDelay: `${eventIndex * 40 + 40}ms` }}
+                              style={dashboardAnimationDelay(
+                                dashboardClampedStaggerMs(
+                                  eventIndex,
+                                  dashboardMotionDelays.sectionStepMs,
+                                ),
+                              )}
                               data-testid={`dashboard-webhooks-event-content-${channelKey}-${eventKey}`}
                             >
                             <div className="flex flex-wrap items-center gap-2">

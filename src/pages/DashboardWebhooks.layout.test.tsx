@@ -3,6 +3,7 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { dashboardMotionDelays } from "@/components/dashboard/dashboard-motion";
 import DashboardWebhooks from "@/pages/DashboardWebhooks";
 
 const apiFetchMock = vi.hoisted(() => vi.fn());
@@ -276,6 +277,14 @@ describe("DashboardWebhooks layout", () => {
     expect(classTokens(typesContent)).toContain("animate-slide-up");
     expect(classTokens(postsContent)).toContain("animate-slide-up");
     expect(classTokens(eventItem)).toContain("animate-slide-up");
+    expect(typesSection).toHaveStyle({ animationDelay: "0ms" });
+    expect(postsSection).toHaveStyle({
+      animationDelay: `${dashboardMotionDelays.sectionStepMs}ms`,
+    });
+    expect(typesContent).toHaveStyle({
+      animationDelay: `${dashboardMotionDelays.sectionStepMs}ms`,
+    });
+    expect(eventItem).toHaveStyle({ animationDelay: "0ms" });
 
     fireEvent.click(screen.getByRole("button", { name: /Novo post/i }));
 

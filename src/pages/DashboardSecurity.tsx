@@ -1,6 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import DashboardShell from "@/components/DashboardShell";
+import DashboardPageBadge from "@/components/dashboard/DashboardPageBadge";
+import {
+  dashboardAnimationDelay,
+  dashboardClampedStaggerMs,
+  dashboardMotionDelays,
+} from "@/components/dashboard/dashboard-motion";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -205,16 +211,13 @@ const DashboardSecurity = () => {
       <main className="pt-24">
         <section className="mx-auto w-full max-w-6xl space-y-6 px-6 pb-20 md:px-10 reveal" data-reveal>
           <header className="space-y-2">
-            <div
-              className="inline-flex items-center gap-3 rounded-full border border-border/60 bg-card/60 px-4 py-2 text-xs uppercase tracking-[0.3em] text-muted-foreground animate-fade-in"
-              data-testid="dashboard-security-header-badge"
-            >
+            <DashboardPageBadge data-testid="dashboard-security-header-badge">
               Segurança
-            </div>
+            </DashboardPageBadge>
             <h1 className="mt-4 text-3xl font-semibold animate-slide-up">Sessões Ativas</h1>
             <p
               className="mt-2 text-sm text-muted-foreground animate-slide-up opacity-0"
-              style={{ animationDelay: "0.2s" }}
+              style={dashboardAnimationDelay(dashboardMotionDelays.headerDescriptionMs)}
             >
               Painel somente leitura com sessões ativas e usuário responsável por cada sessão.
             </p>
@@ -222,14 +225,16 @@ const DashboardSecurity = () => {
 
           <section
             className="space-y-4 rounded-3xl border border-border/60 bg-card/60 p-6 animate-slide-up opacity-0"
-            style={{ animationDelay: "160ms" }}
+            style={dashboardAnimationDelay(dashboardMotionDelays.sectionLeadMs)}
             data-testid="dashboard-security-sessions-card"
           >
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div
-                className="flex flex-wrap items-center gap-2 animate-slide-up opacity-0"
-                style={{ animationDelay: "220ms" }}
-              >
+            <div
+              className="flex flex-wrap items-center justify-between gap-3 animate-slide-up opacity-0"
+              style={dashboardAnimationDelay(
+                dashboardMotionDelays.sectionLeadMs + dashboardMotionDelays.sectionStepMs,
+              )}
+            >
+              <div className="flex flex-wrap items-center gap-2">
                 {isLoading ? (
                   <>
                     <Skeleton className="h-6 w-24 rounded-full" />
@@ -237,19 +242,16 @@ const DashboardSecurity = () => {
                   </>
                 ) : (
                   <>
-                    <Badge className="bg-card/80 text-muted-foreground animate-fade-in">
+                    <Badge className="bg-card/80 text-muted-foreground">
                       Total ativo: {total}
                     </Badge>
-                    <Badge className="bg-card/80 text-muted-foreground animate-fade-in">
+                    <Badge className="bg-card/80 text-muted-foreground">
                       Página {page} de {pageCount}
                     </Badge>
                   </>
                 )}
               </div>
-              <div
-                className="flex items-center gap-2 animate-slide-up opacity-0"
-                style={{ animationDelay: "260ms" }}
-              >
+              <div className="flex items-center gap-2">
                 <Button
                   size="sm"
                   variant="outline"
@@ -284,7 +286,9 @@ const DashboardSecurity = () => {
             {isLoading ? (
               <div
                 className="space-y-3 animate-slide-up opacity-0"
-                style={{ animationDelay: "300ms" }}
+                style={dashboardAnimationDelay(
+                  dashboardMotionDelays.sectionLeadMs + dashboardMotionDelays.sectionStepMs * 2,
+                )}
                 data-testid="dashboard-security-loading"
                 role="status"
                 aria-live="polite"
@@ -321,14 +325,18 @@ const DashboardSecurity = () => {
             ) : hasLoadError ? (
                 <p
                   className="text-sm text-amber-300 animate-slide-up opacity-0"
-                  style={{ animationDelay: "300ms" }}
+                  style={dashboardAnimationDelay(
+                    dashboardMotionDelays.sectionLeadMs + dashboardMotionDelays.sectionStepMs * 2,
+                  )}
                 >
                   Não foi possível carregar a lista de sessões ativas.
                 </p>
               ) : sessions.length === 0 ? (
                 <p
                   className="text-sm text-muted-foreground animate-slide-up opacity-0"
-                  style={{ animationDelay: "300ms" }}
+                  style={dashboardAnimationDelay(
+                    dashboardMotionDelays.sectionLeadMs + dashboardMotionDelays.sectionStepMs * 2,
+                  )}
                 >
                   Nenhuma sessão ativa encontrada.
                 </p>
@@ -338,7 +346,9 @@ const DashboardSecurity = () => {
                   <article
                     key={session.sid}
                     className="space-y-3 rounded-2xl border border-border/60 bg-background/60 p-4 animate-slide-up opacity-0"
-                    style={{ animationDelay: `${300 + index * 50}ms` }}
+                    style={dashboardAnimationDelay(
+                      dashboardClampedStaggerMs(index, dashboardMotionDelays.sectionLeadMs + 120),
+                    )}
                   >
                     <div className="flex flex-wrap items-start justify-between gap-3">
                       <div className="flex items-center gap-3">

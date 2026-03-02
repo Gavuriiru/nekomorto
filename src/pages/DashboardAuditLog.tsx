@@ -1,6 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import DashboardShell from "@/components/DashboardShell";
+import DashboardPageBadge from "@/components/dashboard/DashboardPageBadge";
+import {
+  dashboardAnimationDelay,
+  dashboardMotionDelays,
+} from "@/components/dashboard/dashboard-motion";
 import AsyncState from "@/components/ui/async-state";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -534,24 +539,22 @@ const DashboardAuditLog = () => {
           <section className="mx-auto w-full max-w-7xl px-6 pb-20 md:px-10 reveal" data-reveal>
             <header className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
               <div>
-                <div className="inline-flex items-center gap-3 rounded-full border border-border/60 bg-card/60 px-4 py-2 text-xs uppercase tracking-[0.3em] text-muted-foreground animate-fade-in">
-                  Auditoria
-                </div>
+                <DashboardPageBadge>Auditoria</DashboardPageBadge>
                 <h1 className="mt-4 text-3xl font-semibold lg:text-4xl animate-slide-up">
                   Registro de Auditoria
                 </h1>
                 <p
                   className="mt-2 text-sm text-muted-foreground animate-slide-up opacity-0"
-                  style={{ animationDelay: "0.2s" }}
+                  style={dashboardAnimationDelay(dashboardMotionDelays.headerDescriptionMs)}
                 >
                   Eventos mutáveis e de segurança dos últimos 30 dias.
                 </p>
               </div>
               <div
                 className="flex items-center gap-3 animate-slide-up opacity-0"
-                style={{ animationDelay: "0.24s" }}
+                style={dashboardAnimationDelay(dashboardMotionDelays.headerActionsMs)}
               >
-                <Badge className="bg-card/80 text-muted-foreground animate-fade-in">
+                <Badge className="bg-card/80 text-muted-foreground">
                   {formattedTotal} eventos
                 </Badge>
                 <Button
@@ -569,7 +572,7 @@ const DashboardAuditLog = () => {
 
             <div
               className="mt-8 rounded-2xl border border-border/60 bg-card/60 p-4 md:p-5 animate-slide-up opacity-0"
-              style={{ animationDelay: "0.28s" }}
+              style={dashboardAnimationDelay(dashboardMotionDelays.sectionLeadMs)}
             >
               <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
                 <div className="grid gap-2">
@@ -695,7 +698,9 @@ const DashboardAuditLog = () => {
 
             <div
               className="mt-6 rounded-2xl border border-border/60 bg-card/60 p-2 md:p-4 animate-slide-up opacity-0"
-              style={{ animationDelay: "0.32s" }}
+              style={dashboardAnimationDelay(
+                dashboardMotionDelays.sectionLeadMs + dashboardMotionDelays.sectionStepMs,
+              )}
             >
               {forbidden ? (
                 <AsyncState
@@ -792,7 +797,9 @@ const DashboardAuditLog = () => {
             {!forbidden && !error && !isLoading ? (
               <div
                 className="mt-4 flex items-center justify-between gap-3 animate-slide-up opacity-0"
-                style={{ animationDelay: "0.36s" }}
+                style={dashboardAnimationDelay(
+                  dashboardMotionDelays.sectionLeadMs + dashboardMotionDelays.sectionStepMs * 2,
+                )}
               >
                 <p className="text-sm text-muted-foreground">
                   Página {page} de {totalPages}

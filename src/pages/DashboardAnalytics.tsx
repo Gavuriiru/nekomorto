@@ -3,7 +3,12 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { CartesianGrid, Line, LineChart, XAxis, YAxis } from "recharts";
 
 import DashboardPageContainer from "@/components/dashboard/DashboardPageContainer";
+import DashboardPageBadge from "@/components/dashboard/DashboardPageBadge";
 import DashboardShell from "@/components/DashboardShell";
+import {
+  dashboardAnimationDelay,
+  dashboardMotionDelays,
+} from "@/components/dashboard/dashboard-motion";
 import AsyncState from "@/components/ui/async-state";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -331,22 +336,20 @@ const DashboardAnalytics = () => {
       <DashboardPageContainer>
         <header className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
-            <div className="inline-flex animate-fade-in items-center gap-3 rounded-full border border-border/60 bg-card/60 px-4 py-2 text-xs uppercase tracking-[0.3em] text-muted-foreground">
-              {uiCopy.navigation.analytics}
-            </div>
+            <DashboardPageBadge>{uiCopy.navigation.analytics}</DashboardPageBadge>
             <h1 className="mt-3 animate-slide-up text-3xl font-semibold lg:text-4xl">
               Performance e aquisição
             </h1>
             <p
               className="mt-2 animate-slide-up text-sm text-muted-foreground opacity-0"
-              style={{ animationDelay: "0.2s" }}
+              style={dashboardAnimationDelay(dashboardMotionDelays.headerDescriptionMs)}
             >
               Foco em consumo de conteúdo, retenção e tendências de audiência.
             </p>
           </div>
           <div
             className="flex flex-col gap-3 animate-slide-up opacity-0 lg:flex-row lg:items-center"
-            style={{ animationDelay: "0.24s" }}
+            style={dashboardAnimationDelay(dashboardMotionDelays.headerActionsMs)}
           >
             <div className="flex flex-wrap items-center gap-3 lg:flex-nowrap">
               <Select value={range} onValueChange={(value) => setRangeFilter(value as RangeValue)}>
@@ -414,7 +417,7 @@ const DashboardAnalytics = () => {
         ) : (
           <>
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-              <Card className="animate-slide-up opacity-0" style={{ animationDelay: "40ms" }}>
+              <Card className="animate-slide-up opacity-0" style={dashboardAnimationDelay(0)}>
                 <CardHeader className="pb-2">
                   <CardTitle className="text-sm text-muted-foreground">Views</CardTitle>
                 </CardHeader>
@@ -422,7 +425,10 @@ const DashboardAnalytics = () => {
                   {formatInt(metrics.views || 0)}
                 </CardContent>
               </Card>
-              <Card className="animate-slide-up opacity-0" style={{ animationDelay: "80ms" }}>
+              <Card
+                className="animate-slide-up opacity-0"
+                style={dashboardAnimationDelay(dashboardMotionDelays.sectionStepMs)}
+              >
                 <CardHeader className="pb-2">
                   <CardTitle className="text-sm text-muted-foreground">Views únicas</CardTitle>
                 </CardHeader>
@@ -430,7 +436,10 @@ const DashboardAnalytics = () => {
                   {formatInt(metrics.uniqueViews || 0)}
                 </CardContent>
               </Card>
-              <Card className="animate-slide-up opacity-0" style={{ animationDelay: "120ms" }}>
+              <Card
+                className="animate-slide-up opacity-0"
+                style={dashboardAnimationDelay(dashboardMotionDelays.sectionStepMs * 2)}
+              >
                 <CardHeader className="pb-2">
                   <CardTitle className="text-sm text-muted-foreground">
                     Leituras de capítulos
@@ -440,7 +449,10 @@ const DashboardAnalytics = () => {
                   {formatInt(metrics.chapterViews || 0)}
                 </CardContent>
               </Card>
-              <Card className="animate-slide-up opacity-0" style={{ animationDelay: "160ms" }}>
+              <Card
+                className="animate-slide-up opacity-0"
+                style={dashboardAnimationDelay(dashboardMotionDelays.sectionStepMs * 3)}
+              >
                 <CardHeader className="pb-2">
                   <CardTitle className="text-sm text-muted-foreground">
                     Cliques em downloads
@@ -452,7 +464,10 @@ const DashboardAnalytics = () => {
               </Card>
             </div>
 
-            <Card className="animate-slide-up opacity-0" style={{ animationDelay: "190ms" }}>
+            <Card
+              className="animate-slide-up opacity-0"
+              style={dashboardAnimationDelay(dashboardMotionDelays.headerActionsMs)}
+            >
               <CardHeader>
                 <CardTitle>Comunidade e moderação</CardTitle>
               </CardHeader>
@@ -483,7 +498,7 @@ const DashboardAnalytics = () => {
             <div className="grid min-w-0 gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
               <Card
                 className="min-w-0 animate-slide-up opacity-0"
-                style={{ animationDelay: "220ms" }}
+                style={dashboardAnimationDelay(dashboardMotionDelays.sectionLeadMs)}
               >
                 <CardHeader>
                   <CardTitle>Série temporal ({formatMetricLabel(metric)})</CardTitle>
@@ -533,7 +548,9 @@ const DashboardAnalytics = () => {
 
               <Card
                 className="min-w-0 animate-slide-up opacity-0"
-                style={{ animationDelay: "260ms" }}
+                style={dashboardAnimationDelay(
+                  dashboardMotionDelays.sectionLeadMs + dashboardMotionDelays.sectionStepMs,
+                )}
               >
                 <CardHeader>
                   <CardTitle>Aquisição (origens)</CardTitle>
@@ -564,7 +581,12 @@ const DashboardAnalytics = () => {
               </Card>
             </div>
 
-            <Card className="animate-slide-up opacity-0" style={{ animationDelay: "300ms" }}>
+            <Card
+              className="animate-slide-up opacity-0"
+              style={dashboardAnimationDelay(
+                dashboardMotionDelays.sectionLeadMs + dashboardMotionDelays.sectionStepMs * 2,
+              )}
+            >
               <CardHeader>
                 <CardTitle>Top conteúdos</CardTitle>
               </CardHeader>

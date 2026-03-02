@@ -2,6 +2,12 @@
 import { useNavigate, useSearchParams } from "react-router-dom";
 import QRCode from "qrcode";
 import DashboardShell from "@/components/DashboardShell";
+import DashboardPageBadge from "@/components/dashboard/DashboardPageBadge";
+import {
+  dashboardAnimationDelay,
+  dashboardClampedStaggerMs,
+  dashboardMotionDelays,
+} from "@/components/dashboard/dashboard-motion";
 import { ImageLibraryDialogLoadingFallback } from "@/components/ImageLibraryDialogLoading";
 import ReorderControls from "@/components/ReorderControls";
 import AsyncState from "@/components/ui/async-state";
@@ -1238,15 +1244,13 @@ const DashboardUsers = () => {
           <section className="mx-auto w-full max-w-6xl px-6 pb-20 md:px-10 reveal" data-reveal>
             <header className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
               <div>
-                <div className="inline-flex items-center gap-3 rounded-full border border-border/60 bg-card/60 px-4 py-2 text-xs uppercase tracking-[0.3em] text-muted-foreground animate-fade-in">
-                  Usuários
-                </div>
+                <DashboardPageBadge>Usuários</DashboardPageBadge>
                 <h1 className="mt-4 text-3xl font-semibold lg:text-4xl animate-slide-up">
                   Gestão de Usuários
                 </h1>
                 <p
                   className="mt-2 text-sm text-muted-foreground animate-slide-up opacity-0"
-                  style={{ animationDelay: "0.2s" }}
+                  style={dashboardAnimationDelay(dashboardMotionDelays.headerDescriptionMs)}
                 >
                   Reordene arrastando ou pelos botões para refletir a ordem na página pública.
                 </p>
@@ -1254,7 +1258,7 @@ const DashboardUsers = () => {
               {canManageUsers && (
                 <Button
                   className="bg-primary text-primary-foreground hover:bg-primary/90 animate-slide-up opacity-0"
-                  style={{ animationDelay: "160ms" }}
+                  style={dashboardAnimationDelay(dashboardMotionDelays.headerActionsMs)}
                   onClick={openNewDialog}
                 >
                   Adicionar usuário
@@ -1276,7 +1280,7 @@ const DashboardUsers = () => {
                   <span
                     key={`active-count-${activeUsers.length}`}
                     className="inline-flex min-h-6 min-w-[2.5rem] items-center justify-center animate-slide-up opacity-0"
-                    style={{ animationDelay: "80ms" }}
+                    style={dashboardAnimationDelay(dashboardMotionDelays.sectionMetaMs)}
                   >
                     <Badge
                       className="min-w-[2.5rem] justify-center bg-card/80 text-muted-foreground"
@@ -1331,7 +1335,7 @@ const DashboardUsers = () => {
                             ? "md:col-span-2 md:mx-auto md:w-[calc(50%-0.5rem)]"
                             : ""
                         }`}
-                        style={{ animationDelay: `${index * 60}ms` }}
+                        style={dashboardAnimationDelay(dashboardClampedStaggerMs(index))}
                         draggable={canManageUsers}
                         onDragStart={() => {
                           setDragUsersSnapshot((prev) =>
@@ -1428,7 +1432,7 @@ const DashboardUsers = () => {
                     <span
                       key={`retired-count-${retiredUsers.length}`}
                       className="inline-flex min-h-6 min-w-[2.5rem] items-center justify-center animate-slide-up opacity-0"
-                      style={{ animationDelay: "120ms" }}
+                      style={dashboardAnimationDelay(dashboardMotionDelays.sectionMetaMs)}
                     >
                       <Badge
                         className="min-w-[2.5rem] justify-center bg-card/80 text-muted-foreground"
@@ -1451,7 +1455,7 @@ const DashboardUsers = () => {
                               ? "md:col-span-2 md:mx-auto md:w-[calc(50%-0.5rem)]"
                               : ""
                           }`}
-                          style={{ animationDelay: `${index * 60}ms` }}
+                          style={dashboardAnimationDelay(dashboardClampedStaggerMs(index))}
                           draggable={canManageUsers}
                           onDragStart={() => {
                             setDragUsersSnapshot((prev) =>

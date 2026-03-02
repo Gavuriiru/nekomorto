@@ -3,6 +3,7 @@ import { fireEvent, render, screen, waitFor, within } from "@testing-library/rea
 import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { dashboardMotionDelays } from "@/components/dashboard/dashboard-motion";
 import DashboardUsers from "@/pages/DashboardUsers";
 
 const apiFetchMock = vi.hoisted(() => vi.fn());
@@ -124,6 +125,9 @@ describe("DashboardUsers load error", () => {
     expect(countReveal).not.toBeNull();
     expect(classTokens(countReveal as HTMLElement)).toContain("animate-slide-up");
     expect(classTokens(countReveal as HTMLElement)).toContain("opacity-0");
+    expect(countReveal).toHaveStyle({
+      animationDelay: `${dashboardMotionDelays.sectionMetaMs}ms`,
+    });
     expect(usersRequestCount).toBeGreaterThanOrEqual(2);
   });
 });

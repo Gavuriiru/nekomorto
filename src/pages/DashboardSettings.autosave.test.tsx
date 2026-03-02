@@ -2,6 +2,8 @@
 import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+
+import { dashboardMotionDelays } from "@/components/dashboard/dashboard-motion";
 import DashboardSettings from "@/pages/DashboardSettings";
 import { defaultSettings } from "@/hooks/site-settings-context";
 
@@ -341,16 +343,14 @@ describe("DashboardSettings autosave", () => {
     const autosaveReveal = screen.getByTestId("dashboard-settings-autosave-reveal");
     const tokens = classTokens(autosaveReveal);
     const rootSection = heading.closest("section");
-    const headerBadge = screen.getByText(
-      (_content, element) =>
-        element?.tagName.toLowerCase() === "div" &&
-        element.textContent?.trim() === "Configura\u00e7\u00f5es",
-    );
+    const headerBadge = screen.getByText("Configura\u00e7\u00f5es");
     const headerBadgeReveal = headerBadge.parentElement;
 
     expect(tokens).toContain("animate-slide-up");
     expect(tokens).toContain("opacity-0");
-    expect(autosaveReveal).toHaveStyle({ animationDelay: "160ms" });
+    expect(autosaveReveal).toHaveStyle({
+      animationDelay: `${dashboardMotionDelays.headerActionsMs}ms`,
+    });
     expect(rootSection).not.toBeNull();
     expect(classTokens(rootSection as HTMLElement)).not.toContain("reveal");
     expect(rootSection).not.toHaveAttribute("data-reveal");

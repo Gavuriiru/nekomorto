@@ -4,6 +4,11 @@ import DashboardShell from "@/components/DashboardShell";
 import DashboardPageContainer from "@/components/dashboard/DashboardPageContainer";
 import DashboardPageHeader from "@/components/dashboard/DashboardPageHeader";
 import {
+  dashboardAnimationDelay,
+  dashboardClampedStaggerMs,
+  dashboardMotionDelays,
+} from "@/components/dashboard/dashboard-motion";
+import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -474,8 +479,7 @@ const DashboardUploads = () => {
           {!isForbidden ? (
             isLoading ? (
               <div
-                className="grid gap-4 md:grid-cols-3 animate-slide-up opacity-0"
-                style={{ animationDelay: "40ms" }}
+                className="grid gap-4 md:grid-cols-3"
                 data-testid="dashboard-uploads-summary-loading"
                 role="status"
                 aria-live="polite"
@@ -485,7 +489,7 @@ const DashboardUploads = () => {
                   <article
                     key={`dashboard-uploads-summary-loading-${index}`}
                     className="rounded-2xl border border-border/60 bg-card/60 p-5 animate-slide-up opacity-0"
-                    style={{ animationDelay: `${(index + 1) * 40}ms` }}
+                    style={dashboardAnimationDelay(dashboardClampedStaggerMs(index))}
                   >
                     <Skeleton className="h-3 w-16" />
                     <Skeleton className="mt-3 h-8 w-28" />
@@ -496,15 +500,14 @@ const DashboardUploads = () => {
               </div>
             ) : (
               <div
-                className="grid gap-4 md:grid-cols-3 animate-slide-up opacity-0"
-                style={{ animationDelay: "40ms" }}
+                className="grid gap-4 md:grid-cols-3"
                 data-testid="dashboard-uploads-summary-grid"
               >
                 {cards.map((card, index) => (
                   <article
                     key={card.label}
                     className="rounded-2xl border border-border/60 bg-card/60 p-5 animate-slide-up opacity-0"
-                    style={{ animationDelay: `${(index + 1) * 40}ms` }}
+                    style={dashboardAnimationDelay(dashboardClampedStaggerMs(index))}
                   >
                     <p className="text-xs uppercase tracking-[0.22em] text-muted-foreground">{card.label}</p>
                     <p className="mt-3 text-2xl font-semibold text-foreground">{card.value}</p>
@@ -518,7 +521,7 @@ const DashboardUploads = () => {
           {!isForbidden ? (
             <article
               className="overflow-hidden rounded-2xl border border-border/60 bg-card/60 animate-slide-up opacity-0"
-              style={{ animationDelay: "160ms" }}
+              style={dashboardAnimationDelay(dashboardMotionDelays.headerActionsMs)}
               data-testid="dashboard-uploads-storage-card"
             >
               <div className="border-b border-border/60 px-5 py-4">
@@ -527,7 +530,7 @@ const DashboardUploads = () => {
               {isLoading ? (
                 <div
                   className="space-y-3 px-5 py-4 animate-slide-up opacity-0"
-                  style={{ animationDelay: "200ms" }}
+                  style={dashboardAnimationDelay(dashboardMotionDelays.sectionLeadMs)}
                   data-testid="dashboard-uploads-storage-loading"
                   role="status"
                   aria-live="polite"
@@ -548,14 +551,14 @@ const DashboardUploads = () => {
               ) : hasError ? (
                 <p
                   className="px-5 py-4 text-sm text-amber-300 animate-slide-up opacity-0"
-                  style={{ animationDelay: "200ms" }}
+                  style={dashboardAnimationDelay(dashboardMotionDelays.sectionLeadMs)}
                 >
                   Não foi possível carregar os dados de storage.
                 </p>
               ) : summary.areas.length === 0 ? (
                 <p
                   className="px-5 py-4 text-sm text-muted-foreground animate-slide-up opacity-0"
-                  style={{ animationDelay: "200ms" }}
+                  style={dashboardAnimationDelay(dashboardMotionDelays.sectionLeadMs)}
                 >
                   Nenhuma área encontrada no inventário.
                 </p>
@@ -576,7 +579,13 @@ const DashboardUploads = () => {
                         <tr
                           key={area.area}
                           className="border-t border-border/50 animate-slide-up opacity-0"
-                          style={{ animationDelay: `${200 + index * 30}ms` }}
+                          style={dashboardAnimationDelay(
+                            dashboardClampedStaggerMs(
+                              index,
+                              dashboardMotionDelays.sectionLeadMs +
+                                dashboardMotionDelays.sectionStepMs,
+                            ),
+                          )}
                         >
                           <td className="px-4 py-3 font-medium text-foreground">{area.area}</td>
                           <td className="px-4 py-3 text-right text-muted-foreground">
@@ -601,7 +610,7 @@ const DashboardUploads = () => {
           {!isForbidden ? (
             <article
               className="overflow-hidden rounded-2xl border border-border/60 bg-card/60 animate-slide-up opacity-0"
-              style={{ animationDelay: "220ms" }}
+              style={dashboardAnimationDelay(dashboardMotionDelays.sectionLeadMs)}
               data-testid="dashboard-uploads-cleanup-card"
             >
               <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/60 px-5 py-4">
@@ -628,7 +637,9 @@ const DashboardUploads = () => {
               {isCleanupLoading ? (
                 <div
                   className="space-y-4 px-5 py-4 animate-slide-up opacity-0"
-                  style={{ animationDelay: "260ms" }}
+                  style={dashboardAnimationDelay(
+                    dashboardMotionDelays.sectionLeadMs + dashboardMotionDelays.sectionStepMs,
+                  )}
                   data-testid="dashboard-uploads-cleanup-loading"
                   role="status"
                   aria-live="polite"
@@ -662,14 +673,18 @@ const DashboardUploads = () => {
               ) : hasCleanupError ? (
                 <p
                   className="px-5 py-4 text-sm text-amber-300 animate-slide-up opacity-0"
-                  style={{ animationDelay: "260ms" }}
+                  style={dashboardAnimationDelay(
+                    dashboardMotionDelays.sectionLeadMs + dashboardMotionDelays.sectionStepMs,
+                  )}
                 >
                   Não foi possível analisar o armazenamento não utilizado.
                 </p>
               ) : !hasCleanupCandidates ? (
                 <p
                   className="px-5 py-4 text-sm text-muted-foreground animate-slide-up opacity-0"
-                  style={{ animationDelay: "260ms" }}
+                  style={dashboardAnimationDelay(
+                    dashboardMotionDelays.sectionLeadMs + dashboardMotionDelays.sectionStepMs,
+                  )}
                 >
                   Nenhum arquivo elegível para limpeza.
                 </p>
@@ -677,7 +692,9 @@ const DashboardUploads = () => {
                 <div className="space-y-4 px-5 py-4">
                   <div
                     className="flex flex-wrap items-center justify-between gap-3 animate-slide-up opacity-0"
-                    style={{ animationDelay: "260ms" }}
+                    style={dashboardAnimationDelay(
+                      dashboardMotionDelays.sectionLeadMs + dashboardMotionDelays.sectionStepMs,
+                    )}
                   >
                     <div className="space-y-1">
                       <p className="text-sm font-medium text-foreground">
@@ -724,7 +741,13 @@ const DashboardUploads = () => {
                             <tr
                               key={`${item.kind}:${item.id || item.url}`}
                               className="border-t border-border/50 animate-slide-up opacity-0"
-                              style={{ animationDelay: `${300 + index * 30}ms` }}
+                              style={dashboardAnimationDelay(
+                                dashboardClampedStaggerMs(
+                                  index,
+                                  dashboardMotionDelays.sectionLeadMs +
+                                    dashboardMotionDelays.sectionStepMs * 2,
+                                ),
+                              )}
                             >
                               <td className="px-4 py-3 text-muted-foreground">
                                 {item.kind === "variant" ? "Variante órfã" : "Upload"}
