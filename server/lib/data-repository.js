@@ -21,6 +21,53 @@ const toDateOrNull = (value) => {
   return Number.isFinite(parsed.getTime()) ? parsed : null;
 };
 
+const DEFAULT_AUDIT_RETENTION_MS = 30 * 24 * 60 * 60 * 1000;
+const DEFAULT_AUDIT_MAX_ENTRIES = 20_000;
+
+const toAuditTimestamp = (value) => {
+  const parsed = toDateOrNull(value);
+  return parsed ? parsed.getTime() : null;
+};
+
+const compactAuditLogEntries = (
+  entries,
+  {
+    nowTs = Date.now(),
+    retentionMs = DEFAULT_AUDIT_RETENTION_MS,
+    maxEntries = DEFAULT_AUDIT_MAX_ENTRIES,
+  } = {},
+) => {
+  const safeRetentionMs = Math.max(0, Number(retentionMs) || 0);
+  const safeMaxEntries = Math.max(0, Math.floor(Number(maxEntries) || 0));
+  const cutoff = nowTs - safeRetentionMs;
+  const filtered = ensureArray(entries)
+    .filter((entry) => toAuditTimestamp(entry?.ts) !== null)
+    .filter((entry) => Number(toAuditTimestamp(entry?.ts)) >= cutoff)
+    .sort((left, right) => Number(toAuditTimestamp(left?.ts)) - Number(toAuditTimestamp(right?.ts)));
+  if (safeMaxEntries === 0) {
+    return [];
+  }
+  if (filtered.length <= safeMaxEntries) {
+    return filtered;
+  }
+  return filtered.slice(filtered.length - safeMaxEntries);
+};
+
+const toAuditLogRow = (entry, position) => ({
+  id: String(entry?.id || crypto.randomUUID()),
+  position,
+  ts: toDateOrNull(entry?.ts) || new Date(),
+  actorId: String(entry?.actorId || "anonymous"),
+  actorName: String(entry?.actorName || "anonymous"),
+  ip: String(entry?.ip || ""),
+  action: String(entry?.action || ""),
+  resource: String(entry?.resource || ""),
+  resourceId: entry?.resourceId ? String(entry.resourceId) : null,
+  status: String(entry?.status || "success"),
+  requestId: entry?.requestId ? String(entry.requestId) : null,
+  data: cloneValue(entry || {}),
+});
+
 const buildDefaultAnalyticsDaily = ({ schemaVersion }) => ({
   schemaVersion,
   generatedAt: new Date().toISOString(),
@@ -38,7 +85,7 @@ const buildDefaultAnalyticsMeta = (
   ...override,
 });
 
-class DbDataRepository {
+export class DbDataRepository {
   constructor(options) {
     this.source = "db";
     this.ownerIdsFallback = ensureArray(options.ownerIdsFallback).map((item) => String(item));
@@ -47,6 +94,15 @@ class DbDataRepository {
       retentionDays: options.analyticsRetentionDays,
       aggregateRetentionDays: options.analyticsAggRetentionDays,
     };
+    this.auditRetentionMs = Math.max(
+      0,
+      Number(options.auditRetentionMs ?? DEFAULT_AUDIT_RETENTION_MS) || 0,
+    );
+    this.auditMaxEntries = Math.max(
+      0,
+      Math.floor(Number(options.auditMaxEntries ?? DEFAULT_AUDIT_MAX_ENTRIES) || 0),
+    );
+    this.auditLogNextPosition = 0;
     this.onBackgroundError = options.onBackgroundError;
     this.persistQueue = Promise.resolve();
     this.health = {
@@ -352,6 +408,13 @@ class DbDataRepository {
       status: String(row?.status || "completed"),
       createdAt: row?.createdAt ? new Date(row.createdAt).toISOString() : null,
     }));
+    this.auditLogNextPosition = auditLogs.reduce((max, row) => {
+      const nextPosition = Number(row?.position);
+      if (!Number.isFinite(nextPosition)) {
+        return max;
+      }
+      return Math.max(max, Math.floor(nextPosition) + 1);
+    }, 0);
   }
 
   loadOwnerIds() {
@@ -382,25 +445,76 @@ class DbDataRepository {
 
   writeAuditLog(entries) {
     this.snapshot.auditLog = cloneValue(ensureArray(entries));
+    this.auditLogNextPosition = this.snapshot.auditLog.length;
     this.enqueuePersist("audit_logs", async () => {
-      const rows = this.snapshot.auditLog.map((entry, index) => ({
-        id: String(entry?.id || crypto.randomUUID()),
-        position: index,
-        ts: toDateOrNull(entry?.ts) || new Date(),
-        actorId: String(entry?.actorId || "anonymous"),
-        actorName: String(entry?.actorName || "anonymous"),
-        ip: String(entry?.ip || ""),
-        action: String(entry?.action || ""),
-        resource: String(entry?.resource || ""),
-        resourceId: entry?.resourceId ? String(entry.resourceId) : null,
-        status: String(entry?.status || "success"),
-        requestId: entry?.requestId ? String(entry.requestId) : null,
-        data: cloneValue(entry || {}),
-      }));
+      const rows = this.snapshot.auditLog.map((entry, index) => toAuditLogRow(entry, index));
       await prisma.$transaction([
         prisma.auditLogRecord.deleteMany({}),
         ...(rows.length ? [prisma.auditLogRecord.createMany({ data: rows })] : []),
       ]);
+    });
+  }
+
+  appendAuditLogEntry(entry) {
+    const baseEntry =
+      entry && typeof entry === "object" && !Array.isArray(entry) ? cloneValue(entry) : {};
+    const normalizedEntry = {
+      ...baseEntry,
+      id: String(baseEntry?.id || crypto.randomUUID()),
+      ts: (toDateOrNull(baseEntry?.ts) || new Date()).toISOString(),
+      actorId: String(baseEntry?.actorId || "anonymous"),
+      actorName: String(baseEntry?.actorName || "anonymous"),
+      ip: String(baseEntry?.ip || ""),
+      action: String(baseEntry?.action || ""),
+      resource: String(baseEntry?.resource || ""),
+      resourceId: baseEntry?.resourceId ? String(baseEntry.resourceId) : null,
+      status: String(baseEntry?.status || "success"),
+      requestId: baseEntry?.requestId ? String(baseEntry.requestId) : null,
+    };
+    const previousEntries = ensureArray(this.snapshot.auditLog);
+    const nextEntries = compactAuditLogEntries([...previousEntries, normalizedEntry], {
+      retentionMs: this.auditRetentionMs,
+      maxEntries: this.auditMaxEntries,
+    });
+    const nextIds = new Set(
+      nextEntries.map((item) => String(item?.id || "").trim()).filter(Boolean),
+    );
+    const removedIds = previousEntries
+      .map((item) => String(item?.id || "").trim())
+      .filter((id) => id && !nextIds.has(id));
+    const shouldPersistEntry = nextIds.has(normalizedEntry.id);
+    const position = this.auditLogNextPosition;
+    this.snapshot.auditLog = nextEntries;
+    if (shouldPersistEntry) {
+      this.auditLogNextPosition += 1;
+    }
+    if (!shouldPersistEntry && removedIds.length === 0) {
+      return;
+    }
+    this.enqueuePersist("audit_log_append", async () => {
+      const operations = [];
+      if (shouldPersistEntry) {
+        operations.push(
+          prisma.auditLogRecord.create({
+            data: toAuditLogRow(normalizedEntry, position),
+          }),
+        );
+      }
+      if (removedIds.length > 0) {
+        operations.push(
+          prisma.auditLogRecord.deleteMany({
+            where: {
+              id: {
+                in: removedIds,
+              },
+            },
+          }),
+        );
+      }
+      if (operations.length === 0) {
+        return;
+      }
+      await prisma.$transaction(operations);
     });
   }
 

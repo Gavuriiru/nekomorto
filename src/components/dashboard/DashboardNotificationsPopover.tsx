@@ -56,17 +56,26 @@ const DashboardNotificationsPopover = ({
   open,
   onOpenChange,
 }: DashboardNotificationsPopoverProps) => {
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(() => open);
   const [items, setItems] = useState<DashboardNotificationItem[]>([]);
   const [summaryTotal, setSummaryTotal] = useState(0);
   const preferencesRef = useRef<Record<string, unknown>>({});
+  const preferencesLoadedRef = useRef(false);
+  const preferencesLoadPromiseRef = useRef<Promise<void> | null>(null);
+  const notificationsRequestIdRef = useRef(0);
+  const wasOpenRef = useRef(open);
 
   const loadNotifications = useCallback(async () => {
+    const requestId = notificationsRequestIdRef.current + 1;
+    notificationsRequestIdRef.current = requestId;
     try {
       const response = await apiFetch(apiBase, "/api/dashboard/notifications?limit=30", {
         auth: true,
         cache: "no-store",
       });
+      if (requestId !== notificationsRequestIdRef.current) {
+        return;
+      }
       if (!response.ok) {
         setItems([]);
         setSummaryTotal(0);
@@ -78,10 +87,11 @@ const DashboardNotificationsPopover = ({
       const total = Number(payload?.summary?.total || 0);
       setSummaryTotal(Number.isFinite(total) ? total : nextItems.length);
     } catch {
+      if (requestId !== notificationsRequestIdRef.current) {
+        return;
+      }
       setItems([]);
       setSummaryTotal(0);
-    } finally {
-      setIsLoading(false);
     }
   }, [apiBase]);
 
@@ -92,15 +102,37 @@ const DashboardNotificationsPopover = ({
         cache: "no-store",
       });
       if (!response.ok) {
-        return;
+        return false;
       }
       const payload = (await response.json()) as UserPreferencesPayload;
       preferencesRef.current =
         payload?.preferences && typeof payload.preferences === "object" ? payload.preferences : {};
+      return true;
     } catch {
       preferencesRef.current = {};
+      return false;
     }
   }, [apiBase]);
+
+  const ensurePreferencesLoaded = useCallback(async () => {
+    if (preferencesLoadedRef.current) {
+      return;
+    }
+    if (preferencesLoadPromiseRef.current) {
+      await preferencesLoadPromiseRef.current;
+      return;
+    }
+    const pending = (async () => {
+      const loaded = await loadPreferences();
+      if (loaded) {
+        preferencesLoadedRef.current = true;
+      }
+    })().finally(() => {
+      preferencesLoadPromiseRef.current = null;
+    });
+    preferencesLoadPromiseRef.current = pending;
+    await pending;
+  }, [loadPreferences]);
 
   const persistLastSeen = useCallback(async () => {
     const nowIso = new Date().toISOString();
@@ -136,24 +168,49 @@ const DashboardNotificationsPopover = ({
   }, [apiBase]);
 
   useEffect(() => {
-    setIsLoading(true);
-    void Promise.all([loadNotifications(), loadPreferences()]);
-  }, [loadNotifications, loadPreferences]);
-
-  useEffect(() => {
-    const timer = window.setInterval(() => {
-      void loadNotifications();
-    }, POLL_MS);
-    return () => window.clearInterval(timer);
-  }, [loadNotifications]);
+    if (!open) {
+      notificationsRequestIdRef.current += 1;
+      setIsLoading(false);
+      return;
+    }
+    let cancelled = false;
+    const loadOnOpen = async () => {
+      setIsLoading(true);
+      try {
+        await ensurePreferencesLoaded();
+        if (cancelled) {
+          return;
+        }
+        await loadNotifications();
+        if (cancelled) {
+          return;
+        }
+        await persistLastSeen();
+      } finally {
+        if (!cancelled) {
+          setIsLoading(false);
+        }
+      }
+    };
+    void loadOnOpen();
+    return () => {
+      cancelled = true;
+    };
+  }, [ensurePreferencesLoaded, loadNotifications, open, persistLastSeen]);
 
   useEffect(() => {
     if (!open) {
       return;
     }
-    void loadNotifications();
-    void persistLastSeen();
-  }, [loadNotifications, open, persistLastSeen]);
+    const timer = window.setInterval(() => {
+      void loadNotifications();
+    }, POLL_MS);
+    return () => window.clearInterval(timer);
+  }, [loadNotifications, open]);
+
+  useEffect(() => {
+    wasOpenRef.current = open;
+  }, [open]);
 
   const badgeLabel = useMemo(() => {
     if (summaryTotal <= 0) {
@@ -164,6 +221,7 @@ const DashboardNotificationsPopover = ({
     }
     return String(summaryTotal);
   }, [summaryTotal]);
+  const shouldShowLoading = open && (isLoading || !wasOpenRef.current);
 
   return (
     <Popover open={open} onOpenChange={onOpenChange}>
@@ -189,7 +247,7 @@ const DashboardNotificationsPopover = ({
           <p className="text-xs text-muted-foreground">Atualização automática a cada 15s.</p>
         </div>
         <div className="max-h-[70vh] overflow-y-auto px-3 py-2">
-          {isLoading ? (
+          {shouldShowLoading ? (
             <div
               className="space-y-2 px-1 py-2"
               data-testid="dashboard-notifications-loading"

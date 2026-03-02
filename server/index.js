@@ -621,6 +621,10 @@ const appendAuditLog = (req, action, resource, meta = {}) => {
       requestId: req.requestId ? String(req.requestId) : null,
       meta: sanitizedMeta,
     };
+    if (dataRepository && typeof dataRepository.appendAuditLogEntry === "function") {
+      dataRepository.appendAuditLogEntry(entry);
+      return;
+    }
     const existing = loadAuditLog();
     existing.push(entry);
     writeAuditLog(existing);
