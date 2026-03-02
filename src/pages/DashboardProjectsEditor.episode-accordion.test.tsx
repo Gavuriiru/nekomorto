@@ -832,7 +832,9 @@ describe("DashboardProjectsEditor episode accordion", () => {
     fireEvent.change(screen.getByLabelText(/Volume de destino/i), { target: { value: "2" } });
     fireEvent.click(importButton);
 
-    await screen.findByDisplayValue("Capitulo importado");
+    await screen.findByText("Capitulo importado");
+    expect(screen.queryByDisplayValue("Capitulo importado")).not.toBeInTheDocument();
+    expect(scrollIntoViewMock).not.toHaveBeenCalled();
     expect(toastMock).toHaveBeenCalledWith(
       expect.objectContaining({
         title: "EPUB importado",
@@ -841,6 +843,9 @@ describe("DashboardProjectsEditor episode accordion", () => {
         intent: "success",
       }),
     );
+
+    fireEvent.click(getEpisodeTrigger(/Cap.tulo importado/i));
+    await screen.findByDisplayValue("Capitulo importado");
 
     const importCall = apiFetchMock.mock.calls.find((call) =>
       call[1] === "/api/projects/epub/import",

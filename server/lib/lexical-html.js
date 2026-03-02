@@ -16,6 +16,7 @@ import { CodeNode, CodeHighlightNode } from "@lexical/code";
 import { TableCellNode, TableNode, TableRowNode } from "@lexical/table";
 
 const BLOCK_STYLE_KEYS = [
+  "font-size",
   "text-indent",
   "margin-top",
   "margin-bottom",
@@ -124,12 +125,41 @@ const normalizeFontFamilyBucket = (value) => {
   return "serif";
 };
 
+const normalizeImageAlignment = (value) => {
+  const normalized = normalizeStyleValue(value).toLowerCase();
+  if (normalized === "left" || normalized === "center" || normalized === "right") {
+    return normalized;
+  }
+  return undefined;
+};
+
+const inferImageAlignment = ({ dataAlign, editorialStyle }) => {
+  const explicitAlign = normalizeImageAlignment(dataAlign);
+  if (explicitAlign) {
+    return explicitAlign;
+  }
+  const record = parseStyleDeclaration(editorialStyle);
+  const marginLeft = normalizeStyleValue(record["margin-left"]).toLowerCase();
+  const marginRight = normalizeStyleValue(record["margin-right"]).toLowerCase();
+  if (marginLeft === "auto" && marginRight === "auto") {
+    return "center";
+  }
+  if (marginLeft === "auto") {
+    return "right";
+  }
+  if (marginRight === "auto") {
+    return "left";
+  }
+  return undefined;
+};
+
 const extractBlockEditorialStyle = (style) => {
   const record = getStyleRecord(style);
   const textAlign = normalizeStyleValue(record["text-align"]).toLowerCase();
   return {
     format: ["left", "right", "center", "justify"].includes(textAlign) ? textAlign : "",
     editorialStyle: buildStyleDeclaration([
+      ["font-size", isMeaningfulValue(record["font-size"]) ? record["font-size"] : ""],
       ["text-indent", isMeaningfulValue(record["text-indent"]) ? record["text-indent"] : ""],
       ["margin-top", isMeaningfulValue(record["margin-top"]) ? record["margin-top"] : ""],
       ["margin-bottom", isMeaningfulValue(record["margin-bottom"]) ? record["margin-bottom"] : ""],
@@ -265,14 +295,21 @@ class ServerEpubImageNode extends DecoratorNode {
   }
 
   static clone(node) {
-    return new ServerEpubImageNode(node.__src, node.__altText, node.__editorialStyle, node.__key);
+    return new ServerEpubImageNode(
+      node.__src,
+      node.__altText,
+      node.__editorialStyle,
+      node.__align,
+      node.__key,
+    );
   }
 
-  constructor(src, altText, editorialStyle = "", key) {
+  constructor(src, altText, editorialStyle = "", align, key) {
     super(key);
     this.__src = src;
     this.__altText = altText || "";
     this.__editorialStyle = editorialStyle || "";
+    this.__align = align;
   }
 
   static importJSON(serializedNode) {
@@ -280,6 +317,7 @@ class ServerEpubImageNode extends DecoratorNode {
       src: serializedNode.src,
       altText: serializedNode.altText,
       editorialStyle: serializedNode.editorialStyle,
+      align: serializedNode.align,
     });
   }
 
@@ -291,6 +329,10 @@ class ServerEpubImageNode extends DecoratorNode {
             return null;
           }
           const editorialStyle = extractImageEditorialStyle(node.style);
+          const align = inferImageAlignment({
+            dataAlign: node.getAttribute?.("data-epub-align"),
+            editorialStyle,
+          });
           const src = node.getAttribute?.("src") || "";
           if (!src) {
             return null;
@@ -300,16 +342,17 @@ class ServerEpubImageNode extends DecoratorNode {
               src,
               altText: node.getAttribute?.("alt") || "",
               editorialStyle,
+              align,
             }),
           };
         },
-        priority: 1,
+        priority: 3,
       }),
     };
   }
 
   isInline() {
-    return !isBlockImageStyle(this.__editorialStyle);
+    return !(isBlockImageStyle(this.__editorialStyle) || this.__align);
   }
 
   exportJSON() {
@@ -319,6 +362,7 @@ class ServerEpubImageNode extends DecoratorNode {
       src: this.__src,
       altText: this.__altText,
       editorialStyle: this.__editorialStyle,
+      align: this.__align,
     };
   }
 
@@ -336,6 +380,21 @@ class ServerEpubImageNode extends DecoratorNode {
     img.setAttribute("alt", this.__altText);
     img.setAttribute("loading", "lazy");
     applyEditorialStyleToElement(img, this.__editorialStyle);
+    if (this.__align === "left") {
+      img.style.marginLeft = "0";
+      img.style.marginRight = "auto";
+      img.style.display = "block";
+    }
+    if (this.__align === "right") {
+      img.style.marginLeft = "auto";
+      img.style.marginRight = "0";
+      img.style.display = "block";
+    }
+    if (this.__align === "center") {
+      img.style.marginLeft = "auto";
+      img.style.marginRight = "auto";
+      img.style.display = "block";
+    }
     return { element: img };
   }
 
@@ -344,8 +403,8 @@ class ServerEpubImageNode extends DecoratorNode {
   }
 }
 
-const $createServerEpubImageNode = ({ src, altText = "", editorialStyle = "" }) =>
-  $applyNodeReplacement(new ServerEpubImageNode(src, altText, editorialStyle));
+const $createServerEpubImageNode = ({ src, altText = "", editorialStyle = "", align }) =>
+  $applyNodeReplacement(new ServerEpubImageNode(src, altText, editorialStyle, align));
 
 class ServerVideoNode extends DecoratorNode {
   static getType() {
@@ -447,21 +506,28 @@ class ServerEpubParagraphNode extends ParagraphNode {
   }
 
   static importDOM() {
+    const createConversion = () => ({
+      conversion: (node) => {
+        if (!(node instanceof globalThis.HTMLElement)) {
+          return null;
+        }
+        if (node.hasAttribute("data-epub-heading") || !hasEditorialBlockStyle(node.style)) {
+          return null;
+        }
+        const { format, editorialStyle } = extractBlockEditorialStyle(node.style);
+        const paragraph = $createServerEpubParagraphNode({ editorialStyle });
+        if (format) {
+          paragraph.setFormat(format);
+        }
+        return { node: paragraph };
+      },
+        priority: 3,
+    });
+
     return {
-      p: () => ({
-        conversion: (node) => {
-          if (!(node instanceof globalThis.HTMLElement) || !hasEditorialBlockStyle(node.style)) {
-            return null;
-          }
-          const { format, editorialStyle } = extractBlockEditorialStyle(node.style);
-          const paragraph = $createServerEpubParagraphNode({ editorialStyle });
-          if (format) {
-            paragraph.setFormat(format);
-          }
-          return { node: paragraph };
-        },
-        priority: 1,
-      }),
+      "epub-p": createConversion,
+      p: createConversion,
+      blockquote: createConversion,
     };
   }
 
@@ -538,13 +604,23 @@ class ServerEpubHeadingNode extends HeadingNode {
   }
 
   static importDOM() {
-    const createConversion = () => ({
+    const createConversion = (fallbackTag) => ({
       conversion: (node) => {
-        if (!(node instanceof globalThis.HTMLElement) || !hasEditorialBlockStyle(node.style)) {
+        if (!(node instanceof globalThis.HTMLElement)) {
           return null;
         }
-        const tag = String(node.tagName || "").toLowerCase();
+        const hintedTag = String(node.getAttribute("data-epub-heading") || "").toLowerCase();
+        const explicitTag = ["h1", "h2", "h3", "h4", "h5", "h6"].includes(hintedTag)
+          ? hintedTag
+          : undefined;
+        const tag = explicitTag || fallbackTag || String(node.tagName || "").toLowerCase();
         if (!["h1", "h2", "h3", "h4", "h5", "h6"].includes(tag)) {
+          return null;
+        }
+        if (!fallbackTag && !hasEditorialBlockStyle(node.style)) {
+          return null;
+        }
+        if (fallbackTag && !node.hasAttribute("data-epub-heading")) {
           return null;
         }
         const { format, editorialStyle } = extractBlockEditorialStyle(node.style);
@@ -554,15 +630,17 @@ class ServerEpubHeadingNode extends HeadingNode {
         }
         return { node: heading };
       },
-      priority: 1,
+        priority: 3,
     });
     return {
-      h1: createConversion,
-      h2: createConversion,
-      h3: createConversion,
-      h4: createConversion,
-      h5: createConversion,
-      h6: createConversion,
+      h1: () => createConversion(),
+      h2: () => createConversion(),
+      h3: () => createConversion(),
+      h4: () => createConversion(),
+      h5: () => createConversion(),
+      h6: () => createConversion(),
+      p: () => createConversion("h2"),
+      blockquote: () => createConversion("h2"),
     };
   }
 

@@ -41,13 +41,22 @@ export class EpubHeadingNode extends HeadingNode {
   }
 
   static importDOM() {
-    const createConversion = () => ({
+    const createHeadingConversion = (fallbackTag?: HeadingTag) => ({
       conversion: (node: Node) => {
-        if (!(node instanceof HTMLElement) || !hasEditorialBlockStyle(node.style)) {
+        if (!(node instanceof HTMLElement)) {
           return null;
         }
-        const tag = String(node.tagName || "").toLowerCase() as HeadingTag;
+        const hintedTag = String(node.getAttribute("data-epub-heading") || "").toLowerCase() as HeadingTag;
+        const explicitTag =
+          ["h1", "h2", "h3", "h4", "h5", "h6"].includes(hintedTag) ? hintedTag : undefined;
+        const tag = explicitTag || fallbackTag || (String(node.tagName || "").toLowerCase() as HeadingTag);
         if (!["h1", "h2", "h3", "h4", "h5", "h6"].includes(tag)) {
+          return null;
+        }
+        if (!fallbackTag && !hasEditorialBlockStyle(node.style)) {
+          return null;
+        }
+        if (fallbackTag && !node.hasAttribute("data-epub-heading")) {
           return null;
         }
         const { format, editorialStyle } = extractBlockEditorialStyle(node.style);
@@ -57,16 +66,18 @@ export class EpubHeadingNode extends HeadingNode {
         }
         return { node: heading };
       },
-      priority: 1 as const,
+      priority: 3 as const,
     });
 
     return {
-      h1: createConversion,
-      h2: createConversion,
-      h3: createConversion,
-      h4: createConversion,
-      h5: createConversion,
-      h6: createConversion,
+      h1: () => createHeadingConversion(),
+      h2: () => createHeadingConversion(),
+      h3: () => createHeadingConversion(),
+      h4: () => createHeadingConversion(),
+      h5: () => createHeadingConversion(),
+      h6: () => createHeadingConversion(),
+      p: () => createHeadingConversion("h2"),
+      blockquote: () => createHeadingConversion("h2"),
     };
   }
 

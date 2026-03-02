@@ -1095,6 +1095,7 @@
 
 .lexical-epub-image-shell--block {
   display: block;
+  width: 100%;
 }
 
 .lexical-epub-image-shell--inline {

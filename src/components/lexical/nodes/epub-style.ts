@@ -1,4 +1,5 @@
 const BLOCK_STYLE_KEYS = [
+  "font-size",
   "text-indent",
   "margin-top",
   "margin-bottom",
@@ -119,6 +120,7 @@ export const extractBlockEditorialStyle = (style: CSSStyleDeclaration | string) 
   const record = getStyleRecord(style);
   const textAlign = normalizeValue(record["text-align"]).toLowerCase();
   const editorialStyle = buildStyleDeclaration([
+    ["font-size", isMeaningfulValue(record["font-size"]) ? record["font-size"] : ""],
     ["text-indent", isMeaningfulValue(record["text-indent"]) ? record["text-indent"] : ""],
     ["margin-top", isMeaningfulValue(record["margin-top"]) ? record["margin-top"] : ""],
     ["margin-bottom", isMeaningfulValue(record["margin-bottom"]) ? record["margin-bottom"] : ""],

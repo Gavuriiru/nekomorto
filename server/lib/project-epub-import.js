@@ -12,6 +12,7 @@ const IMPORT_ALLOWED_TAGS = [
   "p",
   "br",
   "blockquote",
+  "epub-p",
   "pre",
   "code",
   "strong",
@@ -49,14 +50,15 @@ const IMPORT_ALLOWED_ATTRIBUTES = {
   td: ["colspan", "rowspan"],
   th: ["colspan", "rowspan"],
   span: ["style"],
-  p: ["style"],
-  blockquote: ["style"],
-  h1: ["style"],
-  h2: ["style"],
-  h3: ["style"],
-  h4: ["style"],
-  h5: ["style"],
-  h6: ["style"],
+    p: ["style", "data-epub-heading"],
+    "epub-p": ["style"],
+    blockquote: ["style", "data-epub-heading"],
+  h1: ["style", "data-epub-heading"],
+  h2: ["style", "data-epub-heading"],
+  h3: ["style", "data-epub-heading"],
+  h4: ["style", "data-epub-heading"],
+  h5: ["style", "data-epub-heading"],
+  h6: ["style", "data-epub-heading"],
   em: ["style"],
   strong: ["style"],
   i: ["style"],
@@ -65,10 +67,11 @@ const IMPORT_ALLOWED_ATTRIBUTES = {
   s: ["style"],
   sub: ["style"],
   sup: ["style"],
-  img: ["src", "alt", "width", "height", "style"],
+  img: ["src", "alt", "width", "height", "style", "data-epub-align"],
 };
 
 const BLOCK_ALLOWED_STYLE_PATTERNS = {
+  "font-size": [/^(?:\d+(?:\.\d+)?)(?:px|em|rem|pt|%)$/],
   "text-align": [/^left$/, /^right$/, /^center$/, /^justify$/],
   "text-indent": [/^-?(?:\d+(?:\.\d+)?)(?:px|em|rem|pt|%)$/],
   "margin-top": [/^-?(?:\d+(?:\.\d+)?)(?:px|em|rem|pt|%)$/],
@@ -155,6 +158,7 @@ const createImportSanitizeOptions = () => ({
   disallowedTagsMode: "discard",
   allowedStyles: {
     p: BLOCK_ALLOWED_STYLE_PATTERNS,
+    "epub-p": BLOCK_ALLOWED_STYLE_PATTERNS,
     blockquote: BLOCK_ALLOWED_STYLE_PATTERNS,
     h1: BLOCK_ALLOWED_STYLE_PATTERNS,
     h2: BLOCK_ALLOWED_STYLE_PATTERNS,
@@ -708,6 +712,130 @@ const normalizeFontFamilyBucket = (value) => {
   return "serif";
 };
 
+const parseCssNumericValue = (value) => {
+  const match = String(value || "").trim().match(/-?\d+(?:\.\d+)?/);
+  if (!match) {
+    return null;
+  }
+  const parsed = Number(match[0]);
+  return Number.isFinite(parsed) ? parsed : null;
+};
+
+const computeFontSizeRatio = (value, baseFontSize) => {
+  const normalized = String(value || "").trim().toLowerCase();
+  const parsed = parseCssNumericValue(normalized);
+  if (!parsed || !Number.isFinite(baseFontSize) || baseFontSize <= 0) {
+    return null;
+  }
+  if (normalized.endsWith("em") || normalized.endsWith("rem")) {
+    return parsed;
+  }
+  if (normalized.endsWith("%")) {
+    return parsed / 100;
+  }
+  return parsed / baseFontSize;
+};
+
+const getElementVisibleTextLength = (element) =>
+  String(element?.textContent || "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .replace(/\s/g, "").length;
+
+const resolveEditorialHeadingTag = (ratio) => {
+  if (ratio >= 1.9) {
+    return "h1";
+  }
+  if (ratio >= 1.55) {
+    return "h2";
+  }
+  if (ratio >= 1.25) {
+    return "h3";
+  }
+  return null;
+};
+
+const hasHeadingLikeSpacing = (computed, baseFontSize) => {
+  const marginTop = parseCssNumericValue(computed?.marginTop) || 0;
+  const marginBottom = parseCssNumericValue(computed?.marginBottom) || 0;
+  return marginTop >= baseFontSize * 0.5 || marginBottom >= baseFontSize * 0.5;
+};
+
+const classifyEditorialBlockScale = (element, computed, { baseFontSize } = {}) => {
+  const tagName = String(element?.tagName || "").toLowerCase();
+  if (["h1", "h2", "h3", "h4", "h5", "h6"].includes(tagName)) {
+    return null;
+  }
+
+  const ratio = computeFontSizeRatio(computed?.fontSize, baseFontSize);
+  if (!ratio) {
+    return null;
+  }
+  if (ratio < 1.25) {
+    return null;
+  }
+
+  const visibleTextLength = getElementVisibleTextLength(element);
+  if (visibleTextLength === 0 || visibleTextLength > 220) {
+    return null;
+  }
+
+  const hint = [element?.className, element?.id]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+  const hasHeadingHint = /\b(chapter-title|title|subtitle|heading|subhead)\b/i.test(hint);
+  const isCentered = String(computed?.textAlign || "").toLowerCase() === "center";
+  const hasShortText = visibleTextLength <= 120;
+  const hasSpacingCue = hasHeadingLikeSpacing(computed, baseFontSize);
+
+  if (!hasHeadingHint && !isCentered && !hasShortText && !hasSpacingCue) {
+    return null;
+  }
+
+  return resolveEditorialHeadingTag(ratio);
+};
+
+const elementHasOnlyThisImage = (element) => {
+  const parent = element?.parentElement;
+  if (!parent) {
+    return false;
+  }
+  const elementChildren = [...parent.children];
+  if (elementChildren.length !== 1 || elementChildren[0] !== element) {
+    return false;
+  }
+  return String(parent.textContent || "").replace(/\s+/g, "").trim() === "";
+};
+
+const extractEditorialImageAlignment = (element, computed, wrapperComputed) => {
+  const marginLeft = String(computed?.marginLeft || "").trim().toLowerCase();
+  const marginRight = String(computed?.marginRight || "").trim().toLowerCase();
+  if (marginLeft === "auto" && marginRight === "auto") {
+    return "center";
+  }
+  if (marginLeft === "auto") {
+    return "right";
+  }
+  if (marginRight === "auto") {
+    return "left";
+  }
+
+  const display = String(computed?.display || "").trim().toLowerCase();
+  const wrapperTextAlign = String(wrapperComputed?.textAlign || "").trim().toLowerCase();
+  const isolatedInParent = elementHasOnlyThisImage(element);
+  if ((display === "block" || isolatedInParent) && wrapperTextAlign === "center") {
+    return "center";
+  }
+  if ((display === "block" || isolatedInParent) && wrapperTextAlign === "right") {
+    return "right";
+  }
+  if ((display === "block" || isolatedInParent) && wrapperTextAlign === "left") {
+    return "left";
+  }
+  return null;
+};
+
 const loadEpubDocumentStylesheets = async ({ epub, documentHref, manifestByHref, rawHtml } = {}) => {
   const sourceDom = new JSDOM(String(rawHtml || ""));
   const stylesheets = [];
@@ -759,13 +887,36 @@ const applyInlineStyle = (element, styleText) => {
   element.setAttribute("style", safeStyle);
 };
 
+const replaceElementTag = (element, nextTagName) => {
+  const replacement = element.ownerDocument.createElement(nextTagName);
+  for (const attribute of [...element.attributes]) {
+    replacement.setAttribute(attribute.name, attribute.value);
+  }
+  while (element.firstChild) {
+    replacement.appendChild(element.firstChild);
+  }
+  element.replaceWith(replacement);
+  return replacement;
+};
+
 const inlineEditorialComputedStyles = (document) => {
   const computeElementStyles = (element) => document.defaultView.getComputedStyle(element);
+  const bodyFontSize = parseCssNumericValue(
+    computeElementStyles(document.body || document.documentElement).fontSize,
+  );
+  const baseFontSize = bodyFontSize && bodyFontSize > 0 ? bodyFontSize : 16;
 
   const blockElements = [...document.querySelectorAll("p, blockquote, h1, h2, h3, h4, h5, h6")];
   for (const element of blockElements) {
+    const tagName = String(element.tagName || "").toLowerCase();
     const computed = computeElementStyles(element);
+    const blockHeadingTag = classifyEditorialBlockScale(element, computed, { baseFontSize });
+    const blockFontSizeRatio = computeFontSizeRatio(computed.fontSize, baseFontSize);
     const styleText = buildStyleDeclaration([
+      [
+        "font-size",
+        blockFontSizeRatio && Math.abs(blockFontSizeRatio - 1) > 0.05 ? computed.fontSize : "",
+      ],
       [
         "text-align",
         ["left", "right", "center", "justify"].includes(String(computed.textAlign || "").toLowerCase())
@@ -782,6 +933,14 @@ const inlineEditorialComputedStyles = (document) => {
       ],
     ]);
     applyInlineStyle(element, styleText);
+    if (blockHeadingTag) {
+      element.setAttribute("data-epub-heading", blockHeadingTag);
+    } else {
+      element.removeAttribute("data-epub-heading");
+      if (styleText && (tagName === "p" || tagName === "blockquote")) {
+        replaceElementTag(element, "epub-p");
+      }
+    }
   }
 
   const inlineElements = [...document.querySelectorAll("span, em, strong, i, b, u, s, sub, sup")];
@@ -815,15 +974,20 @@ const inlineEditorialComputedStyles = (document) => {
   const images = [...document.querySelectorAll("img")];
   for (const element of images) {
     const computed = computeElementStyles(element);
+    const parentComputed = element.parentElement ? computeElementStyles(element.parentElement) : null;
+    const resolvedAlign = extractEditorialImageAlignment(element, computed, parentComputed);
+    const shouldForceBlockDisplay = Boolean(resolvedAlign) && elementHasOnlyThisImage(element);
     const styleText = buildStyleDeclaration([
       ["width", isMeaningfulStyleValue(computed.width) ? computed.width : ""],
       ["height", isMeaningfulStyleValue(computed.height) ? computed.height : ""],
       ["max-width", isMeaningfulStyleValue(computed.maxWidth) ? computed.maxWidth : ""],
       [
         "display",
-        ["inline", "block", "inline-block"].includes(String(computed.display || "").toLowerCase())
-          ? computed.display.toLowerCase()
-          : "",
+        shouldForceBlockDisplay
+          ? "block"
+          : ["inline", "block", "inline-block"].includes(String(computed.display || "").toLowerCase())
+            ? computed.display.toLowerCase()
+            : "",
       ],
       ["margin-left", isMeaningfulStyleValue(computed.marginLeft) ? computed.marginLeft : ""],
       ["margin-right", isMeaningfulStyleValue(computed.marginRight) ? computed.marginRight : ""],
@@ -839,6 +1003,11 @@ const inlineEditorialComputedStyles = (document) => {
       ],
     ]);
     applyInlineStyle(element, styleText);
+    if (resolvedAlign) {
+      element.setAttribute("data-epub-align", resolvedAlign);
+    } else {
+      element.removeAttribute("data-epub-align");
+    }
   }
 };
 
@@ -854,18 +1023,37 @@ const normalizeEditorialWrappers = (document) => {
       const wrapperComputed = document.defaultView.getComputedStyle(wrapper);
       elementChildren.forEach((imageElement) => {
         const imageComputed = document.defaultView.getComputedStyle(imageElement);
+        const resolvedAlign = extractEditorialImageAlignment(imageElement, imageComputed, wrapperComputed);
         const styleText = buildStyleDeclaration([
           ["width", isMeaningfulStyleValue(imageComputed.width) ? imageComputed.width : ""],
           ["height", isMeaningfulStyleValue(imageComputed.height) ? imageComputed.height : ""],
           ["max-width", isMeaningfulStyleValue(imageComputed.maxWidth) ? imageComputed.maxWidth : ""],
           [
             "display",
-            wrapperComputed.textAlign === "center" || imageComputed.display === "block"
+            resolvedAlign || imageComputed.display === "block"
               ? "block"
               : imageComputed.display,
           ],
-          ["margin-left", wrapperComputed.textAlign === "center" ? "auto" : imageComputed.marginLeft],
-          ["margin-right", wrapperComputed.textAlign === "center" ? "auto" : imageComputed.marginRight],
+          [
+            "margin-left",
+            resolvedAlign === "center"
+              ? "auto"
+              : resolvedAlign === "right"
+                ? "auto"
+                : resolvedAlign === "left"
+                  ? "0"
+                  : imageComputed.marginLeft,
+          ],
+          [
+            "margin-right",
+            resolvedAlign === "center"
+              ? "auto"
+              : resolvedAlign === "left"
+                ? "auto"
+                : resolvedAlign === "right"
+                  ? "0"
+                  : imageComputed.marginRight,
+          ],
           ["margin-top", isMeaningfulStyleValue(imageComputed.marginTop) ? imageComputed.marginTop : ""],
           ["margin-bottom", isMeaningfulStyleValue(imageComputed.marginBottom) ? imageComputed.marginBottom : ""],
           [
@@ -878,6 +1066,11 @@ const normalizeEditorialWrappers = (document) => {
           ],
         ]);
         applyInlineStyle(imageElement, styleText);
+        if (resolvedAlign) {
+          imageElement.setAttribute("data-epub-align", resolvedAlign);
+        } else {
+          imageElement.removeAttribute("data-epub-align");
+        }
       });
       wrapper.replaceWith(...elementChildren);
       continue;

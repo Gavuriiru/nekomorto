@@ -39,21 +39,28 @@ export class EpubParagraphNode extends ParagraphNode {
   }
 
   static importDOM() {
+    const createConversion = () => ({
+      conversion: (node: Node) => {
+        if (!(node instanceof HTMLElement)) {
+          return null;
+        }
+        if (node.hasAttribute("data-epub-heading") || !hasEditorialBlockStyle(node.style)) {
+          return null;
+        }
+        const { format, editorialStyle } = extractBlockEditorialStyle(node.style);
+        const paragraph = $createEpubParagraphNode({ editorialStyle });
+        if (format) {
+          paragraph.setFormat(format);
+        }
+        return { node: paragraph };
+      },
+      priority: 3 as const,
+    });
+
     return {
-      p: () => ({
-        conversion: (node: Node) => {
-          if (!(node instanceof HTMLParagraphElement) || !hasEditorialBlockStyle(node.style)) {
-            return null;
-          }
-          const { format, editorialStyle } = extractBlockEditorialStyle(node.style);
-          const paragraph = $createEpubParagraphNode({ editorialStyle });
-          if (format) {
-            paragraph.setFormat(format);
-          }
-          return { node: paragraph };
-        },
-        priority: 1 as const,
-      }),
+      "epub-p": createConversion,
+      p: createConversion,
+      blockquote: createConversion,
     };
   }
 

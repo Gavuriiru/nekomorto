@@ -320,6 +320,7 @@ describe("project EPUB import", () => {
               <span class="tx14">grande</span>
               <span class="tx14i">italico</span>
             </p>
+            <p class="callout">What in the hell is this?!</p>
             <p class="space-break1">Quebra editorial</p>
           </body>
         </html>`,
@@ -334,6 +335,7 @@ describe("project EPUB import", () => {
         .txalt { font-family: Arial, sans-serif; }
         .bbox1 { width: 3em; }
         .box { height: 0.75em; vertical-align: middle; }
+        .callout { font-size: 2em; margin-top: 1em; margin-bottom: 1em; text-align: center; }
       `),
     };
     epubState.images = {
@@ -364,6 +366,76 @@ describe("project EPUB import", () => {
     expect(importedHtml).toContain("font-style:italic");
     expect(importedHtml).toContain("font-family:sans-serif");
     expect(importedHtml).toContain("text-indent:");
+    expect(importedHtml).toContain('data-epub-heading="h1"');
+  });
+
+  it("preserva alinhamento explicito de imagens block centralizadas no html enviado ao bridge", async () => {
+    const loadUploads = vi.fn(() => []);
+    const writeUploads = vi.fn();
+
+    epubState.toc = [{ id: "chapter-toc", title: "Chapter 1", href: "OEBPS/Text/chapter001.xhtml#Ref_1" }];
+    epubState.flow = [
+      { id: "chapter001", title: "Chapter 1", href: "OEBPS/Text/chapter001.xhtml" },
+      { id: "chapter001_a", href: "OEBPS/Text/chapter001_a.xhtml" },
+    ];
+    epubState.manifest = {
+      chapter001: { id: "chapter001", href: "OEBPS/Text/chapter001.xhtml" },
+      chapter001_a: { id: "chapter001_a", href: "OEBPS/Text/chapter001_a.xhtml" },
+      stylesheet: {
+        id: "stylesheet",
+        href: "OEBPS/Styles/stylesheet.css",
+        "media-type": "text/css",
+      },
+      ornament: {
+        id: "ornament",
+        href: "OEBPS/Images/ornament.png",
+        "media-type": "image/png",
+      },
+    };
+    epubState.chapters = {
+      chapter001: `<!doctype html>
+        <html>
+          <head>
+            <link rel="stylesheet" href="../Styles/stylesheet.css">
+          </head>
+          <body>
+            <p>Texto antes.</p>
+          </body>
+        </html>`,
+      chapter001_a: `<!doctype html>
+        <html>
+          <head>
+            <link rel="stylesheet" href="../Styles/stylesheet.css">
+          </head>
+          <body>
+            <div class="align-center-rw"><img class="orn1" src="../Images/ornament.png" alt="ornamento"></div>
+          </body>
+        </html>`,
+    };
+    epubState.files = {
+      stylesheet: Buffer.from(`
+        .align-center-rw { text-align: center; }
+        .orn1 { width: 3em; display: block; margin-left: auto; margin-right: auto; }
+      `),
+    };
+    epubState.images = {
+      ornament: Buffer.from("ornament"),
+    };
+
+    await importProjectEpub({
+      buffer: Buffer.from("fake"),
+      targetVolume: 1,
+      defaultStatus: "draft",
+      project: { episodeDownloads: [] },
+      uploadsDir: "D:/dev/nekomorto/public/uploads",
+      loadUploads,
+      writeUploads,
+      uploadUserId: "test-user",
+    });
+
+    const importedHtml = String(htmlToLexicalJsonMock.mock.calls.at(-1)?.[0] || "");
+    expect(importedHtml).toContain('data-epub-align="center"');
+    expect(importedHtml).toContain("display:block");
   });
 
   it("descarta paginas somente com imagem no fallback do flow", async () => {

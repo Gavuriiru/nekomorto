@@ -2213,9 +2213,22 @@ const DashboardProjectsEditor = () => {
   };
 
   const mergeImportedEpisodesIntoForm = useCallback(
-    (chapters: ProjectEpisode[]) => {
+    (
+      chapters: ProjectEpisode[],
+      options?: {
+        collapseAffectedItems?: boolean;
+        revealFirstAffectedItem?: boolean;
+        scrollToFirstAffectedItem?: boolean;
+      },
+    ) => {
+      const {
+        collapseAffectedItems = false,
+        revealFirstAffectedItem = true,
+        scrollToFirstAffectedItem = true,
+      } = options || {};
       let firstAffectedIndex = -1;
       let firstAffectedEpisode: ProjectEpisode | null = null;
+      const affectedIndexes = new Set<number>();
       setFormState((prev) => {
         const nextEpisodes = [...prev.episodeDownloads];
         const episodeIndexByKey = new Map(
@@ -2228,6 +2241,7 @@ const DashboardProjectsEditor = () => {
             nextEpisodes.push(chapter);
             const createdIndex = nextEpisodes.length - 1;
             episodeIndexByKey.set(key, createdIndex);
+            affectedIndexes.add(createdIndex);
             if (firstAffectedIndex === -1) {
               firstAffectedIndex = createdIndex;
               firstAffectedEpisode = chapter;
@@ -2245,6 +2259,7 @@ const DashboardProjectsEditor = () => {
                 ? "published"
                 : chapter.publicationStatus || "draft",
           };
+          affectedIndexes.add(existingIndex);
           if (firstAffectedIndex === -1) {
             firstAffectedIndex = existingIndex;
             firstAffectedEpisode = nextEpisodes[existingIndex];
@@ -2255,13 +2270,22 @@ const DashboardProjectsEditor = () => {
           episodeDownloads: nextEpisodes,
         };
       });
-      if (firstAffectedIndex >= 0) {
-        if (firstAffectedEpisode) {
+      if (firstAffectedIndex >= 0 || affectedIndexes.size > 0) {
+        if (revealFirstAffectedItem && scrollToFirstAffectedItem && firstAffectedEpisode) {
           pendingEpisodeToScrollRef.current = firstAffectedEpisode;
+        } else {
+          pendingEpisodeToScrollRef.current = null;
         }
         setCollapsedEpisodes((prev) => ({
           ...prev,
-          [firstAffectedIndex]: false,
+          ...(collapseAffectedItems
+            ? [...affectedIndexes].reduce<Record<number, boolean>>((entries, index) => {
+                entries[index] = true;
+                return entries;
+              }, {})
+            : firstAffectedIndex >= 0
+              ? { [firstAffectedIndex]: false }
+              : {}),
         }));
       }
     },
@@ -2483,7 +2507,11 @@ const DashboardProjectsEditor = () => {
         : 0;
       const volumeCoverImported = data?.summary?.volumeCoverImported === true;
       const volumeCoverSkipped = data?.summary?.volumeCoverSkipped === true;
-      mergeImportedEpisodesIntoForm(chapters);
+      mergeImportedEpisodesIntoForm(chapters, {
+        collapseAffectedItems: true,
+        revealFirstAffectedItem: false,
+        scrollToFirstAffectedItem: false,
+      });
       mergeImportedVolumeCoversIntoForm(volumeCovers);
       setEditorAccordionValue((prev) =>
         prev.includes("episodios") ? prev : [...prev, "episodios"],

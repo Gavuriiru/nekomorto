@@ -85,9 +85,23 @@ describe("server lexical HTML bridge", () => {
     expect(String(children[0]?.editorialStyle || "")).toContain("vertical-align: middle");
   });
 
+  it("mapeia imagem block centralizada para epub-image com align", () => {
+    const serialized = htmlToLexicalJson(
+      '<img src="/uploads/tmp/epub-imports/test/image.jpg" alt="Ilustracao" style="display: block; max-width: 100%" data-epub-align="center">',
+    );
+    const children = getRootChildren(serialized);
+
+    expect(children[0]).toEqual(
+      expect.objectContaining({
+        type: "epub-image",
+        align: "center",
+      }),
+    );
+  });
+
   it("mapeia paragrafo com estilo editorial para epub-paragraph", () => {
     const serialized = htmlToLexicalJson(
-      '<p style="text-indent: 20pt; margin-top: 1.5em; margin-bottom: 1em">texto editorial</p>',
+      '<epub-p style="text-indent: 20pt; margin-top: 1.5em; margin-bottom: 1em">texto editorial</epub-p>',
     );
     const children = getRootChildren(serialized);
 
@@ -114,6 +128,21 @@ describe("server lexical HTML bridge", () => {
       }),
     );
     expect(String(children[0]?.editorialStyle || "")).toContain("margin-bottom: 3em");
+  });
+
+  it("mapeia data-epub-heading em bloco nao heading para epub-heading", () => {
+    const serialized = htmlToLexicalJson(
+      '<p data-epub-heading="h2" style="font-size: 2em; margin-top: 10%">Titulo heuristico</p>',
+    );
+    const children = getRootChildren(serialized);
+
+    expect(children[0]).toEqual(
+      expect.objectContaining({
+        type: "epub-heading",
+        tag: "h2",
+      }),
+    );
+    expect(String(children[0]?.editorialStyle || "")).toContain("font-size: 2em");
   });
 
   it("retorna o estado vazio canonico para html vazio", () => {

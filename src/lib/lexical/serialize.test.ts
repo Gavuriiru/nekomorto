@@ -100,6 +100,7 @@ describe("client lexical serialize", () => {
         root: {
           children: [
             {
+              align: "center",
               altText: "Ornamento",
               editorialStyle: "width: 3em; height: 0.75em; vertical-align: middle",
               src: "/uploads/tmp/epub-imports/test/image.jpg",
@@ -118,6 +119,7 @@ describe("client lexical serialize", () => {
 
     expect(normalized).not.toBeNull();
     expect(JSON.parse(String(normalized)).root.children[0].type).toBe("epub-image");
+    expect(JSON.parse(String(normalized)).root.children[0].align).toBe("center");
   });
 
   it("normaliza um estado com epub-paragraph node serializado", () => {
@@ -128,7 +130,7 @@ describe("client lexical serialize", () => {
             {
               children: [createTextNode("text", "texto editorial")],
               direction: null,
-              editorialStyle: "text-indent: 20pt; margin-top: 1.5em",
+              editorialStyle: "font-size: 1.4em; text-indent: 20pt; margin-top: 1.5em",
               format: "",
               indent: 0,
               textFormat: 0,
@@ -148,6 +150,9 @@ describe("client lexical serialize", () => {
 
     expect(normalized).not.toBeNull();
     expect(JSON.parse(String(normalized)).root.children[0].type).toBe("epub-paragraph");
+    expect(String(JSON.parse(String(normalized)).root.children[0].editorialStyle)).toContain(
+      "font-size: 1.4em",
+    );
   });
 
   it("normaliza um estado com epub-heading node serializado", () => {
@@ -158,7 +163,7 @@ describe("client lexical serialize", () => {
             {
               children: [createTextNode("text", "Titulo editorial")],
               direction: null,
-              editorialStyle: "margin-top: 10%; margin-bottom: 3em",
+              editorialStyle: "font-size: 2em; margin-top: 10%; margin-bottom: 3em",
               format: "",
               indent: 0,
               tag: "h1",
@@ -177,5 +182,8 @@ describe("client lexical serialize", () => {
 
     expect(normalized).not.toBeNull();
     expect(JSON.parse(String(normalized)).root.children[0].type).toBe("epub-heading");
+    expect(String(JSON.parse(String(normalized)).root.children[0].editorialStyle)).toContain(
+      "font-size: 2em",
+    );
   });
 });
