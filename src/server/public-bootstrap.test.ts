@@ -57,6 +57,7 @@ describe("public bootstrap payload", () => {
           projectId: "project-1",
           projectTitle: "Projeto",
           episodeNumber: 3,
+          volume: 1,
           kind: "Lançamento",
           reason: "Novo episódio",
           updatedAt: "2026-02-01T00:00:00.000Z",
@@ -85,6 +86,7 @@ describe("public bootstrap payload", () => {
     expect(payload.projects).toHaveLength(1);
     expect(payload.posts).toHaveLength(1);
     expect(payload.updates).toHaveLength(1);
+    expect((payload.updates[0] as Record<string, unknown>).volume).toBe(1);
 
     const project = payload.projects[0] as Record<string, unknown>;
     expect(project).not.toHaveProperty("deletedAt");

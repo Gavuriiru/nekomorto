@@ -7,6 +7,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { usePageMeta } from "@/hooks/use-page-meta";
 import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
+import { buildEpisodeKey } from "@/lib/project-episode-key";
 import { isLightNovelType } from "@/lib/project-utils";
 import type { Project } from "@/data/projects";
 import type { UploadMediaVariantsMap } from "@/lib/upload-variants";
@@ -104,7 +105,11 @@ const ProjectReading = () => {
       return [];
     }
     return (project.episodeDownloads || [])
-      .filter((entry) => typeof entry.content === "string" && entry.content.trim().length > 0)
+      .filter(
+        (entry) =>
+          (entry as { hasContent?: boolean }).hasContent ||
+          (typeof entry.content === "string" && entry.content.trim().length > 0),
+      )
       .sort((a, b) => {
         const numberDelta = (a.number || 0) - (b.number || 0);
         if (numberDelta !== 0) {
@@ -118,14 +123,15 @@ const ProjectReading = () => {
     if (!project || !Number.isFinite(chapterNumber)) {
       return null;
     }
+    const lookupKey = buildEpisodeKey(
+      chapterNumber,
+      Number.isFinite(volumeParam) ? volumeParam : undefined,
+    );
     return sortedChapters.find((entry) => {
-      if (entry.number !== chapterNumber) {
-        return false;
-      }
       if (!Number.isFinite(volumeParam)) {
-        return true;
+        return entry.number === chapterNumber;
       }
-      return (entry.volume || 0) === volumeParam;
+      return buildEpisodeKey(entry.number, entry.volume) === lookupKey;
     });
   }, [project, sortedChapters, chapterNumber, volumeParam]);
 
@@ -133,11 +139,9 @@ const ProjectReading = () => {
     if (!chapterData) {
       return -1;
     }
+    const activeKey = buildEpisodeKey(chapterData.number, chapterData.volume);
     return sortedChapters.findIndex((entry) => {
-      if (entry.number !== chapterData.number) {
-        return false;
-      }
-      return (entry.volume || 0) === (chapterData.volume || 0);
+      return buildEpisodeKey(entry.number, entry.volume) === activeKey;
     });
   }, [sortedChapters, chapterData]);
 

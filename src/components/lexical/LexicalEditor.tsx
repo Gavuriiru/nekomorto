@@ -2,7 +2,7 @@ import * as React from "react";
 import { LexicalComposer } from "@lexical/react/LexicalComposer";
 import { OnChangePlugin } from "@lexical/react/LexicalOnChangePlugin";
 import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
-import { $createParagraphNode, $getRoot, $setSelection } from "lexical";
+import { $setSelection } from "lexical";
 import type { ImageLibraryOptions } from "@/components/ImageLibraryDialog";
 
 import Editor from "@/lexical-playground/Editor";
@@ -14,6 +14,7 @@ import { ToolbarContext } from "@/lexical-playground/context/ToolbarContext";
 import { TableContext } from "@/lexical-playground/plugins/TablePlugin";
 import { FlashMessageContext } from "@/lexical-playground/context/FlashMessageContext";
 import { PollProvider } from "@/lexical-playground/context/PollContext";
+import { EMPTY_LEXICAL_JSON, normalizeLexicalJson } from "@/lib/lexical/serialize";
 
 import "@/lexical-playground/playground.css";
 import "@/lexical-playground/playground-overrides.css";
@@ -59,20 +60,7 @@ const EditorBridge = React.forwardRef<LexicalEditorHandle>((_props, ref) => {
 
 EditorBridge.displayName = "EditorBridge";
 
-const safeParseLexicalJson = (value: string) => {
-  if (!value) {
-    return null;
-  }
-  try {
-    const parsed = JSON.parse(value);
-    if (parsed && typeof parsed === "object") {
-      return value;
-    }
-  } catch {
-    return null;
-  }
-  return null;
-};
+const getNormalizedEditorState = (value: string) => normalizeLexicalJson(value) ?? EMPTY_LEXICAL_JSON;
 
 const ValuePlugin = ({
   value,
@@ -117,52 +105,23 @@ const ValuePlugin = ({
       if (!nextValue) {
         try {
           isSettingRef.current = true;
-          editor.update(
-            () => {
-              const root = $getRoot();
-              root.clear();
-              root.append($createParagraphNode());
-            },
-            { discrete: true },
-          );
+          const state = editor.parseEditorState(EMPTY_LEXICAL_JSON);
+          editor.setEditorState(state);
         } finally {
           lastValueRef.current = nextValue;
-          isSettingRef.current = false;
-        }
-        return;
-      }
-      const safe = safeParseLexicalJson(nextValue);
-      if (!safe) {
-        try {
-          isSettingRef.current = true;
-          editor.update(
-            () => {
-              const root = $getRoot();
-              root.clear();
-              root.append($createParagraphNode());
-            },
-            { discrete: true },
-          );
-          lastValueRef.current = nextValue;
-        } finally {
           isSettingRef.current = false;
         }
         return;
       }
       try {
         isSettingRef.current = true;
-        const state = editor.parseEditorState(safe);
+        const state = editor.parseEditorState(getNormalizedEditorState(nextValue));
         editor.setEditorState(state);
         lastValueRef.current = nextValue;
       } catch {
-        editor.update(
-          () => {
-            const root = $getRoot();
-            root.clear();
-            root.append($createParagraphNode());
-          },
-          { discrete: true },
-        );
+        const state = editor.parseEditorState(EMPTY_LEXICAL_JSON);
+        editor.setEditorState(state);
+        lastValueRef.current = nextValue;
       } finally {
         isSettingRef.current = false;
       }
@@ -220,7 +179,7 @@ const LexicalEditor = React.forwardRef<LexicalEditorHandle, LexicalEditorProps>(
         console.error(error);
       },
       editable: !readOnly,
-      editorState: safeParseLexicalJson(value) || undefined,
+      editorState: getNormalizedEditorState(value),
     }).current;
 
     return (

@@ -20,6 +20,8 @@ export type ProjectEpisode = {
   completedStages?: string[];
   content?: string;
   contentFormat?: "lexical";
+  hasContent?: boolean;
+  publicationStatus?: "draft" | "published";
   chapterUpdatedAt?: string;
 };
 

@@ -1,4 +1,11 @@
+import { getBuildMetadata } from "./build-metadata.js";
+
 export const API_CONTRACT_VERSION = "v1";
+
+const CONTRACT_CAPABILITIES = Object.freeze({
+  project_epub_import: true,
+  project_epub_export: true,
+});
 
 const CONTRACT_BASE = Object.freeze({
   version: API_CONTRACT_VERSION,
@@ -65,6 +72,13 @@ const CONTRACT_BASE = Object.freeze({
     },
     {
       method: "GET",
+      path: "/api/public/projects/:id/chapters/:number",
+      auth: "public",
+      cache: "public-read",
+      notes: ["Accepts optional ?volume=. Returns 400 volume_required when the chapter number is ambiguous."],
+    },
+    {
+      method: "GET",
       path: "/api/public/users",
       auth: "public",
       cache: "public-read",
@@ -89,6 +103,28 @@ const CONTRACT_BASE = Object.freeze({
       auth: "session",
       idempotent: "optional_by_header",
       responseExtends: ["variantsGenerated", "variantGenerationError?"],
+    },
+    {
+      method: "POST",
+      path: "/api/projects/epub/import",
+      auth: "session",
+      cache: "no-store",
+      idempotent: "optional_by_header",
+      notes: [
+        "Receives raw application/epub+zip or application/octet-stream body plus query params projectId, targetVolume and defaultStatus.",
+        "Returns preview chapters already converted to Lexical JSON and never persists automatically.",
+      ],
+    },
+    {
+      method: "POST",
+      path: "/api/projects/epub/export",
+      auth: "session",
+      cache: "no-store",
+      idempotent: "optional_by_header",
+      notes: [
+        "Receives the current project snapshot in JSON and returns application/epub+zip.",
+        "Accepts volume and includeDrafts to control which published/draft chapters are exported.",
+      ],
     },
     {
       method: "PATCH",
@@ -290,6 +326,8 @@ const CONTRACT_BASE = Object.freeze({
 
 export const buildApiContractV1 = () => ({
   ...CONTRACT_BASE,
+  capabilities: CONTRACT_CAPABILITIES,
+  build: getBuildMetadata(),
   generatedAt: new Date().toISOString(),
 });
 

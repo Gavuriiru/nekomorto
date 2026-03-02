@@ -2,6 +2,7 @@ import "dotenv/config";
 import crypto from "crypto";
 import fs from "fs";
 import path from "path";
+import { createServer as createHttpServer } from "node:http";
 import { fileURLToPath } from "url";
 import compression from "compression";
 import connectPgSimple from "connect-pg-simple";
@@ -9,6 +10,7 @@ import cookieParser from "cookie-parser";
 import cors from "cors";
 import express from "express";
 import session from "express-session";
+import multer from "multer";
 import { Pool } from "pg";
 import { API_CONTRACT_VERSION, buildApiContractV1 } from "./lib/api-contract-v1.js";
 import {
@@ -52,6 +54,7 @@ import {
   buildOperationalAlertsResponse,
   buildOperationalAlertsV1,
 } from "./lib/operational-alerts.js";
+import { getBuildMetadata } from "./lib/build-metadata.js";
 import {
   buildOriginConfig,
   isAllowedOrigin as isAllowedOriginByConfig,
@@ -62,6 +65,20 @@ import { resolvePostStatus } from "./lib/post-status.js";
 import { dedupePostVersionRecordsNewestFirst } from "./lib/post-version-dedupe.js";
 import { prisma } from "./lib/prisma-client.js";
 import { localizeProjectImageFields } from "./lib/project-image-localizer.js";
+import {
+  collectEpisodeUpdates as collectEpisodeUpdatesByVisibility,
+  isEpisodePublic,
+  applyEpisodePublicationMetadata,
+} from "./lib/project-episode-updates.js";
+import {
+  buildEpisodeKey,
+  findDuplicateEpisodeKey,
+  hasEpisodeContent,
+  isPublishedEpisode,
+  resolveEpisodeLookup,
+} from "./lib/project-episodes.js";
+import { exportProjectEpub } from "./lib/project-epub-export.js";
+import { importProjectEpub } from "./lib/project-epub-import.js";
 import { buildPublicBootstrapPayload } from "./lib/public-bootstrap.js";
 import {
   buildPublicSearchSuggestions,
@@ -1635,7 +1652,8 @@ const clientIndexPath = resolveClientIndexPath({
   clientDistDir,
   isProduction,
 });
-const viteDevServer = await createViteDevServer({ isProduction });
+const httpServer = createHttpServer(app);
+const viteDevServer = await createViteDevServer({ isProduction, httpServer });
 let cachedIndexHtml = null;
 
 const getIndexHtml = () => {
@@ -4257,22 +4275,7 @@ const loadComments = () => {
 };
 
 const hasProjectChapter = (project, chapterNumber, volume) => {
-  const safeChapter = Number(chapterNumber);
-  if (!Number.isFinite(safeChapter)) {
-    return false;
-  }
-  const safeVolume = Number.isFinite(Number(volume)) ? Number(volume) : null;
-  return Array.isArray(project?.episodeDownloads)
-    ? project.episodeDownloads.some((episode) => {
-        if (Number(episode?.number) !== safeChapter) {
-          return false;
-        }
-        if (safeVolume === null) {
-          return true;
-        }
-        return Number(episode?.volume || 0) === safeVolume;
-      })
-    : false;
+  return resolveEpisodeLookup(project, chapterNumber, volume, { requirePublished: true }).ok;
 };
 
 const enforceCommentTargetIntegrity = (comments) => {
@@ -5421,6 +5424,17 @@ const normalizeProjects = (projects) =>
               : undefined;
           return {
             ...episodeWithoutSynopsis,
+            number: Number.isFinite(Number(episode?.number)) ? Number(episode.number) : 0,
+            volume: Number.isFinite(Number(episode?.volume)) ? Number(episode.volume) : undefined,
+            title: String(episode?.title || ""),
+            releaseDate: String(episode?.releaseDate || ""),
+            duration: String(episode?.duration || ""),
+            content: typeof episode?.content === "string" ? episode.content : "",
+            contentFormat: episode?.contentFormat === "lexical" ? "lexical" : "lexical",
+            publicationStatus:
+              String(episodeObject?.publicationStatus || "").trim().toLowerCase() === "draft"
+                ? "draft"
+                : "published",
             sources: normalizedSources,
             coverImageAlt: String(episode?.coverImageAlt || episode?.title || "").trim(),
             hash: hash || undefined,
@@ -5632,6 +5646,11 @@ const isLightNovelType = (type) => {
   return normalized.includes("light") || normalized.includes("novel");
 };
 
+const getPubliclyVisibleEpisodes = (project) =>
+  (Array.isArray(project?.episodeDownloads) ? project.episodeDownloads : []).filter((episode) =>
+    isPublishedEpisode(episode),
+  );
+
 const collectEpisodeUpdates = (prevProject, nextProject) => {
   const updates = [];
   const prevEpisodes = Array.isArray(prevProject?.episodeDownloads)
@@ -5769,19 +5788,15 @@ const deriveChapterSynopsis = (chapter, maxLength = 280) => {
     : `${fromContent.slice(0, Math.max(0, maxLength - 3)).trimEnd()}...`;
 };
 
-const findProjectChapterByEpisodeNumber = (project, episodeNumber) => {
-  const safeNumber = Number(episodeNumber);
-  if (!Number.isFinite(safeNumber)) {
+const findProjectChapterByEpisodeNumber = (project, episodeNumber, volume) => {
+  const lookup = resolveEpisodeLookup(project, episodeNumber, volume);
+  if (!lookup.ok) {
     return null;
   }
-  const episodes = Array.isArray(project?.episodeDownloads) ? project.episodeDownloads : [];
-  const chapter = episodes.find((episode) => Number(episode?.number) === safeNumber);
-  if (!chapter) {
-    return null;
-  }
+  const chapter = lookup.episode;
   const synopsis = deriveChapterSynopsis(chapter);
   return {
-    number: Number.isFinite(Number(chapter.number)) ? Number(chapter.number) : safeNumber,
+    number: Number.isFinite(Number(chapter.number)) ? Number(chapter.number) : Number(episodeNumber),
     volume: Number.isFinite(Number(chapter.volume)) ? Number(chapter.volume) : "",
     title: String(chapter.title || ""),
     synopsis,
@@ -5874,7 +5889,7 @@ const prepareEditorialWebhookDispatch = ({
     chapter && typeof chapter === "object"
       ? chapter
       : safeProject
-        ? findProjectChapterByEpisodeNumber(safeProject, update?.episodeNumber)
+        ? findProjectChapterByEpisodeNumber(safeProject, update?.episodeNumber, update?.volume)
         : null;
   const author = resolveEditorialAuthorFromPost(post);
   const safePost =
@@ -6362,6 +6377,7 @@ app.get("/api/version", (_req, res) => {
   return res.json({
     apiVersion: API_CONTRACT_VERSION,
     contractUrl: `/api/contracts/${API_CONTRACT_VERSION}.json`,
+    build: buildRuntimeMetadata(),
   });
 });
 
@@ -6566,12 +6582,78 @@ const setNoStoreJson = (res) => {
   res.setHeader("Cache-Control", "no-store");
 };
 
+const EPUB_IMPORT_MAX_BYTES = 64 * 1024 * 1024;
+const epubImportUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: EPUB_IMPORT_MAX_BYTES },
+});
+const parseLegacyEpubImportBody = express.raw({
+  type: ["application/epub+zip", "application/octet-stream"],
+  limit: "64mb",
+});
+const getSingleMultipartValue = (value) => (Array.isArray(value) ? value[0] : value);
+const createProjectSnapshotError = (code, key) => {
+  const error = new Error(code);
+  error.code = code;
+  if (key) {
+    error.key = key;
+  }
+  return error;
+};
+const normalizeProjectSnapshotForEpubImport = (rawProjectSnapshot) => {
+  const payload = getSingleMultipartValue(rawProjectSnapshot);
+  if (payload === undefined || payload === null || String(payload).trim() === "") {
+    return null;
+  }
+
+  let parsedSnapshot;
+  try {
+    parsedSnapshot = JSON.parse(String(payload));
+  } catch {
+    throw createProjectSnapshotError("invalid_project_snapshot");
+  }
+
+  if (!parsedSnapshot || typeof parsedSnapshot !== "object" || Array.isArray(parsedSnapshot)) {
+    throw createProjectSnapshotError("invalid_project_snapshot");
+  }
+
+  const normalizedProject = normalizeProjects([parsedSnapshot])[0];
+  const duplicateEpisodeKey = findDuplicateEpisodeKey(normalizedProject?.episodeDownloads);
+  if (duplicateEpisodeKey) {
+    throw createProjectSnapshotError("duplicate_episode_key", duplicateEpisodeKey.key);
+  }
+
+  return normalizedProject;
+};
+const parseEpubImportRequestBody = (req, res, next) => {
+  const contentType = String(req.headers["content-type"] || "").toLowerCase();
+  if (contentType.includes("multipart/form-data")) {
+    return epubImportUpload.single("file")(req, res, (error) => {
+      if (error) {
+        return res.status(400).json({
+          error: "invalid_multipart_upload",
+          detail: String(error?.message || error || "invalid_multipart_upload"),
+        });
+      }
+      return next();
+    });
+  }
+
+  return parseLegacyEpubImportBody(req, res, next);
+};
+
+const buildRuntimeMetadata = () => ({
+  apiVersion: API_CONTRACT_VERSION,
+  ...getBuildMetadata(),
+});
+
 app.get("/api/health/live", (_req, res) => {
   setNoStoreJson(res);
   return res.json({
     ok: true,
     status: "ok",
     ts: new Date().toISOString(),
+    build: buildRuntimeMetadata(),
   });
 });
 
@@ -6579,14 +6661,20 @@ app.get("/api/health/ready", async (_req, res) => {
   setNoStoreJson(res);
   const snapshot = await evaluateOperationalMonitoring();
   const statusCode = snapshot.health.status === "fail" ? 503 : 200;
-  return res.status(statusCode).json(snapshot.health);
+  return res.status(statusCode).json({
+    ...snapshot.health,
+    build: buildRuntimeMetadata(),
+  });
 });
 
 app.get("/api/health", async (_req, res) => {
   setNoStoreJson(res);
   const snapshot = await evaluateOperationalMonitoring();
   const statusCode = snapshot.health.status === "fail" ? 503 : 200;
-  return res.status(statusCode).json(snapshot.health);
+  return res.status(statusCode).json({
+    ...snapshot.health,
+    build: buildRuntimeMetadata(),
+  });
 });
 app.get("/api/metrics", (req, res) => {
   if (!isMetricsEnabled || !METRICS_TOKEN_NORMALIZED) {
@@ -9233,17 +9321,13 @@ app.post("/api/public/comments", async (req, res) => {
       return res.status(404).json({ error: "target_not_found" });
     }
     const volumeNumber = Number.isFinite(volume) ? Number(volume) : null;
-    const episode = (project.episodeDownloads || []).find((item) => {
-      if (Number(item.number) !== chapter) {
-        return false;
-      }
-      if (volumeNumber === null) {
-        return true;
-      }
-      return Number(item.volume || 0) === volumeNumber;
+    const lookup = resolveEpisodeLookup(project, chapter, volumeNumber, {
+      requirePublished: true,
     });
-    if (!episode) {
-      return res.status(404).json({ error: "target_not_found" });
+    if (!lookup.ok) {
+      return res.status(lookup.code === "volume_required" ? 400 : 404).json({
+        error: lookup.code === "volume_required" ? "volume_required" : "target_not_found",
+      });
     }
   }
 
@@ -10052,6 +10136,129 @@ app.get("/api/project-types", requireAuth, (req, res) => {
   return res.json({ types });
 });
 
+app.post(
+  "/api/projects/epub/import",
+  requireAuth,
+  parseEpubImportRequestBody,
+  async (req, res) => {
+    const sessionUser = req.session.user;
+    if (!canManageProjects(sessionUser?.id)) {
+      return res.status(403).json({ error: "forbidden" });
+    }
+
+    const isMultipartRequest = String(req.headers["content-type"] || "")
+      .toLowerCase()
+      .includes("multipart/form-data");
+    const rawProjectId = String(req.query.projectId || "").trim();
+    const targetVolumeRaw = isMultipartRequest
+      ? getSingleMultipartValue(req.body?.targetVolume)
+      : req.query.targetVolume;
+    const defaultStatusRaw = isMultipartRequest
+      ? getSingleMultipartValue(req.body?.defaultStatus)
+      : req.query.defaultStatus;
+    const defaultStatus = String(defaultStatusRaw || "draft").trim().toLowerCase();
+    const targetVolume =
+      targetVolumeRaw !== undefined &&
+      targetVolumeRaw !== null &&
+      String(targetVolumeRaw).trim() !== "" &&
+      Number.isFinite(Number(targetVolumeRaw))
+        ? Number(targetVolumeRaw)
+        : undefined;
+    const buffer = isMultipartRequest
+      ? Buffer.isBuffer(req.file?.buffer)
+        ? req.file.buffer
+        : Buffer.from([])
+      : Buffer.isBuffer(req.body)
+        ? req.body
+        : Buffer.from([]);
+
+    if (isMultipartRequest && !req.file) {
+      return res.status(400).json({ error: "file_required" });
+    }
+
+    if (!buffer.length) {
+      return res.status(400).json({ error: "empty_epub_upload" });
+    }
+
+    let project = null;
+    try {
+      project = normalizeProjectSnapshotForEpubImport(req.body?.project);
+    } catch (error) {
+      if (error?.code === "duplicate_episode_key") {
+        return res.status(400).json({ error: "duplicate_episode_key", key: error.key });
+      }
+      return res.status(400).json({ error: "invalid_project_snapshot" });
+    }
+
+    if (!project && rawProjectId) {
+      project =
+        normalizeProjects(loadProjects()).find((item) => item.id === rawProjectId && !item.deletedAt) ||
+        null;
+      if (!project) {
+        return res.status(404).json({ error: "project_not_found" });
+      }
+    }
+
+    try {
+      const preview = await importProjectEpub({
+        buffer,
+        project,
+        targetVolume,
+        defaultStatus,
+        uploadsDir: path.join(__dirname, "..", "public", "uploads"),
+        loadUploads,
+        writeUploads,
+        uploadUserId: sessionUser?.id,
+      });
+      return res.json(preview);
+    } catch (error) {
+      return res.status(400).json({
+        error: "epub_import_failed",
+        detail: String(error?.message || error || "epub_import_failed"),
+      });
+    }
+  },
+);
+
+app.post("/api/projects/epub/export", requireAuth, async (req, res) => {
+  const sessionUser = req.session.user;
+  if (!canManageProjects(sessionUser?.id)) {
+    return res.status(403).json({ error: "forbidden" });
+  }
+
+  const projectPayload = req.body?.project;
+  if (!projectPayload || typeof projectPayload !== "object") {
+    return res.status(400).json({ error: "project_required" });
+  }
+
+  const normalizedProject = normalizeProjects([projectPayload])[0];
+  const duplicateEpisodeKey = findDuplicateEpisodeKey(normalizedProject.episodeDownloads);
+  if (duplicateEpisodeKey) {
+    return res.status(400).json({ error: "duplicate_episode_key", key: duplicateEpisodeKey.key });
+  }
+
+  try {
+    const { buffer, filename } = await exportProjectEpub({
+      project: normalizedProject,
+      volume: req.body?.volume,
+      includeDrafts: Boolean(req.body?.includeDrafts),
+      origin: PRIMARY_APP_ORIGIN,
+      siteName: loadSiteSettings()?.site?.name,
+    });
+    res.setHeader("Content-Type", "application/epub+zip");
+    res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+    return res.send(buffer);
+  } catch (error) {
+    if (error?.code === "no_eligible_chapters" || error?.message === "no_eligible_chapters") {
+      return res.status(422).json({ error: "no_eligible_chapters" });
+    }
+    return res.status(400).json({
+      error: "epub_export_failed",
+      detail: String(error?.message || error || "epub_export_failed"),
+    });
+  }
+});
+
 app.post("/api/projects", requireAuth, async (req, res) => {
   const sessionUser = req.session.user;
   if (!canManageProjects(sessionUser?.id)) {
@@ -10092,8 +10299,13 @@ app.post("/api/projects", requireAuth, async (req, res) => {
       }),
     maxConcurrent: 4,
   });
-  const nextProject = normalizeProjects([localizedCreate.project])[0];
+  const nextProjectNormalized = normalizeProjects([localizedCreate.project])[0];
   upsertUploadEntries(localizedCreate.uploadsToUpsert);
+  const duplicateEpisodeKey = findDuplicateEpisodeKey(nextProjectNormalized.episodeDownloads);
+  if (duplicateEpisodeKey) {
+    return res.status(400).json({ error: "duplicate_episode_key", key: duplicateEpisodeKey.key });
+  }
+  const nextProject = applyEpisodePublicationMetadata(null, nextProjectNormalized, now);
 
   projects.push(nextProject);
   writeProjects(projects);
@@ -10104,7 +10316,7 @@ app.post("/api/projects", requireAuth, async (req, res) => {
   });
 
   const updates = loadUpdates();
-  const episodeWebhookUpdates = collectEpisodeUpdates(null, nextProject).map((item) => ({
+  const episodeWebhookUpdates = collectEpisodeUpdatesByVisibility(null, nextProject, now).map((item) => ({
     ...item,
     updatedAt: item.updatedAt || now,
   }));
@@ -10113,6 +10325,7 @@ app.post("/api/projects", requireAuth, async (req, res) => {
     projectId: nextProject.id,
     projectTitle: nextProject.title,
     episodeNumber: item.episodeNumber,
+    volume: item.volume,
     kind: item.kind,
     reason: item.reason,
     unit: item.unit,
@@ -10123,12 +10336,13 @@ app.post("/api/projects", requireAuth, async (req, res) => {
     episodeUpdateRecords.length > 0 ? [...updates, ...episodeUpdateRecords] : updates;
   const webhookUpdates = [...episodeWebhookUpdates];
   if (
-    String(nextProject.type || "")
+    false &&
+    (String(nextProject.type || "")
       .toLowerCase()
       .includes("light") ||
-    String(nextProject.type || "")
-      .toLowerCase()
-      .includes("novel")
+      String(nextProject.type || "")
+        .toLowerCase()
+        .includes("novel"))
   ) {
     const existingKeys = new Set(
       nextUpdates
@@ -10181,7 +10395,11 @@ app.post("/api/projects", requireAuth, async (req, res) => {
       eventKey,
       project: persistedProject,
       update,
-      chapter: findProjectChapterByEpisodeNumber(persistedProject, update.episodeNumber),
+      chapter: findProjectChapterByEpisodeNumber(
+        persistedProject,
+        update.episodeNumber,
+        update.volume,
+      ),
       req,
     });
   }
@@ -10238,8 +10456,13 @@ app.put("/api/projects/:id", requireAuth, async (req, res) => {
       }),
     maxConcurrent: 4,
   });
-  const merged = normalizeProjects([localizedUpdate.project])[0];
+  const mergedNormalized = normalizeProjects([localizedUpdate.project])[0];
   upsertUploadEntries(localizedUpdate.uploadsToUpsert);
+  const duplicateEpisodeKey = findDuplicateEpisodeKey(mergedNormalized.episodeDownloads);
+  if (duplicateEpisodeKey) {
+    return res.status(400).json({ error: "duplicate_episode_key", key: duplicateEpisodeKey.key });
+  }
+  const merged = applyEpisodePublicationMetadata(existing, mergedNormalized, now);
 
   projects[index] = merged;
   writeProjects(projects);
@@ -10250,7 +10473,7 @@ app.put("/api/projects/:id", requireAuth, async (req, res) => {
   });
 
   const updates = loadUpdates();
-  const episodeWebhookUpdates = collectEpisodeUpdates(existing, merged).map((item) => ({
+  const episodeWebhookUpdates = collectEpisodeUpdatesByVisibility(existing, merged, now).map((item) => ({
     ...item,
     updatedAt: item.updatedAt || now,
   }));
@@ -10259,6 +10482,7 @@ app.put("/api/projects/:id", requireAuth, async (req, res) => {
     projectId: merged.id,
     projectTitle: merged.title,
     episodeNumber: item.episodeNumber,
+    volume: item.volume,
     kind: item.kind,
     reason: item.reason,
     unit: item.unit,
@@ -10269,12 +10493,13 @@ app.put("/api/projects/:id", requireAuth, async (req, res) => {
     episodeUpdateRecords.length > 0 ? [...updates, ...episodeUpdateRecords] : updates;
   const webhookUpdates = [...episodeWebhookUpdates];
   if (
-    String(merged.type || "")
+    false &&
+    (String(merged.type || "")
       .toLowerCase()
       .includes("light") ||
-    String(merged.type || "")
-      .toLowerCase()
-      .includes("novel")
+      String(merged.type || "")
+        .toLowerCase()
+        .includes("novel"))
   ) {
     const existingKeys = new Set(
       nextUpdates
@@ -10325,7 +10550,11 @@ app.put("/api/projects/:id", requireAuth, async (req, res) => {
       eventKey,
       project: persistedProject,
       update,
-      chapter: findProjectChapterByEpisodeNumber(persistedProject, update.episodeNumber),
+      chapter: findProjectChapterByEpisodeNumber(
+        persistedProject,
+        update.episodeNumber,
+        update.volume,
+      ),
       req,
     });
   }
@@ -10429,12 +10658,13 @@ app.post("/api/projects/:id/rebuild-updates", requireAuth, (req, res) => {
     return res.status(404).json({ error: "not_found" });
   }
   const updates = loadUpdates().filter((item) => item.projectId !== id);
-  const episodeUpdates = collectEpisodeUpdates(null, project)
+  const episodeUpdates = collectEpisodeUpdatesByVisibility(null, project, new Date().toISOString())
     .map((item) => ({
       id: crypto.randomUUID(),
       projectId: project.id,
       projectTitle: project.title,
       episodeNumber: item.episodeNumber,
+      volume: item.volume,
       kind: item.kind,
       reason: item.reason,
       unit: item.unit,
@@ -10458,10 +10688,22 @@ const SITEMAP_STATIC_PUBLIC_PATHS = [
   "/doacoes",
 ];
 
+const toPublicEpisode = (episode) => ({
+  ...episode,
+  content: undefined,
+  hasContent: hasEpisodeContent(episode),
+});
+
+const toPublicProject = (project) => ({
+  ...project,
+  episodeDownloads: getPubliclyVisibleEpisodes(project).map(toPublicEpisode),
+});
+
 const getPublicVisibleProjects = () =>
   normalizeProjects(loadProjects())
     .filter((project) => !project.deletedAt)
-    .sort((a, b) => a.order - b.order);
+    .sort((a, b) => a.order - b.order)
+    .map(toPublicProject);
 
 const getPublicVisiblePosts = () => {
   const now = Date.now();
@@ -10475,14 +10717,25 @@ const getPublicVisiblePosts = () => {
 };
 
 const getPublicVisibleUpdates = () => {
-  const projects = getPublicVisibleProjects();
-  const validProjectIds = new Set(projects.map((project) => project.id));
+  const rawProjects = normalizeProjects(loadProjects()).filter((project) => !project.deletedAt);
+  const projectMap = new Map(rawProjects.map((project) => [String(project.id), project]));
   return loadUpdates()
     .filter((update) => {
-      if (!update?.projectId) {
-        return true;
+      const projectId = String(update?.projectId || "").trim();
+      if (!projectId) {
+        return false;
       }
-      return validProjectIds.has(String(update.projectId));
+      const project = projectMap.get(projectId);
+      if (!project) {
+        return false;
+      }
+      const lookup = resolveEpisodeLookup(project, update?.episodeNumber, update?.volume, {
+        requirePublished: true,
+      });
+      if (!lookup.ok) {
+        return false;
+      }
+      return isEpisodePublic(project.type || "", lookup.episode);
     })
     .map((update) => {
       const reason = String(update?.reason || "");
@@ -10671,9 +10924,7 @@ app.get("/api/public/bootstrap", (req, res) => {
     return res.status(cached.statusCode).json(cached.payload);
   }
   const now = Date.now();
-  const projects = normalizeProjects(loadProjects())
-    .filter((project) => !project.deletedAt)
-    .sort((a, b) => a.order - b.order);
+  const projects = getPublicVisibleProjects();
   const posts = normalizePosts(loadPosts())
     .filter((post) => !post.deletedAt)
     .filter((post) => {
@@ -10696,27 +10947,7 @@ app.get("/api/public/bootstrap", (req, res) => {
         tags: Array.isArray(post.tags) ? post.tags : [],
       };
     });
-  const validProjectIds = new Set(projects.map((project) => project.id));
-  const updates = loadUpdates()
-    .filter((update) => {
-      if (!update?.projectId) {
-        return true;
-      }
-      return validProjectIds.has(String(update.projectId));
-    })
-    .map((update) => {
-      const reason = String(update?.reason || "");
-      const kind = String(update?.kind || "");
-      if (
-        kind.toLowerCase().startsWith("lan") &&
-        reason.toLowerCase().includes("novo link adicionado")
-      ) {
-        return { ...update, kind: "Ajuste" };
-      }
-      return update;
-    })
-    .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
-    .slice(0, 10);
+  const updates = getPublicVisibleUpdates().slice(0, 10);
   const payload = buildPublicBootstrapPayload({
     settings: loadSiteSettings(),
     projects,
@@ -10805,48 +11036,41 @@ app.get("/api/public/projects", (req, res) => {
   const usePagination = Number.isFinite(limitRaw) || Number.isFinite(pageRaw);
   const limit = usePagination ? Math.min(Math.max(limitRaw || 20, 1), 200) : null;
   const page = usePagination ? Math.max(pageRaw || 1, 1) : null;
-  const projects = normalizeProjects(loadProjects())
-    .filter((project) => !project.deletedAt)
-    .sort((a, b) => a.order - b.order)
-    .map((project) => ({
-      id: project.id,
-      title: project.title,
-      titleOriginal: project.titleOriginal,
-      titleEnglish: project.titleEnglish,
-      synopsis: project.synopsis,
-      description: project.description,
-      type: project.type,
-      status: project.status,
-      year: project.year,
-      studio: project.studio,
-      episodes: project.episodes,
-      tags: project.tags,
-      genres: project.genres,
-      cover: project.cover,
-      banner: project.banner,
-      season: project.season,
-      schedule: project.schedule,
-      rating: project.rating,
-      country: project.country,
-      source: project.source,
-      producers: project.producers,
-      score: project.score,
-      startDate: project.startDate,
-      endDate: project.endDate,
-      relations: project.relations,
-      staff: project.staff,
-      animeStaff: project.animeStaff,
-      trailerUrl: project.trailerUrl,
-      forceHero: project.forceHero,
-      heroImageUrl: project.heroImageUrl,
-      episodeDownloads: project.episodeDownloads.map((episode) => ({
-        ...episode,
-        content: undefined,
-        hasContent: typeof episode.content === "string" && episode.content.trim().length > 0,
-      })),
-      views: project.views,
-      commentsCount: project.commentsCount,
-    }));
+  const projects = getPublicVisibleProjects().map((project) => ({
+    id: project.id,
+    title: project.title,
+    titleOriginal: project.titleOriginal,
+    titleEnglish: project.titleEnglish,
+    synopsis: project.synopsis,
+    description: project.description,
+    type: project.type,
+    status: project.status,
+    year: project.year,
+    studio: project.studio,
+    episodes: project.episodes,
+    tags: project.tags,
+    genres: project.genres,
+    cover: project.cover,
+    banner: project.banner,
+    season: project.season,
+    schedule: project.schedule,
+    rating: project.rating,
+    country: project.country,
+    source: project.source,
+    producers: project.producers,
+    score: project.score,
+    startDate: project.startDate,
+    endDate: project.endDate,
+    relations: project.relations,
+    staff: project.staff,
+    animeStaff: project.animeStaff,
+    trailerUrl: project.trailerUrl,
+    forceHero: project.forceHero,
+    heroImageUrl: project.heroImageUrl,
+    episodeDownloads: project.episodeDownloads,
+    views: project.views,
+    commentsCount: project.commentsCount,
+  }));
   let payload = null;
   if (!usePagination) {
     payload = { projects };
@@ -10870,26 +11094,15 @@ app.get("/api/public/projects", (req, res) => {
 app.get("/api/public/projects/:id", (req, res) => {
   res.setHeader("Cache-Control", "no-store");
   const id = String(req.params.id || "");
-  const projects = normalizeProjects(loadProjects());
+  const projects = getPublicVisibleProjects();
   const project = projects.find((item) => item.id === id);
   if (!project) {
     return res.status(404).json({ error: "not_found" });
   }
-  if (project.deletedAt) {
-    return res.status(404).json({ error: "not_found" });
-  }
   const { discordRoleId: _discordRoleId, ...projectWithoutDiscordRoleId } = project;
-  const sanitized = {
-    ...projectWithoutDiscordRoleId,
-    episodeDownloads: project.episodeDownloads.map((episode) => ({
-      ...episode,
-      content: undefined,
-      hasContent: typeof episode.content === "string" && episode.content.trim().length > 0,
-    })),
-  };
   return res.json({
-    project: sanitized,
-    mediaVariants: buildPublicMediaVariants(sanitized),
+    project: projectWithoutDiscordRoleId,
+    mediaVariants: buildPublicMediaVariants(projectWithoutDiscordRoleId),
   });
 });
 
@@ -10965,33 +11178,31 @@ app.get("/api/public/projects/:id/chapters/:number", (req, res) => {
   if (!Number.isFinite(chapterNumber)) {
     return res.status(400).json({ error: "invalid_chapter" });
   }
-  const projects = normalizeProjects(loadProjects());
+  const projects = getPublicVisibleProjects();
   const project = projects.find((item) => item.id === id);
   if (!project) {
     return res.status(404).json({ error: "not_found" });
   }
-  if (project.deletedAt) {
-    return res.status(404).json({ error: "not_found" });
-  }
-  const chapter = project.episodeDownloads.find((episode) => {
-    if (Number(episode.number) !== chapterNumber) {
-      return false;
-    }
-    if (Number.isFinite(volume)) {
-      return Number(episode.volume || 0) === volume;
-    }
-    return true;
+  const chapterLookup = resolveEpisodeLookup(project, chapterNumber, volume, {
+    requirePublished: true,
   });
-  if (!chapter) {
-    return res.status(404).json({ error: "not_found" });
+  if (!chapterLookup.ok) {
+    return res.status(chapterLookup.code === "volume_required" ? 400 : 404).json({
+      error: chapterLookup.code,
+    });
   }
+  const chapter = chapterLookup.episode;
   return res.json({
     chapter: {
       number: chapter.number,
       volume: chapter.volume,
       title: chapter.title,
+      synopsis: deriveChapterSynopsis(chapter),
+      releaseDate: chapter.releaseDate || "",
+      updatedAt: chapter.chapterUpdatedAt || chapter.updatedAt || "",
+      coverImageUrl: chapter.coverImageUrl || "",
       content: chapter.content || "",
-      contentFormat: chapter.contentFormat || "markdown",
+      contentFormat: "lexical",
     },
   });
 });
@@ -11017,19 +11228,16 @@ app.post("/api/public/projects/:id/chapters/:number/polls/vote", async (req, res
     return res.status(404).json({ error: "not_found" });
   }
   const project = projects[projectIndex];
-  const chapterIndex = project.episodeDownloads.findIndex((episode) => {
-    if (Number(episode.number) !== chapterNumber) {
-      return false;
-    }
-    if (Number.isFinite(volume)) {
-      return Number(episode.volume || 0) === volume;
-    }
-    return true;
+  const chapterLookup = resolveEpisodeLookup(project, chapterNumber, volume, {
+    requirePublished: true,
   });
-  if (chapterIndex === -1) {
-    return res.status(404).json({ error: "not_found" });
+  if (!chapterLookup.ok) {
+    return res.status(chapterLookup.code === "volume_required" ? 400 : 404).json({
+      error: chapterLookup.code,
+    });
   }
-  const chapter = project.episodeDownloads[chapterIndex];
+  const chapterIndex = chapterLookup.index;
+  const chapter = chapterLookup.episode;
   const result = updateLexicalPollVotes(chapter.content, {
     question,
     optionUid,
@@ -11059,29 +11267,7 @@ app.get("/api/public/updates", (req, res) => {
   const usePagination = Number.isFinite(limitRaw) || Number.isFinite(pageRaw);
   const limit = usePagination ? Math.min(Math.max(limitRaw || 10, 1), 50) : 10;
   const page = usePagination ? Math.max(pageRaw || 1, 1) : 1;
-  const projects = normalizeProjects(loadProjects());
-  const validProjectIds = new Set(
-    projects.filter((project) => !project.deletedAt).map((project) => project.id),
-  );
-  const updates = loadUpdates()
-    .filter((update) => {
-      if (!update?.projectId) {
-        return true;
-      }
-      return validProjectIds.has(String(update.projectId));
-    })
-    .map((update) => {
-      const reason = String(update?.reason || "");
-      const kind = String(update?.kind || "");
-      if (
-        kind.toLowerCase().startsWith("lan") &&
-        reason.toLowerCase().includes("novo link adicionado")
-      ) {
-        return { ...update, kind: "Ajuste" };
-      }
-      return update;
-    })
-    .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+  const updates = getPublicVisibleUpdates();
   if (!usePagination) {
     return res.json({ updates: updates.slice(0, limit) });
   }
@@ -11598,7 +11784,7 @@ app.get("/api/anilist/:id", requireAuth, async (req, res) => {
     return res.status(403).json({ error: "forbidden" });
   }
   const id = Number(req.params.id);
-  if (!Number.isFinite(id)) {
+  if (!Number.isInteger(id) || id <= 0) {
     return res.status(400).json({ error: "invalid_id" });
   }
   try {
@@ -13608,7 +13794,7 @@ const runStartupMaintenance = async () => {
 };
 
 const listenPort = Number(PORT);
-const httpServer = app.listen(listenPort, () => {
+httpServer.listen(listenPort, () => {
   console.log(
     `[server] listening on :${listenPort} (data_source=db, maintenance=${isMaintenanceMode})`,
   );

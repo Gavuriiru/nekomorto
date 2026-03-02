@@ -12,7 +12,7 @@ const DATASETS_TO_REWRITE = [
   "users",
 ];
 
-const MANAGED_UPLOAD_ROOT_FOLDERS = new Set(["posts", "projects", "shared"]);
+const MANAGED_UPLOAD_ROOT_FOLDERS = new Set(["posts", "projects", "shared", "tmp"]);
 const DEFAULT_PRIVATE_ROOT_FOLDERS = new Set(["downloads", "socials", "users"]);
 
 const mimeByExtension = {

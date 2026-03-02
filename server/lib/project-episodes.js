@@ -1,0 +1,119 @@
+export const getEpisodeNumberValue = (value) => {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+};
+
+export const getEpisodeVolumeValue = (value) => {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : 0;
+};
+
+const getLookupVolumeValue = (value) => {
+  if (value === null || value === undefined) {
+    return null;
+  }
+  if (typeof value === "string" && value.trim() === "") {
+    return null;
+  }
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+};
+
+export const buildEpisodeKey = (number, volume) => {
+  const safeNumber = getEpisodeNumberValue(number);
+  if (safeNumber === null) {
+    return "";
+  }
+  return `${safeNumber}:${getEpisodeVolumeValue(volume)}`;
+};
+
+export const getEpisodeSourceUrls = (episode) =>
+  Array.isArray(episode?.sources)
+    ? episode.sources
+        .map((source) => String(source?.url || "").trim())
+        .filter(Boolean)
+    : [];
+
+export const hasEpisodeSources = (episode) => getEpisodeSourceUrls(episode).length > 0;
+
+export const hasEpisodeContent = (episode) => typeof episode?.content === "string" && episode.content.trim().length > 0;
+
+export const getEpisodePublicationStatus = (episode) =>
+  String(episode?.publicationStatus || "").trim().toLowerCase() === "draft"
+    ? "draft"
+    : "published";
+
+export const isPublishedEpisode = (episode) => getEpisodePublicationStatus(episode) === "published";
+
+export const findDuplicateEpisodeKey = (episodes) => {
+  const seen = new Map();
+  const list = Array.isArray(episodes) ? episodes : [];
+  for (let index = 0; index < list.length; index += 1) {
+    const key = buildEpisodeKey(list[index]?.number, list[index]?.volume);
+    if (!key) {
+      continue;
+    }
+    if (seen.has(key)) {
+      return {
+        key,
+        firstIndex: seen.get(key),
+        secondIndex: index,
+      };
+    }
+    seen.set(key, index);
+  }
+  return null;
+};
+
+export const resolveEpisodeLookup = (
+  project,
+  episodeNumber,
+  volume,
+  { requirePublished = false } = {},
+) => {
+  const safeNumber = getEpisodeNumberValue(episodeNumber);
+  if (safeNumber === null) {
+    return { ok: false, code: "invalid_episode_number" };
+  }
+  const safeVolume = getLookupVolumeValue(volume);
+  const episodes = Array.isArray(project?.episodeDownloads) ? project.episodeDownloads : [];
+  const matches = episodes
+    .map((episode, index) => ({ episode, index }))
+    .filter(({ episode }) => getEpisodeNumberValue(episode?.number) === safeNumber)
+    .filter(({ episode }) => {
+      if (requirePublished && !isPublishedEpisode(episode)) {
+        return false;
+      }
+      return true;
+    });
+
+  if (matches.length === 0) {
+    return { ok: false, code: "not_found" };
+  }
+
+  if (safeVolume !== null) {
+    const exact = matches.find(
+      ({ episode }) => getEpisodeVolumeValue(episode?.volume) === getEpisodeVolumeValue(safeVolume),
+    );
+    if (!exact) {
+      return { ok: false, code: "not_found" };
+    }
+    return {
+      ok: true,
+      code: "ok",
+      ...exact,
+      key: buildEpisodeKey(exact.episode?.number, exact.episode?.volume),
+    };
+  }
+
+  if (matches.length > 1) {
+    return { ok: false, code: "volume_required", matches };
+  }
+
+  return {
+    ok: true,
+    code: "ok",
+    ...matches[0],
+    key: buildEpisodeKey(matches[0].episode?.number, matches[0].episode?.volume),
+  };
+};

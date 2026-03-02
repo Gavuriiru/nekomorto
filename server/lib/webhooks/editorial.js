@@ -587,6 +587,7 @@ const UPDATE_PLACEHOLDERS = [
   "update.reason",
   "update.unit",
   "update.episodeNumber",
+  "update.volume",
 ];
 
 const PLACEHOLDER_ALLOWLIST = {
@@ -925,6 +926,7 @@ export const buildEditorialEventContext = ({
       episodeNumber: Number.isFinite(Number(safeUpdate.episodeNumber))
         ? Number(safeUpdate.episodeNumber)
         : "",
+      volume: Number.isFinite(Number(safeUpdate.volume)) ? Number(safeUpdate.volume) : "",
     },
   };
 };

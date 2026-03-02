@@ -71,6 +71,7 @@ export const toPublicBootstrapUpdate = (update) => ({
   episodeNumber: Number.isFinite(Number(update?.episodeNumber))
     ? Number(update.episodeNumber)
     : 0,
+  volume: Number.isFinite(Number(update?.volume)) ? Number(update.volume) : undefined,
   kind: safeString(update?.kind),
   reason: safeString(update?.reason),
   updatedAt: safeString(update?.updatedAt),

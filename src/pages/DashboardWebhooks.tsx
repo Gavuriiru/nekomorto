@@ -163,6 +163,7 @@ const UPDATE_PLACEHOLDERS = [
   "update.reason",
   "update.unit",
   "update.episodeNumber",
+  "update.volume",
 ];
 
 const PLACEHOLDERS: Record<EventKey, string[]> = {

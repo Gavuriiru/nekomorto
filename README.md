@@ -182,6 +182,8 @@ npm run dev
 
 - API + frontend em `http://localhost:8080`.
 - Para acesso por tunel/dominio publico, mantenha `VITE_API_BASE` vazio para usar same-origin.
+- O HMR do modo integrado usa a mesma origem da pagina. Nao publique nem encaminhe a porta `24678`.
+- Para cloudflared, aponte o tunel inteiro para `http://127.0.0.1:8080`.
 
 ### 6.2 Modo separado (backend e frontend em portas diferentes)
 
@@ -691,6 +693,25 @@ VITE_API_BASE=
 3. Limpe cookies do dominio publico e de `localhost`.
 4. Inicie o login pela URL publica (ex.: `https://dev.nekomata.moe/login`).
 5. Verifique no DevTools que as chamadas usam `https://<mesmo-dominio>/api/...` (nao `http://localhost:8080/api/...`).
+6. Verifique no DevTools que o websocket do Vite usa o mesmo host da pagina e nao `:24678`.
+
+### Fluxo com cloudflared no modo integrado
+
+Checklist:
+
+1. Rode `npm run dev`.
+2. Mantenha `VITE_API_BASE=` vazio.
+3. Configure o cloudflared para encaminhar `https://dev.nekomata.moe` para `http://127.0.0.1:8080`.
+4. Abra a app em `https://dev.nekomata.moe`.
+5. Confirme no DevTools:
+   - `window.location.origin` e a origem publica esperada
+   - `/api/contracts/v1.json` responde na mesma origem
+   - o websocket HMR usa o mesmo host da pagina
+
+Troubleshooting:
+
+- Se `localhost` ainda mostrar um host publico no HMR, confirme que a aba realmente esta carregando `http://localhost:8080` e que o request de `@vite/client` veio da instancia local.
+- Se o contrato da API responder com suporte EPUB mas `POST /api/projects/epub/import` der `404`, o tunel/proxy esta apontando para outra instancia.
 
 Diagnostico em producao:
 

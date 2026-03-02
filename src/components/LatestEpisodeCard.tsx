@@ -123,6 +123,11 @@ const LatestEpisodeCard = () => {
                           <Badge variant="secondary" className="text-[10px]">
                             {unitShort} {update.episodeNumber}
                           </Badge>
+                          {update.volume ? (
+                            <Badge variant="outline" className="text-[10px]">
+                              Vol. {update.volume}
+                            </Badge>
+                          ) : null}
                           <Badge
                             variant="outline"
                             className={`text-[10px] ${

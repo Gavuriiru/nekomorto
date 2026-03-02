@@ -30,6 +30,7 @@ const setupBootstrapMock = () => {
           projectId: "project-1",
           projectTitle: "Projeto Alpha",
           episodeNumber: 12,
+          volume: 4,
           kind: "Lancamento",
           reason: "capitulo novo",
           updatedAt: "2026-02-11T12:00:00.000Z",
@@ -96,6 +97,7 @@ describe("LatestEpisodeCard border styles", () => {
 
     const updateLinks = screen.getAllByRole("link");
     expect(updateLinks).toHaveLength(2);
+    expect(screen.getByText("Vol. 4")).toBeInTheDocument();
 
     updateLinks.forEach((link) => {
       expect(link).toHaveClass("recent-updates-item");

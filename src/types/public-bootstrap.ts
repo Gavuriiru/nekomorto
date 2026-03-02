@@ -54,6 +54,7 @@ export type PublicBootstrapUpdate = {
   projectId: string;
   projectTitle: string;
   episodeNumber: number;
+  volume?: number;
   kind: string;
   reason: string;
   updatedAt: string;

@@ -1,46 +1,20 @@
-name: Deploy Production
+name: Deploy Development
 
 on:
-  push:
-    branches:
-      - main
   workflow_dispatch:
     inputs:
       image_tag:
-        description: "Optional image tag to deploy (latest or sha-<40hex>). Leave empty to deploy current commit."
+        description: "Optional image tag to deploy (sha-<40hex>). Leave empty to deploy current commit."
         required: false
         type: string
 
 concurrency:
-  group: deploy-production
+  group: deploy-development
   cancel-in-progress: true
 
 jobs:
-  quality:
-    if: ${{ github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && github.event.inputs.image_tag == '') }}
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Set up Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 24.13.0
-          cache: npm
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Run accessibility gate
-        run: npm run test:a11y
-
   build_and_push:
-    needs:
-      - quality
-    if: ${{ github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && github.event.inputs.image_tag == '') }}
+    if: ${{ github.event.inputs.image_tag == '' }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -79,16 +53,14 @@ jobs:
             VITE_APP_COMMIT_SHA=${{ steps.build-meta.outputs.commit_sha }}
             VITE_APP_BUILD_TIME=${{ steps.build-meta.outputs.build_time }}
           tags: |
-            ghcr.io/gavuriiru/nekomorto:latest
             ghcr.io/gavuriiru/nekomorto:sha-${{ github.sha }}
 
   deploy:
     needs:
-      - quality
       - build_and_push
-    if: ${{ always() && (needs.quality.result == 'success' || needs.quality.result == 'skipped') && (needs.build_and_push.result == 'success' || needs.build_and_push.result == 'skipped') }}
+    if: ${{ always() && (needs.build_and_push.result == 'success' || needs.build_and_push.result == 'skipped') }}
     runs-on: ubuntu-latest
-    environment: production
+    environment: development
     permissions:
       contents: read
     steps:
@@ -99,9 +71,9 @@ jobs:
           INPUT_TAG: ${{ github.event.inputs.image_tag || '' }}
         run: |
           if [ -n "${INPUT_TAG}" ]; then
-            if [[ ! "${INPUT_TAG}" =~ ^(latest|sha-[0-9a-f]{40})$ ]]; then
+            if [[ ! "${INPUT_TAG}" =~ ^sha-[0-9a-f]{40}$ ]]; then
               echo "Invalid image_tag: ${INPUT_TAG}" >&2
-              echo "Allowed values: latest or sha-<40 lowercase hex chars>" >&2
+              echo "Allowed values: sha-<40 lowercase hex chars>" >&2
               exit 1
             fi
             RESOLVED_TAG="${INPUT_TAG}"
@@ -115,20 +87,20 @@ jobs:
       - name: Configure SSH
         shell: bash
         run: |
-          PORT="${{ secrets.PROD_PORT }}"
+          PORT="${{ secrets.DEV_PORT }}"
           if [ -z "${PORT}" ]; then
             PORT=22
           fi
 
           install -m 700 -d ~/.ssh
-          printf '%s\n' "${{ secrets.PROD_SSH_KEY }}" > ~/.ssh/id_ed25519
+          printf '%s\n' "${{ secrets.DEV_SSH_KEY }}" > ~/.ssh/id_ed25519
           chmod 600 ~/.ssh/id_ed25519
-          ssh-keyscan -p "${PORT}" "${{ secrets.PROD_HOST }}" >> ~/.ssh/known_hosts
+          ssh-keyscan -p "${PORT}" "${{ secrets.DEV_HOST }}" >> ~/.ssh/known_hosts
 
       - name: Run remote deploy
         shell: bash
         run: |
-          PORT="${{ secrets.PROD_PORT }}"
+          PORT="${{ secrets.DEV_PORT }}"
           if [ -z "${PORT}" ]; then
             PORT=22
           fi
@@ -136,5 +108,5 @@ jobs:
           IMAGE_REPO="${{ steps.resolve-image.outputs.image_repo }}"
           IMAGE_TAG="${{ steps.resolve-image.outputs.image_tag }}"
 
-          ssh -o StrictHostKeyChecking=yes -p "${PORT}" "${{ secrets.PROD_USER }}@${{ secrets.PROD_HOST }}" \
-            "DEPLOY_PATH='${{ secrets.PROD_DEPLOY_PATH }}' DEPLOY_BRANCH='main' HEALTHCHECK_BASE_URL='https://nekomata.moe' APP_IMAGE_REPO='${IMAGE_REPO}' APP_IMAGE_TAG='${IMAGE_TAG}' bash '${{ secrets.PROD_DEPLOY_PATH }}/ops/prod/deploy-prod.sh'"
+          ssh -o StrictHostKeyChecking=yes -p "${PORT}" "${{ secrets.DEV_USER }}@${{ secrets.DEV_HOST }}" \
+            "DEPLOY_PATH='${{ secrets.DEV_DEPLOY_PATH }}' DEPLOY_BRANCH='main' ENV_FILE='.env.dev' HEALTHCHECK_BASE_URL='https://dev.nekomata.moe' APP_IMAGE_REPO='${IMAGE_REPO}' APP_IMAGE_TAG='${IMAGE_TAG}' bash '${{ secrets.DEV_DEPLOY_PATH }}/ops/dev/deploy-dev.sh'"

@@ -53,24 +53,26 @@ const mockJsonResponse = (ok: boolean, payload: unknown, status = ok ? 200 : 500
     json: async () => payload,
   }) as Response;
 
-const createProjectFixture = () => ({
+const createProjectFixture = (episodeDownloads?: Array<Record<string, unknown>>) => ({
   id: "projeto-teste",
   title: "Projeto Teste",
   synopsis: "Sinopse",
   type: "Light Novel",
-  episodeDownloads: [
-    {
-      number: 1,
-      volume: 2,
-      title: "Capítulo 1",
-      synopsis: "Resumo do capítulo",
-      content: "<p>Conteúdo</p>",
-    },
-  ],
+  episodeDownloads:
+    episodeDownloads ||
+    [
+      {
+        number: 1,
+        volume: 2,
+        title: "CapÃ­tulo 1",
+        synopsis: "Resumo do capÃ­tulo",
+        content: "<p>ConteÃºdo</p>",
+      },
+    ],
 });
 
-const setupProjectReadingApiMock = () => {
-  const project = createProjectFixture();
+const setupProjectReadingApiMock = (episodeDownloads?: Array<Record<string, unknown>>) => {
+  const project = createProjectFixture(episodeDownloads);
 
   apiFetchMock.mockReset();
   apiFetchMock.mockImplementation(async (_apiBase: string, endpoint: string, options?: RequestInit) => {
@@ -82,9 +84,9 @@ const setupProjectReadingApiMock = () => {
         chapter: {
           number: 1,
           volume: 2,
-          title: "Capítulo 1",
-          synopsis: "Resumo do capítulo",
-          content: "<p>Conteúdo</p>",
+          title: "CapÃ­tulo 1",
+          synopsis: "Resumo do capÃ­tulo",
+          content: "<p>ConteÃºdo</p>",
           contentFormat: "lexical",
         },
       });
@@ -111,7 +113,7 @@ describe("ProjectReading analytics", () => {
       </MemoryRouter>,
     );
 
-    await screen.findByRole("heading", { name: /Cap.tulo 1/i });
+    await screen.findByRole("heading", { name: /Cap.*tulo 1/i });
 
     await waitFor(() => {
       const analyticsCall = apiFetchMock.mock.calls.find((call) => call[1] === "/api/public/analytics/event");
@@ -137,7 +139,7 @@ describe("ProjectReading analytics", () => {
       </MemoryRouter>,
     );
 
-    await screen.findByRole("heading", { name: /Cap.tulo 1/i });
+    await screen.findByRole("heading", { name: /Cap.*tulo 1/i });
     await screen.findByTestId("lexical-viewer");
 
     expect(screen.queryByText("Fonte")).not.toBeInTheDocument();
@@ -156,13 +158,13 @@ describe("ProjectReading analytics", () => {
       </MemoryRouter>,
     );
 
-    await screen.findByRole("heading", { name: /Cap.tulo 1/i });
+    await screen.findByRole("heading", { name: /Cap.*tulo 1/i });
 
     expect(screen.queryByRole("navigation", { name: /breadcrumb/i })).not.toBeInTheDocument();
     const backLink = screen.getByRole("link", { name: "Voltar ao projeto" });
     expect(backLink).toHaveAttribute("href", "/projeto/projeto-teste");
     expect(screen.queryByRole("link", { name: "Ir para projetos" })).not.toBeInTheDocument();
-    expect(screen.queryByText("Capítulos publicados diretamente no site.")).not.toBeInTheDocument();
+    expect(screen.queryByText("CapÃ­tulos publicados diretamente no site.")).not.toBeInTheDocument();
     expect(screen.queryByTestId("discord-invite-card")).not.toBeInTheDocument();
     expect(screen.queryByTestId("latest-episode-card")).not.toBeInTheDocument();
     expect(screen.queryByTestId("work-status-card")).not.toBeInTheDocument();
@@ -170,5 +172,36 @@ describe("ProjectReading analytics", () => {
     const rootSection = document.querySelector("main > section");
     expect(rootSection).not.toBeNull();
     expect(rootSection).toHaveClass("pt-20");
+  });
+
+  it("ignora capitulos sem leitura na navegacao publica", async () => {
+    setupProjectReadingApiMock([
+      {
+        number: 1,
+        volume: 2,
+        title: "CapÃ­tulo 1",
+        synopsis: "Resumo do capÃ­tulo",
+        content: "<p>ConteÃºdo</p>",
+        hasContent: true,
+      },
+      {
+        number: 2,
+        volume: 2,
+        title: "CapÃ­tulo 2",
+        synopsis: "So download",
+        hasContent: false,
+        sources: [{ label: "Drive", url: "https://example.com/file" }],
+      },
+    ]);
+
+    render(
+      <MemoryRouter initialEntries={["/projeto/projeto-teste/leitura/1?volume=2"]}>
+        <ProjectReading />
+      </MemoryRouter>,
+    );
+
+    await screen.findByRole("heading", { name: /Cap.*tulo 1/i });
+
+    expect(screen.queryByRole("link", { name: /Pr.ximo cap.tulo/i })).not.toBeInTheDocument();
   });
 });

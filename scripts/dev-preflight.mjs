@@ -4,7 +4,6 @@ import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
 const DEFAULT_APP_PORT = 8080;
-const DEFAULT_HMR_PORT = 24678;
 const TARGET_COMMAND_FRAGMENT = "server/index.js";
 const SIGTERM_GRACE_MS = 1_500;
 const SIGKILL_GRACE_MS = 500;
@@ -23,10 +22,9 @@ const parsePort = (value, fallback) => {
   return parsed;
 };
 
-const resolveTargetPorts = () => {
+export const resolveTargetPorts = () => {
   const appPort = parsePort(process.env.PORT, DEFAULT_APP_PORT);
-  const hmrPort = parsePort(process.env.DEV_HMR_PORT, DEFAULT_HMR_PORT);
-  return Array.from(new Set([appPort, hmrPort]));
+  return [appPort];
 };
 
 const runCommand = (command, args) => {

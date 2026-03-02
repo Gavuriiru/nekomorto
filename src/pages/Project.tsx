@@ -32,6 +32,7 @@ import {
 import ThemedSvgLogo from "@/components/ThemedSvgLogo";
 import { getApiBase } from "@/lib/api-base";
 import { isChapterBasedType, isLightNovelType, isMangaType } from "@/lib/project-utils";
+import { buildEpisodeKey } from "@/lib/project-episode-key";
 import { formatDate } from "@/lib/date";
 import { apiFetch } from "@/lib/api-client";
 import {
@@ -323,7 +324,8 @@ const ProjectPage = () => {
       (project?.episodeDownloads || []).filter(
         (episode) =>
           (episode as { hasContent?: boolean }).hasContent ||
-          (typeof episode.content === "string" && episode.content.trim().length > 0),
+          (typeof episode.content === "string" && episode.content.trim().length > 0) ||
+          (episode.sources || []).length > 0,
       ),
     [project?.episodeDownloads],
   );
@@ -349,7 +351,12 @@ const ProjectPage = () => {
   }, [lightNovelChapters]);
 
   const filteredLightNovelChapters = sortedLightNovelChapters;
-  const firstReadableChapter = filteredLightNovelChapters[0] || null;
+  const firstReadableChapter =
+    filteredLightNovelChapters.find(
+      (episode) =>
+        (episode as { hasContent?: boolean }).hasContent ||
+        (typeof episode.content === "string" && episode.content.trim().length > 0),
+    ) || null;
 
   const visibleRelations = useMemo(() => {
     if (!project?.relations?.length) {
@@ -916,7 +923,7 @@ const ProjectPage = () => {
                 </h2>
                 <p className="text-sm text-muted-foreground">
                   {isLightNovel
-                    ? "Leia os capítulos disponíveis diretamente no site."
+                    ? "Leia no site ou baixe os capitulos disponiveis."
                     : isManga
                       ? "Selecione um capítulo disponível para download."
                       : "Selecione uma fonte de download para cada item disponível."}
@@ -960,10 +967,11 @@ const ProjectPage = () => {
                                     (chapter as { hasContent?: boolean }).hasContent ||
                                     (typeof chapter.content === "string" &&
                                       chapter.content.trim().length > 0);
+                                  const hasSources = (chapter.sources || []).length > 0;
                                   const search = chapter.volume ? `?volume=${chapter.volume}` : "";
                                   return (
                                     <Card
-                                      key={`${chapter.number}-${chapter.volume || 0}`}
+                                      key={buildEpisodeKey(chapter.number, chapter.volume)}
                                       className="border-border/60 bg-background/60 shadow-[0_6px_14px_-12px_rgba(0,0,0,0.06),0_16px_32px_-24px_rgba(0,0,0,0.1)] transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:bg-background/80 hover:shadow-[0_10px_20px_-14px_rgba(0,0,0,0.08),0_20px_38px_-22px_rgba(0,0,0,0.13)]"
                                     >
                                       <CardContent className="space-y-3 p-4">
@@ -989,14 +997,36 @@ const ProjectPage = () => {
                                                   Ler capítulo
                                                 </Link>
                                               </Button>
-                                            ) : (
+                                            ) : null}
+                                            {hasSources
+                                              ? chapter.sources.map((source, sourceIndex) => (
+                                                  <Button
+                                                    key={`${buildEpisodeKey(chapter.number, chapter.volume)}-${source.label}-${sourceIndex}`}
+                                                    asChild
+                                                    size="sm"
+                                                    variant={hasContent ? "outline" : "default"}
+                                                  >
+                                                    <a
+                                                      href={source.url}
+                                                      target="_blank"
+                                                      rel="noreferrer"
+                                                      onClick={() =>
+                                                        trackDownloadClick(chapter, source.label)
+                                                      }
+                                                    >
+                                                      {source.label}
+                                                    </a>
+                                                  </Button>
+                                                ))
+                                              : null}
+                                            {!hasContent && !hasSources ? (
                                               <Badge
                                                 variant="outline"
                                                 className="text-[10px] uppercase"
                                               >
                                                 Em breve
                                               </Badge>
-                                            )}
+                                            ) : null}
                                           </div>
                                         </div>
                                         {chapter.synopsis ? (
@@ -1046,7 +1076,7 @@ const ProjectPage = () => {
                                   {group.items.map((episode) =>
                                     renderEpisodeDownloadCard(
                                       episode,
-                                      `${episode.number}-${episode.volume || 0}`,
+                                      buildEpisodeKey(episode.number, episode.volume),
                                       false,
                                     ),
                                   )}

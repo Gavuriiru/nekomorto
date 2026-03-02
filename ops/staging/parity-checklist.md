@@ -17,7 +17,14 @@ Garantir que staging represente producao nos fluxos de seguranca e operacao.
 1. `npm run prisma:migrate:deploy`
 2. `npm run api:health:check`
 3. `npm run api:smoke`
-4. Validacao manual de seguranca:
+4. Validar contrato/capabilities do backend:
+   - `GET /api/contracts/v1.json`
+   - conferir `capabilities.project_epub_import`
+   - conferir `capabilities.project_epub_export`
+   - conferir `build.commitSha` e `build.builtAt`
+5. Rodar smoke categoria 6 contra o ambiente alvo:
+   - `node scripts/check-category6-smoke.mjs --base=https://seu-ambiente`
+6. Validacao manual de seguranca:
    - login com/sem 2FA
    - listagem/revogacao de sessoes
    - criacao e download de export admin

@@ -163,4 +163,100 @@ describe("Project analytics events", () => {
       expect(payload.meta?.chapterNumber).toBe(1);
     });
   });
+
+  it("envia download_click para light novel hibrida com volume", async () => {
+    const project = {
+      id: "projeto-teste",
+      title: "Projeto Light Novel",
+      synopsis: "Sinopse",
+      description: "Descricao",
+      type: "Light Novel",
+      status: "Em andamento",
+      year: "2025",
+      studio: "Studio Teste",
+      episodes: "1 capitulo",
+      tags: [],
+      genres: [],
+      cover: "/placeholder.svg",
+      banner: "/placeholder.svg",
+      season: "",
+      schedule: "",
+      rating: "",
+      country: "JP",
+      source: "Novel",
+      producers: [],
+      score: null,
+      startDate: "",
+      endDate: "",
+      relations: [],
+      staff: [],
+      animeStaff: [],
+      trailerUrl: "",
+      forceHero: false,
+      heroImageUrl: "",
+      views: 1,
+      commentsCount: 0,
+      episodeDownloads: [
+        {
+          number: 4,
+          volume: 2,
+          title: "Capitulo 4",
+          synopsis: "Sinopse do capitulo",
+          releaseDate: "2025-01-01",
+          duration: "",
+          sourceType: "Web",
+          content: '{"root":{"children":[{"type":"paragraph"}]}}',
+          hasContent: true,
+          sources: [
+            {
+              label: "Google Drive",
+              url: "https://example.com/ln-4",
+            },
+          ],
+        },
+      ],
+    };
+
+    apiFetchMock.mockImplementation(async (_apiBase: string, endpoint: string, options?: RequestInit) => {
+      if (endpoint === "/api/public/projects/projeto-teste" && (!options?.method || options.method === "GET")) {
+        return mockJsonResponse(true, { project });
+      }
+      if (endpoint === "/api/public/projects" && (!options?.method || options.method === "GET")) {
+        return mockJsonResponse(true, { projects: [project] });
+      }
+      if (endpoint === "/api/public/tag-translations" && (!options?.method || options.method === "GET")) {
+        return mockJsonResponse(true, { tags: {}, genres: {}, staffRoles: {} });
+      }
+      if (endpoint === "/api/public/me" && (!options?.method || options.method === "GET")) {
+        return mockJsonResponse(true, { user: null });
+      }
+      if (endpoint === "/api/public/projects/projeto-teste/view" && options?.method === "POST") {
+        return mockJsonResponse(true, { views: 2 });
+      }
+      if (endpoint === "/api/public/analytics/event" && options?.method === "POST") {
+        return mockJsonResponse(true, { ok: true });
+      }
+      return mockJsonResponse(false, { error: "not_found" }, 404);
+    });
+
+    render(
+      <MemoryRouter>
+        <ProjectPage />
+      </MemoryRouter>,
+    );
+
+    const sourceLink = await screen.findByRole("link", { name: "Google Drive" });
+    fireEvent.click(sourceLink);
+
+    await waitFor(() => {
+      const analyticsCall = apiFetchMock.mock.calls.find((call) => call[1] === "/api/public/analytics/event");
+      expect(analyticsCall).toBeDefined();
+      const requestOptions = (analyticsCall?.[2] || {}) as RequestInit;
+      const payload = JSON.parse(String(requestOptions.body || "{}"));
+      expect(payload.eventType).toBe("download_click");
+      expect(payload.meta?.chapterNumber).toBe(4);
+      expect(payload.meta?.volume).toBe(2);
+      expect(payload.meta?.sourceLabel).toBe("Google Drive");
+    });
+  });
 });

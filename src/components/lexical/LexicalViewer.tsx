@@ -1,7 +1,6 @@
 import * as React from "react";
 import { LexicalComposer } from "@lexical/react/LexicalComposer";
 import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
-import { $createParagraphNode, $getRoot } from "lexical";
 
 import Editor from "@/lexical-playground/Editor";
 import PlaygroundNodes from "@/lexical-playground/nodes/PlaygroundNodes";
@@ -14,6 +13,7 @@ import { FlashMessageContext } from "@/lexical-playground/context/FlashMessageCo
 import { PollProvider, type PollTarget } from "@/lexical-playground/context/PollContext";
 import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
+import { EMPTY_LEXICAL_JSON, normalizeLexicalJson } from "@/lib/lexical/serialize";
 
 import "@/lexical-playground/playground.css";
 import "@/lexical-playground/playground-overrides.css";
@@ -42,20 +42,7 @@ const getOrCreatePollVoterId = () => {
   return generated;
 };
 
-const safeParseLexicalJson = (value: string) => {
-  if (!value) {
-    return null;
-  }
-  try {
-    const parsed = JSON.parse(value);
-    if (parsed && typeof parsed === "object") {
-      return value;
-    }
-  } catch {
-    return null;
-  }
-  return null;
-};
+const getNormalizedEditorState = (value: string) => normalizeLexicalJson(value) ?? EMPTY_LEXICAL_JSON;
 
 const ValuePlugin = ({ value }: { value: string }) => {
   const [editor] = useLexicalComposerContext();
@@ -84,43 +71,18 @@ const ValuePlugin = ({ value }: { value: string }) => {
         return;
       }
       if (!nextValue) {
-        editor.update(
-          () => {
-            const root = $getRoot();
-            root.clear();
-            root.append($createParagraphNode());
-          },
-          { discrete: true },
-        );
-        lastValueRef.current = nextValue;
-        return;
-      }
-      const safe = safeParseLexicalJson(nextValue);
-      if (!safe) {
-        editor.update(
-          () => {
-            const root = $getRoot();
-            root.clear();
-            root.append($createParagraphNode());
-          },
-          { discrete: true },
-        );
+        const state = editor.parseEditorState(EMPTY_LEXICAL_JSON);
+        editor.setEditorState(state);
         lastValueRef.current = nextValue;
         return;
       }
       try {
-        const state = editor.parseEditorState(safe);
+        const state = editor.parseEditorState(getNormalizedEditorState(nextValue));
         editor.setEditorState(state);
         lastValueRef.current = nextValue;
       } catch {
-        editor.update(
-          () => {
-            const root = $getRoot();
-            root.clear();
-            root.append($createParagraphNode());
-          },
-          { discrete: true },
-        );
+        const state = editor.parseEditorState(EMPTY_LEXICAL_JSON);
+        editor.setEditorState(state);
         lastValueRef.current = nextValue;
       }
     });
@@ -188,7 +150,7 @@ const LexicalViewer = ({ value, className, pollTarget }: LexicalViewerProps) => 
       console.error(error);
     },
     editable: false,
-    editorState: safeParseLexicalJson(value) || undefined,
+    editorState: getNormalizedEditorState(value),
   }).current;
 
     return (

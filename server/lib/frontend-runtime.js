@@ -59,6 +59,7 @@ export const resolveClientIndexPath = ({
 export const createViteDevServer = async ({
   isProduction,
   createServer,
+  httpServer,
   appOriginEnv = process.env.APP_ORIGIN,
 } = {}) => {
   if (!isViteMiddlewareEnabled(isProduction)) {
@@ -71,6 +72,7 @@ export const createViteDevServer = async ({
     middlewareMode: true,
     hmr: {
       overlay: false,
+      ...(httpServer ? { server: httpServer } : {}),
     },
   };
   if (allowedHosts.length) {

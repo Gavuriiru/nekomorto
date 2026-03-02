@@ -2,6 +2,7 @@ import fs from "fs";
 import path from "path";
 import { buildStorageAreaSummary, deriveUploadArea, normalizeVariants } from "./upload-media.js";
 import { extractUploadUrlsFromText, normalizeUploadUrl } from "./uploads-reorganizer.js";
+import { EPUB_IMPORT_TMP_PREFIX, EPUB_IMPORT_TMP_TTL_MS, isEpubImportTempFolder } from "./uploads-import.js";
 
 const DATASETS_TO_SCAN = [
   "siteSettings",
@@ -106,7 +107,19 @@ const getManagedUploads = (uploads) =>
     return Boolean(normalizedUrl) && !isVariantUploadUrl(normalizedUrl);
   });
 
+const isStaleEpubImportTempUpload = (upload, nowTs = Date.now()) => {
+  if (!isEpubImportTempFolder(upload?.folder)) {
+    return false;
+  }
+  const createdAtTs = new Date(upload?.createdAt || 0).getTime();
+  if (!Number.isFinite(createdAtTs) || createdAtTs <= 0) {
+    return true;
+  }
+  return nowTs - createdAtTs >= EPUB_IMPORT_TMP_TTL_MS;
+};
+
 const collectUnusedUploadCandidates = (datasets) => {
+  const nowTs = Date.now();
   const referencedUrls = new Set();
   DATASETS_TO_SCAN.forEach((datasetKey) => {
     collectReferencedUploadUrls(datasets?.[datasetKey], referencedUrls);
@@ -116,7 +129,13 @@ const collectUnusedUploadCandidates = (datasets) => {
   const managedUploads = getManagedUploads(uploads);
   const unusedUploadCandidates = managedUploads.filter((upload) => {
     const normalizedUrl = normalizeUploadUrl(upload?.url);
-    return Boolean(normalizedUrl) && !referencedUrls.has(normalizedUrl);
+    if (!normalizedUrl || referencedUrls.has(normalizedUrl)) {
+      return false;
+    }
+    if (String(upload?.folder || "").startsWith(`${EPUB_IMPORT_TMP_PREFIX}/`)) {
+      return isStaleEpubImportTempUpload(upload, nowTs);
+    }
+    return true;
   });
 
   return {

@@ -135,6 +135,7 @@ describe("public bootstrap dedupe", () => {
                 projectId: "project-1",
                 projectTitle: "Projeto Teste",
                 episodeNumber: 1,
+                volume: 2,
                 kind: "Lançamento",
                 reason: "Novo episódio",
                 updatedAt: "2026-02-10T12:00:00.000Z",

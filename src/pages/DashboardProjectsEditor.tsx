@@ -33,6 +33,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select,
   SelectContent,
@@ -67,10 +68,12 @@ import {
   Cloud,
   HardDrive,
   Link2,
+  Loader2,
 } from "lucide-react";
 import { createSlug } from "@/lib/post-content";
 import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
+import { parseAniListMediaId } from "@/lib/anilist";
 import {
   DEFAULT_PROJECT_BANNER_ALT,
   DEFAULT_PROJECT_COVER_ALT,
@@ -86,13 +89,20 @@ import {
   translateRelation,
   translateTag,
 } from "@/lib/project-taxonomy";
+import { buildEpisodeKey, findDuplicateEpisodeKey } from "@/lib/project-episode-key";
 import { isChapterBasedType, isLightNovelType, isMangaType } from "@/lib/project-utils";
 import { formatBytesCompact, parseHumanSizeToBytes } from "@/lib/file-size";
+import { formatBuildMetadataLabel, getFrontendBuildMetadata } from "@/lib/frontend-build";
 import { usePageMeta } from "@/hooks/use-page-meta";
 import { useEditorScrollLock } from "@/hooks/use-editor-scroll-lock";
 import { useEditorScrollStability } from "@/hooks/use-editor-scroll-stability";
 import type { LexicalEditorHandle } from "@/components/lexical/LexicalEditor";
 import { useSiteSettings } from "@/hooks/use-site-settings";
+import type {
+  ApiContractBuildMetadata,
+  ApiContractCapabilities,
+  ApiContractV1,
+} from "@/types/api-contract";
 
 const LexicalEditor = lazy(() => import("@/components/lexical/LexicalEditor"));
 const ImageLibraryDialog = lazy(() => import("@/components/ImageLibraryDialog"));
@@ -119,6 +129,68 @@ const LexicalEditorFallback = () => (
     <span className="sr-only">Carregando editor...</span>
   </div>
 );
+
+const DEFAULT_API_CAPABILITIES: ApiContractCapabilities = {
+  project_epub_import: false,
+  project_epub_export: false,
+};
+
+const EPUB_CAPABILITY_UNAVAILABLE_MESSAGE =
+  "Este ambiente esta com backend desatualizado e ainda nao suporta EPUB.";
+const EPUB_CAPABILITY_UNKNOWN_MESSAGE =
+  "Nao foi possivel confirmar o suporte EPUB deste ambiente. Os botoes ficam desabilitados ate o contrato da API responder.";
+const EPUB_IMPORT_ROUTE_MISSING_MESSAGE =
+  "A origem atual nao esta alcancando a rota EPUB deste backend. Verifique tunel, proxy ou host aberto no navegador.";
+const EPUB_EXPORT_ROUTE_MISSING_MESSAGE =
+  "A origem atual nao esta alcancando a rota EPUB deste backend. Verifique tunel, proxy ou host aberto no navegador.";
+const EPUB_IMPORT_PROCESSING_MESSAGE = "Nao foi possivel processar o arquivo informado.";
+const EPUB_EXPORT_GENERIC_MESSAGE = "Nao foi possivel gerar o arquivo EPUB.";
+const EPUB_NETWORK_ERROR_MESSAGE =
+  "Nao foi possivel contatar o backend deste ambiente. Verifique a conectividade e tente novamente.";
+const EPUB_IMPORT_LEGACY_PROJECT_MISSING_MESSAGE =
+  "O backend tentou resolver um projeto salvo que nao existe mais. Recarregue o editor e tente novamente.";
+const EPUB_IMPORT_INVALID_SNAPSHOT_MESSAGE =
+  "Nao foi possivel enviar o snapshot atual do projeto para a importacao EPUB.";
+const EPUB_IMPORT_DUPLICATE_EPISODE_MESSAGE =
+  "O formulario possui capitulos duplicados por numero + volume. Corrija antes de importar.";
+
+type EpubRouteStatus =
+  | "unknown"
+  | "ok"
+  | "route_unreachable_for_current_origin"
+  | "network_unreachable"
+  | "forbidden"
+  | "legacy_project_not_found";
+
+const normalizeApiContractCapabilities = (
+  capabilities: ApiContractV1["capabilities"],
+): ApiContractCapabilities => ({
+  project_epub_import: capabilities?.project_epub_import === true,
+  project_epub_export: capabilities?.project_epub_export === true,
+});
+
+const normalizeApiContractBuildMetadata = (
+  build: ApiContractV1["build"],
+): ApiContractBuildMetadata | null => {
+  if (!build || typeof build !== "object") {
+    return null;
+  }
+  return {
+    commitSha:
+      typeof build.commitSha === "string" && build.commitSha.trim().length > 0
+        ? build.commitSha.trim()
+        : null,
+    builtAt:
+      typeof build.builtAt === "string" && build.builtAt.trim().length > 0
+        ? build.builtAt.trim()
+        : null,
+  };
+};
+
+const normalizeOriginLabel = (value: unknown) => {
+  const normalized = String(value || "").trim();
+  return normalized || "indisponivel";
+};
 
 type ProjectRelation = {
   relation: string;
@@ -156,6 +228,7 @@ type ProjectEpisode = {
   completedStages?: string[];
   content?: string;
   contentFormat?: "lexical";
+  publicationStatus?: "draft" | "published";
   chapterUpdatedAt?: string;
 };
 
@@ -948,6 +1021,19 @@ const DashboardProjectsEditor = () => {
     "cover",
   );
   const [episodeCoverIndex, setEpisodeCoverIndex] = useState<number | null>(null);
+  const [epubImportFile, setEpubImportFile] = useState<File | null>(null);
+  const [epubImportTargetVolume, setEpubImportTargetVolume] = useState<string>("");
+  const [epubImportAsDraft, setEpubImportAsDraft] = useState(true);
+  const [backendCapabilities, setBackendCapabilities] =
+    useState<ApiContractCapabilities | null>(null);
+  const [backendBuildMetadata, setBackendBuildMetadata] =
+    useState<ApiContractBuildMetadata | null>(null);
+  const [backendCapabilitiesError, setBackendCapabilitiesError] = useState<string | null>(null);
+  const [epubRouteStatus, setEpubRouteStatus] = useState<EpubRouteStatus>("unknown");
+  const [isImportingEpub, setIsImportingEpub] = useState(false);
+  const [epubExportVolume, setEpubExportVolume] = useState<string>("");
+  const [epubExportIncludeDrafts, setEpubExportIncludeDrafts] = useState(false);
+  const [isExportingEpub, setIsExportingEpub] = useState(false);
   const chapterEditorsRef = useRef<Record<number, LexicalEditorHandle | null>>({});
   const episodeSizeInputRefs = useRef<Record<number, HTMLInputElement | null>>({});
   const pendingAddAutoScrollRef = useRef(false);
@@ -979,6 +1065,101 @@ const DashboardProjectsEditor = () => {
     const permissions = Array.isArray(currentUser?.permissions) ? currentUser.permissions : [];
     return permissions.includes("*") || permissions.includes("projetos");
   }, [currentUser]);
+  const frontendBuildMetadata = useMemo(() => getFrontendBuildMetadata(), []);
+  const locationOrigin = useMemo(
+    () => (typeof window !== "undefined" && window.location ? window.location.origin : ""),
+    [],
+  );
+  const backendSupportsEpubImport = backendCapabilities?.project_epub_import === true;
+  const backendSupportsEpubExport = backendCapabilities?.project_epub_export === true;
+  const epubCapabilityState = useMemo(() => {
+    if (backendCapabilitiesError) {
+      return {
+        message: EPUB_CAPABILITY_UNKNOWN_MESSAGE,
+        variant: "destructive" as const,
+      };
+    }
+    if (
+      backendCapabilities &&
+      (!backendCapabilities.project_epub_import || !backendCapabilities.project_epub_export)
+    ) {
+      return {
+        message: EPUB_CAPABILITY_UNAVAILABLE_MESSAGE,
+        variant: "warning" as const,
+      };
+    }
+    return null;
+  }, [backendCapabilities, backendCapabilitiesError]);
+  const backendBuildLabel = useMemo(
+    () => formatBuildMetadataLabel(backendBuildMetadata),
+    [backendBuildMetadata],
+  );
+  const frontendBuildLabel = useMemo(
+    () => formatBuildMetadataLabel(frontendBuildMetadata),
+    [frontendBuildMetadata],
+  );
+  const epubSupportLabel = useMemo(() => {
+    if (backendCapabilitiesError) {
+      return "nao confirmado";
+    }
+    const importLabel = backendSupportsEpubImport ? "import sim" : "import nao";
+    const exportLabel = backendSupportsEpubExport ? "export sim" : "export nao";
+    return `${importLabel} | ${exportLabel}`;
+  }, [
+    backendCapabilitiesError,
+    backendSupportsEpubExport,
+    backendSupportsEpubImport,
+  ]);
+  const epubEndpointStatusLabel = useMemo(() => {
+    if (backendCapabilitiesError) {
+      return "contrato indisponivel";
+    }
+    if (!backendSupportsEpubImport || !backendSupportsEpubExport) {
+      return "desabilitado pelo contrato";
+    }
+    if (epubRouteStatus === "route_unreachable_for_current_origin") {
+      return "nao acessivel nesta origem";
+    }
+    if (epubRouteStatus === "network_unreachable") {
+      return "backend/tunel indisponivel";
+    }
+    if (epubRouteStatus === "forbidden") {
+      return "sem permissao";
+    }
+    if (epubRouteStatus === "legacy_project_not_found") {
+      return "projeto legado nao encontrado";
+    }
+    return "ok";
+  }, [
+    backendCapabilitiesError,
+    backendSupportsEpubExport,
+    backendSupportsEpubImport,
+    epubRouteStatus,
+  ]);
+
+  const logEpubParityIssue = useCallback(
+    ({
+      path,
+      status,
+      reason,
+    }: {
+      path: string;
+      status: number | "network" | "blocked";
+      reason: string;
+    }) => {
+      console.warn("epub_backend_parity_mismatch", {
+        reason,
+        path,
+        status,
+        locationOrigin,
+        apiBase,
+        contractVersion: "v1",
+        frontend: frontendBuildMetadata,
+        backend: backendBuildMetadata,
+      });
+    },
+    [apiBase, backendBuildMetadata, frontendBuildMetadata, locationOrigin],
+  );
 
   const handleEditorOpenChange = (next: boolean) => {
     if (!next && isLibraryOpen) {
@@ -1125,6 +1306,65 @@ const DashboardProjectsEditor = () => {
 
     loadUser();
   }, [apiBase]);
+
+  useEffect(() => {
+    let isActive = true;
+
+    const loadApiContract = async () => {
+      try {
+        const response = await apiFetch(apiBase, "/api/contracts/v1.json", {
+          cache: "no-store",
+        });
+        if (!response.ok) {
+          throw new Error(`api_contract_${response.status}`);
+        }
+        const data = (await response.json()) as ApiContractV1;
+        if (!isActive) {
+          return;
+        }
+        setBackendCapabilities(normalizeApiContractCapabilities(data?.capabilities));
+        setBackendBuildMetadata(normalizeApiContractBuildMetadata(data?.build));
+        setBackendCapabilitiesError(null);
+        setEpubRouteStatus("ok");
+      } catch {
+        if (!isActive) {
+          return;
+        }
+        setBackendCapabilities(DEFAULT_API_CAPABILITIES);
+        setBackendBuildMetadata(null);
+        setBackendCapabilitiesError("api_contract_unavailable");
+        setEpubRouteStatus("unknown");
+      }
+    };
+
+    void loadApiContract();
+
+    return () => {
+      isActive = false;
+    };
+  }, [apiBase]);
+
+  useEffect(() => {
+    if (!import.meta.env.DEV) {
+      return;
+    }
+    const normalizedLocationOrigin = normalizeOriginLabel(locationOrigin);
+    const normalizedApiBase = normalizeOriginLabel(apiBase);
+    if (
+      normalizedLocationOrigin === "indisponivel" ||
+      normalizedApiBase === "indisponivel" ||
+      normalizedLocationOrigin === normalizedApiBase
+    ) {
+      return;
+    }
+    console.info("origin_api_base_mismatch", {
+      locationOrigin: normalizedLocationOrigin,
+      apiBase: normalizedApiBase,
+      frontend: frontendBuildMetadata,
+      backend: backendBuildMetadata,
+    });
+  }, [apiBase, backendBuildMetadata, frontendBuildMetadata, locationOrigin]);
+
   useEffect(() => {
     queryStateRef.current = {
       sortMode,
@@ -1695,6 +1935,11 @@ const DashboardProjectsEditor = () => {
     setEditingProject(null);
     setFormState(nextForm);
     setAnilistIdInput("");
+    setEpubImportFile(null);
+    setEpubImportTargetVolume("");
+    setEpubImportAsDraft(true);
+    setEpubExportVolume("");
+    setEpubExportIncludeDrafts(false);
     setEditorAccordionValue(["importacao"]);
     setEpisodeDateDraft({});
     setEpisodeTimeDraft({});
@@ -1714,6 +1959,7 @@ const DashboardProjectsEditor = () => {
             ...episode,
             content: episode.content || "",
             contentFormat: "lexical",
+            publicationStatus: episode.publicationStatus === "draft" ? "draft" : "published",
             coverImageAlt: episode.coverImageUrl
               ? resolveAssetAltText(
                   episode.coverImageAlt,
@@ -1772,6 +2018,11 @@ const DashboardProjectsEditor = () => {
     setEditingProject(project);
     setFormState(nextForm);
     setAnilistIdInput(nextAniListInput);
+    setEpubImportFile(null);
+    setEpubImportTargetVolume("");
+    setEpubImportAsDraft(true);
+    setEpubExportVolume("");
+    setEpubExportIncludeDrafts(false);
     setEditorAccordionValue(["dados-principais"]);
     setEpisodeDateDraft({});
     setEpisodeTimeDraft({});
@@ -1851,6 +2102,387 @@ const DashboardProjectsEditor = () => {
     setConfirmOpen(true);
   };
 
+  const revealEpisodeAtIndex = useCallback((index: number) => {
+    const episode = formState.episodeDownloads[index];
+    if (episode) {
+      pendingEpisodeToScrollRef.current = episode;
+    }
+    setCollapsedEpisodes((prev) => ({
+      ...prev,
+      [index]: false,
+    }));
+  }, [formState.episodeDownloads]);
+
+  const downloadBinaryResponse = async (response: Response, fallbackName: string) => {
+    const disposition = String(response.headers.get("Content-Disposition") || "");
+    const match = disposition.match(/filename="?([^";]+)"?/i);
+    const fileName = match?.[1] ? decodeURIComponent(match[1]) : fallbackName;
+    const blob = await response.blob();
+    const url = window.URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = fileName;
+    document.body.appendChild(anchor);
+    anchor.click();
+    document.body.removeChild(anchor);
+    window.URL.revokeObjectURL(url);
+  };
+
+  const mergeImportedEpisodesIntoForm = useCallback(
+    (chapters: ProjectEpisode[]) => {
+      let firstAffectedIndex = -1;
+      let firstAffectedEpisode: ProjectEpisode | null = null;
+      setFormState((prev) => {
+        const nextEpisodes = [...prev.episodeDownloads];
+        const episodeIndexByKey = new Map(
+          nextEpisodes.map((episode, index) => [buildEpisodeKey(episode.number, episode.volume), index]),
+        );
+        chapters.forEach((chapter) => {
+          const key = buildEpisodeKey(chapter.number, chapter.volume);
+          const existingIndex = episodeIndexByKey.get(key);
+          if (existingIndex === undefined) {
+            nextEpisodes.push(chapter);
+            const createdIndex = nextEpisodes.length - 1;
+            episodeIndexByKey.set(key, createdIndex);
+            if (firstAffectedIndex === -1) {
+              firstAffectedIndex = createdIndex;
+              firstAffectedEpisode = chapter;
+            }
+            return;
+          }
+          const currentEpisode = nextEpisodes[existingIndex];
+          nextEpisodes[existingIndex] = {
+            ...currentEpisode,
+            title: chapter.title,
+            content: chapter.content,
+            contentFormat: "lexical",
+            publicationStatus:
+              currentEpisode.publicationStatus === "published"
+                ? "published"
+                : chapter.publicationStatus || "draft",
+          };
+          if (firstAffectedIndex === -1) {
+            firstAffectedIndex = existingIndex;
+            firstAffectedEpisode = nextEpisodes[existingIndex];
+          }
+        });
+        return {
+          ...prev,
+          episodeDownloads: nextEpisodes,
+        };
+      });
+      if (firstAffectedIndex >= 0) {
+        if (firstAffectedEpisode) {
+          pendingEpisodeToScrollRef.current = firstAffectedEpisode;
+        }
+        setCollapsedEpisodes((prev) => ({
+          ...prev,
+          [firstAffectedIndex]: false,
+        }));
+      }
+    },
+    [],
+  );
+
+  const handleImportEpub = async () => {
+    if (!epubImportFile) {
+      toast({
+        title: "Selecione um arquivo EPUB",
+        description: "Escolha um arquivo .epub antes de importar.",
+        variant: "destructive",
+      });
+      return;
+    }
+    if (!backendSupportsEpubImport) {
+      logEpubParityIssue({
+        path: "/api/projects/epub/import",
+        status: "blocked",
+        reason: backendCapabilitiesError ? "contract_unreachable" : "capability_missing",
+      });
+      toast({
+        title: "Falha ao importar EPUB",
+        description: backendCapabilitiesError
+          ? EPUB_CAPABILITY_UNKNOWN_MESSAGE
+          : EPUB_CAPABILITY_UNAVAILABLE_MESSAGE,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsImportingEpub(true);
+    try {
+      const formData = new FormData();
+      formData.set("file", epubImportFile);
+      formData.set("project", JSON.stringify(formState));
+      if (epubImportTargetVolume.trim()) {
+        formData.set("targetVolume", epubImportTargetVolume.trim());
+      }
+      formData.set("defaultStatus", epubImportAsDraft ? "draft" : "published");
+      const response = await apiFetch(apiBase, "/api/projects/epub/import", {
+        method: "POST",
+        auth: true,
+        body: formData,
+      });
+      if (!response.ok) {
+        const data = await response.json().catch(() => null);
+        if (response.status === 404) {
+          if (data?.error === "project_not_found") {
+            setEpubRouteStatus("legacy_project_not_found");
+            logEpubParityIssue({
+              path: "/api/projects/epub/import",
+              status: response.status,
+              reason: "legacy_project_not_found",
+            });
+            toast({
+              title: "Falha ao importar EPUB",
+              description: EPUB_IMPORT_LEGACY_PROJECT_MISSING_MESSAGE,
+              variant: "destructive",
+            });
+            return;
+          }
+          setEpubRouteStatus("route_unreachable_for_current_origin");
+          logEpubParityIssue({
+            path: "/api/projects/epub/import",
+            status: response.status,
+            reason: "route_unreachable_for_current_origin",
+          });
+          toast({
+            title: "Falha ao importar EPUB",
+            description: EPUB_IMPORT_ROUTE_MISSING_MESSAGE,
+            variant: "destructive",
+          });
+          return;
+        }
+        if (response.status === 403) {
+          setEpubRouteStatus("forbidden");
+          logEpubParityIssue({
+            path: "/api/projects/epub/import",
+            status: response.status,
+            reason: "forbidden",
+          });
+          toast({
+            title: "Falha ao importar EPUB",
+            description: "Voce nao tem permissao para importar EPUB.",
+            variant: "destructive",
+          });
+          return;
+        }
+        if (typeof data?.error === "string" && data.error === "invalid_project_snapshot") {
+          setEpubRouteStatus("ok");
+          toast({
+            title: "Falha ao importar EPUB",
+            description: EPUB_IMPORT_INVALID_SNAPSHOT_MESSAGE,
+            variant: "destructive",
+          });
+          return;
+        }
+        if (typeof data?.error === "string" && data.error === "duplicate_episode_key") {
+          setEpubRouteStatus("ok");
+          const duplicateKey = String(data?.key || "");
+          const duplicateIndex = formState.episodeDownloads.findIndex(
+            (episode) => buildEpisodeKey(episode.number, episode.volume) === duplicateKey,
+          );
+          setEditorAccordionValue((prev) =>
+            prev.includes("episodios") ? prev : [...prev, "episodios"],
+          );
+          if (duplicateIndex >= 0) {
+            revealEpisodeAtIndex(duplicateIndex);
+          }
+          toast({
+            title: "Falha ao importar EPUB",
+            description: EPUB_IMPORT_DUPLICATE_EPISODE_MESSAGE,
+            variant: "destructive",
+          });
+          return;
+        }
+        if (
+          typeof data?.error === "string" &&
+          data.error === "epub_import_failed" &&
+          !(typeof data?.detail === "string" && data.detail.trim().length > 0)
+        ) {
+          toast({
+            title: "Falha ao importar EPUB",
+            description: EPUB_IMPORT_PROCESSING_MESSAGE,
+            variant: "destructive",
+          });
+          return;
+        }
+        toast({
+          title: "Falha ao importar EPUB",
+          description:
+            typeof data?.detail === "string"
+              ? data.detail
+              : "Não foi possível processar o arquivo informado.",
+          variant: "destructive",
+        });
+        return;
+      }
+      setEpubRouteStatus("ok");
+      const data = await response.json();
+      const chapters = Array.isArray(data?.chapters)
+        ? (data.chapters as ProjectEpisode[])
+        : [];
+      const warnings = Array.isArray(data?.warnings)
+        ? data.warnings
+            .map((warning) => String(warning || "").trim())
+            .filter((warning) => warning.length > 0)
+        : [];
+      const importedChapterCount = Number.isFinite(Number(data?.summary?.chapters))
+        ? Number(data.summary.chapters)
+        : chapters.length;
+      const boilerplateDiscarded = Number.isFinite(Number(data?.summary?.boilerplateDiscarded))
+        ? Number(data.summary.boilerplateDiscarded)
+        : 0;
+      const imagesImported = Number.isFinite(Number(data?.summary?.imagesImported))
+        ? Number(data.summary.imagesImported)
+        : 0;
+      const imageImportFailures = Number.isFinite(Number(data?.summary?.imageImportFailures))
+        ? Number(data.summary.imageImportFailures)
+        : 0;
+      mergeImportedEpisodesIntoForm(chapters);
+      setEditorAccordionValue((prev) =>
+        prev.includes("episodios") ? prev : [...prev, "episodios"],
+      );
+      toast({
+        title: "EPUB importado",
+        description: [
+          `${importedChapterCount} capitulo(s) incorporados ao formulario para revisao.`,
+          ...(boilerplateDiscarded > 0
+            ? [`${boilerplateDiscarded} item(ns) de boilerplate foram descartados.`]
+            : []),
+          ...(imagesImported > 0 ? [`${imagesImported} imagem(ns) interna(s) foram importadas.`] : []),
+          ...(imageImportFailures > 0
+            ? [`${imageImportFailures} imagem(ns) falharam e foram ignoradas.`]
+            : []),
+          ...warnings,
+        ].join(" "),
+        intent: "success",
+      });
+    } catch {
+      setEpubRouteStatus("network_unreachable");
+      logEpubParityIssue({
+        path: "/api/projects/epub/import",
+        status: "network",
+        reason: "network_unreachable",
+      });
+      toast({
+        title: "Falha ao importar EPUB",
+        description: EPUB_NETWORK_ERROR_MESSAGE,
+        variant: "destructive",
+      });
+    } finally {
+      setIsImportingEpub(false);
+    }
+  };
+
+  const handleExportEpub = async () => {
+    if (!backendSupportsEpubExport) {
+      logEpubParityIssue({
+        path: "/api/projects/epub/export",
+        status: "blocked",
+        reason: backendCapabilitiesError ? "contract_unreachable" : "capability_missing",
+      });
+      toast({
+        title: "Falha ao exportar EPUB",
+        description: backendCapabilitiesError
+          ? EPUB_CAPABILITY_UNKNOWN_MESSAGE
+          : EPUB_CAPABILITY_UNAVAILABLE_MESSAGE,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsExportingEpub(true);
+    try {
+      const response = await apiFetch(apiBase, "/api/projects/epub/export", {
+        method: "POST",
+        auth: true,
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          project: formState,
+          volume: epubExportVolume.trim() ? Number(epubExportVolume) : null,
+          includeDrafts: epubExportIncludeDrafts,
+        }),
+      });
+      if (!response.ok) {
+        const data = await response.json().catch(() => null);
+        if (response.status === 404) {
+          setEpubRouteStatus("route_unreachable_for_current_origin");
+          logEpubParityIssue({
+            path: "/api/projects/epub/export",
+            status: response.status,
+            reason: "route_unreachable_for_current_origin",
+          });
+          toast({
+            title: "Falha ao exportar EPUB",
+            description: EPUB_EXPORT_ROUTE_MISSING_MESSAGE,
+            variant: "destructive",
+          });
+          return;
+        }
+        if (response.status === 403) {
+          setEpubRouteStatus("forbidden");
+          logEpubParityIssue({
+            path: "/api/projects/epub/export",
+            status: response.status,
+            reason: "forbidden",
+          });
+          toast({
+            title: "Falha ao exportar EPUB",
+            description: "Voce nao tem permissao para exportar EPUB.",
+            variant: "destructive",
+          });
+          return;
+        }
+        if (
+          response.status === 422 ||
+          (typeof data?.error === "string" && data.error === "no_eligible_chapters")
+        ) {
+          toast({
+            title: "Falha ao exportar EPUB",
+            description: "Nao ha capitulos elegiveis para esse volume.",
+            variant: "destructive",
+          });
+          return;
+        }
+        toast({
+          title: "Falha ao exportar EPUB",
+          description:
+            typeof data?.error === "string" && data.error === "no_eligible_chapters"
+              ? "Não há capítulos elegíveis para esse volume."
+              : typeof data?.detail === "string"
+                ? data.detail
+                : "Não foi possível gerar o arquivo EPUB.",
+          variant: "destructive",
+        });
+        return;
+      }
+      setEpubRouteStatus("ok");
+      await downloadBinaryResponse(response, `${createSlug(formState.title || "projeto") || "projeto"}.epub`);
+      toast({
+        title: "EPUB exportado",
+        description: "O volume foi gerado com o snapshot atual do formulário.",
+        intent: "success",
+      });
+    } catch {
+      setEpubRouteStatus("network_unreachable");
+      logEpubParityIssue({
+        path: "/api/projects/epub/export",
+        status: "network",
+        reason: "network_unreachable",
+      });
+      toast({
+        title: "Falha ao exportar EPUB",
+        description: EPUB_NETWORK_ERROR_MESSAGE,
+        variant: "destructive",
+      });
+    } finally {
+      setIsExportingEpub(false);
+    }
+  };
+
   const handleSave = async () => {
     const trimmedTitle = formState.title.trim();
     const baseId = formState.id.trim();
@@ -1873,12 +2505,36 @@ const DashboardProjectsEditor = () => {
       return;
     }
 
-    const normalizedEpisodesForSave = formState.episodeDownloads.map((episode) => ({
-      ...episode,
-      sources: Array.isArray(episode.sources)
-        ? episode.sources.map((source) => ({ ...source }))
-        : [],
-    }));
+    const normalizedEpisodesForSave = formState.episodeDownloads.map((episode) => {
+      const parsedNumber = Number(episode.number);
+      const parsedVolume = Number(episode.volume);
+      return {
+        ...episode,
+        number: Number.isFinite(parsedNumber) ? parsedNumber : 0,
+        volume: Number.isFinite(parsedVolume) ? parsedVolume : undefined,
+        contentFormat: "lexical" as const,
+        publicationStatus: episode.publicationStatus === "draft" ? "draft" : "published",
+        sources: Array.isArray(episode.sources)
+          ? episode.sources.map((source) => ({ ...source }))
+          : [],
+      };
+    });
+    const duplicateEpisode = findDuplicateEpisodeKey(normalizedEpisodesForSave);
+    if (duplicateEpisode) {
+      const duplicateIndex = normalizedEpisodesForSave.findIndex(
+        (episode) => buildEpisodeKey(episode.number, episode.volume) === duplicateEpisode.key,
+      );
+      setEditorAccordionValue((prev) => (prev.includes("episodios") ? prev : [...prev, "episodios"]));
+      if (duplicateIndex >= 0) {
+        revealEpisodeAtIndex(duplicateIndex);
+      }
+      toast({
+        title: "Capitulos duplicados",
+        description: "Cada capitulo precisa ter uma combinacao unica de numero e volume.",
+        variant: "destructive",
+      });
+      return;
+    }
     const nextEpisodeSizeDrafts = { ...episodeSizeDrafts };
     const nextEpisodeSizeErrors = { ...episodeSizeErrors };
     let firstInvalidEpisodeSizeIndex: number | null = null;
@@ -1938,12 +2594,10 @@ const DashboardProjectsEditor = () => {
     setEpisodeSizeDrafts(nextEpisodeSizeDrafts);
     setEpisodeSizeErrors({});
 
-    const nowIso = new Date().toISOString();
     const prevEpisodesMap = new Map<string, ProjectEpisode>();
     if (editingProject?.episodeDownloads?.length) {
       editingProject.episodeDownloads.forEach((episode) => {
-        const key = `${episode.number}-${episode.volume || 0}`;
-        prevEpisodesMap.set(key, episode);
+        prevEpisodesMap.set(buildEpisodeKey(episode.number, episode.volume), episode);
       });
     }
 
@@ -1959,9 +2613,13 @@ const DashboardProjectsEditor = () => {
       };
     });
 
-    const parsedAniListId = Number(anilistIdInput);
+    const parsedAniListId = parseAniListMediaId(anilistIdInput);
     const resolvedAniListId =
-      formState.anilistId ?? (Number.isFinite(parsedAniListId) ? parsedAniListId : null);
+      typeof formState.anilistId === "number" &&
+      Number.isInteger(formState.anilistId) &&
+      formState.anilistId > 0
+        ? formState.anilistId
+        : parsedAniListId;
     const normalizedId = editingProject?.id
       ? editingProject.id
       : resolvedAniListId
@@ -2020,22 +2678,7 @@ const DashboardProjectsEditor = () => {
       staff: staffWithPending.filter((item) => item.role || item.members.length > 0),
       animeStaff: formState.animeStaff.filter((item) => item.role || item.members.length > 0),
       episodeDownloads: normalizedEpisodesForSave.map((episode) => {
-        const key = `${episode.number}-${episode.volume || 0}`;
-        const prev = prevEpisodesMap.get(key);
-        const signature = [
-          String(episode.title || ""),
-          String(episode.releaseDate || ""),
-          String(episode.content || "").trim(),
-        ].join("||");
-        const prevSignature = [
-          String(prev?.title || ""),
-          String(prev?.releaseDate || ""),
-          String(prev?.content || "").trim(),
-        ].join("||");
-        const shouldStamp =
-          isLightNovel &&
-          String(episode.content || "").trim().length > 0 &&
-          (!prev || signature !== prevSignature);
+        const prev = prevEpisodesMap.get(buildEpisodeKey(episode.number, episode.volume));
         const hash = String(episode.hash || "").trim();
         const parsedSize = Number(episode.sizeBytes);
         const sizeBytes =
@@ -2062,9 +2705,9 @@ const DashboardProjectsEditor = () => {
             .filter((source) => source.url || source.label),
           completedStages: episode.completedStages || [],
           progressStage: getProgressStage(formState.type || "", episode.completedStages),
-          chapterUpdatedAt: shouldStamp
-            ? nowIso
-            : prev?.chapterUpdatedAt || episode.chapterUpdatedAt || "",
+          contentFormat: "lexical",
+          publicationStatus: episode.publicationStatus === "draft" ? "draft" : "published",
+          chapterUpdatedAt: prev?.chapterUpdatedAt || episode.chapterUpdatedAt || "",
         };
       }),
     };
@@ -2106,6 +2749,23 @@ const DashboardProjectsEditor = () => {
         });
         return;
       }
+      if (code === "duplicate_episode_key") {
+        const duplicateKey = String(data?.key || "");
+        const duplicateIndex = normalizedEpisodesForSave.findIndex(
+          (episode) => buildEpisodeKey(episode.number, episode.volume) === duplicateKey,
+        );
+        setEditorAccordionValue((prev) => (prev.includes("episodios") ? prev : [...prev, "episodios"]));
+        if (duplicateIndex >= 0) {
+          revealEpisodeAtIndex(duplicateIndex);
+        }
+        toast({
+          title: "Capitulos duplicados",
+          description:
+            "O servidor bloqueou o save porque existe mais de um capitulo com o mesmo numero e volume.",
+          variant: "destructive",
+        });
+        return;
+      }
       toast({
         title: "Não foi possível salvar o projeto",
         description: "Tente novamente em alguns instantes.",
@@ -2114,6 +2774,9 @@ const DashboardProjectsEditor = () => {
       return;
     }
     const data = await response.json();
+    if (data?.project) {
+      setFormState(data.project);
+    }
     if (editingProject) {
       setProjects((prev) =>
         prev.map((project) => (project.id === editingProject.id ? data.project : project)),
@@ -2122,7 +2785,7 @@ const DashboardProjectsEditor = () => {
       setProjects((prev) => [...prev, data.project]);
     }
     editorInitialSnapshotRef.current = buildProjectEditorSnapshot(
-      payload as ProjectForm,
+      (data?.project || payload) as ProjectForm,
       anilistIdInput,
     );
     toast({
@@ -2315,11 +2978,11 @@ const DashboardProjectsEditor = () => {
   };
 
   const handleImportAniList = async () => {
-    const id = Number(anilistIdInput);
-    if (!Number.isFinite(id)) {
+    const id = parseAniListMediaId(anilistIdInput);
+    if (id === null) {
       toast({
-        title: "ID do AniList inválido",
-        description: "Informe um número válido antes de importar.",
+        title: "ID do AniList invalido",
+        description: "Informe um ID ou URL valida do AniList antes de importar.",
         variant: "destructive",
       });
       return;
@@ -2330,8 +2993,8 @@ const DashboardProjectsEditor = () => {
       const code = typeof data?.error === "string" ? data.error : "";
       if (code === "invalid_id") {
         toast({
-          title: "ID do AniList inválido",
-          description: "Não foi possível buscar esse identificador.",
+          title: "ID do AniList invalido",
+          description: "Nao foi possivel buscar esse identificador.",
           variant: "destructive",
         });
         return;
@@ -2438,6 +3101,7 @@ const DashboardProjectsEditor = () => {
         completedStages: [],
         content: "",
         contentFormat: "lexical",
+        publicationStatus: "published",
       };
       const next = [...prev.episodeDownloads, newEpisode];
       return { ...prev, episodeDownloads: next };
@@ -2705,9 +3369,13 @@ const DashboardProjectsEditor = () => {
                                   {project.type}
                                 </Badge>
                               </div>
-                              <h3 className="text-lg font-semibold text-foreground">
+                              <button
+                                type="button"
+                                className="pointer-events-auto text-left text-lg font-semibold text-foreground hover:text-primary"
+                                onClick={() => openEdit(project)}
+                              >
                                 {project.title}
-                              </h3>
+                              </button>
                               <p className="text-xs text-muted-foreground">{project.studio}</p>
                             </div>
                             <div className="pointer-events-auto relative z-20 flex items-center gap-2">
@@ -2996,18 +3664,169 @@ const DashboardProjectsEditor = () => {
                   </div>
                 </AccordionTrigger>
                 <AccordionContent className={editorSectionContentClassName}>
-                  <div className="grid gap-4 md:grid-cols-[1fr_auto]">
-                    <div className="space-y-2">
-                      <Label>ID AniList</Label>
-                      <Input
-                        value={anilistIdInput}
-                        onChange={(event) => setAnilistIdInput(event.target.value)}
-                        placeholder="Ex.: 21366"
-                      />
+                  <div className="space-y-5">
+                    <div className="grid gap-4 md:grid-cols-[1fr_auto]">
+                      <div className="space-y-2">
+                        <Label htmlFor="anilist-id-input">ID ou URL do AniList</Label>
+                        <Input
+                          id="anilist-id-input"
+                          value={anilistIdInput}
+                          onChange={(event) => setAnilistIdInput(event.target.value)}
+                          placeholder="Ex.: 21366 ou https://anilist.co/manga/97894/..."
+                        />
+                      </div>
+                      <Button className="self-end" onClick={handleImportAniList}>
+                        Importar do AniList
+                      </Button>
                     </div>
-                    <Button className="self-end" onClick={handleImportAniList}>
-                      Importar do AniList
-                    </Button>
+
+                    {isLightNovel ? (
+                      <div className="rounded-2xl border border-border/60 bg-background/35 p-4">
+                        <div className="space-y-1">
+                          <h3 className="text-sm font-semibold text-foreground">Ferramentas EPUB</h3>
+                          <p className="text-xs text-muted-foreground">
+                            Importe capitulos para o editor Lexical e exporte o snapshot atual por volume.
+                          </p>
+                          {epubCapabilityState ? (
+                            <p
+                              className={
+                                epubCapabilityState.variant === "destructive"
+                                  ? "text-xs text-destructive"
+                                  : "text-xs text-amber-700"
+                              }
+                            >
+                              {epubCapabilityState.message}
+                            </p>
+                          ) : null}
+                          {backendBuildLabel ? (
+                            <p className="text-[11px] text-muted-foreground">
+                              Contrato da API: {backendBuildLabel}
+                            </p>
+                          ) : null}
+                          {frontendBuildLabel ? (
+                            <p className="text-[11px] text-muted-foreground">
+                              Frontend: {frontendBuildLabel}
+                            </p>
+                          ) : null}
+                          {import.meta.env.DEV ? (
+                            <>
+                              <p className="text-[11px] text-muted-foreground">
+                                Origem atual: {normalizeOriginLabel(locationOrigin)}
+                              </p>
+                              <p className="text-[11px] text-muted-foreground">
+                                API base resolvida: {normalizeOriginLabel(apiBase)}
+                              </p>
+                              <p className="text-[11px] text-muted-foreground">
+                                Suporte EPUB: {epubSupportLabel}
+                              </p>
+                              <p className="text-[11px] text-muted-foreground">
+                                Estado do endpoint EPUB: {epubEndpointStatusLabel}
+                              </p>
+                            </>
+                          ) : null}
+                        </div>
+
+                        <div className="mt-4 grid gap-6 xl:grid-cols-2">
+                          <div className="space-y-4 rounded-xl border border-border/60 bg-card/60 p-4">
+                            <div className="space-y-1">
+                              <h4 className="text-sm font-medium text-foreground">Importar EPUB</h4>
+                              <p className="text-xs text-muted-foreground">
+                                O arquivo e convertido para Lexical e mergeado localmente no formulario.
+                              </p>
+                            </div>
+                            <div className="space-y-2">
+                              <Label htmlFor="epub-import-file">Arquivo .epub</Label>
+                              <Input
+                                id="epub-import-file"
+                                type="file"
+                                accept=".epub,application/epub+zip"
+                                onChange={(event) =>
+                                  setEpubImportFile(event.target.files?.[0] || null)
+                                }
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <Label htmlFor="epub-import-volume">Volume de destino</Label>
+                              <Input
+                                id="epub-import-volume"
+                                type="number"
+                                value={epubImportTargetVolume}
+                                onChange={(event) => setEpubImportTargetVolume(event.target.value)}
+                                placeholder="Opcional"
+                              />
+                            </div>
+                            <label className="flex items-start gap-3 rounded-xl border border-border/60 bg-background/50 px-3 py-2 text-sm">
+                              <Checkbox
+                                checked={epubImportAsDraft}
+                                onCheckedChange={(checked) => setEpubImportAsDraft(checked === true)}
+                              />
+                              <span className="space-y-1">
+                                <span className="block font-medium text-foreground">
+                                  Importar como rascunho
+                                </span>
+                                <span className="block text-xs text-muted-foreground">
+                                  Capitulos importados ficam ocultos ao publico ate a publicacao.
+                                </span>
+                              </span>
+                            </label>
+                            <Button
+                              type="button"
+                              onClick={handleImportEpub}
+                              disabled={isImportingEpub || !backendSupportsEpubImport}
+                              className="gap-2"
+                            >
+                              {isImportingEpub ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                              Importar EPUB
+                            </Button>
+                          </div>
+
+                          <div className="space-y-4 rounded-xl border border-border/60 bg-card/60 p-4">
+                            <div className="space-y-1">
+                              <h4 className="text-sm font-medium text-foreground">Exportar EPUB</h4>
+                              <p className="text-xs text-muted-foreground">
+                                Usa o estado atual do formulario, inclusive alteracoes ainda nao salvas.
+                              </p>
+                            </div>
+                            <div className="space-y-2">
+                              <Label htmlFor="epub-export-volume">Volume para exportacao</Label>
+                              <Input
+                                id="epub-export-volume"
+                                type="number"
+                                value={epubExportVolume}
+                                onChange={(event) => setEpubExportVolume(event.target.value)}
+                                placeholder="Deixe vazio para Sem volume"
+                              />
+                            </div>
+                            <label className="flex items-start gap-3 rounded-xl border border-border/60 bg-background/50 px-3 py-2 text-sm">
+                              <Checkbox
+                                checked={epubExportIncludeDrafts}
+                                onCheckedChange={(checked) =>
+                                  setEpubExportIncludeDrafts(checked === true)
+                                }
+                              />
+                              <span className="space-y-1">
+                                <span className="block font-medium text-foreground">
+                                  Incluir rascunhos
+                                </span>
+                                <span className="block text-xs text-muted-foreground">
+                                  Exporta tambem capitulos em draft que tenham conteudo.
+                                </span>
+                              </span>
+                            </label>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              onClick={handleExportEpub}
+                              disabled={isExportingEpub || !backendSupportsEpubExport}
+                              className="gap-2"
+                            >
+                              {isExportingEpub ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                              Exportar volume em EPUB
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    ) : null}
                   </div>
                 </AccordionContent>
               </AccordionItem>
@@ -3030,7 +3849,8 @@ const DashboardProjectsEditor = () => {
                         onChange={(event) => {
                           const nextValue = event.target.value;
                           const hasAniList =
-                            Boolean(formState.anilistId) || Number.isFinite(Number(anilistIdInput));
+                            Boolean(formState.anilistId) ||
+                            parseAniListMediaId(anilistIdInput) !== null;
                           const trimmed = nextValue.trim();
                           if (!hasAniList && trimmed && /^\d+$/.test(trimmed)) {
                             return;
@@ -3840,8 +4660,11 @@ const DashboardProjectsEditor = () => {
                         const episodeNumberLabel = `${episodeUnitLabel} ${episode.number || index + 1}`;
                         const episodeTitleLabel =
                           String(episode.title || "").trim() || "Sem título";
+                        const episodeKey = buildEpisodeKey(episode.number, episode.volume);
+                        const publicationStatus =
+                          episode.publicationStatus === "draft" ? "draft" : "published";
                         const hasEpisodeContent = String(episode.content || "").trim().length > 0;
-                        const hasDownloadSource = episode.sources.some((source) => source.url);
+                        const hasDownloadSource = (episode.sources || []).some((source) => source.url);
                         const isProgressOnlyEntry =
                           !hasDownloadSource && !(isLightNovel && hasEpisodeContent);
                         const currentProgressStageLabel =
@@ -3851,20 +4674,37 @@ const DashboardProjectsEditor = () => {
                               getProgressStage(formState.type || "", episode.completedStages),
                           )?.label || "Aguardando Raw";
                         const collapsedHeaderMeta: string[] = [];
+                        const availabilityLabel = isLightNovel
+                          ? hasEpisodeContent && hasDownloadSource
+                            ? "Hibrido"
+                            : hasEpisodeContent
+                              ? "Leitura"
+                              : hasDownloadSource
+                                ? "Download"
+                                : "Sem publico"
+                          : hasDownloadSource
+                            ? "Download"
+                            : currentProgressStageLabel;
 
-                        if (isLightNovel && hasEpisodeContent) {
+                        if (false && isLightNovel && hasEpisodeContent) {
                           collapsedHeaderMeta.push("Conteúdo");
                         }
+                        collapsedHeaderMeta.push(
+                          publicationStatus === "draft" ? "Rascunho" : "Publicado",
+                        );
                         if (isProgressOnlyEntry) {
                           collapsedHeaderMeta.push(currentProgressStageLabel);
                         }
-                        if (hasDownloadSource) {
-                          collapsedHeaderMeta.push("Download");
+                        if (!isProgressOnlyEntry || isLightNovel) {
+                          collapsedHeaderMeta.push(availabilityLabel);
+                        }
+                        if (episode.volume) {
+                          collapsedHeaderMeta.push(`Vol. ${episode.volume}`);
                         }
 
                         return (
                           <AccordionItem
-                            key={`${episode.number}-${index}`}
+                            key={`${episodeKey}-${index}`}
                             value={getEpisodeAccordionValue(index)}
                             className="border-none"
                           >
@@ -3875,6 +4715,7 @@ const DashboardProjectsEditor = () => {
                                 }
                               }}
                               className="project-editor-episode-card border-border/60 bg-card/70 !shadow-none hover:!shadow-none"
+                              data-episode-key={episodeKey}
                               data-testid={`episode-card-${index}`}
                               onDragStart={() => setEpisodeDragId(null)}
                             >
@@ -3910,13 +4751,27 @@ const DashboardProjectsEditor = () => {
                                     </AccordionTrigger>
                                   </div>
                                   <div className="flex flex-wrap items-center gap-2">
+                                    <Badge
+                                      variant={publicationStatus === "draft" ? "outline" : "secondary"}
+                                      className="text-[10px] uppercase"
+                                    >
+                                      {publicationStatus === "draft" ? "Rascunho" : "Publicado"}
+                                    </Badge>
+                                    <Badge variant="outline" className="text-[10px] uppercase">
+                                      {availabilityLabel}
+                                    </Badge>
+                                    {episode.volume ? (
+                                      <Badge variant="outline" className="text-[10px] uppercase">
+                                        Vol. {episode.volume}
+                                      </Badge>
+                                    ) : null}
                                     {isEpisodeCollapsed && collapsedHeaderMeta.length > 0 ? (
                                       <span className="text-[11px] text-muted-foreground">
                                         {collapsedHeaderMeta.join(" • ")}
                                       </span>
                                     ) : null}
                                     <ReorderControls
-                                      label={`${isChapterBased ? "capitulo" : "episodio"} ${episode.number || index + 1}`}
+                                      label={`item ${episode.number || index + 1}`}
                                       index={index}
                                       total={sortedEpisodeDownloads.length}
                                       onMove={(targetIndex) => moveEpisodeItem(index, targetIndex)}
@@ -3973,7 +4828,7 @@ const DashboardProjectsEditor = () => {
                                       }
                                       placeholder="Número"
                                     />
-                                    {isManga ? (
+                                    {isChapterBased ? (
                                       <Input
                                         type="number"
                                         value={episode.volume || ""}
@@ -4006,6 +4861,30 @@ const DashboardProjectsEditor = () => {
                                       }
                                       placeholder="Título"
                                     />
+                                    {isLightNovel ? (
+                                      <Select
+                                        value={publicationStatus}
+                                        onValueChange={(value) =>
+                                          setFormState((prev) => {
+                                            const next = [...prev.episodeDownloads];
+                                            next[index] = {
+                                              ...next[index],
+                                              publicationStatus:
+                                                value === "draft" ? "draft" : "published",
+                                            };
+                                            return { ...prev, episodeDownloads: next };
+                                          })
+                                        }
+                                      >
+                                        <SelectTrigger>
+                                          <SelectValue placeholder="Status" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                          <SelectItem value="draft">Rascunho</SelectItem>
+                                          <SelectItem value="published">Publicado</SelectItem>
+                                        </SelectContent>
+                                      </Select>
+                                    ) : null}
                                     <Input
                                       type="text"
                                       inputMode="numeric"
@@ -4257,9 +5136,8 @@ const DashboardProjectsEditor = () => {
                                       </div>
                                     </div>
                                   ) : null}
-                                  {!isLightNovel ? (
-                                    <div className="project-editor-episode-group mt-3 space-y-3">
-                                      <div>
+                                  <div className="project-editor-episode-group mt-3 space-y-3">
+                                      <div hidden={isLightNovel}>
                                         <Label className="text-xs">Arquivo do episódio</Label>
                                         <div className="mt-2 grid gap-2 md:grid-cols-2">
                                           <div className="space-y-1">
@@ -4487,7 +5365,6 @@ const DashboardProjectsEditor = () => {
                                         </div>
                                       </div>
                                     </div>
-                                  ) : null}
                                 </AccordionContent>
                               </CardContent>
                             </Card>

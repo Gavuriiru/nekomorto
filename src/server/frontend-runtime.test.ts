@@ -64,10 +64,12 @@ describe("frontend-runtime", () => {
     it("creates vite server in development with middleware mode", async () => {
       const viteServer = { middlewares: {}, transformIndexHtml: vi.fn() };
       const createServer = vi.fn().mockResolvedValue(viteServer);
+      const httpServer = { on: vi.fn() };
 
       const result = await createViteDevServer({
         isProduction: false,
         createServer,
+        httpServer,
       });
 
       expect(result).toBe(viteServer);
@@ -76,6 +78,10 @@ describe("frontend-runtime", () => {
           appType: "custom",
           server: expect.objectContaining({
             middlewareMode: true,
+            hmr: expect.objectContaining({
+              overlay: false,
+              server: httpServer,
+            }),
           }),
         }),
       );
