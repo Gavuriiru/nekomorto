@@ -202,6 +202,47 @@ describe("uploads reorganizer apply", () => {
     expect(fs.existsSync(path.join(uploadsDir, "legacy.png"))).toBe(false);
   });
 
+  it("reorganiza capas de volume como midia principal do projeto", () => {
+    const { uploadsDir, datasets } = createTempWorkspace(
+      {
+        projects: [
+          {
+            id: "proj-1",
+            title: "Projeto Um",
+            cover: "",
+            banner: "",
+            heroImageUrl: "",
+            relations: [],
+            volumeCovers: [
+              {
+                volume: 1,
+                coverImageUrl: "/uploads/volume-cover.png",
+                coverImageAlt: "Capa do volume 1",
+              },
+            ],
+            episodeDownloads: [],
+          },
+        ],
+      },
+      [{ relativePath: "volume-cover.png" }],
+    );
+
+    const report = runUploadsReorganization({ datasets, uploadsDir, applyChanges: true });
+    const projects = report.rewritten.projects as Array<Record<string, unknown>>;
+    const volumeCovers = projects[0].volumeCovers as Array<Record<string, unknown>>;
+
+    expect(report.mappings).toEqual([
+      {
+        oldUrl: "/uploads/volume-cover.png",
+        newUrl: "/uploads/projects/proj-1/volumes/volume-cover.png",
+      },
+    ]);
+    expect(volumeCovers[0].coverImageUrl).toBe("/uploads/projects/proj-1/volumes/volume-cover.png");
+    expect(fs.existsSync(path.join(uploadsDir, "projects/proj-1/volumes/volume-cover.png"))).toBe(
+      true,
+    );
+  });
+
   it("move para shared quando a mesma url e usada por multiplos projetos", () => {
     const { uploadsDir, datasets } = createTempWorkspace(
       {

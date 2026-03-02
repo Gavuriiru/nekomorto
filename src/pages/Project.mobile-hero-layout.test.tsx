@@ -103,6 +103,20 @@ const lightNovelProjectFixture = {
   ],
 };
 
+const mangaProjectFixture = {
+  ...projectFixture,
+  type: "Mangá",
+  episodeDownloads: [
+    {
+      number: 1,
+      volume: 3,
+      title: "Capitulo 1",
+      synopsis: "Resumo do capitulo",
+      sources: [{ label: "Drive", url: "https://example.com/file" }],
+    },
+  ],
+};
+
 const setupApiMock = (project = projectFixture) => {
   apiFetchMock.mockReset();
   apiFetchMock.mockImplementation(
@@ -467,5 +481,51 @@ describe("Project mobile hero layout", () => {
       "href",
       "/projeto/project-1/leitura/1?volume=2",
     );
+  });
+
+  it("exibe capa por volume em grupos de light novel", async () => {
+    setupApiMock({
+      ...lightNovelProjectFixture,
+      volumeCovers: [
+        {
+          volume: 2,
+          coverImageUrl: "/uploads/volume-2-cover.jpg",
+          coverImageAlt: "Capa do volume 2",
+        },
+      ],
+    });
+
+    render(
+      <MemoryRouter>
+        <ProjectPage />
+      </MemoryRouter>,
+    );
+
+    await screen.findByRole("heading", { name: "Projeto Teste" });
+    expect(screen.getByRole("img", { name: "Capa do volume 2" })).toBeInTheDocument();
+    expect(screen.getAllByText("Volume 2").length).toBeGreaterThan(0);
+  });
+
+  it("exibe capa por volume em grupos de mangá", async () => {
+    setupApiMock({
+      ...mangaProjectFixture,
+      volumeCovers: [
+        {
+          volume: 3,
+          coverImageUrl: "/uploads/volume-3-cover.jpg",
+          coverImageAlt: "Capa do volume 3",
+        },
+      ],
+    });
+
+    render(
+      <MemoryRouter>
+        <ProjectPage />
+      </MemoryRouter>,
+    );
+
+    await screen.findByRole("heading", { name: "Projeto Teste" });
+    expect(screen.getByRole("img", { name: "Capa do volume 3" })).toBeInTheDocument();
+    expect(screen.getAllByText("Volume 3").length).toBeGreaterThan(0);
   });
 });

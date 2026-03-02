@@ -6,6 +6,7 @@ import {
   $isElementNode,
   createEditor,
   DecoratorNode,
+  ParagraphNode,
 } from "lexical";
 import { $generateHtmlFromNodes, $generateNodesFromDOM } from "@lexical/html";
 import { HeadingNode, QuoteNode } from "@lexical/rich-text";
@@ -13,6 +14,153 @@ import { ListItemNode, ListNode } from "@lexical/list";
 import { LinkNode, AutoLinkNode } from "@lexical/link";
 import { CodeNode, CodeHighlightNode } from "@lexical/code";
 import { TableCellNode, TableNode, TableRowNode } from "@lexical/table";
+
+const BLOCK_STYLE_KEYS = [
+  "text-indent",
+  "margin-top",
+  "margin-bottom",
+  "line-height",
+  "font-family",
+];
+
+const IMAGE_STYLE_KEYS = [
+  "width",
+  "height",
+  "max-width",
+  "display",
+  "margin-left",
+  "margin-right",
+  "margin-top",
+  "margin-bottom",
+  "vertical-align",
+];
+
+const ZERO_LIKE_VALUES = new Set([
+  "",
+  "0",
+  "0px",
+  "0em",
+  "0rem",
+  "0%",
+  "normal",
+  "auto",
+  "none",
+  "initial",
+  "inherit",
+]);
+
+const normalizeStyleValue = (value) => String(value || "").trim().replace(/\s+/g, " ");
+
+const parseStyleDeclaration = (cssText) =>
+  String(cssText || "")
+    .split(";")
+    .map((entry) => entry.trim())
+    .filter(Boolean)
+    .reduce((styles, entry) => {
+      const separatorIndex = entry.indexOf(":");
+      if (separatorIndex === -1) {
+        return styles;
+      }
+      const property = normalizeStyleValue(entry.slice(0, separatorIndex)).toLowerCase();
+      const value = normalizeStyleValue(entry.slice(separatorIndex + 1));
+      if (!property || !value) {
+        return styles;
+      }
+      styles[property] = value;
+      return styles;
+    }, {});
+
+const getStyleRecord = (style) => {
+  if (typeof style === "string") {
+    return parseStyleDeclaration(style);
+  }
+  const record = {};
+  for (let index = 0; index < style.length; index += 1) {
+    const property = style.item(index);
+    if (!property) {
+      continue;
+    }
+    record[property.toLowerCase()] = normalizeStyleValue(style.getPropertyValue(property));
+  }
+  return record;
+};
+
+const buildStyleDeclaration = (entries) =>
+  entries
+    .map(([property, value]) => [String(property).trim().toLowerCase(), normalizeStyleValue(value)]).filter(
+      ([property, value]) => property && value,
+    )
+    .map(([property, value]) => `${property}: ${value}`)
+    .join("; ");
+
+const isMeaningfulValue = (value) => !ZERO_LIKE_VALUES.has(normalizeStyleValue(value).toLowerCase());
+
+const normalizeFontFamilyBucket = (value) => {
+  const normalized = normalizeStyleValue(value).toLowerCase();
+  if (!normalized) {
+    return "";
+  }
+  if (
+    normalized.includes("mono") ||
+    normalized.includes("consolas") ||
+    normalized.includes("courier") ||
+    normalized.includes("fira code") ||
+    normalized.includes("jetbrains mono")
+  ) {
+    return "monospace";
+  }
+  if (
+    normalized.includes("sans") ||
+    normalized.includes("arial") ||
+    normalized.includes("helvetica") ||
+    normalized.includes("verdana") ||
+    normalized.includes("tahoma") ||
+    normalized.includes("gothic") ||
+    normalized.includes("meiryo") ||
+    normalized.includes("yu gothic")
+  ) {
+    return "sans-serif";
+  }
+  return "serif";
+};
+
+const extractBlockEditorialStyle = (style) => {
+  const record = getStyleRecord(style);
+  const textAlign = normalizeStyleValue(record["text-align"]).toLowerCase();
+  return {
+    format: ["left", "right", "center", "justify"].includes(textAlign) ? textAlign : "",
+    editorialStyle: buildStyleDeclaration([
+      ["text-indent", isMeaningfulValue(record["text-indent"]) ? record["text-indent"] : ""],
+      ["margin-top", isMeaningfulValue(record["margin-top"]) ? record["margin-top"] : ""],
+      ["margin-bottom", isMeaningfulValue(record["margin-bottom"]) ? record["margin-bottom"] : ""],
+      ["line-height", isMeaningfulValue(record["line-height"]) ? record["line-height"] : ""],
+      [
+        "font-family",
+        isMeaningfulValue(record["font-family"]) ? normalizeFontFamilyBucket(record["font-family"]) : "",
+      ],
+    ]),
+  };
+};
+
+const extractImageEditorialStyle = (style) => {
+  const record = getStyleRecord(style);
+  return buildStyleDeclaration(
+    IMAGE_STYLE_KEYS.map((property) => [property, isMeaningfulValue(record[property]) ? record[property] : ""]),
+  );
+};
+
+const hasEditorialBlockStyle = (style) => Boolean(extractBlockEditorialStyle(style).editorialStyle);
+const hasEditorialImageStyle = (style) => Boolean(extractImageEditorialStyle(style));
+
+const applyEditorialStyleToElement = (element, editorialStyle) => {
+  if (!editorialStyle) {
+    element.removeAttribute("style");
+    return;
+  }
+  element.style.cssText = editorialStyle;
+};
+
+const isBlockImageStyle = (editorialStyle) => parseStyleDeclaration(editorialStyle).display === "block";
 
 class ServerImageNode extends DecoratorNode {
   static getType() {
@@ -111,6 +259,94 @@ class ServerImageNode extends DecoratorNode {
 const $createServerImageNode = ({ src, altText = "", width, align }) =>
   $applyNodeReplacement(new ServerImageNode(src, altText, width, align));
 
+class ServerEpubImageNode extends DecoratorNode {
+  static getType() {
+    return "epub-image";
+  }
+
+  static clone(node) {
+    return new ServerEpubImageNode(node.__src, node.__altText, node.__editorialStyle, node.__key);
+  }
+
+  constructor(src, altText, editorialStyle = "", key) {
+    super(key);
+    this.__src = src;
+    this.__altText = altText || "";
+    this.__editorialStyle = editorialStyle || "";
+  }
+
+  static importJSON(serializedNode) {
+    return $createServerEpubImageNode({
+      src: serializedNode.src,
+      altText: serializedNode.altText,
+      editorialStyle: serializedNode.editorialStyle,
+    });
+  }
+
+  static importDOM() {
+    return {
+      img: () => ({
+        conversion: (node) => {
+          if (!node || String(node.nodeName || "").toLowerCase() !== "img") {
+            return null;
+          }
+          const editorialStyle = extractImageEditorialStyle(node.style);
+          const src = node.getAttribute?.("src") || "";
+          if (!src) {
+            return null;
+          }
+          return {
+            node: $createServerEpubImageNode({
+              src,
+              altText: node.getAttribute?.("alt") || "",
+              editorialStyle,
+            }),
+          };
+        },
+        priority: 1,
+      }),
+    };
+  }
+
+  isInline() {
+    return !isBlockImageStyle(this.__editorialStyle);
+  }
+
+  exportJSON() {
+    return {
+      type: "epub-image",
+      version: 1,
+      src: this.__src,
+      altText: this.__altText,
+      editorialStyle: this.__editorialStyle,
+    };
+  }
+
+  createDOM() {
+    return globalThis.document.createElement("span");
+  }
+
+  updateDOM() {
+    return false;
+  }
+
+  exportDOM() {
+    const img = globalThis.document.createElement("img");
+    img.setAttribute("src", this.__src);
+    img.setAttribute("alt", this.__altText);
+    img.setAttribute("loading", "lazy");
+    applyEditorialStyleToElement(img, this.__editorialStyle);
+    return { element: img };
+  }
+
+  decorate() {
+    return null;
+  }
+}
+
+const $createServerEpubImageNode = ({ src, altText = "", editorialStyle = "" }) =>
+  $applyNodeReplacement(new ServerEpubImageNode(src, altText, editorialStyle));
+
 class ServerVideoNode extends DecoratorNode {
   static getType() {
     return "video";
@@ -190,6 +426,203 @@ class ServerVideoNode extends DecoratorNode {
 const $createServerVideoNode = ({ src, title = "Video" }) =>
   $applyNodeReplacement(new ServerVideoNode(src, title));
 
+class ServerEpubParagraphNode extends ParagraphNode {
+  static getType() {
+    return "epub-paragraph";
+  }
+
+  static clone(node) {
+    return new ServerEpubParagraphNode(node.__editorialStyle, node.__key);
+  }
+
+  constructor(editorialStyle = "", key) {
+    super(key);
+    this.__editorialStyle = editorialStyle;
+  }
+
+  static importJSON(serializedNode) {
+    return $createServerEpubParagraphNode({
+      editorialStyle: serializedNode.editorialStyle,
+    }).updateFromJSON(serializedNode);
+  }
+
+  static importDOM() {
+    return {
+      p: () => ({
+        conversion: (node) => {
+          if (!(node instanceof globalThis.HTMLElement) || !hasEditorialBlockStyle(node.style)) {
+            return null;
+          }
+          const { format, editorialStyle } = extractBlockEditorialStyle(node.style);
+          const paragraph = $createServerEpubParagraphNode({ editorialStyle });
+          if (format) {
+            paragraph.setFormat(format);
+          }
+          return { node: paragraph };
+        },
+        priority: 1,
+      }),
+    };
+  }
+
+  getEditorialStyle() {
+    return this.getLatest().__editorialStyle;
+  }
+
+  setEditorialStyle(editorialStyle) {
+    const writable = this.getWritable();
+    writable.__editorialStyle = String(editorialStyle || "").trim();
+    return writable;
+  }
+
+  updateFromJSON(serializedNode) {
+    return super.updateFromJSON(serializedNode).setEditorialStyle(serializedNode.editorialStyle || "");
+  }
+
+  createDOM(config) {
+    const dom = super.createDOM(config);
+    applyEditorialStyleToElement(dom, this.getEditorialStyle());
+    return dom;
+  }
+
+  updateDOM(prevNode, dom, config) {
+    super.updateDOM(prevNode, dom, config);
+    applyEditorialStyleToElement(dom, this.getEditorialStyle());
+    return false;
+  }
+
+  exportDOM(editor) {
+    const result = super.exportDOM(editor);
+    if (result.element instanceof globalThis.HTMLElement) {
+      applyEditorialStyleToElement(result.element, this.getEditorialStyle());
+      const formatType = this.getFormatType();
+      if (formatType) {
+        result.element.style.textAlign = formatType;
+      }
+    }
+    return result;
+  }
+
+  exportJSON() {
+    return {
+      ...super.exportJSON(),
+      type: "epub-paragraph",
+      version: 1,
+      editorialStyle: this.getEditorialStyle(),
+    };
+  }
+}
+
+const $createServerEpubParagraphNode = ({ editorialStyle = "" }) =>
+  $applyNodeReplacement(new ServerEpubParagraphNode(editorialStyle));
+
+class ServerEpubHeadingNode extends HeadingNode {
+  static getType() {
+    return "epub-heading";
+  }
+
+  static clone(node) {
+    return new ServerEpubHeadingNode(node.getTag(), node.__editorialStyle, node.__key);
+  }
+
+  constructor(tag, editorialStyle = "", key) {
+    super(tag, key);
+    this.__editorialStyle = editorialStyle;
+  }
+
+  static importJSON(serializedNode) {
+    return $createServerEpubHeadingNode({
+      tag: serializedNode.tag,
+      editorialStyle: serializedNode.editorialStyle,
+    }).updateFromJSON(serializedNode);
+  }
+
+  static importDOM() {
+    const createConversion = () => ({
+      conversion: (node) => {
+        if (!(node instanceof globalThis.HTMLElement) || !hasEditorialBlockStyle(node.style)) {
+          return null;
+        }
+        const tag = String(node.tagName || "").toLowerCase();
+        if (!["h1", "h2", "h3", "h4", "h5", "h6"].includes(tag)) {
+          return null;
+        }
+        const { format, editorialStyle } = extractBlockEditorialStyle(node.style);
+        const heading = $createServerEpubHeadingNode({ tag, editorialStyle });
+        if (format) {
+          heading.setFormat(format);
+        }
+        return { node: heading };
+      },
+      priority: 1,
+    });
+    return {
+      h1: createConversion,
+      h2: createConversion,
+      h3: createConversion,
+      h4: createConversion,
+      h5: createConversion,
+      h6: createConversion,
+    };
+  }
+
+  getEditorialStyle() {
+    return this.getLatest().__editorialStyle;
+  }
+
+  setEditorialStyle(editorialStyle) {
+    const writable = this.getWritable();
+    writable.__editorialStyle = String(editorialStyle || "").trim();
+    return writable;
+  }
+
+  updateFromJSON(serializedNode) {
+    return super
+      .updateFromJSON(serializedNode)
+      .setTag(serializedNode.tag)
+      .setEditorialStyle(serializedNode.editorialStyle || "");
+  }
+
+  createDOM(config) {
+    const dom = super.createDOM(config);
+    applyEditorialStyleToElement(dom, this.getEditorialStyle());
+    return dom;
+  }
+
+  updateDOM(prevNode, dom, config) {
+    const needsRemount = super.updateDOM(prevNode, dom, config);
+    if (!needsRemount) {
+      applyEditorialStyleToElement(dom, this.getEditorialStyle());
+    }
+    return needsRemount;
+  }
+
+  exportDOM(editor) {
+    const result = super.exportDOM(editor);
+    if (result.element instanceof globalThis.HTMLElement) {
+      applyEditorialStyleToElement(result.element, this.getEditorialStyle());
+      const formatType = this.getFormatType();
+      if (formatType) {
+        result.element.style.textAlign = formatType;
+      }
+    }
+    return result;
+  }
+
+  exportJSON() {
+    return {
+      ...super.exportJSON(),
+      type: "epub-heading",
+      version: 1,
+      tag: this.getTag(),
+      editorialStyle: this.getEditorialStyle(),
+    };
+  }
+}
+
+const $createServerEpubHeadingNode = ({ tag, editorialStyle = "" }) =>
+  $applyNodeReplacement(new ServerEpubHeadingNode(tag, editorialStyle));
+
 const lexicalNodes = [
   HeadingNode,
   QuoteNode,
@@ -202,6 +635,9 @@ const lexicalNodes = [
   TableNode,
   TableRowNode,
   TableCellNode,
+  ServerEpubParagraphNode,
+  ServerEpubHeadingNode,
+  ServerEpubImageNode,
   ServerImageNode,
   ServerVideoNode,
 ];
@@ -209,6 +645,7 @@ const lexicalNodes = [
 const createLexicalEditor = () =>
   createEditor({
     nodes: lexicalNodes,
+    onError: () => {},
   });
 
 const createEmptyLexicalState = () => ({
@@ -235,7 +672,6 @@ const createEmptyLexicalState = () => ({
 
 export const EMPTY_LEXICAL_STATE = createEmptyLexicalState();
 export const EMPTY_LEXICAL_JSON = JSON.stringify(EMPTY_LEXICAL_STATE);
-const ROOT_DECORATOR_TYPES = new Set(["image", "video"]);
 
 const isRootAppendableNode = (node) => $isElementNode(node) || node instanceof DecoratorNode;
 
@@ -274,28 +710,16 @@ const normalizeRootImportNodes = (nodes) => {
   return normalizedNodes;
 };
 
-const isRootChildrenArray = (root) => Array.isArray(root?.children);
+const hasSerializableRoot = (serializedState) =>
+  serializedState?.root?.type === "root" && Array.isArray(serializedState.root.children);
 
 const hasNonEmptyRootChildren = (serializedState) =>
-  isRootChildrenArray(serializedState?.root) && serializedState.root.children.length > 0;
+  Array.isArray(serializedState?.root?.children) && serializedState.root.children.length > 0;
 
 const hasExplicitlyEmptyRoot = (serializedState) =>
   serializedState?.root?.type === "root" &&
-  isRootChildrenArray(serializedState.root) &&
+  Array.isArray(serializedState.root.children) &&
   serializedState.root.children.length === 0;
-
-const hasSupportedRootChildren = (serializedState) =>
-  serializedState?.root?.type === "root" &&
-  isRootChildrenArray(serializedState.root) &&
-  serializedState.root.children.every((child) => {
-    if (!child || typeof child !== "object") {
-      return false;
-    }
-    if (Array.isArray(child.children)) {
-      return true;
-    }
-    return ROOT_DECORATOR_TYPES.has(String(child.type || ""));
-  });
 
 const withDomEnvironment = (fn) => {
   const dom = new JSDOM("<!doctype html><html><body></body></html>");
@@ -349,7 +773,7 @@ export const normalizeLexicalJson = (value) => {
     return EMPTY_LEXICAL_JSON;
   }
 
-  if (!hasSupportedRootChildren(parsed)) {
+  if (!hasSerializableRoot(parsed)) {
     return null;
   }
 

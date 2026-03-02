@@ -136,6 +136,8 @@ describe("project EPUB import", () => {
       imageImportFailures: 0,
       boilerplateDiscarded: 3,
       unresolvedTocEntries: 1,
+      volumeCoverImported: false,
+      volumeCoverSkipped: false,
     });
     expect(result.metadata).toEqual({
       title: "Livro teste",
@@ -266,6 +268,8 @@ describe("project EPUB import", () => {
       imageImportFailures: 0,
       boilerplateDiscarded: 0,
       unresolvedTocEntries: 0,
+      volumeCoverImported: false,
+      volumeCoverSkipped: false,
     });
     expect(htmlToLexicalJsonMock).toHaveBeenCalledTimes(2);
     expect(htmlToLexicalJsonMock.mock.calls[0]?.[0]).toContain("<p>Parte 1 do capitulo.</p>");
@@ -273,6 +277,93 @@ describe("project EPUB import", () => {
     expect(htmlToLexicalJsonMock.mock.calls[0]?.[0]).toContain("<p>Parte 2 do capitulo.</p>");
     expect(storeUploadImageBufferMock).toHaveBeenCalledTimes(1);
     expect(writeUploads).toHaveBeenCalledTimes(1);
+  });
+
+  it("preserva o subset editorial de CSS do EPUB no HTML enviado ao bridge", async () => {
+    const loadUploads = vi.fn(() => []);
+    const writeUploads = vi.fn();
+
+    epubState.toc = [{ id: "chapter-toc", title: "Chapter 1", href: "OEBPS/Text/chapter001.xhtml#Ref_1" }];
+    epubState.flow = [{ id: "chapter001", title: "Chapter 1", href: "OEBPS/Text/chapter001.xhtml" }];
+    epubState.manifest = {
+      chapter001: { id: "chapter001", href: "OEBPS/Text/chapter001.xhtml" },
+      stylesheet: {
+        id: "stylesheet",
+        href: "OEBPS/Styles/stylesheet.css",
+        "media-type": "text/css",
+      },
+      censor: {
+        id: "censor",
+        href: "OEBPS/Images/censor.png",
+        "media-type": "image/png",
+      },
+      inlineGlyph: {
+        id: "inlineGlyph",
+        href: "OEBPS/Images/inline.png",
+        "media-type": "image/png",
+      },
+    };
+    epubState.chapters = {
+      chapter001: `<!doctype html>
+        <html>
+          <head>
+            <link rel="stylesheet" href="../Styles/stylesheet.css">
+          </head>
+          <body>
+            <h1 class="chapter-title">
+              Titulo
+              <img class="bbox1" src="../Images/censor.png" alt="censor">
+            </h1>
+            <p class="txalt">
+              Texto
+              <img class="box" src="../Images/inline.png" alt="ornamento">
+              <span class="tx14">grande</span>
+              <span class="tx14i">italico</span>
+            </p>
+            <p class="space-break1">Quebra editorial</p>
+          </body>
+        </html>`,
+    };
+    epubState.files = {
+      stylesheet: Buffer.from(`
+        .chapter-title { margin-top: 10%; margin-bottom: 3em; }
+        p { text-indent: 20pt; }
+        .space-break1 { margin-top: 1.5em; text-indent: 0; }
+        .tx14 { font-size: 1.5em; }
+        .tx14i { font-size: 1.5em; font-style: italic; }
+        .txalt { font-family: Arial, sans-serif; }
+        .bbox1 { width: 3em; }
+        .box { height: 0.75em; vertical-align: middle; }
+      `),
+    };
+    epubState.images = {
+      censor: Buffer.from("censor-image"),
+      inlineGlyph: Buffer.from("inline-image"),
+    };
+
+    await importProjectEpub({
+      buffer: Buffer.from("fake"),
+      targetVolume: 1,
+      defaultStatus: "draft",
+      project: { episodeDownloads: [] },
+      uploadsDir: "D:/dev/nekomorto/public/uploads",
+      loadUploads,
+      writeUploads,
+      uploadUserId: "test-user",
+    });
+
+    const importedHtml = String(htmlToLexicalJsonMock.mock.calls.at(-1)?.[0] || "");
+    expect(importedHtml).toContain("<h1");
+    expect(importedHtml).toContain("margin-top:");
+    expect(importedHtml).toContain("margin-bottom:");
+    expect(importedHtml).toContain("/uploads/tmp/epub-imports/");
+    expect(importedHtml).toContain("width:");
+    expect(importedHtml).toContain("height:");
+    expect(importedHtml).toContain("vertical-align:middle");
+    expect(importedHtml).toContain("font-size:");
+    expect(importedHtml).toContain("font-style:italic");
+    expect(importedHtml).toContain("font-family:sans-serif");
+    expect(importedHtml).toContain("text-indent:");
   });
 
   it("descarta paginas somente com imagem no fallback do flow", async () => {
@@ -335,6 +426,8 @@ describe("project EPUB import", () => {
       imageImportFailures: 0,
       boilerplateDiscarded: 0,
       unresolvedTocEntries: 0,
+      volumeCoverImported: false,
+      volumeCoverSkipped: false,
     });
     expect(result.chapters[0]).toEqual(
       expect.objectContaining({
@@ -344,6 +437,123 @@ describe("project EPUB import", () => {
         publicationStatus: "published",
         episodeKey: "2:5",
       }),
+    );
+  });
+
+  it("extrai a capa do volume do EPUB sem promover a cover a capitulo", async () => {
+    const loadUploads = vi.fn(() => []);
+    const writeUploads = vi.fn();
+
+    epubState.toc = [
+      { id: "chapter-toc", title: "Chapter 1", href: "OEBPS/Text/chapter001.xhtml#Ref_1" },
+    ];
+    epubState.flow = [
+      { id: "cover-doc", title: "Cover", href: "OEBPS/Text/cover.xhtml" },
+      { id: "chapter001", title: "Chapter 1", href: "OEBPS/Text/chapter001.xhtml" },
+    ];
+    epubState.manifest = {
+      coverImage: {
+        id: "coverImage",
+        href: "OEBPS/Images/cover.jpg",
+        "media-type": "image/jpeg",
+        properties: "cover-image",
+      },
+      coverDoc: { id: "coverDoc", href: "OEBPS/Text/cover.xhtml" },
+      chapter001: { id: "chapter001", href: "OEBPS/Text/chapter001.xhtml" },
+    };
+    epubState.metadata = {
+      title: "Livro teste",
+      cover: "coverImage",
+    };
+    epubState.chapters = {
+      coverDoc: '<p><img src="../Images/cover.jpg" alt="Volume cover"></p>',
+      chapter001: "<p>Capitulo 1.</p>",
+    };
+    epubState.images = {
+      coverImage: Buffer.from("cover-image"),
+    };
+
+    const result = await importProjectEpub({
+      buffer: Buffer.from("fake"),
+      targetVolume: 1,
+      defaultStatus: "draft",
+      project: { episodeDownloads: [], volumeCovers: [] },
+      uploadsDir: "D:/dev/nekomorto/public/uploads",
+      loadUploads,
+      writeUploads,
+      uploadUserId: "test-user",
+    });
+
+    expect(result.chapters).toHaveLength(1);
+    expect(result.summary.volumeCoverImported).toBe(true);
+    expect(result.summary.volumeCoverSkipped).toBe(false);
+    expect(result.volumeCovers).toEqual([
+      expect.objectContaining({
+        volume: 1,
+        coverImageUrl: expect.stringContaining("/uploads/tmp/epub-imports/"),
+        mergeMode: "create",
+      }),
+    ]);
+    expect(result.warnings).toEqual(
+      expect.arrayContaining(["Capa do volume importada do EPUB para o volume 1."]),
+    );
+  });
+
+  it("preserva capa manual existente do volume durante o import", async () => {
+    epubState.toc = [
+      { id: "chapter-toc", title: "Chapter 1", href: "OEBPS/Text/chapter001.xhtml#Ref_1" },
+    ];
+    epubState.flow = [{ id: "chapter001", title: "Chapter 1", href: "OEBPS/Text/chapter001.xhtml" }];
+    epubState.manifest = {
+      coverImage: {
+        id: "coverImage",
+        href: "OEBPS/Images/cover.jpg",
+        "media-type": "image/jpeg",
+        properties: "cover-image",
+      },
+      chapter001: { id: "chapter001", href: "OEBPS/Text/chapter001.xhtml" },
+    };
+    epubState.metadata = {
+      title: "Livro teste",
+      cover: "coverImage",
+    };
+    epubState.chapters = {
+      chapter001: "<p>Capitulo 1.</p>",
+    };
+    epubState.images = {
+      coverImage: Buffer.from("cover-image"),
+    };
+
+    const result = await importProjectEpub({
+      buffer: Buffer.from("fake"),
+      targetVolume: 1,
+      defaultStatus: "draft",
+      project: {
+        episodeDownloads: [],
+        volumeCovers: [
+          {
+            volume: 1,
+            coverImageUrl: "/uploads/projects/project-1/manual-cover.jpg",
+            coverImageAlt: "Manual cover",
+          },
+        ],
+      },
+    });
+
+    expect(result.summary.volumeCoverImported).toBe(false);
+    expect(result.summary.volumeCoverSkipped).toBe(true);
+    expect(result.volumeCovers).toEqual([
+      expect.objectContaining({
+        volume: 1,
+        coverImageUrl: "/uploads/projects/project-1/manual-cover.jpg",
+        coverImageAlt: "Manual cover",
+        mergeMode: "preserve_existing",
+      }),
+    ]);
+    expect(result.warnings).toEqual(
+      expect.arrayContaining([
+        "Capa do volume preservada porque o volume 1 ja possui capa definida.",
+      ]),
     );
   });
 

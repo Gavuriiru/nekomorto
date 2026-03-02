@@ -93,4 +93,89 @@ describe("client lexical serialize", () => {
     expect(normalized).not.toBeNull();
     expect(JSON.parse(String(normalized)).root.children[0].type).toBe("image");
   });
+
+  it("normaliza um estado com epub-image node serializado", () => {
+    const normalized = normalizeLexicalJson(
+      JSON.stringify({
+        root: {
+          children: [
+            {
+              altText: "Ornamento",
+              editorialStyle: "width: 3em; height: 0.75em; vertical-align: middle",
+              src: "/uploads/tmp/epub-imports/test/image.jpg",
+              type: "epub-image",
+              version: 1,
+            },
+          ],
+          direction: null,
+          format: "",
+          indent: 0,
+          type: "root",
+          version: 1,
+        },
+      }),
+    );
+
+    expect(normalized).not.toBeNull();
+    expect(JSON.parse(String(normalized)).root.children[0].type).toBe("epub-image");
+  });
+
+  it("normaliza um estado com epub-paragraph node serializado", () => {
+    const normalized = normalizeLexicalJson(
+      JSON.stringify({
+        root: {
+          children: [
+            {
+              children: [createTextNode("text", "texto editorial")],
+              direction: null,
+              editorialStyle: "text-indent: 20pt; margin-top: 1.5em",
+              format: "",
+              indent: 0,
+              textFormat: 0,
+              textStyle: "",
+              type: "epub-paragraph",
+              version: 1,
+            },
+          ],
+          direction: null,
+          format: "",
+          indent: 0,
+          type: "root",
+          version: 1,
+        },
+      }),
+    );
+
+    expect(normalized).not.toBeNull();
+    expect(JSON.parse(String(normalized)).root.children[0].type).toBe("epub-paragraph");
+  });
+
+  it("normaliza um estado com epub-heading node serializado", () => {
+    const normalized = normalizeLexicalJson(
+      JSON.stringify({
+        root: {
+          children: [
+            {
+              children: [createTextNode("text", "Titulo editorial")],
+              direction: null,
+              editorialStyle: "margin-top: 10%; margin-bottom: 3em",
+              format: "",
+              indent: 0,
+              tag: "h1",
+              type: "epub-heading",
+              version: 1,
+            },
+          ],
+          direction: null,
+          format: "",
+          indent: 0,
+          type: "root",
+          version: 1,
+        },
+      }),
+    );
+
+    expect(normalized).not.toBeNull();
+    expect(JSON.parse(String(normalized)).root.children[0].type).toBe("epub-heading");
+  });
 });

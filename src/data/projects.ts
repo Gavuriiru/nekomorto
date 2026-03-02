@@ -3,6 +3,12 @@ export type DownloadSource = {
   url: string;
 };
 
+export type ProjectVolumeCover = {
+  volume?: number;
+  coverImageUrl: string;
+  coverImageAlt: string;
+};
+
 export type ProjectEpisode = {
   number: number;
   volume?: number;
@@ -81,6 +87,7 @@ export type Project = {
   forceHero?: boolean;
   heroImageUrl?: string;
   heroImageAlt?: string;
+  volumeCovers?: ProjectVolumeCover[];
 };
 
 const defaultSources: DownloadSource[] = [

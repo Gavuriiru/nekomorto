@@ -170,7 +170,7 @@ describe("project EPUB import with real lexical bridge", () => {
 
     expect(result.chapters).toHaveLength(2);
     const parsed = JSON.parse(String(result.chapters[0]?.content || ""));
-    expect(JSON.stringify(parsed)).toContain('"type":"image"');
+    expect(JSON.stringify(parsed)).toContain('"type":"epub-image"');
     expect(JSON.stringify(parsed)).toContain("/uploads/tmp/epub-imports/test/import/image-1.jpg");
     expect(result.summary.imagesImported).toBe(1);
     expect(result.summary.imageImportFailures).toBe(0);

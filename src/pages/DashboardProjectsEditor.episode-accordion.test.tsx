@@ -441,6 +441,10 @@ describe("DashboardProjectsEditor episode accordion", () => {
     expect(within(chapterCard).getByText("Fontes de download")).toBeInTheDocument();
     expect(within(chapterCard).getByRole("button", { name: /Adicionar fonte/i })).toBeInTheDocument();
     expect(within(chapterCard).getAllByRole("combobox").length).toBeGreaterThan(0);
+
+    fireEvent.click(screen.getByRole("button", { name: /M.dias/i }));
+    expect(screen.getByText("Capas por volume")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Adicionar capa de volume/i })).toBeInTheDocument();
   });
 
   it("desabilita ferramentas EPUB quando o backend nao anuncia suporte", async () => {
@@ -758,10 +762,21 @@ describe("DashboardProjectsEditor episode accordion", () => {
             imageImportFailures: 1,
             boilerplateDiscarded: 2,
             unresolvedTocEntries: 0,
+            volumeCoverImported: true,
+            volumeCoverSkipped: false,
           },
           warnings: [
             "Itens de boilerplate ignorados: 2.",
             'Imagem interna ignorada no capitulo "Capitulo importado": ../Images/missing.jpg.',
+            "Capa do volume importada do EPUB para o volume 2.",
+          ],
+          volumeCovers: [
+            {
+              volume: 2,
+              coverImageUrl: "/uploads/tmp/epub-imports/test/import/volume-cover.jpg",
+              coverImageAlt: "Capa do volume 2",
+              mergeMode: "create",
+            },
           ],
           chapters: [
             {
@@ -822,7 +837,7 @@ describe("DashboardProjectsEditor episode accordion", () => {
       expect.objectContaining({
         title: "EPUB importado",
         description:
-          '1 capitulo(s) incorporados ao formulario para revisao. 2 item(ns) de boilerplate foram descartados. 2 imagem(ns) interna(s) foram importadas. 1 imagem(ns) falharam e foram ignoradas. Itens de boilerplate ignorados: 2. Imagem interna ignorada no capitulo "Capitulo importado": ../Images/missing.jpg.',
+          '1 capitulo(s) incorporados ao formulario para revisao. 2 item(ns) de boilerplate foram descartados. 2 imagem(ns) interna(s) foram importadas. 1 imagem(ns) falharam e foram ignoradas. A capa do volume foi incorporada ao formulario. Itens de boilerplate ignorados: 2. Imagem interna ignorada no capitulo "Capitulo importado": ../Images/missing.jpg. Capa do volume importada do EPUB para o volume 2.',
         intent: "success",
       }),
     );
@@ -869,6 +884,15 @@ describe("DashboardProjectsEditor episode accordion", () => {
           volume: 2,
           title: "Capitulo importado",
           publicationStatus: "draft",
+        }),
+      ]),
+    );
+    expect(exportPayload.project.volumeCovers).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          volume: 2,
+          coverImageUrl: "/uploads/tmp/epub-imports/test/import/volume-cover.jpg",
+          coverImageAlt: "Capa do volume 2",
         }),
       ]),
     );

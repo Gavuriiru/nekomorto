@@ -23,6 +23,7 @@ export const resolveProjectImageFolders = (project) => {
     projectKey,
     projectFolder,
     episodeFolder: `${projectFolder}/episodes`,
+    volumeFolder: `${projectFolder}/volumes`,
   };
 };
 
@@ -66,6 +67,9 @@ const normalizeRemoteHttpUrl = (value) => {
 const cloneProjectForLocalization = (project) => ({
   ...project,
   relations: Array.isArray(project?.relations) ? project.relations.map((item) => ({ ...item })) : [],
+  volumeCovers: Array.isArray(project?.volumeCovers)
+    ? project.volumeCovers.map((item) => ({ ...item }))
+    : [],
   episodeDownloads: Array.isArray(project?.episodeDownloads)
     ? project.episodeDownloads.map((item) => ({ ...item }))
     : [],
@@ -132,7 +136,7 @@ export const localizeProjectImageFields = async ({
   maxConcurrent = DEFAULT_MAX_CONCURRENT,
 } = {}) => {
   const nextProject = cloneProjectForLocalization(project || {});
-  const { projectFolder, episodeFolder } = resolveProjectImageFolders(nextProject);
+  const { projectFolder, episodeFolder, volumeFolder } = resolveProjectImageFolders(nextProject);
 
   const summary = {
     attempted: 0,
@@ -222,6 +226,20 @@ export const localizeProjectImageFields = async ({
         };
       },
       { folder: episodeFolder },
+    );
+  });
+
+  (Array.isArray(nextProject.volumeCovers) ? nextProject.volumeCovers : []).forEach((cover, index) => {
+    enqueue(
+      `volumeCovers[${index}].coverImageUrl`,
+      cover?.coverImageUrl,
+      (nextValue) => {
+        nextProject.volumeCovers[index] = {
+          ...nextProject.volumeCovers[index],
+          coverImageUrl: nextValue,
+        };
+      },
+      { folder: volumeFolder },
     );
   });
 

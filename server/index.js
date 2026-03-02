@@ -77,6 +77,7 @@ import {
   isPublishedEpisode,
   resolveEpisodeLookup,
 } from "./lib/project-episodes.js";
+import { findDuplicateVolumeCover } from "./lib/project-volume-covers.js";
 import { exportProjectEpub } from "./lib/project-epub-export.js";
 import { importProjectEpub } from "./lib/project-epub-import.js";
 import { buildPublicBootstrapPayload } from "./lib/public-bootstrap.js";
@@ -5387,6 +5388,34 @@ const postVersionReasonLabel = (reason) => {
 
 const normalizeProjects = (projects) =>
   projects.map((project, index) => {
+    const normalizedVolumeCovers = Array.isArray(project?.volumeCovers)
+      ? project.volumeCovers
+          .map((cover) => {
+            const volume = Number.isFinite(Number(cover?.volume)) ? Number(cover.volume) : undefined;
+            const coverImageUrl = String(cover?.coverImageUrl || "").trim();
+            if (!coverImageUrl) {
+              return null;
+            }
+            return {
+              volume,
+              coverImageUrl,
+              coverImageAlt: String(
+                cover?.coverImageAlt ||
+                  (volume === undefined ? "Capa do projeto sem volume" : `Capa do volume ${volume}`),
+              ).trim(),
+            };
+          })
+          .filter(Boolean)
+          .sort((left, right) => {
+            if (left.volume === undefined) {
+              return 1;
+            }
+            if (right.volume === undefined) {
+              return -1;
+            }
+            return left.volume - right.volume;
+          })
+      : [];
     const normalizedEpisodeDownloads = Array.isArray(project.episodeDownloads)
       ? project.episodeDownloads.map((episode) => {
           const episodeObject = episode && typeof episode === "object" ? episode : {};
@@ -5486,6 +5515,7 @@ const normalizeProjects = (projects) =>
       forceHero: Boolean(project.forceHero),
       heroImageUrl: String(project.heroImageUrl || ""),
       heroImageAlt: String(project.heroImageAlt || `${project.title || "Projeto"} (hero)`).trim(),
+      volumeCovers: normalizedVolumeCovers,
       episodeDownloads: normalizedEpisodeDownloads,
       views: Number.isFinite(project.views) ? project.views : 0,
       viewsDaily:
@@ -6621,6 +6651,10 @@ const normalizeProjectSnapshotForEpubImport = (rawProjectSnapshot) => {
   const duplicateEpisodeKey = findDuplicateEpisodeKey(normalizedProject?.episodeDownloads);
   if (duplicateEpisodeKey) {
     throw createProjectSnapshotError("duplicate_episode_key", duplicateEpisodeKey.key);
+  }
+  const duplicateVolumeCoverKey = findDuplicateVolumeCover(normalizedProject?.volumeCovers);
+  if (duplicateVolumeCoverKey) {
+    throw createProjectSnapshotError("duplicate_volume_cover_key", duplicateVolumeCoverKey.key);
   }
 
   return normalizedProject;
@@ -10187,6 +10221,9 @@ app.post(
       if (error?.code === "duplicate_episode_key") {
         return res.status(400).json({ error: "duplicate_episode_key", key: error.key });
       }
+      if (error?.code === "duplicate_volume_cover_key") {
+        return res.status(400).json({ error: "duplicate_volume_cover_key", key: error.key });
+      }
       return res.status(400).json({ error: "invalid_project_snapshot" });
     }
 
@@ -10235,6 +10272,10 @@ app.post("/api/projects/epub/export", requireAuth, async (req, res) => {
   const duplicateEpisodeKey = findDuplicateEpisodeKey(normalizedProject.episodeDownloads);
   if (duplicateEpisodeKey) {
     return res.status(400).json({ error: "duplicate_episode_key", key: duplicateEpisodeKey.key });
+  }
+  const duplicateVolumeCoverKey = findDuplicateVolumeCover(normalizedProject.volumeCovers);
+  if (duplicateVolumeCoverKey) {
+    return res.status(400).json({ error: "duplicate_volume_cover_key", key: duplicateVolumeCoverKey.key });
   }
 
   try {
@@ -10304,6 +10345,10 @@ app.post("/api/projects", requireAuth, async (req, res) => {
   const duplicateEpisodeKey = findDuplicateEpisodeKey(nextProjectNormalized.episodeDownloads);
   if (duplicateEpisodeKey) {
     return res.status(400).json({ error: "duplicate_episode_key", key: duplicateEpisodeKey.key });
+  }
+  const duplicateVolumeCoverKey = findDuplicateVolumeCover(nextProjectNormalized.volumeCovers);
+  if (duplicateVolumeCoverKey) {
+    return res.status(400).json({ error: "duplicate_volume_cover_key", key: duplicateVolumeCoverKey.key });
   }
   const nextProject = applyEpisodePublicationMetadata(null, nextProjectNormalized, now);
 
@@ -10461,6 +10506,10 @@ app.put("/api/projects/:id", requireAuth, async (req, res) => {
   const duplicateEpisodeKey = findDuplicateEpisodeKey(mergedNormalized.episodeDownloads);
   if (duplicateEpisodeKey) {
     return res.status(400).json({ error: "duplicate_episode_key", key: duplicateEpisodeKey.key });
+  }
+  const duplicateVolumeCoverKey = findDuplicateVolumeCover(mergedNormalized.volumeCovers);
+  if (duplicateVolumeCoverKey) {
+    return res.status(400).json({ error: "duplicate_volume_cover_key", key: duplicateVolumeCoverKey.key });
   }
   const merged = applyEpisodePublicationMetadata(existing, mergedNormalized, now);
 
@@ -11067,6 +11116,7 @@ app.get("/api/public/projects", (req, res) => {
     trailerUrl: project.trailerUrl,
     forceHero: project.forceHero,
     heroImageUrl: project.heroImageUrl,
+    volumeCovers: project.volumeCovers,
     episodeDownloads: project.episodeDownloads,
     views: project.views,
     commentsCount: project.commentsCount,
@@ -11201,6 +11251,7 @@ app.get("/api/public/projects/:id/chapters/:number", (req, res) => {
       releaseDate: chapter.releaseDate || "",
       updatedAt: chapter.chapterUpdatedAt || chapter.updatedAt || "",
       coverImageUrl: chapter.coverImageUrl || "",
+      coverImageAlt: chapter.coverImageAlt || "",
       content: chapter.content || "",
       contentFormat: "lexical",
     },
@@ -12401,6 +12452,13 @@ const collectProjectImageItems = (projects) => {
     push(project, project.cover, "cover", `${project.title} (Capa)`);
     push(project, project.banner, "banner", `${project.title} (Banner)`);
     push(project, project.heroImageUrl, "hero", `${project.title} (Carrossel)`);
+    (Array.isArray(project.volumeCovers) ? project.volumeCovers : []).forEach((cover) => {
+      const suffix =
+        typeof cover?.volume === "number" && Number.isFinite(cover.volume)
+          ? `Volume ${cover.volume}`
+          : "Sem volume";
+      push(project, cover?.coverImageUrl, "volume-cover", `${project.title} (${suffix})`);
+    });
     (Array.isArray(project.relations) ? project.relations : []).forEach((relation, index) => {
       const relationLabel = relation?.title
         ? `${project.title} (Relação: ${relation.title})`

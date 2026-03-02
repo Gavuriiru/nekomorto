@@ -13,6 +13,17 @@ const safeSources = (value) =>
         .filter((source) => source.label || source.url)
     : [];
 
+const sanitizeVolumeCovers = (covers) =>
+  Array.isArray(covers)
+    ? covers
+        .map((cover) => ({
+          volume: Number.isFinite(Number(cover?.volume)) ? Number(cover.volume) : undefined,
+          coverImageUrl: safeString(cover?.coverImageUrl),
+          coverImageAlt: safeString(cover?.coverImageAlt),
+        }))
+        .filter((cover) => cover.coverImageUrl)
+    : [];
+
 const sanitizeEpisodeDownloads = (episodes) =>
   Array.isArray(episodes)
     ? episodes.map((episode) => ({
@@ -48,6 +59,7 @@ export const toPublicBootstrapProject = (project) => ({
   heroImageAlt: safeString(project?.heroImageAlt),
   forceHero: Boolean(project?.forceHero),
   trailerUrl: safeString(project?.trailerUrl),
+  volumeCovers: sanitizeVolumeCovers(project?.volumeCovers),
   episodeDownloads: sanitizeEpisodeDownloads(project?.episodeDownloads),
 });
 

@@ -33,6 +33,7 @@ import ThemedSvgLogo from "@/components/ThemedSvgLogo";
 import { getApiBase } from "@/lib/api-base";
 import { isChapterBasedType, isLightNovelType, isMangaType } from "@/lib/project-utils";
 import { buildEpisodeKey } from "@/lib/project-episode-key";
+import { findVolumeCoverByVolume } from "@/lib/project-volume-cover-key";
 import { formatDate } from "@/lib/date";
 import { apiFetch } from "@/lib/api-client";
 import {
@@ -564,6 +565,28 @@ const ProjectPage = () => {
     return entries.map(([, value]) => value);
   }, [isLightNovel, sortedDownloadableEpisodes, sortedLightNovelChapters]);
 
+  const resolveVolumeGroupCover = (group: { volume?: number; items: EpisodeItem[] }) => {
+    const volumeCover = findVolumeCoverByVolume(project?.volumeCovers, group.volume);
+    const firstEpisodeWithCover = group.items.find((item) =>
+      String(item.coverImageUrl || "").trim().length > 0,
+    );
+    const hasNumericVolume = Number.isFinite(Number(group.volume));
+    return {
+      src:
+        volumeCover?.coverImageUrl ||
+        firstEpisodeWithCover?.coverImageUrl ||
+        project?.cover ||
+        project?.banner ||
+        "/placeholder.svg",
+      alt:
+        volumeCover?.coverImageAlt ||
+        String(firstEpisodeWithCover?.coverImageAlt || "").trim() ||
+        (hasNumericVolume
+          ? `Capa do volume ${Number(group.volume)} de ${project?.title || ""}`
+          : `Capa do projeto ${project?.title || ""}`),
+    };
+  };
+
   const filteredDownloadableEpisodes = useMemo(() => {
     if (!isChapterBased) {
       return sortedDownloadableEpisodes;
@@ -944,13 +967,38 @@ const ProjectPage = () => {
                 </div>
               ) : (
                 <div className="grid gap-6">
-                  {volumeGroups.map((group) => (
-                    <Card
-                      key={group.label}
-                      className="border-border/60 bg-card/80 shadow-[0_10px_20px_-18px_rgba(0,0,0,0.08),0_24px_48px_-34px_rgba(0,0,0,0.12)] transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:bg-card/90 hover:shadow-[0_14px_28px_-20px_rgba(0,0,0,0.1),0_28px_56px_-32px_rgba(0,0,0,0.16)]"
-                    >
-                      <CardContent className="space-y-4 p-6">
-                        <Accordion type="multiple" defaultValue={[group.label]}>
+                  {volumeGroups.map((group) => {
+                    const groupCover = resolveVolumeGroupCover(group);
+                    return (
+                      <Card
+                        key={group.label}
+                        className="border-border/60 bg-card/80 shadow-[0_10px_20px_-18px_rgba(0,0,0,0.08),0_24px_48px_-34px_rgba(0,0,0,0.12)] transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:bg-card/90 hover:shadow-[0_14px_28px_-20px_rgba(0,0,0,0.1),0_28px_56px_-32px_rgba(0,0,0,0.16)]"
+                      >
+                        <CardContent className="space-y-4 p-6">
+                          <div className="grid gap-4 rounded-2xl border border-border/60 bg-background/40 p-4 md:grid-cols-[112px_minmax(0,1fr)] md:items-center">
+                            <div className="mx-auto w-24 md:mx-0">
+                              <div
+                                className="overflow-hidden rounded-xl border border-border/60 bg-background/70"
+                                style={{ aspectRatio: PROJECT_COVER_ASPECT_RATIO }}
+                              >
+                                <UploadPicture
+                                  src={groupCover.src}
+                                  alt={groupCover.alt}
+                                  preset="poster"
+                                  mediaVariants={mediaVariants}
+                                  className="h-full w-full"
+                                  imgClassName="h-full w-full object-cover object-center"
+                                />
+                              </div>
+                            </div>
+                            <div className="space-y-1 text-center md:text-left">
+                              <p className="text-sm font-semibold text-foreground">{group.label}</p>
+                              <p className="text-xs text-muted-foreground">
+                                {group.items.length} capítulos disponíveis
+                              </p>
+                            </div>
+                          </div>
+                          <Accordion type="multiple" defaultValue={[group.label]}>
                           <AccordionItem value={group.label} className="border-none">
                             <AccordionTrigger className="rounded-xl border border-border/60 bg-background/40 px-4 py-3 text-sm font-semibold text-foreground hover:no-underline">
                               <div className="flex w-full items-center justify-between gap-4">
@@ -1041,10 +1089,11 @@ const ProjectPage = () => {
                               </div>
                             </AccordionContent>
                           </AccordionItem>
-                        </Accordion>
-                      </CardContent>
-                    </Card>
-                  ))}
+                          </Accordion>
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
                 </div>
               )
             ) : filteredDownloadableEpisodes.length === 0 ? (
@@ -1055,13 +1104,38 @@ const ProjectPage = () => {
             ) : (
               <div className="grid gap-6 justify-items-center">
                 {isManga
-                  ? volumeGroups.map((group) => (
-                      <Card
-                        key={group.label}
-                        className="border-border/60 bg-card/80 shadow-lg transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:bg-card/90 hover:shadow-lg"
-                      >
-                        <CardContent className="space-y-4 p-6">
-                          <Accordion type="multiple" defaultValue={[group.label]}>
+                  ? volumeGroups.map((group) => {
+                      const groupCover = resolveVolumeGroupCover(group);
+                      return (
+                        <Card
+                          key={group.label}
+                          className="border-border/60 bg-card/80 shadow-lg transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:bg-card/90 hover:shadow-lg"
+                        >
+                          <CardContent className="space-y-4 p-6">
+                            <div className="grid gap-4 rounded-2xl border border-border/60 bg-background/40 p-4 md:grid-cols-[112px_minmax(0,1fr)] md:items-center">
+                              <div className="mx-auto w-24 md:mx-0">
+                                <div
+                                  className="overflow-hidden rounded-xl border border-border/60 bg-background/70"
+                                  style={{ aspectRatio: PROJECT_COVER_ASPECT_RATIO }}
+                                >
+                                  <UploadPicture
+                                    src={groupCover.src}
+                                    alt={groupCover.alt}
+                                    preset="poster"
+                                    mediaVariants={mediaVariants}
+                                    className="h-full w-full"
+                                    imgClassName="h-full w-full object-cover object-center"
+                                  />
+                                </div>
+                              </div>
+                              <div className="space-y-1 text-center md:text-left">
+                                <p className="text-sm font-semibold text-foreground">{group.label}</p>
+                                <p className="text-xs text-muted-foreground">
+                                  {group.items.length} capítulos disponíveis
+                                </p>
+                              </div>
+                            </div>
+                            <Accordion type="multiple" defaultValue={[group.label]}>
                             <AccordionItem value={group.label} className="border-none">
                               <AccordionTrigger className="rounded-xl border border-border/60 bg-background/40 px-4 py-3 text-sm font-semibold text-foreground hover:no-underline">
                                 <div className="flex w-full items-center justify-between gap-4">
@@ -1083,10 +1157,11 @@ const ProjectPage = () => {
                                 </div>
                               </AccordionContent>
                             </AccordionItem>
-                          </Accordion>
-                        </CardContent>
-                      </Card>
-                    ))
+                            </Accordion>
+                          </CardContent>
+                        </Card>
+                      );
+                    })
                   : paginatedEpisodes.map((episode) =>
                       renderEpisodeDownloadCard(episode, String(episode.number), true),
                     )}

@@ -1089,6 +1089,26 @@
   border: 1px solid hsl(var(--border));
 }
 
+.lexical-epub-image-shell {
+  max-width: 100%;
+}
+
+.lexical-epub-image-shell--block {
+  display: block;
+}
+
+.lexical-epub-image-shell--inline {
+  display: inline;
+}
+
+.lexical-epub-image {
+  max-width: 100%;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  background: transparent;
+}
+
 .lexical-video {
   position: relative;
   width: 100%;

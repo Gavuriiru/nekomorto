@@ -263,6 +263,7 @@ const getUsageBucket = (usageByUrl, uploadUrl) => {
       posts: new Set(),
       projectIds: new Set(),
       projectMainIds: new Set(),
+      projectVolumeIds: new Set(),
       projectEpisodeIds: new Set(),
     });
   }
@@ -287,6 +288,8 @@ const addProjectUsage = (usageByUrl, maybeUrl, projectId, kind) => {
   usage.projectIds.add(projectId);
   if (kind === "episode") {
     usage.projectEpisodeIds.add(projectId);
+  } else if (kind === "volume") {
+    usage.projectVolumeIds.add(projectId);
   } else {
     usage.projectMainIds.add(projectId);
   }
@@ -312,6 +315,9 @@ const collectUsage = (posts, projects) => {
     addProjectUsage(usageByUrl, project?.cover, projectId, "main");
     addProjectUsage(usageByUrl, project?.banner, projectId, "main");
     addProjectUsage(usageByUrl, project?.heroImageUrl, projectId, "main");
+    (Array.isArray(project?.volumeCovers) ? project.volumeCovers : []).forEach((cover) => {
+      addProjectUsage(usageByUrl, cover?.coverImageUrl, projectId, "volume");
+    });
 
     (Array.isArray(project?.relations) ? project.relations : []).forEach((relation) => {
       addProjectUsage(usageByUrl, relation?.image, projectId, "main");
@@ -337,6 +343,9 @@ const collectUsage = (posts, projects) => {
 
 export const classifyTargetFolder = (usage, projectFoldersById, sourceRelative = "") => {
   const normalizedSource = toPosix(String(sourceRelative || "")).replace(/^\/+/, "");
+  const projectMainCount = usage?.projectMainIds?.size || 0;
+  const projectVolumeCount = usage?.projectVolumeIds?.size || 0;
+  const projectEpisodeCount = usage?.projectEpisodeIds?.size || 0;
   if (normalizedSource.startsWith("shared/relations/")) {
     const stickyFolder = path.posix.dirname(normalizedSource);
     return stickyFolder === "." ? "shared/relations" : stickyFolder;
@@ -354,8 +363,19 @@ export const classifyTargetFolder = (usage, projectFoldersById, sourceRelative =
     if (!projectFolders) {
       return "shared";
     }
-    if (usage.projectMainIds.size === 0 && usage.projectEpisodeIds.size > 0) {
+    if (
+      projectMainCount === 0 &&
+      projectVolumeCount === 0 &&
+      projectEpisodeCount > 0
+    ) {
       return projectFolders.episodes;
+    }
+    if (
+      projectMainCount === 0 &&
+      projectEpisodeCount === 0 &&
+      projectVolumeCount > 0
+    ) {
+      return `${projectFolders.root}/volumes`;
     }
     return projectFolders.root;
   }

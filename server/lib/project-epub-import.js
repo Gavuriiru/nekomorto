@@ -4,6 +4,7 @@ import { JSDOM } from "jsdom";
 import EPub from "epub";
 import sanitizeHtml from "sanitize-html";
 import { buildEpisodeKey, getEpisodePublicationStatus } from "./project-episodes.js";
+import { findVolumeCoverByVolume } from "./project-volume-covers.js";
 import { htmlToLexicalJson } from "./lexical-html.js";
 import { buildEpubImportTempFolder, storeUploadImageBuffer } from "./uploads-import.js";
 
@@ -49,8 +50,66 @@ const IMPORT_ALLOWED_ATTRIBUTES = {
   th: ["colspan", "rowspan"],
   span: ["style"],
   p: ["style"],
-  img: ["src", "alt", "width", "height"],
+  blockquote: ["style"],
+  h1: ["style"],
+  h2: ["style"],
+  h3: ["style"],
+  h4: ["style"],
+  h5: ["style"],
+  h6: ["style"],
+  em: ["style"],
+  strong: ["style"],
+  i: ["style"],
+  b: ["style"],
+  u: ["style"],
+  s: ["style"],
+  sub: ["style"],
+  sup: ["style"],
+  img: ["src", "alt", "width", "height", "style"],
 };
+
+const BLOCK_ALLOWED_STYLE_PATTERNS = {
+  "text-align": [/^left$/, /^right$/, /^center$/, /^justify$/],
+  "text-indent": [/^-?(?:\d+(?:\.\d+)?)(?:px|em|rem|pt|%)$/],
+  "margin-top": [/^-?(?:\d+(?:\.\d+)?)(?:px|em|rem|pt|%)$/],
+  "margin-bottom": [/^-?(?:\d+(?:\.\d+)?)(?:px|em|rem|pt|%)$/],
+  "line-height": [/^(?:normal|\d+(?:\.\d+)?(?:px|em|rem|pt|%)?)$/],
+  "font-family": [/^(?:serif|sans-serif|monospace)$/],
+};
+
+const INLINE_ALLOWED_STYLE_PATTERNS = {
+  "font-size": [/^(?:\d+(?:\.\d+)?)(?:px|em|rem|pt|%)$/],
+  "font-style": [/^(?:italic|oblique)$/],
+  "font-weight": [/^(?:bold|[5-9]00)$/],
+  "font-family": [/^(?:serif|sans-serif|monospace)$/],
+};
+
+const IMAGE_ALLOWED_STYLE_PATTERNS = {
+  width: [/^(?:\d+(?:\.\d+)?)(?:px|em|rem|pt|%)$/],
+  height: [/^(?:\d+(?:\.\d+)?)(?:px|em|rem|pt|%)$/],
+  "max-width": [/^(?:\d+(?:\.\d+)?)(?:px|em|rem|pt|%)$/],
+  display: [/^(?:inline|block|inline-block)$/],
+  "margin-left": [/^(?:auto|-?(?:\d+(?:\.\d+)?)(?:px|em|rem|pt|%))$/],
+  "margin-right": [/^(?:auto|-?(?:\d+(?:\.\d+)?)(?:px|em|rem|pt|%))$/],
+  "margin-top": [/^-?(?:\d+(?:\.\d+)?)(?:px|em|rem|pt|%)$/],
+  "margin-bottom": [/^-?(?:\d+(?:\.\d+)?)(?:px|em|rem|pt|%)$/],
+  "vertical-align": [/^(?:baseline|middle|text-bottom|text-top|sub|super)$/],
+};
+
+const ZERO_LIKE_STYLE_VALUES = new Set([
+  "",
+  "0",
+  "0px",
+  "0em",
+  "0rem",
+  "0pt",
+  "0%",
+  "auto",
+  "normal",
+  "none",
+  "initial",
+  "inherit",
+]);
 
 const BOILERPLATE_HINT_PATTERNS = [
   /\bcover\b/i,
@@ -95,9 +154,24 @@ const createImportSanitizeOptions = () => ({
   nonTextTags: ["script", "style", "textarea", "option", "noscript"],
   disallowedTagsMode: "discard",
   allowedStyles: {
-    "*": {
-      "text-align": [/^left$/, /^right$/, /^center$/, /^justify$/],
-    },
+    p: BLOCK_ALLOWED_STYLE_PATTERNS,
+    blockquote: BLOCK_ALLOWED_STYLE_PATTERNS,
+    h1: BLOCK_ALLOWED_STYLE_PATTERNS,
+    h2: BLOCK_ALLOWED_STYLE_PATTERNS,
+    h3: BLOCK_ALLOWED_STYLE_PATTERNS,
+    h4: BLOCK_ALLOWED_STYLE_PATTERNS,
+    h5: BLOCK_ALLOWED_STYLE_PATTERNS,
+    h6: BLOCK_ALLOWED_STYLE_PATTERNS,
+    span: INLINE_ALLOWED_STYLE_PATTERNS,
+    em: INLINE_ALLOWED_STYLE_PATTERNS,
+    strong: INLINE_ALLOWED_STYLE_PATTERNS,
+    i: INLINE_ALLOWED_STYLE_PATTERNS,
+    b: INLINE_ALLOWED_STYLE_PATTERNS,
+    u: INLINE_ALLOWED_STYLE_PATTERNS,
+    s: INLINE_ALLOWED_STYLE_PATTERNS,
+    sub: INLINE_ALLOWED_STYLE_PATTERNS,
+    sup: INLINE_ALLOWED_STYLE_PATTERNS,
+    img: IMAGE_ALLOWED_STYLE_PATTERNS,
   },
 });
 
@@ -331,6 +405,140 @@ const buildManifestIndexes = (epub) => {
   return { manifestByHref, manifestById };
 };
 
+const hasManifestProperty = (item, property) => {
+  const target = String(property || "").trim().toLowerCase();
+  if (!target) {
+    return false;
+  }
+  const rawProperties = item?.properties;
+  if (Array.isArray(rawProperties)) {
+    return rawProperties.some((entry) => String(entry || "").trim().toLowerCase() === target);
+  }
+  return String(rawProperties || "")
+    .trim()
+    .toLowerCase()
+    .split(/\s+/)
+    .filter(Boolean)
+    .includes(target);
+};
+
+const isHtmlManifestItem = (item) => {
+  const mediaType = getManifestMediaType(item);
+  return mediaType === "application/xhtml+xml" || mediaType === "text/html";
+};
+
+const findResolvableImageInDocument = async ({ epub, manifestItem, manifestByHref } = {}) => {
+  const id = String(manifestItem?.id || "").trim();
+  if (!id || !isHtmlManifestItem(manifestItem)) {
+    return null;
+  }
+  const rawHtml = await epub.getChapterRaw(id);
+  if (!String(rawHtml || "").trim()) {
+    return null;
+  }
+  const dom = new JSDOM(`<body>${String(rawHtml || "")}</body>`);
+  try {
+    const imageElements = [...dom.window.document.querySelectorAll("img[src]")];
+    for (const imageElement of imageElements) {
+      const currentSrc = String(imageElement.getAttribute("src") || "").trim();
+      if (!currentSrc) {
+        continue;
+      }
+      const resolvedAssetHref = normalizeEpubAssetHref(currentSrc, manifestItem?.href);
+      if (!resolvedAssetHref || /^https?:\/\//i.test(resolvedAssetHref)) {
+        continue;
+      }
+      const imageItem = manifestByHref.get(resolvedAssetHref) || null;
+      if (!imageItem || !isImageManifestItem(imageItem)) {
+        continue;
+      }
+      return {
+        manifestItem: imageItem,
+        altText: String(imageElement.getAttribute("alt") || "").trim(),
+      };
+    }
+  } finally {
+    dom.window.close();
+  }
+  return null;
+};
+
+const resolveEpubVolumeCoverAsset = async (epub) => {
+  const { manifestByHref, manifestById } = buildManifestIndexes(epub);
+  const metadataCoverId = String(epub?.metadata?.cover || "").trim();
+  if (metadataCoverId) {
+    const metadataCoverItem = manifestById.get(metadataCoverId) || null;
+    if (metadataCoverItem) {
+      if (isImageManifestItem(metadataCoverItem)) {
+        return {
+          manifestItem: metadataCoverItem,
+          altText: "",
+          reason: "metadata_cover",
+        };
+      }
+      const resolvedFromDocument = await findResolvableImageInDocument({
+        epub,
+        manifestItem: metadataCoverItem,
+        manifestByHref,
+      });
+      if (resolvedFromDocument) {
+        return {
+          ...resolvedFromDocument,
+          reason: "metadata_cover_document",
+        };
+      }
+    }
+  }
+
+  for (const item of manifestById.values()) {
+    if (!hasManifestProperty(item, "cover-image")) {
+      continue;
+    }
+    if (isImageManifestItem(item)) {
+      return {
+        manifestItem: item,
+        altText: "",
+        reason: "manifest_cover_image",
+      };
+    }
+    const resolvedFromDocument = await findResolvableImageInDocument({
+      epub,
+      manifestItem: item,
+      manifestByHref,
+    });
+    if (resolvedFromDocument) {
+      return {
+        ...resolvedFromDocument,
+        reason: "manifest_cover_document",
+      };
+    }
+  }
+
+  const manifestItems = Object.values(epub?.manifest || {});
+  const coverDocumentCandidates = manifestItems.filter((item) => {
+    if (!isHtmlManifestItem(item)) {
+      return false;
+    }
+    const basename = getPathBasename(item?.href || item?.id);
+    return /(?:^|[_-])(cover|titlepage)(?:$|[_-])|^cover\.xhtml$/i.test(basename);
+  });
+  for (const item of coverDocumentCandidates) {
+    const resolvedFromDocument = await findResolvableImageInDocument({
+      epub,
+      manifestItem: item,
+      manifestByHref,
+    });
+    if (resolvedFromDocument) {
+      return {
+        ...resolvedFromDocument,
+        reason: "cover_document_fallback",
+      };
+    }
+  }
+
+  return null;
+};
+
 const resolveTocReferences = (epub) => {
   const tocItems = flattenToc(epub?.toc).filter((entry) => entry?.id || entry?.href);
   const { flowById, flowByHref, flowIndexById } = buildFlowIndexes(epub);
@@ -461,6 +669,336 @@ const loadManifestBinary = async (epub, manifestItem) => {
   return Buffer.from([]);
 };
 
+const buildStyleDeclaration = (entries) =>
+  entries
+    .map(([property, value]) => [String(property || "").trim().toLowerCase(), String(value || "").trim()])
+    .filter(([property, value]) => property && value)
+    .map(([property, value]) => `${property}: ${value}`)
+    .join("; ");
+
+const isMeaningfulStyleValue = (value) =>
+  !ZERO_LIKE_STYLE_VALUES.has(String(value || "").trim().toLowerCase());
+
+const normalizeFontFamilyBucket = (value) => {
+  const normalized = String(value || "").trim().toLowerCase();
+  if (!normalized) {
+    return "";
+  }
+  if (
+    normalized.includes("mono") ||
+    normalized.includes("consolas") ||
+    normalized.includes("courier") ||
+    normalized.includes("fira code") ||
+    normalized.includes("jetbrains mono")
+  ) {
+    return "monospace";
+  }
+  if (
+    normalized.includes("sans") ||
+    normalized.includes("arial") ||
+    normalized.includes("helvetica") ||
+    normalized.includes("verdana") ||
+    normalized.includes("tahoma") ||
+    normalized.includes("gothic") ||
+    normalized.includes("meiryo") ||
+    normalized.includes("yu gothic")
+  ) {
+    return "sans-serif";
+  }
+  return "serif";
+};
+
+const loadEpubDocumentStylesheets = async ({ epub, documentHref, manifestByHref, rawHtml } = {}) => {
+  const sourceDom = new JSDOM(String(rawHtml || ""));
+  const stylesheets = [];
+  try {
+    const inlineStyles = [...sourceDom.window.document.querySelectorAll("style")]
+      .map((element) => String(element.textContent || "").trim())
+      .filter(Boolean);
+    stylesheets.push(...inlineStyles);
+
+    const stylesheetHrefs = [...sourceDom.window.document.querySelectorAll('link[rel~="stylesheet"][href]')]
+      .map((element) => String(element.getAttribute("href") || "").trim())
+      .filter(Boolean);
+
+    for (const stylesheetHref of stylesheetHrefs) {
+      const resolvedHref = normalizeEpubAssetHref(stylesheetHref, documentHref);
+      const manifestItem = resolvedHref ? manifestByHref.get(resolvedHref) || null : null;
+      if (!manifestItem) {
+        continue;
+      }
+      const stylesheetBuffer = await loadManifestBinary(epub, manifestItem);
+      if (!stylesheetBuffer.length) {
+        continue;
+      }
+      stylesheets.push(stylesheetBuffer.toString("utf8"));
+    }
+  } finally {
+    sourceDom.window.close();
+  }
+  return stylesheets;
+};
+
+const buildStyledEpubDocument = ({ rawHtml, stylesheets } = {}) => {
+  const sourceDom = new JSDOM(String(rawHtml || ""));
+  try {
+    const bodyHtml = sourceDom.window.document.body?.innerHTML || String(rawHtml || "");
+    const styleTag = stylesheets && stylesheets.length > 0 ? `<style>${stylesheets.join("\n")}</style>` : "";
+    return new JSDOM(`<!doctype html><html><head>${styleTag}</head><body>${bodyHtml}</body></html>`);
+  } finally {
+    sourceDom.window.close();
+  }
+};
+
+const applyInlineStyle = (element, styleText) => {
+  const safeStyle = String(styleText || "").trim();
+  if (!safeStyle) {
+    element.removeAttribute("style");
+    return;
+  }
+  element.setAttribute("style", safeStyle);
+};
+
+const inlineEditorialComputedStyles = (document) => {
+  const computeElementStyles = (element) => document.defaultView.getComputedStyle(element);
+
+  const blockElements = [...document.querySelectorAll("p, blockquote, h1, h2, h3, h4, h5, h6")];
+  for (const element of blockElements) {
+    const computed = computeElementStyles(element);
+    const styleText = buildStyleDeclaration([
+      [
+        "text-align",
+        ["left", "right", "center", "justify"].includes(String(computed.textAlign || "").toLowerCase())
+          ? computed.textAlign.toLowerCase()
+          : "",
+      ],
+      ["text-indent", isMeaningfulStyleValue(computed.textIndent) ? computed.textIndent : ""],
+      ["margin-top", isMeaningfulStyleValue(computed.marginTop) ? computed.marginTop : ""],
+      ["margin-bottom", isMeaningfulStyleValue(computed.marginBottom) ? computed.marginBottom : ""],
+      ["line-height", isMeaningfulStyleValue(computed.lineHeight) ? computed.lineHeight : ""],
+      [
+        "font-family",
+        isMeaningfulStyleValue(computed.fontFamily) ? normalizeFontFamilyBucket(computed.fontFamily) : "",
+      ],
+    ]);
+    applyInlineStyle(element, styleText);
+  }
+
+  const inlineElements = [...document.querySelectorAll("span, em, strong, i, b, u, s, sub, sup")];
+  for (const element of inlineElements) {
+    const computed = computeElementStyles(element);
+    const parentComputed = element.parentElement ? computeElementStyles(element.parentElement) : null;
+    const computedFontFamily = normalizeFontFamilyBucket(computed.fontFamily);
+    const parentFontFamily = parentComputed ? normalizeFontFamilyBucket(parentComputed.fontFamily) : "";
+    const styleText = buildStyleDeclaration([
+      [
+        "font-size",
+        parentComputed && computed.fontSize === parentComputed.fontSize ? "" : computed.fontSize,
+      ],
+      [
+        "font-style",
+        ["italic", "oblique"].includes(String(computed.fontStyle || "").toLowerCase())
+          ? computed.fontStyle.toLowerCase()
+          : "",
+      ],
+      [
+        "font-weight",
+        ["bold", "500", "600", "700", "800", "900"].includes(String(computed.fontWeight || "").toLowerCase())
+          ? computed.fontWeight.toLowerCase()
+          : "",
+      ],
+      ["font-family", computedFontFamily && computedFontFamily !== parentFontFamily ? computedFontFamily : ""],
+    ]);
+    applyInlineStyle(element, styleText);
+  }
+
+  const images = [...document.querySelectorAll("img")];
+  for (const element of images) {
+    const computed = computeElementStyles(element);
+    const styleText = buildStyleDeclaration([
+      ["width", isMeaningfulStyleValue(computed.width) ? computed.width : ""],
+      ["height", isMeaningfulStyleValue(computed.height) ? computed.height : ""],
+      ["max-width", isMeaningfulStyleValue(computed.maxWidth) ? computed.maxWidth : ""],
+      [
+        "display",
+        ["inline", "block", "inline-block"].includes(String(computed.display || "").toLowerCase())
+          ? computed.display.toLowerCase()
+          : "",
+      ],
+      ["margin-left", isMeaningfulStyleValue(computed.marginLeft) ? computed.marginLeft : ""],
+      ["margin-right", isMeaningfulStyleValue(computed.marginRight) ? computed.marginRight : ""],
+      ["margin-top", isMeaningfulStyleValue(computed.marginTop) ? computed.marginTop : ""],
+      ["margin-bottom", isMeaningfulStyleValue(computed.marginBottom) ? computed.marginBottom : ""],
+      [
+        "vertical-align",
+        ["baseline", "middle", "text-bottom", "text-top", "sub", "super"].includes(
+          String(computed.verticalAlign || "").toLowerCase(),
+        )
+          ? computed.verticalAlign.toLowerCase()
+          : "",
+      ],
+    ]);
+    applyInlineStyle(element, styleText);
+  }
+};
+
+const normalizeEditorialWrappers = (document) => {
+  const wrappers = [...document.querySelectorAll("div, section")].reverse();
+
+  for (const wrapper of wrappers) {
+    const elementChildren = [...wrapper.children];
+    const nonWhitespaceText = String(wrapper.textContent || "").replace(/\s+/g, "").trim();
+    const onlyImages = elementChildren.length > 0 && elementChildren.every((child) => child.tagName === "IMG");
+
+    if (nonWhitespaceText === "" && onlyImages) {
+      const wrapperComputed = document.defaultView.getComputedStyle(wrapper);
+      elementChildren.forEach((imageElement) => {
+        const imageComputed = document.defaultView.getComputedStyle(imageElement);
+        const styleText = buildStyleDeclaration([
+          ["width", isMeaningfulStyleValue(imageComputed.width) ? imageComputed.width : ""],
+          ["height", isMeaningfulStyleValue(imageComputed.height) ? imageComputed.height : ""],
+          ["max-width", isMeaningfulStyleValue(imageComputed.maxWidth) ? imageComputed.maxWidth : ""],
+          [
+            "display",
+            wrapperComputed.textAlign === "center" || imageComputed.display === "block"
+              ? "block"
+              : imageComputed.display,
+          ],
+          ["margin-left", wrapperComputed.textAlign === "center" ? "auto" : imageComputed.marginLeft],
+          ["margin-right", wrapperComputed.textAlign === "center" ? "auto" : imageComputed.marginRight],
+          ["margin-top", isMeaningfulStyleValue(imageComputed.marginTop) ? imageComputed.marginTop : ""],
+          ["margin-bottom", isMeaningfulStyleValue(imageComputed.marginBottom) ? imageComputed.marginBottom : ""],
+          [
+            "vertical-align",
+            ["baseline", "middle", "text-bottom", "text-top", "sub", "super"].includes(
+              String(imageComputed.verticalAlign || "").toLowerCase(),
+            )
+              ? imageComputed.verticalAlign.toLowerCase()
+              : "",
+          ],
+        ]);
+        applyInlineStyle(imageElement, styleText);
+      });
+      wrapper.replaceWith(...elementChildren);
+      continue;
+    }
+
+    wrapper.replaceWith(...wrapper.childNodes);
+  }
+};
+
+const rewriteInternalImagesInDocument = async ({
+  epub,
+  document,
+  documentHref,
+  chapterTitle,
+  manifestByHref,
+  imageContext,
+} = {}) => {
+  const warnings = [];
+  const images = [...document.querySelectorAll("img")];
+
+  for (const imageElement of images) {
+    const currentSrc = String(imageElement.getAttribute("src") || "").trim();
+    if (!currentSrc) {
+      imageElement.remove();
+      continue;
+    }
+    if (/^https?:\/\//i.test(currentSrc) || currentSrc.startsWith("/uploads/")) {
+      continue;
+    }
+
+    const resolvedAssetHref = normalizeEpubAssetHref(currentSrc, documentHref);
+    const manifestItem = resolvedAssetHref ? manifestByHref.get(resolvedAssetHref) || null : null;
+    if (!manifestItem || !isImageManifestItem(manifestItem)) {
+      warnings.push(`Imagem interna ignorada no capitulo "${chapterTitle}": ${currentSrc}.`);
+      if (imageContext) {
+        imageContext.imageImportFailures += 1;
+      }
+      imageElement.remove();
+      continue;
+    }
+
+    if (!imageContext) {
+      warnings.push(`Imagem interna ignorada no capitulo "${chapterTitle}": ${currentSrc}.`);
+      imageElement.remove();
+      continue;
+    }
+
+    try {
+      const imageBuffer = await loadManifestBinary(epub, manifestItem);
+      if (!imageBuffer.length) {
+        throw new Error("empty_epub_asset");
+      }
+      const tempFolder = buildEpubImportTempFolder({
+        userId: imageContext.uploadUserId,
+        importId: imageContext.importId,
+      });
+      const result = await storeUploadImageBuffer({
+        uploadsDir: imageContext.uploadsDir,
+        uploads: imageContext.uploads,
+        buffer: imageBuffer,
+        mime: getManifestMediaType(manifestItem),
+        filename: getPathBasename(resolvedAssetHref || currentSrc) || "epub-image",
+        folder: tempFolder,
+        altText: String(imageElement.getAttribute("alt") || "").trim(),
+      });
+      imageContext.uploads = result.uploads;
+      imageContext.writeUploads(imageContext.uploads);
+      imageContext.imagesImported += 1;
+      imageElement.setAttribute("src", result.uploadEntry.url);
+      if (!imageElement.getAttribute("alt") && result.uploadEntry.altText) {
+        imageElement.setAttribute("alt", result.uploadEntry.altText);
+      }
+    } catch {
+      imageContext.imageImportFailures += 1;
+      warnings.push(`Imagem interna ignorada no capitulo "${chapterTitle}": ${currentSrc}.`);
+      imageElement.remove();
+    }
+  }
+
+  return warnings;
+};
+
+const prepareNarrativeDocumentHtml = async ({
+  epub,
+  rawHtml,
+  documentHref,
+  chapterTitle,
+  manifestByHref,
+  imageContext,
+} = {}) => {
+  const stylesheets = await loadEpubDocumentStylesheets({
+    epub,
+    documentHref,
+    manifestByHref,
+    rawHtml,
+  });
+  const dom = buildStyledEpubDocument({
+    rawHtml,
+    stylesheets,
+  });
+
+  try {
+    const warnings = await rewriteInternalImagesInDocument({
+      epub,
+      document: dom.window.document,
+      documentHref,
+      chapterTitle,
+      manifestByHref,
+      imageContext,
+    });
+    inlineEditorialComputedStyles(dom.window.document);
+    normalizeEditorialWrappers(dom.window.document);
+    return {
+      html: sanitizeChapterHtml(dom.window.document.body.innerHTML),
+      warnings,
+    };
+  } finally {
+    dom.window.close();
+  }
+};
+
 const createImageImportContext = ({
   uploadsDir,
   loadUploads,
@@ -483,103 +1021,156 @@ const createImageImportContext = ({
   };
 };
 
+const buildVolumeCoverAltFallback = ({ targetVolume, projectTitle, epubTitle } = {}) => {
+  const safeVolume = Number.isFinite(Number(targetVolume)) ? Number(targetVolume) : null;
+  const safeProjectTitle = String(projectTitle || "").trim();
+  const safeEpubTitle = String(epubTitle || "").trim();
+  if (safeEpubTitle) {
+    return safeEpubTitle;
+  }
+  if (safeVolume !== null && safeProjectTitle) {
+    return `Capa do volume ${safeVolume} de ${safeProjectTitle}`;
+  }
+  if (safeVolume !== null) {
+    return `Capa do volume ${safeVolume}`;
+  }
+  if (safeProjectTitle) {
+    return `Capa de ${safeProjectTitle}`;
+  }
+  return "Capa importada do EPUB";
+};
+
+const importVolumeCoverFromEpub = async ({
+  epub,
+  project,
+  targetVolume,
+  imageContext,
+} = {}) => {
+  const warnings = [];
+  const existingCover =
+    findVolumeCoverByVolume(
+      Array.isArray(project?.volumeCovers) ? project.volumeCovers : [],
+      targetVolume,
+    ) || null;
+  const existingUrl = String(existingCover?.coverImageUrl || "").trim();
+
+  if (existingUrl) {
+    warnings.push(
+      `Capa do volume preservada porque o volume ${
+        Number.isFinite(Number(targetVolume)) ? Number(targetVolume) : "sem volume"
+      } ja possui capa definida.`,
+    );
+    return {
+      summary: {
+        volumeCoverImported: false,
+        volumeCoverSkipped: true,
+      },
+      warnings,
+      volumeCovers: [
+        {
+          volume: Number.isFinite(Number(targetVolume)) ? Number(targetVolume) : undefined,
+          coverImageUrl: existingUrl,
+          coverImageAlt: String(existingCover?.coverImageAlt || "").trim(),
+          mergeMode: "preserve_existing",
+        },
+      ],
+    };
+  }
+
+  const coverAsset = await resolveEpubVolumeCoverAsset(epub);
+  if (!coverAsset?.manifestItem) {
+    warnings.push("Nao foi possivel localizar a capa do volume no EPUB.");
+    return {
+      summary: {
+        volumeCoverImported: false,
+        volumeCoverSkipped: false,
+      },
+      warnings,
+      volumeCovers: [],
+    };
+  }
+
+  if (!imageContext) {
+    warnings.push("Nao foi possivel importar a capa do volume do EPUB.");
+    return {
+      summary: {
+        volumeCoverImported: false,
+        volumeCoverSkipped: false,
+      },
+      warnings,
+      volumeCovers: [],
+    };
+  }
+
+  try {
+    const imageBuffer = await loadManifestBinary(epub, coverAsset.manifestItem);
+    if (!imageBuffer.length) {
+      throw new Error("empty_epub_cover");
+    }
+    const tempFolder = buildEpubImportTempFolder({
+      userId: imageContext.uploadUserId,
+      importId: imageContext.importId,
+    });
+    const stored = await storeUploadImageBuffer({
+      uploadsDir: imageContext.uploadsDir,
+      uploads: imageContext.uploads,
+      buffer: imageBuffer,
+      mime: getManifestMediaType(coverAsset.manifestItem),
+      filename: getPathBasename(coverAsset.manifestItem?.href || coverAsset.manifestItem?.id) || "epub-cover",
+      folder: tempFolder,
+      altText:
+        String(coverAsset.altText || "").trim() ||
+        buildVolumeCoverAltFallback({
+          targetVolume,
+          projectTitle: project?.title,
+          epubTitle: epub?.metadata?.title,
+        }),
+    });
+    imageContext.uploads = stored.uploads;
+    imageContext.writeUploads(imageContext.uploads);
+    warnings.push(
+      `Capa do volume importada do EPUB para o volume ${
+        Number.isFinite(Number(targetVolume)) ? Number(targetVolume) : "sem volume"
+      }.`,
+    );
+    return {
+      summary: {
+        volumeCoverImported: true,
+        volumeCoverSkipped: false,
+      },
+      warnings,
+      volumeCovers: [
+        {
+          volume: Number.isFinite(Number(targetVolume)) ? Number(targetVolume) : undefined,
+          coverImageUrl: stored.uploadEntry.url,
+          coverImageAlt: String(
+            stored.uploadEntry.altText ||
+              buildVolumeCoverAltFallback({
+                targetVolume,
+                projectTitle: project?.title,
+                epubTitle: epub?.metadata?.title,
+              }),
+          ).trim(),
+          mergeMode: existingCover ? "update" : "create",
+        },
+      ],
+    };
+  } catch {
+    warnings.push("Nao foi possivel importar a capa do volume do EPUB.");
+    return {
+      summary: {
+        volumeCoverImported: false,
+        volumeCoverSkipped: false,
+      },
+      warnings,
+      volumeCovers: [],
+    };
+  }
+};
+
 const shouldDiscardRangePartAsBoilerplate = (item) => {
   const hint = getDocumentHint(item);
   return RANGE_INTRUDER_HINT_PATTERNS.some((pattern) => pattern.test(hint));
-};
-
-const rewriteInternalImagesInHtml = async ({
-  epub,
-  html,
-  documentHref,
-  chapterTitle,
-  manifestByHref,
-  imageContext,
-} = {}) => {
-  const rawHtml = String(html || "");
-  if (!rawHtml || !/<img\b/i.test(rawHtml)) {
-    return {
-      html: rawHtml,
-      warnings: [],
-    };
-  }
-
-  const warnings = [];
-  const dom = new JSDOM(`<body>${rawHtml}</body>`);
-  try {
-    const images = [...dom.window.document.querySelectorAll("img")];
-    for (const imageElement of images) {
-      const currentSrc = String(imageElement.getAttribute("src") || "").trim();
-      if (!currentSrc) {
-        imageElement.remove();
-        continue;
-      }
-      if (/^https?:\/\//i.test(currentSrc) || currentSrc.startsWith("/uploads/")) {
-        continue;
-      }
-
-      const resolvedAssetHref = normalizeEpubAssetHref(currentSrc, documentHref);
-      const manifestItem = resolvedAssetHref ? manifestByHref.get(resolvedAssetHref) || null : null;
-      if (!manifestItem || !isImageManifestItem(manifestItem)) {
-        warnings.push(
-          `Imagem interna ignorada no capitulo "${chapterTitle}": ${currentSrc}.`,
-        );
-        if (imageContext) {
-          imageContext.imageImportFailures += 1;
-        }
-        imageElement.remove();
-        continue;
-      }
-
-      if (!imageContext) {
-        warnings.push(
-          `Imagem interna ignorada no capitulo "${chapterTitle}": ${currentSrc}.`,
-        );
-        imageElement.remove();
-        continue;
-      }
-
-      try {
-        const imageBuffer = await loadManifestBinary(epub, manifestItem);
-        if (!imageBuffer.length) {
-          throw new Error("empty_epub_asset");
-        }
-        const tempFolder = buildEpubImportTempFolder({
-          userId: imageContext.uploadUserId,
-          importId: imageContext.importId,
-        });
-        const result = await storeUploadImageBuffer({
-          uploadsDir: imageContext.uploadsDir,
-          uploads: imageContext.uploads,
-          buffer: imageBuffer,
-          mime: getManifestMediaType(manifestItem),
-          filename: getPathBasename(resolvedAssetHref || currentSrc) || "epub-image",
-          folder: tempFolder,
-          altText: String(imageElement.getAttribute("alt") || "").trim(),
-        });
-        imageContext.uploads = result.uploads;
-        imageContext.writeUploads(imageContext.uploads);
-        imageContext.imagesImported += 1;
-        imageElement.setAttribute("src", result.uploadEntry.url);
-        if (!imageElement.getAttribute("alt") && result.uploadEntry.altText) {
-          imageElement.setAttribute("alt", result.uploadEntry.altText);
-        }
-      } catch (error) {
-        imageContext.imageImportFailures += 1;
-        warnings.push(
-          `Imagem interna ignorada no capitulo "${chapterTitle}": ${currentSrc}.`,
-        );
-        imageElement.remove();
-      }
-    }
-
-    return {
-      html: dom.window.document.body.innerHTML,
-      warnings,
-    };
-  } finally {
-    dom.window.close();
-  }
 };
 
 const buildNarrativeChapterCandidatesFromToc = async ({
@@ -622,16 +1213,16 @@ const buildNarrativeChapterCandidatesFromToc = async ({
       }
 
       const rawHtml = await epub.getChapterRaw(partReference.id);
-      const rewritten = await rewriteInternalImagesInHtml({
+      const prepared = await prepareNarrativeDocumentHtml({
         epub,
-        html: rawHtml,
+        rawHtml,
         documentHref: partReference.href,
         chapterTitle: item.title,
         manifestByHref,
         imageContext,
       });
-      warnings.push(...rewritten.warnings);
-      const sanitizedHtml = sanitizeChapterHtml(rewritten.html);
+      warnings.push(...prepared.warnings);
+      const sanitizedHtml = prepared.html;
       if (sanitizedHtml) {
         chapterParts.push(sanitizedHtml);
       }
@@ -732,16 +1323,16 @@ const buildFallbackNarrativeChapterCandidates = async ({
     const chapterParts = [];
     for (const part of group.parts) {
       const partReference = part.candidate;
-      const rewritten = await rewriteInternalImagesInHtml({
+      const prepared = await prepareNarrativeDocumentHtml({
         epub,
-        html: partReference.rawHtml,
+        rawHtml: partReference.rawHtml,
         documentHref: partReference.href,
         chapterTitle: group.title || partReference.title || "Capitulo",
         manifestByHref,
         imageContext,
       });
-      warnings.push(...rewritten.warnings);
-      const sanitizedHtml = sanitizeChapterHtml(rewritten.html);
+      warnings.push(...prepared.warnings);
+      const sanitizedHtml = prepared.html;
       if (sanitizedHtml) {
         chapterParts.push(sanitizedHtml);
       }
@@ -797,6 +1388,13 @@ export const importProjectEpub = async ({
     imageOnly: 0,
     unresolvedTocEntry: 0,
   };
+  const volumeCoverImport = await importVolumeCoverFromEpub({
+    epub,
+    project,
+    targetVolume,
+    imageContext,
+  });
+  warnings.push(...(Array.isArray(volumeCoverImport?.warnings) ? volumeCoverImport.warnings : []));
 
   const { items: tocReferences, unresolvedCount } = resolveTocReferences(epub);
   discardedCounts.unresolvedTocEntry = unresolvedCount;
@@ -926,6 +1524,8 @@ export const importProjectEpub = async ({
       imageImportFailures: Number(imageContext?.imageImportFailures || 0),
       boilerplateDiscarded: discardedCounts.boilerplate,
       unresolvedTocEntries: discardedCounts.unresolvedTocEntry,
+      volumeCoverImported: volumeCoverImport?.summary?.volumeCoverImported === true,
+      volumeCoverSkipped: volumeCoverImport?.summary?.volumeCoverSkipped === true,
     },
     warnings,
     metadata: {
@@ -933,6 +1533,7 @@ export const importProjectEpub = async ({
       author: String(epub?.metadata?.creator || "").trim(),
       language: String(epub?.metadata?.language || "").trim(),
     },
+    volumeCovers: Array.isArray(volumeCoverImport?.volumeCovers) ? volumeCoverImport.volumeCovers : [],
     chapters,
   };
 };

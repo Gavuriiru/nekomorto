@@ -39,6 +39,7 @@ describe("localizeProjectImageFields", () => {
       cover: "https://cdn.exemplo.com/cover.jpg",
       banner: "https://cdn.exemplo.com/banner.jpg",
       heroImageUrl: "https://cdn.exemplo.com/hero.jpg",
+      volumeCovers: [{ volume: 1, coverImageUrl: "https://cdn.exemplo.com/volume-1.jpg" }],
       relations: [{ anilistId: 777, image: "https://cdn.exemplo.com/relation.jpg" }],
       episodeDownloads: [{ coverImageUrl: "https://cdn.exemplo.com/episode.jpg" }],
     };
@@ -53,21 +54,34 @@ describe("localizeProjectImageFields", () => {
     expect(result.project.cover).toBe("/uploads/projects/project-1/cover.jpg");
     expect(result.project.banner).toBe("/uploads/projects/project-1/banner.jpg");
     expect(result.project.heroImageUrl).toBe("/uploads/projects/project-1/hero.jpg");
+    expect(result.project.volumeCovers[0].coverImageUrl).toBe(
+      "/uploads/projects/project-1/volumes/volume-1.jpg",
+    );
     expect(result.project.relations[0].image).toBe("/uploads/projects/project-1/relation.jpg");
     expect(result.project.episodeDownloads[0].coverImageUrl).toBe("/uploads/projects/project-1/episodes/episode.jpg");
-    expect(result.summary.attempted).toBe(5);
-    expect(result.summary.downloaded).toBe(5);
+    expect(result.summary.attempted).toBe(6);
+    expect(result.summary.downloaded).toBe(6);
     expect(result.summary.failed).toBe(0);
-    expect(result.uploadsToUpsert).toHaveLength(5);
+    expect(result.uploadsToUpsert).toHaveLength(6);
 
-    expect(importer).toHaveBeenCalledWith(
-      expect.objectContaining({
-        remoteUrl: "https://cdn.exemplo.com/relation.jpg",
-        folder: "projects/project-1",
-        deterministic: true,
-        onExisting: "reuse",
-        fileBaseOverride: "relation-777",
-      }),
+    expect(importer.mock.calls).toEqual(
+      expect.arrayContaining([
+        [
+          expect.objectContaining({
+            remoteUrl: "https://cdn.exemplo.com/relation.jpg",
+            folder: "projects/project-1",
+            deterministic: true,
+            onExisting: "reuse",
+            fileBaseOverride: "relation-777",
+          }),
+        ],
+        [
+          expect.objectContaining({
+            remoteUrl: "https://cdn.exemplo.com/volume-1.jpg",
+            folder: "projects/project-1/volumes",
+          }),
+        ],
+      ]),
     );
   });
 

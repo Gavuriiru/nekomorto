@@ -50,7 +50,7 @@ describe("server lexical HTML bridge", () => {
     );
   });
 
-  it("importa img com src publico como image node valido", () => {
+  it("importa img com src publico como epub-image valido", () => {
     const serialized = htmlToLexicalJson('<p>antes</p><img src="/uploads/tmp/epub-imports/test/image.jpg" alt="Ilustracao">');
     const children = getRootChildren(serialized);
 
@@ -58,12 +58,62 @@ describe("server lexical HTML bridge", () => {
       expect.arrayContaining([
         expect.objectContaining({ type: "paragraph" }),
         expect.objectContaining({
-          type: "image",
+          type: "epub-image",
           src: "/uploads/tmp/epub-imports/test/image.jpg",
           altText: "Ilustracao",
         }),
       ]),
     );
+  });
+
+  it("mapeia imagem editorial estilizada para epub-image", () => {
+    const serialized = htmlToLexicalJson(
+      '<img src="/uploads/tmp/epub-imports/test/image.jpg" alt="Ornamento" style="width: 3em; height: 0.75em; vertical-align: middle">',
+    );
+    const children = getRootChildren(serialized);
+
+    expect(children).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          type: "epub-image",
+          src: "/uploads/tmp/epub-imports/test/image.jpg",
+          altText: "Ornamento",
+          editorialStyle: expect.stringContaining("width: 3em"),
+        }),
+      ]),
+    );
+    expect(String(children[0]?.editorialStyle || "")).toContain("vertical-align: middle");
+  });
+
+  it("mapeia paragrafo com estilo editorial para epub-paragraph", () => {
+    const serialized = htmlToLexicalJson(
+      '<p style="text-indent: 20pt; margin-top: 1.5em; margin-bottom: 1em">texto editorial</p>',
+    );
+    const children = getRootChildren(serialized);
+
+    expect(children[0]).toEqual(
+      expect.objectContaining({
+        type: "epub-paragraph",
+        editorialStyle: expect.stringContaining("text-indent: 20pt"),
+      }),
+    );
+    expect(String(children[0]?.editorialStyle || "")).toContain("margin-top: 1.5em");
+  });
+
+  it("mapeia heading com estilo editorial para epub-heading", () => {
+    const serialized = htmlToLexicalJson(
+      '<h1 style="margin-top: 10%; margin-bottom: 3em; line-height: 1.2">Titulo</h1>',
+    );
+    const children = getRootChildren(serialized);
+
+    expect(children[0]).toEqual(
+      expect.objectContaining({
+        type: "epub-heading",
+        tag: "h1",
+        editorialStyle: expect.stringContaining("margin-top: 10%"),
+      }),
+    );
+    expect(String(children[0]?.editorialStyle || "")).toContain("margin-bottom: 3em");
   });
 
   it("retorna o estado vazio canonico para html vazio", () => {

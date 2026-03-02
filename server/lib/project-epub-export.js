@@ -45,11 +45,54 @@ const EXPORT_ALLOWED_TAGS = [
 
 const EXPORT_ALLOWED_ATTRIBUTES = {
   a: ["href", "title", "target", "rel"],
-  img: ["src", "alt", "title", "width", "height"],
+  img: ["src", "alt", "title", "width", "height", "style"],
   td: ["colspan", "rowspan"],
   th: ["colspan", "rowspan"],
   span: ["style"],
   p: ["style"],
+  blockquote: ["style"],
+  h1: ["style"],
+  h2: ["style"],
+  h3: ["style"],
+  h4: ["style"],
+  h5: ["style"],
+  h6: ["style"],
+  em: ["style"],
+  strong: ["style"],
+  i: ["style"],
+  b: ["style"],
+  u: ["style"],
+  s: ["style"],
+  sub: ["style"],
+  sup: ["style"],
+};
+
+const BLOCK_ALLOWED_STYLE_PATTERNS = {
+  "text-align": [/^left$/, /^right$/, /^center$/, /^justify$/],
+  "text-indent": [/^-?(?:\d+(?:\.\d+)?)(?:px|em|rem|pt|%)$/],
+  "margin-top": [/^-?(?:\d+(?:\.\d+)?)(?:px|em|rem|pt|%)$/],
+  "margin-bottom": [/^-?(?:\d+(?:\.\d+)?)(?:px|em|rem|pt|%)$/],
+  "line-height": [/^(?:normal|\d+(?:\.\d+)?(?:px|em|rem|pt|%)?)$/],
+  "font-family": [/^(?:serif|sans-serif|monospace)$/],
+};
+
+const INLINE_ALLOWED_STYLE_PATTERNS = {
+  "font-size": [/^(?:\d+(?:\.\d+)?)(?:px|em|rem|pt|%)$/],
+  "font-style": [/^(?:italic|oblique)$/],
+  "font-weight": [/^(?:bold|[5-9]00)$/],
+  "font-family": [/^(?:serif|sans-serif|monospace)$/],
+};
+
+const IMAGE_ALLOWED_STYLE_PATTERNS = {
+  width: [/^(?:\d+(?:\.\d+)?)(?:px|em|rem|pt|%)$/],
+  height: [/^(?:\d+(?:\.\d+)?)(?:px|em|rem|pt|%)$/],
+  "max-width": [/^(?:\d+(?:\.\d+)?)(?:px|em|rem|pt|%)$/],
+  display: [/^(?:inline|block|inline-block)$/],
+  "margin-left": [/^(?:auto|-?(?:\d+(?:\.\d+)?)(?:px|em|rem|pt|%))$/],
+  "margin-right": [/^(?:auto|-?(?:\d+(?:\.\d+)?)(?:px|em|rem|pt|%))$/],
+  "margin-top": [/^-?(?:\d+(?:\.\d+)?)(?:px|em|rem|pt|%)$/],
+  "margin-bottom": [/^-?(?:\d+(?:\.\d+)?)(?:px|em|rem|pt|%)$/],
+  "vertical-align": [/^(?:baseline|middle|text-bottom|text-top|sub|super)$/],
 };
 
 const normalizeVolumeForFilter = (value) => (Number.isFinite(Number(value)) ? Number(value) : null);
@@ -59,9 +102,24 @@ const createExportSanitizeOptions = (origin) => ({
   allowedAttributes: EXPORT_ALLOWED_ATTRIBUTES,
   allowedSchemes: ["http", "https", "mailto"],
   allowedStyles: {
-    "*": {
-      "text-align": [/^left$/, /^right$/, /^center$/, /^justify$/],
-    },
+    p: BLOCK_ALLOWED_STYLE_PATTERNS,
+    blockquote: BLOCK_ALLOWED_STYLE_PATTERNS,
+    h1: BLOCK_ALLOWED_STYLE_PATTERNS,
+    h2: BLOCK_ALLOWED_STYLE_PATTERNS,
+    h3: BLOCK_ALLOWED_STYLE_PATTERNS,
+    h4: BLOCK_ALLOWED_STYLE_PATTERNS,
+    h5: BLOCK_ALLOWED_STYLE_PATTERNS,
+    h6: BLOCK_ALLOWED_STYLE_PATTERNS,
+    span: INLINE_ALLOWED_STYLE_PATTERNS,
+    em: INLINE_ALLOWED_STYLE_PATTERNS,
+    strong: INLINE_ALLOWED_STYLE_PATTERNS,
+    i: INLINE_ALLOWED_STYLE_PATTERNS,
+    b: INLINE_ALLOWED_STYLE_PATTERNS,
+    u: INLINE_ALLOWED_STYLE_PATTERNS,
+    s: INLINE_ALLOWED_STYLE_PATTERNS,
+    sub: INLINE_ALLOWED_STYLE_PATTERNS,
+    sup: INLINE_ALLOWED_STYLE_PATTERNS,
+    img: IMAGE_ALLOWED_STYLE_PATTERNS,
   },
   transformTags: {
     a: (tagName, attribs) => ({

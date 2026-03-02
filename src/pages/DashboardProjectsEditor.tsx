@@ -90,6 +90,10 @@ import {
   translateTag,
 } from "@/lib/project-taxonomy";
 import { buildEpisodeKey, findDuplicateEpisodeKey } from "@/lib/project-episode-key";
+import {
+  buildVolumeCoverKey,
+  findDuplicateVolumeCover,
+} from "@/lib/project-volume-cover-key";
 import { isChapterBasedType, isLightNovelType, isMangaType } from "@/lib/project-utils";
 import { formatBytesCompact, parseHumanSizeToBytes } from "@/lib/file-size";
 import { formatBuildMetadataLabel, getFrontendBuildMetadata } from "@/lib/frontend-build";
@@ -212,6 +216,12 @@ type DownloadSource = {
   url: string;
 };
 
+type ProjectVolumeCover = {
+  volume?: number;
+  coverImageUrl: string;
+  coverImageAlt: string;
+};
+
 type ProjectEpisode = {
   number: number;
   volume?: number;
@@ -268,6 +278,7 @@ type ProjectRecord = {
   forceHero?: boolean;
   heroImageUrl?: string;
   heroImageAlt: string;
+  volumeCovers: ProjectVolumeCover[];
   episodeDownloads: ProjectEpisode[];
   views: number;
   commentsCount: number;
@@ -357,6 +368,7 @@ const emptyProject: ProjectForm = {
   forceHero: false,
   heroImageUrl: "",
   heroImageAlt: "",
+  volumeCovers: [],
   episodeDownloads: [],
 };
 
@@ -796,6 +808,7 @@ const resolveProjectImageFolders = (projectId: string, projectTitle: string) => 
   return {
     projectRootFolder,
     projectEpisodesFolder: `${projectRootFolder}/episodes`,
+    projectVolumeCoversFolder: `${projectRootFolder}/volumes`,
   };
 };
 
@@ -1017,10 +1030,11 @@ const DashboardProjectsEditor = () => {
   const [collapsedEpisodes, setCollapsedEpisodes] = useState<Record<number, boolean>>({});
   const [editorAccordionValue, setEditorAccordionValue] = useState<string[]>(["dados-principais"]);
   const [isLibraryOpen, setIsLibraryOpen] = useState(false);
-  const [libraryTarget, setLibraryTarget] = useState<"cover" | "banner" | "hero" | "episode-cover">(
-    "cover",
-  );
+  const [libraryTarget, setLibraryTarget] = useState<
+    "cover" | "banner" | "hero" | "episode-cover" | "volume-cover"
+  >("cover");
   const [episodeCoverIndex, setEpisodeCoverIndex] = useState<number | null>(null);
+  const [volumeCoverIndex, setVolumeCoverIndex] = useState<number | null>(null);
   const [epubImportFile, setEpubImportFile] = useState<File | null>(null);
   const [epubImportTargetVolume, setEpubImportTargetVolume] = useState<string>("");
   const [epubImportAsDraft, setEpubImportAsDraft] = useState(true);
@@ -1445,7 +1459,7 @@ const DashboardProjectsEditor = () => {
   const isLightNovel = isLightNovelType(formState.type || "");
   const isChapterBased = isChapterBasedType(formState.type || "");
   const stageOptions = isChapterBased ? mangaStages : animeStages;
-  const { projectRootFolder, projectEpisodesFolder } = useMemo(
+  const { projectRootFolder, projectEpisodesFolder, projectVolumeCoversFolder } = useMemo(
     () => resolveProjectImageFolders(formState.id, formState.title),
     [formState.id, formState.title],
   );
@@ -1475,10 +1489,33 @@ const DashboardProjectsEditor = () => {
       }) satisfies ImageLibraryOptions,
     [projectEpisodesFolder, projectRootFolder, scopedProjectImageIds],
   );
-  const activeLibraryOptions = useMemo(
+  const volumeCoverAssetLibraryOptions = useMemo(
     () =>
-      libraryTarget === "episode-cover" ? episodeAssetLibraryOptions : projectAssetLibraryOptions,
-    [episodeAssetLibraryOptions, libraryTarget, projectAssetLibraryOptions],
+      ({
+        uploadFolder: projectVolumeCoversFolder,
+        listFolders: [projectVolumeCoversFolder, projectRootFolder, projectEpisodesFolder],
+        listAll: false,
+        includeProjectImages: true,
+        projectImageProjectIds: scopedProjectImageIds,
+      }) satisfies ImageLibraryOptions,
+    [projectEpisodesFolder, projectRootFolder, projectVolumeCoversFolder, scopedProjectImageIds],
+  );
+  const activeLibraryOptions = useMemo(
+    () => {
+      if (libraryTarget === "episode-cover") {
+        return episodeAssetLibraryOptions;
+      }
+      if (libraryTarget === "volume-cover") {
+        return volumeCoverAssetLibraryOptions;
+      }
+      return projectAssetLibraryOptions;
+    },
+    [
+      episodeAssetLibraryOptions,
+      libraryTarget,
+      projectAssetLibraryOptions,
+      volumeCoverAssetLibraryOptions,
+    ],
   );
 
   const sortedEpisodeDownloads = useMemo(() => {
@@ -1638,6 +1675,27 @@ const DashboardProjectsEditor = () => {
             : "",
         };
         return { ...prev, episodeDownloads: nextEpisodes };
+      } else if (libraryTarget === "volume-cover") {
+        if (volumeCoverIndex === null) {
+          return prev;
+        }
+        const nextVolumeCovers = [...prev.volumeCovers];
+        if (!nextVolumeCovers[volumeCoverIndex]) {
+          return prev;
+        }
+        nextVolumeCovers[volumeCoverIndex] = {
+          ...nextVolumeCovers[volumeCoverIndex],
+          coverImageUrl: nextUrl,
+          coverImageAlt: nextUrl
+            ? resolveAssetAltText(
+                altText,
+                nextVolumeCovers[volumeCoverIndex].volume === undefined
+                  ? "Capa do projeto sem volume"
+                  : `Capa do volume ${nextVolumeCovers[volumeCoverIndex].volume}`,
+              )
+            : "",
+        };
+        return { ...prev, volumeCovers: nextVolumeCovers };
       }
       return next;
     });
@@ -1651,6 +1709,12 @@ const DashboardProjectsEditor = () => {
   const openLibraryForEpisodeCover = (index: number) => {
     setEpisodeCoverIndex(index);
     setLibraryTarget("episode-cover");
+    setIsLibraryOpen(true);
+  };
+
+  const openLibraryForVolumeCover = (index: number) => {
+    setVolumeCoverIndex(index);
+    setLibraryTarget("volume-cover");
     setIsLibraryOpen(true);
   };
 
@@ -1765,6 +1829,7 @@ const DashboardProjectsEditor = () => {
     if (!isLibraryOpen) {
       setLibraryTarget("cover");
       setEpisodeCoverIndex(null);
+      setVolumeCoverIndex(null);
     }
   }, [isLibraryOpen]);
 
@@ -1879,6 +1944,9 @@ const DashboardProjectsEditor = () => {
     if (libraryTarget === "episode-cover" && episodeCoverIndex !== null) {
       return formState.episodeDownloads[episodeCoverIndex]?.coverImageUrl || "";
     }
+    if (libraryTarget === "volume-cover" && volumeCoverIndex !== null) {
+      return formState.volumeCovers[volumeCoverIndex]?.coverImageUrl || "";
+    }
     return "";
   }, [
     episodeCoverIndex,
@@ -1886,7 +1954,9 @@ const DashboardProjectsEditor = () => {
     formState.cover,
     formState.episodeDownloads,
     formState.heroImageUrl,
+    formState.volumeCovers,
     libraryTarget,
+    volumeCoverIndex,
   ]);
 
   const sortedProjects = useMemo(() => {
@@ -2012,6 +2082,20 @@ const DashboardProjectsEditor = () => {
       heroImageAlt: project.heroImageUrl
         ? resolveAssetAltText(project.heroImageAlt, DEFAULT_PROJECT_HERO_ALT)
         : "",
+      volumeCovers: Array.isArray(project.volumeCovers)
+        ? project.volumeCovers
+            .map((cover) => ({
+              volume: Number.isFinite(Number(cover?.volume)) ? Number(cover.volume) : undefined,
+              coverImageUrl: String(cover?.coverImageUrl || "").trim(),
+              coverImageAlt: String(
+                cover?.coverImageAlt ||
+                  (Number.isFinite(Number(cover?.volume))
+                    ? `Capa do volume ${Number(cover.volume)}`
+                    : "Capa do projeto sem volume"),
+              ).trim(),
+            }))
+            .filter((cover) => cover.coverImageUrl)
+        : [],
       episodeDownloads: initialEpisodes,
     };
     const nextAniListInput = project.anilistId ? String(project.anilistId) : "";
@@ -2184,6 +2268,57 @@ const DashboardProjectsEditor = () => {
     [],
   );
 
+  const mergeImportedVolumeCoversIntoForm = useCallback(
+    (
+      importedVolumeCovers: Array<
+        ProjectVolumeCover & { mergeMode?: "create" | "update" | "preserve_existing" }
+      >,
+    ) => {
+      setFormState((prev) => {
+        if (!importedVolumeCovers.length) {
+          return prev;
+        }
+        const nextVolumeCovers = [...prev.volumeCovers];
+        importedVolumeCovers.forEach((cover) => {
+          const existingIndex = nextVolumeCovers.findIndex(
+            (item) => buildVolumeCoverKey(item.volume) === buildVolumeCoverKey(cover.volume),
+          );
+          if (cover.mergeMode === "preserve_existing" && existingIndex >= 0) {
+            return;
+          }
+          if (existingIndex >= 0) {
+            nextVolumeCovers[existingIndex] = {
+              ...nextVolumeCovers[existingIndex],
+              volume: cover.volume,
+              coverImageUrl: cover.coverImageUrl,
+              coverImageAlt: cover.coverImageAlt,
+            };
+            return;
+          }
+          nextVolumeCovers.push({
+            volume: cover.volume,
+            coverImageUrl: cover.coverImageUrl,
+            coverImageAlt: cover.coverImageAlt,
+          });
+        });
+        nextVolumeCovers.sort((left, right) => {
+          if (left.volume === undefined) {
+            return 1;
+          }
+          if (right.volume === undefined) {
+            return -1;
+          }
+          return left.volume - right.volume;
+        });
+        return {
+          ...prev,
+          volumeCovers: nextVolumeCovers,
+        };
+      });
+    },
+    [],
+  );
+
   const handleImportEpub = async () => {
     if (!epubImportFile) {
       toast({
@@ -2322,6 +2457,13 @@ const DashboardProjectsEditor = () => {
       const chapters = Array.isArray(data?.chapters)
         ? (data.chapters as ProjectEpisode[])
         : [];
+      const volumeCovers = Array.isArray(data?.volumeCovers)
+        ? (data.volumeCovers as Array<
+            ProjectVolumeCover & {
+              mergeMode?: "create" | "update" | "preserve_existing";
+            }
+          >)
+        : [];
       const warnings = Array.isArray(data?.warnings)
         ? data.warnings
             .map((warning) => String(warning || "").trim())
@@ -2339,7 +2481,10 @@ const DashboardProjectsEditor = () => {
       const imageImportFailures = Number.isFinite(Number(data?.summary?.imageImportFailures))
         ? Number(data.summary.imageImportFailures)
         : 0;
+      const volumeCoverImported = data?.summary?.volumeCoverImported === true;
+      const volumeCoverSkipped = data?.summary?.volumeCoverSkipped === true;
       mergeImportedEpisodesIntoForm(chapters);
+      mergeImportedVolumeCoversIntoForm(volumeCovers);
       setEditorAccordionValue((prev) =>
         prev.includes("episodios") ? prev : [...prev, "episodios"],
       );
@@ -2354,6 +2499,8 @@ const DashboardProjectsEditor = () => {
           ...(imageImportFailures > 0
             ? [`${imageImportFailures} imagem(ns) falharam e foram ignoradas.`]
             : []),
+          ...(volumeCoverImported ? ["A capa do volume foi incorporada ao formulario."] : []),
+          ...(volumeCoverSkipped ? ["A capa do volume existente foi preservada."] : []),
           ...warnings,
         ].join(" "),
         intent: "success",
@@ -2535,6 +2682,43 @@ const DashboardProjectsEditor = () => {
       });
       return;
     }
+    const normalizedVolumeCoversForSave = formState.volumeCovers
+      .map((cover) => {
+        const parsedVolume = Number(cover.volume);
+        const coverImageUrl = String(cover.coverImageUrl || "").trim();
+        return {
+          volume: Number.isFinite(parsedVolume) ? parsedVolume : undefined,
+          coverImageUrl,
+          coverImageAlt: coverImageUrl
+            ? resolveAssetAltText(
+                cover.coverImageAlt,
+                Number.isFinite(parsedVolume)
+                  ? `Capa do volume ${parsedVolume}`
+                  : "Capa do projeto sem volume",
+              )
+            : "",
+        };
+      })
+      .filter((cover) => cover.coverImageUrl)
+      .sort((left, right) => {
+        if (left.volume === undefined) {
+          return 1;
+        }
+        if (right.volume === undefined) {
+          return -1;
+        }
+        return left.volume - right.volume;
+      });
+    const duplicateVolumeCover = findDuplicateVolumeCover(normalizedVolumeCoversForSave);
+    if (duplicateVolumeCover) {
+      setEditorAccordionValue((prev) => (prev.includes("midias") ? prev : [...prev, "midias"]));
+      toast({
+        title: "Capas de volume duplicadas",
+        description: "Cada volume pode ter apenas uma capa cadastrada.",
+        variant: "destructive",
+      });
+      return;
+    }
     const nextEpisodeSizeDrafts = { ...episodeSizeDrafts };
     const nextEpisodeSizeErrors = { ...episodeSizeErrors };
     let firstInvalidEpisodeSizeIndex: number | null = null;
@@ -2664,6 +2848,7 @@ const DashboardProjectsEditor = () => {
       heroImageAlt: formState.heroImageUrl?.trim()
         ? resolveAssetAltText(formState.heroImageAlt, DEFAULT_PROJECT_HERO_ALT)
         : "",
+      volumeCovers: normalizedVolumeCoversForSave,
       relations: formState.relations
         .filter((item) => item.title || item.relation || item.projectId)
         .filter((item, index, arr) => {
@@ -2762,6 +2947,16 @@ const DashboardProjectsEditor = () => {
           title: "Capitulos duplicados",
           description:
             "O servidor bloqueou o save porque existe mais de um capitulo com o mesmo numero e volume.",
+          variant: "destructive",
+        });
+        return;
+      }
+      if (code === "duplicate_volume_cover_key") {
+        setEditorAccordionValue((prev) => (prev.includes("midias") ? prev : [...prev, "midias"]));
+        toast({
+          title: "Capas de volume duplicadas",
+          description:
+            "O servidor bloqueou o save porque existe mais de uma capa cadastrada para o mesmo volume.",
           variant: "destructive",
         });
         return;
@@ -3925,88 +4120,218 @@ const DashboardProjectsEditor = () => {
                   </div>
                 </AccordionTrigger>
                 <AccordionContent className={editorSectionContentClassName}>
-                  <div className="grid gap-3 md:grid-cols-3">
-                    <div className="space-y-2">
-                      <Label>Imagem do carrossel</Label>
-                      <div className="space-y-2 rounded-2xl border border-border/60 bg-card/60 px-3 py-2">
-                        <div className="flex items-center gap-3">
-                          {formState.heroImageUrl ? (
-                            <img
-                              src={formState.heroImageUrl}
-                              alt="Imagem do carrossel"
-                              className="h-12 w-12 rounded-lg object-cover"
-                            />
-                          ) : (
-                            <div className="flex h-12 w-12 items-center justify-center rounded-lg border border-dashed border-border/60 text-center text-[10px] text-muted-foreground leading-tight">
-                              Sem imagem
-                            </div>
-                          )}
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            className="ml-auto"
-                            onClick={() => openLibraryForProjectImage("hero")}
-                          >
-                            Biblioteca
-                          </Button>
+                  <div className="space-y-4">
+                    <div className="grid gap-3 md:grid-cols-3">
+                      <div className="space-y-2">
+                        <Label>Imagem do carrossel</Label>
+                        <div className="space-y-2 rounded-2xl border border-border/60 bg-card/60 px-3 py-2">
+                          <div className="flex items-center gap-3">
+                            {formState.heroImageUrl ? (
+                              <img
+                                src={formState.heroImageUrl}
+                                alt="Imagem do carrossel"
+                                className="h-12 w-12 rounded-lg object-cover"
+                              />
+                            ) : (
+                              <div className="flex h-12 w-12 items-center justify-center rounded-lg border border-dashed border-border/60 text-center text-[10px] text-muted-foreground leading-tight">
+                                Sem imagem
+                              </div>
+                            )}
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              className="ml-auto"
+                              onClick={() => openLibraryForProjectImage("hero")}
+                            >
+                              Biblioteca
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Capa</Label>
+                        <div className="space-y-2 rounded-2xl border border-border/60 bg-card/60 px-3 py-2">
+                          <div className="flex items-center gap-3">
+                            {formState.cover ? (
+                              <img
+                                src={formState.cover}
+                                alt="Capa"
+                                className="h-12 w-12 rounded-lg object-cover"
+                              />
+                            ) : (
+                              <div className="flex h-12 w-12 items-center justify-center rounded-lg border border-dashed border-border/60 text-center text-[10px] text-muted-foreground leading-tight">
+                                Sem imagem
+                              </div>
+                            )}
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              className="ml-auto"
+                              onClick={() => openLibraryForProjectImage("cover")}
+                            >
+                              Biblioteca
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Banner</Label>
+                        <div className="space-y-2 rounded-2xl border border-border/60 bg-card/60 px-3 py-2">
+                          <div className="flex items-center gap-3">
+                            {formState.banner ? (
+                              <img
+                                src={formState.banner}
+                                alt="Banner"
+                                className="h-12 w-12 rounded-lg object-cover"
+                              />
+                            ) : (
+                              <div className="flex h-12 w-12 items-center justify-center rounded-lg border border-dashed border-border/60 text-center text-[10px] text-muted-foreground leading-tight">
+                                Sem imagem
+                              </div>
+                            )}
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              className="ml-auto"
+                              onClick={() => openLibraryForProjectImage("banner")}
+                            >
+                              Biblioteca
+                            </Button>
+                          </div>
                         </div>
                       </div>
                     </div>
-                    <div className="space-y-2">
-                      <Label>Capa</Label>
-                      <div className="space-y-2 rounded-2xl border border-border/60 bg-card/60 px-3 py-2">
-                        <div className="flex items-center gap-3">
-                          {formState.cover ? (
-                            <img
-                              src={formState.cover}
-                              alt="Capa"
-                              className="h-12 w-12 rounded-lg object-cover"
-                            />
-                          ) : (
-                            <div className="flex h-12 w-12 items-center justify-center rounded-lg border border-dashed border-border/60 text-center text-[10px] text-muted-foreground leading-tight">
-                              Sem imagem
-                            </div>
-                          )}
+
+                    {isLightNovel || isManga ? (
+                      <div className="space-y-3 rounded-2xl border border-border/60 bg-card/40 p-4">
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="space-y-1">
+                            <Label>Capas por volume</Label>
+                            <p className="text-xs text-muted-foreground">
+                              Use uma capa especÃ­fica para cada volume ou para a entrada sem volume.
+                            </p>
+                          </div>
                           <Button
                             type="button"
-                            variant="outline"
                             size="sm"
-                            className="ml-auto"
-                            onClick={() => openLibraryForProjectImage("cover")}
+                            variant="outline"
+                            onClick={() =>
+                              setFormState((prev) => ({
+                                ...prev,
+                                volumeCovers: [
+                                  ...prev.volumeCovers,
+                                  {
+                                    volume: undefined,
+                                    coverImageUrl: "",
+                                    coverImageAlt: "",
+                                  },
+                                ],
+                              }))
+                            }
                           >
-                            Biblioteca
+                            Adicionar capa de volume
                           </Button>
                         </div>
+
+                        {formState.volumeCovers.length === 0 ? (
+                          <div className="rounded-xl border border-dashed border-border/60 bg-background/40 px-4 py-3 text-sm text-muted-foreground">
+                            Nenhuma capa de volume cadastrada.
+                          </div>
+                        ) : (
+                          <div className="grid gap-3">
+                            {formState.volumeCovers.map((cover, index) => (
+                              <div
+                                key={`${buildVolumeCoverKey(cover.volume)}-${index}`}
+                                className="grid gap-3 rounded-xl border border-border/60 bg-background/40 p-3 md:grid-cols-[140px_minmax(0,1fr)_auto]"
+                              >
+                                <div className="flex items-center gap-3">
+                                  {cover.coverImageUrl ? (
+                                    <img
+                                      src={cover.coverImageUrl}
+                                      alt={cover.coverImageAlt || "Capa do volume"}
+                                      className="h-16 w-12 rounded-lg object-cover"
+                                    />
+                                  ) : (
+                                    <div className="flex h-16 w-12 items-center justify-center rounded-lg border border-dashed border-border/60 text-center text-[10px] text-muted-foreground leading-tight">
+                                      Sem capa
+                                    </div>
+                                  )}
+                                  <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => openLibraryForVolumeCover(index)}
+                                  >
+                                    Biblioteca
+                                  </Button>
+                                </div>
+                                <div className="grid gap-3 md:grid-cols-2">
+                                  <div className="space-y-2">
+                                    <Label className="text-xs">Volume</Label>
+                                    <Input
+                                      value={
+                                        Number.isFinite(Number(cover.volume)) ? String(cover.volume) : ""
+                                      }
+                                      onChange={(event) =>
+                                        setFormState((prev) => {
+                                          const nextVolumeCovers = [...prev.volumeCovers];
+                                          const trimmedValue = event.target.value.trim();
+                                          nextVolumeCovers[index] = {
+                                            ...nextVolumeCovers[index],
+                                            volume:
+                                              trimmedValue === "" || !Number.isFinite(Number(trimmedValue))
+                                                ? undefined
+                                                : Number(trimmedValue),
+                                          };
+                                          return { ...prev, volumeCovers: nextVolumeCovers };
+                                        })
+                                      }
+                                      placeholder="Sem volume"
+                                      inputMode="numeric"
+                                    />
+                                  </div>
+                                  <div className="space-y-2">
+                                    <Label className="text-xs">Alt</Label>
+                                    <Input
+                                      value={cover.coverImageAlt || ""}
+                                      onChange={(event) =>
+                                        setFormState((prev) => {
+                                          const nextVolumeCovers = [...prev.volumeCovers];
+                                          nextVolumeCovers[index] = {
+                                            ...nextVolumeCovers[index],
+                                            coverImageAlt: event.target.value,
+                                          };
+                                          return { ...prev, volumeCovers: nextVolumeCovers };
+                                        })
+                                      }
+                                      placeholder="Texto alternativo da capa"
+                                    />
+                                  </div>
+                                </div>
+                                <div className="flex items-start justify-end">
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() =>
+                                      setFormState((prev) => ({
+                                        ...prev,
+                                        volumeCovers: prev.volumeCovers.filter((_, itemIndex) => itemIndex !== index),
+                                      }))
+                                    }
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
                       </div>
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Banner</Label>
-                      <div className="space-y-2 rounded-2xl border border-border/60 bg-card/60 px-3 py-2">
-                        <div className="flex items-center gap-3">
-                          {formState.banner ? (
-                            <img
-                              src={formState.banner}
-                              alt="Banner"
-                              className="h-12 w-12 rounded-lg object-cover"
-                            />
-                          ) : (
-                            <div className="flex h-12 w-12 items-center justify-center rounded-lg border border-dashed border-border/60 text-center text-[10px] text-muted-foreground leading-tight">
-                              Sem imagem
-                            </div>
-                          )}
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            className="ml-auto"
-                            onClick={() => openLibraryForProjectImage("banner")}
-                          >
-                            Biblioteca
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
+                    ) : null}
                   </div>
                 </AccordionContent>
               </AccordionItem>

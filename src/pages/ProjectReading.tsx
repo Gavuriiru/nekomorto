@@ -1,13 +1,16 @@
 ﻿import { Suspense, lazy, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 import CommentsSection from "@/components/CommentsSection";
+import UploadPicture from "@/components/UploadPicture";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { publicPageLayoutTokens } from "@/components/public-page-tokens";
 import { usePageMeta } from "@/hooks/use-page-meta";
 import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
 import { buildEpisodeKey } from "@/lib/project-episode-key";
+import { findVolumeCoverByVolume } from "@/lib/project-volume-cover-key";
 import { isLightNovelType } from "@/lib/project-utils";
 import type { Project } from "@/data/projects";
 import type { UploadMediaVariantsMap } from "@/lib/upload-variants";
@@ -33,6 +36,8 @@ const ProjectReading = () => {
     synopsis?: string;
     content?: string;
     contentFormat?: "lexical";
+    coverImageUrl?: string;
+    coverImageAlt?: string;
   } | null>(null);
   const [hasLoaded, setHasLoaded] = useState(false);
   const [mediaVariants, setMediaVariants] = useState<UploadMediaVariantsMap>({});
@@ -47,14 +52,6 @@ const ProjectReading = () => {
     const titlePart = chapterContent?.title ? `${chapterLabel} - ${chapterContent.title}` : chapterLabel;
     return `${titlePart} - ${project.title}`;
   }, [chapter, chapterContent?.number, chapterContent?.title, project]);
-
-  usePageMeta({
-    title: pageTitle,
-    description: chapterContent?.synopsis || project?.synopsis || "",
-    image: project?.cover,
-    mediaVariants,
-    type: "article",
-  });
 
   useEffect(() => {
     if (!slug) {
@@ -134,6 +131,69 @@ const ProjectReading = () => {
       return buildEpisodeKey(entry.number, entry.volume) === lookupKey;
     });
   }, [project, sortedChapters, chapterNumber, volumeParam]);
+
+  const activeVolume = useMemo(() => {
+    const contentVolume = Number(chapterContent?.volume);
+    if (Number.isFinite(contentVolume)) {
+      return contentVolume;
+    }
+    const listVolume = Number(chapterData?.volume);
+    if (Number.isFinite(listVolume)) {
+      return listVolume;
+    }
+    return Number.isFinite(volumeParam) ? volumeParam : undefined;
+  }, [chapterContent?.volume, chapterData?.volume, volumeParam]);
+
+  const volumeCover = useMemo(
+    () => findVolumeCoverByVolume(project?.volumeCovers, activeVolume),
+    [activeVolume, project?.volumeCovers],
+  );
+
+  const heroImage = useMemo(
+    () =>
+      volumeCover?.coverImageUrl ||
+      chapterContent?.coverImageUrl ||
+      chapterData?.coverImageUrl ||
+      project?.cover ||
+      project?.heroImageUrl ||
+      project?.banner ||
+      "/placeholder.svg",
+    [
+      chapterContent?.coverImageUrl,
+      chapterData?.coverImageUrl,
+      project?.banner,
+      project?.cover,
+      project?.heroImageUrl,
+      volumeCover?.coverImageUrl,
+    ],
+  );
+
+  const heroImageAlt = useMemo(
+    () =>
+      volumeCover?.coverImageAlt ||
+      chapterContent?.coverImageAlt ||
+      chapterData?.coverImageAlt ||
+      project?.coverAlt ||
+      project?.heroImageAlt ||
+      `Banner do projeto ${project?.title || ""}`,
+    [
+      chapterContent?.coverImageAlt,
+      chapterData?.coverImageAlt,
+      project?.coverAlt,
+      project?.heroImageAlt,
+      project?.title,
+      volumeCover?.coverImageAlt,
+    ],
+  );
+
+  usePageMeta({
+    title: pageTitle,
+    description: chapterContent?.synopsis || project?.synopsis || "",
+    image: heroImage,
+    imageAlt: heroImageAlt,
+    mediaVariants,
+    type: "article",
+  });
 
   const currentIndex = useMemo(() => {
     if (!chapterData) {
@@ -236,65 +296,105 @@ const ProjectReading = () => {
   return (
     <div className="flex min-h-screen flex-col">
       <main className="flex-1 bg-background">
-        <section className="mx-auto w-full max-w-6xl px-6 pb-16 pt-20 md:px-10">
-          <div className="space-y-5">
+        <section data-testid="project-reading-hero" className="relative overflow-hidden">
+          <UploadPicture
+            src={heroImage}
+            alt=""
+            preset="hero"
+            mediaVariants={mediaVariants}
+            className="absolute inset-0 h-full w-full"
+            imgClassName="h-full w-full object-cover object-top md:object-[center_18%]"
+            loading="eager"
+            decoding="async"
+            {...({ fetchpriority: "high" } as Record<string, string>)}
+          />
+          <div className="absolute inset-0 bg-background/28 backdrop-blur-[1.5px]" />
+          <div className="absolute inset-0 bg-linear-to-r from-background/84 via-background/34 to-background/78" />
+          <div className="absolute inset-0 bg-linear-to-t from-background via-background/70 to-transparent" />
 
-            {previousChapter || nextChapter ? (
-              <div className="flex flex-wrap items-center justify-end gap-2">
-                {previousChapter ? (
-                  <Button asChild size="sm" variant="outline">
-                    <Link
-                      to={`/projeto/${project.id}/leitura/${previousChapter.number}${
-                        previousChapter.volume ? `?volume=${previousChapter.volume}` : ""
-                      }`}
-                    >
-                      Capítulo anterior
-                    </Link>
-                  </Button>
-                ) : null}
-                {nextChapter ? (
-                  <Button asChild size="sm">
-                    <Link
-                      to={`/projeto/${project.id}/leitura/${nextChapter.number}${
-                        nextChapter.volume ? `?volume=${nextChapter.volume}` : ""
-                      }`}
-                    >
-                      Próximo capítulo
-                    </Link>
-                  </Button>
-                ) : null}
+          <div
+            className={`${publicPageLayoutTokens.sectionBase} relative max-w-6xl pb-10 pt-24 md:pb-24 md:pt-20 lg:pb-28 lg:pt-24`}
+          >
+            <div className="grid items-start gap-8 md:grid-cols-[220px_minmax(0,1fr)] lg:grid-cols-[240px_minmax(0,1fr)]">
+              <div className="mx-auto w-48 md:mx-0 md:w-[220px] lg:w-[240px]">
+                <div
+                  className="overflow-hidden rounded-2xl border border-border/70 bg-secondary/90 shadow-[0_30px_100px_-55px_rgba(0,0,0,0.95)]"
+                  style={{ aspectRatio: "9 / 14" }}
+                >
+                  <UploadPicture
+                    src={heroImage}
+                    alt={heroImageAlt}
+                    preset="poster"
+                    mediaVariants={mediaVariants}
+                    className="h-full w-full"
+                    imgClassName="h-full w-full object-cover object-center"
+                    loading="eager"
+                    decoding="async"
+                    {...({ fetchpriority: "high" } as Record<string, string>)}
+                  />
+                </div>
               </div>
-            ) : null}
 
-            <div className="space-y-3">
-              <Badge variant="secondary" className="text-xs uppercase">
-                Cap {chapterData?.number ?? chapterNumber}
-                {chapterData?.volume ? ` • Vol. ${chapterData.volume}` : ""}
-              </Badge>
-              <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-                <div className="min-w-0 space-y-2">
-                  <h1 className="text-2xl font-semibold text-foreground md:text-3xl">
+              <div className="flex min-h-full flex-col items-center gap-4 text-center md:items-start md:text-left">
+                <div className="flex w-full flex-wrap items-center justify-center gap-2 md:justify-start">
+                  <Badge variant="outline" className="text-xs uppercase tracking-wide">
+                    Light Novel
+                  </Badge>
+                  <Badge variant="secondary" className="text-xs uppercase">
+                    Cap {chapterData?.number ?? chapterNumber}
+                    {Number.isFinite(activeVolume) ? ` • Vol. ${activeVolume}` : ""}
+                  </Badge>
+                </div>
+                <div className="space-y-2">
+                  <h1 className="text-3xl font-bold text-foreground md:text-4xl lg:text-5xl">
                     {chapterContent?.title || chapterData?.title || project.title}
                   </h1>
-                  <p className="text-sm text-muted-foreground">{project.title} • Leitura de Light Novel</p>
+                  <p className="text-sm text-muted-foreground">
+                    {project.title} • Leitura de Light Novel
+                  </p>
                 </div>
-                <Button asChild size="sm" variant="outline" className="shrink-0">
-                  <Link to={`/projeto/${project.id}`}>Voltar ao projeto</Link>
-                </Button>
+                {chapterContent?.synopsis || chapterData?.synopsis ? (
+                  <p className="max-w-3xl text-sm text-muted-foreground">
+                    {chapterContent?.synopsis || chapterData?.synopsis}
+                  </p>
+                ) : null}
+                <div className="flex w-full flex-wrap justify-center gap-2 md:mt-auto md:justify-start">
+                  <Button asChild size="sm" variant="outline" className="shrink-0">
+                    <Link to={`/projeto/${project.id}`}>Voltar ao projeto</Link>
+                  </Button>
+                  {previousChapter ? (
+                    <Button asChild size="sm" variant="outline">
+                      <Link
+                        to={`/projeto/${project.id}/leitura/${previousChapter.number}${
+                          previousChapter.volume ? `?volume=${previousChapter.volume}` : ""
+                        }`}
+                      >
+                        Capítulo anterior
+                      </Link>
+                    </Button>
+                  ) : null}
+                  {nextChapter ? (
+                    <Button asChild size="sm">
+                      <Link
+                        to={`/projeto/${project.id}/leitura/${nextChapter.number}${
+                          nextChapter.volume ? `?volume=${nextChapter.volume}` : ""
+                        }`}
+                      >
+                        Próximo capítulo
+                      </Link>
+                    </Button>
+                  ) : null}
+                </div>
               </div>
             </div>
-
           </div>
+        </section>
 
-          <section className="mt-8">
+        <section className="mx-auto mt-8 w-full max-w-6xl px-6 pb-16 md:px-10">
+          <section>
             <article className="min-w-0 space-y-6">
               <Card className="group border-border/60 bg-card/80 shadow-lg transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:bg-card/90 hover:shadow-lg">
                 <CardContent className="min-w-0 space-y-6 p-6">
-                  {chapterContent?.synopsis || chapterData?.synopsis ? (
-                    <p className="text-sm text-muted-foreground transition-colors duration-300 group-hover:text-foreground/80">
-                      {chapterContent?.synopsis || chapterData?.synopsis}
-                    </p>
-                  ) : null}
                   {chapterContent?.content ? (
                     <Suspense fallback={<LexicalViewerFallback />}>
                       <LexicalViewer

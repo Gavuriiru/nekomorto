@@ -252,6 +252,37 @@ describe("runUploadsCleanup", () => {
     ]);
   });
 
+  it("considera capas de volume como uploads referenciados", () => {
+    const { uploadsDir, datasets } = createTempWorkspace(
+      {
+        projects: [
+          {
+            id: "project-1",
+            volumeCovers: [
+              {
+                volume: 1,
+                coverImageUrl: "/uploads/projects/project-1/volumes/cover-v1.png",
+              },
+            ],
+          },
+        ],
+        uploads: [
+          {
+            id: "u-volume-cover",
+            url: "/uploads/projects/project-1/volumes/cover-v1.png",
+            fileName: "cover-v1.png",
+          },
+        ],
+      },
+      [{ relativePath: "projects/project-1/volumes/cover-v1.png" }],
+    );
+
+    const result = runUploadsCleanup({ datasets, uploadsDir, applyChanges: false });
+
+    expect(result.unusedCount).toBe(0);
+    expect(result.examples).toEqual([]);
+  });
+
   it("inclui diretorio de variantes sem upload correspondente como orfao", () => {
     const { uploadsDir, datasets } = createTempWorkspace(
       {
