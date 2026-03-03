@@ -1136,7 +1136,7 @@ describe("DashboardProjectsEditor episode accordion", () => {
       expect.objectContaining({
         title: "EPUB importado",
         description:
-          '1 capitulo(s) incorporados ao formulario para revisao. 2 item(ns) de boilerplate foram descartados. 2 imagem(ns) interna(s) foram importadas. 1 imagem(ns) falharam e foram ignoradas. A capa do volume foi incorporada ao formulario. Itens de boilerplate ignorados: 2. Imagem interna ignorada no capitulo "Capitulo importado": ../Images/missing.jpg. Capa do volume importada do EPUB para o volume 2.',
+          '1 capitulo(s) incorporados ao formulario para revisao. 1 capitulo(s) principais detectados. 2 item(ns) de boilerplate foram descartados. 2 imagem(ns) interna(s) foram importadas. 1 imagem(ns) falharam e foram ignoradas. A capa do volume foi incorporada ao formulario. Itens de boilerplate ignorados: 2. Imagem interna ignorada no capitulo "Capitulo importado": ../Images/missing.jpg. Capa do volume importada do EPUB para o volume 2.',
         intent: "success",
       }),
     );

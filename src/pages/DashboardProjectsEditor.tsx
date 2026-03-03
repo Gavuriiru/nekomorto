@@ -236,6 +236,10 @@ type ProjectEpisode = {
   volume?: number;
   _editorKey?: string;
   title: string;
+  entryKind?: "main" | "extra";
+  entrySubtype?: string;
+  readingOrder?: number;
+  displayLabel?: string;
   releaseDate: string;
   duration: string;
   coverImageUrl?: string;
@@ -309,6 +313,11 @@ type EpubImportProjectSnapshot = {
   episodeDownloads: Array<{
     number: number;
     volume?: number;
+    title: string;
+    entryKind?: "main" | "extra";
+    entrySubtype?: string;
+    readingOrder?: number;
+    displayLabel?: string;
     publicationStatus?: "draft" | "published";
   }>;
   volumeEntries: Array<{
@@ -331,9 +340,17 @@ const buildEpubImportProjectSnapshot = (project: ProjectForm): EpubImportProject
         return null;
       }
       const parsedVolume = Number(episode?.volume);
+      const parsedReadingOrder = Number(episode?.readingOrder);
+      const entryKind = episode?.entryKind === "extra" ? "extra" : "main";
       return {
         number,
         volume: Number.isFinite(parsedVolume) ? parsedVolume : undefined,
+        title: String(episode?.title || "").trim(),
+        entryKind,
+        entrySubtype: String(episode?.entrySubtype || "").trim() || undefined,
+        readingOrder: Number.isFinite(parsedReadingOrder) ? Math.round(parsedReadingOrder) : undefined,
+        displayLabel:
+          entryKind === "extra" ? String(episode?.displayLabel || "").trim() || undefined : undefined,
         publicationStatus: episode?.publicationStatus === "published" ? "published" : "draft",
       };
     })
@@ -1686,20 +1703,60 @@ const DashboardProjectsEditor = () => {
     ],
   );
 
+  const getEpisodeEntryKind = useCallback(
+    (episode: Partial<ProjectEpisode> | null | undefined): "main" | "extra" =>
+      episode?.entryKind === "extra" ? "extra" : "main",
+    [],
+  );
+
+  const compareEpisodeOrdering = useCallback(
+    (left: ProjectEpisode, right: ProjectEpisode) => {
+      const leftReadingOrder = Number(left?.readingOrder);
+      const rightReadingOrder = Number(right?.readingOrder);
+      const hasLeftReadingOrder = Number.isFinite(leftReadingOrder);
+      const hasRightReadingOrder = Number.isFinite(rightReadingOrder);
+      if (hasLeftReadingOrder || hasRightReadingOrder) {
+        if (!hasLeftReadingOrder) {
+          return 1;
+        }
+        if (!hasRightReadingOrder) {
+          return -1;
+        }
+        if (leftReadingOrder !== rightReadingOrder) {
+          return leftReadingOrder - rightReadingOrder;
+        }
+      }
+      const numberDelta = (left.number || 0) - (right.number || 0);
+      if (numberDelta !== 0) {
+        return numberDelta;
+      }
+      return (left.volume || 0) - (right.volume || 0);
+    },
+    [],
+  );
+
+  const resolveNextMainEpisodeNumber = useCallback(
+    (episodes: ProjectEpisode[]) => {
+      const mainNumbers = (Array.isArray(episodes) ? episodes : [])
+        .filter((episode) => getEpisodeEntryKind(episode) !== "extra")
+        .map((episode) => Number(episode?.number))
+        .filter((value) => Number.isFinite(value) && value > 0);
+      if (mainNumbers.length === 0) {
+        return 1;
+      }
+      return Math.max(...mainNumbers) + 1;
+    },
+    [getEpisodeEntryKind],
+  );
+
   const sortedEpisodeDownloads = useMemo(() => {
     if (!isChapterBased) {
       return formState.episodeDownloads.map((episode, index) => ({ episode, index }));
     }
     return formState.episodeDownloads
       .map((episode, index) => ({ episode, index }))
-      .sort((a, b) => {
-        const numberDelta = (a.episode.number || 0) - (b.episode.number || 0);
-        if (numberDelta !== 0) {
-          return numberDelta;
-        }
-        return (a.episode.volume || 0) - (b.episode.volume || 0);
-      });
-  }, [formState.episodeDownloads, isChapterBased]);
+      .sort((a, b) => compareEpisodeOrdering(a.episode, b.episode));
+  }, [compareEpisodeOrdering, formState.episodeDownloads, isChapterBased]);
 
   const episodeOpenValues = useMemo(
     () =>
@@ -2196,6 +2253,15 @@ const DashboardProjectsEditor = () => {
           (episode): ProjectEpisode => ({
             ...episode,
             _editorKey: resolveEpisodeEditorKey(episode),
+            entryKind: episode.entryKind === "extra" ? "extra" : "main",
+            entrySubtype: String(episode.entrySubtype || "").trim() || undefined,
+            readingOrder: Number.isFinite(Number(episode.readingOrder))
+              ? Number(episode.readingOrder)
+              : undefined,
+            displayLabel:
+              episode.entryKind === "extra"
+                ? String(episode.displayLabel || "").trim() || undefined
+                : undefined,
             content: episode.content || "",
             contentFormat: "lexical",
             publicationStatus: episode.publicationStatus === "draft" ? "draft" : "published",
@@ -2521,6 +2587,15 @@ const DashboardProjectsEditor = () => {
           if (existingIndex === undefined) {
             const chapterWithEditorKey = {
               ...chapter,
+              entryKind: chapter.entryKind === "extra" ? "extra" : "main",
+              entrySubtype: String(chapter.entrySubtype || "").trim() || undefined,
+              readingOrder: Number.isFinite(Number(chapter.readingOrder))
+                ? Number(chapter.readingOrder)
+                : undefined,
+              displayLabel:
+                chapter.entryKind === "extra"
+                  ? String(chapter.displayLabel || "").trim() || undefined
+                  : undefined,
               _editorKey: resolveEpisodeEditorKey(chapter),
             };
             nextEpisodes.push(chapterWithEditorKey);
@@ -2537,6 +2612,15 @@ const DashboardProjectsEditor = () => {
           nextEpisodes[existingIndex] = {
             ...currentEpisode,
             title: chapter.title,
+            entryKind: chapter.entryKind === "extra" ? "extra" : "main",
+            entrySubtype: String(chapter.entrySubtype || "").trim() || currentEpisode.entrySubtype,
+            readingOrder: Number.isFinite(Number(chapter.readingOrder))
+              ? Number(chapter.readingOrder)
+              : currentEpisode.readingOrder,
+            displayLabel:
+              chapter.entryKind === "extra"
+                ? String(chapter.displayLabel || "").trim() || currentEpisode.displayLabel
+                : undefined,
             content: chapter.content,
             contentFormat: "lexical",
             publicationStatus:
@@ -2790,6 +2874,15 @@ const DashboardProjectsEditor = () => {
       const importedChapterCount = Number.isFinite(Number(data?.summary?.chapters))
         ? Number(data.summary.chapters)
         : chapters.length;
+      const mainImportedCount = Number.isFinite(Number(data?.summary?.mainImported))
+        ? Number(data.summary.mainImported)
+        : importedChapterCount;
+      const extrasImportedCount = Number.isFinite(Number(data?.summary?.extrasImported))
+        ? Number(data.summary.extrasImported)
+        : 0;
+      const boilerplatePromoted = Number.isFinite(Number(data?.summary?.boilerplatePromoted))
+        ? Number(data.summary.boilerplatePromoted)
+        : 0;
       const boilerplateDiscarded = Number.isFinite(Number(data?.summary?.boilerplateDiscarded))
         ? Number(data.summary.boilerplateDiscarded)
         : 0;
@@ -2814,6 +2907,11 @@ const DashboardProjectsEditor = () => {
         title: "EPUB importado",
         description: [
           `${importedChapterCount} capitulo(s) incorporados ao formulario para revisao.`,
+          ...(mainImportedCount > 0 ? [`${mainImportedCount} capitulo(s) principais detectados.`] : []),
+          ...(extrasImportedCount > 0 ? [`${extrasImportedCount} extra(s) detectados.`] : []),
+          ...(boilerplatePromoted > 0
+            ? [`${boilerplatePromoted} item(ns) de boilerplate foram promovidos para extras.`]
+            : []),
           ...(boilerplateDiscarded > 0
             ? [`${boilerplateDiscarded} item(ns) de boilerplate foram descartados.`]
             : []),
@@ -3011,10 +3109,17 @@ const DashboardProjectsEditor = () => {
     const normalizedEpisodesForSave = formState.episodeDownloads.map((episode) => {
       const parsedNumber = Number(episode.number);
       const parsedVolume = Number(episode.volume);
+      const parsedReadingOrder = Number(episode.readingOrder);
+      const entryKind = episode.entryKind === "extra" ? "extra" : "main";
       return {
         ...episode,
         number: Number.isFinite(parsedNumber) ? parsedNumber : 0,
         volume: Number.isFinite(parsedVolume) ? parsedVolume : undefined,
+        entryKind,
+        entrySubtype: String(episode.entrySubtype || "").trim() || (entryKind === "extra" ? "extra" : "chapter"),
+        readingOrder: Number.isFinite(parsedReadingOrder) ? Math.round(parsedReadingOrder) : undefined,
+        displayLabel:
+          entryKind === "extra" ? String(episode.displayLabel || "").trim() || undefined : undefined,
         contentFormat: "lexical" as const,
         publicationStatus: episode.publicationStatus === "draft" ? "draft" : "published",
         sources: Array.isArray(episode.sources)
@@ -3644,11 +3749,16 @@ const DashboardProjectsEditor = () => {
   const handleAddEpisodeDownload = () => {
     pendingAddAutoScrollRef.current = true;
     setFormState((prev) => {
+      const nextMainNumber = resolveNextMainEpisodeNumber(prev.episodeDownloads);
       const newEpisode: ProjectEpisode = {
         _editorKey: generateLocalId(),
-        number: prev.episodeDownloads.length + 1,
+        number: nextMainNumber,
         volume: undefined,
         title: "",
+        entryKind: "main",
+        entrySubtype: "chapter",
+        readingOrder: undefined,
+        displayLabel: undefined,
         releaseDate: "",
         duration: "",
         coverImageUrl: "",
@@ -5378,8 +5488,12 @@ const DashboardProjectsEditor = () => {
                     >
                       {sortedEpisodeDownloads.map(({ episode, index }) => {
                         const isEpisodeCollapsed = collapsedEpisodes[index] ?? false;
+                        const entryKind = getEpisodeEntryKind(episode);
+                        const isExtraEntry = entryKind === "extra";
                         const episodeUnitLabel = isChapterBased ? "Capítulo" : "Episódio";
-                        const episodeNumberLabel = `${episodeUnitLabel} ${episode.number || index + 1}`;
+                        const episodeNumberLabel = isExtraEntry
+                          ? "Extra"
+                          : `${episodeUnitLabel} ${episode.number || index + 1}`;
                         const episodeTitleLabel =
                           String(episode.title || "").trim() || "Sem título";
                         const episodeKey = buildEpisodeKey(episode.number, episode.volume);
@@ -5419,6 +5533,9 @@ const DashboardProjectsEditor = () => {
                         }
                         if (!isProgressOnlyEntry || isLightNovel) {
                           collapsedHeaderMeta.push(availabilityLabel);
+                        }
+                        if (isExtraEntry) {
+                          collapsedHeaderMeta.push("Extra");
                         }
                         if (episode.volume) {
                           collapsedHeaderMeta.push(`Vol. ${episode.volume}`);
@@ -5496,6 +5613,11 @@ const DashboardProjectsEditor = () => {
                                     <Badge variant="outline" className="text-[10px] uppercase">
                                       {availabilityLabel}
                                     </Badge>
+                                    {isExtraEntry ? (
+                                      <Badge variant="outline" className="text-[10px] uppercase">
+                                        Extra
+                                      </Badge>
+                                    ) : null}
                                     {episode.volume ? (
                                       <Badge variant="outline" className="text-[10px] uppercase">
                                         Vol. {episode.volume}
@@ -5507,7 +5629,7 @@ const DashboardProjectsEditor = () => {
                                       </span>
                                     ) : null}
                                     <ReorderControls
-                                      label={`item ${episode.number || index + 1}`}
+                                      label={`item ${isExtraEntry ? "extra" : episode.number || index + 1}`}
                                       index={index}
                                       total={sortedEpisodeDownloads.length}
                                       onMove={(targetIndex) => moveEpisodeItem(index, targetIndex)}
@@ -5552,6 +5674,7 @@ const DashboardProjectsEditor = () => {
                                     <Input
                                       type="number"
                                       value={episode.number}
+                                      disabled={isExtraEntry}
                                       onChange={(event) =>
                                         setFormState((prev) => {
                                           const next = [...prev.episodeDownloads];
@@ -5562,7 +5685,7 @@ const DashboardProjectsEditor = () => {
                                           return { ...prev, episodeDownloads: next };
                                         })
                                       }
-                                      placeholder="Número"
+                                      placeholder={isExtraEntry ? "Tecnico" : "Número"}
                                     />
                                     {isChapterBased ? (
                                       <Input

@@ -20,6 +20,10 @@ export type ProjectEpisode = {
   number: number;
   volume?: number;
   title: string;
+  entryKind?: "main" | "extra";
+  entrySubtype?: string;
+  readingOrder?: number;
+  displayLabel?: string;
   synopsis: string;
   releaseDate: string;
   duration: string;

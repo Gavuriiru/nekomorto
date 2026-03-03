@@ -79,23 +79,23 @@ const LatestEpisodeCard = () => {
                   typeLabel.includes("novel") ||
                   hasChapterHint;
                 const unitLabel = update.unit || (isChapterBased ? "Capítulo" : "Episódio");
-                const unitShort = unitLabel === "Capítulo" ? "Cap" : "Ep";
+                const isExtraUnit = unitLabel.toLowerCase() === "extra";
+                const unitShort = isExtraUnit ? "Extra" : /cap/i.test(unitLabel) ? "Cap" : "Ep";
                 const normalizedReason =
-                  unitLabel === "Capítulo"
+                  /cap/i.test(unitLabel)
                     ? update.reason
-                        .replace(/epis[oó]dio/gi, "capítulo")
-                        .replace(/cap[ií]tulo/gi, "Capítulo")
+                        .replace(/epis(?:o|\u00f3)dio/gi, "capitulo")
+                        .replace(/cap(?:i|\u00ed)tulo/gi, "Capitulo")
                     : update.reason;
                 const reason =
                   normalizedReason.charAt(0).toUpperCase() + normalizedReason.slice(1);
+                const normalizedKind = String(update.kind || "").trim().toLowerCase();
                 const kindLabel =
-                  update.kind === "Lançamento"
-                    ? "Lançamento"
-                    : update.kind === "Ajuste"
+                  normalizedKind.startsWith("lan")
+                    ? "Lancamento"
+                    : normalizedKind.includes("ajuste") || normalizedKind.includes("atualiza")
                       ? "Ajuste"
-                      : update.kind === "Atualização"
-                        ? "Ajuste"
-                        : update.kind;
+                      : update.kind;
                 return (
                   <Link
                     key={update.id}
@@ -121,7 +121,7 @@ const LatestEpisodeCard = () => {
                       <div className="flex min-w-0 flex-1 flex-col gap-3 h-full">
                         <div className="flex flex-wrap items-center gap-2">
                           <Badge variant="secondary" className="text-[10px]">
-                            {unitShort} {update.episodeNumber}
+                            {isExtraUnit ? "Extra" : `${unitShort} ${update.episodeNumber}`}
                           </Badge>
                           {update.volume ? (
                             <Badge variant="outline" className="text-[10px]">
@@ -131,7 +131,7 @@ const LatestEpisodeCard = () => {
                           <Badge
                             variant="outline"
                             className={`text-[10px] ${
-                              kindLabel === "Lançamento"
+                              kindLabel === "Lancamento"
                                 ? "border-primary/50 text-primary"
                                 : kindLabel === "Ajuste"
                                   ? "border-amber-500/50 text-amber-400"

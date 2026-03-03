@@ -5469,11 +5469,20 @@ const normalizeProjects = (projects) =>
             Number.isFinite(resolvedRawSizeBytes) && resolvedRawSizeBytes > 0
               ? Math.round(resolvedRawSizeBytes)
               : undefined;
+          const entryKind =
+            String(episodeObject?.entryKind || "").trim().toLowerCase() === "extra" ? "extra" : "main";
+          const readingOrderRaw = Number(episodeObject?.readingOrder);
+          const readingOrder = Number.isFinite(readingOrderRaw) ? Math.round(readingOrderRaw) : undefined;
           return {
             ...episodeWithoutSynopsis,
             number: Number.isFinite(Number(episode?.number)) ? Number(episode.number) : 0,
             volume: Number.isFinite(Number(episode?.volume)) ? Number(episode.volume) : undefined,
             title: String(episode?.title || ""),
+            entryKind,
+            entrySubtype: String(episodeObject?.entrySubtype || "").trim() || undefined,
+            readingOrder,
+            displayLabel:
+              entryKind === "extra" ? String(episodeObject?.displayLabel || "").trim() || undefined : undefined,
             releaseDate: String(episode?.releaseDate || ""),
             duration: String(episode?.duration || ""),
             coverImageUrl: String(episode?.coverImageUrl || "").trim() || undefined,
@@ -10838,7 +10847,7 @@ const buildLaunchesRssItems = () => {
       const kind = String(update?.kind || "")
         .trim()
         .toLowerCase();
-      return kind === "lançamento" || kind === "ajuste";
+      return kind.startsWith("lan") || kind === "ajuste";
     })
     .slice(0, 50)
     .map((update) => {
@@ -10846,13 +10855,14 @@ const buildLaunchesRssItems = () => {
       const project = publicProjects.get(projectId);
       const projectTitle = String(update?.projectTitle || project?.title || "Projeto");
       const unit = String(update?.unit || "Capítulo").trim() || "Capítulo";
+      const isExtraUnit = unit.toLowerCase() === "extra";
       const episodeNumber = Number.isFinite(Number(update?.episodeNumber))
         ? Number(update.episodeNumber)
         : null;
       const kind = String(update?.kind || "Atualização").trim() || "Atualização";
       const link = project ? `${PRIMARY_APP_ORIGIN}/projeto/${project.id}` : PRIMARY_APP_ORIGIN;
       return {
-        title: `${kind}: ${projectTitle}${episodeNumber !== null ? ` • ${unit} ${episodeNumber}` : ""}`,
+        title: `${kind}: ${projectTitle}${episodeNumber !== null ? ` - ${unit}${isExtraUnit ? "" : ` ${episodeNumber}`}` : ""}`,
         link,
         guid: `${link}#update-${String(update?.id || crypto.randomUUID())}`,
         pubDate: String(update?.updatedAt || new Date().toISOString()),
@@ -11214,6 +11224,10 @@ app.get("/api/public/projects/:id/chapters/:number", (req, res) => {
       number: chapter.number,
       volume: chapter.volume,
       title: chapter.title,
+      entryKind: String(chapter.entryKind || "").trim().toLowerCase() === "extra" ? "extra" : "main",
+      entrySubtype: String(chapter.entrySubtype || "").trim(),
+      readingOrder: Number.isFinite(Number(chapter.readingOrder)) ? Number(chapter.readingOrder) : undefined,
+      displayLabel: String(chapter.displayLabel || "").trim(),
       synopsis: deriveChapterSynopsis(chapter),
       releaseDate: chapter.releaseDate || "",
       updatedAt: chapter.chapterUpdatedAt || chapter.updatedAt || "",

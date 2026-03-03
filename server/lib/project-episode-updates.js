@@ -1,5 +1,6 @@
 import {
   buildEpisodeKey,
+  getEpisodeEntryKind,
   getEpisodePublicationStatus,
   getEpisodeSourceUrls,
   hasEpisodeContent,
@@ -60,7 +61,9 @@ export const stampEpisodePublicUpdatedAt = (prevEpisode, nextEpisode, now, proje
 
 export const applyEpisodePublicationMetadata = (prevProject, nextProject, now) => {
   const prevEpisodes = Array.isArray(prevProject?.episodeDownloads) ? prevProject.episodeDownloads : [];
-  const prevMap = new Map(prevEpisodes.map((episode) => [buildEpisodeKey(episode?.number, episode?.volume), episode]));
+  const prevMap = new Map(
+    prevEpisodes.map((episode) => [buildEpisodeKey(episode?.number, episode?.volume), episode]),
+  );
   const nextEpisodes = Array.isArray(nextProject?.episodeDownloads) ? nextProject.episodeDownloads : [];
 
   return {
@@ -85,9 +88,10 @@ export const collectEpisodeUpdates = (prevProject, nextProject, now) => {
   const updates = [];
   const nextEpisodes = Array.isArray(nextProject?.episodeDownloads) ? nextProject.episodeDownloads : [];
   const prevEpisodes = Array.isArray(prevProject?.episodeDownloads) ? prevProject.episodeDownloads : [];
-  const prevMap = new Map(prevEpisodes.map((episode) => [buildEpisodeKey(episode?.number, episode?.volume), episode]));
+  const prevMap = new Map(
+    prevEpisodes.map((episode) => [buildEpisodeKey(episode?.number, episode?.volume), episode]),
+  );
   const isChapterBased = isChapterBasedType(nextProject?.type || "");
-  const unitLabel = isChapterBased ? "Capítulo" : "Episódio";
 
   nextEpisodes.forEach((episode) => {
     const key = buildEpisodeKey(episode?.number, episode?.volume);
@@ -97,11 +101,16 @@ export const collectEpisodeUpdates = (prevProject, nextProject, now) => {
     if (!isPublic) {
       return;
     }
+
+    const isExtra = getEpisodeEntryKind(episode) === "extra";
+    const safeTitle = String(episode?.title || "").trim() || "Extra";
+    const unitLabel = isExtra ? "Extra" : isChapterBased ? "Capitulo" : "Episodio";
     const updatedAt = String(episode?.chapterUpdatedAt || now).trim() || now;
+
     if (!wasPublic) {
       updates.push({
-        kind: "Lançamento",
-        reason: `${unitLabel} ${episode.number} disponível`,
+        kind: "Lancamento",
+        reason: isExtra ? `${safeTitle} disponivel` : `${unitLabel} ${episode.number} disponivel`,
         episodeNumber: Number(episode.number),
         volume: Number.isFinite(Number(episode?.volume)) ? Number(episode.volume) : undefined,
         unit: unitLabel,
@@ -109,12 +118,15 @@ export const collectEpisodeUpdates = (prevProject, nextProject, now) => {
       });
       return;
     }
+
     if (getEpisodePublicSignature(prevEpisode) !== getEpisodePublicSignature(episode)) {
       updates.push({
         kind: "Ajuste",
-        reason: isLightNovelType(nextProject?.type || "")
-          ? `Conteúdo ajustado no ${unitLabel.toLowerCase()} ${episode.number}`
-          : `Links ajustados no ${unitLabel.toLowerCase()} ${episode.number}`,
+        reason: isExtra
+          ? `Conteudo ajustado no extra "${safeTitle}"`
+          : isLightNovelType(nextProject?.type || "")
+            ? `Conteudo ajustado no ${unitLabel.toLowerCase()} ${episode.number}`
+            : `Links ajustados no ${unitLabel.toLowerCase()} ${episode.number}`,
         episodeNumber: Number(episode.number),
         volume: Number.isFinite(Number(episode?.volume)) ? Number(episode.volume) : undefined,
         unit: unitLabel,

@@ -49,6 +49,12 @@ const sanitizeEpisodeDownloads = (episodes) =>
         number: Number.isFinite(Number(episode?.number)) ? Number(episode.number) : 0,
         volume: Number.isFinite(Number(episode?.volume)) ? Number(episode.volume) : undefined,
         title: safeString(episode?.title),
+        entryKind: String(episode?.entryKind || "").trim().toLowerCase() === "extra" ? "extra" : "main",
+        entrySubtype: safeString(episode?.entrySubtype),
+        readingOrder: Number.isFinite(Number(episode?.readingOrder))
+          ? Number(episode.readingOrder)
+          : undefined,
+        displayLabel: safeString(episode?.displayLabel),
         releaseDate: safeString(episode?.releaseDate),
         duration: safeString(episode?.duration),
         coverImageUrl: safeString(episode?.coverImageUrl),

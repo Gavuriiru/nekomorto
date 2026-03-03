@@ -114,6 +114,8 @@ const ZERO_LIKE_STYLE_VALUES = new Set([
   "inherit",
 ]);
 
+const EXTRA_TECHNICAL_NUMBER_BASE = 100000;
+
 const BOILERPLATE_HINT_PATTERNS = [
   /\bcover\b/i,
   /\binsert\b/i,
@@ -131,6 +133,18 @@ const BOILERPLATE_HINT_PATTERNS = [
   /\bsample\b/i,
 ];
 
+const HARD_DISCARD_BOILERPLATE_HINT_PATTERNS = [
+  /\bcover\b/i,
+  /\btitle[\s_-]*page\b/i,
+  /\bcopyright\b/i,
+  /\btable of contents\b/i,
+  /(?:^|[\s/_-])toc(?:$|[\s/_-])/i,
+  /(?:^|[\s/_-])nav(?:$|[\s/_-])/i,
+  /\bnewsletter\b/i,
+  /\bsign[\s_-]*up\b/i,
+  /\binsert\b/i,
+];
+
 const RANGE_INTRUDER_HINT_PATTERNS = [
   /\bcover\b/i,
   /\btitle[\s_-]*page\b/i,
@@ -142,12 +156,19 @@ const RANGE_INTRUDER_HINT_PATTERNS = [
   /\bsign[\s_-]*up\b/i,
 ];
 
-const NARRATIVE_HINT_PATTERNS = [
-  /\b(?:prologue|preface|epilogue|afterword|interlude)\b/i,
-  /\bextra\b/i,
-  /\bside[\s_-]*story\b/i,
+const MAIN_HINT_PATTERNS = [
   /(?:^|[\s/_-])(?:chapter|ch|cap(?:i|\u00ed)tulo)[\s#._-]*\d+/i,
-  /(?:^|[\s/_-])(?:chapter|preface|prologue|epilogue|afterword|interlude|extra)\d+(?:$|[\s/_-])/i,
+  /(?:^|[\s/_-])(?:chapter|cap(?:i|\u00ed)tulo)\d+(?:$|[\s/_-])/i,
+];
+
+const EXTRA_HINT_PATTERNS = [
+  /\b(?:prologue|preface|epilogue|afterword|interlude)\b/i,
+  /\bdedicat(?:ion|oria)\b/i,
+  /\bextra\b/i,
+  /\bstory\b/i,
+  /\bside[\s_-]*story\b/i,
+  /(?:^|[\s/_-])(?:story|extra|afterword|interlude|prologue|preface|epilogue)[\s#._-]*\d+/i,
+  /(?:^|[\s/_-])(?:preface|prologue|epilogue|afterword|interlude|extra)\d+(?:$|[\s/_-])/i,
 ];
 
 const createImportSanitizeOptions = () => ({
@@ -276,57 +297,210 @@ const getDocumentHint = ({ title, href, id }) =>
   normalizeHintText([title, href, id, getPathBasename(href || id)].filter(Boolean).join(" "));
 
 const hasBoilerplateHint = (value) => BOILERPLATE_HINT_PATTERNS.some((pattern) => pattern.test(value));
-const hasNarrativeHint = (value) => NARRATIVE_HINT_PATTERNS.some((pattern) => pattern.test(value));
+const hasHardDiscardBoilerplateHint = (value) =>
+  HARD_DISCARD_BOILERPLATE_HINT_PATTERNS.some((pattern) => pattern.test(value));
+const hasMainHint = (value) => MAIN_HINT_PATTERNS.some((pattern) => pattern.test(value));
+const hasExtraHint = (value) => EXTRA_HINT_PATTERNS.some((pattern) => pattern.test(value));
+
+const getAnchorTextLength = (html) => {
+  const source = String(html || "");
+  if (!source) {
+    return 0;
+  }
+  let total = 0;
+  const matches = source.matchAll(/<a\b[^>]*>([\s\S]*?)<\/a>/gi);
+  for (const match of matches) {
+    total += extractVisibleTextHeuristic(match[1]).replace(/\s+/g, "").length;
+  }
+  return total;
+};
+
+const getLinkDensity = (html, visibleTextLength) => {
+  if (!Number.isFinite(visibleTextLength) || visibleTextLength <= 0) {
+    return 0;
+  }
+  const anchorTextLength = getAnchorTextLength(html);
+  if (!Number.isFinite(anchorTextLength) || anchorTextLength <= 0) {
+    return 0;
+  }
+  return Math.min(1, anchorTextLength / visibleTextLength);
+};
+
+const resolveDocumentSubtypeFromHint = (hint) => {
+  if (/\b(?:dedication|dedicatoria|dedicat[oó]ria)\b/i.test(hint)) {
+    return "dedication";
+  }
+  if (/\bafterword\b/i.test(hint)) {
+    return "afterword";
+  }
+  if (/\bprologue\b/i.test(hint)) {
+    return "prologue";
+  }
+  if (/\bpreface\b/i.test(hint)) {
+    return "preface";
+  }
+  if (/\bepilogue\b/i.test(hint)) {
+    return "epilogue";
+  }
+  if (/\binterlude\b/i.test(hint)) {
+    return "interlude";
+  }
+  if (/\bside[\s_-]*story\b/i.test(hint)) {
+    return "side_story";
+  }
+  if (/\bstory\b/i.test(hint)) {
+    return "story";
+  }
+  if (/\bextra\b/i.test(hint)) {
+    return "extra";
+  }
+  return "";
+};
+
+const resolveDisplayLabelForSubtype = (subtype, fallbackTitle) => {
+  const normalized = String(subtype || "").trim().toLowerCase();
+  if (normalized === "dedication") {
+    return "Dedicacao";
+  }
+  if (normalized === "afterword") {
+    return "Afterword";
+  }
+  if (normalized === "prologue") {
+    return "Prologo";
+  }
+  if (normalized === "preface") {
+    return "Prefacio";
+  }
+  if (normalized === "epilogue") {
+    return "Epilogo";
+  }
+  if (normalized === "interlude") {
+    return "Interludio";
+  }
+  if (normalized === "side_story") {
+    return "Side Story";
+  }
+  if (normalized === "story") {
+    return "Story";
+  }
+  if (normalized === "extra") {
+    return "Extra";
+  }
+  const safeFallback = String(fallbackTitle || "").trim();
+  return safeFallback ? safeFallback : "Extra";
+};
+
+const shouldPromoteBoilerplateCandidate = ({
+  visibleTextLength,
+  linkDensity,
+  hasImageMarkup,
+  hasHardDiscardHint,
+} = {}) => {
+  if (hasHardDiscardHint) {
+    return false;
+  }
+  if (hasImageMarkup) {
+    return true;
+  }
+  if (visibleTextLength >= 90 && linkDensity <= 0.45) {
+    return true;
+  }
+  if (visibleTextLength >= 45 && linkDensity <= 0.3) {
+    return true;
+  }
+  return false;
+};
 
 const classifyEpubDocumentCandidate = ({ title, href, id, html, sanitizedHtml, source }) => {
   const hint = getDocumentHint({ title, href, id });
   const visibleTextLength = getVisibleTextLength(sanitizedHtml);
+  const linkDensity = getLinkDensity(sanitizedHtml, visibleTextLength);
+  const subtype = resolveDocumentSubtypeFromHint(hint);
+  const hasHardDiscardHint = hasHardDiscardBoilerplateHint(hint);
+  const hasImageMarkup = /<(?:img|svg|image)\b/i.test(String(html || ""));
 
   if (hasBoilerplateHint(hint)) {
+    if (
+      shouldPromoteBoilerplateCandidate({
+        visibleTextLength,
+        linkDensity,
+        hasImageMarkup,
+        hasHardDiscardHint,
+      })
+    ) {
+      return {
+        kind: "boilerplate_candidate",
+        reason: "boilerplate_promoted",
+        visibleTextLength,
+        linkDensity,
+        subtype: "boilerplate",
+      };
+    }
     return {
-      kind: "boilerplate",
+      kind: "discard",
       reason: "boilerplate_hint",
       visibleTextLength,
+      linkDensity,
+      subtype: "boilerplate",
     };
   }
 
-  const hasImageMarkup = /<(?:img|svg|image)\b/i.test(String(html || ""));
   if (visibleTextLength === 0 && hasImageMarkup) {
     return {
-      kind: "image_only",
-      reason: "image_only_markup",
+      kind: "boilerplate_candidate",
+      reason: "image_only_promoted",
       visibleTextLength,
+      linkDensity,
+      subtype: "boilerplate",
     };
   }
 
-  if (hasNarrativeHint(hint)) {
+  if (hasMainHint(hint)) {
     return {
-      kind: "narrative",
-      reason: "narrative_hint",
+      kind: "main",
+      reason: "main_hint",
       visibleTextLength,
+      linkDensity,
+      subtype: "chapter",
+    };
+  }
+
+  if (hasExtraHint(hint)) {
+    return {
+      kind: "extra",
+      reason: "extra_hint",
+      visibleTextLength,
+      linkDensity,
+      subtype: subtype || "extra",
     };
   }
 
   if (visibleTextLength >= 30 && source === "toc") {
     return {
-      kind: "narrative",
+      kind: "main",
       reason: "toc_textual_content",
       visibleTextLength,
+      linkDensity,
+      subtype: subtype || "chapter",
     };
   }
 
   if (visibleTextLength >= 30 && source === "flow") {
     return {
-      kind: "narrative",
+      kind: "main",
       reason: "flow_textual_content",
       visibleTextLength,
+      linkDensity,
+      subtype: subtype || "chapter",
     };
   }
 
   return {
-    kind: "unknown",
+    kind: "discard",
     reason: "not_narrative_enough",
     visibleTextLength,
+    linkDensity,
+    subtype: "",
   };
 };
 
@@ -360,6 +534,15 @@ const resolveFallbackNumber = (targetVolume, reservedKeys) => {
   return current;
 };
 
+const resolveFallbackExtraTechnicalNumber = (targetVolume, reservedKeys) => {
+  let current = EXTRA_TECHNICAL_NUMBER_BASE;
+  while (reservedKeys.has(buildEpisodeKey(current, targetVolume))) {
+    current += 1;
+  }
+  reservedKeys.add(buildEpisodeKey(current, targetVolume));
+  return current;
+};
+
 const normalizeImportStatus = (value) =>
   String(value || "").trim().toLowerCase() === "published" ? "published" : "draft";
 
@@ -370,6 +553,39 @@ const buildExistingEpisodeMap = (project) =>
       episode,
     ]),
   );
+
+const buildExistingExtraLookup = (project, targetVolume) => {
+  const list = Array.isArray(project?.episodeDownloads) ? project.episodeDownloads : [];
+  const byReadingOrder = new Map();
+  const byTitle = new Map();
+  const targetVolumeValue = Number.isFinite(Number(targetVolume)) ? Number(targetVolume) : 0;
+  list.forEach((episode) => {
+    const kind = String(episode?.entryKind || "").trim().toLowerCase();
+    if (kind !== "extra") {
+      return;
+    }
+    const episodeVolume = Number.isFinite(Number(episode?.volume)) ? Number(episode.volume) : 0;
+    if (episodeVolume !== targetVolumeValue) {
+      return;
+    }
+    const safeNumber = Number(episode?.number);
+    if (!Number.isFinite(safeNumber) || safeNumber < EXTRA_TECHNICAL_NUMBER_BASE) {
+      return;
+    }
+    const readingOrder = Number(episode?.readingOrder);
+    if (Number.isFinite(readingOrder) && !byReadingOrder.has(readingOrder)) {
+      byReadingOrder.set(readingOrder, episode);
+    }
+    const titleKey = normalizeHintText(String(episode?.title || ""));
+    if (titleKey && !byTitle.has(titleKey)) {
+      byTitle.set(titleKey, episode);
+    }
+  });
+  return {
+    byReadingOrder,
+    byTitle,
+  };
+};
 
 const buildFlowIndexes = (epub) => {
   const flowItems = Array.isArray(epub?.flow) ? epub.flow : [];
@@ -575,11 +791,12 @@ const resolveTocReferences = (epub) => {
 const buildFallbackFlowReferences = (epub) => {
   const { flowItems } = buildFlowIndexes(epub);
   return flowItems
-    .map((item) => ({
+    .map((item, index) => ({
       id: String(item?.id || "").trim(),
       href: normalizeEpubHref(item?.href),
       title: String(item?.title || "").trim(),
       source: "flow",
+      flowIndex: index,
     }))
     .filter((item) => item.id);
 };
@@ -599,8 +816,11 @@ const getNarrativeGroupStem = (item) => {
   return null;
 };
 
-const buildDiscardWarnings = ({ boilerplate, imageOnly, unresolvedTocEntry }) => {
+const buildDiscardWarnings = ({ boilerplate, boilerplatePromoted, imageOnly, unresolvedTocEntry }) => {
   const warnings = [];
+  if (boilerplatePromoted > 0) {
+    warnings.push(`Itens de boilerplate promovidos para extras: ${boilerplatePromoted}.`);
+  }
   if (boilerplate > 0) {
     warnings.push(`Itens de boilerplate ignorados: ${boilerplate}.`);
   }
@@ -1389,14 +1609,14 @@ const shouldDiscardRangePartAsBoilerplate = (item) => {
 
 const buildNarrativeChapterCandidatesFromToc = async ({
   epub,
-  tocNarrativeCandidates,
+  tocStructuredCandidates,
   discardedCounts,
   warnings,
   imageContext,
 } = {}) => {
   const { flowItems } = buildFlowIndexes(epub);
   const { manifestByHref } = buildManifestIndexes(epub);
-  const sortedNarrativeCandidates = [...tocNarrativeCandidates]
+  const sortedNarrativeCandidates = [...tocStructuredCandidates]
     .filter((candidate) => Number.isFinite(candidate?.flowIndex))
     .sort((left, right) => Number(left.flowIndex) - Number(right.flowIndex));
 
@@ -1421,7 +1641,14 @@ const buildNarrativeChapterCandidatesFromToc = async ({
       if (!partReference.id) {
         continue;
       }
-      if (shouldDiscardRangePartAsBoilerplate(partReference)) {
+      const isBoundaryStart = flowIndex === startIndex;
+      if (
+        shouldDiscardRangePartAsBoilerplate(partReference) &&
+        !(
+          isBoundaryStart &&
+          String(item?.classification?.kind || "").trim().toLowerCase() === "boilerplate_candidate"
+        )
+      ) {
         discardedCounts.boilerplate += 1;
         continue;
       }
@@ -1452,6 +1679,14 @@ const buildNarrativeChapterCandidatesFromToc = async ({
       title: item.title,
       source: "toc",
       sanitizedHtml,
+      readingOrder: Number(item.flowIndex) + 1,
+      entryKind:
+        String(item?.classification?.kind || "").trim().toLowerCase() === "main" ? "main" : "extra",
+      entrySubtype: String(item?.classification?.subtype || "").trim() || "extra",
+      displayLabel:
+        String(item?.classification?.kind || "").trim().toLowerCase() === "main"
+          ? ""
+          : resolveDisplayLabelForSubtype(item?.classification?.subtype, item.title),
     });
   }
 
@@ -1481,9 +1716,12 @@ const buildFallbackNarrativeChapterCandidates = async ({
       source: candidate.source,
     });
 
-    if (classification.kind === "boilerplate") {
+    if (classification.kind === "discard") {
       discardedCounts.boilerplate += 1;
       continue;
+    }
+    if (classification.kind === "boilerplate_candidate") {
+      discardedCounts.boilerplatePromoted += 1;
     }
 
     const stem = getNarrativeGroupStem(candidate);
@@ -1491,7 +1729,13 @@ const buildFallbackNarrativeChapterCandidates = async ({
     if (stem) {
       if (previous?.stem === stem) {
         previous.parts.push({ candidate, classification });
-        previous.hasNarrative ||= classification.kind === "narrative";
+        previous.hasReadable ||= classification.kind !== "discard";
+        if (classification.kind === "main") {
+          previous.hasMain = true;
+        }
+        if (classification.kind === "boilerplate_candidate") {
+          previous.hasBoilerplateCandidate = true;
+        }
         if (!previous.title && candidate.title) {
           previous.title = candidate.title;
         }
@@ -1500,40 +1744,42 @@ const buildFallbackNarrativeChapterCandidates = async ({
           stem,
           title: candidate.title,
           parts: [{ candidate, classification }],
-          hasNarrative: classification.kind === "narrative",
+          hasReadable: classification.kind !== "discard",
+          hasMain: classification.kind === "main",
+          hasBoilerplateCandidate: classification.kind === "boilerplate_candidate",
         });
       }
       continue;
     }
 
-    if (classification.kind === "narrative") {
+    if (classification.kind === "main" || classification.kind === "extra" || classification.kind === "boilerplate_candidate") {
       groups.push({
         stem: null,
         title: candidate.title,
         parts: [{ candidate, classification }],
-        hasNarrative: true,
+        hasReadable: true,
+        hasMain: classification.kind === "main",
+        hasBoilerplateCandidate: classification.kind === "boilerplate_candidate",
       });
       continue;
     }
 
-    if (classification.kind === "image_only") {
-      discardedCounts.imageOnly += 1;
-    }
+    discardedCounts.imageOnly += 1;
   }
 
   const { manifestByHref } = buildManifestIndexes(epub);
   const chapters = [];
   groups.forEach((group) => {
-    if (!group.hasNarrative) {
+    if (!group.hasReadable) {
       group.parts.forEach((part) => {
-        if (part.classification.kind === "image_only") {
+        if (part.classification.kind === "discard") {
           discardedCounts.imageOnly += 1;
         }
       });
     }
   });
 
-  for (const group of groups.filter((entry) => entry.hasNarrative)) {
+  for (const group of groups.filter((entry) => entry.hasReadable)) {
     const chapterParts = [];
     for (const part of group.parts) {
       const partReference = part.candidate;
@@ -1556,12 +1802,27 @@ const buildFallbackNarrativeChapterCandidates = async ({
       continue;
     }
     const firstPart = group.parts[0]?.candidate;
+    const primaryClassification = group.parts[0]?.classification || {};
+    const entryKind = group.hasMain ? "main" : "extra";
+    const entrySubtype =
+      String(
+        group.parts.find((part) => String(part?.classification?.subtype || "").trim())?.classification
+          ?.subtype || "",
+      ).trim() || (entryKind === "main" ? "chapter" : "extra");
     chapters.push({
       id: firstPart?.id,
       href: firstPart?.href,
       title: String(group.title || firstPart?.title || "").trim(),
       source: "flow",
       sanitizedHtml,
+      readingOrder: Number(firstPart?.flowIndex) + 1,
+      entryKind,
+      entrySubtype,
+      displayLabel:
+        entryKind === "main"
+          ? ""
+          : resolveDisplayLabelForSubtype(entrySubtype, String(group.title || firstPart?.title || "").trim()),
+      classification: primaryClassification,
     });
   }
 
@@ -1593,12 +1854,14 @@ export const importProjectEpub = async ({
   });
   const normalizedDefaultStatus = normalizeImportStatus(defaultStatus);
   const existingEpisodes = buildExistingEpisodeMap(project);
+  const existingExtraLookup = buildExistingExtraLookup(project, targetVolume);
   const fallbackReservedKeys = new Set(existingEpisodes.keys());
   const assignedImportKeys = new Set();
   const warnings = [];
   const chapters = [];
   const discardedCounts = {
     boilerplate: 0,
+    boilerplatePromoted: 0,
     imageOnly: 0,
     unresolvedTocEntry: 0,
   };
@@ -1613,7 +1876,7 @@ export const importProjectEpub = async ({
   const { items: tocReferences, unresolvedCount } = resolveTocReferences(epub);
   discardedCounts.unresolvedTocEntry = unresolvedCount;
 
-  const tocNarrativeCandidates = [];
+  const tocStructuredCandidates = [];
   for (const item of tocReferences) {
     const candidate = await materializeCandidate(epub, item);
     const classification = classifyEpubDocumentCandidate({
@@ -1624,24 +1887,32 @@ export const importProjectEpub = async ({
       sanitizedHtml: candidate.sanitizedHtml,
       source: candidate.source,
     });
-    if (classification.kind === "narrative") {
-      tocNarrativeCandidates.push(candidate);
+    if (
+      classification.kind === "main" ||
+      classification.kind === "extra" ||
+      classification.kind === "boilerplate_candidate"
+    ) {
+      tocStructuredCandidates.push({
+        ...candidate,
+        classification,
+      });
+      if (classification.kind === "boilerplate_candidate") {
+        discardedCounts.boilerplatePromoted += 1;
+      }
       continue;
     }
-    if (classification.kind === "boilerplate") {
-      discardedCounts.boilerplate += 1;
-      continue;
-    }
-    if (classification.kind === "image_only") {
+    if (classification.reason === "image_only_markup") {
       discardedCounts.imageOnly += 1;
+      continue;
     }
+    discardedCounts.boilerplate += 1;
   }
 
   const orderedChapterCandidates =
-    tocNarrativeCandidates.length > 0
+    tocStructuredCandidates.length > 0
       ? await buildNarrativeChapterCandidatesFromToc({
           epub,
-          tocNarrativeCandidates,
+          tocStructuredCandidates,
           discardedCounts,
           warnings,
           imageContext,
@@ -1657,25 +1928,66 @@ export const importProjectEpub = async ({
 
   for (const [chapterIndex, item] of orderedChapterCandidates.entries()) {
     const title = String(item?.title || epub.manifest?.[item.id]?.title || "").trim() || "Capitulo";
-    let chapterNumber = extractChapterNumber(title);
-    if (chapterNumber !== null) {
-      const explicitKey = buildEpisodeKey(chapterNumber, targetVolume);
-      if (assignedImportKeys.has(explicitKey)) {
-        warnings.push(
-          `Capitulo "${title}" repetiu o numero ${chapterNumber}; foi renumerado automaticamente.`,
-        );
-        chapterNumber = null;
+    const readingOrder = Number.isFinite(Number(item?.readingOrder))
+      ? Number(item.readingOrder)
+      : chapterIndex + 1;
+    const entryKind = String(item?.entryKind || "").trim().toLowerCase() === "extra" ? "extra" : "main";
+    const entrySubtype =
+      String(item?.entrySubtype || "").trim() || (entryKind === "extra" ? "extra" : "chapter");
+    const displayLabel =
+      String(item?.displayLabel || "").trim() ||
+      (entryKind === "extra" ? resolveDisplayLabelForSubtype(entrySubtype, title) : "");
+
+    let chapterNumber = null;
+    let extraMatchedExisting = null;
+    if (entryKind === "extra") {
+      const existingByOrder =
+        Number.isFinite(readingOrder) && existingExtraLookup.byReadingOrder.has(readingOrder)
+          ? existingExtraLookup.byReadingOrder.get(readingOrder)
+          : null;
+      const existingByTitle =
+        existingByOrder ||
+        existingExtraLookup.byTitle.get(normalizeHintText(title)) ||
+        null;
+      const resolvedExistingNumber = Number(existingByTitle?.number);
+      const existingKey = buildEpisodeKey(resolvedExistingNumber, targetVolume);
+      if (
+        existingByTitle &&
+        Number.isFinite(resolvedExistingNumber) &&
+        resolvedExistingNumber >= EXTRA_TECHNICAL_NUMBER_BASE &&
+        existingKey &&
+        !assignedImportKeys.has(existingKey)
+      ) {
+        chapterNumber = resolvedExistingNumber;
+        extraMatchedExisting = existingByTitle;
+        assignedImportKeys.add(existingKey);
+        fallbackReservedKeys.add(existingKey);
       } else {
-        assignedImportKeys.add(explicitKey);
-        fallbackReservedKeys.add(explicitKey);
+        chapterNumber = resolveFallbackExtraTechnicalNumber(targetVolume, fallbackReservedKeys);
+        assignedImportKeys.add(buildEpisodeKey(chapterNumber, targetVolume));
+      }
+    } else {
+      chapterNumber = extractChapterNumber(title);
+      if (chapterNumber !== null) {
+        const explicitKey = buildEpisodeKey(chapterNumber, targetVolume);
+        if (assignedImportKeys.has(explicitKey)) {
+          warnings.push(
+            `Capitulo "${title}" repetiu o numero ${chapterNumber}; foi renumerado automaticamente.`,
+          );
+          chapterNumber = null;
+        } else {
+          assignedImportKeys.add(explicitKey);
+          fallbackReservedKeys.add(explicitKey);
+        }
+      }
+      if (chapterNumber === null) {
+        chapterNumber = resolveFallbackNumber(targetVolume, fallbackReservedKeys);
+        assignedImportKeys.add(buildEpisodeKey(chapterNumber, targetVolume));
       }
     }
-    if (chapterNumber === null) {
-      chapterNumber = resolveFallbackNumber(targetVolume, fallbackReservedKeys);
-      assignedImportKeys.add(buildEpisodeKey(chapterNumber, targetVolume));
-    }
+
     const episodeKey = buildEpisodeKey(chapterNumber, targetVolume);
-    const existingEpisode = existingEpisodes.get(episodeKey) || null;
+    const existingEpisode = extraMatchedExisting || existingEpisodes.get(episodeKey) || null;
     const publicationStatus =
       existingEpisode && getEpisodePublicationStatus(existingEpisode) === "published"
         ? "published"
@@ -1704,6 +2016,10 @@ export const importProjectEpub = async ({
       number: chapterNumber,
       volume: Number.isFinite(Number(targetVolume)) ? Number(targetVolume) : undefined,
       title,
+      entryKind,
+      entrySubtype,
+      readingOrder,
+      displayLabel: entryKind === "extra" ? displayLabel : "",
       releaseDate: String(existingEpisode?.releaseDate || ""),
       duration: String(existingEpisode?.duration || ""),
       coverImageUrl: String(existingEpisode?.coverImageUrl || ""),
@@ -1727,17 +2043,22 @@ export const importProjectEpub = async ({
 
   const createdCount = chapters.filter((chapter) => chapter.mergeMode === "create").length;
   const updatedCount = chapters.length - createdCount;
+  const mainImportedCount = chapters.filter((chapter) => chapter.entryKind !== "extra").length;
+  const extrasImportedCount = chapters.length - mainImportedCount;
 
   await flushImageContextUploads(imageContext);
 
   return {
     summary: {
       chapters: chapters.length,
+      mainImported: mainImportedCount,
+      extrasImported: extrasImportedCount,
       created: createdCount,
       updated: updatedCount,
       volume: Number.isFinite(Number(targetVolume)) ? Number(targetVolume) : null,
       imagesImported: Number(imageContext?.imagesImported || 0),
       imageImportFailures: Number(imageContext?.imageImportFailures || 0),
+      boilerplatePromoted: discardedCounts.boilerplatePromoted,
       boilerplateDiscarded: discardedCounts.boilerplate,
       unresolvedTocEntries: discardedCounts.unresolvedTocEntry,
       volumeCoverImported: volumeCoverImport?.summary?.volumeCoverImported === true,

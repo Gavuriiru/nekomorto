@@ -96,6 +96,8 @@ const IMAGE_ALLOWED_STYLE_PATTERNS = {
 };
 
 const normalizeVolumeForFilter = (value) => (Number.isFinite(Number(value)) ? Number(value) : null);
+const normalizeEpisodeReadingOrder = (episode) =>
+  Number.isFinite(Number(episode?.readingOrder)) ? Number(episode.readingOrder) : null;
 
 const createExportSanitizeOptions = (origin) => ({
   allowedTags: EXPORT_ALLOWED_TAGS,
@@ -195,6 +197,19 @@ export const exportProjectEpub = async ({
     .filter((episode) => hasEpisodeContent(episode))
     .filter((episode) => includeDrafts || getEpisodePublicationStatus(episode) === "published")
     .sort((a, b) => {
+      const leftReadingOrder = normalizeEpisodeReadingOrder(a);
+      const rightReadingOrder = normalizeEpisodeReadingOrder(b);
+      if (leftReadingOrder !== null || rightReadingOrder !== null) {
+        if (leftReadingOrder === null) {
+          return 1;
+        }
+        if (rightReadingOrder === null) {
+          return -1;
+        }
+        if (leftReadingOrder !== rightReadingOrder) {
+          return leftReadingOrder - rightReadingOrder;
+        }
+      }
       const numberDelta = Number(a?.number || 0) - Number(b?.number || 0);
       if (numberDelta !== 0) {
         return numberDelta;

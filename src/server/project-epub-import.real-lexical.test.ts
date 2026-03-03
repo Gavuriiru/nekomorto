@@ -126,7 +126,12 @@ describe("project EPUB import with real lexical bridge", () => {
 
     expect(result.chapters).toHaveLength(0);
     expect(result.summary.chapters).toBe(0);
-    expect(result.warnings).toEqual(expect.arrayContaining(["Paginas somente com imagem ignoradas: 1."]));
+    expect(result.warnings).toEqual(
+      expect.arrayContaining([
+        'Imagem interna ignorada no capitulo "Chapter 1": cover.jpg.',
+        "Itens de boilerplate promovidos para extras: 1.",
+      ]),
+    );
   });
 
   it("importa imagem interna dentro do intervalo narrativo do TOC", async () => {

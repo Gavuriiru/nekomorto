@@ -129,11 +129,14 @@ describe("project EPUB import", () => {
 
     expect(result.summary).toEqual({
       chapters: 2,
+      mainImported: 1,
+      extrasImported: 1,
       created: 2,
       updated: 0,
       volume: 7,
       imagesImported: 0,
       imageImportFailures: 0,
+      boilerplatePromoted: 0,
       boilerplateDiscarded: 3,
       unresolvedTocEntries: 1,
       volumeCoverImported: false,
@@ -145,12 +148,14 @@ describe("project EPUB import", () => {
       language: "pt-BR",
     });
     expect(result.chapters.map((chapter) => chapter.title)).toEqual(["Chapter 1", "Afterword"]);
-    expect(result.chapters.map((chapter) => chapter.number)).toEqual([1, 2]);
+    expect(result.chapters.map((chapter) => chapter.number)).toEqual([1, 100000]);
+    expect(result.chapters.map((chapter) => chapter.entryKind)).toEqual(["main", "extra"]);
     expect(result.chapters[1]).toEqual(
       expect.objectContaining({
         mergeMode: "create",
         publicationStatus: "draft",
-        episodeKey: "2:7",
+        episodeKey: "100000:7",
+        entrySubtype: "afterword",
       }),
     );
     expect(result.warnings).toEqual(
@@ -261,11 +266,14 @@ describe("project EPUB import", () => {
     expect(result.chapters).toHaveLength(2);
     expect(result.summary).toEqual({
       chapters: 2,
+      mainImported: 2,
+      extrasImported: 0,
       created: 2,
       updated: 0,
       volume: 1,
       imagesImported: 1,
       imageImportFailures: 0,
+      boilerplatePromoted: 0,
       boilerplateDiscarded: 0,
       unresolvedTocEntries: 0,
       volumeCoverImported: false,
@@ -456,7 +464,12 @@ describe("project EPUB import", () => {
 
     expect(result.chapters).toHaveLength(0);
     expect(result.summary.chapters).toBe(0);
-    expect(result.warnings).toEqual(expect.arrayContaining(["Paginas somente com imagem ignoradas: 1."]));
+    expect(result.warnings).toEqual(
+      expect.arrayContaining([
+        'Imagem interna ignorada no capitulo "Chapter 1": illustration.jpg.',
+        "Itens de boilerplate promovidos para extras: 1.",
+      ]),
+    );
     expect(htmlToLexicalJsonMock).not.toHaveBeenCalled();
   });
 
@@ -491,11 +504,14 @@ describe("project EPUB import", () => {
 
     expect(result.summary).toEqual({
       chapters: 1,
+      mainImported: 1,
+      extrasImported: 0,
       created: 0,
       updated: 1,
       volume: 5,
       imagesImported: 0,
       imageImportFailures: 0,
+      boilerplatePromoted: 0,
       boilerplateDiscarded: 0,
       unresolvedTocEntries: 0,
       volumeCoverImported: false,

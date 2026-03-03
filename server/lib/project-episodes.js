@@ -3,10 +3,18 @@ export const getEpisodeNumberValue = (value) => {
   return Number.isFinite(parsed) ? parsed : null;
 };
 
+export const getEpisodeReadingOrderValue = (value) => {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+};
+
 export const getEpisodeVolumeValue = (value) => {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : 0;
 };
+
+export const getEpisodeEntryKind = (episode) =>
+  String(episode?.entryKind || "").trim().toLowerCase() === "extra" ? "extra" : "main";
 
 const getLookupVolumeValue = (value) => {
   if (value === null || value === undefined) {

@@ -35,6 +35,10 @@ const ProjectReading = () => {
     number: number;
     volume?: number;
     title?: string;
+    entryKind?: "main" | "extra";
+    entrySubtype?: string;
+    readingOrder?: number;
+    displayLabel?: string;
     synopsis?: string;
     content?: string;
     contentFormat?: "lexical";
@@ -49,11 +53,17 @@ const ProjectReading = () => {
     if (!project) {
       return "Leitura";
     }
+    const entryKind = chapterContent?.entryKind === "extra" ? "extra" : "main";
     const chapterNumber = chapterContent?.number ?? chapter;
-    const chapterLabel = chapterNumber ? `Capítulo ${chapterNumber}` : "Capítulo";
+    const chapterLabel =
+      entryKind === "extra"
+        ? String(chapterContent?.displayLabel || "Extra").trim() || "Extra"
+        : chapterNumber
+          ? `Capítulo ${chapterNumber}`
+          : "Capítulo";
     const titlePart = chapterContent?.title ? `${chapterLabel} - ${chapterContent.title}` : chapterLabel;
     return `${titlePart} - ${project.title}`;
-  }, [chapter, chapterContent?.number, chapterContent?.title, project]);
+  }, [chapter, chapterContent?.displayLabel, chapterContent?.entryKind, chapterContent?.number, chapterContent?.title, project]);
 
   useEffect(() => {
     if (!slug) {
@@ -138,6 +148,21 @@ const ProjectReading = () => {
           (typeof entry.content === "string" && entry.content.trim().length > 0),
       )
       .sort((a, b) => {
+        const leftReadingOrder = Number(a.readingOrder);
+        const rightReadingOrder = Number(b.readingOrder);
+        const hasLeftReadingOrder = Number.isFinite(leftReadingOrder);
+        const hasRightReadingOrder = Number.isFinite(rightReadingOrder);
+        if (hasLeftReadingOrder || hasRightReadingOrder) {
+          if (!hasLeftReadingOrder) {
+            return 1;
+          }
+          if (!hasRightReadingOrder) {
+            return -1;
+          }
+          if (leftReadingOrder !== rightReadingOrder) {
+            return leftReadingOrder - rightReadingOrder;
+          }
+        }
         const numberDelta = (a.number || 0) - (b.number || 0);
         if (numberDelta !== 0) {
           return numberDelta;
@@ -287,6 +312,14 @@ const ProjectReading = () => {
     currentIndex >= 0 && currentIndex < sortedChapters.length - 1
       ? sortedChapters[currentIndex + 1]
       : null;
+  const chapterBadgeLabel = useMemo(() => {
+    const isExtra =
+      chapterContent?.entryKind === "extra" || chapterData?.entryKind === "extra";
+    if (isExtra) {
+      return String(chapterContent?.displayLabel || chapterData?.displayLabel || "Extra").trim() || "Extra";
+    }
+    return `Cap ${chapterData?.number ?? chapterNumber}`;
+  }, [chapterContent?.displayLabel, chapterContent?.entryKind, chapterData?.displayLabel, chapterData?.entryKind, chapterData?.number, chapterNumber]);
   const canEditChapter = useMemo(() => {
     const permissions = Array.isArray(currentUser?.permissions) ? currentUser.permissions : [];
     return permissions.includes("*") || permissions.includes("projetos");
@@ -420,7 +453,7 @@ const ProjectReading = () => {
                     Light Novel
                   </Badge>
                   <Badge variant="secondary" className="project-reading-masthead__badge project-reading-masthead__badge--chapter text-xs uppercase">
-                    Cap {chapterData?.number ?? chapterNumber}
+                    {chapterBadgeLabel}
                     {Number.isFinite(activeVolume) ? ` • Vol. ${activeVolume}` : ""}
                   </Badge>
                 </div>
@@ -457,7 +490,11 @@ const ProjectReading = () => {
                     >
                       <Link to={editChapterHref}>
                         <PencilLine className="h-4 w-4" aria-hidden="true" />
-                        <span>Editar capítulo</span>
+                        <span>
+                          {chapterContent?.entryKind === "extra" || chapterData?.entryKind === "extra"
+                            ? "Editar extra"
+                            : "Editar capítulo"}
+                        </span>
                       </Link>
                     </Button>
                   ) : null}

@@ -320,6 +320,35 @@ const ProjectPage = () => {
     };
   };
 
+  const getEpisodeEntryKind = (episode: { entryKind?: string } | null | undefined) =>
+    episode?.entryKind === "extra" ? "extra" : "main";
+
+  const compareEpisodeOrdering = (
+    left: { number?: number; volume?: number; readingOrder?: number },
+    right: { number?: number; volume?: number; readingOrder?: number },
+  ) => {
+    const leftReadingOrder = Number(left?.readingOrder);
+    const rightReadingOrder = Number(right?.readingOrder);
+    const hasLeftReadingOrder = Number.isFinite(leftReadingOrder);
+    const hasRightReadingOrder = Number.isFinite(rightReadingOrder);
+    if (hasLeftReadingOrder || hasRightReadingOrder) {
+      if (!hasLeftReadingOrder) {
+        return 1;
+      }
+      if (!hasRightReadingOrder) {
+        return -1;
+      }
+      if (leftReadingOrder !== rightReadingOrder) {
+        return leftReadingOrder - rightReadingOrder;
+      }
+    }
+    const numberDelta = (left.number || 0) - (right.number || 0);
+    if (numberDelta !== 0) {
+      return numberDelta;
+    }
+    return (left.volume || 0) - (right.volume || 0);
+  };
+
   const downloadableEpisodes = useMemo(
     () => (project?.episodeDownloads || []).filter((episode) => (episode.sources || []).length > 0),
     [project?.episodeDownloads],
@@ -337,23 +366,11 @@ const ProjectPage = () => {
   );
 
   const sortedDownloadableEpisodes = useMemo(() => {
-    return [...downloadableEpisodes].sort((a, b) => {
-      const numberDelta = (a.number || 0) - (b.number || 0);
-      if (numberDelta !== 0) {
-        return numberDelta;
-      }
-      return (a.volume || 0) - (b.volume || 0);
-    });
+    return [...downloadableEpisodes].sort((a, b) => compareEpisodeOrdering(a, b));
   }, [downloadableEpisodes]);
 
   const sortedLightNovelChapters = useMemo(() => {
-    return [...lightNovelChapters].sort((a, b) => {
-      const numberDelta = (a.number || 0) - (b.number || 0);
-      if (numberDelta !== 0) {
-        return numberDelta;
-      }
-      return (a.volume || 0) - (b.volume || 0);
-    });
+    return [...lightNovelChapters].sort((a, b) => compareEpisodeOrdering(a, b));
   }, [lightNovelChapters]);
 
   const filteredLightNovelChapters = sortedLightNovelChapters;
@@ -429,6 +446,12 @@ const ProjectPage = () => {
 
   const renderEpisodeDownloadCard = (episode: EpisodeItem, key: string, showRawBadge: boolean) => {
     const { sizeLabel, hashLabel, hashTitle } = buildEpisodeMetadata(episode);
+    const isExtraEntry = getEpisodeEntryKind(episode) === "extra";
+    const episodeBadgeLabel = isExtraEntry
+      ? String(episode.displayLabel || "Extra").trim() || "Extra"
+      : isManga
+        ? `Cap ${episode.number}${episode.volume ? ` • Vol. ${episode.volume}` : ""}`
+        : `EP ${episode.number}`;
 
     return (
       <Card
@@ -453,9 +476,7 @@ const ProjectPage = () => {
                   variant="secondary"
                   className="rounded-full px-2.5 py-0.5 text-[10px] uppercase"
                 >
-                  {isManga
-                    ? `Cap ${episode.number}${episode.volume ? ` • Vol. ${episode.volume}` : ""}`
-                    : `EP ${episode.number}`}
+                  {episodeBadgeLabel}
                 </Badge>
                 {showRawBadge ? (
                   <Badge
@@ -1054,6 +1075,10 @@ const ProjectPage = () => {
                                     (typeof chapter.content === "string" &&
                                       chapter.content.trim().length > 0);
                                   const hasSources = (chapter.sources || []).length > 0;
+                                  const isExtraEntry = getEpisodeEntryKind(chapter) === "extra";
+                                  const chapterLabel = isExtraEntry
+                                    ? String(chapter.displayLabel || "Extra").trim() || "Extra"
+                                    : `Cap ${chapter.number}`;
                                   const search = chapter.volume ? `?volume=${chapter.volume}` : "";
                                   return (
                                     <Card
@@ -1067,7 +1092,7 @@ const ProjectPage = () => {
                                               variant="secondary"
                                               className="text-xs uppercase"
                                             >
-                                              Cap {chapter.number}
+                                              {chapterLabel}
                                               {chapter.volume ? ` • Vol. ${chapter.volume}` : ""}
                                             </Badge>
                                             <p className="text-base font-semibold text-foreground">
@@ -1080,7 +1105,7 @@ const ProjectPage = () => {
                                                 <Link
                                                   to={`/projeto/${project.id}/leitura/${chapter.number}${search}`}
                                                 >
-                                                  Ler capítulo
+                                                  {isExtraEntry ? "Ler extra" : "Ler capítulo"}
                                                 </Link>
                                               </Button>
                                             ) : null}
