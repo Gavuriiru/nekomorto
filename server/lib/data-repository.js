@@ -163,7 +163,8 @@ export class DbDataRepository {
     }
   }
 
-  enqueuePersist(label, fn) {
+  enqueuePersist(label, fn, options = {}) {
+    const propagateError = options?.propagateError === true;
     const enqueuedAt = Date.now();
     this.health.queueDepth += 1;
     if (
@@ -183,22 +184,22 @@ export class DbDataRepository {
         this.health.oldestPendingEnqueuedAt = null;
       }
     };
-    this.persistQueue = this.persistQueue
-      .then(async () => {
-        this.health.lastPersistStartedAt = new Date().toISOString();
-        try {
-          await fn();
-          this.health.lastPersistCompletedAt = new Date().toISOString();
-        } catch (error) {
-          this.reportError(label, error);
-        } finally {
-          markDone();
-        }
-      })
-      .catch((error) => {
+    const jobPromise = this.persistQueue.then(async () => {
+      this.health.lastPersistStartedAt = new Date().toISOString();
+      try {
+        await fn();
+        this.health.lastPersistCompletedAt = new Date().toISOString();
+      } catch (error) {
         this.reportError(label, error);
+        if (propagateError) {
+          throw error;
+        }
+      } finally {
         markDone();
-      });
+      }
+    });
+    this.persistQueue = jobPromise.catch(() => undefined);
+    return jobPromise;
   }
 
   async persistCollectionById({ model, rows, idKey = "id", updateFields = null }) {
@@ -825,24 +826,32 @@ export class DbDataRepository {
     return cloneValue(this.snapshot.uploads);
   }
 
-  writeUploads(uploads) {
+  writeUploads(uploads, options = {}) {
     this.snapshot.uploads = cloneValue(ensureArray(uploads));
-    this.enqueuePersist("uploads", async () => {
-      const rows = this.snapshot.uploads.map((upload, index) => ({
-        id: String(upload?.id || crypto.randomUUID()),
-        position: index,
-        url: String(upload?.url || ""),
-        folder: String(upload?.folder || ""),
-        createdAt: toDateOrNull(upload?.createdAt),
-        data: cloneValue(upload || {}),
-      }));
-      await this.persistCollectionById({
-        model: prisma.uploadRecord,
-        rows,
-        idKey: "id",
-        updateFields: ["position", "url", "folder", "createdAt", "data"],
-      });
-    });
+    const persistPromise = this.enqueuePersist(
+      "uploads",
+      async () => {
+        const rows = this.snapshot.uploads.map((upload, index) => ({
+          id: String(upload?.id || crypto.randomUUID()),
+          position: index,
+          url: String(upload?.url || ""),
+          folder: String(upload?.folder || ""),
+          createdAt: toDateOrNull(upload?.createdAt),
+          data: cloneValue(upload || {}),
+        }));
+        await this.persistCollectionById({
+          model: prisma.uploadRecord,
+          rows,
+          idKey: "id",
+          updateFields: ["position", "url", "folder", "createdAt", "data"],
+        });
+      },
+      { propagateError: options?.awaitPersist === true },
+    );
+    if (options?.awaitPersist === true) {
+      return persistPromise;
+    }
+    return undefined;
   }
 
   loadPages() {

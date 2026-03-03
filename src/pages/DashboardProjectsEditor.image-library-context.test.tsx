@@ -217,7 +217,13 @@ describe("DashboardProjectsEditor image library context", () => {
     });
 
     const lexicalWithEpisodeContext = lexicalPropsSpy.mock.calls
-      .map((call) => call[0] as { imageLibraryOptions?: { uploadFolder?: string; listFolders?: string[]; listAll?: boolean } })
+      .map(
+        (call) =>
+          call[0] as {
+            autoFocus?: boolean;
+            imageLibraryOptions?: { uploadFolder?: string; listFolders?: string[]; listAll?: boolean };
+          },
+      )
       .find(
         (props) =>
           props.imageLibraryOptions?.uploadFolder ===
@@ -225,6 +231,7 @@ describe("DashboardProjectsEditor image library context", () => {
       );
 
     expect(lexicalWithEpisodeContext).toBeTruthy();
+    expect(lexicalWithEpisodeContext?.autoFocus).toBe(false);
     expect(lexicalWithEpisodeContext?.imageLibraryOptions).toEqual({
       uploadFolder: "projects/project-1/capitulos/volume-sem-volume/capitulo-1",
       listFolders: [

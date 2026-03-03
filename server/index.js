@@ -84,6 +84,11 @@ import { deriveChapterSynopsis } from "./lib/chapter-synopsis.js";
 import { exportProjectEpub } from "./lib/project-epub-export.js";
 import { importProjectEpub } from "./lib/project-epub-import.js";
 import {
+  EPUB_IMPORT_MULTIPART_LIMITS,
+  mapEpubImportExecutionError,
+  mapEpubImportMultipartError,
+} from "./lib/project-epub-import-request.js";
+import {
   buildProjectOgCardModel,
   buildProjectOgImagePath,
   buildProjectOgImageResponse,
@@ -3775,7 +3780,7 @@ const mergeSettings = (base, override) => {
   return override ?? base;
 };
 
-const hasMojibake = (value) => /Ã|Â|�/.test(String(value || ""));
+const hasMojibake = (value) => /\u00C3|\u00C2|\uFFFD/.test(String(value || ""));
 const fixMojibakeText = (value) => {
   if (typeof value !== "string") {
     return value;
@@ -4345,10 +4350,14 @@ const loadUploads = () => {
   return Array.isArray(parsed) ? parsed : [];
 };
 
-const writeUploads = (uploads) => {
+const writeUploads = (uploads, options = {}) => {
   if (dataRepository) {
-    dataRepository.writeUploads(uploads);
+    return dataRepository.writeUploads(uploads, options);
   }
+  if (options?.awaitPersist === true) {
+    return Promise.resolve();
+  }
+  return undefined;
 };
 
 const upsertUploadEntries = (incomingEntries) => {
@@ -6586,10 +6595,9 @@ const setNoStoreJson = (res) => {
   res.setHeader("Cache-Control", "no-store");
 };
 
-const EPUB_IMPORT_MAX_BYTES = 64 * 1024 * 1024;
 const epubImportUpload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: EPUB_IMPORT_MAX_BYTES },
+  limits: EPUB_IMPORT_MULTIPART_LIMITS,
 });
 const parseLegacyEpubImportBody = express.raw({
   type: ["application/epub+zip", "application/octet-stream"],
@@ -6638,10 +6646,8 @@ const parseEpubImportRequestBody = (req, res, next) => {
   if (contentType.includes("multipart/form-data")) {
     return epubImportUpload.single("file")(req, res, (error) => {
       if (error) {
-        return res.status(400).json({
-          error: "invalid_multipart_upload",
-          detail: String(error?.message || error || "invalid_multipart_upload"),
-        });
+        const mappedError = mapEpubImportMultipartError(error);
+        return res.status(mappedError.status).json(mappedError.body);
       }
       return next();
     });
@@ -10223,10 +10229,8 @@ app.post(
       });
       return res.json(preview);
     } catch (error) {
-      return res.status(400).json({
-        error: "epub_import_failed",
-        detail: String(error?.message || error || "epub_import_failed"),
-      });
+      const mappedError = mapEpubImportExecutionError(error);
+      return res.status(mappedError.status).json(mappedError.body);
     }
   },
 );

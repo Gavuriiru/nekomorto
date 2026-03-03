@@ -155,7 +155,8 @@ const lightNovelProjectFixture = {
       sources: [],
       progressStage: "aguardando-raw",
       completedStages: [],
-      content: "",
+      content:
+        '{"root":{"children":[{"type":"paragraph","children":[{"type":"text","text":"conteudo local"}],"version":1}],"version":1}}',
       contentFormat: "lexical",
       publicationStatus: "draft",
     },
@@ -423,6 +424,40 @@ describe("DashboardProjectsEditor episode accordion", () => {
 
     const newChapterCard = await screen.findByTestId("episode-card-1");
     expect(within(newChapterCard).getByDisplayValue("2")).toBeInTheDocument();
+  });
+
+  it("mantem foco e evita remount do card ao editar numero e volume", async () => {
+    setupApiMock([lightNovelProjectFixture]);
+    await openEpisodeEditor({
+      projectTitle: "Projeto Light Novel",
+      sectionNamePattern: /Cap/i,
+      removeButtonPattern: /Remover cap/i,
+    });
+
+    fireEvent.click(getEpisodeTrigger(chapter1TriggerPattern));
+
+    const chapterCard = await screen.findByTestId("episode-card-0");
+    const [numberInput, volumeInput] = within(chapterCard).getAllByRole(
+      "spinbutton",
+    ) as HTMLInputElement[];
+
+    numberInput.focus();
+    expect(numberInput).toHaveFocus();
+
+    fireEvent.change(numberInput, { target: { value: "12" } });
+    await waitFor(() => {
+      expect(numberInput).toHaveFocus();
+      expect(screen.getByTestId("episode-card-0")).toBe(chapterCard);
+    });
+
+    volumeInput.focus();
+    expect(volumeInput).toHaveFocus();
+
+    fireEvent.change(volumeInput, { target: { value: "3" } });
+    await waitFor(() => {
+      expect(volumeInput).toHaveFocus();
+      expect(screen.getByTestId("episode-card-0")).toBe(chapterCard);
+    });
   });
 
   it("exibe status, volume e fontes em capitulos de light novel", async () => {
@@ -839,6 +874,152 @@ describe("DashboardProjectsEditor episode accordion", () => {
     expect(screen.getByText(/Estado do endpoint EPUB: ok/i)).toBeInTheDocument();
   });
 
+  it("mostra erro especifico quando o snapshot excede o limite no backend novo", async () => {
+    setupApiMock([lightNovelProjectFixture]);
+    const baseImplementation = apiFetchMock.getMockImplementation();
+
+    apiFetchMock.mockImplementation(async (base, path, options) => {
+      const method = String((options as RequestInit | undefined)?.method || "GET").toUpperCase();
+      if (path === "/api/projects/epub/import" && method === "POST") {
+        return mockJsonResponse(false, { error: "project_snapshot_too_large" }, 400);
+      }
+      return baseImplementation
+        ? (baseImplementation(base, path, options) as Promise<Response>)
+        : mockJsonResponse(false, { error: "not_found" }, 404);
+    });
+
+    await openEpisodeEditor({
+      projectTitle: "Projeto Light Novel",
+      sectionNamePattern: /Cap/i,
+      removeButtonPattern: /Remover cap/i,
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /Importa..o AniList/i }));
+    const importButton = screen.getByRole("button", { name: /Importar EPUB/i });
+    await waitFor(() => {
+      expect(importButton).not.toBeDisabled();
+    });
+    const fileInput = screen.getByLabelText(/Arquivo \.epub/i);
+    fireEvent.change(fileInput, {
+      target: { files: [new File(["epub"], "teste.epub", { type: "application/epub+zip" })] },
+    });
+    fireEvent.click(importButton);
+
+    await waitFor(() => {
+      expect(toastMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          title: "Falha ao importar EPUB",
+          description:
+            "O snapshot atual do projeto excedeu o limite da importacao EPUB. Salve o projeto e tente novamente.",
+          variant: "destructive",
+        }),
+      );
+    });
+    expect(screen.getByText(/Estado do endpoint EPUB: ok/i)).toBeInTheDocument();
+  });
+
+  it("mantem compatibilidade com backend legado para Field value too long", async () => {
+    setupApiMock([lightNovelProjectFixture]);
+    const baseImplementation = apiFetchMock.getMockImplementation();
+
+    apiFetchMock.mockImplementation(async (base, path, options) => {
+      const method = String((options as RequestInit | undefined)?.method || "GET").toUpperCase();
+      if (path === "/api/projects/epub/import" && method === "POST") {
+        return mockJsonResponse(
+          false,
+          {
+            error: "invalid_multipart_upload",
+            detail: "Field value too long",
+          },
+          400,
+        );
+      }
+      return baseImplementation
+        ? (baseImplementation(base, path, options) as Promise<Response>)
+        : mockJsonResponse(false, { error: "not_found" }, 404);
+    });
+
+    await openEpisodeEditor({
+      projectTitle: "Projeto Light Novel",
+      sectionNamePattern: /Cap/i,
+      removeButtonPattern: /Remover cap/i,
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /Importa..o AniList/i }));
+    const importButton = screen.getByRole("button", { name: /Importar EPUB/i });
+    await waitFor(() => {
+      expect(importButton).not.toBeDisabled();
+    });
+    const fileInput = screen.getByLabelText(/Arquivo \.epub/i);
+    fireEvent.change(fileInput, {
+      target: { files: [new File(["epub"], "teste.epub", { type: "application/epub+zip" })] },
+    });
+    fireEvent.click(importButton);
+
+    await waitFor(() => {
+      expect(toastMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          title: "Falha ao importar EPUB",
+          description:
+            "O snapshot atual do projeto excedeu o limite da importacao EPUB. Salve o projeto e tente novamente.",
+          variant: "destructive",
+        }),
+      );
+    });
+    expect(screen.getByText(/Estado do endpoint EPUB: ok/i)).toBeInTheDocument();
+  });
+
+  it("exibe detalhe de indisponibilidade quando persistencia de uploads falha no backend", async () => {
+    setupApiMock([lightNovelProjectFixture]);
+    const baseImplementation = apiFetchMock.getMockImplementation();
+
+    apiFetchMock.mockImplementation(async (base, path, options) => {
+      const method = String((options as RequestInit | undefined)?.method || "GET").toUpperCase();
+      if (path === "/api/projects/epub/import" && method === "POST") {
+        return mockJsonResponse(
+          false,
+          {
+            error: "epub_import_upload_persist_failed",
+            detail:
+              "Nao foi possivel persistir as imagens importadas do EPUB neste momento. Tente novamente em alguns instantes.",
+          },
+          503,
+        );
+      }
+      return baseImplementation
+        ? (baseImplementation(base, path, options) as Promise<Response>)
+        : mockJsonResponse(false, { error: "not_found" }, 404);
+    });
+
+    await openEpisodeEditor({
+      projectTitle: "Projeto Light Novel",
+      sectionNamePattern: /Cap/i,
+      removeButtonPattern: /Remover cap/i,
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /Importa..o AniList/i }));
+    const importButton = screen.getByRole("button", { name: /Importar EPUB/i });
+    await waitFor(() => {
+      expect(importButton).not.toBeDisabled();
+    });
+    const fileInput = screen.getByLabelText(/Arquivo \.epub/i);
+    fireEvent.change(fileInput, {
+      target: { files: [new File(["epub"], "teste.epub", { type: "application/epub+zip" })] },
+    });
+    fireEvent.click(importButton);
+
+    await waitFor(() => {
+      expect(toastMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          title: "Falha ao importar EPUB",
+          description:
+            "Nao foi possivel persistir as imagens importadas do EPUB neste momento. Tente novamente em alguns instantes.",
+          variant: "destructive",
+        }),
+      );
+    });
+  });
+
   it("importa EPUB no formulario e exporta o snapshot atual", async () => {
     setupApiMock([lightNovelProjectFixture]);
     const baseImplementation = apiFetchMock.getMockImplementation();
@@ -976,6 +1157,15 @@ describe("DashboardProjectsEditor episode accordion", () => {
     const importProjectPayload = JSON.parse(String(importBody.get("project") || "{}"));
     expect(importProjectPayload.id).toBe("project-ln-1");
     expect(importProjectPayload.type).toBe("Light Novel");
+    expect(importProjectPayload.title).toBe("Projeto Light Novel");
+    expect(importProjectPayload.episodeDownloads).toEqual([
+      expect.objectContaining({
+        number: 1,
+        publicationStatus: "draft",
+      }),
+    ]);
+    expect(importProjectPayload.episodeDownloads[0]).not.toHaveProperty("content");
+    expect(importProjectPayload.episodeDownloads[0]).not.toHaveProperty("sources");
 
     fireEvent.change(screen.getByLabelText(/Volume para exportacao/i), {
       target: { value: "2" },

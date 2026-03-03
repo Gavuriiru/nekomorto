@@ -27,6 +27,8 @@ SESSION_TABLE=user_sessions
 MAINTENANCE_MODE=false
 ADMIN_ORIGINS=https://admin.example.com
 DISCORD_REDIRECT_URI=auto
+PRISMA_TX_TIMEOUT_MS=30000
+PRISMA_TX_MAX_WAIT_MS=5000
 ```
 
 ## Execucao

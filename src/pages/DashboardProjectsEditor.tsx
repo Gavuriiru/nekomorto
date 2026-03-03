@@ -155,6 +155,8 @@ const EPUB_IMPORT_LEGACY_PROJECT_MISSING_MESSAGE =
   "O backend tentou resolver um projeto salvo que nao existe mais. Recarregue o editor e tente novamente.";
 const EPUB_IMPORT_INVALID_SNAPSHOT_MESSAGE =
   "Nao foi possivel enviar o snapshot atual do projeto para a importacao EPUB.";
+const EPUB_IMPORT_SNAPSHOT_TOO_LARGE_MESSAGE =
+  "O snapshot atual do projeto excedeu o limite da importacao EPUB. Salve o projeto e tente novamente.";
 const EPUB_IMPORT_DUPLICATE_EPISODE_MESSAGE =
   "O formulario possui capitulos duplicados por numero + volume. Corrija antes de importar.";
 
@@ -232,6 +234,7 @@ type ProjectVolumeEntry = {
 type ProjectEpisode = {
   number: number;
   volume?: number;
+  _editorKey?: string;
   title: string;
   releaseDate: string;
   duration: string;
@@ -298,6 +301,86 @@ type ProjectRecord = {
 };
 
 type ProjectForm = Omit<ProjectRecord, "views" | "commentsCount" | "order">;
+
+type EpubImportProjectSnapshot = {
+  id: string;
+  title: string;
+  type: string;
+  episodeDownloads: Array<{
+    number: number;
+    volume?: number;
+    publicationStatus?: "draft" | "published";
+  }>;
+  volumeEntries: Array<{
+    volume: number;
+    coverImageUrl: string;
+    coverImageAlt: string;
+  }>;
+  volumeCovers: Array<{
+    volume?: number;
+    coverImageUrl: string;
+    coverImageAlt: string;
+  }>;
+};
+
+const buildEpubImportProjectSnapshot = (project: ProjectForm): EpubImportProjectSnapshot => {
+  const episodeDownloads = (Array.isArray(project?.episodeDownloads) ? project.episodeDownloads : [])
+    .map((episode) => {
+      const number = Number(episode?.number);
+      if (!Number.isFinite(number)) {
+        return null;
+      }
+      const parsedVolume = Number(episode?.volume);
+      return {
+        number,
+        volume: Number.isFinite(parsedVolume) ? parsedVolume : undefined,
+        publicationStatus: episode?.publicationStatus === "published" ? "published" : "draft",
+      };
+    })
+    .filter((episode): episode is EpubImportProjectSnapshot["episodeDownloads"][number] =>
+      Boolean(episode),
+    );
+
+  const volumeEntries = (Array.isArray(project?.volumeEntries) ? project.volumeEntries : [])
+    .map((entry) => {
+      const volume = Number(entry?.volume);
+      if (!Number.isFinite(volume)) {
+        return null;
+      }
+      return {
+        volume,
+        coverImageUrl: String(entry?.coverImageUrl || "").trim(),
+        coverImageAlt: String(entry?.coverImageAlt || "").trim(),
+      };
+    })
+    .filter((entry): entry is EpubImportProjectSnapshot["volumeEntries"][number] =>
+      Boolean(entry),
+    );
+
+  const volumeCovers = (Array.isArray(project?.volumeCovers) ? project.volumeCovers : [])
+    .map((cover) => {
+      const parsedVolume = Number(cover?.volume);
+      return {
+        volume: Number.isFinite(parsedVolume) ? parsedVolume : undefined,
+        coverImageUrl: String(cover?.coverImageUrl || "").trim(),
+        coverImageAlt: String(cover?.coverImageAlt || "").trim(),
+      };
+    })
+    .filter((cover) => cover.coverImageUrl.length > 0 || cover.coverImageAlt.length > 0);
+
+  return {
+    id: String(project?.id || "").trim(),
+    title: String(project?.title || "").trim(),
+    type: String(project?.type || "").trim(),
+    episodeDownloads,
+    volumeEntries,
+    volumeCovers,
+  };
+};
+
+const isLegacyMultipartSnapshotTooLargeError = (errorCode: unknown, detail: unknown) =>
+  String(errorCode || "").trim() === "invalid_multipart_upload" &&
+  /field value too long/i.test(String(detail || ""));
 
 type AniListMedia = {
   id: number;
@@ -848,6 +931,11 @@ const generateLocalId = () => {
   return `${alpha}${random}${stamp}`;
 };
 
+const resolveEpisodeEditorKey = (episode: { _editorKey?: string }) => {
+  const currentKey = String(episode._editorKey || "").trim();
+  return currentKey || generateLocalId();
+};
+
 const moveIndexedItem = <T,>(items: T[], from: number, to: number) => {
   if (from === to || from < 0 || to < 0 || from >= items.length || to >= items.length) {
     return items;
@@ -914,6 +1002,7 @@ const EpisodeContentEditor = ({
         placeholder="Escreva o capÃ­tulo..."
         className="lexical-playground--modal"
         imageLibraryOptions={imageLibraryOptions}
+        autoFocus={false}
       />
     </Suspense>
   );
@@ -2106,6 +2195,7 @@ const DashboardProjectsEditor = () => {
         ? project.episodeDownloads.map(
           (episode): ProjectEpisode => ({
             ...episode,
+            _editorKey: resolveEpisodeEditorKey(episode),
             content: episode.content || "",
             contentFormat: "lexical",
             publicationStatus: episode.publicationStatus === "draft" ? "draft" : "published",
@@ -2429,13 +2519,17 @@ const DashboardProjectsEditor = () => {
           const key = buildEpisodeKey(chapter.number, chapter.volume);
           const existingIndex = episodeIndexByKey.get(key);
           if (existingIndex === undefined) {
-            nextEpisodes.push(chapter);
+            const chapterWithEditorKey = {
+              ...chapter,
+              _editorKey: resolveEpisodeEditorKey(chapter),
+            };
+            nextEpisodes.push(chapterWithEditorKey);
             const createdIndex = nextEpisodes.length - 1;
             episodeIndexByKey.set(key, createdIndex);
             affectedIndexes.add(createdIndex);
             if (firstAffectedIndex === -1) {
               firstAffectedIndex = createdIndex;
-              firstAffectedEpisode = chapter;
+              firstAffectedEpisode = chapterWithEditorKey;
             }
             return;
           }
@@ -2560,7 +2654,7 @@ const DashboardProjectsEditor = () => {
     try {
       const formData = new FormData();
       formData.set("file", epubImportFile);
-      formData.set("project", JSON.stringify(formState));
+      formData.set("project", JSON.stringify(buildEpubImportProjectSnapshot(formState)));
       if (epubImportTargetVolume.trim()) {
         formData.set("targetVolume", epubImportTargetVolume.trim());
       }
@@ -2610,6 +2704,18 @@ const DashboardProjectsEditor = () => {
           toast({
             title: "Falha ao importar EPUB",
             description: "Voce nao tem permissao para importar EPUB.",
+            variant: "destructive",
+          });
+          return;
+        }
+        if (
+          (typeof data?.error === "string" && data.error === "project_snapshot_too_large") ||
+          isLegacyMultipartSnapshotTooLargeError(data?.error, data?.detail)
+        ) {
+          setEpubRouteStatus("ok");
+          toast({
+            title: "Falha ao importar EPUB",
+            description: EPUB_IMPORT_SNAPSHOT_TOO_LARGE_MESSAGE,
             variant: "destructive",
           });
           return;
@@ -3116,6 +3222,7 @@ const DashboardProjectsEditor = () => {
       staff: staffWithPending.filter((item) => item.role || item.members.length > 0),
       animeStaff: formState.animeStaff.filter((item) => item.role || item.members.length > 0),
       episodeDownloads: normalizedEpisodesForSave.map((episode) => {
+        const { _editorKey: _ignoredEditorKey, ...episodePayload } = episode;
         const prev = prevEpisodesMap.get(buildEpisodeKey(episode.number, episode.volume));
         const hash = String(episode.hash || "").trim();
         const coverImageUrl = String(episode.coverImageUrl || "").trim();
@@ -3123,7 +3230,7 @@ const DashboardProjectsEditor = () => {
         const sizeBytes =
           Number.isFinite(parsedSize) && parsedSize > 0 ? Math.round(parsedSize) : undefined;
         return {
-          ...episode,
+          ...episodePayload,
           coverImageUrl,
           coverImageAlt: coverImageUrl
             ? resolveAssetAltText(
@@ -3538,6 +3645,7 @@ const DashboardProjectsEditor = () => {
     pendingAddAutoScrollRef.current = true;
     setFormState((prev) => {
       const newEpisode: ProjectEpisode = {
+        _editorKey: generateLocalId(),
         number: prev.episodeDownloads.length + 1,
         volume: undefined,
         title: "",
@@ -4601,7 +4709,7 @@ const DashboardProjectsEditor = () => {
                         <div className="space-y-1">
                           <Label>Volumes</Label>
                           <p className="text-xs text-muted-foreground">
-                            Configure capa e sinopse por volume. Entradas sem volume usam o próprio projeto.
+                            Configure capa e sinopse por volume. Entradas sem volume usam o pr\u00F3prio projeto.
                           </p>
                         </div>
                         <Button
@@ -4735,7 +4843,7 @@ const DashboardProjectsEditor = () => {
                                     })
                                   }
                                   rows={3}
-                                  placeholder="Resumo exibido nas páginas públicas para este volume"
+                                  placeholder="Resumo exibido nas p\u00E1ginas p\u00FAblicas para este volume"
                                 />
                               </div>
                             </div>
@@ -5318,7 +5426,7 @@ const DashboardProjectsEditor = () => {
 
                         return (
                           <AccordionItem
-                            key={`${episodeKey}-${index}`}
+                            key={episode._editorKey || `legacy-episode-${index}`}
                             value={getEpisodeAccordionValue(index)}
                             className="border-none"
                           >

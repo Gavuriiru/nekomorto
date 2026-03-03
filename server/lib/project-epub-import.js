@@ -1137,7 +1137,7 @@ const rewriteInternalImagesInDocument = async ({
         altText: String(imageElement.getAttribute("alt") || "").trim(),
       });
       imageContext.uploads = result.uploads;
-      imageContext.writeUploads(imageContext.uploads);
+      imageContext.uploadsDirty = true;
       imageContext.imagesImported += 1;
       imageElement.setAttribute("src", result.uploadEntry.url);
       if (!imageElement.getAttribute("alt") && result.uploadEntry.altText) {
@@ -1209,9 +1209,30 @@ const createImageImportContext = ({
     uploadUserId: String(uploadUserId || "anonymous").trim() || "anonymous",
     importId: crypto.randomUUID(),
     uploads: Array.isArray(initialUploads) ? initialUploads : [],
+    uploadsDirty: false,
     imagesImported: 0,
     imageImportFailures: 0,
   };
+};
+
+const flushImageContextUploads = async (imageContext) => {
+  if (!imageContext || imageContext.uploadsDirty !== true) {
+    return;
+  }
+  try {
+    await Promise.resolve(
+      imageContext.writeUploads(imageContext.uploads, {
+        awaitPersist: true,
+        reason: "epub_import",
+      }),
+    );
+    imageContext.uploadsDirty = false;
+  } catch (error) {
+    const persistError = new Error("epub_upload_persist_failed");
+    persistError.code = "epub_upload_persist_failed";
+    persistError.causeMessage = String(error?.message || error || "epub_upload_persist_failed");
+    throw persistError;
+  }
 };
 
 const buildVolumeCoverAltFallback = ({ targetVolume, projectTitle, epubTitle } = {}) => {
@@ -1320,7 +1341,7 @@ const importVolumeCoverFromEpub = async ({
         }),
     });
     imageContext.uploads = stored.uploads;
-    imageContext.writeUploads(imageContext.uploads);
+    imageContext.uploadsDirty = true;
     warnings.push(
       `Capa do volume importada do EPUB para o volume ${
         Number.isFinite(Number(targetVolume)) ? Number(targetVolume) : "sem volume"
@@ -1706,6 +1727,8 @@ export const importProjectEpub = async ({
 
   const createdCount = chapters.filter((chapter) => chapter.mergeMode === "create").length;
   const updatedCount = chapters.length - createdCount;
+
+  await flushImageContextUploads(imageContext);
 
   return {
     summary: {

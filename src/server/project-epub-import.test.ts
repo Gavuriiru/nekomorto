@@ -569,6 +569,103 @@ describe("project EPUB import", () => {
     expect(result.warnings).toEqual(
       expect.arrayContaining(["Capa do volume importada do EPUB para o volume 1."]),
     );
+    expect(writeUploads).toHaveBeenCalledTimes(1);
+  });
+
+  it("faz flush unico de uploads quando importa capa e imagem interna no mesmo EPUB", async () => {
+    const loadUploads = vi.fn(() => []);
+    const writeUploads = vi.fn();
+
+    epubState.toc = [
+      { id: "chapter-toc", title: "Chapter 1", href: "OEBPS/Text/chapter001.xhtml#Ref_1" },
+    ];
+    epubState.flow = [
+      { id: "cover-doc", title: "Cover", href: "OEBPS/Text/cover.xhtml" },
+      { id: "chapter001", title: "Chapter 1", href: "OEBPS/Text/chapter001.xhtml" },
+    ];
+    epubState.manifest = {
+      coverImage: {
+        id: "coverImage",
+        href: "OEBPS/Images/cover.jpg",
+        "media-type": "image/jpeg",
+        properties: "cover-image",
+      },
+      coverDoc: { id: "coverDoc", href: "OEBPS/Text/cover.xhtml" },
+      chapter001: { id: "chapter001", href: "OEBPS/Text/chapter001.xhtml" },
+      art1: { id: "art1", href: "OEBPS/Images/art1.jpg", "media-type": "image/jpeg" },
+    };
+    epubState.metadata = {
+      title: "Livro teste",
+      cover: "coverImage",
+    };
+    epubState.chapters = {
+      coverDoc: '<p><img src="../Images/cover.jpg" alt="Volume cover"></p>',
+      chapter001: '<p><img src="../Images/art1.jpg" alt="Ilustracao"></p><p>Capitulo 1.</p>',
+    };
+    epubState.images = {
+      coverImage: Buffer.from("cover-image"),
+      art1: Buffer.from("chapter-image"),
+    };
+
+    const result = await importProjectEpub({
+      buffer: Buffer.from("fake"),
+      targetVolume: 1,
+      defaultStatus: "draft",
+      project: { episodeDownloads: [], volumeCovers: [] },
+      uploadsDir: "D:/dev/nekomorto/public/uploads",
+      loadUploads,
+      writeUploads,
+      uploadUserId: "test-user",
+    });
+
+    expect(result.summary.volumeCoverImported).toBe(true);
+    expect(result.summary.imagesImported).toBe(1);
+    expect(writeUploads).toHaveBeenCalledTimes(1);
+    expect(writeUploads).toHaveBeenCalledWith(
+      expect.any(Array),
+      expect.objectContaining({
+        awaitPersist: true,
+        reason: "epub_import",
+      }),
+    );
+  });
+
+  it("propaga erro de persistencia de uploads com codigo especifico", async () => {
+    const loadUploads = vi.fn(() => []);
+    const writeUploads = vi.fn(async () => {
+      throw new Error("tx_timeout");
+    });
+
+    epubState.toc = [
+      { id: "chapter-toc", title: "Chapter 1", href: "OEBPS/Text/chapter001.xhtml#Ref_1" },
+    ];
+    epubState.flow = [{ id: "chapter001", title: "Chapter 1", href: "OEBPS/Text/chapter001.xhtml" }];
+    epubState.manifest = {
+      chapter001: { id: "chapter001", href: "OEBPS/Text/chapter001.xhtml" },
+      art1: { id: "art1", href: "OEBPS/Images/art1.jpg", "media-type": "image/jpeg" },
+    };
+    epubState.chapters = {
+      chapter001: '<p><img src="../Images/art1.jpg" alt="Ilustracao"></p><p>Capitulo 1.</p>',
+    };
+    epubState.images = {
+      art1: Buffer.from("chapter-image"),
+    };
+
+    await expect(
+      importProjectEpub({
+        buffer: Buffer.from("fake"),
+        targetVolume: 1,
+        defaultStatus: "draft",
+        project: { episodeDownloads: [] },
+        uploadsDir: "D:/dev/nekomorto/public/uploads",
+        loadUploads,
+        writeUploads,
+        uploadUserId: "test-user",
+      }),
+    ).rejects.toMatchObject({
+      code: "epub_upload_persist_failed",
+    });
+    expect(writeUploads).toHaveBeenCalledTimes(1);
   });
 
   it("preserva capa manual existente do volume durante o import", async () => {

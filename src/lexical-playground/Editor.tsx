@@ -65,10 +65,12 @@ export default function Editor({
   hideToolbar = false,
   placeholder: placeholderOverride,
   imageLibraryOptions,
+  autoFocus = true,
 }: {
   hideToolbar?: boolean;
   placeholder?: string;
   imageLibraryOptions?: ImageLibraryOptions;
+  autoFocus?: boolean;
 }): JSX.Element {
   const {historyState} = useSharedHistoryContext();
   const {
@@ -166,7 +168,7 @@ export default function Editor({
       <div
         className={`editor-container ${!isRichText ? 'plain-text' : ''}`}>
         {showEditingPlugins && <DragDropPaste />}
-        {showEditingPlugins && <AutoFocusPlugin />}
+        {showEditingPlugins && autoFocus && <AutoFocusPlugin />}
         {selectionAlwaysOnDisplay && <SelectionAlwaysOnDisplay />}
         {showEditingPlugins && <ClearEditorPlugin />}
         {showEditingPlugins && <ComponentPickerPlugin imageLibraryOptions={imageLibraryOptions} />}

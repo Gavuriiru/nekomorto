@@ -1,9 +1,16 @@
 import type { ReactNode } from "react";
 import { render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+const { editorPropsSpy } = vi.hoisted(() => ({
+  editorPropsSpy: vi.fn(),
+}));
 
 vi.mock("@/lexical-playground/Editor", () => ({
-  default: () => <div data-testid="lexical-editor-shell" />,
+  default: (props: unknown) => {
+    editorPropsSpy(props);
+    return <div data-testid="lexical-editor-shell" />;
+  },
 }));
 
 vi.mock("@/lexical-playground/nodes/PlaygroundNodes", () => ({
@@ -73,6 +80,10 @@ const INVALID_TOP_LEVEL_TEXT_STATE = JSON.stringify({
 });
 
 describe("LexicalEditor", () => {
+  beforeEach(() => {
+    editorPropsSpy.mockReset();
+  });
+
   it("nao crasha com json invalido", () => {
     expect(() =>
       render(<LexicalEditor value="{" onChange={vi.fn()} placeholder="Digite aqui" />),
@@ -101,5 +112,15 @@ describe("LexicalEditor", () => {
     ).not.toThrow();
 
     expect(screen.getByTestId("lexical-editor-shell")).toBeInTheDocument();
+  });
+
+  it("repassa autoFocus para o editor interno", () => {
+    render(<LexicalEditor value={EMPTY_ROOT_STATE} onChange={vi.fn()} autoFocus={false} />);
+
+    const propsWithDisabledAutoFocus = editorPropsSpy.mock.calls
+      .map((call) => call[0] as { autoFocus?: boolean })
+      .find((props) => props.autoFocus === false);
+
+    expect(propsWithDisabledAutoFocus).toBeTruthy();
   });
 });
