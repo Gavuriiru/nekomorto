@@ -68,14 +68,34 @@ const cleanupPreviewWithItems = {
   unusedUploadCount: 2,
   orphanedVariantFilesCount: 3,
   orphanedVariantDirsCount: 1,
+  looseOriginalFilesCount: 1,
+  looseOriginalTotals: {
+    area: "total",
+    originalBytes: 300,
+    variantBytes: 0,
+    totalBytes: 300,
+    originalFiles: 1,
+    variantFiles: 0,
+    totalFiles: 1,
+  },
+  quarantinePendingDeleteCount: 2,
+  quarantinePendingDeleteTotals: {
+    area: "total",
+    originalBytes: 250,
+    variantBytes: 0,
+    totalBytes: 250,
+    originalFiles: 2,
+    variantFiles: 0,
+    totalFiles: 2,
+  },
   totals: {
     area: "total",
-    originalBytes: 800,
+    originalBytes: 1350,
     variantBytes: 1200,
-    totalBytes: 2000,
-    originalFiles: 2,
+    totalBytes: 2550,
+    originalFiles: 5,
     variantFiles: 3,
-    totalFiles: 5,
+    totalFiles: 8,
   },
   areas: [
     {
@@ -86,6 +106,15 @@ const cleanupPreviewWithItems = {
       originalFiles: 2,
       variantFiles: 1,
       totalFiles: 3,
+    },
+    {
+      area: "_quarantine",
+      originalBytes: 250,
+      variantBytes: 0,
+      totalBytes: 250,
+      originalFiles: 2,
+      variantFiles: 0,
+      totalFiles: 2,
     },
     {
       area: "_variants",
@@ -126,6 +155,20 @@ const cleanupPreviewWithItems = {
       variantBytes: 400,
       totalBytes: 400,
     },
+    {
+      kind: "upload",
+      scope: "loose_original",
+      id: null,
+      ownerUploadId: null,
+      url: "/uploads/projects/orphan-cover.png",
+      fileName: "orphan-cover.png",
+      folder: "projects",
+      area: "projects",
+      createdAt: "2026-03-01T09:45:00.000Z",
+      originalBytes: 300,
+      variantBytes: 0,
+      totalBytes: 300,
+    },
   ],
 };
 
@@ -135,6 +178,26 @@ const emptyCleanupPreview = {
   unusedUploadCount: 0,
   orphanedVariantFilesCount: 0,
   orphanedVariantDirsCount: 0,
+  looseOriginalFilesCount: 0,
+  looseOriginalTotals: {
+    area: "total",
+    originalBytes: 0,
+    variantBytes: 0,
+    totalBytes: 0,
+    originalFiles: 0,
+    variantFiles: 0,
+    totalFiles: 0,
+  },
+  quarantinePendingDeleteCount: 0,
+  quarantinePendingDeleteTotals: {
+    area: "total",
+    originalBytes: 0,
+    variantBytes: 0,
+    totalBytes: 0,
+    originalFiles: 0,
+    variantFiles: 0,
+    totalFiles: 0,
+  },
   totals: {
     area: "total",
     originalBytes: 0,
@@ -157,8 +220,13 @@ const setupApi = (options?: {
     deletedUnusedUploadsCount: number;
     deletedOrphanedVariantFilesCount: number;
     deletedOrphanedVariantDirsCount: number;
+    quarantinedLooseOriginalFilesCount: number;
+    deletedQuarantineFilesCount: number;
+    deletedQuarantineDirsCount: number;
     failedCount: number;
     deletedTotals: typeof emptyCleanupPreview.totals;
+    quarantinedTotals: typeof emptyCleanupPreview.totals;
+    purgedQuarantineTotals: typeof emptyCleanupPreview.totals;
     failures: Array<{ kind: "upload" | "variant"; url: string; reason: string }>;
   };
 }) => {
@@ -172,8 +240,13 @@ const setupApi = (options?: {
       deletedUnusedUploadsCount: 2,
       deletedOrphanedVariantFilesCount: 3,
       deletedOrphanedVariantDirsCount: 1,
+      quarantinedLooseOriginalFilesCount: 1,
+      deletedQuarantineFilesCount: 2,
+      deletedQuarantineDirsCount: 1,
       failedCount: 0,
       deletedTotals: cleanupPreviewWithItems.totals,
+      quarantinedTotals: cleanupPreviewWithItems.looseOriginalTotals,
+      purgedQuarantineTotals: cleanupPreviewWithItems.quarantinePendingDeleteTotals,
       failures: [],
     } as const);
   let cleanupRuns = 0;
@@ -241,10 +314,14 @@ describe("DashboardUploads cleanup", () => {
     expect(screen.getByText("2 uploads sem uso")).toBeInTheDocument();
     expect(screen.getByText("3 arquivos de variante órfãos")).toBeInTheDocument();
     expect(screen.getByText("1 diretórios de variantes órfãos")).toBeInTheDocument();
+    expect(screen.getByText("1 originais soltos (quarentena)")).toBeInTheDocument();
+    expect(screen.getByText("2 arquivos de quarentena vencidos para purga")).toBeInTheDocument();
     expect(screen.getByText("unused-1.png")).toBeInTheDocument();
     expect(screen.getByText("old-card.webp")).toBeInTheDocument();
+    expect(screen.getByText("orphan-cover.png")).toBeInTheDocument();
     expect(screen.getByText("Upload")).toBeInTheDocument();
     expect(screen.getByText("Variante órfã")).toBeInTheDocument();
+    expect(screen.getByText("Original solto")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: CLEANUP_ACTION_LABEL })).toBeInTheDocument();
     const summaryCards = screen
       .getByTestId("dashboard-uploads-summary-grid")
@@ -279,7 +356,7 @@ describe("DashboardUploads cleanup", () => {
     fireEvent.click(await screen.findByRole("button", { name: CLEANUP_ACTION_LABEL }));
 
     const alertDialog = await screen.findByRole("alertdialog");
-    expect(within(alertDialog).getByText(/variantes órfãs encontradas em _variants/i)).toBeInTheDocument();
+    expect(within(alertDialog).getByText(/originais soltos para _quarantine/i)).toBeInTheDocument();
 
     const confirmButton = within(alertDialog).getByRole("button", { name: CLEANUP_ACTION_LABEL });
     const confirmInput = within(alertDialog).getByPlaceholderText("Digite EXCLUIR");
@@ -336,7 +413,7 @@ describe("DashboardUploads cleanup", () => {
     expect(toastMock).toHaveBeenCalledWith(
       expect.objectContaining({
         title: "Armazenamento não utilizado removido",
-        description: expect.stringContaining("2 uploads removidos, 3 variantes órfãs removidas"),
+        description: expect.stringContaining("1 originais enviados para quarentena"),
       }),
     );
   });
@@ -350,6 +427,9 @@ describe("DashboardUploads cleanup", () => {
         deletedUnusedUploadsCount: 1,
         deletedOrphanedVariantFilesCount: 2,
         deletedOrphanedVariantDirsCount: 1,
+        quarantinedLooseOriginalFilesCount: 1,
+        deletedQuarantineFilesCount: 0,
+        deletedQuarantineDirsCount: 0,
         failedCount: 1,
         deletedTotals: {
           area: "total",
@@ -359,6 +439,24 @@ describe("DashboardUploads cleanup", () => {
           originalFiles: 1,
           variantFiles: 2,
           totalFiles: 3,
+        },
+        quarantinedTotals: {
+          area: "total",
+          originalBytes: 300,
+          variantBytes: 0,
+          totalBytes: 300,
+          originalFiles: 1,
+          variantFiles: 0,
+          totalFiles: 1,
+        },
+        purgedQuarantineTotals: {
+          area: "total",
+          originalBytes: 0,
+          variantBytes: 0,
+          totalBytes: 0,
+          originalFiles: 0,
+          variantFiles: 0,
+          totalFiles: 0,
         },
         failures: [{ kind: "variant", url: "/uploads/_variants/u-9/old-card.webp", reason: "eperm" }],
       },
@@ -383,5 +481,44 @@ describe("DashboardUploads cleanup", () => {
         }),
       );
     });
+  });
+
+  it("mantem compatibilidade com preview legado sem campos de quarentena", async () => {
+    apiFetchMock.mockImplementation(async (_base: string, endpoint: string, request?: RequestInit) => {
+      const method = String(request?.method || "GET").toUpperCase();
+      if (endpoint === "/api/me" && method === "GET") {
+        return mockJsonResponse(true, { id: "u-admin", name: "Admin", username: "admin" });
+      }
+      if (endpoint === "/api/uploads/storage/areas" && method === "GET") {
+        return mockJsonResponse(true, baseSummary);
+      }
+      if (endpoint === "/api/uploads/storage/cleanup" && method === "GET") {
+        return mockJsonResponse(true, {
+          generatedAt: "2026-03-01T10:00:00.000Z",
+          unusedCount: 1,
+          unusedUploadCount: 1,
+          orphanedVariantFilesCount: 0,
+          orphanedVariantDirsCount: 0,
+          totals: {
+            area: "total",
+            originalBytes: 100,
+            variantBytes: 0,
+            totalBytes: 100,
+            originalFiles: 1,
+            variantFiles: 0,
+            totalFiles: 1,
+          },
+          areas: [],
+          examples: [],
+        });
+      }
+      return mockJsonResponse(false, { error: "not_found" }, 404);
+    });
+
+    render(<DashboardUploads />);
+
+    await screen.findByText("1 uploads sem uso");
+    expect(screen.getByText("0 originais soltos (quarentena)")).toBeInTheDocument();
+    expect(screen.getByText("0 arquivos de quarentena vencidos para purga")).toBeInTheDocument();
   });
 });

@@ -4,11 +4,13 @@ import path from "path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
+  __testing,
   buildDiskStorageAreaSummary,
   runUploadsCleanup,
 } from "../../server/lib/uploads-cleanup.js";
 
 const tempRoots: string[] = [];
+const { resolveQuarantineTargetPath } = __testing;
 
 type TempWorkspaceDatasets = {
   posts?: unknown[];
@@ -51,6 +53,24 @@ const createTempWorkspace = (
       uploads: datasets.uploads || [],
     },
   };
+};
+
+const listRelativeFiles = (baseDir: string, relativeDir = ""): string[] => {
+  const absoluteDir = path.join(baseDir, relativeDir);
+  if (!fs.existsSync(absoluteDir)) {
+    return [];
+  }
+
+  return fs.readdirSync(absoluteDir, { withFileTypes: true }).flatMap((entry) => {
+    const entryRelative = relativeDir ? path.join(relativeDir, entry.name) : entry.name;
+    if (entry.isDirectory()) {
+      return listRelativeFiles(baseDir, entryRelative);
+    }
+    if (!entry.isFile()) {
+      return [];
+    }
+    return [entryRelative.replace(/\\/g, "/")];
+  });
 };
 
 afterEach(() => {
@@ -281,6 +301,141 @@ describe("runUploadsCleanup", () => {
 
     expect(result.unusedCount).toBe(0);
     expect(result.examples).toEqual([]);
+  });
+
+  it("detecta originais soltos no disco fora do inventario", () => {
+    const { uploadsDir, datasets } = createTempWorkspace(
+      {
+        uploads: [],
+      },
+      [{ relativePath: "posts/loose.png", content: Buffer.alloc(42) }],
+    );
+
+    const result = runUploadsCleanup({ datasets, uploadsDir, applyChanges: false });
+
+    expect(result.looseOriginalFilesCount).toBe(1);
+    expect(result.looseOriginalTotals).toEqual(
+      expect.objectContaining({
+        originalBytes: 42,
+        totalBytes: 42,
+        originalFiles: 1,
+        totalFiles: 1,
+      }),
+    );
+    expect(result.examples).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          kind: "upload",
+          scope: "loose_original",
+          url: "/uploads/posts/loose.png",
+        }),
+      ]),
+    );
+  });
+
+  it("nao marca original solto quando o arquivo esta referenciado mesmo sem metadata de upload", () => {
+    const { uploadsDir, datasets } = createTempWorkspace(
+      {
+        posts: [{ coverImageUrl: "/uploads/posts/referenced.png" }],
+        uploads: [],
+      },
+      [{ relativePath: "posts/referenced.png", content: Buffer.alloc(30) }],
+    );
+
+    const result = runUploadsCleanup({ datasets, uploadsDir, applyChanges: false });
+
+    expect(result.looseOriginalFilesCount).toBe(0);
+    expect(result.examples).toEqual([]);
+  });
+
+  it("move originais soltos para _quarantine sem apagar definitivamente na mesma execucao", () => {
+    const { uploadsDir, datasets } = createTempWorkspace(
+      {
+        uploads: [],
+      },
+      [{ relativePath: "posts/loose.png", content: Buffer.alloc(55) }],
+    );
+
+    const result = runUploadsCleanup({ datasets, uploadsDir, applyChanges: true });
+    const quarantineFiles = listRelativeFiles(path.join(uploadsDir, "_quarantine"));
+
+    expect(result.quarantinedLooseOriginalFilesCount).toBe(1);
+    expect(result.quarantinedTotals).toEqual(
+      expect.objectContaining({
+        originalBytes: 55,
+        totalBytes: 55,
+      }),
+    );
+    expect(result.deletedQuarantineFilesCount).toBe(0);
+    expect(fs.existsSync(path.join(uploadsDir, "posts", "loose.png"))).toBe(false);
+    expect(quarantineFiles.some((item) => item.endsWith("posts/loose.png"))).toBe(true);
+  });
+
+  it("purga somente arquivos vencidos da quarentena e preserva os recentes", () => {
+    const freshDateFolder = new Date().toISOString().slice(0, 10);
+    const { uploadsDir, datasets } = createTempWorkspace(
+      {
+        uploads: [],
+      },
+      [
+        { relativePath: "_quarantine/2000-01-01/posts/stale.png", content: Buffer.alloc(21) },
+        { relativePath: `_quarantine/${freshDateFolder}/posts/fresh.png`, content: Buffer.alloc(31) },
+      ],
+    );
+
+    const result = runUploadsCleanup({ datasets, uploadsDir, applyChanges: true });
+
+    expect(result.quarantinePendingDeleteCount).toBe(1);
+    expect(result.deletedQuarantineFilesCount).toBe(1);
+    expect(fs.existsSync(path.join(uploadsDir, "_quarantine", "2000-01-01", "posts", "stale.png"))).toBe(false);
+    expect(fs.existsSync(path.join(uploadsDir, "_quarantine", freshDateFolder, "posts", "fresh.png"))).toBe(true);
+  });
+
+  it("combina uploads sem uso, variantes orfas e originais soltos no mesmo relatorio", () => {
+    const { uploadsDir, datasets } = createTempWorkspace(
+      {
+        posts: [{ coverImageUrl: "/uploads/posts/used.png" }],
+        uploads: [
+          { id: "u-used", url: "/uploads/posts/used.png", fileName: "used.png" },
+          { id: "u-unused", url: "/uploads/posts/unused.png", fileName: "unused.png", size: 120 },
+        ],
+      },
+      [
+        { relativePath: "posts/used.png", content: Buffer.alloc(30) },
+        { relativePath: "projects/orphan-cover.png", content: Buffer.alloc(45) },
+        { relativePath: "_variants/ghost/extra.webp", content: Buffer.alloc(70) },
+      ],
+    );
+
+    const result = runUploadsCleanup({ datasets, uploadsDir, applyChanges: false });
+    const scopes = result.examples.map((item) => item.scope);
+
+    expect(result.unusedUploadCount).toBe(1);
+    expect(result.orphanedVariantFilesCount).toBe(1);
+    expect(result.looseOriginalFilesCount).toBe(1);
+    expect(scopes).toContain("unused_upload");
+    expect(scopes).toContain("orphaned_variant");
+    expect(scopes).toContain("loose_original");
+  });
+
+  it("aplica sufixo quando ja existe arquivo com mesmo nome na quarentena", () => {
+    const todayFolder = new Date().toISOString().slice(0, 10);
+    const { uploadsDir, datasets } = createTempWorkspace(
+      {
+        uploads: [],
+      },
+      [
+        { relativePath: "posts/duplicate.png", content: Buffer.alloc(15) },
+        { relativePath: `_quarantine/${todayFolder}/posts/duplicate.png`, content: Buffer.alloc(10) },
+      ],
+    );
+
+    const result = runUploadsCleanup({ datasets, uploadsDir, applyChanges: true });
+    const targetFiles = listRelativeFiles(path.join(uploadsDir, "_quarantine", todayFolder, "posts"));
+
+    expect(result.quarantinedLooseOriginalFilesCount).toBe(1);
+    expect(targetFiles).toContain("duplicate.png");
+    expect(targetFiles.some((item) => /^duplicate__\d+(?:-\d+)?\.png$/.test(path.posix.basename(item)))).toBe(true);
   });
 
   it("inclui diretorio de variantes sem upload correspondente como orfao", () => {
@@ -538,5 +693,16 @@ describe("runUploadsCleanup", () => {
         totalBytes: 200,
       }),
     );
+  });
+
+  it("bloqueia caminho de quarentena com tentativa de traversal", () => {
+    const { uploadsDir } = createTempWorkspace({ uploads: [] });
+    const resolved = resolveQuarantineTargetPath({
+      uploadsDir,
+      dateFolder: "2026-03-01",
+      sourceRelativePath: "../outside.png",
+    });
+
+    expect(resolved).toBeNull();
   });
 });

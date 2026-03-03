@@ -60,7 +60,7 @@ type CleanupFailure = {
 
 type CleanupExampleRow = {
   kind: "upload" | "variant";
-  scope: "unused_upload" | "orphaned_variant";
+  scope: "unused_upload" | "orphaned_variant" | "loose_original";
   id: string | null;
   ownerUploadId: string | null;
   url: string;
@@ -79,6 +79,10 @@ type CleanupPreviewPayload = {
   unusedUploadCount: number;
   orphanedVariantFilesCount: number;
   orphanedVariantDirsCount: number;
+  looseOriginalFilesCount: number;
+  looseOriginalTotals: StorageAreaRow;
+  quarantinePendingDeleteCount: number;
+  quarantinePendingDeleteTotals: StorageAreaRow;
   totals: StorageAreaRow;
   areas: StorageAreaRow[];
   examples: CleanupExampleRow[];
@@ -90,8 +94,13 @@ type CleanupRunPayload = {
   deletedUnusedUploadsCount: number;
   deletedOrphanedVariantFilesCount: number;
   deletedOrphanedVariantDirsCount: number;
+  quarantinedLooseOriginalFilesCount: number;
+  deletedQuarantineFilesCount: number;
+  deletedQuarantineDirsCount: number;
   failedCount: number;
   deletedTotals: StorageAreaRow;
+  quarantinedTotals: StorageAreaRow;
+  purgedQuarantineTotals: StorageAreaRow;
   failures: CleanupFailure[];
 };
 
@@ -120,6 +129,10 @@ const emptyCleanupPreview: CleanupPreviewPayload = {
   unusedUploadCount: 0,
   orphanedVariantFilesCount: 0,
   orphanedVariantDirsCount: 0,
+  looseOriginalFilesCount: 0,
+  looseOriginalTotals: emptyTotals,
+  quarantinePendingDeleteCount: 0,
+  quarantinePendingDeleteTotals: emptyTotals,
   totals: emptyTotals,
   areas: [],
   examples: [],
@@ -164,6 +177,14 @@ const normalizeCleanupPreviewPayload = (payload: unknown): CleanupPreviewPayload
     orphanedVariantDirsCount: Number.isFinite(Number(source.orphanedVariantDirsCount))
       ? Number(source.orphanedVariantDirsCount)
       : 0,
+    looseOriginalFilesCount: Number.isFinite(Number(source.looseOriginalFilesCount))
+      ? Number(source.looseOriginalFilesCount)
+      : 0,
+    looseOriginalTotals: normalizeStorageAreaRow(source.looseOriginalTotals, "total"),
+    quarantinePendingDeleteCount: Number.isFinite(Number(source.quarantinePendingDeleteCount))
+      ? Number(source.quarantinePendingDeleteCount)
+      : 0,
+    quarantinePendingDeleteTotals: normalizeStorageAreaRow(source.quarantinePendingDeleteTotals, "total"),
     totals: normalizeStorageAreaRow(source.totals, "total"),
     areas: Array.isArray(source.areas)
       ? source.areas.map((item) => normalizeStorageAreaRow(item, String(item?.area || "root")))
@@ -173,7 +194,12 @@ const normalizeCleanupPreviewPayload = (payload: unknown): CleanupPreviewPayload
       const kind = example.kind === "variant" ? "variant" : "upload";
       return {
         kind,
-        scope: example.scope === "orphaned_variant" ? "orphaned_variant" : "unused_upload",
+        scope:
+          example.scope === "orphaned_variant"
+            ? "orphaned_variant"
+            : example.scope === "loose_original"
+              ? "loose_original"
+              : "unused_upload",
         id: example.id ? String(example.id) : null,
         ownerUploadId: example.ownerUploadId ? String(example.ownerUploadId) : null,
         url: String(example.url || ""),
@@ -208,8 +234,19 @@ const normalizeCleanupRunPayload = (payload: unknown): CleanupRunPayload => {
     deletedOrphanedVariantDirsCount: Number.isFinite(Number(source.deletedOrphanedVariantDirsCount))
       ? Number(source.deletedOrphanedVariantDirsCount)
       : 0,
+    quarantinedLooseOriginalFilesCount: Number.isFinite(Number(source.quarantinedLooseOriginalFilesCount))
+      ? Number(source.quarantinedLooseOriginalFilesCount)
+      : 0,
+    deletedQuarantineFilesCount: Number.isFinite(Number(source.deletedQuarantineFilesCount))
+      ? Number(source.deletedQuarantineFilesCount)
+      : 0,
+    deletedQuarantineDirsCount: Number.isFinite(Number(source.deletedQuarantineDirsCount))
+      ? Number(source.deletedQuarantineDirsCount)
+      : 0,
     failedCount: Number.isFinite(Number(source.failedCount)) ? Number(source.failedCount) : 0,
     deletedTotals: normalizeStorageAreaRow(source.deletedTotals, "total"),
+    quarantinedTotals: normalizeStorageAreaRow(source.quarantinedTotals, "total"),
+    purgedQuarantineTotals: normalizeStorageAreaRow(source.purgedQuarantineTotals, "total"),
     failures: failures.map((item) => {
       const failure = item && typeof item === "object" ? item : {};
       return {
@@ -252,14 +289,24 @@ const formatCleanupDescription = ({
   deletedUnusedUploadsCount,
   deletedOrphanedVariantFilesCount,
   deletedOrphanedVariantDirsCount,
-  totalBytes,
+  quarantinedLooseOriginalFilesCount,
+  deletedQuarantineFilesCount,
+  deletedQuarantineDirsCount,
+  deletedBytes,
+  quarantinedBytes,
+  purgedQuarantineBytes,
 }: {
   deletedUnusedUploadsCount: number;
   deletedOrphanedVariantFilesCount: number;
   deletedOrphanedVariantDirsCount: number;
-  totalBytes: number;
+  quarantinedLooseOriginalFilesCount: number;
+  deletedQuarantineFilesCount: number;
+  deletedQuarantineDirsCount: number;
+  deletedBytes: number;
+  quarantinedBytes: number;
+  purgedQuarantineBytes: number;
 }) =>
-  `${deletedUnusedUploadsCount} uploads removidos, ${deletedOrphanedVariantFilesCount} variantes órfãs removidas, ${deletedOrphanedVariantDirsCount} diretórios órfãos removidos e ${formatBytes(totalBytes)} liberados.`;
+  `${deletedUnusedUploadsCount} uploads removidos, ${deletedOrphanedVariantFilesCount} variantes órfãs removidas, ${deletedOrphanedVariantDirsCount} diretórios de variantes órfãos removidos, ${quarantinedLooseOriginalFilesCount} originais enviados para quarentena, ${deletedQuarantineFilesCount} arquivos de quarentena removidos e ${deletedQuarantineDirsCount} diretórios de quarentena removidos. ${formatBytes(deletedBytes)} liberados agora, ${formatBytes(quarantinedBytes)} em quarentena e ${formatBytes(purgedQuarantineBytes)} purgados da quarentena.`;
 
 const DashboardUploads = () => {
   usePageMeta({ title: "Uploads", noIndex: true });
@@ -366,10 +413,14 @@ const DashboardUploads = () => {
     () =>
       cleanupPreview.unusedUploadCount > 0 ||
       cleanupPreview.orphanedVariantFilesCount > 0 ||
-      cleanupPreview.orphanedVariantDirsCount > 0,
+      cleanupPreview.orphanedVariantDirsCount > 0 ||
+      cleanupPreview.looseOriginalFilesCount > 0 ||
+      cleanupPreview.quarantinePendingDeleteCount > 0,
     [
+      cleanupPreview.looseOriginalFilesCount,
       cleanupPreview.orphanedVariantDirsCount,
       cleanupPreview.orphanedVariantFilesCount,
+      cleanupPreview.quarantinePendingDeleteCount,
       cleanupPreview.unusedUploadCount,
     ],
   );
@@ -412,7 +463,12 @@ const DashboardUploads = () => {
             deletedUnusedUploadsCount: payload.deletedUnusedUploadsCount,
             deletedOrphanedVariantFilesCount: payload.deletedOrphanedVariantFilesCount,
             deletedOrphanedVariantDirsCount: payload.deletedOrphanedVariantDirsCount,
-            totalBytes: payload.deletedTotals.totalBytes,
+            quarantinedLooseOriginalFilesCount: payload.quarantinedLooseOriginalFilesCount,
+            deletedQuarantineFilesCount: payload.deletedQuarantineFilesCount,
+            deletedQuarantineDirsCount: payload.deletedQuarantineDirsCount,
+            deletedBytes: payload.deletedTotals.totalBytes,
+            quarantinedBytes: payload.quarantinedTotals.totalBytes,
+            purgedQuarantineBytes: payload.purgedQuarantineTotals.totalBytes,
           })} ${payload.failedCount} falharam.`,
           variant: "destructive",
         });
@@ -425,7 +481,12 @@ const DashboardUploads = () => {
           deletedUnusedUploadsCount: payload.deletedUnusedUploadsCount,
           deletedOrphanedVariantFilesCount: payload.deletedOrphanedVariantFilesCount,
           deletedOrphanedVariantDirsCount: payload.deletedOrphanedVariantDirsCount,
-          totalBytes: payload.deletedTotals.totalBytes,
+          quarantinedLooseOriginalFilesCount: payload.quarantinedLooseOriginalFilesCount,
+          deletedQuarantineFilesCount: payload.deletedQuarantineFilesCount,
+          deletedQuarantineDirsCount: payload.deletedQuarantineDirsCount,
+          deletedBytes: payload.deletedTotals.totalBytes,
+          quarantinedBytes: payload.quarantinedTotals.totalBytes,
+          purgedQuarantineBytes: payload.purgedQuarantineTotals.totalBytes,
         }),
       });
     } catch {
@@ -619,7 +680,7 @@ const DashboardUploads = () => {
                     Limpeza de armazenamento não utilizado
                   </h2>
                   <p className="text-sm text-muted-foreground">
-                    Remove uploads sem referência e variantes órfãs encontradas em _variants.
+                    Remove uploads sem referência, variantes órfãs e envia originais soltos para _quarantine.
                   </p>
                 </div>
                 {isCleanupLoading ? (
@@ -707,11 +768,22 @@ const DashboardUploads = () => {
                         {cleanupPreview.orphanedVariantDirsCount} diretórios de variantes órfãos
                       </p>
                       <p className="text-sm text-muted-foreground">
+                        {cleanupPreview.looseOriginalFilesCount} originais soltos (quarentena)
+                      </p>
+                      <p className="text-sm text-muted-foreground">
+                        {cleanupPreview.quarantinePendingDeleteCount} arquivos de quarentena vencidos para purga
+                      </p>
+                      <p className="text-sm text-muted-foreground">
                         {formatBytes(cleanupPreview.totals.totalBytes)} recuperáveis no total
                       </p>
                       <p className="text-xs text-muted-foreground">
                         {formatBytes(cleanupPreview.totals.originalBytes)} em originais e{" "}
                         {formatBytes(cleanupPreview.totals.variantBytes)} em variantes.
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {formatBytes(cleanupPreview.looseOriginalTotals.totalBytes)} em originais soltos e{" "}
+                        {formatBytes(cleanupPreview.quarantinePendingDeleteTotals.totalBytes)} em purga pendente da
+                        quarentena.
                       </p>
                     </div>
                     <Button
@@ -750,7 +822,11 @@ const DashboardUploads = () => {
                               )}
                             >
                               <td className="px-4 py-3 text-muted-foreground">
-                                {item.kind === "variant" ? "Variante órfã" : "Upload"}
+                                {item.scope === "loose_original"
+                                  ? "Original solto"
+                                  : item.kind === "variant"
+                                    ? "Variante órfã"
+                                    : "Upload"}
                               </td>
                               <td className="px-4 py-3">
                                 <p className="font-medium text-foreground">{item.fileName || item.url}</p>
@@ -790,9 +866,9 @@ const DashboardUploads = () => {
           <AlertDialogHeader>
             <AlertDialogTitle>Limpar armazenamento não utilizado?</AlertDialogTitle>
             <AlertDialogDescription>
-              Esta ação remove uploads sem uso e variantes órfãs encontradas em _variants.
-              Variantes válidas referenciadas pelo metadata atual serão preservadas. Digite EXCLUIR
-              para confirmar.
+              Esta ação remove uploads sem uso, variantes órfãs encontradas em _variants e move
+              originais soltos para _quarantine. Arquivos em _quarantine com mais de 7 dias são
+              purgados no mesmo fluxo. Digite EXCLUIR para confirmar.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <div className="space-y-2">
@@ -809,6 +885,14 @@ const DashboardUploads = () => {
             <p className="text-sm text-muted-foreground">
               Diretórios órfãos:{" "}
               <span className="font-semibold text-foreground">{cleanupPreview.orphanedVariantDirsCount}</span>
+            </p>
+            <p className="text-sm text-muted-foreground">
+              Originais soltos (quarentena):{" "}
+              <span className="font-semibold text-foreground">{cleanupPreview.looseOriginalFilesCount}</span>
+            </p>
+            <p className="text-sm text-muted-foreground">
+              Quarentena vencida para purga:{" "}
+              <span className="font-semibold text-foreground">{cleanupPreview.quarantinePendingDeleteCount}</span>
             </p>
             <p className="text-sm text-muted-foreground">
               Espaço recuperável:{" "}

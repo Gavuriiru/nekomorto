@@ -15,6 +15,8 @@ const DATASETS_TO_SCAN = [
 ];
 
 const VARIANTS_ROOT_SEGMENT = "_variants";
+const QUARANTINE_ROOT_SEGMENT = "_quarantine";
+const QUARANTINE_RETENTION_MS = 7 * 24 * 60 * 60 * 1000;
 const SAFE_ORIGIN = "https://nekomata.local";
 
 const EMPTY_TOTALS = Object.freeze({
@@ -54,6 +56,7 @@ const getUploadFileName = (upload, normalizedUrl) => {
 };
 
 const isVariantUploadUrl = (value) => String(value || "").startsWith(`/uploads/${VARIANTS_ROOT_SEGMENT}/`);
+const isQuarantineUploadUrl = (value) => String(value || "").startsWith(`/uploads/${QUARANTINE_ROOT_SEGMENT}/`);
 
 const resolveUploadPathFromUrl = ({ uploadsDir, uploadUrl }) => {
   const trimmed = String(uploadUrl || "").trim();
@@ -104,7 +107,7 @@ const collectReferencedUploadUrls = (value, urls) => {
 const getManagedUploads = (uploads) =>
   (Array.isArray(uploads) ? uploads : []).filter((upload) => {
     const normalizedUrl = normalizeUploadUrl(upload?.url);
-    return Boolean(normalizedUrl) && !isVariantUploadUrl(normalizedUrl);
+    return Boolean(normalizedUrl) && !isVariantUploadUrl(normalizedUrl) && !isQuarantineUploadUrl(normalizedUrl);
   });
 
 const isStaleEpubImportTempUpload = (upload, nowTs = Date.now()) => {
@@ -463,6 +466,21 @@ const buildUploadCleanupExample = (upload) => {
   };
 };
 
+const buildLooseOriginalCleanupExample = (candidate) => ({
+  kind: "upload",
+  scope: "loose_original",
+  id: null,
+  ownerUploadId: null,
+  url: String(candidate?.url || ""),
+  fileName: String(candidate?.fileName || ""),
+  folder: String(candidate?.folder || ""),
+  area: String(candidate?.area || deriveUploadArea(candidate?.folder || "")),
+  createdAt: candidate?.createdAt ? String(candidate.createdAt) : null,
+  originalBytes: Number(candidate?.bytes || 0),
+  variantBytes: 0,
+  totalBytes: Number(candidate?.bytes || 0),
+});
+
 const buildVariantCleanupExample = (candidate) => ({
   kind: "variant",
   scope: "orphaned_variant",
@@ -481,6 +499,7 @@ const buildVariantCleanupExample = (candidate) => ({
 const buildCombinedCleanupExamples = ({
   unusedUploadCandidates,
   orphanedVariantCandidates,
+  looseOriginalCandidates,
   exampleLimit,
 }) => {
   const safeLimitRaw = Number(exampleLimit);
@@ -496,6 +515,9 @@ const buildCombinedCleanupExamples = ({
     ...(Array.isArray(orphanedVariantCandidates) ? orphanedVariantCandidates : []).map((candidate) =>
       buildVariantCleanupExample(candidate),
     ),
+    ...(Array.isArray(looseOriginalCandidates) ? looseOriginalCandidates : []).map((candidate) =>
+      buildLooseOriginalCleanupExample(candidate),
+    ),
   ]
     .sort((left, right) => {
       if (left.totalBytes !== right.totalBytes) {
@@ -510,12 +532,25 @@ const buildCleanupReportBase = ({
   unusedUploadCandidates,
   orphanedVariantCandidates,
   orphanedVariantDirsCount,
+  looseOriginalCandidates,
+  quarantinePendingDeleteCandidates,
   exampleLimit,
 }) => {
   const unusedUploadSummary = buildStorageAreaSummary(unusedUploadCandidates);
   const orphanedVariantSummary = buildOrphanedVariantSummary(orphanedVariantCandidates);
-  const mergedSummary = mergeStorageSummaries(unusedUploadSummary, orphanedVariantSummary);
+  const looseOriginalSummary = buildLooseOriginalSummary(looseOriginalCandidates);
+  const quarantinePendingSummary = buildQuarantinePendingSummary(quarantinePendingDeleteCandidates);
+  const mergedSummary = mergeStorageSummaries(
+    unusedUploadSummary,
+    orphanedVariantSummary,
+    looseOriginalSummary,
+    quarantinePendingSummary,
+  );
   const unusedUploadCount = Array.isArray(unusedUploadCandidates) ? unusedUploadCandidates.length : 0;
+  const looseOriginalFilesCount = Array.isArray(looseOriginalCandidates) ? looseOriginalCandidates.length : 0;
+  const quarantinePendingDeleteCount = Array.isArray(quarantinePendingDeleteCandidates)
+    ? quarantinePendingDeleteCandidates.length
+    : 0;
 
   return {
     generatedAt: new Date().toISOString(),
@@ -523,11 +558,16 @@ const buildCleanupReportBase = ({
     unusedUploadCount,
     orphanedVariantFilesCount: Array.isArray(orphanedVariantCandidates) ? orphanedVariantCandidates.length : 0,
     orphanedVariantDirsCount: Number(orphanedVariantDirsCount || 0),
+    looseOriginalFilesCount,
+    looseOriginalTotals: normalizeStorageAreaRow(looseOriginalSummary.totals, "total"),
+    quarantinePendingDeleteCount,
+    quarantinePendingDeleteTotals: normalizeStorageAreaRow(quarantinePendingSummary.totals, "total"),
     totals: normalizeStorageAreaRow(mergedSummary.totals, "total"),
     areas: mergedSummary.areas.map((item) => normalizeStorageAreaRow(item, String(item?.area || "root"))),
     examples: buildCombinedCleanupExamples({
       unusedUploadCandidates,
       orphanedVariantCandidates,
+      looseOriginalCandidates,
       exampleLimit,
     }),
   };
@@ -570,7 +610,11 @@ const createRewrittenDatasets = (datasets, nextUploads) => ({
   uploads: nextUploads,
 });
 
-const scanOriginalUploadFilesRecursive = ({ absoluteDir, relativeDir = "" }) => {
+const scanOriginalUploadFilesRecursive = ({
+  absoluteDir,
+  relativeDir = "",
+  ignoredRootSegments = new Set([VARIANTS_ROOT_SEGMENT]),
+}) => {
   if (!fs.existsSync(absoluteDir)) {
     return [];
   }
@@ -583,10 +627,16 @@ const scanOriginalUploadFilesRecursive = ({ absoluteDir, relativeDir = "" }) => 
     const nextRelative = relativeDir ? toPosix(path.join(relativeDir, entry.name)) : entry.name;
 
     if (entry.isDirectory()) {
-      if (!relativeDir && entry.name === VARIANTS_ROOT_SEGMENT) {
+      if (!relativeDir && ignoredRootSegments.has(entry.name)) {
         return;
       }
-      files.push(...scanOriginalUploadFilesRecursive({ absoluteDir: nextAbsolute, relativeDir: nextRelative }));
+      files.push(
+        ...scanOriginalUploadFilesRecursive({
+          absoluteDir: nextAbsolute,
+          relativeDir: nextRelative,
+          ignoredRootSegments,
+        }),
+      );
       return;
     }
 
@@ -599,6 +649,7 @@ const scanOriginalUploadFilesRecursive = ({ absoluteDir, relativeDir = "" }) => 
       absolutePath: nextAbsolute,
       relativePath: toPosix(nextRelative),
       bytes: Number(stat.size || 0),
+      createdAt: stat.mtime?.toISOString?.() || null,
     });
   });
 
@@ -611,6 +662,360 @@ const deriveOriginalAreaFromRelativePath = (relativePath) => {
   const normalized = toPosix(relativePath).replace(/^\/+/, "");
   const folder = path.posix.dirname(normalized).replace(/^\.$/, "");
   return deriveUploadArea(folder);
+};
+
+const buildLooseOriginalCandidateFromFile = (file) => {
+  const relativePath = toPosix(String(file?.relativePath || "").replace(/^\/+/, ""));
+  const folder = path.posix.dirname(relativePath).replace(/^\.$/, "");
+  return {
+    kind: "upload",
+    scope: "loose_original",
+    id: null,
+    ownerUploadId: null,
+    absolutePath: path.resolve(String(file?.absolutePath || "")),
+    relativePath,
+    url: `/uploads/${relativePath}`,
+    fileName: path.posix.basename(relativePath),
+    folder,
+    area: deriveOriginalAreaFromRelativePath(relativePath),
+    bytes: Number(file?.bytes || 0),
+    createdAt: file?.createdAt ? String(file.createdAt) : null,
+  };
+};
+
+const collectLooseOriginalCandidates = ({ uploads, uploadsDir, referencedUrls = new Set() }) => {
+  const uploadsRootDir = path.resolve(uploadsDir);
+  const managedOriginalPaths = new Set();
+  const referencedOriginalPaths = new Set();
+
+  getManagedUploads(uploads).forEach((upload) => {
+    const normalizedUrl = normalizeUploadUrl(upload?.url);
+    if (!normalizedUrl || isVariantUploadUrl(normalizedUrl) || isQuarantineUploadUrl(normalizedUrl)) {
+      return;
+    }
+    const absolutePath = resolveUploadPathFromUrl({ uploadsDir, uploadUrl: normalizedUrl });
+    if (!absolutePath) {
+      return;
+    }
+    managedOriginalPaths.add(path.resolve(absolutePath));
+  });
+
+  (referencedUrls instanceof Set ? referencedUrls : new Set()).forEach((item) => {
+    const normalizedUrl = normalizeUploadUrl(item);
+    if (!normalizedUrl || isVariantUploadUrl(normalizedUrl) || isQuarantineUploadUrl(normalizedUrl)) {
+      return;
+    }
+    const absolutePath = resolveUploadPathFromUrl({ uploadsDir, uploadUrl: normalizedUrl });
+    if (!absolutePath) {
+      return;
+    }
+    referencedOriginalPaths.add(path.resolve(absolutePath));
+  });
+
+  const filesOnDisk = scanOriginalUploadFilesRecursive({
+    absoluteDir: uploadsRootDir,
+    ignoredRootSegments: new Set([VARIANTS_ROOT_SEGMENT, QUARANTINE_ROOT_SEGMENT]),
+  });
+
+  const looseOriginalCandidates = filesOnDisk
+    .filter((file) => {
+      const absolutePath = path.resolve(String(file?.absolutePath || ""));
+      return !managedOriginalPaths.has(absolutePath) && !referencedOriginalPaths.has(absolutePath);
+    })
+    .map((file) => buildLooseOriginalCandidateFromFile(file));
+
+  return {
+    looseOriginalCandidates,
+    managedOriginalPaths,
+    referencedOriginalPaths,
+  };
+};
+
+const buildLooseOriginalSummary = (looseOriginalCandidates) => {
+  const areasMap = new Map();
+
+  (Array.isArray(looseOriginalCandidates) ? looseOriginalCandidates : []).forEach((candidate) => {
+    const bytes = Number(candidate?.bytes || 0);
+    if (!Number.isFinite(bytes) || bytes < 0) {
+      return;
+    }
+    const area = String(candidate?.area || deriveOriginalAreaFromRelativePath(candidate?.relativePath || ""));
+    mergeStorageAreaRow(
+      areasMap,
+      {
+        area,
+        originalBytes: bytes,
+        variantBytes: 0,
+        totalBytes: bytes,
+        originalFiles: 1,
+        variantFiles: 0,
+        totalFiles: 1,
+      },
+      area,
+    );
+  });
+
+  const areas = sortStorageAreaRows(Array.from(areasMap.values()));
+  return {
+    totals: sumStorageAreaRows(areas),
+    areas,
+  };
+};
+
+const parseQuarantineDateSegmentToTs = (value) => {
+  const normalized = String(value || "").trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(normalized)) {
+    return null;
+  }
+  const ts = new Date(`${normalized}T00:00:00.000Z`).getTime();
+  return Number.isFinite(ts) ? ts : null;
+};
+
+const scanQuarantineFilesRecursive = ({ absoluteDir, relativeDir = "" }) => {
+  if (!fs.existsSync(absoluteDir)) {
+    return [];
+  }
+
+  const entries = fs.readdirSync(absoluteDir, { withFileTypes: true });
+  const files = [];
+
+  entries.forEach((entry) => {
+    const nextAbsolute = path.join(absoluteDir, entry.name);
+    const nextRelative = relativeDir ? toPosix(path.join(relativeDir, entry.name)) : entry.name;
+
+    if (entry.isDirectory()) {
+      files.push(...scanQuarantineFilesRecursive({ absoluteDir: nextAbsolute, relativeDir: nextRelative }));
+      return;
+    }
+
+    if (!entry.isFile()) {
+      return;
+    }
+
+    const stat = fs.statSync(nextAbsolute);
+    files.push({
+      absolutePath: path.resolve(nextAbsolute),
+      relativePath: toPosix(nextRelative),
+      bytes: Number(stat.size || 0),
+      createdAt: stat.mtime?.toISOString?.() || null,
+      modifiedAtMs: Number(stat.mtimeMs || 0),
+    });
+  });
+
+  return files.sort((left, right) =>
+    String(left.relativePath || "").localeCompare(String(right.relativePath || ""), "en"),
+  );
+};
+
+const isQuarantineCandidateExpired = (candidate, nowTs = Date.now()) => {
+  const relativePath = String(candidate?.relativePath || "");
+  const rootSegment = relativePath.split("/")[0] || "";
+  const dateTs = parseQuarantineDateSegmentToTs(rootSegment);
+  if (Number.isFinite(dateTs)) {
+    return nowTs - dateTs >= QUARANTINE_RETENTION_MS;
+  }
+  const modifiedAtMs = Number(candidate?.modifiedAtMs || 0);
+  if (!Number.isFinite(modifiedAtMs) || modifiedAtMs <= 0) {
+    return true;
+  }
+  return nowTs - modifiedAtMs >= QUARANTINE_RETENTION_MS;
+};
+
+const buildQuarantinePendingCandidate = (file) => {
+  const relativePathInQuarantine = toPosix(String(file?.relativePath || "").replace(/^\/+/, ""));
+  const relativePath = toPosix(path.join(QUARANTINE_ROOT_SEGMENT, relativePathInQuarantine));
+  const folder = path.posix.dirname(relativePath).replace(/^\.$/, "");
+  return {
+    kind: "upload",
+    scope: "quarantine_pending_delete",
+    id: null,
+    ownerUploadId: null,
+    absolutePath: path.resolve(String(file?.absolutePath || "")),
+    relativePath,
+    url: `/uploads/${relativePath}`,
+    fileName: path.posix.basename(relativePathInQuarantine),
+    folder,
+    area: QUARANTINE_ROOT_SEGMENT,
+    bytes: Number(file?.bytes || 0),
+    createdAt: file?.createdAt ? String(file.createdAt) : null,
+    modifiedAtMs: Number(file?.modifiedAtMs || 0),
+  };
+};
+
+const collectQuarantinePendingDeleteCandidates = ({ uploadsDir, nowTs = Date.now() }) => {
+  const quarantineRootDir = path.resolve(path.join(uploadsDir, QUARANTINE_ROOT_SEGMENT));
+  const quarantineFiles = scanQuarantineFilesRecursive({ absoluteDir: quarantineRootDir });
+  const quarantinePendingDeleteCandidates = quarantineFiles
+    .filter((file) => isQuarantineCandidateExpired(file, nowTs))
+    .map((file) => buildQuarantinePendingCandidate(file));
+
+  return {
+    quarantineRootDir,
+    quarantinePendingDeleteCandidates,
+  };
+};
+
+const buildQuarantinePendingSummary = (quarantinePendingDeleteCandidates) => {
+  const totalBytes = (Array.isArray(quarantinePendingDeleteCandidates) ? quarantinePendingDeleteCandidates : []).reduce(
+    (sum, candidate) => {
+      const bytes = Number(candidate?.bytes || 0);
+      if (!Number.isFinite(bytes) || bytes < 0) {
+        return sum;
+      }
+      return sum + bytes;
+    },
+    0,
+  );
+  const totalFiles = Array.isArray(quarantinePendingDeleteCandidates) ? quarantinePendingDeleteCandidates.length : 0;
+
+  if (totalFiles === 0) {
+    return {
+      totals: { ...EMPTY_TOTALS },
+      areas: [],
+    };
+  }
+
+  return {
+    totals: {
+      area: "total",
+      originalBytes: totalBytes,
+      variantBytes: 0,
+      totalBytes,
+      originalFiles: totalFiles,
+      variantFiles: 0,
+      totalFiles,
+    },
+    areas: [
+      {
+        area: QUARANTINE_ROOT_SEGMENT,
+        originalBytes: totalBytes,
+        variantBytes: 0,
+        totalBytes,
+        originalFiles: totalFiles,
+        variantFiles: 0,
+        totalFiles,
+      },
+    ],
+  };
+};
+
+const buildQuarantineDateFolder = (nowTs = Date.now()) => new Date(nowTs).toISOString().slice(0, 10);
+
+const resolveQuarantineTargetPath = ({ uploadsDir, dateFolder, sourceRelativePath, nowTs = Date.now() }) => {
+  const uploadsRootDir = path.resolve(uploadsDir);
+  const safeDateFolder = String(dateFolder || "").trim();
+  if (!safeDateFolder || !/^\d{4}-\d{2}-\d{2}$/.test(safeDateFolder)) {
+    return null;
+  }
+
+  const rawRelativePath = toPosix(String(sourceRelativePath || "").replace(/^\/+/, ""));
+  const normalizedSourceRelativePath = path.posix.normalize(rawRelativePath);
+  if (
+    !normalizedSourceRelativePath ||
+    normalizedSourceRelativePath === "." ||
+    normalizedSourceRelativePath.startsWith("../") ||
+    normalizedSourceRelativePath.includes("/../") ||
+    path.posix.isAbsolute(normalizedSourceRelativePath)
+  ) {
+    return null;
+  }
+
+  const sourceDir = path.posix.dirname(normalizedSourceRelativePath).replace(/^\.$/, "");
+  const sourceExt = path.posix.extname(normalizedSourceRelativePath);
+  const sourceBaseName = sourceExt
+    ? path.posix.basename(normalizedSourceRelativePath, sourceExt)
+    : path.posix.basename(normalizedSourceRelativePath);
+
+  let attempt = 0;
+  while (attempt < 1000) {
+    const suffix = attempt === 0 ? "" : `__${nowTs}${attempt === 1 ? "" : `-${attempt}`}`;
+    const fileName = `${sourceBaseName}${suffix}${sourceExt}`;
+    const targetLeafRelative = sourceDir ? path.posix.join(sourceDir, fileName) : fileName;
+    const targetRelativePath = toPosix(path.posix.join(QUARANTINE_ROOT_SEGMENT, safeDateFolder, targetLeafRelative));
+    const targetAbsolutePath = path.resolve(path.join(uploadsRootDir, targetRelativePath));
+
+    if (!isPathInsideRoot(uploadsRootDir, targetAbsolutePath)) {
+      return null;
+    }
+    if (!fs.existsSync(targetAbsolutePath)) {
+      return {
+        targetRelativePath,
+        targetAbsolutePath,
+        targetUrl: `/uploads/${targetRelativePath}`,
+      };
+    }
+    attempt += 1;
+  }
+
+  return null;
+};
+
+const moveFileWithFallback = (sourcePath, targetPath) => {
+  try {
+    fs.renameSync(sourcePath, targetPath);
+  } catch (error) {
+    if (String(error?.code || "").trim() !== "EXDEV") {
+      throw error;
+    }
+    fs.copyFileSync(sourcePath, targetPath);
+    fs.rmSync(sourcePath, { force: true });
+  }
+};
+
+const pruneEmptyDirectoriesUpward = ({ startDir, stopDir }) => {
+  const safeStopDir = path.resolve(stopDir);
+  let current = path.resolve(startDir);
+
+  while (current !== safeStopDir) {
+    if (!isPathInsideRoot(safeStopDir, current)) {
+      return;
+    }
+    if (!fs.existsSync(current)) {
+      current = path.dirname(current);
+      continue;
+    }
+    if (fs.readdirSync(current).length > 0) {
+      return;
+    }
+    fs.rmdirSync(current);
+    current = path.dirname(current);
+  }
+};
+
+const pruneEmptyDirectoriesRecursive = ({ directoryPath, rootDir }) => {
+  const safeRootDir = path.resolve(rootDir);
+  const safeDirectoryPath = path.resolve(directoryPath);
+  if (!isPathInsideRoot(safeRootDir, safeDirectoryPath) || !fs.existsSync(safeDirectoryPath)) {
+    return 0;
+  }
+
+  let removedDirectories = 0;
+
+  const prune = (currentPath) => {
+    if (!fs.existsSync(currentPath)) {
+      return;
+    }
+
+    fs.readdirSync(currentPath, { withFileTypes: true })
+      .filter((entry) => entry.isDirectory())
+      .forEach((entry) => {
+        prune(path.join(currentPath, entry.name));
+      });
+
+    const safeCurrentPath = path.resolve(currentPath);
+    if (safeCurrentPath === safeRootDir || !fs.existsSync(currentPath)) {
+      return;
+    }
+
+    if (fs.readdirSync(currentPath).length === 0) {
+      fs.rmdirSync(currentPath);
+      removedDirectories += 1;
+    }
+  };
+
+  prune(safeDirectoryPath);
+
+  return removedDirectories;
 };
 
 const scanLooseVariantFiles = (variantsRootDir) => {
@@ -744,23 +1149,34 @@ export const runUploadsCleanup = ({
   applyChanges = false,
   exampleLimit = 8,
 } = {}) => {
+  const nowTs = Date.now();
   const uploadsRootDir = path.resolve(uploadsDir);
   const variantsRootDir = path.resolve(path.join(uploadsDir, VARIANTS_ROOT_SEGMENT));
-  const { uploads, unusedUploadCandidates, unusedUploadIds } = collectUnusedUploadCandidates(datasets);
+  const { uploads, unusedUploadCandidates, unusedUploadIds, referencedUrls } = collectUnusedUploadCandidates(datasets);
   const {
     orphanedVariantCandidates,
     orphanedVariantDirectoryGroups,
-    orphanedVariantFilesCount,
     orphanedVariantDirsCount,
   } = collectOrphanedVariantCandidates({
     uploads,
     uploadsDir,
     ignoredUploadIds: unusedUploadIds,
   });
+  const { looseOriginalCandidates } = collectLooseOriginalCandidates({
+    uploads,
+    uploadsDir,
+    referencedUrls,
+  });
+  const { quarantineRootDir, quarantinePendingDeleteCandidates } = collectQuarantinePendingDeleteCandidates({
+    uploadsDir,
+    nowTs,
+  });
   const reportBase = buildCleanupReportBase({
     unusedUploadCandidates,
     orphanedVariantCandidates,
     orphanedVariantDirsCount,
+    looseOriginalCandidates,
+    quarantinePendingDeleteCandidates,
     exampleLimit,
   });
 
@@ -774,8 +1190,13 @@ export const runUploadsCleanup = ({
       deletedUnusedUploadsCount: 0,
       deletedOrphanedVariantFilesCount: 0,
       deletedOrphanedVariantDirsCount: 0,
+      quarantinedLooseOriginalFilesCount: 0,
+      deletedQuarantineFilesCount: 0,
+      deletedQuarantineDirsCount: 0,
       failedCount: 0,
       deletedTotals: { ...EMPTY_TOTALS },
+      quarantinedTotals: { ...EMPTY_TOTALS },
+      purgedQuarantineTotals: { ...EMPTY_TOTALS },
       failures: [],
     };
   }
@@ -783,6 +1204,9 @@ export const runUploadsCleanup = ({
   const deletedUploads = new Set();
   const deletedVariantCandidates = [];
   let deletedOrphanedVariantDirsCount = 0;
+  const quarantinedLooseOriginalCandidates = [];
+  const deletedQuarantineCandidates = [];
+  let deletedQuarantineDirsCount = 0;
   const failures = [];
 
   unusedUploadCandidates.forEach((upload) => {
@@ -858,12 +1282,86 @@ export const runUploadsCleanup = ({
     pruneEmptyVariantDirectories(directoryPath, variantsRootDir);
   });
 
+  const quarantineDateFolder = buildQuarantineDateFolder(nowTs);
+
+  looseOriginalCandidates.forEach((candidate) => {
+    const sourceAbsolutePath = path.resolve(String(candidate?.absolutePath || ""));
+    try {
+      if (!isPathInsideRoot(uploadsRootDir, sourceAbsolutePath)) {
+        throw new Error("invalid_upload_path");
+      }
+      if (!fs.existsSync(sourceAbsolutePath)) {
+        throw new Error("upload_file_not_found");
+      }
+
+      const quarantineTarget = resolveQuarantineTargetPath({
+        uploadsDir,
+        dateFolder: quarantineDateFolder,
+        sourceRelativePath: candidate?.relativePath,
+        nowTs,
+      });
+      if (!quarantineTarget) {
+        throw new Error("invalid_quarantine_path");
+      }
+      if (!isPathInsideRoot(uploadsRootDir, quarantineTarget.targetAbsolutePath)) {
+        throw new Error("invalid_quarantine_path");
+      }
+
+      fs.mkdirSync(path.dirname(quarantineTarget.targetAbsolutePath), { recursive: true });
+      moveFileWithFallback(sourceAbsolutePath, quarantineTarget.targetAbsolutePath);
+      quarantinedLooseOriginalCandidates.push({
+        ...candidate,
+        url: quarantineTarget.targetUrl,
+        relativePath: quarantineTarget.targetRelativePath,
+        absolutePath: quarantineTarget.targetAbsolutePath,
+        area: QUARANTINE_ROOT_SEGMENT,
+      });
+      pruneEmptyDirectoriesUpward({
+        startDir: path.dirname(sourceAbsolutePath),
+        stopDir: uploadsRootDir,
+      });
+    } catch (error) {
+      failures.push({
+        kind: "upload",
+        url: String(candidate?.url || ""),
+        reason: String(error?.message || error || "cleanup_failed"),
+      });
+    }
+  });
+
+  quarantinePendingDeleteCandidates.forEach((candidate) => {
+    const targetAbsolutePath = path.resolve(String(candidate?.absolutePath || ""));
+    try {
+      if (!isPathInsideRoot(quarantineRootDir, targetAbsolutePath)) {
+        throw new Error("invalid_quarantine_path");
+      }
+      fs.rmSync(targetAbsolutePath, { force: true });
+      deletedQuarantineCandidates.push(candidate);
+    } catch (error) {
+      failures.push({
+        kind: "upload",
+        url: String(candidate?.url || ""),
+        reason: String(error?.message || error || "cleanup_failed"),
+      });
+    }
+  });
+
+  deletedQuarantineDirsCount = pruneEmptyDirectoriesRecursive({
+    directoryPath: quarantineRootDir,
+    rootDir: quarantineRootDir,
+  });
+
   const deletedUploadEntries = unusedUploadCandidates.filter((upload) => deletedUploads.has(upload));
   const deletedSummary = mergeStorageSummaries(
     buildStorageAreaSummary(deletedUploadEntries),
     buildOrphanedVariantSummary(deletedVariantCandidates),
+    buildQuarantinePendingSummary(deletedQuarantineCandidates),
   );
+  const quarantinedSummary = buildLooseOriginalSummary(quarantinedLooseOriginalCandidates);
+  const purgedQuarantineSummary = buildQuarantinePendingSummary(deletedQuarantineCandidates);
   const nextUploads = uploads.filter((upload) => !deletedUploads.has(upload));
+  const deletedCount =
+    deletedUploads.size + deletedVariantCandidates.length + deletedQuarantineCandidates.length;
 
   return {
     mode: "apply",
@@ -872,13 +1370,21 @@ export const runUploadsCleanup = ({
     changed:
       deletedUploads.size > 0 ||
       deletedVariantCandidates.length > 0 ||
-      deletedOrphanedVariantDirsCount > 0,
-    deletedCount: deletedUploads.size,
+      deletedOrphanedVariantDirsCount > 0 ||
+      quarantinedLooseOriginalCandidates.length > 0 ||
+      deletedQuarantineCandidates.length > 0 ||
+      deletedQuarantineDirsCount > 0,
+    deletedCount,
     deletedUnusedUploadsCount: deletedUploads.size,
     deletedOrphanedVariantFilesCount: deletedVariantCandidates.length,
     deletedOrphanedVariantDirsCount,
+    quarantinedLooseOriginalFilesCount: quarantinedLooseOriginalCandidates.length,
+    deletedQuarantineFilesCount: deletedQuarantineCandidates.length,
+    deletedQuarantineDirsCount,
     failedCount: failures.length,
     deletedTotals: normalizeStorageAreaRow(deletedSummary.totals, "total"),
+    quarantinedTotals: normalizeStorageAreaRow(quarantinedSummary.totals, "total"),
+    purgedQuarantineTotals: normalizeStorageAreaRow(purgedQuarantineSummary.totals, "total"),
     failures: sortFailures(failures),
   };
 };
@@ -886,14 +1392,21 @@ export const runUploadsCleanup = ({
 export const __testing = {
   buildDiskStorageAreaSummary,
   buildCombinedCleanupExamples,
+  buildLooseOriginalSummary,
   buildOrphanedVariantSummary,
+  buildQuarantinePendingSummary,
   collectExpectedVariantFilesByUploadId,
+  collectLooseOriginalCandidates,
   collectOrphanedVariantCandidates,
+  collectQuarantinePendingDeleteCandidates,
   collectReferencedUploadUrls,
   collectUnusedUploadCandidates,
   isPathInsideRoot,
   normalizeStorageAreaRow,
+  parseQuarantineDateSegmentToTs,
   pruneEmptyVariantDirectories,
+  pruneEmptyDirectoriesRecursive,
   resolveUploadPathFromUrl,
+  resolveQuarantineTargetPath,
   scanVariantDirectoryEntries,
 };

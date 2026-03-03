@@ -249,6 +249,17 @@ const setupApiMock = (
 };
 
 const scrollIntoViewMock = vi.fn();
+const resizeObserverObserveMock = vi.fn();
+const resizeObserverUnobserveMock = vi.fn();
+const resizeObserverDisconnectMock = vi.fn();
+const originalResizeObserver = globalThis.ResizeObserver;
+
+const ResizeObserverMock = vi.fn(() => ({
+  observe: resizeObserverObserveMock,
+  unobserve: resizeObserverUnobserveMock,
+  disconnect: resizeObserverDisconnectMock,
+}));
+
 const getEpisodeTrigger = (name: RegExp) => {
   const match = screen
     .getAllByRole("button", { name })
@@ -301,9 +312,19 @@ describe("DashboardProjectsEditor episode accordion", () => {
       writable: true,
       value: scrollIntoViewMock,
     });
+    Object.defineProperty(globalThis, "ResizeObserver", {
+      configurable: true,
+      writable: true,
+      value: ResizeObserverMock,
+    });
   });
 
   afterEach(() => {
+    Object.defineProperty(globalThis, "ResizeObserver", {
+      configurable: true,
+      writable: true,
+      value: originalResizeObserver,
+    });
     vi.restoreAllMocks();
     vi.unstubAllEnvs();
   });
@@ -476,15 +497,16 @@ describe("DashboardProjectsEditor episode accordion", () => {
     expect(within(chapterCard).getByText("Fontes de download")).toBeInTheDocument();
     expect(within(chapterCard).getByRole("button", { name: /Adicionar fonte/i })).toBeInTheDocument();
     expect(within(chapterCard).getAllByRole("combobox").length).toBeGreaterThan(0);
-
-    fireEvent.click(screen.getByRole("button", { name: /Volumes.*volume\(s\)/i }));
-    expect(screen.getByRole("button", { name: /Volumes.*volume\(s\)/i })).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /Cap.tulos e Volumes.*cap.tulos/i }),
+    ).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Adicionar volume/i })).toBeInTheDocument();
+    expect(screen.getByTestId("volume-group-none")).toBeInTheDocument();
   });
 
-  it("oculta o accordion de volumes fora de manga/light novel", async () => {
+  it("oculta controles de volume fora de manga/light novel", async () => {
     await openEpisodeEditor();
-    expect(screen.queryByRole("button", { name: /^Volumes$/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Adicionar volume/i })).not.toBeInTheDocument();
   });
 
   it("envia volumeEntries e volumeCovers vazios ao salvar projeto sem suporte a volume", async () => {
@@ -529,7 +551,7 @@ describe("DashboardProjectsEditor episode accordion", () => {
     });
 
     await openEpisodeEditor({ projectTitle: "Projeto Anime Legado" });
-    expect(screen.queryByRole("button", { name: /^Volumes$/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Adicionar volume/i })).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: /Salvar projeto/i }));
 
@@ -540,7 +562,7 @@ describe("DashboardProjectsEditor episode accordion", () => {
     expect(savedPayload.volumeCovers).toEqual([]);
   });
 
-  it("abre o accordion de volumes ao detectar volume duplicado no save", async () => {
+  it("abre a secao de capitulos ao detectar volume duplicado no save", async () => {
     const lightNovelWithDuplicateVolumesFixture = {
       ...lightNovelProjectFixture,
       id: "project-ln-duplicated-volumes",
@@ -575,8 +597,11 @@ describe("DashboardProjectsEditor episode accordion", () => {
       removeButtonPattern: /Remover cap/i,
     });
 
-    const volumesTrigger = screen.getByRole("button", { name: /Volumes.*volume\(s\)/i });
-    expect(volumesTrigger).toHaveAttribute("aria-expanded", "false");
+    const chaptersTrigger = screen.getByRole("button", {
+      name: /Cap.tulos e Volumes.*cap.tulos/i,
+    });
+    fireEvent.click(chaptersTrigger);
+    expect(chaptersTrigger).toHaveAttribute("aria-expanded", "false");
 
     fireEvent.click(screen.getByRole("button", { name: /Salvar projeto/i }));
 
@@ -589,13 +614,28 @@ describe("DashboardProjectsEditor episode accordion", () => {
         }),
       );
     });
-    expect(screen.getByRole("button", { name: /Volumes.*volume\(s\)/i })).toHaveAttribute(
+    expect(screen.getByRole("button", { name: /Cap.tulos e Volumes.*cap.tulos/i })).toHaveAttribute(
       "aria-expanded",
       "true",
     );
     expect(
       apiFetchMock.mock.calls.some((call) => String(call[1] || "").startsWith("/api/projects/"))
     ).toBe(false);
+  });
+
+  it("permite criar volume sem capitulo e exibe grupo vazio", async () => {
+    setupApiMock([lightNovelProjectFixture]);
+    await openEpisodeEditor({
+      projectTitle: "Projeto Light Novel",
+      sectionNamePattern: /Cap/i,
+      removeButtonPattern: /Remover cap/i,
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /Adicionar volume/i }));
+
+    const volumeGroup = await screen.findByTestId("volume-group-1");
+    expect(volumeGroup).toBeInTheDocument();
+    expect(within(volumeGroup).getByText(/Nenhum cap.tulo vinculado a este volume/i)).toBeInTheDocument();
   });
 
   it("desabilita ferramentas EPUB quando o backend nao anuncia suporte", async () => {

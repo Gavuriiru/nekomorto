@@ -370,6 +370,20 @@ const AUDIT_META_ALLOWLIST = {
   "uploads.rename": ["oldUrl", "newUrl", "updatedReferences", "replacements"],
   "uploads.alt_text.update": ["uploadId", "altTextLength"],
   "uploads.delete": ["url"],
+  "uploads.cleanup_unused": [
+    "deletedCount",
+    "deletedUnusedUploadsCount",
+    "deletedOrphanedVariantFilesCount",
+    "deletedOrphanedVariantDirsCount",
+    "quarantinedLooseOriginalFilesCount",
+    "deletedQuarantineFilesCount",
+    "deletedQuarantineDirsCount",
+    "failedCount",
+    "freedBytes",
+    "quarantinedBytes",
+    "purgedQuarantineBytes",
+    "failures",
+  ],
   "uploads.auto_reorganize.startup": ["trigger", "moves", "rewrites", "failures", "durationMs"],
   "uploads.auto_reorganize.post_save": ["trigger", "moves", "rewrites", "failures", "durationMs"],
   "uploads.auto_reorganize.project_save": [
@@ -2666,6 +2680,7 @@ app.get("/manifest.webmanifest", (_req, res) => {
 });
 
 const uploadsPublicDir = path.join(clientRootDir, "public", "uploads");
+app.use("/uploads/_quarantine", (_req, res) => res.status(404).end());
 app.use(
   "/uploads",
   express.static(uploadsPublicDir, {
@@ -12358,6 +12373,10 @@ app.get("/api/uploads/storage/cleanup", requireAuth, (req, res) => {
     unusedUploadCount: report.unusedUploadCount,
     orphanedVariantFilesCount: report.orphanedVariantFilesCount,
     orphanedVariantDirsCount: report.orphanedVariantDirsCount,
+    looseOriginalFilesCount: report.looseOriginalFilesCount,
+    looseOriginalTotals: report.looseOriginalTotals,
+    quarantinePendingDeleteCount: report.quarantinePendingDeleteCount,
+    quarantinePendingDeleteTotals: report.quarantinePendingDeleteTotals,
     totals: report.totals,
     areas: report.areas,
     examples: report.examples,
@@ -12391,8 +12410,13 @@ app.post("/api/uploads/storage/cleanup", requireAuth, (req, res) => {
       deletedUnusedUploadsCount: report.deletedUnusedUploadsCount,
       deletedOrphanedVariantFilesCount: report.deletedOrphanedVariantFilesCount,
       deletedOrphanedVariantDirsCount: report.deletedOrphanedVariantDirsCount,
+      quarantinedLooseOriginalFilesCount: report.quarantinedLooseOriginalFilesCount,
+      deletedQuarantineFilesCount: report.deletedQuarantineFilesCount,
+      deletedQuarantineDirsCount: report.deletedQuarantineDirsCount,
       failedCount: report.failedCount,
       freedBytes: Number(report.deletedTotals?.totalBytes || 0),
+      quarantinedBytes: Number(report.quarantinedTotals?.totalBytes || 0),
+      purgedQuarantineBytes: Number(report.purgedQuarantineTotals?.totalBytes || 0),
       failures: report.failures,
     });
 
@@ -12402,8 +12426,13 @@ app.post("/api/uploads/storage/cleanup", requireAuth, (req, res) => {
       deletedUnusedUploadsCount: report.deletedUnusedUploadsCount,
       deletedOrphanedVariantFilesCount: report.deletedOrphanedVariantFilesCount,
       deletedOrphanedVariantDirsCount: report.deletedOrphanedVariantDirsCount,
+      quarantinedLooseOriginalFilesCount: report.quarantinedLooseOriginalFilesCount,
+      deletedQuarantineFilesCount: report.deletedQuarantineFilesCount,
+      deletedQuarantineDirsCount: report.deletedQuarantineDirsCount,
       failedCount: report.failedCount,
       deletedTotals: report.deletedTotals,
+      quarantinedTotals: report.quarantinedTotals,
+      purgedQuarantineTotals: report.purgedQuarantineTotals,
       failures: report.failures,
     });
   } catch {
