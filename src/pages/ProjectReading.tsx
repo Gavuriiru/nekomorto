@@ -362,13 +362,11 @@ const ProjectReading = () => {
           <div className="project-reading-masthead__backdrop project-reading-masthead__backdrop--veil absolute inset-0" />
           <div className="project-reading-masthead__backdrop project-reading-masthead__backdrop--horizontal absolute inset-0" />
           <div className="project-reading-masthead__backdrop project-reading-masthead__backdrop--bottom absolute inset-0" />
-          <div className="project-reading-masthead__backdrop project-reading-masthead__backdrop--accent-start absolute inset-0" />
-          <div className="project-reading-masthead__backdrop project-reading-masthead__backdrop--accent-cover absolute inset-0" />
 
           <div
             className={`${publicPageLayoutTokens.sectionBase} project-reading-masthead__content relative max-w-6xl pb-10 pt-24 md:pb-16 md:pt-20 lg:pb-20 lg:pt-24`}
           >
-            <div className="project-reading-masthead__layout grid items-center gap-6 md:grid-cols-[minmax(0,1fr)_220px] lg:grid-cols-[minmax(0,1fr)_240px]">
+            <div className="project-reading-masthead__layout grid items-center gap-8 md:gap-10 md:grid-cols-[minmax(0,1fr)_250px] lg:grid-cols-[minmax(0,1fr)_270px]">
               <div className="project-reading-masthead__body order-2 mx-auto w-48 md:order-1 md:w-full">
                 <div className="project-reading-masthead__meta flex w-full flex-wrap items-center gap-2">
                   <Badge variant="outline" className="project-reading-masthead__badge project-reading-masthead__badge--type text-xs uppercase tracking-wide">
@@ -419,9 +417,9 @@ const ProjectReading = () => {
                 </div>
               </div>
 
-              <div className="project-reading-masthead__cover order-1 mx-auto w-48 md:order-2 md:ml-auto md:w-[220px] lg:w-[240px]">
+              <div className="project-reading-masthead__cover order-1 mx-auto w-52 md:order-2 md:ml-auto md:w-[250px] lg:w-[270px]">
                 <div
-                  className="project-reading-masthead__cover-frame overflow-hidden rounded-2xl border border-border/70 bg-secondary/90 shadow-[0_30px_100px_-55px_rgba(0,0,0,0.95)]"
+                  className="project-reading-masthead__cover-frame overflow-hidden rounded-2xl border border-border/70 bg-secondary/90"
                   style={{ aspectRatio: "9 / 14" }}
                 >
                   <UploadPicture
@@ -498,7 +496,7 @@ const ProjectReading = () => {
                     <Button
                       asChild
                       size="sm"
-                      className="project-reading-nav-btn project-reading-nav-btn--next project-reading-chapter-nav__button project-reading-chapter-nav__button--next"
+                      className="project-reading-nav-btn project-reading-nav-btn--next project-reading-chapter-nav__button"
                     >
                       <Link
                         to={`/projeto/${project.id}/leitura/${nextChapter.number}${
