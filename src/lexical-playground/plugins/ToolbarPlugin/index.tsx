@@ -95,6 +95,12 @@ import {InsertPollDialog} from '../PollPlugin';
 import {InsertTableDialog} from '../TablePlugin';
 import FontSize, {parseFontSizeForToolbar} from './fontSize';
 import {
+  findToolbarScrollRoot,
+  getScrollRootTop,
+  getStickyTopPx,
+  isToolbarStickyStuck,
+} from './sticky-state';
+import {
   clearFormatting,
   formatBulletList,
   formatCheckList,
@@ -562,7 +568,9 @@ export default function ToolbarPlugin({
   const [isEditorEmpty, setIsEditorEmpty] = useState(true);
   const {toolbarState, updateToolbarState} = useToolbarState();
   const toolbarRef = useRef<HTMLDivElement | null>(null);
+  const scrollRootRef = useRef<HTMLElement | Window | null>(null);
   const [isToolbarCompact, setIsToolbarCompact] = useState(true);
+  const [isToolbarStuck, setIsToolbarStuck] = useState(false);
   const [isImageLibraryOpen, setIsImageLibraryOpen] = useState(false);
 
   const updateToolbarCompact = useCallback(() => {
@@ -596,6 +604,27 @@ export default function ToolbarPlugin({
     const nextCompact = overflow > collapseTolerance;
     setIsToolbarCompact((prev) => (prev === nextCompact ? prev : nextCompact));
   }, [isToolbarCompact]);
+
+  const updateToolbarStuck = useCallback(() => {
+    const toolbar = toolbarRef.current;
+    if (!toolbar) {
+      return;
+    }
+
+    const scrollRoot = scrollRootRef.current ?? findToolbarScrollRoot(toolbar);
+    scrollRootRef.current = scrollRoot;
+
+    const toolbarRect = toolbar.getBoundingClientRect();
+    const stickyTop = getStickyTopPx(toolbar);
+    const scrollRootTop = getScrollRootTop(scrollRoot);
+    const nextStuck = isToolbarStickyStuck({
+      toolbarTop: toolbarRect.top,
+      scrollRootTop,
+      stickyTop,
+      tolerancePx: 1,
+    });
+    setIsToolbarStuck((prev) => (prev === nextStuck ? prev : nextStuck));
+  }, []);
 
   const dispatchToolbarCommand = <T extends LexicalCommand<unknown>>(
     command: T,
@@ -865,7 +894,54 @@ export default function ToolbarPlugin({
 
   useLayoutEffect(() => {
     updateToolbarCompact();
-  }, [updateToolbarCompact, toolbarState, isEditable, isEditorEmpty]);
+    updateToolbarStuck();
+  }, [
+    updateToolbarCompact,
+    updateToolbarStuck,
+    toolbarState,
+    isEditable,
+    isEditorEmpty,
+  ]);
+
+  useEffect(() => {
+    const toolbar = toolbarRef.current;
+    if (!toolbar) {
+      return;
+    }
+
+    const scrollRoot = findToolbarScrollRoot(toolbar);
+    scrollRootRef.current = scrollRoot;
+    const scrollTarget: Window | HTMLElement =
+      scrollRoot === window ? window : scrollRoot;
+
+    let frame: number | null = null;
+    const scheduleStuckUpdate = () => {
+      if (frame !== null) {
+        return;
+      }
+      frame = requestAnimationFrame(() => {
+        frame = null;
+        updateToolbarStuck();
+      });
+    };
+
+    updateToolbarStuck();
+    scrollTarget.addEventListener('scroll', scheduleStuckUpdate, {
+      passive: true,
+    });
+    window.addEventListener('resize', scheduleStuckUpdate);
+
+    return () => {
+      scrollTarget.removeEventListener('scroll', scheduleStuckUpdate);
+      window.removeEventListener('resize', scheduleStuckUpdate);
+      if (frame !== null) {
+        cancelAnimationFrame(frame);
+      }
+      if (scrollRootRef.current === scrollRoot) {
+        scrollRootRef.current = null;
+      }
+    };
+  }, [updateToolbarStuck]);
 
   useEffect(() => {
     const toolbar = toolbarRef.current;
@@ -988,7 +1064,9 @@ export default function ToolbarPlugin({
 
   return (
     <div
-      className={`toolbar${isToolbarCompact ? ' toolbar--compact' : ''}`}
+      className={`toolbar${isToolbarCompact ? ' toolbar--compact' : ''}${
+        isToolbarStuck ? ' toolbar--stuck' : ''
+      }`}
       ref={toolbarRef}>
       <button
         disabled={!toolbarState.canUndo || !isEditable}

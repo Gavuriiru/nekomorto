@@ -77,10 +77,10 @@ describe("ImageLibraryDialog mobile layout", () => {
     expect(importControlsTokens).toContain("grid-cols-[minmax(0,1fr)_auto]");
 
     const selects = screen.getAllByRole("combobox");
-    const clearSelectionButton = screen
-      .getAllByRole("button", { name: "Limpar seleção" })
-      .find((button) => classTokens(button).includes("col-span-2"));
-    const filterControls = clearSelectionButton?.parentElement;
+    const searchInput = screen.getByPlaceholderText("Pesquisar por nome, projeto ou URL...");
+    const searchInputTokens = classTokens(searchInput as HTMLElement);
+    const clearSelectionButton = screen.getByRole("button", { name: /Limpar sele/i });
+    const filterControls = screen.getByTestId("image-library-uploads-controls");
     const toolbar = screen.getByTestId("image-library-uploads-toolbar");
     const toolbarTokens = classTokens(toolbar);
 
@@ -88,24 +88,26 @@ describe("ImageLibraryDialog mobile layout", () => {
     expect(toolbarTokens).toContain("sm:top-0");
     expect(toolbarTokens).not.toContain("sticky");
     expect(toolbarTokens).not.toContain("top-0");
+    expect(searchInputTokens).toContain("pl-9");
     expect(selects).toHaveLength(2);
     expect(screen.getAllByRole("button", { name: /Limpar sele/i })).toHaveLength(1);
-    expect(clearSelectionButton).toBeTruthy();
     expect(filterControls).toBeTruthy();
 
-    const filterControlsTokens = classTokens(filterControls as HTMLElement);
+    const filterControlsTokens = classTokens(filterControls);
 
-    expect(filterControlsTokens).toContain("grid-cols-2");
+    expect(filterControlsTokens).toContain("flex");
+    expect(filterControlsTokens).toContain("flex-wrap");
+    expect(filterControlsTokens).toContain("items-center");
 
     for (const select of selects) {
       const selectTokens = classTokens(select);
       expect(selectTokens).toContain("min-w-0");
-      expect(selectTokens).toContain("w-full");
+      expect(selectTokens).toContain("rounded-full");
     }
 
-    const clearSelectionTokens = classTokens(clearSelectionButton as HTMLElement);
+    const clearSelectionTokens = classTokens(clearSelectionButton);
 
-    expect(clearSelectionTokens).toContain("col-span-2");
-    expect(clearSelectionTokens).toContain("w-full");
+    expect(clearSelectionTokens).toContain("rounded-full");
+    expect(clearSelectionTokens).not.toContain("w-full");
   });
 });

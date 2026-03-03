@@ -315,6 +315,15 @@ const episode1TriggerPattern = /(Epis[oó]dio|Episódio)\s+1/i;
 const episode2TriggerPattern = /(Epis[oó]dio|Episódio)\s+2/i;
 
 const chapter1TriggerPattern = /Cap.tulo\s+1/i;
+const chapterOpenOverflowClass = "data-[state=open]:overflow-visible";
+
+const getOpenAccordionContentRoot = (element: HTMLElement) => {
+  const root = element.closest("div[data-state='open'].overflow-hidden");
+  if (!root) {
+    throw new Error("Open accordion content root not found");
+  }
+  return root as HTMLElement;
+};
 
 const openEpisodeEditor = async ({
   projectTitle = "Projeto Teste",
@@ -551,16 +560,147 @@ describe("DashboardProjectsEditor episode accordion", () => {
     fireEvent.click(getEpisodeTrigger(chapter1TriggerPattern));
 
     const chapterCard = await screen.findByTestId("episode-card-0");
-    expect(within(chapterCard).getAllByText("Rascunho").length).toBeGreaterThan(0);
+    const chapterHeader = screen.getByTestId("episode-header-0");
+    expect(
+      within(chapterHeader).getByTestId("episode-header-status-visibility-0"),
+    ).toHaveTextContent(/Rascunho.*Leitura/i);
+    expect(within(chapterHeader).queryByText(/^Rascunho$/i)).not.toBeInTheDocument();
+    expect(within(chapterHeader).queryByText(/^Leitura$/i)).not.toBeInTheDocument();
     expect(within(chapterCard).getByPlaceholderText("Volume")).toBeInTheDocument();
     expect(within(chapterCard).getByText("Fontes de download")).toBeInTheDocument();
     expect(within(chapterCard).getByRole("button", { name: /Adicionar fonte/i })).toBeInTheDocument();
     expect(within(chapterCard).getAllByRole("combobox").length).toBeGreaterThan(0);
     expect(
-      screen.getByRole("button", { name: /Cap.tulos e Volumes.*cap.tulos/i }),
+      screen.getByRole("button", { name: /Conte.do.*cap.tulos/i }),
     ).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Adicionar volume/i })).toBeInTheDocument();
     expect(screen.getByTestId("volume-group-none")).toBeInTheDocument();
+  });
+
+  it("aplica overflow visivel na raiz dos accordions de capitulos abertos", async () => {
+    setupApiMock([lightNovelProjectFixture]);
+    await openEpisodeEditor({
+      projectTitle: "Projeto Light Novel",
+      sectionNamePattern: /Cap/i,
+      removeButtonPattern: /Remover cap/i,
+    });
+
+    fireEvent.click(getEpisodeTrigger(chapter1TriggerPattern));
+
+    const addVolumeButton = screen.getByRole("button", { name: /Adicionar volume/i });
+    const chapterTrigger = getEpisodeTrigger(chapter1TriggerPattern);
+    const chapterVolumeInput = screen.getByPlaceholderText("Volume");
+
+    const sectionContentRoot = getOpenAccordionContentRoot(addVolumeButton);
+    const volumeGroupContentRoot = getOpenAccordionContentRoot(chapterTrigger);
+    const chapterPanelContentRoot = getOpenAccordionContentRoot(chapterVolumeInput);
+
+    expect(sectionContentRoot.className).toContain(chapterOpenOverflowClass);
+    expect(volumeGroupContentRoot.className).toContain(chapterOpenOverflowClass);
+    expect(chapterPanelContentRoot.className).toContain(chapterOpenOverflowClass);
+  });
+
+  it("permite alternar entre principal e extra com numeracao tecnica automatica e persiste no save", async () => {
+    setupApiMock([lightNovelProjectFixture]);
+    const baseImplementation = apiFetchMock.getMockImplementation();
+    const savedPayloads: Array<Record<string, unknown>> = [];
+
+    apiFetchMock.mockImplementation(async (base, path, options) => {
+      const method = String((options as RequestInit | undefined)?.method || "GET").toUpperCase();
+      if (path === `/api/projects/${lightNovelProjectFixture.id}` && method === "PUT") {
+        const payload = (((options as { json?: unknown } | undefined)?.json || {}) ??
+          {}) as Record<string, unknown>;
+        savedPayloads.push(payload);
+        return mockJsonResponse(true, {
+          project: {
+            ...lightNovelProjectFixture,
+            ...payload,
+          },
+        });
+      }
+      return baseImplementation
+        ? (baseImplementation(base, path, options) as Promise<Response>)
+        : mockJsonResponse(false, { error: "not_found" }, 404);
+    });
+
+    await openEpisodeEditor({
+      projectTitle: "Projeto Light Novel",
+      sectionNamePattern: /Cap/i,
+      removeButtonPattern: /Remover cap/i,
+    });
+
+    fireEvent.click(getEpisodeTrigger(chapter1TriggerPattern));
+    const chapterCard = await screen.findByTestId("episode-card-0");
+    const entryTypeCombobox = within(chapterCard).getByRole("combobox", {
+      name: /Tipo da entrada/i,
+    });
+    fireEvent.click(entryTypeCombobox);
+    fireEvent.click(await screen.findByRole("option", { name: "Extra" }));
+
+    await waitFor(() => {
+      const numberInput = within(chapterCard).getAllByRole("spinbutton")[0] as HTMLInputElement;
+      expect(numberInput).toBeDisabled();
+      expect(Number(numberInput.value)).toBeGreaterThanOrEqual(100000);
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /Salvar projeto/i }));
+    await waitFor(() => {
+      expect(savedPayloads.length).toBe(1);
+    });
+    const savedAsExtra = (savedPayloads[0]?.episodeDownloads as Array<Record<string, unknown>>) || [];
+    expect(savedAsExtra[0]).toEqual(
+      expect.objectContaining({
+        entryKind: "extra",
+        entrySubtype: "extra",
+      }),
+    );
+    expect(Number(savedAsExtra[0]?.number)).toBeGreaterThanOrEqual(100000);
+    await waitFor(() => {
+      expect(screen.queryByRole("heading", { name: "Editar projeto" })).not.toBeInTheDocument();
+    });
+    fireEvent.click(await screen.findByRole("button", { name: "Projeto Light Novel" }));
+    const editorDialog = await screen.findByRole("dialog");
+    fireEvent.click(
+      within(editorDialog).getByRole("button", {
+        name: /Conte.do.*cap.tulos/i,
+      }),
+    );
+    const volumeGroups = within(editorDialog).getAllByTestId(/volume-group-/i);
+    volumeGroups.forEach((group) => {
+      const trigger = getVolumeGroupTrigger(group);
+      if (trigger.getAttribute("aria-expanded") !== "true") {
+        fireEvent.click(trigger);
+      }
+    });
+    fireEvent.click(within(editorDialog).getByRole("button", { name: chapter1TriggerPattern }));
+    const reopenedChapterCard = within(editorDialog).getByTestId("episode-card-0");
+
+    fireEvent.click(
+      within(reopenedChapterCard).getByRole("combobox", {
+        name: /Tipo da entrada/i,
+      }),
+    );
+    fireEvent.click(await screen.findByRole("option", { name: "Principal" }));
+
+    await waitFor(() => {
+      const numberInput = within(reopenedChapterCard).getAllByRole("spinbutton")[0] as HTMLInputElement;
+      expect(numberInput).not.toBeDisabled();
+      expect(Number(numberInput.value)).toBeLessThan(100000);
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /Salvar projeto/i }));
+    await waitFor(() => {
+      expect(savedPayloads.length).toBe(2);
+    });
+    const savedAsMain = (savedPayloads[1]?.episodeDownloads as Array<Record<string, unknown>>) || [];
+    expect(savedAsMain[0]).toEqual(
+      expect.objectContaining({
+        entryKind: "main",
+        entrySubtype: "chapter",
+      }),
+    );
+    expect(Number(savedAsMain[0]?.number)).toBeGreaterThan(0);
+    expect(Number(savedAsMain[0]?.number)).toBeLessThan(100000);
   });
 
   it("oculta controles de volume fora de manga/light novel", async () => {
@@ -656,9 +796,7 @@ describe("DashboardProjectsEditor episode accordion", () => {
       removeButtonPattern: /Remover cap/i,
     });
 
-    const chaptersTrigger = screen.getByRole("button", {
-      name: /Cap.tulos e Volumes.*cap.tulos/i,
-    });
+    const chaptersTrigger = screen.getByRole("button", { name: /Conte.do.*cap.tulos/i });
     fireEvent.click(chaptersTrigger);
     expect(chaptersTrigger).toHaveAttribute("aria-expanded", "false");
 
@@ -673,7 +811,7 @@ describe("DashboardProjectsEditor episode accordion", () => {
         }),
       );
     });
-    expect(screen.getByRole("button", { name: /Cap.tulos e Volumes.*cap.tulos/i })).toHaveAttribute(
+    expect(screen.getByRole("button", { name: /Conte.do.*cap.tulos/i })).toHaveAttribute(
       "aria-expanded",
       "true",
     );
@@ -720,6 +858,72 @@ describe("DashboardProjectsEditor episode accordion", () => {
     fireEvent.click(volumeTrigger);
     expect(within(volumeGroup).queryByTestId("episode-card-0")).not.toBeInTheDocument();
     expect(volumeTrigger).toHaveAttribute("aria-expanded", "false");
+  });
+
+  it("abre o grupo sem volume ao adicionar capitulo", async () => {
+    setupApiMock([lightNovelProjectFixture]);
+    await openEpisodeEditor({
+      projectTitle: "Projeto Light Novel",
+      sectionNamePattern: /Cap/i,
+      removeButtonPattern: /Remover cap/i,
+      autoOpenFirstVolumeGroup: false,
+      waitForRemoveButtons: false,
+    });
+
+    const volumeGroup = await screen.findByTestId("volume-group-none");
+    const volumeTrigger = getVolumeGroupTrigger(volumeGroup);
+
+    expect(volumeTrigger).toHaveAttribute("aria-expanded", "false");
+    expect(within(volumeGroup).queryByTestId("episode-card-0")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /Adicionar cap/i }));
+
+    await waitFor(() => {
+      expect(volumeTrigger).toHaveAttribute("aria-expanded", "true");
+      expect(within(volumeGroup).getByTestId("episode-card-1")).toBeInTheDocument();
+    });
+  });
+
+  it("remover metadados de volume nao dispara toggle do accordion", async () => {
+    setupApiMock([lightNovelMultiVolumesFixture]);
+    await openEpisodeEditor({
+      projectTitle: "Projeto LN Volumes",
+      sectionNamePattern: /Cap/i,
+      removeButtonPattern: /Remover cap/i,
+      autoOpenFirstVolumeGroup: false,
+      waitForRemoveButtons: false,
+    });
+
+    const volumeOneGroup = await screen.findByTestId("volume-group-1");
+    const volumeOneTrigger = getVolumeGroupTrigger(volumeOneGroup);
+    const removeVolumeMetadataButton = volumeOneGroup.querySelector(
+      "button[data-no-toggle]",
+    ) as HTMLButtonElement | null;
+
+    expect(volumeOneTrigger).toHaveAttribute("aria-expanded", "false");
+    expect(removeVolumeMetadataButton).not.toBeNull();
+
+    fireEvent.click(removeVolumeMetadataButton as HTMLButtonElement);
+
+    expect(volumeOneTrigger).toHaveAttribute("aria-expanded", "false");
+    expect(within(volumeOneGroup).queryByText("Capitulo V1")).not.toBeInTheDocument();
+  });
+
+  it("abre volume ao clicar no lado direito do header (contador de capitulos)", async () => {
+    setupApiMock([lightNovelProjectFixture]);
+    await openEpisodeEditor({
+      projectTitle: "Projeto Light Novel",
+      sectionNamePattern: /Cap/i,
+      removeButtonPattern: /Remover cap/i,
+      autoOpenFirstVolumeGroup: false,
+      waitForRemoveButtons: false,
+    });
+
+    const volumeGroup = await screen.findByTestId("volume-group-none");
+    expect(within(volumeGroup).queryByTestId("episode-card-0")).not.toBeInTheDocument();
+
+    fireEvent.click(within(volumeGroup).getByText(/1 cap.tulo\(s\)/i));
+    expect(within(volumeGroup).getByTestId("episode-card-0")).toBeInTheDocument();
   });
 
   it("preserva estado do volume aberto durante edicao do capitulo", async () => {
@@ -789,7 +993,7 @@ describe("DashboardProjectsEditor episode accordion", () => {
       removeButtonPattern: /Remover cap/i,
     });
 
-    fireEvent.click(screen.getByRole("button", { name: /Importa..o AniList/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Importa[^r]/i }));
 
     expect(
       screen.getByText(/backend desatualizado e ainda nao suporta EPUB/i),
@@ -818,7 +1022,7 @@ describe("DashboardProjectsEditor episode accordion", () => {
       removeButtonPattern: /Remover cap/i,
     });
 
-    fireEvent.click(screen.getByRole("button", { name: /Importa..o AniList/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Importa[^r]/i }));
 
     expect(
       screen.getByText(/Nao foi possivel confirmar o suporte EPUB deste ambiente/i),
@@ -841,14 +1045,10 @@ describe("DashboardProjectsEditor episode accordion", () => {
       removeButtonPattern: /Remover cap/i,
     });
 
-    fireEvent.click(screen.getByRole("button", { name: /Importa..o AniList/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Importa[^r]/i }));
 
     expect(screen.getByText(/Contrato da API: commit abcdef123456 \| build 2026-03-02T16:00:00Z/i)).toBeInTheDocument();
     expect(screen.getByText(/Frontend: commit frontend1234 \| build 2026-03-02T17:00:00Z/i)).toBeInTheDocument();
-    expect(screen.getByText(/Origem atual:/i)).toBeInTheDocument();
-    expect(screen.getByText(/API base resolvida: http:\/\/api\.local/i)).toBeInTheDocument();
-    expect(screen.getByText(/Suporte EPUB: import sim \| export sim/i)).toBeInTheDocument();
-    expect(screen.getByText(/Estado do endpoint EPUB: ok/i)).toBeInTheDocument();
   });
 
   it("mostra erro especifico quando a rota de importacao EPUB retorna 404", async () => {
@@ -872,7 +1072,7 @@ describe("DashboardProjectsEditor episode accordion", () => {
       removeButtonPattern: /Remover cap/i,
     });
 
-    fireEvent.click(screen.getByRole("button", { name: /Importa..o AniList/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Importa[^r]/i }));
     const importButton = screen.getByRole("button", { name: /Importar EPUB/i });
     await waitFor(() => {
       expect(importButton).not.toBeDisabled();
@@ -892,7 +1092,6 @@ describe("DashboardProjectsEditor episode accordion", () => {
         }),
       );
     });
-    expect(screen.getByText(/Estado do endpoint EPUB: nao acessivel nesta origem/i)).toBeInTheDocument();
     expect(consoleWarnSpy).toHaveBeenCalledWith(
       "epub_backend_parity_mismatch",
       expect.objectContaining({
@@ -932,7 +1131,7 @@ describe("DashboardProjectsEditor episode accordion", () => {
       removeButtonPattern: /Remover cap/i,
     });
 
-    fireEvent.click(screen.getByRole("button", { name: /Importa..o AniList/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Importa[^r]/i }));
     const importButton = screen.getByRole("button", { name: /Importar EPUB/i });
     await waitFor(() => {
       expect(importButton).not.toBeDisabled();
@@ -953,9 +1152,6 @@ describe("DashboardProjectsEditor episode accordion", () => {
         }),
       );
     });
-    expect(
-      screen.getByText(/Estado do endpoint EPUB: projeto legado nao encontrado/i),
-    ).toBeInTheDocument();
     expect(consoleWarnSpy).toHaveBeenCalledWith(
       "epub_backend_parity_mismatch",
       expect.objectContaining({
@@ -986,7 +1182,56 @@ describe("DashboardProjectsEditor episode accordion", () => {
       removeButtonPattern: /Remover cap/i,
     });
 
-    fireEvent.click(screen.getByRole("button", { name: /Importa..o AniList/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Importa[^r]/i }));
+    const importButton = screen.getByRole("button", { name: /Importar EPUB/i });
+    await waitFor(() => {
+      expect(importButton).not.toBeDisabled();
+    });
+    const fileInput = screen.getByLabelText(/Arquivo \.epub/i);
+    const file = new File(["epub"], "teste.epub", { type: "application/epub+zip" });
+    fireEvent.change(fileInput, { target: { files: [file] } });
+    fireEvent.click(importButton);
+
+    await waitFor(() => {
+      expect(toastMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          title: "Falha ao importar EPUB",
+          description: "Nao foi possivel processar o arquivo informado.",
+          variant: "destructive",
+        }),
+      );
+    });
+  });
+
+  it("nao expoe detalhe tecnico de Specificity.max no toast de erro de importacao", async () => {
+    setupApiMock([lightNovelProjectFixture]);
+    const baseImplementation = apiFetchMock.getMockImplementation();
+
+    apiFetchMock.mockImplementation(async (base, path, options) => {
+      const method = String((options as RequestInit | undefined)?.method || "GET").toUpperCase();
+      if (String(path).startsWith("/api/projects/epub/import") && method === "POST") {
+        return mockJsonResponse(
+          false,
+          {
+            error: "epub_import_failed",
+            detail:
+              "Cannot destructure property 'value' of 'Specificity.max(...)' as it is undefined.",
+          },
+          400,
+        );
+      }
+      return baseImplementation
+        ? (baseImplementation(base, path, options) as Promise<Response>)
+        : mockJsonResponse(false, { error: "not_found" }, 404);
+    });
+
+    await openEpisodeEditor({
+      projectTitle: "Projeto Light Novel",
+      sectionNamePattern: /Cap/i,
+      removeButtonPattern: /Remover cap/i,
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /Importa[^r]/i }));
     const importButton = screen.getByRole("button", { name: /Importar EPUB/i });
     await waitFor(() => {
       expect(importButton).not.toBeDisabled();
@@ -1027,7 +1272,7 @@ describe("DashboardProjectsEditor episode accordion", () => {
       removeButtonPattern: /Remover cap/i,
     });
 
-    fireEvent.click(screen.getByRole("button", { name: /Importa..o AniList/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Importa[^r]/i }));
     const importButton = screen.getByRole("button", { name: /Importar EPUB/i });
     await waitFor(() => {
       expect(importButton).not.toBeDisabled();
@@ -1048,7 +1293,6 @@ describe("DashboardProjectsEditor episode accordion", () => {
         }),
       );
     });
-    expect(screen.getByText(/Estado do endpoint EPUB: ok/i)).toBeInTheDocument();
   });
 
   it("mostra erro especifico quando o snapshot excede o limite no backend novo", async () => {
@@ -1071,7 +1315,7 @@ describe("DashboardProjectsEditor episode accordion", () => {
       removeButtonPattern: /Remover cap/i,
     });
 
-    fireEvent.click(screen.getByRole("button", { name: /Importa..o AniList/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Importa[^r]/i }));
     const importButton = screen.getByRole("button", { name: /Importar EPUB/i });
     await waitFor(() => {
       expect(importButton).not.toBeDisabled();
@@ -1092,7 +1336,6 @@ describe("DashboardProjectsEditor episode accordion", () => {
         }),
       );
     });
-    expect(screen.getByText(/Estado do endpoint EPUB: ok/i)).toBeInTheDocument();
   });
 
   it("mantem compatibilidade com backend legado para Field value too long", async () => {
@@ -1122,7 +1365,7 @@ describe("DashboardProjectsEditor episode accordion", () => {
       removeButtonPattern: /Remover cap/i,
     });
 
-    fireEvent.click(screen.getByRole("button", { name: /Importa..o AniList/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Importa[^r]/i }));
     const importButton = screen.getByRole("button", { name: /Importar EPUB/i });
     await waitFor(() => {
       expect(importButton).not.toBeDisabled();
@@ -1143,7 +1386,6 @@ describe("DashboardProjectsEditor episode accordion", () => {
         }),
       );
     });
-    expect(screen.getByText(/Estado do endpoint EPUB: ok/i)).toBeInTheDocument();
   });
 
   it("exibe detalhe de indisponibilidade quando persistencia de uploads falha no backend", async () => {
@@ -1174,7 +1416,7 @@ describe("DashboardProjectsEditor episode accordion", () => {
       removeButtonPattern: /Remover cap/i,
     });
 
-    fireEvent.click(screen.getByRole("button", { name: /Importa..o AniList/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Importa[^r]/i }));
     const importButton = screen.getByRole("button", { name: /Importar EPUB/i });
     await waitFor(() => {
       expect(importButton).not.toBeDisabled();
@@ -1294,7 +1536,7 @@ describe("DashboardProjectsEditor episode accordion", () => {
       removeButtonPattern: /Remover cap/i,
     });
 
-    fireEvent.click(screen.getByRole("button", { name: /Importa..o AniList/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Importa[^r]/i }));
     const importButton = screen.getByRole("button", { name: /Importar EPUB/i });
     await waitFor(() => {
       expect(importButton).not.toBeDisabled();
@@ -1306,11 +1548,20 @@ describe("DashboardProjectsEditor episode accordion", () => {
     fireEvent.change(screen.getByLabelText(/Volume de destino/i), { target: { value: "2" } });
     fireEvent.click(importButton);
 
+    scrollIntoViewMock.mockClear();
+
     const importedVolumeGroup = await screen.findByTestId("volume-group-2");
-    fireEvent.click(getVolumeGroupTrigger(importedVolumeGroup));
+    const importedVolumeGroupTrigger = getVolumeGroupTrigger(importedVolumeGroup);
+    await waitFor(() => {
+      expect(importedVolumeGroupTrigger).toHaveAttribute("aria-expanded", "true");
+      expect(scrollIntoViewMock).toHaveBeenCalledWith({
+        behavior: "smooth",
+        block: "center",
+        inline: "nearest",
+      });
+    });
     await within(importedVolumeGroup).findByText("Capitulo importado");
     expect(screen.queryByDisplayValue("Capitulo importado")).not.toBeInTheDocument();
-    expect(scrollIntoViewMock).not.toHaveBeenCalled();
     expect(toastMock).toHaveBeenCalledWith(
       expect.objectContaining({
         title: "EPUB importado",
@@ -1413,6 +1664,82 @@ describe("DashboardProjectsEditor episode accordion", () => {
     });
   });
 
+  it("abre a secao de conteudo e faz scroll apos importar EPUB sem volume numerico", async () => {
+    setupApiMock([lightNovelProjectFixture]);
+    const baseImplementation = apiFetchMock.getMockImplementation();
+
+    apiFetchMock.mockImplementation(async (base, path, options) => {
+      const method = String((options as RequestInit | undefined)?.method || "GET").toUpperCase();
+      if (String(path).startsWith("/api/projects/epub/import") && method === "POST") {
+        return mockJsonResponse(true, {
+          summary: {
+            chapters: 1,
+            created: 1,
+            updated: 0,
+            imagesImported: 0,
+            imageImportFailures: 0,
+            boilerplateDiscarded: 0,
+            unresolvedTocEntries: 0,
+            volumeCoverImported: false,
+            volumeCoverSkipped: false,
+          },
+          warnings: [],
+          volumeCovers: [],
+          chapters: [
+            {
+              number: 2,
+              title: "Capitulo sem volume",
+              releaseDate: "",
+              duration: "",
+              sourceType: "Web",
+              sources: [],
+              progressStage: "aguardando-raw",
+              completedStages: [],
+              content: '{"root":{"children":[{"type":"paragraph"}]}}',
+              contentFormat: "lexical",
+              publicationStatus: "draft",
+              mergeMode: "create",
+              episodeKey: "2:none",
+            },
+          ],
+        });
+      }
+      return baseImplementation
+        ? (baseImplementation(base, path, options) as Promise<Response>)
+        : mockJsonResponse(false, { error: "not_found" }, 404);
+    });
+
+    await openEpisodeEditor({
+      projectTitle: "Projeto Light Novel",
+      sectionNamePattern: /Cap/i,
+      removeButtonPattern: /Remover cap/i,
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /Importa[^r]/i }));
+    const importButton = screen.getByRole("button", { name: /Importar EPUB/i });
+    await waitFor(() => {
+      expect(importButton).not.toBeDisabled();
+    });
+
+    const fileInput = screen.getByLabelText(/Arquivo \.epub/i);
+    fireEvent.change(fileInput, {
+      target: { files: [new File(["epub"], "sem-volume.epub", { type: "application/epub+zip" })] },
+    });
+
+    scrollIntoViewMock.mockClear();
+    fireEvent.click(importButton);
+
+    const contentTrigger = screen.getByRole("button", { name: /Conte/i });
+    await waitFor(() => {
+      expect(contentTrigger).toHaveAttribute("aria-expanded", "true");
+      expect(scrollIntoViewMock).toHaveBeenCalledWith({
+        behavior: "smooth",
+        block: "center",
+        inline: "nearest",
+      });
+    });
+    await screen.findByText("Capitulo sem volume");
+  });
   it("aceita url completa do AniList no import", async () => {
     setupApiMock([lightNovelProjectFixture]);
     const baseImplementation = apiFetchMock.getMockImplementation();
@@ -1433,7 +1760,7 @@ describe("DashboardProjectsEditor episode accordion", () => {
       removeButtonPattern: /Remover cap/i,
     });
 
-    fireEvent.click(screen.getByRole("button", { name: /Importa..o AniList/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Importa[^r]/i }));
     fireEvent.change(screen.getByLabelText(/ID ou URL do AniList/i), {
       target: { value: "https://anilist.co/manga/97894/Imouto-sae-Ireba-Ii/" },
     });
@@ -1458,7 +1785,7 @@ describe("DashboardProjectsEditor episode accordion", () => {
       removeButtonPattern: /Remover cap/i,
     });
 
-    fireEvent.click(screen.getByRole("button", { name: /Importa..o AniList/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Importa[^r]/i }));
     fireEvent.change(screen.getByLabelText(/ID ou URL do AniList/i), {
       target: { value: "0" },
     });

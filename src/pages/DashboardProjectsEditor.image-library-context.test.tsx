@@ -204,7 +204,7 @@ describe("DashboardProjectsEditor image library context", () => {
     expect(imageLibraryProps.projectImageProjectIds).toEqual(["project-1"]);
     expect(imageLibraryProps.projectImagesView).toBe("by-project");
 
-    const episodesSectionTrigger = await screen.findByText("Capítulos e Volumes");
+    const episodesSectionTrigger = await screen.findByText(/Conte.do/i);
     fireEvent.click(episodesSectionTrigger);
     const volumeGroup = await screen.findByTestId("volume-group-none");
     const volumeGroupTrigger = volumeGroup.querySelector("button");

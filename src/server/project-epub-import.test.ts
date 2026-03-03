@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { JSDOM } from "jsdom";
 
 const htmlToLexicalJsonMock = vi.hoisted(() => vi.fn((html: string) => `LEXICAL:${html}`));
 const storeUploadImageBufferMock = vi.hoisted(() =>
@@ -136,8 +137,8 @@ describe("project EPUB import", () => {
       volume: 7,
       imagesImported: 0,
       imageImportFailures: 0,
-      boilerplatePromoted: 0,
-      boilerplateDiscarded: 3,
+      boilerplatePromoted: 1,
+      boilerplateDiscarded: 2,
       unresolvedTocEntries: 1,
       volumeCoverImported: false,
       volumeCoverSkipped: false,
@@ -160,7 +161,8 @@ describe("project EPUB import", () => {
     );
     expect(result.warnings).toEqual(
       expect.arrayContaining([
-        "Itens de boilerplate ignorados: 3.",
+        "Itens de boilerplate promovidos para extras: 1.",
+        "Itens de boilerplate ignorados: 2.",
         "Entradas do TOC nao resolvidas: 1.",
       ]),
     );
@@ -210,7 +212,12 @@ describe("project EPUB import", () => {
         mergeMode: "create",
       }),
     );
-    expect(result.warnings).toEqual(expect.arrayContaining(["Itens de boilerplate ignorados: 2."]));
+    expect(result.warnings).toEqual(
+      expect.arrayContaining([
+        "Itens de boilerplate promovidos para extras: 1.",
+        "Itens de boilerplate ignorados: 1.",
+      ]),
+    );
     expect(htmlToLexicalJsonMock).toHaveBeenCalledTimes(1);
     expect(htmlToLexicalJsonMock.mock.calls[0]?.[0]).toContain("<p>Parte 1 do capitulo.</p>");
     expect(htmlToLexicalJsonMock.mock.calls[0]?.[0]).toContain("<p>Parte 2 do capitulo.</p>");
@@ -377,6 +384,108 @@ describe("project EPUB import", () => {
     expect(importedHtml).toContain('data-epub-heading="h1"');
   });
 
+  it("continua a importacao quando a etapa de estilo editorial falha", async () => {
+    const originalWindowDescriptor = Object.getOwnPropertyDescriptor(JSDOM.prototype, "window");
+    const windowGetterSpy = vi.spyOn(JSDOM.prototype, "window", "get").mockImplementation(function () {
+      const nextWindow = originalWindowDescriptor?.get?.call(this);
+      if (nextWindow && typeof nextWindow.getComputedStyle === "function") {
+        nextWindow.getComputedStyle = () => {
+          throw new Error(
+            "Cannot destructure property 'value' of 'Specificity.max(...)' as it is undefined.",
+          );
+        };
+      }
+      return nextWindow;
+    });
+
+    try {
+      epubState.toc = [{ id: "chapter-toc", title: "Chapter 1", href: "OEBPS/Text/chapter001.xhtml" }];
+      epubState.flow = [{ id: "chapter001", title: "Chapter 1", href: "OEBPS/Text/chapter001.xhtml" }];
+      epubState.manifest = {
+        chapter001: { id: "chapter001", href: "OEBPS/Text/chapter001.xhtml" },
+      };
+      epubState.chapters = {
+        chapter001: "<p>Capitulo com estilo editorial.</p>",
+      };
+
+      const result = await importProjectEpub({
+        buffer: Buffer.from("fake"),
+        targetVolume: 1,
+        defaultStatus: "draft",
+        project: { episodeDownloads: [] },
+      });
+
+      expect(result.summary.chapters).toBe(1);
+      expect(result.chapters).toHaveLength(1);
+      expect(result.chapters[0]).toEqual(
+        expect.objectContaining({
+          title: "Chapter 1",
+          entryKind: "main",
+        }),
+      );
+      expect(result.warnings).toEqual(
+        expect.arrayContaining([
+          'Estilos CSS avancados foram ignorados no capitulo "Chapter 1"; importacao continuou sem estilos calculados.',
+        ]),
+      );
+      expect(htmlToLexicalJsonMock).toHaveBeenCalledTimes(1);
+    } finally {
+      windowGetterSpy.mockRestore();
+    }
+  });
+
+  it("usa documentHref como contexto quando a etapa de estilo falha sem titulo de capitulo", async () => {
+    const originalWindowDescriptor = Object.getOwnPropertyDescriptor(JSDOM.prototype, "window");
+    const windowGetterSpy = vi.spyOn(JSDOM.prototype, "window", "get").mockImplementation(function () {
+      const nextWindow = originalWindowDescriptor?.get?.call(this);
+      if (nextWindow && typeof nextWindow.getComputedStyle === "function") {
+        nextWindow.getComputedStyle = () => {
+          throw new Error(
+            "Cannot destructure property 'value' of 'Specificity.max(...)' as it is undefined.",
+          );
+        };
+      }
+      return nextWindow;
+    });
+    const consoleWarnSpy = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+
+    try {
+      epubState.toc = [{ id: "chapter-toc", title: "", href: "OEBPS/Text/chapter001.xhtml" }];
+      epubState.flow = [{ id: "chapter001", title: "", href: "OEBPS/Text/chapter001.xhtml" }];
+      epubState.manifest = {
+        chapter001: { id: "chapter001", href: "OEBPS/Text/chapter001.xhtml" },
+      };
+      epubState.chapters = {
+        chapter001:
+          "<p>Texto narrativo suficiente para classificar como principal e validar o fallback de contexto.</p>",
+      };
+
+      const result = await importProjectEpub({
+        buffer: Buffer.from("fake"),
+        targetVolume: 1,
+        defaultStatus: "draft",
+        project: { episodeDownloads: [] },
+      });
+
+      expect(result.summary.chapters).toBe(1);
+      expect(result.warnings).toEqual(
+        expect.arrayContaining([
+          'Estilos CSS avancados foram ignorados no capitulo "OEBPS/Text/chapter001.xhtml"; importacao continuou sem estilos calculados.',
+        ]),
+      );
+      expect(consoleWarnSpy).toHaveBeenCalledWith(
+        "epub_import_editorial_css_fallback",
+        expect.objectContaining({
+          chapterTitle: "OEBPS/Text/chapter001.xhtml",
+          documentHref: "OEBPS/Text/chapter001.xhtml",
+        }),
+      );
+    } finally {
+      consoleWarnSpy.mockRestore();
+      windowGetterSpy.mockRestore();
+    }
+  });
+
   it("preserva alinhamento explicito de imagens block centralizadas no html enviado ao bridge", async () => {
     const loadUploads = vi.fn(() => []);
     const writeUploads = vi.fn();
@@ -528,7 +637,256 @@ describe("project EPUB import", () => {
     );
   });
 
-  it("extrai a capa do volume do EPUB sem promover a cover a capitulo", async () => {
+  it("consolida o front matter inicial em um unico extra e mantem a capa do volume", async () => {
+    const loadUploads = vi.fn(() => []);
+    const writeUploads = vi.fn();
+
+    epubState.toc = [
+      { id: "chapter-1-toc", title: "Chapter 1", href: "OEBPS/Text/chapter001.xhtml#Ref_1" },
+      { id: "chapter-2-toc", title: "Chapter 2", href: "OEBPS/Text/chapter002.xhtml#Ref_2" },
+    ];
+    epubState.flow = [
+      { id: "coverDoc", title: "Cover", href: "OEBPS/Text/cover.xhtml" },
+      { id: "frontDoc", title: "Frontispiece", href: "OEBPS/Text/frontispiece.xhtml" },
+      { id: "chapter001", title: "Chapter 1", href: "OEBPS/Text/chapter001.xhtml" },
+      { id: "chapter002", title: "Chapter 2", href: "OEBPS/Text/chapter002.xhtml" },
+    ];
+    epubState.manifest = {
+      coverImage: {
+        id: "coverImage",
+        href: "OEBPS/Images/cover.jpg",
+        "media-type": "image/jpeg",
+        properties: "cover-image",
+      },
+      frontArt: {
+        id: "frontArt",
+        href: "OEBPS/Images/front-1.jpg",
+        "media-type": "image/jpeg",
+      },
+      coverDoc: { id: "coverDoc", href: "OEBPS/Text/cover.xhtml" },
+      frontDoc: { id: "frontDoc", href: "OEBPS/Text/frontispiece.xhtml" },
+      chapter001: { id: "chapter001", href: "OEBPS/Text/chapter001.xhtml" },
+      chapter002: { id: "chapter002", href: "OEBPS/Text/chapter002.xhtml" },
+    };
+    epubState.metadata = {
+      title: "Livro teste",
+      cover: "coverImage",
+    };
+    epubState.chapters = {
+      coverDoc: '<p><img src="../Images/cover.jpg" alt="Volume cover"></p>',
+      frontDoc: '<p><img src="../Images/front-1.jpg" alt="Frontispiece art"></p>',
+      chapter001: "<p>Texto do capitulo 1.</p>",
+      chapter002: "<p>Texto do capitulo 2.</p>",
+    };
+    epubState.images = {
+      coverImage: Buffer.from("cover-image"),
+      frontArt: Buffer.from("front-image"),
+    };
+
+    const result = await importProjectEpub({
+      buffer: Buffer.from("fake"),
+      targetVolume: 1,
+      defaultStatus: "draft",
+      project: { episodeDownloads: [], volumeCovers: [] },
+      uploadsDir: "D:/dev/nekomorto/public/uploads",
+      loadUploads,
+      writeUploads,
+      uploadUserId: "test-user",
+    });
+    expect(result.summary).toEqual(
+      expect.objectContaining({
+        chapters: 3,
+        mainImported: 2,
+        extrasImported: 1,
+        imagesImported: 2,
+        volumeCoverImported: true,
+        volumeCoverSkipped: false,
+      }),
+    );
+    expect(result.chapters.map((chapter) => chapter.entryKind)).toEqual(["extra", "main", "main"]);
+    expect(result.chapters.map((chapter) => chapter.title)).toEqual(["Cover", "Chapter 1", "Chapter 2"]);
+    expect(result.chapters.map((chapter) => chapter.number)).toEqual([100000, 1, 2]);
+    expect(result.volumeCovers).toEqual([
+      expect.objectContaining({
+        volume: 1,
+        coverImageUrl: expect.stringContaining("/uploads/tmp/epub-imports/"),
+        mergeMode: "create",
+      }),
+    ]);
+    expect(result.warnings).toEqual(
+      expect.arrayContaining([
+        "Capa do volume importada do EPUB para o volume 1.",
+        "Front matter inicial consolidado em um unico extra: 2 item(ns).",
+      ]),
+    );
+    expect(writeUploads).toHaveBeenCalledTimes(1);
+  });
+
+  it("consolida cover, color inserts, title page, copyrights e toc em um unico extra inicial", async () => {
+    const loadUploads = vi.fn(() => []);
+    const writeUploads = vi.fn();
+
+    epubState.toc = [
+      { id: "cover-toc", title: "Cover", href: "OEBPS/Text/CoverPage.html" },
+      { id: "color-toc", title: "Color Inserts", href: "OEBPS/Text/section-0001.html" },
+      { id: "title-toc", title: "Title Page", href: "OEBPS/Text/section-0002.html" },
+      { id: "credits-toc", title: "Copyrights and Credits", href: "OEBPS/Text/section-0003.html" },
+      { id: "toc-toc", title: "Table of Contents Page", href: "OEBPS/Text/section-0004.html" },
+      { id: "chapter-toc", title: "Chapter 1", href: "OEBPS/Text/section-0005.html" },
+      { id: "newsletter-toc", title: "Newsletter", href: "OEBPS/Text/newsletter.html" },
+    ];
+    epubState.flow = [
+      { id: "coverDoc", title: "Cover", href: "OEBPS/Text/CoverPage.html" },
+      { id: "colorDoc", href: "OEBPS/Text/section-0001.html" },
+      { id: "titleDoc", href: "OEBPS/Text/section-0002.html" },
+      { id: "creditsDoc", href: "OEBPS/Text/section-0003.html" },
+      { id: "tocPageDoc", href: "OEBPS/Text/section-0004.html" },
+      { id: "chapter001", title: "Chapter 1", href: "OEBPS/Text/section-0005.html" },
+      { id: "newsletterDoc", title: "Newsletter", href: "OEBPS/Text/newsletter.html" },
+    ];
+    epubState.manifest = {
+      coverImage: {
+        id: "coverImage",
+        href: "OEBPS/Images/cover.jpg",
+        "media-type": "image/jpeg",
+        properties: "cover-image",
+      },
+      colorImage: {
+        id: "colorImage",
+        href: "OEBPS/Images/color-1.jpg",
+        "media-type": "image/jpeg",
+      },
+      coverDoc: { id: "coverDoc", href: "OEBPS/Text/CoverPage.html" },
+      colorDoc: { id: "colorDoc", href: "OEBPS/Text/section-0001.html" },
+      titleDoc: { id: "titleDoc", href: "OEBPS/Text/section-0002.html" },
+      creditsDoc: { id: "creditsDoc", href: "OEBPS/Text/section-0003.html" },
+      tocPageDoc: { id: "tocPageDoc", href: "OEBPS/Text/section-0004.html" },
+      chapter001: { id: "chapter001", href: "OEBPS/Text/section-0005.html" },
+      newsletterDoc: { id: "newsletterDoc", href: "OEBPS/Text/newsletter.html" },
+    };
+    epubState.metadata = {
+      title: "Livro teste",
+      cover: "coverImage",
+    };
+    epubState.chapters = {
+      coverDoc: '<p><img src="../Images/cover.jpg" alt="Volume cover"></p>',
+      colorDoc: '<p><img src="../Images/color-1.jpg" alt="Color insert"></p>',
+      titleDoc: "<p>Title Page</p>",
+      creditsDoc: "<p>Copyrights and Credits</p>",
+      tocPageDoc: "<p>Table of Contents Page</p>",
+      chapter001: "<p>Narrativa principal.</p>",
+      newsletterDoc: "<p>Newsletter signup</p>",
+    };
+    epubState.images = {
+      coverImage: Buffer.from("cover-image"),
+      colorImage: Buffer.from("color-image"),
+    };
+
+    const result = await importProjectEpub({
+      buffer: Buffer.from("fake"),
+      targetVolume: 1,
+      defaultStatus: "draft",
+      project: { episodeDownloads: [], volumeCovers: [] },
+      uploadsDir: "D:/dev/nekomorto/public/uploads",
+      loadUploads,
+      writeUploads,
+      uploadUserId: "test-user",
+    });
+
+    expect(result.summary).toEqual(
+      expect.objectContaining({
+        chapters: 2,
+        mainImported: 1,
+        extrasImported: 1,
+        boilerplateDiscarded: 2,
+      }),
+    );
+    expect(result.chapters.map((chapter) => chapter.entryKind)).toEqual(["extra", "main"]);
+    expect(result.chapters[0]).toEqual(
+      expect.objectContaining({
+        title: "Cover",
+        entryKind: "extra",
+        entrySubtype: "extra",
+      }),
+    );
+    expect(result.chapters[1]).toEqual(
+      expect.objectContaining({
+        title: "Chapter 1",
+        entryKind: "main",
+      }),
+    );
+    expect(result.warnings).toEqual(
+      expect.arrayContaining([
+        "Front matter inicial consolidado em um unico extra: 5 item(ns).",
+        "Itens de boilerplate ignorados: 2.",
+      ]),
+    );
+    expect(htmlToLexicalJsonMock).toHaveBeenCalledTimes(2);
+    expect(String(htmlToLexicalJsonMock.mock.calls[0]?.[0] || "")).toContain("Copyrights and Credits");
+    expect(String(htmlToLexicalJsonMock.mock.calls[0]?.[0] || "")).toContain("Table of Contents Page");
+    expect(String(htmlToLexicalJsonMock.mock.calls[0]?.[0] || "")).not.toContain("Newsletter signup");
+  });
+
+  it("usa documentHref no fallback CSS para item de front matter consolidado sem titulo", async () => {
+    const originalWindowDescriptor = Object.getOwnPropertyDescriptor(JSDOM.prototype, "window");
+    const windowGetterSpy = vi.spyOn(JSDOM.prototype, "window", "get").mockImplementation(function () {
+      const nextWindow = originalWindowDescriptor?.get?.call(this);
+      if (nextWindow && typeof nextWindow.getComputedStyle === "function") {
+        nextWindow.getComputedStyle = () => {
+          throw new Error(
+            "Cannot destructure property 'value' of 'Specificity.max(...)' as it is undefined.",
+          );
+        };
+      }
+      return nextWindow;
+    });
+    const consoleWarnSpy = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+
+    try {
+      epubState.toc = [
+        { id: "cover-toc", title: "", href: "OEBPS/Text/CoverPage.html" },
+        { id: "chapter-toc", title: "Chapter 1", href: "OEBPS/Text/section-0006.html" },
+      ];
+      epubState.flow = [
+        { id: "coverDoc", title: "", href: "OEBPS/Text/CoverPage.html" },
+        { id: "chapter001", title: "Chapter 1", href: "OEBPS/Text/section-0006.html" },
+      ];
+      epubState.manifest = {
+        coverDoc: { id: "coverDoc", href: "OEBPS/Text/CoverPage.html" },
+        chapter001: { id: "chapter001", href: "OEBPS/Text/section-0006.html" },
+      };
+      epubState.chapters = {
+        coverDoc: '<p>Front matter sem titulo. <img src="../Images/cover.jpg" alt="cover"></p>',
+        chapter001: "<p>Capitulo principal.</p>",
+      };
+
+      const result = await importProjectEpub({
+        buffer: Buffer.from("fake"),
+        targetVolume: 1,
+        defaultStatus: "draft",
+        project: { episodeDownloads: [] },
+      });
+
+      expect(result.summary.chapters).toBeGreaterThan(0);
+      expect(result.warnings).toEqual(
+        expect.arrayContaining([
+          'Estilos CSS avancados foram ignorados no capitulo "OEBPS/Text/CoverPage.html"; importacao continuou sem estilos calculados.',
+        ]),
+      );
+      expect(consoleWarnSpy).toHaveBeenCalledWith(
+        "epub_import_editorial_css_fallback",
+        expect.objectContaining({
+          chapterTitle: "OEBPS/Text/CoverPage.html",
+          documentHref: "OEBPS/Text/CoverPage.html",
+        }),
+      );
+    } finally {
+      consoleWarnSpy.mockRestore();
+      windowGetterSpy.mockRestore();
+    }
+  });
+
+  it("extrai a capa do volume do EPUB e preserva a cover como extra", async () => {
     const loadUploads = vi.fn(() => []);
     const writeUploads = vi.fn();
 
@@ -572,7 +930,19 @@ describe("project EPUB import", () => {
       uploadUserId: "test-user",
     });
 
-    expect(result.chapters).toHaveLength(1);
+    expect(result.chapters).toHaveLength(2);
+    expect(result.chapters[0]).toEqual(
+      expect.objectContaining({
+        title: "Cover",
+        entryKind: "extra",
+      }),
+    );
+    expect(result.chapters[1]).toEqual(
+      expect.objectContaining({
+        title: "Chapter 1",
+        entryKind: "main",
+      }),
+    );
     expect(result.summary.volumeCoverImported).toBe(true);
     expect(result.summary.volumeCoverSkipped).toBe(false);
     expect(result.volumeCovers).toEqual([
@@ -635,7 +1005,7 @@ describe("project EPUB import", () => {
     });
 
     expect(result.summary.volumeCoverImported).toBe(true);
-    expect(result.summary.imagesImported).toBe(1);
+    expect(result.summary.imagesImported).toBe(2);
     expect(writeUploads).toHaveBeenCalledTimes(1);
     expect(writeUploads).toHaveBeenCalledWith(
       expect.any(Array),

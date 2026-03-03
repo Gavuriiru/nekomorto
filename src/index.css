@@ -988,10 +988,6 @@
     box-shadow: 0 -14px 26px -24px rgba(0, 0, 0, 0.85);
   }
 
-  .project-editor-dialog .lexical-playground.lexical-playground--modal .toolbar {
-    top: 0.2rem;
-  }
-
   @media (max-width: 768px) {
     .project-editor-section,
     .project-editor-episode-card {

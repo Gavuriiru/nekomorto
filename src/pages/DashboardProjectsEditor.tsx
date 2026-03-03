@@ -89,7 +89,12 @@ import {
   translateRelation,
   translateTag,
 } from "@/lib/project-taxonomy";
-import { buildEpisodeKey, findDuplicateEpisodeKey } from "@/lib/project-episode-key";
+import {
+  buildEpisodeKey,
+  EXTRA_TECHNICAL_NUMBER_BASE,
+  findDuplicateEpisodeKey,
+  resolveNextExtraTechnicalNumber,
+} from "@/lib/project-episode-key";
 import {
   buildVolumeCoverKey,
   findDuplicateVolumeCover,
@@ -411,6 +416,18 @@ const buildEpubImportProjectSnapshot = (project: ProjectForm): EpubImportProject
 const isLegacyMultipartSnapshotTooLargeError = (errorCode: unknown, detail: unknown) =>
   String(errorCode || "").trim() === "invalid_multipart_upload" &&
   /field value too long/i.test(String(detail || ""));
+
+const isEpubCssEngineFailureDetail = (detail: unknown) => {
+  const normalized = String(detail || "").trim();
+  if (!normalized) {
+    return false;
+  }
+  return (
+    /specificity\.max/i.test(normalized) ||
+    /cannot destructure property\s+['"]value['"]/i.test(normalized) ||
+    /@bramus\/specificity/i.test(normalized)
+  );
+};
 
 type AniListMedia = {
   id: number;
@@ -1201,10 +1218,21 @@ const DashboardProjectsEditor = () => {
   const episodeSizeInputRefs = useRef<Record<number, HTMLInputElement | null>>({});
   const pendingAddAutoScrollRef = useRef(false);
   const pendingVolumeGroupToExpandRef = useRef<string | null>(null);
+  const pendingVolumeGroupToScrollRef = useRef<string | null>(null);
+  const pendingContentSectionScrollRef = useRef(false);
   const pendingEpisodeToScrollRef = useRef<ProjectEpisode | null>(null);
   const pendingEpisodeFocusRef = useRef<{ number: number; volume?: number } | null>(null);
   const previousEpisodeCountRef = useRef(0);
   const episodeCardNodeMapRef = useRef<WeakMap<ProjectEpisode, HTMLDivElement>>(new WeakMap());
+  const volumeGroupNodeMapRef = useRef<Map<string, HTMLDivElement>>(new Map());
+  const contentSectionRef = useRef<HTMLDivElement | null>(null);
+
+  const resetPendingContentNavigation = useCallback(() => {
+    pendingVolumeGroupToExpandRef.current = null;
+    pendingVolumeGroupToScrollRef.current = null;
+    pendingContentSectionScrollRef.current = false;
+    volumeGroupNodeMapRef.current.clear();
+  }, []);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [confirmTitle, setConfirmTitle] = useState("Sair da edição?");
   const [confirmDescription, setConfirmDescription] = useState(
@@ -1263,45 +1291,6 @@ const DashboardProjectsEditor = () => {
     () => formatBuildMetadataLabel(frontendBuildMetadata),
     [frontendBuildMetadata],
   );
-  const epubSupportLabel = useMemo(() => {
-    if (backendCapabilitiesError) {
-      return "nao confirmado";
-    }
-    const importLabel = backendSupportsEpubImport ? "import sim" : "import nao";
-    const exportLabel = backendSupportsEpubExport ? "export sim" : "export nao";
-    return `${importLabel} | ${exportLabel}`;
-  }, [
-    backendCapabilitiesError,
-    backendSupportsEpubExport,
-    backendSupportsEpubImport,
-  ]);
-  const epubEndpointStatusLabel = useMemo(() => {
-    if (backendCapabilitiesError) {
-      return "contrato indisponivel";
-    }
-    if (!backendSupportsEpubImport || !backendSupportsEpubExport) {
-      return "desabilitado pelo contrato";
-    }
-    if (epubRouteStatus === "route_unreachable_for_current_origin") {
-      return "nao acessivel nesta origem";
-    }
-    if (epubRouteStatus === "network_unreachable") {
-      return "backend/tunel indisponivel";
-    }
-    if (epubRouteStatus === "forbidden") {
-      return "sem permissao";
-    }
-    if (epubRouteStatus === "legacy_project_not_found") {
-      return "projeto legado nao encontrado";
-    }
-    return "ok";
-  }, [
-    backendCapabilitiesError,
-    backendSupportsEpubExport,
-    backendSupportsEpubImport,
-    epubRouteStatus,
-  ]);
-
   const logEpubParityIssue = useCallback(
     ({
       path,
@@ -1332,13 +1321,15 @@ const DashboardProjectsEditor = () => {
     }
     if (!next) {
       if (!isDirty) {
+        resetPendingContentNavigation();
         setIsEditorOpen(false);
         setEditingProject(null);
         return;
       }
-      setConfirmTitle("Sair da edição?");
-      setConfirmDescription("Você tem alterações não salvas. Deseja continuar?");
+      setConfirmTitle("Sair da edi????o?");
+      setConfirmDescription("Voc?? tem altera????es n??o salvas. Deseja continuar?");
       confirmActionRef.current = () => {
+        resetPendingContentNavigation();
         setIsEditorOpen(false);
         setEditingProject(null);
       };
@@ -1751,15 +1742,38 @@ const DashboardProjectsEditor = () => {
   );
 
   const resolveNextMainEpisodeNumber = useCallback(
-    (episodes: ProjectEpisode[]) => {
-      const mainNumbers = (Array.isArray(episodes) ? episodes : [])
-        .filter((episode) => getEpisodeEntryKind(episode) !== "extra")
-        .map((episode) => Number(episode?.number))
-        .filter((value) => Number.isFinite(value) && value > 0);
-      if (mainNumbers.length === 0) {
-        return 1;
+    (
+      episodes: ProjectEpisode[],
+      options?: {
+        excludeIndex?: number;
+        volume?: number;
+      },
+    ) => {
+      const list = Array.isArray(episodes) ? episodes : [];
+      const excludeIndex = Number.isFinite(Number(options?.excludeIndex))
+        ? Number(options?.excludeIndex)
+        : -1;
+      const volume = Number.isFinite(Number(options?.volume))
+        ? Number(options?.volume)
+        : undefined;
+      const reservedKeys = new Set(
+        list
+          .map((episode, index) => {
+            if (index === excludeIndex) {
+              return "";
+            }
+            if (getEpisodeEntryKind(episode) === "extra") {
+              return "";
+            }
+            return buildEpisodeKey(episode?.number, episode?.volume);
+          })
+          .filter(Boolean),
+      );
+      let current = 1;
+      while (reservedKeys.has(buildEpisodeKey(current, volume))) {
+        current += 1;
       }
-      return Math.max(...mainNumbers) + 1;
+      return current;
     },
     [getEpisodeEntryKind],
   );
@@ -2118,6 +2132,47 @@ const DashboardProjectsEditor = () => {
       cancelAnimationFrame(frameId);
     };
   }, [sortedEpisodeDownloads]);
+
+  useEffect(() => {
+    if (!pendingContentSectionScrollRef.current) {
+      return;
+    }
+    if (!editorAccordionValue.includes("episodios")) {
+      return;
+    }
+
+    const pendingVolumeKey = pendingVolumeGroupToScrollRef.current;
+    if (pendingVolumeKey && collapsedVolumeGroups[pendingVolumeKey] !== false) {
+      return;
+    }
+
+    const scrollTarget = pendingVolumeKey
+      ? volumeGroupNodeMapRef.current.get(pendingVolumeKey) || contentSectionRef.current
+      : contentSectionRef.current;
+    if (!scrollTarget) {
+      return;
+    }
+
+    const frameId = requestAnimationFrame(() => {
+      const latestTarget = pendingVolumeKey
+        ? volumeGroupNodeMapRef.current.get(pendingVolumeKey) || contentSectionRef.current
+        : contentSectionRef.current;
+      if (!latestTarget) {
+        return;
+      }
+      latestTarget.scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+        inline: "nearest",
+      });
+      pendingVolumeGroupToScrollRef.current = null;
+      pendingContentSectionScrollRef.current = false;
+    });
+
+    return () => {
+      cancelAnimationFrame(frameId);
+    };
+  }, [collapsedVolumeGroups, editorAccordionValue, episodeGroupsForRender]);
 
   const applyLibraryImage = (url: string, altText?: string) => {
     const nextUrl = String(url || "").trim();
@@ -2504,6 +2559,7 @@ const DashboardProjectsEditor = () => {
 
   const openCreate = () => {
     const nextForm = { ...emptyProject };
+    resetPendingContentNavigation();
     setEditingProject(null);
     setFormState(nextForm);
     setAnilistIdInput("");
@@ -2522,11 +2578,11 @@ const DashboardProjectsEditor = () => {
     editorInitialSnapshotRef.current = buildProjectEditorSnapshot(nextForm, "");
     setCollapsedEpisodes({});
     setCollapsedVolumeGroups({});
-    pendingVolumeGroupToExpandRef.current = null;
     setIsEditorOpen(true);
   };
 
   const openEdit = useCallback((project: ProjectRecord) => {
+    resetPendingContentNavigation();
     const pendingEpisodeFocus = pendingEpisodeFocusRef.current;
     const shouldOpenEpisodesSection = Boolean(pendingEpisodeFocus);
     const initialEpisodes: ProjectEpisode[] = Array.isArray(project.episodeDownloads)
@@ -2686,9 +2742,8 @@ const DashboardProjectsEditor = () => {
       return next;
     });
     setCollapsedVolumeGroups({});
-    pendingVolumeGroupToExpandRef.current = null;
     setIsEditorOpen(true);
-  }, []);
+  }, [resetPendingContentNavigation]);
 
   useEffect(() => {
     const editTarget = (searchParams.get("edit") || "").trim();
@@ -2752,6 +2807,7 @@ const DashboardProjectsEditor = () => {
 
   const closeEditor = () => {
     pendingEpisodeFocusRef.current = null;
+    resetPendingContentNavigation();
     setIsEditorOpen(false);
     setEditingProject(null);
   };
@@ -3118,6 +3174,18 @@ const DashboardProjectsEditor = () => {
         if (
           typeof data?.error === "string" &&
           data.error === "epub_import_failed" &&
+          isEpubCssEngineFailureDetail(data?.detail)
+        ) {
+          toast({
+            title: "Falha ao importar EPUB",
+            description: EPUB_IMPORT_PROCESSING_MESSAGE,
+            variant: "destructive",
+          });
+          return;
+        }
+        if (
+          typeof data?.error === "string" &&
+          data.error === "epub_import_failed" &&
           !(typeof data?.detail === "string" && data.detail.trim().length > 0)
         ) {
           toast({
@@ -3177,6 +3245,33 @@ const DashboardProjectsEditor = () => {
         : 0;
       const volumeCoverImported = data?.summary?.volumeCoverImported === true;
       const volumeCoverSkipped = data?.summary?.volumeCoverSkipped === true;
+      const summaryVolume = Number(data?.summary?.volume);
+      const firstChapterVolume = Number(
+        chapters.find((chapter) => Number.isFinite(Number(chapter?.volume)))?.volume,
+      );
+      const firstVolumeCoverVolume = Number(
+        volumeCovers.find((cover) => Number.isFinite(Number(cover?.volume)))?.volume,
+      );
+      const targetVolumeValue = String(epubImportTargetVolume || "").trim();
+      const importTargetVolume = targetVolumeValue === "" ? Number.NaN : Number(targetVolumeValue);
+      const resolvedImportedVolume = [
+        summaryVolume,
+        firstChapterVolume,
+        firstVolumeCoverVolume,
+        importTargetVolume,
+      ].find((value) => Number.isFinite(value));
+      const importedVolumeKey = Number.isFinite(resolvedImportedVolume)
+        ? buildVolumeCoverKey(resolvedImportedVolume)
+        : isChapterBased
+          ? buildVolumeCoverKey(undefined)
+          : null;
+      if (importedVolumeKey) {
+        pendingVolumeGroupToExpandRef.current = importedVolumeKey;
+        pendingVolumeGroupToScrollRef.current = importedVolumeKey;
+      } else {
+        pendingVolumeGroupToScrollRef.current = null;
+      }
+      pendingContentSectionScrollRef.current = true;
       mergeImportedEpisodesIntoForm(chapters, {
         collapseAffectedItems: true,
         revealFirstAffectedItem: false,
@@ -4029,8 +4124,84 @@ const DashboardProjectsEditor = () => {
     setProducerInput("");
   };
 
+  const setEpisodeEntryKind = useCallback(
+    (index: number, nextKind: "main" | "extra") => {
+      setFormState((prev) => {
+        const nextEpisodes = [...prev.episodeDownloads];
+        const currentEpisode = nextEpisodes[index];
+        if (!currentEpisode) {
+          return prev;
+        }
+        const targetKind = nextKind === "extra" ? "extra" : "main";
+        const nextEpisodeBase: ProjectEpisode = {
+          ...currentEpisode,
+          entryKind: targetKind,
+          entrySubtype: targetKind === "extra" ? "extra" : "chapter",
+          displayLabel: undefined,
+        };
+        const reservedKeys = new Set(
+          nextEpisodes
+            .map((episode, episodeIndex) =>
+              episodeIndex === index ? "" : buildEpisodeKey(episode?.number, episode?.volume),
+            )
+            .filter(Boolean),
+        );
+        if (targetKind === "extra") {
+          const currentNumber = Number(currentEpisode.number);
+          const currentKey = buildEpisodeKey(currentNumber, currentEpisode.volume);
+          const canKeepCurrent =
+            Number.isFinite(currentNumber) &&
+            currentNumber >= EXTRA_TECHNICAL_NUMBER_BASE &&
+            currentKey &&
+            !reservedKeys.has(currentKey);
+          nextEpisodes[index] = {
+            ...nextEpisodeBase,
+            number: canKeepCurrent
+              ? currentNumber
+              : resolveNextExtraTechnicalNumber(nextEpisodes, currentEpisode.volume, {
+                  excludeIndex: index,
+                }),
+          };
+          return {
+            ...prev,
+            episodeDownloads: nextEpisodes,
+          };
+        }
+        const currentNumber = Number(currentEpisode.number);
+        const currentKey = buildEpisodeKey(currentNumber, currentEpisode.volume);
+        const shouldReassign =
+          !Number.isFinite(currentNumber) ||
+          currentNumber <= 0 ||
+          currentNumber >= EXTRA_TECHNICAL_NUMBER_BASE ||
+          (currentKey && reservedKeys.has(currentKey));
+        nextEpisodes[index] = {
+          ...nextEpisodeBase,
+          number: shouldReassign
+            ? resolveNextMainEpisodeNumber(nextEpisodes, {
+                excludeIndex: index,
+                volume: currentEpisode.volume,
+              })
+            : currentNumber,
+        };
+        return {
+          ...prev,
+          episodeDownloads: nextEpisodes,
+        };
+      });
+    },
+    [resolveNextMainEpisodeNumber],
+  );
+
   const handleAddEpisodeDownload = () => {
     pendingAddAutoScrollRef.current = true;
+    if (isChapterBased && supportsVolumeEntries) {
+      const semVolumeKey = buildVolumeCoverKey(undefined);
+      pendingVolumeGroupToExpandRef.current = semVolumeKey;
+      setCollapsedVolumeGroups((prev) => ({
+        ...prev,
+        [semVolumeKey]: false,
+      }));
+    }
     setFormState((prev) => {
       const nextMainNumber = resolveNextMainEpisodeNumber(prev.episodeDownloads);
       const newEpisode: ProjectEpisode = {
@@ -4156,6 +4327,7 @@ const DashboardProjectsEditor = () => {
   const editorSectionTriggerClassName =
     "project-editor-section-trigger py-3 text-sm font-semibold hover:no-underline";
   const editorSectionContentClassName = "project-editor-section-content pb-4 px-1";
+  const chapterOpenContentClassName = "data-[state=open]:overflow-visible";
   const editorProjectLabel = editingProject ? "Projeto em edição" : "Novo projeto";
   const editorProjectTitle = formState.title.trim() || "Sem título";
   const editorProjectId = formState.id.trim() || "Será definido ao salvar";
@@ -4524,7 +4696,7 @@ const DashboardProjectsEditor = () => {
 
       <Dialog open={isEditorOpen} onOpenChange={handleEditorOpenChange} modal={false}>
         <DialogContent
-          className={`project-editor-dialog max-h-[94vh] max-w-[min(1120px,calc(100vw-1.5rem))] overflow-y-auto no-scrollbar p-0 ${
+          className={`project-editor-dialog max-h-[94vh] max-w-[min(1520px,calc(100vw-1rem))] overflow-y-auto no-scrollbar p-0 ${
             isEditorDialogScrolled ? "editor-modal-scrolled" : ""
           }`}
           onScroll={(event) => {
@@ -4553,7 +4725,7 @@ const DashboardProjectsEditor = () => {
           }}
         >
           <div className="project-editor-top sticky top-0 z-20 border-b border-border/60 bg-background/95 backdrop-blur-sm supports-backdrop-filter:bg-background/80">
-            <DialogHeader className="space-y-0 px-4 pb-4 pt-5 text-left md:px-6">
+            <DialogHeader className="space-y-0 px-4 pb-4 pt-5 text-left md:px-6 lg:px-8">
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <div className="space-y-2">
                   <div className="flex flex-wrap items-center gap-2">
@@ -4584,7 +4756,7 @@ const DashboardProjectsEditor = () => {
                 </div>
               </div>
             </DialogHeader>
-            <div className="project-editor-status-bar flex flex-wrap items-center gap-2 border-t border-border/60 px-4 py-3 md:px-6">
+            <div className="project-editor-status-bar flex flex-wrap items-center gap-2 border-t border-border/60 px-4 py-3 md:px-6 lg:px-8">
               <Badge variant="outline" className="text-[10px] uppercase tracking-[0.12em]">
                 ID {editorProjectId}
               </Badge>
@@ -4600,7 +4772,7 @@ const DashboardProjectsEditor = () => {
             </div>
           </div>
 
-          <div className="project-editor-layout grid gap-6 px-4 pb-5 pt-4 md:px-6 md:pb-7">
+          <div className="project-editor-layout grid gap-5 px-4 pb-6 pt-4 md:gap-6 md:px-6 md:pb-7 lg:gap-7 lg:px-8">
             <Accordion
               type="multiple"
               value={editorAccordionValue}
@@ -4610,7 +4782,7 @@ const DashboardProjectsEditor = () => {
               <AccordionItem value="importacao" className={editorSectionClassName}>
                 <AccordionTrigger className={editorSectionTriggerClassName}>
                   <div className="flex w-full items-center justify-between gap-4 text-left">
-                    <span>Importação AniList</span>
+                    <span>Importa??o</span>
                     <span className="text-xs text-muted-foreground">Preenchimento automático</span>
                   </div>
                 </AccordionTrigger>
@@ -4658,22 +4830,6 @@ const DashboardProjectsEditor = () => {
                             <p className="text-[11px] text-muted-foreground">
                               Frontend: {frontendBuildLabel}
                             </p>
-                          ) : null}
-                          {import.meta.env.DEV ? (
-                            <>
-                              <p className="text-[11px] text-muted-foreground">
-                                Origem atual: {normalizeOriginLabel(locationOrigin)}
-                              </p>
-                              <p className="text-[11px] text-muted-foreground">
-                                API base resolvida: {normalizeOriginLabel(apiBase)}
-                              </p>
-                              <p className="text-[11px] text-muted-foreground">
-                                Suporte EPUB: {epubSupportLabel}
-                              </p>
-                              <p className="text-[11px] text-muted-foreground">
-                                Estado do endpoint EPUB: {epubEndpointStatusLabel}
-                              </p>
-                            </>
                           ) : null}
                         </div>
 
@@ -5582,15 +5738,18 @@ const DashboardProjectsEditor = () => {
               <AccordionItem value="episodios" className={editorSectionClassName}>
                 <AccordionTrigger className={editorSectionTriggerClassName}>
                   <div className="flex w-full items-center justify-between gap-4 text-left">
-                    <span>{isChapterBased ? "Capítulos e Volumes" : "Episódios"}</span>
+                    <span>{isChapterBased ? "Conteúdo" : "Episódios"}</span>
                     <span className="text-xs text-muted-foreground">
                       {formState.episodeDownloads.length}{" "}
                       {isChapterBased ? "capítulos" : "episódios"}
                     </span>
                   </div>
                 </AccordionTrigger>
-                <AccordionContent className={editorSectionContentClassName}>
-                  <div className="space-y-3">
+                <AccordionContent
+                  className={editorSectionContentClassName}
+                  contentClassName={isChapterBased ? chapterOpenContentClassName : undefined}
+                >
+                  <div ref={contentSectionRef} className="space-y-3">
                     <div className="flex flex-wrap items-center justify-end gap-2">
                       {isChapterBased && supportsVolumeEntries ? (
                         <Button type="button" size="sm" variant="outline" onClick={addVolumeEntry}>
@@ -5627,23 +5786,36 @@ const DashboardProjectsEditor = () => {
                               : "Capítulos sem volume usam capa e sinopse do próprio projeto.";
                             return (
                               <AccordionItem
+                                ref={(node) => {
+                                  if (node) {
+                                    volumeGroupNodeMapRef.current.set(group.key, node);
+                                  } else {
+                                    volumeGroupNodeMapRef.current.delete(group.key);
+                                  }
+                                }}
                                 key={`episode-group-${groupIndex}`}
                                 value={group.key}
                                 className="rounded-2xl border border-border/60 bg-card/40"
                                 data-testid={`volume-group-${group.key}`}
                               >
                                 {isChapterBased && supportsVolumeEntries ? (
-                                  <div className="flex items-start justify-between gap-2 px-4 pt-3">
-                                  <AccordionTrigger className="w-full py-0 text-left hover:no-underline [&>svg]:mt-0 [&>svg]:self-center">
-                                    <div className="space-y-1">
-                                      <Label className="cursor-pointer">{volumeLabel}</Label>
-                                      <p className="text-xs text-muted-foreground">{volumeDescription}</p>
-                                    </div>
-                                  </AccordionTrigger>
-                                  <div className="flex items-center gap-2">
-                                    <Badge variant="outline" className="text-[10px] uppercase">
-                                      {group.episodeItems.length} capítulo(s)
-                                    </Badge>
+                                  <div className="flex w-full items-center gap-2 px-4 pt-3">
+                                    <AccordionTrigger className="flex-1 gap-2 py-0 text-left hover:no-underline [&>svg]:mt-0 [&>svg]:self-center">
+                                      <div className="flex w-full min-w-0 items-center justify-between gap-3 pr-1">
+                                        <div className="min-w-0 space-y-1">
+                                          <Label className="cursor-pointer">{volumeLabel}</Label>
+                                          <p className="text-xs text-muted-foreground">
+                                            {volumeDescription}
+                                          </p>
+                                        </div>
+                                        <Badge
+                                          variant="outline"
+                                          className="shrink-0 self-center text-[10px] uppercase"
+                                        >
+                                          {group.episodeItems.length} capítulo(s)
+                                        </Badge>
+                                      </div>
+                                    </AccordionTrigger>
                                     {group.hasNumericVolume && groupVolumeEntry ? (
                                       <Button
                                         type="button"
@@ -5660,9 +5832,13 @@ const DashboardProjectsEditor = () => {
                                       </Button>
                                     ) : null}
                                   </div>
-                                  </div>
                                 ) : null}
-                                <AccordionContent className="space-y-3 px-4 pb-4">
+                                <AccordionContent
+                                  className="space-y-3 px-4 pb-4"
+                                  contentClassName={
+                                    isChapterBased ? chapterOpenContentClassName : undefined
+                                  }
+                                >
                                   {group.hasNumericVolume ? (
                                     <div className="grid gap-3 rounded-xl border border-border/60 bg-background/40 p-3 md:grid-cols-[140px_minmax(0,1fr)]">
                                       <div className="flex items-center gap-3">
@@ -5722,12 +5898,12 @@ const DashboardProjectsEditor = () => {
                                       Nenhum capítulo vinculado a este volume.
                                     </div>
                                   ) : null}
-                                  <Accordion
-                                    type="multiple"
-                                    value={episodeOpenValues}
-                                    onValueChange={handleEpisodeAccordionChange}
-                                    className="space-y-4"
-                                  >
+                                      <Accordion
+                                        type="multiple"
+                                        value={episodeOpenValues}
+                                        onValueChange={handleEpisodeAccordionChange}
+                                        className="space-y-4"
+                                      >
                                     {group.episodeItems.map(({ episode, index }) => {
                         const isEpisodeCollapsed = collapsedEpisodes[index] ?? false;
                         const entryKind = getEpisodeEntryKind(episode);
@@ -5751,7 +5927,8 @@ const DashboardProjectsEditor = () => {
                               stage.id ===
                               getProgressStage(formState.type || "", episode.completedStages),
                           )?.label || "Aguardando Raw";
-                        const collapsedHeaderMeta: string[] = [];
+                        const statusLabel =
+                          publicationStatus === "draft" ? "Rascunho" : "Publicado";
                         const availabilityLabel = isLightNovel
                           ? hasEpisodeContent && hasDownloadSource
                             ? "Hibrido"
@@ -5763,25 +5940,7 @@ const DashboardProjectsEditor = () => {
                           : hasDownloadSource
                             ? "Download"
                             : currentProgressStageLabel;
-
-                        if (false && isLightNovel && hasEpisodeContent) {
-                          collapsedHeaderMeta.push("Conteúdo");
-                        }
-                        collapsedHeaderMeta.push(
-                          publicationStatus === "draft" ? "Rascunho" : "Publicado",
-                        );
-                        if (isProgressOnlyEntry) {
-                          collapsedHeaderMeta.push(currentProgressStageLabel);
-                        }
-                        if (!isProgressOnlyEntry || isLightNovel) {
-                          collapsedHeaderMeta.push(availabilityLabel);
-                        }
-                        if (isExtraEntry) {
-                          collapsedHeaderMeta.push("Extra");
-                        }
-                        if (episode.volume) {
-                          collapsedHeaderMeta.push(`Vol. ${episode.volume}`);
-                        }
+                        const statusVisibilitySummary = `${statusLabel} • ${availabilityLabel}`;
 
                         return (
                           <AccordionItem
@@ -5846,30 +6005,12 @@ const DashboardProjectsEditor = () => {
                                     </AccordionTrigger>
                                   </div>
                                   <div className="flex flex-wrap items-center gap-2">
-                                    <Badge
-                                      variant={publicationStatus === "draft" ? "outline" : "secondary"}
-                                      className="text-[10px] uppercase"
+                                    <span
+                                      className="text-[11px] text-muted-foreground"
+                                      data-testid={`episode-header-status-visibility-${index}`}
                                     >
-                                      {publicationStatus === "draft" ? "Rascunho" : "Publicado"}
-                                    </Badge>
-                                    <Badge variant="outline" className="text-[10px] uppercase">
-                                      {availabilityLabel}
-                                    </Badge>
-                                    {isExtraEntry ? (
-                                      <Badge variant="outline" className="text-[10px] uppercase">
-                                        Extra
-                                      </Badge>
-                                    ) : null}
-                                    {episode.volume ? (
-                                      <Badge variant="outline" className="text-[10px] uppercase">
-                                        Vol. {episode.volume}
-                                      </Badge>
-                                    ) : null}
-                                    {isEpisodeCollapsed && collapsedHeaderMeta.length > 0 ? (
-                                      <span className="text-[11px] text-muted-foreground">
-                                        {collapsedHeaderMeta.join(" • ")}
-                                      </span>
-                                    ) : null}
+                                      {statusVisibilitySummary}
+                                    </span>
                                     <ReorderControls
                                       label={`item ${isExtraEntry ? "extra" : episode.number || index + 1}`}
                                       index={index}
@@ -5911,8 +6052,30 @@ const DashboardProjectsEditor = () => {
                                     </Button>
                                   </div>
                                 </div>
-                                <AccordionContent className="project-editor-episode-panel pt-3 pb-0 px-1">
-                                  <div className="project-editor-episode-group project-editor-episode-basics grid gap-3 md:grid-cols-[minmax(84px,0.7fr)_minmax(84px,0.7fr)_minmax(180px,1.4fr)_minmax(150px,1fr)_minmax(110px,0.8fr)_minmax(130px,0.9fr)]">
+                                <AccordionContent
+                                  className="project-editor-episode-panel pt-3 pb-0 px-1"
+                                  contentClassName={
+                                    isChapterBased ? chapterOpenContentClassName : undefined
+                                  }
+                                >
+                                  <div className="project-editor-episode-group project-editor-episode-basics grid gap-3 md:grid-cols-[minmax(120px,0.9fr)_minmax(84px,0.7fr)_minmax(84px,0.7fr)_minmax(180px,1.4fr)_minmax(150px,1fr)_minmax(110px,0.8fr)_minmax(130px,0.9fr)]">
+                                    <Select
+                                      value={isExtraEntry ? "extra" : "main"}
+                                      onValueChange={(value) =>
+                                        setEpisodeEntryKind(
+                                          index,
+                                          value === "extra" ? "extra" : "main",
+                                        )
+                                      }
+                                    >
+                                      <SelectTrigger aria-label="Tipo da entrada">
+                                        <SelectValue placeholder="Tipo" />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        <SelectItem value="main">Principal</SelectItem>
+                                        <SelectItem value="extra">Extra</SelectItem>
+                                      </SelectContent>
+                                    </Select>
                                     <Input
                                       type="number"
                                       value={episode.number}
@@ -6472,7 +6635,7 @@ const DashboardProjectsEditor = () => {
                           </AccordionItem>
                         );
                                     })}
-                                  </Accordion>
+                                      </Accordion>
                                 </AccordionContent>
                               </AccordionItem>
                             );
@@ -6480,7 +6643,7 @@ const DashboardProjectsEditor = () => {
                         </Accordion>
                     </div>
                   </div>
-                  </AccordionContent>
+                </AccordionContent>
                 </AccordionItem>
             </Accordion>
             <datalist id="staff-directory">
@@ -6489,7 +6652,7 @@ const DashboardProjectsEditor = () => {
               ))}
             </datalist>
           </div>
-          <div className="project-editor-footer sticky bottom-0 z-20 flex justify-end gap-3 border-t border-border/60 bg-background/95 px-4 py-3 backdrop-blur-sm supports-backdrop-filter:bg-background/80 md:px-6 md:py-4">
+          <div className="project-editor-footer sticky bottom-0 z-20 flex justify-end gap-3 border-t border-border/60 bg-background/95 px-4 py-3 backdrop-blur-sm supports-backdrop-filter:bg-background/80 md:px-6 md:py-4 lg:px-8">
             <Button variant="ghost" onClick={requestCloseEditor}>
               Cancelar
             </Button>

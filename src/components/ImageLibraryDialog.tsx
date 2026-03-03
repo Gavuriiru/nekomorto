@@ -40,7 +40,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "@/components/ui/use-toast";
-import { Loader2 } from "lucide-react";
+import { Loader2, Search } from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
 import {
   computeUploadContainFitRect,
@@ -2331,27 +2331,33 @@ const ImageLibraryDialog = ({
             <div>
               <div
                 data-testid="image-library-uploads-toolbar"
-                className="sm:sticky sm:top-0 z-10 -mx-1 mb-2 rounded-xl border border-border/60 bg-background/95 px-2.5 py-2 backdrop-blur sm:px-3 sm:py-3"
+                className="sm:sticky sm:top-0 z-10 -mx-1 mb-2 rounded-2xl border border-border/50 bg-background/90 px-2.5 py-2.5 backdrop-blur-md sm:px-3 sm:py-3"
               >
-                <div className="flex flex-col gap-2 sm:gap-3">
+                <div className="flex flex-col gap-2.5">
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <h3 className="text-sm font-semibold text-foreground">Uploads do servidor</h3>
-                    <p className="text-xs text-muted-foreground">
+                    <p className="inline-flex items-center rounded-full border border-border/60 bg-card/70 px-2.5 py-1 text-[11px] font-medium text-muted-foreground">
                       Selecionadas: {selectedUrls.length}
                     </p>
                   </div>
                   <div className="flex flex-col gap-2 lg:flex-row lg:items-center">
-                    <Input
-                      value={searchQuery}
-                      onChange={(event) => setSearchQuery(event.target.value)}
-                      placeholder="Pesquisar por nome, projeto ou URL..."
-                      className="h-9 w-full"
-                    />
-                    <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-1 sm:flex-wrap sm:items-center">
+                    <div className="relative w-full lg:min-w-0 lg:flex-1">
+                      <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground/80" />
+                      <Input
+                        value={searchQuery}
+                        onChange={(event) => setSearchQuery(event.target.value)}
+                        placeholder="Pesquisar por nome, projeto ou URL..."
+                        className="h-9 w-full rounded-full border-border/60 bg-card/70 pl-9 text-sm transition-colors"
+                      />
+                    </div>
+                    <div
+                      data-testid="image-library-uploads-controls"
+                      className="flex flex-wrap items-center gap-2"
+                    >
                       <select
                         value={uploadsFolderFilter}
                         onChange={(event) => setUploadsFolderFilter(event.target.value)}
-                        className="h-9 min-w-0 w-full rounded-md border border-input bg-background px-3 text-sm sm:w-auto"
+                        className="h-9 min-w-0 flex-1 basis-[10.5rem] rounded-full border border-input/80 bg-card/70 px-3 text-sm transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 sm:flex-none sm:basis-auto sm:min-w-[10rem]"
                       >
                         <option value="__all__">Todas as pastas</option>
                         {uploadFolderFilterOptions.map((folder) => (
@@ -2365,7 +2371,7 @@ const ImageLibraryDialog = ({
                         onChange={(event) =>
                           setSortMode(event.target.value as "recent" | "oldest" | "name")
                         }
-                        className="h-9 min-w-0 w-full rounded-md border border-input bg-background px-3 text-sm sm:w-auto"
+                        className="h-9 min-w-0 flex-1 basis-[9.5rem] rounded-full border border-input/80 bg-card/70 px-3 text-sm transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 sm:flex-none sm:basis-auto sm:min-w-[9rem]"
                       >
                         <option value="recent">Mais recentes</option>
                         <option value="oldest">Mais antigos</option>
@@ -2376,7 +2382,7 @@ const ImageLibraryDialog = ({
                           type="button"
                           size="sm"
                           variant="outline"
-                          className="col-span-2 w-full sm:w-auto"
+                          className="h-9 flex-none rounded-full border-border/70 bg-card/60 px-3.5 text-xs transition-colors sm:text-sm"
                           onClick={() => setSelectedUrls([])}
                         >
                           Limpar seleção

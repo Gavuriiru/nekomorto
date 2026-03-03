@@ -5,6 +5,21 @@ export const EPUB_IMPORT_MULTIPART_LIMITS = Object.freeze({
   fields: 8,
 });
 
+const EPUB_CSS_ENGINE_ERROR_PATTERNS = [
+  /specificity\.max/i,
+  /cannot destructure property\s+['"]value['"]/i,
+  /@bramus\/specificity/i,
+];
+
+const isEpubCssEngineFailure = (error) => {
+  const code = String(error?.code || "").trim().toLowerCase();
+  if (code === "epub_css_engine_failed") {
+    return true;
+  }
+  const detail = String(error?.message || error || "");
+  return EPUB_CSS_ENGINE_ERROR_PATTERNS.some((pattern) => pattern.test(detail));
+};
+
 const buildInvalidMultipartUploadResponse = (error) => ({
   status: 400,
   body: {
@@ -38,6 +53,16 @@ export const mapEpubImportExecutionError = (error) => {
         error: "epub_import_upload_persist_failed",
         detail:
           "Nao foi possivel persistir as imagens importadas do EPUB neste momento. Tente novamente em alguns instantes.",
+      },
+    };
+  }
+  if (isEpubCssEngineFailure(error)) {
+    return {
+      status: 400,
+      body: {
+        error: "epub_import_failed",
+        detail:
+          "Nao foi possivel processar estilos CSS avancados do EPUB. Tente reexportar o arquivo e importar novamente.",
       },
     };
   }

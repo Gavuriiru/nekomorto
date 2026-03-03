@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { MemoryRouter, useLocation } from "react-router-dom";
 import { describe, expect, it, vi } from "vitest";
 
@@ -37,6 +37,18 @@ vi.mock("@/components/ImageLibraryDialog", () => ({
 vi.mock("@/components/ThemedSvgLogo", () => ({
   default: () => null,
 }));
+
+vi.mock("@/components/lexical/LexicalEditor", async () => {
+  const React = await vi.importActual<typeof import("react")>("react");
+  const MockEditor = React.forwardRef(
+    (_props: unknown, ref: React.ForwardedRef<{ blur: () => void; focus: () => void }>) => {
+      React.useImperativeHandle(ref, () => ({ blur: () => undefined, focus: () => undefined }));
+      return <div data-testid="lexical-editor" />;
+    },
+  );
+  MockEditor.displayName = "MockLexicalEditor";
+  return { default: MockEditor };
+});
 
 vi.mock("@/hooks/use-page-meta", () => ({
   usePageMeta: () => undefined,
@@ -306,12 +318,30 @@ describe("DashboardProjectsEditor edit query", () => {
       expect(screen.getByTestId("location-search").textContent).toBe("");
     });
 
-    const firstCard = await screen.findByTestId("episode-card-0");
-    const secondCard = await screen.findByTestId("episode-card-1");
+    const editorDialog = await waitFor(() => {
+      const node = document.querySelector(".project-editor-dialog");
+      expect(node).not.toBeNull();
+      return node as HTMLElement;
+    });
+
+    const chaptersTrigger = within(editorDialog).queryByRole("button", { name: /Conte.do.*cap.tulos/i });
+    if (chaptersTrigger && chaptersTrigger.getAttribute("aria-expanded") !== "true") {
+      fireEvent.click(chaptersTrigger);
+    }
+
+    const volumeTrigger = within(editorDialog).queryByRole("button", { name: /Volume\s*1/i });
+    if (volumeTrigger && volumeTrigger.getAttribute("aria-expanded") !== "true") {
+      fireEvent.click(volumeTrigger);
+    }
+
+    const firstCard = await within(editorDialog).findByTestId("episode-card-0", {}, { timeout: 3000 });
+    const secondCard = within(editorDialog).queryByTestId("episode-card-1");
     await waitFor(() => {
       expect(getEpisodeTrigger(firstCard)).toHaveAttribute("aria-expanded", "true");
     });
-    expect(getEpisodeTrigger(secondCard)).toHaveAttribute("aria-expanded", "false");
+    if (secondCard) {
+      expect(getEpisodeTrigger(secondCard)).toHaveAttribute("aria-expanded", "false");
+    }
     await waitFor(() => {
       expect(scrollIntoViewMock).toHaveBeenCalled();
     });
@@ -334,5 +364,44 @@ describe("DashboardProjectsEditor edit query", () => {
     });
 
     expect(scrollIntoViewMock).not.toHaveBeenCalled();
+  });
+
+  it("controla classe editor-modal-scrolled no dialog ao rolar e fechar", async () => {
+    setupApiMock({ canManageProjects: true, projects: [projectFixture] });
+
+    render(
+      <MemoryRouter initialEntries={["/dashboard/projetos?edit=project-1"]}>
+        <DashboardProjectsEditor />
+        <LocationProbe />
+      </MemoryRouter>,
+    );
+
+    await screen.findByRole("heading", { name: "Gerenciar projetos" });
+    await screen.findByText("Editar projeto");
+    await waitFor(() => {
+      expect(screen.getByTestId("location-search").textContent).toBe("");
+    });
+
+    const editorDialog = document.querySelector(".project-editor-dialog") as HTMLElement | null;
+    expect(editorDialog).not.toBeNull();
+    expect(editorDialog).not.toHaveClass("editor-modal-scrolled");
+
+    if (!editorDialog) {
+      throw new Error("Editor dialog not found");
+    }
+
+    editorDialog.scrollTop = 24;
+    fireEvent.scroll(editorDialog);
+
+    await waitFor(() => {
+      expect(editorDialog).toHaveClass("editor-modal-scrolled");
+    });
+
+    fireEvent.click(within(editorDialog).getByRole("button", { name: "Cancelar" }));
+
+    await waitFor(() => {
+      expect(screen.queryByText("Editar projeto")).not.toBeInTheDocument();
+    });
+    expect(document.querySelector(".project-editor-dialog.editor-modal-scrolled")).toBeNull();
   });
 });

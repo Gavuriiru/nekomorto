@@ -134,8 +134,6 @@ const BOILERPLATE_HINT_PATTERNS = [
 ];
 
 const HARD_DISCARD_BOILERPLATE_HINT_PATTERNS = [
-  /\bcover\b/i,
-  /\btitle[\s_-]*page\b/i,
   /\bcopyright\b/i,
   /\btable of contents\b/i,
   /(?:^|[\s/_-])toc(?:$|[\s/_-])/i,
@@ -154,6 +152,27 @@ const RANGE_INTRUDER_HINT_PATTERNS = [
   /(?:^|[\s/_-])nav(?:$|[\s/_-])/i,
   /\bnewsletter\b/i,
   /\bsign[\s_-]*up\b/i,
+];
+
+const FRONT_MATTER_CONSOLIDATION_HINT_PATTERNS = [
+  /\bcover\b/i,
+  /\btitle[\s_-]*page\b/i,
+  /\bcopyright(?:s)?\b/i,
+  /\bcredits?\b/i,
+  /\btable of contents(?: page)?\b/i,
+  /(?:^|[\s/_-])toc(?:$|[\s/_-])/i,
+  /(?:^|[\s/_-])nav(?:$|[\s/_-])/i,
+  /\bcolou?r[\s_-]*inserts?\b/i,
+  /\binsert\b/i,
+  /\bfrontispiece\b/i,
+];
+
+const FRONT_MATTER_NOISE_HINT_PATTERNS = [
+  /\bnewsletter\b/i,
+  /\bsign[\s_-]*up\b/i,
+  /\badvert(?:isement)?\b/i,
+  /\bpreview\b/i,
+  /\bsample\b/i,
 ];
 
 const MAIN_HINT_PATTERNS = [
@@ -299,8 +318,13 @@ const getDocumentHint = ({ title, href, id }) =>
 const hasBoilerplateHint = (value) => BOILERPLATE_HINT_PATTERNS.some((pattern) => pattern.test(value));
 const hasHardDiscardBoilerplateHint = (value) =>
   HARD_DISCARD_BOILERPLATE_HINT_PATTERNS.some((pattern) => pattern.test(value));
+const hasFrontMatterConsolidationHint = (value) =>
+  FRONT_MATTER_CONSOLIDATION_HINT_PATTERNS.some((pattern) => pattern.test(value));
+const hasFrontMatterNoiseHint = (value) =>
+  FRONT_MATTER_NOISE_HINT_PATTERNS.some((pattern) => pattern.test(value));
 const hasMainHint = (value) => MAIN_HINT_PATTERNS.some((pattern) => pattern.test(value));
 const hasExtraHint = (value) => EXTRA_HINT_PATTERNS.some((pattern) => pattern.test(value));
+const hasCoverTitleHint = (value) => /\bcover\b|\btitle[\s_-]*page\b/i.test(String(value || ""));
 
 const getAnchorTextLength = (html) => {
   const source = String(html || "");
@@ -395,9 +419,13 @@ const shouldPromoteBoilerplateCandidate = ({
   linkDensity,
   hasImageMarkup,
   hasHardDiscardHint,
+  hasCoverHint,
 } = {}) => {
   if (hasHardDiscardHint) {
     return false;
+  }
+  if (hasCoverHint) {
+    return hasImageMarkup && visibleTextLength <= 180 && linkDensity <= 0.35;
   }
   if (hasImageMarkup) {
     return true;
@@ -418,6 +446,7 @@ const classifyEpubDocumentCandidate = ({ title, href, id, html, sanitizedHtml, s
   const subtype = resolveDocumentSubtypeFromHint(hint);
   const hasHardDiscardHint = hasHardDiscardBoilerplateHint(hint);
   const hasImageMarkup = /<(?:img|svg|image)\b/i.test(String(html || ""));
+  const hasCoverHint = hasCoverTitleHint(hint);
 
   if (hasBoilerplateHint(hint)) {
     if (
@@ -426,6 +455,7 @@ const classifyEpubDocumentCandidate = ({ title, href, id, html, sanitizedHtml, s
         linkDensity,
         hasImageMarkup,
         hasHardDiscardHint,
+        hasCoverHint,
       })
     ) {
       return {
@@ -801,6 +831,222 @@ const buildFallbackFlowReferences = (epub) => {
     .filter((item) => item.id);
 };
 
+const buildCandidateDedupeKeys = (item) => {
+  const id = String(item?.id || "").trim();
+  const href = normalizeEpubHref(item?.href);
+  const keys = [];
+  if (id) {
+    keys.push(`id:${id}`);
+  }
+  if (href) {
+    keys.push(`href:${href}`);
+  }
+  return keys;
+};
+
+const buildTocTitleLookup = (tocReferences) => {
+  const lookup = new Map();
+  for (const item of Array.isArray(tocReferences) ? tocReferences : []) {
+    const title = String(item?.title || "").trim();
+    if (!title) {
+      continue;
+    }
+    const keys = buildCandidateDedupeKeys(item);
+    for (const key of keys) {
+      if (key && !lookup.has(key)) {
+        lookup.set(key, title);
+      }
+    }
+  }
+  return lookup;
+};
+
+const resolvePreferredTocTitle = (reference, tocTitleLookup) => {
+  const safeLookup = tocTitleLookup instanceof Map ? tocTitleLookup : new Map();
+  for (const key of buildCandidateDedupeKeys(reference)) {
+    const match = safeLookup.get(key);
+    if (typeof match === "string" && match.trim()) {
+      return match.trim();
+    }
+  }
+  return String(reference?.title || "").trim();
+};
+
+const hasAnyCandidateKeyMatch = (item, keySet) => {
+  const safeKeySet = keySet instanceof Set ? keySet : new Set();
+  return buildCandidateDedupeKeys(item).some((key) => safeKeySet.has(key));
+};
+
+const isInitialVisualFrontMatterCandidate = ({ rawHtml, sanitizedHtml } = {}) => {
+  const hasImageMarkup = /<(?:img|svg|image)\b/i.test(String(rawHtml || ""));
+  if (!hasImageMarkup) {
+    return false;
+  }
+  const visibleTextLength = getVisibleTextLength(sanitizedHtml || "");
+  const linkDensity = getLinkDensity(sanitizedHtml || "", visibleTextLength);
+  return visibleTextLength <= 220 && linkDensity <= 0.4;
+};
+
+const resolveFirstNarrativeFlowIndexFromFlow = async (epub, { manifestByHref } = {}) => {
+  const flowReferences = buildFallbackFlowReferences(epub);
+  for (const item of flowReferences) {
+    const candidate = await materializeCandidate(epub, item, {
+      manifestByHref,
+    });
+    const classification = classifyEpubDocumentCandidate({
+      title: candidate.title,
+      href: candidate.href,
+      id: candidate.id,
+      html: candidate.rawHtml,
+      sanitizedHtml: candidate.sanitizedHtml,
+      source: "flow",
+    });
+    if (classification.kind === "main") {
+      const flowIndex = Number(item?.flowIndex);
+      if (Number.isFinite(flowIndex)) {
+        return flowIndex;
+      }
+    }
+  }
+  return null;
+};
+
+const buildFrontMatterBundleFromFlow = async ({
+  epub,
+  firstNarrativeFlowIndex,
+  tocReferences,
+  warnings,
+  discardedCounts,
+  imageContext,
+} = {}) => {
+  if (!Number.isFinite(firstNarrativeFlowIndex) || firstNarrativeFlowIndex <= 0) {
+    return {
+      chapter: null,
+      consumedKeys: new Set(),
+    };
+  }
+
+  const { flowItems } = buildFlowIndexes(epub);
+  const { manifestByHref } = buildManifestIndexes(epub);
+  const tocTitleLookup = buildTocTitleLookup(tocReferences);
+  const selectedParts = [];
+  const selectedKeys = new Set();
+  const maxIndex = Math.min(Number(firstNarrativeFlowIndex), flowItems.length);
+
+  for (let flowIndex = 0; flowIndex < maxIndex; flowIndex += 1) {
+    const flowItem = flowItems[flowIndex];
+    const reference = {
+      id: String(flowItem?.id || "").trim(),
+      href: normalizeEpubHref(flowItem?.href),
+      title: String(flowItem?.title || "").trim(),
+      source: "flow",
+      flowIndex,
+    };
+    if (!reference.id) {
+      continue;
+    }
+    if (hasAnyCandidateKeyMatch(reference, selectedKeys)) {
+      continue;
+    }
+
+    const preferredTitle = resolvePreferredTocTitle(reference, tocTitleLookup);
+    const materialized = await materializeCandidate(
+      epub,
+      {
+        ...reference,
+        title: preferredTitle,
+      },
+      { manifestByHref },
+    );
+    const hint = getDocumentHint({
+      title: preferredTitle || materialized.title,
+      href: materialized.href,
+      id: materialized.id,
+    });
+    if (hasFrontMatterNoiseHint(hint)) {
+      continue;
+    }
+
+    const shouldInclude =
+      hasFrontMatterConsolidationHint(hint) ||
+      isInitialVisualFrontMatterCandidate({
+        rawHtml: materialized.rawHtml,
+        sanitizedHtml: materialized.sanitizedHtml,
+      });
+    if (!shouldInclude) {
+      continue;
+    }
+
+    selectedParts.push({
+      ...materialized,
+      flowIndex,
+      title: String(preferredTitle || materialized.title || "").trim(),
+    });
+    buildCandidateDedupeKeys(materialized).forEach((key) => selectedKeys.add(key));
+  }
+
+  if (!selectedParts.length) {
+    return {
+      chapter: null,
+      consumedKeys: new Set(),
+    };
+  }
+
+  const chapterParts = [];
+  for (const part of selectedParts) {
+    const prepared = await prepareNarrativeDocumentHtml({
+      epub,
+      rawHtml: part.rawHtml,
+      documentHref: part.href,
+      chapterTitle: String(part.title || "").trim(),
+      manifestByHref,
+      imageContext,
+    });
+    if (Array.isArray(warnings)) {
+      warnings.push(...prepared.warnings);
+    }
+    if (prepared.html) {
+      chapterParts.push(prepared.html);
+    }
+  }
+
+  const sanitizedHtml = chapterParts.join("\n").trim();
+  if (!sanitizedHtml) {
+    return {
+      chapter: null,
+      consumedKeys: new Set(),
+    };
+  }
+
+  if (discardedCounts && Number.isFinite(Number(discardedCounts.boilerplatePromoted))) {
+    discardedCounts.boilerplatePromoted += selectedParts.length;
+  }
+  if (Array.isArray(warnings)) {
+    warnings.push(
+      `Front matter inicial consolidado em um unico extra: ${selectedParts.length} item(ns).`,
+    );
+  }
+
+  const firstPart = selectedParts[0];
+  const bundleTitle =
+    String(selectedParts.find((part) => String(part?.title || "").trim())?.title || "").trim() || "Extra";
+
+  return {
+    chapter: {
+      id: firstPart?.id,
+      href: firstPart?.href,
+      title: bundleTitle,
+      source: "flow_front_matter",
+      sanitizedHtml,
+      readingOrder: Number(firstPart?.flowIndex) + 1,
+      entryKind: "extra",
+      entrySubtype: "extra",
+      displayLabel: "Extra",
+    },
+    consumedKeys: selectedKeys,
+  };
+};
+
 const getNarrativeGroupStem = (item) => {
   const basename = normalizeHintText(getPathBasename(item?.href || item?.id).replace(/\.[^.]+$/, ""));
   const chapterStemMatch = basename.match(/^(chapter\d+)(?:[_-].+)?$/i);
@@ -833,14 +1079,44 @@ const buildDiscardWarnings = ({ boilerplate, boilerplatePromoted, imageOnly, unr
   return warnings;
 };
 
-const materializeCandidate = async (epub, item) => {
-  const rawHtml = await epub.getChapterRaw(item.id);
+const resolveChapterRawByReference = async (epub, item, { manifestByHref } = {}) => {
+  const requestedId = String(item?.id || "").trim();
+  const normalizedHref = normalizeEpubHref(item?.href);
+  let resolvedId = requestedId;
+  let rawHtml = resolvedId ? await epub.getChapterRaw(resolvedId) : "";
+
+  if (!String(rawHtml || "").trim() && normalizedHref) {
+    const hrefIndex = manifestByHref || buildManifestIndexes(epub).manifestByHref;
+    const manifestItem = hrefIndex.get(normalizedHref) || null;
+    const fallbackId = String(manifestItem?.id || "").trim();
+    if (fallbackId && fallbackId !== resolvedId) {
+      const fallbackRawHtml = await epub.getChapterRaw(fallbackId);
+      if (String(fallbackRawHtml || "").trim()) {
+        resolvedId = fallbackId;
+        rawHtml = fallbackRawHtml;
+      }
+    }
+  }
+
+  return {
+    rawHtml,
+    resolvedId,
+    normalizedHref,
+    requestedId,
+  };
+};
+
+const materializeCandidate = async (epub, item, { manifestByHref } = {}) => {
+  const { rawHtml, resolvedId, requestedId } = await resolveChapterRawByReference(epub, item, {
+    manifestByHref,
+  });
   const sanitizedHtml = sanitizeChapterHtml(rawHtml);
   return {
     ...item,
+    id: resolvedId || requestedId,
     rawHtml,
     sanitizedHtml,
-    title: String(item?.title || epub.manifest?.[item.id]?.title || "").trim(),
+    title: String(item?.title || epub.manifest?.[resolvedId || requestedId]?.title || "").trim(),
   };
 };
 
@@ -1401,8 +1677,23 @@ const prepareNarrativeDocumentHtml = async ({
       manifestByHref,
       imageContext,
     });
-    inlineEditorialComputedStyles(dom.window.document);
-    normalizeEditorialWrappers(dom.window.document);
+    try {
+      inlineEditorialComputedStyles(dom.window.document);
+      normalizeEditorialWrappers(dom.window.document);
+    } catch (error) {
+      const normalizedDocumentHref = normalizeEpubHref(documentHref);
+      const chapterContextLabel =
+        String(chapterTitle || "").trim() || normalizedDocumentHref || "Capitulo";
+      const warning =
+        `Estilos CSS avancados foram ignorados no capitulo "${chapterContextLabel}"; ` +
+        "importacao continuou sem estilos calculados.";
+      warnings.push(warning);
+      console.warn("epub_import_editorial_css_fallback", {
+        chapterTitle: chapterContextLabel,
+        documentHref: normalizedDocumentHref || null,
+        detail: String(error?.message || error || "css_editorial_fallback"),
+      });
+    }
     return {
       html: sanitizeChapterHtml(dom.window.document.body.innerHTML),
       warnings,
@@ -1653,7 +1944,9 @@ const buildNarrativeChapterCandidatesFromToc = async ({
         continue;
       }
 
-      const rawHtml = await epub.getChapterRaw(partReference.id);
+      const { rawHtml } = await resolveChapterRawByReference(epub, partReference, {
+        manifestByHref,
+      });
       const prepared = await prepareNarrativeDocumentHtml({
         epub,
         rawHtml,
@@ -1698,11 +1991,16 @@ const buildFallbackNarrativeChapterCandidates = async ({
   discardedCounts,
   warnings,
   imageContext,
+  excludedCandidateKeys,
 } = {}) => {
   const flowReferences = buildFallbackFlowReferences(epub);
   const materialized = [];
   for (const item of flowReferences) {
-    materialized.push(await materializeCandidate(epub, item));
+    const candidate = await materializeCandidate(epub, item);
+    if (hasAnyCandidateKeyMatch(candidate, excludedCandidateKeys)) {
+      continue;
+    }
+    materialized.push(candidate);
   }
 
   const groups = [];
@@ -1876,7 +2174,7 @@ export const importProjectEpub = async ({
   const { items: tocReferences, unresolvedCount } = resolveTocReferences(epub);
   discardedCounts.unresolvedTocEntry = unresolvedCount;
 
-  const tocStructuredCandidates = [];
+  const tocClassifiedCandidates = [];
   for (const item of tocReferences) {
     const candidate = await materializeCandidate(epub, item);
     const classification = classifyEpubDocumentCandidate({
@@ -1887,15 +2185,47 @@ export const importProjectEpub = async ({
       sanitizedHtml: candidate.sanitizedHtml,
       source: candidate.source,
     });
+    tocClassifiedCandidates.push({
+      ...candidate,
+      classification,
+    });
+  }
+
+  const tocFirstNarrativeFlowIndex = [...tocClassifiedCandidates]
+    .filter((item) => String(item?.classification?.kind || "").trim().toLowerCase() === "main")
+    .map((item) => Number(item?.flowIndex))
+    .filter((value) => Number.isFinite(value))
+    .sort((left, right) => left - right)[0];
+  let firstNarrativeFlowIndex = Number.isFinite(tocFirstNarrativeFlowIndex)
+    ? tocFirstNarrativeFlowIndex
+    : null;
+  if (!Number.isFinite(firstNarrativeFlowIndex)) {
+    firstNarrativeFlowIndex = await resolveFirstNarrativeFlowIndexFromFlow(epub);
+  }
+
+  const frontMatterBundle = await buildFrontMatterBundleFromFlow({
+    epub,
+    firstNarrativeFlowIndex,
+    tocReferences: tocClassifiedCandidates,
+    warnings,
+    discardedCounts,
+    imageContext,
+  });
+  const consumedFrontMatterKeys =
+    frontMatterBundle?.consumedKeys instanceof Set ? frontMatterBundle.consumedKeys : new Set();
+
+  const tocStructuredCandidates = [];
+  for (const candidate of tocClassifiedCandidates) {
+    if (hasAnyCandidateKeyMatch(candidate, consumedFrontMatterKeys)) {
+      continue;
+    }
+    const classification = candidate.classification || {};
     if (
       classification.kind === "main" ||
       classification.kind === "extra" ||
       classification.kind === "boilerplate_candidate"
     ) {
-      tocStructuredCandidates.push({
-        ...candidate,
-        classification,
-      });
+      tocStructuredCandidates.push(candidate);
       if (classification.kind === "boilerplate_candidate") {
         discardedCounts.boilerplatePromoted += 1;
       }
@@ -1908,7 +2238,7 @@ export const importProjectEpub = async ({
     discardedCounts.boilerplate += 1;
   }
 
-  const orderedChapterCandidates =
+  const narrativeChapterCandidates =
     tocStructuredCandidates.length > 0
       ? await buildNarrativeChapterCandidatesFromToc({
           epub,
@@ -1922,7 +2252,31 @@ export const importProjectEpub = async ({
           discardedCounts,
           warnings,
           imageContext,
+          excludedCandidateKeys: consumedFrontMatterKeys,
         });
+  const orderedChapterCandidates = [
+    ...(frontMatterBundle?.chapter ? [frontMatterBundle.chapter] : []),
+    ...narrativeChapterCandidates,
+  ].sort((left, right) => {
+    const leftOrder = Number.isFinite(Number(left?.readingOrder))
+      ? Number(left.readingOrder)
+      : Number.MAX_SAFE_INTEGER;
+    const rightOrder = Number.isFinite(Number(right?.readingOrder))
+      ? Number(right.readingOrder)
+      : Number.MAX_SAFE_INTEGER;
+    if (leftOrder !== rightOrder) {
+      return leftOrder - rightOrder;
+    }
+    const leftKind = String(left?.entryKind || "").trim().toLowerCase();
+    const rightKind = String(right?.entryKind || "").trim().toLowerCase();
+    if (leftKind === "extra" && rightKind !== "extra") {
+      return -1;
+    }
+    if (rightKind === "extra" && leftKind !== "extra") {
+      return 1;
+    }
+    return 0;
+  });
 
   warnings.push(...buildDiscardWarnings(discardedCounts));
 

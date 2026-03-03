@@ -134,6 +134,61 @@ describe("project EPUB import with real lexical bridge", () => {
     );
   });
 
+  it("consolida front matter inicial em um unico extra quando o TOC inicia no capitulo 1", async () => {
+    const loadUploads = vi.fn(() => []);
+    const writeUploads = vi.fn();
+
+    epubState.toc = [
+      { id: "cover-toc", title: "Cover", href: "OEBPS/Text/cover.xhtml" },
+      { id: "title-toc", title: "Title Page", href: "OEBPS/Text/title-page.xhtml" },
+      { id: "c1-toc", title: "Chapter 1", href: "OEBPS/Text/chapter001.xhtml#Ref_1" },
+    ];
+    epubState.flow = [
+      { id: "coverDoc", title: "Cover", href: "OEBPS/Text/cover.xhtml" },
+      { id: "titleDoc", href: "OEBPS/Text/title-page.xhtml" },
+      { id: "c1", title: "Chapter 1", href: "OEBPS/Text/chapter001.xhtml" },
+    ];
+    epubState.manifest = {
+      coverDoc: { id: "coverDoc", href: "OEBPS/Text/cover.xhtml" },
+      titleDoc: { id: "titleDoc", href: "OEBPS/Text/title-page.xhtml" },
+      c1: { id: "c1", title: "Chapter 1", href: "OEBPS/Text/chapter001.xhtml" },
+      coverImage: { id: "coverImage", href: "OEBPS/Images/cover.jpg", "media-type": "image/jpeg" },
+    };
+    epubState.chapters = {
+      coverDoc: '<p><img src="../Images/cover.jpg" alt="cover"></p>',
+      titleDoc: "<p>Title Page</p>",
+      c1: "<p>Texto narrativo.</p>",
+    };
+    epubState.images = {
+      coverImage: Buffer.from("cover-image"),
+    };
+
+    const result = await importProjectEpub({
+      buffer: Buffer.from("fake"),
+      targetVolume: 1,
+      defaultStatus: "draft",
+      project: { episodeDownloads: [] },
+      uploadsDir: "D:/dev/nekomorto/public/uploads",
+      loadUploads,
+      writeUploads,
+      uploadUserId: "test-user",
+    });
+
+    expect(result.chapters).toHaveLength(2);
+    expect(result.summary.extrasImported).toBe(1);
+    expect(result.summary.imagesImported).toBe(1);
+    expect(result.chapters[0]).toEqual(
+      expect.objectContaining({
+        title: "Cover",
+        entryKind: "extra",
+      }),
+    );
+    const parsedExtra = JSON.parse(String(result.chapters[0]?.content || ""));
+    expect(JSON.stringify(parsedExtra)).toContain('"type":"epub-image"');
+    expect(JSON.stringify(parsedExtra)).toContain("Title Page");
+    expect(JSON.stringify(parsedExtra)).toContain("/uploads/tmp/epub-imports/test/import/image-1.jpg");
+  });
+
   it("importa imagem interna dentro do intervalo narrativo do TOC", async () => {
     const loadUploads = vi.fn(() => []);
     const writeUploads = vi.fn();
