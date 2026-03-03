@@ -1,5 +1,6 @@
 ﻿import { Suspense, lazy, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
+import { ArrowLeft, ChevronLeft, ChevronRight, PencilLine } from "lucide-react";
 import CommentsSection from "@/components/CommentsSection";
 import UploadPicture from "@/components/UploadPicture";
 import { Badge } from "@/components/ui/badge";
@@ -346,64 +347,81 @@ const ProjectReading = () => {
   return (
     <div className="flex min-h-screen flex-col">
       <main className="flex-1 bg-background">
-        <section data-testid="project-reading-hero" className="relative overflow-hidden">
+        <section data-testid="project-reading-hero" className="project-reading-masthead relative overflow-hidden">
           <UploadPicture
             src={heroImage}
             alt=""
             preset="hero"
             mediaVariants={mediaVariants}
-            className="absolute inset-0 h-full w-full"
+            className="project-reading-masthead__media absolute inset-0 h-full w-full"
             imgClassName="h-full w-full object-cover object-top md:object-[center_18%]"
             loading="eager"
             decoding="async"
             {...({ fetchpriority: "high" } as Record<string, string>)}
           />
-          <div className="absolute inset-0 bg-background/28 backdrop-blur-[1.5px]" />
-          <div className="absolute inset-0 bg-linear-to-r from-background/84 via-background/34 to-background/78" />
-          <div className="absolute inset-0 bg-linear-to-t from-background via-background/70 to-transparent" />
+          <div className="project-reading-masthead__backdrop project-reading-masthead__backdrop--veil absolute inset-0" />
+          <div className="project-reading-masthead__backdrop project-reading-masthead__backdrop--horizontal absolute inset-0" />
+          <div className="project-reading-masthead__backdrop project-reading-masthead__backdrop--bottom absolute inset-0" />
+          <div className="project-reading-masthead__backdrop project-reading-masthead__backdrop--accent-start absolute inset-0" />
+          <div className="project-reading-masthead__backdrop project-reading-masthead__backdrop--accent-cover absolute inset-0" />
 
           <div
-            className={`${publicPageLayoutTokens.sectionBase} relative max-w-6xl pb-10 pt-24 md:pb-16 md:pt-20 lg:pb-20 lg:pt-24`}
+            className={`${publicPageLayoutTokens.sectionBase} project-reading-masthead__content relative max-w-6xl pb-10 pt-24 md:pb-16 md:pt-20 lg:pb-20 lg:pt-24`}
           >
-            <div className="grid items-center gap-6 md:grid-cols-[minmax(0,1fr)_220px] lg:grid-cols-[minmax(0,1fr)_240px]">
-              <div className="order-2 mx-auto w-48 md:order-1 md:w-full">
-                <div className="flex w-full flex-wrap items-center gap-2">
-                  <Badge variant="outline" className="text-xs uppercase tracking-wide">
+            <div className="project-reading-masthead__layout grid items-center gap-6 md:grid-cols-[minmax(0,1fr)_220px] lg:grid-cols-[minmax(0,1fr)_240px]">
+              <div className="project-reading-masthead__body order-2 mx-auto w-48 md:order-1 md:w-full">
+                <div className="project-reading-masthead__meta flex w-full flex-wrap items-center gap-2">
+                  <Badge variant="outline" className="project-reading-masthead__badge project-reading-masthead__badge--type text-xs uppercase tracking-wide">
                     Light Novel
                   </Badge>
-                  <Badge variant="secondary" className="text-xs uppercase">
+                  <Badge variant="secondary" className="project-reading-masthead__badge project-reading-masthead__badge--chapter text-xs uppercase">
                     Cap {chapterData?.number ?? chapterNumber}
                     {Number.isFinite(activeVolume) ? ` • Vol. ${activeVolume}` : ""}
                   </Badge>
                 </div>
-                <div className="mt-4 space-y-2">
-                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-primary/85">
+                <div className="project-reading-masthead__heading mt-4 space-y-2">
+                  <p className="project-reading-masthead__overline">
                     {project.title}
                   </p>
-                  <h1 className="text-3xl font-bold text-foreground md:text-4xl lg:text-5xl">
+                  <h1 className="project-reading-masthead__title">
                     {chapterContent?.title || chapterData?.title || project.title}
                   </h1>
                 </div>
                 {chapterContent?.synopsis || chapterData?.synopsis ? (
-                  <p className="project-reading-hero-synopsis mt-4 max-w-3xl text-sm text-muted-foreground">
+                  <p className="project-reading-masthead__synopsis mt-4 max-w-3xl">
                     {chapterContent?.synopsis || chapterData?.synopsis}
                   </p>
                 ) : null}
-                <div className="mt-5 flex w-full flex-wrap gap-2">
-                  <Button asChild size="sm" variant="outline" className="shrink-0">
-                    <Link to={`/projeto/${project.id}`}>Voltar ao projeto</Link>
+                <div className="project-reading-masthead__actions mt-5 flex w-full flex-wrap gap-2">
+                  <Button
+                    asChild
+                    size="sm"
+                    variant="outline"
+                    className="project-reading-action-btn project-reading-action-btn--secondary shrink-0"
+                  >
+                    <Link to={`/projeto/${project.id}`}>
+                      <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+                      <span>Voltar ao projeto</span>
+                    </Link>
                   </Button>
                   {canEditChapter && editChapterHref ? (
-                    <Button asChild size="sm" variant="outline">
-                      <Link to={editChapterHref}>Editar capítulo</Link>
+                    <Button
+                      asChild
+                      size="sm"
+                      className="project-reading-action-btn project-reading-action-btn--primary"
+                    >
+                      <Link to={editChapterHref}>
+                        <PencilLine className="h-4 w-4" aria-hidden="true" />
+                        <span>Editar capítulo</span>
+                      </Link>
                     </Button>
                   ) : null}
                 </div>
               </div>
 
-              <div className="order-1 mx-auto w-48 md:order-2 md:ml-auto md:w-[220px] lg:w-[240px]">
+              <div className="project-reading-masthead__cover order-1 mx-auto w-48 md:order-2 md:ml-auto md:w-[220px] lg:w-[240px]">
                 <div
-                  className="overflow-hidden rounded-2xl border border-border/70 bg-secondary/90 shadow-[0_30px_100px_-55px_rgba(0,0,0,0.95)]"
+                  className="project-reading-masthead__cover-frame overflow-hidden rounded-2xl border border-border/70 bg-secondary/90 shadow-[0_30px_100px_-55px_rgba(0,0,0,0.95)]"
                   style={{ aspectRatio: "9 / 14" }}
                 >
                   <UploadPicture
@@ -423,11 +441,11 @@ const ProjectReading = () => {
           </div>
         </section>
 
-        <section className="mx-auto mt-6 w-full max-w-6xl px-6 pb-16 md:px-10">
+        <section className="project-reading-first-fold mx-auto mt-6 w-full max-w-6xl px-6 pb-16 md:px-10">
           <section>
             <article className="min-w-0 space-y-6">
-              <Card className="group border-border/60 bg-card/80 shadow-lg transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:bg-card/90 hover:shadow-lg">
-                <CardContent className="min-w-0 space-y-6 p-6">
+              <Card className="project-reading-reader-shell">
+                <CardContent className="project-reading-reader-shell__content min-w-0 space-y-6 p-6">
                   {chapterContent?.content ? (
                     <Suspense fallback={<LexicalViewerFallback />}>
                       <LexicalViewer
@@ -446,7 +464,7 @@ const ProjectReading = () => {
                       />
                     </Suspense>
                   ) : (
-                    <div className="rounded-xl border border-dashed border-border/60 bg-background/60 p-6 text-center text-sm text-muted-foreground">
+                    <div className="project-reading-reader-shell__empty rounded-xl border border-dashed border-border/60 bg-background/60 p-6 text-center text-sm text-muted-foreground">
                       Conteúdo ainda não disponível.
                     </div>
                   )}
@@ -457,27 +475,38 @@ const ProjectReading = () => {
                 <nav
                   data-testid="project-reading-chapter-nav"
                   aria-label="Navegação de capítulos"
-                  className="flex flex-wrap items-center gap-2"
+                  className="project-reading-chapter-nav flex flex-wrap items-center gap-2"
                 >
                   {previousChapter ? (
-                    <Button asChild size="sm" variant="outline">
+                    <Button
+                      asChild
+                      size="sm"
+                      variant="outline"
+                      className="project-reading-nav-btn project-reading-nav-btn--secondary project-reading-chapter-nav__button"
+                    >
                       <Link
                         to={`/projeto/${project.id}/leitura/${previousChapter.number}${
                           previousChapter.volume ? `?volume=${previousChapter.volume}` : ""
                         }`}
                       >
-                        Capítulo anterior
+                        <ChevronLeft className="h-4 w-4" aria-hidden="true" />
+                        <span>Capítulo anterior</span>
                       </Link>
                     </Button>
                   ) : null}
                   {nextChapter ? (
-                    <Button asChild size="sm">
+                    <Button
+                      asChild
+                      size="sm"
+                      className="project-reading-nav-btn project-reading-nav-btn--next project-reading-chapter-nav__button project-reading-chapter-nav__button--next"
+                    >
                       <Link
                         to={`/projeto/${project.id}/leitura/${nextChapter.number}${
                           nextChapter.volume ? `?volume=${nextChapter.volume}` : ""
                         }`}
                       >
-                        Próximo capítulo
+                        <span>Próximo capítulo</span>
+                        <ChevronRight className="h-4 w-4" aria-hidden="true" />
                       </Link>
                     </Button>
                   ) : null}

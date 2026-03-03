@@ -190,13 +190,20 @@ describe("ProjectReading analytics", () => {
     expect(screen.queryByRole("navigation", { name: /breadcrumb/i })).not.toBeInTheDocument();
     const backLink = screen.getByRole("link", { name: "Voltar ao projeto" });
     expect(backLink).toHaveAttribute("href", "/projeto/projeto-teste");
+    expect(backLink.querySelector("svg")).not.toBeNull();
     expect(screen.queryByText(/Leitura de Light Novel/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/Volume 1/i)).not.toBeInTheDocument();
 
-    expect(screen.getByTestId("project-reading-hero")).toBeInTheDocument();
+    const hero = screen.getByTestId("project-reading-hero");
+    expect(hero).toBeInTheDocument();
+    expect(within(hero).getByText("Projeto Teste")).toBeInTheDocument();
+    expect(within(hero).getByText("Resumo do capitulo")).toBeInTheDocument();
+    expect(within(hero).getByText("Light Novel")).toBeInTheDocument();
+    expect(within(hero).getByText(/Cap 1/i)).toBeInTheDocument();
     const contentSection = document.querySelector("main > section + section");
     expect(contentSection).not.toBeNull();
     expect(contentSection).toHaveClass("mt-6");
+    expect(document.querySelector(".project-reading-reader-shell")).not.toBeNull();
   });
 
   it("exibe CTA de editar capitulo para staff com permissao de projetos", async () => {
@@ -214,6 +221,7 @@ describe("ProjectReading analytics", () => {
       "href",
       "/dashboard/projetos?edit=projeto-teste&chapter=1&volume=2",
     );
+    expect(editLink.querySelector("svg")).not.toBeNull();
   });
 
   it("nao exibe CTA de editar capitulo sem permissao", async () => {
@@ -260,7 +268,9 @@ describe("ProjectReading analytics", () => {
     expect(within(hero).queryByRole("link", { name: /Pr.ximo cap.tulo/i })).not.toBeInTheDocument();
 
     const chapterNav = screen.getByTestId("project-reading-chapter-nav");
-    expect(within(chapterNav).getByRole("link", { name: /Pr.ximo cap.tulo/i })).toBeInTheDocument();
+    const nextLink = within(chapterNav).getByRole("link", { name: /Pr.ximo cap.tulo/i });
+    expect(nextLink).toBeInTheDocument();
+    expect(nextLink.querySelector("svg")).not.toBeNull();
   });
 
   it("ignora capitulos sem leitura na navegacao publica", async () => {
