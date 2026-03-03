@@ -171,13 +171,19 @@
     overflow: hidden !important;
   }
 
+  body[data-scroll-locked] {
+    margin-right: 0 !important;
+  }
+
   @supports (scrollbar-gutter: stable) {
-    html.editor-scroll-stable {
+    html {
       scrollbar-gutter: stable;
     }
+  }
 
-    body.editor-scroll-stable[data-scroll-locked] {
-      margin-right: 0 !important;
+  @supports not (scrollbar-gutter: stable) {
+    html {
+      overflow-y: scroll;
     }
   }
 

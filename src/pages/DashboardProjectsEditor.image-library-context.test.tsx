@@ -206,6 +206,10 @@ describe("DashboardProjectsEditor image library context", () => {
 
     const episodesSectionTrigger = await screen.findByText("Capítulos e Volumes");
     fireEvent.click(episodesSectionTrigger);
+    const volumeGroup = await screen.findByTestId("volume-group-none");
+    const volumeGroupTrigger = volumeGroup.querySelector("button");
+    expect(volumeGroupTrigger).toBeTruthy();
+    fireEvent.click(volumeGroupTrigger as HTMLButtonElement);
 
     const episodeCard = await screen.findByTestId("episode-card-0");
     const episodeToggleButton = episodeCard.querySelector("button");

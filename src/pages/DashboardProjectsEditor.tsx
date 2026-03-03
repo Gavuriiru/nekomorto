@@ -1936,13 +1936,19 @@ const DashboardProjectsEditor = () => {
     ];
   }, [isChapterBased, sortedEpisodeDownloads, supportsVolumeEntries, volumeGroups]);
 
-  const volumeGroupOpenValues = useMemo(
-    () =>
-      episodeGroupsForRender
-        .filter((group) => !collapsedVolumeGroups[group.key])
-        .map((group) => group.key),
-    [collapsedVolumeGroups, episodeGroupsForRender],
-  );
+  const volumeGroupOpenValues = useMemo(() => {
+    if (!(isChapterBased && supportsVolumeEntries)) {
+      return episodeGroupsForRender.map((group) => group.key);
+    }
+    return episodeGroupsForRender
+      .filter((group) => collapsedVolumeGroups[group.key] === false)
+      .map((group) => group.key);
+  }, [
+    collapsedVolumeGroups,
+    episodeGroupsForRender,
+    isChapterBased,
+    supportsVolumeEntries,
+  ]);
 
   const handleVolumeGroupAccordionChange = useCallback(
     (values: string[]) => {
@@ -5601,36 +5607,39 @@ const DashboardProjectsEditor = () => {
                       </Button>
                     </div>
                     <div className={isChapterBased && supportsVolumeEntries ? "space-y-4" : ""}>
-                      {episodeGroupsForRender.map((group, groupIndex) => {
-                        const groupVolumeEntry =
-                          group.volumeEntryIndex !== null
-                            ? formState.volumeEntries[group.volumeEntryIndex] || null
-                            : null;
-                        const groupHasEpisodes = group.episodeItems.length > 0;
-                        const volumeLabel = group.hasNumericVolume
-                          ? `Volume ${group.volume}`
-                          : "Sem volume";
-                        return (
-                          <div
-                            key={`episode-group-${groupIndex}`}
-                            className={
-                              isChapterBased && supportsVolumeEntries
-                                ? "space-y-3 rounded-2xl border border-border/60 bg-card/40 p-4"
-                                : ""
-                            }
-                            data-testid={`volume-group-${group.key}`}
-                          >
-                            {isChapterBased && supportsVolumeEntries ? (
-                              <div className="space-y-3">
-                                <div className="flex flex-wrap items-center justify-between gap-3">
-                                  <div className="space-y-1">
-                                    <Label>{volumeLabel}</Label>
-                                    <p className="text-xs text-muted-foreground">
-                                      {group.hasNumericVolume
-                                        ? "Configure capa e sinopse para este volume."
-                                        : "Capítulos sem volume usam capa e sinopse do próprio projeto."}
-                                    </p>
-                                  </div>
+                      <Accordion
+                        type="multiple"
+                        value={volumeGroupOpenValues}
+                        onValueChange={handleVolumeGroupAccordionChange}
+                        className="space-y-4"
+                      >
+                          {episodeGroupsForRender.map((group, groupIndex) => {
+                            const groupVolumeEntry =
+                              group.volumeEntryIndex !== null
+                                ? formState.volumeEntries[group.volumeEntryIndex] || null
+                                : null;
+                            const groupHasEpisodes = group.episodeItems.length > 0;
+                            const volumeLabel = group.hasNumericVolume
+                              ? `Volume ${group.volume}`
+                              : "Sem volume";
+                            const volumeDescription = group.hasNumericVolume
+                              ? "Configure capa e sinopse para este volume."
+                              : "Capítulos sem volume usam capa e sinopse do próprio projeto.";
+                            return (
+                              <AccordionItem
+                                key={`episode-group-${groupIndex}`}
+                                value={group.key}
+                                className="rounded-2xl border border-border/60 bg-card/40"
+                                data-testid={`volume-group-${group.key}`}
+                              >
+                                {isChapterBased && supportsVolumeEntries ? (
+                                  <div className="flex items-start justify-between gap-2 px-4 pt-3">
+                                  <AccordionTrigger className="w-full py-0 text-left hover:no-underline [&>svg]:mt-0 [&>svg]:self-center">
+                                    <div className="space-y-1">
+                                      <Label className="cursor-pointer">{volumeLabel}</Label>
+                                      <p className="text-xs text-muted-foreground">{volumeDescription}</p>
+                                    </div>
+                                  </AccordionTrigger>
                                   <div className="flex items-center gap-2">
                                     <Badge variant="outline" className="text-[10px] uppercase">
                                       {group.episodeItems.length} capítulo(s)
@@ -5640,81 +5649,86 @@ const DashboardProjectsEditor = () => {
                                         type="button"
                                         variant="ghost"
                                         size="icon"
-                                        onClick={() => removeVolumeEntryByVolume(group.volume)}
+                                        data-no-toggle
+                                        onClick={(event) => {
+                                          event.preventDefault();
+                                          event.stopPropagation();
+                                          removeVolumeEntryByVolume(group.volume);
+                                        }}
                                       >
                                         <Trash2 className="h-4 w-4" />
                                       </Button>
                                     ) : null}
                                   </div>
-                                </div>
-                                {group.hasNumericVolume ? (
-                                  <div className="grid gap-3 rounded-xl border border-border/60 bg-background/40 p-3 md:grid-cols-[140px_minmax(0,1fr)]">
-                                    <div className="flex items-center gap-3">
-                                      {groupVolumeEntry?.coverImageUrl ? (
-                                        <img
-                                          src={groupVolumeEntry.coverImageUrl}
-                                          alt={groupVolumeEntry.coverImageAlt || "Capa do volume"}
-                                          className="h-16 w-12 rounded-lg object-cover"
-                                        />
-                                      ) : (
-                                        <div className="flex h-16 w-12 items-center justify-center rounded-lg border border-dashed border-border/60 text-center text-[10px] text-muted-foreground leading-tight">
-                                          Sem capa
+                                  </div>
+                                ) : null}
+                                <AccordionContent className="space-y-3 px-4 pb-4">
+                                  {group.hasNumericVolume ? (
+                                    <div className="grid gap-3 rounded-xl border border-border/60 bg-background/40 p-3 md:grid-cols-[140px_minmax(0,1fr)]">
+                                      <div className="flex items-center gap-3">
+                                        {groupVolumeEntry?.coverImageUrl ? (
+                                          <img
+                                            src={groupVolumeEntry.coverImageUrl}
+                                            alt={groupVolumeEntry.coverImageAlt || "Capa do volume"}
+                                            className="h-16 w-12 rounded-lg object-cover"
+                                          />
+                                        ) : (
+                                          <div className="flex h-16 w-12 items-center justify-center rounded-lg border border-dashed border-border/60 text-center text-[10px] text-muted-foreground leading-tight">
+                                            Sem capa
+                                          </div>
+                                        )}
+                                        <Button
+                                          type="button"
+                                          variant="outline"
+                                          size="sm"
+                                          onClick={() => openLibraryForVolumeCover(group.volume)}
+                                        >
+                                          Biblioteca
+                                        </Button>
+                                      </div>
+                                      <div className="space-y-3">
+                                        <div className="space-y-2">
+                                          <Label className="text-xs">Alt</Label>
+                                          <Input
+                                            value={groupVolumeEntry?.coverImageAlt || ""}
+                                            onChange={(event) =>
+                                              updateVolumeEntryByVolume(group.volume, (entry) => ({
+                                                ...entry,
+                                                coverImageAlt: event.target.value,
+                                              }))
+                                            }
+                                            placeholder="Texto alternativo da capa"
+                                          />
                                         </div>
-                                      )}
-                                      <Button
-                                        type="button"
-                                        variant="outline"
-                                        size="sm"
-                                        onClick={() => openLibraryForVolumeCover(group.volume)}
-                                      >
-                                        Biblioteca
-                                      </Button>
-                                    </div>
-                                    <div className="space-y-3">
-                                      <div className="space-y-2">
-                                        <Label className="text-xs">Alt</Label>
-                                        <Input
-                                          value={groupVolumeEntry?.coverImageAlt || ""}
-                                          onChange={(event) =>
-                                            updateVolumeEntryByVolume(group.volume, (entry) => ({
-                                              ...entry,
-                                              coverImageAlt: event.target.value,
-                                            }))
-                                          }
-                                          placeholder="Texto alternativo da capa"
-                                        />
-                                      </div>
-                                      <div className="space-y-2">
-                                        <Label className="text-xs">Sinopse do volume</Label>
-                                        <Textarea
-                                          value={groupVolumeEntry?.synopsis || ""}
-                                          onChange={(event) =>
-                                            updateVolumeEntryByVolume(group.volume, (entry) => ({
-                                              ...entry,
-                                              synopsis: event.target.value,
-                                            }))
-                                          }
-                                          rows={3}
-                                          placeholder="Resumo exibido nas páginas públicas para este volume"
-                                        />
+                                        <div className="space-y-2">
+                                          <Label className="text-xs">Sinopse do volume</Label>
+                                          <Textarea
+                                            value={groupVolumeEntry?.synopsis || ""}
+                                            onChange={(event) =>
+                                              updateVolumeEntryByVolume(group.volume, (entry) => ({
+                                                ...entry,
+                                                synopsis: event.target.value,
+                                              }))
+                                            }
+                                            rows={3}
+                                            placeholder="Resumo exibido nas páginas públicas para este volume"
+                                          />
+                                        </div>
                                       </div>
                                     </div>
-                                  </div>
-                                ) : null}
-                                {!groupHasEpisodes ? (
-                                  <div className="rounded-xl border border-dashed border-border/60 bg-background/40 px-4 py-3 text-sm text-muted-foreground">
-                                    Nenhum capítulo vinculado a este volume.
-                                  </div>
-                                ) : null}
-                              </div>
-                            ) : null}
-                            <Accordion
-                              type="multiple"
-                              value={episodeOpenValues}
-                              onValueChange={handleEpisodeAccordionChange}
-                              className="space-y-4"
-                            >
-                              {group.episodeItems.map(({ episode, index }) => {
+                                  ) : null}
+                                  {!groupHasEpisodes ? (
+                                    <div className="rounded-xl border border-dashed border-border/60 bg-background/40 px-4 py-3 text-sm text-muted-foreground">
+                                      Nenhum capítulo vinculado a este volume.
+                                    </div>
+                                  ) : null}
+                                  <Accordion
+                                    type="multiple"
+                                    value={episodeOpenValues}
+                                    onValueChange={handleEpisodeAccordionChange}
+                                    className="space-y-4"
+                                  >
+                                    {group.episodeItems.map(({ episode, index }) => {
                         const isEpisodeCollapsed = collapsedEpisodes[index] ?? false;
                         const entryKind = getEpisodeEntryKind(episode);
                         const isExtraEntry = entryKind === "extra";
@@ -6457,11 +6471,13 @@ const DashboardProjectsEditor = () => {
                             </Card>
                           </AccordionItem>
                         );
-                              })}
-                            </Accordion>
-                          </div>
-                        );
-                      })}
+                                    })}
+                                  </Accordion>
+                                </AccordionContent>
+                              </AccordionItem>
+                            );
+                          })}
+                        </Accordion>
                     </div>
                   </div>
                   </AccordionContent>
@@ -6572,3 +6588,4 @@ const DashboardProjectsEditor = () => {
 };
 
 export default DashboardProjectsEditor;
+

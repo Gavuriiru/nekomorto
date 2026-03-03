@@ -163,6 +163,40 @@ const lightNovelProjectFixture = {
   ],
 };
 
+const lightNovelMultiVolumesFixture = {
+  ...lightNovelProjectFixture,
+  id: "project-ln-multi-volumes",
+  title: "Projeto LN Volumes",
+  episodeDownloads: [
+    {
+      ...lightNovelProjectFixture.episodeDownloads[0],
+      number: 1,
+      title: "Capitulo V1",
+      volume: 1,
+    },
+    {
+      ...lightNovelProjectFixture.episodeDownloads[0],
+      number: 2,
+      title: "Capitulo V2",
+      volume: 2,
+    },
+  ],
+  volumeEntries: [
+    {
+      volume: 1,
+      synopsis: "",
+      coverImageUrl: "",
+      coverImageAlt: "",
+    },
+    {
+      volume: 2,
+      synopsis: "",
+      coverImageUrl: "",
+      coverImageAlt: "",
+    },
+  ],
+};
+
 const anilistMediaFixture = {
   id: 97894,
   title: {
@@ -269,6 +303,14 @@ const getEpisodeTrigger = (name: RegExp) => {
   }
   return match;
 };
+
+const getVolumeGroupTrigger = (group: HTMLElement) => {
+  const [trigger] = within(group).getAllByRole("button");
+  if (!trigger) {
+    throw new Error("Volume group trigger not found");
+  }
+  return trigger;
+};
 const episode1TriggerPattern = /(Epis[oó]dio|Episódio)\s+1/i;
 const episode2TriggerPattern = /(Epis[oó]dio|Episódio)\s+2/i;
 
@@ -278,10 +320,14 @@ const openEpisodeEditor = async ({
   projectTitle = "Projeto Teste",
   sectionNamePattern = /Epis/i,
   removeButtonPattern = /Remover (epis|cap)/i,
+  autoOpenFirstVolumeGroup = true,
+  waitForRemoveButtons = true,
 }: {
   projectTitle?: string;
   sectionNamePattern?: RegExp;
   removeButtonPattern?: RegExp;
+  autoOpenFirstVolumeGroup?: boolean;
+  waitForRemoveButtons?: boolean;
 } = {}) => {
   render(
     <MemoryRouter>
@@ -295,7 +341,18 @@ const openEpisodeEditor = async ({
   await screen.findByRole("heading", { name: "Editar projeto" });
 
   fireEvent.click(screen.getByRole("button", { name: sectionNamePattern }));
-  await screen.findAllByRole("button", { name: removeButtonPattern });
+  if (autoOpenFirstVolumeGroup && screen.queryByRole("button", { name: /Adicionar volume/i })) {
+    const volumeGroups = await screen.findAllByTestId(/volume-group-/i);
+    volumeGroups.forEach((group) => {
+      const trigger = getVolumeGroupTrigger(group);
+      if (trigger.getAttribute("aria-expanded") !== "true") {
+        fireEvent.click(trigger);
+      }
+    });
+  }
+  if (waitForRemoveButtons) {
+    await screen.findAllByRole("button", { name: removeButtonPattern });
+  }
 };
 
 describe("DashboardProjectsEditor episode accordion", () => {
@@ -447,7 +504,7 @@ describe("DashboardProjectsEditor episode accordion", () => {
     expect(within(newChapterCard).getByDisplayValue("2")).toBeInTheDocument();
   });
 
-  it("mantem foco e evita remount do card ao editar numero e volume", async () => {
+  it("mantem foco ao editar numero e move capitulo para o novo volume", async () => {
     setupApiMock([lightNovelProjectFixture]);
     await openEpisodeEditor({
       projectTitle: "Projeto Light Novel",
@@ -475,10 +532,12 @@ describe("DashboardProjectsEditor episode accordion", () => {
     expect(volumeInput).toHaveFocus();
 
     fireEvent.change(volumeInput, { target: { value: "3" } });
-    await waitFor(() => {
-      expect(volumeInput).toHaveFocus();
-      expect(screen.getByTestId("episode-card-0")).toBe(chapterCard);
-    });
+    const volumeThreeGroup = await screen.findByTestId("volume-group-3");
+    const volumeThreeTrigger = getVolumeGroupTrigger(volumeThreeGroup);
+    fireEvent.click(volumeThreeTrigger);
+    expect(
+      within(volumeThreeGroup).getByRole("button", { name: /Cap.tulo\s+12/i }),
+    ).toBeInTheDocument();
   });
 
   it("exibe status, volume e fontes em capitulos de light novel", async () => {
@@ -636,6 +695,84 @@ describe("DashboardProjectsEditor episode accordion", () => {
     const volumeGroup = await screen.findByTestId("volume-group-1");
     expect(volumeGroup).toBeInTheDocument();
     expect(within(volumeGroup).getByText(/Nenhum cap.tulo vinculado a este volume/i)).toBeInTheDocument();
+  });
+
+  it("inicia volumes colapsados e permite alternar abertura do grupo", async () => {
+    setupApiMock([lightNovelProjectFixture]);
+    await openEpisodeEditor({
+      projectTitle: "Projeto Light Novel",
+      sectionNamePattern: /Cap/i,
+      removeButtonPattern: /Remover cap/i,
+      autoOpenFirstVolumeGroup: false,
+      waitForRemoveButtons: false,
+    });
+
+    const volumeGroup = await screen.findByTestId("volume-group-none");
+    const volumeTrigger = getVolumeGroupTrigger(volumeGroup);
+
+    expect(within(volumeGroup).queryByTestId("episode-card-0")).not.toBeInTheDocument();
+    expect(volumeTrigger).toHaveAttribute("aria-expanded", "false");
+
+    fireEvent.click(volumeTrigger);
+    expect(within(volumeGroup).getByTestId("episode-card-0")).toBeInTheDocument();
+    expect(volumeTrigger).toHaveAttribute("aria-expanded", "true");
+
+    fireEvent.click(volumeTrigger);
+    expect(within(volumeGroup).queryByTestId("episode-card-0")).not.toBeInTheDocument();
+    expect(volumeTrigger).toHaveAttribute("aria-expanded", "false");
+  });
+
+  it("preserva estado do volume aberto durante edicao do capitulo", async () => {
+    setupApiMock([lightNovelProjectFixture]);
+    await openEpisodeEditor({
+      projectTitle: "Projeto Light Novel",
+      sectionNamePattern: /Cap/i,
+      removeButtonPattern: /Remover cap/i,
+      autoOpenFirstVolumeGroup: false,
+      waitForRemoveButtons: false,
+    });
+
+    const volumeGroup = await screen.findByTestId("volume-group-none");
+    const volumeTrigger = getVolumeGroupTrigger(volumeGroup);
+    fireEvent.click(volumeTrigger);
+    fireEvent.click(getEpisodeTrigger(chapter1TriggerPattern));
+
+    const titleInput = await screen.findByDisplayValue("Capitulo 1");
+    fireEvent.change(titleInput, { target: { value: "Capitulo 1 editado" } });
+
+    expect(screen.getByDisplayValue("Capitulo 1 editado")).toBeInTheDocument();
+    expect(volumeTrigger).toHaveAttribute("aria-expanded", "true");
+  });
+
+  it("mantem estado de colapso independente entre multiplos volumes", async () => {
+    setupApiMock([lightNovelMultiVolumesFixture]);
+    await openEpisodeEditor({
+      projectTitle: "Projeto LN Volumes",
+      sectionNamePattern: /Cap/i,
+      removeButtonPattern: /Remover cap/i,
+      autoOpenFirstVolumeGroup: false,
+      waitForRemoveButtons: false,
+    });
+
+    const volumeOneGroup = await screen.findByTestId("volume-group-1");
+    const volumeTwoGroup = await screen.findByTestId("volume-group-2");
+    const volumeOneTrigger = getVolumeGroupTrigger(volumeOneGroup);
+    const volumeTwoTrigger = getVolumeGroupTrigger(volumeTwoGroup);
+
+    expect(within(volumeOneGroup).queryByText("Capitulo V1")).not.toBeInTheDocument();
+    expect(within(volumeTwoGroup).queryByText("Capitulo V2")).not.toBeInTheDocument();
+
+    fireEvent.click(volumeOneTrigger);
+    expect(within(volumeOneGroup).getByText("Capitulo V1")).toBeInTheDocument();
+    expect(within(volumeTwoGroup).queryByText("Capitulo V2")).not.toBeInTheDocument();
+
+    fireEvent.click(volumeTwoTrigger);
+    expect(within(volumeOneGroup).getByText("Capitulo V1")).toBeInTheDocument();
+    expect(within(volumeTwoGroup).getByText("Capitulo V2")).toBeInTheDocument();
+
+    fireEvent.click(volumeOneTrigger);
+    expect(within(volumeOneGroup).queryByText("Capitulo V1")).not.toBeInTheDocument();
+    expect(within(volumeTwoGroup).getByText("Capitulo V2")).toBeInTheDocument();
   });
 
   it("desabilita ferramentas EPUB quando o backend nao anuncia suporte", async () => {
@@ -1169,7 +1306,9 @@ describe("DashboardProjectsEditor episode accordion", () => {
     fireEvent.change(screen.getByLabelText(/Volume de destino/i), { target: { value: "2" } });
     fireEvent.click(importButton);
 
-    await screen.findByText("Capitulo importado");
+    const importedVolumeGroup = await screen.findByTestId("volume-group-2");
+    fireEvent.click(getVolumeGroupTrigger(importedVolumeGroup));
+    await within(importedVolumeGroup).findByText("Capitulo importado");
     expect(screen.queryByDisplayValue("Capitulo importado")).not.toBeInTheDocument();
     expect(scrollIntoViewMock).not.toHaveBeenCalled();
     expect(toastMock).toHaveBeenCalledWith(
@@ -1181,7 +1320,7 @@ describe("DashboardProjectsEditor episode accordion", () => {
       }),
     );
 
-    fireEvent.click(getEpisodeTrigger(/Cap.tulo importado/i));
+    fireEvent.click(within(importedVolumeGroup).getByRole("button", { name: /Cap.tulo importado/i }));
     await screen.findByDisplayValue("Capitulo importado");
 
     const importCall = apiFetchMock.mock.calls.find((call) =>
