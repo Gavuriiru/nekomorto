@@ -293,6 +293,7 @@ describe("project og helper", () => {
       "divider-line",
       "content",
       "eyebrow-row",
+      "headline-stack",
       "title-text",
       "subtitle-text",
     ];
@@ -305,6 +306,7 @@ describe("project og helper", () => {
     const bgMain = findLayer(scene, "bg-gradient-main");
     const bgSoft = findLayer(scene, "bg-gradient-soft");
     const dividerLine = findLayer(scene, "divider-line");
+    const headlineStack = findLayer(scene, "headline-stack");
     const titleText = findLayer(scene, "title-text");
     const subtitleText = findLayer(scene, "subtitle-text");
     const artworkInner = toArray((artwork?.props as Record<string, unknown>)?.children)[0] as
@@ -358,10 +360,19 @@ describe("project og helper", () => {
       ((dividerLine?.props as Record<string, unknown>)?.style as Record<string, unknown> | undefined)
         ?.transform,
     ).toBeUndefined();
-    expect((titleText?.props as Record<string, unknown>)?.style).toEqual(
+    expect((headlineStack?.props as Record<string, unknown>)?.style).toEqual(
       expect.objectContaining({
         left: 45.878,
         top: 106.199,
+        display: "flex",
+        flexDirection: "column",
+      }),
+    );
+    expect((titleText?.props as Record<string, unknown>)?.style).toEqual(
+      expect.objectContaining({
+        display: "flex",
+        maxHeight: expect.any(Number),
+        overflow: "hidden",
       }),
     );
     expect((titleInner?.props as Record<string, unknown>)?.style).toEqual(
@@ -371,10 +382,15 @@ describe("project og helper", () => {
     );
     expect((subtitleText?.props as Record<string, unknown>)?.style).toEqual(
       expect.objectContaining({
-        left: 45.878,
-        top: 209.329,
+        display: "flex",
+        marginTop: 14,
+        width: 420,
       }),
     );
+    expect(
+      ((subtitleText?.props as Record<string, unknown>)?.style as Record<string, unknown> | undefined)
+        ?.top,
+    ).toBeUndefined();
     expect((subtitleInner?.props as Record<string, unknown>)?.style).toEqual(
       expect.objectContaining({
         fontFamily: "Geist Medium",

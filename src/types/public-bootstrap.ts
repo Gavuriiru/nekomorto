@@ -23,6 +23,13 @@ export type PublicBootstrapVolumeCover = {
   coverImageAlt: string;
 };
 
+export type PublicBootstrapVolumeEntry = {
+  volume: number;
+  synopsis: string;
+  coverImageUrl: string;
+  coverImageAlt: string;
+};
+
 export type PublicBootstrapProject = {
   id: string;
   title: string;
@@ -39,6 +46,7 @@ export type PublicBootstrapProject = {
   heroImageAlt: string;
   forceHero: boolean;
   trailerUrl: string;
+  volumeEntries?: PublicBootstrapVolumeEntry[];
   volumeCovers: PublicBootstrapVolumeCover[];
   episodeDownloads: PublicBootstrapEpisode[];
 };

@@ -222,6 +222,13 @@ type ProjectVolumeCover = {
   coverImageAlt: string;
 };
 
+type ProjectVolumeEntry = {
+  volume: number;
+  synopsis: string;
+  coverImageUrl: string;
+  coverImageAlt: string;
+};
+
 type ProjectEpisode = {
   number: number;
   volume?: number;
@@ -278,6 +285,7 @@ type ProjectRecord = {
   forceHero?: boolean;
   heroImageUrl?: string;
   heroImageAlt: string;
+  volumeEntries: ProjectVolumeEntry[];
   volumeCovers: ProjectVolumeCover[];
   episodeDownloads: ProjectEpisode[];
   views: number;
@@ -368,6 +376,7 @@ const emptyProject: ProjectForm = {
   forceHero: false,
   heroImageUrl: "",
   heroImageAlt: "",
+  volumeEntries: [],
   volumeCovers: [],
   episodeDownloads: [],
 };
@@ -809,7 +818,27 @@ const resolveProjectImageFolders = (projectId: string, projectTitle: string) => 
     projectRootFolder,
     projectEpisodesFolder: `${projectRootFolder}/episodes`,
     projectVolumeCoversFolder: `${projectRootFolder}/volumes`,
+    projectChaptersFolder: `${projectRootFolder}/capitulos`,
   };
+};
+
+const buildLightNovelChapterFolder = ({
+  projectChaptersFolder,
+  episode,
+  index,
+}: {
+  projectChaptersFolder: string;
+  episode: ProjectEpisode;
+  index: number;
+}) => {
+  const parsedNumber = Number(episode?.number);
+  const chapterNumber = Number.isFinite(parsedNumber) && parsedNumber > 0 ? Math.floor(parsedNumber) : index + 1;
+  const parsedVolume = Number(episode?.volume);
+  const volumeSegment =
+    Number.isFinite(parsedVolume) && parsedVolume > 0
+      ? `volume-${Math.floor(parsedVolume)}`
+      : "volume-sem-volume";
+  return `${projectChaptersFolder}/${volumeSegment}/capitulo-${chapterNumber}`;
 };
 
 const generateLocalId = () => {
@@ -1034,7 +1063,7 @@ const DashboardProjectsEditor = () => {
     "cover" | "banner" | "hero" | "episode-cover" | "volume-cover"
   >("cover");
   const [episodeCoverIndex, setEpisodeCoverIndex] = useState<number | null>(null);
-  const [volumeCoverIndex, setVolumeCoverIndex] = useState<number | null>(null);
+  const [volumeEntryIndex, setVolumeEntryIndex] = useState<number | null>(null);
   const [epubImportFile, setEpubImportFile] = useState<File | null>(null);
   const [epubImportTargetVolume, setEpubImportTargetVolume] = useState<string>("");
   const [epubImportAsDraft, setEpubImportAsDraft] = useState(true);
@@ -1458,9 +1487,10 @@ const DashboardProjectsEditor = () => {
 
   const isManga = isMangaType(formState.type || "");
   const isLightNovel = isLightNovelType(formState.type || "");
+  const supportsVolumeEntries = isLightNovel || isManga;
   const isChapterBased = isChapterBasedType(formState.type || "");
   const stageOptions = isChapterBased ? mangaStages : animeStages;
-  const { projectRootFolder, projectEpisodesFolder, projectVolumeCoversFolder } = useMemo(
+  const { projectRootFolder, projectEpisodesFolder, projectVolumeCoversFolder, projectChaptersFolder } = useMemo(
     () => resolveProjectImageFolders(formState.id, formState.title),
     [formState.id, formState.title],
   );
@@ -1476,19 +1506,66 @@ const DashboardProjectsEditor = () => {
         listAll: false,
         includeProjectImages: true,
         projectImageProjectIds: scopedProjectImageIds,
+        projectImagesView: "by-project",
       }) satisfies ImageLibraryOptions,
     [projectEpisodesFolder, projectRootFolder, scopedProjectImageIds],
   );
-  const episodeAssetLibraryOptions = useMemo(
-    () =>
-      ({
+  const buildEpisodeLibraryOptions = useCallback(
+    (episode: ProjectEpisode, index: number): ImageLibraryOptions => {
+      if (isLightNovel) {
+        const chapterFolder = buildLightNovelChapterFolder({
+          projectChaptersFolder,
+          episode,
+          index,
+        });
+        return {
+          uploadFolder: chapterFolder,
+          listFolders: [chapterFolder, projectChaptersFolder, projectEpisodesFolder, projectRootFolder],
+          listAll: false,
+          includeProjectImages: true,
+          projectImageProjectIds: scopedProjectImageIds,
+          projectImagesView: "by-project",
+        };
+      }
+      return {
         uploadFolder: projectEpisodesFolder,
         listFolders: [projectEpisodesFolder, projectRootFolder],
         listAll: false,
         includeProjectImages: true,
         projectImageProjectIds: scopedProjectImageIds,
-      }) satisfies ImageLibraryOptions,
-    [projectEpisodesFolder, projectRootFolder, scopedProjectImageIds],
+        projectImagesView: "by-project",
+      };
+    },
+    [
+      isLightNovel,
+      projectChaptersFolder,
+      projectEpisodesFolder,
+      projectRootFolder,
+      scopedProjectImageIds,
+    ],
+  );
+  const episodeAssetLibraryOptions = useMemo(
+    () => {
+      if (episodeCoverIndex !== null && formState.episodeDownloads[episodeCoverIndex]) {
+        return buildEpisodeLibraryOptions(formState.episodeDownloads[episodeCoverIndex], episodeCoverIndex);
+      }
+      return {
+        uploadFolder: projectEpisodesFolder,
+        listFolders: [projectEpisodesFolder, projectRootFolder],
+        listAll: false,
+        includeProjectImages: true,
+        projectImageProjectIds: scopedProjectImageIds,
+        projectImagesView: "by-project",
+      } satisfies ImageLibraryOptions;
+    },
+    [
+      buildEpisodeLibraryOptions,
+      episodeCoverIndex,
+      formState.episodeDownloads,
+      projectEpisodesFolder,
+      projectRootFolder,
+      scopedProjectImageIds,
+    ],
   );
   const volumeCoverAssetLibraryOptions = useMemo(
     () =>
@@ -1498,6 +1575,7 @@ const DashboardProjectsEditor = () => {
         listAll: false,
         includeProjectImages: true,
         projectImageProjectIds: scopedProjectImageIds,
+        projectImagesView: "by-project",
       }) satisfies ImageLibraryOptions,
     [projectEpisodesFolder, projectRootFolder, projectVolumeCoversFolder, scopedProjectImageIds],
   );
@@ -1677,26 +1755,24 @@ const DashboardProjectsEditor = () => {
         };
         return { ...prev, episodeDownloads: nextEpisodes };
       } else if (libraryTarget === "volume-cover") {
-        if (volumeCoverIndex === null) {
+        if (volumeEntryIndex === null) {
           return prev;
         }
-        const nextVolumeCovers = [...prev.volumeCovers];
-        if (!nextVolumeCovers[volumeCoverIndex]) {
+        const nextVolumeEntries = [...prev.volumeEntries];
+        if (!nextVolumeEntries[volumeEntryIndex]) {
           return prev;
         }
-        nextVolumeCovers[volumeCoverIndex] = {
-          ...nextVolumeCovers[volumeCoverIndex],
+        nextVolumeEntries[volumeEntryIndex] = {
+          ...nextVolumeEntries[volumeEntryIndex],
           coverImageUrl: nextUrl,
           coverImageAlt: nextUrl
             ? resolveAssetAltText(
                 altText,
-                nextVolumeCovers[volumeCoverIndex].volume === undefined
-                  ? "Capa do projeto sem volume"
-                  : `Capa do volume ${nextVolumeCovers[volumeCoverIndex].volume}`,
+                `Capa do volume ${nextVolumeEntries[volumeEntryIndex].volume}`,
               )
             : "",
         };
-        return { ...prev, volumeCovers: nextVolumeCovers };
+        return { ...prev, volumeEntries: nextVolumeEntries };
       }
       return next;
     });
@@ -1714,7 +1790,7 @@ const DashboardProjectsEditor = () => {
   };
 
   const openLibraryForVolumeCover = (index: number) => {
-    setVolumeCoverIndex(index);
+    setVolumeEntryIndex(index);
     setLibraryTarget("volume-cover");
     setIsLibraryOpen(true);
   };
@@ -1830,7 +1906,7 @@ const DashboardProjectsEditor = () => {
     if (!isLibraryOpen) {
       setLibraryTarget("cover");
       setEpisodeCoverIndex(null);
-      setVolumeCoverIndex(null);
+      setVolumeEntryIndex(null);
     }
   }, [isLibraryOpen]);
 
@@ -1945,8 +2021,8 @@ const DashboardProjectsEditor = () => {
     if (libraryTarget === "episode-cover" && episodeCoverIndex !== null) {
       return formState.episodeDownloads[episodeCoverIndex]?.coverImageUrl || "";
     }
-    if (libraryTarget === "volume-cover" && volumeCoverIndex !== null) {
-      return formState.volumeCovers[volumeCoverIndex]?.coverImageUrl || "";
+    if (libraryTarget === "volume-cover" && volumeEntryIndex !== null) {
+      return formState.volumeEntries[volumeEntryIndex]?.coverImageUrl || "";
     }
     return "";
   }, [
@@ -1955,9 +2031,9 @@ const DashboardProjectsEditor = () => {
     formState.cover,
     formState.episodeDownloads,
     formState.heroImageUrl,
-    formState.volumeCovers,
+    formState.volumeEntries,
     libraryTarget,
-    volumeCoverIndex,
+    volumeEntryIndex,
   ]);
 
   const sortedProjects = useMemo(() => {
@@ -2069,6 +2145,29 @@ const DashboardProjectsEditor = () => {
       return matches[0]?.index ?? -1;
     })();
     const mergedSynopsis = project.synopsis || project.description || "";
+    const sourceVolumeEntries = Array.isArray(project.volumeEntries)
+      ? project.volumeEntries
+      : Array.isArray(project.volumeCovers)
+        ? project.volumeCovers
+        : [];
+    const normalizedVolumeEntries = sourceVolumeEntries
+      .map((entry) => {
+        const parsedVolume = Number(entry?.volume);
+        if (!Number.isFinite(parsedVolume)) {
+          return null;
+        }
+        const coverImageUrl = String(entry?.coverImageUrl || "").trim();
+        return {
+          volume: parsedVolume,
+          synopsis: String(entry?.synopsis || "").trim(),
+          coverImageUrl,
+          coverImageAlt: coverImageUrl
+            ? String(entry?.coverImageAlt || `Capa do volume ${parsedVolume}`).trim()
+            : "",
+        };
+      })
+      .filter((entry): entry is ProjectVolumeEntry => Boolean(entry))
+      .sort((left, right) => left.volume - right.volume);
     const nextForm = {
       id: project.id,
       anilistId: project.anilistId ?? null,
@@ -2111,20 +2210,14 @@ const DashboardProjectsEditor = () => {
       heroImageAlt: project.heroImageUrl
         ? resolveAssetAltText(project.heroImageAlt, DEFAULT_PROJECT_HERO_ALT)
         : "",
-      volumeCovers: Array.isArray(project.volumeCovers)
-        ? project.volumeCovers
-            .map((cover) => ({
-              volume: Number.isFinite(Number(cover?.volume)) ? Number(cover.volume) : undefined,
-              coverImageUrl: String(cover?.coverImageUrl || "").trim(),
-              coverImageAlt: String(
-                cover?.coverImageAlt ||
-                  (Number.isFinite(Number(cover?.volume))
-                    ? `Capa do volume ${Number(cover.volume)}`
-                    : "Capa do projeto sem volume"),
-              ).trim(),
-            }))
-            .filter((cover) => cover.coverImageUrl)
-        : [],
+      volumeEntries: normalizedVolumeEntries,
+      volumeCovers: normalizedVolumeEntries
+        .filter((entry) => String(entry.coverImageUrl || "").trim())
+        .map((entry) => ({
+          volume: entry.volume,
+          coverImageUrl: entry.coverImageUrl,
+          coverImageAlt: entry.coverImageAlt || `Capa do volume ${entry.volume}`,
+        })),
       episodeDownloads: initialEpisodes,
     };
     const nextAniListInput = project.anilistId ? String(project.anilistId) : "";
@@ -2400,41 +2493,38 @@ const DashboardProjectsEditor = () => {
         if (!importedVolumeCovers.length) {
           return prev;
         }
-        const nextVolumeCovers = [...prev.volumeCovers];
+        const nextVolumeEntries = [...prev.volumeEntries];
         importedVolumeCovers.forEach((cover) => {
-          const existingIndex = nextVolumeCovers.findIndex(
-            (item) => buildVolumeCoverKey(item.volume) === buildVolumeCoverKey(cover.volume),
+          const parsedVolume = Number(cover.volume);
+          if (!Number.isFinite(parsedVolume)) {
+            return;
+          }
+          const existingIndex = nextVolumeEntries.findIndex(
+            (item) => item.volume === parsedVolume,
           );
           if (cover.mergeMode === "preserve_existing" && existingIndex >= 0) {
             return;
           }
           if (existingIndex >= 0) {
-            nextVolumeCovers[existingIndex] = {
-              ...nextVolumeCovers[existingIndex],
-              volume: cover.volume,
-              coverImageUrl: cover.coverImageUrl,
-              coverImageAlt: cover.coverImageAlt,
+            nextVolumeEntries[existingIndex] = {
+              ...nextVolumeEntries[existingIndex],
+              volume: parsedVolume,
+              coverImageUrl: String(cover.coverImageUrl || "").trim(),
+              coverImageAlt: String(cover.coverImageAlt || "").trim(),
             };
             return;
           }
-          nextVolumeCovers.push({
-            volume: cover.volume,
-            coverImageUrl: cover.coverImageUrl,
-            coverImageAlt: cover.coverImageAlt,
+          nextVolumeEntries.push({
+            volume: parsedVolume,
+            synopsis: "",
+            coverImageUrl: String(cover.coverImageUrl || "").trim(),
+            coverImageAlt: String(cover.coverImageAlt || "").trim(),
           });
         });
-        nextVolumeCovers.sort((left, right) => {
-          if (left.volume === undefined) {
-            return 1;
-          }
-          if (right.volume === undefined) {
-            return -1;
-          }
-          return left.volume - right.volume;
-        });
+        nextVolumeEntries.sort((left, right) => left.volume - right.volume);
         return {
           ...prev,
-          volumeCovers: nextVolumeCovers,
+          volumeEntries: nextVolumeEntries,
         };
       });
     },
@@ -2667,6 +2757,40 @@ const DashboardProjectsEditor = () => {
 
     setIsExportingEpub(true);
     try {
+      const supportsVolumeEntriesForExport =
+        isLightNovelType(formState.type || "") || isMangaType(formState.type || "");
+      const normalizedVolumeEntriesForExport = supportsVolumeEntriesForExport
+        ? formState.volumeEntries
+            .map((entry) => {
+              const parsedVolume = Number(entry.volume);
+              if (!Number.isFinite(parsedVolume)) {
+                return null;
+              }
+              const coverImageUrl = String(entry.coverImageUrl || "").trim();
+              return {
+                volume: parsedVolume,
+                synopsis: String(entry.synopsis || "").trim(),
+                coverImageUrl,
+                coverImageAlt: coverImageUrl
+                  ? resolveAssetAltText(entry.coverImageAlt, `Capa do volume ${parsedVolume}`)
+                  : "",
+              };
+            })
+            .filter((entry): entry is ProjectVolumeEntry => Boolean(entry))
+            .sort((left, right) => left.volume - right.volume)
+        : [];
+      const normalizedVolumeCoversForExport = normalizedVolumeEntriesForExport
+        .filter((entry) => String(entry.coverImageUrl || "").trim())
+        .map((entry) => ({
+          volume: entry.volume,
+          coverImageUrl: entry.coverImageUrl,
+          coverImageAlt: entry.coverImageAlt || `Capa do volume ${entry.volume}`,
+        }));
+      const projectSnapshotForExport = {
+        ...formState,
+        volumeEntries: normalizedVolumeEntriesForExport,
+        volumeCovers: normalizedVolumeCoversForExport,
+      };
       const response = await apiFetch(apiBase, "/api/projects/epub/export", {
         method: "POST",
         auth: true,
@@ -2674,7 +2798,7 @@ const DashboardProjectsEditor = () => {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          project: formState,
+          project: projectSnapshotForExport,
           volume: epubExportVolume.trim() ? Number(epubExportVolume) : null,
           includeDrafts: epubExportIncludeDrafts,
         }),
@@ -2808,43 +2932,45 @@ const DashboardProjectsEditor = () => {
       });
       return;
     }
-    const normalizedVolumeCoversForSave = formState.volumeCovers
-      .map((cover) => {
-        const parsedVolume = Number(cover.volume);
-        const coverImageUrl = String(cover.coverImageUrl || "").trim();
-        return {
-          volume: Number.isFinite(parsedVolume) ? parsedVolume : undefined,
-          coverImageUrl,
-          coverImageAlt: coverImageUrl
-            ? resolveAssetAltText(
-                cover.coverImageAlt,
-                Number.isFinite(parsedVolume)
-                  ? `Capa do volume ${parsedVolume}`
-                  : "Capa do projeto sem volume",
-              )
-            : "",
-        };
-      })
-      .filter((cover) => cover.coverImageUrl)
-      .sort((left, right) => {
-        if (left.volume === undefined) {
-          return 1;
-        }
-        if (right.volume === undefined) {
-          return -1;
-        }
-        return left.volume - right.volume;
-      });
-    const duplicateVolumeCover = findDuplicateVolumeCover(normalizedVolumeCoversForSave);
-    if (duplicateVolumeCover) {
-      setEditorAccordionValue((prev) => (prev.includes("midias") ? prev : [...prev, "midias"]));
+    const supportsVolumeEntriesForSave =
+      isLightNovelType(formState.type || "") || isMangaType(formState.type || "");
+    const normalizedVolumeEntriesForSave = supportsVolumeEntriesForSave
+      ? formState.volumeEntries
+          .map((entry) => {
+            const parsedVolume = Number(entry.volume);
+            if (!Number.isFinite(parsedVolume)) {
+              return null;
+            }
+            const coverImageUrl = String(entry.coverImageUrl || "").trim();
+            return {
+              volume: parsedVolume,
+              synopsis: String(entry.synopsis || "").trim(),
+              coverImageUrl,
+              coverImageAlt: coverImageUrl
+                ? resolveAssetAltText(entry.coverImageAlt, `Capa do volume ${parsedVolume}`)
+                : "",
+            };
+          })
+          .filter((entry): entry is ProjectVolumeEntry => Boolean(entry))
+          .sort((left, right) => left.volume - right.volume)
+      : [];
+    const duplicateVolumeEntry = findDuplicateVolumeCover(normalizedVolumeEntriesForSave);
+    if (supportsVolumeEntriesForSave && duplicateVolumeEntry) {
+      setEditorAccordionValue((prev) => (prev.includes("volumes") ? prev : [...prev, "volumes"]));
       toast({
-        title: "Capas de volume duplicadas",
-        description: "Cada volume pode ter apenas uma capa cadastrada.",
+        title: "Volumes duplicados",
+        description: "Cada volume pode aparecer apenas uma vez.",
         variant: "destructive",
       });
       return;
     }
+    const normalizedVolumeCoversForSave = normalizedVolumeEntriesForSave
+      .filter((entry) => String(entry.coverImageUrl || "").trim())
+      .map((entry) => ({
+        volume: entry.volume,
+        coverImageUrl: entry.coverImageUrl,
+        coverImageAlt: entry.coverImageAlt || `Capa do volume ${entry.volume}`,
+      }));
     const nextEpisodeSizeDrafts = { ...episodeSizeDrafts };
     const nextEpisodeSizeErrors = { ...episodeSizeErrors };
     let firstInvalidEpisodeSizeIndex: number | null = null;
@@ -2974,6 +3100,7 @@ const DashboardProjectsEditor = () => {
       heroImageAlt: formState.heroImageUrl?.trim()
         ? resolveAssetAltText(formState.heroImageAlt, DEFAULT_PROJECT_HERO_ALT)
         : "",
+      volumeEntries: normalizedVolumeEntriesForSave,
       volumeCovers: normalizedVolumeCoversForSave,
       relations: formState.relations
         .filter((item) => item.title || item.relation || item.projectId)
@@ -2991,12 +3118,14 @@ const DashboardProjectsEditor = () => {
       episodeDownloads: normalizedEpisodesForSave.map((episode) => {
         const prev = prevEpisodesMap.get(buildEpisodeKey(episode.number, episode.volume));
         const hash = String(episode.hash || "").trim();
+        const coverImageUrl = String(episode.coverImageUrl || "").trim();
         const parsedSize = Number(episode.sizeBytes);
         const sizeBytes =
           Number.isFinite(parsedSize) && parsedSize > 0 ? Math.round(parsedSize) : undefined;
         return {
           ...episode,
-          coverImageAlt: String(episode.coverImageUrl || "").trim()
+          coverImageUrl,
+          coverImageAlt: coverImageUrl
             ? resolveAssetAltText(
                 episode.coverImageAlt,
                 getEpisodeCoverAltFallback(isChapterBasedType(formState.type || "")),
@@ -3078,11 +3207,11 @@ const DashboardProjectsEditor = () => {
         return;
       }
       if (code === "duplicate_volume_cover_key") {
-        setEditorAccordionValue((prev) => (prev.includes("midias") ? prev : [...prev, "midias"]));
+        setEditorAccordionValue((prev) => (prev.includes("volumes") ? prev : [...prev, "volumes"]));
         toast({
-          title: "Capas de volume duplicadas",
+          title: "Volumes duplicados",
           description:
-            "O servidor bloqueou o save porque existe mais de uma capa cadastrada para o mesmo volume.",
+            "O servidor bloqueou o save porque existe mais de uma entrada para o mesmo volume.",
           variant: "destructive",
         });
         return;
@@ -4330,134 +4459,6 @@ const DashboardProjectsEditor = () => {
                         </div>
                       </div>
                     </div>
-
-                    {isLightNovel || isManga ? (
-                      <div className="space-y-3 rounded-2xl border border-border/60 bg-card/40 p-4">
-                        <div className="flex items-center justify-between gap-3">
-                          <div className="space-y-1">
-                            <Label>Capas por volume</Label>
-                            <p className="text-xs text-muted-foreground">
-                              Use uma capa especÃƒÂ­fica para cada volume ou para a entrada sem volume.
-                            </p>
-                          </div>
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant="outline"
-                            onClick={() =>
-                              setFormState((prev) => ({
-                                ...prev,
-                                volumeCovers: [
-                                  ...prev.volumeCovers,
-                                  {
-                                    volume: undefined,
-                                    coverImageUrl: "",
-                                    coverImageAlt: "",
-                                  },
-                                ],
-                              }))
-                            }
-                          >
-                            Adicionar capa de volume
-                          </Button>
-                        </div>
-
-                        {formState.volumeCovers.length === 0 ? (
-                          <div className="rounded-xl border border-dashed border-border/60 bg-background/40 px-4 py-3 text-sm text-muted-foreground">
-                            Nenhuma capa de volume cadastrada.
-                          </div>
-                        ) : (
-                          <div className="grid gap-3">
-                            {formState.volumeCovers.map((cover, index) => (
-                              <div
-                                key={`${buildVolumeCoverKey(cover.volume)}-${index}`}
-                                className="grid gap-3 rounded-xl border border-border/60 bg-background/40 p-3 md:grid-cols-[140px_minmax(0,1fr)_auto]"
-                              >
-                                <div className="flex items-center gap-3">
-                                  {cover.coverImageUrl ? (
-                                    <img
-                                      src={cover.coverImageUrl}
-                                      alt={cover.coverImageAlt || "Capa do volume"}
-                                      className="h-16 w-12 rounded-lg object-cover"
-                                    />
-                                  ) : (
-                                    <div className="flex h-16 w-12 items-center justify-center rounded-lg border border-dashed border-border/60 text-center text-[10px] text-muted-foreground leading-tight">
-                                      Sem capa
-                                    </div>
-                                  )}
-                                  <Button
-                                    type="button"
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => openLibraryForVolumeCover(index)}
-                                  >
-                                    Biblioteca
-                                  </Button>
-                                </div>
-                                <div className="grid gap-3 md:grid-cols-2">
-                                  <div className="space-y-2">
-                                    <Label className="text-xs">Volume</Label>
-                                    <Input
-                                      value={
-                                        Number.isFinite(Number(cover.volume)) ? String(cover.volume) : ""
-                                      }
-                                      onChange={(event) =>
-                                        setFormState((prev) => {
-                                          const nextVolumeCovers = [...prev.volumeCovers];
-                                          const trimmedValue = event.target.value.trim();
-                                          nextVolumeCovers[index] = {
-                                            ...nextVolumeCovers[index],
-                                            volume:
-                                              trimmedValue === "" || !Number.isFinite(Number(trimmedValue))
-                                                ? undefined
-                                                : Number(trimmedValue),
-                                          };
-                                          return { ...prev, volumeCovers: nextVolumeCovers };
-                                        })
-                                      }
-                                      placeholder="Sem volume"
-                                      inputMode="numeric"
-                                    />
-                                  </div>
-                                  <div className="space-y-2">
-                                    <Label className="text-xs">Alt</Label>
-                                    <Input
-                                      value={cover.coverImageAlt || ""}
-                                      onChange={(event) =>
-                                        setFormState((prev) => {
-                                          const nextVolumeCovers = [...prev.volumeCovers];
-                                          nextVolumeCovers[index] = {
-                                            ...nextVolumeCovers[index],
-                                            coverImageAlt: event.target.value,
-                                          };
-                                          return { ...prev, volumeCovers: nextVolumeCovers };
-                                        })
-                                      }
-                                      placeholder="Texto alternativo da capa"
-                                    />
-                                  </div>
-                                </div>
-                                <div className="flex items-start justify-end">
-                                  <Button
-                                    type="button"
-                                    variant="ghost"
-                                    size="icon"
-                                    onClick={() =>
-                                      setFormState((prev) => ({
-                                        ...prev,
-                                        volumeCovers: prev.volumeCovers.filter((_, itemIndex) => itemIndex !== index),
-                                      }))
-                                    }
-                                  >
-                                    <Trash2 className="h-4 w-4" />
-                                  </Button>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    ) : null}
                   </div>
                 </AccordionContent>
               </AccordionItem>
@@ -4583,6 +4584,168 @@ const DashboardProjectsEditor = () => {
                   </div>
                 </AccordionContent>
               </AccordionItem>
+
+              {supportsVolumeEntries ? (
+                <AccordionItem value="volumes" className={editorSectionClassName}>
+                  <AccordionTrigger className={editorSectionTriggerClassName}>
+                    <div className="flex w-full items-center justify-between gap-4 text-left">
+                      <span>Volumes</span>
+                      <span className="text-xs text-muted-foreground">
+                        {formState.volumeEntries.length} volume(s)
+                      </span>
+                    </div>
+                  </AccordionTrigger>
+                  <AccordionContent className={editorSectionContentClassName}>
+                    <div className="space-y-3 rounded-2xl border border-border/60 bg-card/40 p-4">
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="space-y-1">
+                          <Label>Volumes</Label>
+                          <p className="text-xs text-muted-foreground">
+                            Configure capa e sinopse por volume. Entradas sem volume usam o próprio projeto.
+                          </p>
+                        </div>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          onClick={() =>
+                            setFormState((prev) => ({
+                              ...prev,
+                              volumeEntries: [
+                                ...prev.volumeEntries,
+                                {
+                                  volume:
+                                    prev.volumeEntries.reduce(
+                                      (max, entry) => Math.max(max, Number(entry.volume) || 0),
+                                      0,
+                                    ) + 1,
+                                  synopsis: "",
+                                  coverImageUrl: "",
+                                  coverImageAlt: "",
+                                },
+                              ],
+                            }))
+                          }
+                        >
+                          Adicionar volume
+                        </Button>
+                      </div>
+
+                      {formState.volumeEntries.length === 0 ? (
+                        <div className="rounded-xl border border-dashed border-border/60 bg-background/40 px-4 py-3 text-sm text-muted-foreground">
+                          Nenhum volume cadastrado.
+                        </div>
+                      ) : (
+                        <div className="grid gap-3">
+                          {formState.volumeEntries.map((cover, index) => (
+                            <div
+                              key={`${buildVolumeCoverKey(cover.volume)}-${index}`}
+                              className="grid gap-3 rounded-xl border border-border/60 bg-background/40 p-3 md:grid-cols-[140px_minmax(0,1fr)_auto]"
+                            >
+                              <div className="flex items-center gap-3">
+                                {cover.coverImageUrl ? (
+                                  <img
+                                    src={cover.coverImageUrl}
+                                    alt={cover.coverImageAlt || "Capa do volume"}
+                                    className="h-16 w-12 rounded-lg object-cover"
+                                  />
+                                ) : (
+                                  <div className="flex h-16 w-12 items-center justify-center rounded-lg border border-dashed border-border/60 text-center text-[10px] text-muted-foreground leading-tight">
+                                    Sem capa
+                                  </div>
+                                )}
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => openLibraryForVolumeCover(index)}
+                                >
+                                  Biblioteca
+                                </Button>
+                              </div>
+                              <div className="grid gap-3 md:grid-cols-2">
+                                <div className="space-y-2">
+                                  <Label className="text-xs">Volume</Label>
+                                  <Input
+                                    value={
+                                      Number.isFinite(Number(cover.volume)) ? String(cover.volume) : ""
+                                    }
+                                    onChange={(event) =>
+                                      setFormState((prev) => {
+                                        const nextVolumeEntries = [...prev.volumeEntries];
+                                        const parsedVolume = Number(event.target.value);
+                                        if (Number.isFinite(parsedVolume)) {
+                                          nextVolumeEntries[index] = {
+                                            ...nextVolumeEntries[index],
+                                            volume: parsedVolume,
+                                          };
+                                        }
+                                        return { ...prev, volumeEntries: nextVolumeEntries };
+                                      })
+                                    }
+                                    placeholder="1"
+                                    inputMode="numeric"
+                                  />
+                                </div>
+                                <div className="space-y-2">
+                                  <Label className="text-xs">Alt</Label>
+                                  <Input
+                                    value={cover.coverImageAlt || ""}
+                                    onChange={(event) =>
+                                      setFormState((prev) => {
+                                        const nextVolumeEntries = [...prev.volumeEntries];
+                                        nextVolumeEntries[index] = {
+                                          ...nextVolumeEntries[index],
+                                          coverImageAlt: event.target.value,
+                                        };
+                                        return { ...prev, volumeEntries: nextVolumeEntries };
+                                      })
+                                    }
+                                    placeholder="Texto alternativo da capa"
+                                  />
+                                </div>
+                              </div>
+                              <div className="flex items-start justify-end">
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() =>
+                                    setFormState((prev) => ({
+                                      ...prev,
+                                      volumeEntries: prev.volumeEntries.filter((_, itemIndex) => itemIndex !== index),
+                                    }))
+                                  }
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </div>
+                              <div className="space-y-2 md:col-span-3">
+                                <Label className="text-xs">Sinopse do volume</Label>
+                                <Textarea
+                                  value={cover.synopsis || ""}
+                                  onChange={(event) =>
+                                    setFormState((prev) => {
+                                      const nextVolumeEntries = [...prev.volumeEntries];
+                                      nextVolumeEntries[index] = {
+                                        ...nextVolumeEntries[index],
+                                        synopsis: event.target.value,
+                                      };
+                                      return { ...prev, volumeEntries: nextVolumeEntries };
+                                    })
+                                  }
+                                  rows={3}
+                                  placeholder="Resumo exibido nas páginas públicas para este volume"
+                                />
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </AccordionContent>
+                </AccordionItem>
+              ) : null}
 
               <AccordionItem value="classificacao" className={editorSectionClassName}>
                 <AccordionTrigger className={editorSectionTriggerClassName}>
@@ -5551,7 +5714,7 @@ const DashboardProjectsEditor = () => {
                                       >
                                         <EpisodeContentEditor
                                           value={episode.content || ""}
-                                          imageLibraryOptions={episodeAssetLibraryOptions}
+                                          imageLibraryOptions={buildEpisodeLibraryOptions(episode, index)}
                                           onRegister={(handlers) => {
                                             chapterEditorsRef.current[index] = handlers;
                                           }}
@@ -5934,6 +6097,7 @@ const DashboardProjectsEditor = () => {
           listAll={activeLibraryOptions.listAll}
           includeProjectImages={activeLibraryOptions.includeProjectImages}
           projectImageProjectIds={activeLibraryOptions.projectImageProjectIds}
+          projectImagesView={activeLibraryOptions.projectImagesView}
           allowDeselect
           mode="single"
           currentSelectionUrls={currentLibrarySelection ? [currentLibrarySelection] : []}

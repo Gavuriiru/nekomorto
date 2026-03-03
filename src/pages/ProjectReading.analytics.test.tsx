@@ -59,6 +59,7 @@ const createProjectFixture = (episodeDownloads?: Array<Record<string, unknown>>)
   synopsis: "Sinopse",
   type: "Light Novel",
   cover: "/uploads/project-cover.jpg",
+  volumeEntries: [],
   volumeCovers: [],
   episodeDownloads:
     episodeDownloads ||
@@ -303,7 +304,187 @@ describe("ProjectReading analytics", () => {
     expect(screen.queryByRole("link", { name: /Pr.ximo cap.tulo/i })).not.toBeInTheDocument();
   });
 
-  it("usa a capa do volume no hero quando existir", async () => {
+  it("usa sinopse do volume quando a sinopse do capitulo estiver vazia", async () => {
+    const project = createProjectFixture([
+      {
+        number: 1,
+        volume: 2,
+        title: "Capitulo 1",
+        content: "<p>Conteudo</p>",
+        hasContent: true,
+      },
+    ]);
+    project.volumeEntries = [
+      {
+        volume: 2,
+        synopsis: "Sinopse do volume 2",
+        coverImageUrl: "",
+        coverImageAlt: "",
+      },
+    ];
+
+    apiFetchMock.mockReset();
+    apiFetchMock.mockImplementation(async (_apiBase: string, endpoint: string, options?: RequestInit) => {
+      if (
+        endpoint === "/api/public/projects/projeto-teste" &&
+        (!options?.method || options.method === "GET")
+      ) {
+        return mockJsonResponse(true, { project });
+      }
+      if (
+        endpoint === "/api/public/projects/projeto-teste/chapters/1?volume=2" &&
+        (!options?.method || options.method === "GET")
+      ) {
+        return mockJsonResponse(true, {
+          chapter: {
+            number: 1,
+            volume: 2,
+            title: "Capitulo 1",
+            synopsis: "",
+            content: "<p>Conteudo</p>",
+            contentFormat: "lexical",
+          },
+        });
+      }
+      if (endpoint === "/api/public/me" && (!options?.method || options.method === "GET")) {
+        return mockJsonResponse(true, { user: null });
+      }
+      if (endpoint === "/api/public/analytics/event" && options?.method === "POST") {
+        return mockJsonResponse(true, { ok: true });
+      }
+      return mockJsonResponse(false, { error: "not_found" }, 404);
+    });
+
+    render(
+      <MemoryRouter initialEntries={["/projeto/projeto-teste/leitura/1?volume=2"]}>
+        <ProjectReading />
+      </MemoryRouter>,
+    );
+
+    await screen.findByRole("heading", { name: /Cap.*tulo 1/i });
+    expect(screen.getByText("Sinopse do volume 2")).toBeInTheDocument();
+  });
+
+  it("usa sinopse do projeto quando capitulo e volume nao tiverem sinopse", async () => {
+    const project = createProjectFixture([
+      {
+        number: 1,
+        volume: 2,
+        title: "Capitulo 1",
+        content: "<p>Conteudo</p>",
+        hasContent: true,
+      },
+    ]);
+    project.synopsis = "Sinopse principal do projeto";
+    project.volumeEntries = [
+      {
+        volume: 2,
+        synopsis: "",
+        coverImageUrl: "",
+        coverImageAlt: "",
+      },
+    ];
+
+    apiFetchMock.mockReset();
+    apiFetchMock.mockImplementation(async (_apiBase: string, endpoint: string, options?: RequestInit) => {
+      if (
+        endpoint === "/api/public/projects/projeto-teste" &&
+        (!options?.method || options.method === "GET")
+      ) {
+        return mockJsonResponse(true, { project });
+      }
+      if (
+        endpoint === "/api/public/projects/projeto-teste/chapters/1?volume=2" &&
+        (!options?.method || options.method === "GET")
+      ) {
+        return mockJsonResponse(true, {
+          chapter: {
+            number: 1,
+            volume: 2,
+            title: "Capitulo 1",
+            synopsis: "",
+            content: "<p>Conteudo</p>",
+            contentFormat: "lexical",
+          },
+        });
+      }
+      if (endpoint === "/api/public/me" && (!options?.method || options.method === "GET")) {
+        return mockJsonResponse(true, { user: null });
+      }
+      if (endpoint === "/api/public/analytics/event" && options?.method === "POST") {
+        return mockJsonResponse(true, { ok: true });
+      }
+      return mockJsonResponse(false, { error: "not_found" }, 404);
+    });
+
+    render(
+      <MemoryRouter initialEntries={["/projeto/projeto-teste/leitura/1?volume=2"]}>
+        <ProjectReading />
+      </MemoryRouter>,
+    );
+
+    await screen.findByRole("heading", { name: /Cap.*tulo 1/i });
+    expect(screen.getByText("Sinopse principal do projeto")).toBeInTheDocument();
+  });
+
+  it("prioriza a capa do capitulo no hero quando existir capa de capitulo e volume", async () => {
+    const project = createProjectFixture();
+    project.volumeCovers = [
+      {
+        volume: 2,
+        coverImageUrl: "/uploads/volume-2-cover.jpg",
+        coverImageAlt: "Capa do volume 2",
+      },
+    ];
+
+    apiFetchMock.mockReset();
+    apiFetchMock.mockImplementation(async (_apiBase: string, endpoint: string, options?: RequestInit) => {
+      if (
+        endpoint === "/api/public/projects/projeto-teste" &&
+        (!options?.method || options.method === "GET")
+      ) {
+        return mockJsonResponse(true, { project });
+      }
+      if (
+        endpoint === "/api/public/projects/projeto-teste/chapters/1?volume=2" &&
+        (!options?.method || options.method === "GET")
+      ) {
+        return mockJsonResponse(true, {
+          chapter: {
+            number: 1,
+            volume: 2,
+            title: "Capitulo 1",
+            synopsis: "Resumo do capitulo",
+            content: "<p>Conteudo</p>",
+            contentFormat: "lexical",
+            coverImageUrl: "/uploads/chapter-1-cover.jpg",
+            coverImageAlt: "Capa do capitulo 1",
+          },
+        });
+      }
+      if (endpoint === "/api/public/me" && (!options?.method || options.method === "GET")) {
+        return mockJsonResponse(true, { user: null });
+      }
+      if (endpoint === "/api/public/analytics/event" && options?.method === "POST") {
+        return mockJsonResponse(true, { ok: true });
+      }
+      return mockJsonResponse(false, { error: "not_found" }, 404);
+    });
+
+    render(
+      <MemoryRouter initialEntries={["/projeto/projeto-teste/leitura/1?volume=2"]}>
+        <ProjectReading />
+      </MemoryRouter>,
+    );
+
+    await screen.findByRole("heading", { name: /Cap.*tulo 1/i });
+    await waitFor(() => {
+      expect(screen.getByRole("img", { name: "Capa do capitulo 1" })).toBeInTheDocument();
+    });
+    expect(screen.queryByRole("img", { name: "Capa do volume 2" })).not.toBeInTheDocument();
+  });
+
+  it("usa a capa do volume no hero quando nao houver capa do capitulo", async () => {
     const project = createProjectFixture();
     project.volumeCovers = [
       {

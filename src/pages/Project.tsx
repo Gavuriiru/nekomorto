@@ -570,7 +570,34 @@ const ProjectPage = () => {
     return entries.map(([, value]) => value);
   }, [isLightNovel, sortedDownloadableEpisodes, sortedLightNovelChapters]);
 
-  const resolveVolumeGroupCover = (group: { volume?: number; items: EpisodeItem[] }) => {
+  const normalizedVolumeEntries = useMemo(() => {
+    const source = Array.isArray(project?.volumeEntries)
+      ? project.volumeEntries
+      : Array.isArray(project?.volumeCovers)
+        ? project.volumeCovers
+        : [];
+    return source
+      .map((entry) => {
+        const volume = Number(entry?.volume);
+        if (!Number.isFinite(volume)) {
+          return null;
+        }
+        const coverImageUrl = String(entry?.coverImageUrl || "").trim();
+        return {
+          volume,
+          synopsis: String(entry?.synopsis || "").trim(),
+          coverImageUrl,
+          coverImageAlt: coverImageUrl
+            ? String(entry?.coverImageAlt || `Capa do volume ${volume}`).trim()
+            : "",
+        };
+      })
+      .filter((entry): entry is { volume: number; synopsis: string; coverImageUrl: string; coverImageAlt: string } => Boolean(entry))
+      .sort((left, right) => left.volume - right.volume);
+  }, [project?.volumeEntries, project?.volumeCovers]);
+
+  const resolveVolumeGroupMeta = (group: { volume?: number; items: EpisodeItem[] }) => {
+    const volumeEntry = findVolumeCoverByVolume(normalizedVolumeEntries, group.volume);
     const volumeCover = findVolumeCoverByVolume(project?.volumeCovers, group.volume);
     const firstEpisodeWithCover = group.items.find((item) =>
       String(item.coverImageUrl || "").trim().length > 0,
@@ -578,17 +605,20 @@ const ProjectPage = () => {
     const hasNumericVolume = Number.isFinite(Number(group.volume));
     return {
       src:
+        volumeEntry?.coverImageUrl ||
         volumeCover?.coverImageUrl ||
         firstEpisodeWithCover?.coverImageUrl ||
         project?.cover ||
         project?.banner ||
         "/placeholder.svg",
       alt:
+        volumeEntry?.coverImageAlt ||
         volumeCover?.coverImageAlt ||
         String(firstEpisodeWithCover?.coverImageAlt || "").trim() ||
         (hasNumericVolume
           ? `Capa do volume ${Number(group.volume)} de ${project?.title || ""}`
           : `Capa do projeto ${project?.title || ""}`),
+      synopsis: String(volumeEntry?.synopsis || "").trim() || String(project?.synopsis || "").trim(),
     };
   };
 
@@ -973,7 +1003,7 @@ const ProjectPage = () => {
               ) : (
                 <div className="grid gap-6">
                   {volumeGroups.map((group) => {
-                    const groupCover = resolveVolumeGroupCover(group);
+                    const groupMeta = resolveVolumeGroupMeta(group);
                     return (
                       <Card
                         key={group.label}
@@ -987,8 +1017,8 @@ const ProjectPage = () => {
                                 style={{ aspectRatio: PROJECT_COVER_ASPECT_RATIO }}
                               >
                                 <UploadPicture
-                                  src={groupCover.src}
-                                  alt={groupCover.alt}
+                                  src={groupMeta.src}
+                                  alt={groupMeta.alt}
                                   preset="poster"
                                   mediaVariants={mediaVariants}
                                   className="h-full w-full"
@@ -1001,6 +1031,9 @@ const ProjectPage = () => {
                               <p className="text-xs text-muted-foreground">
                                 {group.items.length} capítulos disponíveis
                               </p>
+                              {groupMeta.synopsis ? (
+                                <p className="text-xs text-muted-foreground">{groupMeta.synopsis}</p>
+                              ) : null}
                             </div>
                           </div>
                           <Accordion type="multiple" defaultValue={[group.label]}>
@@ -1110,7 +1143,7 @@ const ProjectPage = () => {
               <div className="grid gap-6 justify-items-center">
                 {isManga
                   ? volumeGroups.map((group) => {
-                      const groupCover = resolveVolumeGroupCover(group);
+                      const groupMeta = resolveVolumeGroupMeta(group);
                       return (
                         <Card
                           key={group.label}
@@ -1124,8 +1157,8 @@ const ProjectPage = () => {
                                   style={{ aspectRatio: PROJECT_COVER_ASPECT_RATIO }}
                                 >
                                   <UploadPicture
-                                    src={groupCover.src}
-                                    alt={groupCover.alt}
+                                    src={groupMeta.src}
+                                    alt={groupMeta.alt}
                                     preset="poster"
                                     mediaVariants={mediaVariants}
                                     className="h-full w-full"
@@ -1138,6 +1171,9 @@ const ProjectPage = () => {
                                 <p className="text-xs text-muted-foreground">
                                   {group.items.length} capítulos disponíveis
                                 </p>
+                                {groupMeta.synopsis ? (
+                                  <p className="text-xs text-muted-foreground">{groupMeta.synopsis}</p>
+                                ) : null}
                               </div>
                             </div>
                             <Accordion type="multiple" defaultValue={[group.label]}>

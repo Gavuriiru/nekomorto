@@ -80,6 +80,7 @@ export const resolveProjectFolders = (project) => {
     projectId: id || projectKey,
     root,
     episodes: `${root}/episodes`,
+    chapters: `${root}/capitulos`,
   };
 };
 
@@ -315,8 +316,13 @@ const collectUsage = (posts, projects) => {
     addProjectUsage(usageByUrl, project?.cover, projectId, "main");
     addProjectUsage(usageByUrl, project?.banner, projectId, "main");
     addProjectUsage(usageByUrl, project?.heroImageUrl, projectId, "main");
-    (Array.isArray(project?.volumeCovers) ? project.volumeCovers : []).forEach((cover) => {
-      addProjectUsage(usageByUrl, cover?.coverImageUrl, projectId, "volume");
+    const sourceVolumeEntries = Array.isArray(project?.volumeEntries)
+      ? project.volumeEntries
+      : Array.isArray(project?.volumeCovers)
+        ? project.volumeCovers
+        : [];
+    sourceVolumeEntries.forEach((entry) => {
+      addProjectUsage(usageByUrl, entry?.coverImageUrl, projectId, "volume");
     });
 
     (Array.isArray(project?.relations) ? project.relations : []).forEach((relation) => {
@@ -368,6 +374,10 @@ export const classifyTargetFolder = (usage, projectFoldersById, sourceRelative =
       projectVolumeCount === 0 &&
       projectEpisodeCount > 0
     ) {
+      if (normalizedSource.startsWith(`${projectFolders.chapters}/`)) {
+        const stickyFolder = path.posix.dirname(normalizedSource);
+        return stickyFolder === "." ? projectFolders.chapters : stickyFolder;
+      }
       return projectFolders.episodes;
     }
     if (

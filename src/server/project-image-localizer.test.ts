@@ -6,6 +6,7 @@ import { localizeProjectImageFields } from "../../server/lib/project-image-local
 const buildBaseProject = () => ({
   id: "project-1",
   title: "Projeto Um",
+  type: "Light Novel",
   cover: "",
   banner: "",
   heroImageUrl: "",
@@ -33,15 +34,23 @@ const createImporterMock = () =>
   });
 
 describe("localizeProjectImageFields", () => {
-  it("localiza campos principais e relations por projeto, e episodios em projeto/episodes", async () => {
+  it("localiza campos principais e relations por projeto, e capas de capitulo LN em subpasta de capitulo", async () => {
     const project = {
       ...buildBaseProject(),
       cover: "https://cdn.exemplo.com/cover.jpg",
       banner: "https://cdn.exemplo.com/banner.jpg",
       heroImageUrl: "https://cdn.exemplo.com/hero.jpg",
+      volumeEntries: [
+        {
+          volume: 2,
+          synopsis: "Sinopse volume 2",
+          coverImageUrl: "https://cdn.exemplo.com/volume-entry-2.jpg",
+          coverImageAlt: "Capa do volume 2",
+        },
+      ],
       volumeCovers: [{ volume: 1, coverImageUrl: "https://cdn.exemplo.com/volume-1.jpg" }],
       relations: [{ anilistId: 777, image: "https://cdn.exemplo.com/relation.jpg" }],
-      episodeDownloads: [{ coverImageUrl: "https://cdn.exemplo.com/episode.jpg" }],
+      episodeDownloads: [{ number: 1, volume: 1, coverImageUrl: "https://cdn.exemplo.com/episode.jpg" }],
     };
 
     const importer = createImporterMock();
@@ -57,12 +66,17 @@ describe("localizeProjectImageFields", () => {
     expect(result.project.volumeCovers[0].coverImageUrl).toBe(
       "/uploads/projects/project-1/volumes/volume-1.jpg",
     );
+    expect(result.project.volumeEntries[0].coverImageUrl).toBe(
+      "/uploads/projects/project-1/volumes/volume-entry-2.jpg",
+    );
     expect(result.project.relations[0].image).toBe("/uploads/projects/project-1/relation.jpg");
-    expect(result.project.episodeDownloads[0].coverImageUrl).toBe("/uploads/projects/project-1/episodes/episode.jpg");
-    expect(result.summary.attempted).toBe(6);
-    expect(result.summary.downloaded).toBe(6);
+    expect(result.project.episodeDownloads[0].coverImageUrl).toBe(
+      "/uploads/projects/project-1/capitulos/volume-1/capitulo-1/episode.jpg",
+    );
+    expect(result.summary.attempted).toBe(7);
+    expect(result.summary.downloaded).toBe(7);
     expect(result.summary.failed).toBe(0);
-    expect(result.uploadsToUpsert).toHaveLength(6);
+    expect(result.uploadsToUpsert).toHaveLength(7);
 
     expect(importer.mock.calls).toEqual(
       expect.arrayContaining([
@@ -81,7 +95,31 @@ describe("localizeProjectImageFields", () => {
             folder: "projects/project-1/volumes",
           }),
         ],
+        [
+          expect.objectContaining({
+            remoteUrl: "https://cdn.exemplo.com/volume-entry-2.jpg",
+            folder: "projects/project-1/volumes",
+          }),
+        ],
       ]),
+    );
+  });
+
+  it("mantem pasta legacy de episodios para projetos nao-LN", async () => {
+    const project = {
+      ...buildBaseProject(),
+      type: "Anime",
+      episodeDownloads: [{ number: 1, coverImageUrl: "https://cdn.exemplo.com/episode.jpg" }],
+    };
+    const importer = createImporterMock();
+
+    const result = await localizeProjectImageFields({
+      project,
+      importRemoteImage: importer,
+    });
+
+    expect(result.project.episodeDownloads[0].coverImageUrl).toBe(
+      "/uploads/projects/project-1/episodes/episode.jpg",
     );
   });
 

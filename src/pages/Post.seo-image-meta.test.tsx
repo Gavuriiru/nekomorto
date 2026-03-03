@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -69,62 +69,82 @@ const mockJsonResponse = (ok: boolean, payload: unknown, status = ok ? 200 : 500
     json: async () => payload,
   }) as Response;
 
-const setupApiMock = () => {
-  apiFetchMock.mockReset();
-  usePageMetaMock.mockReset();
-  apiFetchMock.mockImplementation(async (_apiBase: string, endpoint: string, options?: RequestInit) => {
-    const method = String(options?.method || "GET").toUpperCase();
-    if (endpoint === "/api/public/posts/post-teste" && method === "GET") {
-      return mockJsonResponse(true, {
-        post: {
-          id: "post-1",
-          title: "Post de Teste",
-          slug: "post-teste",
-          coverImageUrl: "/uploads/capa.jpg",
-          coverAlt: "Capa",
-          seoImageUrl: "/uploads/seo.jpg",
-          excerpt: "Resumo",
-          content: "<p>Conteudo</p>",
-          contentFormat: "lexical",
-          author: "Admin",
-          publishedAt: "2026-02-10T12:00:00.000Z",
-          views: 10,
-          commentsCount: 2,
-        },
-      });
-    }
-    if (endpoint === "/api/public/posts/post-teste/view" && method === "POST") {
-      return mockJsonResponse(true, { views: 11 });
-    }
-    if (endpoint === "/api/public/me" && method === "GET") {
-      return mockJsonResponse(true, { user: null });
-    }
-    return mockJsonResponse(false, { error: "not_found" }, 404);
-  });
-};
+const hasMetaCall = (matcher: (arg: Record<string, unknown>) => boolean) =>
+  usePageMetaMock.mock.calls.some(([arg]) => matcher(arg as Record<string, unknown>));
 
 describe("Post SEO image meta", () => {
   beforeEach(() => {
-    setupApiMock();
+    apiFetchMock.mockReset();
+    usePageMetaMock.mockReset();
   });
 
-  it("prioriza seoImageUrl no metadata image", async () => {
+  it("falls back to default share image before load and switches to post OG route after load", async () => {
+    let resolvePostRequest = (_value: Response) => undefined;
+    const postRequest = new Promise<Response>((resolve) => {
+      resolvePostRequest = resolve;
+    });
+
+    const post = {
+      id: "post-1",
+      title: "Post de Teste",
+      slug: "post-teste",
+      coverImageUrl: "/uploads/capa.jpg",
+      coverAlt: "Capa",
+      seoImageUrl: "/uploads/seo.jpg",
+      excerpt: "Resumo",
+      content: "<p>Conteudo</p>",
+      contentFormat: "lexical",
+      author: "Admin",
+      publishedAt: "2026-02-10T12:00:00.000Z",
+      views: 10,
+      commentsCount: 2,
+      seoTitle: "",
+      seoDescription: "",
+      projectId: "",
+      tags: [],
+    };
+
+    apiFetchMock.mockImplementation(async (_apiBase: string, endpoint: string, options?: RequestInit) => {
+      const method = String(options?.method || "GET").toUpperCase();
+      if (endpoint === "/api/public/posts/post-teste" && method === "GET") {
+        return postRequest;
+      }
+      if (endpoint === "/api/public/posts/post-teste/view" && method === "POST") {
+        return mockJsonResponse(true, { views: 11 });
+      }
+      if (endpoint === "/api/public/me" && method === "GET") {
+        return mockJsonResponse(true, { user: null });
+      }
+      return mockJsonResponse(false, { error: "not_found" }, 404);
+    });
+
     render(
       <MemoryRouter>
         <Post />
       </MemoryRouter>,
     );
 
-    await screen.findByRole("heading", { name: "Post de Teste" });
     await waitFor(() => {
-      expect(usePageMetaMock).toHaveBeenCalledWith(
-        expect.objectContaining({
-          title: "Post de Teste",
-          image: "http://localhost:3000/uploads/seo.jpg",
-          imageAlt: "Capa",
-          type: "article",
-        }),
-      );
+      expect(
+        hasMetaCall(
+          (arg) =>
+            String(arg.image || "").includes("/uploads/default-og.jpg") &&
+            arg.type === "article",
+        ),
+      ).toBe(true);
+    });
+
+    resolvePostRequest(mockJsonResponse(true, { post }));
+
+    await waitFor(() => {
+      expect(
+        hasMetaCall(
+          (arg) =>
+            String(arg.image || "").includes("/api/og/post/post-teste") &&
+            arg.imageAlt === "Card de compartilhamento da postagem Post de Teste" &&
+            arg.type === "article",
+        ),
+      ).toBe(true);
     });
   });
 });

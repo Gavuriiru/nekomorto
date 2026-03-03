@@ -192,6 +192,7 @@ describe("DashboardProjectsEditor image library context", () => {
       listAll?: boolean;
       includeProjectImages?: boolean;
       projectImageProjectIds?: string[];
+      projectImagesView?: "flat" | "by-project";
     };
     expect(imageLibraryProps.uploadFolder).toBe("projects/project-1");
     expect(imageLibraryProps.listFolders).toEqual([
@@ -201,6 +202,7 @@ describe("DashboardProjectsEditor image library context", () => {
     expect(imageLibraryProps.listAll).toBe(false);
     expect(imageLibraryProps.includeProjectImages).toBe(true);
     expect(imageLibraryProps.projectImageProjectIds).toEqual(["project-1"]);
+    expect(imageLibraryProps.projectImagesView).toBe("by-project");
 
     const episodesSectionTrigger = await screen.findByText("Capítulos");
     fireEvent.click(episodesSectionTrigger);
@@ -216,15 +218,25 @@ describe("DashboardProjectsEditor image library context", () => {
 
     const lexicalWithEpisodeContext = lexicalPropsSpy.mock.calls
       .map((call) => call[0] as { imageLibraryOptions?: { uploadFolder?: string; listFolders?: string[]; listAll?: boolean } })
-      .find((props) => props.imageLibraryOptions?.uploadFolder === "projects/project-1/episodes");
+      .find(
+        (props) =>
+          props.imageLibraryOptions?.uploadFolder ===
+          "projects/project-1/capitulos/volume-sem-volume/capitulo-1",
+      );
 
     expect(lexicalWithEpisodeContext).toBeTruthy();
     expect(lexicalWithEpisodeContext?.imageLibraryOptions).toEqual({
-      uploadFolder: "projects/project-1/episodes",
-      listFolders: ["projects/project-1/episodes", "projects/project-1"],
+      uploadFolder: "projects/project-1/capitulos/volume-sem-volume/capitulo-1",
+      listFolders: [
+        "projects/project-1/capitulos/volume-sem-volume/capitulo-1",
+        "projects/project-1/capitulos",
+        "projects/project-1/episodes",
+        "projects/project-1",
+      ],
       listAll: false,
       includeProjectImages: true,
       projectImageProjectIds: ["project-1"],
+      projectImagesView: "by-project",
     });
   });
 });

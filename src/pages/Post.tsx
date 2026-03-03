@@ -142,17 +142,25 @@ const Post = () => {
 
   const shareImage = useMemo(
     () =>
-      normalizeAssetUrl(post?.seoImageUrl) ||
-      normalizeAssetUrl(post?.coverImageUrl) ||
-      normalizeAssetUrl(settings.site.defaultShareImage),
-    [post?.seoImageUrl, post?.coverImageUrl, settings.site.defaultShareImage],
+      post?.slug
+        ? normalizeAssetUrl(`/api/og/post/${encodeURIComponent(post.slug)}`)
+        : normalizeAssetUrl(settings.site.defaultShareImage),
+    [post?.slug, settings.site.defaultShareImage],
+  );
+
+  const postOgImageAlt = useMemo(
+    () =>
+      post?.title
+        ? `Card de compartilhamento da postagem ${post.title}`
+        : "",
+    [post?.title],
   );
 
   usePageMeta({
     title: post?.seoTitle || post?.title || "Postagem",
     description: post?.seoDescription || post?.excerpt || "",
     image: shareImage,
-    imageAlt: post?.coverAlt || settings.site.defaultShareImageAlt || undefined,
+    imageAlt: postOgImageAlt || settings.site.defaultShareImageAlt || undefined,
     mediaVariants,
     type: "article",
   });

@@ -24,6 +24,25 @@ const sanitizeVolumeCovers = (covers) =>
         .filter((cover) => cover.coverImageUrl)
     : [];
 
+const sanitizeVolumeEntries = (entries) =>
+  Array.isArray(entries)
+    ? entries
+        .map((entry) => {
+          const volume = Number(entry?.volume);
+          if (!Number.isFinite(volume)) {
+            return null;
+          }
+          const coverImageUrl = safeString(entry?.coverImageUrl);
+          return {
+            volume,
+            synopsis: safeString(entry?.synopsis),
+            coverImageUrl,
+            coverImageAlt: coverImageUrl ? safeString(entry?.coverImageAlt) : "",
+          };
+        })
+        .filter(Boolean)
+    : [];
+
 const sanitizeEpisodeDownloads = (episodes) =>
   Array.isArray(episodes)
     ? episodes.map((episode) => ({
@@ -59,6 +78,7 @@ export const toPublicBootstrapProject = (project) => ({
   heroImageAlt: safeString(project?.heroImageAlt),
   forceHero: Boolean(project?.forceHero),
   trailerUrl: safeString(project?.trailerUrl),
+  volumeEntries: sanitizeVolumeEntries(project?.volumeEntries),
   volumeCovers: sanitizeVolumeCovers(project?.volumeCovers),
   episodeDownloads: sanitizeEpisodeDownloads(project?.episodeDownloads),
 });

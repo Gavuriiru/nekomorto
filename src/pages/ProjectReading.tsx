@@ -174,6 +174,37 @@ const ProjectReading = () => {
     return Number.isFinite(volumeParam) ? volumeParam : undefined;
   }, [chapterContent?.volume, chapterData?.volume, volumeParam]);
 
+  const normalizedVolumeEntries = useMemo(() => {
+    const source = Array.isArray(project?.volumeEntries)
+      ? project.volumeEntries
+      : Array.isArray(project?.volumeCovers)
+        ? project.volumeCovers
+        : [];
+    return source
+      .map((entry) => {
+        const volume = Number(entry?.volume);
+        if (!Number.isFinite(volume)) {
+          return null;
+        }
+        const coverImageUrl = String(entry?.coverImageUrl || "").trim();
+        return {
+          volume,
+          synopsis: String(entry?.synopsis || "").trim(),
+          coverImageUrl,
+          coverImageAlt: coverImageUrl
+            ? String(entry?.coverImageAlt || `Capa do volume ${volume}`).trim()
+            : "",
+        };
+      })
+      .filter((entry): entry is { volume: number; synopsis: string; coverImageUrl: string; coverImageAlt: string } => Boolean(entry))
+      .sort((left, right) => left.volume - right.volume);
+  }, [project?.volumeEntries, project?.volumeCovers]);
+
+  const volumeEntry = useMemo(
+    () => findVolumeCoverByVolume(normalizedVolumeEntries, activeVolume),
+    [activeVolume, normalizedVolumeEntries],
+  );
+
   const volumeCover = useMemo(
     () => findVolumeCoverByVolume(project?.volumeCovers, activeVolume),
     [activeVolume, project?.volumeCovers],
@@ -181,9 +212,10 @@ const ProjectReading = () => {
 
   const heroImage = useMemo(
     () =>
-      volumeCover?.coverImageUrl ||
       chapterContent?.coverImageUrl ||
       chapterData?.coverImageUrl ||
+      volumeEntry?.coverImageUrl ||
+      volumeCover?.coverImageUrl ||
       project?.cover ||
       project?.heroImageUrl ||
       project?.banner ||
@@ -194,15 +226,17 @@ const ProjectReading = () => {
       project?.banner,
       project?.cover,
       project?.heroImageUrl,
+      volumeEntry?.coverImageUrl,
       volumeCover?.coverImageUrl,
     ],
   );
 
   const heroImageAlt = useMemo(
     () =>
-      volumeCover?.coverImageAlt ||
       chapterContent?.coverImageAlt ||
       chapterData?.coverImageAlt ||
+      volumeEntry?.coverImageAlt ||
+      volumeCover?.coverImageAlt ||
       project?.coverAlt ||
       project?.heroImageAlt ||
       `Banner do projeto ${project?.title || ""}`,
@@ -212,13 +246,26 @@ const ProjectReading = () => {
       project?.coverAlt,
       project?.heroImageAlt,
       project?.title,
+      volumeEntry?.coverImageAlt,
       volumeCover?.coverImageAlt,
     ],
   );
 
+  const resolvedChapterSynopsis = useMemo(() => {
+    const explicitChapterSynopsis = String(chapterContent?.synopsis || chapterData?.synopsis || "").trim();
+    if (explicitChapterSynopsis) {
+      return explicitChapterSynopsis;
+    }
+    const explicitVolumeSynopsis = String(volumeEntry?.synopsis || "").trim();
+    if (explicitVolumeSynopsis) {
+      return explicitVolumeSynopsis;
+    }
+    return String(project?.synopsis || "").trim();
+  }, [chapterContent?.synopsis, chapterData?.synopsis, project?.synopsis, volumeEntry?.synopsis]);
+
   usePageMeta({
     title: pageTitle,
-    description: chapterContent?.synopsis || project?.synopsis || "",
+    description: resolvedChapterSynopsis,
     image: heroImage,
     imageAlt: heroImageAlt,
     mediaVariants,
@@ -385,9 +432,9 @@ const ProjectReading = () => {
                     {chapterContent?.title || chapterData?.title || project.title}
                   </h1>
                 </div>
-                {chapterContent?.synopsis || chapterData?.synopsis ? (
+                {resolvedChapterSynopsis ? (
                   <p className="project-reading-masthead__synopsis mt-4 max-w-3xl">
-                    {chapterContent?.synopsis || chapterData?.synopsis}
+                    {resolvedChapterSynopsis}
                   </p>
                 ) : null}
                 <div className="project-reading-masthead__actions mt-5 flex w-full flex-wrap gap-2">

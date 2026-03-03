@@ -24,7 +24,46 @@ export const resolveProjectImageFolders = (project) => {
     projectFolder,
     episodeFolder: `${projectFolder}/episodes`,
     volumeFolder: `${projectFolder}/volumes`,
+    chaptersFolder: `${projectFolder}/capitulos`,
   };
+};
+
+const normalizeTypeLookupKey = (value) =>
+  String(value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim()
+    .toLowerCase();
+
+const isLightNovelType = (type) => {
+  const normalized = normalizeTypeLookupKey(type);
+  return normalized.includes("light") || normalized.includes("novel");
+};
+
+const resolveVolumeFolderSegment = (value) => {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) {
+    return "volume-sem-volume";
+  }
+  return `volume-${Math.floor(numeric)}`;
+};
+
+const resolveEpisodeCoverFolder = ({
+  project,
+  episode,
+  episodeFolder,
+  chaptersFolder,
+}) => {
+  if (!isLightNovelType(project?.type || "")) {
+    return episodeFolder;
+  }
+  const chapterNumberValue = Number(episode?.number);
+  if (!Number.isFinite(chapterNumberValue)) {
+    return episodeFolder;
+  }
+  const chapterNumber = Math.max(1, Math.floor(chapterNumberValue));
+  const volumeSegment = resolveVolumeFolderSegment(episode?.volume);
+  return `${chaptersFolder}/${volumeSegment}/capitulo-${chapterNumber}`;
 };
 
 const toTrimmedString = (value) => String(value || "").trim();
@@ -67,6 +106,9 @@ const normalizeRemoteHttpUrl = (value) => {
 const cloneProjectForLocalization = (project) => ({
   ...project,
   relations: Array.isArray(project?.relations) ? project.relations.map((item) => ({ ...item })) : [],
+  volumeEntries: Array.isArray(project?.volumeEntries)
+    ? project.volumeEntries.map((item) => ({ ...item }))
+    : [],
   volumeCovers: Array.isArray(project?.volumeCovers)
     ? project.volumeCovers.map((item) => ({ ...item }))
     : [],
@@ -136,7 +178,8 @@ export const localizeProjectImageFields = async ({
   maxConcurrent = DEFAULT_MAX_CONCURRENT,
 } = {}) => {
   const nextProject = cloneProjectForLocalization(project || {});
-  const { projectFolder, episodeFolder, volumeFolder } = resolveProjectImageFolders(nextProject);
+  const { projectFolder, episodeFolder, volumeFolder, chaptersFolder } =
+    resolveProjectImageFolders(nextProject);
 
   const summary = {
     attempted: 0,
@@ -216,6 +259,12 @@ export const localizeProjectImageFields = async ({
   });
 
   nextProject.episodeDownloads.forEach((episode, index) => {
+    const targetFolder = resolveEpisodeCoverFolder({
+      project: nextProject,
+      episode,
+      episodeFolder,
+      chaptersFolder,
+    });
     enqueue(
       `episodeDownloads[${index}].coverImageUrl`,
       episode?.coverImageUrl,
@@ -225,7 +274,7 @@ export const localizeProjectImageFields = async ({
           coverImageUrl: nextValue,
         };
       },
-      { folder: episodeFolder },
+      { folder: targetFolder },
     );
   });
 
@@ -236,6 +285,20 @@ export const localizeProjectImageFields = async ({
       (nextValue) => {
         nextProject.volumeCovers[index] = {
           ...nextProject.volumeCovers[index],
+          coverImageUrl: nextValue,
+        };
+      },
+      { folder: volumeFolder },
+    );
+  });
+
+  (Array.isArray(nextProject.volumeEntries) ? nextProject.volumeEntries : []).forEach((entry, index) => {
+    enqueue(
+      `volumeEntries[${index}].coverImageUrl`,
+      entry?.coverImageUrl,
+      (nextValue) => {
+        nextProject.volumeEntries[index] = {
+          ...nextProject.volumeEntries[index],
           coverImageUrl: nextValue,
         };
       },

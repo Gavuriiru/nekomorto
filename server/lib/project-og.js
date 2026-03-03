@@ -735,63 +735,74 @@ export const buildProjectOgScene = (model) => {
         React.createElement(
           "div",
           {
-            key: "title",
-            "data-og-layer": "title-text",
+            key: "headline-stack",
+            "data-og-layer": "headline-stack",
             style: {
               position: "absolute",
               display: "flex",
+              flexDirection: "column",
               left: layout.titleLeft,
               top: layout.titleTop,
               width: layout.titleWidth,
-              maxHeight: Math.ceil(titleFontSize * 2.02),
             },
           },
           React.createElement(
             "div",
             {
+              key: "title",
+              "data-og-layer": "title-text",
               style: {
-                color: "#ffffff",
-                fontFamily: fontFamilies.title,
-                fontSize: titleFontSize,
-                lineHeight: 0.94,
-                fontWeight: 700,
-                letterSpacing: "-0.042em",
-                textShadow: "0 10px 28px rgba(0,0,0,0.34)",
+                display: "flex",
+                width: "100%",
+                maxHeight: Math.ceil(titleFontSize * 2.02),
+                overflow: "hidden",
               },
             },
-            title,
-          ),
-        ),
-        subtitle
-          ? React.createElement(
+            React.createElement(
               "div",
               {
-                key: "subtitle",
-                "data-og-layer": "subtitle-text",
                 style: {
-                  position: "absolute",
-                  display: "flex",
-                  left: layout.subtitleLeft,
-                  top: layout.subtitleTop,
-                  width: layout.subtitleWidth,
+                  color: "#ffffff",
+                  fontFamily: fontFamilies.title,
+                  fontSize: titleFontSize,
+                  lineHeight: 0.94,
+                  fontWeight: 700,
+                  letterSpacing: "-0.042em",
+                  textShadow: "0 10px 28px rgba(0,0,0,0.34)",
                 },
               },
-              React.createElement(
+              title,
+            ),
+          ),
+          subtitle
+            ? React.createElement(
                 "div",
                 {
+                  key: "subtitle",
+                  "data-og-layer": "subtitle-text",
                   style: {
-                    color: palette.accentDivider,
-                    fontFamily: fontFamilies.subtitle,
-                    fontSize: 34,
-                    lineHeight: 1,
-                    fontWeight: 500,
-                    textShadow: `0 0 18px ${rgba(accentPrimaryRgb, 0.16)}`,
+                    display: "flex",
+                    marginTop: 14,
+                    width: layout.subtitleWidth,
                   },
                 },
-                subtitle,
-              ),
-            )
-          : null,
+                React.createElement(
+                  "div",
+                  {
+                    style: {
+                      color: palette.accentDivider,
+                      fontFamily: fontFamilies.subtitle,
+                      fontSize: 34,
+                      lineHeight: 1,
+                      fontWeight: 500,
+                      textShadow: `0 0 18px ${rgba(accentPrimaryRgb, 0.16)}`,
+                    },
+                  },
+                  subtitle,
+                ),
+              )
+            : null,
+        ),
       ],
     }),
   );

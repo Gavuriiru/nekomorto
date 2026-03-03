@@ -442,9 +442,125 @@ describe("DashboardProjectsEditor episode accordion", () => {
     expect(within(chapterCard).getByRole("button", { name: /Adicionar fonte/i })).toBeInTheDocument();
     expect(within(chapterCard).getAllByRole("combobox").length).toBeGreaterThan(0);
 
-    fireEvent.click(screen.getByRole("button", { name: /M.dias/i }));
-    expect(screen.getByText("Capas por volume")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Adicionar capa de volume/i })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /Volumes.*volume\(s\)/i }));
+    expect(screen.getByRole("button", { name: /Volumes.*volume\(s\)/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Adicionar volume/i })).toBeInTheDocument();
+  });
+
+  it("oculta o accordion de volumes fora de manga/light novel", async () => {
+    await openEpisodeEditor();
+    expect(screen.queryByRole("button", { name: /^Volumes$/i })).not.toBeInTheDocument();
+  });
+
+  it("envia volumeEntries e volumeCovers vazios ao salvar projeto sem suporte a volume", async () => {
+    const animeWithVolumesFixture = {
+      ...projectFixture,
+      id: "project-anime-volumes",
+      title: "Projeto Anime Legado",
+      volumeEntries: [
+        {
+          volume: 1,
+          synopsis: "Sinopse legado",
+          coverImageUrl: "/uploads/volume-1.jpg",
+          coverImageAlt: "Capa do volume 1",
+        },
+      ],
+      volumeCovers: [
+        {
+          volume: 1,
+          coverImageUrl: "/uploads/volume-1.jpg",
+          coverImageAlt: "Capa do volume 1",
+        },
+      ],
+    };
+    setupApiMock([animeWithVolumesFixture]);
+    const baseImplementation = apiFetchMock.getMockImplementation();
+    let savedPayload: any = null;
+
+    apiFetchMock.mockImplementation(async (base, path, options) => {
+      const method = String((options as RequestInit | undefined)?.method || "GET").toUpperCase();
+      if (path === `/api/projects/${animeWithVolumesFixture.id}` && method === "PUT") {
+        savedPayload = (options as { json?: unknown } | undefined)?.json || null;
+        return mockJsonResponse(true, {
+          project: {
+            ...animeWithVolumesFixture,
+            ...(savedPayload || {}),
+          },
+        });
+      }
+      return baseImplementation
+        ? (baseImplementation(base, path, options) as Promise<Response>)
+        : mockJsonResponse(false, { error: "not_found" }, 404);
+    });
+
+    await openEpisodeEditor({ projectTitle: "Projeto Anime Legado" });
+    expect(screen.queryByRole("button", { name: /^Volumes$/i })).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /Salvar projeto/i }));
+
+    await waitFor(() => {
+      expect(savedPayload).not.toBeNull();
+    });
+    expect(savedPayload.volumeEntries).toEqual([]);
+    expect(savedPayload.volumeCovers).toEqual([]);
+  });
+
+  it("abre o accordion de volumes ao detectar volume duplicado no save", async () => {
+    const lightNovelWithDuplicateVolumesFixture = {
+      ...lightNovelProjectFixture,
+      id: "project-ln-duplicated-volumes",
+      title: "Projeto LN Duplicado",
+      volumeEntries: [
+        {
+          volume: 2,
+          synopsis: "Sinopse A",
+          coverImageUrl: "/uploads/volume-2-a.jpg",
+          coverImageAlt: "Capa do volume 2 A",
+        },
+        {
+          volume: 2,
+          synopsis: "Sinopse B",
+          coverImageUrl: "/uploads/volume-2-b.jpg",
+          coverImageAlt: "Capa do volume 2 B",
+        },
+      ],
+      volumeCovers: [
+        {
+          volume: 2,
+          coverImageUrl: "/uploads/volume-2-a.jpg",
+          coverImageAlt: "Capa do volume 2 A",
+        },
+      ],
+    };
+    setupApiMock([lightNovelWithDuplicateVolumesFixture]);
+
+    await openEpisodeEditor({
+      projectTitle: "Projeto LN Duplicado",
+      sectionNamePattern: /Cap/i,
+      removeButtonPattern: /Remover cap/i,
+    });
+
+    const volumesTrigger = screen.getByRole("button", { name: /Volumes.*volume\(s\)/i });
+    expect(volumesTrigger).toHaveAttribute("aria-expanded", "false");
+
+    fireEvent.click(screen.getByRole("button", { name: /Salvar projeto/i }));
+
+    await waitFor(() => {
+      expect(toastMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          title: "Volumes duplicados",
+          description: "Cada volume pode aparecer apenas uma vez.",
+          variant: "destructive",
+        }),
+      );
+    });
+    expect(screen.getByRole("button", { name: /Volumes.*volume\(s\)/i })).toHaveAttribute(
+      "aria-expanded",
+      "true",
+    );
+    expect(
+      apiFetchMock.mock.calls.some((call) => String(call[1] || "").startsWith("/api/projects/"))
+    ).toBe(false);
   });
 
   it("desabilita ferramentas EPUB quando o backend nao anuncia suporte", async () => {
@@ -893,6 +1009,15 @@ describe("DashboardProjectsEditor episode accordion", () => {
       ]),
     );
     expect(exportPayload.project.volumeCovers).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          volume: 2,
+          coverImageUrl: "/uploads/tmp/epub-imports/test/import/volume-cover.jpg",
+          coverImageAlt: "Capa do volume 2",
+        }),
+      ]),
+    );
+    expect(exportPayload.project.volumeEntries).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
           volume: 2,

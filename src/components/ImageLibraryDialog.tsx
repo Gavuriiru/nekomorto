@@ -198,6 +198,50 @@ const parseUploadUrlPath = (value: string | null | undefined) => {
   return { folder, fileName };
 };
 
+const resolveItemFolder = (item: LibraryImageItem) => {
+  const explicitFolder = sanitizeUploadFolderForComparison(item.folder);
+  if (explicitFolder) {
+    return explicitFolder;
+  }
+  return sanitizeUploadFolderForComparison(parseUploadUrlPath(item.url).folder);
+};
+
+const resolveProjectRootFromFolder = (folder: string) => {
+  const normalized = sanitizeUploadFolderForComparison(folder);
+  if (!normalized.startsWith("projects/")) {
+    return "";
+  }
+  const segments = normalized.split("/").filter(Boolean);
+  if (segments.length < 2) {
+    return "";
+  }
+  return `${segments[0]}/${segments[1]}`;
+};
+
+const toRelativeProjectFolderLabel = ({
+  folder,
+  projectRoot,
+}: {
+  folder: string;
+  projectRoot: string;
+}) => {
+  const normalizedFolder = sanitizeUploadFolderForComparison(folder);
+  const normalizedRoot = sanitizeUploadFolderForComparison(projectRoot);
+  if (!normalizedFolder) {
+    return "Sem pasta";
+  }
+  if (!normalizedRoot) {
+    return normalizedFolder;
+  }
+  if (normalizedFolder === normalizedRoot) {
+    return "Raiz do projeto";
+  }
+  if (normalizedFolder.startsWith(`${normalizedRoot}/`)) {
+    return normalizedFolder.slice(normalizedRoot.length + 1);
+  }
+  return normalizedFolder;
+};
+
 const isAvatarGeneratedUsersUpload = (item: LibraryImageItem) => {
   const parsedPath = parseUploadUrlPath(item.url);
   const folder = sanitizeUploadFolderForComparison(item.folder) || parsedPath.folder;
@@ -336,6 +380,13 @@ const buildSelectionSeed = ({
 };
 
 type ProjectImageGroup = {
+  key: string;
+  title: string;
+  items: LibraryImageItem[];
+  folders: ProjectImageFolderGroup[];
+};
+
+type ProjectImageFolderGroup = {
   key: string;
   title: string;
   items: LibraryImageItem[];
@@ -1236,7 +1287,10 @@ const ImageLibraryDialog = ({
   );
 
   const projectImageGroups = useMemo<ProjectImageGroup[]>(() => {
-    const groupMap = new Map<string, ProjectImageGroup>();
+    const groupMap = new Map<
+      string,
+      ProjectImageGroup & { folderMap: Map<string, ProjectImageFolderGroup>; rootCandidates: string[] }
+    >();
     filteredProjectImages.forEach((item) => {
       const projectId = String(item.projectId || "").trim();
       const projectTitle = String(item.projectTitle || "").trim();
@@ -1247,11 +1301,72 @@ const ImageLibraryDialog = ({
           : "__no-project__";
       const title = projectTitle || (projectId ? `Projeto ${projectId}` : "Sem projeto");
       if (!groupMap.has(key)) {
-        groupMap.set(key, { key, title, items: [] });
+        groupMap.set(key, {
+          key,
+          title,
+          items: [],
+          folders: [],
+          folderMap: new Map<string, ProjectImageFolderGroup>(),
+          rootCandidates: [],
+        });
       }
-      groupMap.get(key)?.items.push(item);
+      const group = groupMap.get(key);
+      if (!group) {
+        return;
+      }
+      group.items.push(item);
+      const resolvedFolder = resolveItemFolder(item);
+      const folderKey = resolvedFolder || "__sem-pasta__";
+      if (!group.folderMap.has(folderKey)) {
+        group.folderMap.set(folderKey, {
+          key: `${key}:folder:${folderKey}`,
+          title: resolvedFolder || "Sem pasta",
+          items: [],
+        });
+      }
+      group.folderMap.get(folderKey)?.items.push(item);
+      const projectRootCandidate = resolveProjectRootFromFolder(resolvedFolder);
+      if (projectRootCandidate) {
+        group.rootCandidates.push(projectRootCandidate);
+      }
     });
-    return Array.from(groupMap.values()).sort((a, b) => a.title.localeCompare(b.title, "pt-BR"));
+    return Array.from(groupMap.values())
+      .map((group) => {
+        const rootCounts = new Map<string, number>();
+        group.rootCandidates
+          .map((candidate) => candidate.trim())
+          .filter(Boolean)
+          .forEach((candidate) => {
+            rootCounts.set(candidate, (rootCounts.get(candidate) || 0) + 1);
+          });
+        let projectRoot = "";
+        let projectRootCount = 0;
+        rootCounts.forEach((count, candidate) => {
+          if (count > projectRootCount) {
+            projectRoot = candidate;
+            projectRootCount = count;
+          }
+        });
+        const folders = Array.from(group.folderMap.values())
+          .map((folderGroup) => {
+            const resolvedFolder = folderGroup.items[0] ? resolveItemFolder(folderGroup.items[0]) : "";
+            return {
+              ...folderGroup,
+              title: toRelativeProjectFolderLabel({
+                folder: resolvedFolder,
+                projectRoot,
+              }),
+            };
+          })
+          .sort((left, right) => left.title.localeCompare(right.title, "pt-BR"));
+        return {
+          key: group.key,
+          title: group.title,
+          items: group.items,
+          folders,
+        } satisfies ProjectImageGroup;
+      })
+      .sort((a, b) => a.title.localeCompare(b.title, "pt-BR"));
   }, [filteredProjectImages]);
 
   const loadUploads = useCallback(async () => {
@@ -1348,16 +1463,22 @@ const ImageLibraryDialog = ({
           projectTitle?: string;
           kind?: string;
           source?: string;
+          folder?: string;
         }) => {
           const normalizedProjectUrl = normalizeComparableUploadUrl(item?.url);
           if (!normalizedProjectUrl.startsWith("/uploads/projects/")) {
             return null;
           }
+          const parsedProjectPath = parseUploadUrlPath(normalizedProjectUrl);
+          const normalizedFolder =
+            sanitizeUploadFolderForComparison(item?.folder) ||
+            sanitizeUploadFolderForComparison(parsedProjectPath.folder);
           return {
             source: "project",
             url: normalizedProjectUrl,
             name: String(item.label || normalizedProjectUrl),
             label: String(item.label || normalizedProjectUrl),
+            folder: normalizedFolder,
             projectId: item.projectId ? String(item.projectId) : "",
             projectTitle: item.projectTitle ? String(item.projectTitle) : "",
             kind: item.kind ? String(item.kind) : "",
@@ -2043,6 +2164,45 @@ const ImageLibraryDialog = ({
     }
     if (groups.length === 0) {
       return <p className="mt-3 text-xs text-muted-foreground">{emptyText}</p>;
+    }
+    if (groups.some((group) => group.folders.length > 0)) {
+      return (
+        <Accordion
+          type="multiple"
+          className="mt-3 overflow-hidden rounded-xl border border-border/60 bg-card/40 px-3"
+        >
+          {groups.map((group) => (
+            <AccordionItem key={group.key} value={group.key} className="border-border/50">
+              <AccordionTrigger className="py-3 text-sm hover:no-underline">
+                <span className="flex items-center gap-2">
+                  <span className="font-medium text-foreground">{group.title}</span>
+                  <span className="text-xs text-muted-foreground">{group.items.length}</span>
+                </span>
+              </AccordionTrigger>
+              <AccordionContent className="[&>div]:mt-0">
+                <Accordion
+                  type="multiple"
+                  className="rounded-lg border border-border/40 bg-background/40 px-2"
+                >
+                  {group.folders.map((folder) => (
+                    <AccordionItem key={folder.key} value={folder.key} className="border-border/40">
+                      <AccordionTrigger className="py-2 text-xs hover:no-underline">
+                        <span className="flex items-center gap-2">
+                          <span className="font-medium text-foreground/90">{folder.title}</span>
+                          <span className="text-[11px] text-muted-foreground">{folder.items.length}</span>
+                        </span>
+                      </AccordionTrigger>
+                      <AccordionContent className="[&>div]:mt-0">
+                        {renderGrid(folder.items, "Nenhuma imagem disponivel nesta pasta.")}
+                      </AccordionContent>
+                    </AccordionItem>
+                  ))}
+                </Accordion>
+              </AccordionContent>
+            </AccordionItem>
+          ))}
+        </Accordion>
+      );
     }
     return (
       <Accordion

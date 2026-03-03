@@ -89,6 +89,11 @@ import {
   buildProjectOgImageResponse,
   loadProjectOgArtworkDataUrl,
 } from "./lib/project-og.js";
+import {
+  buildPostOgCardModel,
+  buildPostOgImagePath,
+  buildPostOgImageResponse,
+} from "./lib/post-og.js";
 import { buildPublicBootstrapPayload } from "./lib/public-bootstrap.js";
 import {
   buildPublicSearchSuggestions,
@@ -2014,13 +2019,12 @@ const buildPostMeta = (post) => {
   const settings = loadSiteSettings();
   const siteName = settings.site?.name || "Nekomata";
   const title = post?.title ? `${post.title} | ${siteName}` : siteName;
-  const resolvedCover = resolvePostCover(post);
   const description =
     stripHtml(post?.seoDescription || post?.excerpt || post?.content || "") ||
     settings.site?.description ||
     "";
-  const image = resolvedCover.coverImageUrl || settings.site?.defaultShareImage || "";
-  const imageAlt = resolvedCover.coverAlt || settings.site?.defaultShareImageAlt || "";
+  const image = buildPostOgImagePath(post?.slug || "");
+  const imageAlt = `Card de compartilhamento da postagem ${String(post?.title || "Postagem").trim() || "Postagem"}`;
   return {
     title,
     description,
@@ -5391,34 +5395,36 @@ const postVersionReasonLabel = (reason) => {
 
 const normalizeProjects = (projects) =>
   projects.map((project, index) => {
-    const normalizedVolumeCovers = Array.isArray(project?.volumeCovers)
-      ? project.volumeCovers
-          .map((cover) => {
-            const volume = Number.isFinite(Number(cover?.volume)) ? Number(cover.volume) : undefined;
-            const coverImageUrl = String(cover?.coverImageUrl || "").trim();
-            if (!coverImageUrl) {
-              return null;
-            }
-            return {
-              volume,
-              coverImageUrl,
-              coverImageAlt: String(
-                cover?.coverImageAlt ||
-                  (volume === undefined ? "Capa do projeto sem volume" : `Capa do volume ${volume}`),
-              ).trim(),
-            };
-          })
-          .filter(Boolean)
-          .sort((left, right) => {
-            if (left.volume === undefined) {
-              return 1;
-            }
-            if (right.volume === undefined) {
-              return -1;
-            }
-            return left.volume - right.volume;
-          })
-      : [];
+    const sourceVolumeEntries = Array.isArray(project?.volumeEntries)
+      ? project.volumeEntries
+      : Array.isArray(project?.volumeCovers)
+        ? project.volumeCovers
+        : [];
+    const normalizedVolumeEntries = sourceVolumeEntries
+      .map((entry) => {
+        const volume = Number.isFinite(Number(entry?.volume)) ? Number(entry.volume) : null;
+        if (volume === null) {
+          return null;
+        }
+        const coverImageUrl = String(entry?.coverImageUrl || "").trim();
+        return {
+          volume,
+          synopsis: String(entry?.synopsis || "").trim(),
+          coverImageUrl,
+          coverImageAlt: coverImageUrl
+            ? String(entry?.coverImageAlt || `Capa do volume ${volume}`).trim()
+            : "",
+        };
+      })
+      .filter(Boolean)
+      .sort((left, right) => left.volume - right.volume);
+    const normalizedVolumeCovers = normalizedVolumeEntries
+      .filter((entry) => String(entry?.coverImageUrl || "").trim())
+      .map((entry) => ({
+        volume: entry.volume,
+        coverImageUrl: String(entry.coverImageUrl || "").trim(),
+        coverImageAlt: String(entry.coverImageAlt || `Capa do volume ${entry.volume}`).trim(),
+      }));
     const normalizedEpisodeDownloads = Array.isArray(project.episodeDownloads)
       ? project.episodeDownloads.map((episode) => {
           const episodeObject = episode && typeof episode === "object" ? episode : {};
@@ -5461,6 +5467,7 @@ const normalizeProjects = (projects) =>
             title: String(episode?.title || ""),
             releaseDate: String(episode?.releaseDate || ""),
             duration: String(episode?.duration || ""),
+            coverImageUrl: String(episode?.coverImageUrl || "").trim() || undefined,
             content: typeof episode?.content === "string" ? episode.content : "",
             contentFormat: episode?.contentFormat === "lexical" ? "lexical" : "lexical",
             publicationStatus:
@@ -5518,6 +5525,7 @@ const normalizeProjects = (projects) =>
       forceHero: Boolean(project.forceHero),
       heroImageUrl: String(project.heroImageUrl || ""),
       heroImageAlt: String(project.heroImageAlt || `${project.title || "Projeto"} (hero)`).trim(),
+      volumeEntries: normalizedVolumeEntries,
       volumeCovers: normalizedVolumeCovers,
       episodeDownloads: normalizedEpisodeDownloads,
       views: Number.isFinite(project.views) ? project.views : 0,
@@ -6618,7 +6626,7 @@ const normalizeProjectSnapshotForEpubImport = (rawProjectSnapshot) => {
   if (duplicateEpisodeKey) {
     throw createProjectSnapshotError("duplicate_episode_key", duplicateEpisodeKey.key);
   }
-  const duplicateVolumeCoverKey = findDuplicateVolumeCover(normalizedProject?.volumeCovers);
+  const duplicateVolumeCoverKey = findDuplicateVolumeCover(normalizedProject?.volumeEntries);
   if (duplicateVolumeCoverKey) {
     throw createProjectSnapshotError("duplicate_volume_cover_key", duplicateVolumeCoverKey.key);
   }
@@ -10239,7 +10247,7 @@ app.post("/api/projects/epub/export", requireAuth, async (req, res) => {
   if (duplicateEpisodeKey) {
     return res.status(400).json({ error: "duplicate_episode_key", key: duplicateEpisodeKey.key });
   }
-  const duplicateVolumeCoverKey = findDuplicateVolumeCover(normalizedProject.volumeCovers);
+  const duplicateVolumeCoverKey = findDuplicateVolumeCover(normalizedProject.volumeEntries);
   if (duplicateVolumeCoverKey) {
     return res.status(400).json({ error: "duplicate_volume_cover_key", key: duplicateVolumeCoverKey.key });
   }
@@ -10312,7 +10320,7 @@ app.post("/api/projects", requireAuth, async (req, res) => {
   if (duplicateEpisodeKey) {
     return res.status(400).json({ error: "duplicate_episode_key", key: duplicateEpisodeKey.key });
   }
-  const duplicateVolumeCoverKey = findDuplicateVolumeCover(nextProjectNormalized.volumeCovers);
+  const duplicateVolumeCoverKey = findDuplicateVolumeCover(nextProjectNormalized.volumeEntries);
   if (duplicateVolumeCoverKey) {
     return res.status(400).json({ error: "duplicate_volume_cover_key", key: duplicateVolumeCoverKey.key });
   }
@@ -10473,7 +10481,7 @@ app.put("/api/projects/:id", requireAuth, async (req, res) => {
   if (duplicateEpisodeKey) {
     return res.status(400).json({ error: "duplicate_episode_key", key: duplicateEpisodeKey.key });
   }
-  const duplicateVolumeCoverKey = findDuplicateVolumeCover(mergedNormalized.volumeCovers);
+  const duplicateVolumeCoverKey = findDuplicateVolumeCover(mergedNormalized.volumeEntries);
   if (duplicateVolumeCoverKey) {
     return res.status(400).json({ error: "duplicate_volume_cover_key", key: duplicateVolumeCoverKey.key });
   }
@@ -11070,6 +11078,7 @@ app.get("/api/public/projects", (req, res) => {
     trailerUrl: project.trailerUrl,
     forceHero: project.forceHero,
     heroImageUrl: project.heroImageUrl,
+    volumeEntries: project.volumeEntries,
     volumeCovers: project.volumeCovers,
     episodeDownloads: project.episodeDownloads,
     views: project.views,
@@ -12384,10 +12393,45 @@ app.post("/api/uploads/storage/cleanup", requireAuth, (req, res) => {
   }
 });
 
+const sanitizeProjectFolderSegment = (value) =>
+  String(createSlug(String(value || "").trim()) || "")
+    .replace(/[^a-z0-9-]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+
+const resolveProjectLibraryFolders = (project) => {
+  const normalizedId = String(project?.id || "").trim();
+  const normalizedSlug = sanitizeProjectFolderSegment(project?.title || "");
+  const projectKey = normalizedId || normalizedSlug || "draft";
+  const projectRootFolder = `projects/${projectKey}`;
+  return {
+    projectRootFolder,
+    projectEpisodesFolder: `${projectRootFolder}/episodes`,
+    projectRelationsFolder: `${projectRootFolder}/relations`,
+    projectVolumeCoversFolder: `${projectRootFolder}/volumes`,
+    projectChaptersFolder: `${projectRootFolder}/capitulos`,
+  };
+};
+
+const resolveVolumeFolderSegment = (volume) => {
+  const normalizedVolume = Number.isFinite(Number(volume)) ? Number(volume) : null;
+  return normalizedVolume === null ? "volume-sem-volume" : `volume-${normalizedVolume}`;
+};
+
+const resolveEpisodeCoverFolder = ({ project, episode, index, folders }) => {
+  if (!isLightNovelType(project?.type || "")) {
+    return folders.projectEpisodesFolder;
+  }
+  const chapterNumber = Number.isFinite(Number(episode?.number)) ? Number(episode.number) : index + 1;
+  const safeChapterNumber =
+    Number.isFinite(chapterNumber) && chapterNumber > 0 ? Math.floor(chapterNumber) : index + 1;
+  const volumeSegment = resolveVolumeFolderSegment(episode?.volume);
+  return `${folders.projectChaptersFolder}/${volumeSegment}/capitulo-${safeChapterNumber}`;
+};
+
 const collectProjectImageItems = (projects) => {
   const dedupe = new Set();
   const items = [];
-  const push = (project, url, kind, label) => {
+  const push = (project, url, kind, label, folder = "") => {
     const normalizedUrl = normalizeUploadUrl(url) || String(url || "").trim();
     if (!normalizedUrl || dedupe.has(normalizedUrl)) {
       return;
@@ -12400,29 +12444,41 @@ const collectProjectImageItems = (projects) => {
       projectId: project.id,
       projectTitle: project.title,
       kind,
+      folder: String(folder || "").trim(),
     });
   };
   projects.forEach((project) => {
-    push(project, project.cover, "cover", `${project.title} (Capa)`);
-    push(project, project.banner, "banner", `${project.title} (Banner)`);
-    push(project, project.heroImageUrl, "hero", `${project.title} (Carrossel)`);
+    const folders = resolveProjectLibraryFolders(project);
+    push(project, project.cover, "cover", `${project.title} (Capa)`, folders.projectRootFolder);
+    push(project, project.banner, "banner", `${project.title} (Banner)`, folders.projectRootFolder);
+    push(
+      project,
+      project.heroImageUrl,
+      "hero",
+      `${project.title} (Carrossel)`,
+      folders.projectRootFolder,
+    );
     (Array.isArray(project.volumeCovers) ? project.volumeCovers : []).forEach((cover) => {
       const suffix =
         typeof cover?.volume === "number" && Number.isFinite(cover.volume)
           ? `Volume ${cover.volume}`
           : "Sem volume";
-      push(project, cover?.coverImageUrl, "volume-cover", `${project.title} (${suffix})`);
+      const volumeFolder = `${folders.projectVolumeCoversFolder}/${resolveVolumeFolderSegment(
+        cover?.volume,
+      )}`;
+      push(project, cover?.coverImageUrl, "volume-cover", `${project.title} (${suffix})`, volumeFolder);
     });
     (Array.isArray(project.relations) ? project.relations : []).forEach((relation, index) => {
       const relationLabel = relation?.title
         ? `${project.title} (Relação: ${relation.title})`
         : `${project.title} (Relação ${index + 1})`;
-      push(project, relation?.image, "relation", relationLabel);
+      push(project, relation?.image, "relation", relationLabel, folders.projectRelationsFolder);
     });
     (Array.isArray(project.episodeDownloads) ? project.episodeDownloads : []).forEach(
       (episode, index) => {
         const suffix = episode?.number ? `Cap/Ep ${episode.number}` : `Cap/Ep ${index + 1}`;
-        push(project, episode?.coverImageUrl, "episode-cover", `${project.title} (${suffix})`);
+        const episodeFolder = resolveEpisodeCoverFolder({ project, episode, index, folders });
+        push(project, episode?.coverImageUrl, "episode-cover", `${project.title} (${suffix})`, episodeFolder);
       },
     );
   });
@@ -13684,6 +13740,48 @@ app.get("/api/og/project/:id", async (req, res) => {
       uploadsDir,
     });
     const imageResponse = buildProjectOgImageResponse({
+      ...baseModel,
+      artworkDataUrl,
+    });
+    const arrayBuffer = await imageResponse.arrayBuffer();
+    const contentType =
+      imageResponse.headers.get("content-type") || "image/png";
+
+    res.setHeader("Content-Type", contentType);
+    res.setHeader("Cache-Control", "public, max-age=300, stale-while-revalidate=86400");
+    return res.status(200).send(Buffer.from(arrayBuffer));
+  } catch {
+    return res.status(500).type("text/plain").send("image_generation_failed");
+  }
+});
+
+app.get("/api/og/post/:slug", async (req, res) => {
+  const slug = String(req.params.slug || "").trim();
+  const now = Date.now();
+  const post = normalizePosts(loadPosts()).find((item) => item.slug === slug);
+  if (!post || post.deletedAt) {
+    return res.status(404).type("text/plain").send("not_found");
+  }
+  const publishTime = new Date(post.publishedAt).getTime();
+  if (publishTime > now || (post.status !== "published" && post.status !== "scheduled")) {
+    return res.status(404).type("text/plain").send("not_found");
+  }
+
+  try {
+    const uploadsDir = path.join(__dirname, "..", "public", "uploads");
+    const settings = loadSiteSettings();
+    const resolvedCover = resolvePostCover(post);
+    const baseModel = buildPostOgCardModel({
+      post,
+      settings,
+      resolvedCover,
+      resolveVariantUrl: resolveMetaImageVariantUrl,
+    });
+    const artworkDataUrl = await loadProjectOgArtworkDataUrl({
+      artworkUrl: baseModel.artworkUrl,
+      uploadsDir,
+    });
+    const imageResponse = buildPostOgImageResponse({
       ...baseModel,
       artworkDataUrl,
     });

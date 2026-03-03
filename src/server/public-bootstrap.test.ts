@@ -21,6 +21,14 @@ describe("public bootstrap payload", () => {
           bannerAlt: "Banner do projeto",
           heroImageUrl: "/uploads/hero.jpg",
           heroImageAlt: "Hero do projeto",
+          volumeEntries: [
+            {
+              volume: 1,
+              synopsis: "Sinopse do volume 1",
+              coverImageUrl: "/uploads/volume-1.jpg",
+              coverImageAlt: "Capa do volume 1",
+            },
+          ],
           volumeCovers: [
             {
               volume: 1,
@@ -100,6 +108,14 @@ describe("public bootstrap payload", () => {
     expect(project.coverAlt).toBe("Capa do projeto");
     expect(project.bannerAlt).toBe("Banner do projeto");
     expect(project.heroImageAlt).toBe("Hero do projeto");
+    expect(project.volumeEntries).toEqual([
+      expect.objectContaining({
+        volume: 1,
+        synopsis: "Sinopse do volume 1",
+        coverImageUrl: "/uploads/volume-1.jpg",
+        coverImageAlt: "Capa do volume 1",
+      }),
+    ]);
     expect(project.volumeCovers).toEqual([
       expect.objectContaining({
         volume: 1,

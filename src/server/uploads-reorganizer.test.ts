@@ -110,6 +110,40 @@ describe("uploads reorganizer classification", () => {
     const target = classifyTargetFolder(usage, new Map([["proj-1", folders]]));
     expect(target).toBe("projects/proj-1/episodes");
   });
+
+  it("preserva subpasta de capitulos quando a origem ja esta em projects/<id>/capitulos/...", () => {
+    const folders = resolveProjectFolders({ id: "proj-1", title: "Projeto Um" });
+    const usage = {
+      posts: new Set(),
+      projectIds: new Set(["proj-1"]),
+      projectMainIds: new Set(),
+      projectVolumeIds: new Set(),
+      projectEpisodeIds: new Set(["proj-1"]),
+    };
+    const target = classifyTargetFolder(
+      usage,
+      new Map([["proj-1", folders]]),
+      "projects/proj-1/capitulos/volume-1/capitulo-1/image.png",
+    );
+    expect(target).toBe("projects/proj-1/capitulos/volume-1/capitulo-1");
+  });
+
+  it("mantem regra antiga para episodios fora da arvore de capitulos", () => {
+    const folders = resolveProjectFolders({ id: "proj-1", title: "Projeto Um" });
+    const usage = {
+      posts: new Set(),
+      projectIds: new Set(["proj-1"]),
+      projectMainIds: new Set(),
+      projectVolumeIds: new Set(),
+      projectEpisodeIds: new Set(["proj-1"]),
+    };
+    const target = classifyTargetFolder(
+      usage,
+      new Map([["proj-1", folders]]),
+      "projects/proj-1/episodes/image.png",
+    );
+    expect(target).toBe("projects/proj-1/episodes");
+  });
 });
 
 describe("uploads reorganizer helpers", () => {
@@ -241,6 +275,50 @@ describe("uploads reorganizer apply", () => {
     expect(fs.existsSync(path.join(uploadsDir, "projects/proj-1/volumes/volume-cover.png"))).toBe(
       true,
     );
+  });
+
+  it("reorganiza capas de volume usando volumeEntries canonico", () => {
+    const { uploadsDir, datasets } = createTempWorkspace(
+      {
+        projects: [
+          {
+            id: "proj-1",
+            title: "Projeto Um",
+            cover: "",
+            banner: "",
+            heroImageUrl: "",
+            relations: [],
+            volumeEntries: [
+              {
+                volume: 1,
+                synopsis: "Sinopse do volume 1",
+                coverImageUrl: "/uploads/volume-entry-cover.png",
+                coverImageAlt: "Capa do volume 1",
+              },
+            ],
+            episodeDownloads: [],
+          },
+        ],
+      },
+      [{ relativePath: "volume-entry-cover.png" }],
+    );
+
+    const report = runUploadsReorganization({ datasets, uploadsDir, applyChanges: true });
+    const projects = report.rewritten.projects as Array<Record<string, unknown>>;
+    const volumeEntries = projects[0].volumeEntries as Array<Record<string, unknown>>;
+
+    expect(report.mappings).toEqual([
+      {
+        oldUrl: "/uploads/volume-entry-cover.png",
+        newUrl: "/uploads/projects/proj-1/volumes/volume-entry-cover.png",
+      },
+    ]);
+    expect(volumeEntries[0].coverImageUrl).toBe(
+      "/uploads/projects/proj-1/volumes/volume-entry-cover.png",
+    );
+    expect(
+      fs.existsSync(path.join(uploadsDir, "projects/proj-1/volumes/volume-entry-cover.png")),
+    ).toBe(true);
   });
 
   it("move para shared quando a mesma url e usada por multiplos projetos", () => {

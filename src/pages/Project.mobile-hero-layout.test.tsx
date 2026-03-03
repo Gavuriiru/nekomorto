@@ -486,6 +486,14 @@ describe("Project mobile hero layout", () => {
   it("exibe capa por volume em grupos de light novel", async () => {
     setupApiMock({
       ...lightNovelProjectFixture,
+      volumeEntries: [
+        {
+          volume: 2,
+          synopsis: "Sinopse do volume 2",
+          coverImageUrl: "/uploads/volume-2-cover.jpg",
+          coverImageAlt: "Capa do volume 2",
+        },
+      ],
       volumeCovers: [
         {
           volume: 2,
@@ -504,11 +512,20 @@ describe("Project mobile hero layout", () => {
     await screen.findByRole("heading", { name: "Projeto Teste" });
     expect(screen.getByRole("img", { name: "Capa do volume 2" })).toBeInTheDocument();
     expect(screen.getAllByText("Volume 2").length).toBeGreaterThan(0);
+    expect(screen.getByText("Sinopse do volume 2")).toBeInTheDocument();
   });
 
   it("exibe capa por volume em grupos de mangá", async () => {
     setupApiMock({
       ...mangaProjectFixture,
+      volumeEntries: [
+        {
+          volume: 3,
+          synopsis: "Sinopse do volume 3",
+          coverImageUrl: "/uploads/volume-3-cover.jpg",
+          coverImageAlt: "Capa do volume 3",
+        },
+      ],
       volumeCovers: [
         {
           volume: 3,
@@ -527,5 +544,6 @@ describe("Project mobile hero layout", () => {
     await screen.findByRole("heading", { name: "Projeto Teste" });
     expect(screen.getByRole("img", { name: "Capa do volume 3" })).toBeInTheDocument();
     expect(screen.getAllByText("Volume 3").length).toBeGreaterThan(0);
+    expect(screen.getByText("Sinopse do volume 3")).toBeInTheDocument();
   });
 });

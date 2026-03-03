@@ -9,6 +9,13 @@ export type ProjectVolumeCover = {
   coverImageAlt: string;
 };
 
+export type ProjectVolumeEntry = {
+  volume: number;
+  synopsis: string;
+  coverImageUrl: string;
+  coverImageAlt: string;
+};
+
 export type ProjectEpisode = {
   number: number;
   volume?: number;
@@ -87,6 +94,7 @@ export type Project = {
   forceHero?: boolean;
   heroImageUrl?: string;
   heroImageAlt?: string;
+  volumeEntries?: ProjectVolumeEntry[];
   volumeCovers?: ProjectVolumeCover[];
 };
 

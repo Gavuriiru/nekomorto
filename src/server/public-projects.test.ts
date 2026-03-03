@@ -18,6 +18,8 @@ describe("public project serialization", () => {
             number: 1,
             volume: 1,
             title: "Capitulo 1",
+            coverImageUrl: "/uploads/projects/project-1/episodes/chapter-1.jpg",
+            coverImageAlt: "Capa do capitulo 1",
             publicationStatus: "published",
             content: "{\"root\":{\"children\":[{\"type\":\"paragraph\",\"children\":[],\"version\":1}]}}",
             sources: [],
@@ -40,6 +42,8 @@ describe("public project serialization", () => {
       expect.objectContaining({
         number: 1,
         volume: 1,
+        coverImageUrl: "/uploads/projects/project-1/episodes/chapter-1.jpg",
+        coverImageAlt: "Capa do capitulo 1",
         content: expect.stringContaining("\"root\""),
       }),
     ]);
@@ -50,6 +54,8 @@ describe("public project serialization", () => {
       expect.objectContaining({
         number: 1,
         volume: 1,
+        coverImageUrl: "/uploads/projects/project-1/episodes/chapter-1.jpg",
+        coverImageAlt: "Capa do capitulo 1",
         hasContent: true,
       }),
     ]);

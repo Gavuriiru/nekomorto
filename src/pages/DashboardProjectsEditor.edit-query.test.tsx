@@ -99,6 +99,7 @@ const projectFixture = {
   forceHero: false,
   heroImageUrl: "",
   heroImageAlt: "",
+  volumeEntries: [],
   volumeCovers: [],
   episodeDownloads: [],
   views: 0,

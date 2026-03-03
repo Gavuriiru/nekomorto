@@ -34,6 +34,7 @@ describe("ImageLibraryDialog project groups", () => {
               projectId: "projeto-1",
               projectTitle: "Projeto 1",
               kind: "cover",
+              folder: "projects/projeto-1",
             },
             {
               url: "/uploads/projects/projeto-1/banner.png",
@@ -41,6 +42,7 @@ describe("ImageLibraryDialog project groups", () => {
               projectId: "projeto-1",
               projectTitle: "Projeto 1",
               kind: "banner",
+              folder: "projects/projeto-1/capitulos/volume-1/capitulo-1",
             },
             {
               url: "/uploads/projects/projeto-2/capa.png",
@@ -48,6 +50,7 @@ describe("ImageLibraryDialog project groups", () => {
               projectId: "projeto-2",
               projectTitle: "Projeto 2",
               kind: "cover",
+              folder: "projects/projeto-2",
             },
           ],
         });
@@ -56,7 +59,7 @@ describe("ImageLibraryDialog project groups", () => {
     });
   });
 
-  it("renderiza grupos fechados e mostra itens ao expandir", async () => {
+  it("agrupa por projeto e pasta, exibindo itens so apos expandir a pasta", async () => {
     render(
       <ImageLibraryDialog
         open
@@ -77,7 +80,22 @@ describe("ImageLibraryDialog project groups", () => {
     fireEvent.click(group1);
 
     await waitFor(() => {
+      expect(screen.getByRole("button", { name: /Raiz do projeto/i })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /capitulos\/volume-1\/capitulo-1/i })).toBeInTheDocument();
+    });
+    expect(screen.queryByText("Projeto 1 (Capa)")).not.toBeInTheDocument();
+    expect(screen.queryByText("Projeto 1 (Banner)")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /Raiz do projeto/i }));
+
+    await waitFor(() => {
       expect(screen.getByText("Projeto 1 (Capa)")).toBeInTheDocument();
+    });
+    expect(screen.queryByText("Projeto 1 (Banner)")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /capitulos\/volume-1\/capitulo-1/i }));
+
+    await waitFor(() => {
       expect(screen.getByText("Projeto 1 (Banner)")).toBeInTheDocument();
     });
     expect(screen.queryByText("Projeto 2 (Capa)")).not.toBeInTheDocument();
