@@ -315,7 +315,7 @@ const episode1TriggerPattern = /(Epis[oó]dio|Episódio)\s+1/i;
 const episode2TriggerPattern = /(Epis[oó]dio|Episódio)\s+2/i;
 
 const chapter1TriggerPattern = /Cap.tulo\s+1/i;
-const chapterOpenOverflowClass = "data-[state=open]:overflow-visible";
+const chapterOpenOverflowClass = "project-editor-open-overflow";
 
 const getOpenAccordionContentRoot = (element: HTMLElement) => {
   const root = element.closest("div[data-state='open'].overflow-hidden");
@@ -920,7 +920,11 @@ describe("DashboardProjectsEditor episode accordion", () => {
     });
 
     const volumeGroup = await screen.findByTestId("volume-group-none");
+    const volumeTrigger = getVolumeGroupTrigger(volumeGroup);
+    const volumeHeader = volumeTrigger.closest("h3");
     expect(within(volumeGroup).queryByTestId("episode-card-0")).not.toBeInTheDocument();
+    expect(volumeHeader).not.toBeNull();
+    expect(volumeHeader).toHaveClass("flex-1", "min-w-0");
 
     fireEvent.click(within(volumeGroup).getByText(/1 cap.tulo\(s\)/i));
     expect(within(volumeGroup).getByTestId("episode-card-0")).toBeInTheDocument();
@@ -996,7 +1000,7 @@ describe("DashboardProjectsEditor episode accordion", () => {
     fireEvent.click(screen.getByRole("button", { name: /Importa[^r]/i }));
 
     expect(
-      screen.getByText(/backend desatualizado e ainda nao suporta EPUB/i),
+      screen.getByText(/backend desatualizado e ainda não suporta EPUB/i),
     ).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Importar EPUB/i })).toBeDisabled();
     expect(screen.getByRole("button", { name: /Exportar volume em EPUB/i })).toBeDisabled();
@@ -1025,7 +1029,7 @@ describe("DashboardProjectsEditor episode accordion", () => {
     fireEvent.click(screen.getByRole("button", { name: /Importa[^r]/i }));
 
     expect(
-      screen.getByText(/Nao foi possivel confirmar o suporte EPUB deste ambiente/i),
+      screen.getByText(/Não foi possível confirmar o suporte EPUB deste ambiente/i),
     ).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Importar EPUB/i })).toBeDisabled();
     expect(screen.getByRole("button", { name: /Exportar volume em EPUB/i })).toBeDisabled();
@@ -1049,6 +1053,38 @@ describe("DashboardProjectsEditor episode accordion", () => {
 
     expect(screen.getByText(/Contrato da API: commit abcdef123456 \| build 2026-03-02T16:00:00Z/i)).toBeInTheDocument();
     expect(screen.getByText(/Frontend: commit frontend1234 \| build 2026-03-02T17:00:00Z/i)).toBeInTheDocument();
+  });
+
+  it("seleciona EPUB manualmente sem autoimportar e permite trocar pelo nome do arquivo", async () => {
+    setupApiMock([lightNovelProjectFixture]);
+
+    await openEpisodeEditor({
+      projectTitle: "Projeto Light Novel",
+      sectionNamePattern: /Cap/i,
+      removeButtonPattern: /Remover cap/i,
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /Importa[^r]/i }));
+
+    const fileInput = screen.getByLabelText(/Arquivo \.epub/i) as HTMLInputElement;
+    const inputClickSpy = vi.spyOn(fileInput, "click").mockImplementation(() => undefined);
+
+    fireEvent.click(screen.getByRole("button", { name: /Escolher arquivo/i }));
+    expect(inputClickSpy).toHaveBeenCalledTimes(1);
+
+    fireEvent.change(fileInput, {
+      target: { files: [new File(["epub"], "manual.epub", { type: "application/epub+zip" })] },
+    });
+
+    expect(screen.queryByRole("button", { name: /Escolher arquivo/i })).not.toBeInTheDocument();
+    const selectedFileButton = screen.getByRole("button", { name: /manual\.epub/i });
+    expect(selectedFileButton).toBeInTheDocument();
+    expect(apiFetchMock.mock.calls.some((call) => String(call[1]).startsWith("/api/projects/epub/import"))).toBe(false);
+
+    fireEvent.click(selectedFileButton);
+    expect(inputClickSpy).toHaveBeenCalledTimes(2);
+
+    inputClickSpy.mockRestore();
   });
 
   it("mostra erro especifico quando a rota de importacao EPUB retorna 404", async () => {
@@ -1087,7 +1123,7 @@ describe("DashboardProjectsEditor episode accordion", () => {
         expect.objectContaining({
           title: "Falha ao importar EPUB",
           description:
-            "A origem atual nao esta alcancando a rota EPUB deste backend. Verifique tunel, proxy ou host aberto no navegador.",
+            "A origem atual não está alcançando a rota EPUB deste backend. Verifique túnel, proxy ou host aberto no navegador.",
           variant: "destructive",
         }),
       );
@@ -1147,7 +1183,7 @@ describe("DashboardProjectsEditor episode accordion", () => {
         expect.objectContaining({
           title: "Falha ao importar EPUB",
           description:
-            "O backend tentou resolver um projeto salvo que nao existe mais. Recarregue o editor e tente novamente.",
+            "O backend tentou resolver um projeto salvo que não existe mais. Recarregue o editor e tente novamente.",
           variant: "destructive",
         }),
       );
@@ -1196,7 +1232,7 @@ describe("DashboardProjectsEditor episode accordion", () => {
       expect(toastMock).toHaveBeenCalledWith(
         expect.objectContaining({
           title: "Falha ao importar EPUB",
-          description: "Nao foi possivel processar o arquivo informado.",
+          description: "Não foi possível processar o arquivo informado.",
           variant: "destructive",
         }),
       );
@@ -1245,7 +1281,7 @@ describe("DashboardProjectsEditor episode accordion", () => {
       expect(toastMock).toHaveBeenCalledWith(
         expect.objectContaining({
           title: "Falha ao importar EPUB",
-          description: "Nao foi possivel processar o arquivo informado.",
+          description: "Não foi possível processar o arquivo informado.",
           variant: "destructive",
         }),
       );
@@ -1288,7 +1324,7 @@ describe("DashboardProjectsEditor episode accordion", () => {
         expect.objectContaining({
           title: "Falha ao importar EPUB",
           description:
-            "Nao foi possivel enviar o snapshot atual do projeto para a importacao EPUB.",
+            "Não foi possível enviar o snapshot atual do projeto para a importação EPUB.",
           variant: "destructive",
         }),
       );
@@ -1331,7 +1367,7 @@ describe("DashboardProjectsEditor episode accordion", () => {
         expect.objectContaining({
           title: "Falha ao importar EPUB",
           description:
-            "O snapshot atual do projeto excedeu o limite da importacao EPUB. Salve o projeto e tente novamente.",
+            "O snapshot atual do projeto excedeu o limite da importação EPUB. Salve o projeto e tente novamente.",
           variant: "destructive",
         }),
       );
@@ -1381,7 +1417,7 @@ describe("DashboardProjectsEditor episode accordion", () => {
         expect.objectContaining({
           title: "Falha ao importar EPUB",
           description:
-            "O snapshot atual do projeto excedeu o limite da importacao EPUB. Salve o projeto e tente novamente.",
+            "O snapshot atual do projeto excedeu o limite da importação EPUB. Salve o projeto e tente novamente.",
           variant: "destructive",
         }),
       );
@@ -1542,11 +1578,24 @@ describe("DashboardProjectsEditor episode accordion", () => {
       expect(importButton).not.toBeDisabled();
     });
 
-    const fileInput = screen.getByLabelText(/Arquivo \.epub/i);
+    const fileInput = screen.getByLabelText(/Arquivo \.epub/i) as HTMLInputElement;
+    const inputClickSpy = vi.spyOn(fileInput, "click").mockImplementation(() => undefined);
     const file = new File(["epub"], "teste.epub", { type: "application/epub+zip" });
-    fireEvent.change(fileInput, { target: { files: [file] } });
     fireEvent.change(screen.getByLabelText(/Volume de destino/i), { target: { value: "2" } });
     fireEvent.click(importButton);
+    expect(inputClickSpy).toHaveBeenCalledTimes(1);
+    expect(
+      toastMock.mock.calls.some(
+        ([payload]) =>
+          payload &&
+          typeof payload === "object" &&
+          "title" in payload &&
+          (payload as { title?: string }).title === "Selecione um arquivo EPUB",
+      ),
+    ).toBe(false);
+    fireEvent.change(fileInput, { target: { files: [file] } });
+    expect(screen.queryByRole("button", { name: /Escolher arquivo/i })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /teste\.epub/i })).toBeInTheDocument();
 
     scrollIntoViewMock.mockClear();
 
@@ -1566,7 +1615,7 @@ describe("DashboardProjectsEditor episode accordion", () => {
       expect.objectContaining({
         title: "EPUB importado",
         description:
-          '1 capitulo(s) incorporados ao formulario para revisao. 1 capitulo(s) principais detectados. 2 item(ns) de boilerplate foram descartados. 2 imagem(ns) interna(s) foram importadas. 1 imagem(ns) falharam e foram ignoradas. A capa do volume foi incorporada ao formulario. Itens de boilerplate ignorados: 2. Imagem interna ignorada no capitulo "Capitulo importado": ../Images/missing.jpg. Capa do volume importada do EPUB para o volume 2.',
+          '1 capítulo(s) incorporados ao formulário para revisão. 1 capítulo(s) principais detectados. 2 item(ns) de boilerplate foram descartados. 2 imagem(ns) interna(s) foram importadas. 1 imagem(ns) falharam e foram ignoradas. A capa do volume foi incorporada ao formulário. Itens de boilerplate ignorados: 2. Imagem interna ignorada no capitulo "Capitulo importado": ../Images/missing.jpg. Capa do volume importada do EPUB para o volume 2.',
         intent: "success",
       }),
     );
@@ -1597,7 +1646,7 @@ describe("DashboardProjectsEditor episode accordion", () => {
     expect(importProjectPayload.episodeDownloads[0]).not.toHaveProperty("content");
     expect(importProjectPayload.episodeDownloads[0]).not.toHaveProperty("sources");
 
-    fireEvent.change(screen.getByLabelText(/Volume para exportacao/i), {
+    fireEvent.change(screen.getByLabelText(/Volume para exportação/i), {
       target: { value: "2" },
     });
     fireEvent.click(screen.getByRole("checkbox", { name: /Incluir rascunhos/i }));
@@ -1662,6 +1711,7 @@ describe("DashboardProjectsEditor episode accordion", () => {
       writable: true,
       value: originalAnchorClick,
     });
+    inputClickSpy.mockRestore();
   });
 
   it("abre a secao de conteudo e faz scroll apos importar EPUB sem volume numerico", async () => {
@@ -1794,8 +1844,8 @@ describe("DashboardProjectsEditor episode accordion", () => {
     await waitFor(() => {
       expect(toastMock).toHaveBeenCalledWith(
         expect.objectContaining({
-          title: "ID do AniList invalido",
-          description: "Informe um ID ou URL valida do AniList antes de importar.",
+          title: "ID do AniList inválido",
+          description: "Informe um ID ou URL válida do AniList antes de importar.",
           variant: "destructive",
         }),
       );

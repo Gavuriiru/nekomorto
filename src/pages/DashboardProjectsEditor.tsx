@@ -1,4 +1,13 @@
-import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  Suspense,
+  lazy,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ChangeEvent,
+} from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import type { MouseEvent as ReactMouseEvent } from "react";
 import DashboardShell from "@/components/DashboardShell";
@@ -145,25 +154,25 @@ const DEFAULT_API_CAPABILITIES: ApiContractCapabilities = {
 };
 
 const EPUB_CAPABILITY_UNAVAILABLE_MESSAGE =
-  "Este ambiente esta com backend desatualizado e ainda nao suporta EPUB.";
+  "Este ambiente está com backend desatualizado e ainda não suporta EPUB.";
 const EPUB_CAPABILITY_UNKNOWN_MESSAGE =
-  "Nao foi possivel confirmar o suporte EPUB deste ambiente. Os botoes ficam desabilitados ate o contrato da API responder.";
+  "Não foi possível confirmar o suporte EPUB deste ambiente. Os botões ficam desabilitados até o contrato da API responder.";
 const EPUB_IMPORT_ROUTE_MISSING_MESSAGE =
-  "A origem atual nao esta alcancando a rota EPUB deste backend. Verifique tunel, proxy ou host aberto no navegador.";
+  "A origem atual não está alcançando a rota EPUB deste backend. Verifique túnel, proxy ou host aberto no navegador.";
 const EPUB_EXPORT_ROUTE_MISSING_MESSAGE =
-  "A origem atual nao esta alcancando a rota EPUB deste backend. Verifique tunel, proxy ou host aberto no navegador.";
-const EPUB_IMPORT_PROCESSING_MESSAGE = "Nao foi possivel processar o arquivo informado.";
-const EPUB_EXPORT_GENERIC_MESSAGE = "Nao foi possivel gerar o arquivo EPUB.";
+  "A origem atual não está alcançando a rota EPUB deste backend. Verifique túnel, proxy ou host aberto no navegador.";
+const EPUB_IMPORT_PROCESSING_MESSAGE = "Não foi possível processar o arquivo informado.";
+const EPUB_EXPORT_GENERIC_MESSAGE = "Não foi possível gerar o arquivo EPUB.";
 const EPUB_NETWORK_ERROR_MESSAGE =
-  "Nao foi possivel contatar o backend deste ambiente. Verifique a conectividade e tente novamente.";
+  "Não foi possível contatar o backend deste ambiente. Verifique a conectividade e tente novamente.";
 const EPUB_IMPORT_LEGACY_PROJECT_MISSING_MESSAGE =
-  "O backend tentou resolver um projeto salvo que nao existe mais. Recarregue o editor e tente novamente.";
+  "O backend tentou resolver um projeto salvo que não existe mais. Recarregue o editor e tente novamente.";
 const EPUB_IMPORT_INVALID_SNAPSHOT_MESSAGE =
-  "Nao foi possivel enviar o snapshot atual do projeto para a importacao EPUB.";
+  "Não foi possível enviar o snapshot atual do projeto para a importação EPUB.";
 const EPUB_IMPORT_SNAPSHOT_TOO_LARGE_MESSAGE =
-  "O snapshot atual do projeto excedeu o limite da importacao EPUB. Salve o projeto e tente novamente.";
+  "O snapshot atual do projeto excedeu o limite da importação EPUB. Salve o projeto e tente novamente.";
 const EPUB_IMPORT_DUPLICATE_EPISODE_MESSAGE =
-  "O formulario possui capitulos duplicados por numero + volume. Corrija antes de importar.";
+  "O formulário possui capítulos duplicados por número + volume. Corrija antes de importar.";
 
 type EpubRouteStatus =
   | "unknown"
@@ -1226,12 +1235,21 @@ const DashboardProjectsEditor = () => {
   const episodeCardNodeMapRef = useRef<WeakMap<ProjectEpisode, HTMLDivElement>>(new WeakMap());
   const volumeGroupNodeMapRef = useRef<Map<string, HTMLDivElement>>(new Map());
   const contentSectionRef = useRef<HTMLDivElement | null>(null);
+  const epubImportInputRef = useRef<HTMLInputElement | null>(null);
+  const pendingEpubAutoImportRef = useRef(false);
 
   const resetPendingContentNavigation = useCallback(() => {
     pendingVolumeGroupToExpandRef.current = null;
     pendingVolumeGroupToScrollRef.current = null;
     pendingContentSectionScrollRef.current = false;
     volumeGroupNodeMapRef.current.clear();
+  }, []);
+  const resetEpubImportSelection = useCallback(() => {
+    pendingEpubAutoImportRef.current = false;
+    setEpubImportFile(null);
+    if (epubImportInputRef.current) {
+      epubImportInputRef.current.value = "";
+    }
   }, []);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [confirmTitle, setConfirmTitle] = useState("Sair da edição?");
@@ -1322,14 +1340,16 @@ const DashboardProjectsEditor = () => {
     if (!next) {
       if (!isDirty) {
         resetPendingContentNavigation();
+        resetEpubImportSelection();
         setIsEditorOpen(false);
         setEditingProject(null);
         return;
       }
-      setConfirmTitle("Sair da edi????o?");
-      setConfirmDescription("Voc?? tem altera????es n??o salvas. Deseja continuar?");
+      setConfirmTitle("Sair da edição?");
+      setConfirmDescription("Você tem alterações não salvas. Deseja continuar?");
       confirmActionRef.current = () => {
         resetPendingContentNavigation();
+        resetEpubImportSelection();
         setIsEditorOpen(false);
         setEditingProject(null);
       };
@@ -2563,7 +2583,7 @@ const DashboardProjectsEditor = () => {
     setEditingProject(null);
     setFormState(nextForm);
     setAnilistIdInput("");
-    setEpubImportFile(null);
+    resetEpubImportSelection();
     setEpubImportTargetVolume("");
     setEpubImportAsDraft(true);
     setEpubExportVolume("");
@@ -2717,7 +2737,7 @@ const DashboardProjectsEditor = () => {
     setEditingProject(project);
     setFormState(nextForm);
     setAnilistIdInput(nextAniListInput);
-    setEpubImportFile(null);
+    resetEpubImportSelection();
     setEpubImportTargetVolume("");
     setEpubImportAsDraft(true);
     setEpubExportVolume("");
@@ -2743,7 +2763,7 @@ const DashboardProjectsEditor = () => {
     });
     setCollapsedVolumeGroups({});
     setIsEditorOpen(true);
-  }, [resetPendingContentNavigation]);
+  }, [resetEpubImportSelection, resetPendingContentNavigation]);
 
   useEffect(() => {
     const editTarget = (searchParams.get("edit") || "").trim();
@@ -2808,6 +2828,7 @@ const DashboardProjectsEditor = () => {
   const closeEditor = () => {
     pendingEpisodeFocusRef.current = null;
     resetPendingContentNavigation();
+    resetEpubImportSelection();
     setIsEditorOpen(false);
     setEditingProject(null);
   };
@@ -3048,13 +3069,22 @@ const DashboardProjectsEditor = () => {
     [],
   );
 
-  const handleImportEpub = async () => {
-    if (!epubImportFile) {
-      toast({
-        title: "Selecione um arquivo EPUB",
-        description: "Escolha um arquivo .epub antes de importar.",
-        variant: "destructive",
-      });
+  const openEpubImportPicker = ({
+    autoImportAfterSelect,
+  }: {
+    autoImportAfterSelect: boolean;
+  }) => {
+    const input = epubImportInputRef.current;
+    if (!input || isImportingEpub || !backendSupportsEpubImport) {
+      return;
+    }
+    pendingEpubAutoImportRef.current = autoImportAfterSelect;
+    input.value = "";
+    input.click();
+  };
+
+  const submitEpubImport = async (file: File) => {
+    if (isImportingEpub) {
       return;
     }
     if (!backendSupportsEpubImport) {
@@ -3076,7 +3106,7 @@ const DashboardProjectsEditor = () => {
     setIsImportingEpub(true);
     try {
       const formData = new FormData();
-      formData.set("file", epubImportFile);
+      formData.set("file", file);
       formData.set("project", JSON.stringify(buildEpubImportProjectSnapshot(formState)));
       if (epubImportTargetVolume.trim()) {
         formData.set("targetVolume", epubImportTargetVolume.trim());
@@ -3126,7 +3156,7 @@ const DashboardProjectsEditor = () => {
           });
           toast({
             title: "Falha ao importar EPUB",
-            description: "Voce nao tem permissao para importar EPUB.",
+            description: "Você não tem permissão para importar EPUB.",
             variant: "destructive",
           });
           return;
@@ -3284,8 +3314,8 @@ const DashboardProjectsEditor = () => {
       toast({
         title: "EPUB importado",
         description: [
-          `${importedChapterCount} capitulo(s) incorporados ao formulario para revisao.`,
-          ...(mainImportedCount > 0 ? [`${mainImportedCount} capitulo(s) principais detectados.`] : []),
+          `${importedChapterCount} capítulo(s) incorporados ao formulário para revisão.`,
+          ...(mainImportedCount > 0 ? [`${mainImportedCount} capítulo(s) principais detectados.`] : []),
           ...(extrasImportedCount > 0 ? [`${extrasImportedCount} extra(s) detectados.`] : []),
           ...(boilerplatePromoted > 0
             ? [`${boilerplatePromoted} item(ns) de boilerplate foram promovidos para extras.`]
@@ -3297,7 +3327,7 @@ const DashboardProjectsEditor = () => {
           ...(imageImportFailures > 0
             ? [`${imageImportFailures} imagem(ns) falharam e foram ignoradas.`]
             : []),
-          ...(volumeCoverImported ? ["A capa do volume foi incorporada ao formulario."] : []),
+          ...(volumeCoverImported ? ["A capa do volume foi incorporada ao formulário."] : []),
           ...(volumeCoverSkipped ? ["A capa do volume existente foi preservada."] : []),
           ...warnings,
         ].join(" "),
@@ -3316,8 +3346,53 @@ const DashboardProjectsEditor = () => {
         variant: "destructive",
       });
     } finally {
+      pendingEpubAutoImportRef.current = false;
       setIsImportingEpub(false);
     }
+  };
+
+  const handleEpubImportFileChange = (event: ChangeEvent<HTMLInputElement>) => {
+    const selectedFile = event.target.files?.[0] || null;
+    setEpubImportFile(selectedFile);
+    if (!selectedFile) {
+      pendingEpubAutoImportRef.current = false;
+      return;
+    }
+    if (!pendingEpubAutoImportRef.current) {
+      return;
+    }
+    pendingEpubAutoImportRef.current = false;
+    void submitEpubImport(selectedFile);
+  };
+
+  const handleEpubImportFileCancel = () => {
+    pendingEpubAutoImportRef.current = false;
+  };
+
+  const handleImportEpub = async () => {
+    if (isImportingEpub) {
+      return;
+    }
+    if (!backendSupportsEpubImport) {
+      logEpubParityIssue({
+        path: "/api/projects/epub/import",
+        status: "blocked",
+        reason: backendCapabilitiesError ? "contract_unreachable" : "capability_missing",
+      });
+      toast({
+        title: "Falha ao importar EPUB",
+        description: backendCapabilitiesError
+          ? EPUB_CAPABILITY_UNKNOWN_MESSAGE
+          : EPUB_CAPABILITY_UNAVAILABLE_MESSAGE,
+        variant: "destructive",
+      });
+      return;
+    }
+    if (!epubImportFile) {
+      openEpubImportPicker({ autoImportAfterSelect: true });
+      return;
+    }
+    await submitEpubImport(epubImportFile);
   };
 
   const handleExportEpub = async () => {
@@ -3410,7 +3485,7 @@ const DashboardProjectsEditor = () => {
           });
           toast({
             title: "Falha ao exportar EPUB",
-            description: "Voce nao tem permissao para exportar EPUB.",
+            description: "Você não tem permissão para exportar EPUB.",
             variant: "destructive",
           });
           return;
@@ -3421,7 +3496,7 @@ const DashboardProjectsEditor = () => {
         ) {
           toast({
             title: "Falha ao exportar EPUB",
-            description: "Nao ha capitulos elegiveis para esse volume.",
+            description: "Não há capítulos elegíveis para esse volume.",
             variant: "destructive",
           });
           return;
@@ -3515,8 +3590,8 @@ const DashboardProjectsEditor = () => {
         revealEpisodeAtIndex(duplicateIndex);
       }
       toast({
-        title: "Capitulos duplicados",
-        description: "Cada capitulo precisa ter uma combinacao unica de numero e volume.",
+        title: "Capítulos duplicados",
+        description: "Cada capítulo precisa ter uma combinação única de número e volume.",
         variant: "destructive",
       });
       return;
@@ -3789,9 +3864,9 @@ const DashboardProjectsEditor = () => {
           revealEpisodeAtIndex(duplicateIndex);
         }
         toast({
-          title: "Capitulos duplicados",
+          title: "Capítulos duplicados",
           description:
-            "O servidor bloqueou o save porque existe mais de um capitulo com o mesmo numero e volume.",
+            "O servidor bloqueou o save porque existe mais de um capítulo com o mesmo número e volume.",
           variant: "destructive",
         });
         return;
@@ -4021,8 +4096,8 @@ const DashboardProjectsEditor = () => {
     const id = parseAniListMediaId(anilistIdInput);
     if (id === null) {
       toast({
-        title: "ID do AniList invalido",
-        description: "Informe um ID ou URL valida do AniList antes de importar.",
+        title: "ID do AniList inválido",
+        description: "Informe um ID ou URL válida do AniList antes de importar.",
         variant: "destructive",
       });
       return;
@@ -4033,8 +4108,8 @@ const DashboardProjectsEditor = () => {
       const code = typeof data?.error === "string" ? data.error : "";
       if (code === "invalid_id") {
         toast({
-          title: "ID do AniList invalido",
-          description: "Nao foi possivel buscar esse identificador.",
+          title: "ID do AniList inválido",
+          description: "Não foi possível buscar esse identificador.",
           variant: "destructive",
         });
         return;
@@ -4327,7 +4402,7 @@ const DashboardProjectsEditor = () => {
   const editorSectionTriggerClassName =
     "project-editor-section-trigger py-3 text-sm font-semibold hover:no-underline";
   const editorSectionContentClassName = "project-editor-section-content pb-4 px-1";
-  const chapterOpenContentClassName = "data-[state=open]:overflow-visible";
+  const chapterOpenContentClassName = "project-editor-open-overflow";
   const editorProjectLabel = editingProject ? "Projeto em edição" : "Novo projeto";
   const editorProjectTitle = formState.title.trim() || "Sem título";
   const editorProjectId = formState.id.trim() || "Será definido ao salvar";
@@ -4782,7 +4857,7 @@ const DashboardProjectsEditor = () => {
               <AccordionItem value="importacao" className={editorSectionClassName}>
                 <AccordionTrigger className={editorSectionTriggerClassName}>
                   <div className="flex w-full items-center justify-between gap-4 text-left">
-                    <span>Importa??o</span>
+                    <span>Importação</span>
                     <span className="text-xs text-muted-foreground">Preenchimento automático</span>
                   </div>
                 </AccordionTrigger>
@@ -4808,7 +4883,7 @@ const DashboardProjectsEditor = () => {
                         <div className="space-y-1">
                           <h3 className="text-sm font-semibold text-foreground">Ferramentas EPUB</h3>
                           <p className="text-xs text-muted-foreground">
-                            Importe capitulos para o editor Lexical e exporte o snapshot atual por volume.
+                            Importe capítulos para o editor Lexical e exporte o snapshot atual por volume.
                           </p>
                           {epubCapabilityState ? (
                             <p
@@ -4838,19 +4913,51 @@ const DashboardProjectsEditor = () => {
                             <div className="space-y-1">
                               <h4 className="text-sm font-medium text-foreground">Importar EPUB</h4>
                               <p className="text-xs text-muted-foreground">
-                                O arquivo e convertido para Lexical e mergeado localmente no formulario.
+                                O arquivo é convertido para Lexical e mergeado localmente no formulário.
                               </p>
                             </div>
                             <div className="space-y-2">
                               <Label htmlFor="epub-import-file">Arquivo .epub</Label>
                               <Input
+                                ref={epubImportInputRef}
                                 id="epub-import-file"
                                 type="file"
                                 accept=".epub,application/epub+zip"
-                                onChange={(event) =>
-                                  setEpubImportFile(event.target.files?.[0] || null)
-                                }
+                                className="sr-only"
+                                onChange={handleEpubImportFileChange}
+                                onCancel={handleEpubImportFileCancel}
                               />
+                              {epubImportFile ? (
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    openEpubImportPicker({ autoImportAfterSelect: false })
+                                  }
+                                  disabled={isImportingEpub || !backendSupportsEpubImport}
+                                  className="w-full rounded-xl border border-border/60 bg-background/50 px-3 py-3 text-left transition hover:bg-background/70 disabled:cursor-not-allowed disabled:opacity-50"
+                                >
+                                  <span className="block truncate text-sm font-medium text-foreground">
+                                    {epubImportFile.name}
+                                  </span>
+                                </button>
+                              ) : (
+                                <div className="flex flex-wrap items-center gap-3 rounded-xl border border-border/60 bg-background/50 px-3 py-3">
+                                  <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() =>
+                                      openEpubImportPicker({ autoImportAfterSelect: false })
+                                    }
+                                    disabled={isImportingEpub || !backendSupportsEpubImport}
+                                  >
+                                    Escolher arquivo
+                                  </Button>
+                                  <span className="text-xs text-muted-foreground">
+                                    Nenhum arquivo selecionado
+                                  </span>
+                                </div>
+                              )}
                             </div>
                             <div className="space-y-2">
                               <Label htmlFor="epub-import-volume">Volume de destino</Label>
@@ -4872,7 +4979,7 @@ const DashboardProjectsEditor = () => {
                                   Importar como rascunho
                                 </span>
                                 <span className="block text-xs text-muted-foreground">
-                                  Capitulos importados ficam ocultos ao publico ate a publicacao.
+                                  Capítulos importados ficam ocultos ao público até a publicação.
                                 </span>
                               </span>
                             </label>
@@ -4891,11 +4998,11 @@ const DashboardProjectsEditor = () => {
                             <div className="space-y-1">
                               <h4 className="text-sm font-medium text-foreground">Exportar EPUB</h4>
                               <p className="text-xs text-muted-foreground">
-                                Usa o estado atual do formulario, inclusive alteracoes ainda nao salvas.
+                                Usa o estado atual do formulário, inclusive alterações ainda não salvas.
                               </p>
                             </div>
                             <div className="space-y-2">
-                              <Label htmlFor="epub-export-volume">Volume para exportacao</Label>
+                              <Label htmlFor="epub-export-volume">Volume para exportação</Label>
                               <Input
                                 id="epub-export-volume"
                                 type="number"
@@ -4916,7 +5023,7 @@ const DashboardProjectsEditor = () => {
                                   Incluir rascunhos
                                 </span>
                                 <span className="block text-xs text-muted-foreground">
-                                  Exporta tambem capitulos em draft que tenham conteudo.
+                                  Exporta também capítulos em draft que tenham conteúdo.
                                 </span>
                               </span>
                             </label>
@@ -5799,9 +5906,12 @@ const DashboardProjectsEditor = () => {
                                 data-testid={`volume-group-${group.key}`}
                               >
                                 {isChapterBased && supportsVolumeEntries ? (
-                                  <div className="flex w-full items-center gap-2 px-4 pt-3">
-                                    <AccordionTrigger className="flex-1 gap-2 py-0 text-left hover:no-underline [&>svg]:mt-0 [&>svg]:self-center">
-                                      <div className="flex w-full min-w-0 items-center justify-between gap-3 pr-1">
+                                  <div className="flex w-full items-start gap-2 px-4 pb-3 pt-3">
+                                    <AccordionTrigger
+                                      headerClassName="flex-1 min-w-0"
+                                      className="w-full gap-3 py-0 text-left hover:no-underline [&>svg]:mt-0 [&>svg]:self-center"
+                                    >
+                                      <div className="flex min-w-0 flex-1 items-center justify-between gap-3 pr-1">
                                         <div className="min-w-0 space-y-1">
                                           <Label className="cursor-pointer">{volumeLabel}</Label>
                                           <p className="text-xs text-muted-foreground">
@@ -5840,7 +5950,7 @@ const DashboardProjectsEditor = () => {
                                   }
                                 >
                                   {group.hasNumericVolume ? (
-                                    <div className="grid gap-3 rounded-xl border border-border/60 bg-background/40 p-3 md:grid-cols-[140px_minmax(0,1fr)]">
+                                    <div className="space-y-3 rounded-xl border border-border/60 bg-background/40 p-3">
                                       <div className="flex items-center gap-3">
                                         {groupVolumeEntry?.coverImageUrl ? (
                                           <img
@@ -5862,34 +5972,32 @@ const DashboardProjectsEditor = () => {
                                           Biblioteca
                                         </Button>
                                       </div>
-                                      <div className="space-y-3">
-                                        <div className="space-y-2">
-                                          <Label className="text-xs">Alt</Label>
-                                          <Input
-                                            value={groupVolumeEntry?.coverImageAlt || ""}
-                                            onChange={(event) =>
-                                              updateVolumeEntryByVolume(group.volume, (entry) => ({
-                                                ...entry,
-                                                coverImageAlt: event.target.value,
-                                              }))
-                                            }
-                                            placeholder="Texto alternativo da capa"
-                                          />
-                                        </div>
-                                        <div className="space-y-2">
-                                          <Label className="text-xs">Sinopse do volume</Label>
-                                          <Textarea
-                                            value={groupVolumeEntry?.synopsis || ""}
-                                            onChange={(event) =>
-                                              updateVolumeEntryByVolume(group.volume, (entry) => ({
-                                                ...entry,
-                                                synopsis: event.target.value,
-                                              }))
-                                            }
-                                            rows={3}
-                                            placeholder="Resumo exibido nas páginas públicas para este volume"
-                                          />
-                                        </div>
+                                      <div className="space-y-2">
+                                        <Label className="text-xs">Alt</Label>
+                                        <Input
+                                          value={groupVolumeEntry?.coverImageAlt || ""}
+                                          onChange={(event) =>
+                                            updateVolumeEntryByVolume(group.volume, (entry) => ({
+                                              ...entry,
+                                              coverImageAlt: event.target.value,
+                                            }))
+                                          }
+                                          placeholder="Texto alternativo da capa"
+                                        />
+                                      </div>
+                                      <div className="space-y-2">
+                                        <Label className="text-xs">Sinopse do volume</Label>
+                                        <Textarea
+                                          value={groupVolumeEntry?.synopsis || ""}
+                                          onChange={(event) =>
+                                            updateVolumeEntryByVolume(group.volume, (entry) => ({
+                                              ...entry,
+                                              synopsis: event.target.value,
+                                            }))
+                                          }
+                                          rows={3}
+                                          placeholder="Resumo exibido nas páginas públicas para este volume"
+                                        />
                                       </div>
                                     </div>
                                   ) : null}
@@ -5931,12 +6039,12 @@ const DashboardProjectsEditor = () => {
                           publicationStatus === "draft" ? "Rascunho" : "Publicado";
                         const availabilityLabel = isLightNovel
                           ? hasEpisodeContent && hasDownloadSource
-                            ? "Hibrido"
+                            ? "Híbrido"
                             : hasEpisodeContent
                               ? "Leitura"
                               : hasDownloadSource
                                 ? "Download"
-                                : "Sem publico"
+                                : "Sem público"
                           : hasDownloadSource
                             ? "Download"
                             : currentProgressStageLabel;
@@ -6090,7 +6198,7 @@ const DashboardProjectsEditor = () => {
                                           return { ...prev, episodeDownloads: next };
                                         })
                                       }
-                                      placeholder={isExtraEntry ? "Tecnico" : "Número"}
+                                      placeholder={isExtraEntry ? "Técnico" : "Número"}
                                     />
                                     {isChapterBased ? (
                                       <Input

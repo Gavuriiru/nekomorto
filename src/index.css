@@ -949,6 +949,10 @@
     padding-top: 1.1rem;
   }
 
+  .project-editor-open-overflow[data-state="open"] {
+    overflow: visible !important;
+  }
+
   .project-editor-episode-card {
     border-color: hsl(var(--border) / 0.66);
     background: linear-gradient(170deg, hsl(var(--card) / 0.85), hsl(var(--background) / 0.62));

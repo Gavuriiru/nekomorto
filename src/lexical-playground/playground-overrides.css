@@ -117,11 +117,6 @@
   box-shadow: 0 8px 20px -18px rgba(0, 0, 0, 0.75);
 }
 
-.lexical-playground.lexical-playground--modal .toolbar.toolbar--stuck {
-  border-top-left-radius: 0;
-  border-top-right-radius: 0;
-}
-
 .lexical-playground .toolbar.toolbar--compact {
   flex-wrap: wrap;
   height: auto;
