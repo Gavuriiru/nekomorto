@@ -1901,7 +1901,7 @@ const DashboardPosts = () => {
                         <Card className="border-border/60 bg-card/80">
                           <CardContent className="space-y-5 p-6">
                             <div className="space-y-2">
-                              <Label htmlFor="post-title">{"T\u00edtulo"}</Label>
+                              <Label htmlFor="post-title">{"Título"}</Label>
                               <Input
                                 id="post-title"
                                 value={formState.title}
@@ -1964,7 +1964,7 @@ const DashboardPosts = () => {
                               </Select>
                             </div>
                             <div className="space-y-2">
-                              <Label htmlFor="post-date">{"Publica\u00e7\u00e3o"}</Label>
+                              <Label htmlFor="post-date">{"Publicação"}</Label>
                               <MuiDateTimeFieldsProvider>
                                 <div className="grid gap-3 md:grid-cols-[1.2fr_0.8fr]">
                                   <MuiBrazilDateField
@@ -2692,12 +2692,12 @@ const DashboardPosts = () => {
                                 <span className="inline-flex shrink-0 items-center gap-2 whitespace-nowrap">
                                   <Eye className="h-4 w-4" />
                                   {post.views}
-                                  {" visualiza\u00e7\u00f5es"}
+                                  {" visualizações"}
                                 </span>
                                 <span className="inline-flex shrink-0 items-center gap-2 whitespace-nowrap">
                                   <MessageSquare className="h-4 w-4" />
                                   {post.commentsCount}
-                                  {" coment\u00e1rios"}
+                                  {" comentários"}
                                 </span>
                                 <span className="ml-auto hidden max-w-44 truncate text-right text-xs text-muted-foreground lg:block">
                                   /{post.slug}
@@ -2935,7 +2935,7 @@ const DashboardPosts = () => {
                           {formatDateTimeShort(version.createdAt)}
                         </p>
                         <p className="text-xs text-muted-foreground">
-                          {version.actorName || "Sistema"} {"\u2022"} /{version.slug}
+                          {version.actorName || "Sistema"} {"•"} /{version.slug}
                         </p>
                       </div>
                       <div className="shrink-0 self-start">
@@ -2948,7 +2948,7 @@ const DashboardPosts = () => {
                             onClick={() => setRollbackTargetVersion(version)}
                           >
                             <RotateCcw className="h-4 w-4" />
-                            {"Restaurar esta vers\u00e3o"}
+                            {"Restaurar esta versão"}
                           </Button>
                         ) : null}
                       </div>

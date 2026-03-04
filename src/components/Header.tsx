@@ -42,6 +42,7 @@ import {
 } from "@/lib/access-control";
 import { sanitizePublicHref } from "@/lib/url-safety";
 import { uiCopy } from "@/lib/ui-copy";
+import { withDiscordAvatarSize } from "@/lib/discord-avatar";
 import type { SearchSuggestion } from "@/types/search-suggestion";
 import type { UploadMediaVariantsMap } from "@/lib/upload-variants";
 
@@ -400,9 +401,12 @@ const Header = ({ variant = "fixed", leading, className }: HeaderProps) => {
       }
     };
 
-    const cancelIdle = scheduleOnBrowserLoadIdle(() => {
-      void loadUser();
-    });
+    const cancelIdle = scheduleOnBrowserLoadIdle(
+      () => {
+        void loadUser();
+      },
+      { delayMs: 4000 },
+    );
 
     return () => {
       isActive = false;
@@ -423,6 +427,10 @@ const Header = ({ variant = "fixed", leading, className }: HeaderProps) => {
         ? getFirstAllowedDashboardRoute(resolveGrants(currentUser), { allowUsersForSelf: true })
         : "/dashboard",
     [currentUser],
+  );
+  const headerAvatarUrl = useMemo(
+    () => withDiscordAvatarSize(String(currentUser?.avatarUrl || ""), 64),
+    [currentUser?.avatarUrl],
   );
 
   useGlobalShortcuts({
@@ -774,8 +782,8 @@ const Header = ({ variant = "fixed", leading, className }: HeaderProps) => {
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" className="h-11 gap-2 rounded-full px-2">
                     <Avatar className="h-8 w-8 border border-border/70 shadow-[0_10px_24px_-18px_hsl(var(--foreground)/0.65)]">
-                      {currentUser.avatarUrl ? (
-                        <AvatarImage src={currentUser.avatarUrl} alt={currentUser.name} />
+                      {headerAvatarUrl ? (
+                        <AvatarImage src={headerAvatarUrl} alt={currentUser.name} />
                       ) : null}
                       <AvatarFallback className="bg-secondary text-xs text-foreground">
                         {(currentUser.name || "").slice(0, 2).toUpperCase()}

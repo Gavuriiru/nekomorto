@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import { usePageMeta } from "@/hooks/use-page-meta";
 import { useSiteSettings } from "@/hooks/use-site-settings";
+import PublicPageHero from "@/components/PublicPageHero";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { publicPageLayoutTokens } from "@/components/public-page-tokens";
@@ -122,29 +123,18 @@ const Recruitment = () => {
   });
 
   return (
-    <div className="min-h-screen bg-background">
-      <main className="pb-20 pt-20">
+    <div className="min-h-screen bg-background text-foreground">
+      <main className="pb-20">
+        <PublicPageHero
+          badge={recruitment.heroBadge}
+          title={recruitment.heroTitle}
+          subtitle={recruitment.heroSubtitle}
+        />
+
         <section
-          className={`${publicPageLayoutTokens.sectionBase} max-w-6xl pb-10 pt-6 reveal`}
+          className={`${publicPageLayoutTokens.sectionBase} max-w-6xl pt-10 reveal`}
           data-reveal
         >
-          <div className="space-y-4">
-            <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground animate-fade-in">
-              {recruitment.heroBadge}
-            </p>
-            <h1 className="text-3xl font-semibold text-foreground md:text-4xl animate-slide-up">
-              {recruitment.heroTitle}
-            </h1>
-            <p
-              className="max-w-2xl text-sm text-muted-foreground animate-slide-up opacity-0"
-              style={{ animationDelay: "0.2s" }}
-            >
-              {recruitment.heroSubtitle}
-            </p>
-          </div>
-        </section>
-
-        <section className={`${publicPageLayoutTokens.sectionBase} max-w-6xl reveal`} data-reveal>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {recruitment.roles.map((role, index) => {
               const Icon = iconMap[role.icon || "Sparkles"] || Sparkles;

@@ -112,10 +112,16 @@ import { isChapterBasedType, isLightNovelType, isMangaType } from "@/lib/project
 import { formatBytesCompact, parseHumanSizeToBytes } from "@/lib/file-size";
 import { formatBuildMetadataLabel, getFrontendBuildMetadata } from "@/lib/frontend-build";
 import { logOriginApiBaseMismatchOnce } from "@/lib/dev-diagnostics";
+import { normalizeProjectVolumeEntries } from "@/lib/project-volume-entries";
 import { usePageMeta } from "@/hooks/use-page-meta";
 import { useEditorScrollLock } from "@/hooks/use-editor-scroll-lock";
 import { useEditorScrollStability } from "@/hooks/use-editor-scroll-stability";
 import type { LexicalEditorHandle } from "@/components/lexical/LexicalEditor";
+import type {
+  ProjectEpisode,
+  ProjectVolumeCover,
+  ProjectVolumeEntry,
+} from "@/data/projects";
 import { useSiteSettings } from "@/hooks/use-site-settings";
 import type {
   ApiContractBuildMetadata,
@@ -228,47 +234,8 @@ type ProjectStaff = {
   members: string[];
 };
 
-type DownloadSource = {
-  label: string;
-  url: string;
-};
-
-type ProjectVolumeCover = {
-  volume?: number;
-  coverImageUrl: string;
-  coverImageAlt: string;
-};
-
-type ProjectVolumeEntry = {
-  volume: number;
-  synopsis: string;
-  coverImageUrl: string;
-  coverImageAlt: string;
-};
-
-type ProjectEpisode = {
-  number: number;
-  volume?: number;
+type EditorProjectEpisode = ProjectEpisode & {
   _editorKey?: string;
-  title: string;
-  entryKind?: "main" | "extra";
-  entrySubtype?: string;
-  readingOrder?: number;
-  displayLabel?: string;
-  releaseDate: string;
-  duration: string;
-  coverImageUrl?: string;
-  coverImageAlt?: string;
-  sourceType: "TV" | "Web" | "Blu-ray";
-  sources: DownloadSource[];
-  hash?: string;
-  sizeBytes?: number;
-  progressStage?: string;
-  completedStages?: string[];
-  content?: string;
-  contentFormat?: "lexical";
-  publicationStatus?: "draft" | "published";
-  chapterUpdatedAt?: string;
 };
 
 type ProjectRecord = {
@@ -319,10 +286,12 @@ type ProjectRecord = {
   deletedBy?: string | null;
 };
 
-type ProjectForm = Omit<ProjectRecord, "views" | "commentsCount" | "order">;
+type ProjectForm = Omit<ProjectRecord, "views" | "commentsCount" | "order" | "episodeDownloads"> & {
+  episodeDownloads: EditorProjectEpisode[];
+};
 
 type SortedEpisodeItem = {
-  episode: ProjectEpisode;
+  episode: EditorProjectEpisode;
   index: number;
 };
 
@@ -362,14 +331,14 @@ type EpubImportProjectSnapshot = {
 
 const buildEpubImportProjectSnapshot = (project: ProjectForm): EpubImportProjectSnapshot => {
   const episodeDownloads = (Array.isArray(project?.episodeDownloads) ? project.episodeDownloads : [])
-    .map((episode) => {
+    .map((episode): EpubImportProjectSnapshot["episodeDownloads"][number] | null => {
       const number = Number(episode?.number);
       if (!Number.isFinite(number)) {
         return null;
       }
       const parsedVolume = Number(episode?.volume);
       const parsedReadingOrder = Number(episode?.readingOrder);
-      const entryKind = episode?.entryKind === "extra" ? "extra" : "main";
+      const entryKind: "main" | "extra" = episode?.entryKind === "extra" ? "extra" : "main";
       return {
         number,
         volume: Number.isFinite(parsedVolume) ? parsedVolume : undefined,
@@ -437,6 +406,37 @@ const isEpubCssEngineFailureDetail = (detail: unknown) => {
     /cannot destructure property\s+['"]value['"]/i.test(normalized) ||
     /@bramus\/specificity/i.test(normalized)
   );
+};
+
+const EPUB_TEMP_IMPORT_ID_PATTERN = /\/uploads\/tmp\/epub-imports\/[^/]+\/([^/?#"'\s/]+)/gi;
+
+const collectEpubTempImportIds = (value: unknown, bucket: Set<string>) => {
+  if (!value) {
+    return;
+  }
+  if (typeof value === "string") {
+    const matches = String(value).matchAll(EPUB_TEMP_IMPORT_ID_PATTERN);
+    for (const match of matches) {
+      const importId = String(match?.[1] || "").trim();
+      if (importId) {
+        bucket.add(importId);
+      }
+    }
+    return;
+  }
+  if (Array.isArray(value)) {
+    value.forEach((item) => collectEpubTempImportIds(item, bucket));
+    return;
+  }
+  if (typeof value === "object") {
+    Object.values(value).forEach((item) => collectEpubTempImportIds(item, bucket));
+  }
+};
+
+const extractEpubTempImportIdsFromPayload = (value: unknown) => {
+  const bucket = new Set<string>();
+  collectEpubTempImportIds(value, bucket);
+  return Array.from(bucket);
 };
 
 type AniListMedia = {
@@ -968,7 +968,7 @@ const buildLightNovelChapterFolder = ({
   index,
 }: {
   projectChaptersFolder: string;
-  episode: ProjectEpisode;
+  episode: EditorProjectEpisode;
   index: number;
 }) => {
   const parsedNumber = Number(episode?.number);
@@ -988,7 +988,7 @@ const generateLocalId = () => {
   return `${alpha}${random}${stamp}`;
 };
 
-const resolveEpisodeEditorKey = (episode: { _editorKey?: string }) => {
+const resolveEpisodeEditorKey = (episode: Partial<EditorProjectEpisode> | null | undefined) => {
   const currentKey = String(episode._editorKey || "").trim();
   return currentKey || generateLocalId();
 };
@@ -1230,14 +1230,15 @@ const DashboardProjectsEditor = () => {
   const pendingVolumeGroupToExpandRef = useRef<string | null>(null);
   const pendingVolumeGroupToScrollRef = useRef<string | null>(null);
   const pendingContentSectionScrollRef = useRef(false);
-  const pendingEpisodeToScrollRef = useRef<ProjectEpisode | null>(null);
+  const pendingEpisodeToScrollRef = useRef<EditorProjectEpisode | null>(null);
   const pendingEpisodeFocusRef = useRef<{ number: number; volume?: number } | null>(null);
   const previousEpisodeCountRef = useRef(0);
-  const episodeCardNodeMapRef = useRef<WeakMap<ProjectEpisode, HTMLDivElement>>(new WeakMap());
+  const episodeCardNodeMapRef = useRef<WeakMap<EditorProjectEpisode, HTMLDivElement>>(new WeakMap());
   const volumeGroupNodeMapRef = useRef<Map<string, HTMLDivElement>>(new Map());
   const contentSectionRef = useRef<HTMLDivElement | null>(null);
   const epubImportInputRef = useRef<HTMLInputElement | null>(null);
   const pendingEpubAutoImportRef = useRef(false);
+  const pendingEpubImportIdsRef = useRef<Set<string>>(new Set());
 
   const resetPendingContentNavigation = useCallback(() => {
     pendingVolumeGroupToExpandRef.current = null;
@@ -1252,6 +1253,66 @@ const DashboardProjectsEditor = () => {
       epubImportInputRef.current.value = "";
     }
   }, []);
+  const clearPendingEpubImportIds = useCallback(() => {
+    pendingEpubImportIdsRef.current.clear();
+  }, []);
+  const registerPendingEpubImportIds = useCallback((payload: unknown) => {
+    extractEpubTempImportIdsFromPayload(payload).forEach((importId) => {
+      pendingEpubImportIdsRef.current.add(importId);
+    });
+  }, []);
+  const cleanupPendingEpubImports = useCallback(() => {
+    const importIds = Array.from(pendingEpubImportIdsRef.current)
+      .map((importId) => String(importId || "").trim())
+      .filter(Boolean);
+    if (!importIds.length) {
+      return;
+    }
+    pendingEpubImportIdsRef.current.clear();
+    void apiFetch(apiBase, "/api/projects/epub/import/cleanup", {
+      method: "POST",
+      auth: true,
+      keepalive: true,
+      json: { importIds },
+    })
+      .then(async (response) => {
+        if (response.ok) {
+          return;
+        }
+        let detail = "";
+        try {
+          const data = await response.json();
+          detail = String(data?.error || "").trim();
+        } catch {
+          detail = "";
+        }
+        console.warn("epub_import_temp_cleanup_failed", {
+          status: response.status,
+          detail: detail || null,
+          importIds,
+        });
+      })
+      .catch((error) => {
+        console.warn("epub_import_temp_cleanup_failed", {
+          status: "network",
+          detail: String(error?.message || error || "network_error"),
+          importIds,
+        });
+      });
+  }, [apiBase]);
+  const closeEditor = useCallback(
+    ({ skipEpubImportCleanup = false }: { skipEpubImportCleanup?: boolean } = {}) => {
+      pendingEpisodeFocusRef.current = null;
+      resetPendingContentNavigation();
+      resetEpubImportSelection();
+      if (!skipEpubImportCleanup) {
+        cleanupPendingEpubImports();
+      }
+      setIsEditorOpen(false);
+      setEditingProject(null);
+    },
+    [cleanupPendingEpubImports, resetEpubImportSelection, resetPendingContentNavigation],
+  );
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [confirmTitle, setConfirmTitle] = useState("Sair da edição?");
   const [confirmDescription, setConfirmDescription] = useState(
@@ -1340,19 +1401,13 @@ const DashboardProjectsEditor = () => {
     }
     if (!next) {
       if (!isDirty) {
-        resetPendingContentNavigation();
-        resetEpubImportSelection();
-        setIsEditorOpen(false);
-        setEditingProject(null);
+        closeEditor();
         return;
       }
       setConfirmTitle("Sair da edição?");
       setConfirmDescription("Você tem alterações não salvas. Deseja continuar?");
       confirmActionRef.current = () => {
-        resetPendingContentNavigation();
-        resetEpubImportSelection();
-        setIsEditorOpen(false);
-        setEditingProject(null);
+        closeEditor();
       };
       confirmCancelRef.current = () => {
         setConfirmOpen(false);
@@ -1644,7 +1699,7 @@ const DashboardProjectsEditor = () => {
     [projectEpisodesFolder, projectRootFolder, scopedProjectImageIds],
   );
   const buildEpisodeLibraryOptions = useCallback(
-    (episode: ProjectEpisode, index: number): ImageLibraryOptions => {
+    (episode: EditorProjectEpisode, index: number): ImageLibraryOptions => {
       if (isLightNovel) {
         const chapterFolder = buildLightNovelChapterFolder({
           projectChaptersFolder,
@@ -1731,13 +1786,13 @@ const DashboardProjectsEditor = () => {
   );
 
   const getEpisodeEntryKind = useCallback(
-    (episode: Partial<ProjectEpisode> | null | undefined): "main" | "extra" =>
+    (episode: Partial<EditorProjectEpisode> | null | undefined): "main" | "extra" =>
       episode?.entryKind === "extra" ? "extra" : "main",
     [],
   );
 
   const compareEpisodeOrdering = useCallback(
-    (left: ProjectEpisode, right: ProjectEpisode) => {
+    (left: EditorProjectEpisode, right: EditorProjectEpisode) => {
       const leftReadingOrder = Number(left?.readingOrder);
       const rightReadingOrder = Number(right?.readingOrder);
       const hasLeftReadingOrder = Number.isFinite(leftReadingOrder);
@@ -1764,7 +1819,7 @@ const DashboardProjectsEditor = () => {
 
   const resolveNextMainEpisodeNumber = useCallback(
     (
-      episodes: ProjectEpisode[],
+      episodes: EditorProjectEpisode[],
       options?: {
         excludeIndex?: number;
         volume?: number;
@@ -2581,6 +2636,7 @@ const DashboardProjectsEditor = () => {
   const openCreate = () => {
     const nextForm = { ...emptyProject };
     resetPendingContentNavigation();
+    clearPendingEpubImportIds();
     setEditingProject(null);
     setFormState(nextForm);
     setAnilistIdInput("");
@@ -2604,12 +2660,14 @@ const DashboardProjectsEditor = () => {
 
   const openEdit = useCallback((project: ProjectRecord) => {
     resetPendingContentNavigation();
+    clearPendingEpubImportIds();
     const pendingEpisodeFocus = pendingEpisodeFocusRef.current;
     const shouldOpenEpisodesSection = Boolean(pendingEpisodeFocus);
-    const initialEpisodes: ProjectEpisode[] = Array.isArray(project.episodeDownloads)
+    const initialEpisodes: EditorProjectEpisode[] = Array.isArray(project.episodeDownloads)
         ? project.episodeDownloads.map(
-          (episode): ProjectEpisode => ({
+          (episode): EditorProjectEpisode => ({
             ...episode,
+            synopsis: String(episode.synopsis || "").trim(),
             _editorKey: resolveEpisodeEditorKey(episode),
             entryKind: episode.entryKind === "extra" ? "extra" : "main",
             entrySubtype: String(episode.entrySubtype || "").trim() || undefined,
@@ -2659,30 +2717,14 @@ const DashboardProjectsEditor = () => {
       return matches[0]?.index ?? -1;
     })();
     const mergedSynopsis = project.synopsis || project.description || "";
-    const sourceVolumeEntries = Array.isArray(project.volumeEntries)
-      ? project.volumeEntries
-      : Array.isArray(project.volumeCovers)
-        ? project.volumeCovers
-        : [];
-    const normalizedVolumeEntries = sourceVolumeEntries
-      .map((entry) => {
-        const parsedVolume = Number(entry?.volume);
-        if (!Number.isFinite(parsedVolume)) {
-          return null;
-        }
-        const coverImageUrl = String(entry?.coverImageUrl || "").trim();
-        return {
-          volume: parsedVolume,
-          synopsis: String(entry?.synopsis || "").trim(),
-          coverImageUrl,
-          coverImageAlt: coverImageUrl
-            ? String(entry?.coverImageAlt || `Capa do volume ${parsedVolume}`).trim()
-            : "",
-        };
-      })
-      .filter((entry): entry is ProjectVolumeEntry => Boolean(entry))
-      .sort((left, right) => left.volume - right.volume);
-    const nextForm = {
+    const normalizedVolumeEntries = normalizeProjectVolumeEntries(
+      Array.isArray(project.volumeEntries)
+        ? project.volumeEntries
+        : Array.isArray(project.volumeCovers)
+          ? project.volumeCovers
+          : [],
+    );
+    const nextForm: ProjectForm = {
       id: project.id,
       anilistId: project.anilistId ?? null,
       title: project.title || "",
@@ -2764,7 +2806,7 @@ const DashboardProjectsEditor = () => {
     });
     setCollapsedVolumeGroups({});
     setIsEditorOpen(true);
-  }, [resetEpubImportSelection, resetPendingContentNavigation]);
+  }, [clearPendingEpubImportIds, resetEpubImportSelection, resetPendingContentNavigation]);
 
   useEffect(() => {
     const editTarget = (searchParams.get("edit") || "").trim();
@@ -2825,14 +2867,6 @@ const DashboardProjectsEditor = () => {
     searchParams,
     setSearchParams,
   ]);
-
-  const closeEditor = () => {
-    pendingEpisodeFocusRef.current = null;
-    resetPendingContentNavigation();
-    resetEpubImportSelection();
-    setIsEditorOpen(false);
-    setEditingProject(null);
-  };
 
   const requestCloseEditor = () => {
     if (!isDirty) {
@@ -2935,7 +2969,7 @@ const DashboardProjectsEditor = () => {
         scrollToFirstAffectedItem = true,
       } = options || {};
       let firstAffectedIndex = -1;
-      let firstAffectedEpisode: ProjectEpisode | null = null;
+      let firstAffectedEpisode: EditorProjectEpisode | null = null;
       const affectedIndexes = new Set<number>();
       setFormState((prev) => {
         const nextEpisodes = [...prev.episodeDownloads];
@@ -2946,8 +2980,9 @@ const DashboardProjectsEditor = () => {
           const key = buildEpisodeKey(chapter.number, chapter.volume);
           const existingIndex = episodeIndexByKey.get(key);
           if (existingIndex === undefined) {
-            const chapterWithEditorKey = {
+            const chapterWithEditorKey: EditorProjectEpisode = {
               ...chapter,
+              synopsis: String(chapter.synopsis || "").trim(),
               entryKind: chapter.entryKind === "extra" ? "extra" : "main",
               entrySubtype: String(chapter.entrySubtype || "").trim() || undefined,
               readingOrder: Number.isFinite(Number(chapter.readingOrder))
@@ -2970,9 +3005,10 @@ const DashboardProjectsEditor = () => {
             return;
           }
           const currentEpisode = nextEpisodes[existingIndex];
-          nextEpisodes[existingIndex] = {
+          const nextEpisode: EditorProjectEpisode = {
             ...currentEpisode,
             title: chapter.title,
+            synopsis: String(chapter.synopsis || currentEpisode.synopsis || "").trim(),
             entryKind: chapter.entryKind === "extra" ? "extra" : "main",
             entrySubtype: String(chapter.entrySubtype || "").trim() || currentEpisode.entrySubtype,
             readingOrder: Number.isFinite(Number(chapter.readingOrder))
@@ -2989,10 +3025,11 @@ const DashboardProjectsEditor = () => {
                 ? "published"
                 : chapter.publicationStatus || "draft",
           };
+          nextEpisodes[existingIndex] = nextEpisode;
           affectedIndexes.add(existingIndex);
           if (firstAffectedIndex === -1) {
             firstAffectedIndex = existingIndex;
-            firstAffectedEpisode = nextEpisodes[existingIndex];
+            firstAffectedEpisode = nextEpisode;
           }
         });
         return {
@@ -3238,6 +3275,7 @@ const DashboardProjectsEditor = () => {
       }
       setEpubRouteStatus("ok");
       const data = await response.json();
+      registerPendingEpubImportIds(data);
       const chapters = Array.isArray(data?.chapters)
         ? (data.chapters as ProjectEpisode[])
         : [];
@@ -3560,11 +3598,11 @@ const DashboardProjectsEditor = () => {
       return;
     }
 
-    const normalizedEpisodesForSave = formState.episodeDownloads.map((episode) => {
+    const normalizedEpisodesForSave: EditorProjectEpisode[] = formState.episodeDownloads.map((episode) => {
       const parsedNumber = Number(episode.number);
       const parsedVolume = Number(episode.volume);
       const parsedReadingOrder = Number(episode.readingOrder);
-      const entryKind = episode.entryKind === "extra" ? "extra" : "main";
+      const entryKind: "main" | "extra" = episode.entryKind === "extra" ? "extra" : "main";
       return {
         ...episode,
         number: Number.isFinite(parsedNumber) ? parsedNumber : 0,
@@ -3909,7 +3947,8 @@ const DashboardProjectsEditor = () => {
       description: "As alterações foram salvas com sucesso.",
       intent: "success",
     });
-    closeEditor();
+    clearPendingEpubImportIds();
+    closeEditor({ skipEpubImportCleanup: true });
   };
 
   const handleDelete = async () => {
@@ -4209,7 +4248,7 @@ const DashboardProjectsEditor = () => {
           return prev;
         }
         const targetKind = nextKind === "extra" ? "extra" : "main";
-        const nextEpisodeBase: ProjectEpisode = {
+        const nextEpisodeBase: EditorProjectEpisode = {
           ...currentEpisode,
           entryKind: targetKind,
           entrySubtype: targetKind === "extra" ? "extra" : "chapter",
@@ -4280,11 +4319,12 @@ const DashboardProjectsEditor = () => {
     }
     setFormState((prev) => {
       const nextMainNumber = resolveNextMainEpisodeNumber(prev.episodeDownloads);
-      const newEpisode: ProjectEpisode = {
+      const newEpisode: EditorProjectEpisode = {
         _editorKey: generateLocalId(),
         number: nextMainNumber,
         volume: undefined,
         title: "",
+        synopsis: "",
         entryKind: "main",
         entrySubtype: "chapter",
         readingOrder: undefined,
@@ -4520,18 +4560,17 @@ const DashboardProjectsEditor = () => {
                     className={`${dashboardPageLayoutTokens.listCard} group overflow-hidden transition hover:border-primary/40 animate-slide-up opacity-0`}
                     style={dashboardAnimationDelay(dashboardClampedStaggerMs(index))}
                   >
-                    <CardContent className="p-0">
+                    <CardContent className="relative p-0">
+                      <button
+                        type="button"
+                        className="absolute inset-0 z-10 rounded-2xl focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary/60"
+                        aria-label={`Abrir projeto ${project.title}`}
+                        onClick={() => openEdit(project)}
+                      >
+                        <span className="sr-only">{`Abrir projeto ${project.title}`}</span>
+                      </button>
                       <div className="grid gap-2 md:gap-6 md:grid-cols-[220px_1fr]">
                         <div className="relative aspect-2/3 w-full">
-                          <button
-                            type="button"
-                            className="absolute inset-0 z-10 rounded-2xl focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary/60"
-                            aria-hidden="true"
-                            tabIndex={-1}
-                            onClick={() => openEdit(project)}
-                          >
-                            <span className="sr-only">{`Abrir projeto ${project.title}`}</span>
-                          </button>
                           <img
                             src={project.cover || "/placeholder.svg"}
                             alt={project.title}
@@ -4549,16 +4588,8 @@ const DashboardProjectsEditor = () => {
                             </Badge>
                           ) : null}
                         </div>
-                        <div className="relative flex flex-1 flex-col gap-4 p-6">
-                          <button
-                            type="button"
-                            className="absolute inset-0 z-0 rounded-2xl focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary/60"
-                            aria-label={`Abrir projeto ${project.title}`}
-                            onClick={() => openEdit(project)}
-                          >
-                            <span className="sr-only">{`Abrir projeto ${project.title}`}</span>
-                          </button>
-                          <div className="relative z-10 flex flex-wrap items-start justify-between gap-4 pointer-events-none">
+                        <div className="flex flex-1 flex-col gap-4 p-6">
+                          <div className="flex flex-wrap items-start justify-between gap-4">
                             <div className="space-y-2">
                               <div className="flex flex-wrap items-center gap-2">
                                 <Badge variant="outline" className="text-[10px] uppercase">
@@ -4568,16 +4599,12 @@ const DashboardProjectsEditor = () => {
                                   {project.type}
                                 </Badge>
                               </div>
-                              <button
-                                type="button"
-                                className="pointer-events-auto text-left text-lg font-semibold text-foreground hover:text-primary"
-                                onClick={() => openEdit(project)}
-                              >
+                              <h3 className="text-lg font-semibold text-foreground transition-colors duration-300 group-hover:text-primary">
                                 {project.title}
-                              </button>
+                              </h3>
                               <p className="text-xs text-muted-foreground">{project.studio}</p>
                             </div>
-                            <div className="pointer-events-auto relative z-20 flex items-center gap-2">
+                            <div className="relative z-20 flex items-center gap-2">
                               <Button
                                 variant="ghost"
                                 size="icon"
@@ -4619,12 +4646,12 @@ const DashboardProjectsEditor = () => {
                             </div>
                           </div>
 
-                          <p className="pointer-events-none relative z-10 text-sm text-muted-foreground line-clamp-3">
+                          <p className="text-sm text-muted-foreground line-clamp-3">
                             {project.synopsis}
                           </p>
 
                           {project.tags.length > 0 ? (
-                            <div className="pointer-events-none relative z-10 flex flex-wrap gap-2">
+                            <div className="flex flex-wrap gap-2">
                               {sortByTranslatedLabel(project.tags || [], (tag) =>
                                 translateTag(tag, tagTranslationMap),
                               )
@@ -4641,7 +4668,7 @@ const DashboardProjectsEditor = () => {
                             </div>
                           ) : null}
                           {project.genres?.length ? (
-                            <div className="pointer-events-none relative z-10 flex flex-wrap gap-2">
+                            <div className="flex flex-wrap gap-2">
                               {sortByTranslatedLabel(project.genres || [], (genre) =>
                                 translateGenre(genre, genreTranslationMap),
                               )
@@ -4658,7 +4685,7 @@ const DashboardProjectsEditor = () => {
                             </div>
                           ) : null}
 
-                          <div className="pointer-events-none relative z-10 flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
+                          <div className="flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
                             <span className="inline-flex items-center gap-2">
                               {project.views} visualizações
                             </span>
@@ -6390,7 +6417,7 @@ const DashboardProjectsEditor = () => {
                                             const next = [...prev.episodeDownloads];
                                             next[index] = {
                                               ...next[index],
-                                              sourceType: value as ProjectEpisode["sourceType"],
+                                              sourceType: value as EditorProjectEpisode["sourceType"],
                                             };
                                             return { ...prev, episodeDownloads: next };
                                           })

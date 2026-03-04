@@ -12,15 +12,15 @@ vi.mock("@/hooks/use-site-settings", () => ({
 }));
 
 describe("Footer copyright link distinction", () => {
-  it("renderiza o copyright como texto sem transformar o simbolo em link", () => {
+  it("renderiza link de copyright com distinção visual estável (não só no hover)", () => {
     render(
       <MemoryRouter>
         <Footer />
       </MemoryRouter>,
     );
 
-    const copyrightText = screen.getByText(defaultSettings.footer.copyright);
-    expect(copyrightText.tagName).toBe("P");
-    expect(copyrightText.querySelector("a")).not.toBeInTheDocument();
+    const copyrightLink = screen.getByRole("link", { name: defaultSettings.footer.copyright });
+    expect(copyrightLink).toHaveAttribute("href", "/");
+    expect(copyrightLink).toHaveClass("underline", "underline-offset-4");
   });
 });

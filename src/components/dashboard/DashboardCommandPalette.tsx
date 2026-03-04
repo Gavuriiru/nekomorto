@@ -79,7 +79,7 @@ const DashboardCommandPalette = ({
       },
       {
         id: "new-user",
-        label: "Novo usu\u00e1rio",
+        label: "Novo usuário",
         href: "/dashboard/usuarios?create=1",
         icon: UserPlus,
         available: usersEnabled,
@@ -97,7 +97,7 @@ const DashboardCommandPalette = ({
       },
       {
         id: "open-notifications",
-        label: "Abrir notifica\u00e7\u00f5es",
+        label: "Abrir notificações",
         icon: Bell,
         available: true,
         keywords: ["notificacoes", "alertas", "fila", "inbox"],
@@ -168,7 +168,7 @@ const DashboardCommandPalette = ({
       },
       {
         id: "settings-translations",
-        label: "Tradu\u00e7\u00f5es",
+        label: "Traduções",
         href: "/dashboard/configuracoes?tab=traducoes",
         icon: settingsIcon,
         available: settingsEnabled,
@@ -185,7 +185,7 @@ const DashboardCommandPalette = ({
     return [
       {
         id: "pages-donations",
-        label: "Doa\u00e7\u00f5es",
+        label: "Doações",
         href: "/dashboard/paginas",
         icon: pagesIcon,
         available: pagesEnabled,
@@ -291,10 +291,10 @@ const DashboardCommandPalette = ({
       <CommandInput placeholder={uiCopy.commandPalette.placeholder} />
       <CommandList>
         <CommandEmpty>{uiCopy.commandPalette.empty}</CommandEmpty>
-        {renderGroup("A\u00e7\u00f5es r\u00e1pidas", quickActions)}
-        {renderGroup("Abas - Configura\u00e7\u00f5es", settingsTabActions)}
-        {renderGroup("Abas - P\u00e1ginas", pageTabActions)}
-        {renderGroup("Navega\u00e7\u00e3o", navigationItems)}
+        {renderGroup("Ações rápidas", quickActions)}
+        {renderGroup("Abas - Configurações", settingsTabActions)}
+        {renderGroup("Abas - Páginas", pageTabActions)}
+        {renderGroup("Navegação", navigationItems)}
       </CommandList>
     </CommandDialog>
   );

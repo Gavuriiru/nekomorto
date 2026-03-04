@@ -27,6 +27,7 @@ const UploadPicture = ({
   applyFocalObjectPosition = false,
   loading = "lazy",
   decoding = "async",
+  sizes,
   ...imgProps
 }: UploadPictureProps) => {
   const variantSources = resolveUploadVariantSources({ src, preset, mediaVariants });
@@ -47,11 +48,13 @@ const UploadPicture = ({
 
   return (
     <picture className={className}>
-      {avifSrc ? <source type="image/avif" srcSet={avifSrc} /> : null}
-      {webpSrc ? <source type="image/webp" srcSet={webpSrc} /> : null}
+      {avifSrc ? <source type="image/avif" srcSet={avifSrc} sizes={sizes} /> : null}
+      {webpSrc ? <source type="image/webp" srcSet={webpSrc} sizes={sizes} /> : null}
       <img
         {...imgProps}
         src={fallbackSrc}
+        srcSet={fallbackSrc}
+        sizes={sizes}
         alt={alt || ""}
         style={imgStyle}
         className={imgClassName}

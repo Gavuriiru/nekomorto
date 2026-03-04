@@ -65,7 +65,7 @@ describe("Recruitment mobile CTA layout", () => {
 
     const main = document.querySelector("main");
     expect(main).not.toBeNull();
-    expect(main).toHaveClass("pt-20");
+    expect(main).toHaveClass("pb-20");
 
     const ctaLink = await screen.findByRole("link", { name: "Entrar no Discord" });
     const ctaLinkTokens = classTokens(ctaLink);

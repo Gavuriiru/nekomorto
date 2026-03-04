@@ -30,6 +30,10 @@ describe("buildApiContractV1", () => {
         }),
         expect.objectContaining({
           method: "POST",
+          path: "/api/projects/epub/import/cleanup",
+        }),
+        expect.objectContaining({
+          method: "POST",
           path: "/api/projects/epub/export",
         }),
       ]),

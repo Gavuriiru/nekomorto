@@ -45,7 +45,7 @@ const setupBootstrapMock = () => {
           title: "Projeto Teste",
         },
       ],
-      tagTranslations: { tags: { acao: "Ação" } },
+      tagTranslations: { tags: { acao: "A\u00e7\u00e3o" } },
     },
   });
 };
@@ -77,12 +77,7 @@ describe("ReleasesSection cover fit", () => {
 
     const coverContainer = coverImage.parentElement?.parentElement;
     expect(coverContainer).not.toBeNull();
-    expect(coverContainer).toHaveClass(
-      "relative",
-      "w-full",
-      "aspect-3/2",
-      "overflow-hidden",
-    );
+    expect(coverContainer).toHaveClass("relative", "w-full", "aspect-3/2", "overflow-hidden");
   });
 
   it("expoe ancora de lancamentos, link da postagem e remove CTAs extras", async () => {
@@ -97,7 +92,7 @@ describe("ReleasesSection cover fit", () => {
     expect(document.getElementById("lancamentos")).toBeInTheDocument();
     const postLink = await screen.findByRole("link", { name: /post de teste/i });
     expect(postLink).toHaveAttribute("href", "/postagem/post-teste");
-    expect(screen.queryByText("Ação")).not.toBeInTheDocument();
+    expect(screen.queryByText("A\u00e7\u00e3o")).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /Ler postagem/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /Ver projeto/i })).not.toBeInTheDocument();
   });
@@ -111,9 +106,11 @@ describe("ReleasesSection cover fit", () => {
       </MemoryRouter>,
     );
 
-    const sectionHeading = screen.getByRole("heading", { level: 2, name: "Lançamentos recentes" });
+    const sectionHeading = screen.getByRole("heading", { level: 2, name: /Lan.*amentos recentes/i });
     const cardHeading = await screen.findByRole("heading", { level: 3, name: "Post de Teste" });
 
-    expect(sectionHeading.compareDocumentPosition(cardHeading) & Node.DOCUMENT_POSITION_FOLLOWING).not.toBe(0);
+    expect(
+      sectionHeading.compareDocumentPosition(cardHeading) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).not.toBe(0);
   });
 });

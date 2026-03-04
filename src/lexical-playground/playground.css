@@ -6,7 +6,13 @@
  *
  */
 
-@import 'https://fonts.googleapis.com/css?family=Reenie+Beanie';
+@font-face {
+  font-family: 'Reenie Beanie', cursive;
+  src: url('/fonts/reenie-beanie/ReenieBeanie-Regular.woff2') format('woff2');
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+}
 
 .lexical-playground body {
   margin: 0;

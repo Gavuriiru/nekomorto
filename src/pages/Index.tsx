@@ -34,14 +34,12 @@ const Index = () => {
       return;
     }
 
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (!entries.some((entry) => entry.isIntersecting)) {
-          return;
-        }
-        setShouldRenderReleases(true);
-      },
-    );
+    const observer = new IntersectionObserver((entries) => {
+      if (!entries.some((entry) => entry.isIntersecting)) {
+        return;
+      }
+      setShouldRenderReleases(true);
+    });
     observer.observe(sentinel);
 
     return () => {

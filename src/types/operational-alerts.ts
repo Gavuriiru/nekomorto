@@ -9,6 +9,15 @@ export type OperationalAlert = {
   meta?: Record<string, unknown>;
 };
 
+export type OperationalCheckFinding = {
+  name: string;
+  severity: "warning" | "critical";
+  title: string;
+  description: string;
+  latencyMs?: number;
+  meta?: Record<string, unknown>;
+};
+
 export type OperationalAlertsResponse = {
   ok: boolean;
   status: "ok" | "degraded" | "fail";
@@ -20,5 +29,10 @@ export type OperationalAlertsResponse = {
     warning: number;
     info: number;
   };
+  checkFindings?: OperationalCheckFinding[];
+  checkSummary?: {
+    total: number;
+    critical: number;
+    warning: number;
+  };
 };
-

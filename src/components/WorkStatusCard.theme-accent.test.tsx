@@ -68,15 +68,13 @@ describe("WorkStatusCard accent mode", () => {
 
     const badge = await screen.findByText("Timing");
     expect(badge).toHaveClass("bg-pink-500/20", "text-pink-400", "border-pink-500/30");
-    expect(badge).not.toHaveClass("bg-primary/20");
+    expect(badge).not.toHaveClass("bg-primary");
 
     const indicator = container.querySelector(".bg-pink-500");
     expect(indicator).not.toBeNull();
     expect(indicator).not.toHaveClass("bg-primary");
 
-    expect(
-      screen.getByRole("progressbar", { name: "Oshi no Ko Episódio 1 43% concluído" }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole("progressbar", { name: /Oshi no Ko.*43% conclu/ })).toBeInTheDocument();
   });
 
   it("usa cor tematica no badge e na barra quando a flag estiver ativada", async () => {
@@ -92,7 +90,7 @@ describe("WorkStatusCard accent mode", () => {
     );
 
     const badge = await screen.findByText("Timing");
-    expect(badge).toHaveClass("bg-primary/20", "text-primary", "border-primary/40");
+    expect(badge).toHaveClass("bg-primary", "text-primary-foreground", "border-primary/80");
     expect(badge).not.toHaveClass("bg-pink-500/20");
 
     const indicator = container.querySelector(".bg-primary");

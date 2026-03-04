@@ -128,7 +128,9 @@ describe("DashboardUsers permissions matrix", () => {
       </MemoryRouter>,
     );
 
-    fireEvent.click(await screen.findByRole("button", { name: "Abrir usuário Colaborador" }));
+    fireEvent.click(
+      await screen.findByRole("button", { name: /Abrir usu.*rio Colaborador/i }),
+    );
     const dialog = await screen.findByRole("dialog");
 
     fireEvent.change(within(dialog).getByLabelText("Nome"), {

@@ -31,6 +31,24 @@ describe("PublicLayout", () => {
     expect(
       screen.queryByRole("navigation", { name: /Atalhos de acessibilidade/i }),
     ).not.toBeInTheDocument();
-    expect(screen.queryByRole("link", { name: "Pular para o conteúdo" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /Pular para o conte/iu })).not.toBeInTheDocument();
+    expect(screen.getByRole("main").parentElement).not.toHaveClass("bg-gradient-surface");
+  });
+
+  it("aplica o gradiente de surface na rota /projetos", () => {
+    render(
+      <MemoryRouter initialEntries={["/projetos"]}>
+        <Routes>
+          <Route element={<PublicLayout />}>
+            <Route path="/projetos" element={<div data-testid="public-outlet">Projetos</div>} />
+          </Route>
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByRole("main").parentElement).toHaveClass(
+      "bg-gradient-surface",
+      "text-foreground",
+    );
   });
 });

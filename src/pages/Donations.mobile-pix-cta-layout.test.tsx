@@ -52,6 +52,10 @@ describe("Donations mobile PIX CTA layout", () => {
   it("aplica botao de copiar chave PIX full width no mobile e auto no desktop", async () => {
     render(<Donations />);
 
+    expect(document.querySelector(".public-page-hero")).not.toBeNull();
+    expect(screen.queryByText(/^Equipe$/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/^Recrutamento$/)).not.toBeInTheDocument();
+
     const copyButton = await screen.findByRole("button", { name: "Copiar chave PIX" });
     const copyButtonTokens = classTokens(copyButton);
 

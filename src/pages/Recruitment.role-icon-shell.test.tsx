@@ -63,6 +63,10 @@ describe("Recruitment role icon shell", () => {
   it("mantem badge do icone com contraste sem borda e hover semanticos", async () => {
     render(<Recruitment />);
 
+    expect(document.querySelector(".public-page-hero")).not.toBeNull();
+    expect(screen.getByText("Recrutamento")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Venha fazer parte da equipe" })).toBeInTheDocument();
+
     const roleHeading = await screen.findByRole("heading", { name: "Tradutor" });
     const roleHeader = roleHeading.parentElement as HTMLElement | null;
 

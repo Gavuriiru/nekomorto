@@ -45,6 +45,7 @@ import {
   translateTag,
 } from "@/lib/project-taxonomy";
 import { formatBytesCompact } from "@/lib/file-size";
+import { normalizeProjectVolumeEntries } from "@/lib/project-volume-entries";
 import { useSiteSettings } from "@/hooks/use-site-settings";
 import { usePageMeta } from "@/hooks/use-page-meta";
 import { normalizeAssetUrl } from "@/lib/asset-url";
@@ -592,29 +593,13 @@ const ProjectPage = () => {
   }, [isLightNovel, sortedDownloadableEpisodes, sortedLightNovelChapters]);
 
   const normalizedVolumeEntries = useMemo(() => {
-    const source = Array.isArray(project?.volumeEntries)
-      ? project.volumeEntries
-      : Array.isArray(project?.volumeCovers)
-        ? project.volumeCovers
-        : [];
-    return source
-      .map((entry) => {
-        const volume = Number(entry?.volume);
-        if (!Number.isFinite(volume)) {
-          return null;
-        }
-        const coverImageUrl = String(entry?.coverImageUrl || "").trim();
-        return {
-          volume,
-          synopsis: String(entry?.synopsis || "").trim(),
-          coverImageUrl,
-          coverImageAlt: coverImageUrl
-            ? String(entry?.coverImageAlt || `Capa do volume ${volume}`).trim()
-            : "",
-        };
-      })
-      .filter((entry): entry is { volume: number; synopsis: string; coverImageUrl: string; coverImageAlt: string } => Boolean(entry))
-      .sort((left, right) => left.volume - right.volume);
+    return normalizeProjectVolumeEntries(
+      Array.isArray(project?.volumeEntries)
+        ? project.volumeEntries
+        : Array.isArray(project?.volumeCovers)
+          ? project.volumeCovers
+          : [],
+    );
   }, [project?.volumeEntries, project?.volumeCovers]);
 
   const resolveVolumeGroupMeta = (group: { volume?: number; items: EpisodeItem[] }) => {

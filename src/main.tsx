@@ -45,11 +45,14 @@ const setBootstrapTitle = (siteName: string, separator: string) => {
 };
 
 const bootstrap = async () => {
-  scheduleOnBrowserLoadIdle(() => {
-    void import("@/lib/pwa-register")
-      .then(({ registerPwa }) => registerPwa())
-      .catch(() => null);
-  });
+  scheduleOnBrowserLoadIdle(
+    () => {
+      void import("@/lib/pwa-register")
+        .then(({ registerPwa }) => registerPwa())
+        .catch(() => null);
+    },
+    { delayMs: 5000 },
+  );
 
   const apiBase = getApiBase();
   const globalWindow = window as Window & {
@@ -76,12 +79,6 @@ const bootstrap = async () => {
     if (initialBootstrap) {
       queryClient.setQueryData(PUBLIC_BOOTSTRAP_QUERY_KEY, initialBootstrap);
       initialSettings = initialBootstrap.settings || initialSettings;
-    } else if (!initialSettings) {
-      const response = await apiFetch(apiBase, "/api/public/settings");
-      if (response.ok) {
-        const data = await response.json();
-        initialSettings = data.settings || {};
-      }
     }
   } catch {
     initialBootstrap = null;

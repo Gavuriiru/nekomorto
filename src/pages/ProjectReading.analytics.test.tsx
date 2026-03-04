@@ -200,7 +200,10 @@ describe("ProjectReading analytics", () => {
     expect(within(hero).getByText("Projeto Teste")).toBeInTheDocument();
     expect(within(hero).getByText("Resumo do capitulo")).toBeInTheDocument();
     expect(within(hero).getByText("Light Novel")).toBeInTheDocument();
-    expect(within(hero).getByText(/Cap 1/i)).toBeInTheDocument();
+    const chapterBadge = within(hero).getByText(/Cap 1/i);
+    expect(chapterBadge).toBeInTheDocument();
+    expect(within(hero).getByText(/Vol\. 2/i)).toBeInTheDocument();
+    expect(chapterBadge).not.toHaveClass("bg-secondary");
     const contentSection = document.querySelector("main > section + section");
     expect(contentSection).not.toBeNull();
     expect(contentSection).toHaveClass("mt-6");

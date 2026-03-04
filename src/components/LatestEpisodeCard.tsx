@@ -114,6 +114,7 @@ const LatestEpisodeCard = () => {
                           alt={update.projectTitle}
                           preset="poster"
                           mediaVariants={mediaVariants}
+                          sizes="96px"
                           className="block h-full w-full"
                           imgClassName="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
                         />

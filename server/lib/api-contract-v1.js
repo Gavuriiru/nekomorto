@@ -117,6 +117,17 @@ const CONTRACT_BASE = Object.freeze({
     },
     {
       method: "POST",
+      path: "/api/projects/epub/import/cleanup",
+      auth: "session",
+      cache: "no-store",
+      idempotent: "optional_by_header",
+      notes: [
+        "Receives importIds[] and deletes temp uploads from tmp/epub-imports owned by the current user.",
+        "Best-effort cleanup: returns counters even when partial failures happen.",
+      ],
+    },
+    {
+      method: "POST",
       path: "/api/projects/epub/export",
       auth: "session",
       cache: "no-store",
@@ -216,6 +227,13 @@ const CONTRACT_BASE = Object.freeze({
       auth: "pending_mfa_session",
       cache: "no-store",
       idempotent: "optional_by_header",
+    },
+    {
+      method: "GET",
+      path: "/api/admin/operational-alerts",
+      auth: "admin_or_owner",
+      cache: "no-store",
+      responseExtends: ["checkFindings", "checkSummary"],
     },
     {
       method: "GET",

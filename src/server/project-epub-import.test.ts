@@ -434,6 +434,57 @@ describe("project EPUB import", () => {
     }
   });
 
+  it("deduplica fallback CSS por documentHref durante a mesma importacao", async () => {
+    const originalWindowDescriptor = Object.getOwnPropertyDescriptor(JSDOM.prototype, "window");
+    const windowGetterSpy = vi.spyOn(JSDOM.prototype, "window", "get").mockImplementation(function () {
+      const nextWindow = originalWindowDescriptor?.get?.call(this);
+      if (nextWindow && typeof nextWindow.getComputedStyle === "function") {
+        nextWindow.getComputedStyle = () => {
+          throw new Error(
+            "Cannot destructure property 'value' of 'Specificity.max(...)' as it is undefined.",
+          );
+        };
+      }
+      return nextWindow;
+    });
+    const consoleWarnSpy = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+
+    try {
+      epubState.toc = [{ id: "chapter-toc", title: "Chapter 1", href: "OEBPS/Text/chapter001.xhtml" }];
+      epubState.flow = [
+        { id: "chapter001", title: "Chapter 1", href: "OEBPS/Text/chapter001.xhtml" },
+        { id: "chapter001_part2", title: "Chapter 1", href: "OEBPS/Text/chapter001.xhtml" },
+      ];
+      epubState.manifest = {
+        chapter001: { id: "chapter001", href: "OEBPS/Text/chapter001.xhtml" },
+        chapter001_part2: { id: "chapter001_part2", href: "OEBPS/Text/chapter001.xhtml" },
+      };
+      epubState.chapters = {
+        chapter001: "<p>Parte 1.</p>",
+        chapter001_part2: "<p>Parte 2.</p>",
+      };
+
+      const result = await importProjectEpub({
+        buffer: Buffer.from("fake"),
+        targetVolume: 1,
+        defaultStatus: "draft",
+        project: { episodeDownloads: [] },
+      });
+
+      const warningMessage =
+        'Estilos CSS avancados foram ignorados no capitulo "Chapter 1"; importacao continuou sem estilos calculados.';
+      expect(result.warnings.filter((warning) => warning === warningMessage)).toHaveLength(1);
+      expect(
+        consoleWarnSpy.mock.calls.filter(
+          ([eventName]) => String(eventName || "") === "epub_import_editorial_css_fallback",
+        ),
+      ).toHaveLength(1);
+    } finally {
+      consoleWarnSpy.mockRestore();
+      windowGetterSpy.mockRestore();
+    }
+  });
+
   it("usa documentHref como contexto quando a etapa de estilo falha sem titulo de capitulo", async () => {
     const originalWindowDescriptor = Object.getOwnPropertyDescriptor(JSDOM.prototype, "window");
     const windowGetterSpy = vi.spyOn(JSDOM.prototype, "window", "get").mockImplementation(function () {

@@ -435,7 +435,7 @@ const AvatarCropWorkspace = ({
       await onApplyCrop(normalizedDataUrl);
     } catch {
       toast({
-        title: "N\u00E3o foi poss\u00EDvel gerar a imagem recortada.",
+        title: "Não foi possível gerar a imagem recortada.",
         description: "Tente novamente em alguns instantes.",
       });
     }
@@ -470,7 +470,7 @@ const AvatarCropWorkspace = ({
                 onError={() => {
                   setIsCropReady(false);
                   toast({
-                    title: "N\u00E3o foi poss\u00EDvel carregar a imagem para recorte.",
+                    title: "Não foi possível carregar a imagem para recorte.",
                     description: "Tente selecionar outra imagem.",
                   });
                 }}
@@ -1652,7 +1652,7 @@ const ImageLibraryDialog = ({
           });
         }
       } catch {
-        toast({ title: "N\u00E3o foi poss\u00EDvel enviar a imagem." });
+        toast({ title: "Não foi possível enviar a imagem." });
       } finally {
         setIsUploading(false);
       }
@@ -1677,7 +1677,7 @@ const ImageLibraryDialog = ({
         }),
       });
       if (!response.ok) {
-        toast({ title: "N\u00E3o foi poss\u00EDvel importar a imagem por URL." });
+        toast({ title: "Não foi possível importar a imagem por URL." });
         return;
       }
       const data = await response.json();
@@ -1755,12 +1755,12 @@ const ImageLibraryDialog = ({
         if (response.status === 409) {
           toast({
             title: "Imagem em uso",
-            description: "Remova refer\u00EAncias antes de excluir.",
+            description: "Remova referências antes de excluir.",
           });
           return;
         }
         if (!response.ok) {
-          toast({ title: "N\u00E3o foi poss\u00EDvel excluir a imagem." });
+          toast({ title: "Não foi possível excluir a imagem." });
           return;
         }
         const itemKey = toComparableSelectionKey(item.url);
@@ -1801,12 +1801,12 @@ const ImageLibraryDialog = ({
       if (response.status === 409) {
         toast({
           title: "Conflito de nome",
-          description: "J\u00E1 existe um arquivo com esse nome.",
+          description: "Já existe um arquivo com esse nome.",
         });
         return;
       }
       if (!response.ok) {
-        toast({ title: "N\u00E3o foi poss\u00EDvel renomear a imagem." });
+        toast({ title: "Não foi possível renomear a imagem." });
         return;
       }
       const data = await response.json();
@@ -1947,7 +1947,7 @@ const ImageLibraryDialog = ({
     if (cropAvatar && selectedUrls.length > 0) {
       const normalizedCropSlot = String(cropSlot || "").trim();
       if (!normalizedCropSlot) {
-        toast({ title: "Preencha o ID do usu\u00E1rio antes de salvar o avatar." });
+        toast({ title: "Preencha o ID do usuário antes de salvar o avatar." });
         return;
       }
       const selectedUrl = String(selectedUrls[0] || "").trim();
@@ -1980,14 +1980,14 @@ const ImageLibraryDialog = ({
       const nextDataUrl = dataUrl.trim();
       if (!nextDataUrl) {
         toast({
-          title: "N\u00E3o foi poss\u00EDvel gerar a imagem recortada.",
+          title: "Não foi possível gerar a imagem recortada.",
           description: "Tente novamente em alguns instantes.",
         });
         return;
       }
       const normalizedCropSlot = String(cropSlot || "").trim();
       if (cropAvatar && !normalizedCropSlot) {
-        toast({ title: "Preencha o ID do usu\u00E1rio antes de aplicar o recorte." });
+        toast({ title: "Preencha o ID do usuário antes de aplicar o recorte." });
         return;
       }
       const targetFolder = cropAvatar
@@ -2029,7 +2029,7 @@ const ImageLibraryDialog = ({
         });
       } catch {
         toast({
-          title: "N\u00E3o foi poss\u00EDvel gerar a imagem recortada.",
+          title: "Não foi possível gerar a imagem recortada.",
           description: "Tente novamente em alguns instantes.",
         });
       } finally {
@@ -2145,8 +2145,8 @@ const ImageLibraryDialog = ({
                       {item.source === "project"
                         ? "Item somente leitura (projeto). Texto alternativo editavel apenas em uploads."
                         : item.inUse
-                          ? "Exclus\u00E3o bloqueada: imagem em uso."
-                          : "A\u00E7\u00F5es indispon\u00EDveis."}
+                          ? "Exclusão bloqueada: imagem em uso."
+                          : "Ações indisponíveis."}
                     </ContextMenuLabel>
                   </>
                 ) : null}
@@ -2319,10 +2319,10 @@ const ImageLibraryDialog = ({
               )}
               <p className="text-xs text-muted-foreground">
                 {mode === "multiple"
-                  ? "Clique para alternar sele\u00E7\u00E3o. A ordem de clique vira a ordem de inser\u00E7\u00E3o."
+                  ? "Clique para alternar seleção. A ordem de clique vira a ordem de inserção."
                   : cropAvatar
                     ? "Clique na imagem para selecionar e abrir o editor de avatar."
-                    : "Clique para selecionar. A imagem s\u00F3 ser\u00E1 aplicada ao clicar em Salvar."}
+                    : "Clique para selecionar. A imagem só será aplicada ao clicar em Salvar."}
               </p>
             </div>
           </div>
@@ -2544,8 +2544,8 @@ const ImageLibraryDialog = ({
             <DialogTitle>Excluir imagem?</DialogTitle>
             <DialogDescription>
               {deleteTarget
-                ? `A imagem "${toEffectiveName(deleteTarget)}" ser\u00E1 removida permanentemente.`
-                : "Confirme a exclus\u00E3o da imagem."}
+                ? `A imagem "${toEffectiveName(deleteTarget)}" será removida permanentemente.`
+                : "Confirme a exclusão da imagem."}
             </DialogDescription>
           </DialogHeader>
           <div className="flex justify-end gap-2">

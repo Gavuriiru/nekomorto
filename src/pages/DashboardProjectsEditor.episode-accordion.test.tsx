@@ -273,8 +273,23 @@ const setupApiMock = (
         build,
         endpoints: [
           { method: "POST", path: "/api/projects/epub/import" },
+          { method: "POST", path: "/api/projects/epub/import/cleanup" },
           { method: "POST", path: "/api/projects/epub/export" },
         ],
+      });
+    }
+    if (path === "/api/projects/epub/import/cleanup" && method === "POST") {
+      const importIds =
+        Array.isArray((options as { json?: { importIds?: unknown[] } } | undefined)?.json?.importIds)
+          ? (((options as { json?: { importIds?: unknown[] } } | undefined)?.json?.importIds || []) as unknown[])
+          : [];
+      return mockJsonResponse(true, {
+        requestedImportIds: importIds,
+        matchedUploads: 0,
+        deletedUploads: 0,
+        skippedInUse: 0,
+        skippedNotOwned: 0,
+        failed: 0,
       });
     }
 
@@ -346,7 +361,7 @@ const openEpisodeEditor = async ({
 
   await screen.findByRole("heading", { name: "Gerenciar projetos" });
 
-  fireEvent.click(await screen.findByText(projectTitle));
+  fireEvent.click(await screen.findByRole("button", { name: `Abrir projeto ${projectTitle}` }));
   await screen.findByRole("heading", { name: "Editar projeto" });
 
   fireEvent.click(screen.getByRole("button", { name: sectionNamePattern }));
@@ -662,7 +677,7 @@ describe("DashboardProjectsEditor episode accordion", () => {
       await waitFor(() => {
         expect(screen.queryByRole("heading", { name: "Editar projeto" })).not.toBeInTheDocument();
       });
-      fireEvent.click(await screen.findByRole("button", { name: "Projeto Light Novel" }));
+      fireEvent.click(await screen.findByRole("button", { name: "Abrir projeto Projeto Light Novel" }));
       const editorDialog = await screen.findByRole("dialog");
       fireEvent.click(
         within(editorDialog).getByRole("button", {
@@ -1726,6 +1741,304 @@ describe("DashboardProjectsEditor episode accordion", () => {
       value: originalAnchorClick,
     });
     inputClickSpy.mockRestore();
+  });
+
+  it("dispara cleanup de importacoes EPUB temporarias ao sair sem salvar", async () => {
+    setupApiMock([lightNovelProjectFixture]);
+    const baseImplementation = apiFetchMock.getMockImplementation();
+
+    apiFetchMock.mockImplementation(async (base, path, options) => {
+      const method = String((options as RequestInit | undefined)?.method || "GET").toUpperCase();
+      if (path === `/api/projects/${lightNovelProjectFixture.id}` && method === "PUT") {
+        const payload = (((options as { json?: unknown } | undefined)?.json || {}) ??
+          {}) as Record<string, unknown>;
+        return mockJsonResponse(true, {
+          project: {
+            ...lightNovelProjectFixture,
+            ...payload,
+          },
+        });
+      }
+      if (path === "/api/projects/epub/import/cleanup" && method === "POST") {
+        return baseImplementation
+          ? (baseImplementation(base, path, options) as Promise<Response>)
+          : mockJsonResponse(false, { error: "not_found" }, 404);
+      }
+      if (String(path).startsWith("/api/projects/epub/import") && method === "POST") {
+        return mockJsonResponse(true, {
+          summary: {
+            chapters: 1,
+            created: 1,
+            updated: 0,
+            imagesImported: 1,
+            imageImportFailures: 0,
+            boilerplateDiscarded: 0,
+            unresolvedTocEntries: 0,
+            volumeCoverImported: true,
+            volumeCoverSkipped: false,
+          },
+          warnings: [],
+          volumeCovers: [
+            {
+              volume: 2,
+              coverImageUrl: "/uploads/tmp/epub-imports/test-user/import-cleanup-1/volume-cover.jpg",
+              coverImageAlt: "Capa do volume 2",
+              mergeMode: "create",
+            },
+          ],
+          chapters: [
+            {
+              number: 2,
+              volume: 2,
+              title: "Capitulo importado",
+              releaseDate: "",
+              duration: "",
+              sourceType: "Web",
+              sources: [],
+              progressStage: "aguardando-raw",
+              completedStages: [],
+              content: '{"root":{"children":[{"type":"paragraph"}]}}',
+              contentFormat: "lexical",
+              publicationStatus: "draft",
+              mergeMode: "create",
+              episodeKey: "2:2",
+            },
+          ],
+        });
+      }
+      return baseImplementation
+        ? (baseImplementation(base, path, options) as Promise<Response>)
+        : mockJsonResponse(false, { error: "not_found" }, 404);
+    });
+
+    await openEpisodeEditor({
+      projectTitle: "Projeto Light Novel",
+      sectionNamePattern: /Cap/i,
+      removeButtonPattern: /Remover cap/i,
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /Importa[^r]/i }));
+    const importButton = screen.getByRole("button", { name: /Importar EPUB/i });
+    await waitFor(() => {
+      expect(importButton).not.toBeDisabled();
+    });
+    const fileInput = screen.getByLabelText(/Arquivo \.epub/i);
+    fireEvent.change(fileInput, {
+      target: { files: [new File(["epub"], "cleanup.epub", { type: "application/epub+zip" })] },
+    });
+    fireEvent.click(importButton);
+    await waitFor(() => {
+      expect(toastMock).toHaveBeenCalledWith(expect.objectContaining({ title: "EPUB importado" }));
+    });
+
+    const editorDialog = screen.getByRole("dialog");
+    fireEvent.click(within(editorDialog).getByRole("button", { name: /^Cancelar$/i }));
+    fireEvent.click(await screen.findByRole("button", { name: /^Sair$/i }));
+
+    await waitFor(() => {
+      expect(screen.queryByRole("heading", { name: "Editar projeto" })).not.toBeInTheDocument();
+    });
+
+    const cleanupCall = apiFetchMock.mock.calls.find((call) => call[1] === "/api/projects/epub/import/cleanup");
+    expect(cleanupCall).toBeDefined();
+    const cleanupOptions = (cleanupCall?.[2] || {}) as {
+      method?: string;
+      keepalive?: boolean;
+      json?: { importIds?: unknown[] };
+    };
+    expect(cleanupOptions.method).toBe("POST");
+    expect(cleanupOptions.keepalive).toBe(true);
+    expect(cleanupOptions.json).toEqual({
+      importIds: ["import-cleanup-1"],
+    });
+  });
+
+  it("nao dispara cleanup imediato quando o projeto e salvo apos importar EPUB", async () => {
+    setupApiMock([lightNovelProjectFixture]);
+    const baseImplementation = apiFetchMock.getMockImplementation();
+
+    apiFetchMock.mockImplementation(async (base, path, options) => {
+      const method = String((options as RequestInit | undefined)?.method || "GET").toUpperCase();
+      if (path === `/api/projects/${lightNovelProjectFixture.id}` && method === "PUT") {
+        const payload = (((options as { json?: unknown } | undefined)?.json || {}) ??
+          {}) as Record<string, unknown>;
+        return mockJsonResponse(true, {
+          project: {
+            ...lightNovelProjectFixture,
+            ...payload,
+          },
+        });
+      }
+      if (path === "/api/projects/epub/import/cleanup" && method === "POST") {
+        return baseImplementation
+          ? (baseImplementation(base, path, options) as Promise<Response>)
+          : mockJsonResponse(false, { error: "not_found" }, 404);
+      }
+      if (String(path).startsWith("/api/projects/epub/import") && method === "POST") {
+        return mockJsonResponse(true, {
+          summary: {
+            chapters: 1,
+            created: 1,
+            updated: 0,
+            imagesImported: 1,
+            imageImportFailures: 0,
+            boilerplateDiscarded: 0,
+            unresolvedTocEntries: 0,
+            volumeCoverImported: false,
+            volumeCoverSkipped: false,
+          },
+          warnings: [],
+          volumeCovers: [],
+          chapters: [
+            {
+              number: 2,
+              volume: 2,
+              title: "Capitulo importado",
+              releaseDate: "",
+              duration: "",
+              sourceType: "Web",
+              sources: [],
+              progressStage: "aguardando-raw",
+              completedStages: [],
+              content:
+                '{"root":{"children":[{"type":"paragraph","children":[{"type":"text","text":"importado"}],"version":1}],"version":1}}',
+              contentFormat: "lexical",
+              publicationStatus: "draft",
+              mergeMode: "create",
+              episodeKey: "2:2",
+            },
+          ],
+        });
+      }
+      return baseImplementation
+        ? (baseImplementation(base, path, options) as Promise<Response>)
+        : mockJsonResponse(false, { error: "not_found" }, 404);
+    });
+
+    await openEpisodeEditor({
+      projectTitle: "Projeto Light Novel",
+      sectionNamePattern: /Cap/i,
+      removeButtonPattern: /Remover cap/i,
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /Importa[^r]/i }));
+    const importButton = screen.getByRole("button", { name: /Importar EPUB/i });
+    await waitFor(() => {
+      expect(importButton).not.toBeDisabled();
+    });
+    const fileInput = screen.getByLabelText(/Arquivo \.epub/i);
+    fireEvent.change(fileInput, {
+      target: { files: [new File(["epub"], "save.epub", { type: "application/epub+zip" })] },
+    });
+    fireEvent.click(importButton);
+    await waitFor(() => {
+      expect(toastMock).toHaveBeenCalledWith(expect.objectContaining({ title: "EPUB importado" }));
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /Salvar projeto/i }));
+    await waitFor(() => {
+      expect(screen.queryByRole("heading", { name: "Editar projeto" })).not.toBeInTheDocument();
+    });
+
+    expect(
+      apiFetchMock.mock.calls.some((call) => call[1] === "/api/projects/epub/import/cleanup"),
+    ).toBe(false);
+  });
+
+  it("falha no cleanup sem bloquear fechamento do editor", async () => {
+    setupApiMock([lightNovelProjectFixture]);
+    const baseImplementation = apiFetchMock.getMockImplementation();
+    const consoleWarnSpy = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+
+    apiFetchMock.mockImplementation(async (base, path, options) => {
+      const method = String((options as RequestInit | undefined)?.method || "GET").toUpperCase();
+      if (path === "/api/projects/epub/import/cleanup" && method === "POST") {
+        return mockJsonResponse(false, { error: "cleanup_failed" }, 500);
+      }
+      if (String(path).startsWith("/api/projects/epub/import") && method === "POST") {
+        return mockJsonResponse(true, {
+          summary: {
+            chapters: 1,
+            created: 1,
+            updated: 0,
+            imagesImported: 1,
+            imageImportFailures: 0,
+            boilerplateDiscarded: 0,
+            unresolvedTocEntries: 0,
+            volumeCoverImported: true,
+            volumeCoverSkipped: false,
+          },
+          warnings: [],
+          volumeCovers: [
+            {
+              volume: 2,
+              coverImageUrl: "/uploads/tmp/epub-imports/test-user/import-cleanup-2/volume-cover.jpg",
+              coverImageAlt: "Capa do volume 2",
+              mergeMode: "create",
+            },
+          ],
+          chapters: [
+            {
+              number: 2,
+              volume: 2,
+              title: "Capitulo importado",
+              releaseDate: "",
+              duration: "",
+              sourceType: "Web",
+              sources: [],
+              progressStage: "aguardando-raw",
+              completedStages: [],
+              content: '{"root":{"children":[{"type":"paragraph"}]}}',
+              contentFormat: "lexical",
+              publicationStatus: "draft",
+              mergeMode: "create",
+              episodeKey: "2:2",
+            },
+          ],
+        });
+      }
+      return baseImplementation
+        ? (baseImplementation(base, path, options) as Promise<Response>)
+        : mockJsonResponse(false, { error: "not_found" }, 404);
+    });
+
+    await openEpisodeEditor({
+      projectTitle: "Projeto Light Novel",
+      sectionNamePattern: /Cap/i,
+      removeButtonPattern: /Remover cap/i,
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /Importa[^r]/i }));
+    const importButton = screen.getByRole("button", { name: /Importar EPUB/i });
+    await waitFor(() => {
+      expect(importButton).not.toBeDisabled();
+    });
+    const fileInput = screen.getByLabelText(/Arquivo \.epub/i);
+    fireEvent.change(fileInput, {
+      target: { files: [new File(["epub"], "cleanup-error.epub", { type: "application/epub+zip" })] },
+    });
+    fireEvent.click(importButton);
+    await waitFor(() => {
+      expect(toastMock).toHaveBeenCalledWith(expect.objectContaining({ title: "EPUB importado" }));
+    });
+
+    const editorDialog = screen.getByRole("dialog");
+    fireEvent.click(within(editorDialog).getByRole("button", { name: /^Cancelar$/i }));
+    fireEvent.click(await screen.findByRole("button", { name: /^Sair$/i }));
+
+    await waitFor(() => {
+      expect(screen.queryByRole("heading", { name: "Editar projeto" })).not.toBeInTheDocument();
+    });
+    expect(
+      consoleWarnSpy.mock.calls.some(
+        ([eventName, payload]) =>
+          eventName === "epub_import_temp_cleanup_failed" &&
+          typeof payload === "object" &&
+          payload !== null &&
+          "status" in (payload as Record<string, unknown>) &&
+          (payload as { status?: unknown }).status === 500,
+      ),
+    ).toBe(true);
   });
 
   it("abre a secao de conteudo e faz scroll apos importar EPUB sem volume numerico", async () => {

@@ -12,6 +12,7 @@ import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
 import { buildEpisodeKey } from "@/lib/project-episode-key";
 import { findVolumeCoverByVolume } from "@/lib/project-volume-cover-key";
+import { normalizeProjectVolumeEntries } from "@/lib/project-volume-entries";
 import { isLightNovelType } from "@/lib/project-utils";
 import type { Project } from "@/data/projects";
 import type { UploadMediaVariantsMap } from "@/lib/upload-variants";
@@ -200,29 +201,13 @@ const ProjectReading = () => {
   }, [chapterContent?.volume, chapterData?.volume, volumeParam]);
 
   const normalizedVolumeEntries = useMemo(() => {
-    const source = Array.isArray(project?.volumeEntries)
-      ? project.volumeEntries
-      : Array.isArray(project?.volumeCovers)
-        ? project.volumeCovers
-        : [];
-    return source
-      .map((entry) => {
-        const volume = Number(entry?.volume);
-        if (!Number.isFinite(volume)) {
-          return null;
-        }
-        const coverImageUrl = String(entry?.coverImageUrl || "").trim();
-        return {
-          volume,
-          synopsis: String(entry?.synopsis || "").trim(),
-          coverImageUrl,
-          coverImageAlt: coverImageUrl
-            ? String(entry?.coverImageAlt || `Capa do volume ${volume}`).trim()
-            : "",
-        };
-      })
-      .filter((entry): entry is { volume: number; synopsis: string; coverImageUrl: string; coverImageAlt: string } => Boolean(entry))
-      .sort((left, right) => left.volume - right.volume);
+    return normalizeProjectVolumeEntries(
+      Array.isArray(project?.volumeEntries)
+        ? project.volumeEntries
+        : Array.isArray(project?.volumeCovers)
+          ? project.volumeCovers
+          : [],
+    );
   }, [project?.volumeEntries, project?.volumeCovers]);
 
   const volumeEntry = useMemo(
@@ -452,7 +437,7 @@ const ProjectReading = () => {
                   <Badge variant="outline" className="project-reading-masthead__badge project-reading-masthead__badge--type text-xs uppercase tracking-wide">
                     Light Novel
                   </Badge>
-                  <Badge variant="secondary" className="project-reading-masthead__badge project-reading-masthead__badge--chapter text-xs uppercase">
+                  <Badge variant="outline" className="project-reading-masthead__badge project-reading-masthead__badge--chapter text-xs uppercase tracking-wide">
                     {chapterBadgeLabel}
                     {Number.isFinite(activeVolume) ? ` • Vol. ${activeVolume}` : ""}
                   </Badge>

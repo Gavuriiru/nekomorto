@@ -227,6 +227,10 @@ describe("Team mobile social layout", () => {
       </MemoryRouter>,
     );
 
+    expect(document.querySelector(".public-page-hero")).not.toBeNull();
+    expect(screen.getByText("Equipe")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /Conheça quem faz o projeto acontecer/i })).toBeInTheDocument();
+
     await screen.findByRole("heading", { name: activeMemberName });
     const { heading, headingRow, layoutStack, avatarSlot, avatarStage, contentPanel, card, socialContainer } =
       getMemberLayoutByName(activeMemberName);

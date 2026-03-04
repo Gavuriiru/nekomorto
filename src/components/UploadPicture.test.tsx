@@ -297,4 +297,44 @@ describe("UploadPicture", () => {
     );
     expect(missingFocalImg?.style.objectPosition).toBe("");
   });
+
+  it("propaga sizes para sources e fallback quando informado", () => {
+    const mediaVariants: UploadMediaVariantsMap = {
+      "/uploads/posts/capa.png": {
+        variantsVersion: 1,
+        variants: {
+          card: {
+            formats: {
+              avif: { url: "/uploads/_variants/u123/card-v1.avif" },
+              webp: { url: "/uploads/_variants/u123/card-v1.webp" },
+              fallback: { url: "/uploads/_variants/u123/card-v1.jpeg" },
+            },
+          },
+        },
+      },
+    };
+
+    const { container } = render(
+      <UploadPicture
+        src="/uploads/posts/capa.png"
+        alt="Com sizes"
+        preset="card"
+        mediaVariants={mediaVariants}
+        sizes="(min-width: 1024px) 364px, 100vw"
+      />,
+    );
+
+    const sources = Array.from(container.querySelectorAll("source"));
+    expect(sources).toHaveLength(2);
+    expect(sources[0]).toHaveAttribute("sizes", "(min-width: 1024px) 364px, 100vw");
+    expect(sources[1]).toHaveAttribute("sizes", "(min-width: 1024px) 364px, 100vw");
+
+    const img = container.querySelector("img");
+    expect(img).not.toBeNull();
+    expect(img).toHaveAttribute("sizes", "(min-width: 1024px) 364px, 100vw");
+    expect(img).toHaveAttribute(
+      "srcset",
+      expect.stringContaining("/uploads/_variants/u123/card-v1.jpeg"),
+    );
+  });
 });

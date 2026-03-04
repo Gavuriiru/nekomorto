@@ -152,7 +152,7 @@ describe("Projects query sync", () => {
   });
 
   it("sincroniza q da URL com o campo de busca", async () => {
-    render(
+    const { container } = render(
       <MemoryRouter initialEntries={["/projetos?q=studio"]}>
         <Projects />
         <LocationProbe />
@@ -160,8 +160,12 @@ describe("Projects query sync", () => {
     );
 
     const searchInput = await screen.findByLabelText("Buscar projetos");
+    const pageShell = container.firstElementChild;
+
     expect(searchInput).toHaveValue("studio");
     expect(getSearchParams().get("q")).toBe("studio");
+    expect(pageShell).toHaveClass("min-h-screen", "text-foreground");
+    expect(pageShell).not.toHaveClass("bg-background", "bg-gradient-surface");
   });
 
   it("nao restaura filtros/page do localStorage quando URL chega limpa", async () => {

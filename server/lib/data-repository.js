@@ -68,6 +68,20 @@ const toAuditLogRow = (entry, position) => ({
   data: cloneValue(entry || {}),
 });
 
+const toAnalyticsEventRow = (event, position) => ({
+  id: String(event?.id || crypto.randomUUID()),
+  position: Number.isFinite(Number(position)) ? Math.max(0, Math.floor(Number(position))) : 0,
+  ts: toDateOrNull(event?.ts) || new Date(),
+  day: String(event?.day || ""),
+  eventType: String(event?.eventType || "view"),
+  resourceType: String(event?.resourceType || "post"),
+  resourceId: String(event?.resourceId || ""),
+  visitorHash: String(event?.visitorHash || "anonymous"),
+  referrerHost: String(event?.referrerHost || "(direct)"),
+  isAuthenticated: Boolean(event?.isAuthenticated),
+  data: cloneValue(event || {}),
+});
+
 const buildDefaultAnalyticsDaily = ({ schemaVersion }) => ({
   schemaVersion,
   generatedAt: new Date().toISOString(),
@@ -103,6 +117,7 @@ export class DbDataRepository {
       Math.floor(Number(options.auditMaxEntries ?? DEFAULT_AUDIT_MAX_ENTRIES) || 0),
     );
     this.auditLogNextPosition = 0;
+    this.analyticsEventNextPosition = 0;
     this.onBackgroundError = options.onBackgroundError;
     this.persistQueue = Promise.resolve();
     this.health = {
@@ -416,6 +431,13 @@ export class DbDataRepository {
       }
       return Math.max(max, Math.floor(nextPosition) + 1);
     }, 0);
+    this.analyticsEventNextPosition = analyticsEvents.reduce((max, row) => {
+      const nextPosition = Number(row?.position);
+      if (!Number.isFinite(nextPosition)) {
+        return max;
+      }
+      return Math.max(max, Math.floor(nextPosition) + 1);
+    }, 0);
   }
 
   loadOwnerIds() {
@@ -525,24 +547,40 @@ export class DbDataRepository {
 
   writeAnalyticsEvents(events) {
     this.snapshot.analyticsEvents = cloneValue(ensureArray(events));
+    this.analyticsEventNextPosition = this.snapshot.analyticsEvents.length;
     this.enqueuePersist("analytics_events", async () => {
-      const rows = this.snapshot.analyticsEvents.map((event, index) => ({
-        id: String(event?.id || crypto.randomUUID()),
-        position: index,
-        ts: toDateOrNull(event?.ts) || new Date(),
-        day: String(event?.day || ""),
-        eventType: String(event?.eventType || "view"),
-        resourceType: String(event?.resourceType || "post"),
-        resourceId: String(event?.resourceId || ""),
-        visitorHash: String(event?.visitorHash || "anonymous"),
-        referrerHost: String(event?.referrerHost || "(direct)"),
-        isAuthenticated: Boolean(event?.isAuthenticated),
-        data: cloneValue(event || {}),
-      }));
+      const rows = this.snapshot.analyticsEvents.map((event, index) =>
+        toAnalyticsEventRow(event, index),
+      );
       await prisma.$transaction([
         prisma.analyticsEventRecord.deleteMany({}),
         ...(rows.length ? [prisma.analyticsEventRecord.createMany({ data: rows })] : []),
       ]);
+    });
+  }
+
+  appendAnalyticsEventEntry(event) {
+    const baseEvent =
+      event && typeof event === "object" && !Array.isArray(event) ? cloneValue(event) : {};
+    const normalizedEvent = {
+      ...baseEvent,
+      id: String(baseEvent?.id || crypto.randomUUID()),
+      ts: (toDateOrNull(baseEvent?.ts) || new Date()).toISOString(),
+      day: String(baseEvent?.day || ""),
+      eventType: String(baseEvent?.eventType || "view"),
+      resourceType: String(baseEvent?.resourceType || "post"),
+      resourceId: String(baseEvent?.resourceId || ""),
+      visitorHash: String(baseEvent?.visitorHash || "anonymous"),
+      referrerHost: String(baseEvent?.referrerHost || "(direct)"),
+      isAuthenticated: Boolean(baseEvent?.isAuthenticated),
+    };
+    const position = this.analyticsEventNextPosition;
+    this.snapshot.analyticsEvents = [...ensureArray(this.snapshot.analyticsEvents), normalizedEvent];
+    this.analyticsEventNextPosition += 1;
+    this.enqueuePersist("analytics_event_append", async () => {
+      await prisma.analyticsEventRecord.create({
+        data: toAnalyticsEventRow(normalizedEvent, position),
+      });
     });
   }
 

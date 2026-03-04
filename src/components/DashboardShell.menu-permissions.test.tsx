@@ -94,6 +94,7 @@ describe("DashboardShell menu permissions", () => {
     expect(screen.queryByRole("link", { name: "Pular para o conteúdo" })).not.toBeInTheDocument();
     expect(screen.getByTestId("sidebar-inset").className).toContain("min-w-0");
     expect(screen.getByTestId("sidebar-inset").className).toContain("overflow-x-hidden");
+    expect(screen.getByTestId("sidebar-inset").className).toContain("bg-gradient-surface");
     expect(screen.getByTestId("sidebar-inset")).toHaveAttribute("data-dashboard-motion", "true");
     expect(screen.queryByText("Painel de gestao")).not.toBeInTheDocument();
     expect(screen.queryByText(/Usu[áa]rios/i)).not.toBeInTheDocument();

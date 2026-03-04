@@ -5,6 +5,7 @@ import path from "path";
 import { componentTagger } from "lovable-tagger";
 import { VitePWA } from "vite-plugin-pwa";
 import { resolveViteAllowedHostsFromOrigins } from "./server/lib/frontend-runtime.js";
+import { classifyManualChunk } from "./src/lib/build-chunking";
 import {
   PWA_NAVIGATE_FALLBACK_ALLOWLIST,
   PWA_NAVIGATE_FALLBACK_DENYLIST,
@@ -108,6 +109,21 @@ export default defineConfig(({ mode }) => {
         workbox: {
           cleanupOutdatedCaches: true,
           clientsClaim: true,
+          manifestTransforms: [
+            async (entries) => {
+              const seenUrls = new Set<string>();
+              return {
+                manifest: entries.filter((entry) => {
+                  if (seenUrls.has(entry.url)) {
+                    return false;
+                  }
+                  seenUrls.add(entry.url);
+                  return true;
+                }),
+                warnings: [],
+              };
+            },
+          ],
           navigateFallbackAllowlist: PWA_NAVIGATE_FALLBACK_ALLOWLIST,
           navigateFallbackDenylist: PWA_NAVIGATE_FALLBACK_DENYLIST,
           skipWaiting: true,
@@ -179,28 +195,8 @@ export default defineConfig(({ mode }) => {
     build: {
       rollupOptions: {
         output: {
-          manualChunks(id) {
-            if (!id.includes("node_modules")) {
-              return undefined;
-            }
-            if (
-              id.includes("/node_modules/react/") ||
-              id.includes("/node_modules/react-dom/") ||
-              id.includes("/node_modules/react-router-dom/")
-            ) {
-              return "react-core";
-            }
-            if (id.includes("/@lexical/") || id.includes("/lexical/") || id.includes("/yjs/")) {
-              return "lexical";
-            }
-            if (id.includes("/@mui/material/") || id.includes("/@mui/x-date-pickers/")) {
-              return "mui";
-            }
-            if (id.includes("/recharts/")) {
-              return "charts";
-            }
-            return undefined;
-          },
+          onlyExplicitManualChunks: true,
+          manualChunks: classifyManualChunk,
         },
       },
     },

@@ -51,6 +51,16 @@ vi.mock("@/hooks/use-dynamic-synopsis-clamp", () => ({
   }),
 }));
 
+vi.mock("@/lib/browser-idle", () => ({
+  scheduleOnBrowserLoadIdle: (callback: (deadline: IdleDeadline) => void) => {
+    callback({
+      didTimeout: false,
+      timeRemaining: () => 16,
+    } as IdleDeadline);
+    return () => undefined;
+  },
+}));
+
 const mockJsonResponse = (ok: boolean, payload: unknown, status = ok ? 200 : 500) =>
   ({
     ok,

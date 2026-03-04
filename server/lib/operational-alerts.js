@@ -1,4 +1,22 @@
 const VALID_SEVERITIES = new Set(["info", "warning", "critical"]);
+const VALID_CHECK_FINDING_SEVERITIES = new Set(["warning", "critical"]);
+
+const CHECK_FINDING_TITLES = Object.freeze({
+  database: "Banco de dados",
+  data_repository: "Persistencia de dados",
+  background_jobs: "Fila de jobs",
+  rate_limit_backend: "Rate limiter",
+  uploads_dir: "Diretorio de uploads",
+  session_config: "Configuracao de sessao",
+  maintenance_mode: "Modo de manutencao",
+});
+
+const CHECK_ALERT_EQUIVALENCE = Object.freeze({
+  database: ["db_unhealthy", "db_latency_high"],
+  data_repository: ["data_repository_persist_queue_backlog", "data_repository_persist_error_recent"],
+  maintenance_mode: ["maintenance_mode_enabled"],
+  session_config: ["session_secret_default_in_production"],
+});
 
 const severityRank = (severity) => {
   if (severity === "critical") return 3;
@@ -56,6 +74,80 @@ export const summarizeOperationalAlerts = (alerts) => {
     else summary.info += 1;
   });
   return summary;
+};
+
+const normalizeCheckFinding = (check) => {
+  const name = String(check?.name || "").trim();
+  if (!name) {
+    return null;
+  }
+  const severity = String(check?.status || "").trim().toLowerCase();
+  if (!VALID_CHECK_FINDING_SEVERITIES.has(severity)) {
+    return null;
+  }
+  const finding = {
+    name,
+    severity,
+    title: CHECK_FINDING_TITLES[name] || name,
+    description:
+      String(check?.message || "").trim() ||
+      (severity === "critical"
+        ? "Healthcheck marcado como critico."
+        : "Healthcheck marcado como alerta."),
+  };
+  if (Number.isFinite(Number(check?.latencyMs))) {
+    finding.latencyMs = Math.round(Number(check.latencyMs));
+  }
+  if (check?.meta && typeof check.meta === "object" && !Array.isArray(check.meta)) {
+    finding.meta = check.meta;
+  }
+  return finding;
+};
+
+const sortOperationalCheckFindings = (findings) =>
+  (Array.isArray(findings) ? findings : [])
+    .filter(Boolean)
+    .sort((a, b) => {
+      const severityDiff = severityRank(b.severity) - severityRank(a.severity);
+      if (severityDiff !== 0) {
+        return severityDiff;
+      }
+      return a.name.localeCompare(b.name, "pt-BR");
+    });
+
+const summarizeOperationalCheckFindings = (findings) => {
+  const normalized = sortOperationalCheckFindings(findings);
+  const summary = {
+    total: normalized.length,
+    critical: 0,
+    warning: 0,
+  };
+  normalized.forEach((finding) => {
+    if (finding.severity === "critical") summary.critical += 1;
+    else if (finding.severity === "warning") summary.warning += 1;
+  });
+  return summary;
+};
+
+const isCoveredByEquivalentAlert = (findingName, activeAlertCodes) => {
+  const equivalentAlertCodes = CHECK_ALERT_EQUIVALENCE[findingName];
+  if (!Array.isArray(equivalentAlertCodes) || equivalentAlertCodes.length === 0) {
+    return false;
+  }
+  return equivalentAlertCodes.some((alertCode) => activeAlertCodes.has(alertCode));
+};
+
+const buildOperationalCheckFindings = ({ checks, alerts } = {}) => {
+  const activeAlertCodes = new Set(
+    (Array.isArray(alerts) ? alerts : [])
+      .map((alert) => String(alert?.code || "").trim())
+      .filter(Boolean),
+  );
+  const findings = (Array.isArray(checks) ? checks : [])
+    .map(normalizeCheckFinding)
+    .filter(Boolean)
+    .filter((finding) => !isCoveredByEquivalentAlert(finding.name, activeAlertCodes));
+  return sortOperationalCheckFindings(findings);
 };
 
 export const deriveOverallStatusFromChecks = (checks) => {
@@ -187,6 +279,10 @@ export const buildOperationalAlertsV1 = ({
 export const buildOperationalAlertsResponse = ({ alerts, checks, generatedAt } = {}) => {
   const normalizedAlerts = sortOperationalAlerts(alerts);
   const safeChecks = Array.isArray(checks) ? checks : [];
+  const checkFindings = buildOperationalCheckFindings({
+    checks: safeChecks,
+    alerts: normalizedAlerts,
+  });
   const statusFromChecks = deriveOverallStatusFromChecks(safeChecks);
   const statusFromAlerts = normalizedAlerts.some((item) => item.severity === "critical")
     ? "fail"
@@ -204,6 +300,7 @@ export const buildOperationalAlertsResponse = ({ alerts, checks, generatedAt } =
     generatedAt: String(generatedAt || new Date().toISOString()),
     alerts: normalizedAlerts,
     summary: summarizeOperationalAlerts(normalizedAlerts),
+    checkFindings,
+    checkSummary: summarizeOperationalCheckFindings(checkFindings),
   };
 };
-

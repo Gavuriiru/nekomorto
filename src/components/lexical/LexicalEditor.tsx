@@ -18,6 +18,7 @@ import { EMPTY_LEXICAL_JSON, normalizeLexicalJson } from "@/lib/lexical/serializ
 
 import "@/lexical-playground/playground.css";
 import "@/lexical-playground/playground-overrides.css";
+import "@/lexical-playground/lexical-editor.css";
 
 export type LexicalEditorHandle = {
   focus: () => void;

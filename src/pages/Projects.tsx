@@ -713,7 +713,7 @@ const Projects = () => {
   }, [searchParams, setSearchParams]);
 
   return (
-    <div className="min-h-screen bg-linear-to-b from-background via-[hsl(var(--primary)/0.12)] to-background text-foreground">
+    <div className="min-h-screen text-foreground">
       <main className="pt-28">
         <section
           className={`${publicPageLayoutTokens.sectionBase} max-w-6xl pb-20 reveal`}

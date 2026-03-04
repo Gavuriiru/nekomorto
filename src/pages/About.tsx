@@ -1,6 +1,6 @@
 import { useMemo } from "react";
-import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
+import PublicPageHero from "@/components/PublicPageHero";
 import {
   Heart,
   Sparkles,
@@ -149,47 +149,12 @@ const About = () => {
   return (
     <div className="min-h-screen bg-background text-foreground">
       <main>
-        <section className="relative overflow-hidden border-b border-border/60">
-          <div className="absolute inset-0 bg-linear-to-b from-primary/20 via-background to-background" />
-          <div className="absolute -left-24 top-10 h-64 w-64 rounded-full bg-primary/20 blur-[120px]" />
-          <div className="absolute -right-24 bottom-10 h-64 w-64 rounded-full bg-accent/20 blur-[120px]" />
-          <div
-            className={`${publicPageLayoutTokens.sectionBase} relative grid max-w-6xl gap-8 pb-16 pt-24 md:grid-cols-[1.2fr_0.8fr] md:pt-28 reveal`}
-            data-reveal
-          >
-            <div className="space-y-5">
-              <Badge
-                variant="secondary"
-                className="text-xs uppercase tracking-widest animate-fade-in"
-              >
-                {about.heroBadge}
-              </Badge>
-              <h1 className="text-3xl font-semibold text-foreground md:text-5xl animate-slide-up">
-                {about.heroTitle}
-              </h1>
-              <p
-                className="text-sm text-muted-foreground md:text-base animate-slide-up opacity-0"
-                style={{ animationDelay: "0.2s" }}
-              >
-                {about.heroSubtitle}
-              </p>
-              <div
-                className="flex flex-wrap gap-3 animate-slide-up opacity-0"
-                style={{ animationDelay: "0.4s" }}
-              >
-                {about.heroBadges.map((badge) => (
-                  <Badge
-                    key={badge}
-                    variant="secondary"
-                    className="text-xs uppercase tracking-widest"
-                  >
-                    {badge}
-                  </Badge>
-                ))}
-              </div>
-            </div>
-          </div>
-        </section>
+        <PublicPageHero
+          badge={about.heroBadge}
+          title={about.heroTitle}
+          subtitle={about.heroSubtitle}
+          badges={about.heroBadges}
+        />
 
         <section
           className={`${publicPageLayoutTokens.sectionBase} max-w-6xl pb-16 pt-10 reveal`}

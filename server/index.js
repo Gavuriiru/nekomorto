@@ -85,6 +85,7 @@ import { findDuplicateVolumeCover } from "./lib/project-volume-covers.js";
 import { deriveChapterSynopsis } from "./lib/chapter-synopsis.js";
 import { exportProjectEpub } from "./lib/project-epub-export.js";
 import { importProjectEpub } from "./lib/project-epub-import.js";
+import { cleanupProjectEpubImportTempUploads } from "./lib/project-epub-import-cleanup.js";
 import {
   EPUB_IMPORT_MULTIPART_LIMITS,
   mapEpubImportExecutionError,
@@ -1438,6 +1439,20 @@ const writeAnalyticsEvents = (events) => {
   }
 };
 
+const appendAnalyticsEventEntry = (event) => {
+  const normalizedEvent = normalizeAnalyticsEvent(event);
+  if (!dataRepository) {
+    return;
+  }
+  if (typeof dataRepository.appendAnalyticsEventEntry === "function") {
+    dataRepository.appendAnalyticsEventEntry(normalizedEvent);
+    return;
+  }
+  const events = loadAnalyticsEvents();
+  events.push(normalizedEvent);
+  writeAnalyticsEvents(events);
+};
+
 const loadAnalyticsDaily = () => {
   const fallback = {
     schemaVersion: ANALYTICS_SCHEMA_VERSION,
@@ -1635,11 +1650,7 @@ const appendAnalyticsEvent = (req, payload) => {
       isAuthenticated: Boolean(req.session?.user),
       meta: sanitizeAnalyticsMeta(normalizedPayload.meta || {}),
     });
-    const events = loadAnalyticsEvents();
-    events.push(event);
-    writeAnalyticsEvents(events);
-    const daily = buildAnalyticsDailyFromEvents(events);
-    writeAnalyticsDaily(daily);
+    appendAnalyticsEventEntry(event);
     return { ok: true };
   } catch {
     return { ok: false, reason: "error" };
@@ -1991,7 +2002,7 @@ const buildSiteMetaWithSettings = (settings) => ({
 
 const buildSiteMeta = () => buildSiteMetaWithSettings(loadSiteSettings());
 
-const getPageTitleFromPath = (value) => {
+const getPageTitleFromPathLegacy = (value) => {
   const pathValue = String(value || "/");
   const rules = [
     [/^\/$/, "Início"],
@@ -2013,6 +2024,35 @@ const getPageTitleFromPath = (value) => {
     [/^\/dashboard\/comentarios\/?$/, "Comentários"],
     [/^\/dashboard\/paginas\/?$/, "Páginas"],
     [/^\/dashboard\/configuracoes\/?$/, "Configurações"],
+    [/^\/dashboard\/redirecionamentos\/?$/, "Redirecionamentos"],
+    [/^\/dashboard\/?$/, "Dashboard"],
+  ];
+  const match = rules.find(([regex]) => regex.test(pathValue));
+  return match ? match[1] : getPageTitleFromPathLegacy(pathValue);
+};
+
+const getPageTitleFromPath = (value) => {
+  const pathValue = String(value || "/");
+  const rules = [
+    [/^\/$/, "In\u00edcio"],
+    [/^\/postagem\/.+/, "Postagem"],
+    [/^\/equipe\/?$/, "Equipe"],
+    [/^\/sobre\/?$/, "Sobre"],
+    [/^\/doacoes\/?$/, "Doa\u00e7\u00f5es"],
+    [/^\/faq\/?$/, "FAQ"],
+    [/^\/projetos\/?$/, "Projetos"],
+    [/^\/projeto\/.+\/leitura\/.+/, "Leitura"],
+    [/^\/projeto\/.+/, "Projeto"],
+    [/^\/projetos\/.+\/leitura\/.+/, "Leitura"],
+    [/^\/projetos\/.+/, "Projeto"],
+    [/^\/recrutamento\/?$/, "Recrutamento"],
+    [/^\/login\/?$/, "Login"],
+    [/^\/dashboard\/usuarios\/?$/, "Usu\u00e1rios"],
+    [/^\/dashboard\/posts\/?$/, "Posts"],
+    [/^\/dashboard\/projetos\/?$/, "Projetos"],
+    [/^\/dashboard\/comentarios\/?$/, "Coment\u00e1rios"],
+    [/^\/dashboard\/paginas\/?$/, "P\u00e1ginas"],
+    [/^\/dashboard\/configuracoes\/?$/, "Configura\u00e7\u00f5es"],
     [/^\/dashboard\/redirecionamentos\/?$/, "Redirecionamentos"],
     [/^\/dashboard\/?$/, "Dashboard"],
   ];
@@ -10343,6 +10383,34 @@ app.post(
     }
   },
 );
+
+app.post("/api/projects/epub/import/cleanup", requireAuth, (req, res) => {
+  const sessionUser = req.session.user;
+  if (!canManageProjects(sessionUser?.id)) {
+    return res.status(403).json({ error: "forbidden" });
+  }
+
+  const cleanup = cleanupProjectEpubImportTempUploads({
+    importIds: req.body?.importIds,
+    uploadUserId: sessionUser?.id,
+    uploads: loadUploads(),
+    uploadsDir: path.join(__dirname, "..", "public", "uploads"),
+    usedUploadUrls: getUsedUploadUrls(),
+  });
+
+  if (cleanup.changed) {
+    writeUploads(cleanup.uploadsNext, { reason: "epub_import_cleanup" });
+  }
+
+  return res.json({
+    requestedImportIds: cleanup.requestedImportIds,
+    matchedUploads: cleanup.matchedUploads,
+    deletedUploads: cleanup.deletedUploads,
+    skippedInUse: cleanup.skippedInUse,
+    skippedNotOwned: cleanup.skippedNotOwned,
+    failed: cleanup.failed,
+  });
+});
 
 app.post("/api/projects/epub/export", requireAuth, async (req, res) => {
   const sessionUser = req.session.user;

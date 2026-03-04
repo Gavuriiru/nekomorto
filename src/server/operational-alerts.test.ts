@@ -49,7 +49,72 @@ describe("operational-alerts", () => {
     expect(response.ok).toBe(false);
     expect(response.status).toBe("fail");
     expect(response.summary.critical).toBe(1);
+    expect(response.checkFindings).toEqual([]);
+    expect(response.checkSummary).toEqual({ total: 0, critical: 0, warning: 0 });
     expect(response.generatedAt).toBe("2026-02-26T00:00:00.000Z");
   });
-});
 
+  it("inclui checkFindings quando apenas checks explicam o degradado", () => {
+    const response = buildOperationalAlertsResponse({
+      alerts: [],
+      checks: [
+        {
+          name: "rate_limit_backend",
+          status: "warning",
+          message: "Rate limit local em memoria.",
+        },
+      ],
+      generatedAt: "2026-02-26T00:00:00.000Z",
+    });
+
+    expect(response.status).toBe("degraded");
+    expect(response.checkSummary).toEqual({ total: 1, critical: 0, warning: 1 });
+    expect(response.checkFindings).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          name: "rate_limit_backend",
+          severity: "warning",
+          title: "Rate limiter",
+          description: "Rate limit local em memoria.",
+        }),
+      ]),
+    );
+  });
+
+  it("deduplica checkFinding quando alerta equivalente ja existe", () => {
+    const response = buildOperationalAlertsResponse({
+      alerts: [
+        {
+          code: "db_latency_high",
+          severity: "warning",
+          title: "Latencia alta no banco",
+          description: "Ping acima do limite.",
+        },
+      ],
+      checks: [{ name: "database", status: "warning", message: "Banco respondeu acima do limite." }],
+    });
+
+    expect(response.status).toBe("degraded");
+    expect(response.checkFindings).toEqual([]);
+    expect(response.checkSummary).toEqual({ total: 0, critical: 0, warning: 0 });
+  });
+
+  it("marca fail e inclui checkFinding critico sem alerta equivalente", () => {
+    const response = buildOperationalAlertsResponse({
+      alerts: [],
+      checks: [{ name: "uploads_dir", status: "critical", message: "uploads_dir_unavailable" }],
+    });
+
+    expect(response.status).toBe("fail");
+    expect(response.checkSummary).toEqual({ total: 1, critical: 1, warning: 0 });
+    expect(response.checkFindings).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          name: "uploads_dir",
+          severity: "critical",
+          title: "Diretorio de uploads",
+        }),
+      ]),
+    );
+  });
+});

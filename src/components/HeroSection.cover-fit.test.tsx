@@ -120,6 +120,9 @@ describe("HeroSection cover fit", () => {
     const heroSection = container.querySelector("section");
     expect(heroSection).not.toBeNull();
     expect(heroSection).toHaveClass("min-h-[78vh]", "md:min-h-screen");
+    expect(
+      screen.getByRole("link", { name: "Acessar página de Projeto com Hero" }),
+    ).toHaveAttribute("href", "/projeto/project-1");
 
     const backgroundImage = container.querySelector(
       "img[aria-hidden='true']",

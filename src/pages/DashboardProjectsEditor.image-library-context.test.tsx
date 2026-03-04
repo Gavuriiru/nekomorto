@@ -161,6 +161,24 @@ const setupApiMock = () => {
 };
 
 describe("DashboardProjectsEditor image library context", () => {
+  it("renderiza um unico botao acessivel para abrir o projeto", async () => {
+    setupApiMock();
+
+    render(
+      <MemoryRouter initialEntries={["/dashboard/projetos"]}>
+        <DashboardProjectsEditor />
+      </MemoryRouter>,
+    );
+
+    const projectCardButtons = await screen.findAllByRole("button", {
+      name: "Abrir projeto Projeto Teste",
+    });
+
+    expect(projectCardButtons).toHaveLength(1);
+    expect(projectCardButtons[0]).not.toHaveAttribute("aria-hidden");
+    expect(projectCardButtons[0]).not.toHaveAttribute("tabindex", "-1");
+  });
+
   it("passa contexto por projeto para biblioteca e editor de episodio", async () => {
     setupApiMock();
 
@@ -170,9 +188,11 @@ describe("DashboardProjectsEditor image library context", () => {
       </MemoryRouter>,
     );
 
-    const projectCardButton = await screen.findByRole("button", {
+    const projectCardButtons = await screen.findAllByRole("button", {
       name: "Abrir projeto Projeto Teste",
     });
+    expect(projectCardButtons).toHaveLength(1);
+    const projectCardButton = projectCardButtons[0];
     expect(
       screen.queryByRole("button", { name: "Editar projeto Projeto Teste" }),
     ).not.toBeInTheDocument();

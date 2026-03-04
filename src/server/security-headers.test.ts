@@ -17,6 +17,7 @@ describe("buildContentSecurityPolicy", () => {
     expect(csp).toContain("object-src 'none'");
     expect(csp).toContain("frame-ancestors 'none'");
     expect(csp).toContain(`script-src 'self' 'nonce-${nonce}' https://platform.twitter.com`);
+    expect(csp).not.toContain("script-src 'self' 'unsafe-inline'");
     expect(csp).toContain("style-src 'self' 'unsafe-inline'");
     expect(csp).toContain("font-src 'self' data:");
     expect(csp).not.toContain("fonts.googleapis.com");

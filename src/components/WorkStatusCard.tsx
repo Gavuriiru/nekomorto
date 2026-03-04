@@ -110,7 +110,7 @@ const mangaStages = [
   },
 ];
 
-const themedBadgeClass = "bg-primary/20 text-primary border-primary/40";
+const themedBadgeClass = "bg-primary text-primary-foreground border-primary/80";
 const themedIndicatorClass = "bg-primary";
 
 const WorkStatusCard = () => {

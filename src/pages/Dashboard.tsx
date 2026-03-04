@@ -540,6 +540,19 @@ const Dashboard = () => {
     if (severity === "warning") return "warning";
     return null;
   };
+  const operationalSeverityLabel = (severity?: string) => {
+    if (severity === "critical") return "Crítico";
+    if (severity === "warning") return "Alerta";
+    return "Info";
+  };
+  const operationalActiveAlerts = operationalAlerts?.alerts ?? [];
+  const operationalCheckFindings = operationalAlerts?.checkFindings ?? [];
+  const hasOperationalReasons =
+    operationalActiveAlerts.length > 0 || operationalCheckFindings.length > 0;
+  const hasStatusWithoutReason =
+    Boolean(operationalAlerts) &&
+    (operationalAlerts.status === "degraded" || operationalAlerts.status === "fail") &&
+    !hasOperationalReasons;
   const rolePresetWidgets = DASHBOARD_ROLE_PRESETS[homeRole];
   const selectedWidgetsByRole = useMemo(
     () =>
@@ -1072,38 +1085,74 @@ const Dashboard = () => {
                           </Button>
                         </div>
                       ) : (
-                        <div className="mt-4 space-y-3">
-                          {operationalAlerts?.alerts?.slice(0, 3).map((alert) => (
-                            <div
-                              key={alert.code}
-                              className="rounded-2xl border border-border/60 bg-card/60 p-3"
-                            >
-                              <div className="flex items-center justify-between gap-2">
-                                <p className="text-sm font-medium">{alert.title}</p>
-                                <Badge
-                                  variant={alertSeverityVariant(alert.severity) ?? undefined}
-                                  className={
-                                    alertSeverityVariant(alert.severity)
-                                      ? undefined
-                                      : "bg-card/80 text-muted-foreground"
-                                  }
-                                >
-                                  {alert.severity === "critical"
-                                    ? "Crítico"
-                                    : alert.severity === "warning"
-                                      ? "Alerta"
-                                      : "Info"}
-                                </Badge>
-                              </div>
-                              <p className="mt-1 text-xs text-muted-foreground">
-                                {alert.description}
+                        <div className="mt-4 space-y-4">
+                          {operationalAlerts?.generatedAt ? (
+                            <p className="text-xs text-muted-foreground">
+                              Última atualização: {formatDateTime(operationalAlerts.generatedAt)}
+                            </p>
+                          ) : null}
+                          {operationalActiveAlerts.length > 0 ? (
+                            <section className="space-y-3">
+                              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                                Alertas ativos
                               </p>
-                            </div>
-                          ))}
-                          {(!operationalAlerts?.alerts ||
-                            operationalAlerts.alerts.length === 0) && (
+                              <div className="space-y-3">
+                                {operationalActiveAlerts.map((alert) => (
+                                  <div
+                                    key={alert.code}
+                                    className="rounded-2xl border border-border/60 bg-card/60 p-3"
+                                  >
+                                    <div className="flex items-center justify-between gap-2">
+                                      <p className="text-sm font-medium">{alert.title}</p>
+                                      <Badge
+                                        variant={alertSeverityVariant(alert.severity) ?? undefined}
+                                        className={
+                                          alertSeverityVariant(alert.severity)
+                                            ? undefined
+                                            : "bg-card/80 text-muted-foreground"
+                                        }
+                                      >
+                                        {operationalSeverityLabel(alert.severity)}
+                                      </Badge>
+                                    </div>
+                                    <p className="mt-1 text-xs text-muted-foreground">
+                                      {alert.description}
+                                    </p>
+                                  </div>
+                                ))}
+                              </div>
+                            </section>
+                          ) : null}
+                          {operationalCheckFindings.length > 0 ? (
+                            <section className="space-y-3">
+                              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                                Healthchecks degradados
+                              </p>
+                              <div className="space-y-3">
+                                {operationalCheckFindings.map((check) => (
+                                  <div
+                                    key={`check-${check.name}`}
+                                    className="rounded-2xl border border-border/60 bg-card/60 p-3"
+                                  >
+                                    <div className="flex items-center justify-between gap-2">
+                                      <p className="text-sm font-medium">{check.title}</p>
+                                      <Badge variant={alertSeverityVariant(check.severity) ?? "warning"}>
+                                        {operationalSeverityLabel(check.severity)}
+                                      </Badge>
+                                    </div>
+                                    <p className="mt-1 text-xs text-muted-foreground">
+                                      {check.description}
+                                    </p>
+                                  </div>
+                                ))}
+                              </div>
+                            </section>
+                          ) : null}
+                          {!hasOperationalReasons && (
                             <div className="rounded-2xl border border-dashed border-border/60 bg-card/60 px-4 py-6 text-sm text-muted-foreground">
-                              Nenhum alerta operacional ativo.
+                              {hasStatusWithoutReason
+                                ? "Status operacional degradado sem causa detalhada no payload."
+                                : "Nenhum alerta operacional ativo."}
                             </div>
                           )}
                           <div className="pt-1">

@@ -918,6 +918,7 @@ const buildFrontMatterBundleFromFlow = async ({
   warnings,
   discardedCounts,
   imageContext,
+  cssFallbackSeenKeys,
 } = {}) => {
   if (!Number.isFinite(firstNarrativeFlowIndex) || firstNarrativeFlowIndex <= 0) {
     return {
@@ -1001,6 +1002,7 @@ const buildFrontMatterBundleFromFlow = async ({
       chapterTitle: String(part.title || "").trim(),
       manifestByHref,
       imageContext,
+      cssFallbackSeenKeys,
     });
     if (Array.isArray(warnings)) {
       warnings.push(...prepared.warnings);
@@ -1656,6 +1658,7 @@ const prepareNarrativeDocumentHtml = async ({
   chapterTitle,
   manifestByHref,
   imageContext,
+  cssFallbackSeenKeys,
 } = {}) => {
   const stylesheets = await loadEpubDocumentStylesheets({
     epub,
@@ -1687,12 +1690,24 @@ const prepareNarrativeDocumentHtml = async ({
       const warning =
         `Estilos CSS avancados foram ignorados no capitulo "${chapterContextLabel}"; ` +
         "importacao continuou sem estilos calculados.";
-      warnings.push(warning);
-      console.warn("epub_import_editorial_css_fallback", {
-        chapterTitle: chapterContextLabel,
-        documentHref: normalizedDocumentHref || null,
-        detail: String(error?.message || error || "css_editorial_fallback"),
-      });
+      const fallbackKey = String(normalizedDocumentHref || chapterContextLabel || "")
+        .trim()
+        .toLowerCase();
+      const shouldEmitWarning =
+        !(cssFallbackSeenKeys instanceof Set) ||
+        !fallbackKey ||
+        !cssFallbackSeenKeys.has(fallbackKey);
+      if (shouldEmitWarning) {
+        warnings.push(warning);
+        console.warn("epub_import_editorial_css_fallback", {
+          chapterTitle: chapterContextLabel,
+          documentHref: normalizedDocumentHref || null,
+          detail: String(error?.message || error || "css_editorial_fallback"),
+        });
+        if (cssFallbackSeenKeys instanceof Set && fallbackKey) {
+          cssFallbackSeenKeys.add(fallbackKey);
+        }
+      }
     }
     return {
       html: sanitizeChapterHtml(dom.window.document.body.innerHTML),
@@ -1904,6 +1919,7 @@ const buildNarrativeChapterCandidatesFromToc = async ({
   discardedCounts,
   warnings,
   imageContext,
+  cssFallbackSeenKeys,
 } = {}) => {
   const { flowItems } = buildFlowIndexes(epub);
   const { manifestByHref } = buildManifestIndexes(epub);
@@ -1954,6 +1970,7 @@ const buildNarrativeChapterCandidatesFromToc = async ({
         chapterTitle: item.title,
         manifestByHref,
         imageContext,
+        cssFallbackSeenKeys,
       });
       warnings.push(...prepared.warnings);
       const sanitizedHtml = prepared.html;
@@ -1992,6 +2009,7 @@ const buildFallbackNarrativeChapterCandidates = async ({
   warnings,
   imageContext,
   excludedCandidateKeys,
+  cssFallbackSeenKeys,
 } = {}) => {
   const flowReferences = buildFallbackFlowReferences(epub);
   const materialized = [];
@@ -2088,6 +2106,7 @@ const buildFallbackNarrativeChapterCandidates = async ({
         chapterTitle: group.title || partReference.title || "Capitulo",
         manifestByHref,
         imageContext,
+        cssFallbackSeenKeys,
       });
       warnings.push(...prepared.warnings);
       const sanitizedHtml = prepared.html;
@@ -2156,6 +2175,7 @@ export const importProjectEpub = async ({
   const fallbackReservedKeys = new Set(existingEpisodes.keys());
   const assignedImportKeys = new Set();
   const warnings = [];
+  const cssFallbackSeenKeys = new Set();
   const chapters = [];
   const discardedCounts = {
     boilerplate: 0,
@@ -2210,6 +2230,7 @@ export const importProjectEpub = async ({
     warnings,
     discardedCounts,
     imageContext,
+    cssFallbackSeenKeys,
   });
   const consumedFrontMatterKeys =
     frontMatterBundle?.consumedKeys instanceof Set ? frontMatterBundle.consumedKeys : new Set();
@@ -2246,6 +2267,7 @@ export const importProjectEpub = async ({
           discardedCounts,
           warnings,
           imageContext,
+          cssFallbackSeenKeys,
         })
       : await buildFallbackNarrativeChapterCandidates({
           epub,
@@ -2253,6 +2275,7 @@ export const importProjectEpub = async ({
           warnings,
           imageContext,
           excludedCandidateKeys: consumedFrontMatterKeys,
+          cssFallbackSeenKeys,
         });
   const orderedChapterCandidates = [
     ...(frontMatterBundle?.chapter ? [frontMatterBundle.chapter] : []),
