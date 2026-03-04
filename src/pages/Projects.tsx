@@ -887,7 +887,7 @@ const Projects = () => {
           ) : paginatedProjects.length === 0 ? (
             <AsyncState
               kind="empty"
-              title="Nenhum projeto encontrado"
+              title="Nenhum projeto encontrado."
               description="Ajuste os filtros para ampliar os resultados."
               className="mt-10"
               action={

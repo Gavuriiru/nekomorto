@@ -4539,7 +4539,7 @@ const DashboardProjectsEditor = () => {
             ) : sortedProjects.length === 0 ? (
               <AsyncState
                 kind="empty"
-                title="Nenhum projeto encontrado"
+                title="Nenhum projeto encontrado."
                 description="Ajuste os filtros ou crie um novo projeto."
                 className={dashboardPageLayoutTokens.surfaceMuted}
                 action={

@@ -219,6 +219,24 @@ const buildHeroSlides = (
   return projects.length === 0 ? heroSlidesSeed : [];
 };
 
+const heroEntryDelayMs = {
+  type: 120,
+  separator: 120,
+  status: 120,
+  title: 240,
+  synopsis: 360,
+  actions: 520,
+} as const;
+
+const heroEntryDelayStyles = {
+  type: { animationDelay: `${heroEntryDelayMs.type}ms` },
+  separator: { animationDelay: `${heroEntryDelayMs.separator}ms` },
+  status: { animationDelay: `${heroEntryDelayMs.status}ms` },
+  title: { animationDelay: `${heroEntryDelayMs.title}ms` },
+  synopsis: { animationDelay: `${heroEntryDelayMs.synopsis}ms` },
+  actions: { animationDelay: `${heroEntryDelayMs.actions}ms` },
+} as const satisfies Record<keyof typeof heroEntryDelayMs, React.CSSProperties>;
+
 type HeroSlideFrameProps = {
   slide: HeroSlide;
   index: number;
@@ -310,7 +328,8 @@ const HeroSlideFrame = ({
             {slide.id === latestSlideId ? (
               <span
                 data-testid={`hero-slide-latest-${slide.id}`}
-                className="inline-block rounded-full border bg-(--hero-badge-bg,hsl(var(--primary)/0.2)) px-3 py-1 text-(--hero-badge-text,hsl(var(--primary))) border-(--hero-badge-border,hsl(var(--primary)/0.3)) animate-fade-in"
+                className="inline-block rounded-full border bg-(--hero-badge-bg,hsl(var(--primary)/0.2)) px-3 py-1 text-(--hero-badge-text,hsl(var(--primary))) border-(--hero-badge-border,hsl(var(--primary)/0.3)) animate-slide-up opacity-0"
+                style={heroEntryDelayStyles.type}
               >
                 Último Lançamento
               </span>
@@ -320,27 +339,45 @@ const HeroSlideFrame = ({
                 data-testid={`hero-slide-type-status-${slide.id}`}
                 className="flex flex-wrap items-center gap-3"
               >
-                {slide.format ? <span>{slide.format}</span> : null}
-                {slide.format && slide.status ? <span className="opacity-50">•</span> : null}
-                {slide.status ? <span>{slide.status}</span> : null}
+                {slide.format ? (
+                  <span className="animate-slide-up opacity-0" style={heroEntryDelayStyles.type}>
+                    {slide.format}
+                  </span>
+                ) : null}
+                {slide.format && slide.status ? (
+                  <span
+                    className="animate-slide-up opacity-0 opacity-50"
+                    style={heroEntryDelayStyles.separator}
+                  >
+                    •
+                  </span>
+                ) : null}
+                {slide.status ? (
+                  <span className="animate-slide-up opacity-0" style={heroEntryDelayStyles.status}>
+                    {slide.status}
+                  </span>
+                ) : null}
               </div>
             ) : null}
           </div>
 
-          <h1 className="mb-6 text-2xl font-black leading-tight text-foreground md:text-4xl lg:text-5xl xl:text-6xl 2xl:text-7xl">
+          <h1
+            className="mb-6 text-2xl font-black leading-tight text-foreground animate-slide-up opacity-0 md:text-4xl lg:text-5xl xl:text-6xl 2xl:text-7xl"
+            style={heroEntryDelayStyles.title}
+          >
             {slide.title}
           </h1>
 
           <p
             className="max-w-2xl text-base leading-relaxed text-muted-foreground animate-slide-up opacity-0 md:text-lg xl:text-xl 2xl:text-2xl"
-            style={{ animationDelay: "0.2s" }}
+            style={heroEntryDelayStyles.synopsis}
           >
             {clampSynopsis(slide.description)}
           </p>
 
           <div
             className="mt-8 flex flex-wrap gap-4 animate-slide-up opacity-0"
-            style={{ animationDelay: "0.4s" }}
+            style={heroEntryDelayStyles.actions}
           >
             <Link
               to={`/projeto/${slide.projectId}`}
@@ -550,7 +587,8 @@ const HeroSection = () => {
   const navbarOverlayClass =
     "pointer-events-none absolute inset-x-0 top-0 h-28 bg-linear-to-b from-background/95 via-background/70 to-transparent md:h-36";
   const transparentPixel = "data:image/gif;base64,R0lGODlhAQABAAAAACw=";
-  const shouldRenderCarousel = isCarouselEnhanced && renderedSlides.length > 1;
+  const shouldRenderCarousel = renderedSlides.length > 0;
+  const shouldRenderCarouselControls = isCarouselEnhanced && renderedSlides.length > 1;
 
   return (
     <section className={`relative overflow-hidden ${heroViewportClass}`}>
@@ -622,7 +660,8 @@ const HeroSection = () => {
                           {slide.id === latestSlideId ? (
                             <span
                               data-testid={`hero-slide-latest-${slide.id}`}
-                              className="inline-block px-3 py-1 rounded-full animate-fade-in border bg-(--hero-badge-bg,hsl(var(--primary)/0.2)) text-(--hero-badge-text,hsl(var(--primary))) border-(--hero-badge-border,hsl(var(--primary)/0.3))"
+                              className="inline-block px-3 py-1 rounded-full animate-slide-up opacity-0 border bg-(--hero-badge-bg,hsl(var(--primary)/0.2)) text-(--hero-badge-text,hsl(var(--primary))) border-(--hero-badge-border,hsl(var(--primary)/0.3))"
+                              style={heroEntryDelayStyles.type}
                             >
                               Último Lançamento
                             </span>
@@ -632,33 +671,51 @@ const HeroSection = () => {
                               data-testid={`hero-slide-type-status-${slide.id}`}
                               className="flex flex-wrap items-center gap-3"
                             >
-                              {slide.format ? <span>{slide.format}</span> : null}
-                              {slide.format && slide.status ? (
-                                <span className="opacity-50">•</span>
+                              {slide.format ? (
+                                <span
+                                  className="animate-slide-up opacity-0"
+                                  style={heroEntryDelayStyles.type}
+                                >
+                                  {slide.format}
+                                </span>
                               ) : null}
-                              {slide.status ? <span>{slide.status}</span> : null}
+                              {slide.format && slide.status ? (
+                                <span
+                                  className="animate-slide-up opacity-0 opacity-50"
+                                  style={heroEntryDelayStyles.separator}
+                                >
+                                  •
+                                </span>
+                              ) : null}
+                              {slide.status ? (
+                                <span
+                                  className="animate-slide-up opacity-0"
+                                  style={heroEntryDelayStyles.status}
+                                >
+                                  {slide.status}
+                                </span>
+                              ) : null}
                             </div>
                           ) : null}
                         </div>
 
                         <h1
-                          className={`text-2xl md:text-4xl lg:text-5xl xl:text-6xl 2xl:text-7xl font-black mb-6 text-foreground leading-tight ${
-                            index === 0 ? "" : "animate-slide-up"
-                          }`}
+                          className="text-2xl md:text-4xl lg:text-5xl xl:text-6xl 2xl:text-7xl font-black mb-6 text-foreground leading-tight animate-slide-up opacity-0"
+                          style={heroEntryDelayStyles.title}
                         >
                           {slide.title}
                         </h1>
 
                         <p
                           className="text-base md:text-lg xl:text-xl 2xl:text-2xl text-muted-foreground leading-relaxed max-w-2xl animate-slide-up opacity-0"
-                          style={{ animationDelay: "0.2s" }}
+                          style={heroEntryDelayStyles.synopsis}
                         >
                           {clampSynopsis(slide.description)}
                         </p>
 
                         <div
                           className="mt-8 flex flex-wrap gap-4 animate-slide-up opacity-0"
-                          style={{ animationDelay: "0.4s" }}
+                          style={heroEntryDelayStyles.actions}
                         >
                           <Link
                             to={`/projeto/${slide.projectId}`}
@@ -687,14 +744,18 @@ const HeroSection = () => {
               );
             })}
           </CarouselContent>
-          <CarouselPrevious
-            className="hidden md:flex left-auto right-20 bottom-8 top-auto h-9 w-9 translate-y-0 bg-background/50 hover:bg-background/70 border border-border/30 text-muted-foreground"
-            onClick={scheduleAutoplayResume}
-          />
-          <CarouselNext
-            className="hidden md:flex right-8 bottom-8 top-auto h-9 w-9 translate-y-0 bg-background/50 hover:bg-background/70 border border-border/30 text-muted-foreground"
-            onClick={scheduleAutoplayResume}
-          />
+          {shouldRenderCarouselControls ? (
+            <CarouselPrevious
+              className="hidden md:flex left-auto right-20 bottom-8 top-auto h-9 w-9 translate-y-0 bg-background/50 hover:bg-background/70 border border-border/30 text-muted-foreground"
+              onClick={scheduleAutoplayResume}
+            />
+          ) : null}
+          {shouldRenderCarouselControls ? (
+            <CarouselNext
+              className="hidden md:flex right-8 bottom-8 top-auto h-9 w-9 translate-y-0 bg-background/50 hover:bg-background/70 border border-border/30 text-muted-foreground"
+              onClick={scheduleAutoplayResume}
+            />
+          ) : null}
         </Carousel>
       ) : renderedSlides[0] ? (
         <HeroSlideFrame

@@ -55,32 +55,56 @@ vi.mock("@/components/ui/carousel", () => {
   };
 });
 
-const setupBootstrapMock = () => {
+const setupBootstrapMock = ({ includeSecondProject = false }: { includeSecondProject?: boolean } = {}) => {
+  const projects = [
+    {
+      id: "project-1",
+      title: "Projeto com Hero",
+      synopsis: "Sinopse de teste",
+      description: "Descricao de teste",
+      type: "Anime",
+      status: "Em andamento",
+      heroImageUrl: "/uploads/hero-fit.jpg",
+      banner: "",
+      cover: "",
+      trailerUrl: "",
+      forceHero: true,
+    },
+  ];
+  const updates = [
+    {
+      projectId: "project-1",
+      kind: "lancamento",
+      updatedAt: "2026-02-10T12:00:00.000Z",
+    },
+  ];
+
+  if (includeSecondProject) {
+    projects.push({
+      id: "project-2",
+      title: "Projeto Secundario",
+      synopsis: "Sinopse secundaria",
+      description: "Descricao secundaria",
+      type: "Manga",
+      status: "Completo",
+      heroImageUrl: "/uploads/hero-fit-2.jpg",
+      banner: "",
+      cover: "",
+      trailerUrl: "",
+      forceHero: false,
+    });
+    updates.push({
+      projectId: "project-2",
+      kind: "lancamento",
+      updatedAt: "2026-02-08T10:00:00.000Z",
+    });
+  }
+
   usePublicBootstrapMock.mockReturnValue({
     isFetched: true,
     data: {
-      projects: [
-        {
-          id: "project-1",
-          title: "Projeto com Hero",
-          synopsis: "Sinopse de teste",
-          description: "Descricao de teste",
-          type: "Anime",
-          status: "Em andamento",
-          heroImageUrl: "/uploads/hero-fit.jpg",
-          banner: "",
-          cover: "",
-          trailerUrl: "",
-          forceHero: true,
-        },
-      ],
-      updates: [
-        {
-          projectId: "project-1",
-          kind: "lancamento",
-          updatedAt: "2026-02-10T12:00:00.000Z",
-        },
-      ],
+      projects,
+      updates,
       mediaVariants: {
         "/uploads/hero-fit.jpg": {
           variantsVersion: 1,
@@ -166,6 +190,34 @@ describe("HeroSection cover fit", () => {
 
     expect(within(typeStatus).getByText("Anime")).toBeInTheDocument();
     expect(within(typeStatus).getByText("Em andamento")).toBeInTheDocument();
+  });
+
+  it("aplica animacao escalonada em tipo, separador, status e titulo no modo carrossel", async () => {
+    setupBootstrapMock({ includeSecondProject: true });
+
+    render(
+      <MemoryRouter>
+        <HeroSection />
+      </MemoryRouter>,
+    );
+
+    await screen.findByTestId("hero-slide-meta-project-2");
+
+    const typeStatus = await screen.findByTestId("hero-slide-type-status-project-1");
+    const type = within(typeStatus).getByText("Anime");
+    const separator = within(typeStatus).getByText("•");
+    const status = within(typeStatus).getByText("Em andamento");
+
+    expect(type).toHaveClass("animate-slide-up", "opacity-0");
+    expect(separator).toHaveClass("animate-slide-up", "opacity-0");
+    expect(status).toHaveClass("animate-slide-up", "opacity-0");
+    expect(type).toHaveStyle({ animationDelay: "120ms" });
+    expect(separator).toHaveStyle({ animationDelay: "120ms" });
+    expect(status).toHaveStyle({ animationDelay: "120ms" });
+
+    const heading = screen.getByRole("heading", { name: "Projeto com Hero" });
+    expect(heading).toHaveClass("animate-slide-up", "opacity-0");
+    expect(heading).toHaveStyle({ animationDelay: "240ms" });
   });
 
   it("renderiza overlay superior para contraste da navbar no tema claro", async () => {
