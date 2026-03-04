@@ -46,6 +46,20 @@ const setupBootstrapMock = () => {
         },
       ],
       tagTranslations: { tags: { acao: "A\u00e7\u00e3o" } },
+      mediaVariants: {
+        "/uploads/capa-card.jpg": {
+          variantsVersion: 2,
+          variants: {
+            cardHome: {
+              formats: {
+                avif: { url: "/uploads/_variants/post-1/cardHome-v2.avif" },
+                webp: { url: "/uploads/_variants/post-1/cardHome-v2.webp" },
+                fallback: { url: "/uploads/_variants/post-1/cardHome-v2.jpeg" },
+              },
+            },
+          },
+        },
+      },
     },
   });
 };
@@ -78,6 +92,10 @@ describe("ReleasesSection cover fit", () => {
     const coverContainer = coverImage.parentElement?.parentElement;
     expect(coverContainer).not.toBeNull();
     expect(coverContainer).toHaveClass("relative", "w-full", "aspect-3/2", "overflow-hidden");
+    expect(coverImage).toHaveAttribute(
+      "src",
+      expect.stringContaining("/uploads/_variants/post-1/cardHome-v2.jpeg"),
+    );
   });
 
   it("expoe ancora de lancamentos, link da postagem e remove CTAs extras", async () => {

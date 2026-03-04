@@ -1,4 +1,12 @@
-export type UploadVariantPresetKey = "card" | "cardWide" | "hero" | "og" | "poster" | "square";
+export type UploadVariantPresetKey =
+  | "card"
+  | "cardHome"
+  | "cardWide"
+  | "hero"
+  | "og"
+  | "poster"
+  | "posterThumb"
+  | "square";
 
 export type UploadVariantFormat = {
   url?: string | null;
@@ -31,6 +39,19 @@ export type UploadMediaVariantEntry = {
 export type UploadMediaVariantsMap = Record<string, UploadMediaVariantEntry>;
 
 const FALLBACK_ORIGIN = "https://nekomata.local";
+const UPLOAD_VARIANT_PRESET_FALLBACK_ORDER: Record<
+  UploadVariantPresetKey,
+  readonly UploadVariantPresetKey[]
+> = Object.freeze({
+  card: Object.freeze(["card"]),
+  cardHome: Object.freeze(["cardHome", "card"]),
+  cardWide: Object.freeze(["cardWide"]),
+  hero: Object.freeze(["hero"]),
+  og: Object.freeze(["og"]),
+  poster: Object.freeze(["poster"]),
+  posterThumb: Object.freeze(["posterThumb", "poster"]),
+  square: Object.freeze(["square"]),
+});
 
 export const normalizeUploadVariantUrlKey = (value: string | null | undefined) => {
   const trimmed = String(value || "").trim();
@@ -109,21 +130,28 @@ export const resolveUploadVariantSources = ({
   if (!variants) {
     return { avif: "", webp: "", fallback: "" };
   }
-  const presetRecord = variants[preset];
-  if (!presetRecord || typeof presetRecord !== "object") {
-    return { avif: "", webp: "", fallback: "" };
-  }
-  const formats =
-    presetRecord.formats && typeof presetRecord.formats === "object"
-      ? presetRecord.formats
-      : null;
-  if (!formats) {
-    return { avif: "", webp: "", fallback: "" };
+  for (const fallbackPreset of UPLOAD_VARIANT_PRESET_FALLBACK_ORDER[preset]) {
+    const presetRecord = variants[fallbackPreset];
+    if (!presetRecord || typeof presetRecord !== "object") {
+      continue;
+    }
+    const formats =
+      presetRecord.formats && typeof presetRecord.formats === "object"
+        ? presetRecord.formats
+        : null;
+    if (!formats) {
+      continue;
+    }
+    return {
+      avif: toFormatUrl(formats.avif),
+      webp: toFormatUrl(formats.webp),
+      fallback: toFormatUrl(formats.fallback),
+    };
   }
   return {
-    avif: toFormatUrl(formats.avif),
-    webp: toFormatUrl(formats.webp),
-    fallback: toFormatUrl(formats.fallback),
+    avif: "",
+    webp: "",
+    fallback: "",
   };
 };
 

@@ -42,6 +42,60 @@ describe("upload-variants", () => {
     });
   });
 
+  it("resolve cardHome quando a variante dedicada existe", () => {
+    const mediaVariants: UploadMediaVariantsMap = {
+      "/uploads/posts/capa.png": {
+        variantsVersion: 1,
+        variants: {
+          cardHome: {
+            formats: {
+              avif: { url: "/uploads/_variants/u1/cardHome-v1.avif" },
+              webp: { url: "/uploads/_variants/u1/cardHome-v1.webp" },
+              fallback: { url: "/uploads/_variants/u1/cardHome-v1.jpeg" },
+            },
+          },
+        },
+      },
+    };
+
+    expect(
+      resolveUploadVariantSources({
+        src: "/uploads/posts/capa.png",
+        preset: "cardHome",
+        mediaVariants,
+      }),
+    ).toEqual({
+      avif: "/uploads/_variants/u1/cardHome-v1.avif",
+      webp: "/uploads/_variants/u1/cardHome-v1.webp",
+      fallback: "/uploads/_variants/u1/cardHome-v1.jpeg",
+    });
+  });
+
+  it("faz fallback semantico de cardHome para card", () => {
+    const mediaVariants: UploadMediaVariantsMap = {
+      "/uploads/posts/capa.png": {
+        variantsVersion: 1,
+        variants: {
+          card: {
+            formats: {
+              avif: { url: "/uploads/_variants/u1/card-v1.avif" },
+              webp: { url: "/uploads/_variants/u1/card-v1.webp" },
+              fallback: { url: "/uploads/_variants/u1/card-v1.jpeg" },
+            },
+          },
+        },
+      },
+    };
+
+    expect(
+      resolveUploadVariantUrl({
+        src: "/uploads/posts/capa.png",
+        preset: "cardHome",
+        mediaVariants,
+      }),
+    ).toBe("/uploads/_variants/u1/card-v1.jpeg");
+  });
+
   it("retorna vazio quando nao ha preset/metadata", () => {
     const resolved = resolveUploadVariantSources({
       src: "/uploads/posts/sem-variant.png",
@@ -151,6 +205,35 @@ describe("upload-variants", () => {
       resolveUploadVariantSources({
         src: "/uploads/projects/capa.png",
         preset: "poster",
+        mediaVariants,
+      }),
+    ).toEqual({
+      avif: "/uploads/_variants/u1/poster-v2.avif",
+      webp: "/uploads/_variants/u1/poster-v2.webp",
+      fallback: "/uploads/_variants/u1/poster-v2.jpeg",
+    });
+  });
+
+  it("faz fallback semantico de posterThumb para poster", () => {
+    const mediaVariants: UploadMediaVariantsMap = {
+      "/uploads/projects/capa.png": {
+        variantsVersion: 2,
+        variants: {
+          poster: {
+            formats: {
+              avif: { url: "/uploads/_variants/u1/poster-v2.avif" },
+              webp: { url: "/uploads/_variants/u1/poster-v2.webp" },
+              fallback: { url: "/uploads/_variants/u1/poster-v2.jpeg" },
+            },
+          },
+        },
+      },
+    };
+
+    expect(
+      resolveUploadVariantSources({
+        src: "/uploads/projects/capa.png",
+        preset: "posterThumb",
         mediaVariants,
       }),
     ).toEqual({

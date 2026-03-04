@@ -21,12 +21,15 @@ vi.mock("@/hooks/use-site-settings", () => ({
 const TestMeta = ({
   imageAlt,
   mediaVariants,
+  description,
 }: {
   imageAlt?: string;
   mediaVariants?: UploadMediaVariantsMap;
+  description?: string;
 }) => {
   usePageMeta({
     title: "Pagina de teste",
+    description,
     image: "/uploads/custom-og.jpg",
     imageAlt,
     mediaVariants,
@@ -100,5 +103,28 @@ describe("usePageMeta accessibility metadata", () => {
         .querySelector('meta[name="twitter:image"]')
         ?.getAttribute("content"),
     ).toContain("/uploads/_variants/upload-1/og-v1.jpeg");
+  });
+
+  it("truncates long description across standard, og and twitter tags", () => {
+    const longDescription =
+      "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Vestibulum dapibus blandit magna, non convallis mi sodales non. Donec ac turpis dictum, gravida urna sed, cursus odio.";
+    render(<TestMeta description={longDescription} />);
+
+    const description = document
+      .querySelector('meta[name="description"]')
+      ?.getAttribute("content");
+    const ogDescription = document
+      .querySelector('meta[property="og:description"]')
+      ?.getAttribute("content");
+    const twitterDescription = document
+      .querySelector('meta[name="twitter:description"]')
+      ?.getAttribute("content");
+
+    expect(description).toBeTruthy();
+    expect(ogDescription).toBeTruthy();
+    expect(twitterDescription).toBeTruthy();
+    expect((description || "").length).toBeLessThanOrEqual(160);
+    expect((ogDescription || "").length).toBeLessThanOrEqual(160);
+    expect((twitterDescription || "").length).toBeLessThanOrEqual(160);
   });
 });

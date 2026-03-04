@@ -6,6 +6,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import Header from "@/components/Header";
 import { GlobalShortcutsProvider } from "@/hooks/global-shortcuts-provider";
 import { defaultSettings, mergeSettings } from "@/hooks/site-settings-context";
+import { uiCopy } from "@/lib/ui-copy";
 import type { SiteSettings } from "@/types/site-settings";
 
 const apiFetchMock = vi.hoisted(() => vi.fn());
@@ -340,6 +341,144 @@ describe("Header mobile search layout", () => {
     expect(await screen.findByText("Projeto Remoto")).toBeInTheDocument();
   });
 
+  it("mantem itens renderizados e oculta loading durante nova busca em andamento", async () => {
+    const user = userEvent.setup();
+    let searchCallCount = 0;
+    let resolvePendingSearch: ((response: Response) => void) | null = null;
+
+    apiFetchMock.mockReset();
+    apiFetchMock.mockImplementation(
+      async (_apiBase: string, endpoint: string, options?: RequestInit) => {
+        const method = String(options?.method || "GET").toUpperCase();
+        if (endpoint === "/api/public/me" && method === "GET") {
+          return mockJsonResponse(true, {
+            user: {
+              id: "user-1",
+              name: "Admin",
+              username: "admin",
+              avatarUrl: null,
+            },
+          });
+        }
+        if (endpoint.startsWith("/api/public/search/suggest?") && method === "GET") {
+          searchCallCount += 1;
+          if (searchCallCount === 1) {
+            return mockJsonResponse(true, {
+              suggestions: [
+                {
+                  kind: "project",
+                  id: "project-primeiro",
+                  label: "Projeto Primeiro",
+                  href: "/projeto/project-primeiro",
+                  description: "Resultado inicial",
+                },
+              ],
+              mediaVariants: {},
+            });
+          }
+          return await new Promise<Response>((resolve) => {
+            resolvePendingSearch = resolve;
+          });
+        }
+        if (endpoint === "/api/logout" && method === "POST") {
+          return mockJsonResponse(true, { ok: true });
+        }
+        return mockJsonResponse(false, { error: "not_found" }, 404);
+      },
+    );
+
+    render(
+      <MemoryRouter initialEntries={["/"]}>
+        <Header />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(apiFetchMock).toHaveBeenCalledTimes(1);
+    });
+
+    await user.click(screen.getByRole("button", { name: "Abrir busca" }));
+    const searchInput = await screen.findByPlaceholderText("Buscar projetos e posts");
+
+    fireEvent.change(searchInput, { target: { value: "re" } });
+    expect(await screen.findByText("Projeto Primeiro")).toBeInTheDocument();
+
+    fireEvent.change(searchInput, { target: { value: "rex" } });
+
+    await waitFor(() => {
+      expect(searchCallCount).toBe(2);
+    });
+    expect(await screen.findByText("Projeto Primeiro")).toBeInTheDocument();
+    expect(screen.queryByText(uiCopy.search.loadingSuggestions)).not.toBeInTheDocument();
+
+    await act(async () => {
+      resolvePendingSearch?.(
+        mockJsonResponse(true, {
+          suggestions: [],
+          mediaVariants: {},
+        }),
+      );
+    });
+  });
+
+  it("exibe loading quando busca esta carregando e ainda nao ha itens", async () => {
+    const user = userEvent.setup();
+    let resolvePendingSearch: ((response: Response) => void) | null = null;
+
+    apiFetchMock.mockReset();
+    apiFetchMock.mockImplementation(
+      async (_apiBase: string, endpoint: string, options?: RequestInit) => {
+        const method = String(options?.method || "GET").toUpperCase();
+        if (endpoint === "/api/public/me" && method === "GET") {
+          return mockJsonResponse(true, {
+            user: {
+              id: "user-1",
+              name: "Admin",
+              username: "admin",
+              avatarUrl: null,
+            },
+          });
+        }
+        if (endpoint.startsWith("/api/public/search/suggest?") && method === "GET") {
+          return await new Promise<Response>((resolve) => {
+            resolvePendingSearch = resolve;
+          });
+        }
+        if (endpoint === "/api/logout" && method === "POST") {
+          return mockJsonResponse(true, { ok: true });
+        }
+        return mockJsonResponse(false, { error: "not_found" }, 404);
+      },
+    );
+
+    render(
+      <MemoryRouter initialEntries={["/"]}>
+        <Header />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(apiFetchMock).toHaveBeenCalledTimes(1);
+    });
+
+    await user.click(screen.getByRole("button", { name: "Abrir busca" }));
+    const searchInput = await screen.findByPlaceholderText("Buscar projetos e posts");
+    fireEvent.change(searchInput, { target: { value: "ca" } });
+
+    expect(await screen.findByText(uiCopy.search.loadingSuggestions)).toBeInTheDocument();
+    expect(screen.queryByText("Projeto Teste")).not.toBeInTheDocument();
+    expect(screen.queryByText("Post Teste")).not.toBeInTheDocument();
+
+    await act(async () => {
+      resolvePendingSearch?.(
+        mockJsonResponse(true, {
+          suggestions: [],
+          mediaVariants: {},
+        }),
+      );
+    });
+  });
+
   it("mantem badges de projetos remotos em uma linha com overflow oculto", async () => {
     const user = userEvent.setup();
     setupApiMock({
@@ -587,11 +726,11 @@ describe("Header mobile search layout", () => {
         "/uploads/projects/remoto.png": {
           variantsVersion: 4,
           variants: {
-            poster: {
+            posterThumb: {
               formats: {
-                avif: { url: "/uploads/_variants/remote/poster-v4.avif" },
-                webp: { url: "/uploads/_variants/remote/poster-v4.webp" },
-                fallback: { url: "/uploads/_variants/remote/poster-v4.jpeg" },
+                avif: { url: "/uploads/_variants/remote/posterThumb-v4.avif" },
+                webp: { url: "/uploads/_variants/remote/posterThumb-v4.webp" },
+                fallback: { url: "/uploads/_variants/remote/posterThumb-v4.jpeg" },
               },
             },
           },
@@ -622,8 +761,8 @@ describe("Header mobile search layout", () => {
     const sources = Array.from(picture?.querySelectorAll("source") || []);
 
     expect(sources).toHaveLength(2);
-    expect(sources[0]).toHaveAttribute("srcset", expect.stringContaining("/poster-v4.avif"));
-    expect(sources[1]).toHaveAttribute("srcset", expect.stringContaining("/poster-v4.webp"));
-    expect(coverImage).toHaveAttribute("src", expect.stringContaining("/poster-v4.jpeg"));
+    expect(sources[0]).toHaveAttribute("srcset", expect.stringContaining("/posterThumb-v4.avif"));
+    expect(sources[1]).toHaveAttribute("srcset", expect.stringContaining("/posterThumb-v4.webp"));
+    expect(coverImage).toHaveAttribute("src", expect.stringContaining("/posterThumb-v4.jpeg"));
   });
 });

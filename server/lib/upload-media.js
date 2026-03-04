@@ -5,10 +5,12 @@ import sharp from "sharp";
 
 export const UPLOAD_VARIANT_PRESETS = Object.freeze({
   card: Object.freeze({ width: 1280, height: 853 }),
+  cardHome: Object.freeze({ width: 960, height: 640 }),
   cardWide: Object.freeze({ width: 1280, height: 720 }),
   hero: Object.freeze({ width: 1600, height: 900 }),
   og: Object.freeze({ width: 1200, height: 675 }),
   poster: Object.freeze({ width: 920, height: 1300 }),
+  posterThumb: Object.freeze({ width: 320, height: 452 }),
   square: Object.freeze({ width: 512, height: 512 }),
 });
 
@@ -540,8 +542,21 @@ export const generateUploadVariants = async ({
     focalCrop: safeFocalCrops.card,
     fallbackFocalPoint: effectiveFocalPoints.card,
   });
+  const posterBaseRect = computeFocalCoverRectFromCrop({
+    sourceWidth,
+    sourceHeight,
+    targetWidth: UPLOAD_VARIANT_PRESETS.poster.width,
+    targetHeight: UPLOAD_VARIANT_PRESETS.poster.height,
+    focalCrop: safeFocalCrops.card,
+    fallbackFocalPoint: effectiveFocalPoints.card,
+  });
   const variantRects = {
     card: cardBaseRect,
+    cardHome: deriveNestedCoverRect({
+      baseRect: cardBaseRect,
+      targetWidth: UPLOAD_VARIANT_PRESETS.cardHome.width,
+      targetHeight: UPLOAD_VARIANT_PRESETS.cardHome.height,
+    }),
     cardWide: deriveNestedCoverRect({
       baseRect: cardBaseRect,
       targetWidth: UPLOAD_VARIANT_PRESETS.cardWide.width,
@@ -560,13 +575,11 @@ export const generateUploadVariants = async ({
       targetWidth: UPLOAD_VARIANT_PRESETS.og.width,
       targetHeight: UPLOAD_VARIANT_PRESETS.og.height,
     }),
-    poster: computeFocalCoverRectFromCrop({
-      sourceWidth,
-      sourceHeight,
-      targetWidth: UPLOAD_VARIANT_PRESETS.poster.width,
-      targetHeight: UPLOAD_VARIANT_PRESETS.poster.height,
-      focalCrop: safeFocalCrops.card,
-      fallbackFocalPoint: effectiveFocalPoints.card,
+    poster: posterBaseRect,
+    posterThumb: deriveNestedCoverRect({
+      baseRect: posterBaseRect,
+      targetWidth: UPLOAD_VARIANT_PRESETS.posterThumb.width,
+      targetHeight: UPLOAD_VARIANT_PRESETS.posterThumb.height,
     }),
     square: computeFocalCoverRectFromCrop({
       sourceWidth,

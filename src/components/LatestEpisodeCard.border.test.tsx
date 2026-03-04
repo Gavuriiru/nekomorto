@@ -53,11 +53,11 @@ const setupBootstrapMock = () => {
         "/uploads/alpha.jpg": {
           variantsVersion: 1,
           variants: {
-            poster: {
+            posterThumb: {
               formats: {
-                avif: { url: "/uploads/_variants/u1/poster-v1.avif" },
-                webp: { url: "/uploads/_variants/u1/poster-v1.webp" },
-                fallback: { url: "/uploads/_variants/u1/poster-v1.jpeg" },
+                avif: { url: "/uploads/_variants/u1/posterThumb-v1.avif" },
+                webp: { url: "/uploads/_variants/u1/posterThumb-v1.webp" },
+                fallback: { url: "/uploads/_variants/u1/posterThumb-v1.jpeg" },
               },
             },
           },
@@ -65,11 +65,11 @@ const setupBootstrapMock = () => {
         "/uploads/beta.jpg": {
           variantsVersion: 1,
           variants: {
-            poster: {
+            posterThumb: {
               formats: {
-                avif: { url: "/uploads/_variants/u2/poster-v1.avif" },
-                webp: { url: "/uploads/_variants/u2/poster-v1.webp" },
-                fallback: { url: "/uploads/_variants/u2/poster-v1.jpeg" },
+                avif: { url: "/uploads/_variants/u2/posterThumb-v1.avif" },
+                webp: { url: "/uploads/_variants/u2/posterThumb-v1.webp" },
+                fallback: { url: "/uploads/_variants/u2/posterThumb-v1.jpeg" },
               },
             },
           },
@@ -98,6 +98,8 @@ describe("LatestEpisodeCard border styles", () => {
     const updateLinks = screen.getAllByRole("link");
     expect(updateLinks).toHaveLength(2);
     expect(screen.getByText("Vol. 4")).toBeInTheDocument();
+    expect(screen.getByText("Lançamento")).toBeInTheDocument();
+    expect(screen.getByText("Capítulo novo")).toBeInTheDocument();
 
     updateLinks.forEach((link) => {
       expect(link).toHaveClass("recent-updates-item");
@@ -123,9 +125,18 @@ describe("LatestEpisodeCard border styles", () => {
     const sources = Array.from(container.querySelectorAll("source"));
 
     expect(sources).toHaveLength(4);
-    expect(sources[0]).toHaveAttribute("srcset", expect.stringContaining("/uploads/_variants/u1/poster-v1.avif"));
-    expect(sources[1]).toHaveAttribute("srcset", expect.stringContaining("/uploads/_variants/u1/poster-v1.webp"));
-    expect(coverImage).toHaveAttribute("src", expect.stringContaining("/uploads/_variants/u1/poster-v1.jpeg"));
+    expect(sources[0]).toHaveAttribute(
+      "srcset",
+      expect.stringContaining("/uploads/_variants/u1/posterThumb-v1.avif"),
+    );
+    expect(sources[1]).toHaveAttribute(
+      "srcset",
+      expect.stringContaining("/uploads/_variants/u1/posterThumb-v1.webp"),
+    );
+    expect(coverImage).toHaveAttribute(
+      "src",
+      expect.stringContaining("/uploads/_variants/u1/posterThumb-v1.jpeg"),
+    );
     expect(coverWrapper).not.toBeNull();
     expect(coverWrapper).toHaveClass("h-full");
     expect(coverWrapper).not.toHaveClass("aspect-46/65");

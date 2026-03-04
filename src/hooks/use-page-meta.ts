@@ -2,6 +2,7 @@ import { useLayoutEffect, useMemo } from "react";
 import { useSiteSettings } from "@/hooks/use-site-settings";
 import { normalizeAssetUrl } from "@/lib/asset-url";
 import { getCanonicalPageUrl } from "@/lib/canonical-url";
+import { truncateMetaDescription } from "@/lib/meta-description";
 import {
   resolveUploadVariantUrl,
   type UploadMediaVariantsMap,
@@ -65,7 +66,7 @@ export const usePageMeta = ({
     }
     return `${title}${effectiveSeparator}${siteName}`;
   }, [effectiveSeparator, siteName, title]);
-  const pageDescription = description ?? settings.site.description ?? "";
+  const pageDescription = truncateMetaDescription(description ?? settings.site.description ?? "");
   const bootstrapMediaVariants = useMemo<UploadMediaVariantsMap>(() => {
     if (typeof window === "undefined") {
       return {};

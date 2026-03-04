@@ -31,7 +31,7 @@ const PublicPageHero = ({
   return (
     <section className="public-page-hero">
       <div
-        className={`${publicPageLayoutTokens.sectionBase} public-page-hero__inner max-w-6xl pb-16 pt-20 md:pt-28`}
+        className={`${publicPageLayoutTokens.sectionBase} public-page-hero__inner max-w-6xl pb-8 pt-20 md:pb-10 md:pt-28`}
       >
         <div className="public-page-hero__copy reveal space-y-4" data-reveal>
           {badgeLabel ? (

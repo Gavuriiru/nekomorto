@@ -24,16 +24,16 @@ const installIntersectionObserver = () => {
   const observe = vi.fn();
   const unobserve = vi.fn();
   const disconnect = vi.fn();
+  let callbackRef: IntersectionObserverCallback | null = null;
 
   class MockIntersectionObserver {
     observe = observe;
     unobserve = unobserve;
     disconnect = disconnect;
 
-    constructor(
-      _callback: IntersectionObserverCallback,
-      _options?: IntersectionObserverInit,
-    ) {}
+    constructor(callback: IntersectionObserverCallback, _options?: IntersectionObserverInit) {
+      callbackRef = callback;
+    }
   }
 
   Object.defineProperty(window, "IntersectionObserver", {
@@ -42,7 +42,25 @@ const installIntersectionObserver = () => {
     value: MockIntersectionObserver,
   });
 
-  return { observe, unobserve, disconnect };
+  return {
+    observe,
+    unobserve,
+    disconnect,
+    triggerIntersecting: (target: Element) => {
+      if (!callbackRef) {
+        return;
+      }
+      callbackRef(
+        [
+          {
+            isIntersecting: true,
+            target,
+          } as IntersectionObserverEntry,
+        ],
+        {} as IntersectionObserver,
+      );
+    },
+  };
 };
 
 const RevealHarness = () => {
@@ -69,10 +87,6 @@ describe("useReveal", () => {
   it("marca elemento como visivel quando ja esta no viewport", async () => {
     setReducedMotion(false);
     const observer = installIntersectionObserver();
-    window.requestAnimationFrame = ((callback: FrameRequestCallback) => {
-      callback(0);
-      return 0;
-    }) as typeof window.requestAnimationFrame;
 
     render(
       <MemoryRouter>
@@ -81,6 +95,7 @@ describe("useReveal", () => {
     );
 
     const target = screen.getByTestId("reveal-target");
+    observer.triggerIntersecting(target);
 
     await waitFor(() => {
       expect(target).toHaveClass("reveal-visible");
@@ -130,5 +145,25 @@ describe("useReveal", () => {
       expect(target).toHaveClass("reveal-visible");
       expect(target).not.toHaveClass("reveal-hidden");
     });
+  });
+
+  it("nao executa leitura sincrona de layout no fluxo inicial", async () => {
+    setReducedMotion(false);
+    const observer = installIntersectionObserver();
+    const getBoundingClientRectSpy = vi.spyOn(HTMLElement.prototype, "getBoundingClientRect");
+
+    render(
+      <MemoryRouter>
+        <RevealHarness />
+      </MemoryRouter>,
+    );
+
+    const target = screen.getByTestId("reveal-target");
+    observer.triggerIntersecting(target);
+
+    await waitFor(() => {
+      expect(target).toHaveClass("reveal-visible");
+    });
+    expect(getBoundingClientRectSpy).not.toHaveBeenCalled();
   });
 });

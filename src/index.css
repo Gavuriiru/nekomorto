@@ -356,7 +356,6 @@
   .public-page-hero {
     position: relative;
     overflow: hidden;
-    border-bottom: 1px solid hsl(var(--border) / 0.6);
     background-color: hsl(var(--background));
     background-image: var(--gradient-public-hero);
     background-repeat: no-repeat;

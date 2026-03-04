@@ -1,11 +1,12 @@
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { MemoryRouter, useLocation } from "react-router-dom";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import Projects from "@/pages/Projects";
 
 const apiFetchMock = vi.hoisted(() => vi.fn());
 const PROJECTS_LIST_STATE_STORAGE_KEY = "public.projects.list-state.v1";
+const SEARCH_QUERY_DEBOUNCE_MS = 60;
 
 vi.mock("@/hooks/use-page-meta", () => ({
   usePageMeta: () => undefined,
@@ -97,6 +98,15 @@ const LocationProbe = () => {
 const getSearchParams = () =>
   new URLSearchParams(String(screen.getByTestId("location-search").textContent || "").replace(/^\?/, ""));
 
+const getRenderedProjectCards = (container: HTMLElement) =>
+  Array.from(container.querySelectorAll("a.projects-public-card"));
+
+const findCenteredProjectCardWrapper = (container: HTMLElement) =>
+  Array.from(container.querySelectorAll<HTMLElement>("div")).find((element) => {
+    const classTokens = String(element.className).split(/\s+/).filter(Boolean);
+    return classTokens.includes("md:col-span-2") && element.querySelector("a.projects-public-card");
+  }) ?? null;
+
 describe("Projects query sync", () => {
   beforeEach(() => {
     setupApiMock();
@@ -110,6 +120,10 @@ describe("Projects query sync", () => {
         disconnect() {}
       },
     );
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   it("normaliza query legada de genre para genero", async () => {
@@ -166,6 +180,50 @@ describe("Projects query sync", () => {
     expect(getSearchParams().get("q")).toBe("studio");
     expect(pageShell).toHaveClass("min-h-screen", "text-foreground");
     expect(pageShell).not.toHaveClass("bg-background", "bg-gradient-surface");
+  });
+
+  it("aplica debounce na query e mantém input responsivo durante a digitacao", async () => {
+    setupApiMock({
+      projects: [
+        createProject(1, { title: "Alpha 1" }),
+        createProject(2, { title: "Alpha 2" }),
+        createProject(3, { title: "Alpha 3" }),
+        createProject(4, { title: "Beta 1" }),
+      ],
+    });
+
+    const { container } = render(
+      <MemoryRouter initialEntries={["/projetos"]}>
+        <Projects />
+        <LocationProbe />
+      </MemoryRouter>,
+    );
+
+    const searchInput = await screen.findByLabelText("Buscar projetos");
+
+    vi.useFakeTimers();
+    try {
+      fireEvent.change(searchInput, { target: { value: "alpha" } });
+
+      expect(searchInput).toHaveValue("alpha");
+      expect(getSearchParams().get("q")).toBeNull();
+
+      act(() => {
+        vi.advanceTimersByTime(SEARCH_QUERY_DEBOUNCE_MS - 1);
+      });
+      expect(getSearchParams().get("q")).toBeNull();
+
+      act(() => {
+        vi.advanceTimersByTime(1);
+      });
+    } finally {
+      vi.useRealTimers();
+    }
+
+    await waitFor(() => {
+      expect(getSearchParams().get("q")).toBe("alpha");
+      expect(getRenderedProjectCards(container)).toHaveLength(3);
+    });
   });
 
   it("nao restaura filtros/page do localStorage quando URL chega limpa", async () => {
@@ -314,6 +372,120 @@ describe("Projects query sync", () => {
 
     expect(await screen.findByPlaceholderText("Buscar por t\u00EDtulo, sinopse, tag ou g\u00EAnero")).toBeInTheDocument();
     expect(screen.getByText("G\u00EAneros")).toBeInTheDocument();
+  });
+
+  it("filtra por busca e restaura cards ao limpar consulta", async () => {
+    setupApiMock({
+      projects: [
+        createProject(1, { title: "Alpha 1" }),
+        createProject(2, { title: "Alpha 2" }),
+        createProject(3, { title: "Alpha 3" }),
+        createProject(4, { title: "Beta 1" }),
+      ],
+    });
+
+    const { container } = render(
+      <MemoryRouter initialEntries={["/projetos"]}>
+        <Projects />
+        <LocationProbe />
+      </MemoryRouter>,
+    );
+
+    const searchInput = await screen.findByLabelText("Buscar projetos");
+
+    await waitFor(() => {
+      expect(getRenderedProjectCards(container)).toHaveLength(4);
+    });
+
+    fireEvent.change(searchInput, { target: { value: "alpha" } });
+
+    await waitFor(() => {
+      expect(getRenderedProjectCards(container)).toHaveLength(3);
+      expect(getSearchParams().get("q")).toBe("alpha");
+      expect(screen.queryByRole("link", { name: "Beta 1" })).not.toBeInTheDocument();
+    });
+
+    fireEvent.change(searchInput, { target: { value: "" } });
+
+    await waitFor(() => {
+      expect(getRenderedProjectCards(container)).toHaveLength(4);
+      expect(getSearchParams().get("q")).toBeNull();
+    });
+  });
+
+  it("mantem centralizacao do ultimo card quando resultado fica impar", async () => {
+    setupApiMock({
+      projects: [
+        createProject(1, { title: "Alpha 1" }),
+        createProject(2, { title: "Alpha 2" }),
+        createProject(3, { title: "Alpha 3" }),
+        createProject(4, { title: "Beta 1" }),
+      ],
+    });
+
+    const { container } = render(
+      <MemoryRouter initialEntries={["/projetos"]}>
+        <Projects />
+        <LocationProbe />
+      </MemoryRouter>,
+    );
+
+    const searchInput = await screen.findByLabelText("Buscar projetos");
+    fireEvent.change(searchInput, { target: { value: "alpha" } });
+
+    await waitFor(() => {
+      expect(getRenderedProjectCards(container)).toHaveLength(3);
+    });
+
+    await waitFor(() => {
+      const centeredWrapper = findCenteredProjectCardWrapper(container);
+      expect(centeredWrapper).not.toBeNull();
+      expect(centeredWrapper).toHaveClass("md:col-span-2", "flex", "justify-center");
+      const widthWrapper = Array.from(centeredWrapper?.children || []).find((child) =>
+        String((child as HTMLElement).className).includes("md:w-[calc(50%-0.75rem)]"),
+      );
+      expect(widthWrapper).toBeTruthy();
+    });
+
+    fireEvent.change(searchInput, { target: { value: "" } });
+
+    await waitFor(() => {
+      expect(getRenderedProjectCards(container)).toHaveLength(4);
+      expect(findCenteredProjectCardWrapper(container)).toBeNull();
+    });
+  });
+
+  it("continua funcional com prefers-reduced-motion ativo", async () => {
+    const originalMatchMedia = window.matchMedia;
+    window.matchMedia = vi.fn().mockImplementation((query: string) => ({
+      matches: query === "(prefers-reduced-motion: reduce)",
+      media: query,
+      onchange: null,
+      addListener: () => {},
+      removeListener: () => {},
+      addEventListener: () => {},
+      removeEventListener: () => {},
+      dispatchEvent: () => false,
+    })) as unknown as typeof window.matchMedia;
+
+    try {
+      const { container } = render(
+        <MemoryRouter initialEntries={["/projetos"]}>
+          <Projects />
+          <LocationProbe />
+        </MemoryRouter>,
+      );
+
+      const searchInput = await screen.findByLabelText("Buscar projetos");
+      fireEvent.change(searchInput, { target: { value: "Projeto 24" } });
+
+      await waitFor(() => {
+        expect(getRenderedProjectCards(container)).toHaveLength(1);
+        expect(screen.getByText("Projeto 24")).toBeInTheDocument();
+      });
+    } finally {
+      window.matchMedia = originalMatchMedia;
+    }
   });
 
   it("renderiza variants poster para as capas publicas quando disponiveis", async () => {

@@ -104,13 +104,13 @@ export const collectEpisodeUpdates = (prevProject, nextProject, now) => {
 
     const isExtra = getEpisodeEntryKind(episode) === "extra";
     const safeTitle = String(episode?.title || "").trim() || "Extra";
-    const unitLabel = isExtra ? "Extra" : isChapterBased ? "Capitulo" : "Episodio";
+    const unitLabel = isExtra ? "Extra" : isChapterBased ? "Capítulo" : "Episódio";
     const updatedAt = String(episode?.chapterUpdatedAt || now).trim() || now;
 
     if (!wasPublic) {
       updates.push({
-        kind: "Lancamento",
-        reason: isExtra ? `${safeTitle} disponivel` : `${unitLabel} ${episode.number} disponivel`,
+        kind: "Lançamento",
+        reason: isExtra ? `${safeTitle} disponível` : `${unitLabel} ${episode.number} disponível`,
         episodeNumber: Number(episode.number),
         volume: Number.isFinite(Number(episode?.volume)) ? Number(episode.volume) : undefined,
         unit: unitLabel,
@@ -123,9 +123,9 @@ export const collectEpisodeUpdates = (prevProject, nextProject, now) => {
       updates.push({
         kind: "Ajuste",
         reason: isExtra
-          ? `Conteudo ajustado no extra "${safeTitle}"`
+          ? `Conteúdo ajustado no extra "${safeTitle}"`
           : isLightNovelType(nextProject?.type || "")
-            ? `Conteudo ajustado no ${unitLabel.toLowerCase()} ${episode.number}`
+            ? `Conteúdo ajustado no ${unitLabel.toLowerCase()} ${episode.number}`
             : `Links ajustados no ${unitLabel.toLowerCase()} ${episode.number}`,
         episodeNumber: Number(episode.number),
         volume: Number.isFinite(Number(episode?.volume)) ? Number(episode.volume) : undefined,

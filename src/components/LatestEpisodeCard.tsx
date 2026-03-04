@@ -10,6 +10,47 @@ import UploadPicture from "@/components/UploadPicture";
 import { formatDate } from "@/lib/date";
 import { PROJECT_COVER_ASPECT_RATIO } from "@/lib/project-card-layout";
 
+const PT_DIACRITICS_REGEX = /[\u0300-\u036f]/g;
+
+const normalizeLookupKey = (value: string) =>
+  String(value || "")
+    .normalize("NFD")
+    .replace(PT_DIACRITICS_REGEX, "")
+    .trim()
+    .toLowerCase();
+
+const applyReplacementWithCase = (input: string, replacement: string) => {
+  const source = String(input || "");
+  if (!source) {
+    return replacement;
+  }
+  if (source === source.toUpperCase()) {
+    return replacement.toUpperCase();
+  }
+  const first = source.charAt(0);
+  const rest = source.slice(1);
+  if (first === first.toUpperCase() && rest === rest.toLowerCase()) {
+    return `${replacement.charAt(0).toUpperCase()}${replacement.slice(1)}`;
+  }
+  return replacement;
+};
+
+const LEGACY_REASON_WORD_REPLACEMENTS: Array<{ from: string; to: string }> = [
+  { from: "lancamento", to: "lançamento" },
+  { from: "capitulo", to: "capítulo" },
+  { from: "episodio", to: "episódio" },
+  { from: "disponivel", to: "disponível" },
+  { from: "conteudo", to: "conteúdo" },
+  { from: "atualizacoes", to: "atualizações" },
+  { from: "atualizacao", to: "atualização" },
+];
+
+const normalizeReasonForDisplay = (value: string) =>
+  LEGACY_REASON_WORD_REPLACEMENTS.reduce((result, item) => {
+    const regex = new RegExp(`\\b${item.from}\\b`, "gi");
+    return result.replace(regex, (match) => applyReplacementWithCase(match, item.to));
+  }, String(value || ""));
+
 const LatestEpisodeCard = () => {
   const { data: bootstrapData, isLoading } = usePublicBootstrap();
   const recentUpdates = bootstrapData?.updates || [];
@@ -78,21 +119,27 @@ const LatestEpisodeCard = () => {
                   typeLabel.includes("light") ||
                   typeLabel.includes("novel") ||
                   hasChapterHint;
-                const unitLabel = update.unit || (isChapterBased ? "Capítulo" : "Episódio");
+                const rawUnitLabel = String(update.unit || "").trim();
+                const unitLookup = normalizeLookupKey(rawUnitLabel);
+                const unitLabel = rawUnitLabel
+                  ? unitLookup === "capitulo"
+                    ? "Capítulo"
+                    : unitLookup === "episodio"
+                      ? "Episódio"
+                      : rawUnitLabel
+                  : isChapterBased
+                    ? "Capítulo"
+                    : "Episódio";
                 const isExtraUnit = unitLabel.toLowerCase() === "extra";
                 const unitShort = isExtraUnit ? "Extra" : /cap/i.test(unitLabel) ? "Cap" : "Ep";
-                const normalizedReason =
-                  /cap/i.test(unitLabel)
-                    ? update.reason
-                        .replace(/epis(?:o|\u00f3)dio/gi, "capitulo")
-                        .replace(/cap(?:i|\u00ed)tulo/gi, "Capitulo")
-                    : update.reason;
-                const reason =
-                  normalizedReason.charAt(0).toUpperCase() + normalizedReason.slice(1);
-                const normalizedKind = String(update.kind || "").trim().toLowerCase();
+                const normalizedReason = normalizeReasonForDisplay(String(update.reason || ""));
+                const reason = normalizedReason
+                  ? normalizedReason.charAt(0).toUpperCase() + normalizedReason.slice(1)
+                  : "";
+                const normalizedKind = normalizeLookupKey(String(update.kind || ""));
                 const kindLabel =
                   normalizedKind.startsWith("lan")
-                    ? "Lancamento"
+                    ? "Lançamento"
                     : normalizedKind.includes("ajuste") || normalizedKind.includes("atualiza")
                       ? "Ajuste"
                       : update.kind;
@@ -112,7 +159,7 @@ const LatestEpisodeCard = () => {
                         <UploadPicture
                           src={update.image || "/placeholder.svg"}
                           alt={update.projectTitle}
-                          preset="poster"
+                          preset="posterThumb"
                           mediaVariants={mediaVariants}
                           sizes="96px"
                           className="block h-full w-full"
@@ -132,7 +179,7 @@ const LatestEpisodeCard = () => {
                           <Badge
                             variant="outline"
                             className={`text-[10px] ${
-                              kindLabel === "Lancamento"
+                              kindLabel === "Lançamento"
                                 ? "border-primary/50 text-primary"
                                 : kindLabel === "Ajuste"
                                   ? "border-amber-500/50 text-amber-400"

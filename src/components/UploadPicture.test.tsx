@@ -168,6 +168,47 @@ describe("UploadPicture", () => {
     );
   });
 
+  it("faz fallback de posterThumb para poster quando necessario", () => {
+    const mediaVariants: UploadMediaVariantsMap = {
+      "/uploads/projects/capa.png": {
+        variantsVersion: 2,
+        variants: {
+          poster: {
+            formats: {
+              avif: { url: "/uploads/_variants/u123/poster-v2.avif" },
+              webp: { url: "/uploads/_variants/u123/poster-v2.webp" },
+              fallback: { url: "/uploads/_variants/u123/poster-v2.jpeg" },
+            },
+          },
+        },
+      },
+    };
+
+    const { container } = render(
+      <UploadPicture
+        src="/uploads/projects/capa.png"
+        alt="Poster thumb com fallback"
+        preset="posterThumb"
+        mediaVariants={mediaVariants}
+      />,
+    );
+
+    const sources = Array.from(container.querySelectorAll("source"));
+    expect(sources).toHaveLength(2);
+    expect(sources[0]).toHaveAttribute(
+      "srcset",
+      expect.stringContaining("/uploads/_variants/u123/poster-v2.avif"),
+    );
+    expect(sources[1]).toHaveAttribute(
+      "srcset",
+      expect.stringContaining("/uploads/_variants/u123/poster-v2.webp"),
+    );
+    expect(container.querySelector("img")).toHaveAttribute(
+      "src",
+      expect.stringContaining("/uploads/_variants/u123/poster-v2.jpeg"),
+    );
+  });
+
   it("resolve a variante square quando disponivel", () => {
     const mediaVariants: UploadMediaVariantsMap = {
       "/uploads/users/avatar.png": {

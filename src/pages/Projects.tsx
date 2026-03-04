@@ -1,5 +1,6 @@
-﻿import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import AsyncState from "@/components/ui/async-state";
@@ -35,6 +36,9 @@ import { cn } from "@/lib/utils";
 const alphabetOptions = ["Todas", ..."ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("")];
 const PROJECTS_LIST_STATE_STORAGE_KEY = "public.projects.list-state.v1";
 const MAX_QUERY_LENGTH = 80;
+const SEARCH_QUERY_DEBOUNCE_MS = 60;
+const CARD_ENTER_EASE: [number, number, number, number] = [0.22, 1, 0.36, 1];
+const CARD_EXIT_EASE: [number, number, number, number] = [0.4, 0, 1, 1];
 
 const parseLetterParam = (value: string | null) => {
   const normalized = String(value || "")
@@ -158,7 +162,7 @@ const ProjectCard = ({
   return (
     <Link
       to={`/projeto/${project.id}`}
-      className="projects-public-card group flex h-50 w-full items-start gap-5 overflow-hidden rounded-2xl border border-border/60 bg-gradient-card p-5 shadow-[0_28px_120px_-60px_rgba(0,0,0,0.55)] transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:shadow-lg focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:ring-offset-2 focus-visible:ring-offset-background md:h-60"
+      className="projects-public-card group flex h-50 w-full items-start gap-5 overflow-hidden rounded-2xl border border-border/60 bg-gradient-card p-5 shadow-[0_28px_120px_-60px_rgba(0,0,0,0.55)] transition-[transform,border-color,box-shadow,color] duration-300 hover:-translate-y-1 hover:border-primary/40 hover:shadow-lg focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:ring-offset-2 focus-visible:ring-offset-background md:h-60"
     >
       <div
         className="h-39 shrink-0 overflow-hidden rounded-xl bg-secondary shadow-inner md:h-50"
@@ -294,6 +298,7 @@ const ProjectCard = ({
 
 const Projects = () => {
   const apiBase = getApiBase();
+  const prefersReducedMotion = useReducedMotion();
   const hasMountedRef = useRef(false);
   const isApplyingUrlStateRef = useRef(false);
   const [projects, setProjects] = useState<Project[]>([]);
@@ -321,6 +326,7 @@ const Projects = () => {
   const selectedTag = searchParams.get("tag") || "Todas";
   const selectedGenre = searchParams.get("genero") || searchParams.get("genre") || "Todos";
   const selectedQuery = searchParams.get("q") || "";
+  const [searchInputValue, setSearchInputValue] = useState(() => selectedQuery);
   const bootstrap = readWindowPublicBootstrap();
   const shareImage = bootstrap?.pages.projects.shareImage || "";
   const shareImageAlt = bootstrap?.pages.projects.shareImageAlt || "";
@@ -431,6 +437,10 @@ const Projects = () => {
     }
   }, [searchParams, setSearchParams]);
 
+  useEffect(() => {
+    setSearchInputValue(selectedQuery);
+  }, [selectedQuery]);
+
   const updateFilterQuery = useCallback(
     (
       tag: string,
@@ -514,14 +524,19 @@ const Projects = () => {
     }
   }, [searchParams, setSearchParams]);
 
-  const updateSearchQuery = useCallback(
-    (value: string) => {
+  useEffect(() => {
+    const normalizedInput = searchInputValue.trim().slice(0, MAX_QUERY_LENGTH);
+    const normalizedSelectedQuery = selectedQuery.trim().slice(0, MAX_QUERY_LENGTH);
+    if (normalizedInput === normalizedSelectedQuery) {
+      return;
+    }
+    const timeoutId = window.setTimeout(() => {
       updateFilterQuery(selectedTag, selectedGenre, {
-        query: value,
+        query: searchInputValue,
       });
-    },
-    [selectedGenre, selectedTag, updateFilterQuery],
-  );
+    }, SEARCH_QUERY_DEBOUNCE_MS);
+    return () => window.clearTimeout(timeoutId);
+  }, [searchInputValue, selectedGenre, selectedQuery, selectedTag, updateFilterQuery]);
 
   useEffect(() => {
     listUiStateRef.current = {
@@ -712,6 +727,19 @@ const Projects = () => {
     }
   }, [searchParams, setSearchParams]);
 
+  const cardInitialMotion = prefersReducedMotion
+    ? { opacity: 1, y: 0 }
+    : { opacity: 0, y: 10 };
+  const cardAnimateMotion = prefersReducedMotion
+    ? { opacity: 1, y: 0, transition: { duration: 0.01 } }
+    : { opacity: 1, y: 0, transition: { duration: 0.18, ease: CARD_ENTER_EASE } };
+  const cardExitMotion = prefersReducedMotion
+    ? { opacity: 1, y: 0, transition: { duration: 0.01 } }
+    : { opacity: 0, y: -8, transition: { duration: 0.14, ease: CARD_EXIT_EASE } };
+  const cardLayoutTransition = prefersReducedMotion
+    ? { duration: 0.01 }
+    : { duration: 0.2, ease: CARD_ENTER_EASE };
+
   return (
     <div className="min-h-screen text-foreground">
       <main className="pt-28">
@@ -725,8 +753,8 @@ const Projects = () => {
                 Busca
               </span>
               <Input
-                value={selectedQuery}
-                onChange={(event) => updateSearchQuery(event.target.value)}
+                value={searchInputValue}
+                onChange={(event) => setSearchInputValue(event.target.value.slice(0, MAX_QUERY_LENGTH))}
                 placeholder="Buscar por título, sinopse, tag ou gênero"
                 className="bg-background/60"
                 aria-label="Buscar projetos"
@@ -870,31 +898,45 @@ const Projects = () => {
             />
           ) : (
             <div ref={listRootRef} className="mt-10 grid gap-6 md:grid-cols-2 md:auto-rows-fr">
-              {paginatedProjects.map((project, index) => {
-                const isLastSingle =
-                  paginatedProjects.length % 2 === 1 && index === paginatedProjects.length - 1;
-                const card = (
-                  <ProjectCard
-                    key={project.id}
-                    project={project}
-                    tagTranslations={tagTranslations}
-                    genreTranslations={genreTranslations}
-                    navigate={navigate}
-                    synopsisClampClass={getSynopsisClampClass(project.id)}
-                    mediaVariants={projectsMediaVariants}
-                  />
-                );
-
-                if (!isLastSingle) {
-                  return card;
-                }
-
-                return (
-                  <div key={project.id} className="md:col-span-2 flex justify-center">
-                    <div className="w-full md:w-[calc(50%-0.75rem)]">{card}</div>
-                  </div>
-                );
-              })}
+              <AnimatePresence initial={false} mode="sync">
+                {paginatedProjects.map((project, index) => {
+                  const isLastSingle =
+                    paginatedProjects.length % 2 === 1 && index === paginatedProjects.length - 1;
+                  return (
+                    <motion.div
+                      key={project.id}
+                      layout="position"
+                      initial={cardInitialMotion}
+                      animate={cardAnimateMotion}
+                      exit={cardExitMotion}
+                      transition={{ layout: cardLayoutTransition }}
+                      className={isLastSingle ? "md:col-span-2 flex justify-center" : undefined}
+                    >
+                      {isLastSingle ? (
+                        <div className="w-full md:w-[calc(50%-0.75rem)]">
+                          <ProjectCard
+                            project={project}
+                            tagTranslations={tagTranslations}
+                            genreTranslations={genreTranslations}
+                            navigate={navigate}
+                            synopsisClampClass={getSynopsisClampClass(project.id)}
+                            mediaVariants={projectsMediaVariants}
+                          />
+                        </div>
+                      ) : (
+                        <ProjectCard
+                          project={project}
+                          tagTranslations={tagTranslations}
+                          genreTranslations={genreTranslations}
+                          navigate={navigate}
+                          synopsisClampClass={getSynopsisClampClass(project.id)}
+                          mediaVariants={projectsMediaVariants}
+                        />
+                      )}
+                    </motion.div>
+                  );
+                })}
+              </AnimatePresence>
             </div>
           )}
 

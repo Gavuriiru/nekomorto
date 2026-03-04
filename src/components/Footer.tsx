@@ -161,12 +161,9 @@ const Footer = () => {
 
       <div className="border-t border-border/60 bg-background/40">
         <div className="mx-auto flex max-w-7xl flex-col gap-2 px-6 py-6 text-xs text-muted-foreground md:flex-row md:items-center md:justify-between md:px-12">
-          <Link
-            to="/"
-            className="underline decoration-current underline-offset-4 transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-          >
+          <p>
             {footer.copyright || ""}
-          </Link>
+          </p>
         </div>
       </div>
     </footer>

@@ -1,42 +1,19 @@
-import fs from "node:fs";
-import fsPromises from "node:fs/promises";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
 import React from "react";
 import { ImageResponse } from "@vercel/og";
-import { resolveUploadAbsolutePath } from "./upload-media.js";
 
 export const OG_PROJECT_WIDTH = 1200;
 export const OG_PROJECT_HEIGHT = 630;
 
-const MODULE_DIR = path.dirname(fileURLToPath(import.meta.url));
-const PROJECT_OG_ASSET_DIR = path.join(MODULE_DIR, "..", "assets", "og", "project-card");
-
 const DEFAULT_ACCENT_HEX = "#9667e0";
 const DEFAULT_BACKGROUND = "#02050b";
 const EYEBROW_SEPARATOR = "\u2022";
+const TRANSPARENT_PIXEL_DATA_URL =
+  "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==";
 
 const FONT_FAMILY_TITLE = "Geist";
 const FONT_FAMILY_EYEBROW = "Geist Light";
 const FONT_FAMILY_SUBTITLE = "Geist Medium";
 const FONT_FAMILY_CHIP = "Geist ExtraLight";
-
-const STATIC_ASSET_FILES = Object.freeze({
-  overlayShadow: "overlay-shadow.png",
-  overlayAccentMask: "overlay-accent-mask.png",
-  overlayDepth: "overlay-depth.png",
-  chipDrama: "chip-drama.png",
-  chipMisterio: "chip-misterio.png",
-  chipPsicologico: "chip-psicologico.png",
-  chipSobrenatural: "chip-sobrenatural.png",
-});
-
-const FONT_FILES = Object.freeze({
-  title: { fileName: "Geist-Bold.otf", name: FONT_FAMILY_TITLE, weight: 700 },
-  eyebrow: { fileName: "Geist-Light.otf", name: FONT_FAMILY_EYEBROW, weight: 300 },
-  subtitle: { fileName: "Geist-Medium.otf", name: FONT_FAMILY_SUBTITLE, weight: 500 },
-  chip: { fileName: "Geist-ExtraLight.otf", name: FONT_FAMILY_CHIP, weight: 200 },
-});
 
 const DEFAULT_LAYOUT = Object.freeze({
   artworkLeft: 780,
@@ -58,12 +35,7 @@ const DEFAULT_LAYOUT = Object.freeze({
   dividerSkewDeg: 0,
 });
 
-const staticAssetDataUrlCache = new Map();
-const fontBufferCache = new Map();
-let projectOgFontsCache = null;
-
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
-
 const cloneLayout = () => ({ ...DEFAULT_LAYOUT });
 
 const truncateText = (value, maxLength) => {
@@ -140,9 +112,7 @@ const rgbToHsl = ({ r, g, b }) => {
   }
 
   const lightness = (max + min) / 2;
-  const saturation =
-    delta === 0 ? 0 : delta / (1 - Math.abs(2 * lightness - 1));
-
+  const saturation = delta === 0 ? 0 : delta / (1 - Math.abs(2 * lightness - 1));
   return {
     h: Math.round(hue),
     s: Math.round(saturation * 100),
@@ -154,8 +124,7 @@ const hslToRgb = ({ h, s, l }) => {
   const normalizedHue = ((Number(h) % 360) + 360) % 360;
   const normalizedSaturation = clamp(Number(s), 0, 100) / 100;
   const normalizedLightness = clamp(Number(l), 0, 100) / 100;
-  const chroma =
-    (1 - Math.abs(2 * normalizedLightness - 1)) * normalizedSaturation;
+  const chroma = (1 - Math.abs(2 * normalizedLightness - 1)) * normalizedSaturation;
   const hueSegment = normalizedHue / 60;
   const x = chroma * (1 - Math.abs((hueSegment % 2) - 1));
 
@@ -199,40 +168,6 @@ const rgba = (rgb, alpha) =>
     0,
     255,
   )}, ${alpha})`;
-
-const guessMimeType = (value, fallback = "image/png") => {
-  const normalized = String(value || "").trim();
-  if (!normalized) {
-    return fallback;
-  }
-  try {
-    const parsed = normalized.startsWith("http://") || normalized.startsWith("https://")
-      ? new URL(normalized)
-      : new URL(normalized, "https://nekomata.local");
-    const pathname = parsed.pathname.toLowerCase();
-    if (pathname.endsWith(".png")) {
-      return "image/png";
-    }
-    if (pathname.endsWith(".jpg") || pathname.endsWith(".jpeg")) {
-      return "image/jpeg";
-    }
-    if (pathname.endsWith(".webp")) {
-      return "image/webp";
-    }
-    if (pathname.endsWith(".gif")) {
-      return "image/gif";
-    }
-    if (pathname.endsWith(".avif")) {
-      return "image/avif";
-    }
-    if (pathname.endsWith(".svg")) {
-      return "image/svg+xml";
-    }
-  } catch {
-    return fallback;
-  }
-  return fallback;
-};
 
 const toTranslationMap = (record) => {
   const map = new Map();
@@ -306,144 +241,33 @@ const getTitleFontSize = (title) => {
   return 60;
 };
 
-const resolveStaticAssetPath = (name) => {
-  const resolvedName = STATIC_ASSET_FILES[name] || String(name || "").trim();
-  if (!resolvedName) {
-    throw new Error("missing_project_og_asset_name");
-  }
-  return path.join(PROJECT_OG_ASSET_DIR, resolvedName);
-};
-
-const readStaticAssetBuffer = (name) => fs.readFileSync(resolveStaticAssetPath(name));
-
-const toDataUrl = (buffer, mime) => `data:${mime};base64,${Buffer.from(buffer).toString("base64")}`;
-
-const createLayer = (layerName, style) =>
+const buildTransparentOgScene = () =>
   React.createElement("div", {
-    "data-og-layer": layerName,
+    "data-og-layer": "og-zero-baseline",
     style: {
-      position: "absolute",
-      ...style,
+      display: "flex",
+      width: OG_PROJECT_WIDTH,
+      height: OG_PROJECT_HEIGHT,
+      backgroundColor: "rgba(0, 0, 0, 0)",
     },
   });
-
-const renderEyebrow = (model, fontFamilies) => {
-  const eyebrowParts = Array.isArray(model.eyebrowParts) ? model.eyebrowParts.filter(Boolean) : [];
-  const separator = model.eyebrowSeparator || EYEBROW_SEPARATOR;
-
-  if (eyebrowParts.length === 2) {
-    return React.createElement(
-      "div",
-      {
-        "data-og-layer": "eyebrow-row",
-        style: {
-          display: "flex",
-          alignItems: "center",
-          gap: 10,
-          fontSize: 28,
-          lineHeight: 1,
-          color: "#8d8d8d",
-          fontFamily: fontFamilies.eyebrow,
-          fontWeight: 300,
-        },
-      },
-      React.createElement("span", null, eyebrowParts[0]),
-      React.createElement(
-        "span",
-        {
-          style: {
-            color: model.palette.accentDivider,
-            fontFamily: fontFamilies.eyebrow,
-            fontWeight: 300,
-          },
-        },
-        separator,
-      ),
-      React.createElement("span", null, eyebrowParts[1]),
-    );
-  }
-
-  return React.createElement(
-    "div",
-    {
-      "data-og-layer": "eyebrow-row",
-      style: {
-        display: "flex",
-        alignItems: "center",
-        fontSize: 28,
-        lineHeight: 1,
-        color: "#8d8d8d",
-        fontFamily: fontFamilies.eyebrow,
-        fontWeight: 300,
-      },
-    },
-    model.eyebrow || "Projeto",
-  );
-};
 
 export const buildProjectOgImagePath = (projectId) =>
   `/api/og/project/${encodeURIComponent(String(projectId || "").trim())}`;
 
-export const loadProjectOgStaticAssetDataUrl = (name) => {
-  const resolvedName = STATIC_ASSET_FILES[name] || String(name || "").trim();
-  if (!resolvedName) {
-    throw new Error("missing_project_og_asset_name");
-  }
-  if (staticAssetDataUrlCache.has(resolvedName)) {
-    return staticAssetDataUrlCache.get(resolvedName);
-  }
-  const buffer = readStaticAssetBuffer(resolvedName);
-  const dataUrl = toDataUrl(buffer, guessMimeType(resolvedName));
-  staticAssetDataUrlCache.set(resolvedName, dataUrl);
-  return dataUrl;
+export const loadProjectOgStaticAssetDataUrl = (_name) => {
+  // TODO(og-redesign): replace with real asset loader when the new visual system is implemented.
+  return TRANSPARENT_PIXEL_DATA_URL;
 };
 
 export const loadProjectOgFontBuffers = () => {
-  const result = {};
-  Object.values(FONT_FILES).forEach((fontConfig) => {
-    if (!fontBufferCache.has(fontConfig.fileName)) {
-      fontBufferCache.set(
-        fontConfig.fileName,
-        fs.readFileSync(path.join(PROJECT_OG_ASSET_DIR, fontConfig.fileName)),
-      );
-    }
-    result[fontConfig.name] = fontBufferCache.get(fontConfig.fileName);
-  });
-  return result;
+  // TODO(og-redesign): add branded font loading for the new OG compositions.
+  return {};
 };
 
 export const buildProjectOgFonts = () => {
-  if (projectOgFontsCache) {
-    return projectOgFontsCache;
-  }
-  const buffers = loadProjectOgFontBuffers();
-  projectOgFontsCache = [
-    {
-      name: FONT_FAMILY_TITLE,
-      data: buffers[FONT_FAMILY_TITLE],
-      style: "normal",
-      weight: 700,
-    },
-    {
-      name: FONT_FAMILY_EYEBROW,
-      data: buffers[FONT_FAMILY_EYEBROW],
-      style: "normal",
-      weight: 300,
-    },
-    {
-      name: FONT_FAMILY_SUBTITLE,
-      data: buffers[FONT_FAMILY_SUBTITLE],
-      style: "normal",
-      weight: 500,
-    },
-    {
-      name: FONT_FAMILY_CHIP,
-      data: buffers[FONT_FAMILY_CHIP],
-      style: "normal",
-      weight: 200,
-    },
-  ];
-  return projectOgFontsCache;
+  // TODO(og-redesign): return @vercel/og font declarations for the final templates.
+  return [];
 };
 
 export const resolveProjectOgPalette = (accentHex) => {
@@ -502,6 +326,7 @@ export const buildProjectOgCardModel = ({
   const title = truncateText(safeProject.title || "Projeto", 46) || "Projeto";
   const subtitle = truncateText(safeProject.studio || "", 38);
   const imageAlt = `Card de compartilhamento do projeto ${String(safeProject.title || "Projeto").trim() || "Projeto"}`;
+
   const genreMap = toTranslationMap(genreTranslations);
   const tagMap = toTranslationMap(tagTranslations);
   const sourceValues =
@@ -510,6 +335,7 @@ export const buildProjectOgCardModel = ({
       : Array.isArray(safeProject.tags)
         ? safeProject.tags.map((value) => translateValue(value, tagMap))
         : [];
+
   const seenChips = new Set();
   const chips = [];
   sourceValues.forEach((value) => {
@@ -549,264 +375,25 @@ export const buildProjectOgCardModel = ({
   };
 };
 
-export const loadProjectOgArtworkDataUrl = async ({ artworkUrl, uploadsDir }) => {
-  const normalizedUrl = String(artworkUrl || "").trim();
-  if (!normalizedUrl) {
-    return "";
+export const loadProjectOgArtworkDataUrl = async ({ artworkUrl } = {}) => {
+  const normalized = String(artworkUrl || "").trim();
+  if (normalized.startsWith("data:")) {
+    return normalized;
   }
-  if (normalizedUrl.startsWith("data:")) {
-    return normalizedUrl;
-  }
-
-  try {
-    if (normalizedUrl.startsWith("/uploads/")) {
-      const absolutePath = resolveUploadAbsolutePath({
-        uploadsDir,
-        uploadUrl: normalizedUrl,
-      });
-      if (!absolutePath) {
-        return "";
-      }
-      const bytes = await fsPromises.readFile(absolutePath);
-      const mime = guessMimeType(normalizedUrl);
-      return toDataUrl(bytes, mime);
-    }
-
-    if (/^https?:\/\//i.test(normalizedUrl)) {
-      const response = await fetch(normalizedUrl);
-      if (!response.ok) {
-        return "";
-      }
-      const arrayBuffer = await response.arrayBuffer();
-      const mime =
-        String(response.headers.get("content-type") || "").split(";")[0].trim() ||
-        guessMimeType(normalizedUrl);
-      return toDataUrl(arrayBuffer, mime);
-    }
-  } catch {
-    return "";
-  }
-
-  return "";
+  // TODO(og-redesign): restore full artwork resolution (uploads/public/remote) for the final templates.
+  return TRANSPARENT_PIXEL_DATA_URL;
 };
 
-export const buildProjectOgScene = (model) => {
-  const safeModel = model && typeof model === "object" ? model : {};
-  const palette =
-    safeModel.palette && typeof safeModel.palette === "object"
-      ? safeModel.palette
-      : resolveProjectOgPalette(DEFAULT_ACCENT_HEX);
-  const title = String(safeModel.title || "Projeto");
-  const subtitle = String(safeModel.subtitle || "");
-  const artworkDataUrl = String(safeModel.artworkDataUrl || "").trim();
-  const titleFontSize = Number.isFinite(Number(safeModel.titleFontSize))
-    ? Number(safeModel.titleFontSize)
-    : getTitleFontSize(title);
-  const layout =
-    safeModel.layout && typeof safeModel.layout === "object"
-      ? { ...cloneLayout(), ...safeModel.layout }
-      : cloneLayout();
-  const fontFamilies =
-    safeModel.fontFamilies && typeof safeModel.fontFamilies === "object"
-      ? {
-          title: safeModel.fontFamilies.title || FONT_FAMILY_TITLE,
-          eyebrow: safeModel.fontFamilies.eyebrow || FONT_FAMILY_EYEBROW,
-          subtitle: safeModel.fontFamilies.subtitle || FONT_FAMILY_SUBTITLE,
-          chip: safeModel.fontFamilies.chip || FONT_FAMILY_CHIP,
-        }
-      : {
-          title: FONT_FAMILY_TITLE,
-          eyebrow: FONT_FAMILY_EYEBROW,
-          subtitle: FONT_FAMILY_SUBTITLE,
-          chip: FONT_FAMILY_CHIP,
-        };
-  const accentPrimaryRgb = hexToRgb(palette.accentPrimary) || hexToRgb(DEFAULT_ACCENT_HEX);
-  const accentLineRgb = hexToRgb(palette.accentLine) || accentPrimaryRgb;
-  const artworkFillWidth = 456;
-  const artworkFillHeight = 654;
+export const buildLegacyProjectOgScene = (_model) => buildTransparentOgScene();
 
-  return React.createElement(
-    "div",
-    {
-      style: {
-        position: "relative",
-        display: "flex",
-        width: OG_PROJECT_WIDTH,
-        height: OG_PROJECT_HEIGHT,
-        overflow: "hidden",
-        background: palette.bgBase,
-        color: "#ffffff",
-        fontFamily: fontFamilies.title,
-      },
-    },
-    createLayer("bg-base", {
-      inset: 0,
-      background: palette.bgBase,
-    }),
-    createLayer("bg-gradient-main", {
-      left: 0,
-      top: 0,
-      width: layout.artworkLeft,
-      height: OG_PROJECT_HEIGHT,
-      backgroundImage: `linear-gradient(90deg, #01040a 0%, #020913 22%, ${palette.accentDarkEnd} 56%, ${palette.accentDarkStart} 82%, #08192f 100%)`,
-    }),
-    createLayer("bg-gradient-soft", {
-      left: 0,
-      top: 0,
-      width: layout.artworkLeft,
-      height: OG_PROJECT_HEIGHT,
-      backgroundImage: `radial-gradient(circle at 73% 48%, ${rgba(
-        accentPrimaryRgb,
-        0.16,
-      )} 0%, ${rgba(accentPrimaryRgb, 0.08)} 18%, rgba(0,0,0,0) 58%)`,
-    }),
-    React.createElement(
-      "div",
-      {
-        "data-og-layer": "artwork-image",
-        style: {
-          position: "absolute",
-          display: "flex",
-          left: layout.artworkLeft,
-          top: layout.artworkTop,
-          width: layout.artworkWidth,
-          height: layout.artworkHeight,
-          overflow: "hidden",
-          background:
-            "linear-gradient(180deg, rgba(10,18,33,0.98) 0%, rgba(5,9,17,1) 100%)",
-        },
-      },
-      artworkDataUrl
-        ? React.createElement("img", {
-            src: artworkDataUrl,
-            alt: "",
-            style: {
-              position: "absolute",
-              left: -18,
-              top: -12,
-              width: artworkFillWidth,
-              height: artworkFillHeight,
-              objectFit: "cover",
-            },
-          })
-        : null,
-    ),
-    createLayer("divider-line", {
-      left: layout.dividerLeft,
-      top: layout.dividerTop,
-      width: layout.dividerWidth,
-      height: layout.dividerHeight,
-      background: palette.accentLine,
-      boxShadow: `0 0 18px ${rgba(accentLineRgb, 0.42)}, 0 0 42px ${rgba(
-        accentPrimaryRgb,
-        0.18,
-      )}`,
-    }),
-    React.createElement("div", {
-      "data-og-layer": "content",
-      style: {
-        position: "absolute",
-        display: "flex",
-        inset: 0,
-        color: "#ffffff",
-      },
-      children: [
-        React.createElement(
-          "div",
-          {
-            key: "eyebrow-wrap",
-            style: {
-              position: "absolute",
-              display: "flex",
-              left: layout.eyebrowLeft,
-              top: layout.eyebrowTop,
-            },
-          },
-          renderEyebrow(
-            {
-              eyebrow: safeModel.eyebrow,
-              eyebrowParts: safeModel.eyebrowParts,
-              eyebrowSeparator: safeModel.eyebrowSeparator,
-              palette,
-            },
-            fontFamilies,
-          ),
-        ),
-        React.createElement(
-          "div",
-          {
-            key: "headline-stack",
-            "data-og-layer": "headline-stack",
-            style: {
-              position: "absolute",
-              display: "flex",
-              flexDirection: "column",
-              left: layout.titleLeft,
-              top: layout.titleTop,
-              width: layout.titleWidth,
-            },
-          },
-          React.createElement(
-            "div",
-            {
-              key: "title",
-              "data-og-layer": "title-text",
-              style: {
-                display: "flex",
-                width: "100%",
-                maxHeight: Math.ceil(titleFontSize * 2.02),
-                overflow: "hidden",
-              },
-            },
-            React.createElement(
-              "div",
-              {
-                style: {
-                  color: "#ffffff",
-                  fontFamily: fontFamilies.title,
-                  fontSize: titleFontSize,
-                  lineHeight: 0.94,
-                  fontWeight: 700,
-                  letterSpacing: "-0.042em",
-                  textShadow: "0 10px 28px rgba(0,0,0,0.34)",
-                },
-              },
-              title,
-            ),
-          ),
-          subtitle
-            ? React.createElement(
-                "div",
-                {
-                  key: "subtitle",
-                  "data-og-layer": "subtitle-text",
-                  style: {
-                    display: "flex",
-                    marginTop: 14,
-                    width: layout.subtitleWidth,
-                  },
-                },
-                React.createElement(
-                  "div",
-                  {
-                    style: {
-                      color: palette.accentDivider,
-                      fontFamily: fontFamilies.subtitle,
-                      fontSize: 34,
-                      lineHeight: 1,
-                      fontWeight: 500,
-                      textShadow: `0 0 18px ${rgba(accentPrimaryRgb, 0.16)}`,
-                    },
-                  },
-                  subtitle,
-                ),
-              )
-            : null,
-        ),
-      ],
-    }),
-  );
-};
+export const buildProjectOgScene = (_model) => buildTransparentOgScene();
+
+export const buildLegacyProjectOgImageResponse = (model) =>
+  new ImageResponse(buildLegacyProjectOgScene(model), {
+    width: OG_PROJECT_WIDTH,
+    height: OG_PROJECT_HEIGHT,
+    fonts: buildProjectOgFonts(),
+  });
 
 export const buildProjectOgImageResponse = (model) =>
   new ImageResponse(buildProjectOgScene(model), {

@@ -1,4 +1,4 @@
-import { useLayoutEffect } from "react";
+import { useEffect } from "react";
 import { useLocation } from "react-router-dom";
 
 const DEFAULT_SELECTOR = "[data-reveal]";
@@ -6,7 +6,7 @@ const DEFAULT_SELECTOR = "[data-reveal]";
 export const useReveal = (selector = DEFAULT_SELECTOR) => {
   const location = useLocation();
 
-  useLayoutEffect(() => {
+  useEffect(() => {
     const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
     const showElement = (el: HTMLElement) => {
@@ -31,22 +31,6 @@ export const useReveal = (selector = DEFAULT_SELECTOR) => {
           )
         : null;
 
-    const revealIfVisible = (el: HTMLElement) => {
-      if (el.classList.contains("reveal-visible")) {
-        return true;
-      }
-      el.classList.add("reveal-hidden");
-      const rect = el.getBoundingClientRect();
-      if (rect.top < window.innerHeight * 0.9) {
-        window.requestAnimationFrame(() => {
-          showElement(el);
-          observer?.unobserve(el);
-        });
-        return true;
-      }
-      return false;
-    };
-
     const registerElements = (elements: HTMLElement[]) => {
       if (!elements.length) {
         return;
@@ -64,9 +48,8 @@ export const useReveal = (selector = DEFAULT_SELECTOR) => {
           showElement(el);
           return;
         }
-        if (!revealIfVisible(el)) {
-          observer.observe(el);
-        }
+        el.classList.add("reveal-hidden");
+        observer.observe(el);
       });
     };
 

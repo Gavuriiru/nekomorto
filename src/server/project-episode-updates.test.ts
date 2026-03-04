@@ -126,11 +126,15 @@ describe("project episode updates", () => {
     expect(updates).toEqual([
       expect.objectContaining({
         kind: "Ajuste",
+        unit: "Capítulo",
+        reason: "Conteúdo ajustado no capítulo 1",
         episodeNumber: 1,
         volume: 1,
       }),
       expect.objectContaining({
-        kind: expect.stringMatching(/lan/i),
+        kind: "Lançamento",
+        unit: "Capítulo",
+        reason: "Capítulo 1 disponível",
         episodeNumber: 1,
         volume: 2,
       }),

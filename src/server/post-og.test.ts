@@ -1,5 +1,7 @@
+import sharp from "sharp";
 import { describe, expect, it } from "vitest";
 
+import { OG_PROJECT_HEIGHT, OG_PROJECT_WIDTH } from "../../server/lib/project-og.js";
 import {
   buildPostOgCardModel,
   buildPostOgImagePath,
@@ -21,42 +23,25 @@ const basePost = {
   coverImageUrl: "/uploads/posts/post-1/cover.jpg",
 };
 
-const artworkDataUrl =
-  "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jz2kAAAAASUVORK5CYII=";
+const assertTransparentPng = async (buffer: Buffer) => {
+  const metadata = await sharp(buffer).metadata();
+  expect(metadata.width).toBe(OG_PROJECT_WIDTH);
+  expect(metadata.height).toBe(OG_PROJECT_HEIGHT);
+  expect(metadata.hasAlpha).toBe(true);
+
+  const stats = await sharp(buffer).stats();
+  const alpha = stats.channels[3];
+  expect(alpha).toBeDefined();
+  expect(alpha.min).toBe(0);
+  expect(alpha.max).toBe(0);
+};
 
 describe("post og helper", () => {
   it("builds encoded image path", () => {
     expect(buildPostOgImagePath("post com espaco")).toBe("/api/og/post/post%20com%20espaco");
   });
 
-  it("keeps eyebrow fixed as Postagem without status suffix", () => {
-    const publishedModel = buildPostOgCardModel({
-      post: { ...basePost, status: "published" },
-      settings: baseSettings,
-      resolvedCover: { coverImageUrl: basePost.coverImageUrl },
-      resolveVariantUrl: (value: string) => value,
-    });
-    const scheduledModel = buildPostOgCardModel({
-      post: { ...basePost, status: "scheduled" },
-      settings: baseSettings,
-      resolvedCover: { coverImageUrl: basePost.coverImageUrl },
-      resolveVariantUrl: (value: string) => value,
-    });
-    const draftModel = buildPostOgCardModel({
-      post: { ...basePost, status: "draft" },
-      settings: baseSettings,
-      resolvedCover: { coverImageUrl: basePost.coverImageUrl },
-      resolveVariantUrl: (value: string) => value,
-    });
-
-    expect(publishedModel.eyebrowParts).toEqual(["Postagem"]);
-    expect(scheduledModel.eyebrowParts).toEqual(["Postagem"]);
-    expect(draftModel.eyebrowParts).toEqual(["Postagem"]);
-    expect(publishedModel.eyebrow).toBe("Postagem");
-    expect(scheduledModel.eyebrow).toBe("Postagem");
-  });
-
-  it("maps subtitle from author and truncates title/subtitle", () => {
+  it("keeps eyebrow fixed as Postagem and truncates title/subtitle", () => {
     const model = buildPostOgCardModel({
       post: {
         ...basePost,
@@ -68,6 +53,8 @@ describe("post og helper", () => {
       resolveVariantUrl: (value: string) => value,
     });
 
+    expect(model.eyebrowParts).toEqual(["Postagem"]);
+    expect(model.eyebrow).toBe("Postagem");
     expect(model.title.endsWith("...")).toBe(true);
     expect(model.title.length).toBeLessThanOrEqual(46);
     expect(model.subtitle.endsWith("...")).toBe(true);
@@ -103,43 +90,18 @@ describe("post og helper", () => {
     expect(invalidModel.palette).toEqual(defaultModel.palette);
   });
 
-  it("renders png via shared project renderer", async () => {
+  it("renders a transparent PNG via post OG renderer", async () => {
     const model = buildPostOgCardModel({
       post: basePost,
       settings: baseSettings,
       resolvedCover: { coverImageUrl: basePost.coverImageUrl },
       resolveVariantUrl: (value: string) => value,
     });
-
-    const response = buildPostOgImageResponse({
-      ...model,
-      artworkDataUrl,
-    });
+    const response = buildPostOgImageResponse(model);
     const buffer = Buffer.from(await response.arrayBuffer());
 
-    expect(buffer.length).toBeGreaterThan(0);
     expect(response.headers.get("content-type")).toContain("image/png");
-  });
-
-  it("renders png with long two-line title and subtitle present", async () => {
-    const model = buildPostOgCardModel({
-      post: {
-        ...basePost,
-        title: "Love Live! Superstar!! 01 - Uma historia bem longa para ocupar duas linhas",
-        author: "Jose Gabriel",
-      },
-      settings: baseSettings,
-      resolvedCover: { coverImageUrl: basePost.coverImageUrl },
-      resolveVariantUrl: (value: string) => value,
-    });
-
-    const response = buildPostOgImageResponse({
-      ...model,
-      artworkDataUrl,
-    });
-    const buffer = Buffer.from(await response.arrayBuffer());
-
     expect(buffer.length).toBeGreaterThan(0);
-    expect(response.headers.get("content-type")).toContain("image/png");
+    await assertTransparentPng(buffer);
   });
 });

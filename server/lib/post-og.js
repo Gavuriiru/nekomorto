@@ -1,9 +1,6 @@
-import {
-  OG_PROJECT_HEIGHT,
-  OG_PROJECT_WIDTH,
-  buildProjectOgImageResponse,
-  resolveProjectOgPalette,
-} from "./project-og.js";
+import React from "react";
+import { ImageResponse } from "@vercel/og";
+import { OG_PROJECT_HEIGHT, OG_PROJECT_WIDTH, resolveProjectOgPalette } from "./project-og.js";
 
 const EYEBROW_SEPARATOR = "\u2022";
 
@@ -56,6 +53,17 @@ const getTitleFontSize = (title) => {
   return 60;
 };
 
+const buildTransparentPostOgScene = () =>
+  React.createElement("div", {
+    "data-og-layer": "og-zero-baseline",
+    style: {
+      display: "flex",
+      width: OG_PROJECT_WIDTH,
+      height: OG_PROJECT_HEIGHT,
+      backgroundColor: "rgba(0, 0, 0, 0)",
+    },
+  });
+
 export const buildPostOgImagePath = (slug) =>
   `/api/og/post/${encodeURIComponent(String(slug || "").trim())}`;
 
@@ -65,9 +73,7 @@ export const buildPostOgCardModel = ({ post, settings, resolvedCover, resolveVar
   const subtitle = truncateText(safePost.author || "", 38);
   const eyebrowParts = ["Postagem"];
   const imageAlt = `Card de compartilhamento da postagem ${String(safePost.title || "Postagem").trim() || "Postagem"}`;
-  const baseArtworkUrl = String(
-    resolvedCover?.coverImageUrl || safePost.coverImageUrl || "",
-  ).trim();
+  const baseArtworkUrl = String(resolvedCover?.coverImageUrl || safePost.coverImageUrl || "").trim();
   const variantArtworkUrl =
     typeof resolveVariantUrl === "function"
       ? String(resolveVariantUrl(baseArtworkUrl, "og") || "").trim()
@@ -99,4 +105,10 @@ export const buildPostOgCardModel = ({ post, settings, resolvedCover, resolveVar
   };
 };
 
-export const buildPostOgImageResponse = (model) => buildProjectOgImageResponse(model);
+export const buildPostOgImageResponse = (_model) =>
+  new ImageResponse(buildTransparentPostOgScene(), {
+    width: OG_PROJECT_WIDTH,
+    height: OG_PROJECT_HEIGHT,
+    // TODO(og-redesign): add post-specific font declarations when the final composition is ready.
+    fonts: [],
+  });

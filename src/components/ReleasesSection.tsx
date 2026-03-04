@@ -108,7 +108,7 @@ const ReleasesSection = () => {
                             <UploadPicture
                               src={release.coverImageUrl}
                               alt={release.title}
-                              preset="card"
+                              preset="cardHome"
                               mediaVariants={mediaVariants}
                               sizes="(min-width: 1024px) 364px, (min-width: 640px) calc((100vw - 8rem) / 2), calc(100vw - 3rem)"
                               className="absolute inset-0 block h-full w-full"

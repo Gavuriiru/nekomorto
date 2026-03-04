@@ -641,7 +641,11 @@ const HeroSection = () => {
                           ) : null}
                         </div>
 
-                        <h1 className="text-2xl md:text-4xl lg:text-5xl xl:text-6xl 2xl:text-7xl font-black mb-6 animate-slide-up text-foreground leading-tight">
+                        <h1
+                          className={`text-2xl md:text-4xl lg:text-5xl xl:text-6xl 2xl:text-7xl font-black mb-6 text-foreground leading-tight ${
+                            index === 0 ? "" : "animate-slide-up"
+                          }`}
+                        >
                           {slide.title}
                         </h1>
 

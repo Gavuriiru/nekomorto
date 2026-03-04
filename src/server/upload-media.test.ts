@@ -48,7 +48,7 @@ describe("upload-media", () => {
     const variantDir = path.join(uploadsDir, "_variants", "upload-1");
     const files = fs.readdirSync(variantDir);
 
-    expect(files).toHaveLength(6);
+    expect(files).toHaveLength(8);
     expect(files.every((file) => file.endsWith(".avif"))).toBe(true);
     expect(generated.variantBytes).toBeGreaterThan(0);
     expect(generated.variantBytes).toBe(

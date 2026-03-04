@@ -11,16 +11,15 @@ vi.mock("@/hooks/use-site-settings", () => ({
   }),
 }));
 
-describe("Footer copyright link distinction", () => {
-  it("renderiza link de copyright com distinção visual estável (não só no hover)", () => {
+describe("Footer copyright text", () => {
+  it("renders copyright as plain text", () => {
     render(
       <MemoryRouter>
         <Footer />
       </MemoryRouter>,
     );
 
-    const copyrightLink = screen.getByRole("link", { name: defaultSettings.footer.copyright });
-    expect(copyrightLink).toHaveAttribute("href", "/");
-    expect(copyrightLink).toHaveClass("underline", "underline-offset-4");
+    expect(screen.getByText(defaultSettings.footer.copyright)).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: defaultSettings.footer.copyright })).not.toBeInTheDocument();
   });
 });

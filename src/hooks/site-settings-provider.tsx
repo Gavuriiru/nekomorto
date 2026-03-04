@@ -5,6 +5,7 @@ import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
 import { defaultSettings, mergeSettings, SiteSettingsContext } from "@/hooks/site-settings-context";
 import { normalizeAssetUrl } from "@/lib/asset-url";
+import { truncateMetaDescription } from "@/lib/meta-description";
 import { deriveThemeAccentTokens } from "@/lib/theme-accent";
 
 const ensureMeta = (selector: string, attrs: Record<string, string>) => {
@@ -24,7 +25,7 @@ const applyDocumentSettings = (settings: SiteSettings) => {
     return;
   }
   const siteName = settings.site.name || "NEKOMATA";
-  const description = settings.site.description || "";
+  const description = truncateMetaDescription(settings.site.description || "");
   const shareImage = normalizeAssetUrl(settings.site.defaultShareImage || "");
   const hasPageMeta = document.documentElement.dataset.pageMeta === "true";
 

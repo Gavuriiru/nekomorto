@@ -95,13 +95,19 @@ import {
   buildProjectOgCardModel,
   buildProjectOgImagePath,
   buildProjectOgImageResponse,
-  loadProjectOgArtworkDataUrl,
 } from "./lib/project-og.js";
+import { optimizeOgPngBuffer } from "./lib/og-image-output.js";
+import { buildOgRenderCacheKey, createOgRenderCache } from "./lib/og-render-cache.js";
 import {
   buildPostOgCardModel,
   buildPostOgImagePath,
   buildPostOgImageResponse,
 } from "./lib/post-og.js";
+import { truncateMetaDescription } from "./lib/meta-description.js";
+import {
+  normalizeLegacyInviteCardText,
+  normalizeLegacyUpdateRecord,
+} from "./lib/pt-legacy-normalization.js";
 import { buildPublicBootstrapPayload } from "./lib/public-bootstrap.js";
 import {
   buildPublicSearchSuggestions,
@@ -1184,6 +1190,10 @@ const publicReadCache = createResponseCache({
   defaultTtlMs: PUBLIC_READ_CACHE_TTL_MS,
   maxEntries: PUBLIC_READ_CACHE_MAX_ENTRIES,
 });
+const ogRenderCache = createOgRenderCache({
+  ttlMs: 5 * 60 * 1000,
+  maxEntries: 256,
+});
 const backgroundJobQueue = createJobQueue({
   name: "backend",
   concurrency: 1,
@@ -1794,10 +1804,11 @@ const renderMetaHtml = ({
   let html = getIndexHtml();
   const safeUrl = url || PRIMARY_APP_ORIGIN;
   const safeImage = image ? toAbsoluteUrl(resolveMetaImageVariantUrl(image)) : "";
+  const safeDescription = truncateMetaDescription(description);
   html = replaceTitle(html, title);
-  html = upsertMeta(html, "name", "description", description);
+  html = upsertMeta(html, "name", "description", safeDescription);
   html = upsertMeta(html, "property", "og:title", title);
-  html = upsertMeta(html, "property", "og:description", description);
+  html = upsertMeta(html, "property", "og:description", safeDescription);
   html = upsertMeta(html, "property", "og:type", type);
   html = upsertMeta(html, "property", "og:url", safeUrl);
   html = upsertMeta(html, "property", "og:site_name", siteName);
@@ -1809,7 +1820,7 @@ const renderMetaHtml = ({
     html = upsertMeta(html, "name", "twitter:image:alt", String(imageAlt || ""));
   }
   html = upsertMeta(html, "name", "twitter:title", title);
-  html = upsertMeta(html, "name", "twitter:description", description);
+  html = upsertMeta(html, "name", "twitter:description", safeDescription);
   html = upsertMeta(html, "name", "twitter:card", safeImage ? "summary_large_image" : "summary");
   html = upsertLink(html, "canonical", safeUrl);
   if (favicon) {
@@ -1991,7 +2002,7 @@ const resolvePostCover = (post) => {
 
 const buildSiteMetaWithSettings = (settings) => ({
   title: settings.site?.name || "Nekomata",
-  description: settings.site?.description || "",
+  description: truncateMetaDescription(settings.site?.description || ""),
   image: settings.site?.defaultShareImage || "",
   imageAlt: settings.site?.defaultShareImageAlt || "",
   url: PRIMARY_APP_ORIGIN,
@@ -2064,8 +2075,9 @@ const buildProjectMeta = (project) => {
   const settings = loadSiteSettings();
   const siteName = settings.site?.name || "Nekomata";
   const title = project?.title ? `${project.title} | ${siteName}` : siteName;
-  const description =
-    stripHtml(project?.synopsis || project?.description || "") || settings.site?.description || "";
+  const description = truncateMetaDescription(
+    stripHtml(project?.synopsis || project?.description || "") || settings.site?.description || "",
+  );
   const image = buildProjectOgImagePath(project?.id || "");
   const imageAlt = `Card de compartilhamento do projeto ${String(project?.title || "Projeto").trim() || "Projeto"}`;
   return {
@@ -2084,10 +2096,11 @@ const buildPostMeta = (post) => {
   const settings = loadSiteSettings();
   const siteName = settings.site?.name || "Nekomata";
   const title = post?.title ? `${post.title} | ${siteName}` : siteName;
-  const description =
+  const description = truncateMetaDescription(
     stripHtml(post?.seoDescription || post?.excerpt || post?.content || "") ||
-    settings.site?.description ||
-    "";
+      settings.site?.description ||
+      "",
+  );
   const image = buildPostOgImagePath(post?.slug || "");
   const imageAlt = `Card de compartilhamento da postagem ${String(post?.title || "Postagem").trim() || "Postagem"}`;
   return {
@@ -3705,7 +3718,7 @@ const defaultSiteSettings = {
       subtitle: "Converse com a equipe e acompanhe novidades em tempo real.",
       panelTitle: "Comunidade do Zuraaa!",
       panelDescription:
-        "Receba alertas de lancamentos, participe de eventos e fale sobre os nossos projetos.",
+        "Receba alertas de lançamentos, participe de eventos e fale sobre os nossos projetos.",
       ctaLabel: "Entrar no servidor",
       ctaUrl: "https://discord.com/invite/BAHKhdX2ju",
     },
@@ -4134,8 +4147,8 @@ const normalizeSiteSettings = (payload) => {
     String(inviteCardPayload.panelTitle || inviteCardDefaults.panelTitle || "").trim() ||
     String(inviteCardDefaults.panelTitle || "").trim();
   const inviteCardPanelDescription =
-    String(
-      inviteCardPayload.panelDescription || inviteCardDefaults.panelDescription || "",
+    normalizeLegacyInviteCardText(
+      String(inviteCardPayload.panelDescription || inviteCardDefaults.panelDescription || ""),
     ).trim() || String(inviteCardDefaults.panelDescription || "").trim();
   const inviteCardCtaLabel =
     String(inviteCardPayload.ctaLabel || inviteCardDefaults.ctaLabel || "").trim() ||
@@ -4273,7 +4286,11 @@ const loadUpdates = () => {
     return [];
   }
   const parsed = dataRepository.loadUpdates();
-  const normalized = Array.isArray(parsed) ? parsed : [];
+  const updates = Array.isArray(parsed) ? parsed : [];
+  const normalized = updates.map((update) => normalizeLegacyUpdateRecord(update));
+  if (JSON.stringify(updates) !== JSON.stringify(normalized)) {
+    writeUpdates(normalized);
+  }
   writeJsonFileToCache("updates", normalized);
   return normalized;
 };
@@ -14075,7 +14092,6 @@ app.get("/api/og/project/:id", async (req, res) => {
   }
 
   try {
-    const uploadsDir = path.join(__dirname, "..", "public", "uploads");
     const settings = loadSiteSettings();
     const translations = loadTagTranslations();
     const baseModel = buildProjectOgCardModel({
@@ -14086,21 +14102,34 @@ app.get("/api/og/project/:id", async (req, res) => {
       origin: PRIMARY_APP_ORIGIN,
       resolveVariantUrl: resolveMetaImageVariantUrl,
     });
-    const artworkDataUrl = await loadProjectOgArtworkDataUrl({
-      artworkUrl: baseModel.artworkUrl,
-      uploadsDir,
+    const cacheKey = buildOgRenderCacheKey({
+      kind: "project",
+      id,
+      model: baseModel,
     });
-    const imageResponse = buildProjectOgImageResponse({
-      ...baseModel,
-      artworkDataUrl,
+    const cached = ogRenderCache.read(cacheKey);
+    if (cached) {
+      res.setHeader("Content-Type", cached.contentType || "image/png");
+      res.setHeader("Cache-Control", "public, max-age=300, stale-while-revalidate=86400");
+      return res.status(200).send(Buffer.from(cached.buffer));
+    }
+    const rendered = await ogRenderCache.getOrCreateInFlight(cacheKey, async () => {
+      const imageResponse = buildProjectOgImageResponse({
+        ...baseModel,
+      });
+      const arrayBuffer = await imageResponse.arrayBuffer();
+      const contentType = imageResponse.headers.get("content-type") || "image/png";
+      const rawBuffer = Buffer.from(arrayBuffer);
+      const optimizedBuffer = await optimizeOgPngBuffer({
+        buffer: rawBuffer,
+      });
+      ogRenderCache.write(cacheKey, { buffer: optimizedBuffer, contentType });
+      return { buffer: optimizedBuffer, contentType };
     });
-    const arrayBuffer = await imageResponse.arrayBuffer();
-    const contentType =
-      imageResponse.headers.get("content-type") || "image/png";
 
-    res.setHeader("Content-Type", contentType);
+    res.setHeader("Content-Type", rendered.contentType || "image/png");
     res.setHeader("Cache-Control", "public, max-age=300, stale-while-revalidate=86400");
-    return res.status(200).send(Buffer.from(arrayBuffer));
+    return res.status(200).send(Buffer.from(rendered.buffer));
   } catch {
     return res.status(500).type("text/plain").send("image_generation_failed");
   }
@@ -14119,7 +14148,6 @@ app.get("/api/og/post/:slug", async (req, res) => {
   }
 
   try {
-    const uploadsDir = path.join(__dirname, "..", "public", "uploads");
     const settings = loadSiteSettings();
     const resolvedCover = resolvePostCover(post);
     const baseModel = buildPostOgCardModel({
@@ -14128,21 +14156,34 @@ app.get("/api/og/post/:slug", async (req, res) => {
       resolvedCover,
       resolveVariantUrl: resolveMetaImageVariantUrl,
     });
-    const artworkDataUrl = await loadProjectOgArtworkDataUrl({
-      artworkUrl: baseModel.artworkUrl,
-      uploadsDir,
+    const cacheKey = buildOgRenderCacheKey({
+      kind: "post",
+      id: slug,
+      model: baseModel,
     });
-    const imageResponse = buildPostOgImageResponse({
-      ...baseModel,
-      artworkDataUrl,
+    const cached = ogRenderCache.read(cacheKey);
+    if (cached) {
+      res.setHeader("Content-Type", cached.contentType || "image/png");
+      res.setHeader("Cache-Control", "public, max-age=300, stale-while-revalidate=86400");
+      return res.status(200).send(Buffer.from(cached.buffer));
+    }
+    const rendered = await ogRenderCache.getOrCreateInFlight(cacheKey, async () => {
+      const imageResponse = buildPostOgImageResponse({
+        ...baseModel,
+      });
+      const arrayBuffer = await imageResponse.arrayBuffer();
+      const contentType = imageResponse.headers.get("content-type") || "image/png";
+      const rawBuffer = Buffer.from(arrayBuffer);
+      const optimizedBuffer = await optimizeOgPngBuffer({
+        buffer: rawBuffer,
+      });
+      ogRenderCache.write(cacheKey, { buffer: optimizedBuffer, contentType });
+      return { buffer: optimizedBuffer, contentType };
     });
-    const arrayBuffer = await imageResponse.arrayBuffer();
-    const contentType =
-      imageResponse.headers.get("content-type") || "image/png";
 
-    res.setHeader("Content-Type", contentType);
+    res.setHeader("Content-Type", rendered.contentType || "image/png");
     res.setHeader("Cache-Control", "public, max-age=300, stale-while-revalidate=86400");
-    return res.status(200).send(Buffer.from(arrayBuffer));
+    return res.status(200).send(Buffer.from(rendered.buffer));
   } catch {
     return res.status(500).type("text/plain").send("image_generation_failed");
   }
