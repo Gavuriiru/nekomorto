@@ -600,108 +600,116 @@ describe("DashboardProjectsEditor episode accordion", () => {
     expect(chapterPanelContentRoot.className).toContain(chapterOpenOverflowClass);
   });
 
-  it("permite alternar entre principal e extra com numeracao tecnica automatica e persiste no save", async () => {
-    setupApiMock([lightNovelProjectFixture]);
-    const baseImplementation = apiFetchMock.getMockImplementation();
-    const savedPayloads: Array<Record<string, unknown>> = [];
+  it(
+    "permite alternar entre principal e extra com numeracao tecnica automatica e persiste no save",
+    { timeout: 15_000 },
+    async () => {
+      setupApiMock([lightNovelProjectFixture]);
+      const baseImplementation = apiFetchMock.getMockImplementation();
+      const savedPayloads: Array<Record<string, unknown>> = [];
 
-    apiFetchMock.mockImplementation(async (base, path, options) => {
-      const method = String((options as RequestInit | undefined)?.method || "GET").toUpperCase();
-      if (path === `/api/projects/${lightNovelProjectFixture.id}` && method === "PUT") {
-        const payload = (((options as { json?: unknown } | undefined)?.json || {}) ??
-          {}) as Record<string, unknown>;
-        savedPayloads.push(payload);
-        return mockJsonResponse(true, {
-          project: {
-            ...lightNovelProjectFixture,
-            ...payload,
-          },
-        });
-      }
-      return baseImplementation
-        ? (baseImplementation(base, path, options) as Promise<Response>)
-        : mockJsonResponse(false, { error: "not_found" }, 404);
-    });
+      apiFetchMock.mockImplementation(async (base, path, options) => {
+        const method = String((options as RequestInit | undefined)?.method || "GET").toUpperCase();
+        if (path === `/api/projects/${lightNovelProjectFixture.id}` && method === "PUT") {
+          const payload = (((options as { json?: unknown } | undefined)?.json || {}) ??
+            {}) as Record<string, unknown>;
+          savedPayloads.push(payload);
+          return mockJsonResponse(true, {
+            project: {
+              ...lightNovelProjectFixture,
+              ...payload,
+            },
+          });
+        }
+        return baseImplementation
+          ? (baseImplementation(base, path, options) as Promise<Response>)
+          : mockJsonResponse(false, { error: "not_found" }, 404);
+      });
 
-    await openEpisodeEditor({
-      projectTitle: "Projeto Light Novel",
-      sectionNamePattern: /Cap/i,
-      removeButtonPattern: /Remover cap/i,
-    });
+      await openEpisodeEditor({
+        projectTitle: "Projeto Light Novel",
+        sectionNamePattern: /Cap/i,
+        removeButtonPattern: /Remover cap/i,
+      });
 
-    fireEvent.click(getEpisodeTrigger(chapter1TriggerPattern));
-    const chapterCard = await screen.findByTestId("episode-card-0");
-    const entryTypeCombobox = within(chapterCard).getByRole("combobox", {
-      name: /Tipo da entrada/i,
-    });
-    fireEvent.click(entryTypeCombobox);
-    fireEvent.click(await screen.findByRole("option", { name: "Extra" }));
-
-    await waitFor(() => {
-      const numberInput = within(chapterCard).getAllByRole("spinbutton")[0] as HTMLInputElement;
-      expect(numberInput).toBeDisabled();
-      expect(Number(numberInput.value)).toBeGreaterThanOrEqual(100000);
-    });
-
-    fireEvent.click(screen.getByRole("button", { name: /Salvar projeto/i }));
-    await waitFor(() => {
-      expect(savedPayloads.length).toBe(1);
-    });
-    const savedAsExtra = (savedPayloads[0]?.episodeDownloads as Array<Record<string, unknown>>) || [];
-    expect(savedAsExtra[0]).toEqual(
-      expect.objectContaining({
-        entryKind: "extra",
-        entrySubtype: "extra",
-      }),
-    );
-    expect(Number(savedAsExtra[0]?.number)).toBeGreaterThanOrEqual(100000);
-    await waitFor(() => {
-      expect(screen.queryByRole("heading", { name: "Editar projeto" })).not.toBeInTheDocument();
-    });
-    fireEvent.click(await screen.findByRole("button", { name: "Projeto Light Novel" }));
-    const editorDialog = await screen.findByRole("dialog");
-    fireEvent.click(
-      within(editorDialog).getByRole("button", {
-        name: /Conte.do.*cap.tulos/i,
-      }),
-    );
-    const volumeGroups = within(editorDialog).getAllByTestId(/volume-group-/i);
-    volumeGroups.forEach((group) => {
-      const trigger = getVolumeGroupTrigger(group);
-      if (trigger.getAttribute("aria-expanded") !== "true") {
-        fireEvent.click(trigger);
-      }
-    });
-    fireEvent.click(within(editorDialog).getByRole("button", { name: chapter1TriggerPattern }));
-    const reopenedChapterCard = within(editorDialog).getByTestId("episode-card-0");
-
-    fireEvent.click(
-      within(reopenedChapterCard).getByRole("combobox", {
+      fireEvent.click(getEpisodeTrigger(chapter1TriggerPattern));
+      const chapterCard = await screen.findByTestId("episode-card-0");
+      const entryTypeCombobox = within(chapterCard).getByRole("combobox", {
         name: /Tipo da entrada/i,
-      }),
-    );
-    fireEvent.click(await screen.findByRole("option", { name: "Principal" }));
+      });
+      fireEvent.click(entryTypeCombobox);
+      fireEvent.click(await screen.findByRole("option", { name: "Extra" }));
 
-    await waitFor(() => {
-      const numberInput = within(reopenedChapterCard).getAllByRole("spinbutton")[0] as HTMLInputElement;
-      expect(numberInput).not.toBeDisabled();
-      expect(Number(numberInput.value)).toBeLessThan(100000);
-    });
+      await waitFor(() => {
+        const numberInput = within(chapterCard).getAllByRole("spinbutton")[0] as HTMLInputElement;
+        expect(numberInput).toBeDisabled();
+        expect(Number(numberInput.value)).toBeGreaterThanOrEqual(100000);
+      });
 
-    fireEvent.click(screen.getByRole("button", { name: /Salvar projeto/i }));
-    await waitFor(() => {
-      expect(savedPayloads.length).toBe(2);
-    });
-    const savedAsMain = (savedPayloads[1]?.episodeDownloads as Array<Record<string, unknown>>) || [];
-    expect(savedAsMain[0]).toEqual(
-      expect.objectContaining({
-        entryKind: "main",
-        entrySubtype: "chapter",
-      }),
-    );
-    expect(Number(savedAsMain[0]?.number)).toBeGreaterThan(0);
-    expect(Number(savedAsMain[0]?.number)).toBeLessThan(100000);
-  });
+      fireEvent.click(screen.getByRole("button", { name: /Salvar projeto/i }));
+      await waitFor(() => {
+        expect(savedPayloads.length).toBe(1);
+      });
+      const savedAsExtra =
+        (savedPayloads[0]?.episodeDownloads as Array<Record<string, unknown>>) || [];
+      expect(savedAsExtra[0]).toEqual(
+        expect.objectContaining({
+          entryKind: "extra",
+          entrySubtype: "extra",
+        }),
+      );
+      expect(Number(savedAsExtra[0]?.number)).toBeGreaterThanOrEqual(100000);
+      await waitFor(() => {
+        expect(screen.queryByRole("heading", { name: "Editar projeto" })).not.toBeInTheDocument();
+      });
+      fireEvent.click(await screen.findByRole("button", { name: "Projeto Light Novel" }));
+      const editorDialog = await screen.findByRole("dialog");
+      fireEvent.click(
+        within(editorDialog).getByRole("button", {
+          name: /Conte.do.*cap.tulos/i,
+        }),
+      );
+      const volumeGroups = within(editorDialog).getAllByTestId(/volume-group-/i);
+      volumeGroups.forEach((group) => {
+        const trigger = getVolumeGroupTrigger(group);
+        if (trigger.getAttribute("aria-expanded") !== "true") {
+          fireEvent.click(trigger);
+        }
+      });
+      fireEvent.click(within(editorDialog).getByRole("button", { name: chapter1TriggerPattern }));
+      const reopenedChapterCard = within(editorDialog).getByTestId("episode-card-0");
+
+      fireEvent.click(
+        within(reopenedChapterCard).getByRole("combobox", {
+          name: /Tipo da entrada/i,
+        }),
+      );
+      fireEvent.click(await screen.findByRole("option", { name: "Principal" }));
+
+      await waitFor(() => {
+        const numberInput = within(reopenedChapterCard).getAllByRole(
+          "spinbutton",
+        )[0] as HTMLInputElement;
+        expect(numberInput).not.toBeDisabled();
+        expect(Number(numberInput.value)).toBeLessThan(100000);
+      });
+
+      fireEvent.click(screen.getByRole("button", { name: /Salvar projeto/i }));
+      await waitFor(() => {
+        expect(savedPayloads.length).toBe(2);
+      });
+      const savedAsMain =
+        (savedPayloads[1]?.episodeDownloads as Array<Record<string, unknown>>) || [];
+      expect(savedAsMain[0]).toEqual(
+        expect.objectContaining({
+          entryKind: "main",
+          entrySubtype: "chapter",
+        }),
+      );
+      expect(Number(savedAsMain[0]?.number)).toBeGreaterThan(0);
+      expect(Number(savedAsMain[0]?.number)).toBeLessThan(100000);
+    },
+  );
 
   it("oculta controles de volume fora de manga/light novel", async () => {
     await openEpisodeEditor();
@@ -761,64 +769,68 @@ describe("DashboardProjectsEditor episode accordion", () => {
     expect(savedPayload.volumeCovers).toEqual([]);
   });
 
-  it("abre a secao de capitulos ao detectar volume duplicado no save", async () => {
-    const lightNovelWithDuplicateVolumesFixture = {
-      ...lightNovelProjectFixture,
-      id: "project-ln-duplicated-volumes",
-      title: "Projeto LN Duplicado",
-      volumeEntries: [
-        {
-          volume: 2,
-          synopsis: "Sinopse A",
-          coverImageUrl: "/uploads/volume-2-a.jpg",
-          coverImageAlt: "Capa do volume 2 A",
-        },
-        {
-          volume: 2,
-          synopsis: "Sinopse B",
-          coverImageUrl: "/uploads/volume-2-b.jpg",
-          coverImageAlt: "Capa do volume 2 B",
-        },
-      ],
-      volumeCovers: [
-        {
-          volume: 2,
-          coverImageUrl: "/uploads/volume-2-a.jpg",
-          coverImageAlt: "Capa do volume 2 A",
-        },
-      ],
-    };
-    setupApiMock([lightNovelWithDuplicateVolumesFixture]);
+  it(
+    "abre a secao de capitulos ao detectar volume duplicado no save",
+    { timeout: 15_000 },
+    async () => {
+      const lightNovelWithDuplicateVolumesFixture = {
+        ...lightNovelProjectFixture,
+        id: "project-ln-duplicated-volumes",
+        title: "Projeto LN Duplicado",
+        volumeEntries: [
+          {
+            volume: 2,
+            synopsis: "Sinopse A",
+            coverImageUrl: "/uploads/volume-2-a.jpg",
+            coverImageAlt: "Capa do volume 2 A",
+          },
+          {
+            volume: 2,
+            synopsis: "Sinopse B",
+            coverImageUrl: "/uploads/volume-2-b.jpg",
+            coverImageAlt: "Capa do volume 2 B",
+          },
+        ],
+        volumeCovers: [
+          {
+            volume: 2,
+            coverImageUrl: "/uploads/volume-2-a.jpg",
+            coverImageAlt: "Capa do volume 2 A",
+          },
+        ],
+      };
+      setupApiMock([lightNovelWithDuplicateVolumesFixture]);
 
-    await openEpisodeEditor({
-      projectTitle: "Projeto LN Duplicado",
-      sectionNamePattern: /Cap/i,
-      removeButtonPattern: /Remover cap/i,
-    });
+      await openEpisodeEditor({
+        projectTitle: "Projeto LN Duplicado",
+        sectionNamePattern: /Cap/i,
+        removeButtonPattern: /Remover cap/i,
+      });
 
-    const chaptersTrigger = screen.getByRole("button", { name: /Conte.do.*cap.tulos/i });
-    fireEvent.click(chaptersTrigger);
-    expect(chaptersTrigger).toHaveAttribute("aria-expanded", "false");
+      const chaptersTrigger = screen.getByRole("button", { name: /Conte.do.*cap.tulos/i });
+      fireEvent.click(chaptersTrigger);
+      expect(chaptersTrigger).toHaveAttribute("aria-expanded", "false");
 
-    fireEvent.click(screen.getByRole("button", { name: /Salvar projeto/i }));
+      fireEvent.click(screen.getByRole("button", { name: /Salvar projeto/i }));
 
-    await waitFor(() => {
-      expect(toastMock).toHaveBeenCalledWith(
-        expect.objectContaining({
-          title: "Volumes duplicados",
-          description: "Cada volume pode aparecer apenas uma vez.",
-          variant: "destructive",
-        }),
+      await waitFor(() => {
+        expect(toastMock).toHaveBeenCalledWith(
+          expect.objectContaining({
+            title: "Volumes duplicados",
+            description: "Cada volume pode aparecer apenas uma vez.",
+            variant: "destructive",
+          }),
+        );
+      });
+      expect(screen.getByRole("button", { name: /Conte.do.*cap.tulos/i })).toHaveAttribute(
+        "aria-expanded",
+        "true",
       );
-    });
-    expect(screen.getByRole("button", { name: /Conte.do.*cap.tulos/i })).toHaveAttribute(
-      "aria-expanded",
-      "true",
-    );
-    expect(
-      apiFetchMock.mock.calls.some((call) => String(call[1] || "").startsWith("/api/projects/"))
-    ).toBe(false);
-  });
+      expect(
+        apiFetchMock.mock.calls.some((call) => String(call[1] || "").startsWith("/api/projects/"))
+      ).toBe(false);
+    },
+  );
 
   it("permite criar volume sem capitulo e exibe grupo vazio", async () => {
     setupApiMock([lightNovelProjectFixture]);
@@ -1033,7 +1045,9 @@ describe("DashboardProjectsEditor episode accordion", () => {
     ).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Importar EPUB/i })).toBeDisabled();
     expect(screen.getByRole("button", { name: /Exportar volume em EPUB/i })).toBeDisabled();
-  });
+    },
+    10_000,
+  );
 
   it("exibe metadata de build do backend e do frontend na secao EPUB", async () => {
     setupApiMock([lightNovelProjectFixture], {

@@ -155,7 +155,7 @@ describe("DashboardPosts tags translation", () => {
     const card = await screen.findByTestId("post-card-post-1");
     const coverImage = within(card).getByRole("img", { name: "Post de Teste" });
     expect(coverImage).toHaveClass("absolute", "inset-0", "block", "h-full", "w-full", "object-cover", "object-center");
-    const coverContainer = coverImage.parentElement;
+    const coverContainer = coverImage.parentElement?.parentElement;
     expect(coverContainer).not.toBeNull();
     expect(coverContainer).toHaveClass("relative", "h-52", "w-full", "overflow-hidden", "lg:h-full");
     const cardLayoutContainer = Array.from(card.querySelectorAll("div")).find((element) =>

@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildOriginConfig,
   isAllowedOrigin,
+  resolveAuthAppOrigin,
   resolveDiscordRedirectUri,
 } from "../../server/lib/origin-config.js";
 
@@ -113,6 +114,33 @@ describe("origin-config", () => {
     expect(uri).not.toBe("auto");
   });
 
+  it("prefers the backend host origin for the Discord callback when available", () => {
+    const config = buildOriginConfig({
+      appOriginEnv: "https://site.example.com,https://api.example.com",
+      discordRedirectUriEnv: "auto",
+      isProduction: true,
+    });
+    const uri = resolveDiscordRedirectUri({
+      req: {
+        headers: {
+          host: "api.example.com",
+          referer: "https://site.example.com/login",
+        },
+        protocol: "https",
+      },
+      configuredDiscordRedirectUri: config.configuredDiscordRedirectUri,
+      primaryAppOrigin: config.primaryAppOrigin,
+      isAllowedOriginFn: (origin) =>
+        isAllowedOrigin({
+          origin,
+          allowedOrigins: config.allowedOrigins,
+          isProduction: true,
+        }),
+    });
+
+    expect(uri).toBe("https://api.example.com/login");
+  });
+
   it("uses explicit Discord redirect URI when configured", () => {
     const config = buildOriginConfig({
       appOriginEnv: "https://site.example.com",
@@ -154,5 +182,98 @@ describe("origin-config", () => {
     });
 
     expect(uri).toBe("https://site.example.com/login");
+  });
+
+  it("uses the preserved session origin for auth redirects when it is allowed", () => {
+    const config = buildOriginConfig({
+      appOriginEnv: "https://site.example.com",
+      adminOriginsEnv: "https://admin.example.com",
+      isProduction: true,
+    });
+    const origin = resolveAuthAppOrigin({
+      req: {
+        headers: { referer: "https://site.example.com/login" },
+        protocol: "https",
+      },
+      sessionOrigin: "https://admin.example.com",
+      primaryAppOrigin: config.primaryAppOrigin,
+      isAllowedOriginFn: (candidate) =>
+        isAllowedOrigin({
+          origin: candidate,
+          allowedOrigins: config.allowedOrigins,
+          isProduction: true,
+        }),
+    });
+
+    expect(origin).toBe("https://admin.example.com");
+  });
+
+  it("uses the request origin for auth redirects when there is no preserved session origin", () => {
+    const config = buildOriginConfig({
+      appOriginEnv: "https://site.example.com",
+      isProduction: true,
+    });
+    const origin = resolveAuthAppOrigin({
+      req: {
+        headers: { referer: "https://site.example.com/login" },
+        protocol: "https",
+      },
+      sessionOrigin: "",
+      primaryAppOrigin: config.primaryAppOrigin,
+      isAllowedOriginFn: (candidate) =>
+        isAllowedOrigin({
+          origin: candidate,
+          allowedOrigins: config.allowedOrigins,
+          isProduction: true,
+        }),
+    });
+
+    expect(origin).toBe("https://site.example.com");
+  });
+
+  it("falls back to the primary app origin when the session and request origins are invalid", () => {
+    const config = buildOriginConfig({
+      appOriginEnv: "https://site.example.com",
+      isProduction: true,
+    });
+    const origin = resolveAuthAppOrigin({
+      req: {
+        headers: { referer: "https://evil.example.com/login" },
+        protocol: "https",
+      },
+      sessionOrigin: "https://admin.example.com",
+      primaryAppOrigin: config.primaryAppOrigin,
+      isAllowedOriginFn: (candidate) =>
+        isAllowedOrigin({
+          origin: candidate,
+          allowedOrigins: config.allowedOrigins,
+          isProduction: true,
+        }),
+    });
+
+    expect(origin).toBe("https://site.example.com");
+  });
+
+  it("accepts localhost session origins in development mode", () => {
+    const config = buildOriginConfig({
+      appOriginEnv: "",
+      isProduction: false,
+    });
+    const origin = resolveAuthAppOrigin({
+      req: {
+        headers: { referer: "http://127.0.0.1:8080/login" },
+        protocol: "http",
+      },
+      sessionOrigin: "http://localhost:5173",
+      primaryAppOrigin: config.primaryAppOrigin,
+      isAllowedOriginFn: (candidate) =>
+        isAllowedOrigin({
+          origin: candidate,
+          allowedOrigins: config.allowedOrigins,
+          isProduction: false,
+        }),
+    });
+
+    expect(origin).toBe("http://localhost:5173");
   });
 });

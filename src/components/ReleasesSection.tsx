@@ -57,6 +57,7 @@ const ReleasesSection = () => {
   return (
     <section id="lancamentos" className="scroll-mt-32 py-16 px-6 md:px-12 bg-background reveal" data-reveal>
       <div className="max-w-7xl mx-auto">
+        <h2 className="sr-only">Lançamentos recentes</h2>
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Left side - Release cards (blog posts) */}
           <div ref={postsSectionRef} className="lg:col-span-2">

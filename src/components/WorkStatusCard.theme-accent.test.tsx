@@ -73,6 +73,10 @@ describe("WorkStatusCard accent mode", () => {
     const indicator = container.querySelector(".bg-pink-500");
     expect(indicator).not.toBeNull();
     expect(indicator).not.toHaveClass("bg-primary");
+
+    expect(
+      screen.getByRole("progressbar", { name: "Oshi no Ko Episódio 1 43% concluído" }),
+    ).toBeInTheDocument();
   });
 
   it("usa cor tematica no badge e na barra quando a flag estiver ativada", async () => {

@@ -23,10 +23,21 @@
     <link rel="icon" href="/favicon.ico" />
     <link rel="manifest" href="/manifest.webmanifest" />
     <meta name="theme-color" content="#9667e0" />
+    <!-- APP_PRELOADS -->
+    <!-- APP_BOOTSTRAP -->
     <script>
       (function () {
         var THEME_STORAGE_KEY = "nekomata:theme-mode-preference";
         var DEFAULT_THEME_COLOR = "#9667e0";
+        var isPlaceholderTitle = function (value) {
+          var normalized = String(value || "").trim().toLowerCase();
+          return !normalized || normalized === "carregando..." || normalized === "loading...";
+        };
+        var normalizeBootstrapPayload = function (value) {
+          if (!value || typeof value !== "object") return null;
+          if (!Array.isArray(value.projects) || !Array.isArray(value.posts)) return null;
+          return value;
+        };
         var normalizeThemeMode = function (value) {
           return String(value || "").toLowerCase() === "light" ? "light" : "dark";
         };
@@ -68,27 +79,47 @@
           localThemePreference === "light" || localThemePreference === "dark"
             ? localThemePreference
             : "dark";
+        var applyBootstrapSettings = function (settings) {
+          if (!settings || typeof settings !== "object") return;
+          window.__BOOTSTRAP_SETTINGS__ = settings;
+          var name = (settings.site && settings.site.name) || "";
+          if (name && isPlaceholderTitle(document.title)) {
+            document.title = name;
+          }
+          var globalMode = settings && settings.theme ? settings.theme.mode : "dark";
+          if (localThemePreference === "global") {
+            applyThemeMode(globalMode);
+          }
+          applyThemeColor(settings.theme && settings.theme.accent);
+        };
+        var existingBootstrap = normalizeBootstrapPayload(window.__BOOTSTRAP_PUBLIC__);
+        var existingSettings =
+          (existingBootstrap && existingBootstrap.settings) || window.__BOOTSTRAP_SETTINGS__ || null;
         applyThemeMode(initialMode);
         applyThemeColor(DEFAULT_THEME_COLOR);
-        fetch("/api/public/settings")
+        if (existingSettings) {
+          applyBootstrapSettings(existingSettings);
+        }
+        if (existingBootstrap) {
+          window.__BOOTSTRAP_PUBLIC__ = existingBootstrap;
+          window.__BOOTSTRAP_PUBLIC_PROMISE__ =
+            window.__BOOTSTRAP_PUBLIC_PROMISE__ || Promise.resolve(existingBootstrap);
+          return;
+        }
+        window.__BOOTSTRAP_PUBLIC_PROMISE__ = fetch("/api/public/bootstrap")
           .then(function (res) {
             return res.ok ? res.json() : null;
           })
           .then(function (data) {
-            if (!data || !data.settings) return;
-            window.__BOOTSTRAP_SETTINGS__ = data.settings;
-            var name = (data.settings.site && data.settings.site.name) || "";
-            if (name) {
-              document.title = name;
-            }
-            var globalMode =
-              data.settings && data.settings.theme ? data.settings.theme.mode : "dark";
-            if (localThemePreference === "global") {
-              applyThemeMode(globalMode);
-            }
-            applyThemeColor(data.settings.theme && data.settings.theme.accent);
+            var bootstrap = normalizeBootstrapPayload(data);
+            if (!bootstrap) return null;
+            window.__BOOTSTRAP_PUBLIC__ = bootstrap;
+            applyBootstrapSettings(bootstrap.settings || null);
+            return bootstrap;
           })
-          .catch(function () {});
+          .catch(function () {
+            return null;
+          });
       })();
     </script>
   </head>

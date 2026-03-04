@@ -136,6 +136,7 @@ export const normalizePublicTagTranslations = (translations) => ({
 
 export const buildPublicBootstrapPayload = ({
   settings,
+  pages,
   projects,
   posts,
   updates,
@@ -143,6 +144,7 @@ export const buildPublicBootstrapPayload = ({
   generatedAt,
 }) => ({
   settings: settings && typeof settings === "object" ? settings : {},
+  pages: pages && typeof pages === "object" && !Array.isArray(pages) ? pages : {},
   projects: Array.isArray(projects) ? projects.map(toPublicBootstrapProject) : [],
   posts: Array.isArray(posts) ? posts.map(toPublicBootstrapPost) : [],
   updates: Array.isArray(updates) ? updates.map(toPublicBootstrapUpdate) : [],

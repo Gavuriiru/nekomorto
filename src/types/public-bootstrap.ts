@@ -1,5 +1,9 @@
 import type { SiteSettings } from "@/types/site-settings";
 import type { UploadMediaVariantsMap } from "@/lib/upload-variants";
+import {
+  emptyPublicPagesConfig,
+  type PublicPagesConfig,
+} from "@/types/public-pages";
 
 export type PublicBootstrapEpisode = {
   number: number;
@@ -79,6 +83,7 @@ export type PublicBootstrapUpdate = {
 
 export type PublicBootstrapPayload = {
   settings: SiteSettings;
+  pages: PublicPagesConfig;
   projects: PublicBootstrapProject[];
   posts: PublicBootstrapPost[];
   updates: PublicBootstrapUpdate[];
@@ -93,6 +98,7 @@ export type PublicBootstrapPayload = {
 
 export const emptyPublicBootstrapPayload: PublicBootstrapPayload = {
   settings: {} as SiteSettings,
+  pages: emptyPublicPagesConfig,
   projects: [],
   posts: [],
   updates: [],

@@ -184,6 +184,7 @@ npm run dev
 - Para acesso por tunel/dominio publico, mantenha `VITE_API_BASE` vazio para usar same-origin.
 - O HMR do modo integrado usa a mesma origem da pagina. Nao publique nem encaminhe a porta `24678`.
 - Para cloudflared, aponte o tunel inteiro para `http://127.0.0.1:8080`.
+- O OAuth do Discord retorna para a mesma origem que iniciou o login nesse modo.
 
 ### 6.2 Modo separado (backend e frontend em portas diferentes)
 
@@ -209,6 +210,7 @@ VITE_API_BASE=http://127.0.0.1:8080 npm run dev:client
 Frontend:
 
 - `http://localhost:5173`
+- O callback do Discord continua sendo processado pelo backend, mas o redirect final volta para a origem que iniciou o login.
 
 ### 6.3 Simular producao local
 
@@ -344,6 +346,7 @@ Edite `.env.prod` com valores reais, incluindo:
 - `APP_IMAGE_REPO` e `APP_IMAGE_TAG` (opcionais; defaults para GHCR + `latest`)
 
 Para producao same-origin (recomendado), nao configure `VITE_API_BASE`.
+Em ambiente realmente `production`, origens locais so serao aceitas se estiverem permitidas por `APP_ORIGIN`.
 No Discord Developer Portal, confirme as redirect URIs:
 
 - `https://nekomata.moe/login` (obrigatoria)

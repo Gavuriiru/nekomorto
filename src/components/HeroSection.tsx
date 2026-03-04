@@ -13,8 +13,10 @@ import {
   type CarouselApi,
 } from "@/components/ui/carousel";
 import UploadPicture from "@/components/UploadPicture";
+import { scheduleOnBrowserIdle } from "@/lib/browser-idle";
 import { useThemeMode } from "@/hooks/use-theme-mode";
 import { usePublicBootstrap } from "@/hooks/use-public-bootstrap";
+import type { UploadMediaVariantsMap } from "@/lib/upload-variants";
 import type {
   PublicBootstrapProject,
   PublicBootstrapUpdate,
@@ -126,14 +128,251 @@ const sortLaunchUpdates = (updates: PublicBootstrapUpdate[]) =>
         new Date(b.updatedAt || 0).getTime() - new Date(a.updatedAt || 0).getTime(),
     );
 
+const buildHeroSlides = (
+  projects: PublicBootstrapProject[],
+  updates: PublicBootstrapUpdate[],
+): HeroSlide[] => {
+  const launchUpdates = sortLaunchUpdates(updates);
+  const latestLaunchByProject = new Map<string, string>();
+  launchUpdates.forEach((update) => {
+    const projectId = String(update.projectId || "");
+    if (!projectId || latestLaunchByProject.has(projectId)) {
+      return;
+    }
+    latestLaunchByProject.set(projectId, update.updatedAt || "");
+  });
+
+  const projectsById = new Map(projects.map((project) => [project.id, project]));
+  const resultIds = new Set<string>();
+  const slides: HeroSlide[] = [];
+  const maxSlides = 5;
+  const epoch = "1970-01-01T00:00:00.000Z";
+  const createSlide = (project: PublicBootstrapProject, updatedAt?: string) => {
+    if (resultIds.has(project.id)) {
+      return null;
+    }
+    const image = project.heroImageUrl || project.banner || project.cover || "";
+    if (!image) {
+      return null;
+    }
+    return {
+      id: project.id,
+      title: project.title,
+      description: project.synopsis || project.description || "",
+      updatedAt: updatedAt || epoch,
+      image,
+      projectId: project.id,
+      trailerUrl: project.trailerUrl || "",
+      format: project.type || "",
+      status: project.status || "",
+    } satisfies HeroSlide;
+  };
+
+  const orderedProjects = projects
+    .map((project, index) => {
+      const updatedAt = latestLaunchByProject.get(project.id) || "";
+      const time = updatedAt ? new Date(updatedAt).getTime() : 0;
+      return { project, index, updatedAt, time };
+    })
+    .sort((a, b) => {
+      if (b.time !== a.time) {
+        return b.time - a.time;
+      }
+      return a.index - b.index;
+    });
+
+  orderedProjects.forEach((item) => {
+    const slide = createSlide(item.project, item.updatedAt);
+    if (!slide) {
+      return;
+    }
+    if (slides.length < maxSlides) {
+      slides.push(slide);
+      resultIds.add(slide.id);
+      return;
+    }
+    if (!item.project.forceHero) {
+      return;
+    }
+    slides.push(slide);
+    resultIds.add(slide.id);
+    const removeIndexFromEnd = [...slides]
+      .reverse()
+      .findIndex((candidate) => !projectsById.get(candidate.id)?.forceHero);
+    if (removeIndexFromEnd === -1) {
+      const removed = slides.shift();
+      if (removed) {
+        resultIds.delete(removed.id);
+      }
+      return;
+    }
+    const removeIndex = slides.length - 1 - removeIndexFromEnd;
+    const [removed] = slides.splice(removeIndex, 1);
+    if (removed) {
+      resultIds.delete(removed.id);
+    }
+  });
+
+  if (slides.length > 0) {
+    return slides;
+  }
+  return projects.length === 0 ? heroSlidesSeed : [];
+};
+
+type HeroSlideFrameProps = {
+  slide: HeroSlide;
+  index: number;
+  activeIndex: number;
+  latestSlideId: string;
+  loadedSlideIds: Set<string>;
+  mediaVariants: UploadMediaVariantsMap;
+  heroViewportClass: string;
+  shouldRenderNavbarOverlay: boolean;
+  navbarOverlayClass: string;
+  transparentPixel: string;
+  clampSynopsis: (text: string, limit?: number) => string;
+};
+
+const HeroSlideFrame = ({
+  slide,
+  index,
+  activeIndex,
+  latestSlideId,
+  loadedSlideIds,
+  mediaVariants,
+  heroViewportClass,
+  shouldRenderNavbarOverlay,
+  navbarOverlayClass,
+  transparentPixel,
+  clampSynopsis,
+}: HeroSlideFrameProps) => {
+  const isActive = index === activeIndex;
+  const isPrioritySlide = index === 0 || isActive;
+  const shouldLoadImage = loadedSlideIds.has(slide.id) || isPrioritySlide;
+  const loading = isPrioritySlide ? "eager" : "lazy";
+  const imagePriorityProps = {
+    fetchpriority: isPrioritySlide ? "high" : "auto",
+  } as const;
+
+  return (
+    <div className={`relative flex items-end overflow-hidden ${heroViewportClass}`}>
+      <div className="absolute inset-0">
+        {slide.optimizedImageSet ? (
+          <picture>
+            <source
+              type="image/avif"
+              srcSet={shouldLoadImage ? slide.optimizedImageSet.avif : undefined}
+            />
+            <source
+              type="image/webp"
+              srcSet={shouldLoadImage ? slide.optimizedImageSet.webp : undefined}
+            />
+            <img
+              src={shouldLoadImage ? slide.optimizedImageSet.jpg : transparentPixel}
+              alt=""
+              aria-hidden="true"
+              className="h-full w-full object-cover object-center"
+              loading={loading}
+              decoding="async"
+              {...imagePriorityProps}
+            />
+          </picture>
+        ) : (
+          <UploadPicture
+            src={shouldLoadImage ? slide.image : transparentPixel}
+            alt=""
+            preset="hero"
+            mediaVariants={shouldLoadImage ? mediaVariants : undefined}
+            applyFocalObjectPosition
+            className="h-full w-full"
+            imgClassName="h-full w-full object-cover object-center"
+            aria-hidden="true"
+            loading={loading}
+            decoding="async"
+            {...imagePriorityProps}
+          />
+        )}
+      </div>
+
+      <div className="absolute inset-0 bg-linear-to-r from-background via-background/80 to-transparent" />
+      <div className="absolute inset-0 bg-linear-to-t from-background via-background/30 to-transparent" />
+
+      {shouldRenderNavbarOverlay ? (
+        <div data-testid="hero-navbar-overlay" className={navbarOverlayClass} />
+      ) : null}
+
+      <div className="relative z-10 w-full px-6 pb-16 md:px-12 md:pb-24">
+        <div className="max-w-3xl">
+          <div
+            data-testid={`hero-slide-meta-${slide.id}`}
+            className="mb-3 flex flex-col items-start gap-2 text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground md:flex-row md:flex-wrap md:items-center md:gap-3"
+          >
+            {slide.id === latestSlideId ? (
+              <span
+                data-testid={`hero-slide-latest-${slide.id}`}
+                className="inline-block rounded-full border bg-(--hero-badge-bg,hsl(var(--primary)/0.2)) px-3 py-1 text-(--hero-badge-text,hsl(var(--primary))) border-(--hero-badge-border,hsl(var(--primary)/0.3)) animate-fade-in"
+              >
+                Último Lançamento
+              </span>
+            ) : null}
+            {slide.format || slide.status ? (
+              <div
+                data-testid={`hero-slide-type-status-${slide.id}`}
+                className="flex flex-wrap items-center gap-3"
+              >
+                {slide.format ? <span>{slide.format}</span> : null}
+                {slide.format && slide.status ? <span className="opacity-50">•</span> : null}
+                {slide.status ? <span>{slide.status}</span> : null}
+              </div>
+            ) : null}
+          </div>
+
+          <h1 className="mb-6 text-2xl font-black leading-tight text-foreground md:text-4xl lg:text-5xl xl:text-6xl 2xl:text-7xl">
+            {slide.title}
+          </h1>
+
+          <p
+            className="max-w-2xl text-base leading-relaxed text-muted-foreground animate-slide-up opacity-0 md:text-lg xl:text-xl 2xl:text-2xl"
+            style={{ animationDelay: "0.2s" }}
+          >
+            {clampSynopsis(slide.description)}
+          </p>
+
+          <div
+            className="mt-8 flex flex-wrap gap-4 animate-slide-up opacity-0"
+            style={{ animationDelay: "0.4s" }}
+          >
+            <Link
+              to={`/projeto/${slide.projectId}`}
+              className="inline-flex items-center gap-2 rounded-lg bg-(--hero-accent,hsl(var(--primary))) px-6 py-3 font-semibold text-(--hero-accent-foreground,hsl(var(--primary-foreground))) transition-all hover:scale-105 hover:brightness-110"
+            >
+              <Globe className="h-4 w-4" />
+              Acessar Página
+            </Link>
+            {slide.trailerUrl ? (
+              <a
+                href={slide.trailerUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-2 rounded-lg border border-border/40 bg-background/70 px-6 py-3 font-semibold text-foreground transition-all hover:scale-105 hover:bg-background/90"
+              >
+                <Play className="h-4 w-4" />
+                Assistir Trailer
+              </a>
+            ) : null}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const HeroSection = () => {
   const [api, setApi] = React.useState<CarouselApi | null>(null);
   const autoplayRef = React.useRef<number | null>(null);
   const resumeTimeoutRef = React.useRef<number | null>(null);
-  const [heroSlides, setHeroSlides] = React.useState<HeroSlide[]>([]);
-  const [projectsCount, setProjectsCount] = React.useState<number | null>(null);
-  const [hasLoaded, setHasLoaded] = React.useState(false);
   const [activeIndex, setActiveIndex] = React.useState(0);
+  const [isCarouselEnhanced, setIsCarouselEnhanced] = React.useState(false);
   const [loadedSlideIds, setLoadedSlideIds] = React.useState<Set<string>>(
     () => new Set(),
   );
@@ -142,14 +381,33 @@ const HeroSection = () => {
   const mediaVariants = bootstrapData?.mediaVariants || {};
 
   const visibleSlides = React.useMemo(() => {
-    if (heroSlides.length > 0) {
-      return heroSlides;
-    }
-    if (!hasLoaded || projectsCount === null) {
+    if (!bootstrapData && !isFetched) {
       return [];
     }
-    return projectsCount === 0 ? heroSlidesSeed : [];
-  }, [hasLoaded, heroSlides, projectsCount]);
+    const projects = Array.isArray(bootstrapData?.projects)
+      ? (bootstrapData.projects as PublicBootstrapProject[])
+      : [];
+    const updates = Array.isArray(bootstrapData?.updates)
+      ? (bootstrapData.updates as PublicBootstrapUpdate[])
+      : [];
+    return buildHeroSlides(projects, updates);
+  }, [bootstrapData, isFetched]);
+
+  React.useEffect(() => {
+    if (visibleSlides.length <= 1) {
+      setIsCarouselEnhanced(false);
+      return;
+    }
+    const cancelIdle = scheduleOnBrowserIdle(() => {
+      setIsCarouselEnhanced(true);
+    });
+    return cancelIdle;
+  }, [visibleSlides.length]);
+
+  const renderedSlides = React.useMemo(
+    () => (isCarouselEnhanced ? visibleSlides : visibleSlides.slice(0, 1)),
+    [isCarouselEnhanced, visibleSlides],
+  );
 
   const latestSlideId = React.useMemo(() => {
     if (!visibleSlides.length) {
@@ -166,7 +424,7 @@ const HeroSection = () => {
   }, [visibleSlides]);
 
   React.useEffect(() => {
-    if (!api) {
+    if (!api || !isCarouselEnhanced) {
       setActiveIndex(0);
       return;
     }
@@ -180,14 +438,14 @@ const HeroSection = () => {
       api.off("select", syncSelectedIndex);
       api.off("reInit", syncSelectedIndex);
     };
-  }, [api]);
+  }, [api, isCarouselEnhanced]);
 
   React.useEffect(() => {
-    if (!visibleSlides.length) {
+    if (!renderedSlides.length) {
       setLoadedSlideIds(new Set());
       return;
     }
-    const activeSlide = visibleSlides[activeIndex] || visibleSlides[0];
+    const activeSlide = renderedSlides[activeIndex] || renderedSlides[0];
     if (!activeSlide) {
       return;
     }
@@ -199,7 +457,7 @@ const HeroSection = () => {
       next.add(activeSlide.id);
       return next;
     });
-  }, [activeIndex, visibleSlides]);
+  }, [activeIndex, renderedSlides]);
 
   const stopAutoplay = React.useCallback(() => {
     if (autoplayRef.current !== null) {
@@ -232,7 +490,7 @@ const HeroSection = () => {
   }, [startAutoplay, stopAutoplay]);
 
   React.useEffect(() => {
-    if (!api) {
+    if (!api || !isCarouselEnhanced || renderedSlides.length <= 1) {
       return;
     }
 
@@ -261,108 +519,14 @@ const HeroSection = () => {
         resumeTimeoutRef.current = null;
       }
     };
-  }, [api, scheduleAutoplayResume, startAutoplay, stopAutoplay]);
-
-  React.useEffect(() => {
-    if (!isFetched) {
-      return;
-    }
-
-    const projects = Array.isArray(bootstrapData?.projects)
-      ? (bootstrapData.projects as PublicBootstrapProject[])
-      : [];
-    const updates = Array.isArray(bootstrapData?.updates)
-      ? (bootstrapData.updates as PublicBootstrapUpdate[])
-      : [];
-    const launchUpdates = sortLaunchUpdates(updates);
-    const latestLaunchByProject = new Map<string, string>();
-    launchUpdates.forEach((update) => {
-      const projectId = String(update.projectId || "");
-      if (!projectId || latestLaunchByProject.has(projectId)) {
-        return;
-      }
-      latestLaunchByProject.set(projectId, update.updatedAt || "");
-    });
-
-    const projectsById = new Map(projects.map((project) => [project.id, project]));
-    const resultIds = new Set<string>();
-    const slides: HeroSlide[] = [];
-    const maxSlides = 5;
-    const epoch = "1970-01-01T00:00:00.000Z";
-    const createSlide = (project: PublicBootstrapProject, updatedAt?: string) => {
-      if (resultIds.has(project.id)) {
-        return null;
-      }
-      const image = project.heroImageUrl || project.banner || project.cover || "";
-      if (!image) {
-        return null;
-      }
-      return {
-        id: project.id,
-        title: project.title,
-        description: project.synopsis || project.description || "",
-        updatedAt: updatedAt || epoch,
-        image,
-        projectId: project.id,
-        trailerUrl: project.trailerUrl || "",
-        format: project.type || "",
-        status: project.status || "",
-      };
-    };
-
-    const orderedProjects = projects
-      .map((project, index) => {
-        const updatedAt = latestLaunchByProject.get(project.id) || "";
-        const time = updatedAt ? new Date(updatedAt).getTime() : 0;
-        return { project, index, updatedAt, time };
-      })
-      .sort((a, b) => {
-        if (b.time !== a.time) {
-          return b.time - a.time;
-        }
-        return a.index - b.index;
-      });
-
-    orderedProjects.forEach((item) => {
-      const slide = createSlide(item.project, item.updatedAt);
-      if (!slide) {
-        return;
-      }
-      if (slides.length < maxSlides) {
-        slides.push(slide);
-        resultIds.add(slide.id);
-        return;
-      }
-      if (!item.project.forceHero) {
-        return;
-      }
-      slides.push(slide);
-      resultIds.add(slide.id);
-      const removeIndexFromEnd = [...slides]
-        .reverse()
-        .findIndex((candidate) => !projectsById.get(candidate.id)?.forceHero);
-      if (removeIndexFromEnd === -1) {
-        const removed = slides.shift();
-        if (removed) {
-          resultIds.delete(removed.id);
-        }
-        return;
-      }
-      const removeIndex = slides.length - 1 - removeIndexFromEnd;
-      const [removed] = slides.splice(removeIndex, 1);
-      if (removed) {
-        resultIds.delete(removed.id);
-      }
-    });
-
-    setProjectsCount(projects.length);
-    if (!slides.length && projects.length === 0) {
-      setHeroSlides(heroSlidesSeed);
-    } else {
-      setHeroSlides(slides);
-    }
-    setHasLoaded(true);
-  }, [bootstrapData, isFetched]);
+  }, [
+    api,
+    isCarouselEnhanced,
+    renderedSlides.length,
+    scheduleAutoplayResume,
+    startAutoplay,
+    stopAutoplay,
+  ]);
 
   const clampSynopsis = React.useCallback((text: string, limit = 100) => {
     const cleaned = String(text || "").replace(/\s+/g, " ").trim();
@@ -385,143 +549,162 @@ const HeroSection = () => {
   const navbarOverlayClass =
     "pointer-events-none absolute inset-x-0 top-0 h-28 bg-linear-to-b from-background/95 via-background/70 to-transparent md:h-36";
   const transparentPixel = "data:image/gif;base64,R0lGODlhAQABAAAAACw=";
+  const shouldRenderCarousel = isCarouselEnhanced && renderedSlides.length > 1;
 
   return (
     <section className={`relative overflow-hidden ${heroViewportClass}`}>
-      <Carousel opts={{ loop: true }} setApi={setApi} className={heroViewportClass}>
-        <CarouselContent className="ml-0">
-          {visibleSlides.map((slide, index) => {
-            const isActive = index === activeIndex;
-            const shouldLoadImage =
-              loadedSlideIds.has(slide.id) || isActive || (!api && index === 0);
-            const loading = isActive ? "eager" : "lazy";
-            const imagePriorityProps = {
-              fetchpriority: isActive ? "high" : "auto",
-            } as const;
-            return (
-              <CarouselItem key={slide.id} className="pl-0">
-                <div className={`relative flex items-end overflow-hidden ${heroViewportClass}`}>
-                  <div className="absolute inset-0">
-                    {slide.optimizedImageSet ? (
-                      <picture>
-                        <source
-                          type="image/avif"
-                          srcSet={shouldLoadImage ? slide.optimizedImageSet.avif : undefined}
-                        />
-                        <source
-                          type="image/webp"
-                          srcSet={shouldLoadImage ? slide.optimizedImageSet.webp : undefined}
-                        />
-                        <img
-                          src={shouldLoadImage ? slide.optimizedImageSet.jpg : transparentPixel}
+      {shouldRenderCarousel ? (
+        <Carousel opts={{ loop: true }} setApi={setApi} className={heroViewportClass}>
+          <CarouselContent className="ml-0">
+            {renderedSlides.map((slide, index) => {
+              const isActive = index === activeIndex;
+              const isPrioritySlide = index === 0 || isActive;
+              const shouldLoadImage = loadedSlideIds.has(slide.id) || isPrioritySlide;
+              const loading = isPrioritySlide ? "eager" : "lazy";
+              const imagePriorityProps = {
+                fetchpriority: isPrioritySlide ? "high" : "auto",
+              } as const;
+              return (
+                <CarouselItem key={slide.id} className="pl-0">
+                  <div className={`relative flex items-end overflow-hidden ${heroViewportClass}`}>
+                    <div className="absolute inset-0">
+                      {slide.optimizedImageSet ? (
+                        <picture>
+                          <source
+                            type="image/avif"
+                            srcSet={shouldLoadImage ? slide.optimizedImageSet.avif : undefined}
+                          />
+                          <source
+                            type="image/webp"
+                            srcSet={shouldLoadImage ? slide.optimizedImageSet.webp : undefined}
+                          />
+                          <img
+                            src={shouldLoadImage ? slide.optimizedImageSet.jpg : transparentPixel}
+                            alt=""
+                            aria-hidden="true"
+                            className="h-full w-full object-cover object-center"
+                            loading={loading}
+                            decoding="async"
+                            {...imagePriorityProps}
+                          />
+                        </picture>
+                      ) : (
+                        <UploadPicture
+                          src={shouldLoadImage ? slide.image : transparentPixel}
                           alt=""
+                          preset="hero"
+                          mediaVariants={shouldLoadImage ? mediaVariants : undefined}
+                          applyFocalObjectPosition
+                          className="h-full w-full"
+                          imgClassName="h-full w-full object-cover object-center"
                           aria-hidden="true"
-                          className="h-full w-full object-cover object-center"
                           loading={loading}
                           decoding="async"
                           {...imagePriorityProps}
                         />
-                      </picture>
-                    ) : (
-                      <UploadPicture
-                        src={shouldLoadImage ? slide.image : transparentPixel}
-                        alt=""
-                        preset="hero"
-                        mediaVariants={shouldLoadImage ? mediaVariants : undefined}
-                        applyFocalObjectPosition
-                        className="h-full w-full"
-                        imgClassName="h-full w-full object-cover object-center"
-                        aria-hidden="true"
-                        loading={loading}
-                        decoding="async"
-                        {...imagePriorityProps}
-                      />
-                    )}
-                  </div>
+                      )}
+                    </div>
 
-                  <div className="absolute inset-0 bg-linear-to-r from-background via-background/80 to-transparent" />
-                  <div className="absolute inset-0 bg-linear-to-t from-background via-background/30 to-transparent" />
+                    <div className="absolute inset-0 bg-linear-to-r from-background via-background/80 to-transparent" />
+                    <div className="absolute inset-0 bg-linear-to-t from-background via-background/30 to-transparent" />
 
-                  {shouldRenderNavbarOverlay ? (
-                    <div data-testid="hero-navbar-overlay" className={navbarOverlayClass} />
-                  ) : null}
+                    {shouldRenderNavbarOverlay ? (
+                      <div data-testid="hero-navbar-overlay" className={navbarOverlayClass} />
+                    ) : null}
 
-                  <div className="relative z-10 w-full px-6 md:px-12 pb-16 md:pb-24">
-                    <div className="max-w-3xl">
-                      <div
-                        data-testid={`hero-slide-meta-${slide.id}`}
-                        className="mb-3 flex flex-col items-start gap-2 text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground md:flex-row md:flex-wrap md:items-center md:gap-3"
-                      >
-                        {slide.id === latestSlideId ? (
-                          <span
-                            data-testid={`hero-slide-latest-${slide.id}`}
-                            className="inline-block px-3 py-1 rounded-full animate-fade-in border bg-(--hero-badge-bg,hsl(var(--primary)/0.2)) text-(--hero-badge-text,hsl(var(--primary))) border-(--hero-badge-border,hsl(var(--primary)/0.3))"
-                          >
-                            Último Lançamento
-                          </span>
-                        ) : null}
-                        {slide.format || slide.status ? (
-                          <div
-                            data-testid={`hero-slide-type-status-${slide.id}`}
-                            className="flex flex-wrap items-center gap-3"
-                          >
-                            {slide.format ? <span>{slide.format}</span> : null}
-                            {slide.format && slide.status ? <span className="opacity-50">•</span> : null}
-                            {slide.status ? <span>{slide.status}</span> : null}
-                          </div>
-                        ) : null}
-                      </div>
-
-                      <h1 className="text-2xl md:text-4xl lg:text-5xl xl:text-6xl 2xl:text-7xl font-black mb-6 animate-slide-up text-foreground leading-tight">
-                        {slide.title}
-                      </h1>
-
-                      <p
-                        className="text-base md:text-lg xl:text-xl 2xl:text-2xl text-muted-foreground leading-relaxed max-w-2xl animate-slide-up opacity-0"
-                        style={{ animationDelay: "0.2s" }}
-                      >
-                        {clampSynopsis(slide.description)}
-                      </p>
-
-                      <div
-                        className="mt-8 flex flex-wrap gap-4 animate-slide-up opacity-0"
-                        style={{ animationDelay: "0.4s" }}
-                      >
-                        <Link
-                          to={`/projeto/${slide.projectId}`}
-                          className="inline-flex items-center gap-2 px-6 py-3 font-semibold rounded-lg transition-all hover:scale-105 hover:brightness-110 bg-(--hero-accent,hsl(var(--primary))) text-(--hero-accent-foreground,hsl(var(--primary-foreground)))"
+                    <div className="relative z-10 w-full px-6 md:px-12 pb-16 md:pb-24">
+                      <div className="max-w-3xl">
+                        <div
+                          data-testid={`hero-slide-meta-${slide.id}`}
+                          className="mb-3 flex flex-col items-start gap-2 text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground md:flex-row md:flex-wrap md:items-center md:gap-3"
                         >
-                          <Globe className="h-4 w-4" />
-                          Acessar Página
-                        </Link>
-                        {slide.trailerUrl ? (
-                          <a
-                            href={slide.trailerUrl}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="inline-flex items-center gap-2 px-6 py-3 font-semibold rounded-lg transition-all hover:scale-105 border border-border/40 bg-background/70 text-foreground hover:bg-background/90"
+                          {slide.id === latestSlideId ? (
+                            <span
+                              data-testid={`hero-slide-latest-${slide.id}`}
+                              className="inline-block px-3 py-1 rounded-full animate-fade-in border bg-(--hero-badge-bg,hsl(var(--primary)/0.2)) text-(--hero-badge-text,hsl(var(--primary))) border-(--hero-badge-border,hsl(var(--primary)/0.3))"
+                            >
+                              Último Lançamento
+                            </span>
+                          ) : null}
+                          {slide.format || slide.status ? (
+                            <div
+                              data-testid={`hero-slide-type-status-${slide.id}`}
+                              className="flex flex-wrap items-center gap-3"
+                            >
+                              {slide.format ? <span>{slide.format}</span> : null}
+                              {slide.format && slide.status ? (
+                                <span className="opacity-50">•</span>
+                              ) : null}
+                              {slide.status ? <span>{slide.status}</span> : null}
+                            </div>
+                          ) : null}
+                        </div>
+
+                        <h1 className="text-2xl md:text-4xl lg:text-5xl xl:text-6xl 2xl:text-7xl font-black mb-6 animate-slide-up text-foreground leading-tight">
+                          {slide.title}
+                        </h1>
+
+                        <p
+                          className="text-base md:text-lg xl:text-xl 2xl:text-2xl text-muted-foreground leading-relaxed max-w-2xl animate-slide-up opacity-0"
+                          style={{ animationDelay: "0.2s" }}
+                        >
+                          {clampSynopsis(slide.description)}
+                        </p>
+
+                        <div
+                          className="mt-8 flex flex-wrap gap-4 animate-slide-up opacity-0"
+                          style={{ animationDelay: "0.4s" }}
+                        >
+                          <Link
+                            to={`/projeto/${slide.projectId}`}
+                            className="inline-flex items-center gap-2 px-6 py-3 font-semibold rounded-lg transition-all hover:scale-105 hover:brightness-110 bg-(--hero-accent,hsl(var(--primary))) text-(--hero-accent-foreground,hsl(var(--primary-foreground)))"
                           >
-                            <Play className="h-4 w-4" />
-                            Assistir Trailer
-                          </a>
-                        ) : null}
+                            <Globe className="h-4 w-4" />
+                            Acessar Página
+                          </Link>
+                          {slide.trailerUrl ? (
+                            <a
+                              href={slide.trailerUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="inline-flex items-center gap-2 px-6 py-3 font-semibold rounded-lg transition-all hover:scale-105 border border-border/40 bg-background/70 text-foreground hover:bg-background/90"
+                            >
+                              <Play className="h-4 w-4" />
+                              Assistir Trailer
+                            </a>
+                          ) : null}
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
-              </CarouselItem>
-            );
-          })}
-        </CarouselContent>
-        <CarouselPrevious
-          className="hidden md:flex left-auto right-20 bottom-8 top-auto h-9 w-9 translate-y-0 bg-background/50 hover:bg-background/70 border border-border/30 text-muted-foreground"
-          onClick={scheduleAutoplayResume}
+                </CarouselItem>
+              );
+            })}
+          </CarouselContent>
+          <CarouselPrevious
+            className="hidden md:flex left-auto right-20 bottom-8 top-auto h-9 w-9 translate-y-0 bg-background/50 hover:bg-background/70 border border-border/30 text-muted-foreground"
+            onClick={scheduleAutoplayResume}
+          />
+          <CarouselNext
+            className="hidden md:flex right-8 bottom-8 top-auto h-9 w-9 translate-y-0 bg-background/50 hover:bg-background/70 border border-border/30 text-muted-foreground"
+            onClick={scheduleAutoplayResume}
+          />
+        </Carousel>
+      ) : renderedSlides[0] ? (
+        <HeroSlideFrame
+          slide={renderedSlides[0]}
+          index={0}
+          activeIndex={0}
+          latestSlideId={latestSlideId}
+          loadedSlideIds={loadedSlideIds}
+          mediaVariants={mediaVariants}
+          heroViewportClass={heroViewportClass}
+          shouldRenderNavbarOverlay={shouldRenderNavbarOverlay}
+          navbarOverlayClass={navbarOverlayClass}
+          transparentPixel={transparentPixel}
+          clampSynopsis={clampSynopsis}
         />
-        <CarouselNext
-          className="hidden md:flex right-8 bottom-8 top-auto h-9 w-9 translate-y-0 bg-background/50 hover:bg-background/70 border border-border/30 text-muted-foreground"
-          onClick={scheduleAutoplayResume}
-        />
-      </Carousel>
+      ) : null}
     </section>
   );
 };

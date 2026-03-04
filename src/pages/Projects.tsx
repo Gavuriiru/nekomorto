@@ -26,6 +26,7 @@ import type { Project } from "@/data/projects";
 import { usePageMeta } from "@/hooks/use-page-meta";
 import { useDynamicSynopsisClamp } from "@/hooks/use-dynamic-synopsis-clamp";
 import { publicPageLayoutTokens } from "@/components/public-page-tokens";
+import { readWindowPublicBootstrap } from "@/lib/public-bootstrap-global";
 import { prepareProjectBadges, PROJECT_COVER_ASPECT_RATIO } from "@/lib/project-card-layout";
 import { normalizeSearchText } from "@/lib/search-ranking";
 import type { UploadMediaVariantsMap } from "@/lib/upload-variants";
@@ -299,10 +300,7 @@ const Projects = () => {
   const [isLoadingProjects, setIsLoadingProjects] = useState(true);
   const [hasProjectsLoadError, setHasProjectsLoadError] = useState(false);
   const [projectsLoadVersion, setProjectsLoadVersion] = useState(0);
-  const [shareImage, setShareImage] = useState("");
-  const [shareImageAlt, setShareImageAlt] = useState("");
   const [projectsMediaVariants, setProjectsMediaVariants] = useState<UploadMediaVariantsMap>({});
-  const [pageMediaVariants, setPageMediaVariants] = useState<UploadMediaVariantsMap>({});
   const [searchParams, setSearchParams] = useSearchParams();
   const [selectedLetter, setSelectedLetter] = useState(() =>
     parseLetterParam(searchParams.get("letter")),
@@ -323,6 +321,10 @@ const Projects = () => {
   const selectedTag = searchParams.get("tag") || "Todas";
   const selectedGenre = searchParams.get("genero") || searchParams.get("genre") || "Todos";
   const selectedQuery = searchParams.get("q") || "";
+  const bootstrap = readWindowPublicBootstrap();
+  const shareImage = bootstrap?.pages.projects.shareImage || "";
+  const shareImageAlt = bootstrap?.pages.projects.shareImageAlt || "";
+  const pageMediaVariants = bootstrap?.mediaVariants || {};
 
   usePageMeta({
     title: "Projetos",
@@ -341,32 +343,6 @@ const Projects = () => {
       // Ignore localStorage cleanup failures.
     }
   }, []);
-
-  useEffect(() => {
-    let isActive = true;
-    const loadPages = async () => {
-      try {
-        const response = await apiFetch(apiBase, "/api/public/pages");
-        if (!response.ok) {
-          return;
-        }
-        const data = await response.json();
-        if (isActive) {
-          setShareImage(String(data?.pages?.projects?.shareImage || "").trim());
-          setShareImageAlt(String(data?.pages?.projects?.shareImageAlt || "").trim());
-          setPageMediaVariants(
-            data?.mediaVariants && typeof data.mediaVariants === "object" ? data.mediaVariants : {},
-          );
-        }
-      } catch {
-        // ignore
-      }
-    };
-    loadPages();
-    return () => {
-      isActive = false;
-    };
-  }, [apiBase]);
 
   useEffect(() => {
     let isActive = true;

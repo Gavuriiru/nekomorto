@@ -117,7 +117,7 @@ describe("DashboardUsers avatar refresh", () => {
   it("atualiza o preview de avatar ao fechar a biblioteca", async () => {
     renderPage();
 
-    fireEvent.click(await screen.findByRole("heading", { name: "Admin" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Abrir usuário Admin" }));
 
     const dialog = await screen.findByRole("dialog");
     const previewBefore = within(dialog).getByAltText("Admin");
@@ -147,7 +147,7 @@ describe("DashboardUsers avatar refresh", () => {
     const srcBefore = cardBefore.getAttribute("src");
     expect(srcBefore).toBeTruthy();
 
-    fireEvent.click(screen.getByRole("heading", { name: "Admin" }));
+    fireEvent.click(screen.getByRole("button", { name: "Abrir usuário Admin" }));
     const dialog = await screen.findByRole("dialog");
     fireEvent.click(within(dialog).getByRole("button", { name: "Salvar" }));
 

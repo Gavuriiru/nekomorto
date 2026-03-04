@@ -1,4 +1,4 @@
-﻿import { useEffect, useState } from "react";
+import { useMemo } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -17,11 +17,9 @@ import {
   Rocket,
   Shield,
 } from "lucide-react";
-import { getApiBase } from "@/lib/api-base";
-import { apiFetch } from "@/lib/api-client";
 import { publicPageLayoutTokens } from "@/components/public-page-tokens";
 import { usePageMeta } from "@/hooks/use-page-meta";
-import type { UploadMediaVariantsMap } from "@/lib/upload-variants";
+import { readWindowPublicBootstrap } from "@/lib/public-bootstrap-global";
 
 const iconMap: Record<string, typeof Heart> = {
   Heart,
@@ -123,54 +121,30 @@ type HighlightItem = {
 };
 
 const About = () => {
-  const apiBase = getApiBase();
-  const [about, setAbout] = useState(defaultAbout);
-  const [pageMediaVariants, setPageMediaVariants] = useState<UploadMediaVariantsMap>({});
+  const bootstrap = readWindowPublicBootstrap();
+  const pageMediaVariants = bootstrap?.mediaVariants || {};
+  const about = useMemo(() => {
+    const incoming = bootstrap?.pages.about;
+    if (!incoming) {
+      return defaultAbout;
+    }
+    const highlights = (incoming.highlights || defaultAbout.highlights).map((item: HighlightItem) => ({
+      icon: "Sparkles",
+      ...item,
+    }));
+    return {
+      ...defaultAbout,
+      ...incoming,
+      manifestoIcon: incoming.manifestoIcon || defaultAbout.manifestoIcon,
+      highlights,
+    };
+  }, [bootstrap]);
   usePageMeta({
     title: "Sobre",
     image: about.shareImage || undefined,
     imageAlt: about.shareImageAlt || undefined,
     mediaVariants: pageMediaVariants,
   });
-
-  useEffect(() => {
-    let isActive = true;
-    const load = async () => {
-      try {
-        const response = await apiFetch(apiBase, "/api/public/pages");
-        if (!response.ok) {
-          return;
-        }
-        const data = await response.json();
-        if (isActive) {
-          setPageMediaVariants(
-            data?.mediaVariants && typeof data.mediaVariants === "object" ? data.mediaVariants : {},
-          );
-        }
-        if (isActive && data.pages?.about) {
-          const incoming = data.pages.about;
-          const highlights = (incoming.highlights || defaultAbout.highlights).map(
-            (item: HighlightItem) => ({
-              icon: "Sparkles",
-              ...item,
-            }),
-          );
-          setAbout({
-            ...defaultAbout,
-            ...incoming,
-            manifestoIcon: incoming.manifestoIcon || defaultAbout.manifestoIcon,
-            highlights,
-          });
-        }
-      } catch {
-        // ignore
-      }
-    };
-    load();
-    return () => {
-      isActive = false;
-    };
-  }, [apiBase]);
 
   return (
     <div className="min-h-screen bg-background text-foreground">

@@ -34,6 +34,7 @@ import { buildTranslationMap, translateTag } from "@/lib/project-taxonomy";
 import { useDynamicSynopsisClamp } from "@/hooks/use-dynamic-synopsis-clamp";
 import { useGlobalShortcuts } from "@/hooks/use-global-shortcuts";
 import { PROJECT_COVER_ASPECT_RATIO } from "@/lib/project-card-layout";
+import { scheduleOnBrowserLoadIdle } from "@/lib/browser-idle";
 import {
   buildDashboardMenuFromGrants,
   getFirstAllowedDashboardRoute,
@@ -375,21 +376,38 @@ const Header = ({ variant = "fixed", leading, className }: HeaderProps) => {
   }, []);
 
   useEffect(() => {
+    let isActive = true;
     const loadUser = async () => {
       try {
         const response = await apiFetch(apiBase, "/api/public/me", { auth: true });
+        if (!isActive) {
+          return;
+        }
         if (!response.ok) {
           setCurrentUser(null);
           return;
         }
         const data = await response.json();
+        if (!isActive) {
+          return;
+        }
         setCurrentUser(data?.user ?? null);
       } catch {
+        if (!isActive) {
+          return;
+        }
         setCurrentUser(null);
       }
     };
 
-    loadUser();
+    const cancelIdle = scheduleOnBrowserLoadIdle(() => {
+      void loadUser();
+    });
+
+    return () => {
+      isActive = false;
+      cancelIdle();
+    };
   }, [apiBase]);
 
   const dashboardMenuForUser = useMemo(() => {

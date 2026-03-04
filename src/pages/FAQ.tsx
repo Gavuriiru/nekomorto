@@ -1,12 +1,10 @@
-﻿import { useEffect, useState } from "react";
+import { useMemo } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { HelpCircle, Info, Users, Rocket, Shield, Sparkles } from "lucide-react";
-import { getApiBase } from "@/lib/api-base";
-import { apiFetch } from "@/lib/api-client";
 import { publicPageLayoutTokens } from "@/components/public-page-tokens";
 import { usePageMeta } from "@/hooks/use-page-meta";
-import type { UploadMediaVariantsMap } from "@/lib/upload-variants";
+import { readWindowPublicBootstrap } from "@/lib/public-bootstrap-global";
 
 const iconMap: Record<string, typeof HelpCircle> = {
   HelpCircle,
@@ -102,42 +100,15 @@ const defaultFaq = {
 };
 
 const FAQ = () => {
-  const apiBase = getApiBase();
-  const [faq, setFaq] = useState(defaultFaq);
-  const [pageMediaVariants, setPageMediaVariants] = useState<UploadMediaVariantsMap>({});
+  const bootstrap = readWindowPublicBootstrap();
+  const faq = useMemo(() => ({ ...defaultFaq, ...(bootstrap?.pages.faq || {}) }), [bootstrap]);
+  const pageMediaVariants = bootstrap?.mediaVariants || {};
   usePageMeta({
     title: "FAQ",
     image: faq.shareImage || undefined,
     imageAlt: faq.shareImageAlt || undefined,
     mediaVariants: pageMediaVariants,
   });
-
-  useEffect(() => {
-    let isActive = true;
-    const load = async () => {
-      try {
-        const response = await apiFetch(apiBase, "/api/public/pages");
-        if (!response.ok) {
-          return;
-        }
-        const data = await response.json();
-        if (isActive) {
-          setPageMediaVariants(
-            data?.mediaVariants && typeof data.mediaVariants === "object" ? data.mediaVariants : {},
-          );
-        }
-        if (isActive && data.pages?.faq) {
-          setFaq({ ...defaultFaq, ...data.pages.faq });
-        }
-      } catch {
-        // ignore
-      }
-    };
-    load();
-    return () => {
-      isActive = false;
-    };
-  }, [apiBase]);
 
   return (
     <div className="min-h-screen bg-background text-foreground">

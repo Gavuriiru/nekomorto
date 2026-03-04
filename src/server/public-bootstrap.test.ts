@@ -6,6 +6,12 @@ describe("public bootstrap payload", () => {
   it("returns the expected top-level shape and strips heavy chapter content", () => {
     const payload = buildPublicBootstrapPayload({
       settings: { site: { name: "Nekomata" } },
+      pages: {
+        home: {
+          shareImage: "/uploads/home-og.jpg",
+          shareImageAlt: "Home",
+        },
+      },
       projects: [
         {
           id: "project-1",
@@ -91,6 +97,7 @@ describe("public bootstrap payload", () => {
     expect(payload).toEqual(
       expect.objectContaining({
         settings: expect.any(Object),
+        pages: expect.any(Object),
         projects: expect.any(Array),
         posts: expect.any(Array),
         updates: expect.any(Array),
@@ -102,6 +109,12 @@ describe("public bootstrap payload", () => {
     expect(payload.posts).toHaveLength(1);
     expect(payload.updates).toHaveLength(1);
     expect((payload.updates[0] as Record<string, unknown>).volume).toBe(1);
+    expect(payload.pages).toEqual({
+      home: {
+        shareImage: "/uploads/home-og.jpg",
+        shareImageAlt: "Home",
+      },
+    });
 
     const project = payload.projects[0] as Record<string, unknown>;
     expect(project).not.toHaveProperty("deletedAt");

@@ -5,6 +5,10 @@ import path from "path";
 import { componentTagger } from "lovable-tagger";
 import { VitePWA } from "vite-plugin-pwa";
 import { resolveViteAllowedHostsFromOrigins } from "./server/lib/frontend-runtime.js";
+import {
+  PWA_NAVIGATE_FALLBACK_ALLOWLIST,
+  PWA_NAVIGATE_FALLBACK_DENYLIST,
+} from "./src/lib/pwa-navigation";
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
@@ -104,6 +108,8 @@ export default defineConfig(({ mode }) => {
         workbox: {
           cleanupOutdatedCaches: true,
           clientsClaim: true,
+          navigateFallbackAllowlist: PWA_NAVIGATE_FALLBACK_ALLOWLIST,
+          navigateFallbackDenylist: PWA_NAVIGATE_FALLBACK_DENYLIST,
           skipWaiting: true,
           runtimeCaching: [
             {

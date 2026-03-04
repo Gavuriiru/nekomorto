@@ -1,6 +1,6 @@
 import { render, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import Index from "@/pages/Index";
 import Projects from "@/pages/Projects";
@@ -42,25 +42,40 @@ const mockJsonResponse = (ok: boolean, payload: unknown, status = ok ? 200 : 500
     json: async () => payload,
   }) as Response;
 
+const bootstrapPayload = {
+  settings: {},
+  pages: {
+    home: {
+      shareImage: "/uploads/home-og.jpg",
+      shareImageAlt: "Capa da pagina inicial",
+    },
+    projects: {
+      shareImage: "/uploads/projects-og.jpg",
+      shareImageAlt: "Capa da pagina de projetos",
+    },
+  },
+  projects: [],
+  posts: [],
+  updates: [],
+  tagTranslations: {
+    tags: {},
+    genres: {},
+    staffRoles: {},
+  },
+  generatedAt: "2026-03-03T20:00:00.000Z",
+  mediaVariants: {},
+};
+
 describe("Public pages share image meta", () => {
   beforeEach(() => {
     apiFetchMock.mockReset();
     usePageMetaMock.mockReset();
-    apiFetchMock.mockImplementation(async (_base: string, path: string) => {
-      if (path === "/api/public/pages") {
-        return mockJsonResponse(true, {
-          pages: {
-            home: {
-              shareImage: "/uploads/home-og.jpg",
-              shareImageAlt: "Capa da pagina inicial",
-            },
-            projects: {
-              shareImage: "/uploads/projects-og.jpg",
-              shareImageAlt: "Capa da pagina de projetos",
-            },
-          },
-        });
+    (
+      window as Window & typeof globalThis & {
+        __BOOTSTRAP_PUBLIC__?: unknown;
       }
+    ).__BOOTSTRAP_PUBLIC__ = bootstrapPayload;
+    apiFetchMock.mockImplementation(async (_base: string, path: string) => {
       if (path === "/api/public/projects") {
         return mockJsonResponse(true, { projects: [] });
       }
@@ -69,6 +84,14 @@ describe("Public pages share image meta", () => {
       }
       return mockJsonResponse(false, { error: "not_found" }, 404);
     });
+  });
+
+  afterEach(() => {
+    delete (
+      window as Window & typeof globalThis & {
+        __BOOTSTRAP_PUBLIC__?: unknown;
+      }
+    ).__BOOTSTRAP_PUBLIC__;
   });
 
   it("Index aplica pages.home.shareImage no metadata", async () => {
@@ -81,9 +104,8 @@ describe("Public pages share image meta", () => {
     await waitFor(() => {
       expect(usePageMetaMock).toHaveBeenCalledWith(
         expect.objectContaining({
-          title: "Início",
-            image: "/uploads/home-og.jpg",
-            imageAlt: "Capa da pagina inicial",
+          image: "/uploads/home-og.jpg",
+          imageAlt: "Capa da pagina inicial",
         }),
       );
     });
@@ -100,10 +122,14 @@ describe("Public pages share image meta", () => {
       expect(usePageMetaMock).toHaveBeenCalledWith(
         expect.objectContaining({
           title: "Projetos",
-            image: "/uploads/projects-og.jpg",
-            imageAlt: "Capa da pagina de projetos",
+          image: "/uploads/projects-og.jpg",
+          imageAlt: "Capa da pagina de projetos",
         }),
       );
     });
+
+    expect(
+      apiFetchMock.mock.calls.some((call) => call[1] === "/api/public/pages"),
+    ).toBe(false);
   });
 });

@@ -30,6 +30,7 @@ import { useSiteSettings } from "@/hooks/use-site-settings";
 import ThemedSvgMaskIcon from "@/components/ThemedSvgMaskIcon";
 import UploadPicture from "@/components/UploadPicture";
 import { publicPageLayoutTokens } from "@/components/public-page-tokens";
+import { readWindowPublicBootstrap } from "@/lib/public-bootstrap-global";
 import type { UploadMediaVariantsMap } from "@/lib/upload-variants";
 
 type PublicUser = {
@@ -91,17 +92,22 @@ const Team = () => {
     [],
   );
   const [memberMediaVariants, setMemberMediaVariants] = useState<UploadMediaVariantsMap>({});
-  const [pageCopy, setPageCopy] = useState({
-    shareImage: "",
-    shareImageAlt: "",
-    heroBadge: "Equipe",
-    heroTitle: "Conheça quem faz o projeto acontecer",
-    heroSubtitle:
-      "Os perfis e redes sociais serão gerenciados pela dashboard. Este layout antecipa como a equipe aparecerá para o público.",
-    retiredTitle: "Membros aposentados",
-    retiredSubtitle: "Agradecemos por todas as contribuições.",
-  });
-  const [pageMediaVariants, setPageMediaVariants] = useState<UploadMediaVariantsMap>({});
+  const bootstrap = readWindowPublicBootstrap();
+  const pageCopy = useMemo(
+    () => ({
+      shareImage: "",
+      shareImageAlt: "",
+      heroBadge: "Equipe",
+      heroTitle: "Conheça quem faz o projeto acontecer",
+      heroSubtitle:
+        "Os perfis e redes sociais serão gerenciados pela dashboard. Este layout antecipa como a equipe aparecerá para o público.",
+      retiredTitle: "Membros aposentados",
+      retiredSubtitle: "Agradecemos por todas as contribuições.",
+      ...(bootstrap?.pages.team || {}),
+    }),
+    [bootstrap],
+  );
+  const pageMediaVariants = bootstrap?.mediaVariants || {};
   usePageMeta({
     title: "Equipe",
     image: pageCopy.shareImage || undefined,
@@ -236,32 +242,6 @@ const Team = () => {
     };
   }, [apiBase]);
 
-  useEffect(() => {
-    let isActive = true;
-    const loadCopy = async () => {
-      try {
-        const response = await apiFetch(apiBase, "/api/public/pages");
-        if (!response.ok) {
-          return;
-        }
-        const data = await response.json();
-        if (isActive) {
-          setPageMediaVariants(
-            data?.mediaVariants && typeof data.mediaVariants === "object" ? data.mediaVariants : {},
-          );
-        }
-        if (isActive && data.pages?.team) {
-          setPageCopy((prev) => ({ ...prev, ...data.pages.team }));
-        }
-      } catch {
-        // ignore
-      }
-    };
-    loadCopy();
-    return () => {
-      isActive = false;
-    };
-  }, [apiBase]);
 
   const normalizedStatus = (status?: string | null) => (status || "").toLowerCase();
   const retiredMembers = members

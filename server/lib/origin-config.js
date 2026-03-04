@@ -1,6 +1,34 @@
 const DEFAULT_DEV_PRIMARY_ORIGIN = "http://127.0.0.1:5173";
 
 const normalizeString = (value) => String(value || "").trim();
+const normalizeOriginCandidate = (value) => {
+  const normalizedValue = normalizeString(value);
+  if (!normalizedValue) {
+    return "";
+  }
+  try {
+    return new URL(normalizedValue).origin;
+  } catch {
+    return "";
+  }
+};
+const resolveHostOrigin = (req) => {
+  const hostHeader = normalizeString(req?.headers?.host || "");
+  if (!hostHeader) {
+    return "";
+  }
+  return normalizeOriginCandidate(`${req?.protocol || "http"}://${hostHeader}`);
+};
+const resolveAllowedOriginCandidate = (candidate, isAllowedOriginFn) => {
+  const normalizedCandidate = normalizeOriginCandidate(candidate);
+  if (!normalizedCandidate) {
+    return "";
+  }
+  if (typeof isAllowedOriginFn === "function" && !isAllowedOriginFn(normalizedCandidate)) {
+    return "";
+  }
+  return normalizedCandidate;
+};
 
 const parseHttpUrl = (value, envName) => {
   try {
@@ -141,11 +169,26 @@ export const resolveRequestOrigin = (req) => {
       return "";
     }
   }
-  if (req?.headers?.host) {
-    const proto = req.protocol || "http";
-    return `${proto}://${req.headers.host}`;
+  return resolveHostOrigin(req);
+};
+
+export const resolveAuthAppOrigin = ({
+  req,
+  sessionOrigin,
+  primaryAppOrigin,
+  isAllowedOriginFn,
+}) => {
+  const sessionCandidate = resolveAllowedOriginCandidate(sessionOrigin, isAllowedOriginFn);
+  if (sessionCandidate) {
+    return sessionCandidate;
   }
-  return "";
+
+  const requestCandidate = resolveAllowedOriginCandidate(resolveRequestOrigin(req), isAllowedOriginFn);
+  if (requestCandidate) {
+    return requestCandidate;
+  }
+
+  return normalizeOriginCandidate(primaryAppOrigin) || String(primaryAppOrigin || "").trim();
 };
 
 export const resolveDiscordRedirectUri = ({
@@ -157,9 +200,15 @@ export const resolveDiscordRedirectUri = ({
   if (configuredDiscordRedirectUri) {
     return configuredDiscordRedirectUri;
   }
-  const candidate = resolveRequestOrigin(req);
-  if (candidate && typeof isAllowedOriginFn === "function" && isAllowedOriginFn(candidate)) {
-    return `${candidate}/login`;
+  const hostCandidate = resolveAllowedOriginCandidate(resolveHostOrigin(req), isAllowedOriginFn);
+  if (hostCandidate) {
+    return `${hostCandidate}/login`;
   }
-  return `${primaryAppOrigin}/login`;
+  const requestCandidate = resolveAllowedOriginCandidate(resolveRequestOrigin(req), isAllowedOriginFn);
+  if (requestCandidate) {
+    return `${requestCandidate}/login`;
+  }
+  const fallbackOrigin =
+    normalizeOriginCandidate(primaryAppOrigin) || String(primaryAppOrigin || "").trim();
+  return `${fallbackOrigin}/login`;
 };

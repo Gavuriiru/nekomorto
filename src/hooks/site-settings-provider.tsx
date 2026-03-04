@@ -5,6 +5,7 @@ import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
 import { defaultSettings, mergeSettings, SiteSettingsContext } from "@/hooks/site-settings-context";
 import { normalizeAssetUrl } from "@/lib/asset-url";
+import { deriveThemeAccentTokens } from "@/lib/theme-accent";
 
 const ensureMeta = (selector: string, attrs: Record<string, string>) => {
   let el = document.querySelector(selector) as HTMLMetaElement | null;
@@ -16,44 +17,6 @@ const ensureMeta = (selector: string, attrs: Record<string, string>) => {
     document.head.appendChild(el);
   }
   return el;
-};
-
-const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
-
-const hexToHsl = (hex: string) => {
-  const cleaned = hex.trim().replace("#", "");
-  if (!/^[0-9a-fA-F]{3}$|^[0-9a-fA-F]{6}$/.test(cleaned)) {
-    return null;
-  }
-  const expanded =
-    cleaned.length === 3 ? cleaned.split("").map((char) => char + char).join("") : cleaned;
-  const r = parseInt(expanded.slice(0, 2), 16) / 255;
-  const g = parseInt(expanded.slice(2, 4), 16) / 255;
-  const b = parseInt(expanded.slice(4, 6), 16) / 255;
-  const max = Math.max(r, g, b);
-  const min = Math.min(r, g, b);
-  const delta = max - min;
-  let h = 0;
-  if (delta !== 0) {
-    if (max === r) {
-      h = ((g - b) / delta) % 6;
-    } else if (max === g) {
-      h = (b - r) / delta + 2;
-    } else {
-      h = (r - g) / delta + 4;
-    }
-    h = Math.round(h * 60);
-    if (h < 0) {
-      h += 360;
-    }
-  }
-  const l = (max + min) / 2;
-  const s = delta === 0 ? 0 : delta / (1 - Math.abs(2 * l - 1));
-  return {
-    h,
-    s: Math.round(s * 100),
-    l: Math.round(l * 100),
-  };
 };
 
 const applyDocumentSettings = (settings: SiteSettings) => {
@@ -103,26 +66,24 @@ const applyDocumentSettings = (settings: SiteSettings) => {
   const root = document.documentElement;
   const accentHex = settings.theme?.accent?.trim();
   if (accentHex) {
-    const accent = hexToHsl(accentHex);
-    if (accent) {
-      const primaryValue = `${accent.h} ${accent.s}% ${accent.l}%`;
-      const accentValue = `${accent.h} ${clamp(accent.s - 10, 0, 100)}% ${clamp(
-        accent.l + 6,
-        0,
-        100,
-      )}%`;
-      root.style.setProperty("--primary", primaryValue);
-      root.style.setProperty("--ring", primaryValue);
-      root.style.setProperty("--sidebar-primary", primaryValue);
-      root.style.setProperty("--sidebar-ring", primaryValue);
-      root.style.setProperty("--accent", accentValue);
+    const accentTokens = deriveThemeAccentTokens(accentHex);
+    if (accentTokens) {
+      root.style.setProperty("--primary", accentTokens.primary);
+      root.style.setProperty("--primary-foreground", accentTokens.primaryForeground);
+      root.style.setProperty("--ring", accentTokens.ring);
+      root.style.setProperty("--sidebar-primary", accentTokens.sidebarPrimary);
+      root.style.setProperty("--sidebar-ring", accentTokens.sidebarRing);
+      root.style.setProperty("--accent", accentTokens.accent);
+      root.style.setProperty("--accent-foreground", accentTokens.accentForeground);
     }
   } else {
     root.style.removeProperty("--primary");
+    root.style.removeProperty("--primary-foreground");
     root.style.removeProperty("--ring");
     root.style.removeProperty("--sidebar-primary");
     root.style.removeProperty("--sidebar-ring");
     root.style.removeProperty("--accent");
+    root.style.removeProperty("--accent-foreground");
   }
 };
 

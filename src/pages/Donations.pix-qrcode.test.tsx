@@ -25,12 +25,28 @@ vi.mock("qrcode", () => ({
   },
 }));
 
-const mockJsonResponse = (ok: boolean, payload: unknown, status = ok ? 200 : 500) =>
-  ({
-    ok,
-    status,
-    json: async () => payload,
-  }) as Response;
+const setBootstrapDonationsPage = (donations: Record<string, unknown>) => {
+  (
+    window as Window & typeof globalThis & {
+      __BOOTSTRAP_PUBLIC__?: unknown;
+    }
+  ).__BOOTSTRAP_PUBLIC__ = {
+    settings: {},
+    pages: {
+      donations,
+    },
+    projects: [],
+    posts: [],
+    updates: [],
+    tagTranslations: {
+      tags: {},
+      genres: {},
+      staffRoles: {},
+    },
+    generatedAt: "2026-03-03T20:00:00.000Z",
+    mediaVariants: {},
+  };
+};
 
 describe("Donations Pix QR code", () => {
   beforeEach(() => {
@@ -39,17 +55,11 @@ describe("Donations Pix QR code", () => {
   });
 
   it("gera um BR Code valido quando nao ha QR customizado", async () => {
-    apiFetchMock.mockResolvedValue(
-      mockJsonResponse(true, {
-        pages: {
-          donations: {
-            pixKey: "pix-chave-teste",
-            pixNote: "Apoie a fansub",
-            pixCity: "Brasilia",
-          },
-        },
-      }),
-    );
+    setBootstrapDonationsPage({
+      pixKey: "pix-chave-teste",
+      pixNote: "Apoie a fansub",
+      pixCity: "Brasilia",
+    });
 
     render(<Donations />);
 
@@ -74,16 +84,10 @@ describe("Donations Pix QR code", () => {
   });
 
   it("prioriza o QR customizado e nao chama o encoder local", async () => {
-    apiFetchMock.mockResolvedValue(
-      mockJsonResponse(true, {
-        pages: {
-          donations: {
-            pixKey: "pix-chave-teste",
-            qrCustomUrl: "https://cdn.example.com/pix.png",
-          },
-        },
-      }),
-    );
+    setBootstrapDonationsPage({
+      pixKey: "pix-chave-teste",
+      qrCustomUrl: "https://cdn.example.com/pix.png",
+    });
 
     render(<Donations />);
 

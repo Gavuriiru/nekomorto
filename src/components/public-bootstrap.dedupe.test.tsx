@@ -182,5 +182,8 @@ describe("public bootstrap dedupe", () => {
       );
       expect(bootstrapCalls).toHaveLength(1);
     });
+
+    expect(apiFetchMock.mock.calls.some((call) => call[1] === "/api/public/settings")).toBe(false);
+    expect(apiFetchMock.mock.calls.some((call) => call[1] === "/api/public/pages")).toBe(false);
   });
 });

@@ -5,6 +5,7 @@ import {
   emptyPublicBootstrapPayload,
   type PublicBootstrapPayload,
 } from "@/types/public-bootstrap";
+import { normalizePublicPagesConfig } from "@/lib/public-pages";
 import type { UploadMediaVariantsMap } from "@/lib/upload-variants";
 
 export const PUBLIC_BOOTSTRAP_QUERY_KEY = ["public-bootstrap"] as const;
@@ -19,6 +20,7 @@ const fetchPublicBootstrap = async (apiBase: string): Promise<PublicBootstrapPay
     ...emptyPublicBootstrapPayload,
     ...data,
     settings: data?.settings || emptyPublicBootstrapPayload.settings,
+    pages: normalizePublicPagesConfig(data?.pages),
     projects: Array.isArray(data?.projects) ? data.projects : [],
     posts: Array.isArray(data?.posts) ? data.posts : [],
     updates: Array.isArray(data?.updates) ? data.updates : [],

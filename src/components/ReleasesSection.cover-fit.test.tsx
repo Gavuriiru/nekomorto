@@ -101,4 +101,19 @@ describe("ReleasesSection cover fit", () => {
     expect(screen.queryByRole("link", { name: /Ler postagem/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /Ver projeto/i })).not.toBeInTheDocument();
   });
+
+  it("mantem heading semantico da secao antes dos titulos dos cards", async () => {
+    setupBootstrapMock();
+
+    render(
+      <MemoryRouter>
+        <ReleasesSection />
+      </MemoryRouter>,
+    );
+
+    const sectionHeading = screen.getByRole("heading", { level: 2, name: "Lançamentos recentes" });
+    const cardHeading = await screen.findByRole("heading", { level: 3, name: "Post de Teste" });
+
+    expect(sectionHeading.compareDocumentPosition(cardHeading) & Node.DOCUMENT_POSITION_FOLLOWING).not.toBe(0);
+  });
 });

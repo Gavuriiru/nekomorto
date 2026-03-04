@@ -1,4 +1,4 @@
-﻿import { useEffect, useState } from "react";
+import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
@@ -20,13 +20,11 @@ import {
   Rocket,
   Shield,
 } from "lucide-react";
-import { getApiBase } from "@/lib/api-base";
-import { apiFetch } from "@/lib/api-client";
 import { publicPageLayoutTokens } from "@/components/public-page-tokens";
 import { usePageMeta } from "@/hooks/use-page-meta";
 import { usePixQrCode } from "@/hooks/use-pix-qr-code";
 import { useSiteSettings } from "@/hooks/use-site-settings";
-import type { UploadMediaVariantsMap } from "@/lib/upload-variants";
+import { readWindowPublicBootstrap } from "@/lib/public-bootstrap-global";
 
 const iconMap: Record<string, typeof Server> = {
   Server,
@@ -67,11 +65,23 @@ const emptyDonations = {
 const defaultDonations = emptyDonations;
 
 const Donations = () => {
-  const apiBase = getApiBase();
   const { settings } = useSiteSettings();
+  const bootstrap = readWindowPublicBootstrap();
   const [copied, setCopied] = useState(false);
-  const [donations, setDonations] = useState(defaultDonations);
-  const [pageMediaVariants, setPageMediaVariants] = useState<UploadMediaVariantsMap>({});
+  const donations = useMemo(() => {
+    const incoming = bootstrap?.pages.donations;
+    if (!incoming) {
+      return defaultDonations;
+    }
+    return {
+      ...defaultDonations,
+      ...incoming,
+      reasonIcon: incoming.reasonIcon || defaultDonations.reasonIcon,
+      pixIcon: incoming.pixIcon || defaultDonations.pixIcon,
+      donorsIcon: incoming.donorsIcon || defaultDonations.donorsIcon,
+    };
+  }, [bootstrap]);
+  const pageMediaVariants = bootstrap?.mediaVariants || {};
   const merchantName =
     String(settings.site.name || settings.footer.brandName || "NEKOMATA").trim() || "NEKOMATA";
   usePageMeta({
@@ -80,40 +90,6 @@ const Donations = () => {
     imageAlt: donations.shareImageAlt || undefined,
     mediaVariants: pageMediaVariants,
   });
-
-  useEffect(() => {
-    let isActive = true;
-    const load = async () => {
-      try {
-        const response = await apiFetch(apiBase, "/api/public/pages");
-        if (!response.ok) {
-          return;
-        }
-        const data = await response.json();
-        if (isActive) {
-          setPageMediaVariants(
-            data?.mediaVariants && typeof data.mediaVariants === "object" ? data.mediaVariants : {},
-          );
-        }
-        if (isActive && data.pages?.donations) {
-          const incoming = data.pages.donations;
-          setDonations({
-            ...defaultDonations,
-            ...incoming,
-            reasonIcon: incoming.reasonIcon || defaultDonations.reasonIcon,
-            pixIcon: incoming.pixIcon || defaultDonations.pixIcon,
-            donorsIcon: incoming.donorsIcon || defaultDonations.donorsIcon,
-          });
-        }
-      } catch {
-        // ignore
-      }
-    };
-    load();
-    return () => {
-      isActive = false;
-    };
-  }, [apiBase]);
 
   const handleCopy = async () => {
     const pixKey = donations.pixKey?.trim();

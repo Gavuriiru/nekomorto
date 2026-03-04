@@ -111,6 +111,7 @@ import {
 import { isChapterBasedType, isLightNovelType, isMangaType } from "@/lib/project-utils";
 import { formatBytesCompact, parseHumanSizeToBytes } from "@/lib/file-size";
 import { formatBuildMetadataLabel, getFrontendBuildMetadata } from "@/lib/frontend-build";
+import { logOriginApiBaseMismatchOnce } from "@/lib/dev-diagnostics";
 import { usePageMeta } from "@/hooks/use-page-meta";
 import { useEditorScrollLock } from "@/hooks/use-editor-scroll-lock";
 import { useEditorScrollStability } from "@/hooks/use-editor-scroll-stability";
@@ -1533,7 +1534,7 @@ const DashboardProjectsEditor = () => {
     ) {
       return;
     }
-    console.info("origin_api_base_mismatch", {
+    logOriginApiBaseMismatchOnce({
       locationOrigin: normalizedLocationOrigin,
       apiBase: normalizedApiBase,
       frontend: frontendBuildMetadata,

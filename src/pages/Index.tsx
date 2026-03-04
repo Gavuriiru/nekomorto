@@ -1,42 +1,53 @@
-import { useEffect, useState } from "react";
+import { Suspense, lazy, useEffect, useRef, useState } from "react";
 import HeroSection from "@/components/HeroSection";
-import ReleasesSection from "@/components/ReleasesSection";
 import { usePageMeta } from "@/hooks/use-page-meta";
-import { getApiBase } from "@/lib/api-base";
-import { apiFetch } from "@/lib/api-client";
-import type { UploadMediaVariantsMap } from "@/lib/upload-variants";
+import { readWindowPublicBootstrap } from "@/lib/public-bootstrap-global";
+
+const ReleasesSection = lazy(() => import("@/components/ReleasesSection"));
+
+const shouldRenderReleasesOnEntry = () => {
+  if (typeof window === "undefined") {
+    return true;
+  }
+  const hash = String(window.location.hash || "")
+    .replace(/^#/, "")
+    .trim()
+    .toLowerCase();
+  return hash === "lancamentos";
+};
 
 const Index = () => {
-  const apiBase = getApiBase();
-  const [shareImage, setShareImage] = useState("");
-  const [shareImageAlt, setShareImageAlt] = useState("");
-  const [pageMediaVariants, setPageMediaVariants] = useState<UploadMediaVariantsMap>({});
+  const bootstrap = readWindowPublicBootstrap();
+  const shareImage = bootstrap?.pages.home.shareImage || "";
+  const shareImageAlt = bootstrap?.pages.home.shareImageAlt || "";
+  const pageMediaVariants = bootstrap?.mediaVariants || {};
+  const releasesSentinelRef = useRef<HTMLDivElement | null>(null);
+  const [shouldRenderReleases, setShouldRenderReleases] = useState(shouldRenderReleasesOnEntry);
 
   useEffect(() => {
-    let isActive = true;
-    const load = async () => {
-      try {
-        const response = await apiFetch(apiBase, "/api/public/pages");
-        if (!response.ok) {
+    if (shouldRenderReleases) {
+      return;
+    }
+
+    const sentinel = releasesSentinelRef.current;
+    if (!sentinel || typeof IntersectionObserver !== "function") {
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (!entries.some((entry) => entry.isIntersecting)) {
           return;
         }
-        const data = await response.json();
-        if (isActive) {
-          setShareImage(String(data?.pages?.home?.shareImage || "").trim());
-          setShareImageAlt(String(data?.pages?.home?.shareImageAlt || "").trim());
-          setPageMediaVariants(
-            data?.mediaVariants && typeof data.mediaVariants === "object" ? data.mediaVariants : {},
-          );
-        }
-      } catch {
-        // ignore
-      }
-    };
-    load();
+        setShouldRenderReleases(true);
+      },
+    );
+    observer.observe(sentinel);
+
     return () => {
-      isActive = false;
+      observer.disconnect();
     };
-  }, [apiBase]);
+  }, [shouldRenderReleases]);
 
   usePageMeta({
     title: "Início",
@@ -48,7 +59,12 @@ const Index = () => {
   return (
     <div className="min-h-screen bg-background">
       <HeroSection />
-      <ReleasesSection />
+      <div ref={releasesSentinelRef} aria-hidden="true" className="h-px w-full" />
+      {shouldRenderReleases ? (
+        <Suspense fallback={null}>
+          <ReleasesSection />
+        </Suspense>
+      ) : null}
     </div>
   );
 };

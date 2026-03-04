@@ -107,6 +107,7 @@ describe("theme token contrast", () => {
       ["popover-foreground", "popover"],
       ["secondary-foreground", "secondary"],
       ["muted-foreground", "muted"],
+      ["primary-foreground", "primary"],
       ["accent-foreground", "accent"],
       ["destructive-foreground", "destructive"],
       ["sidebar-foreground", "sidebar-background"],

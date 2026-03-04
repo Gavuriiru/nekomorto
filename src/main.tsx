@@ -3,8 +3,8 @@ import App, { queryClient } from "./App.tsx";
 import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
 import { PUBLIC_BOOTSTRAP_QUERY_KEY } from "@/hooks/use-public-bootstrap";
-import { registerPwa } from "@/lib/pwa-register";
-import type { PublicBootstrapPayload } from "@/types/public-bootstrap";
+import { scheduleOnBrowserLoadIdle } from "@/lib/browser-idle";
+import { asPublicBootstrapPayload } from "@/lib/public-bootstrap-global";
 import "./index.css";
 
 const titleForPath = (path: string) => {
@@ -44,33 +44,33 @@ const setBootstrapTitle = (siteName: string, separator: string) => {
   document.title = pageTitle ? `${pageTitle}${resolvedSeparator}${siteName}` : siteName;
 };
 
-const asBootstrapPayload = (value: unknown): PublicBootstrapPayload | null => {
-  if (!value || typeof value !== "object") {
-    return null;
-  }
-  const candidate = value as Partial<PublicBootstrapPayload>;
-  if (!Array.isArray(candidate.projects) || !Array.isArray(candidate.posts)) {
-    return null;
-  }
-  return candidate as PublicBootstrapPayload;
-};
-
 const bootstrap = async () => {
-  void registerPwa();
+  scheduleOnBrowserLoadIdle(() => {
+    void import("@/lib/pwa-register")
+      .then(({ registerPwa }) => registerPwa())
+      .catch(() => null);
+  });
 
   const apiBase = getApiBase();
   const globalWindow = window as Window & {
     __BOOTSTRAP_SETTINGS__?: unknown;
     __BOOTSTRAP_PUBLIC__?: unknown;
+    __BOOTSTRAP_PUBLIC_PROMISE__?: Promise<unknown>;
   };
   let initialSettings: unknown = globalWindow.__BOOTSTRAP_SETTINGS__;
-  let initialBootstrap = asBootstrapPayload(globalWindow.__BOOTSTRAP_PUBLIC__);
+  let initialBootstrap = asPublicBootstrapPayload(globalWindow.__BOOTSTRAP_PUBLIC__);
 
   try {
     if (!initialBootstrap) {
+      const bootstrapPromise = globalWindow.__BOOTSTRAP_PUBLIC_PROMISE__;
+      if (bootstrapPromise) {
+        initialBootstrap = asPublicBootstrapPayload(await bootstrapPromise);
+      }
+    }
+    if (!initialBootstrap) {
       const response = await apiFetch(apiBase, "/api/public/bootstrap");
       if (response.ok) {
-        initialBootstrap = asBootstrapPayload(await response.json());
+        initialBootstrap = asPublicBootstrapPayload(await response.json());
       }
     }
     if (initialBootstrap) {
@@ -96,7 +96,9 @@ const bootstrap = async () => {
   const siteName =
     (settings.site?.name || "").trim() || (document.title || "NEKOMATA").trim() || "NEKOMATA";
   const separator = settings.site?.titleSeparator || " | ";
-  setBootstrapTitle(siteName, separator);
+  if (!String(document.title || "").trim() || String(document.title || "").trim() === "Carregando...") {
+    setBootstrapTitle(siteName, separator);
+  }
 
   const root = document.getElementById("root");
   if (!root) {

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useMemo } from "react";
 import { usePageMeta } from "@/hooks/use-page-meta";
 import { useSiteSettings } from "@/hooks/use-site-settings";
 import { Button } from "@/components/ui/button";
@@ -15,9 +15,7 @@ import {
   Timer,
   ShieldCheck,
 } from "lucide-react";
-import { getApiBase } from "@/lib/api-base";
-import { apiFetch } from "@/lib/api-client";
-import type { UploadMediaVariantsMap } from "@/lib/upload-variants";
+import { readWindowPublicBootstrap } from "@/lib/public-bootstrap-global";
 
 const iconMap = {
   Languages,
@@ -99,52 +97,29 @@ const defaultRecruitment = {
 const Recruitment = () => {
   const { settings } = useSiteSettings();
   const discordUrl = settings.community.discordUrl || "#";
-  const apiBase = getApiBase();
-  const [recruitment, setRecruitment] = useState(defaultRecruitment);
-  const [pageMediaVariants, setPageMediaVariants] = useState<UploadMediaVariantsMap>({});
+  const bootstrap = readWindowPublicBootstrap();
+  const recruitment = useMemo(() => {
+    const incoming = bootstrap?.pages.recruitment;
+    if (!incoming) {
+      return defaultRecruitment;
+    }
+    const roles = (incoming.roles || defaultRecruitment.roles).map((role: RecruitmentRole) => ({
+      icon: role.icon || "Sparkles",
+      ...role,
+    }));
+    return {
+      ...defaultRecruitment,
+      ...incoming,
+      roles,
+    };
+  }, [bootstrap]);
+  const pageMediaVariants = bootstrap?.mediaVariants || {};
   usePageMeta({
     title: "Recrutamento",
     image: recruitment.shareImage || undefined,
     imageAlt: recruitment.shareImageAlt || undefined,
     mediaVariants: pageMediaVariants,
   });
-
-  useEffect(() => {
-    let isActive = true;
-    const load = async () => {
-      try {
-        const response = await apiFetch(apiBase, "/api/public/pages");
-        if (!response.ok) {
-          return;
-        }
-        const data = await response.json();
-        if (isActive) {
-          setPageMediaVariants(
-            data?.mediaVariants && typeof data.mediaVariants === "object" ? data.mediaVariants : {},
-          );
-        }
-        if (!isActive || !data.pages?.recruitment) {
-          return;
-        }
-        const incoming = data.pages.recruitment;
-        const roles = (incoming.roles || defaultRecruitment.roles).map((role: RecruitmentRole) => ({
-          icon: role.icon || "Sparkles",
-          ...role,
-        }));
-        setRecruitment({
-          ...defaultRecruitment,
-          ...incoming,
-          roles,
-        });
-      } catch {
-        // ignore
-      }
-    };
-    load();
-    return () => {
-      isActive = false;
-    };
-  }, [apiBase]);
 
   return (
     <div className="min-h-screen bg-background">

@@ -46,6 +46,7 @@ import {
 import { buildEditorialCalendarItems } from "./lib/editorial-calendar.js";
 import { createViteDevServer, resolveClientIndexPath } from "./lib/frontend-runtime.js";
 import { buildHealthStatusResponse } from "./lib/health-checks.js";
+import { injectBootstrapGlobals, injectPreloadLinks } from "./lib/html-bootstrap.js";
 import { createIdempotencyFingerprint, createIdempotencyStore } from "./lib/idempotency-store.js";
 import { createJobQueue } from "./lib/job-queue.js";
 import { createMetricsRegistry } from "./lib/metrics.js";
@@ -58,6 +59,7 @@ import { getBuildMetadata } from "./lib/build-metadata.js";
 import {
   buildOriginConfig,
   isAllowedOrigin as isAllowedOriginByConfig,
+  resolveAuthAppOrigin,
   resolveDiscordRedirectUri as resolveDiscordRedirectUriByConfig,
 } from "./lib/origin-config.js";
 import { createSlug, createUniqueSlug } from "./lib/post-slug.js";
@@ -127,7 +129,11 @@ import {
   SecurityEventStatus,
 } from "./lib/security-events.js";
 import { applySecurityHeaders, injectNonceIntoHtmlScripts } from "./lib/security-headers.js";
-import { establishAuthenticatedSession } from "./lib/session-auth.js";
+import {
+  buildAuthRedirectUrl,
+  establishAuthenticatedSession,
+  saveSessionState,
+} from "./lib/session-auth.js";
 import { buildSessionCookieConfig } from "./lib/session-cookie-config.js";
 import { buildSitemapXml } from "./lib/sitemap-xml.js";
 import { normalizePublicRedirects, resolvePublicRedirect } from "./lib/public-redirects.js";
@@ -2405,21 +2411,21 @@ app.use((req, res, next) => {
 app.use(compression());
 app.use(express.json({ limit: "10mb" }));
 app.use(cookieParser());
-app.use(
-  cors((req, callback) => {
-    const corsOptions = buildCorsOptionsForRequest({
-      origin: req.headers.origin,
-      method: req.method,
-      isProduction,
-      isAllowedOriginFn: isAllowedOrigin,
-    });
-    if (corsOptions) {
-      callback(null, corsOptions);
-      return;
-    }
-    callback(new Error("Not allowed by CORS"));
-  }),
-);
+const apiCorsMiddleware = cors((req, callback) => {
+  const corsOptions = buildCorsOptionsForRequest({
+    origin: req.headers.origin,
+    method: req.method,
+    isProduction,
+    isAllowedOriginFn: isAllowedOrigin,
+  });
+  if (corsOptions) {
+    callback(null, corsOptions);
+    return;
+  }
+  callback(new Error("Not allowed by CORS"));
+});
+app.use("/api", apiCorsMiddleware);
+app.use("/auth", apiCorsMiddleware);
 
 app.set("trust proxy", 1);
 
@@ -3166,21 +3172,6 @@ const clearEnrollmentFromSession = (req) => {
   }
   req.session.mfaEnrollment = null;
 };
-
-const saveSessionState = (req) =>
-  new Promise((resolve, reject) => {
-    if (!req?.session || typeof req.session.save !== "function") {
-      reject(new Error("session_unavailable"));
-      return;
-    }
-    req.session.save((error) => {
-      if (error) {
-        reject(error);
-        return;
-      }
-      resolve();
-    });
-  });
 
 const buildMySecuritySummary = ({ req, userId } = {}) => {
   const record = loadUserMfaTotpRecord(userId);
@@ -6101,19 +6092,33 @@ app.get("/auth/discord", async (req, res) => {
     return res.status(429).json({ error: "rate_limited" });
   }
   const state = crypto.randomBytes(16).toString("hex");
-  if (req.session) {
-    req.session.oauthState = state;
-  }
-
-  if (typeof req.query.next === "string" && req.query.next.trim()) {
-    if (req.session) {
-      req.session.loginNext = req.query.next;
-    }
-  }
-
+  const loginAppOrigin = resolveAuthAppOrigin({
+    req,
+    sessionOrigin: null,
+    primaryAppOrigin: PRIMARY_APP_ORIGIN,
+    isAllowedOriginFn: isAllowedOrigin,
+  });
+  const loginNext =
+    typeof req.query.next === "string" && req.query.next.trim() ? req.query.next : null;
   const redirectUri = resolveDiscordRedirectUri(req);
   if (req.session) {
+    req.session.oauthState = state;
+    req.session.loginNext = loginNext;
     req.session.discordRedirectUri = redirectUri;
+    req.session.loginAppOrigin = loginAppOrigin;
+  }
+  try {
+    await saveSessionState(req);
+  } catch {
+    metricsRegistry.inc("auth_login_total", { status: "failed" });
+    appendAuditLog(req, "auth.login.failed", "auth", { error: "session_persist_failed" });
+    return res.redirect(
+      buildAuthRedirectUrl({
+        appOrigin: loginAppOrigin,
+        path: "/login",
+        searchParams: { error: "server_error" },
+      }),
+    );
   }
 
   const params = new URLSearchParams({
@@ -6136,12 +6141,24 @@ app.get("/login", async (req, res, next) => {
   if (!hasOAuthCallbackParams) {
     return next();
   }
+  const loginAppOrigin = resolveAuthAppOrigin({
+    req,
+    sessionOrigin: req.session?.loginAppOrigin,
+    primaryAppOrigin: PRIMARY_APP_ORIGIN,
+    isAllowedOriginFn: isAllowedOrigin,
+  });
 
   const ip = req.headers["x-forwarded-for"]?.split(",")[0]?.trim() || req.ip;
   if (!(await canAttemptAuth(ip))) {
     metricsRegistry.inc("auth_login_total", { status: "rate_limited" });
     appendAuditLog(req, "auth.login.rate_limited", "auth", {});
-    return res.redirect(`${PRIMARY_APP_ORIGIN}/login?error=rate_limited`);
+    return res.redirect(
+      buildAuthRedirectUrl({
+        appOrigin: loginAppOrigin,
+        path: "/login",
+        searchParams: { error: "rate_limited" },
+      }),
+    );
   }
   const { code, state } = req.query;
 
@@ -6149,14 +6166,26 @@ app.get("/login", async (req, res, next) => {
     metricsRegistry.inc("auth_login_total", { status: "failed" });
     handleAuthFailureSecuritySignals({ req, error: "missing_code" });
     appendAuditLog(req, "auth.login.failed", "auth", { error: "missing_code" });
-    return res.redirect(`${PRIMARY_APP_ORIGIN}/login?error=missing_code`);
+    return res.redirect(
+      buildAuthRedirectUrl({
+        appOrigin: loginAppOrigin,
+        path: "/login",
+        searchParams: { error: "missing_code" },
+      }),
+    );
   }
 
   if (!state || typeof state !== "string" || state !== req.session?.oauthState) {
     metricsRegistry.inc("auth_login_total", { status: "failed" });
     handleAuthFailureSecuritySignals({ req, error: "state_mismatch" });
     appendAuditLog(req, "auth.login.failed", "auth", { error: "state_mismatch" });
-    return res.redirect(`${PRIMARY_APP_ORIGIN}/login?error=state_mismatch`);
+    return res.redirect(
+      buildAuthRedirectUrl({
+        appOrigin: loginAppOrigin,
+        path: "/login",
+        searchParams: { error: "state_mismatch" },
+      }),
+    );
   }
 
   if (req.session) {
@@ -6188,7 +6217,13 @@ app.get("/login", async (req, res, next) => {
       metricsRegistry.inc("auth_login_total", { status: "failed" });
       handleAuthFailureSecuritySignals({ req, error: "token_exchange_failed" });
       appendAuditLog(req, "auth.login.failed", "auth", { error: "token_exchange_failed" });
-      return res.redirect(`${PRIMARY_APP_ORIGIN}/login?error=token_exchange_failed`);
+      return res.redirect(
+        buildAuthRedirectUrl({
+          appOrigin: loginAppOrigin,
+          path: "/login",
+          searchParams: { error: "token_exchange_failed" },
+        }),
+      );
     }
 
     const tokenData = await tokenResponse.json();
@@ -6203,7 +6238,13 @@ app.get("/login", async (req, res, next) => {
       metricsRegistry.inc("auth_login_total", { status: "failed" });
       handleAuthFailureSecuritySignals({ req, error: "user_fetch_failed" });
       appendAuditLog(req, "auth.login.failed", "auth", { error: "user_fetch_failed" });
-      return res.redirect(`${PRIMARY_APP_ORIGIN}/login?error=user_fetch_failed`);
+      return res.redirect(
+        buildAuthRedirectUrl({
+          appOrigin: loginAppOrigin,
+          path: "/login",
+          searchParams: { error: "user_fetch_failed" },
+        }),
+      );
     }
 
     const discordUser = await userResponse.json();
@@ -6217,10 +6258,16 @@ app.get("/login", async (req, res, next) => {
       metricsRegistry.inc("auth_login_total", { status: "failed" });
       handleAuthFailureSecuritySignals({ req, error: "unauthorized" });
       appendAuditLog(req, "auth.login.failed", "auth", { error: "unauthorized" });
-      return res.redirect(`${PRIMARY_APP_ORIGIN}/login?error=unauthorized`);
+      return res.redirect(
+        buildAuthRedirectUrl({
+          appOrigin: loginAppOrigin,
+          path: "/login",
+          searchParams: { error: "unauthorized" },
+        }),
+      );
     }
 
-    const next = req.session?.loginNext;
+    const next = String(req.session?.loginNext || "").trim();
     const authenticatedUser = {
       id: discordUser.id,
       name: discordUser.global_name || discordUser.username,
@@ -6234,17 +6281,26 @@ app.get("/login", async (req, res, next) => {
       await establishAuthenticatedSession({
         req,
         user: authenticatedUser,
+        preserved: {
+          loginAppOrigin,
+          loginNext: next || null,
+        },
       });
     } catch {
       metricsRegistry.inc("auth_login_total", { status: "failed" });
       handleAuthFailureSecuritySignals({ req, error: "session_regenerate_failed" });
       appendAuditLog(req, "auth.login.failed", "auth", { error: "session_regenerate_failed" });
-      return res.redirect(`${PRIMARY_APP_ORIGIN}/login?error=server_error`);
+      return res.redirect(
+        buildAuthRedirectUrl({
+          appOrigin: loginAppOrigin,
+          path: "/login",
+          searchParams: { error: "server_error" },
+        }),
+      );
     }
     if (req.session) {
       req.session.oauthState = null;
       req.session.discordRedirectUri = null;
-      req.session.loginNext = next || null;
     }
 
     if (requiresMfa && req.session) {
@@ -6255,12 +6311,20 @@ app.get("/login", async (req, res, next) => {
       appendAuditLog(req, "auth.login.mfa_required", "auth", { userId: discordUser.id });
       metricsRegistry.inc("auth_login_total", { status: "mfa_required" });
       return res.redirect(
-        `${PRIMARY_APP_ORIGIN}/login?mfa=required${next ? `&next=${encodeURIComponent(next)}` : ""}`,
+        buildAuthRedirectUrl({
+          appOrigin: loginAppOrigin,
+          path: "/login",
+          searchParams: {
+            mfa: "required",
+            next: next || undefined,
+          },
+        }),
       );
     }
 
     if (req.session) {
       req.session.loginNext = null;
+      req.session.loginAppOrigin = null;
       req.session.mfaVerifiedAt = new Date().toISOString();
     }
     updateSessionIndexFromRequest(req, { force: true });
@@ -6268,12 +6332,23 @@ app.get("/login", async (req, res, next) => {
     maybeEmitExcessiveSessionsEvent({ req, userId: authenticatedUser.id });
     appendAuditLog(req, "auth.login.success", "auth", { userId: discordUser.id });
     metricsRegistry.inc("auth_login_total", { status: "success" });
-    return res.redirect(next ? `${PRIMARY_APP_ORIGIN}${next}` : `${PRIMARY_APP_ORIGIN}/dashboard`);
+    return res.redirect(
+      buildAuthRedirectUrl({
+        appOrigin: loginAppOrigin,
+        path: next || "/dashboard",
+      }),
+    );
   } catch {
     metricsRegistry.inc("auth_login_total", { status: "failed" });
     handleAuthFailureSecuritySignals({ req, error: "server_error" });
     appendAuditLog(req, "auth.login.failed", "auth", { error: "server_error" });
-    return res.redirect(`${PRIMARY_APP_ORIGIN}/login?error=server_error`);
+    return res.redirect(
+      buildAuthRedirectUrl({
+        appOrigin: loginAppOrigin,
+        path: "/login",
+        searchParams: { error: "server_error" },
+      }),
+    );
   }
 });
 app.post("/api/auth/mfa/verify", async (req, res) => {
@@ -6309,12 +6384,19 @@ app.post("/api/auth/mfa/verify", async (req, res) => {
   }
 
   const next = String(req.session?.loginNext || "").trim();
+  const loginAppOrigin = resolveAuthAppOrigin({
+    req,
+    sessionOrigin: req.session?.loginAppOrigin,
+    primaryAppOrigin: PRIMARY_APP_ORIGIN,
+    isAllowedOriginFn: isAllowedOrigin,
+  });
   try {
     await establishAuthenticatedSession({
       req,
       user: pendingUser,
       preserved: {
         loginNext: null,
+        loginAppOrigin: null,
         mfaVerifiedAt: new Date().toISOString(),
       },
     });
@@ -6336,7 +6418,10 @@ app.post("/api/auth/mfa/verify", async (req, res) => {
     ok: true,
     method: verification.method,
     recoveryCodesRemaining: verification.remainingRecoveryCodes ?? 0,
-    redirect: next ? `${PRIMARY_APP_ORIGIN}${next}` : `${PRIMARY_APP_ORIGIN}/dashboard`,
+    redirect: buildAuthRedirectUrl({
+      appOrigin: loginAppOrigin,
+      path: next || "/dashboard",
+    }),
   });
 });
 
@@ -10896,6 +10981,190 @@ const sendXmlResponse = (res, xml, contentType) => {
   return res.status(200).send(xml);
 };
 
+const sortPublicLaunchUpdates = (updates) =>
+  [...(Array.isArray(updates) ? updates : [])]
+    .filter((update) => {
+      const kind = String(update?.kind || "")
+        .trim()
+        .toLowerCase();
+      return kind === "lançamento" || kind === "lancamento";
+    })
+    .sort((a, b) => new Date(b?.updatedAt || 0).getTime() - new Date(a?.updatedAt || 0).getTime());
+
+const buildPublicHeroSlides = (projects, updates) => {
+  const projectList = Array.isArray(projects) ? projects : [];
+  const launchUpdates = sortPublicLaunchUpdates(updates);
+  const latestLaunchByProject = new Map();
+  launchUpdates.forEach((update) => {
+    const projectId = String(update?.projectId || "").trim();
+    if (!projectId || latestLaunchByProject.has(projectId)) {
+      return;
+    }
+    latestLaunchByProject.set(projectId, String(update?.updatedAt || ""));
+  });
+
+  const projectsById = new Map(projectList.map((project) => [String(project?.id || ""), project]));
+  const resultIds = new Set();
+  const slides = [];
+  const maxSlides = 5;
+  const epoch = "1970-01-01T00:00:00.000Z";
+  const createSlide = (project, updatedAt) => {
+    const projectId = String(project?.id || "");
+    if (!projectId || resultIds.has(projectId)) {
+      return null;
+    }
+    const image =
+      String(project?.heroImageUrl || "").trim() ||
+      String(project?.banner || "").trim() ||
+      String(project?.cover || "").trim() ||
+      "";
+    if (!image) {
+      return null;
+    }
+    return {
+      id: projectId,
+      image,
+      updatedAt: updatedAt || epoch,
+    };
+  };
+
+  const orderedProjects = projectList
+    .map((project, index) => {
+      const projectId = String(project?.id || "");
+      const updatedAt = latestLaunchByProject.get(projectId) || "";
+      const time = updatedAt ? new Date(updatedAt).getTime() : 0;
+      return { project, index, updatedAt, time };
+    })
+    .sort((a, b) => {
+      if (b.time !== a.time) {
+        return b.time - a.time;
+      }
+      return a.index - b.index;
+    });
+
+  orderedProjects.forEach((item) => {
+    const slide = createSlide(item.project, item.updatedAt);
+    if (!slide) {
+      return;
+    }
+    if (slides.length < maxSlides) {
+      slides.push(slide);
+      resultIds.add(slide.id);
+      return;
+    }
+    if (item.project?.forceHero !== true) {
+      return;
+    }
+    slides.push(slide);
+    resultIds.add(slide.id);
+    const removeIndexFromEnd = [...slides]
+      .reverse()
+      .findIndex((candidate) => projectsById.get(candidate.id)?.forceHero !== true);
+    if (removeIndexFromEnd === -1) {
+      const removed = slides.shift();
+      if (removed) {
+        resultIds.delete(removed.id);
+      }
+      return;
+    }
+    const removeIndex = slides.length - 1 - removeIndexFromEnd;
+    const [removed] = slides.splice(removeIndex, 1);
+    if (removed) {
+      resultIds.delete(removed.id);
+    }
+  });
+
+  return slides;
+};
+
+const buildPublicBootstrapResponsePayload = ({
+  settings = loadSiteSettings(),
+  pages = loadPages(),
+  generatedAt = new Date().toISOString(),
+} = {}) => {
+  const now = Date.now();
+  const projects = getPublicVisibleProjects();
+  const posts = normalizePosts(loadPosts())
+    .filter((post) => !post.deletedAt)
+    .filter((post) => {
+      const publishTime = new Date(post.publishedAt).getTime();
+      return publishTime <= now && (post.status === "published" || post.status === "scheduled");
+    })
+    .sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime())
+    .map((post) => {
+      const resolvedCover = resolvePostCover(post);
+      return {
+        id: post.id,
+        title: post.title,
+        slug: post.slug,
+        coverImageUrl: resolvedCover.coverImageUrl,
+        coverAlt: resolvedCover.coverAlt,
+        excerpt: post.excerpt,
+        author: post.author,
+        publishedAt: post.publishedAt,
+        projectId: post.projectId || "",
+        tags: Array.isArray(post.tags) ? post.tags : [],
+      };
+    });
+  const updates = getPublicVisibleUpdates().slice(0, 10);
+  const payload = buildPublicBootstrapPayload({
+    settings,
+    pages,
+    projects,
+    posts,
+    updates,
+    tagTranslations: loadTagTranslations(),
+    generatedAt,
+  });
+  payload.mediaVariants = buildPublicMediaVariants(
+    payload.projects,
+    payload.posts,
+    payload.updates,
+    payload.pages,
+    { image: settings?.site?.defaultShareImage || "" },
+  );
+  return payload;
+};
+
+const resolveHomeHeroPreloadHref = (publicBootstrap) => {
+  const slides = buildPublicHeroSlides(publicBootstrap?.projects, publicBootstrap?.updates);
+  const firstSlide = slides[0];
+  if (!firstSlide?.image) {
+    return "";
+  }
+  const normalizedImageUrl = normalizeUploadUrlValue(firstSlide.image);
+  const heroVariantUrl =
+    readVariantAssetUrl(
+      publicBootstrap?.mediaVariants?.[normalizedImageUrl]?.variants?.hero?.formats,
+      "",
+    ) || resolveMetaImageVariantUrl(firstSlide.image, "hero");
+  return heroVariantUrl || firstSlide.image;
+};
+
+const injectPublicBootstrapHtml = ({
+  html,
+  settings,
+  pages,
+  includeHeroImagePreload = false,
+}) => {
+  const publicBootstrap = buildPublicBootstrapResponsePayload({ settings, pages });
+  let nextHtml = injectBootstrapGlobals({
+    html,
+    publicBootstrap,
+    settings,
+  });
+  if (includeHeroImagePreload) {
+    const heroPreloadHref = resolveHomeHeroPreloadHref(publicBootstrap);
+    if (heroPreloadHref) {
+      nextHtml = injectPreloadLinks({
+        html: nextHtml,
+        preloads: [{ href: heroPreloadHref, as: "image", fetchpriority: "high" }],
+      });
+    }
+  }
+  return nextHtml;
+};
+
 app.get("/sitemap.xml", (_req, res) => {
   const xml = buildSitemapXml(buildPublicSitemapEntries());
   return sendXmlResponse(res, xml, "application/xml; charset=utf-8");
@@ -10963,40 +11232,7 @@ app.get("/api/public/bootstrap", (req, res) => {
     res.setHeader("X-Cache", "HIT");
     return res.status(cached.statusCode).json(cached.payload);
   }
-  const now = Date.now();
-  const projects = getPublicVisibleProjects();
-  const posts = normalizePosts(loadPosts())
-    .filter((post) => !post.deletedAt)
-    .filter((post) => {
-      const publishTime = new Date(post.publishedAt).getTime();
-      return publishTime <= now && (post.status === "published" || post.status === "scheduled");
-    })
-    .sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime())
-    .map((post) => {
-      const resolvedCover = resolvePostCover(post);
-      return {
-        id: post.id,
-        title: post.title,
-        slug: post.slug,
-        coverImageUrl: resolvedCover.coverImageUrl,
-        coverAlt: resolvedCover.coverAlt,
-        excerpt: post.excerpt,
-        author: post.author,
-        publishedAt: post.publishedAt,
-        projectId: post.projectId || "",
-        tags: Array.isArray(post.tags) ? post.tags : [],
-      };
-    });
-  const updates = getPublicVisibleUpdates().slice(0, 10);
-  const payload = buildPublicBootstrapPayload({
-    settings: loadSiteSettings(),
-    projects,
-    posts,
-    updates,
-    tagTranslations: loadTagTranslations(),
-    generatedAt: new Date().toISOString(),
-  });
-  payload.mediaVariants = buildPublicMediaVariants(payload.projects, payload.posts, payload.updates);
+  const payload = buildPublicBootstrapResponsePayload();
   writePublicCachedJson(req, payload, {
     ttlMs: 30000,
     tags: [PUBLIC_READ_CACHE_TAGS.BOOTSTRAP],
@@ -13894,10 +14130,15 @@ app.get(
           pages,
           post: post || null,
         });
+        const html = injectPublicBootstrapHtml({
+          html: renderMetaHtml({ ...meta, url: canonicalUrl, structuredData }),
+          settings,
+          pages,
+        });
         return await sendHtml(
           req,
           res,
-          renderMetaHtml({ ...meta, url: canonicalUrl, structuredData }),
+          html,
         );
       }
       if (req.path.startsWith("/projeto/") || req.path.startsWith("/projetos/")) {
@@ -13912,10 +14153,15 @@ app.get(
           pages,
           project: project || null,
         });
+        const html = injectPublicBootstrapHtml({
+          html: renderMetaHtml({ ...meta, url: canonicalUrl, structuredData }),
+          settings,
+          pages,
+        });
         return await sendHtml(
           req,
           res,
-          renderMetaHtml({ ...meta, url: canonicalUrl, structuredData }),
+          html,
         );
       }
       const meta = buildSiteMetaWithSettings(settings);
@@ -13926,10 +14172,16 @@ app.get(
         settings,
         pages,
       });
+      const html = injectPublicBootstrapHtml({
+        html: renderMetaHtml({ ...meta, url: canonicalUrl, structuredData }),
+        settings,
+        pages,
+        includeHeroImagePreload: req.path === "/",
+      });
       return await sendHtml(
         req,
         res,
-        renderMetaHtml({ ...meta, url: canonicalUrl, structuredData }),
+        html,
       );
     } catch {
       return await sendHtml(req, res, getIndexHtml());
@@ -13957,10 +14209,19 @@ app.get("*", async (req, res) => {
       settings,
       pages,
     });
+    const shouldInjectPublicBootstrap = !/^\/dashboard(?:\/|$)/.test(req.path);
+    const html = shouldInjectPublicBootstrap
+      ? injectPublicBootstrapHtml({
+          html: renderMetaHtml({ ...meta, title, url: canonicalUrl, structuredData }),
+          settings,
+          pages,
+          includeHeroImagePreload: req.path === "/",
+        })
+      : renderMetaHtml({ ...meta, title, url: canonicalUrl, structuredData });
     return await sendHtml(
       req,
       res,
-      renderMetaHtml({ ...meta, title, url: canonicalUrl, structuredData }),
+      html,
     );
   } catch {
     return await sendHtml(req, res, getIndexHtml());

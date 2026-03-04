@@ -197,6 +197,7 @@ const WorkStatusCard = () => {
             const progress = Math.round((completedCount / stages.length) * 100);
             const currentStage =
               stages.find((stage) => stage.id === item.currentStage) ?? stages[0];
+            const progressLabel = `${item.title} ${item.entry} ${progress}% concluído`;
 
             return (
               <Link
@@ -226,6 +227,8 @@ const WorkStatusCard = () => {
                   <Progress
                     value={progress}
                     className="h-2"
+                    aria-label={progressLabel}
+                    aria-valuetext={progressLabel}
                     indicatorClassName={
                       useAccentInProgressCard ? themedIndicatorClass : currentStage.color
                     }

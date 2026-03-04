@@ -19,25 +19,6 @@ const Footer = () => {
   const footerSymbolUrl = branding.footer.symbolUrl;
   const footerMode = branding.footer.mode;
   const showWordmarkInFooter = branding.footer.showWordmark;
-  const renderCopyright = () => {
-    const text = footer.copyright || "";
-    const marker = "©";
-    const index = text.indexOf(marker);
-    if (index === -1) {
-      return <p>{text}</p>;
-    }
-    const before = text.slice(0, index);
-    const after = text.slice(index + marker.length);
-    return (
-      <p>
-        {before}
-        <Link to="/login" className="text-muted-foreground/70 hover:text-foreground transition-colors">
-          {marker}
-        </Link>
-        {after}
-      </p>
-    );
-  };
   const isInternalLink = (href: string) => href.startsWith("/") && !href.startsWith("//");
   const iconMap: Record<string, typeof Globe> = {
     instagram: Instagram,
@@ -50,6 +31,7 @@ const Footer = () => {
     globe: Globe,
     site: Globe,
   };
+
   return (
     <footer className="mt-16 border-t border-border/60 bg-card/60">
       <div className="mx-auto max-w-7xl px-6 md:px-12 py-14">
@@ -179,7 +161,7 @@ const Footer = () => {
 
       <div className="border-t border-border/60 bg-background/40">
         <div className="mx-auto flex max-w-7xl flex-col gap-2 px-6 py-6 text-xs text-muted-foreground md:flex-row md:items-center md:justify-between md:px-12">
-          {renderCopyright()}
+          <p>{footer.copyright || ""}</p>
         </div>
       </div>
     </footer>
