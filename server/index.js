@@ -172,6 +172,7 @@ import {
 } from "./lib/upload-media.js";
 import {
   sanitizeAssetUrl,
+  sanitizeFavoriteWorksByCategory,
   sanitizeIconSource,
   sanitizePublicHref,
   sanitizeSocials,
@@ -8418,6 +8419,7 @@ const normalizeUsers = (users) => {
       bio: user.bio || "",
       avatarUrl: user.avatarUrl || null,
       socials: sanitizeSocials(user.socials),
+      favoriteWorks: sanitizeFavoriteWorksByCategory(user.favoriteWorks),
       status: user.status === "retired" ? "retired" : "active",
       permissions: normalizePermissionsRaw(user.permissions),
       roles: removeOwnerRoleLabel(Array.isArray(user.roles) ? user.roles.filter(Boolean) : []),
@@ -9167,6 +9169,7 @@ app.get("/api/public/users", (req, res) => {
         avatarUrl: user.avatarUrl,
         avatarDisplay: normalizeAvatarDisplay(user.avatarDisplay),
         socials: user.socials,
+        favoriteWorks: user.favoriteWorks,
         roles: applyOwnerRole(user).roles,
         accessRole: withAccess.accessRole,
         isAdmin: withAccess.accessRole === AccessRole.ADMIN,
@@ -13538,6 +13541,7 @@ app.post("/api/users", requireAuth, (req, res) => {
     avatarUrl,
     avatarDisplay,
     socials,
+    favoriteWorks,
     status,
     permissions,
     roles,
@@ -13564,6 +13568,7 @@ app.post("/api/users", requireAuth, (req, res) => {
       avatarUrl: avatarUrl || null,
       avatarDisplay: normalizeAvatarDisplay(avatarDisplay),
       socials: sanitizeSocials(socials),
+      favoriteWorks: sanitizeFavoriteWorksByCategory(favoriteWorks),
       status: status === "retired" ? "retired" : "active",
       permissions: Array.isArray(permissions) ? permissions : [],
       roles: Array.isArray(roles) ? roles.filter(Boolean) : [],
@@ -13620,6 +13625,7 @@ app.post("/api/users", requireAuth, (req, res) => {
     avatarUrl: avatarUrl || null,
     avatarDisplay: normalizeAvatarDisplay(avatarDisplay),
     socials: sanitizeSocials(socials),
+    favoriteWorks: sanitizeFavoriteWorksByCategory(favoriteWorks),
     status: status === "retired" ? "retired" : "active",
     permissions: sanitizedPermissions,
     roles: removeOwnerRoleLabel(Array.isArray(roles) ? roles.filter(Boolean) : []),
@@ -13809,6 +13815,9 @@ app.put("/api/users/:id", (req, res) => {
           ? normalizeAvatarDisplay(update.avatarDisplay)
           : normalizeAvatarDisplay(existing.avatarDisplay),
       socials: Array.isArray(update.socials) ? sanitizeSocials(update.socials) : existing.socials,
+      favoriteWorks: Object.prototype.hasOwnProperty.call(update, "favoriteWorks")
+        ? sanitizeFavoriteWorksByCategory(update.favoriteWorks)
+        : existing.favoriteWorks,
       status: update.status === "retired" ? "retired" : "active",
       permissions: Array.isArray(update.permissions) ? update.permissions : existing.permissions,
       roles: Array.isArray(update.roles) ? update.roles : existing.roles,
@@ -13932,6 +13941,9 @@ app.put("/api/users/:id", (req, res) => {
     socials: Array.isArray(basicPatch.socials)
       ? sanitizeSocials(basicPatch.socials)
       : existing.socials,
+    favoriteWorks: Object.prototype.hasOwnProperty.call(basicPatch, "favoriteWorks")
+      ? sanitizeFavoriteWorksByCategory(basicPatch.favoriteWorks)
+      : existing.favoriteWorks,
     roles: Array.isArray(update.roles) ? removeOwnerRoleLabel(update.roles) : existing.roles,
     status:
       update.status === "retired"
@@ -14197,6 +14209,9 @@ app.put("/api/users/self", requireAuth, (req, res) => {
     socials: Array.isArray(basicPatch.socials)
       ? sanitizeSocials(basicPatch.socials)
       : existing.socials,
+    favoriteWorks: Object.prototype.hasOwnProperty.call(basicPatch, "favoriteWorks")
+      ? sanitizeFavoriteWorksByCategory(basicPatch.favoriteWorks)
+      : existing.favoriteWorks,
   };
 
   const beforeSnapshot = toUserApiResponse(existing, ownerIds);

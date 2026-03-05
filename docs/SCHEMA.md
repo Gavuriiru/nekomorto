@@ -103,6 +103,9 @@ Este documento descreve o schema logico atual com PostgreSQL como unica fonte de
 - `phrase` (string)
 - `bio` (string)
 - `socials` ({ `label`: string, `href`: string }[])
+- `favoriteWorks` ({ `manga`: string[], `anime`: string[] })
+: listas por categoria (ate 3 itens cada), deduplicadas e saneadas.
+: payload legado em lista unica e ignorado no saneamento (sem migracao automatica).
 - `status` ("active" | "retired")
 - `permissions` (string[])
 : RBAC V2 usa catalogo explicito (`posts`, `projetos`, `comentarios`, `paginas`, `uploads`, `analytics`, `usuarios_basico`, `usuarios_acesso`, `configuracoes`, `audit_log`, `integracoes`).

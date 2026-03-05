@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -11,15 +11,19 @@ vi.mock("@/hooks/use-public-bootstrap", () => ({
 }));
 
 vi.mock("@/components/LatestEpisodeCard", () => ({
-  default: () => null,
+  default: () => <section data-testid="sidebar-latest-card" />,
 }));
 
 vi.mock("@/components/WorkStatusCard", () => ({
-  default: () => null,
+  default: () => <section data-testid="sidebar-work-status-card" />,
+}));
+
+vi.mock("@/components/TopProjectsSection", () => ({
+  default: () => <section data-testid="sidebar-top-projects-card" />,
 }));
 
 vi.mock("@/components/DiscordInviteCard", () => ({
-  default: () => null,
+  default: () => <section data-testid="sidebar-discord-card" />,
 }));
 
 const setupBootstrapMock = () => {
@@ -124,11 +128,35 @@ describe("ReleasesSection cover fit", () => {
       </MemoryRouter>,
     );
 
-    const sectionHeading = screen.getByRole("heading", { level: 2, name: /Lan.*amentos recentes/i });
+    const sectionHeading = screen.getByRole("heading", { level: 2, name: /Em Destaque/i });
     const cardHeading = await screen.findByRole("heading", { level: 3, name: "Post de Teste" });
 
     expect(
       sectionHeading.compareDocumentPosition(cardHeading) & Node.DOCUMENT_POSITION_FOLLOWING,
     ).not.toBe(0);
+  });
+
+  it("renderiza Top 10 na sidebar entre Em Progresso e Discord", async () => {
+    setupBootstrapMock();
+
+    const { container } = render(
+      <MemoryRouter>
+        <ReleasesSection />
+      </MemoryRouter>,
+    );
+
+    await screen.findByRole("heading", { level: 3, name: "Post de Teste" });
+
+    const sidebar = container.querySelector("div.flex.h-full.flex-col.gap-6");
+    expect(sidebar).not.toBeNull();
+    const cards = within(sidebar as HTMLElement).getAllByTestId(/sidebar-/i);
+    const order = cards.map((card) => card.getAttribute("data-testid"));
+
+    expect(order).toEqual([
+      "sidebar-latest-card",
+      "sidebar-work-status-card",
+      "sidebar-top-projects-card",
+      "sidebar-discord-card",
+    ]);
   });
 });

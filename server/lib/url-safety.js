@@ -1,4 +1,7 @@
 const ICON_KEY_PATTERN = /^[a-z0-9_-]+$/;
+const FAVORITE_WORK_CATEGORIES = Object.freeze(["manga", "anime"]);
+const MAX_FAVORITE_WORKS = 3;
+const MAX_FAVORITE_WORK_LENGTH = 80;
 
 const normalizeString = (value) => String(value || "").trim();
 
@@ -89,6 +92,44 @@ export const sanitizeIconSource = (value) => {
     return parsed.toString();
   }
   return null;
+};
+
+const sanitizeFavoriteWorksList = (value) => {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  const dedupe = new Set();
+  const output = [];
+  value.forEach((entry) => {
+    const title = normalizeString(entry).slice(0, MAX_FAVORITE_WORK_LENGTH);
+    if (!title) {
+      return;
+    }
+    const dedupeKey = title.toLowerCase();
+    if (dedupe.has(dedupeKey)) {
+      return;
+    }
+    dedupe.add(dedupeKey);
+    output.push(title);
+  });
+  return output.slice(0, MAX_FAVORITE_WORKS);
+};
+
+const emptyFavoriteWorksByCategory = () => ({
+  manga: [],
+  anime: [],
+});
+
+export const sanitizeFavoriteWorksByCategory = (value) => {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return emptyFavoriteWorksByCategory();
+  }
+  const source = value;
+  const output = {};
+  FAVORITE_WORK_CATEGORIES.forEach((category) => {
+    output[category] = sanitizeFavoriteWorksList(source?.[category]);
+  });
+  return output;
 };
 
 export const sanitizeSocials = (value) => {

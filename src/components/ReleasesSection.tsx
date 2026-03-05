@@ -13,6 +13,7 @@ import {
 import LatestEpisodeCard from "./LatestEpisodeCard";
 import WorkStatusCard from "./WorkStatusCard";
 import DiscordInviteCard from "./DiscordInviteCard";
+import TopProjectsSection from "./TopProjectsSection";
 import UploadPicture from "./UploadPicture";
 import { CalendarDays, User } from "lucide-react";
 import { usePublicBootstrap } from "@/hooks/use-public-bootstrap";
@@ -194,6 +195,7 @@ const ReleasesSection = () => {
           <div className="flex h-full flex-col gap-6">
             <LatestEpisodeCard />
             <WorkStatusCard />
+            <TopProjectsSection />
             <DiscordInviteCard />
           </div>
         </div>

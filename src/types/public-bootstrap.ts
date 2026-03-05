@@ -53,6 +53,8 @@ export type PublicBootstrapProject = {
   volumeEntries?: PublicBootstrapVolumeEntry[];
   volumeCovers: PublicBootstrapVolumeCover[];
   episodeDownloads: PublicBootstrapEpisode[];
+  views: number;
+  viewsDaily: Record<string, number>;
 };
 
 export type PublicBootstrapPost = {

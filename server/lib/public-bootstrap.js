@@ -1,7 +1,31 @@
 const safeString = (value) => String(value || "");
+const DAY_KEY_REGEX = /^\d{4}-\d{2}-\d{2}$/;
 
 const safeStringArray = (value) =>
   Array.isArray(value) ? value.map((item) => safeString(item).trim()).filter(Boolean) : [];
+
+const toSafeNonNegativeInt = (value) => {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    return 0;
+  }
+  return Math.floor(parsed);
+};
+
+const sanitizeViewsDaily = (value) => {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return {};
+  }
+  return Object.entries(value).reduce((result, [rawDayKey, rawCount]) => {
+    const dayKey = String(rawDayKey || "").trim();
+    if (!DAY_KEY_REGEX.test(dayKey)) {
+      return result;
+    }
+    const count = toSafeNonNegativeInt(rawCount);
+    result[dayKey] = count;
+    return result;
+  }, {});
+};
 
 const safeSources = (value) =>
   Array.isArray(value)
@@ -87,6 +111,8 @@ export const toPublicBootstrapProject = (project) => ({
   volumeEntries: sanitizeVolumeEntries(project?.volumeEntries),
   volumeCovers: sanitizeVolumeCovers(project?.volumeCovers),
   episodeDownloads: sanitizeEpisodeDownloads(project?.episodeDownloads),
+  views: toSafeNonNegativeInt(project?.views),
+  viewsDaily: sanitizeViewsDaily(project?.viewsDaily),
 });
 
 export const toPublicBootstrapPost = (post) => ({

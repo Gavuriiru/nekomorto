@@ -73,6 +73,7 @@ export const BASIC_PROFILE_FIELDS = freeze([
   "avatarUrl",
   "avatarDisplay",
   "socials",
+  "favoriteWorks",
 ]);
 
 const addUnique = (target, value) => {

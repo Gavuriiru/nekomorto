@@ -44,6 +44,13 @@ describe("public bootstrap payload", () => {
           ],
           forceHero: true,
           trailerUrl: "https://example.com/trailer",
+          views: -12,
+          viewsDaily: {
+            "2026-02-01": 3,
+            "2026-02-02": "7",
+            invalid: 10,
+            "2026-02-03": -4,
+          },
           deletedAt: "2026-01-01T00:00:00.000Z",
           episodeDownloads: [
             {
@@ -121,6 +128,12 @@ describe("public bootstrap payload", () => {
     expect(project.coverAlt).toBe("Capa do projeto");
     expect(project.bannerAlt).toBe("Banner do projeto");
     expect(project.heroImageAlt).toBe("Hero do projeto");
+    expect(project.views).toBe(0);
+    expect(project.viewsDaily).toEqual({
+      "2026-02-01": 3,
+      "2026-02-02": 7,
+      "2026-02-03": 0,
+    });
     expect(project.volumeEntries).toEqual([
       expect.objectContaining({
         volume: 1,

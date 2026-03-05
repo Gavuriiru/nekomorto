@@ -66,6 +66,11 @@ import { type AccessRole, permissionIds } from "@/lib/access-control";
 
 const ImageLibraryDialog = lazy(() => import("@/components/ImageLibraryDialog"));
 
+const FAVORITE_WORK_CATEGORIES = ["manga", "anime"] as const;
+type FavoriteWorkCategory = (typeof FAVORITE_WORK_CATEGORIES)[number];
+type FavoriteWorksByCategory = Record<FavoriteWorkCategory, string[]>;
+type FavoriteWorksDraft = Record<FavoriteWorkCategory, [string, string, string]>;
+
 type UserRecord = {
   id: string;
   name: string;
@@ -73,6 +78,7 @@ type UserRecord = {
   bio: string;
   avatarUrl?: string | null;
   socials?: Array<{ label: string; href: string }>;
+  favoriteWorks?: FavoriteWorksByCategory;
   status: "active" | "retired";
   permissions: string[];
   roles?: string[];
@@ -145,18 +151,24 @@ const DashboardAvatar = ({
   );
 };
 
-const emptyForm = {
+const createEmptyFavoriteWorksDraft = (): FavoriteWorksDraft => ({
+  manga: ["", "", ""],
+  anime: ["", "", ""],
+});
+
+const createEmptyForm = () => ({
   id: "",
   name: "",
   phrase: "",
   bio: "",
   avatarUrl: "",
   socials: [] as Array<{ label: string; href: string }>,
+  favoriteWorksDraft: createEmptyFavoriteWorksDraft(),
   status: "active" as "active" | "retired",
   accessRole: "normal" as AccessRole,
   permissions: [] as string[],
   roles: [] as string[],
-};
+});
 
 const permissionOptions: Array<{ id: (typeof permissionIds)[number]; label: string }> = [
   { id: "posts", label: "Posts" },
@@ -174,6 +186,71 @@ const permissionOptions: Array<{ id: (typeof permissionIds)[number]; label: stri
 
 const stripOwnerRole = (roles: string[]) =>
   roles.filter((role) => role.trim().toLowerCase() !== "dono");
+
+const MAX_FAVORITE_WORKS = 3;
+const MAX_FAVORITE_WORK_LENGTH = 80;
+
+const normalizeFavoriteWorksList = (value: unknown): string[] => {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  const dedupe = new Set<string>();
+  const output: string[] = [];
+  for (const item of value) {
+    const title = String(item || "").trim().slice(0, MAX_FAVORITE_WORK_LENGTH);
+    if (!title) {
+      continue;
+    }
+    const dedupeKey = title.toLowerCase();
+    if (dedupe.has(dedupeKey)) {
+      continue;
+    }
+    dedupe.add(dedupeKey);
+    output.push(title);
+    if (output.length >= MAX_FAVORITE_WORKS) {
+      break;
+    }
+  }
+  return output;
+};
+
+const normalizeFavoriteWorksByCategory = (value: unknown): FavoriteWorksByCategory => {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return {
+      manga: [],
+      anime: [],
+    };
+  }
+  const source = value as Partial<Record<FavoriteWorkCategory, unknown>>;
+  return {
+    manga: normalizeFavoriteWorksList(source.manga),
+    anime: normalizeFavoriteWorksList(source.anime),
+  };
+};
+
+const listToDraft = (value: unknown): [string, string, string] => {
+  const source = Array.isArray(value) ? value : [];
+  const result = source
+    .slice(0, MAX_FAVORITE_WORKS)
+    .map((item) => String(item ?? "").slice(0, MAX_FAVORITE_WORK_LENGTH));
+  while (result.length < MAX_FAVORITE_WORKS) {
+    result.push("");
+  }
+  return [result[0] || "", result[1] || "", result[2] || ""];
+};
+
+const toFavoriteWorksDraft = (value: unknown): FavoriteWorksDraft => {
+  const normalized = normalizeFavoriteWorksByCategory(value);
+  return {
+    manga: listToDraft(normalized.manga),
+    anime: listToDraft(normalized.anime),
+  };
+};
+
+const buildFavoriteWorksPayloadFromDraft = (draft: FavoriteWorksDraft): FavoriteWorksByCategory => ({
+  manga: normalizeFavoriteWorksList(draft.manga),
+  anime: normalizeFavoriteWorksList(draft.anime),
+});
 
 const accessRoleOptions: Array<{ id: AccessRole; label: string }> = [
   { id: "normal", label: "Normal" },
@@ -348,7 +425,7 @@ const DashboardUsers = () => {
   useEditorScrollLock(isDialogOpen);
   useEditorScrollStability(isDialogOpen);
   const [editingUser, setEditingUser] = useState<UserRecord | null>(null);
-  const [formState, setFormState] = useState(emptyForm);
+  const [formState, setFormState] = useState(createEmptyForm);
   const [ownerToggle, setOwnerToggle] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<UserRecord | null>(null);
   const [isLibraryOpen, setIsLibraryOpen] = useState(false);
@@ -482,6 +559,7 @@ const DashboardUsers = () => {
         bio: user.bio,
         avatarUrl: user.avatarUrl || "",
         socials: user.socials ? [...user.socials] : [],
+        favoriteWorksDraft: toFavoriteWorksDraft(user.favoriteWorks),
         status: user.status,
         accessRole: userAccessRole === "admin" ? "admin" : "normal",
         permissions: normalizedPermissions,
@@ -597,7 +675,7 @@ const DashboardUsers = () => {
       return;
     }
     setEditingUser(null);
-    setFormState({ ...emptyForm, accessRole: "normal", permissions: [] });
+    setFormState({ ...createEmptyForm(), accessRole: "normal", permissions: [] });
     setOwnerToggle(false);
     clearSocialDragState();
     setIsDialogOpen(true);
@@ -854,7 +932,7 @@ const DashboardUsers = () => {
 
   const openNewDialog = () => {
     setEditingUser(null);
-    setFormState({ ...emptyForm, accessRole: "normal", permissions: [] });
+    setFormState({ ...createEmptyForm(), accessRole: "normal", permissions: [] });
     setOwnerToggle(false);
     clearSocialDragState();
     setIsDialogOpen(true);
@@ -906,6 +984,7 @@ const DashboardUsers = () => {
       bio: formState.bio.trim(),
       avatarUrl: formState.avatarUrl.trim() || null,
       socials: formState.socials.filter((item) => item.label.trim() && item.href.trim()),
+      favoriteWorks: buildFavoriteWorksPayloadFromDraft(formState.favoriteWorksDraft),
       roles: stripOwnerRole(formState.roles),
       accessRole: normalizedAccessRole,
       status: canEditStatus ? formState.status : "active",
@@ -924,6 +1003,7 @@ const DashboardUsers = () => {
         bio: basePayload.bio,
         avatarUrl: basePayload.avatarUrl,
         socials: basePayload.socials,
+        favoriteWorks: basePayload.favoriteWorks,
       };
     })();
 
@@ -1642,6 +1722,53 @@ const DashboardUsers = () => {
                 rows={4}
                 disabled={!canEditBasicFields}
               />
+            </div>
+            <div className="grid gap-3">
+              <Label>Obras favoritas (até 3 por categoria)</Label>
+              <div className="grid gap-4 md:grid-cols-2">
+                {FAVORITE_WORK_CATEGORIES.map((category) => {
+                  const categoryLabel = category === "manga" ? "Mangá" : "Anime";
+                  return (
+                    <div key={category} className="space-y-2 rounded-xl border border-border/60 p-3">
+                      <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+                        {categoryLabel}
+                      </p>
+                      <div className="grid gap-2">
+                        {formState.favoriteWorksDraft[category].map((value, index) => (
+                          <Input
+                            key={`${category}-${index}`}
+                            id={`user-favorite-works-${category}-${index + 1}`}
+                            aria-label={`${categoryLabel} ${index + 1}`}
+                            value={value}
+                            onChange={(event) =>
+                              setFormState((prev) => {
+                                const nextCategory = [...prev.favoriteWorksDraft[category]] as [
+                                  string,
+                                  string,
+                                  string,
+                                ];
+                                nextCategory[index] = event.target.value;
+                                return {
+                                  ...prev,
+                                  favoriteWorksDraft: {
+                                    ...prev.favoriteWorksDraft,
+                                    [category]: nextCategory,
+                                  },
+                                };
+                              })
+                            }
+                            placeholder={`${categoryLabel} ${index + 1}`}
+                            disabled={!canEditBasicFields}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Espaços e edição livre são preservados durante a digitação; a normalização ocorre ao salvar.
+              </p>
             </div>
             <div className="grid gap-2">
               <Label>Avatar</Label>

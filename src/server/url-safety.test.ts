@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   sanitizeAssetUrl,
+  sanitizeFavoriteWorksByCategory,
   sanitizeIconSource,
   sanitizePublicHref,
   sanitizeSocials,
@@ -48,5 +49,32 @@ describe("server url-safety", () => {
       { label: "Discord", href: "https://discord.gg/nekomata" },
       { label: "Site", href: "/sobre" },
     ]);
+  });
+
+  it("sanitizeFavoriteWorksByCategory normalizes lists and ignores legacy format", () => {
+    const longTitle = "A".repeat(120);
+    const favoriteWorks = sanitizeFavoriteWorksByCategory({
+      manga: [
+        "  Naruto  ",
+        "naruto",
+        "",
+        longTitle,
+        "Bleach",
+      ],
+      anime: ["One Piece", "ONE PIECE", "Frieren", "Haikyuu"],
+    });
+
+    expect(favoriteWorks).toEqual({
+      manga: ["Naruto", "A".repeat(80), "Bleach"],
+      anime: ["One Piece", "Frieren", "Haikyuu"],
+    });
+    expect(sanitizeFavoriteWorksByCategory(["legacy"])).toEqual({
+      manga: [],
+      anime: [],
+    });
+    expect(sanitizeFavoriteWorksByCategory("not-an-object")).toEqual({
+      manga: [],
+      anime: [],
+    });
   });
 });
