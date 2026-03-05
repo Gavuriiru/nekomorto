@@ -300,7 +300,7 @@ describe("HeroSection cover fit", () => {
     expect(heading).not.toHaveClass("opacity-0");
   });
 
-  it("atrasa autoplay inicial do carrossel por 20s", () => {
+  it("atrasa autoplay inicial do carrossel por 20s", async () => {
     vi.useFakeTimers();
     const setIntervalSpy = vi.spyOn(window, "setInterval");
     setupBootstrapMock({ includeSecondProject: true });
@@ -311,7 +311,9 @@ describe("HeroSection cover fit", () => {
       </MemoryRouter>,
     );
 
-    expect(screen.getByTestId("hero-slide-meta-project-2")).toBeInTheDocument();
+    await act(async () => {
+      await Promise.resolve();
+    });
     expect(setIntervalSpy).not.toHaveBeenCalled();
 
     act(() => {

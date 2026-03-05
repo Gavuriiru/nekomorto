@@ -24,6 +24,56 @@ const injectSnippet = (html, marker, snippet, fallbackPattern = "</head>") => {
   return input.replace(fallbackPattern, `${snippet}\n${fallbackPattern}`);
 };
 
+const readHtmlAttributeValue = (tag, attributeName) => {
+  const pattern = new RegExp(
+    `${attributeName}\\s*=\\s*(?:"([^"]*)"|'([^']*)'|([^\\s>]+))`,
+    "i",
+  );
+  const match = String(tag || "").match(pattern);
+  if (!match) {
+    return "";
+  }
+  return String(match[1] || match[2] || match[3] || "").trim();
+};
+
+const isLocalStylesheetHref = (href) => {
+  const value = String(href || "").trim();
+  if (!value) {
+    return false;
+  }
+  if (/^(?:[a-z]+:)?\/\//i.test(value)) {
+    return false;
+  }
+  if (value.startsWith("data:") || value.startsWith("javascript:")) {
+    return false;
+  }
+  return value.startsWith("/assets/") || value.startsWith("assets/");
+};
+
+export const extractLocalStylesheetHrefs = (html) => {
+  const tags = String(html || "").match(/<link\b[^>]*>/gi) || [];
+  const hrefs = [];
+  const seen = new Set();
+
+  tags.forEach((tag) => {
+    const rel = readHtmlAttributeValue(tag, "rel")
+      .toLowerCase()
+      .split(/\s+/)
+      .filter(Boolean);
+    if (!rel.includes("stylesheet")) {
+      return;
+    }
+    const href = readHtmlAttributeValue(tag, "href");
+    if (!isLocalStylesheetHref(href) || seen.has(href)) {
+      return;
+    }
+    seen.add(href);
+    hrefs.push(href);
+  });
+
+  return hrefs;
+};
+
 const buildInlineBootstrapInitScript = () =>
   [
     "(function () {",
@@ -148,14 +198,34 @@ export const injectBootstrapGlobals = ({ html, publicBootstrap, settings, public
 };
 
 export const injectPreloadLinks = ({ html, preloads = [] }) => {
-  const tags = preloads
+  const uniquePreloads = [];
+  const seen = new Set();
+  preloads
     .filter((entry) => entry && entry.href)
-    .map((entry) => {
+    .forEach((entry) => {
+      const href = String(entry.href || "").trim();
+      const as = String(entry.as || "fetch").trim() || "fetch";
+      const key = `${as}::${href}`;
+      if (!href || seen.has(key)) {
+        return;
+      }
+      seen.add(key);
+      uniquePreloads.push({
+        ...entry,
+        href,
+        as,
+      });
+    });
+
+  const tags = uniquePreloads.map((entry) => {
       const parts = [
         '  <link rel="preload"',
         `href="${escapeHtmlAttribute(entry.href)}"`,
         `as="${escapeHtmlAttribute(entry.as || "fetch")}"`,
       ];
+      if (entry.crossorigin) {
+        parts.push(`crossorigin="${escapeHtmlAttribute(entry.crossorigin)}"`);
+      }
       if (entry.type) {
         parts.push(`type="${escapeHtmlAttribute(entry.type)}"`);
       }

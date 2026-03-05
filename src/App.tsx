@@ -1,18 +1,17 @@
-import { Toaster as Sonner } from "@/components/ui/sonner";
-import { TooltipProvider } from "@/components/ui/tooltip";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
-import { Suspense, lazy, useLayoutEffect } from "react";
+import { Suspense, lazy, useEffect, useLayoutEffect, useState } from "react";
 import { SiteSettingsProvider } from "@/hooks/site-settings-provider";
 import { ThemeModeProvider } from "@/hooks/theme-mode-provider";
 import { GlobalShortcutsProvider } from "@/hooks/global-shortcuts-provider";
 import { AccessibilityAnnouncerProvider } from "@/hooks/accessibility-announcer";
 import { useReveal } from "@/hooks/use-reveal";
+import { scheduleOnBrowserLoadIdle } from "@/lib/browser-idle";
 
 import PublicRoutes from "./routes/PublicRoutes";
 const DashboardRoutes = lazy(() => import("./routes/DashboardRoutes"));
-
-export const queryClient = new QueryClient();
+const DeferredSonner = lazy(() =>
+  import("@/components/ui/sonner").then((module) => ({ default: module.Toaster })),
+);
 
 const RouteLoadingFallback = () => <div aria-hidden="true" className="min-h-[55vh] w-full" />;
 
@@ -76,6 +75,30 @@ const RouterShell = () => {
   );
 };
 
+const DeferredToaster = () => {
+  const [shouldRenderToaster, setShouldRenderToaster] = useState(false);
+
+  useEffect(() => {
+    const cancelIdle = scheduleOnBrowserLoadIdle(
+      () => {
+        setShouldRenderToaster(true);
+      },
+      { delayMs: 4000 },
+    );
+    return cancelIdle;
+  }, []);
+
+  if (!shouldRenderToaster) {
+    return null;
+  }
+
+  return (
+    <Suspense fallback={null}>
+      <DeferredSonner />
+    </Suspense>
+  );
+};
+
 const App = ({
   initialSettings,
   initiallyLoaded,
@@ -83,23 +106,19 @@ const App = ({
   initialSettings?: Parameters<typeof SiteSettingsProvider>[0]["initialSettings"];
   initiallyLoaded?: boolean;
 }) => (
-  <QueryClientProvider client={queryClient}>
-    <SiteSettingsProvider initialSettings={initialSettings} initiallyLoaded={initiallyLoaded}>
-      <ThemeModeProvider>
-        <AccessibilityAnnouncerProvider>
-          <TooltipProvider>
-            <Sonner />
-            <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
-              <GlobalShortcutsProvider>
-                <ScrollToTop />
-                <RouterShell />
-              </GlobalShortcutsProvider>
-            </BrowserRouter>
-          </TooltipProvider>
-        </AccessibilityAnnouncerProvider>
-      </ThemeModeProvider>
-    </SiteSettingsProvider>
-  </QueryClientProvider>
+  <SiteSettingsProvider initialSettings={initialSettings} initiallyLoaded={initiallyLoaded}>
+    <ThemeModeProvider>
+      <AccessibilityAnnouncerProvider>
+        <DeferredToaster />
+        <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+          <GlobalShortcutsProvider>
+            <ScrollToTop />
+            <RouterShell />
+          </GlobalShortcutsProvider>
+        </BrowserRouter>
+      </AccessibilityAnnouncerProvider>
+    </ThemeModeProvider>
+  </SiteSettingsProvider>
 );
 
 export default App;

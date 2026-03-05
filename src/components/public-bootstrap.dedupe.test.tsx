@@ -1,4 +1,3 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { MemoryRouter } from "react-router-dom";
@@ -158,22 +157,12 @@ describe("public bootstrap dedupe", () => {
       },
     );
 
-    const queryClient = new QueryClient({
-      defaultOptions: {
-        queries: {
-          retry: false,
-        },
-      },
-    });
-
     render(
-      <QueryClientProvider client={queryClient}>
-        <MemoryRouter>
-          <Header />
-          <HeroSection />
-          <ReleasesSection />
-        </MemoryRouter>
-      </QueryClientProvider>,
+      <MemoryRouter>
+        <Header />
+        <HeroSection />
+        <ReleasesSection />
+      </MemoryRouter>,
     );
 
     await waitFor(() => {

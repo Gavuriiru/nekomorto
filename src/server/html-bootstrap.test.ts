@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  extractLocalStylesheetHrefs,
   injectBootstrapGlobals,
   injectPreloadLinks,
 } from "../../server/lib/html-bootstrap.js";
@@ -35,6 +36,33 @@ describe("html bootstrap injection", () => {
     expect(result).toContain('rel="preload"');
     expect(result).toContain('href="/uploads/_variants/hero-v1.jpeg"');
     expect(result).toContain('as="image"');
+    expect(result).toContain('fetchpriority="high"');
+  });
+
+  it("extrai apenas hrefs locais de stylesheet para preload", () => {
+    const html =
+      '<html><head><link rel="stylesheet" href="/assets/index-abc.css"><link rel="preload" href="/assets/other.css" as="style"><link href="/assets/theme-def.css" rel="stylesheet"><link rel="stylesheet" href="https://cdn.exemplo.com/site.css"></head></html>';
+
+    expect(extractLocalStylesheetHrefs(html)).toEqual([
+      "/assets/index-abc.css",
+      "/assets/theme-def.css",
+    ]);
+  });
+
+  it("deduplica preload por href+as e preserva atributos opcionais", () => {
+    const result = injectPreloadLinks({
+      html: "<html><head><!-- APP_PRELOADS --></head></html>",
+      preloads: [
+        { href: "/assets/index-abc.css", as: "style", crossorigin: "anonymous" },
+        { href: "/assets/index-abc.css", as: "style", crossorigin: "anonymous" },
+        { href: "/uploads/hero.avif", as: "image", fetchpriority: "high" },
+      ],
+    });
+
+    expect((result.match(/href="\/assets\/index-abc\.css"/g) || []).length).toBe(1);
+    expect(result).toContain('as="style"');
+    expect(result).toContain('crossorigin="anonymous"');
+    expect(result).toContain('href="/uploads/hero.avif"');
     expect(result).toContain('fetchpriority="high"');
   });
 

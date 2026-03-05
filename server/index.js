@@ -46,7 +46,11 @@ import {
 import { buildEditorialCalendarItems } from "./lib/editorial-calendar.js";
 import { createViteDevServer, resolveClientIndexPath } from "./lib/frontend-runtime.js";
 import { buildHealthStatusResponse } from "./lib/health-checks.js";
-import { injectBootstrapGlobals, injectPreloadLinks } from "./lib/html-bootstrap.js";
+import {
+  extractLocalStylesheetHrefs,
+  injectBootstrapGlobals,
+  injectPreloadLinks,
+} from "./lib/html-bootstrap.js";
 import { createIdempotencyFingerprint, createIdempotencyStore } from "./lib/idempotency-store.js";
 import { createJobQueue } from "./lib/job-queue.js";
 import { createMetricsRegistry } from "./lib/metrics.js";
@@ -11241,14 +11245,22 @@ const injectPublicBootstrapHtml = ({
     settings,
     publicMe,
   });
+  const preloads = extractLocalStylesheetHrefs(nextHtml).map((href) => ({
+    href,
+    as: "style",
+    crossorigin: "anonymous",
+  }));
   if (includeHeroImagePreload) {
     const heroPreloadHref = resolveHomeHeroPreloadHref(publicBootstrap);
     if (heroPreloadHref) {
-      nextHtml = injectPreloadLinks({
-        html: nextHtml,
-        preloads: [{ href: heroPreloadHref, as: "image", fetchpriority: "high" }],
-      });
+      preloads.push({ href: heroPreloadHref, as: "image", fetchpriority: "high" });
     }
+  }
+  if (preloads.length > 0) {
+    nextHtml = injectPreloadLinks({
+      html: nextHtml,
+      preloads,
+    });
   }
   return nextHtml;
 };

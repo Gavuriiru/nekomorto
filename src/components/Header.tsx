@@ -1,17 +1,9 @@
-﻿import { Suspense, lazy, useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, lazy, useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { toast } from "@/components/ui/use-toast";
-import { LogOut, Menu } from "lucide-react";
+import { Menu } from "lucide-react";
 import ThemedSvgLogo from "@/components/ThemedSvgLogo";
 import ThemeModeSwitcher from "@/components/ThemeModeSwitcher";
 import type { DashboardMenuItem } from "@/components/dashboard-menu";
@@ -20,7 +12,6 @@ import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
 import { useSiteSettings } from "@/hooks/use-site-settings";
 import { usePublicBootstrap } from "@/hooks/use-public-bootstrap";
-import { getNavbarIcon } from "@/lib/navbar-icons";
 import { resolveBranding } from "@/lib/branding";
 import { useGlobalShortcuts } from "@/hooks/use-global-shortcuts";
 import { scheduleOnBrowserLoadIdle } from "@/lib/browser-idle";
@@ -39,6 +30,7 @@ import {
   readWindowPublicBootstrapCurrentUser,
   type PublicBootstrapCurrentUser,
 } from "@/lib/public-bootstrap-global";
+import type { HeaderActionMenusProps } from "@/components/HeaderActionMenus";
 
 type HeaderProps = {
   variant?: "fixed" | "static";
@@ -47,8 +39,69 @@ type HeaderProps = {
 };
 
 type CurrentUser = PublicBootstrapCurrentUser;
+type HeaderToastPayload = {
+  title?: ReactNode;
+  description?: ReactNode;
+  variant?: "default" | "destructive";
+  intent?: "success" | "error" | "info" | "warning";
+  duration?: number;
+};
 
 const HeaderSearchPopover = lazy(() => import("@/components/HeaderSearchPopover"));
+let headerActionMenusModulePromise: Promise<typeof import("@/components/HeaderActionMenus")> | null =
+  null;
+const loadHeaderActionMenusModule = () => {
+  if (!headerActionMenusModulePromise) {
+    headerActionMenusModulePromise = import("@/components/HeaderActionMenus");
+  }
+  return headerActionMenusModulePromise;
+};
+const HeaderActionMenus = lazy(() =>
+  loadHeaderActionMenusModule().then((module) => ({ default: module.default })),
+);
+let toastModulePromise: Promise<typeof import("@/components/ui/use-toast")> | null = null;
+
+const loadToastModule = () => {
+  if (!toastModulePromise) {
+    toastModulePromise = import("@/components/ui/use-toast");
+  }
+  return toastModulePromise;
+};
+
+const notifyToast = async (payload: HeaderToastPayload) => {
+  const { toast } = await loadToastModule();
+  toast(payload);
+};
+
+const HeaderActionsFallback = ({
+  currentUser,
+  headerAvatarUrl,
+}: Pick<HeaderActionMenusProps, "currentUser" | "headerAvatarUrl">) => (
+  <>
+    <ThemeModeSwitcher />
+    <Button
+      variant="ghost"
+      size="icon"
+      className="lg:hidden h-10 w-10 rounded-full border border-border/60 bg-card/50 text-foreground/85 hover:bg-accent hover:text-accent-foreground"
+      aria-label="Abrir menu"
+    >
+      <Menu className="h-5 w-5" />
+    </Button>
+    {currentUser ? (
+      <Button variant="ghost" className="h-11 gap-2 rounded-full px-2">
+        <Avatar className="h-8 w-8 border border-border/70 shadow-[0_10px_24px_-18px_hsl(var(--foreground)/0.65)]">
+          {headerAvatarUrl ? <AvatarImage src={headerAvatarUrl} alt={currentUser.name} /> : null}
+          <AvatarFallback className="bg-secondary text-xs text-foreground">
+            {(currentUser.name || "").slice(0, 2).toUpperCase()}
+          </AvatarFallback>
+        </Avatar>
+        <span className="hidden text-sm font-medium text-foreground lg:inline">
+          {currentUser.name || ""}
+        </span>
+      </Button>
+    ) : null}
+  </>
+);
 
 const Header = ({ variant = "fixed", leading, className }: HeaderProps) => {
   const MIN_SUGGEST_QUERY_LENGTH = 2;
@@ -60,11 +113,13 @@ const Header = ({ variant = "fixed", leading, className }: HeaderProps) => {
   const [hasSearchRequestFailed, setHasSearchRequestFailed] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [shouldRenderActionMenus, setShouldRenderActionMenus] = useState(false);
   const [currentUser, setCurrentUser] = useState<CurrentUser | null>(
     () => readWindowPublicBootstrapCurrentUser(),
   );
   const [dashboardMenuItems, setDashboardMenuItems] = useState<DashboardMenuItem[]>([]);
   const searchRef = useRef<HTMLDivElement | null>(null);
+  const actionsClusterRef = useRef<HTMLDivElement | null>(null);
   const searchInputRef = useRef<HTMLInputElement | null>(null);
   const location = useLocation();
   const apiBase = getApiBase();
@@ -235,6 +290,75 @@ const Header = ({ variant = "fixed", leading, className }: HeaderProps) => {
   }, [isSearchOpen]);
 
   useEffect(() => {
+    let isActive = true;
+    const preloadActionMenus = () => {
+      void loadHeaderActionMenusModule()
+        .catch(() => undefined)
+        .finally(() => {
+          if (isActive) {
+            setShouldRenderActionMenus(true);
+          }
+        });
+    };
+    const cancelIdle = scheduleOnBrowserLoadIdle(
+      () => {
+        preloadActionMenus();
+      },
+      { delayMs: 1200 },
+    );
+    return () => {
+      isActive = false;
+      cancelIdle();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (shouldRenderActionMenus) {
+      return;
+    }
+    const node = actionsClusterRef.current;
+    if (!node) {
+      return;
+    }
+    let isActive = true;
+    const handleActionClusterInteract = () => {
+      void loadHeaderActionMenusModule()
+        .catch(() => undefined)
+        .finally(() => {
+          if (isActive) {
+            setShouldRenderActionMenus(true);
+          }
+        });
+    };
+    node.addEventListener("pointerenter", handleActionClusterInteract, { passive: true });
+    node.addEventListener("focusin", handleActionClusterInteract);
+    node.addEventListener("touchstart", handleActionClusterInteract, { passive: true });
+    return () => {
+      isActive = false;
+      node.removeEventListener("pointerenter", handleActionClusterInteract);
+      node.removeEventListener("focusin", handleActionClusterInteract);
+      node.removeEventListener("touchstart", handleActionClusterInteract);
+    };
+  }, [shouldRenderActionMenus]);
+
+  useEffect(() => {
+    if (!currentUser || shouldRenderActionMenus) {
+      return;
+    }
+    let isActive = true;
+    void loadHeaderActionMenusModule()
+      .catch(() => undefined)
+      .finally(() => {
+        if (isActive) {
+          setShouldRenderActionMenus(true);
+        }
+      });
+    return () => {
+      isActive = false;
+    };
+  }, [currentUser, shouldRenderActionMenus]);
+
+  useEffect(() => {
     const handleOutsideClick = (event: MouseEvent) => {
       if (searchRef.current && !searchRef.current.contains(event.target as Node)) {
         setIsSearchOpen(false);
@@ -367,7 +491,7 @@ const Header = ({ variant = "fixed", leading, className }: HeaderProps) => {
         auth: true,
       });
       if (!response.ok) {
-        toast({
+        void notifyToast({
           title: uiCopy.feedback.logoutFailedTitle,
           description: uiCopy.feedback.logoutFailedDescription,
           variant: "destructive",
@@ -376,7 +500,7 @@ const Header = ({ variant = "fixed", leading, className }: HeaderProps) => {
       }
       window.location.href = "/";
     } catch {
-      toast({
+      void notifyToast({
         title: uiCopy.feedback.logoutFailedTitle,
         description: "Ocorreu um erro inesperado ao encerrar a sessão.",
         variant: "destructive",
@@ -558,6 +682,7 @@ const Header = ({ variant = "fixed", leading, className }: HeaderProps) => {
           </div>
 
           <div
+            ref={actionsClusterRef}
             data-testid="public-header-actions-cluster"
             className={cn(
               "flex shrink-0 items-center gap-3 transition-all duration-300 md:gap-6",
@@ -566,89 +691,32 @@ const Header = ({ variant = "fixed", leading, className }: HeaderProps) => {
                 : "opacity-100 visible pointer-events-auto",
             )}
           >
-            <ThemeModeSwitcher />
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="lg:hidden h-10 w-10 rounded-full border border-border/60 bg-card/50 text-foreground/85 hover:bg-accent hover:text-accent-foreground"
-                  aria-label="Abrir menu"
-                >
-                  <Menu className="h-5 w-5" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className={`w-48 ${headerMenuContentClass}`}>
-                {navbarLinks.map((item) => {
-                  const ItemIcon = getNavbarIcon(item.icon);
-                  return (
-                    <DropdownMenuItem
-                      key={`${item.label}-${item.href}`}
-                      asChild
-                      className={headerMenuItemClass}
-                    >
-                      {isInternalHref(item.href) ? (
-                        <Link to={item.href} className="flex items-center gap-2">
-                          <ItemIcon className="h-4 w-4" />
-                          {item.label}
-                        </Link>
-                      ) : (
-                        <a
-                          href={item.href}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="flex items-center gap-2"
-                        >
-                          <ItemIcon className="h-4 w-4" />
-                          {item.label}
-                        </a>
-                      )}
-                    </DropdownMenuItem>
-                  );
-                })}
-              </DropdownMenuContent>
-            </DropdownMenu>
-
-            {currentUser && (
-              <DropdownMenu modal={false}>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" className="h-11 gap-2 rounded-full px-2">
-                    <Avatar className="h-8 w-8 border border-border/70 shadow-[0_10px_24px_-18px_hsl(var(--foreground)/0.65)]">
-                      {headerAvatarUrl ? (
-                        <AvatarImage src={headerAvatarUrl} alt={currentUser.name} />
-                      ) : null}
-                      <AvatarFallback className="bg-secondary text-xs text-foreground">
-                        {(currentUser.name || "").slice(0, 2).toUpperCase()}
-                      </AvatarFallback>
-                    </Avatar>
-                    <span className="hidden text-sm font-medium text-foreground lg:inline">
-                      {currentUser.name || ""}
-                    </span>
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className={`w-56 ${headerMenuContentClass}`}>
-                  {dashboardMenuForUser.map((item) => {
-                    const ItemIcon = item.icon;
-                    return (
-                      <DropdownMenuItem key={item.href} asChild className={headerMenuItemClass}>
-                        <Link to={item.href} className="flex items-center gap-2">
-                          <ItemIcon className="h-4 w-4" />
-                          {item.label}
-                        </Link>
-                      </DropdownMenuItem>
-                    );
-                  })}
-                  <DropdownMenuSeparator className="bg-border/70" />
-                  <DropdownMenuItem
-                    className={headerMenuItemClass}
-                    onClick={handleLogout}
-                    disabled={isLoggingOut}
-                  >
-                    <LogOut className="h-4 w-4" />
-                    {isLoggingOut ? uiCopy.actions.loggingOut : uiCopy.actions.logout}
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+            {shouldRenderActionMenus ? (
+              <Suspense
+                fallback={
+                  <HeaderActionsFallback
+                    currentUser={currentUser}
+                    headerAvatarUrl={headerAvatarUrl}
+                  />
+                }
+              >
+                <HeaderActionMenus
+                  navbarLinks={navbarLinks}
+                  isInternalHref={isInternalHref}
+                  currentUser={currentUser}
+                  headerAvatarUrl={headerAvatarUrl}
+                  dashboardMenuForUser={dashboardMenuForUser}
+                  headerMenuContentClass={headerMenuContentClass}
+                  headerMenuItemClass={headerMenuItemClass}
+                  isLoggingOut={isLoggingOut}
+                  onLogout={handleLogout}
+                />
+              </Suspense>
+            ) : (
+              <HeaderActionsFallback
+                currentUser={currentUser}
+                headerAvatarUrl={headerAvatarUrl}
+              />
             )}
           </div>
         </div>

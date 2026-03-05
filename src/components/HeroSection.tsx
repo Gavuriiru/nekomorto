@@ -4,14 +4,6 @@ import heroImageWebp from "@/assets/hero-illya.webp";
 import heroImageJpg from "@/assets/hero-illya.jpg";
 import { Globe, Play } from "lucide-react";
 import { Link } from "react-router-dom";
-import {
-  Carousel,
-  CarouselContent,
-  CarouselItem,
-  CarouselNext,
-  CarouselPrevious,
-  type CarouselApi,
-} from "@/components/ui/carousel";
 import UploadPicture from "@/components/UploadPicture";
 import { scheduleOnBrowserIdle } from "@/lib/browser-idle";
 import { useThemeMode } from "@/hooks/use-theme-mode";
@@ -23,7 +15,9 @@ import type {
   PublicBootstrapUpdate,
 } from "@/types/public-bootstrap";
 
-type HeroSlide = {
+const HeroDesktopCarousel = React.lazy(() => import("@/components/HeroDesktopCarousel"));
+
+export type HeroSlide = {
   id: string;
   title: string;
   description: string;
@@ -238,10 +232,6 @@ const heroEntryDelayStyles = {
   actions: { animationDelay: `${heroEntryDelayMs.actions}ms` },
 } as const satisfies Record<keyof typeof heroEntryDelayMs, React.CSSProperties>;
 
-const HERO_AUTOPLAY_INTERVAL_MS = 6000;
-const HERO_AUTOPLAY_RESUME_DELAY_MS = 3000;
-const HERO_AUTOPLAY_INITIAL_DELAY_MS = 20000;
-
 type HeroSlideFrameProps = {
   slide: HeroSlide;
   index: number;
@@ -417,16 +407,8 @@ const HeroSlideFrame = ({
 };
 
 const HeroSection = () => {
-  const [api, setApi] = React.useState<CarouselApi | null>(null);
-  const autoplayRef = React.useRef<number | null>(null);
-  const resumeTimeoutRef = React.useRef<number | null>(null);
-  const initialAutoplayTimeoutRef = React.useRef<number | null>(null);
-  const [activeIndex, setActiveIndex] = React.useState(0);
-  const [isCarouselEnhanced, setIsCarouselEnhanced] = React.useState(false);
+  const [isDesktopCarouselReady, setIsDesktopCarouselReady] = React.useState(false);
   const isMobile = useIsMobile();
-  const [loadedSlideIds, setLoadedSlideIds] = React.useState<Set<string>>(
-    () => new Set(),
-  );
   const { data: bootstrapData, isFetched } = usePublicBootstrap();
   const { effectiveMode } = useThemeMode();
   const mediaVariants = bootstrapData?.mediaVariants || {};
@@ -446,21 +428,24 @@ const HeroSection = () => {
 
   React.useEffect(() => {
     if (isMobile || visibleSlides.length <= 1) {
-      setIsCarouselEnhanced(false);
+      setIsDesktopCarouselReady(false);
       return;
     }
+    let isActive = true;
     const cancelIdle = scheduleOnBrowserIdle(() => {
-      setIsCarouselEnhanced(true);
+      void import("@/components/HeroDesktopCarousel")
+        .catch(() => undefined)
+        .finally(() => {
+          if (isActive) {
+            setIsDesktopCarouselReady(true);
+          }
+        });
     });
-    return cancelIdle;
+    return () => {
+      isActive = false;
+      cancelIdle();
+    };
   }, [isMobile, visibleSlides.length]);
-
-  const isCarouselRuntimeEnabled = isCarouselEnhanced && !isMobile;
-
-  const renderedSlides = React.useMemo(
-    () => (isCarouselRuntimeEnabled ? visibleSlides : visibleSlides.slice(0, 1)),
-    [isCarouselRuntimeEnabled, visibleSlides],
-  );
 
   const latestSlideId = React.useMemo(() => {
     if (!visibleSlides.length) {
@@ -475,133 +460,6 @@ const HeroSection = () => {
         : latest;
     }, visibleSlides[0])?.id;
   }, [visibleSlides]);
-
-  React.useEffect(() => {
-    if (!api || !isCarouselRuntimeEnabled) {
-      setActiveIndex(0);
-      return;
-    }
-    const syncSelectedIndex = () => {
-      setActiveIndex(api.selectedScrollSnap());
-    };
-    syncSelectedIndex();
-    api.on("select", syncSelectedIndex);
-    api.on("reInit", syncSelectedIndex);
-    return () => {
-      api.off("select", syncSelectedIndex);
-      api.off("reInit", syncSelectedIndex);
-    };
-  }, [api, isCarouselRuntimeEnabled]);
-
-  React.useEffect(() => {
-    if (!renderedSlides.length) {
-      setLoadedSlideIds(new Set());
-      return;
-    }
-    const activeSlide = renderedSlides[activeIndex] || renderedSlides[0];
-    if (!activeSlide) {
-      return;
-    }
-    setLoadedSlideIds((previous) => {
-      if (previous.has(activeSlide.id)) {
-        return previous;
-      }
-      const next = new Set(previous);
-      next.add(activeSlide.id);
-      return next;
-    });
-  }, [activeIndex, renderedSlides]);
-
-  const stopAutoplay = React.useCallback(() => {
-    if (autoplayRef.current !== null) {
-      window.clearInterval(autoplayRef.current);
-      autoplayRef.current = null;
-    }
-  }, []);
-
-  const clearInitialAutoplayTimeout = React.useCallback(() => {
-    if (initialAutoplayTimeoutRef.current !== null) {
-      window.clearTimeout(initialAutoplayTimeoutRef.current);
-      initialAutoplayTimeoutRef.current = null;
-    }
-  }, []);
-
-  const startAutoplay = React.useCallback(() => {
-    if (!api) {
-      return;
-    }
-    if (typeof document !== "undefined" && document.hidden) {
-      return;
-    }
-    stopAutoplay();
-    autoplayRef.current = window.setInterval(() => {
-      api.scrollNext();
-    }, HERO_AUTOPLAY_INTERVAL_MS);
-  }, [api, stopAutoplay]);
-
-  const scheduleInitialAutoplay = React.useCallback(() => {
-    clearInitialAutoplayTimeout();
-    initialAutoplayTimeoutRef.current = window.setTimeout(() => {
-      initialAutoplayTimeoutRef.current = null;
-      startAutoplay();
-    }, HERO_AUTOPLAY_INITIAL_DELAY_MS);
-  }, [clearInitialAutoplayTimeout, startAutoplay]);
-
-  const scheduleAutoplayResume = React.useCallback(() => {
-    stopAutoplay();
-    clearInitialAutoplayTimeout();
-    if (resumeTimeoutRef.current !== null) {
-      window.clearTimeout(resumeTimeoutRef.current);
-    }
-    resumeTimeoutRef.current = window.setTimeout(() => {
-      startAutoplay();
-    }, HERO_AUTOPLAY_RESUME_DELAY_MS);
-  }, [clearInitialAutoplayTimeout, startAutoplay, stopAutoplay]);
-
-  React.useEffect(() => {
-    if (!api || !isCarouselRuntimeEnabled || renderedSlides.length <= 1) {
-      return;
-    }
-
-    const handleVisibilityChange = () => {
-      if (document.hidden) {
-        stopAutoplay();
-        clearInitialAutoplayTimeout();
-        if (resumeTimeoutRef.current !== null) {
-          window.clearTimeout(resumeTimeoutRef.current);
-          resumeTimeoutRef.current = null;
-        }
-        return;
-      }
-      if (resumeTimeoutRef.current !== null || autoplayRef.current !== null) {
-        return;
-      }
-      scheduleInitialAutoplay();
-    };
-
-    scheduleInitialAutoplay();
-    api.on("pointerDown", scheduleAutoplayResume);
-    document.addEventListener("visibilitychange", handleVisibilityChange);
-
-    return () => {
-      api.off("pointerDown", scheduleAutoplayResume);
-      document.removeEventListener("visibilitychange", handleVisibilityChange);
-      stopAutoplay();
-      clearInitialAutoplayTimeout();
-      if (resumeTimeoutRef.current !== null) {
-        window.clearTimeout(resumeTimeoutRef.current);
-        resumeTimeoutRef.current = null;
-      }
-    };
-  }, [
-    api,
-    isCarouselRuntimeEnabled,
-    renderedSlides.length,
-    clearInitialAutoplayTimeout,
-    scheduleInitialAutoplay,
-    scheduleAutoplayResume,
-    stopAutoplay,
-  ]);
 
   const clampSynopsis = React.useCallback((text: string, limit = 100) => {
     const cleaned = String(text || "").replace(/\s+/g, " ").trim();
@@ -624,62 +482,73 @@ const HeroSection = () => {
   const navbarOverlayClass =
     "pointer-events-none absolute inset-x-0 top-0 h-28 bg-linear-to-b from-background/95 via-background/70 to-transparent md:h-36";
   const transparentPixel = "data:image/gif;base64,R0lGODlhAQABAAAAACw=";
-  const shouldRenderCarousel = isCarouselRuntimeEnabled && renderedSlides.length > 1;
-  const shouldRenderCarouselControls = shouldRenderCarousel;
+  const staticSlide = visibleSlides[0] || null;
+  const shouldRenderDesktopCarousel =
+    !isMobile && isDesktopCarouselReady && visibleSlides.length > 1;
+
+  const renderDesktopSlide = React.useCallback(
+    (
+      slide: HeroSlide,
+      index: number,
+      activeIndex: number,
+      loadedSlideIds: Set<string>,
+    ) => (
+      <HeroSlideFrame
+        slide={slide}
+        index={index}
+        activeIndex={activeIndex}
+        latestSlideId={latestSlideId}
+        loadedSlideIds={loadedSlideIds}
+        mediaVariants={mediaVariants}
+        heroViewportClass={heroViewportClass}
+        shouldRenderNavbarOverlay={shouldRenderNavbarOverlay}
+        navbarOverlayClass={navbarOverlayClass}
+        transparentPixel={transparentPixel}
+        clampSynopsis={clampSynopsis}
+        shouldAnimateEntry={false}
+      />
+    ),
+    [
+      clampSynopsis,
+      heroViewportClass,
+      latestSlideId,
+      mediaVariants,
+      navbarOverlayClass,
+      shouldRenderNavbarOverlay,
+      transparentPixel,
+    ],
+  );
+
+  const staticSlideFrame = staticSlide ? (
+    <HeroSlideFrame
+      slide={staticSlide}
+      index={0}
+      activeIndex={0}
+      latestSlideId={latestSlideId}
+      loadedSlideIds={new Set()}
+      mediaVariants={mediaVariants}
+      heroViewportClass={heroViewportClass}
+      shouldRenderNavbarOverlay={shouldRenderNavbarOverlay}
+      navbarOverlayClass={navbarOverlayClass}
+      transparentPixel={transparentPixel}
+      clampSynopsis={clampSynopsis}
+      shouldAnimateEntry={false}
+    />
+  ) : null;
 
   return (
     <section className={`relative overflow-hidden ${heroViewportClass}`}>
-      {shouldRenderCarousel ? (
-        <Carousel opts={{ loop: true }} setApi={setApi} className={heroViewportClass}>
-          <CarouselContent className="ml-0">
-            {renderedSlides.map((slide, index) => (
-              <CarouselItem key={slide.id} className="pl-0">
-                <HeroSlideFrame
-                  slide={slide}
-                  index={index}
-                  activeIndex={activeIndex}
-                  latestSlideId={latestSlideId}
-                  loadedSlideIds={loadedSlideIds}
-                  mediaVariants={mediaVariants}
-                  heroViewportClass={heroViewportClass}
-                  shouldRenderNavbarOverlay={shouldRenderNavbarOverlay}
-                  navbarOverlayClass={navbarOverlayClass}
-                  transparentPixel={transparentPixel}
-                  clampSynopsis={clampSynopsis}
-                  shouldAnimateEntry={false}
-                />
-              </CarouselItem>
-            ))}
-          </CarouselContent>
-          {shouldRenderCarouselControls ? (
-            <CarouselPrevious
-              className="hidden md:flex left-auto right-20 bottom-8 top-auto h-9 w-9 translate-y-0 bg-background/50 hover:bg-background/70 border border-border/30 text-muted-foreground"
-              onClick={scheduleAutoplayResume}
-            />
-          ) : null}
-          {shouldRenderCarouselControls ? (
-            <CarouselNext
-              className="hidden md:flex right-8 bottom-8 top-auto h-9 w-9 translate-y-0 bg-background/50 hover:bg-background/70 border border-border/30 text-muted-foreground"
-              onClick={scheduleAutoplayResume}
-            />
-          ) : null}
-        </Carousel>
-      ) : renderedSlides[0] ? (
-        <HeroSlideFrame
-          slide={renderedSlides[0]}
-          index={0}
-          activeIndex={0}
-          latestSlideId={latestSlideId}
-          loadedSlideIds={loadedSlideIds}
-          mediaVariants={mediaVariants}
-          heroViewportClass={heroViewportClass}
-          shouldRenderNavbarOverlay={shouldRenderNavbarOverlay}
-          navbarOverlayClass={navbarOverlayClass}
-          transparentPixel={transparentPixel}
-          clampSynopsis={clampSynopsis}
-          shouldAnimateEntry={!isMobile}
-        />
-      ) : null}
+      {shouldRenderDesktopCarousel ? (
+        <React.Suspense fallback={staticSlideFrame}>
+          <HeroDesktopCarousel
+            slides={visibleSlides}
+            heroViewportClass={heroViewportClass}
+            renderSlide={renderDesktopSlide}
+          />
+        </React.Suspense>
+      ) : (
+        staticSlideFrame
+      )}
     </section>
   );
 };

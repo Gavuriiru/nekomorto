@@ -1,8 +1,8 @@
 import { createRoot } from "react-dom/client";
-import App, { queryClient } from "./App.tsx";
+import App from "./App.tsx";
 import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
-import { PUBLIC_BOOTSTRAP_QUERY_KEY } from "@/hooks/use-public-bootstrap";
+import { primePublicBootstrapCache } from "@/hooks/use-public-bootstrap";
 import { scheduleOnBrowserLoadIdle } from "@/lib/browser-idle";
 import { asPublicBootstrapPayload } from "@/lib/public-bootstrap-global";
 import "./index.css";
@@ -77,7 +77,7 @@ const bootstrap = async () => {
       }
     }
     if (initialBootstrap) {
-      queryClient.setQueryData(PUBLIC_BOOTSTRAP_QUERY_KEY, initialBootstrap);
+      primePublicBootstrapCache(initialBootstrap);
       initialSettings = initialBootstrap.settings || initialSettings;
     }
   } catch {
