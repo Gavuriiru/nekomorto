@@ -1,5 +1,13 @@
 const safeString = (value) => String(value || "");
 const DAY_KEY_REGEX = /^\d{4}-\d{2}-\d{2}$/;
+const PUBLIC_BOOTSTRAP_PAYLOAD_MODES = new Set(["full", "critical-home"]);
+
+const normalizePublicBootstrapPayloadMode = (value) => {
+  const normalized = String(value || "")
+    .trim()
+    .toLowerCase();
+  return PUBLIC_BOOTSTRAP_PAYLOAD_MODES.has(normalized) ? normalized : "full";
+};
 
 const safeStringArray = (value) =>
   Array.isArray(value) ? value.map((item) => safeString(item).trim()).filter(Boolean) : [];
@@ -168,6 +176,7 @@ export const buildPublicBootstrapPayload = ({
   updates,
   tagTranslations,
   generatedAt,
+  payloadMode = "full",
 }) => ({
   settings: settings && typeof settings === "object" ? settings : {},
   pages: pages && typeof pages === "object" && !Array.isArray(pages) ? pages : {},
@@ -176,4 +185,5 @@ export const buildPublicBootstrapPayload = ({
   updates: Array.isArray(updates) ? updates.map(toPublicBootstrapUpdate) : [],
   tagTranslations: normalizePublicTagTranslations(tagTranslations),
   generatedAt: safeString(generatedAt || new Date().toISOString()),
+  payloadMode: normalizePublicBootstrapPayloadMode(payloadMode),
 });

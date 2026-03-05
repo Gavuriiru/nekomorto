@@ -2,6 +2,7 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it } from "vitest";
 import type { SiteSettings } from "@/types/site-settings";
 import { defaultSettings, mergeSettings, SiteSettingsContext } from "@/hooks/site-settings-context";
+import { resolveRouteThemeColor } from "@/lib/route-theme-color";
 import {
   THEME_MODE_STORAGE_KEY,
   type ThemeModePreference,
@@ -55,12 +56,18 @@ const assertDocumentTheme = (mode: "light" | "dark") => {
 
 const assertThemeColor = (color: string) => {
   const themeColorMeta = document.querySelector('meta[name="theme-color"]');
-  expect(themeColorMeta?.getAttribute("content")).toBe(color);
+  expect(themeColorMeta?.getAttribute("content")).toBe(
+    resolveRouteThemeColor({
+      pathname: window.location.pathname,
+      accentHex: color,
+    }),
+  );
 };
 
 describe("ThemeModeProvider", () => {
   beforeEach(() => {
     window.localStorage.clear();
+    window.history.replaceState(null, "", "/");
     document.documentElement.classList.remove("dark");
     delete document.documentElement.dataset.themeMode;
     document.documentElement.style.colorScheme = "";
@@ -147,5 +154,12 @@ describe("ThemeModeProvider", () => {
     await waitFor(() => {
       assertThemeColor("#34A853");
     });
+  });
+
+  it("uses a route-specific theme color for dashboard routes", async () => {
+    window.history.replaceState(null, "", "/dashboard/posts");
+    renderWithSettings(createSettings({ theme: { accent: "#9667e0", mode: "dark" } }));
+
+    assertThemeColor("#9667e0");
   });
 });

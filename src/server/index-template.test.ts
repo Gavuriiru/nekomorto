@@ -15,5 +15,6 @@ describe("index template", () => {
     expect(html).not.toContain("(function () {");
     expect(html).toContain("<!-- APP_BOOTSTRAP -->");
     expect(html).toContain("<!-- APP_PRELOADS -->");
+    expect(html).toContain("<!-- APP_HOME_HERO_SHELL -->");
   });
 });

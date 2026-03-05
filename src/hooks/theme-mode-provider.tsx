@@ -7,18 +7,14 @@ import {
   type ThemeModeContextValue,
   type ThemeModePreference,
 } from "@/hooks/theme-mode-context";
+import { resolveRouteThemeColor } from "@/lib/route-theme-color";
 
 const normalizeMode = (value: unknown): ThemeMode => (value === "light" ? "light" : "dark");
-const DEFAULT_THEME_COLOR = "#9667e0";
 const normalizePreference = (value: unknown): ThemeModePreference => {
   if (value === "light" || value === "dark" || value === "global") {
     return value;
   }
   return "global";
-};
-const normalizeThemeColor = (value: unknown) => {
-  const normalized = String(value || "").trim();
-  return /^#(?:[0-9a-fA-F]{3}){1,2}$/.test(normalized) ? normalized : DEFAULT_THEME_COLOR;
 };
 
 const readInitialPreference = (): ThemeModePreference => {
@@ -33,7 +29,7 @@ const readInitialPreference = (): ThemeModePreference => {
   }
 };
 
-const applyThemeToDocument = (mode: ThemeMode, themeColor: string) => {
+const applyThemeToDocument = (mode: ThemeMode, accentHex: unknown) => {
   if (typeof document === "undefined") {
     return;
   }
@@ -47,7 +43,13 @@ const applyThemeToDocument = (mode: ThemeMode, themeColor: string) => {
   }
   const themeColorMeta = document.querySelector('meta[name="theme-color"]');
   if (themeColorMeta) {
-    themeColorMeta.setAttribute("content", themeColor);
+    themeColorMeta.setAttribute(
+      "content",
+      resolveRouteThemeColor({
+        pathname: typeof window === "undefined" ? "/" : window.location.pathname,
+        accentHex,
+      }),
+    );
   }
 };
 
@@ -58,7 +60,7 @@ export const ThemeModeProvider = ({ children }: { children: ReactNode }) => {
   const globalMode = normalizeMode(settings.theme?.mode);
   const effectiveMode = preference === "global" ? globalMode : preference;
   const isOverridden = preference !== "global";
-  const themeColor = normalizeThemeColor(settings.theme?.accent);
+  const themeAccent = settings.theme?.accent;
 
   const setPreference = useCallback((next: ThemeModePreference) => {
     setPreferenceState(normalizePreference(next));
@@ -80,8 +82,8 @@ export const ThemeModeProvider = ({ children }: { children: ReactNode }) => {
   }, [preference]);
 
   useEffect(() => {
-    applyThemeToDocument(effectiveMode, themeColor);
-  }, [effectiveMode, themeColor]);
+    applyThemeToDocument(effectiveMode, themeAccent);
+  }, [effectiveMode, themeAccent]);
 
   const value = useMemo<ThemeModeContextValue>(
     () => ({

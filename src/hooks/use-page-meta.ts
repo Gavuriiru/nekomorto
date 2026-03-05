@@ -3,6 +3,7 @@ import { useSiteSettings } from "@/hooks/use-site-settings";
 import { normalizeAssetUrl } from "@/lib/asset-url";
 import { getCanonicalPageUrl } from "@/lib/canonical-url";
 import { truncateMetaDescription } from "@/lib/meta-description";
+import { resolveRouteThemeColor } from "@/lib/route-theme-color";
 import {
   resolveUploadVariantUrl,
   type UploadMediaVariantsMap,
@@ -95,6 +96,13 @@ export const usePageMeta = ({
     );
   }, [effectiveMediaVariants, image, settings.site.defaultShareImage]);
   const pageImageAlt = imageAlt ?? settings.site.defaultShareImageAlt ?? "";
+  const pathname = typeof window === "undefined" ? "/" : window.location.pathname;
+  const currentHref = typeof window === "undefined" ? "" : window.location.href;
+  const canonicalUrl = currentHref ? getCanonicalPageUrl(currentHref) || currentHref : "";
+  const themeColor = resolveRouteThemeColor({
+    pathname,
+    accentHex: settings.theme?.accent,
+  });
 
   useLayoutEffect(() => {
     if (isLoading) {
@@ -102,8 +110,6 @@ export const usePageMeta = ({
     }
     document.documentElement.dataset.pageMeta = "true";
     document.title = pageTitle;
-
-    const canonicalUrl = getCanonicalPageUrl(window.location.href) || window.location.href;
 
     const descriptionMeta = ensureMeta('meta[name="description"]', { name: "description" });
     descriptionMeta?.setAttribute("content", pageDescription);
@@ -142,6 +148,8 @@ export const usePageMeta = ({
     twitterImageAlt?.setAttribute("content", pageImageAlt);
     const twitterCard = ensureMeta('meta[name="twitter:card"]', { name: "twitter:card" });
     twitterCard?.setAttribute("content", pageImage ? "summary_large_image" : "summary");
+    const themeColorMeta = ensureMeta('meta[name="theme-color"]', { name: "theme-color" });
+    themeColorMeta?.setAttribute("content", themeColor);
 
     const canonical = ensureLink('link[rel="canonical"]', { rel: "canonical" });
     canonical?.setAttribute("href", canonicalUrl);
@@ -149,5 +157,16 @@ export const usePageMeta = ({
     return () => {
       delete document.documentElement.dataset.pageMeta;
     };
-  }, [isLoading, noIndex, pageDescription, pageImage, pageImageAlt, pageTitle, siteName, type]);
+  }, [
+    canonicalUrl,
+    isLoading,
+    noIndex,
+    pageDescription,
+    pageImage,
+    pageImageAlt,
+    pageTitle,
+    siteName,
+    themeColor,
+    type,
+  ]);
 };

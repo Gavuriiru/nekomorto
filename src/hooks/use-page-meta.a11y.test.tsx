@@ -1,6 +1,7 @@
 import { render } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { usePageMeta } from "@/hooks/use-page-meta";
+import { resolveRouteThemeColor } from "@/lib/route-theme-color";
 import type { UploadMediaVariantsMap } from "@/lib/upload-variants";
 
 vi.mock("@/hooks/use-site-settings", () => ({
@@ -13,6 +14,9 @@ vi.mock("@/hooks/use-site-settings", () => ({
         defaultShareImage: "/uploads/default-og.jpg",
         defaultShareImageAlt: "Imagem padrao",
         titleSeparator: " | ",
+      },
+      theme: {
+        accent: "#9667e0",
       },
     },
   }),
@@ -41,6 +45,7 @@ describe("usePageMeta accessibility metadata", () => {
   beforeEach(() => {
     document.head.innerHTML = "";
     document.title = "";
+    window.history.replaceState(null, "", "/");
     (window as Window & typeof globalThis & { __BOOTSTRAP_PUBLIC__?: unknown }).__BOOTSTRAP_PUBLIC__ =
       undefined;
   });
@@ -126,5 +131,35 @@ describe("usePageMeta accessibility metadata", () => {
     expect((description || "").length).toBeLessThanOrEqual(160);
     expect((ogDescription || "").length).toBeLessThanOrEqual(160);
     expect((twitterDescription || "").length).toBeLessThanOrEqual(160);
+  });
+
+  it("creates and updates theme-color according to the current route", () => {
+    window.history.replaceState(null, "", "/projetos");
+    const view = render(<TestMeta />);
+
+    expect(
+      document
+        .querySelector('meta[name="theme-color"]')
+        ?.getAttribute("content"),
+    ).toBe(
+      resolveRouteThemeColor({
+        pathname: "/projetos",
+        accentHex: "#9667e0",
+      }),
+    );
+
+    window.history.replaceState(null, "", "/postagem/slug-teste");
+    view.rerender(<TestMeta description="Atualizado para disparar o effect" />);
+
+    expect(
+      document
+        .querySelector('meta[name="theme-color"]')
+        ?.getAttribute("content"),
+    ).toBe(
+      resolveRouteThemeColor({
+        pathname: "/postagem/slug-teste",
+        accentHex: "#9667e0",
+      }),
+    );
   });
 });

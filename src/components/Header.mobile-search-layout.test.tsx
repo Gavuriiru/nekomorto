@@ -136,6 +136,8 @@ const getSearchSuggestCalls = () =>
   apiFetchMock.mock.calls.filter((call) =>
     String(call[1] || "").startsWith("/api/public/search/suggest?"),
   );
+const getPublicMeCalls = () =>
+  apiFetchMock.mock.calls.filter((call) => String(call[1] || "") === "/api/public/me");
 const getScheduleOnBrowserLoadIdleCallsByDelay = (delayMs: number) =>
   scheduleOnBrowserLoadIdleMock.mock.calls.filter((call) => {
     const options = (call[1] || {}) as { delayMs?: number };
@@ -158,6 +160,7 @@ describe("Header mobile search layout", () => {
     });
     useIsMobileMock.mockReset();
     useIsMobileMock.mockReturnValue(false);
+    (window as Window & { __BOOTSTRAP_PUBLIC__?: unknown }).__BOOTSTRAP_PUBLIC__ = undefined;
     (window as Window & { __BOOTSTRAP_PUBLIC_ME__?: unknown }).__BOOTSTRAP_PUBLIC_ME__ = undefined;
     useSiteSettingsMock.mockReset();
     usePublicBootstrapMock.mockReset();
@@ -334,6 +337,62 @@ describe("Header mobile search layout", () => {
       expect.any(Function),
       expect.objectContaining({ delayMs: 2500 }),
     );
+    await waitFor(() => {
+      expect(apiFetchMock).toHaveBeenCalledWith(
+        "http://api.local",
+        "/api/public/me",
+        expect.objectContaining({ auth: true }),
+      );
+    });
+  });
+
+  it("nao agenda revalidacao de /api/public/me quando bootstrap SSR e anonimo", async () => {
+    (window as Window & { __BOOTSTRAP_PUBLIC__?: unknown }).__BOOTSTRAP_PUBLIC__ = {
+      projects: [],
+      posts: [],
+      updates: [],
+      settings: {},
+      pages: {},
+    };
+    (window as Window & { __BOOTSTRAP_PUBLIC_ME__?: unknown }).__BOOTSTRAP_PUBLIC_ME__ = null;
+
+    render(
+      <MemoryRouter initialEntries={["/"]}>
+        <Header />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(getScheduleOnBrowserLoadIdleCallsByDelay(1200).length).toBeGreaterThan(0);
+    });
+    expect(getScheduleOnBrowserLoadIdleCallsByDelay(2500)).toHaveLength(0);
+    expect(getPublicMeCalls()).toHaveLength(0);
+  });
+
+  it("agenda revalidacao de /api/public/me quando bootstrap SSR possui usuario", async () => {
+    (window as Window & { __BOOTSTRAP_PUBLIC__?: unknown }).__BOOTSTRAP_PUBLIC__ = {
+      projects: [],
+      posts: [],
+      updates: [],
+      settings: {},
+      pages: {},
+    };
+    (window as Window & { __BOOTSTRAP_PUBLIC_ME__?: unknown }).__BOOTSTRAP_PUBLIC_ME__ = {
+      id: "bootstrap-user-1",
+      name: "Bootstrap Admin",
+      username: "bootstrap-admin",
+      avatarUrl: null,
+    };
+
+    render(
+      <MemoryRouter initialEntries={["/"]}>
+        <Header />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(getScheduleOnBrowserLoadIdleCallsByDelay(2500)).toHaveLength(1);
+    });
     await waitFor(() => {
       expect(apiFetchMock).toHaveBeenCalledWith(
         "http://api.local",

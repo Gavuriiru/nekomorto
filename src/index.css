@@ -55,6 +55,11 @@
 @import "tailwindcss";
 @config "../tailwind.config.ts";
 
+#root {
+  position: relative;
+  z-index: 1;
+}
+
 .no-scrollbar::-webkit-scrollbar {
   display: none;
 }

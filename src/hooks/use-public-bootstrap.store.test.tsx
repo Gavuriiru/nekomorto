@@ -185,4 +185,56 @@ describe("usePublicBootstrap store", () => {
     });
     expect(screen.getByTestId("title")).toHaveTextContent("Projeto Inicial");
   });
+
+  it("revalida imediatamente quando o bootstrap inicial vem em modo critical-home", async () => {
+    (window as Window & { __BOOTSTRAP_PUBLIC__?: unknown }).__BOOTSTRAP_PUBLIC__ = {
+      settings: {},
+      pages: { home: {} },
+      projects: [
+        {
+          id: "project-critical",
+          title: "Projeto Critico",
+        },
+      ],
+      posts: [],
+      updates: [],
+      mediaVariants: {},
+      tagTranslations: { tags: {}, genres: {}, staffRoles: {} },
+      generatedAt: "2026-03-05T00:00:00.000Z",
+      payloadMode: "critical-home",
+    };
+
+    apiFetchMock.mockResolvedValueOnce(
+      createJsonResponse(true, {
+        settings: {},
+        pages: { home: {} },
+        projects: [{ id: "project-full", title: "Projeto Completo" }],
+        posts: [],
+        updates: [],
+        mediaVariants: {},
+        tagTranslations: { tags: {}, genres: {}, staffRoles: {} },
+        generatedAt: "2026-03-05T00:01:00.000Z",
+        payloadMode: "full",
+      }),
+    );
+
+    const { usePublicBootstrap } = await loadHookModule();
+
+    const Harness = () => {
+      const { data, isHydratingFullPayload } = usePublicBootstrap();
+      return (
+        <div data-testid="hook">
+          {data?.projects?.[0]?.title || "none"}|{isHydratingFullPayload ? "hydrating" : "full"}
+        </div>
+      );
+    };
+
+    render(<Harness />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("hook")).toHaveTextContent("Projeto Completo|full");
+    });
+
+    expect(apiFetchMock).toHaveBeenCalledTimes(1);
+  });
 });

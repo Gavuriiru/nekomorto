@@ -47,8 +47,13 @@ import { buildEditorialCalendarItems } from "./lib/editorial-calendar.js";
 import { createViteDevServer, resolveClientIndexPath } from "./lib/frontend-runtime.js";
 import { buildHealthStatusResponse } from "./lib/health-checks.js";
 import {
+  HTML_CACHE_CONTROL_PRIVATE_REVALIDATE,
+  resolveHtmlCacheControl,
+} from "./lib/html-cache-control.js";
+import {
   extractLocalStylesheetHrefs,
   injectBootstrapGlobals,
+  injectHomeHeroShell,
   injectPreloadLinks,
 } from "./lib/html-bootstrap.js";
 import { createIdempotencyFingerprint, createIdempotencyStore } from "./lib/idempotency-store.js";
@@ -70,6 +75,7 @@ import { createSlug, createUniqueSlug } from "./lib/post-slug.js";
 import { resolvePostStatus } from "./lib/post-status.js";
 import { dedupePostVersionRecordsNewestFirst } from "./lib/post-version-dedupe.js";
 import { prisma } from "./lib/prisma-client.js";
+import { resolveRouteThemeColor } from "./lib/route-theme-color.js";
 import { localizeProjectImageFields } from "./lib/project-image-localizer.js";
 import {
   collectEpisodeUpdates as collectEpisodeUpdatesByVisibility,
@@ -200,7 +206,6 @@ app.disable("x-powered-by");
 const PgSessionStore = connectPgSimple(session);
 let dataRepository = null;
 
-const HTML_CACHE_CONTROL = "no-store";
 const STATIC_DEFAULT_CACHE_CONTROL = "public, max-age=0, must-revalidate";
 const STATIC_IMMUTABLE_CACHE_CONTROL = "public, max-age=31536000, immutable";
 const PWA_MANIFEST_CACHE_CONTROL = "public, max-age=300, stale-while-revalidate=600";
@@ -293,7 +298,7 @@ const setStaticCacheHeaders = (res, filePath) => {
   }
 
   if (normalizedPath.endsWith(".html")) {
-    res.setHeader("Cache-Control", HTML_CACHE_CONTROL);
+    res.setHeader("Cache-Control", HTML_CACHE_CONTROL_PRIVATE_REVALIDATE);
     return;
   }
   if (
@@ -857,6 +862,7 @@ const {
   PUBLIC_READ_CACHE_MAX_ENTRIES: PUBLIC_READ_CACHE_MAX_ENTRIES_ENV = "",
   ANALYTICS_COMPACTION_INTERVAL_MS: ANALYTICS_COMPACTION_INTERVAL_MS_ENV = "",
   VITE_PWA_DEV_ENABLED: VITE_PWA_DEV_ENABLED_ENV = "false",
+  HOME_HERO_SHELL_ENABLED: HOME_HERO_SHELL_ENABLED_ENV = "true",
 } = process.env;
 
 const isProduction = process.env.NODE_ENV === "production";
@@ -875,6 +881,7 @@ const isAutoUploadReorganizationOnStartupEnabled = isTruthyEnv(
 const isOpsAlertsWebhookEnabled = isTruthyEnv(OPS_ALERTS_WEBHOOK_ENABLED_ENV, false);
 const isMetricsEnabled = isTruthyEnv(METRICS_ENABLED_ENV, false);
 const isPwaDevEnabled = VITE_PWA_DEV_ENABLED_ENV === "true";
+const isHomeHeroShellEnabled = isTruthyEnv(HOME_HERO_SHELL_ENABLED_ENV, true);
 const MFA_ENROLLMENT_TTL_MS = Number.isFinite(Number(MFA_ENROLLMENT_TTL_MS_ENV))
   ? Math.min(Math.max(Math.floor(Number(MFA_ENROLLMENT_TTL_MS_ENV)), 60_000), 24 * 60 * 60 * 1000)
   : 10 * 60 * 1000;
@@ -1801,6 +1808,7 @@ const renderMetaHtml = ({
   image,
   imageAlt,
   url,
+  themeColor,
   type = "website",
   siteName,
   favicon,
@@ -1810,8 +1818,10 @@ const renderMetaHtml = ({
   const safeUrl = url || PRIMARY_APP_ORIGIN;
   const safeImage = image ? toAbsoluteUrl(resolveMetaImageVariantUrl(image)) : "";
   const safeDescription = truncateMetaDescription(description);
+  const safeThemeColor = String(themeColor || "#9667e0");
   html = replaceTitle(html, title);
   html = upsertMeta(html, "name", "description", safeDescription);
+  html = upsertMeta(html, "name", "theme-color", safeThemeColor);
   html = upsertMeta(html, "property", "og:title", title);
   html = upsertMeta(html, "property", "og:description", safeDescription);
   html = upsertMeta(html, "property", "og:type", type);
@@ -1837,12 +1847,19 @@ const renderMetaHtml = ({
 
 const sendHtml = async (req, res, html) => {
   let nextHtml = html;
+  const requestPath = req.originalUrl || req.url || "/";
   if (viteDevServer) {
-    nextHtml = await viteDevServer.transformIndexHtml(req.originalUrl || req.url || "/", nextHtml);
+    nextHtml = await viteDevServer.transformIndexHtml(requestPath, nextHtml);
   }
   const nonce = typeof res.locals?.cspNonce === "string" ? res.locals.cspNonce : "";
   const body = nonce ? injectNonceIntoHtmlScripts(nextHtml, nonce) : nextHtml;
-  res.setHeader("Cache-Control", HTML_CACHE_CONTROL);
+  res.setHeader(
+    "Cache-Control",
+    resolveHtmlCacheControl({
+      pathname: requestPath,
+      isAuthenticated: Boolean(req?.session?.user),
+    }),
+  );
   return res.type("html").send(body);
 };
 
@@ -11169,10 +11186,103 @@ const buildPublicHeroSlides = (projects, updates) => {
   return slides;
 };
 
+const PUBLIC_BOOTSTRAP_MODE_FULL = "full";
+const PUBLIC_BOOTSTRAP_MODE_CRITICAL_HOME = "critical-home";
+
+const toCriticalHomeProjectPayload = (project) => ({
+  id: String(project?.id || "").trim(),
+  title: String(project?.title || "").trim(),
+  synopsis: String(project?.synopsis || ""),
+  description: String(project?.description || ""),
+  type: String(project?.type || ""),
+  status: String(project?.status || ""),
+  tags: Array.isArray(project?.tags) ? project.tags : [],
+  cover: String(project?.cover || ""),
+  coverAlt: String(project?.coverAlt || ""),
+  banner: String(project?.banner || ""),
+  bannerAlt: String(project?.bannerAlt || ""),
+  heroImageUrl: String(project?.heroImageUrl || ""),
+  heroImageAlt: String(project?.heroImageAlt || ""),
+  forceHero: project?.forceHero === true,
+  trailerUrl: String(project?.trailerUrl || ""),
+  volumeEntries: [],
+  volumeCovers: [],
+  episodeDownloads: [],
+  views: Number.isFinite(Number(project?.views)) ? Math.max(0, Number(project.views)) : 0,
+  viewsDaily:
+    project?.viewsDaily && typeof project.viewsDaily === "object" ? project.viewsDaily : {},
+});
+
+const toCriticalHomeUpdatePayload = (update) => ({
+  id: String(update?.id || "").trim(),
+  projectId: String(update?.projectId || "").trim(),
+  projectTitle: String(update?.projectTitle || ""),
+  episodeNumber: Number.isFinite(Number(update?.episodeNumber))
+    ? Number(update.episodeNumber)
+    : 0,
+  volume: Number.isFinite(Number(update?.volume)) ? Number(update.volume) : undefined,
+  kind: String(update?.kind || ""),
+  reason: String(update?.reason || ""),
+  updatedAt: String(update?.updatedAt || ""),
+  image: String(update?.image || ""),
+  unit: String(update?.unit || ""),
+});
+
+const toCriticalHomePagesPayload = (pages) => ({
+  home:
+    pages?.home && typeof pages.home === "object"
+      ? {
+          shareImage: String(pages.home.shareImage || ""),
+          shareImageAlt: String(pages.home.shareImageAlt || ""),
+        }
+      : { shareImage: "", shareImageAlt: "" },
+});
+
+const buildCriticalHomeBootstrapPayload = ({
+  settings,
+  pages,
+  projects,
+  updates,
+  generatedAt,
+}) => {
+  const heroSlides = buildPublicHeroSlides(projects, updates);
+  const heroProjectIds = new Set(heroSlides.map((slide) => String(slide?.id || "").trim()));
+  const criticalProjects = projects
+    .filter((project) => heroProjectIds.has(String(project?.id || "").trim()))
+    .map((project) => toCriticalHomeProjectPayload(project));
+  const criticalUpdates = sortPublicLaunchUpdates(updates)
+    .filter((update) => heroProjectIds.has(String(update?.projectId || "").trim()))
+    .slice(0, Math.max(1, heroProjectIds.size))
+    .map((update) => toCriticalHomeUpdatePayload(update));
+
+  const payload = buildPublicBootstrapPayload({
+    settings,
+    pages: toCriticalHomePagesPayload(pages),
+    projects: criticalProjects,
+    posts: [],
+    updates: criticalUpdates,
+    tagTranslations: {
+      tags: {},
+      genres: {},
+      staffRoles: {},
+    },
+    generatedAt,
+    payloadMode: PUBLIC_BOOTSTRAP_MODE_CRITICAL_HOME,
+  });
+  payload.mediaVariants = buildPublicMediaVariants(
+    payload.projects,
+    payload.updates,
+    payload.pages,
+    { image: settings?.site?.defaultShareImage || "" },
+  );
+  return payload;
+};
+
 const buildPublicBootstrapResponsePayload = ({
   settings = loadSiteSettings(),
   pages = loadPages(),
   generatedAt = new Date().toISOString(),
+  payloadMode = PUBLIC_BOOTSTRAP_MODE_FULL,
 } = {}) => {
   const now = Date.now();
   const projects = getPublicVisibleProjects();
@@ -11199,6 +11309,21 @@ const buildPublicBootstrapResponsePayload = ({
       };
     });
   const updates = getPublicVisibleUpdates().slice(0, 10);
+  const safePayloadMode =
+    payloadMode === PUBLIC_BOOTSTRAP_MODE_CRITICAL_HOME
+      ? PUBLIC_BOOTSTRAP_MODE_CRITICAL_HOME
+      : PUBLIC_BOOTSTRAP_MODE_FULL;
+
+  if (safePayloadMode === PUBLIC_BOOTSTRAP_MODE_CRITICAL_HOME) {
+    return buildCriticalHomeBootstrapPayload({
+      settings,
+      pages,
+      projects,
+      updates,
+      generatedAt,
+    });
+  }
+
   const payload = buildPublicBootstrapPayload({
     settings,
     pages,
@@ -11207,6 +11332,7 @@ const buildPublicBootstrapResponsePayload = ({
     updates,
     tagTranslations: loadTagTranslations(),
     generatedAt,
+    payloadMode: PUBLIC_BOOTSTRAP_MODE_FULL,
   });
   payload.mediaVariants = buildPublicMediaVariants(
     payload.projects,
@@ -11325,14 +11451,58 @@ const resolveHomeHeroPreload = (publicBootstrap) => {
   };
 };
 
+const escapeHtmlAttribute = (value) =>
+  String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/"/g, "&quot;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+
+const buildHomeHeroShellMarkup = (publicBootstrap) => {
+  const heroPreload = resolveHomeHeroPreload(publicBootstrap);
+  const heroSrc = String(heroPreload?.href || "").trim();
+  if (!heroSrc) {
+    return "";
+  }
+  const heroSrcSet = String(heroPreload?.imagesrcset || "").trim();
+  const heroSizes = String(heroPreload?.imagesizes || "100vw").trim() || "100vw";
+
+  const attrs = [
+    `src="${escapeHtmlAttribute(heroSrc)}"`,
+    'alt=""',
+    'aria-hidden="true"',
+    'fetchpriority="high"',
+    'decoding="async"',
+    'style="position:absolute;inset:0;height:100%;width:100%;object-fit:cover;object-position:center;"',
+  ];
+  if (heroSrcSet) {
+    attrs.push(`srcset="${escapeHtmlAttribute(heroSrcSet)}"`);
+    attrs.push(`sizes="${escapeHtmlAttribute(heroSizes)}"`);
+  }
+
+  return [
+    '<div id="home-hero-shell" aria-hidden="true" style="position:fixed;inset:0;overflow:hidden;pointer-events:none;z-index:0;background:#05070a;">',
+    `  <img ${attrs.join(" ")} />`,
+    '  <div style="position:absolute;inset:0;background:linear-gradient(90deg,rgba(5,7,10,0.95) 0%,rgba(5,7,10,0.72) 44%,rgba(5,7,10,0.18) 100%);"></div>',
+    '  <div style="position:absolute;inset:0;background:linear-gradient(180deg,rgba(5,7,10,0.06) 0%,rgba(5,7,10,0.68) 100%);"></div>',
+    "</div>",
+  ].join("\n");
+};
+
 const injectPublicBootstrapHtml = ({
   html,
   req,
   settings,
   pages,
   includeHeroImagePreload = false,
+  bootstrapMode = PUBLIC_BOOTSTRAP_MODE_FULL,
+  includeHomeHeroShell = false,
 }) => {
-  const publicBootstrap = buildPublicBootstrapResponsePayload({ settings, pages });
+  const publicBootstrap = buildPublicBootstrapResponsePayload({
+    settings,
+    pages,
+    payloadMode: bootstrapMode,
+  });
   const publicMe = req?.session?.user ? buildUserPayload(req.session.user) : null;
   let nextHtml = injectBootstrapGlobals({
     html,
@@ -11355,6 +11525,12 @@ const injectPublicBootstrapHtml = ({
     nextHtml = injectPreloadLinks({
       html: nextHtml,
       preloads,
+    });
+  }
+  if (includeHomeHeroShell) {
+    nextHtml = injectHomeHeroShell({
+      html: nextHtml,
+      shellMarkup: buildHomeHeroShellMarkup(publicBootstrap),
     });
   }
   return nextHtml;
@@ -11427,7 +11603,9 @@ app.get("/api/public/bootstrap", (req, res) => {
     res.setHeader("X-Cache", "HIT");
     return res.status(cached.statusCode).json(cached.payload);
   }
-  const payload = buildPublicBootstrapResponsePayload();
+  const payload = buildPublicBootstrapResponsePayload({
+    payloadMode: PUBLIC_BOOTSTRAP_MODE_FULL,
+  });
   writePublicCachedJson(req, payload, {
     ttlMs: 30000,
     tags: [PUBLIC_READ_CACHE_TAGS.BOOTSTRAP],
@@ -14398,6 +14576,10 @@ app.get(
       const settings = loadSiteSettings();
       const pages = loadPages();
       const canonicalUrl = `${PRIMARY_APP_ORIGIN}${req.path}`;
+      const routeThemeColor = resolveRouteThemeColor({
+        pathname: req.path,
+        accentHex: settings?.theme?.accent,
+      });
       if (req.path.startsWith("/postagem/")) {
         const slug = String(req.params.slug || "");
         const post = normalizePosts(loadPosts()).find((item) => item.slug === slug);
@@ -14411,10 +14593,16 @@ app.get(
           post: post || null,
         });
         const html = injectPublicBootstrapHtml({
-          html: renderMetaHtml({ ...meta, url: canonicalUrl, structuredData }),
+          html: renderMetaHtml({
+            ...meta,
+            url: canonicalUrl,
+            structuredData,
+            themeColor: routeThemeColor,
+          }),
           req,
           settings,
           pages,
+          bootstrapMode: PUBLIC_BOOTSTRAP_MODE_FULL,
         });
         return await sendHtml(
           req,
@@ -14435,10 +14623,16 @@ app.get(
           project: project || null,
         });
         const html = injectPublicBootstrapHtml({
-          html: renderMetaHtml({ ...meta, url: canonicalUrl, structuredData }),
+          html: renderMetaHtml({
+            ...meta,
+            url: canonicalUrl,
+            structuredData,
+            themeColor: routeThemeColor,
+          }),
           req,
           settings,
           pages,
+          bootstrapMode: PUBLIC_BOOTSTRAP_MODE_FULL,
         });
         return await sendHtml(
           req,
@@ -14455,11 +14649,21 @@ app.get(
         pages,
       });
       const html = injectPublicBootstrapHtml({
-        html: renderMetaHtml({ ...meta, url: canonicalUrl, structuredData }),
+        html: renderMetaHtml({
+          ...meta,
+          url: canonicalUrl,
+          structuredData,
+          themeColor: routeThemeColor,
+        }),
         req,
         settings,
         pages,
         includeHeroImagePreload: req.path === "/",
+        bootstrapMode:
+          req.path === "/"
+            ? PUBLIC_BOOTSTRAP_MODE_CRITICAL_HOME
+            : PUBLIC_BOOTSTRAP_MODE_FULL,
+        includeHomeHeroShell: req.path === "/" && isHomeHeroShellEnabled,
       });
       return await sendHtml(
         req,
@@ -14480,6 +14684,10 @@ app.get("*", async (req, res) => {
     const settings = loadSiteSettings();
     const pages = loadPages();
     const meta = buildSiteMetaWithSettings(settings);
+    const routeThemeColor = resolveRouteThemeColor({
+      pathname: req.path,
+      accentHex: settings?.theme?.accent,
+    });
     const siteName = settings.site?.name || "Nekomata";
     const separator = settings.site?.titleSeparator ?? "";
     const pageTitle = getPageTitleFromPath(req.path);
@@ -14495,13 +14703,30 @@ app.get("*", async (req, res) => {
     const shouldInjectPublicBootstrap = !/^\/dashboard(?:\/|$)/.test(req.path);
     const html = shouldInjectPublicBootstrap
       ? injectPublicBootstrapHtml({
-          html: renderMetaHtml({ ...meta, title, url: canonicalUrl, structuredData }),
+          html: renderMetaHtml({
+            ...meta,
+            title,
+            url: canonicalUrl,
+            structuredData,
+            themeColor: routeThemeColor,
+          }),
           req,
           settings,
           pages,
           includeHeroImagePreload: req.path === "/",
+          bootstrapMode:
+            req.path === "/"
+              ? PUBLIC_BOOTSTRAP_MODE_CRITICAL_HOME
+              : PUBLIC_BOOTSTRAP_MODE_FULL,
+          includeHomeHeroShell: req.path === "/" && isHomeHeroShellEnabled,
         })
-      : renderMetaHtml({ ...meta, title, url: canonicalUrl, structuredData });
+      : renderMetaHtml({
+          ...meta,
+          title,
+          url: canonicalUrl,
+          structuredData,
+          themeColor: routeThemeColor,
+        });
     return await sendHtml(
       req,
       res,

@@ -7,6 +7,8 @@ import { scheduleOnBrowserLoadIdle } from "@/lib/browser-idle";
 import { asPublicBootstrapPayload } from "@/lib/public-bootstrap-global";
 import "./index.css";
 
+const HOME_HERO_READY_EVENT = "nekomata:hero-ready";
+
 const titleForPath = (path: string) => {
   const rules: Array<[RegExp, string]> = [
     [/^\/$/, "Início"],
@@ -42,6 +44,38 @@ const setBootstrapTitle = (siteName: string, separator: string) => {
   const pageTitle = titleForPath(path);
   const resolvedSeparator = separator || " | ";
   document.title = pageTitle ? `${pageTitle}${resolvedSeparator}${siteName}` : siteName;
+};
+
+const armHomeHeroShellCleanup = () => {
+  const shell = document.getElementById("home-hero-shell");
+  if (!shell) {
+    return () => undefined;
+  }
+
+  let timeoutId = 0;
+  let removed = false;
+
+  const removeShell = () => {
+    if (removed) {
+      return;
+    }
+    removed = true;
+    shell.remove();
+    window.removeEventListener(HOME_HERO_READY_EVENT, removeShell);
+    if (timeoutId) {
+      window.clearTimeout(timeoutId);
+    }
+  };
+
+  window.addEventListener(HOME_HERO_READY_EVENT, removeShell, { once: true });
+  timeoutId = window.setTimeout(removeShell, 7000);
+
+  return () => {
+    window.removeEventListener(HOME_HERO_READY_EVENT, removeShell);
+    if (timeoutId) {
+      window.clearTimeout(timeoutId);
+    }
+  };
 };
 
 const bootstrap = async () => {
@@ -101,12 +135,20 @@ const bootstrap = async () => {
   if (!root) {
     return;
   }
+
+  const cleanupHomeHeroShell =
+    window.location.pathname === "/" ? armHomeHeroShellCleanup() : () => undefined;
+
   createRoot(root).render(
     <App
       initialSettings={initialSettings as Parameters<typeof App>[0]["initialSettings"]}
       initiallyLoaded={!!initialSettings}
     />,
   );
+
+  window.setTimeout(() => {
+    cleanupHomeHeroShell();
+  }, 8000);
 };
 
 bootstrap();

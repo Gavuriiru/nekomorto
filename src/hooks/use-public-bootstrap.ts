@@ -22,6 +22,7 @@ type PublicBootstrapSnapshot = {
   isLoading: boolean;
   isFetched: boolean;
   status: PublicBootstrapStatus;
+  isHydratingFullPayload: boolean;
 };
 
 const initialWindowBootstrap = readWindowPublicBootstrap();
@@ -36,6 +37,9 @@ const publicBootstrapCache = {
 };
 
 const listeners = new Set<() => void>();
+
+const isCriticalHomePayload = (value: PublicBootstrapPayload | null | undefined) =>
+  value?.payloadMode === "critical-home";
 
 const toError = (value: unknown) =>
   value instanceof Error ? value : new Error(String(value || "public_bootstrap_error"));
@@ -52,6 +56,7 @@ const buildSnapshot = (): PublicBootstrapSnapshot => ({
   isLoading: publicBootstrapCache.status === "loading" && !publicBootstrapCache.data,
   isFetched: publicBootstrapCache.hasFetched,
   status: publicBootstrapCache.status,
+  isHydratingFullPayload: isCriticalHomePayload(publicBootstrapCache.data),
 });
 
 const subscribeSnapshot = (listener: () => void) => {
@@ -85,6 +90,7 @@ const normalizePublicBootstrapPayload = (value: unknown): PublicBootstrapPayload
       staffRoles: data?.tagTranslations?.staffRoles || {},
     },
     generatedAt: String(data?.generatedAt || ""),
+    payloadMode: data?.payloadMode === "critical-home" ? "critical-home" : "full",
   };
 };
 
@@ -104,6 +110,9 @@ const shouldFetchPublicBootstrap = (force = false) => {
     return false;
   }
   if (!publicBootstrapCache.data) {
+    return true;
+  }
+  if (isCriticalHomePayload(publicBootstrapCache.data)) {
     return true;
   }
   return Date.now() - publicBootstrapCache.lastFetchedAt > PUBLIC_BOOTSTRAP_STALE_TIME_MS;

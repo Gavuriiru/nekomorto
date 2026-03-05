@@ -486,6 +486,13 @@ const HeroSection = () => {
   const shouldRenderDesktopCarousel =
     !isMobile && isDesktopCarouselReady && visibleSlides.length > 1;
 
+  React.useEffect(() => {
+    if (typeof window === "undefined" || !staticSlide) {
+      return;
+    }
+    window.dispatchEvent(new Event("nekomata:hero-ready"));
+  }, [staticSlide?.id]);
+
   const renderDesktopSlide = React.useCallback(
     (
       slide: HeroSlide,

@@ -28,6 +28,7 @@ import type { SearchSuggestion } from "@/types/search-suggestion";
 import type { UploadMediaVariantsMap } from "@/lib/upload-variants";
 import {
   asPublicBootstrapCurrentUser,
+  readWindowPublicBootstrap,
   readWindowPublicBootstrapCurrentUser,
   type PublicBootstrapCurrentUser,
 } from "@/lib/public-bootstrap-global";
@@ -115,9 +116,9 @@ const Header = ({ variant = "fixed", leading, className }: HeaderProps) => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [shouldRenderActionMenus, setShouldRenderActionMenus] = useState(false);
-  const [currentUser, setCurrentUser] = useState<CurrentUser | null>(
-    () => readWindowPublicBootstrapCurrentUser(),
-  );
+  const [hasInlineBootstrapSnapshot] = useState<boolean>(() => Boolean(readWindowPublicBootstrap()));
+  const [initialBootstrapUser] = useState<CurrentUser | null>(() => readWindowPublicBootstrapCurrentUser());
+  const [currentUser, setCurrentUser] = useState<CurrentUser | null>(initialBootstrapUser);
   const [dashboardMenuItems, setDashboardMenuItems] = useState<DashboardMenuItem[]>([]);
   const searchRef = useRef<HTMLDivElement | null>(null);
   const actionsClusterRef = useRef<HTMLDivElement | null>(null);
@@ -283,6 +284,8 @@ const Header = ({ variant = "fixed", leading, className }: HeaderProps) => {
   }, [apiBase, hasMinimumSearchQueryLength, isSearchOpen, queryTrimmed]);
 
   const showResults = isSearchOpen && queryTrimmed.length > 0;
+  const shouldRevalidatePublicCurrentUserOnMount =
+    Boolean(initialBootstrapUser) || !hasInlineBootstrapSnapshot;
 
   useEffect(() => {
     if (!isSearchOpen) {
@@ -419,6 +422,9 @@ const Header = ({ variant = "fixed", leading, className }: HeaderProps) => {
   }, [currentUser]);
 
   useEffect(() => {
+    if (!shouldRevalidatePublicCurrentUserOnMount) {
+      return;
+    }
     let isActive = true;
     const loadUser = async () => {
       try {
@@ -454,7 +460,7 @@ const Header = ({ variant = "fixed", leading, className }: HeaderProps) => {
       isActive = false;
       cancelIdle();
     };
-  }, [apiBase]);
+  }, [apiBase, shouldRevalidatePublicCurrentUserOnMount]);
 
   const dashboardMenuForUser = useMemo(() => {
     if (!currentUser) {

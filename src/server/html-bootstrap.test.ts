@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   extractLocalStylesheetHrefs,
   injectBootstrapGlobals,
+  injectHomeHeroShell,
   injectPreloadLinks,
 } from "../../server/lib/html-bootstrap.js";
 
@@ -42,6 +43,8 @@ describe("html bootstrap injection", () => {
     expect(result).toContain("window.__BOOTSTRAP_SETTINGS__ = ");
     expect(result).toContain("window.__BOOTSTRAP_PUBLIC_ME__ = ");
     expect(result).toContain("window.__BOOTSTRAP_PUBLIC_PROMISE__");
+    expect(result).toContain("resolveThemeColorSection");
+    expect(result).toContain("window.location.pathname");
     expect(result).toContain("fetch('/api/public/bootstrap'");
     expect(result).toContain('rel="preload"');
     expect(result).toContain('href="/uploads/_variants/hero-v1.avif"');
@@ -121,5 +124,15 @@ describe("html bootstrap injection", () => {
     expect(result).not.toContain("</script><script>alert(1)</script>");
     expect(result).not.toContain("</script><script>alert(2)</script>");
     expect(result).toContain("\\u003C/script\\u003E");
+  });
+
+  it("injeta shell estatico da home no marcador dedicado", () => {
+    const result = injectHomeHeroShell({
+      html: "<!doctype html><html><body><!-- APP_HOME_HERO_SHELL --><div id=\"root\"></div></body></html>",
+      shellMarkup: "<div id=\"home-hero-shell\"></div>",
+    });
+
+    expect(result).toContain("<!-- APP_HOME_HERO_SHELL -->");
+    expect(result).toContain('<div id="home-hero-shell"></div>');
   });
 });

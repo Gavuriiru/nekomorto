@@ -83,6 +83,8 @@ export type PublicBootstrapUpdate = {
   unit: string;
 };
 
+export type PublicBootstrapPayloadMode = "full" | "critical-home";
+
 export type PublicBootstrapPayload = {
   settings: SiteSettings;
   pages: PublicPagesConfig;
@@ -96,6 +98,7 @@ export type PublicBootstrapPayload = {
     staffRoles: Record<string, string>;
   };
   generatedAt: string;
+  payloadMode?: PublicBootstrapPayloadMode;
 };
 
 export const emptyPublicBootstrapPayload: PublicBootstrapPayload = {
@@ -111,4 +114,5 @@ export const emptyPublicBootstrapPayload: PublicBootstrapPayload = {
     staffRoles: {},
   },
   generatedAt: "",
+  payloadMode: "full",
 };

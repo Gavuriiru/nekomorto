@@ -99,6 +99,7 @@ describe("public bootstrap payload", () => {
         staffRoles: { tradutor: "Tradutor" },
       },
       generatedAt: "2026-02-10T10:00:00.000Z",
+      payloadMode: "critical-home",
     });
 
     expect(payload).toEqual(
@@ -110,6 +111,7 @@ describe("public bootstrap payload", () => {
         updates: expect.any(Array),
         tagTranslations: expect.any(Object),
         generatedAt: "2026-02-10T10:00:00.000Z",
+        payloadMode: "critical-home",
       }),
     );
     expect(payload.projects).toHaveLength(1);
@@ -157,5 +159,30 @@ describe("public bootstrap payload", () => {
       }),
     ]);
     expect((project.episodeDownloads as Array<Record<string, unknown>>)[0]).not.toHaveProperty("content");
+  });
+
+  it("falls back to full payload mode when value is missing or invalid", () => {
+    const withoutMode = buildPublicBootstrapPayload({
+      settings: {},
+      pages: {},
+      projects: [],
+      posts: [],
+      updates: [],
+      tagTranslations: {},
+      generatedAt: "2026-02-10T10:00:00.000Z",
+    });
+    const withInvalidMode = buildPublicBootstrapPayload({
+      settings: {},
+      pages: {},
+      projects: [],
+      posts: [],
+      updates: [],
+      tagTranslations: {},
+      generatedAt: "2026-02-10T10:00:00.000Z",
+      payloadMode: "unknown",
+    });
+
+    expect(withoutMode.payloadMode).toBe("full");
+    expect(withInvalidMode.payloadMode).toBe("full");
   });
 });

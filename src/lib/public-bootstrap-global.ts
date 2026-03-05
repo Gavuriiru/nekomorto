@@ -2,6 +2,7 @@ import type { UploadMediaVariantsMap } from "@/lib/upload-variants";
 import { normalizePublicPagesConfig } from "@/lib/public-pages";
 import {
   emptyPublicBootstrapPayload,
+  type PublicBootstrapPayloadMode,
   type PublicBootstrapPayload,
 } from "@/types/public-bootstrap";
 
@@ -16,6 +17,9 @@ export type PublicBootstrapCurrentUser = {
   primaryOwnerId?: string | null;
   grants?: Partial<Record<string, boolean>>;
 };
+
+const normalizePublicBootstrapPayloadMode = (value: unknown): PublicBootstrapPayloadMode =>
+  String(value || "").trim() === "critical-home" ? "critical-home" : "full";
 
 export const asPublicBootstrapPayload = (value: unknown): PublicBootstrapPayload | null => {
   if (!value || typeof value !== "object") {
@@ -43,6 +47,7 @@ export const asPublicBootstrapPayload = (value: unknown): PublicBootstrapPayload
       staffRoles: candidate.tagTranslations?.staffRoles || {},
     },
     generatedAt: String(candidate.generatedAt || ""),
+    payloadMode: normalizePublicBootstrapPayloadMode(candidate.payloadMode),
   };
 };
 
