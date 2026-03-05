@@ -1,9 +1,8 @@
 import { useMemo, useState } from "react";
 import type { CSSProperties } from "react";
-import { Eye } from "lucide-react";
+import { Eye, Hash } from "lucide-react";
 import { Link } from "react-router-dom";
 import UploadPicture from "@/components/UploadPicture";
-import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Select,
@@ -13,17 +12,20 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useDynamicSynopsisClamp } from "@/hooks/use-dynamic-synopsis-clamp";
 import { usePublicBootstrap } from "@/hooks/use-public-bootstrap";
 import { PROJECT_COVER_ASPECT_RATIO } from "@/lib/project-card-layout";
+import { cn } from "@/lib/utils";
 
 const TOP_PROJECTS_LIMIT = 10;
-const TOP_PROJECTS_LAST_DAYS = 30;
+const TOP_PROJECTS_LAST_7_DAYS = 7;
+const TOP_PROJECTS_LAST_30_DAYS = 30;
 const TOP_PROJECTS_CARD_HEIGHT_PX = 164;
 const TOP_PROJECTS_GAP_PX = 12;
 const TOP_PROJECTS_VISIBLE_MOBILE = 2;
 const TOP_PROJECTS_VISIBLE_DESKTOP = 3;
 
-type TopProjectsMode = "all" | "30d";
+type TopProjectsMode = "all" | "7d" | "30d";
 
 const DAY_KEY_REGEX = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -70,7 +72,8 @@ const TopProjectsSection = () => {
   } as CSSProperties;
 
   const topProjects = useMemo(() => {
-    const dayKeys = buildRecentUtcDayKeys(TOP_PROJECTS_LAST_DAYS);
+    const dayKeys7d = buildRecentUtcDayKeys(TOP_PROJECTS_LAST_7_DAYS);
+    const dayKeys30d = buildRecentUtcDayKeys(TOP_PROJECTS_LAST_30_DAYS);
     return projects
       .map((project) => {
         const id = String(project?.id || "").trim();
@@ -90,19 +93,21 @@ const TopProjectsSection = () => {
                 {},
               )
             : {};
-        const views30d = sumViewsByDayKeys(normalizedViewsDaily, dayKeys);
+        const views7d = sumViewsByDayKeys(normalizedViewsDaily, dayKeys7d);
+        const views30d = sumViewsByDayKeys(normalizedViewsDaily, dayKeys30d);
         return {
           project,
           id,
           title,
           viewsAll,
+          views7d,
           views30d,
         };
       })
       .filter((item) => item.id && item.title)
       .sort((left, right) => {
-        const leftMetric = mode === "30d" ? left.views30d : left.viewsAll;
-        const rightMetric = mode === "30d" ? right.views30d : right.viewsAll;
+        const leftMetric = mode === "30d" ? left.views30d : mode === "7d" ? left.views7d : left.viewsAll;
+        const rightMetric = mode === "30d" ? right.views30d : mode === "7d" ? right.views7d : right.viewsAll;
         if (rightMetric !== leftMetric) {
           return rightMetric - leftMetric;
         }
@@ -114,12 +119,33 @@ const TopProjectsSection = () => {
       .slice(0, TOP_PROJECTS_LIMIT);
   }, [mode, projects]);
 
+  const synopsisKeys = useMemo(() => topProjects.map((item) => item.id), [topProjects]);
+  const { rootRef: synopsisRootRef, lineByKey } = useDynamicSynopsisClamp({
+    enabled: topProjects.length > 0,
+    keys: synopsisKeys,
+    maxLines: 3,
+  });
+
+  const getSynopsisClampClass = (projectId: string) => {
+    const lines = lineByKey[projectId] ?? 2;
+    if (lines <= 0) {
+      return "hidden";
+    }
+    if (lines === 1) {
+      return "line-clamp-1";
+    }
+    if (lines === 2) {
+      return "line-clamp-2";
+    }
+    return "line-clamp-3";
+  };
+
   return (
-    <Card id="top-projetos" className="bg-card border-border reveal" data-reveal>
+    <Card id="top-projetos" lift={false} className="bg-card border-border reveal" data-reveal>
       <CardHeader className="px-4 pb-3 pt-4">
         <div className="flex items-center justify-between gap-3">
           <CardTitle className="text-lg font-semibold text-foreground">Projetos Populares</CardTitle>
-          <Select value={mode} onValueChange={(value) => setMode(value === "30d" ? "30d" : "all")}>
+          <Select value={mode} onValueChange={(value) => setMode(value === "30d" ? "30d" : value === "7d" ? "7d" : "all")}>
             <SelectTrigger
               aria-label="Ordenar Top 10 por visualizacoes"
               data-testid="top-projects-mode-trigger"
@@ -129,6 +155,7 @@ const TopProjectsSection = () => {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Sempre</SelectItem>
+              <SelectItem value="7d">7d</SelectItem>
               <SelectItem value="30d">30d</SelectItem>
             </SelectContent>
           </Select>
@@ -155,16 +182,17 @@ const TopProjectsSection = () => {
           </div>
         ) : topProjects.length === 0 ? (
           <div className="rounded-xl border border-dashed border-border/60 bg-background/50 p-4 text-xs text-muted-foreground">
-            Sem dados de visualizacao ainda.
+            Ainda sem dados de visualizacao.
           </div>
         ) : (
           <div
+            ref={synopsisRootRef}
             data-testid="top-projects-list"
             style={listLayoutStyle}
             className={`no-scrollbar space-y-[var(--top-gap)] overflow-y-auto overscroll-contain pr-1 max-h-[calc((var(--top-card-h)*${TOP_PROJECTS_VISIBLE_MOBILE})+(var(--top-gap)*${TOP_PROJECTS_VISIBLE_MOBILE - 1}))] md:max-h-[calc((var(--top-card-h)*${TOP_PROJECTS_VISIBLE_DESKTOP})+(var(--top-gap)*${TOP_PROJECTS_VISIBLE_DESKTOP - 1}))]`}
           >
             {topProjects.map((entry, index) => {
-              const metricValue = mode === "30d" ? entry.views30d : entry.viewsAll;
+              const metricValue = mode === "30d" ? entry.views30d : mode === "7d" ? entry.views7d : entry.viewsAll;
 
               return (
                 <Link
@@ -190,34 +218,52 @@ const TopProjectsSection = () => {
                       />
                     </div>
 
-                    <div className="flex h-full min-w-0 flex-1 flex-col">
-                      <div className="flex items-center justify-between gap-2">
-                        <Badge variant="secondary" className="text-[10px]">
-                          #{index + 1}
-                        </Badge>
+                    <div
+                      data-synopsis-role="column"
+                      data-synopsis-key={entry.id}
+                      className="flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden"
+                    >
+                      <div
+                        data-testid={`top-project-item-${index + 1}-meta-row`}
+                        className="flex min-w-0 items-center justify-between gap-2"
+                      >
                         <span
-                          data-testid={`top-project-item-${index + 1}-metric`}
-                          className="inline-flex items-center gap-1 text-[11px] text-muted-foreground"
-                          aria-label={`Visualizacoes: ${numberFormatter.format(metricValue)}`}
+                          data-testid={`top-project-item-${index + 1}-type`}
+                          className="min-w-0 truncate text-[10px] uppercase tracking-[0.16em] text-primary/80"
                         >
-                          <Eye className="h-3.5 w-3.5 text-muted-foreground/80" aria-hidden="true" />
-                          {numberFormatter.format(metricValue)}
+                          {entry.project.type || "Projeto"}
                         </span>
-                      </div>
-                      <div className="mt-2 space-y-1.5">
-                        <div className="flex min-w-0 flex-wrap items-center gap-2 text-[10px]">
-                          <span className="max-w-full truncate uppercase tracking-[0.16em] text-primary/80">
-                            {entry.project.type || "Projeto"}
+                        <div className="ml-auto inline-flex shrink-0 items-center gap-3 whitespace-nowrap">
+                          <span
+                            data-testid={`top-project-item-${index + 1}-rank`}
+                            className="inline-flex items-center gap-1 text-[11px] text-muted-foreground"
+                            aria-label={`Posicao: ${index + 1}`}
+                          >
+                            <Hash className="h-3.5 w-3.5 text-muted-foreground/80" aria-hidden="true" />
+                            {index + 1}
                           </span>
-                          {entry.project.status ? (
-                            <span className="max-w-full truncate text-muted-foreground">- {entry.project.status}</span>
-                          ) : null}
+                          <span
+                            data-testid={`top-project-item-${index + 1}-metric`}
+                            className="inline-flex items-center gap-1 text-[11px] text-muted-foreground"
+                            aria-label={`Visualizacoes: ${numberFormatter.format(metricValue)}`}
+                          >
+                            <Eye className="h-3.5 w-3.5 text-muted-foreground/80" aria-hidden="true" />
+                            {numberFormatter.format(metricValue)}
+                          </span>
                         </div>
+                      </div>
+                      <div data-synopsis-role="title" className="mt-1.5 space-y-1.5">
                         <h3 className="line-clamp-2 text-base font-semibold leading-snug text-foreground transition-colors group-hover:text-primary">
                           {entry.title}
                         </h3>
                       </div>
-                      <p className="mt-2 line-clamp-3 text-xs leading-relaxed text-muted-foreground">
+                      <p
+                        data-synopsis-role="synopsis"
+                        className={cn(
+                          "mt-2 text-xs leading-relaxed text-muted-foreground",
+                          getSynopsisClampClass(entry.id),
+                        )}
+                      >
                         {entry.project.synopsis ||
                           entry.project.description ||
                           "Sem sinopse cadastrada."}
@@ -235,4 +281,3 @@ const TopProjectsSection = () => {
 };
 
 export default TopProjectsSection;
-

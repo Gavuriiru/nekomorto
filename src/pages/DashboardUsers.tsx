@@ -15,6 +15,12 @@ import AsyncState from "@/components/ui/async-state";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
+import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -271,6 +277,11 @@ const defaultRoleOptions = [
   "K-Maker",
 ];
 
+const getDefaultUserEditorAccordionValue = (includeSecurity: boolean) =>
+  includeSecurity
+    ? ["dados-principais", "perfil-publico", "acesso-permissoes", "seguranca"]
+    : ["dados-principais", "perfil-publico", "acesso-permissoes"];
+
 const socialIconMap: Record<string, typeof Globe> = {
   instagram: Instagram,
   twitter: X,
@@ -422,6 +433,10 @@ const DashboardUsers = () => {
   const [socialDragIndex, setSocialDragIndex] = useState<number | null>(null);
   const [socialDragOverIndex, setSocialDragOverIndex] = useState<number | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isEditorDialogScrolled, setIsEditorDialogScrolled] = useState(false);
+  const [editorAccordionValue, setEditorAccordionValue] = useState<string[]>(() =>
+    getDefaultUserEditorAccordionValue(false),
+  );
   useEditorScrollLock(isDialogOpen);
   useEditorScrollStability(isDialogOpen);
   const [editingUser, setEditingUser] = useState<UserRecord | null>(null);
@@ -566,10 +581,26 @@ const DashboardUsers = () => {
         roles: normalizedRoles ? [...normalizedRoles] : [],
       });
       setOwnerToggle(isOwnerUser(user));
+      setEditorAccordionValue(
+        getDefaultUserEditorAccordionValue(Boolean(currentUser && user.id === currentUser.id)),
+      );
+      setIsEditorDialogScrolled(false);
       clearSocialDragState();
       setIsDialogOpen(true);
     },
-    [clearSocialDragState, isOwnerUser, resolveUserAccessRole],
+    [clearSocialDragState, currentUser, isOwnerUser, resolveUserAccessRole],
+  );
+  const handleEditorOpenChange = useCallback(
+    (nextOpen: boolean) => {
+      if (!nextOpen && isLibraryOpen) {
+        return;
+      }
+      setIsDialogOpen(nextOpen);
+      if (!nextOpen) {
+        setIsEditorDialogScrolled(false);
+      }
+    },
+    [isLibraryOpen],
   );
 
   const activeUsers = useMemo(
@@ -678,6 +709,8 @@ const DashboardUsers = () => {
     setFormState({ ...createEmptyForm(), accessRole: "normal", permissions: [] });
     setOwnerToggle(false);
     clearSocialDragState();
+    setEditorAccordionValue(getDefaultUserEditorAccordionValue(false));
+    setIsEditorDialogScrolled(false);
     setIsDialogOpen(true);
     const nextParams = new URLSearchParams(searchParams);
     nextParams.delete("create");
@@ -685,6 +718,12 @@ const DashboardUsers = () => {
       setSearchParams(nextParams, { replace: true });
     }
   }, [canCreateUsers, clearSocialDragState, isDialogOpen, searchParams, setSearchParams]);
+
+  useEffect(() => {
+    if (!isDialogOpen) {
+      setIsEditorDialogScrolled(false);
+    }
+  }, [isDialogOpen]);
 
   useEffect(() => {
     if (!showSelfSecuritySection || !editingUser?.id) {
@@ -935,6 +974,8 @@ const DashboardUsers = () => {
     setFormState({ ...createEmptyForm(), accessRole: "normal", permissions: [] });
     setOwnerToggle(false);
     clearSocialDragState();
+    setEditorAccordionValue(getDefaultUserEditorAccordionValue(false));
+    setIsEditorDialogScrolled(false);
     setIsDialogOpen(true);
   };
 
@@ -1311,6 +1352,24 @@ const DashboardUsers = () => {
     setDragUsersSnapshot(null);
   };
 
+  const editorSectionClassName =
+    "project-editor-section rounded-2xl border border-border/60 bg-card/70 px-4";
+  const editorSectionTriggerClassName =
+    "project-editor-section-trigger py-3 text-sm font-semibold hover:no-underline";
+  const editorSectionContentClassName = "project-editor-section-content pb-4 px-1";
+  const editorUserLabel = editingUser ? "Usuário em edição" : "Novo usuário";
+  const editorUserTitle = formState.name.trim() || "Sem nome";
+  const editorUserId = formState.id.trim() || "Será definido ao salvar";
+  const editorAccessRoleLabel = ownerToggle || isOwnerRecord
+    ? "Dono"
+    : formState.accessRole === "admin"
+      ? "Admin"
+      : "Normal";
+  const editorStatusLabel = formState.status === "active" ? "Ativo" : "Aposentado";
+  const editorDialogDescription = editingUser
+    ? "Atualize as informações e permissões do usuário."
+    : "Cadastre um novo usuário autorizado.";
+
   return (
     <>
       <DashboardShell
@@ -1659,26 +1718,103 @@ const DashboardUsers = () => {
         />
       </Suspense>
 
-      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+      {isDialogOpen ? (
+        <div
+          className="pointer-events-auto fixed inset-0 z-40 bg-black/80 backdrop-blur-xs"
+          aria-hidden="true"
+        />
+      ) : null}
+
+      <Dialog open={isDialogOpen} onOpenChange={handleEditorOpenChange} modal={false}>
         <DialogContent
-          className="w-[92vw] max-h-[90vh] max-w-xl overflow-y-auto"
-          overlayClassName="backdrop-blur-xs"
+          className={`project-editor-dialog max-h-[94vh] max-w-[min(1520px,calc(100vw-1rem))] overflow-y-auto no-scrollbar p-0 ${
+            isEditorDialogScrolled ? "editor-modal-scrolled" : ""
+          }`}
+          onScroll={(event) => {
+            const nextScrolled = event.currentTarget.scrollTop > 0;
+            setIsEditorDialogScrolled((prev) => (prev === nextScrolled ? prev : nextScrolled));
+          }}
+          onPointerDownOutside={(event) => {
+            if (isLibraryOpen) {
+              event.preventDefault();
+            }
+          }}
+          onInteractOutside={(event) => {
+            if (isLibraryOpen) {
+              event.preventDefault();
+            }
+          }}
         >
-          <DialogHeader>
-            <DialogTitle>{editingUser ? "Editar usuário" : "Adicionar usuário"}</DialogTitle>
-            <DialogDescription>
-              {editingUser
-                ? "Atualize as informações e permissões do usuário."
-                : "Cadastre um novo usuário autorizado."}
-            </DialogDescription>
-          </DialogHeader>
-          {basicProfileOnlyEdit && (
-            <div className="rounded-2xl border border-border/60 bg-card/60 px-4 py-3 text-xs text-muted-foreground">
-              Você só pode alterar informações básicas deste usuário.
+          <div className="project-editor-top sticky top-0 z-20 border-b border-border/60 bg-background/95 backdrop-blur-sm supports-backdrop-filter:bg-background/80">
+            <DialogHeader className="space-y-0 px-4 pb-4 pt-5 text-left md:px-6 lg:px-8">
+              <div className="flex flex-wrap items-start justify-between gap-4">
+                <div className="space-y-2">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Badge variant="secondary" className="text-[10px] uppercase tracking-[0.12em]">
+                      {editorUserLabel}
+                    </Badge>
+                    {ownerToggle || isOwnerRecord ? (
+                      <Badge variant="outline" className="text-[10px] uppercase tracking-[0.12em]">
+                        Dono
+                      </Badge>
+                    ) : null}
+                  </div>
+                  <DialogTitle className="text-xl md:text-2xl">
+                    {editingUser ? "Editar usuário" : "Adicionar usuário"}
+                  </DialogTitle>
+                  <DialogDescription className="max-w-2xl text-xs md:text-sm">
+                    {editorDialogDescription}
+                  </DialogDescription>
+                </div>
+                <div className="rounded-xl border border-border/60 bg-card/65 px-3 py-2 text-right">
+                  <p className="text-[11px] uppercase tracking-[0.12em] text-muted-foreground">
+                    Usuário
+                  </p>
+                  <p className="max-w-[240px] truncate text-sm font-medium text-foreground">
+                    {editorUserTitle}
+                  </p>
+                </div>
+              </div>
+            </DialogHeader>
+            <div className="project-editor-status-bar flex flex-wrap items-center gap-2 border-t border-border/60 px-4 py-3 md:px-6 lg:px-8">
+              <Badge variant="outline" className="text-[10px] uppercase tracking-[0.12em]">
+                ID {editorUserId}
+              </Badge>
+              <Badge variant="secondary" className="text-[10px] uppercase tracking-[0.12em]">
+                {editorAccessRoleLabel}
+              </Badge>
+              <Badge variant="secondary" className="text-[10px] uppercase tracking-[0.12em]">
+                {editorStatusLabel}
+              </Badge>
+              <span className="text-[11px] text-muted-foreground">{formState.socials.length} redes</span>
+              <span className="text-[11px] text-muted-foreground">
+                {stripOwnerRole(formState.roles).length} funções
+              </span>
             </div>
-          )}
-          <div className="grid gap-4">
-            <div className="grid gap-2">
+          </div>
+
+          <div className="project-editor-layout grid gap-5 px-4 pb-6 pt-4 md:gap-6 md:px-6 md:pb-7 lg:gap-7 lg:px-8">
+            {basicProfileOnlyEdit ? (
+              <div className="rounded-2xl border border-border/60 bg-card/60 px-4 py-3 text-xs text-muted-foreground">
+                Você só pode alterar informações básicas deste usuário.
+              </div>
+            ) : null}
+            <Accordion
+              type="multiple"
+              value={editorAccordionValue}
+              onValueChange={setEditorAccordionValue}
+              className="project-editor-accordion space-y-3"
+            >
+              <AccordionItem value="dados-principais" className={editorSectionClassName}>
+                <AccordionTrigger className={editorSectionTriggerClassName}>
+                  <div className="flex w-full items-center justify-between gap-4 text-left">
+                    <span>Dados principais</span>
+                    <span className="text-xs text-muted-foreground">{editorUserTitle}</span>
+                  </div>
+                </AccordionTrigger>
+                <AccordionContent className={editorSectionContentClassName}>
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div className="grid gap-2">
               <Label htmlFor="user-id">ID do Discord</Label>
               <Input
                 id="user-id"
@@ -1712,7 +1848,7 @@ const DashboardUsers = () => {
                 disabled={!canEditBasicFields}
               />
             </div>
-            <div className="grid gap-2">
+            <div className="grid gap-2 md:col-span-2">
               <Label htmlFor="user-bio">Bio</Label>
               <Textarea
                 id="user-bio"
@@ -1723,7 +1859,22 @@ const DashboardUsers = () => {
                 disabled={!canEditBasicFields}
               />
             </div>
-            <div className="grid gap-3">
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
+
+              <AccordionItem value="perfil-publico" className={editorSectionClassName}>
+                <AccordionTrigger className={editorSectionTriggerClassName}>
+                  <div className="flex w-full items-center justify-between gap-4 text-left">
+                    <span>Perfil público</span>
+                    <span className="text-xs text-muted-foreground">
+                      {formState.socials.length} redes • avatar e obras
+                    </span>
+                  </div>
+                </AccordionTrigger>
+                <AccordionContent className={editorSectionContentClassName}>
+                  <div className="grid gap-4">
+                    <div className="grid gap-3">
               <Label>Obras favoritas (até 3 por categoria)</Label>
               <div className="grid gap-4 md:grid-cols-2">
                 {FAVORITE_WORK_CATEGORIES.map((category) => {
@@ -1957,9 +2108,23 @@ const DashboardUsers = () => {
                   Adicionar link
                 </Button>
               </div>
-            </div>
-            {showSelfSecuritySection ? (
-              <div className="grid gap-3 rounded-2xl border border-border/60 bg-card/60 p-4">
+                    </div>
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
+
+              {showSelfSecuritySection ? (
+                <AccordionItem value="seguranca" className={editorSectionClassName}>
+                  <AccordionTrigger className={editorSectionTriggerClassName}>
+                    <div className="flex w-full items-center justify-between gap-4 text-left">
+                      <span>Segurança</span>
+                      <span className="text-xs text-muted-foreground">
+                        2FA {securitySummary?.totpEnabled ? "ativo" : "inativo"}
+                      </span>
+                    </div>
+                  </AccordionTrigger>
+                  <AccordionContent className={editorSectionContentClassName}>
+                    <div className="grid gap-3 rounded-2xl border border-border/60 bg-card/60 p-4">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div className="space-y-1">
                     <Label className="text-sm font-medium">Segurança da conta</Label>
@@ -2204,8 +2369,21 @@ const DashboardUsers = () => {
                     </div>
                   )}
                 </div>
-              </div>
-            ) : null}
+                    </div>
+                  </AccordionContent>
+                </AccordionItem>
+              ) : null}
+              <AccordionItem value="acesso-permissoes" className={editorSectionClassName}>
+                <AccordionTrigger className={editorSectionTriggerClassName}>
+                  <div className="flex w-full items-center justify-between gap-4 text-left">
+                    <span>Acesso e permissões</span>
+                    <span className="text-xs text-muted-foreground">
+                      {editorAccessRoleLabel} • {stripOwnerRole(formState.roles).length} funções
+                    </span>
+                  </div>
+                </AccordionTrigger>
+                <AccordionContent className={editorSectionContentClassName}>
+                  <div className="grid gap-4">
             <div className="grid gap-2">
               <Label>Funções</Label>
               {!canEditRoles && (
@@ -2357,7 +2535,12 @@ const DashboardUsers = () => {
                 />
               </div>
             </div>
-            <div className="flex justify-end gap-3">
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
+            </Accordion>
+          </div>
+          <div className="project-editor-footer sticky bottom-0 z-20 flex justify-end gap-3 border-t border-border/60 bg-background/95 px-4 py-3 backdrop-blur-sm supports-backdrop-filter:bg-background/80 md:px-6 md:py-4 lg:px-8">
               {editingUser ? (
                 <Button
                   variant="destructive"
@@ -2372,7 +2555,7 @@ const DashboardUsers = () => {
                   Excluir
                 </Button>
               ) : null}
-              <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
+              <Button variant="outline" onClick={() => handleEditorOpenChange(false)}>
                 Cancelar
               </Button>
               <Button
@@ -2382,7 +2565,6 @@ const DashboardUsers = () => {
                 Salvar
               </Button>
             </div>
-          </div>
         </DialogContent>
       </Dialog>
       <Dialog

@@ -68,7 +68,8 @@ const LatestEpisodeCard = () => {
 
   return (
     <Card
-      className="bg-card border-border overflow-hidden reveal transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:bg-card/90 hover:shadow-lg"
+      lift={false}
+      className="bg-card border-border overflow-hidden reveal transition-all duration-300 hover:border-primary/40 hover:bg-card/90 hover:shadow-lg"
       data-reveal
     >
       <CardHeader className="px-4 pb-3 pt-4">
@@ -108,7 +109,7 @@ const LatestEpisodeCard = () => {
                 (a, b) =>
                   new Date(b.updatedAt || 0).getTime() - new Date(a.updatedAt || 0).getTime(),
               )
-              .slice(0, 5)
+              .slice(0, 4)
               .map((update) => {
                 const typeLabel = (projectTypes[update.projectId] || "").toLowerCase();
                 const hasChapterHint =
@@ -148,7 +149,7 @@ const LatestEpisodeCard = () => {
                     key={update.id}
                     to={`/projeto/${update.projectId}`}
                     style={{ "--card-h": "164px", "--card-pad": "16px" } as CSSProperties}
-                    className="recent-updates-item group relative block h-(--card-h) rounded-2xl bg-linear-to-br from-background/70 via-background/40 to-background/70 hover:-translate-y-1 reveal"
+                    className="recent-updates-item group relative block h-(--card-h) overflow-hidden rounded-2xl bg-linear-to-br from-background/70 via-background/40 to-background/70 hover:-translate-y-1 reveal"
                     data-reveal
                   >
                     <div className="absolute inset-(--card-pad) flex items-start gap-4">
@@ -166,19 +167,19 @@ const LatestEpisodeCard = () => {
                           imgClassName="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
                         />
                       </div>
-                      <div className="flex min-w-0 flex-1 flex-col gap-3 h-full">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <Badge variant="secondary" className="text-[10px]">
+                      <div className="flex h-full min-w-0 flex-1 flex-col gap-3">
+                        <div className="no-scrollbar flex min-w-0 flex-nowrap items-center gap-2 overflow-x-auto md:flex-wrap md:overflow-visible">
+                          <Badge variant="secondary" className="hidden shrink-0 text-[10px] md:inline-flex">
                             {isExtraUnit ? "Extra" : `${unitShort} ${update.episodeNumber}`}
                           </Badge>
                           {update.volume ? (
-                            <Badge variant="outline" className="text-[10px]">
+                            <Badge variant="outline" className="hidden shrink-0 text-[10px] md:inline-flex">
                               Vol. {update.volume}
                             </Badge>
                           ) : null}
                           <Badge
                             variant="outline"
-                            className={`text-[10px] ${
+                            className={`shrink-0 text-[10px] ${
                               kindLabel === "Lançamento"
                                 ? "border-primary/50 text-primary"
                                 : kindLabel === "Ajuste"
@@ -193,7 +194,7 @@ const LatestEpisodeCard = () => {
                           <h4 className="text-sm font-semibold text-foreground transition-colors group-hover:text-primary line-clamp-2">
                             {update.projectTitle}
                           </h4>
-                          <p className="text-xs text-muted-foreground leading-relaxed line-clamp-2">
+                          <p className="line-clamp-1 text-xs leading-relaxed text-muted-foreground md:line-clamp-2">
                             {reason}
                           </p>
                         </div>

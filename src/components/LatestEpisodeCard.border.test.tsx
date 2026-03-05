@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -95,6 +95,13 @@ describe("LatestEpisodeCard border styles", () => {
 
     await screen.findByRole("heading", { name: /Atualiza/i });
 
+    const cardRoot = screen
+      .getByRole("heading", { name: /Atualiza/i })
+      .closest<HTMLElement>("[data-reveal]");
+    expect(cardRoot).not.toBeNull();
+    expect(cardRoot).not.toHaveClass("hover:-translate-y-1");
+    expect(cardRoot).not.toHaveClass("lift-hover");
+
     const updateLinks = screen.getAllByRole("link");
     expect(updateLinks).toHaveLength(2);
     expect(screen.getByText("Vol. 4")).toBeInTheDocument();
@@ -103,9 +110,37 @@ describe("LatestEpisodeCard border styles", () => {
 
     updateLinks.forEach((link) => {
       expect(link).toHaveClass("recent-updates-item");
+      expect(link).toHaveClass("overflow-hidden");
+      expect(link).toHaveClass("hover:-translate-y-1");
       expect(link).not.toHaveClass("border-border/60");
       expect(link).not.toHaveClass("hover:border-primary/40");
     });
+
+    const firstUpdateLink = updateLinks[0];
+    const badgesRow = firstUpdateLink.querySelector("div.no-scrollbar");
+    expect(badgesRow).not.toBeNull();
+    expect(badgesRow).toHaveClass("flex-nowrap");
+    expect(badgesRow).toHaveClass("overflow-x-auto");
+    expect(badgesRow).toHaveClass("md:flex-wrap");
+
+    const unitBadge = within(firstUpdateLink).getByText("Cap 12");
+    const volumeBadge = within(firstUpdateLink).getByText("Vol. 4");
+    const kindBadge = within(firstUpdateLink).getByText(/lan/i);
+    expect(unitBadge).toHaveClass("hidden");
+    expect(unitBadge).toHaveClass("md:inline-flex");
+    expect(volumeBadge).toHaveClass("hidden");
+    expect(volumeBadge).toHaveClass("md:inline-flex");
+    expect(kindBadge).not.toHaveClass("hidden");
+
+    const badges = Array.from(badgesRow?.children ?? []);
+    expect(badges.length).toBeGreaterThan(0);
+    badges.forEach((badge) => {
+      expect(badge).toHaveClass("shrink-0");
+    });
+
+    const reason = screen.getByText(/capítulo novo/i);
+    expect(reason).toHaveClass("line-clamp-1");
+    expect(reason).toHaveClass("md:line-clamp-2");
 
     expect(container.querySelector(".soft-divider")).toBeNull();
   });
@@ -141,5 +176,64 @@ describe("LatestEpisodeCard border styles", () => {
     expect(coverWrapper).toHaveClass("h-full");
     expect(coverWrapper).not.toHaveClass("aspect-46/65");
     expect(coverWrapper?.style.aspectRatio).toBe("9 / 14");
+  });
+
+  it("oculta badges de unidade e volume no mobile mesmo para unidade Extra", async () => {
+    usePublicBootstrapMock.mockReturnValue({
+      isLoading: false,
+      data: {
+        projects: [
+          {
+            id: "project-extra",
+            type: "Manga",
+          },
+        ],
+        updates: [
+          {
+            id: "update-extra",
+            projectId: "project-extra",
+            projectTitle: "Projeto Extra",
+            episodeNumber: 0,
+            volume: 18,
+            kind: "Lancamento",
+            reason: "extra disponivel",
+            updatedAt: "2026-02-12T12:00:00.000Z",
+            image: "/uploads/extra.jpg",
+            unit: "Extra",
+          },
+        ],
+        mediaVariants: {
+          "/uploads/extra.jpg": {
+            variantsVersion: 1,
+            variants: {
+              posterThumb: {
+                formats: {
+                  avif: { url: "/uploads/_variants/ue/posterThumb-v1.avif" },
+                  webp: { url: "/uploads/_variants/ue/posterThumb-v1.webp" },
+                  fallback: { url: "/uploads/_variants/ue/posterThumb-v1.jpeg" },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    render(
+      <MemoryRouter>
+        <LatestEpisodeCard />
+      </MemoryRouter>,
+    );
+
+    const updateLink = (await screen.findAllByRole("link"))[0];
+    const unitBadge = within(updateLink).getByText("Extra");
+    const volumeBadge = within(updateLink).getByText("Vol. 18");
+    const kindBadge = within(updateLink).getByText(/lan/i);
+
+    expect(unitBadge).toHaveClass("hidden");
+    expect(unitBadge).toHaveClass("md:inline-flex");
+    expect(volumeBadge).toHaveClass("hidden");
+    expect(volumeBadge).toHaveClass("md:inline-flex");
+    expect(kindBadge).not.toHaveClass("hidden");
   });
 });

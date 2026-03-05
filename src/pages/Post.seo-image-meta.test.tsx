@@ -50,6 +50,10 @@ vi.mock("@/components/WorkStatusCard", () => ({
   default: () => null,
 }));
 
+vi.mock("@/components/TopProjectsSection", () => ({
+  default: () => null,
+}));
+
 vi.mock("@/components/ProjectEmbedCard", () => ({
   default: () => null,
 }));

@@ -44,12 +44,21 @@ describe("DiscordInviteCard", () => {
     });
 
     render(<DiscordInviteCard />);
+    const cardRoot = screen
+      .getByRole("heading", { name: "Entre na comunidade" })
+      .closest<HTMLElement>("[data-reveal]");
 
     expect(screen.getByText("Entre na comunidade")).toBeInTheDocument();
+    expect(cardRoot).not.toBeNull();
+    expect(cardRoot).not.toHaveClass("lift-hover");
     expect(screen.getByText("Fale com a equipe em tempo real.")).toBeInTheDocument();
     expect(screen.getByText("Servidor oficial")).toBeInTheDocument();
     expect(screen.getByText("Atualizacoes, avisos e bate-papo com os membros.")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Entrar agora" })).toBeInTheDocument();
+    const panelDescription = screen.getByText("Atualizacoes, avisos e bate-papo com os membros.");
+    const panel = panelDescription.closest("div.group\\/panel");
+    expect(panel).not.toBeNull();
+    expect(panel).toHaveClass("hover:-translate-y-1");
   });
 
   it("usa a ctaUrl configurada quando preenchida", () => {

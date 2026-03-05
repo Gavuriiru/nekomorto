@@ -5,6 +5,7 @@ import { CalendarDays, Clock, User } from "lucide-react";
 import DiscordInviteCard from "@/components/DiscordInviteCard";
 import LatestEpisodeCard from "@/components/LatestEpisodeCard";
 import WorkStatusCard from "@/components/WorkStatusCard";
+import TopProjectsSection from "@/components/TopProjectsSection";
 import ProjectEmbedCard from "@/components/ProjectEmbedCard";
 import CommentsSection from "@/components/CommentsSection";
 import UploadPicture from "@/components/UploadPicture";
@@ -186,6 +187,7 @@ const Post = () => {
 
   const heroCoverSrc = post?.coverImageUrl || post?.seoImageUrl || "/placeholder.svg";
   const heroCoverAlt = post?.coverAlt || `Capa do post: ${post?.title || ""}`;
+  const readerDesktopCols = "lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]";
 
   return (
     <div className="min-h-screen bg-background">
@@ -269,9 +271,9 @@ const Post = () => {
 
             <section
               data-testid="post-reader-cover-bridge"
-              className={`${publicPageLayoutTokens.sectionBase} relative z-20 -mt-24 hidden max-w-6xl md:block md:-mt-28`}
+              className={`${publicPageLayoutTokens.sectionBase} ${readerDesktopCols} relative z-10 hidden max-w-6xl md:block lg:grid lg:gap-8`}
             >
-              <div data-testid="post-reader-cover-shell" className="w-full">
+              <div data-testid="post-reader-cover-shell" className="w-full lg:col-start-1">
                 <div
                   data-testid="post-reader-cover-frame"
                   className="relative aspect-3/2 overflow-hidden rounded-2xl border border-border/80 bg-card/40 shadow-[0_42px_120px_-48px_rgba(0,0,0,0.95)]"
@@ -292,15 +294,15 @@ const Post = () => {
             </section>
 
             <section
-              className={`${publicPageLayoutTokens.sectionBase} relative z-10 max-w-6xl pb-12 pt-4 md:pt-10`}
+              className={`${publicPageLayoutTokens.sectionBase} relative z-10 max-w-6xl pb-12 pt-6 md:pt-10`}
             >
               <section
                 data-testid="post-reader-layout"
-                className="grid gap-8 lg:grid-cols-[minmax(0,1.75fr)_minmax(280px,1fr)]"
+                className={`grid gap-8 ${readerDesktopCols}`}
               >
                 <article data-testid="post-reader-main" className="min-w-0 space-y-8">
                   <Card className="border-border/60 bg-card/85 shadow-[0_20px_60px_-40px_rgba(0,0,0,0.75)]">
-                    <CardContent className="min-w-0 space-y-7 p-6 text-sm leading-relaxed text-muted-foreground md:p-8">
+                    <CardContent className="min-w-0 space-y-7 p-6 text-sm leading-relaxed text-muted-foreground">
                       <Suspense fallback={<LexicalViewerFallback />}>
                         <LexicalViewer
                           value={post.content || ""}
@@ -322,6 +324,7 @@ const Post = () => {
                 >
                   <LatestEpisodeCard />
                   <WorkStatusCard />
+                  <TopProjectsSection />
                   <DiscordInviteCard />
                 </aside>
               </section>

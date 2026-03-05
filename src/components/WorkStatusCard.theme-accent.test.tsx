@@ -65,10 +65,18 @@ describe("WorkStatusCard accent mode", () => {
         <WorkStatusCard />
       </MemoryRouter>,
     );
+    const cardRoot = screen
+      .getByRole("heading", { name: "Em Progresso" })
+      .closest<HTMLElement>("[data-reveal]");
+    expect(cardRoot).not.toBeNull();
+    expect(cardRoot).not.toHaveClass("lift-hover");
 
     const badge = await screen.findByText("Timing");
     expect(badge).toHaveClass("bg-pink-500/20", "text-pink-400", "border-pink-500/30");
     expect(badge).not.toHaveClass("bg-primary");
+    const progressLink = badge.closest("a");
+    expect(progressLink).not.toBeNull();
+    expect(progressLink).toHaveClass("hover:-translate-y-1");
 
     const indicator = container.querySelector(".bg-pink-500");
     expect(indicator).not.toBeNull();
@@ -88,10 +96,18 @@ describe("WorkStatusCard accent mode", () => {
         <WorkStatusCard />
       </MemoryRouter>,
     );
+    const cardRoot = screen
+      .getByRole("heading", { name: "Em Progresso" })
+      .closest<HTMLElement>("[data-reveal]");
+    expect(cardRoot).not.toBeNull();
+    expect(cardRoot).not.toHaveClass("lift-hover");
 
     const badge = await screen.findByText("Timing");
     expect(badge).toHaveClass("bg-primary", "text-primary-foreground", "border-primary/80");
     expect(badge).not.toHaveClass("bg-pink-500/20");
+    const progressLink = badge.closest("a");
+    expect(progressLink).not.toBeNull();
+    expect(progressLink).toHaveClass("hover:-translate-y-1");
 
     const indicator = container.querySelector(".bg-primary");
     expect(indicator).not.toBeNull();

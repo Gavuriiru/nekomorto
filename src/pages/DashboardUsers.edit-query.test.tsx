@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter, useLocation } from "react-router-dom";
 import { describe, expect, it, vi } from "vitest";
 
@@ -107,7 +107,8 @@ describe("DashboardUsers edit query", () => {
     );
 
     await screen.findByRole("heading", { name: /gest.o de usu.rios/i });
-    await screen.findByText(/novo usu.rio/i);
+    await screen.findByRole("heading", { name: /adicionar usu.rio/i });
+    expect(document.querySelector(".project-editor-dialog")).not.toBeNull();
     await waitFor(() => {
       expect(screen.getByTestId("location-search").textContent).toBe("");
     });
@@ -143,5 +144,44 @@ describe("DashboardUsers edit query", () => {
     expect(document.documentElement).not.toHaveClass("editor-scroll-locked");
     expect(document.body).not.toHaveClass("editor-scroll-locked");
     expect(document.body.getAttribute("data-editor-scroll-lock-count")).toBeNull();
+  });
+
+  it("controla classe editor-modal-scrolled no dialog ao rolar e fechar", async () => {
+    setupApiMock();
+
+    render(
+      <MemoryRouter initialEntries={["/dashboard/usuarios?edit=me"]}>
+        <DashboardUsers />
+        <LocationProbe />
+      </MemoryRouter>,
+    );
+
+    await screen.findByRole("heading", { name: /gest.o de usu.rios/i });
+    await screen.findByRole("heading", { name: /editar usu.rio/i });
+    await waitFor(() => {
+      expect(screen.getByTestId("location-search").textContent).toBe("");
+    });
+
+    const editorDialog = document.querySelector(".project-editor-dialog") as HTMLElement | null;
+    expect(editorDialog).not.toBeNull();
+    expect(editorDialog).not.toHaveClass("editor-modal-scrolled");
+
+    if (!editorDialog) {
+      throw new Error("Editor dialog not found");
+    }
+
+    editorDialog.scrollTop = 24;
+    fireEvent.scroll(editorDialog);
+
+    await waitFor(() => {
+      expect(editorDialog).toHaveClass("editor-modal-scrolled");
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Cancelar" }));
+
+    await waitFor(() => {
+      expect(screen.queryByRole("heading", { name: /editar usu.rio/i })).not.toBeInTheDocument();
+    });
+    expect(document.querySelector(".project-editor-dialog.editor-modal-scrolled")).toBeNull();
   });
 });

@@ -4,10 +4,15 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import TopProjectsSection from "@/components/TopProjectsSection";
 
 const usePublicBootstrapMock = vi.hoisted(() => vi.fn());
+const useDynamicSynopsisClampMock = vi.hoisted(() => vi.fn());
 const originalScrollIntoView = window.HTMLElement.prototype.scrollIntoView;
 
 vi.mock("@/hooks/use-public-bootstrap", () => ({
   usePublicBootstrap: () => usePublicBootstrapMock(),
+}));
+
+vi.mock("@/hooks/use-dynamic-synopsis-clamp", () => ({
+  useDynamicSynopsisClamp: (...args: unknown[]) => useDynamicSynopsisClampMock(...args),
 }));
 
 vi.mock("@/components/UploadPicture", () => ({
@@ -70,6 +75,11 @@ const getUtcDayKeyFromOffset = (offsetDays: number) => {
 describe("TopProjectsSection", () => {
   beforeEach(() => {
     usePublicBootstrapMock.mockReset();
+    useDynamicSynopsisClampMock.mockReset();
+    useDynamicSynopsisClampMock.mockReturnValue({
+      rootRef: { current: null },
+      lineByKey: {},
+    });
     Object.defineProperty(window.HTMLElement.prototype, "scrollIntoView", {
       configurable: true,
       value: vi.fn(),
@@ -83,7 +93,7 @@ describe("TopProjectsSection", () => {
     });
   });
 
-  it("ordena por views acumuladas por padrao, limita em top 10 e exibe ranking + contagem", () => {
+  it("ordena por views acumuladas por padrao, limita top 10 e exibe ranking/metricas discretas", async () => {
     const projects = Array.from({ length: 12 }, (_, index) =>
       createProject({
         id: `project-${index + 1}`,
@@ -99,6 +109,13 @@ describe("TopProjectsSection", () => {
         mediaVariants: {},
       },
     });
+    useDynamicSynopsisClampMock.mockReturnValue({
+      rootRef: { current: null },
+      lineByKey: {
+        "project-12": 1,
+        "project-11": 3,
+      },
+    });
 
     render(
       <MemoryRouter>
@@ -107,16 +124,47 @@ describe("TopProjectsSection", () => {
     );
 
     const headings = screen.getAllByRole("heading", { level: 3, name: /Projeto /i });
+    const cardRoot = screen
+      .getByRole("heading", { name: "Projetos Populares" })
+      .closest<HTMLElement>("[data-reveal]");
     expect(headings).toHaveLength(10);
+    expect(cardRoot).not.toBeNull();
+    expect(cardRoot).not.toHaveClass("lift-hover");
     expect(headings[0]).toHaveTextContent("Projeto 12");
     expect(screen.queryByRole("heading", { level: 3, name: "Projeto 01" })).not.toBeInTheDocument();
     expect(screen.queryByRole("heading", { level: 3, name: "Projeto 02" })).not.toBeInTheDocument();
-    expect(screen.getByText("#1")).toBeInTheDocument();
-    expect(screen.queryByText(/views acumuladas/i)).not.toBeInTheDocument();
-    expect(screen.queryByText(/views nos/i)).not.toBeInTheDocument();
-    expect(screen.queryByText(/^views$/i)).not.toBeInTheDocument();
+    expect(screen.queryByText("#1")).not.toBeInTheDocument();
+    const firstMetaRow = screen.getByTestId("top-project-item-1-meta-row");
+    const firstType = screen.getByTestId("top-project-item-1-type");
+    const firstRank = screen.getByTestId("top-project-item-1-rank");
+    const firstMetric = screen.getByTestId("top-project-item-1-metric");
+    expect(firstType).toHaveTextContent("Anime");
+    expect(firstMetaRow).toContainElement(firstType);
+    expect(firstMetaRow).toContainElement(firstRank);
+    expect(firstMetaRow).toContainElement(firstMetric);
+    expect(screen.getByTestId("top-project-item-1-rank")).toHaveTextContent("1");
     expect(screen.getByTestId("top-project-item-1-metric")).toHaveTextContent("120");
+    expect(screen.queryByText(/views acumuladas/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/views nos.*30 dias/i)).not.toBeInTheDocument();
+    expect(screen.queryByText("Em andamento")).not.toBeInTheDocument();
     expect(screen.getByTestId("top-projects-mode-trigger")).toHaveTextContent(/sempre/i);
+
+    fireEvent.click(
+      screen.getByRole("combobox", {
+        name: /ordenar top 10 por visualiza/i,
+      }),
+    );
+    expect(await screen.findByRole("option", { name: /^sempre$/i })).toBeInTheDocument();
+    expect(await screen.findByRole("option", { name: /^7d$/i })).toBeInTheDocument();
+    expect(await screen.findByRole("option", { name: /^30d$/i })).toBeInTheDocument();
+
+    const synopsisFirst = screen.getByText("Projeto 12 synopsis");
+    const synopsisSecond = screen.getByText("Projeto 11 synopsis");
+    const synopsisThird = screen.getByText("Projeto 10 synopsis");
+    expect(synopsisFirst).toHaveClass("line-clamp-1");
+    expect(synopsisSecond).toHaveClass("line-clamp-3");
+    expect(synopsisThird).toHaveClass("line-clamp-2");
+
     const list = screen.getByTestId("top-projects-list");
     expect(list).toHaveClass(
       "no-scrollbar",
@@ -129,12 +177,14 @@ describe("TopProjectsSection", () => {
     expect(String(list.getAttribute("style") || "")).toContain("--top-gap: 12px");
     const firstItem = screen.getByTestId("top-project-item-1");
     expect(firstItem).toHaveClass("h-(--top-card-h)", "rounded-2xl");
+    expect(firstItem).toHaveClass("hover:-translate-y-1");
     const firstLink = headings[0].closest("a");
     expect(firstLink).toHaveClass("rounded-2xl");
   });
 
-  it("permite alternar para ranking dos ultimos 30 dias via dropdown", async () => {
+  it("permite alternar para ranking 7d e 30d via dropdown", async () => {
     const todayKey = getUtcDayKeyFromOffset(0);
+    const tenDaysAgo = getUtcDayKeyFromOffset(10);
     const oldKey = getUtcDayKeyFromOffset(40);
 
     usePublicBootstrapMock.mockReturnValue({
@@ -162,7 +212,8 @@ describe("TopProjectsSection", () => {
             title: "Projeto Gama",
             views: 300,
             viewsDaily: {
-              [oldKey]: 60,
+              [tenDaysAgo]: 80,
+              [oldKey]: 200,
             },
           }),
         ],
@@ -176,8 +227,9 @@ describe("TopProjectsSection", () => {
       </MemoryRouter>,
     );
 
-    const initialHeadings = screen.getAllByRole("heading", { level: 3, name: /Projeto /i });
-    expect(initialHeadings[0]).toHaveTextContent("Projeto Alfa");
+    expect(screen.getAllByRole("heading", { level: 3, name: /Projeto /i })[0]).toHaveTextContent(
+      "Projeto Alfa",
+    );
     expect(screen.getByTestId("top-project-item-1-metric")).toHaveTextContent("500");
 
     fireEvent.click(
@@ -185,12 +237,25 @@ describe("TopProjectsSection", () => {
         name: /ordenar top 10 por visualiza/i,
       }),
     );
-    expect(await screen.findByRole("option", { name: /^sempre$/i })).toBeInTheDocument();
+    fireEvent.click(await screen.findByRole("option", { name: /^7d$/i }));
+
+    expect(screen.getAllByRole("heading", { level: 3, name: /Projeto /i })[0]).toHaveTextContent(
+      "Projeto Beta",
+    );
+    expect(screen.getByTestId("top-project-item-1-metric")).toHaveTextContent("40");
+    expect(screen.getByTestId("top-projects-mode-trigger")).toHaveTextContent("7d");
+
+    fireEvent.click(
+      screen.getByRole("combobox", {
+        name: /ordenar top 10 por visualiza/i,
+      }),
+    );
     fireEvent.click(await screen.findByRole("option", { name: /^30d$/i }));
 
-    const headingsAfterSwitch = screen.getAllByRole("heading", { level: 3, name: /Projeto /i });
-    expect(headingsAfterSwitch[0]).toHaveTextContent("Projeto Beta");
-    expect(screen.getByTestId("top-project-item-1-metric")).toHaveTextContent("40");
+    expect(screen.getAllByRole("heading", { level: 3, name: /Projeto /i })[0]).toHaveTextContent(
+      "Projeto Gama",
+    );
+    expect(screen.getByTestId("top-project-item-1-metric")).toHaveTextContent("80");
     expect(screen.getByTestId("top-projects-mode-trigger")).toHaveTextContent("30d");
   });
 
@@ -209,6 +274,6 @@ describe("TopProjectsSection", () => {
       </MemoryRouter>,
     );
 
-    expect(screen.getByText(/Sem dados de visualiza/i)).toBeInTheDocument();
+    expect(screen.getByText(/sem dados de visualiza/i)).toBeInTheDocument();
   });
 });
