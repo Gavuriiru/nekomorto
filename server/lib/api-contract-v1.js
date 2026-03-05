@@ -24,7 +24,7 @@ const CONTRACT_BASE = Object.freeze({
     "Endpoints de escrita aceitam Idempotency-Key opcional para deduplicacao segura.",
     "Rate limit usa backend Redis quando configurado (fallback local em memoria).",
     "Fluxo MFA opcional usa pending_mfa; finalize em POST /api/auth/mfa/verify.",
-    "Endpoints publicos de conteudo expõem mediaVariants (mapa de URL para avif/webp/fallback).",
+    "Endpoints publicos de conteudo expoem mediaVariants com presets responsivos para srcset por largura (incluindo cardHomeXs/cardHomeSm/heroSm/heroMd/posterThumbSm), mantendo avif/webp/fallback.",
     "Endpoints de upload podem retornar variantsGenerated e variantGenerationError para observabilidade.",
   ],
   endpoints: [

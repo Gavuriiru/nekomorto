@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { MemoryRouter } from "react-router-dom";
 import { useReveal } from "@/hooks/use-reveal";
@@ -72,8 +72,14 @@ const RevealHarness = () => {
   );
 };
 
+const RevealLateMountHarness = () => {
+  useReveal();
+  return <div data-testid="reveal-late-mount-root" />;
+};
+
 describe("useReveal", () => {
   afterEach(() => {
+    vi.useRealTimers();
     window.matchMedia = originalMatchMedia;
     window.requestAnimationFrame = originalRequestAnimationFrame;
     Object.defineProperty(window, "IntersectionObserver", {
@@ -123,6 +129,45 @@ describe("useReveal", () => {
     });
 
     expect(observer.observe).not.toHaveBeenCalled();
+  });
+
+  it("revela elemento adicionado via MutationObserver mesmo sem interseccao", async () => {
+    setReducedMotion(false);
+    const observer = installIntersectionObserver();
+    vi.useFakeTimers();
+
+    render(
+      <MemoryRouter>
+        <RevealLateMountHarness />
+      </MemoryRouter>,
+    );
+
+    const lateElement = document.createElement("div");
+    lateElement.className = "reveal";
+    lateElement.setAttribute("data-reveal", "");
+    lateElement.setAttribute("data-testid", "reveal-late-target");
+
+    act(() => {
+      document.body.appendChild(lateElement);
+    });
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(observer.observe).toHaveBeenCalledWith(lateElement);
+    expect(lateElement).toHaveClass("reveal-hidden");
+    expect(lateElement).not.toHaveClass("reveal-visible");
+
+    act(() => {
+      vi.advanceTimersByTime(700);
+    });
+
+    expect(lateElement).toHaveClass("reveal-visible");
+    expect(lateElement).not.toHaveClass("reveal-hidden");
+    expect(observer.unobserve).toHaveBeenCalledWith(lateElement);
+
+    lateElement.remove();
   });
 
   it("mantem elemento visivel quando IntersectionObserver nao existe", async () => {

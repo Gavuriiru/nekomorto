@@ -105,7 +105,25 @@ describe("localizeProjectImageFields", () => {
     );
   });
 
-  it("mantem pasta legacy de episodios para projetos nao-LN", async () => {
+  it("usa pasta de capitulo para projetos manga/webtoon", async () => {
+    const project = {
+      ...buildBaseProject(),
+      type: "Manga",
+      episodeDownloads: [{ number: 7, volume: 3, coverImageUrl: "https://cdn.exemplo.com/episode.jpg" }],
+    };
+    const importer = createImporterMock();
+
+    const result = await localizeProjectImageFields({
+      project,
+      importRemoteImage: importer,
+    });
+
+    expect(result.project.episodeDownloads[0].coverImageUrl).toBe(
+      "/uploads/projects/project-1/capitulos/volume-3/capitulo-7/episode.jpg",
+    );
+  });
+
+  it("mantem pasta legacy de episodios para projetos nao-baseados em capitulo", async () => {
     const project = {
       ...buildBaseProject(),
       type: "Anime",

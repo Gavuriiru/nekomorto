@@ -306,7 +306,7 @@ describe("DashboardProjectsEditor edit query", () => {
     setupApiMock({ canManageProjects: true, projects: [chapterProjectFixture] });
 
     render(
-      <MemoryRouter initialEntries={["/dashboard/projetos?edit=project-ln-1&chapter=1&volume=1"]}>
+      <MemoryRouter initialEntries={["/dashboard/projetos?edit=project-ln-1&chapter=1&volume=2"]}>
         <DashboardProjectsEditor />
         <LocationProbe />
       </MemoryRouter>,
@@ -324,24 +324,23 @@ describe("DashboardProjectsEditor edit query", () => {
       return node as HTMLElement;
     });
 
-    const chaptersTrigger = within(editorDialog).queryByRole("button", { name: /Conte.do.*cap.tulos/i });
-    if (chaptersTrigger && chaptersTrigger.getAttribute("aria-expanded") !== "true") {
-      fireEvent.click(chaptersTrigger);
-    }
-
-    const volumeTrigger = within(editorDialog).queryByRole("button", { name: /Volume\s*1/i });
-    if (volumeTrigger && volumeTrigger.getAttribute("aria-expanded") !== "true") {
-      fireEvent.click(volumeTrigger);
-    }
-
-    const firstCard = await within(editorDialog).findByTestId("episode-card-0", {}, { timeout: 3000 });
-    const secondCard = within(editorDialog).queryByTestId("episode-card-1");
-    await waitFor(() => {
-      expect(getEpisodeTrigger(firstCard)).toHaveAttribute("aria-expanded", "true");
+    const chaptersTrigger = within(editorDialog).getByRole("button", {
+      name: /Conte.do.*cap.tulos/i,
     });
-    if (secondCard) {
-      expect(getEpisodeTrigger(secondCard)).toHaveAttribute("aria-expanded", "false");
-    }
+    expect(chaptersTrigger).toHaveAttribute("aria-expanded", "true");
+
+    const volumeOneGroup = within(editorDialog).getByTestId("volume-group-1");
+    const volumeTwoGroup = within(editorDialog).getByTestId("volume-group-2");
+    const [volumeOneTrigger] = within(volumeOneGroup).getAllByRole("button");
+    const [volumeTwoTrigger] = within(volumeTwoGroup).getAllByRole("button");
+    expect(volumeOneTrigger).toHaveAttribute("aria-expanded", "false");
+    expect(volumeTwoTrigger).toHaveAttribute("aria-expanded", "true");
+
+    const targetCard = await within(editorDialog).findByTestId("episode-card-1", {}, { timeout: 3000 });
+    await waitFor(() => {
+      expect(getEpisodeTrigger(targetCard)).toHaveAttribute("aria-expanded", "true");
+    });
+    expect(within(volumeOneGroup).queryByTestId("episode-card-0")).not.toBeInTheDocument();
     await waitFor(() => {
       expect(scrollIntoViewMock).toHaveBeenCalled();
     });

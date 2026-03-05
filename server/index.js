@@ -11228,15 +11228,18 @@ const resolveHomeHeroPreloadHref = (publicBootstrap) => {
 
 const injectPublicBootstrapHtml = ({
   html,
+  req,
   settings,
   pages,
   includeHeroImagePreload = false,
 }) => {
   const publicBootstrap = buildPublicBootstrapResponsePayload({ settings, pages });
+  const publicMe = req?.session?.user ? buildUserPayload(req.session.user) : null;
   let nextHtml = injectBootstrapGlobals({
     html,
     publicBootstrap,
     settings,
+    publicMe,
   });
   if (includeHeroImagePreload) {
     const heroPreloadHref = resolveHomeHeroPreloadHref(publicBootstrap);
@@ -12412,6 +12415,8 @@ app.get("/api/uploads/list", requireAuth, (req, res) => {
   const uploadsDir = path.join(__dirname, "..", "public", "uploads");
   const folder = typeof req.query.folder === "string" ? req.query.folder.trim() : "";
   const listAll = folder === "__all__";
+  const recursive = String(req.query.recursive || "").trim().toLowerCase();
+  const listRecursively = listAll || (Boolean(folder) && (recursive === "1" || recursive === "true"));
   const safeFolder = listAll ? "" : sanitizeUploadFolder(folder);
   const targetDir = safeFolder ? path.join(uploadsDir, safeFolder) : uploadsDir;
   try {
@@ -12484,8 +12489,8 @@ app.get("/api/uploads/list", requireAuth, (req, res) => {
       });
       return results;
     };
-    const files = listAll
-      ? collectFiles(uploadsDir, "")
+    const files = listRecursively
+      ? collectFiles(listAll ? uploadsDir : targetDir, listAll ? "" : safeFolder)
       : (fs.existsSync(targetDir) ? fs.readdirSync(targetDir) : [])
           .filter((item) => /\.(png|jpe?g|gif|webp|svg(\+xml)?)$/i.test(item))
           .map((item) => {
@@ -12786,7 +12791,7 @@ const resolveVolumeFolderSegment = (volume) => {
 };
 
 const resolveEpisodeCoverFolder = ({ project, episode, index, folders }) => {
-  if (!isLightNovelType(project?.type || "")) {
+  if (!isChapterBasedType(project?.type || "")) {
     return folders.projectEpisodesFolder;
   }
   const chapterNumber = Number.isFinite(Number(episode?.number)) ? Number(episode.number) : index + 1;
@@ -12799,12 +12804,19 @@ const resolveEpisodeCoverFolder = ({ project, episode, index, folders }) => {
 const collectProjectImageItems = (projects) => {
   const dedupe = new Set();
   const items = [];
+
   const push = (project, url, kind, label, folder = "") => {
     const normalizedUrl = normalizeUploadUrl(url) || String(url || "").trim();
-    if (!normalizedUrl || dedupe.has(normalizedUrl)) {
+    if (!normalizedUrl) {
       return;
     }
-    dedupe.add(normalizedUrl);
+    const projectKey = String(project?.id || "").trim() || String(project?.title || "").trim() || "__draft__";
+    const dedupeKey = `${projectKey}\u0001${normalizedUrl}`;
+    if (dedupe.has(dedupeKey)) {
+      return;
+    }
+    dedupe.add(dedupeKey);
+    const resolvedFolder = String(folder || getUploadFolderFromUrlValue(normalizedUrl) || "").trim();
     items.push({
       source: "project",
       url: normalizedUrl,
@@ -12812,9 +12824,16 @@ const collectProjectImageItems = (projects) => {
       projectId: project.id,
       projectTitle: project.title,
       kind,
-      folder: String(folder || "").trim(),
+      folder: resolvedFolder,
     });
   };
+
+  const pushFromText = (project, value, kind, label, folder = "") => {
+    extractUploadPathsFromText(value).forEach((uploadUrl) => {
+      push(project, uploadUrl, kind, label, folder);
+    });
+  };
+
   projects.forEach((project) => {
     const folders = resolveProjectLibraryFolders(project);
     push(project, project.cover, "cover", `${project.title} (Capa)`, folders.projectRootFolder);
@@ -12826,7 +12845,14 @@ const collectProjectImageItems = (projects) => {
       `${project.title} (Carrossel)`,
       folders.projectRootFolder,
     );
-    (Array.isArray(project.volumeCovers) ? project.volumeCovers : []).forEach((cover) => {
+
+    const volumeEntries =
+      Array.isArray(project.volumeEntries) && project.volumeEntries.length > 0
+        ? project.volumeEntries
+        : Array.isArray(project.volumeCovers)
+          ? project.volumeCovers
+          : [];
+    volumeEntries.forEach((cover) => {
       const suffix =
         typeof cover?.volume === "number" && Number.isFinite(cover.volume)
           ? `Volume ${cover.volume}`
@@ -12836,23 +12862,49 @@ const collectProjectImageItems = (projects) => {
       )}`;
       push(project, cover?.coverImageUrl, "volume-cover", `${project.title} (${suffix})`, volumeFolder);
     });
+
     (Array.isArray(project.relations) ? project.relations : []).forEach((relation, index) => {
       const relationLabel = relation?.title
-        ? `${project.title} (Relação: ${relation.title})`
-        : `${project.title} (Relação ${index + 1})`;
+        ? `${project.title} (Relacao: ${relation.title})`
+        : `${project.title} (Relacao ${index + 1})`;
       push(project, relation?.image, "relation", relationLabel, folders.projectRelationsFolder);
     });
+
+    pushFromText(
+      project,
+      project.description,
+      "description-content",
+      `${project.title} (Descricao)`,
+      folders.projectRootFolder,
+    );
+    pushFromText(
+      project,
+      project.synopsis,
+      "synopsis-content",
+      `${project.title} (Sinopse)`,
+      folders.projectRootFolder,
+    );
+
     (Array.isArray(project.episodeDownloads) ? project.episodeDownloads : []).forEach(
       (episode, index) => {
         const suffix = episode?.number ? `Cap/Ep ${episode.number}` : `Cap/Ep ${index + 1}`;
         const episodeFolder = resolveEpisodeCoverFolder({ project, episode, index, folders });
         push(project, episode?.coverImageUrl, "episode-cover", `${project.title} (${suffix})`, episodeFolder);
+        const episodeLabel = String(episode?.title || "").trim();
+        const episodeContext = episodeLabel ? `${project.title} (${episodeLabel})` : `${project.title} (${suffix})`;
+        pushFromText(
+          project,
+          episode?.content,
+          "episode-content",
+          `${episodeContext} (Conteudo)`,
+          episodeFolder,
+        );
       },
     );
   });
+
   return items;
 };
-
 app.get("/api/uploads/project-images", requireAuth, (req, res) => {
   const sessionUser = req.session.user;
   if (!canManageUploads(sessionUser?.id)) {
@@ -14241,6 +14293,7 @@ app.get(
         });
         const html = injectPublicBootstrapHtml({
           html: renderMetaHtml({ ...meta, url: canonicalUrl, structuredData }),
+          req,
           settings,
           pages,
         });
@@ -14264,6 +14317,7 @@ app.get(
         });
         const html = injectPublicBootstrapHtml({
           html: renderMetaHtml({ ...meta, url: canonicalUrl, structuredData }),
+          req,
           settings,
           pages,
         });
@@ -14283,6 +14337,7 @@ app.get(
       });
       const html = injectPublicBootstrapHtml({
         html: renderMetaHtml({ ...meta, url: canonicalUrl, structuredData }),
+        req,
         settings,
         pages,
         includeHeroImagePreload: req.path === "/",
@@ -14322,6 +14377,7 @@ app.get("*", async (req, res) => {
     const html = shouldInjectPublicBootstrap
       ? injectPublicBootstrapHtml({
           html: renderMetaHtml({ ...meta, title, url: canonicalUrl, structuredData }),
+          req,
           settings,
           pages,
           includeHeroImagePreload: req.path === "/",

@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   normalizeUploadVariantUrlKey,
   resolveUploadVariantFocalPoint,
+  resolveUploadVariantResponsiveSources,
   resolveUploadVariantUrl,
   resolveUploadVariantSources,
   type UploadMediaVariantsMap,
@@ -68,6 +69,147 @@ describe("upload-variants", () => {
       avif: "/uploads/_variants/u1/cardHome-v1.avif",
       webp: "/uploads/_variants/u1/cardHome-v1.webp",
       fallback: "/uploads/_variants/u1/cardHome-v1.jpeg",
+    });
+  });
+
+  it("monta srcset responsivo de cardHome com variantes menores", () => {
+    const mediaVariants: UploadMediaVariantsMap = {
+      "/uploads/posts/capa.png": {
+        variantsVersion: 1,
+        variants: {
+          cardHomeXs: {
+            width: 480,
+            formats: {
+              avif: { url: "/uploads/_variants/u1/cardHomeXs-v1.avif" },
+              webp: { url: "/uploads/_variants/u1/cardHomeXs-v1.webp" },
+              fallback: { url: "/uploads/_variants/u1/cardHomeXs-v1.jpeg" },
+            },
+          },
+          cardHomeSm: {
+            width: 800,
+            formats: {
+              avif: { url: "/uploads/_variants/u1/cardHomeSm-v1.avif" },
+              webp: { url: "/uploads/_variants/u1/cardHomeSm-v1.webp" },
+              fallback: { url: "/uploads/_variants/u1/cardHomeSm-v1.jpeg" },
+            },
+          },
+          cardHome: {
+            width: 960,
+            formats: {
+              avif: { url: "/uploads/_variants/u1/cardHome-v1.avif" },
+              webp: { url: "/uploads/_variants/u1/cardHome-v1.webp" },
+              fallback: { url: "/uploads/_variants/u1/cardHome-v1.jpeg" },
+            },
+          },
+          card: {
+            width: 1280,
+            formats: {
+              avif: { url: "/uploads/_variants/u1/card-v1.avif" },
+              webp: { url: "/uploads/_variants/u1/card-v1.webp" },
+              fallback: { url: "/uploads/_variants/u1/card-v1.jpeg" },
+            },
+          },
+        },
+      },
+    };
+
+    expect(
+      resolveUploadVariantResponsiveSources({
+        src: "/uploads/posts/capa.png",
+        preset: "cardHome",
+        mediaVariants,
+      }),
+    ).toEqual({
+      avifSrcSet:
+        "/uploads/_variants/u1/cardHomeXs-v1.avif 480w, /uploads/_variants/u1/cardHomeSm-v1.avif 800w, /uploads/_variants/u1/cardHome-v1.avif 960w, /uploads/_variants/u1/card-v1.avif 1280w",
+      webpSrcSet:
+        "/uploads/_variants/u1/cardHomeXs-v1.webp 480w, /uploads/_variants/u1/cardHomeSm-v1.webp 800w, /uploads/_variants/u1/cardHome-v1.webp 960w, /uploads/_variants/u1/card-v1.webp 1280w",
+      fallbackSrcSet:
+        "/uploads/_variants/u1/cardHomeXs-v1.jpeg 480w, /uploads/_variants/u1/cardHomeSm-v1.jpeg 800w, /uploads/_variants/u1/cardHome-v1.jpeg 960w, /uploads/_variants/u1/card-v1.jpeg 1280w",
+    });
+  });
+
+  it("monta srcset responsivo de hero com sm/md/base", () => {
+    const mediaVariants: UploadMediaVariantsMap = {
+      "/uploads/posts/capa.png": {
+        variantsVersion: 1,
+        variants: {
+          heroSm: {
+            formats: {
+              avif: { url: "/uploads/_variants/u1/heroSm-v1.avif" },
+            },
+          },
+          heroMd: {
+            formats: {
+              avif: { url: "/uploads/_variants/u1/heroMd-v1.avif" },
+            },
+          },
+          hero: {
+            formats: {
+              avif: { url: "/uploads/_variants/u1/hero-v1.avif" },
+            },
+          },
+        },
+      },
+    };
+
+    expect(
+      resolveUploadVariantResponsiveSources({
+        src: "/uploads/posts/capa.png",
+        preset: "hero",
+        mediaVariants,
+      }),
+    ).toEqual({
+      avifSrcSet:
+        "/uploads/_variants/u1/heroSm-v1.avif 960w, /uploads/_variants/u1/heroMd-v1.avif 1280w, /uploads/_variants/u1/hero-v1.avif 1600w",
+      webpSrcSet: "",
+      fallbackSrcSet: "",
+    });
+  });
+
+  it("monta srcset responsivo de posterThumb com sm/base/poster", () => {
+    const mediaVariants: UploadMediaVariantsMap = {
+      "/uploads/projects/capa.png": {
+        variantsVersion: 1,
+        variants: {
+          posterThumbSm: {
+            formats: {
+              avif: { url: "/uploads/_variants/u1/posterThumbSm-v1.avif" },
+              webp: { url: "/uploads/_variants/u1/posterThumbSm-v1.webp" },
+              fallback: { url: "/uploads/_variants/u1/posterThumbSm-v1.jpeg" },
+            },
+          },
+          posterThumb: {
+            formats: {
+              avif: { url: "/uploads/_variants/u1/posterThumb-v1.avif" },
+              webp: { url: "/uploads/_variants/u1/posterThumb-v1.webp" },
+              fallback: { url: "/uploads/_variants/u1/posterThumb-v1.jpeg" },
+            },
+          },
+          poster: {
+            formats: {
+              avif: { url: "/uploads/_variants/u1/poster-v1.avif" },
+              webp: { url: "/uploads/_variants/u1/poster-v1.webp" },
+              fallback: { url: "/uploads/_variants/u1/poster-v1.jpeg" },
+            },
+          },
+        },
+      },
+    };
+
+    expect(
+      resolveUploadVariantResponsiveSources({
+        src: "/uploads/projects/capa.png",
+        preset: "posterThumb",
+        mediaVariants,
+      }),
+    ).toEqual({
+      avifSrcSet:
+        "/uploads/_variants/u1/posterThumbSm-v1.avif 192w, /uploads/_variants/u1/posterThumb-v1.avif 320w, /uploads/_variants/u1/poster-v1.avif 920w",
+      webpSrcSet:
+        "/uploads/_variants/u1/posterThumbSm-v1.webp 192w, /uploads/_variants/u1/posterThumb-v1.webp 320w, /uploads/_variants/u1/poster-v1.webp 920w",
+      fallbackSrcSet:
+        "/uploads/_variants/u1/posterThumbSm-v1.jpeg 192w, /uploads/_variants/u1/posterThumb-v1.jpeg 320w, /uploads/_variants/u1/poster-v1.jpeg 920w",
     });
   });
 

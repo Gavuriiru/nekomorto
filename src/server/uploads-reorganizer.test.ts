@@ -144,6 +144,45 @@ describe("uploads reorganizer classification", () => {
     );
     expect(target).toBe("projects/proj-1/episodes");
   });
+
+  it("migre episodios para pasta de capitulo quando existe um unico capitulo candidato", () => {
+    const folders = resolveProjectFolders({ id: "proj-1", title: "Projeto Um" });
+    const usage = {
+      posts: new Set(),
+      projectIds: new Set(["proj-1"]),
+      projectMainIds: new Set(),
+      projectVolumeIds: new Set(),
+      projectEpisodeIds: new Set(["proj-1"]),
+      projectEpisodeChapterFolders: new Set(["proj-1\u0001projects/proj-1/capitulos/volume-2/capitulo-8"]),
+    };
+    const target = classifyTargetFolder(
+      usage,
+      new Map([["proj-1", folders]]),
+      "projects/proj-1/episodes/image.png",
+    );
+    expect(target).toBe("projects/proj-1/capitulos/volume-2/capitulo-8");
+  });
+
+  it("mantem episodios quando a imagem pertence a multiplos capitulos", () => {
+    const folders = resolveProjectFolders({ id: "proj-1", title: "Projeto Um" });
+    const usage = {
+      posts: new Set(),
+      projectIds: new Set(["proj-1"]),
+      projectMainIds: new Set(),
+      projectVolumeIds: new Set(),
+      projectEpisodeIds: new Set(["proj-1"]),
+      projectEpisodeChapterFolders: new Set([
+        "proj-1\u0001projects/proj-1/capitulos/volume-1/capitulo-1",
+        "proj-1\u0001projects/proj-1/capitulos/volume-1/capitulo-2",
+      ]),
+    };
+    const target = classifyTargetFolder(
+      usage,
+      new Map([["proj-1", folders]]),
+      "projects/proj-1/episodes/image.png",
+    );
+    expect(target).toBe("projects/proj-1/episodes");
+  });
 });
 
 describe("uploads reorganizer helpers", () => {
@@ -388,5 +427,99 @@ describe("uploads reorganizer apply", () => {
     const posts = report.rewritten.posts as Array<Record<string, unknown>>;
     expect(posts[0].coverImageUrl).toBe("/uploads/posts/cover.png");
     expect(fs.existsSync(path.join(uploadsDir, "posts/cover.png"))).toBe(true);
+  });
+
+  it("migra imagem de episodio legado para pasta de capitulo em projetos chapter-based", () => {
+    const { uploadsDir, datasets } = createTempWorkspace(
+      {
+        projects: [
+          {
+            id: "proj-1",
+            title: "Projeto Um",
+            type: "Manga",
+            cover: "",
+            banner: "",
+            heroImageUrl: "",
+            relations: [],
+            episodeDownloads: [
+              {
+                number: 3,
+                volume: 2,
+                coverImageUrl: "/uploads/projects/proj-1/episodes/ep-3.png",
+                content: "",
+              },
+            ],
+          },
+        ],
+      },
+      [{ relativePath: "projects/proj-1/episodes/ep-3.png" }],
+    );
+
+    const report = runUploadsReorganization({ datasets, uploadsDir, applyChanges: true });
+    const projects = report.rewritten.projects as Array<Record<string, unknown>>;
+    const episodeDownloads = projects[0].episodeDownloads as Array<Record<string, unknown>>;
+
+    expect(report.mappings).toEqual([
+      {
+        oldUrl: "/uploads/projects/proj-1/episodes/ep-3.png",
+        newUrl: "/uploads/projects/proj-1/capitulos/volume-2/capitulo-3/ep-3.png",
+      },
+    ]);
+    expect(episodeDownloads[0].coverImageUrl).toBe(
+      "/uploads/projects/proj-1/capitulos/volume-2/capitulo-3/ep-3.png",
+    );
+    expect(
+      fs.existsSync(path.join(uploadsDir, "projects/proj-1/capitulos/volume-2/capitulo-3/ep-3.png")),
+    ).toBe(true);
+    expect(fs.existsSync(path.join(uploadsDir, "projects/proj-1/episodes/ep-3.png"))).toBe(false);
+  });
+
+  it("mantem destino em episodes quando a mesma imagem e usada por multiplos capitulos", () => {
+    const { uploadsDir, datasets } = createTempWorkspace(
+      {
+        projects: [
+          {
+            id: "proj-1",
+            title: "Projeto Um",
+            type: "Webtoon",
+            cover: "",
+            banner: "",
+            heroImageUrl: "",
+            relations: [],
+            episodeDownloads: [
+              {
+                number: 1,
+                volume: 1,
+                coverImageUrl: "/uploads/legacy-shared.png",
+                content: "",
+              },
+              {
+                number: 2,
+                volume: 1,
+                coverImageUrl: "/uploads/legacy-shared.png",
+                content: "",
+              },
+            ],
+          },
+        ],
+      },
+      [{ relativePath: "legacy-shared.png" }],
+    );
+
+    const report = runUploadsReorganization({ datasets, uploadsDir, applyChanges: true });
+    const projects = report.rewritten.projects as Array<Record<string, unknown>>;
+    const episodeDownloads = projects[0].episodeDownloads as Array<Record<string, unknown>>;
+
+    expect(report.mappings).toEqual([
+      {
+        oldUrl: "/uploads/legacy-shared.png",
+        newUrl: "/uploads/projects/proj-1/episodes/legacy-shared.png",
+      },
+    ]);
+    expect(episodeDownloads[0].coverImageUrl).toBe("/uploads/projects/proj-1/episodes/legacy-shared.png");
+    expect(episodeDownloads[1].coverImageUrl).toBe("/uploads/projects/proj-1/episodes/legacy-shared.png");
+    expect(fs.existsSync(path.join(uploadsDir, "projects/proj-1/episodes/legacy-shared.png"))).toBe(
+      true,
+    );
   });
 });

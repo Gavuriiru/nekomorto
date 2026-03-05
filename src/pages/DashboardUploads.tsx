@@ -677,7 +677,7 @@ const DashboardUploads = () => {
               <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/60 px-5 py-4">
                 <div className="space-y-1">
                   <h2 className="text-sm font-semibold text-foreground">
-                    Limpeza de armazenamento não utilizado
+                    Limpeza
                   </h2>
                   <p className="text-sm text-muted-foreground">
                     Remove uploads sem referência, variantes órfãs e envia originais soltos para _quarantine.

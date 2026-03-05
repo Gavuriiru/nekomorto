@@ -14,7 +14,7 @@ import { toast } from "@/components/ui/use-toast";
 import { LogOut, Menu } from "lucide-react";
 import ThemedSvgLogo from "@/components/ThemedSvgLogo";
 import ThemeModeSwitcher from "@/components/ThemeModeSwitcher";
-import { dashboardMenuItems } from "@/components/dashboard-menu";
+import type { DashboardMenuItem } from "@/components/dashboard-menu";
 import { cn } from "@/lib/utils";
 import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
@@ -34,12 +34,19 @@ import { uiCopy } from "@/lib/ui-copy";
 import { withDiscordAvatarSize } from "@/lib/discord-avatar";
 import type { SearchSuggestion } from "@/types/search-suggestion";
 import type { UploadMediaVariantsMap } from "@/lib/upload-variants";
+import {
+  asPublicBootstrapCurrentUser,
+  readWindowPublicBootstrapCurrentUser,
+  type PublicBootstrapCurrentUser,
+} from "@/lib/public-bootstrap-global";
 
 type HeaderProps = {
   variant?: "fixed" | "static";
   leading?: ReactNode;
   className?: string;
 };
+
+type CurrentUser = PublicBootstrapCurrentUser;
 
 const HeaderSearchPopover = lazy(() => import("@/components/HeaderSearchPopover"));
 
@@ -53,17 +60,10 @@ const Header = ({ variant = "fixed", leading, className }: HeaderProps) => {
   const [hasSearchRequestFailed, setHasSearchRequestFailed] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
-  const [currentUser, setCurrentUser] = useState<{
-    id: string;
-    name: string;
-    username: string;
-    avatarUrl?: string | null;
-    accessRole?: string;
-    permissions?: string[];
-    ownerIds?: string[];
-    primaryOwnerId?: string | null;
-    grants?: Partial<Record<string, boolean>>;
-  } | null>(null);
+  const [currentUser, setCurrentUser] = useState<CurrentUser | null>(
+    () => readWindowPublicBootstrapCurrentUser(),
+  );
+  const [dashboardMenuItems, setDashboardMenuItems] = useState<DashboardMenuItem[]>([]);
   const searchRef = useRef<HTMLDivElement | null>(null);
   const searchInputRef = useRef<HTMLInputElement | null>(null);
   const location = useLocation();
@@ -265,6 +265,31 @@ const Header = ({ variant = "fixed", leading, className }: HeaderProps) => {
   }, []);
 
   useEffect(() => {
+    if (!currentUser) {
+      setDashboardMenuItems([]);
+      return;
+    }
+    let isActive = true;
+    void import("@/components/dashboard-menu")
+      .then((module) => {
+        if (!isActive) {
+          return;
+        }
+        const items = Array.isArray(module.dashboardMenuItems) ? module.dashboardMenuItems : [];
+        setDashboardMenuItems(items);
+      })
+      .catch(() => {
+        if (!isActive) {
+          return;
+        }
+        setDashboardMenuItems([]);
+      });
+    return () => {
+      isActive = false;
+    };
+  }, [currentUser]);
+
+  useEffect(() => {
     let isActive = true;
     const loadUser = async () => {
       try {
@@ -280,12 +305,12 @@ const Header = ({ variant = "fixed", leading, className }: HeaderProps) => {
         if (!isActive) {
           return;
         }
-        setCurrentUser(data?.user ?? null);
+        setCurrentUser(asPublicBootstrapCurrentUser(data?.user));
       } catch {
         if (!isActive) {
           return;
         }
-        setCurrentUser(null);
+        // Preserve bootstrap user snapshot on transient network failures.
       }
     };
 
@@ -293,7 +318,7 @@ const Header = ({ variant = "fixed", leading, className }: HeaderProps) => {
       () => {
         void loadUser();
       },
-      { delayMs: 4000 },
+      { delayMs: 2500 },
     );
 
     return () => {
@@ -308,7 +333,7 @@ const Header = ({ variant = "fixed", leading, className }: HeaderProps) => {
     }
     const grants = resolveGrants(currentUser);
     return buildDashboardMenuFromGrants(dashboardMenuItems, grants);
-  }, [currentUser]);
+  }, [currentUser, dashboardMenuItems]);
   const dashboardHomeHref = useMemo(
     () =>
       currentUser

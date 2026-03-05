@@ -206,6 +206,44 @@ const resolveItemFolder = (item: LibraryImageItem) => {
   return sanitizeUploadFolderForComparison(parseUploadUrlPath(item.url).folder);
 };
 
+const isFolderWithinSelection = ({
+  itemFolder,
+  selectedFolder,
+}: {
+  itemFolder: string | null | undefined;
+  selectedFolder: string | null | undefined;
+}) => {
+  const normalizedItem = sanitizeUploadFolderForComparison(itemFolder);
+  const normalizedSelected = sanitizeUploadFolderForComparison(selectedFolder);
+  if (!normalizedSelected) {
+    return normalizedItem === "";
+  }
+  return (
+    normalizedItem === normalizedSelected || normalizedItem.startsWith(`${normalizedSelected}/`)
+  );
+};
+
+const listFolderAncestors = (value: string | null | undefined) => {
+  const normalized = sanitizeUploadFolderForComparison(value);
+  if (!normalized) {
+    return [] as string[];
+  }
+  const segments = normalized.split("/").filter(Boolean);
+  const ancestors: string[] = [];
+  for (let index = 1; index <= segments.length; index += 1) {
+    ancestors.push(segments.slice(0, index).join("/"));
+  }
+  return ancestors;
+};
+
+const listFolderSelfAndAncestors = (value: string | null | undefined) => {
+  const ancestors = listFolderAncestors(value);
+  if (ancestors.length === 0) {
+    return [] as string[];
+  }
+  return [...ancestors].reverse();
+};
+
 const resolveProjectRootFromFolder = (folder: string) => {
   const normalized = sanitizeUploadFolderForComparison(folder);
   if (!normalized.startsWith("projects/")) {
@@ -240,6 +278,43 @@ const toRelativeProjectFolderLabel = ({
     return normalizedFolder.slice(normalizedRoot.length + 1);
   }
   return normalizedFolder;
+};
+
+const resolveContextProjectIdFromFolder = (folder: string | null | undefined) => {
+  const normalized = sanitizeUploadFolderForComparison(folder);
+  if (!normalized.startsWith("projects/")) {
+    return "";
+  }
+  const segments = normalized.split("/").filter(Boolean);
+  if (segments.length < 2) {
+    return "";
+  }
+  return String(segments[1] || "").trim();
+};
+
+const resolveClosestFolderGroupKey = <T extends { key: string; folder: string }>(
+  groups: T[],
+  contextFolder: string | null | undefined,
+) => {
+  const candidates = listFolderSelfAndAncestors(contextFolder);
+  if (candidates.length === 0) {
+    return "";
+  }
+  const groupsByFolder = new Map<string, string>();
+  groups.forEach((group) => {
+    const normalizedFolder = sanitizeUploadFolderForComparison(group.folder);
+    if (!normalizedFolder || groupsByFolder.has(normalizedFolder)) {
+      return;
+    }
+    groupsByFolder.set(normalizedFolder, group.key);
+  });
+  for (const candidate of candidates) {
+    const match = groupsByFolder.get(candidate);
+    if (match) {
+      return match;
+    }
+  }
+  return "";
 };
 
 const isAvatarGeneratedUsersUpload = (item: LibraryImageItem) => {
@@ -381,6 +456,7 @@ const buildSelectionSeed = ({
 
 type ProjectImageGroup = {
   key: string;
+  projectId: string;
   title: string;
   items: LibraryImageItem[];
   folders: ProjectImageFolderGroup[];
@@ -388,6 +464,14 @@ type ProjectImageGroup = {
 
 type ProjectImageFolderGroup = {
   key: string;
+  folder: string;
+  title: string;
+  items: LibraryImageItem[];
+};
+
+type UploadFolderGroup = {
+  key: string;
+  folder: string;
   title: string;
   items: LibraryImageItem[];
 };
@@ -1056,6 +1140,11 @@ const ImageLibraryDialog = ({
   const [searchQuery, setSearchQuery] = useState("");
   const [sortMode, setSortMode] = useState<"recent" | "oldest" | "name">("recent");
   const [uploadsFolderFilter, setUploadsFolderFilter] = useState<string>("__all__");
+  const [openUploadGroupKeys, setOpenUploadGroupKeys] = useState<string[]>([]);
+  const [openProjectGroupKeys, setOpenProjectGroupKeys] = useState<string[]>([]);
+  const [openProjectFolderKeysByGroup, setOpenProjectFolderKeysByGroup] = useState<
+    Record<string, string[]>
+  >({});
   const [renameTarget, setRenameTarget] = useState<LibraryImageItem | null>(null);
   const [renameValue, setRenameValue] = useState("");
   const [altTextTarget, setAltTextTarget] = useState<LibraryImageItem | null>(null);
@@ -1071,6 +1160,11 @@ const ImageLibraryDialog = ({
   const [isApplyingCrop, setIsApplyingCrop] = useState(false);
   const [isCropDialogOpen, setIsCropDialogOpen] = useState(false);
   const [isLibraryHydratedForOpen, setIsLibraryHydratedForOpen] = useState(false);
+  const hasInitializedAccordionStateForOpenRef = useRef(false);
+  const resolvedUploadFolderForFilter = useMemo(
+    () => sanitizeUploadFolderForComparison(uploadFolder),
+    [uploadFolder],
+  );
   const projectImageProjectIdsSignature = useMemo(
     () => toStableProjectIdSignature(projectImageProjectIds),
     [projectImageProjectIds],
@@ -1079,6 +1173,13 @@ const ImageLibraryDialog = ({
     () => (projectImageProjectIdsSignature ? projectImageProjectIdsSignature.split("\u0001") : []),
     [projectImageProjectIdsSignature],
   );
+  const resolvedContextProjectId = useMemo(() => {
+    const preferredProjectId = String(normalizedProjectImageProjectIds[0] || "").trim();
+    if (preferredProjectId) {
+      return preferredProjectId;
+    }
+    return resolveContextProjectIdFromFolder(resolvedUploadFolderForFilter);
+  }, [normalizedProjectImageProjectIds, resolvedUploadFolderForFilter]);
   const listFoldersSignature = useMemo(() => toStableFolderSignature(listFolders), [listFolders]);
   const normalizedListFolders = useMemo(
     () => parseStableFolderSignature(listFoldersSignature),
@@ -1103,6 +1204,24 @@ const ImageLibraryDialog = ({
     }
     return Array.from(set);
   }, [listAll, normalizedListFolders, uploadFolder]);
+  const foldersToRequest = useMemo(() => {
+    const unique = Array.from(
+      new Set(
+        folders.map((item) => String(item || "").trim()),
+      ),
+    );
+    return unique.filter((folder) => {
+      if (!folder || folder === "__all__") {
+        return true;
+      }
+      return !unique.some((candidate) => {
+        if (!candidate || candidate === "__all__" || candidate === folder) {
+          return false;
+        }
+        return folder.startsWith(`${candidate}/`);
+      });
+    });
+  }, [folders]);
 
   const allItems = useMemo(() => {
     const map = new Map<string, LibraryImageItem>();
@@ -1209,8 +1328,10 @@ const ImageLibraryDialog = ({
         ? bySearch
         : bySearch.filter(
             (item) =>
-              sanitizeUploadFolderForComparison(item.folder) ===
-              sanitizeUploadFolderForComparison(uploadsFolderFilter),
+              isFolderWithinSelection({
+                itemFolder: item.folder,
+                selectedFolder: uploadsFolderFilter,
+              }),
           );
     return sortLibraryItems(byFolder);
   }, [matchesSearch, sortLibraryItems, uploadsFolderFilter, visibleUploads]);
@@ -1218,19 +1339,67 @@ const ImageLibraryDialog = ({
     () => sortLibraryItems(projectImages.filter(matchesSearch)),
     [matchesSearch, projectImages, sortLibraryItems],
   );
+  const uploadFolderGroups = useMemo<UploadFolderGroup[]>(() => {
+    const groupMap = new Map<string, LibraryImageItem[]>();
+    filteredUploads.forEach((item) => {
+      const folder = resolveItemFolder(item);
+      const key = folder || "__sem-pasta__";
+      if (!groupMap.has(key)) {
+        groupMap.set(key, []);
+      }
+      groupMap.get(key)?.push(item);
+    });
+
+    const scopedProjectRoot = resolveProjectRootFromFolder(resolvedUploadFolderForFilter);
+    return Array.from(groupMap.entries())
+      .map(([key, items]) => {
+        const folder = key === "__sem-pasta__" ? "" : key;
+        const folderProjectRoot = resolveProjectRootFromFolder(folder);
+        const projectRoot = scopedProjectRoot || folderProjectRoot;
+        return {
+          key: `upload-folder:${key}`,
+          folder,
+          title: toRelativeProjectFolderLabel({
+            folder,
+            projectRoot,
+          }),
+          items: sortLibraryItems(items),
+        } satisfies UploadFolderGroup;
+      })
+      .sort((left, right) => left.title.localeCompare(right.title, "pt-BR"));
+  }, [filteredUploads, resolvedUploadFolderForFilter, sortLibraryItems]);
   const uploadFolderFilterOptions = useMemo(() => {
     const set = new Set<string>();
     uploads.forEach((item) => {
-      const normalized = sanitizeUploadFolderForComparison(item.folder);
-      if (normalized) {
-        set.add(normalized);
-      }
+      listFolderAncestors(item.folder).forEach((folder) => set.add(folder));
     });
     return Array.from(set).sort((a, b) => a.localeCompare(b, "pt-BR"));
   }, [uploads]);
+  const isUploadsFilterReadyForInitialExpansion = useMemo(() => {
+    if (uploads.length === 0) {
+      return true;
+    }
+    if (uploadsFolderFilter === "__all__") {
+      return true;
+    }
+    if (uploadFolderFilterOptions.length === 0) {
+      return false;
+    }
+    return uploadFolderFilterOptions.includes(uploadsFolderFilter);
+  }, [uploadFolderFilterOptions, uploads, uploadsFolderFilter]);
+
+  useEffect(() => {
+    if (!open) {
+      return;
+    }
+    setUploadsFolderFilter(resolvedUploadFolderForFilter || "__all__");
+  }, [open, resolvedUploadFolderForFilter]);
 
   useEffect(() => {
     if (uploadsFolderFilter === "__all__") {
+      return;
+    }
+    if (uploadFolderFilterOptions.length === 0) {
       return;
     }
     if (!uploadFolderFilterOptions.includes(uploadsFolderFilter)) {
@@ -1303,6 +1472,7 @@ const ImageLibraryDialog = ({
       if (!groupMap.has(key)) {
         groupMap.set(key, {
           key,
+          projectId,
           title,
           items: [],
           folders: [],
@@ -1320,6 +1490,7 @@ const ImageLibraryDialog = ({
       if (!group.folderMap.has(folderKey)) {
         group.folderMap.set(folderKey, {
           key: `${key}:folder:${folderKey}`,
+          folder: resolvedFolder,
           title: resolvedFolder || "Sem pasta",
           items: [],
         });
@@ -1361,6 +1532,7 @@ const ImageLibraryDialog = ({
           .sort((left, right) => left.title.localeCompare(right.title, "pt-BR"));
         return {
           key: group.key,
+          projectId: group.projectId,
           title: group.title,
           items: group.items,
           folders,
@@ -1369,13 +1541,105 @@ const ImageLibraryDialog = ({
       .sort((a, b) => a.title.localeCompare(b.title, "pt-BR"));
   }, [filteredProjectImages]);
 
+  const initialOpenUploadGroupKeys = useMemo(() => {
+    const contextGroupKey = resolveClosestFolderGroupKey(
+      uploadFolderGroups,
+      resolvedUploadFolderForFilter,
+    );
+    return contextGroupKey ? [contextGroupKey] : [];
+  }, [resolvedUploadFolderForFilter, uploadFolderGroups]);
+
+  const initialProjectAccordionState = useMemo(() => {
+    const emptyState = {
+      groupKeys: [] as string[],
+      folderKeysByGroup: {} as Record<string, string[]>,
+    };
+    if (projectImageGroups.length === 0) {
+      return emptyState;
+    }
+
+    let contextGroup: ProjectImageGroup | undefined;
+    if (resolvedContextProjectId) {
+      contextGroup = projectImageGroups.find((group) => group.projectId === resolvedContextProjectId);
+    }
+
+    if (!contextGroup) {
+      const contextRoot = resolveProjectRootFromFolder(resolvedUploadFolderForFilter);
+      if (contextRoot) {
+        contextGroup = projectImageGroups.find((group) =>
+          group.folders.some((folderGroup) => {
+            const normalizedFolder = sanitizeUploadFolderForComparison(folderGroup.folder);
+            return (
+              normalizedFolder === contextRoot ||
+              normalizedFolder.startsWith(`${contextRoot}/`)
+            );
+          }),
+        );
+      }
+    }
+
+    if (!contextGroup) {
+      return emptyState;
+    }
+
+    const contextFolderKey = resolveClosestFolderGroupKey(
+      contextGroup.folders,
+      resolvedUploadFolderForFilter,
+    );
+
+    return {
+      groupKeys: [contextGroup.key],
+      folderKeysByGroup: contextFolderKey
+        ? {
+            [contextGroup.key]: [contextFolderKey],
+          }
+        : {},
+    };
+  }, [projectImageGroups, resolvedContextProjectId, resolvedUploadFolderForFilter]);
+
+  useEffect(() => {
+    if (!open) {
+      hasInitializedAccordionStateForOpenRef.current = false;
+      setOpenUploadGroupKeys([]);
+      setOpenProjectGroupKeys([]);
+      setOpenProjectFolderKeysByGroup({});
+      return;
+    }
+    if (!isLibraryHydratedForOpen) {
+      return;
+    }
+    if (!isUploadsFilterReadyForInitialExpansion) {
+      return;
+    }
+    if (hasInitializedAccordionStateForOpenRef.current) {
+      return;
+    }
+    hasInitializedAccordionStateForOpenRef.current = true;
+    setOpenUploadGroupKeys(initialOpenUploadGroupKeys);
+    setOpenProjectGroupKeys(initialProjectAccordionState.groupKeys);
+    setOpenProjectFolderKeysByGroup(initialProjectAccordionState.folderKeysByGroup);
+  }, [
+    initialOpenUploadGroupKeys,
+    initialProjectAccordionState,
+    isLibraryHydratedForOpen,
+    isUploadsFilterReadyForInitialExpansion,
+    open,
+  ]);
+
   const loadUploads = useCallback(async () => {
     setIsLoading(true);
     try {
       const responses = await Promise.all(
-        folders.map((folder) => {
-          const query = folder ? `?folder=${encodeURIComponent(folder)}` : "";
-          return apiFetch(apiBase, `/api/uploads/list${query}`, { auth: true });
+        foldersToRequest.map((folder) => {
+          const params = new URLSearchParams();
+          if (folder) {
+            params.set("folder", folder);
+            if (folder !== "__all__") {
+              params.set("recursive", "1");
+            }
+          }
+          const query = params.toString();
+          return apiFetch(apiBase, `/api/uploads/list${query ? `?${query}` : ""}`, { auth: true });
         }),
       );
       const files: LibraryImageItem[] = [];
@@ -1437,7 +1701,7 @@ const ImageLibraryDialog = ({
     } finally {
       setIsLoading(false);
     }
-  }, [apiBase, folders]);
+  }, [apiBase, foldersToRequest]);
 
   const loadProjectImages = useCallback(async () => {
     if (!includeProjectImages) {
@@ -2169,6 +2433,8 @@ const ImageLibraryDialog = ({
       return (
         <Accordion
           type="multiple"
+          value={openProjectGroupKeys}
+          onValueChange={setOpenProjectGroupKeys}
           className="mt-3 overflow-hidden rounded-xl border border-border/60 bg-card/40 px-3"
         >
           {groups.map((group) => (
@@ -2182,6 +2448,13 @@ const ImageLibraryDialog = ({
               <AccordionContent className="[&>div]:mt-0">
                 <Accordion
                   type="multiple"
+                  value={openProjectFolderKeysByGroup[group.key] || []}
+                  onValueChange={(nextOpenFolderKeys) =>
+                    setOpenProjectFolderKeysByGroup((prev) => ({
+                      ...prev,
+                      [group.key]: nextOpenFolderKeys,
+                    }))
+                  }
                   className="rounded-lg border border-border/40 bg-background/40 px-2"
                 >
                   {group.folders.map((folder) => (
@@ -2207,6 +2480,8 @@ const ImageLibraryDialog = ({
     return (
       <Accordion
         type="multiple"
+        value={openProjectGroupKeys}
+        onValueChange={setOpenProjectGroupKeys}
         className="mt-3 overflow-hidden rounded-xl border border-border/60 bg-card/40 px-3"
       >
         {groups.map((group) => (
@@ -2219,6 +2494,37 @@ const ImageLibraryDialog = ({
             </AccordionTrigger>
             <AccordionContent className="[&>div]:mt-0">
               {renderGrid(group.items, "Nenhuma imagem disponível neste projeto.")}
+            </AccordionContent>
+          </AccordionItem>
+        ))}
+      </Accordion>
+    );
+  };
+
+  const renderUploadGroups = (groups: UploadFolderGroup[], emptyText: string) => {
+    if (isLoading) {
+      return <ImageLibraryDialogLoadingGrid className="mt-3" testId="image-library-loading-grid" />;
+    }
+    if (groups.length === 0) {
+      return <p className="mt-3 text-xs text-muted-foreground">{emptyText}</p>;
+    }
+    return (
+      <Accordion
+        type="multiple"
+        value={openUploadGroupKeys}
+        onValueChange={setOpenUploadGroupKeys}
+        className="mt-3 overflow-hidden rounded-xl border border-border/60 bg-card/40 px-3"
+      >
+        {groups.map((group) => (
+          <AccordionItem key={group.key} value={group.key} className="border-border/50">
+            <AccordionTrigger className="py-3 text-sm hover:no-underline">
+              <span className="flex items-center gap-2">
+                <span className="font-medium text-foreground">{group.title}</span>
+                <span className="text-xs text-muted-foreground">{group.items.length}</span>
+              </span>
+            </AccordionTrigger>
+            <AccordionContent className="[&>div]:mt-0">
+              {renderGrid(group.items, "Nenhuma imagem disponivel nesta pasta.")}
             </AccordionContent>
           </AccordionItem>
         ))}
@@ -2392,11 +2698,11 @@ const ImageLibraryDialog = ({
                   </div>
                 </div>
               </div>
-              {renderGrid(
-                filteredUploads,
+              {renderUploadGroups(
+                uploadFolderGroups,
                 normalizedSearch || uploadsFolderFilter !== "__all__"
                   ? "Nenhum upload corresponde aos filtros atuais."
-                  : "Nenhum upload disponível.",
+                  : "Nenhum upload disponivel.",
               )}
             </div>
             <div>

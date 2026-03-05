@@ -9,7 +9,7 @@ import { GlobalShortcutsProvider } from "@/hooks/global-shortcuts-provider";
 import { AccessibilityAnnouncerProvider } from "@/hooks/accessibility-announcer";
 import { useReveal } from "@/hooks/use-reveal";
 
-const PublicRoutes = lazy(() => import("./routes/PublicRoutes"));
+import PublicRoutes from "./routes/PublicRoutes";
 const DashboardRoutes = lazy(() => import("./routes/DashboardRoutes"));
 
 export const queryClient = new QueryClient();

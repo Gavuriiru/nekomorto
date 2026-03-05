@@ -53,6 +53,20 @@ const mockJsonResponse = (ok: boolean, payload: unknown, status = ok ? 200 : 500
 const classTokens = (element: HTMLElement) =>
   String(element.className).split(/\s+/).filter(Boolean);
 
+const findAncestor = (
+  element: HTMLElement,
+  predicate: (candidate: HTMLElement) => boolean,
+): HTMLElement | null => {
+  let current = element.parentElement;
+  while (current) {
+    if (predicate(current)) {
+      return current;
+    }
+    current = current.parentElement;
+  }
+  return null;
+};
+
 const projectFixture = {
   id: "project-1",
   title: "Projeto Teste",
@@ -483,6 +497,99 @@ describe("Project mobile hero layout", () => {
     );
   });
 
+  it("mantem leitura e download no mesmo card de light novel com thumb vertical", async () => {
+    setupApiMock({
+      ...lightNovelProjectFixture,
+      episodeDownloads: [
+        {
+          ...lightNovelProjectFixture.episodeDownloads[0],
+          synopsis: "Resumo do capitulo",
+          sources: [{ label: "Drive", url: "https://example.com/drive" }],
+        },
+      ],
+    });
+
+    render(
+      <MemoryRouter>
+        <ProjectPage />
+      </MemoryRouter>,
+    );
+
+    await screen.findByRole("heading", { name: "Projeto Teste" });
+    const readLink = screen.getByRole("link", { name: /Ler cap.tulo/i });
+    const readCard = findAncestor(readLink, (candidate) =>
+      classTokens(candidate).includes("chapter-download-card"),
+    );
+    expect(readCard).not.toBeNull();
+    expect(classTokens(readCard as HTMLElement)).toContain("w-full");
+    expect(classTokens(readCard as HTMLElement)).toContain("group/chapter-card");
+    expect(classTokens(readCard as HTMLElement)).toContain("!transform-none");
+    expect(classTokens(readCard as HTMLElement)).toContain("hover:!translate-y-0");
+    expect(classTokens(readCard as HTMLElement)).not.toContain("hover:-translate-y-1");
+    const thumbShell = (readCard as HTMLElement).querySelector(
+      ".chapter-download-card__thumb > div",
+    ) as HTMLElement | null;
+    expect(thumbShell).not.toBeNull();
+    expect(thumbShell?.style.aspectRatio).toBe("9 / 14");
+    const thumbImage = (readCard as HTMLElement).querySelector(
+      ".chapter-download-card__thumb img",
+    ) as HTMLElement | null;
+    expect(thumbImage).not.toBeNull();
+    expect(classTokens(thumbImage as HTMLElement)).toContain(
+      "group-hover/chapter-card:scale-[1.03]",
+    );
+    expect(classTokens(thumbImage as HTMLElement)).not.toContain("group-hover:scale-[1.03]");
+    expect(within(readCard as HTMLElement).getByRole("link", { name: "Drive" })).toHaveAttribute(
+      "href",
+      "https://example.com/drive",
+    );
+    expect(within(readCard as HTMLElement).getByText("Resumo do capitulo")).toBeInTheDocument();
+  });
+
+  it("usa sinopse do volume quando capitulo de light novel nao possui sinopse", async () => {
+    setupApiMock({
+      ...lightNovelProjectFixture,
+      episodeDownloads: [
+        {
+          ...lightNovelProjectFixture.episodeDownloads[0],
+          synopsis: "",
+          sources: [{ label: "Drive", url: "https://example.com/drive" }],
+        },
+      ],
+      volumeEntries: [
+        {
+          volume: 2,
+          synopsis: "Sinopse fallback do volume 2",
+          coverImageUrl: "/uploads/volume-2-cover.jpg",
+          coverImageAlt: "Capa do volume 2",
+        },
+      ],
+      volumeCovers: [
+        {
+          volume: 2,
+          coverImageUrl: "/uploads/volume-2-cover.jpg",
+          coverImageAlt: "Capa do volume 2",
+        },
+      ],
+    });
+
+    render(
+      <MemoryRouter>
+        <ProjectPage />
+      </MemoryRouter>,
+    );
+
+    await screen.findByRole("heading", { name: "Projeto Teste" });
+    const readLink = screen.getByRole("link", { name: /Ler cap.tulo/i });
+    const readCard = findAncestor(readLink, (candidate) =>
+      classTokens(candidate).includes("chapter-download-card"),
+    );
+    expect(readCard).not.toBeNull();
+    expect(
+      within(readCard as HTMLElement).getByText("Sinopse fallback do volume 2"),
+    ).toBeInTheDocument();
+  });
+
   it("exibe capa por volume em grupos de light novel", async () => {
     setupApiMock({
       ...lightNovelProjectFixture,
@@ -510,9 +617,32 @@ describe("Project mobile hero layout", () => {
     );
 
     await screen.findByRole("heading", { name: "Projeto Teste" });
-    expect(screen.getByRole("img", { name: "Capa do volume 2" })).toBeInTheDocument();
-    expect(screen.getAllByText("Volume 2").length).toBeGreaterThan(0);
-    expect(screen.getByText("Sinopse do volume 2")).toBeInTheDocument();
+    const volumeTrigger = screen.getByRole("button", { name: /Volume 2/i });
+    const volumeCard = findAncestor(volumeTrigger, (candidate) =>
+      classTokens(candidate).includes("bg-card/80"),
+    );
+    expect(volumeCard).not.toBeNull();
+    expect((volumeCard as HTMLElement).querySelectorAll("button").length).toBe(1);
+    expect(classTokens(volumeTrigger)).toContain("items-start");
+    expect(classTokens(volumeTrigger)).toContain("px-5");
+    expect(classTokens(volumeTrigger)).toContain("py-5");
+    expect(classTokens(volumeTrigger)).toContain("hover:no-underline");
+
+    const triggerGrid = (volumeTrigger as HTMLElement).querySelector(
+      '[class*="md:grid-cols-[128px_minmax(0,1fr)_auto]"]',
+    ) as HTMLElement | null;
+    expect(triggerGrid).not.toBeNull();
+    expect(classTokens(triggerGrid as HTMLElement)).toContain("md:items-start");
+    expect(classTokens(triggerGrid as HTMLElement)).toContain("md:gap-5");
+    expect(
+      (triggerGrid as HTMLElement).querySelector('[class*="self-start"]'),
+    ).not.toBeNull();
+    expect((triggerGrid as HTMLElement).querySelector('[class*="w-28"]')).not.toBeNull();
+
+    expect(within(volumeTrigger).getAllByRole("img", { name: "Capa do volume 2" }).length).toBe(1);
+    expect(within(volumeTrigger).getByText("1 capítulos disponíveis")).toBeInTheDocument();
+    expect(within(volumeTrigger).getByText("1 capítulos")).toBeInTheDocument();
+    expect(within(volumeTrigger).getByText("Sinopse do volume 2")).toBeInTheDocument();
   });
 
   it("exibe capa por volume em grupos de mangá", async () => {
@@ -542,8 +672,99 @@ describe("Project mobile hero layout", () => {
     );
 
     await screen.findByRole("heading", { name: "Projeto Teste" });
-    expect(screen.getByRole("img", { name: "Capa do volume 3" })).toBeInTheDocument();
-    expect(screen.getAllByText("Volume 3").length).toBeGreaterThan(0);
-    expect(screen.getByText("Sinopse do volume 3")).toBeInTheDocument();
+    const volumeTrigger = screen.getByRole("button", { name: /Volume 3/i });
+    const volumeCard = findAncestor(volumeTrigger, (candidate) =>
+      classTokens(candidate).includes("bg-card/80"),
+    );
+    expect(volumeCard).not.toBeNull();
+    expect((volumeCard as HTMLElement).querySelectorAll("button").length).toBe(1);
+    expect(classTokens(volumeTrigger)).toContain("items-start");
+    expect(classTokens(volumeTrigger)).toContain("px-5");
+    expect(classTokens(volumeTrigger)).toContain("py-5");
+
+    const triggerGrid = (volumeTrigger as HTMLElement).querySelector(
+      '[class*="md:grid-cols-[128px_minmax(0,1fr)_auto]"]',
+    ) as HTMLElement | null;
+    expect(triggerGrid).not.toBeNull();
+    expect(classTokens(triggerGrid as HTMLElement)).toContain("md:items-start");
+    expect(
+      (triggerGrid as HTMLElement).querySelector('[class*="self-start"]'),
+    ).not.toBeNull();
+    expect((triggerGrid as HTMLElement).querySelector('[class*="w-28"]')).not.toBeNull();
+
+    expect(within(volumeTrigger).getAllByRole("img", { name: "Capa do volume 3" }).length).toBe(1);
+    expect(within(volumeTrigger).getByText("1 capítulos disponíveis")).toBeInTheDocument();
+    expect(within(volumeTrigger).getByText("1 capítulos")).toBeInTheDocument();
+    expect(within(volumeTrigger).getByText("Sinopse do volume 3")).toBeInTheDocument();
+  });
+
+  it("remove centralizacao do grid de downloads no manga e mantem cards com largura fluida", async () => {
+    setupApiMock(mangaProjectFixture);
+
+    render(
+      <MemoryRouter>
+        <ProjectPage />
+      </MemoryRouter>,
+    );
+
+    await screen.findByRole("heading", { name: "Projeto Teste" });
+    const downloadsSection = document.getElementById("downloads");
+    expect(downloadsSection).not.toBeNull();
+    expect((downloadsSection as HTMLElement).querySelector('[class*="justify-items-center"]')).toBeNull();
+
+    const chapterTitle = screen.getByText("Capitulo 1");
+    const episodeCard = findAncestor(chapterTitle, (candidate) =>
+      classTokens(candidate).includes("chapter-download-card"),
+    );
+    expect(episodeCard).not.toBeNull();
+    expect(classTokens(episodeCard as HTMLElement)).toContain("w-full");
+    expect(classTokens(episodeCard as HTMLElement)).toContain("group/chapter-card");
+    expect(classTokens(episodeCard as HTMLElement)).toContain("!transform-none");
+    expect(classTokens(episodeCard as HTMLElement)).toContain("hover:!translate-y-0");
+    expect(classTokens(episodeCard as HTMLElement)).not.toContain("hover:-translate-y-1");
+    expect(within(episodeCard as HTMLElement).queryByRole("link", { name: /Ler/i })).toBeNull();
+    expect(within(episodeCard as HTMLElement).getByRole("link", { name: "Drive" })).toHaveAttribute(
+      "href",
+      "https://example.com/file",
+    );
+  });
+
+  it("mantem cards de anime com altura fixa no desktop", async () => {
+    setupApiMock({
+      ...projectFixture,
+      episodeDownloads: [
+        {
+          number: 1,
+          title: "Episodio 1",
+          releaseDate: "2025-01-01",
+          duration: "24 min",
+          sourceType: "TV",
+          sizeBytes: 734003200,
+          hash: "ABC123",
+          sources: [{ label: "Drive", url: "https://example.com/1" }],
+        },
+        {
+          number: 2,
+          title: "Episodio 2",
+          sourceType: "TV",
+          sources: [{ label: "Drive", url: "https://example.com/2" }],
+        },
+      ],
+    });
+
+    render(
+      <MemoryRouter>
+        <ProjectPage />
+      </MemoryRouter>,
+    );
+
+    await screen.findByRole("heading", { name: "Projeto Teste" });
+    const episodeOneTitle = screen.getByText("Episodio 1");
+    const episodeOneCard = findAncestor(episodeOneTitle, (candidate) =>
+      classTokens(candidate).includes("bg-gradient-card"),
+    );
+    expect(episodeOneCard).not.toBeNull();
+    expect(classTokens(episodeOneCard as HTMLElement)).toContain("md:h-[210px]");
+    expect(classTokens(episodeOneCard as HTMLElement)).not.toContain("md:min-h-[185px]");
   });
 });

@@ -1700,7 +1700,7 @@ const DashboardProjectsEditor = () => {
   );
   const buildEpisodeLibraryOptions = useCallback(
     (episode: EditorProjectEpisode, index: number): ImageLibraryOptions => {
-      if (isLightNovel) {
+      if (isChapterBased) {
         const chapterFolder = buildLightNovelChapterFolder({
           projectChaptersFolder,
           episode,
@@ -1725,7 +1725,7 @@ const DashboardProjectsEditor = () => {
       };
     },
     [
-      isLightNovel,
+      isChapterBased,
       projectChaptersFolder,
       projectEpisodesFolder,
       projectRootFolder,
@@ -2716,6 +2716,11 @@ const DashboardProjectsEditor = () => {
       }
       return matches[0]?.index ?? -1;
     })();
+    const focusedEpisode =
+      focusedEpisodeIndex >= 0 ? initialEpisodes[focusedEpisodeIndex] || null : null;
+    const focusedVolumeGroupKey = focusedEpisode
+      ? buildVolumeCoverKey(focusedEpisode.volume)
+      : null;
     const mergedSynopsis = project.synopsis || project.description || "";
     const normalizedVolumeEntries = normalizeProjectVolumeEntries(
       Array.isArray(project.volumeEntries)
@@ -2795,8 +2800,7 @@ const DashboardProjectsEditor = () => {
     episodeSizeInputRefs.current = {};
     setAnimeStaffMemberInput({});
     editorInitialSnapshotRef.current = buildProjectEditorSnapshot(nextForm, nextAniListInput);
-    pendingEpisodeToScrollRef.current =
-      focusedEpisodeIndex >= 0 ? initialEpisodes[focusedEpisodeIndex] || null : null;
+    pendingEpisodeToScrollRef.current = focusedEpisode;
     setCollapsedEpisodes(() => {
       const next: Record<number, boolean> = {};
       initialEpisodes.forEach((_, index) => {
@@ -2804,7 +2808,13 @@ const DashboardProjectsEditor = () => {
       });
       return next;
     });
-    setCollapsedVolumeGroups({});
+    setCollapsedVolumeGroups(() =>
+      focusedVolumeGroupKey
+        ? {
+            [focusedVolumeGroupKey]: false,
+          }
+        : {},
+    );
     setIsEditorOpen(true);
   }, [clearPendingEpubImportIds, resetEpubImportSelection, resetPendingContentNavigation]);
 

@@ -1,12 +1,16 @@
-import { render, screen, within } from "@testing-library/react";
+import { act, render, screen, within } from "@testing-library/react";
+import * as React from "react";
 import type { ReactNode } from "react";
 import { MemoryRouter } from "react-router-dom";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import HeroSection from "@/components/HeroSection";
 
 const themeModeState = vi.hoisted(() => ({
   effectiveMode: "dark" as "light" | "dark",
+}));
+const mobileState = vi.hoisted(() => ({
+  isMobile: false,
 }));
 const usePublicBootstrapMock = vi.hoisted(() => vi.fn());
 
@@ -24,8 +28,61 @@ vi.mock("@/hooks/use-theme-mode", () => ({
   }),
 }));
 
+vi.mock("@/hooks/use-mobile", () => ({
+  useIsMobile: () => mobileState.isMobile,
+}));
+
+vi.mock("@/lib/browser-idle", () => ({
+  scheduleOnBrowserIdle: (callback: (deadline: IdleDeadline) => void) => {
+    callback({
+      didTimeout: false,
+      timeRemaining: () => 16,
+    } as IdleDeadline);
+    return () => undefined;
+  },
+}));
+
 vi.mock("@/components/ui/carousel", () => {
-  const Carousel = ({ children }: { children: ReactNode }) => <div>{children}</div>;
+  const Carousel = ({
+    children,
+    setApi,
+  }: {
+    children: ReactNode;
+    setApi?: (api: {
+      selectedScrollSnap: () => number;
+      scrollNext: () => void;
+      on: (event: string, callback: () => void) => void;
+      off: (event: string, callback: () => void) => void;
+    }) => void;
+  }) => {
+    React.useEffect(() => {
+      if (!setApi) {
+        return;
+      }
+
+      const listeners = new Map<string, Set<() => void>>();
+      const api = {
+        selectedScrollSnap: () => 0,
+        scrollNext: () => undefined,
+        on: (event: string, callback: () => void) => {
+          const callbacks = listeners.get(event) || new Set<() => void>();
+          callbacks.add(callback);
+          listeners.set(event, callbacks);
+        },
+        off: (event: string, callback: () => void) => {
+          listeners.get(event)?.delete(callback);
+        },
+      };
+
+      setApi(api);
+
+      return () => {
+        listeners.clear();
+      };
+    }, [setApi]);
+
+    return <div>{children}</div>;
+  };
   const CarouselContent = ({
     children,
     className,
@@ -128,6 +185,12 @@ describe("HeroSection cover fit", () => {
   beforeEach(() => {
     usePublicBootstrapMock.mockReset();
     themeModeState.effectiveMode = "dark";
+    mobileState.isMobile = false;
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.restoreAllMocks();
   });
 
   it("renderiza o slide com altura responsiva e imagem em cover central", async () => {
@@ -192,7 +255,27 @@ describe("HeroSection cover fit", () => {
     expect(within(typeStatus).getByText("Em andamento")).toBeInTheDocument();
   });
 
-  it("aplica animacao escalonada em tipo, separador, status e titulo no modo carrossel", async () => {
+  it("mantem first paint mobile estatico no primeiro slide", async () => {
+    mobileState.isMobile = true;
+    setupBootstrapMock({ includeSecondProject: true });
+
+    render(
+      <MemoryRouter>
+        <HeroSection />
+      </MemoryRouter>,
+    );
+
+    const heading = await screen.findByRole("heading", { name: "Projeto com Hero" });
+    expect(screen.queryByTestId("hero-slide-meta-project-2")).not.toBeInTheDocument();
+    expect(heading).not.toHaveClass("animate-slide-up");
+    expect(heading).not.toHaveClass("opacity-0");
+
+    const typeStatus = screen.getByTestId("hero-slide-type-status-project-1");
+    expect(within(typeStatus).getByText("Anime")).not.toHaveClass("animate-slide-up");
+    expect(within(typeStatus).getByText("Em andamento")).not.toHaveClass("animate-slide-up");
+  });
+
+  it("mantem conteudo textual visivel no first render do modo carrossel desktop", async () => {
     setupBootstrapMock({ includeSecondProject: true });
 
     render(
@@ -205,21 +288,42 @@ describe("HeroSection cover fit", () => {
 
     const typeStatus = await screen.findByTestId("hero-slide-type-status-project-1");
     const type = within(typeStatus).getByText("Anime");
-    const separator = within(typeStatus).getByText("•");
     const status = within(typeStatus).getByText("Em andamento");
 
-    expect(type).toHaveClass("animate-slide-up", "opacity-0");
-    expect(separator).toHaveClass("animate-slide-up", "opacity-0");
-    expect(status).toHaveClass("animate-slide-up", "opacity-0");
-    expect(type).toHaveStyle({ animationDelay: "120ms" });
-    expect(separator).toHaveStyle({ animationDelay: "120ms" });
-    expect(status).toHaveStyle({ animationDelay: "120ms" });
+    expect(type).not.toHaveClass("animate-slide-up");
+    expect(status).not.toHaveClass("animate-slide-up");
+    expect(type).not.toHaveClass("opacity-0");
+    expect(status).not.toHaveClass("opacity-0");
 
     const heading = screen.getByRole("heading", { name: "Projeto com Hero" });
-    expect(heading).toHaveClass("animate-slide-up", "opacity-0");
-    expect(heading).toHaveStyle({ animationDelay: "240ms" });
+    expect(heading).not.toHaveClass("animate-slide-up");
+    expect(heading).not.toHaveClass("opacity-0");
   });
 
+  it("atrasa autoplay inicial do carrossel por 20s", () => {
+    vi.useFakeTimers();
+    const setIntervalSpy = vi.spyOn(window, "setInterval");
+    setupBootstrapMock({ includeSecondProject: true });
+
+    render(
+      <MemoryRouter>
+        <HeroSection />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByTestId("hero-slide-meta-project-2")).toBeInTheDocument();
+    expect(setIntervalSpy).not.toHaveBeenCalled();
+
+    act(() => {
+      vi.advanceTimersByTime(19999);
+    });
+    expect(setIntervalSpy).not.toHaveBeenCalled();
+
+    act(() => {
+      vi.advanceTimersByTime(1);
+    });
+    expect(setIntervalSpy).toHaveBeenCalledWith(expect.any(Function), 6000);
+  });
   it("renderiza overlay superior para contraste da navbar no tema claro", async () => {
     themeModeState.effectiveMode = "light";
     setupBootstrapMock();

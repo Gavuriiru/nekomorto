@@ -35,9 +35,14 @@ const normalizeTypeLookupKey = (value) =>
     .trim()
     .toLowerCase();
 
-const isLightNovelType = (type) => {
+const isChapterBasedType = (type) => {
   const normalized = normalizeTypeLookupKey(type);
-  return normalized.includes("light") || normalized.includes("novel");
+  return (
+    normalized.includes("mang") ||
+    normalized.includes("webtoon") ||
+    normalized.includes("light") ||
+    normalized.includes("novel")
+  );
 };
 
 const resolveVolumeFolderSegment = (value) => {
@@ -54,7 +59,7 @@ const resolveEpisodeCoverFolder = ({
   episodeFolder,
   chaptersFolder,
 }) => {
-  if (!isLightNovelType(project?.type || "")) {
+  if (!isChapterBasedType(project?.type || "")) {
     return episodeFolder;
   }
   const chapterNumberValue = Number(episode?.number);

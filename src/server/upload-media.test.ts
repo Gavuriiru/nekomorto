@@ -48,7 +48,24 @@ describe("upload-media", () => {
     const variantDir = path.join(uploadsDir, "_variants", "upload-1");
     const files = fs.readdirSync(variantDir);
 
-    expect(files).toHaveLength(8);
+    expect(files).toHaveLength(13);
+    expect(files).toEqual(
+      expect.arrayContaining([
+        "card-v1.avif",
+        "cardHomeXs-v1.avif",
+        "cardHomeSm-v1.avif",
+        "cardHome-v1.avif",
+        "cardWide-v1.avif",
+        "heroSm-v1.avif",
+        "heroMd-v1.avif",
+        "hero-v1.avif",
+        "og-v1.avif",
+        "poster-v1.avif",
+        "posterThumbSm-v1.avif",
+        "posterThumb-v1.avif",
+        "square-v1.avif",
+      ]),
+    );
     expect(files.every((file) => file.endsWith(".avif"))).toBe(true);
     expect(generated.variantBytes).toBeGreaterThan(0);
     expect(generated.variantBytes).toBe(

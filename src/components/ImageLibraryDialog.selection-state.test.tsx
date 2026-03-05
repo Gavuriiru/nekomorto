@@ -65,7 +65,21 @@ const renderDialog = (currentSelectionUrls: string[]) =>
     />,
   );
 
-const getImageButton = async (label: string) => {
+const ensureUploadsFolderExpanded = async (folderName: RegExp | string) => {
+  await waitFor(() => {
+    expect(screen.queryByTestId("image-library-loading-grid")).not.toBeInTheDocument();
+  });
+  const folderTrigger = await screen.findByRole("button", { name: folderName });
+  if (folderTrigger.getAttribute("aria-expanded") !== "true") {
+    fireEvent.click(folderTrigger);
+  }
+  await waitFor(() => {
+    expect(folderTrigger).toHaveAttribute("aria-expanded", "true");
+  });
+};
+
+const getImageButton = async (label: string, folderName: RegExp | string = /posts/i) => {
+  await ensureUploadsFolderExpanded(folderName);
   const labelNode = await screen.findByText(label);
   const button = labelNode.closest("button");
   expect(button).toBeTruthy();
@@ -111,6 +125,7 @@ describe("ImageLibraryDialog selection state", () => {
   it("limpa automaticamente selecao quando URL nao existe na biblioteca", async () => {
     renderDialog(["/uploads/posts/inexistente.png"]);
 
+    await ensureUploadsFolderExpanded(/posts/i);
     await screen.findByText("Imagem A");
 
     await waitFor(() => {
@@ -224,6 +239,7 @@ describe("ImageLibraryDialog selection state", () => {
       />,
     );
 
+    await ensureUploadsFolderExpanded(/users/i);
     expect(await screen.findByText("Avatar Final")).toBeInTheDocument();
   });
 });

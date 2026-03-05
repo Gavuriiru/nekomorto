@@ -84,6 +84,44 @@ export const resolveProjectFolders = (project) => {
   };
 };
 
+const normalizeTypeLookupKey = (value) =>
+  String(value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim()
+    .toLowerCase();
+
+const isChapterBasedType = (type) => {
+  const normalized = normalizeTypeLookupKey(type);
+  return (
+    normalized.includes("mang") ||
+    normalized.includes("webtoon") ||
+    normalized.includes("light") ||
+    normalized.includes("novel")
+  );
+};
+
+const resolveVolumeFolderSegment = (value) => {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) {
+    return "volume-sem-volume";
+  }
+  return `volume-${Math.floor(numeric)}`;
+};
+
+const resolveChapterFolderForEpisode = ({ project, episode, index, projectFolders }) => {
+  if (!isChapterBasedType(project?.type || "")) {
+    return "";
+  }
+  const chapterNumberValue = Number(episode?.number);
+  const fallbackNumber = Number.isFinite(Number(index)) ? Number(index) + 1 : 1;
+  const chapterNumber = Number.isFinite(chapterNumberValue) && chapterNumberValue > 0
+    ? Math.floor(chapterNumberValue)
+    : fallbackNumber;
+  const volumeSegment = resolveVolumeFolderSegment(episode?.volume);
+  return `${projectFolders.chapters}/${volumeSegment}/capitulo-${chapterNumber}`;
+};
+
 export const getUploadRootSegment = (relativePath) => {
   const normalized = toPosix(String(relativePath || "")).replace(/^\/+/, "");
   const [first] = normalized.split("/");
@@ -258,6 +296,21 @@ const listUploadFilesOnDisk = (uploadsDir) => {
   return files;
 };
 
+const PROJECT_FOLDER_USAGE_SEPARATOR = "\u0001";
+const buildProjectEpisodeFolderUsageKey = (projectId, folder) =>
+  `${String(projectId || "").trim()}${PROJECT_FOLDER_USAGE_SEPARATOR}${String(folder || "").trim()}`;
+const parseProjectEpisodeFolderUsageKey = (value) => {
+  const normalized = String(value || "");
+  const separatorIndex = normalized.indexOf(PROJECT_FOLDER_USAGE_SEPARATOR);
+  if (separatorIndex < 0) {
+    return { projectId: "", folder: "" };
+  }
+  return {
+    projectId: normalized.slice(0, separatorIndex),
+    folder: normalized.slice(separatorIndex + PROJECT_FOLDER_USAGE_SEPARATOR.length),
+  };
+};
+
 const getUsageBucket = (usageByUrl, uploadUrl) => {
   if (!usageByUrl.has(uploadUrl)) {
     usageByUrl.set(uploadUrl, {
@@ -266,6 +319,7 @@ const getUsageBucket = (usageByUrl, uploadUrl) => {
       projectMainIds: new Set(),
       projectVolumeIds: new Set(),
       projectEpisodeIds: new Set(),
+      projectEpisodeChapterFolders: new Set(),
     });
   }
   return usageByUrl.get(uploadUrl);
@@ -280,7 +334,7 @@ const addPostUsage = (usageByUrl, maybeUrl, postRef) => {
   usage.posts.add(postRef);
 };
 
-const addProjectUsage = (usageByUrl, maybeUrl, projectId, kind) => {
+const addProjectUsage = (usageByUrl, maybeUrl, projectId, kind, { chapterFolder = "" } = {}) => {
   const uploadUrl = normalizeUploadUrl(maybeUrl);
   if (!uploadUrl) {
     return;
@@ -289,6 +343,14 @@ const addProjectUsage = (usageByUrl, maybeUrl, projectId, kind) => {
   usage.projectIds.add(projectId);
   if (kind === "episode") {
     usage.projectEpisodeIds.add(projectId);
+    const normalizedChapterFolder = toPosix(String(chapterFolder || "").trim())
+      .replace(/^\/+/, "")
+      .replace(/\/+$/, "");
+    if (normalizedChapterFolder) {
+      usage.projectEpisodeChapterFolders.add(
+        buildProjectEpisodeFolderUsageKey(projectId, normalizedChapterFolder),
+      );
+    }
   } else if (kind === "volume") {
     usage.projectVolumeIds.add(projectId);
   } else {
@@ -313,6 +375,7 @@ const collectUsage = (posts, projects) => {
 
   (Array.isArray(projects) ? projects : []).forEach((project) => {
     const { projectId } = resolveProjectFolders(project);
+    const projectFolders = projectFoldersById.get(projectId) || resolveProjectFolders(project);
     addProjectUsage(usageByUrl, project?.cover, projectId, "main");
     addProjectUsage(usageByUrl, project?.banner, projectId, "main");
     addProjectUsage(usageByUrl, project?.heroImageUrl, projectId, "main");
@@ -329,13 +392,20 @@ const collectUsage = (posts, projects) => {
       addProjectUsage(usageByUrl, relation?.image, projectId, "main");
     });
 
-    (Array.isArray(project?.episodeDownloads) ? project.episodeDownloads : []).forEach((episode) => {
-      addProjectUsage(usageByUrl, episode?.coverImageUrl, projectId, "episode");
+    (Array.isArray(project?.episodeDownloads) ? project.episodeDownloads : []).forEach((episode, index) => {
+      const chapterFolder = resolveChapterFolderForEpisode({
+        project,
+        episode,
+        index,
+        projectFolders,
+      });
+      const episodeOptions = chapterFolder ? { chapterFolder } : undefined;
+      addProjectUsage(usageByUrl, episode?.coverImageUrl, projectId, "episode", episodeOptions);
       extractUploadUrlsFromText(episode?.content).forEach((uploadUrl) =>
-        addProjectUsage(usageByUrl, uploadUrl, projectId, "episode"),
+        addProjectUsage(usageByUrl, uploadUrl, projectId, "episode", episodeOptions),
       );
       extractUploadUrlsFromText(episode?.title).forEach((uploadUrl) =>
-        addProjectUsage(usageByUrl, uploadUrl, projectId, "episode"),
+        addProjectUsage(usageByUrl, uploadUrl, projectId, "episode", episodeOptions),
       );
     });
 
@@ -377,6 +447,14 @@ export const classifyTargetFolder = (usage, projectFoldersById, sourceRelative =
       if (normalizedSource.startsWith(`${projectFolders.chapters}/`)) {
         const stickyFolder = path.posix.dirname(normalizedSource);
         return stickyFolder === "." ? projectFolders.chapters : stickyFolder;
+      }
+      const chapterFolders = Array.from(usage?.projectEpisodeChapterFolders || [])
+        .map((item) => parseProjectEpisodeFolderUsageKey(item))
+        .filter((entry) => entry.projectId === projectId && entry.folder)
+        .map((entry) => toPosix(entry.folder).replace(/^\/+/, "").replace(/\/+$/, ""));
+      const uniqueChapterFolders = Array.from(new Set(chapterFolders));
+      if (uniqueChapterFolders.length === 1) {
+        return uniqueChapterFolders[0];
       }
       return projectFolders.episodes;
     }

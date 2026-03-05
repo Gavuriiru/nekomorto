@@ -8,14 +8,26 @@ export const useReveal = (selector = DEFAULT_SELECTOR) => {
 
   useEffect(() => {
     const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const tracked = new Set<HTMLElement>();
+    const fallbackTimers = new Map<HTMLElement, number>();
+    let observer: IntersectionObserver | null = null;
 
-    const showElement = (el: HTMLElement) => {
-      el.classList.add("reveal-visible");
-      el.classList.remove("reveal-hidden");
+    const clearFallbackTimer = (el: HTMLElement) => {
+      const handle = fallbackTimers.get(el);
+      if (typeof handle === "number") {
+        window.clearTimeout(handle);
+        fallbackTimers.delete(el);
+      }
     };
 
-    const tracked = new Set<HTMLElement>();
-    const observer =
+    const showElement = (el: HTMLElement) => {
+      clearFallbackTimer(el);
+      el.classList.add("reveal-visible");
+      el.classList.remove("reveal-hidden");
+      observer?.unobserve(el);
+    };
+
+    observer =
       typeof window.IntersectionObserver === "function"
         ? new IntersectionObserver(
             (entries) => {
@@ -24,7 +36,6 @@ export const useReveal = (selector = DEFAULT_SELECTOR) => {
                   return;
                 }
                 showElement(entry.target as HTMLElement);
-                observer?.unobserve(entry.target);
               });
             },
             { rootMargin: "0px 0px -10% 0px", threshold: 0.15 },
@@ -50,6 +61,11 @@ export const useReveal = (selector = DEFAULT_SELECTOR) => {
         }
         el.classList.add("reveal-hidden");
         observer.observe(el);
+        clearFallbackTimer(el);
+        const handle = window.setTimeout(() => {
+          showElement(el);
+        }, 700);
+        fallbackTimers.set(el, handle);
       });
     };
 
@@ -80,15 +96,11 @@ export const useReveal = (selector = DEFAULT_SELECTOR) => {
 
     mutationObserver.observe(document.body, { childList: true, subtree: true });
 
-    const fallbackTimer = window.setTimeout(() => {
-      tracked.forEach((el) => {
-        showElement(el);
-        observer?.unobserve(el);
-      });
-    }, 700);
-
     return () => {
-      window.clearTimeout(fallbackTimer);
+      fallbackTimers.forEach((handle) => {
+        window.clearTimeout(handle);
+      });
+      fallbackTimers.clear();
       mutationObserver.disconnect();
       observer?.disconnect();
     };

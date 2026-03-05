@@ -110,7 +110,7 @@ const ReleasesSection = () => {
                               alt={release.title}
                               preset="cardHome"
                               mediaVariants={mediaVariants}
-                              sizes="(min-width: 1024px) 364px, (min-width: 640px) calc((100vw - 8rem) / 2), calc(100vw - 3rem)"
+                              sizes="(min-width: 1024px) 406px, (min-width: 640px) calc((100vw - 8rem) / 2), calc(100vw - 3rem)"
                               className="absolute inset-0 block h-full w-full"
                               imgClassName="absolute inset-0 block h-full w-full object-cover object-center transition-transform duration-300 group-hover:scale-105"
                               loading="lazy"

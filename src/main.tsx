@@ -51,7 +51,7 @@ const bootstrap = async () => {
         .then(({ registerPwa }) => registerPwa())
         .catch(() => null);
     },
-    { delayMs: 5000 },
+    { delayMs: 15000 },
   );
 
   const apiBase = getApiBase();

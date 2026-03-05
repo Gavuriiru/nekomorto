@@ -1,10 +1,15 @@
 export type UploadVariantPresetKey =
   | "card"
+  | "cardHomeXs"
+  | "cardHomeSm"
   | "cardHome"
   | "cardWide"
+  | "heroSm"
+  | "heroMd"
   | "hero"
   | "og"
   | "poster"
+  | "posterThumbSm"
   | "posterThumb"
   | "square";
 
@@ -44,13 +49,42 @@ const UPLOAD_VARIANT_PRESET_FALLBACK_ORDER: Record<
   readonly UploadVariantPresetKey[]
 > = Object.freeze({
   card: Object.freeze(["card"]),
+  cardHomeXs: Object.freeze(["cardHomeXs", "cardHomeSm", "cardHome", "card"]),
+  cardHomeSm: Object.freeze(["cardHomeSm", "cardHome", "card"]),
   cardHome: Object.freeze(["cardHome", "card"]),
   cardWide: Object.freeze(["cardWide"]),
+  heroSm: Object.freeze(["heroSm", "hero"]),
+  heroMd: Object.freeze(["heroMd", "hero"]),
   hero: Object.freeze(["hero"]),
   og: Object.freeze(["og"]),
   poster: Object.freeze(["poster"]),
+  posterThumbSm: Object.freeze(["posterThumbSm", "posterThumb", "poster"]),
   posterThumb: Object.freeze(["posterThumb", "poster"]),
   square: Object.freeze(["square"]),
+});
+
+const UPLOAD_VARIANT_PRESET_WIDTHS: Record<UploadVariantPresetKey, number> = Object.freeze({
+  card: 1280,
+  cardHomeXs: 480,
+  cardHomeSm: 800,
+  cardHome: 960,
+  cardWide: 1280,
+  heroSm: 960,
+  heroMd: 1280,
+  hero: 1600,
+  og: 1200,
+  poster: 920,
+  posterThumbSm: 192,
+  posterThumb: 320,
+  square: 512,
+});
+
+const UPLOAD_VARIANT_RESPONSIVE_PRESET_ORDER: Partial<
+  Record<UploadVariantPresetKey, readonly UploadVariantPresetKey[]>
+> = Object.freeze({
+  cardHome: Object.freeze(["cardHomeXs", "cardHomeSm", "cardHome", "card"]),
+  hero: Object.freeze(["heroSm", "heroMd", "hero"]),
+  posterThumb: Object.freeze(["posterThumbSm", "posterThumb", "poster"]),
 });
 
 export const normalizeUploadVariantUrlKey = (value: string | null | undefined) => {
@@ -87,6 +121,55 @@ const toFormatUrl = (format: UploadVariantFormat | null | undefined) => {
   return url;
 };
 
+const toFinitePresetWidth = (
+  presetKey: UploadVariantPresetKey,
+  presetRecord: UploadVariantPreset | null | undefined,
+) => {
+  const width = Number(presetRecord?.width);
+  if (Number.isFinite(width) && width > 0) {
+    return width;
+  }
+  return UPLOAD_VARIANT_PRESET_WIDTHS[presetKey];
+};
+
+const appendSrcSetCandidate = (
+  map: Map<string, number>,
+  url: string,
+  width: number,
+) => {
+  if (!url || !Number.isFinite(width) || width <= 0) {
+    return;
+  }
+  const current = map.get(url);
+  if (!current || width > current) {
+    map.set(url, width);
+  }
+};
+
+const formatSrcSetCandidates = (candidates: Map<string, number>) =>
+  [...candidates.entries()]
+    .sort((left, right) => left[1] - right[1])
+    .map(([url, width]) => `${url} ${Math.round(width)}w`)
+    .join(", ");
+
+const resolveEntryVariants = ({
+  src,
+  mediaVariants,
+}: {
+  src: string | null | undefined;
+  mediaVariants?: UploadMediaVariantsMap | null;
+}) => {
+  const key = normalizeUploadVariantUrlKey(src);
+  if (!key || !mediaVariants || typeof mediaVariants !== "object") {
+    return null;
+  }
+  const entry = mediaVariants[key];
+  if (!entry || typeof entry !== "object") {
+    return null;
+  }
+  return entry.variants && typeof entry.variants === "object" ? entry.variants : null;
+};
+
 const normalizeFocalAxis = (value: unknown) => {
   const numeric = Number(value);
   if (!Number.isFinite(numeric)) {
@@ -118,15 +201,7 @@ export const resolveUploadVariantSources = ({
   preset: UploadVariantPresetKey;
   mediaVariants?: UploadMediaVariantsMap | null;
 }) => {
-  const key = normalizeUploadVariantUrlKey(src);
-  if (!key || !mediaVariants || typeof mediaVariants !== "object") {
-    return { avif: "", webp: "", fallback: "" };
-  }
-  const entry = mediaVariants[key];
-  if (!entry || typeof entry !== "object") {
-    return { avif: "", webp: "", fallback: "" };
-  }
-  const variants = entry.variants && typeof entry.variants === "object" ? entry.variants : null;
+  const variants = resolveEntryVariants({ src, mediaVariants });
   if (!variants) {
     return { avif: "", webp: "", fallback: "" };
   }
@@ -155,6 +230,55 @@ export const resolveUploadVariantSources = ({
   };
 };
 
+const resolveResponsivePresetOrder = (preset: UploadVariantPresetKey) => {
+  const responsiveOrder = UPLOAD_VARIANT_RESPONSIVE_PRESET_ORDER[preset] || [];
+  const fallbackOrder = UPLOAD_VARIANT_PRESET_FALLBACK_ORDER[preset] || [];
+  return [...new Set([...responsiveOrder, ...fallbackOrder])];
+};
+
+export const resolveUploadVariantResponsiveSources = ({
+  src,
+  preset,
+  mediaVariants,
+}: {
+  src: string | null | undefined;
+  preset: UploadVariantPresetKey;
+  mediaVariants?: UploadMediaVariantsMap | null;
+}) => {
+  const variants = resolveEntryVariants({ src, mediaVariants });
+  if (!variants) {
+    return { avifSrcSet: "", webpSrcSet: "", fallbackSrcSet: "" };
+  }
+
+  const avifCandidates = new Map<string, number>();
+  const webpCandidates = new Map<string, number>();
+  const fallbackCandidates = new Map<string, number>();
+
+  for (const candidatePreset of resolveResponsivePresetOrder(preset)) {
+    const presetRecord = variants[candidatePreset];
+    if (!presetRecord || typeof presetRecord !== "object") {
+      continue;
+    }
+    const formats =
+      presetRecord.formats && typeof presetRecord.formats === "object"
+        ? presetRecord.formats
+        : null;
+    if (!formats) {
+      continue;
+    }
+    const width = toFinitePresetWidth(candidatePreset, presetRecord);
+    appendSrcSetCandidate(avifCandidates, toFormatUrl(formats.avif), width);
+    appendSrcSetCandidate(webpCandidates, toFormatUrl(formats.webp), width);
+    appendSrcSetCandidate(fallbackCandidates, toFormatUrl(formats.fallback), width);
+  }
+
+  return {
+    avifSrcSet: formatSrcSetCandidates(avifCandidates),
+    webpSrcSet: formatSrcSetCandidates(webpCandidates),
+    fallbackSrcSet: formatSrcSetCandidates(fallbackCandidates),
+  };
+};
+
 export const resolveUploadVariantFocalPoint = ({
   src,
   preset,
@@ -172,7 +296,8 @@ export const resolveUploadVariantFocalPoint = ({
   if (!entry || typeof entry !== "object") {
     return null;
   }
-  const mappedPreset = preset === "hero" ? "hero" : "card";
+  const mappedPreset =
+    preset === "hero" || preset === "heroSm" || preset === "heroMd" ? "hero" : "card";
   const focalPoints =
     entry.focalPoints && typeof entry.focalPoints === "object" ? entry.focalPoints : null;
   const presetFocal = focalPoints ? normalizeFocalPoint(focalPoints[mappedPreset]) : null;

@@ -145,6 +145,15 @@ describe("Project mobile download card layout", () => {
     expect(classTokens(sourceTypeBadge)).toContain("md:absolute");
     expect(classTokens(sourceTypeBadge)).not.toContain("absolute");
 
+    const episodeCard = findAncestor(sourceTypeBadge, (candidate) =>
+      classTokens(candidate).includes("bg-gradient-card"),
+    );
+    expect(episodeCard).not.toBeNull();
+    expect(classTokens(episodeCard as HTMLElement)).toContain("w-full");
+    expect(classTokens(episodeCard as HTMLElement)).toContain("md:h-[210px]");
+    expect(classTokens(episodeCard as HTMLElement)).not.toContain("md:min-h-[185px]");
+    expect(classTokens(episodeCard as HTMLElement)).not.toContain("md:w-[920px]");
+
     const contentColumn = findAncestor(sourceTypeBadge, (candidate) =>
       classTokens(candidate).includes("md:min-h-[153px]"),
     );
@@ -170,6 +179,8 @@ describe("Project mobile download card layout", () => {
     expect(metaShell).not.toBeNull();
     expect(classTokens(metaShell as HTMLElement)).toContain("md:pb-[52px]");
     expect(classTokens(metaShell as HTMLElement)).not.toContain("pb-12");
+    expect(classTokens(metaShell as HTMLElement)).not.toContain("md:max-h-[70px]");
+    expect(classTokens(metaShell as HTMLElement)).not.toContain("md:overflow-hidden");
 
     const sourceLink = screen.getByRole("link", { name: /Google Drive/i });
     const actionsRow = findAncestor(sourceLink, (candidate) =>
@@ -197,5 +208,99 @@ describe("Project mobile download card layout", () => {
     expect(sourceLabel?.textContent).toBe("Google Drive");
     expect(classTokens(sourceLabel as HTMLElement)).toContain("sr-only");
     expect(classTokens(sourceLabel as HTMLElement)).toContain("md:not-sr-only");
+  });
+
+  it("keeps anime cards with fixed desktop height even when metadata differs", async () => {
+    const project = {
+      id: "projeto-teste",
+      title: "Projeto Teste",
+      synopsis: "Sinopse",
+      description: "Descricao",
+      type: "Anime",
+      status: "Em andamento",
+      year: "2025",
+      studio: "Studio Teste",
+      episodes: "12 episodios",
+      tags: [],
+      genres: [],
+      cover: "/placeholder.svg",
+      banner: "/placeholder.svg",
+      season: "Temporada 1",
+      schedule: "Sabado",
+      rating: "14",
+      episodeDownloads: [
+        {
+          number: 1,
+          title: "Episodio 1 com metadados completos e texto maior para truncamento visual",
+          releaseDate: "2025-01-01",
+          duration: "02:40:30",
+          sourceType: "TV",
+          sizeBytes: 1664299827,
+          hash: "SHA-256: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+          sources: [
+            {
+              label: "Google Drive",
+              url: "https://example.com/source-1",
+            },
+          ],
+        },
+        {
+          number: 2,
+          title: "Episodio 2",
+          sourceType: "TV",
+          sources: [
+            {
+              label: "Google Drive",
+              url: "https://example.com/source-2",
+            },
+          ],
+        },
+      ],
+      staff: [],
+      animeStaff: [],
+      relations: [],
+    };
+
+    apiFetchMock.mockImplementation(
+      async (_apiBase: string, endpoint: string, options?: { method?: string }) => {
+        if (endpoint === "/api/public/projects/projeto-teste") {
+          return { ok: true, json: async () => ({ project }) };
+        }
+        if (endpoint === "/api/public/projects") {
+          return { ok: true, json: async () => ({ projects: [project] }) };
+        }
+        if (endpoint === "/api/public/tag-translations") {
+          return { ok: true, json: async () => ({ tags: {}, genres: {}, staffRoles: {} }) };
+        }
+        if (endpoint === `/api/public/projects/${project.id}/view` && options?.method === "POST") {
+          return { ok: true, json: async () => ({ ok: true }) };
+        }
+        return { ok: false, json: async () => ({}) };
+      },
+    );
+
+    render(
+      <MemoryRouter>
+        <ProjectPage />
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByRole("heading", { name: "Projeto Teste" })).toBeInTheDocument();
+
+    const firstSource = screen.getAllByRole("link", { name: "Google Drive" })[0];
+    const firstCard = findAncestor(firstSource, (candidate) =>
+      classTokens(candidate).includes("bg-gradient-card"),
+    );
+    expect(firstCard).not.toBeNull();
+    expect(classTokens(firstCard as HTMLElement)).toContain("md:h-[210px]");
+    expect(classTokens(firstCard as HTMLElement)).not.toContain("md:min-h-[185px]");
+
+    const episodeTwoTitle = screen.getByText("Episodio 2");
+    const secondCard = findAncestor(episodeTwoTitle, (candidate) =>
+      classTokens(candidate).includes("bg-gradient-card"),
+    );
+    expect(secondCard).not.toBeNull();
+    expect(classTokens(secondCard as HTMLElement)).toContain("md:h-[210px]");
+    expect(classTokens(secondCard as HTMLElement)).not.toContain("md:min-h-[185px]");
   });
 });

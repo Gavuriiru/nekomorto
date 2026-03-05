@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { describe, expect, it, vi } from "vitest";
 
@@ -84,7 +84,7 @@ const mockJsonResponse = (ok: boolean, payload: unknown, status = ok ? 200 : 500
     json: async () => payload,
   }) as Response;
 
-const projectFixture = {
+const projectFixtureBase = {
   id: "project-1",
   anilistId: 1001,
   title: "Projeto Teste",
@@ -133,10 +133,21 @@ const projectFixture = {
   order: 0,
 };
 
-const setupApiMock = () => {
+const buildProjectFixture = (
+  overrides: Partial<typeof projectFixtureBase> = {},
+): typeof projectFixtureBase => ({
+  ...projectFixtureBase,
+  ...overrides,
+  episodeDownloads: Array.isArray(overrides.episodeDownloads)
+    ? overrides.episodeDownloads
+    : [...projectFixtureBase.episodeDownloads],
+});
+
+const setupApiMock = (projectOverrides: Partial<typeof projectFixtureBase> = {}) => {
   apiFetchMock.mockReset();
   imageLibraryPropsSpy.mockReset();
   lexicalPropsSpy.mockReset();
+  const projectFixture = buildProjectFixture(projectOverrides);
   apiFetchMock.mockImplementation(async (_base: string, path: string, options?: RequestInit) => {
     const method = String(options?.method || "GET").toUpperCase();
     if (path === "/api/me" && method === "GET") {
@@ -269,5 +280,55 @@ describe("DashboardProjectsEditor image library context", () => {
       projectImageProjectIds: ["project-1"],
       projectImagesView: "by-project",
     });
+  });
+
+  it("aplica pasta de capitulo tambem para manga na biblioteca da capa", async () => {
+    setupApiMock({ type: "Manga" });
+
+    render(
+      <MemoryRouter initialEntries={["/dashboard/projetos"]}>
+        <DashboardProjectsEditor />
+      </MemoryRouter>,
+    );
+
+    const projectCardButton = await screen.findByRole("button", {
+      name: "Abrir projeto Projeto Teste",
+    });
+    fireEvent.click(projectCardButton);
+    await screen.findByText("Editar projeto");
+
+    const episodesSectionTrigger = await screen.findByText(/Conte.do/i);
+    fireEvent.click(episodesSectionTrigger);
+    const volumeGroup = await screen.findByTestId("volume-group-none");
+    const volumeGroupTrigger = volumeGroup.querySelector("button");
+    expect(volumeGroupTrigger).toBeTruthy();
+    fireEvent.click(volumeGroupTrigger as HTMLButtonElement);
+
+    const episodeCard = await screen.findByTestId("episode-card-0");
+    const episodeToggleButton = episodeCard.querySelector("button");
+    expect(episodeToggleButton).toBeTruthy();
+    fireEvent.click(episodeToggleButton as HTMLButtonElement);
+
+    const episodeLibraryButton = within(episodeCard).getAllByRole("button", { name: "Biblioteca" })[0];
+    fireEvent.click(episodeLibraryButton);
+
+    await waitFor(() => {
+      const latestImageLibraryProps = imageLibraryPropsSpy.mock.calls.at(-1)?.[0] as {
+        uploadFolder?: string;
+      };
+      expect(latestImageLibraryProps?.uploadFolder).toBe(
+        "projects/project-1/capitulos/volume-sem-volume/capitulo-1",
+      );
+    });
+
+    const latestImageLibraryProps = imageLibraryPropsSpy.mock.calls.at(-1)?.[0] as {
+      listFolders?: string[];
+    };
+    expect(latestImageLibraryProps.listFolders).toEqual([
+      "projects/project-1/capitulos/volume-sem-volume/capitulo-1",
+      "projects/project-1/capitulos",
+      "projects/project-1/episodes",
+      "projects/project-1",
+    ]);
   });
 });

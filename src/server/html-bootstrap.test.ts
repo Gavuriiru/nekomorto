@@ -17,6 +17,10 @@ describe("html bootstrap injection", () => {
         posts: [],
       },
       settings: { site: { name: "Nekomata" } },
+      publicMe: {
+        id: "user-1",
+        name: "Admin",
+      },
     });
     const result = injectPreloadLinks({
       html: withBootstrap,
@@ -25,6 +29,7 @@ describe("html bootstrap injection", () => {
 
     expect(result).toContain("window.__BOOTSTRAP_PUBLIC__ = ");
     expect(result).toContain("window.__BOOTSTRAP_SETTINGS__ = ");
+    expect(result).toContain("window.__BOOTSTRAP_PUBLIC_ME__ = ");
     expect(result).toContain("window.__BOOTSTRAP_PUBLIC_PROMISE__");
     expect(result).toContain("fetch('/api/public/bootstrap'");
     expect(result).toContain('rel="preload"');
@@ -42,6 +47,7 @@ describe("html bootstrap injection", () => {
         posts: [],
       },
       settings: {},
+      publicMe: null,
     });
 
     expect(result).toContain("<script>");
@@ -58,9 +64,11 @@ describe("html bootstrap injection", () => {
         posts: [],
       },
       settings: {},
+      publicMe: { id: "user-1", name: "</script><script>alert(2)</script>" },
     });
 
     expect(result).not.toContain("</script><script>alert(1)</script>");
+    expect(result).not.toContain("</script><script>alert(2)</script>");
     expect(result).toContain("\\u003C/script\\u003E");
   });
 });

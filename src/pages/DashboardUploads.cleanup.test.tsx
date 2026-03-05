@@ -307,8 +307,7 @@ describe("DashboardUploads cleanup", () => {
 
     render(<DashboardUploads />);
 
-    await screen.findByText("Limpeza de armazenamento não utilizado");
-    expect(
+    await screen.findByText("Limpeza"
       screen.getByText("Consumo real por área com base nos arquivos presentes em disco."),
     ).toBeInTheDocument();
     expect(screen.getByText("2 uploads sem uso")).toBeInTheDocument();

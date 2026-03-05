@@ -445,19 +445,59 @@ const ProjectPage = () => {
     });
   };
 
-  const renderEpisodeDownloadCard = (episode: EpisodeItem, key: string, showRawBadge: boolean) => {
+  type EpisodeReadAction = {
+    href: string;
+    label: string;
+  };
+
+  type VolumeGroup = {
+    label: string;
+    volume?: number;
+    items: EpisodeItem[];
+  };
+
+  type VolumeGroupMeta = {
+    src: string;
+    alt: string;
+    synopsis: string;
+  };
+
+  type RenderEpisodeCardOptions = {
+    showRawBadge?: boolean;
+    readAction?: EpisodeReadAction | null;
+    showSynopsis?: boolean;
+    emptyStateBadge?: string;
+  };
+
+  const renderEpisodeDownloadCard = (
+    episode: EpisodeItem,
+    key: string,
+    options: RenderEpisodeCardOptions = {},
+  ) => {
+    const {
+      showRawBadge = false,
+      readAction = null,
+      showSynopsis = false,
+      emptyStateBadge = "Em breve",
+    } = options;
     const { sizeLabel, hashLabel, hashTitle } = buildEpisodeMetadata(episode);
     const isExtraEntry = getEpisodeEntryKind(episode) === "extra";
+    const isAnimeDownloadCard = !isChapterBased;
+    const sources = episode.sources || [];
+    const hasReadAction = Boolean(readAction?.href && readAction.label);
+    const hasSources = sources.length > 0;
     const episodeBadgeLabel = isExtraEntry
       ? String(episode.displayLabel || "Extra").trim() || "Extra"
-      : isManga
+      : isChapterBased
         ? `Cap ${episode.number}${episode.volume ? ` • Vol. ${episode.volume}` : ""}`
         : `EP ${episode.number}`;
 
     return (
       <Card
         key={key}
-        className="group w-full overflow-hidden rounded-2xl border border-border/60 bg-gradient-card shadow-[0_24px_90px_-55px_rgba(0,0,0,0.75)] transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:shadow-[0_28px_100px_-50px_rgba(0,0,0,0.85)] md:h-[185px] md:w-[920px]"
+        className={`group w-full overflow-hidden rounded-2xl border border-border/60 bg-gradient-card shadow-[0_24px_90px_-55px_rgba(0,0,0,0.75)] transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:shadow-[0_28px_100px_-50px_rgba(0,0,0,0.85)] ${
+          isAnimeDownloadCard ? "md:h-[210px]" : "md:min-h-[185px]"
+        }`}
       >
         <CardContent className="relative grid h-full gap-4 p-4 md:grid-cols-[272px_minmax(0,1fr)] md:items-start md:gap-4 md:p-4">
           <div className="w-full overflow-hidden rounded-xl border border-border/60 bg-background/50 shadow-inner md:h-[153px] md:w-[272px]">
@@ -494,24 +534,30 @@ const ProjectPage = () => {
               </div>
               <div className="flex flex-col items-start gap-1.5 text-xs text-muted-foreground">
                 {episode.duration ? (
-                  <span className="inline-flex items-center gap-1">
+                  <span
+                    className="inline-flex min-w-0 max-w-full items-center gap-1"
+                    title={String(episode.duration)}
+                  >
                     <Clock3 className="h-3.5 w-3.5 text-primary/70" />
                     <span className="font-medium text-foreground/90">Duração:</span>
-                    {episode.duration}
+                    <span className="truncate">{episode.duration}</span>
                   </span>
                 ) : null}
                 {episode.releaseDate ? (
-                  <span className="inline-flex items-center gap-1">
+                  <span
+                    className="inline-flex min-w-0 max-w-full items-center gap-1"
+                    title={formatDate(episode.releaseDate)}
+                  >
                     <CalendarDays className="h-3.5 w-3.5 text-primary/70" />
                     <span className="font-medium text-foreground/90">Data:</span>
-                    {formatDate(episode.releaseDate)}
+                    <span className="truncate">{formatDate(episode.releaseDate)}</span>
                   </span>
                 ) : null}
                 {sizeLabel ? (
-                  <span className="inline-flex items-center gap-1">
+                  <span className="inline-flex min-w-0 max-w-full items-center gap-1" title={sizeLabel}>
                     <HardDrive className="h-3.5 w-3.5 text-primary/70" />
                     <span className="font-medium text-foreground/90">Tamanho:</span>
-                    {sizeLabel}
+                    <span className="truncate">{sizeLabel}</span>
                   </span>
                 ) : null}
                 {hashTitle ? (
@@ -524,42 +570,189 @@ const ProjectPage = () => {
                   </span>
                 ) : null}
               </div>
+              {showSynopsis && episode.synopsis ? (
+                <p className="text-sm text-muted-foreground">{episode.synopsis}</p>
+              ) : null}
             </div>
 
             <div className="mt-2 flex flex-wrap items-center justify-end gap-2 md:absolute md:-bottom-2 md:left-0 md:right-0 md:mt-0 md:justify-end">
-              {episode.sources.map((source, sourceIndex) => {
-                const theme = sourceThemeMap.get(source.label.toLowerCase());
-                const color = theme?.color || "#4b5563";
-                const icon = renderSourceIcon(
-                  theme?.icon,
-                  color,
-                  source.label,
-                  theme?.tintIcon ?? true,
-                );
-                return (
-                  <Button
-                    key={`${key}-${source.label}-${sourceIndex}`}
-                    asChild
-                    variant="outline"
-                    size="sm"
-                    className="h-9 w-9 rounded-full bg-card/70 px-0 text-sm hover:bg-primary/10 md:w-auto md:px-4"
-                    style={{ borderColor: `${color}99`, color }}
-                  >
-                    <a
-                      href={source.url}
-                      target="_blank"
-                      rel="noreferrer"
-                      aria-label={source.label}
-                      title={source.label}
-                      className="inline-flex items-center justify-center gap-0 md:gap-2"
-                      onClick={() => trackDownloadClick(episode, source.label)}
-                    >
-                      {icon}
-                      <span className="sr-only md:not-sr-only">{source.label}</span>
-                    </a>
-                  </Button>
-                );
-              })}
+              {hasReadAction ? (
+                <Button asChild size="sm">
+                  <Link to={String(readAction?.href || "#")}>{String(readAction?.label || "")}</Link>
+                </Button>
+              ) : null}
+              {hasSources
+                ? sources.map((source, sourceIndex) => {
+                    const theme = sourceThemeMap.get(source.label.toLowerCase());
+                    const color = theme?.color || "#4b5563";
+                    const icon = renderSourceIcon(
+                      theme?.icon,
+                      color,
+                      source.label,
+                      theme?.tintIcon ?? true,
+                    );
+                    return (
+                      <Button
+                        key={`${key}-${source.label}-${sourceIndex}`}
+                        asChild
+                        variant="outline"
+                        size="sm"
+                        className="h-9 w-9 rounded-full bg-card/70 px-0 text-sm hover:bg-primary/10 md:w-auto md:px-4"
+                        style={{ borderColor: `${color}99`, color }}
+                      >
+                        <a
+                          href={source.url}
+                          target="_blank"
+                          rel="noreferrer"
+                          aria-label={source.label}
+                          title={source.label}
+                          className="inline-flex items-center justify-center gap-0 md:gap-2"
+                          onClick={() => trackDownloadClick(episode, source.label)}
+                        >
+                          {icon}
+                          <span className="sr-only md:not-sr-only">{source.label}</span>
+                        </a>
+                      </Button>
+                    );
+                  })
+                : null}
+              {!hasReadAction && !hasSources && emptyStateBadge ? (
+                <Badge variant="outline" className="text-[10px] uppercase">
+                  {emptyStateBadge}
+                </Badge>
+              ) : null}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  };
+
+  type RenderChapterCardOptions = {
+    groupMeta: VolumeGroupMeta;
+    allowReadAction: boolean;
+  };
+
+  const renderChapterDownloadCard = (
+    chapter: EpisodeItem,
+    key: string,
+    options: RenderChapterCardOptions,
+  ) => {
+    const { groupMeta, allowReadAction } = options;
+    const isExtraEntry = getEpisodeEntryKind(chapter) === "extra";
+    const chapterLabel = isExtraEntry
+      ? String(chapter.displayLabel || "Extra").trim() || "Extra"
+      : `Cap ${chapter.number}${chapter.volume ? ` • Vol. ${chapter.volume}` : ""}`;
+    const chapterTitle = String(chapter.title || "").trim() || (isExtraEntry ? "Extra" : "Capítulo");
+    const hasContent =
+      (chapter as { hasContent?: boolean }).hasContent ||
+      (typeof chapter.content === "string" && chapter.content.trim().length > 0);
+    const hasSources = (chapter.sources || []).length > 0;
+    const readAction: EpisodeReadAction | null =
+      allowReadAction && hasContent
+        ? {
+            href: `/projeto/${project.id}/leitura/${chapter.number}${chapter.volume ? `?volume=${chapter.volume}` : ""}`,
+            label: isExtraEntry ? "Ler extra" : "Ler capítulo",
+          }
+        : null;
+    const synopsisText =
+      String(chapter.synopsis || "").trim() || String(groupMeta.synopsis || "").trim();
+    const thumbSrc =
+      chapter.coverImageUrl || groupMeta.src || project.cover || project.banner || "/placeholder.svg";
+    const thumbAlt =
+      String(chapter.coverImageAlt || "").trim() ||
+      String(groupMeta.alt || "").trim() ||
+      (isExtraEntry
+        ? `Capa do extra de ${project.title}`
+        : `Capa do capítulo ${chapter.number} de ${project.title}`);
+
+    return (
+      <Card
+        key={key}
+        className="chapter-download-card group/chapter-card w-full !transform-none rounded-2xl border border-border/60 bg-background/40 shadow-[0_6px_14px_-12px_rgba(0,0,0,0.06),0_16px_32px_-24px_rgba(0,0,0,0.1)] transition-all duration-300 hover:!translate-y-0 hover:border-primary/40 hover:bg-background/60 hover:shadow-[0_10px_20px_-14px_rgba(0,0,0,0.08),0_20px_38px_-22px_rgba(0,0,0,0.13)]"
+      >
+        <CardContent className="grid gap-4 p-4 md:grid-cols-[112px_minmax(0,1fr)] md:items-start">
+          <div className="chapter-download-card__thumb mx-auto w-24 md:mx-0">
+            <div
+              className="overflow-hidden rounded-xl border border-border/60 bg-background/70"
+              style={{ aspectRatio: PROJECT_COVER_ASPECT_RATIO }}
+            >
+              <UploadPicture
+                src={thumbSrc}
+                alt={thumbAlt}
+                preset="poster"
+                mediaVariants={mediaVariants}
+                className="h-full w-full"
+                imgClassName="h-full w-full object-cover object-center transition-transform duration-300 group-hover/chapter-card:scale-[1.03]"
+              />
+            </div>
+          </div>
+
+          <div className="space-y-3">
+            <div className="space-y-1">
+              <Badge variant="secondary" className="text-xs uppercase">
+                {chapterLabel}
+              </Badge>
+              <p
+                className="min-w-0 text-base font-semibold text-foreground md:truncate"
+                title={chapterTitle}
+              >
+                {chapterTitle}
+              </p>
+            </div>
+
+            {synopsisText ? (
+              <p className="text-sm text-muted-foreground line-clamp-3 md:line-clamp-2">
+                {synopsisText}
+              </p>
+            ) : null}
+
+            <div className="flex flex-wrap items-center justify-end gap-2">
+              {readAction ? (
+                <Button asChild size="sm">
+                  <Link to={readAction.href}>{readAction.label}</Link>
+                </Button>
+              ) : null}
+              {hasSources
+                ? (chapter.sources || []).map((source, sourceIndex) => {
+                    const theme = sourceThemeMap.get(source.label.toLowerCase());
+                    const color = theme?.color || "#4b5563";
+                    const icon = renderSourceIcon(
+                      theme?.icon,
+                      color,
+                      source.label,
+                      theme?.tintIcon ?? true,
+                    );
+                    return (
+                      <Button
+                        key={`${key}-${source.label}-${sourceIndex}`}
+                        asChild
+                        variant="outline"
+                        size="sm"
+                        className="h-9 w-9 rounded-full bg-card/70 px-0 text-sm hover:bg-primary/10 md:w-auto md:px-4"
+                        style={{ borderColor: `${color}99`, color }}
+                      >
+                        <a
+                          href={source.url}
+                          target="_blank"
+                          rel="noreferrer"
+                          aria-label={source.label}
+                          title={source.label}
+                          className="inline-flex items-center justify-center gap-0 md:gap-2"
+                          onClick={() => trackDownloadClick(chapter, source.label)}
+                        >
+                          {icon}
+                          <span className="sr-only md:not-sr-only">{source.label}</span>
+                        </a>
+                      </Button>
+                    );
+                  })
+                : null}
+              {!readAction && !hasSources ? (
+                <Badge variant="outline" className="text-[10px] uppercase">
+                  Em breve
+                </Badge>
+              ) : null}
             </div>
           </div>
         </CardContent>
@@ -568,7 +761,7 @@ const ProjectPage = () => {
   };
 
   const volumeGroups = useMemo(() => {
-    const groups = new Map<string, { label: string; volume?: number; items: EpisodeItem[] }>();
+    const groups = new Map<string, VolumeGroup>();
     const allItems = isLightNovel ? sortedLightNovelChapters : sortedDownloadableEpisodes;
     allItems.forEach((item) => {
       const volumeKey =
@@ -602,7 +795,7 @@ const ProjectPage = () => {
     );
   }, [project?.volumeEntries, project?.volumeCovers]);
 
-  const resolveVolumeGroupMeta = (group: { volume?: number; items: EpisodeItem[] }) => {
+  const resolveVolumeGroupMeta = (group: VolumeGroup): VolumeGroupMeta => {
     const volumeEntry = findVolumeCoverByVolume(normalizedVolumeEntries, group.volume);
     const volumeCover = findVolumeCoverByVolume(project?.volumeCovers, group.volume);
     const firstEpisodeWithCover = group.items.find((item) =>
@@ -626,6 +819,74 @@ const ProjectPage = () => {
           : `Capa do projeto ${project?.title || ""}`),
       synopsis: String(volumeEntry?.synopsis || "").trim() || String(project?.synopsis || "").trim(),
     };
+  };
+
+  type RenderVolumeAccordionCardOptions = {
+    allowReadAction: boolean;
+  };
+
+  const renderVolumeAccordionCard = (
+    group: VolumeGroup,
+    options: RenderVolumeAccordionCardOptions,
+  ) => {
+    const { allowReadAction } = options;
+    const groupMeta = resolveVolumeGroupMeta(group);
+    const chapterCountLabel = `${group.items.length} capítulos disponíveis`;
+
+    return (
+      <Accordion key={group.label} type="multiple" defaultValue={[group.label]} className="w-full">
+        <AccordionItem
+          value={group.label}
+          className="group w-full overflow-hidden rounded-2xl border border-border/60 bg-card/80 shadow-[0_10px_20px_-18px_rgba(0,0,0,0.08),0_24px_48px_-34px_rgba(0,0,0,0.12)] transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:bg-card/90 hover:shadow-[0_14px_28px_-20px_rgba(0,0,0,0.1),0_28px_56px_-32px_rgba(0,0,0,0.16)]"
+        >
+          <AccordionTrigger className="items-start gap-3 px-5 py-5 text-left hover:no-underline">
+            <div className="grid w-full items-start gap-4 md:grid-cols-[128px_minmax(0,1fr)_auto] md:items-start md:gap-5">
+              <div className="mx-auto w-28 md:mx-0">
+                <div
+                  className="overflow-hidden rounded-xl border border-border/60 bg-background/70"
+                  style={{ aspectRatio: PROJECT_COVER_ASPECT_RATIO }}
+                >
+                  <UploadPicture
+                    src={groupMeta.src}
+                    alt={groupMeta.alt}
+                    preset="poster"
+                    mediaVariants={mediaVariants}
+                    className="h-full w-full"
+                    imgClassName="h-full w-full object-cover object-center transition-transform duration-300 group-hover:scale-[1.03]"
+                  />
+                </div>
+              </div>
+
+              <div className="self-start space-y-1 text-center md:text-left">
+                <p className="text-sm font-semibold text-foreground">{group.label}</p>
+                <p className="text-xs text-muted-foreground">{chapterCountLabel}</p>
+                {groupMeta.synopsis ? (
+                  <p className="text-xs text-muted-foreground line-clamp-3 md:line-clamp-2">
+                    {groupMeta.synopsis}
+                  </p>
+                ) : null}
+              </div>
+
+              <div className="flex justify-center md:self-start md:justify-end">
+                <Badge variant="outline" className="text-[10px] uppercase">
+                  {group.items.length} capítulos
+                </Badge>
+              </div>
+            </div>
+          </AccordionTrigger>
+          <AccordionContent className="px-5 pt-0 pb-6">
+            <div className="grid gap-4">
+              {group.items.map((chapter) =>
+                renderChapterDownloadCard(chapter, buildEpisodeKey(chapter.number, chapter.volume), {
+                  groupMeta,
+                  allowReadAction,
+                }),
+              )}
+            </div>
+          </AccordionContent>
+        </AccordionItem>
+      </Accordion>
+    );
   };
 
   const filteredDownloadableEpisodes = useMemo(() => {
@@ -1008,140 +1269,11 @@ const ProjectPage = () => {
                 </div>
               ) : (
                 <div className="grid gap-6">
-                  {volumeGroups.map((group) => {
-                    const groupMeta = resolveVolumeGroupMeta(group);
-                    return (
-                      <Card
-                        key={group.label}
-                        className="border-border/60 bg-card/80 shadow-[0_10px_20px_-18px_rgba(0,0,0,0.08),0_24px_48px_-34px_rgba(0,0,0,0.12)] transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:bg-card/90 hover:shadow-[0_14px_28px_-20px_rgba(0,0,0,0.1),0_28px_56px_-32px_rgba(0,0,0,0.16)]"
-                      >
-                        <CardContent className="space-y-4 p-6">
-                          <div className="grid gap-4 rounded-2xl border border-border/60 bg-background/40 p-4 md:grid-cols-[112px_minmax(0,1fr)] md:items-center">
-                            <div className="mx-auto w-24 md:mx-0">
-                              <div
-                                className="overflow-hidden rounded-xl border border-border/60 bg-background/70"
-                                style={{ aspectRatio: PROJECT_COVER_ASPECT_RATIO }}
-                              >
-                                <UploadPicture
-                                  src={groupMeta.src}
-                                  alt={groupMeta.alt}
-                                  preset="poster"
-                                  mediaVariants={mediaVariants}
-                                  className="h-full w-full"
-                                  imgClassName="h-full w-full object-cover object-center"
-                                />
-                              </div>
-                            </div>
-                            <div className="space-y-1 text-center md:text-left">
-                              <p className="text-sm font-semibold text-foreground">{group.label}</p>
-                              <p className="text-xs text-muted-foreground">
-                                {group.items.length} capítulos disponíveis
-                              </p>
-                              {groupMeta.synopsis ? (
-                                <p className="text-xs text-muted-foreground">{groupMeta.synopsis}</p>
-                              ) : null}
-                            </div>
-                          </div>
-                          <Accordion type="multiple" defaultValue={[group.label]}>
-                          <AccordionItem value={group.label} className="border-none">
-                            <AccordionTrigger className="rounded-xl border border-border/60 bg-background/40 px-4 py-3 text-sm font-semibold text-foreground hover:no-underline">
-                              <div className="flex w-full items-center justify-between gap-4">
-                                <span>{group.label}</span>
-                                <span className="text-xs text-muted-foreground">
-                                  {group.items.length} capítulos
-                                </span>
-                              </div>
-                            </AccordionTrigger>
-                            <AccordionContent className="px-5 pt-4 pb-8">
-                              <div className="grid gap-4">
-                                {group.items.map((chapter) => {
-                                  const hasContent =
-                                    (chapter as { hasContent?: boolean }).hasContent ||
-                                    (typeof chapter.content === "string" &&
-                                      chapter.content.trim().length > 0);
-                                  const hasSources = (chapter.sources || []).length > 0;
-                                  const isExtraEntry = getEpisodeEntryKind(chapter) === "extra";
-                                  const chapterLabel = isExtraEntry
-                                    ? String(chapter.displayLabel || "Extra").trim() || "Extra"
-                                    : `Cap ${chapter.number}`;
-                                  const search = chapter.volume ? `?volume=${chapter.volume}` : "";
-                                  return (
-                                    <Card
-                                      key={buildEpisodeKey(chapter.number, chapter.volume)}
-                                      className="border-border/60 bg-background/60 shadow-[0_6px_14px_-12px_rgba(0,0,0,0.06),0_16px_32px_-24px_rgba(0,0,0,0.1)] transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:bg-background/80 hover:shadow-[0_10px_20px_-14px_rgba(0,0,0,0.08),0_20px_38px_-22px_rgba(0,0,0,0.13)]"
-                                    >
-                                      <CardContent className="space-y-3 p-4">
-                                        <div className="flex flex-wrap items-start justify-between gap-4">
-                                          <div className="space-y-1">
-                                            <Badge
-                                              variant="secondary"
-                                              className="text-xs uppercase"
-                                            >
-                                              {chapterLabel}
-                                              {chapter.volume ? ` • Vol. ${chapter.volume}` : ""}
-                                            </Badge>
-                                            <p className="text-base font-semibold text-foreground">
-                                              {chapter.title || "Capítulo"}
-                                            </p>
-                                          </div>
-                                          <div className="flex items-center gap-2">
-                                            {hasContent ? (
-                                              <Button asChild size="sm">
-                                                <Link
-                                                  to={`/projeto/${project.id}/leitura/${chapter.number}${search}`}
-                                                >
-                                                  {isExtraEntry ? "Ler extra" : "Ler capítulo"}
-                                                </Link>
-                                              </Button>
-                                            ) : null}
-                                            {hasSources
-                                              ? chapter.sources.map((source, sourceIndex) => (
-                                                  <Button
-                                                    key={`${buildEpisodeKey(chapter.number, chapter.volume)}-${source.label}-${sourceIndex}`}
-                                                    asChild
-                                                    size="sm"
-                                                    variant={hasContent ? "outline" : "default"}
-                                                  >
-                                                    <a
-                                                      href={source.url}
-                                                      target="_blank"
-                                                      rel="noreferrer"
-                                                      onClick={() =>
-                                                        trackDownloadClick(chapter, source.label)
-                                                      }
-                                                    >
-                                                      {source.label}
-                                                    </a>
-                                                  </Button>
-                                                ))
-                                              : null}
-                                            {!hasContent && !hasSources ? (
-                                              <Badge
-                                                variant="outline"
-                                                className="text-[10px] uppercase"
-                                              >
-                                                Em breve
-                                              </Badge>
-                                            ) : null}
-                                          </div>
-                                        </div>
-                                        {chapter.synopsis ? (
-                                          <p className="text-sm text-muted-foreground">
-                                            {chapter.synopsis}
-                                          </p>
-                                        ) : null}
-                                      </CardContent>
-                                    </Card>
-                                  );
-                                })}
-                              </div>
-                            </AccordionContent>
-                          </AccordionItem>
-                          </Accordion>
-                        </CardContent>
-                      </Card>
-                    );
-                  })}
+                  {volumeGroups.map((group) =>
+                    renderVolumeAccordionCard(group, {
+                      allowReadAction: true,
+                    }),
+                  )}
                 </div>
               )
             ) : filteredDownloadableEpisodes.length === 0 ? (
@@ -1150,71 +1282,17 @@ const ProjectPage = () => {
                 downloads aparecerão aqui.
               </div>
             ) : (
-              <div className="grid gap-6 justify-items-center">
+              <div className="grid gap-6">
                 {isManga
-                  ? volumeGroups.map((group) => {
-                      const groupMeta = resolveVolumeGroupMeta(group);
-                      return (
-                        <Card
-                          key={group.label}
-                          className="border-border/60 bg-card/80 shadow-lg transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:bg-card/90 hover:shadow-lg"
-                        >
-                          <CardContent className="space-y-4 p-6">
-                            <div className="grid gap-4 rounded-2xl border border-border/60 bg-background/40 p-4 md:grid-cols-[112px_minmax(0,1fr)] md:items-center">
-                              <div className="mx-auto w-24 md:mx-0">
-                                <div
-                                  className="overflow-hidden rounded-xl border border-border/60 bg-background/70"
-                                  style={{ aspectRatio: PROJECT_COVER_ASPECT_RATIO }}
-                                >
-                                  <UploadPicture
-                                    src={groupMeta.src}
-                                    alt={groupMeta.alt}
-                                    preset="poster"
-                                    mediaVariants={mediaVariants}
-                                    className="h-full w-full"
-                                    imgClassName="h-full w-full object-cover object-center"
-                                  />
-                                </div>
-                              </div>
-                              <div className="space-y-1 text-center md:text-left">
-                                <p className="text-sm font-semibold text-foreground">{group.label}</p>
-                                <p className="text-xs text-muted-foreground">
-                                  {group.items.length} capítulos disponíveis
-                                </p>
-                                {groupMeta.synopsis ? (
-                                  <p className="text-xs text-muted-foreground">{groupMeta.synopsis}</p>
-                                ) : null}
-                              </div>
-                            </div>
-                            <Accordion type="multiple" defaultValue={[group.label]}>
-                            <AccordionItem value={group.label} className="border-none">
-                              <AccordionTrigger className="rounded-xl border border-border/60 bg-background/40 px-4 py-3 text-sm font-semibold text-foreground hover:no-underline">
-                                <div className="flex w-full items-center justify-between gap-4">
-                                  <span>{group.label}</span>
-                                  <span className="text-xs text-muted-foreground">
-                                    {group.items.length} capítulos
-                                  </span>
-                                </div>
-                              </AccordionTrigger>
-                              <AccordionContent className="pt-4">
-                                <div className="grid gap-6 justify-items-center">
-                                  {group.items.map((episode) =>
-                                    renderEpisodeDownloadCard(
-                                      episode,
-                                      buildEpisodeKey(episode.number, episode.volume),
-                                      false,
-                                    ),
-                                  )}
-                                </div>
-                              </AccordionContent>
-                            </AccordionItem>
-                            </Accordion>
-                          </CardContent>
-                        </Card>
-                      );
-                    })
+                  ? volumeGroups.map((group) =>
+                      renderVolumeAccordionCard(group, {
+                        allowReadAction: false,
+                      }),
+                    )
                   : paginatedEpisodes.map((episode) =>
-                      renderEpisodeDownloadCard(episode, String(episode.number), true),
+                      renderEpisodeDownloadCard(episode, String(episode.number), {
+                        showRawBadge: true,
+                      }),
                     )}
               </div>
             )}

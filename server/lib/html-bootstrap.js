@@ -135,11 +135,12 @@ const buildInlineBootstrapInitScript = () =>
     "})();",
   ].join("\n");
 
-export const injectBootstrapGlobals = ({ html, publicBootstrap, settings }) => {
+export const injectBootstrapGlobals = ({ html, publicBootstrap, settings, publicMe = null }) => {
   const bootstrapScript = [
     "<script>",
     `window.__BOOTSTRAP_PUBLIC__ = ${serializeInlineJson(publicBootstrap)};`,
     `window.__BOOTSTRAP_SETTINGS__ = ${serializeInlineJson(settings)};`,
+    `window.__BOOTSTRAP_PUBLIC_ME__ = ${serializeInlineJson(publicMe)};`,
     buildInlineBootstrapInitScript(),
     "</script>",
   ].join("\n");

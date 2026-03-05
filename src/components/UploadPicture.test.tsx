@@ -127,6 +127,91 @@ describe("UploadPicture", () => {
     );
   });
 
+  it("aplica srcset responsivo para cardHome quando variantes sm/base existem", () => {
+    const mediaVariants: UploadMediaVariantsMap = {
+      "/uploads/posts/capa.png": {
+        variantsVersion: 1,
+        variants: {
+          cardHomeXs: {
+            formats: {
+              avif: { url: "/uploads/_variants/u123/cardHomeXs-v1.avif" },
+              webp: { url: "/uploads/_variants/u123/cardHomeXs-v1.webp" },
+              fallback: { url: "/uploads/_variants/u123/cardHomeXs-v1.jpeg" },
+            },
+          },
+          cardHomeSm: {
+            formats: {
+              avif: { url: "/uploads/_variants/u123/cardHomeSm-v1.avif" },
+              webp: { url: "/uploads/_variants/u123/cardHomeSm-v1.webp" },
+              fallback: { url: "/uploads/_variants/u123/cardHomeSm-v1.jpeg" },
+            },
+          },
+          cardHome: {
+            formats: {
+              avif: { url: "/uploads/_variants/u123/cardHome-v1.avif" },
+              webp: { url: "/uploads/_variants/u123/cardHome-v1.webp" },
+              fallback: { url: "/uploads/_variants/u123/cardHome-v1.jpeg" },
+            },
+          },
+          card: {
+            formats: {
+              avif: { url: "/uploads/_variants/u123/card-v1.avif" },
+              webp: { url: "/uploads/_variants/u123/card-v1.webp" },
+              fallback: { url: "/uploads/_variants/u123/card-v1.jpeg" },
+            },
+          },
+        },
+      },
+    };
+
+    const { container } = render(
+      <UploadPicture
+        src="/uploads/posts/capa.png"
+        alt="CardHome responsivo"
+        preset="cardHome"
+        mediaVariants={mediaVariants}
+      />,
+    );
+
+    const sources = Array.from(container.querySelectorAll("source"));
+    expect(sources).toHaveLength(2);
+    expect(sources[0]).toHaveAttribute(
+      "srcset",
+      expect.stringContaining("/uploads/_variants/u123/cardHomeXs-v1.avif 480w"),
+    );
+    expect(sources[0]).toHaveAttribute(
+      "srcset",
+      expect.stringContaining("/uploads/_variants/u123/cardHomeSm-v1.avif 800w"),
+    );
+    expect(sources[0]).toHaveAttribute(
+      "srcset",
+      expect.stringContaining("/uploads/_variants/u123/cardHome-v1.avif 960w"),
+    );
+    expect(sources[0]).toHaveAttribute(
+      "srcset",
+      expect.stringContaining("/uploads/_variants/u123/card-v1.avif 1280w"),
+    );
+
+    const img = container.querySelector("img");
+    expect(img).not.toBeNull();
+    expect(img).toHaveAttribute(
+      "srcset",
+      expect.stringContaining("/uploads/_variants/u123/cardHomeXs-v1.jpeg 480w"),
+    );
+    expect(img).toHaveAttribute(
+      "srcset",
+      expect.stringContaining("/uploads/_variants/u123/cardHomeSm-v1.jpeg 800w"),
+    );
+    expect(img).toHaveAttribute(
+      "srcset",
+      expect.stringContaining("/uploads/_variants/u123/cardHome-v1.jpeg 960w"),
+    );
+    expect(img).toHaveAttribute(
+      "srcset",
+      expect.stringContaining("/uploads/_variants/u123/card-v1.jpeg 1280w"),
+    );
+  });
+
   it("resolve a variante poster quando disponivel", () => {
     const mediaVariants: UploadMediaVariantsMap = {
       "/uploads/projects/capa.png": {
@@ -165,6 +250,65 @@ describe("UploadPicture", () => {
     expect(container.querySelector("img")).toHaveAttribute(
       "src",
       expect.stringContaining("/uploads/_variants/u123/poster-v2.jpeg"),
+    );
+  });
+
+  it("aplica srcset responsivo para posterThumb quando variantes sm/base existem", () => {
+    const mediaVariants: UploadMediaVariantsMap = {
+      "/uploads/projects/capa.png": {
+        variantsVersion: 2,
+        variants: {
+          posterThumbSm: {
+            formats: {
+              avif: { url: "/uploads/_variants/u123/posterThumbSm-v2.avif" },
+              webp: { url: "/uploads/_variants/u123/posterThumbSm-v2.webp" },
+              fallback: { url: "/uploads/_variants/u123/posterThumbSm-v2.jpeg" },
+            },
+          },
+          posterThumb: {
+            formats: {
+              avif: { url: "/uploads/_variants/u123/posterThumb-v2.avif" },
+              webp: { url: "/uploads/_variants/u123/posterThumb-v2.webp" },
+              fallback: { url: "/uploads/_variants/u123/posterThumb-v2.jpeg" },
+            },
+          },
+          poster: {
+            formats: {
+              avif: { url: "/uploads/_variants/u123/poster-v2.avif" },
+              webp: { url: "/uploads/_variants/u123/poster-v2.webp" },
+              fallback: { url: "/uploads/_variants/u123/poster-v2.jpeg" },
+            },
+          },
+        },
+      },
+    };
+
+    const { container } = render(
+      <UploadPicture
+        src="/uploads/projects/capa.png"
+        alt="Poster thumb responsivo"
+        preset="posterThumb"
+        mediaVariants={mediaVariants}
+      />,
+    );
+
+    const sources = Array.from(container.querySelectorAll("source"));
+    expect(sources).toHaveLength(2);
+    expect(sources[0]).toHaveAttribute(
+      "srcset",
+      expect.stringContaining("/uploads/_variants/u123/posterThumbSm-v2.avif 192w"),
+    );
+    expect(sources[0]).toHaveAttribute(
+      "srcset",
+      expect.stringContaining("/uploads/_variants/u123/posterThumb-v2.avif 320w"),
+    );
+    expect(sources[0]).toHaveAttribute(
+      "srcset",
+      expect.stringContaining("/uploads/_variants/u123/poster-v2.avif 920w"),
+    );
+    expect(container.querySelector("img")).toHaveAttribute(
+      "srcset",
+      expect.stringContaining("/uploads/_variants/u123/posterThumbSm-v2.jpeg 192w"),
     );
   });
 

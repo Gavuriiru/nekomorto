@@ -5,16 +5,31 @@ import sharp from "sharp";
 
 export const UPLOAD_VARIANT_PRESETS = Object.freeze({
   card: Object.freeze({ width: 1280, height: 853 }),
+  cardHomeXs: Object.freeze({ width: 480, height: 320 }),
+  cardHomeSm: Object.freeze({ width: 800, height: 533 }),
   cardHome: Object.freeze({ width: 960, height: 640 }),
   cardWide: Object.freeze({ width: 1280, height: 720 }),
+  heroSm: Object.freeze({ width: 960, height: 540 }),
+  heroMd: Object.freeze({ width: 1280, height: 720 }),
   hero: Object.freeze({ width: 1600, height: 900 }),
   og: Object.freeze({ width: 1200, height: 675 }),
   poster: Object.freeze({ width: 920, height: 1300 }),
+  posterThumbSm: Object.freeze({ width: 192, height: 272 }),
   posterThumb: Object.freeze({ width: 320, height: 452 }),
   square: Object.freeze({ width: 512, height: 512 }),
 });
 
 export const UPLOAD_VARIANT_PRESET_KEYS = Object.freeze(Object.keys(UPLOAD_VARIANT_PRESETS));
+const UPLOAD_VARIANT_AVIF_QUALITY = Object.freeze({
+  cardHomeXs: 47,
+  cardHomeSm: 47,
+  cardHome: 47,
+  heroSm: 45,
+  heroMd: 45,
+  hero: 45,
+  posterThumbSm: 46,
+  posterThumb: 46,
+});
 const UPLOAD_FOCAL_PRESET_KEYS = Object.freeze(["card", "hero"]);
 const UPLOAD_FOCAL_PRESET_FALLBACK_ORDER = Object.freeze({
   card: Object.freeze(["card", "og", "thumb"]),
@@ -550,8 +565,26 @@ export const generateUploadVariants = async ({
     focalCrop: safeFocalCrops.card,
     fallbackFocalPoint: effectiveFocalPoints.card,
   });
+  const heroBaseRect = computeFocalCoverRectFromCrop({
+    sourceWidth,
+    sourceHeight,
+    targetWidth: UPLOAD_VARIANT_PRESETS.hero.width,
+    targetHeight: UPLOAD_VARIANT_PRESETS.hero.height,
+    focalCrop: safeFocalCrops.hero,
+    fallbackFocalPoint: effectiveFocalPoints.hero,
+  });
   const variantRects = {
     card: cardBaseRect,
+    cardHomeXs: deriveNestedCoverRect({
+      baseRect: cardBaseRect,
+      targetWidth: UPLOAD_VARIANT_PRESETS.cardHomeXs.width,
+      targetHeight: UPLOAD_VARIANT_PRESETS.cardHomeXs.height,
+    }),
+    cardHomeSm: deriveNestedCoverRect({
+      baseRect: cardBaseRect,
+      targetWidth: UPLOAD_VARIANT_PRESETS.cardHomeSm.width,
+      targetHeight: UPLOAD_VARIANT_PRESETS.cardHomeSm.height,
+    }),
     cardHome: deriveNestedCoverRect({
       baseRect: cardBaseRect,
       targetWidth: UPLOAD_VARIANT_PRESETS.cardHome.width,
@@ -562,20 +595,28 @@ export const generateUploadVariants = async ({
       targetWidth: UPLOAD_VARIANT_PRESETS.cardWide.width,
       targetHeight: UPLOAD_VARIANT_PRESETS.cardWide.height,
     }),
-    hero: computeFocalCoverRectFromCrop({
-      sourceWidth,
-      sourceHeight,
-      targetWidth: UPLOAD_VARIANT_PRESETS.hero.width,
-      targetHeight: UPLOAD_VARIANT_PRESETS.hero.height,
-      focalCrop: safeFocalCrops.hero,
-      fallbackFocalPoint: effectiveFocalPoints.hero,
+    heroSm: deriveNestedCoverRect({
+      baseRect: heroBaseRect,
+      targetWidth: UPLOAD_VARIANT_PRESETS.heroSm.width,
+      targetHeight: UPLOAD_VARIANT_PRESETS.heroSm.height,
     }),
+    heroMd: deriveNestedCoverRect({
+      baseRect: heroBaseRect,
+      targetWidth: UPLOAD_VARIANT_PRESETS.heroMd.width,
+      targetHeight: UPLOAD_VARIANT_PRESETS.heroMd.height,
+    }),
+    hero: heroBaseRect,
     og: deriveNestedCoverRect({
       baseRect: cardBaseRect,
       targetWidth: UPLOAD_VARIANT_PRESETS.og.width,
       targetHeight: UPLOAD_VARIANT_PRESETS.og.height,
     }),
     poster: posterBaseRect,
+    posterThumbSm: deriveNestedCoverRect({
+      baseRect: posterBaseRect,
+      targetWidth: UPLOAD_VARIANT_PRESETS.posterThumbSm.width,
+      targetHeight: UPLOAD_VARIANT_PRESETS.posterThumbSm.height,
+    }),
     posterThumb: deriveNestedCoverRect({
       baseRect: posterBaseRect,
       targetWidth: UPLOAD_VARIANT_PRESETS.posterThumb.width,
@@ -597,13 +638,17 @@ export const generateUploadVariants = async ({
   for (const [presetKey, preset] of Object.entries(UPLOAD_VARIANT_PRESETS)) {
     const rect = variantRects[presetKey];
     const base = createBaseVariantPipeline({ sourcePath, rect, preset });
+    const avifQuality =
+      Number(UPLOAD_VARIANT_AVIF_QUALITY[presetKey]) > 0
+        ? Number(UPLOAD_VARIANT_AVIF_QUALITY[presetKey])
+        : 52;
     const avifPath = createVariantFilePath({
       dir: variantDir,
       preset: presetKey,
       version: safeVersion,
       extension: "avif",
     });
-    const avifInfo = await base.clone().avif({ quality: 52 }).toFile(avifPath);
+    const avifInfo = await base.clone().avif({ quality: avifQuality }).toFile(avifPath);
 
     variants[presetKey] = {
       width: preset.width,

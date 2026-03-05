@@ -14,6 +14,7 @@ const useSiteSettingsMock = vi.hoisted(() => vi.fn());
 const usePublicBootstrapMock = vi.hoisted(() => vi.fn());
 const toastMock = vi.hoisted(() => vi.fn());
 const setThemePreferenceMock = vi.hoisted(() => vi.fn());
+const scheduleOnBrowserLoadIdleMock = vi.hoisted(() => vi.fn());
 
 vi.mock("@/lib/api-base", () => ({
   getApiBase: () => "http://api.local",
@@ -53,13 +54,10 @@ vi.mock("@/hooks/use-dynamic-synopsis-clamp", () => ({
 }));
 
 vi.mock("@/lib/browser-idle", () => ({
-  scheduleOnBrowserLoadIdle: (callback: (deadline: IdleDeadline) => void) => {
-    callback({
-      didTimeout: false,
-      timeRemaining: () => 16,
-    } as IdleDeadline);
-    return () => undefined;
-  },
+  scheduleOnBrowserLoadIdle: (
+    callback: (deadline: IdleDeadline) => void,
+    options?: { delayMs?: number },
+  ) => scheduleOnBrowserLoadIdleMock(callback, options),
 }));
 
 const mockJsonResponse = (ok: boolean, payload: unknown, status = ok ? 200 : 500) =>
@@ -140,6 +138,15 @@ describe("Header mobile search layout", () => {
     setupApiMock();
     toastMock.mockReset();
     setThemePreferenceMock.mockReset();
+    scheduleOnBrowserLoadIdleMock.mockReset();
+    scheduleOnBrowserLoadIdleMock.mockImplementation((callback: (deadline: IdleDeadline) => void) => {
+      callback({
+        didTimeout: false,
+        timeRemaining: () => 16,
+      } as IdleDeadline);
+      return () => undefined;
+    });
+    (window as Window & { __BOOTSTRAP_PUBLIC_ME__?: unknown }).__BOOTSTRAP_PUBLIC_ME__ = undefined;
     useSiteSettingsMock.mockReset();
     usePublicBootstrapMock.mockReset();
     useSiteSettingsMock.mockReturnValue({
@@ -247,6 +254,48 @@ describe("Header mobile search layout", () => {
       expect(classTokens(banner)).not.toContain("after:h-8");
       expect(classTokens(banner)).toContain("backdrop-blur-none");
       expect(classTokens(banner)).not.toContain("backdrop-blur-xl");
+    });
+  });
+
+  it("renderiza perfil a partir do bootstrap sem aguardar fetch", async () => {
+    scheduleOnBrowserLoadIdleMock.mockImplementation(() => () => undefined);
+    (window as Window & { __BOOTSTRAP_PUBLIC_ME__?: unknown }).__BOOTSTRAP_PUBLIC_ME__ = {
+      id: "bootstrap-user-1",
+      name: "Bootstrap Admin",
+      username: "bootstrap-admin",
+      avatarUrl: null,
+    };
+
+    render(
+      <MemoryRouter initialEntries={["/"]}>
+        <Header />
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByText("Bootstrap Admin")).toBeInTheDocument();
+    expect(apiFetchMock).not.toHaveBeenCalled();
+  });
+
+  it("agenda revalidacao de /api/public/me com delay de 2500ms", async () => {
+    render(
+      <MemoryRouter initialEntries={["/"]}>
+        <Header />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(scheduleOnBrowserLoadIdleMock).toHaveBeenCalled();
+    });
+    expect(scheduleOnBrowserLoadIdleMock).toHaveBeenCalledWith(
+      expect.any(Function),
+      expect.objectContaining({ delayMs: 2500 }),
+    );
+    await waitFor(() => {
+      expect(apiFetchMock).toHaveBeenCalledWith(
+        "http://api.local",
+        "/api/public/me",
+        expect.objectContaining({ auth: true }),
+      );
     });
   });
 

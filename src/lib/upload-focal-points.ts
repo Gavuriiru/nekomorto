@@ -31,11 +31,16 @@ export const UPLOAD_VARIANT_PRESET_DIMENSIONS: Record<
   { width: number; height: number }
 > = Object.freeze({
   card: Object.freeze({ width: 1280, height: 853 }),
+  cardHomeXs: Object.freeze({ width: 480, height: 320 }),
+  cardHomeSm: Object.freeze({ width: 800, height: 533 }),
   cardHome: Object.freeze({ width: 960, height: 640 }),
   cardWide: Object.freeze({ width: 1280, height: 720 }),
+  heroSm: Object.freeze({ width: 960, height: 540 }),
+  heroMd: Object.freeze({ width: 1280, height: 720 }),
   hero: Object.freeze({ width: 1600, height: 900 }),
   og: Object.freeze({ width: 1200, height: 675 }),
   poster: Object.freeze({ width: 920, height: 1300 }),
+  posterThumbSm: Object.freeze({ width: 192, height: 272 }),
   posterThumb: Object.freeze({ width: 320, height: 452 }),
   square: Object.freeze({ width: 512, height: 512 }),
 });

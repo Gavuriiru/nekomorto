@@ -1,7 +1,9 @@
 import { lazy } from "react";
 import { Route, Routes } from "react-router-dom";
 
-const Index = lazy(() => import("@/pages/Index"));
+import PublicLayout from "@/components/PublicLayout";
+import Index from "@/pages/Index";
+
 const NotFound = lazy(() => import("@/pages/NotFound"));
 const Post = lazy(() => import("@/pages/Post"));
 const Project = lazy(() => import("@/pages/Project"));
@@ -13,7 +15,6 @@ const Donations = lazy(() => import("@/pages/Donations"));
 const FAQ = lazy(() => import("@/pages/FAQ"));
 const Login = lazy(() => import("@/pages/Login"));
 const Recruitment = lazy(() => import("@/pages/Recruitment"));
-const PublicLayout = lazy(() => import("@/components/PublicLayout"));
 
 const PublicRoutes = () => (
   <Routes>
