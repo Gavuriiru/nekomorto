@@ -48,7 +48,7 @@ describe("upload-media", () => {
     const variantDir = path.join(uploadsDir, "_variants", "upload-1");
     const files = fs.readdirSync(variantDir);
 
-    expect(files).toHaveLength(13);
+    expect(files).toHaveLength(14);
     expect(files).toEqual(
       expect.arrayContaining([
         "card-v1.avif",
@@ -56,6 +56,7 @@ describe("upload-media", () => {
         "cardHomeSm-v1.avif",
         "cardHome-v1.avif",
         "cardWide-v1.avif",
+        "heroXs-v1.avif",
         "heroSm-v1.avif",
         "heroMd-v1.avif",
         "hero-v1.avif",

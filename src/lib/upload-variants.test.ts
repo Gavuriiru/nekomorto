@@ -129,11 +129,16 @@ describe("upload-variants", () => {
     });
   });
 
-  it("monta srcset responsivo de hero com sm/md/base", () => {
+  it("monta srcset responsivo de hero com xs/sm/md/base", () => {
     const mediaVariants: UploadMediaVariantsMap = {
       "/uploads/posts/capa.png": {
         variantsVersion: 1,
         variants: {
+          heroXs: {
+            formats: {
+              avif: { url: "/uploads/_variants/u1/heroXs-v1.avif" },
+            },
+          },
           heroSm: {
             formats: {
               avif: { url: "/uploads/_variants/u1/heroSm-v1.avif" },
@@ -161,7 +166,7 @@ describe("upload-variants", () => {
       }),
     ).toEqual({
       avifSrcSet:
-        "/uploads/_variants/u1/heroSm-v1.avif 960w, /uploads/_variants/u1/heroMd-v1.avif 1280w, /uploads/_variants/u1/hero-v1.avif 1600w",
+        "/uploads/_variants/u1/heroXs-v1.avif 768w, /uploads/_variants/u1/heroSm-v1.avif 960w, /uploads/_variants/u1/heroMd-v1.avif 1280w, /uploads/_variants/u1/hero-v1.avif 1600w",
       webpSrcSet: "",
       fallbackSrcSet: "",
     });
@@ -298,6 +303,13 @@ describe("upload-variants", () => {
       resolveUploadVariantFocalPoint({
         src: "/uploads/posts/capa.png",
         preset: "hero",
+        mediaVariants,
+      }),
+    ).toEqual({ x: 0.2, y: 0.8 });
+    expect(
+      resolveUploadVariantFocalPoint({
+        src: "/uploads/posts/capa.png",
+        preset: "heroXs",
         mediaVariants,
       }),
     ).toEqual({ x: 0.2, y: 0.8 });

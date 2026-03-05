@@ -229,6 +229,12 @@ export const injectPreloadLinks = ({ html, preloads = [] }) => {
       if (entry.type) {
         parts.push(`type="${escapeHtmlAttribute(entry.type)}"`);
       }
+      if (entry.imagesrcset) {
+        parts.push(`imagesrcset="${escapeHtmlAttribute(entry.imagesrcset)}"`);
+      }
+      if (entry.imagesizes) {
+        parts.push(`imagesizes="${escapeHtmlAttribute(entry.imagesizes)}"`);
+      }
       if (entry.fetchpriority) {
         parts.push(`fetchpriority="${escapeHtmlAttribute(entry.fetchpriority)}"`);
       }

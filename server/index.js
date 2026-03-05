@@ -11215,11 +11215,48 @@ const buildPublicBootstrapResponsePayload = ({
   return payload;
 };
 
-const resolveHomeHeroPreloadHref = (publicBootstrap) => {
+const HERO_PRELOAD_RESPONSIVE_PRESET_ORDER = Object.freeze([
+  "heroXs",
+  "heroSm",
+  "heroMd",
+  "hero",
+]);
+const HERO_PRELOAD_FALLBACK_WIDTHS = Object.freeze({
+  heroXs: 768,
+  heroSm: 960,
+  heroMd: 1280,
+  hero: 1600,
+});
+
+const toResponsiveHeroPreloadCandidate = (presetRecord, presetKey) => {
+  if (!presetRecord || typeof presetRecord !== "object") {
+    return null;
+  }
+  const formats =
+    presetRecord.formats && typeof presetRecord.formats === "object" ? presetRecord.formats : null;
+  if (!formats) {
+    return null;
+  }
+  const url = String(formats?.avif?.url || "").trim();
+  if (!url) {
+    return null;
+  }
+  const rawWidth = Number(presetRecord.width);
+  const width =
+    Number.isFinite(rawWidth) && rawWidth > 0
+      ? Math.round(rawWidth)
+      : Number(HERO_PRELOAD_FALLBACK_WIDTHS[presetKey] || 0);
+  if (!width) {
+    return null;
+  }
+  return { url, width };
+};
+
+const resolveHomeHeroPreload = (publicBootstrap) => {
   const slides = buildPublicHeroSlides(publicBootstrap?.projects, publicBootstrap?.updates);
   const firstSlide = slides[0];
   if (!firstSlide?.image) {
-    return "";
+    return null;
   }
   const normalizedImageUrl = normalizeUploadUrlValue(firstSlide.image);
   const heroVariantUrl =
@@ -11227,7 +11264,62 @@ const resolveHomeHeroPreloadHref = (publicBootstrap) => {
       publicBootstrap?.mediaVariants?.[normalizedImageUrl]?.variants?.hero?.formats,
       "",
     ) || resolveMetaImageVariantUrl(firstSlide.image, "hero");
-  return heroVariantUrl || firstSlide.image;
+  const fallbackHref = heroVariantUrl || firstSlide.image;
+  if (!normalizedImageUrl) {
+    return fallbackHref
+      ? {
+          href: fallbackHref,
+          as: "image",
+          fetchpriority: "high",
+        }
+      : null;
+  }
+
+  const variants = publicBootstrap?.mediaVariants?.[normalizedImageUrl]?.variants;
+  if (!variants || typeof variants !== "object") {
+    return fallbackHref
+      ? {
+          href: fallbackHref,
+          as: "image",
+          fetchpriority: "high",
+        }
+      : null;
+  }
+
+  const candidateByUrl = new Map();
+  HERO_PRELOAD_RESPONSIVE_PRESET_ORDER.forEach((presetKey) => {
+    const presetRecord = variants[presetKey];
+    const candidate = toResponsiveHeroPreloadCandidate(presetRecord, presetKey);
+    if (!candidate) {
+      return;
+    }
+    const current = candidateByUrl.get(candidate.url);
+    if (!current || candidate.width > current.width) {
+      candidateByUrl.set(candidate.url, candidate);
+    }
+  });
+
+  const responsiveCandidates = [...candidateByUrl.values()].sort((left, right) => left.width - right.width);
+  if (responsiveCandidates.length === 0) {
+    return fallbackHref
+      ? {
+          href: fallbackHref,
+          as: "image",
+          fetchpriority: "high",
+        }
+      : null;
+  }
+
+  const imagesrcset = responsiveCandidates.map((entry) => `${entry.url} ${entry.width}w`).join(", ");
+  const fallbackCandidate = responsiveCandidates[responsiveCandidates.length - 1];
+  return {
+    href: fallbackHref || fallbackCandidate.url,
+    as: "image",
+    type: "image/avif",
+    imagesrcset,
+    imagesizes: "100vw",
+    fetchpriority: "high",
+  };
 };
 
 const injectPublicBootstrapHtml = ({
@@ -11251,9 +11343,9 @@ const injectPublicBootstrapHtml = ({
     crossorigin: "anonymous",
   }));
   if (includeHeroImagePreload) {
-    const heroPreloadHref = resolveHomeHeroPreloadHref(publicBootstrap);
-    if (heroPreloadHref) {
-      preloads.push({ href: heroPreloadHref, as: "image", fetchpriority: "high" });
+    const heroPreload = resolveHomeHeroPreload(publicBootstrap);
+    if (heroPreload) {
+      preloads.push(heroPreload);
     }
   }
   if (preloads.length > 0) {

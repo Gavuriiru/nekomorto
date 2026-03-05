@@ -25,7 +25,17 @@ describe("html bootstrap injection", () => {
     });
     const result = injectPreloadLinks({
       html: withBootstrap,
-      preloads: [{ href: "/uploads/_variants/hero-v1.jpeg", as: "image", fetchpriority: "high" }],
+      preloads: [
+        {
+          href: "/uploads/_variants/hero-v1.avif",
+          as: "image",
+          type: "image/avif",
+          imagesrcset:
+            "/uploads/_variants/heroSm-v1.avif 960w, /uploads/_variants/heroMd-v1.avif 1280w, /uploads/_variants/hero-v1.avif 1600w",
+          imagesizes: "100vw",
+          fetchpriority: "high",
+        },
+      ],
     });
 
     expect(result).toContain("window.__BOOTSTRAP_PUBLIC__ = ");
@@ -34,8 +44,11 @@ describe("html bootstrap injection", () => {
     expect(result).toContain("window.__BOOTSTRAP_PUBLIC_PROMISE__");
     expect(result).toContain("fetch('/api/public/bootstrap'");
     expect(result).toContain('rel="preload"');
-    expect(result).toContain('href="/uploads/_variants/hero-v1.jpeg"');
+    expect(result).toContain('href="/uploads/_variants/hero-v1.avif"');
     expect(result).toContain('as="image"');
+    expect(result).toContain('type="image/avif"');
+    expect(result).toContain('imagesrcset="/uploads/_variants/heroSm-v1.avif 960w, /uploads/_variants/heroMd-v1.avif 1280w, /uploads/_variants/hero-v1.avif 1600w"');
+    expect(result).toContain('imagesizes="100vw"');
     expect(result).toContain('fetchpriority="high"');
   });
 
@@ -55,7 +68,14 @@ describe("html bootstrap injection", () => {
       preloads: [
         { href: "/assets/index-abc.css", as: "style", crossorigin: "anonymous" },
         { href: "/assets/index-abc.css", as: "style", crossorigin: "anonymous" },
-        { href: "/uploads/hero.avif", as: "image", fetchpriority: "high" },
+        {
+          href: "/uploads/hero.avif",
+          as: "image",
+          type: "image/avif",
+          imagesrcset: "/uploads/hero-sm.avif 960w, /uploads/hero.avif 1600w",
+          imagesizes: "100vw",
+          fetchpriority: "high",
+        },
       ],
     });
 
@@ -63,6 +83,9 @@ describe("html bootstrap injection", () => {
     expect(result).toContain('as="style"');
     expect(result).toContain('crossorigin="anonymous"');
     expect(result).toContain('href="/uploads/hero.avif"');
+    expect(result).toContain('type="image/avif"');
+    expect(result).toContain('imagesrcset="/uploads/hero-sm.avif 960w, /uploads/hero.avif 1600w"');
+    expect(result).toContain('imagesizes="100vw"');
     expect(result).toContain('fetchpriority="high"');
   });
 

@@ -35,6 +35,7 @@ export const UPLOAD_VARIANT_PRESET_DIMENSIONS: Record<
   cardHomeSm: Object.freeze({ width: 800, height: 533 }),
   cardHome: Object.freeze({ width: 960, height: 640 }),
   cardWide: Object.freeze({ width: 1280, height: 720 }),
+  heroXs: Object.freeze({ width: 768, height: 432 }),
   heroSm: Object.freeze({ width: 960, height: 540 }),
   heroMd: Object.freeze({ width: 1280, height: 720 }),
   hero: Object.freeze({ width: 1600, height: 900 }),

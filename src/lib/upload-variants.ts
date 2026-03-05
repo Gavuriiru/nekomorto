@@ -4,6 +4,7 @@ export type UploadVariantPresetKey =
   | "cardHomeSm"
   | "cardHome"
   | "cardWide"
+  | "heroXs"
   | "heroSm"
   | "heroMd"
   | "hero"
@@ -53,6 +54,7 @@ const UPLOAD_VARIANT_PRESET_FALLBACK_ORDER: Record<
   cardHomeSm: Object.freeze(["cardHomeSm", "cardHome", "card"]),
   cardHome: Object.freeze(["cardHome", "card"]),
   cardWide: Object.freeze(["cardWide"]),
+  heroXs: Object.freeze(["heroXs", "heroSm", "hero"]),
   heroSm: Object.freeze(["heroSm", "hero"]),
   heroMd: Object.freeze(["heroMd", "hero"]),
   hero: Object.freeze(["hero"]),
@@ -69,6 +71,7 @@ const UPLOAD_VARIANT_PRESET_WIDTHS: Record<UploadVariantPresetKey, number> = Obj
   cardHomeSm: 800,
   cardHome: 960,
   cardWide: 1280,
+  heroXs: 768,
   heroSm: 960,
   heroMd: 1280,
   hero: 1600,
@@ -83,7 +86,7 @@ const UPLOAD_VARIANT_RESPONSIVE_PRESET_ORDER: Partial<
   Record<UploadVariantPresetKey, readonly UploadVariantPresetKey[]>
 > = Object.freeze({
   cardHome: Object.freeze(["cardHomeXs", "cardHomeSm", "cardHome", "card"]),
-  hero: Object.freeze(["heroSm", "heroMd", "hero"]),
+  hero: Object.freeze(["heroXs", "heroSm", "heroMd", "hero"]),
   posterThumb: Object.freeze(["posterThumbSm", "posterThumb", "poster"]),
 });
 
@@ -297,7 +300,9 @@ export const resolveUploadVariantFocalPoint = ({
     return null;
   }
   const mappedPreset =
-    preset === "hero" || preset === "heroSm" || preset === "heroMd" ? "hero" : "card";
+    preset === "hero" || preset === "heroXs" || preset === "heroSm" || preset === "heroMd"
+      ? "hero"
+      : "card";
   const focalPoints =
     entry.focalPoints && typeof entry.focalPoints === "object" ? entry.focalPoints : null;
   const presetFocal = focalPoints ? normalizeFocalPoint(focalPoints[mappedPreset]) : null;
