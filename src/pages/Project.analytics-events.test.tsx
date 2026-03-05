@@ -245,6 +245,12 @@ describe("Project analytics events", () => {
       </MemoryRouter>,
     );
 
+    const volumeTrigger = await screen.findByRole("button", { name: /Volume 2/i });
+    expect(volumeTrigger).toHaveAttribute("aria-expanded", "false");
+    fireEvent.click(volumeTrigger);
+    await waitFor(() => {
+      expect(volumeTrigger).toHaveAttribute("aria-expanded", "true");
+    });
     const sourceLink = await screen.findByRole("link", { name: "Google Drive" });
     fireEvent.click(sourceLink);
 

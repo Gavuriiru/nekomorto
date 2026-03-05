@@ -163,6 +163,13 @@ describe("Project mobile download card layout", () => {
     expect(contentColumn).toContain(sourceTypeBadge);
 
     const previewImage = screen.getByRole("img", { name: "Prévia de Episodio 1" });
+    const cardContent = findAncestor(previewImage, (candidate) =>
+      classTokens(candidate).includes("md:grid-cols-[316px_minmax(0,1fr)]"),
+    );
+    expect(cardContent).not.toBeNull();
+    expect(classTokens(cardContent as HTMLElement)).toContain("md:grid-cols-[316px_minmax(0,1fr)]");
+    expect(classTokens(cardContent as HTMLElement)).not.toContain("md:grid-cols-[272px_minmax(0,1fr)]");
+
     const imageShell = findAncestor(
       previewImage,
       (candidate) =>
@@ -170,6 +177,10 @@ describe("Project mobile download card layout", () => {
         classTokens(candidate).includes("rounded-xl"),
     );
     expect(imageShell).not.toBeNull();
+    expect(classTokens(imageShell as HTMLElement)).toContain("md:h-[178px]");
+    expect(classTokens(imageShell as HTMLElement)).toContain("md:w-[316px]");
+    expect(classTokens(imageShell as HTMLElement)).not.toContain("md:h-[153px]");
+    expect(classTokens(imageShell as HTMLElement)).not.toContain("md:w-[272px]");
     expect(imageShell).not.toContain(sourceTypeBadge);
     expect(sourceTypeBadge.parentElement).not.toBe(imageShell?.parentElement);
 

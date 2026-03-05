@@ -499,8 +499,8 @@ const ProjectPage = () => {
           isAnimeDownloadCard ? "md:h-[210px]" : "md:min-h-[185px]"
         }`}
       >
-        <CardContent className="relative grid h-full gap-4 p-4 md:grid-cols-[272px_minmax(0,1fr)] md:items-start md:gap-4 md:p-4">
-          <div className="w-full overflow-hidden rounded-xl border border-border/60 bg-background/50 shadow-inner md:h-[153px] md:w-[272px]">
+        <CardContent className="relative grid h-full gap-4 p-4 md:grid-cols-[316px_minmax(0,1fr)] md:items-start md:gap-4 md:p-4">
+          <div className="w-full overflow-hidden rounded-xl border border-border/60 bg-background/50 shadow-inner md:h-[178px] md:w-[316px]">
             <UploadPicture
               src={episode.coverImageUrl || project.banner || project.cover || "/placeholder.svg"}
               alt={`Prévia de ${episode.title}`}
@@ -834,7 +834,7 @@ const ProjectPage = () => {
     const chapterCountLabel = `${group.items.length} capítulos disponíveis`;
 
     return (
-      <Accordion key={group.label} type="multiple" defaultValue={[group.label]} className="w-full">
+      <Accordion key={group.label} type="multiple" className="w-full">
         <AccordionItem
           value={group.label}
           className="group w-full overflow-hidden rounded-2xl border border-border/60 bg-card/80 shadow-[0_10px_20px_-18px_rgba(0,0,0,0.08),0_24px_48px_-34px_rgba(0,0,0,0.12)] transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:bg-card/90 hover:shadow-[0_14px_28px_-20px_rgba(0,0,0,0.1),0_28px_56px_-32px_rgba(0,0,0,0.16)]"

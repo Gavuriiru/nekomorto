@@ -194,6 +194,21 @@ const assertSocialFlow = (socialContainer: HTMLElement) => {
   expect(socialTokens).toContain("gap-2");
 };
 
+const assertMemberFrameClasses = (contentPanel: HTMLElement, options?: { retired?: boolean }) => {
+  const frameTokens = classTokens(contentPanel);
+  const isRetired = options?.retired ?? false;
+
+  expect(frameTokens).toContain("team-member-frame");
+  if (isRetired) {
+    expect(frameTokens).toContain("team-member-frame--retired");
+  } else {
+    expect(frameTokens).not.toContain("team-member-frame--retired");
+  }
+
+  expect(frameTokens).not.toContain("bg-black/15");
+  expect(frameTokens).not.toContain("bg-black/10");
+};
+
 const setupApiMock = (users = usersFixture) => {
   apiFetchMock.mockReset();
   apiFetchMock.mockImplementation(async (_apiBase: string, endpoint: string, options?: RequestInit) => {
@@ -270,6 +285,22 @@ describe("Team mobile social layout", () => {
     assertSocialFlow(socialContainer);
 
     expect(heading.compareDocumentPosition(socialContainer) & Node.DOCUMENT_POSITION_FOLLOWING).not.toBe(0);
+  });
+
+  it("usa classes semanticas no frame interno dos cards ativo e aposentado", async () => {
+    render(
+      <MemoryRouter>
+        <Team />
+      </MemoryRouter>,
+    );
+
+    await screen.findByRole("heading", { name: activeMemberName });
+    const activeMemberLayout = getMemberLayoutByName(activeMemberName);
+    assertMemberFrameClasses(activeMemberLayout.contentPanel);
+
+    await screen.findByRole("heading", { name: retiredMemberName });
+    const retiredMemberLayout = getMemberLayoutByName(retiredMemberName);
+    assertMemberFrameClasses(retiredMemberLayout.contentPanel, { retired: true });
   });
 
   it("renderiza avatar otimizado com variants square quando disponiveis", async () => {

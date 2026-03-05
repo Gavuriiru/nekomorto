@@ -342,10 +342,8 @@ const Team = () => {
 
             <div
               className={cn(
-                "flex h-full flex-col gap-4 rounded-2xl border p-5 sm:p-6 lg:p-6",
-                isRetiredCard
-                  ? "border-white/[0.04] bg-black/10"
-                  : "border-white/5 bg-black/15",
+                "team-member-frame flex h-full flex-col gap-4 rounded-2xl border p-5 sm:p-6 lg:p-6",
+                isRetiredCard && "team-member-frame--retired",
               )}
             >
               <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">

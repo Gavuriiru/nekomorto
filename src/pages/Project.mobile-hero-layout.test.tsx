@@ -1,4 +1,4 @@
-import { render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -516,6 +516,12 @@ describe("Project mobile hero layout", () => {
     );
 
     await screen.findByRole("heading", { name: "Projeto Teste" });
+    const volumeTrigger = screen.getByRole("button", { name: /Volume 2/i });
+    expect(volumeTrigger).toHaveAttribute("aria-expanded", "false");
+    fireEvent.click(volumeTrigger);
+    await waitFor(() => {
+      expect(volumeTrigger).toHaveAttribute("aria-expanded", "true");
+    });
     const readLink = screen.getByRole("link", { name: /Ler cap.tulo/i });
     const readCard = findAncestor(readLink, (candidate) =>
       classTokens(candidate).includes("chapter-download-card"),
@@ -580,6 +586,12 @@ describe("Project mobile hero layout", () => {
     );
 
     await screen.findByRole("heading", { name: "Projeto Teste" });
+    const volumeTrigger = screen.getByRole("button", { name: /Volume 2/i });
+    expect(volumeTrigger).toHaveAttribute("aria-expanded", "false");
+    fireEvent.click(volumeTrigger);
+    await waitFor(() => {
+      expect(volumeTrigger).toHaveAttribute("aria-expanded", "true");
+    });
     const readLink = screen.getByRole("link", { name: /Ler cap.tulo/i });
     const readCard = findAncestor(readLink, (candidate) =>
       classTokens(candidate).includes("chapter-download-card"),
@@ -618,6 +630,7 @@ describe("Project mobile hero layout", () => {
 
     await screen.findByRole("heading", { name: "Projeto Teste" });
     const volumeTrigger = screen.getByRole("button", { name: /Volume 2/i });
+    expect(volumeTrigger).toHaveAttribute("aria-expanded", "false");
     const volumeCard = findAncestor(volumeTrigger, (candidate) =>
       classTokens(candidate).includes("bg-card/80"),
     );
@@ -673,6 +686,7 @@ describe("Project mobile hero layout", () => {
 
     await screen.findByRole("heading", { name: "Projeto Teste" });
     const volumeTrigger = screen.getByRole("button", { name: /Volume 3/i });
+    expect(volumeTrigger).toHaveAttribute("aria-expanded", "false");
     const volumeCard = findAncestor(volumeTrigger, (candidate) =>
       classTokens(candidate).includes("bg-card/80"),
     );
@@ -708,6 +722,12 @@ describe("Project mobile hero layout", () => {
     );
 
     await screen.findByRole("heading", { name: "Projeto Teste" });
+    const volumeTrigger = screen.getByRole("button", { name: /Volume 3/i });
+    expect(volumeTrigger).toHaveAttribute("aria-expanded", "false");
+    fireEvent.click(volumeTrigger);
+    await waitFor(() => {
+      expect(volumeTrigger).toHaveAttribute("aria-expanded", "true");
+    });
     const downloadsSection = document.getElementById("downloads");
     expect(downloadsSection).not.toBeNull();
     expect((downloadsSection as HTMLElement).querySelector('[class*="justify-items-center"]')).toBeNull();

@@ -369,6 +369,26 @@
     max-width: 48rem;
   }
 
+  .team-member-frame {
+    border-color: hsl(0 0% 100% / 0.05);
+    background-color: hsl(0 0% 0% / 0.15);
+  }
+
+  .team-member-frame--retired {
+    border-color: hsl(0 0% 100% / 0.04);
+    background-color: hsl(0 0% 0% / 0.1);
+  }
+
+  :root[data-theme-mode="light"] .team-member-frame {
+    border-color: hsl(var(--border) / 0.52);
+    background: linear-gradient(160deg, hsl(var(--card) / 0.92), hsl(var(--background) / 0.84));
+  }
+
+  :root[data-theme-mode="light"] .team-member-frame--retired {
+    border-color: hsl(var(--border) / 0.46);
+    background: linear-gradient(160deg, hsl(var(--card) / 0.88), hsl(var(--background) / 0.8));
+  }
+
   :root[data-theme-mode="light"] .projects-public-card {
     background: hsl(var(--card));
   }
