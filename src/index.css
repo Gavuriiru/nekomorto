@@ -370,23 +370,23 @@
   }
 
   .team-member-frame {
-    border-color: hsl(0 0% 100% / 0.05);
+    border-color: hsl(0 0% 0% / 0.15);
     background-color: hsl(0 0% 0% / 0.15);
   }
 
   .team-member-frame--retired {
-    border-color: hsl(0 0% 100% / 0.04);
+    border-color: hsl(0 0% 0% / 0.1);
     background-color: hsl(0 0% 0% / 0.1);
   }
 
   :root[data-theme-mode="light"] .team-member-frame {
-    border-color: hsl(var(--border) / 0.52);
-    background: linear-gradient(160deg, hsl(var(--card) / 0.92), hsl(var(--background) / 0.84));
+    border-color: hsl(var(--muted) / 0.62);
+    background: linear-gradient(160deg, hsl(var(--card) / 0.88), hsl(var(--muted) / 0.62));
   }
 
   :root[data-theme-mode="light"] .team-member-frame--retired {
-    border-color: hsl(var(--border) / 0.46);
-    background: linear-gradient(160deg, hsl(var(--card) / 0.88), hsl(var(--background) / 0.8));
+    border-color: hsl(var(--muted) / 0.56);
+    background: linear-gradient(160deg, hsl(var(--card) / 0.86), hsl(var(--muted) / 0.56));
   }
 
   :root[data-theme-mode="light"] .projects-public-card {

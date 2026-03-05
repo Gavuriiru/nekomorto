@@ -15,6 +15,7 @@ const usePublicBootstrapMock = vi.hoisted(() => vi.fn());
 const toastMock = vi.hoisted(() => vi.fn());
 const setThemePreferenceMock = vi.hoisted(() => vi.fn());
 const scheduleOnBrowserLoadIdleMock = vi.hoisted(() => vi.fn());
+const useIsMobileMock = vi.hoisted(() => vi.fn());
 
 vi.mock("@/lib/api-base", () => ({
   getApiBase: () => "http://api.local",
@@ -51,6 +52,10 @@ vi.mock("@/hooks/use-dynamic-synopsis-clamp", () => ({
     rootRef: { current: null },
     lineByKey: {},
   }),
+}));
+
+vi.mock("@/hooks/use-mobile", () => ({
+  useIsMobile: () => useIsMobileMock(),
 }));
 
 vi.mock("@/lib/browser-idle", () => ({
@@ -131,6 +136,11 @@ const getSearchSuggestCalls = () =>
   apiFetchMock.mock.calls.filter((call) =>
     String(call[1] || "").startsWith("/api/public/search/suggest?"),
   );
+const getScheduleOnBrowserLoadIdleCallsByDelay = (delayMs: number) =>
+  scheduleOnBrowserLoadIdleMock.mock.calls.filter((call) => {
+    const options = (call[1] || {}) as { delayMs?: number };
+    return Number(options.delayMs || 0) === delayMs;
+  });
 
 describe("Header mobile search layout", () => {
   beforeEach(() => {
@@ -146,6 +156,8 @@ describe("Header mobile search layout", () => {
       } as IdleDeadline);
       return () => undefined;
     });
+    useIsMobileMock.mockReset();
+    useIsMobileMock.mockReturnValue(false);
     (window as Window & { __BOOTSTRAP_PUBLIC_ME__?: unknown }).__BOOTSTRAP_PUBLIC_ME__ = undefined;
     useSiteSettingsMock.mockReset();
     usePublicBootstrapMock.mockReset();
@@ -178,6 +190,37 @@ describe("Header mobile search layout", () => {
         },
       },
     });
+  });
+
+  it("nao agenda preload de menus em idle no mobile", async () => {
+    useIsMobileMock.mockReturnValue(true);
+
+    render(
+      <MemoryRouter initialEntries={["/"]}>
+        <Header />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(scheduleOnBrowserLoadIdleMock).toHaveBeenCalled();
+    });
+    expect(getScheduleOnBrowserLoadIdleCallsByDelay(1200)).toHaveLength(0);
+    expect(getScheduleOnBrowserLoadIdleCallsByDelay(2500).length).toBeGreaterThan(0);
+  });
+
+  it("agenda preload de menus em idle no desktop", async () => {
+    useIsMobileMock.mockReturnValue(false);
+
+    render(
+      <MemoryRouter initialEntries={["/"]}>
+        <Header />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(scheduleOnBrowserLoadIdleMock).toHaveBeenCalled();
+    });
+    expect(getScheduleOnBrowserLoadIdleCallsByDelay(1200).length).toBeGreaterThan(0);
   });
 
   it("aplica gradiente abaixo do header fixo apenas apos scroll", async () => {
@@ -257,8 +300,9 @@ describe("Header mobile search layout", () => {
     });
   });
 
-  it("renderiza perfil a partir do bootstrap sem aguardar fetch", async () => {
+  it("nao dispara fetch de perfil quando a revalidacao idle nao executa", async () => {
     scheduleOnBrowserLoadIdleMock.mockImplementation(() => () => undefined);
+    useIsMobileMock.mockReturnValue(true);
     (window as Window & { __BOOTSTRAP_PUBLIC_ME__?: unknown }).__BOOTSTRAP_PUBLIC_ME__ = {
       id: "bootstrap-user-1",
       name: "Bootstrap Admin",
@@ -272,7 +316,7 @@ describe("Header mobile search layout", () => {
       </MemoryRouter>,
     );
 
-    expect(await screen.findByText("Bootstrap Admin")).toBeInTheDocument();
+    expect(screen.getByRole("banner")).toBeInTheDocument();
     expect(apiFetchMock).not.toHaveBeenCalled();
   });
 

@@ -500,7 +500,7 @@ const ProjectPage = () => {
         }`}
       >
         <CardContent className="relative grid h-full gap-4 p-4 md:grid-cols-[316px_minmax(0,1fr)] md:items-start md:gap-4 md:p-4">
-          <div className="w-full overflow-hidden rounded-xl border border-border/60 bg-background/50 shadow-inner md:h-[178px] md:w-[316px]">
+          <div className="w-full overflow-hidden rounded-xl border border-border/40 bg-background/50 shadow-inner md:h-[178px] md:w-[316px]">
             <UploadPicture
               src={episode.coverImageUrl || project.banner || project.cover || "/placeholder.svg"}
               alt={`Prévia de ${episode.title}`}
@@ -510,7 +510,7 @@ const ProjectPage = () => {
               imgClassName="h-full w-full aspect-video object-cover object-center transition-transform duration-300 group-hover:scale-[1.03]"
             />
           </div>
-          <div className="relative h-full md:min-h-[153px] md:pr-0">
+          <div className="relative h-full md:min-h-[178px] md:pr-0">
             <div className="space-y-2.5 md:pb-[52px]">
               <div className="flex min-w-0 flex-wrap items-center gap-2 md:pr-20">
                 <Badge
@@ -575,7 +575,7 @@ const ProjectPage = () => {
               ) : null}
             </div>
 
-            <div className="mt-2 flex flex-wrap items-center justify-end gap-2 md:absolute md:-bottom-2 md:left-0 md:right-0 md:mt-0 md:justify-end">
+            <div className="mt-2 flex flex-wrap items-center justify-end gap-2 md:absolute md:bottom-0 md:left-0 md:right-0 md:mt-0 md:justify-end">
               {hasReadAction ? (
                 <Button asChild size="sm">
                   <Link to={String(readAction?.href || "#")}>{String(readAction?.label || "")}</Link>

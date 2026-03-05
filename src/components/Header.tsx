@@ -12,6 +12,7 @@ import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
 import { useSiteSettings } from "@/hooks/use-site-settings";
 import { usePublicBootstrap } from "@/hooks/use-public-bootstrap";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { resolveBranding } from "@/lib/branding";
 import { useGlobalShortcuts } from "@/hooks/use-global-shortcuts";
 import { scheduleOnBrowserLoadIdle } from "@/lib/browser-idle";
@@ -123,6 +124,7 @@ const Header = ({ variant = "fixed", leading, className }: HeaderProps) => {
   const searchInputRef = useRef<HTMLInputElement | null>(null);
   const location = useLocation();
   const apiBase = getApiBase();
+  const isMobile = useIsMobile();
   const { settings } = useSiteSettings();
   const { data: bootstrapData } = usePublicBootstrap();
   const projects = bootstrapData?.projects || [];
@@ -290,6 +292,9 @@ const Header = ({ variant = "fixed", leading, className }: HeaderProps) => {
   }, [isSearchOpen]);
 
   useEffect(() => {
+    if (isMobile) {
+      return;
+    }
     let isActive = true;
     const preloadActionMenus = () => {
       void loadHeaderActionMenusModule()
@@ -310,7 +315,7 @@ const Header = ({ variant = "fixed", leading, className }: HeaderProps) => {
       isActive = false;
       cancelIdle();
     };
-  }, []);
+  }, [isMobile]);
 
   useEffect(() => {
     if (shouldRenderActionMenus) {
@@ -342,7 +347,7 @@ const Header = ({ variant = "fixed", leading, className }: HeaderProps) => {
   }, [shouldRenderActionMenus]);
 
   useEffect(() => {
-    if (!currentUser || shouldRenderActionMenus) {
+    if (isMobile || !currentUser || shouldRenderActionMenus) {
       return;
     }
     let isActive = true;
@@ -356,7 +361,7 @@ const Header = ({ variant = "fixed", leading, className }: HeaderProps) => {
     return () => {
       isActive = false;
     };
-  }, [currentUser, shouldRenderActionMenus]);
+  }, [currentUser, isMobile, shouldRenderActionMenus]);
 
   useEffect(() => {
     const handleOutsideClick = (event: MouseEvent) => {

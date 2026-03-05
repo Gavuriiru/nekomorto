@@ -24,7 +24,7 @@ const UPLOAD_VARIANT_AVIF_QUALITY = Object.freeze({
   cardHomeXs: 47,
   cardHomeSm: 47,
   cardHome: 47,
-  heroSm: 45,
+  heroSm: 42,
   heroMd: 45,
   hero: 45,
   posterThumbSm: 46,

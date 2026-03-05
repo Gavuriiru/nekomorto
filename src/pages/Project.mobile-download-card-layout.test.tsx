@@ -155,11 +155,12 @@ describe("Project mobile download card layout", () => {
     expect(classTokens(episodeCard as HTMLElement)).not.toContain("md:w-[920px]");
 
     const contentColumn = findAncestor(sourceTypeBadge, (candidate) =>
-      classTokens(candidate).includes("md:min-h-[153px]"),
+      classTokens(candidate).includes("md:min-h-[178px]"),
     );
     expect(contentColumn).not.toBeNull();
-    expect(classTokens(contentColumn as HTMLElement)).toContain("md:min-h-[153px]");
-    expect(classTokens(contentColumn as HTMLElement)).not.toContain("min-h-[153px]");
+    expect(classTokens(contentColumn as HTMLElement)).toContain("md:min-h-[178px]");
+    expect(classTokens(contentColumn as HTMLElement)).not.toContain("md:min-h-[153px]");
+    expect(classTokens(contentColumn as HTMLElement)).not.toContain("min-h-[178px]");
     expect(contentColumn).toContain(sourceTypeBadge);
 
     const previewImage = screen.getByRole("img", { name: "Prévia de Episodio 1" });
@@ -203,6 +204,8 @@ describe("Project mobile download card layout", () => {
     expect(classTokens(actionsRow as HTMLElement)).toContain("md:justify-end");
     expect(classTokens(actionsRow as HTMLElement)).toContain("flex-wrap");
     expect(classTokens(actionsRow as HTMLElement)).toContain("md:absolute");
+    expect(classTokens(actionsRow as HTMLElement)).toContain("md:bottom-0");
+    expect(classTokens(actionsRow as HTMLElement)).not.toContain("md:-bottom-2");
     expect(classTokens(actionsRow as HTMLElement)).toContain("md:mt-0");
 
     expect(sourceLink).toHaveAttribute("aria-label", "Google Drive");
