@@ -62,7 +62,7 @@ const ReleasesSection = () => {
     >
       <div className="max-w-7xl mx-auto">
         <h2 className="mb-6 text-sm font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-          Lançamentos recentes
+          Em Destaque
         </h2>
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Left side - Release cards (blog posts) */}
