@@ -37,11 +37,14 @@ export type PublicBootstrapVolumeEntry = {
 export type PublicBootstrapProject = {
   id: string;
   title: string;
+  titleOriginal: string;
+  titleEnglish: string;
   synopsis: string;
   description: string;
   type: string;
   status: string;
   tags: string[];
+  genres: string[];
   cover: string;
   coverAlt: string;
   banner: string;
@@ -50,6 +53,9 @@ export type PublicBootstrapProject = {
   heroImageAlt: string;
   forceHero: boolean;
   trailerUrl: string;
+  studio: string;
+  episodes: string;
+  producers: string[];
   volumeEntries?: PublicBootstrapVolumeEntry[];
   volumeCovers: PublicBootstrapVolumeCover[];
   episodeDownloads: PublicBootstrapEpisode[];

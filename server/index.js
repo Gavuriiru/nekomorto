@@ -80,6 +80,7 @@ import {
   resolveHomeHeroPreloadFromSlide,
   sanitizePublicMediaVariantEntry,
 } from "./lib/public-media-variants.js";
+import { resolvePublicProjectsListPreloads } from "./lib/public-projects-preloads.js";
 import { resolveRouteThemeColor } from "./lib/route-theme-color.js";
 import { localizeProjectImageFields } from "./lib/project-image-localizer.js";
 import {
@@ -11378,6 +11379,7 @@ const injectPublicBootstrapHtml = ({
   settings,
   pages,
   includeHeroImagePreload = false,
+  includeProjectsImagePreloads = false,
   bootstrapMode = PUBLIC_BOOTSTRAP_MODE_FULL,
   includeHomeHeroShell = false,
 }) => {
@@ -11403,6 +11405,15 @@ const injectPublicBootstrapHtml = ({
     if (heroPreload) {
       preloads.push(heroPreload);
     }
+  }
+  if (includeProjectsImagePreloads) {
+    preloads.push(
+      ...resolvePublicProjectsListPreloads({
+        projects: publicBootstrap?.projects,
+        mediaVariants: publicBootstrap?.mediaVariants,
+        resolveVariantUrl: resolveMetaImageVariantUrl,
+      }),
+    );
   }
   if (preloads.length > 0) {
     nextHtml = injectPreloadLinks({
@@ -14597,6 +14608,7 @@ app.get("*", async (req, res) => {
           settings,
           pages,
           includeHeroImagePreload: req.path === "/",
+          includeProjectsImagePreloads: req.path === "/projetos",
           bootstrapMode:
             req.path === "/"
               ? PUBLIC_BOOTSTRAP_MODE_CRITICAL_HOME

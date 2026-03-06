@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import DashboardSecurity from "@/pages/DashboardSecurity";
@@ -111,6 +111,57 @@ describe("DashboardSecurity semantic badges", () => {
       "text-amber-900",
       "dark:text-amber-200",
     );
+  });
+
+  it("keeps the mobile revoke CTA on the identity row with an icon-first responsive button", async () => {
+    render(<DashboardSecurity />);
+
+    const revokeButton = await screen.findByRole("button", {
+      name: "Encerrar sessao de Moderator",
+    });
+    const sessionCard = screen.getByText("Moderator").closest("article");
+    const headerRow = revokeButton.parentElement as HTMLElement | null;
+    const identityText = screen.getByText("Moderator").parentElement as HTMLElement | null;
+    const identityRow = identityText?.parentElement as HTMLElement | null;
+    const badgesRow = screen.getByText("Pendente MFA").parentElement as HTMLElement | null;
+    const userId = screen.getByText("ID: 2");
+    const desktopLabel = within(revokeButton).getByText("Encerrar");
+    const revokeIcon = revokeButton.querySelector("svg");
+
+    expect(sessionCard).not.toBeNull();
+    expect(headerRow).not.toBeNull();
+    expect(identityText).not.toBeNull();
+    expect(identityRow).not.toBeNull();
+    expect(badgesRow).not.toBeNull();
+    expect(revokeIcon).not.toBeNull();
+
+    expect(classTokens(headerRow as HTMLElement)).toContain("flex");
+    expect(classTokens(headerRow as HTMLElement)).toContain("flex-wrap");
+    expect(classTokens(headerRow as HTMLElement)).toContain("items-start");
+    expect(classTokens(headerRow as HTMLElement)).toContain("gap-3");
+    expect(classTokens(headerRow as HTMLElement)).toContain("md:flex-nowrap");
+
+    expect(classTokens(identityRow as HTMLElement)).toContain("flex");
+    expect(classTokens(identityRow as HTMLElement)).toContain("min-w-0");
+    expect(classTokens(identityRow as HTMLElement)).toContain("flex-1");
+    expect(classTokens(identityText as HTMLElement)).toContain("min-w-0");
+    expect(classTokens(userId as HTMLElement)).toContain("break-all");
+
+    expect(classTokens(revokeButton)).toContain("order-2");
+    expect(classTokens(revokeButton)).toContain("h-9");
+    expect(classTokens(revokeButton)).toContain("w-9");
+    expect(classTokens(revokeButton)).toContain("px-0");
+    expect(classTokens(revokeButton)).toContain("md:order-3");
+    expect(classTokens(revokeButton)).toContain("md:w-auto");
+    expect(classTokens(revokeButton)).toContain("md:px-3");
+    expect(classTokens(revokeIcon as HTMLElement)).not.toContain("md:hidden");
+
+    expect(classTokens(badgesRow as HTMLElement)).toContain("order-3");
+    expect(classTokens(badgesRow as HTMLElement)).toContain("basis-full");
+    expect(classTokens(badgesRow as HTMLElement)).toContain("md:order-2");
+
+    expect(classTokens(desktopLabel as HTMLElement)).toContain("hidden");
+    expect(classTokens(desktopLabel as HTMLElement)).toContain("md:inline");
   });
 
   it("shows loading placeholders before the session payload resolves", () => {

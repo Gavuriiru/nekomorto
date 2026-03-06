@@ -373,7 +373,7 @@ const PublicUserProfileCard = ({
               </button>
             ) : null}
 
-            <div className="team-member-panel-shell">
+            <div className="team-member-panel-shell flex flex-col gap-4">
               <div className="team-member-panel team-member-panel--bio flex flex-col gap-4">
                 <p
                   className={cn(

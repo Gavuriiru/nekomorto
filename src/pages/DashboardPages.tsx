@@ -746,7 +746,7 @@ const DashboardPages = () => {
               </p>
             </div>
             <div
-              className="animate-slide-up opacity-0"
+              className="w-full animate-slide-up opacity-0 sm:w-auto"
               style={dashboardAnimationDelay(dashboardMotionDelays.headerActionsMs)}
               data-testid="dashboard-pages-autosave-reveal"
             >

@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
-import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import AsyncState from "@/components/ui/async-state";
@@ -28,7 +27,11 @@ import { usePageMeta } from "@/hooks/use-page-meta";
 import { useDynamicSynopsisClamp } from "@/hooks/use-dynamic-synopsis-clamp";
 import { publicPageLayoutTokens } from "@/components/public-page-tokens";
 import { readWindowPublicBootstrap } from "@/lib/public-bootstrap-global";
-import { prepareProjectBadges, PROJECT_COVER_ASPECT_RATIO } from "@/lib/project-card-layout";
+import {
+  prepareProjectBadges,
+  PROJECT_COVER_ASPECT_RATIO,
+  type ProjectBadgeItem,
+} from "@/lib/project-card-layout";
 import { normalizeSearchText } from "@/lib/search-ranking";
 import type { UploadMediaVariantsMap } from "@/lib/upload-variants";
 import { cn } from "@/lib/utils";
@@ -37,8 +40,8 @@ const alphabetOptions = ["Todas", ..."ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("")];
 const PROJECTS_LIST_STATE_STORAGE_KEY = "public.projects.list-state.v1";
 const MAX_QUERY_LENGTH = 80;
 const SEARCH_QUERY_DEBOUNCE_MS = 60;
-const CARD_ENTER_EASE: [number, number, number, number] = [0.22, 1, 0.36, 1];
-const CARD_EXIT_EASE: [number, number, number, number] = [0.4, 0, 1, 1];
+const PROJECTS_LIST_IMAGE_SIZES = "(max-width: 767px) 100px, 142px";
+const PRIORITY_PROJECT_IMAGE_COUNT = 4;
 
 const parseLetterParam = (value: string | null) => {
   const normalized = String(value || "")
@@ -73,6 +76,17 @@ type ProjectCardProps = {
   navigate: ReturnType<typeof useNavigate>;
   synopsisClampClass: string;
   mediaVariants: UploadMediaVariantsMap;
+  cardIndex: number;
+};
+
+const getProjectBadgeAriaLabel = (item: ProjectBadgeItem) => {
+  if (item.key.startsWith("tag-")) {
+    return `Filtrar por tag ${item.label}`;
+  }
+  if (item.key.startsWith("genre-")) {
+    return `Filtrar por genero ${item.label}`;
+  }
+  return item.label;
 };
 
 const ProjectCard = ({
@@ -82,11 +96,14 @@ const ProjectCard = ({
   navigate,
   synopsisClampClass,
   mediaVariants,
+  cardIndex,
 }: ProjectCardProps) => {
   const [badgesRowWidth, setBadgesRowWidth] = useState(0);
   const [badgeWidths, setBadgeWidths] = useState<Record<string, number>>({});
   const badgesRowRef = useRef<HTMLDivElement | null>(null);
   const badgeMeasureRef = useRef<HTMLDivElement | null>(null);
+  const isPriorityImage = cardIndex < PRIORITY_PROJECT_IMAGE_COUNT;
+  const isPrimaryLcpImage = cardIndex === 0;
   const { allItems, visibleItems, extraCount, showOverflowBadge } = useMemo(
     () =>
       prepareProjectBadges({
@@ -171,10 +188,13 @@ const ProjectCard = ({
         <UploadPicture
           src={project.cover}
           alt={project.title}
-          preset="poster"
+          preset="posterThumb"
           mediaVariants={mediaVariants}
           className="block h-full w-full"
           imgClassName="h-full w-full object-cover object-center transition-transform duration-300 group-hover:scale-105"
+          sizes={PROJECTS_LIST_IMAGE_SIZES}
+          loading={isPriorityImage ? "eager" : "lazy"}
+          fetchPriority={isPrimaryLcpImage ? "high" : undefined}
         />
       </div>
       <div
@@ -215,8 +235,9 @@ const ProjectCard = ({
                   <button
                     key={item.key}
                     type="button"
-                    className="inline-flex shrink-0"
+                    className="inline-flex min-h-6 min-w-6 shrink-0 items-center justify-center rounded-md p-0.5"
                     title={item.label}
+                    aria-label={getProjectBadgeAriaLabel(item)}
                     onClick={(event) => {
                       event.preventDefault();
                       event.stopPropagation();
@@ -225,7 +246,7 @@ const ProjectCard = ({
                   >
                     <Badge
                       variant={item.variant}
-                      className="h-5 shrink-0 whitespace-nowrap px-2 text-[9px] uppercase leading-none"
+                      className="inline-flex h-6 shrink-0 whitespace-nowrap px-2 text-[9px] uppercase leading-none"
                     >
                       {item.label}
                     </Badge>
@@ -234,7 +255,7 @@ const ProjectCard = ({
                   <Badge
                     key={item.key}
                     variant={item.variant}
-                    className="inline-flex h-5 shrink-0 whitespace-nowrap px-2 text-[9px] uppercase leading-none"
+                    className="inline-flex h-6 shrink-0 whitespace-nowrap px-2 text-[9px] uppercase leading-none"
                     title={item.label}
                   >
                     {item.label}
@@ -245,7 +266,7 @@ const ProjectCard = ({
                 <Badge
                   key={`extra-${project.id}`}
                   variant="secondary"
-                  className="inline-flex h-5 w-9 shrink-0 justify-center whitespace-nowrap px-2 text-[9px] uppercase leading-none"
+                  className="inline-flex h-6 w-9 shrink-0 justify-center whitespace-nowrap px-2 text-[9px] uppercase leading-none"
                   title={`+${extraCount} tags`}
                 >
                   +{extraCount}
@@ -263,7 +284,7 @@ const ProjectCard = ({
                 key={`measure-${item.key}`}
                 data-badge-key={item.key}
                 variant={item.variant}
-                className="inline-flex h-5 shrink-0 whitespace-nowrap px-2 text-[9px] uppercase leading-none"
+                className="inline-flex h-6 shrink-0 whitespace-nowrap px-2 text-[9px] uppercase leading-none"
               >
                 {item.label}
               </Badge>
@@ -298,14 +319,20 @@ const ProjectCard = ({
 
 const Projects = () => {
   const apiBase = getApiBase();
-  const prefersReducedMotion = useReducedMotion();
   const hasMountedRef = useRef(false);
   const isApplyingUrlStateRef = useRef(false);
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [isLoadingProjects, setIsLoadingProjects] = useState(true);
+  const bootstrap = readWindowPublicBootstrap();
+  const hasFullBootstrap = Boolean(bootstrap && bootstrap.payloadMode !== "critical-home");
+  const bootstrapProjects = hasFullBootstrap ? ((bootstrap?.projects || []) as Project[]) : [];
+  const bootstrapTagTranslations = hasFullBootstrap ? bootstrap?.tagTranslations : null;
+  const bootstrapMediaVariants = hasFullBootstrap ? bootstrap?.mediaVariants || {} : {};
+  const [projects, setProjects] = useState<Project[]>(() => bootstrapProjects);
+  const [isLoadingProjects, setIsLoadingProjects] = useState(() => !hasFullBootstrap);
   const [hasProjectsLoadError, setHasProjectsLoadError] = useState(false);
   const [projectsLoadVersion, setProjectsLoadVersion] = useState(0);
-  const [projectsMediaVariants, setProjectsMediaVariants] = useState<UploadMediaVariantsMap>({});
+  const [projectsMediaVariants, setProjectsMediaVariants] = useState<UploadMediaVariantsMap>(
+    () => bootstrapMediaVariants,
+  );
   const [searchParams, setSearchParams] = useSearchParams();
   const [selectedLetter, setSelectedLetter] = useState(() =>
     parseLetterParam(searchParams.get("letter")),
@@ -320,14 +347,17 @@ const Projects = () => {
     currentPage: parseProjectsPageParam(searchParams.get("page")),
   });
   const navigate = useNavigate();
-  const [tagTranslations, setTagTranslations] = useState<Record<string, string>>({});
-  const [genreTranslations, setGenreTranslations] = useState<Record<string, string>>({});
+  const [tagTranslations, setTagTranslations] = useState<Record<string, string>>(
+    () => bootstrapTagTranslations?.tags || {},
+  );
+  const [genreTranslations, setGenreTranslations] = useState<Record<string, string>>(
+    () => bootstrapTagTranslations?.genres || {},
+  );
   const projectsPerPage = 16;
   const selectedTag = searchParams.get("tag") || "Todas";
   const selectedGenre = searchParams.get("genero") || searchParams.get("genre") || "Todos";
   const selectedQuery = searchParams.get("q") || "";
   const [searchInputValue, setSearchInputValue] = useState(() => selectedQuery);
-  const bootstrap = readWindowPublicBootstrap();
   const shareImage = bootstrap?.pages.projects.shareImage || "";
   const shareImageAlt = bootstrap?.pages.projects.shareImageAlt || "";
   const pageMediaVariants = bootstrap?.mediaVariants || {};
@@ -351,6 +381,9 @@ const Projects = () => {
   }, []);
 
   useEffect(() => {
+    if (hasFullBootstrap && projectsLoadVersion === 0) {
+      return;
+    }
     let isActive = true;
     const load = async () => {
       if (isActive) {
@@ -392,9 +425,12 @@ const Projects = () => {
     return () => {
       isActive = false;
     };
-  }, [apiBase, projectsLoadVersion]);
+  }, [apiBase, hasFullBootstrap, projectsLoadVersion]);
 
   useEffect(() => {
+    if (hasFullBootstrap && projectsLoadVersion === 0) {
+      return;
+    }
     let isActive = true;
     const loadTranslations = async () => {
       try {
@@ -420,7 +456,7 @@ const Projects = () => {
     return () => {
       isActive = false;
     };
-  }, [apiBase]);
+  }, [apiBase, hasFullBootstrap, projectsLoadVersion]);
 
   useEffect(() => {
     const legacyGenre = searchParams.get("genre");
@@ -727,19 +763,6 @@ const Projects = () => {
     }
   }, [searchParams, setSearchParams]);
 
-  const cardInitialMotion = prefersReducedMotion
-    ? { opacity: 1, y: 0 }
-    : { opacity: 0, y: 10 };
-  const cardAnimateMotion = prefersReducedMotion
-    ? { opacity: 1, y: 0, transition: { duration: 0.01 } }
-    : { opacity: 1, y: 0, transition: { duration: 0.18, ease: CARD_ENTER_EASE } };
-  const cardExitMotion = prefersReducedMotion
-    ? { opacity: 1, y: 0, transition: { duration: 0.01 } }
-    : { opacity: 0, y: -8, transition: { duration: 0.14, ease: CARD_EXIT_EASE } };
-  const cardLayoutTransition = prefersReducedMotion
-    ? { duration: 0.01 }
-    : { duration: 0.2, ease: CARD_ENTER_EASE };
-
   return (
     <div className="min-h-screen text-foreground">
       <main className="pt-28">
@@ -771,7 +794,7 @@ const Projects = () => {
                   setCurrentPage(1);
                 }}
               >
-                <SelectTrigger className="bg-background/60">
+                <SelectTrigger className="bg-background/60" aria-label="Filtrar por letra">
                   <SelectValue placeholder="Todas as letras" />
                 </SelectTrigger>
                 <SelectContent>
@@ -792,7 +815,7 @@ const Projects = () => {
                 value={selectedTag}
                 onValueChange={(value) => updateFilterQuery(value, selectedGenre)}
               >
-                <SelectTrigger className="bg-background/60">
+                <SelectTrigger className="bg-background/60" aria-label="Filtrar por tag">
                   <SelectValue placeholder="Todas as tags" />
                 </SelectTrigger>
                 <SelectContent>
@@ -813,7 +836,7 @@ const Projects = () => {
                 value={selectedGenre}
                 onValueChange={(value) => updateFilterQuery(selectedTag, value)}
               >
-                <SelectTrigger className="bg-background/60">
+                <SelectTrigger className="bg-background/60" aria-label="Filtrar por genero">
                   <SelectValue placeholder="Todos os generos" />
                 </SelectTrigger>
                 <SelectContent>
@@ -837,7 +860,7 @@ const Projects = () => {
                   setCurrentPage(1);
                 }}
               >
-                <SelectTrigger className="bg-background/60">
+                <SelectTrigger className="bg-background/60" aria-label="Filtrar por formato">
                   <SelectValue placeholder="Todos os formatos" />
                 </SelectTrigger>
                 <SelectContent>
@@ -898,32 +921,16 @@ const Projects = () => {
             />
           ) : (
             <div ref={listRootRef} className="mt-10 grid gap-6 md:grid-cols-2 md:auto-rows-fr">
-              <AnimatePresence initial={false} mode="sync">
-                {paginatedProjects.map((project, index) => {
-                  const isLastSingle =
-                    paginatedProjects.length % 2 === 1 && index === paginatedProjects.length - 1;
-                  return (
-                    <motion.div
-                      key={project.id}
-                      layout="position"
-                      initial={cardInitialMotion}
-                      animate={cardAnimateMotion}
-                      exit={cardExitMotion}
-                      transition={{ layout: cardLayoutTransition }}
-                      className={isLastSingle ? "md:col-span-2 flex justify-center" : undefined}
-                    >
-                      {isLastSingle ? (
-                        <div className="w-full md:w-[calc(50%-0.75rem)]">
-                          <ProjectCard
-                            project={project}
-                            tagTranslations={tagTranslations}
-                            genreTranslations={genreTranslations}
-                            navigate={navigate}
-                            synopsisClampClass={getSynopsisClampClass(project.id)}
-                            mediaVariants={projectsMediaVariants}
-                          />
-                        </div>
-                      ) : (
+              {paginatedProjects.map((project, index) => {
+                const isLastSingle =
+                  paginatedProjects.length % 2 === 1 && index === paginatedProjects.length - 1;
+                return (
+                  <div
+                    key={project.id}
+                    className={isLastSingle ? "md:col-span-2 flex justify-center" : undefined}
+                  >
+                    {isLastSingle ? (
+                      <div className="w-full md:w-[calc(50%-0.75rem)]">
                         <ProjectCard
                           project={project}
                           tagTranslations={tagTranslations}
@@ -931,12 +938,23 @@ const Projects = () => {
                           navigate={navigate}
                           synopsisClampClass={getSynopsisClampClass(project.id)}
                           mediaVariants={projectsMediaVariants}
+                          cardIndex={index}
                         />
-                      )}
-                    </motion.div>
-                  );
-                })}
-              </AnimatePresence>
+                      </div>
+                    ) : (
+                      <ProjectCard
+                        project={project}
+                        tagTranslations={tagTranslations}
+                        genreTranslations={genreTranslations}
+                        navigate={navigate}
+                        synopsisClampClass={getSynopsisClampClass(project.id)}
+                        mediaVariants={projectsMediaVariants}
+                        cardIndex={index}
+                      />
+                    )}
+                  </div>
+                );
+              })}
             </div>
           )}
 

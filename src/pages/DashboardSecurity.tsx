@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { LogOut } from "lucide-react";
 
 import DashboardShell from "@/components/DashboardShell";
 import DashboardPageBadge from "@/components/dashboard/DashboardPageBadge";
@@ -299,8 +300,8 @@ const DashboardSecurity = () => {
                     key={`dashboard-security-loading-${index}`}
                     className="space-y-3 rounded-2xl border border-border/60 bg-background/60 p-4"
                   >
-                    <div className="flex flex-wrap items-start justify-between gap-3">
-                      <div className="flex items-center gap-3">
+                    <div className="flex flex-wrap items-start gap-3 md:flex-nowrap">
+                      <div className="flex min-w-0 flex-1 items-center gap-3">
                         <Skeleton className="h-10 w-10 rounded-full" />
                         <div className="space-y-2">
                           <Skeleton className="h-4 w-28" />
@@ -342,7 +343,13 @@ const DashboardSecurity = () => {
                 </p>
               ) : (
                 <div className="space-y-3">
-                  {sessions.map((session, index) => (
+                  {sessions.map((session, index) => {
+                    const isRevokingSession = revokingSid === session.sid;
+                    const revokeButtonLabel = `${
+                      isRevokingSession ? "Encerrando" : "Encerrar"
+                    } sessao de ${session.userName || session.userId || "usuario"}`;
+
+                    return (
                   <article
                     key={session.sid}
                     className="space-y-3 rounded-2xl border border-border/60 bg-background/60 p-4 animate-slide-up opacity-0"
@@ -350,8 +357,8 @@ const DashboardSecurity = () => {
                       dashboardClampedStaggerMs(index, dashboardMotionDelays.sectionLeadMs + 120),
                     )}
                   >
-                    <div className="flex flex-wrap items-start justify-between gap-3">
-                      <div className="flex items-center gap-3">
+                    <div className="flex flex-wrap items-start gap-3 md:flex-nowrap">
+                      <div className="flex min-w-0 flex-1 items-center gap-3">
                         {session.userAvatarUrl ? (
                           <img
                             src={session.userAvatarUrl}
@@ -364,27 +371,33 @@ const DashboardSecurity = () => {
                             {userInitials(session.userName)}
                           </div>
                         )}
-                        <div className="space-y-1">
-                          <p className="text-sm font-medium">{session.userName}</p>
-                          <p className="text-xs text-muted-foreground">ID: {session.userId}</p>
+                        <div className="min-w-0 space-y-1">
+                          <p className="break-words text-sm font-medium">{session.userName}</p>
+                          <p className="break-all text-xs text-muted-foreground">ID: {session.userId}</p>
                         </div>
                       </div>
-                      <div className="flex flex-wrap gap-2">
+                      {session.sid && session.userId && !session.currentForViewer ? (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="order-2 h-9 w-9 shrink-0 px-0 md:order-3 md:w-auto md:px-3"
+                          onClick={() => requestRevokeSession(session)}
+                          disabled={Boolean(revokingSid)}
+                          aria-label={revokeButtonLabel}
+                          title={revokeButtonLabel}
+                        >
+                          <LogOut className="h-4 w-4" />
+                          <span className="hidden md:inline">
+                            {isRevokingSession ? "Encerrando..." : "Encerrar"}
+                          </span>
+                        </Button>
+                      ) : null}
+                      <div className="order-3 flex basis-full flex-wrap gap-2 md:order-2 md:ml-auto md:basis-auto md:justify-end">
                         {session.currentForViewer ? (
                           <Badge variant="success">Sua sessão atual</Badge>
                         ) : null}
                         {session.isPendingMfa ? (
                           <Badge variant="warning">Pendente MFA</Badge>
-                        ) : null}
-                        {session.sid && session.userId && !session.currentForViewer ? (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => requestRevokeSession(session)}
-                            disabled={Boolean(revokingSid)}
-                          >
-                            {revokingSid === session.sid ? "Encerrando..." : "Encerrar"}
-                          </Button>
                         ) : null}
                       </div>
                     </div>
@@ -395,7 +408,8 @@ const DashboardSecurity = () => {
                       <p className="truncate">User-Agent: {session.userAgent || "-"}</p>
                     </div>
                   </article>
-                ))}
+                    );
+                  })}
               </div>
             )}
           </section>

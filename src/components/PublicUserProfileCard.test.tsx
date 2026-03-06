@@ -45,6 +45,12 @@ describe("PublicUserProfileCard", () => {
     expect(within(favoriteFrame as HTMLElement).getByText("Obras favoritas")).toBeInTheDocument();
     expect(within(favoriteFrame as HTMLElement).getByText("Naruto")).toBeInTheDocument();
     expect(within(favoriteFrame as HTMLElement).getByText("Frieren")).toBeInTheDocument();
+    expect((favoriteFrame as HTMLElement).querySelector(".team-member-panel-shell")).toHaveClass(
+      "team-member-panel-shell",
+      "flex",
+      "flex-col",
+      "gap-4",
+    );
 
     const toggleButton = within(favoriteFrame as HTMLElement).getByRole("button", {
       name: "Ver obras favoritas",

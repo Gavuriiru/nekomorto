@@ -51,6 +51,7 @@ const UploadPicture = ({
   loading = "lazy",
   decoding = "async",
   sizes,
+  fetchPriority,
   ...imgProps
 }: UploadPictureProps) => {
   const [variantsDisabled, setVariantsDisabled] = useState(false);
@@ -111,6 +112,11 @@ const UploadPicture = ({
       ) : null}
       <img
         {...restImgProps}
+        {...(fetchPriority
+          ? ({
+              fetchpriority: fetchPriority,
+            } as { fetchpriority: string })
+          : {})}
         src={imgSrc}
         srcSet={imgSrcSet}
         sizes={sizes}

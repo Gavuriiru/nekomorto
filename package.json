@@ -28,6 +28,8 @@
     "reports:outdated": "node scripts/save-outdated-report.mjs",
     "lighthouse:home:mobile": "node scripts/lighthouse-home-mobile.mjs --runs=3 --strict",
     "lighthouse:home:mobile:ci": "npm run build && node scripts/lighthouse-home-mobile.mjs --runs=3 --strict --start-preview",
+    "lighthouse:projects:mobile": "node scripts/lighthouse-projects.mjs --profile=mobile --runs=3 --strict",
+    "lighthouse:projects:desktop": "node scripts/lighthouse-projects.mjs --profile=desktop --runs=3 --strict",
     "lint": "biome check . --formatter-enabled=false --organize-imports-enabled=false",
     "format": "biome format --write .",
     "format:check": "biome format .",

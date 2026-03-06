@@ -126,6 +126,48 @@ const socialIconMap: Record<string, typeof Link2> = {
   discord: MessageCircle,
 };
 
+const responsiveSvgCardRowClass =
+  "grid gap-3 rounded-2xl border border-border/60 bg-background/40 p-3 shadow-sm md:items-center md:rounded-none md:border-0 md:bg-transparent md:p-0 md:shadow-none";
+const responsiveSvgCardPickerClusterClass =
+  "grid grid-cols-[auto_minmax(0,1fr)] items-center gap-2 md:contents";
+const responsiveSvgCardColorClass =
+  "flex w-auto items-center justify-start rounded-xl border border-border/60 bg-background/60 px-2.5 py-1.5 md:w-full md:justify-center md:border-0 md:bg-transparent md:px-0 md:py-0";
+const responsiveSvgCardTintClass =
+  "flex min-w-0 items-center justify-between gap-2 rounded-xl border border-border/60 bg-background/60 px-3 py-1.5 md:w-auto md:justify-center md:gap-2 md:px-3 md:py-2";
+const responsiveSvgCardTintLabelClass =
+  "text-[9px] font-semibold uppercase tracking-[0.24em] text-muted-foreground md:text-[10px] md:tracking-widest";
+const responsiveSvgCardPreviewClass =
+  "flex min-w-0 items-center gap-3 rounded-xl border border-border/60 bg-background/60 px-3 py-2 text-xs text-muted-foreground";
+const responsiveSvgCardPreviewStatusClass = "min-w-0 flex-1 truncate";
+const responsiveSvgCardUploadActionClass = "ml-auto flex shrink-0 items-center gap-1.5 md:gap-2";
+const responsiveSvgCardUploadLabelClass =
+  "inline-flex h-7 shrink-0 cursor-pointer items-center justify-center rounded-md border border-border/60 bg-background px-2.5 text-[10px] font-medium text-foreground transition hover:border-primary/50 md:h-8 md:px-3 md:text-[11px]";
+const responsiveSvgCardMobileRemoveButtonClass =
+  "h-7 w-7 shrink-0 text-destructive hover:text-destructive md:hidden";
+const responsiveSvgCardDesktopRemoveButtonClass =
+  "hidden text-destructive hover:text-destructive md:inline-flex md:justify-self-auto";
+const responsiveCompactRowDeleteButtonClass =
+  "h-7 w-7 justify-self-end text-destructive hover:text-destructive md:h-10 md:w-10 md:justify-self-auto";
+const responsiveCompactSelfEndDeleteButtonClass =
+  "h-7 w-7 self-end text-destructive hover:text-destructive md:h-10 md:w-10 md:self-auto";
+const responsiveCompactTextareaRowClass =
+  "grid gap-3 rounded-2xl border border-border/60 bg-background/40 p-3 shadow-sm md:grid-cols-[1fr_auto] md:items-start md:rounded-none md:border-0 md:bg-transparent md:p-0 md:shadow-none";
+const responsiveFooterCardShellClass =
+  "rounded-2xl border border-border/60 bg-background/50 p-3 space-y-3 md:p-4 md:space-y-4";
+const responsiveFooterSocialGridClass =
+  "grid gap-3 md:min-w-[720px] md:grid-cols-[auto_auto_minmax(180px,0.95fr)_minmax(260px,1.55fr)_auto] md:items-center";
+const responsiveFooterSocialTopRowClass =
+  "grid grid-cols-[auto_1fr_auto] items-center gap-2 md:contents";
+const responsiveFooterSocialDragButtonClass =
+  "inline-flex h-7 w-7 cursor-grab items-center justify-center rounded-md border border-border/60 bg-background/60 text-muted-foreground transition hover:border-primary/40 hover:text-primary active:cursor-grabbing md:h-9 md:w-9";
+const responsiveFooterSocialDesktopRemoveButtonClass =
+  "hidden h-9 w-9 shrink-0 text-destructive hover:text-destructive md:inline-flex";
+const responsiveTranslationTableClass =
+  "min-w-[560px] w-full table-fixed text-sm md:min-w-0 md:table-auto";
+const responsiveTranslationTermColClass = "w-[38%] md:w-auto";
+const responsiveTranslationValueColClass = "w-[50%] md:w-auto";
+const responsiveTranslationActionColClass = "w-[72px] md:w-auto";
+
 const fileToDataUrl = (file: File) =>
   new Promise<string>((resolve, reject) => {
     const reader = new FileReader();
@@ -1350,7 +1392,7 @@ const DashboardSettings = () => {
               </p>
             </div>
             <div
-              className="animate-slide-up opacity-0"
+              className="w-full animate-slide-up opacity-0 sm:w-auto"
               style={dashboardAnimationDelay(dashboardMotionDelays.headerActionsMs)}
               data-testid="dashboard-settings-autosave-reveal"
             >
@@ -1934,8 +1976,13 @@ const DashboardSettings = () => {
                         Nenhuma tag encontrada.
                       </p>
                     ) : (
-                      <div className="max-h-[420px] overflow-y-auto no-scrollbar">
-                        <table className="w-full text-sm">
+                      <div className="max-h-[420px] overflow-auto no-scrollbar">
+                        <table className={responsiveTranslationTableClass}>
+                          <colgroup>
+                            <col className={responsiveTranslationTermColClass} />
+                            <col className={responsiveTranslationValueColClass} />
+                            <col className={responsiveTranslationActionColClass} />
+                          </colgroup>
                           <thead className="sticky top-0 bg-background/90 text-xs uppercase tracking-wide text-muted-foreground">
                             <tr>
                               <th className="px-4 py-3 text-left font-medium">Termo (AniList)</th>
@@ -2054,8 +2101,13 @@ const DashboardSettings = () => {
                         Nenhum gênero encontrado.
                       </p>
                     ) : (
-                      <div className="max-h-[420px] overflow-y-auto no-scrollbar">
-                        <table className="w-full text-sm">
+                      <div className="max-h-[420px] overflow-auto no-scrollbar">
+                        <table className={responsiveTranslationTableClass}>
+                          <colgroup>
+                            <col className={responsiveTranslationTermColClass} />
+                            <col className={responsiveTranslationValueColClass} />
+                            <col className={responsiveTranslationActionColClass} />
+                          </colgroup>
                           <thead className="sticky top-0 bg-background/90 text-xs uppercase tracking-wide text-muted-foreground">
                             <tr>
                               <th className="px-4 py-3 text-left font-medium">Termo (AniList)</th>
@@ -2162,8 +2214,13 @@ const DashboardSettings = () => {
                         Nenhum cargo encontrado.
                       </p>
                     ) : (
-                      <div className="max-h-[420px] overflow-y-auto no-scrollbar">
-                        <table className="w-full text-sm">
+                      <div className="max-h-[420px] overflow-auto no-scrollbar">
+                        <table className={responsiveTranslationTableClass}>
+                          <colgroup>
+                            <col className={responsiveTranslationTermColClass} />
+                            <col className={responsiveTranslationValueColClass} />
+                            <col className={responsiveTranslationActionColClass} />
+                          </colgroup>
                           <thead className="sticky top-0 bg-background/90 text-xs uppercase tracking-wide text-muted-foreground">
                             <tr>
                               <th className="px-4 py-3 text-left font-medium">Termo (AniList)</th>
@@ -2255,7 +2312,7 @@ const DashboardSettings = () => {
                       return (
                         <div
                           key={`${source.id}-${index}`}
-                          className="grid items-center gap-3 md:grid-cols-[1.2fr_0.25fr_0.6fr_1.6fr_auto]"
+                          className={`${responsiveSvgCardRowClass} md:grid-cols-[1.2fr_0.25fr_0.6fr_1.6fr_auto]`}
                         >
                           <Input
                             value={source.label}
@@ -2268,11 +2325,12 @@ const DashboardSettings = () => {
                             }
                             placeholder="Nome"
                           />
-                          <div className="flex items-center justify-center">
-                            <ColorPicker
+                          <div className={responsiveSvgCardPickerClusterClass}>
+                            <div className={responsiveSvgCardColorClass}>
+                              <ColorPicker
                               label=""
                               showSwatch
-                              buttonClassName="inline-flex h-9 w-9 items-center justify-center rounded-md border border-border/60 bg-background/60 shadow-xs transition hover:border-primary/40"
+                              buttonClassName="inline-flex h-8 w-8 items-center justify-center rounded-md border border-border/60 bg-background/60 shadow-xs transition hover:border-primary/40 md:h-9 md:w-9"
                               value={source.color}
                               onChange={(color) =>
                                 setSettings((prev) => {
@@ -2286,8 +2344,8 @@ const DashboardSettings = () => {
                               }
                             />
                           </div>
-                          <div className="flex items-center justify-center gap-2 rounded-xl border border-border/60 bg-background/60 px-3 py-2">
-                            <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+                          <div className={responsiveSvgCardTintClass}>
+                            <span className={responsiveSvgCardTintLabelClass}>
                               Aplicar ao ícone
                             </span>
                             <Switch
@@ -2304,8 +2362,9 @@ const DashboardSettings = () => {
                               }
                               aria-label={`Colorir SVG de ${source.label}`}
                             />
+                            </div>
                           </div>
-                          <div className="flex items-center gap-3 rounded-xl border border-border/60 bg-background/60 px-3 py-2 text-xs text-muted-foreground">
+                          <div className={responsiveSvgCardPreviewClass}>
                             {isIconUrl(source.icon) ? (
                               shouldTint ? (
                                 <ThemedSvgLogo
@@ -2326,10 +2385,10 @@ const DashboardSettings = () => {
                                 SVG
                               </span>
                             )}
-                            <span className="truncate">
+                            <span className={responsiveSvgCardPreviewStatusClass}>
                               {isIconUrl(source.icon) ? "SVG atual" : "Sem SVG"}
                             </span>
-                            <div className="ml-auto flex items-center gap-2">
+                            <div className={responsiveSvgCardUploadActionClass}>
                               <Input
                                 id={`download-icon-${index}`}
                                 type="file"
@@ -2345,16 +2404,36 @@ const DashboardSettings = () => {
                               />
                               <Label
                                 htmlFor={`download-icon-${index}`}
-                                className="inline-flex h-8 cursor-pointer items-center justify-center rounded-md border border-border/60 bg-background px-3 text-[11px] font-medium text-foreground transition hover:border-primary/50"
+                                className={responsiveSvgCardUploadLabelClass}
                               >
                                 Escolher SVG
                               </Label>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                className={responsiveSvgCardMobileRemoveButtonClass}
+                                onClick={() =>
+                                  setSettings((prev) => ({
+                                    ...prev,
+                                    downloads: {
+                                      ...prev.downloads,
+                                      sources: prev.downloads.sources.filter(
+                                        (_, idx) => idx !== index,
+                                      ),
+                                    },
+                                  }))
+                                }
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
                             </div>
                           </div>
                           <Button
                             type="button"
                             variant="ghost"
                             size="icon"
+                            className={responsiveSvgCardDesktopRemoveButtonClass}
                             onClick={() =>
                               setSettings((prev) => ({
                                 ...prev,
@@ -2406,7 +2485,7 @@ const DashboardSettings = () => {
                     {settings.teamRoles.map((role, index) => (
                       <div
                         key={`${role.id}-${index}`}
-                        className="grid gap-3 md:grid-cols-[1.4fr_1fr_auto]"
+                        className={`${responsiveSvgCardRowClass} md:grid-cols-[1.4fr_1fr_auto]`}
                       >
                         <Input
                           value={role.label}
@@ -2429,7 +2508,7 @@ const DashboardSettings = () => {
                             })
                           }
                         >
-                          <SelectTrigger className="min-w-0">
+                          <SelectTrigger className="min-w-0 w-full">
                             <SelectValue placeholder="Ícone" />
                           </SelectTrigger>
                           <SelectContent>
@@ -2450,6 +2529,7 @@ const DashboardSettings = () => {
                           type="button"
                           variant="ghost"
                           size="icon"
+                          className={responsiveCompactRowDeleteButtonClass}
                           onClick={() =>
                             setSettings((prev) => ({
                               ...prev,
@@ -2517,7 +2597,7 @@ const DashboardSettings = () => {
                       return (
                         <div
                           key={`${link.id}-${index}`}
-                          className="grid items-center gap-3 md:grid-cols-[1fr_1.6fr_auto]"
+                          className={`${responsiveSvgCardRowClass} md:grid-cols-[1fr_1.6fr_auto]`}
                         >
                           <Input
                             value={link.label}
@@ -2530,7 +2610,7 @@ const DashboardSettings = () => {
                               })
                             }
                           />
-                          <div className="flex items-center gap-3 rounded-xl border border-border/60 bg-background/60 px-3 py-2 text-xs text-muted-foreground">
+                          <div className={responsiveSvgCardPreviewClass}>
                             {isCustomIcon ? (
                               <ThemedSvgLogo
                                 url={toIconPreviewUrl(link.icon)}
@@ -2542,10 +2622,10 @@ const DashboardSettings = () => {
                                 SVG
                               </span>
                             )}
-                            <span className="truncate">
+                            <span className={responsiveSvgCardPreviewStatusClass}>
                               {isCustomIcon ? "SVG atual" : "Sem SVG"}
                             </span>
-                            <div className="ml-auto flex items-center gap-2">
+                            <div className={responsiveSvgCardUploadActionClass}>
                               <Input
                                 id={`linktype-icon-${index}`}
                                 type="file"
@@ -2561,16 +2641,28 @@ const DashboardSettings = () => {
                               />
                               <Label
                                 htmlFor={`linktype-icon-${index}`}
-                                className="inline-flex h-8 cursor-pointer items-center justify-center rounded-md border border-border/60 bg-background px-3 text-[11px] font-medium text-foreground transition hover:border-primary/50"
+                                className={responsiveSvgCardUploadLabelClass}
                               >
                                 Escolher SVG
                               </Label>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                className={responsiveSvgCardMobileRemoveButtonClass}
+                                onClick={() =>
+                                  setLinkTypes((prev) => prev.filter((_, idx) => idx !== index))
+                                }
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
                             </div>
                           </div>
                           <Button
                             type="button"
                             variant="ghost"
                             size="icon"
+                            className={responsiveSvgCardDesktopRemoveButtonClass}
                             onClick={() =>
                               setLinkTypes((prev) => prev.filter((_, idx) => idx !== index))
                             }
@@ -2619,7 +2711,7 @@ const DashboardSettings = () => {
                     {settings.navbar.links.map((link, index) => (
                       <div
                         key={`${link.label}-${index}`}
-                        className="grid gap-3 md:grid-cols-[0.85fr_1fr_1.6fr_auto]"
+                        className={`${responsiveSvgCardRowClass} md:grid-cols-[0.85fr_1fr_1.6fr_auto]`}
                       >
                         <Select
                           value={link.icon || "link"}
@@ -2631,7 +2723,7 @@ const DashboardSettings = () => {
                             })
                           }
                         >
-                          <SelectTrigger className="min-w-0">
+                          <SelectTrigger className="min-w-0 w-full">
                             <SelectValue placeholder="Ícone" />
                           </SelectTrigger>
                           <SelectContent>
@@ -2675,6 +2767,7 @@ const DashboardSettings = () => {
                           type="button"
                           variant="ghost"
                           size="icon"
+                          className={responsiveCompactRowDeleteButtonClass}
                           onClick={() =>
                             setSettings((prev) => ({
                               ...prev,
@@ -2696,8 +2789,8 @@ const DashboardSettings = () => {
 
             <TabsContent value="footer" className="mt-6 space-y-6">
               <Card className="border-border/60 bg-card/80">
-                <CardContent className="space-y-6 p-6">
-                  <div>
+                <CardContent className="space-y-4 p-4 md:space-y-6 md:p-6">
+                  <div className="space-y-1">
                     <h2 className="text-lg font-semibold">Conteúdo do footer</h2>
                   </div>
                   <div className="space-y-2">
@@ -2716,7 +2809,7 @@ const DashboardSettings = () => {
               </Card>
 
               <Card className="border-border/60 bg-card/80">
-                <CardContent className="space-y-6 p-6">
+                <CardContent className="space-y-4 p-4 md:space-y-6 md:p-6">
                   <div className="flex flex-wrap items-center justify-between gap-3">
                     <div>
                       <h2 className="text-lg font-semibold">Colunas de links</h2>
@@ -2743,10 +2836,11 @@ const DashboardSettings = () => {
                     {settings.footer.columns.map((column, columnIndex) => (
                       <div
                         key={`${column.title}-${columnIndex}`}
-                        className="rounded-2xl border border-border/60 bg-background/50 p-4 space-y-4"
+                        className={responsiveFooterCardShellClass}
                       >
-                        <div className="flex flex-wrap items-center gap-3">
+                        <div className="flex flex-col gap-3 md:flex-row md:items-center">
                           <Input
+                            className="w-full min-w-0"
                             value={column.title}
                             onChange={(event) =>
                               setSettings((prev) => {
@@ -2763,6 +2857,7 @@ const DashboardSettings = () => {
                             type="button"
                             variant="ghost"
                             size="icon"
+                            className={responsiveCompactSelfEndDeleteButtonClass}
                             onClick={() =>
                               setSettings((prev) => ({
                                 ...prev,
@@ -2782,7 +2877,7 @@ const DashboardSettings = () => {
                           {column.links.map((link, linkIndex) => (
                             <div
                               key={`${link.label}-${linkIndex}`}
-                              className="grid gap-3 md:grid-cols-[1fr_1.6fr_auto]"
+                              className={`${responsiveSvgCardRowClass} md:grid-cols-[1fr_1.6fr_auto]`}
                             >
                               <Input
                                 value={link.label}
@@ -2832,6 +2927,7 @@ const DashboardSettings = () => {
                                 type="button"
                                 variant="ghost"
                                 size="icon"
+                                className={responsiveCompactRowDeleteButtonClass}
                                 onClick={() =>
                                   setSettings((prev) => {
                                     const nextColumns = [...prev.footer.columns];
@@ -2856,6 +2952,7 @@ const DashboardSettings = () => {
                           <Button
                             type="button"
                             variant="outline"
+                            className="w-full md:w-auto"
                             onClick={() =>
                               setSettings((prev) => {
                                 const nextColumns = [...prev.footer.columns];
@@ -2882,7 +2979,7 @@ const DashboardSettings = () => {
               </Card>
 
               <Card className="border-border/60 bg-card/80">
-                <CardContent className="space-y-6 p-6">
+                <CardContent className="space-y-4 p-4 md:space-y-6 md:p-6">
                   <div className="flex flex-wrap items-center justify-between gap-3">
                     <div>
                       <h2 className="text-lg font-semibold">Redes sociais</h2>
@@ -2917,48 +3014,72 @@ const DashboardSettings = () => {
                       <div
                         key={`${link.label}-${index}`}
                         data-testid={`footer-social-row-${index}`}
-                        className={`overflow-x-auto rounded-xl border p-2 transition ${
+                        className={`rounded-2xl border p-3 shadow-sm transition md:overflow-x-auto md:rounded-xl md:p-2 md:shadow-none ${
                           footerSocialDragOverIndex === index
                             ? "border-primary/40 bg-primary/5"
-                            : "border-transparent"
+                            : "border-border/60 bg-background/40 md:border-transparent md:bg-transparent"
                         }`}
                         onDragOver={(event) => handleFooterSocialDragOver(event, index)}
                         onDrop={(event) => handleFooterSocialDrop(event, index)}
                       >
-                        <div className="grid min-w-[720px] items-center gap-3 md:grid-cols-[auto_auto_minmax(180px,0.95fr)_minmax(260px,1.55fr)_auto]">
-                        <button
-                          type="button"
-                          draggable
-                          className="inline-flex h-9 w-9 cursor-grab items-center justify-center rounded-md border border-border/60 bg-background/60 text-muted-foreground transition hover:border-primary/40 hover:text-primary active:cursor-grabbing"
-                          aria-label={`Arrastar rede ${link.label || index + 1}`}
-                          onDragStart={(event) => handleFooterSocialDragStart(event, index)}
-                          onDragEnd={clearFooterSocialDragState}
-                        >
-                          <GripVertical className="h-4 w-4" />
-                        </button>
-                        <ReorderControls
-                          label={`rede ${link.label || index + 1}`}
-                          index={index}
-                          total={settings.footer.socialLinks.length}
-                          onMove={(targetIndex) => moveFooterSocialLink(index, targetIndex)}
-                        />
-                        <Select
-                          value={link.icon || "link"}
-                          onValueChange={(value) =>
-                            setSettings((prev) => {
-                              const next = [...prev.footer.socialLinks];
-                              const matched = linkTypes.find(
-                                (item) => item.icon === value || item.id === value,
-                              );
-                              next[index] = {
-                                ...next[index],
-                                icon: value,
-                                label: matched?.label || link.label || "Rede social",
-                              };
-                              return { ...prev, footer: { ...prev.footer, socialLinks: next } };
-                            })
-                          }
-                        >
+                        <div className={responsiveFooterSocialGridClass}>
+                          <div className={responsiveFooterSocialTopRowClass}>
+                            <button
+                              type="button"
+                              draggable
+                              className={responsiveFooterSocialDragButtonClass}
+                              aria-label={`Arrastar rede ${link.label || index + 1}`}
+                              onDragStart={(event) => handleFooterSocialDragStart(event, index)}
+                              onDragEnd={clearFooterSocialDragState}
+                            >
+                              <GripVertical className="h-4 w-4" />
+                            </button>
+                            <ReorderControls
+                              label={`rede ${link.label || index + 1}`}
+                              index={index}
+                              total={settings.footer.socialLinks.length}
+                              onMove={(targetIndex) => moveFooterSocialLink(index, targetIndex)}
+                              className="justify-self-center md:justify-self-auto"
+                              buttonClassName="h-7 w-7 md:h-8 md:w-8"
+                            />
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              className={responsiveSvgCardMobileRemoveButtonClass}
+                              aria-label={`Remover rede ${link.label || index + 1}`}
+                              onClick={() =>
+                                setSettings((prev) => ({
+                                  ...prev,
+                                  footer: {
+                                    ...prev.footer,
+                                    socialLinks: prev.footer.socialLinks.filter(
+                                      (_, idx) => idx !== index,
+                                    ),
+                                  },
+                                }))
+                              }
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                          <Select
+                            value={link.icon || "link"}
+                            onValueChange={(value) =>
+                              setSettings((prev) => {
+                                const next = [...prev.footer.socialLinks];
+                                const matched = linkTypes.find(
+                                  (item) => item.icon === value || item.id === value,
+                                );
+                                next[index] = {
+                                  ...next[index],
+                                  icon: value,
+                                  label: matched?.label || link.label || "Rede social",
+                                };
+                                return { ...prev, footer: { ...prev.footer, socialLinks: next } };
+                              })
+                            }
+                          >
                           <SelectTrigger className="min-w-0 w-full">
                             <SelectValue placeholder="Ícone" />
                           </SelectTrigger>
@@ -3007,7 +3128,7 @@ const DashboardSettings = () => {
                           type="button"
                           variant="ghost"
                           size="icon"
-                          className="h-9 w-9 shrink-0 text-destructive hover:text-destructive"
+                          className={responsiveFooterSocialDesktopRemoveButtonClass}
                           aria-label={`Remover rede ${link.label || index + 1}`}
                           onClick={() =>
                             setSettings((prev) => ({
@@ -3031,21 +3152,22 @@ const DashboardSettings = () => {
               </Card>
 
               <Card className="border-border/60 bg-card/80">
-                <CardContent className="space-y-6 p-6">
-                  <div>
+                <CardContent className="space-y-4 p-4 md:space-y-6 md:p-6">
+                  <div className="space-y-1">
                     <h2 className="text-lg font-semibold">Textos legais</h2>
                     <p className="text-xs text-muted-foreground">Descrição, aviso e copyright.</p>
                   </div>
-                  <div className="grid gap-4">
+                  <div className="grid gap-3 md:gap-4">
                     <div className="space-y-2">
                       <Label>Parágrafos do aviso</Label>
                       <div className="space-y-3">
                         {settings.footer.disclaimer.map((item, index) => (
                           <div
                             key={`disclaimer-${index}`}
-                            className="grid gap-3 md:grid-cols-[1fr_auto]"
+                            className={responsiveCompactTextareaRowClass}
                           >
                             <Textarea
+                              className="min-h-[96px] md:min-h-[80px]"
                               value={item}
                               onChange={(event) =>
                                 setSettings((prev) => {
@@ -3059,6 +3181,7 @@ const DashboardSettings = () => {
                               type="button"
                               variant="ghost"
                               size="icon"
+                              className={responsiveCompactRowDeleteButtonClass}
                               onClick={() =>
                                 setSettings((prev) => ({
                                   ...prev,
@@ -3079,6 +3202,7 @@ const DashboardSettings = () => {
                       <Button
                         type="button"
                         variant="outline"
+                        className="w-full md:w-auto"
                         onClick={() =>
                           setSettings((prev) => ({
                             ...prev,
@@ -3093,7 +3217,7 @@ const DashboardSettings = () => {
                         Adicionar parágrafo
                       </Button>
                     </div>
-                    <div className="grid gap-4 md:grid-cols-2">
+                    <div className="grid gap-3 md:grid-cols-2 md:gap-4">
                       <div className="space-y-2">
                         <Label>Título do destaque</Label>
                         <Input

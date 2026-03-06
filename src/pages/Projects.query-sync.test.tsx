@@ -7,6 +7,12 @@ import Projects from "@/pages/Projects";
 const apiFetchMock = vi.hoisted(() => vi.fn());
 const PROJECTS_LIST_STATE_STORAGE_KEY = "public.projects.list-state.v1";
 const SEARCH_QUERY_DEBOUNCE_MS = 60;
+const PROJECTS_LIST_IMAGE_SIZES = "(max-width: 767px) 100px, 142px";
+
+type BootstrapWindow = Window &
+  typeof globalThis & {
+    __BOOTSTRAP_PUBLIC__?: unknown;
+  };
 
 vi.mock("@/hooks/use-page-meta", () => ({
   usePageMeta: () => undefined,
@@ -107,11 +113,20 @@ const findCenteredProjectCardWrapper = (container: HTMLElement) =>
     return classTokens.includes("md:col-span-2") && element.querySelector("a.projects-public-card");
   }) ?? null;
 
+const setBootstrapPayload = (payload: unknown) => {
+  (window as BootstrapWindow).__BOOTSTRAP_PUBLIC__ = payload;
+};
+
+const clearBootstrapPayload = () => {
+  delete (window as BootstrapWindow).__BOOTSTRAP_PUBLIC__;
+};
+
 describe("Projects query sync", () => {
   beforeEach(() => {
     setupApiMock();
     window.scrollTo = vi.fn();
     window.localStorage.clear();
+    clearBootstrapPayload();
     vi.stubGlobal(
       "ResizeObserver",
       class {
@@ -124,6 +139,7 @@ describe("Projects query sync", () => {
 
   afterEach(() => {
     vi.useRealTimers();
+    clearBootstrapPayload();
   });
 
   it("normaliza query legada de genre para genero", async () => {
@@ -374,6 +390,57 @@ describe("Projects query sync", () => {
     expect(screen.getByText("G\u00EAneros")).toBeInTheDocument();
   });
 
+  it("hidrata a listagem com bootstrap completo sem fetch inicial", async () => {
+    setBootstrapPayload({
+      settings: {},
+      pages: {
+        projects: {
+          shareImage: "/uploads/projects-og.jpg",
+          shareImageAlt: "Capa da pagina de projetos",
+        },
+      },
+      projects: [
+        {
+          ...createProject(1, { title: "Projeto Bootstrap" }),
+          cover: "/uploads/projects/projeto-bootstrap.png",
+        },
+      ],
+      posts: [],
+      updates: [],
+      mediaVariants: {
+        "/uploads/projects/projeto-bootstrap.png": {
+          variantsVersion: 1,
+          variants: {
+            posterThumb: {
+              width: 320,
+              formats: {
+                fallback: { url: "/uploads/_variants/bootstrap/poster-thumb.jpeg" },
+              },
+            },
+          },
+        },
+      },
+      tagTranslations: {
+        tags: { acao: "Acao" },
+        genres: { drama: "Drama" },
+        staffRoles: {},
+      },
+      generatedAt: "2026-03-06T18:40:00.000Z",
+      payloadMode: "full",
+    });
+    apiFetchMock.mockReset();
+
+    render(
+      <MemoryRouter initialEntries={["/projetos"]}>
+        <Projects />
+        <LocationProbe />
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByText("Projeto Bootstrap")).toBeInTheDocument();
+    expect(apiFetchMock).not.toHaveBeenCalled();
+  });
+
   it("filtra por busca e restaura cards ao limpar consulta", async () => {
     setupApiMock({
       projects: [
@@ -411,6 +478,43 @@ describe("Projects query sync", () => {
       expect(getRenderedProjectCards(container)).toHaveLength(4);
       expect(getSearchParams().get("q")).toBeNull();
     });
+  });
+
+  it("permite retry quando o carregamento inicial falha sem bootstrap completo", async () => {
+    let projectsRequests = 0;
+    apiFetchMock.mockReset();
+    apiFetchMock.mockImplementation(async (_apiBase: string, endpoint: string, options?: RequestInit) => {
+      const method = String(options?.method || "GET").toUpperCase();
+      if (endpoint === "/api/public/projects" && method === "GET") {
+        projectsRequests += 1;
+        if (projectsRequests === 1) {
+          return mockJsonResponse(false, { error: "server_error" }, 500);
+        }
+        return mockJsonResponse(true, { projects: createProjects(1), mediaVariants: {} });
+      }
+      if (endpoint === "/api/public/tag-translations" && method === "GET") {
+        return mockJsonResponse(true, {
+          tags: { acao: "Acao" },
+          genres: { drama: "Drama" },
+          staffRoles: {},
+        });
+      }
+      return mockJsonResponse(false, { error: "not_found" }, 404);
+    });
+
+    render(
+      <MemoryRouter initialEntries={["/projetos"]}>
+        <Projects />
+        <LocationProbe />
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByText("N\u00E3o foi poss\u00EDvel carregar os projetos")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Tentar novamente" }));
+
+    expect(await screen.findByText("Projeto 1")).toBeInTheDocument();
+    expect(projectsRequests).toBe(2);
   });
 
   it("mantem centralizacao do ultimo card quando resultado fica impar", async () => {
@@ -488,7 +592,7 @@ describe("Projects query sync", () => {
     }
   });
 
-  it("renderiza variants poster para as capas publicas quando disponiveis", async () => {
+  it("renderiza variants posterThumb para as capas publicas quando disponiveis", async () => {
     setupApiMock({
       projects: [
         {
@@ -500,11 +604,11 @@ describe("Projects query sync", () => {
         "/uploads/projects/projeto-1.png": {
           variantsVersion: 3,
           variants: {
-            poster: {
+            posterThumb: {
               formats: {
-                avif: { url: "/uploads/_variants/p1/poster-v3.avif" },
-                webp: { url: "/uploads/_variants/p1/poster-v3.webp" },
-                fallback: { url: "/uploads/_variants/p1/poster-v3.jpeg" },
+                avif: { url: "/uploads/_variants/p1/poster-thumb-v3.avif" },
+                webp: { url: "/uploads/_variants/p1/poster-thumb-v3.webp" },
+                fallback: { url: "/uploads/_variants/p1/poster-thumb-v3.jpeg" },
               },
             },
           },
@@ -525,13 +629,93 @@ describe("Projects query sync", () => {
     const sources = Array.from(container.querySelectorAll("source"));
 
     expect(sources).toHaveLength(2);
-    expect(sources[0]).toHaveAttribute("srcset", expect.stringContaining("/poster-v3.avif"));
-    expect(sources[1]).toHaveAttribute("srcset", expect.stringContaining("/poster-v3.webp"));
-    expect(coverImage).toHaveAttribute("src", expect.stringContaining("/poster-v3.jpeg"));
+    expect(sources[0]).toHaveAttribute("srcset", expect.stringContaining("/poster-thumb-v3.avif"));
+    expect(sources[1]).toHaveAttribute("srcset", expect.stringContaining("/poster-thumb-v3.webp"));
+    expect(coverImage).toHaveAttribute("src", expect.stringContaining("/poster-thumb-v3.jpeg"));
+    expect(coverImage).toHaveAttribute("sizes", PROJECTS_LIST_IMAGE_SIZES);
     expect(coverWrapper).not.toBeNull();
     expect(coverWrapper).toHaveClass("h-39", "md:h-50");
     expect(coverWrapper).not.toHaveClass("w-28", "md:w-36");
     expect(coverWrapper?.style.aspectRatio).toBe("9 / 14");
+  });
+
+  it("prioriza as quatro primeiras capas com posterThumb, sizes fixo e eager loading", async () => {
+    const projects = Array.from({ length: 5 }, (_, index) => ({
+      ...createProject(index + 1, { title: `Projeto ${index + 1}` }),
+      cover: `/uploads/projects/projeto-${index + 1}.png`,
+    }));
+    const mediaVariants = Object.fromEntries(
+      projects.map((project, index) => [
+        project.cover,
+        {
+          variantsVersion: 3,
+          variants: {
+            posterThumb: {
+              width: 320,
+              formats: {
+                avif: { url: `/uploads/_variants/p${index + 1}/poster-thumb-v3.avif` },
+                webp: { url: `/uploads/_variants/p${index + 1}/poster-thumb-v3.webp` },
+                fallback: { url: `/uploads/_variants/p${index + 1}/poster-thumb-v3.jpeg` },
+              },
+            },
+            poster: {
+              width: 920,
+              formats: {
+                fallback: { url: `/uploads/_variants/p${index + 1}/poster-v3.jpeg` },
+              },
+            },
+          },
+        },
+      ]),
+    );
+
+    setupApiMock({
+      projects,
+      mediaVariants,
+    });
+
+    render(
+      <MemoryRouter initialEntries={["/projetos"]}>
+        <Projects />
+        <LocationProbe />
+      </MemoryRouter>,
+    );
+
+    const coverImages = await Promise.all(
+      projects.map((project) => screen.findByRole("img", { name: project.title })),
+    );
+
+    coverImages.slice(0, 4).forEach((coverImage, index) => {
+      expect(coverImage).toHaveAttribute(
+        "src",
+        expect.stringContaining(`/uploads/_variants/p${index + 1}/poster-thumb-v3.jpeg`),
+      );
+      expect(coverImage).toHaveAttribute("sizes", PROJECTS_LIST_IMAGE_SIZES);
+      expect(coverImage).toHaveAttribute("loading", "eager");
+    });
+    expect(coverImages[0]).toHaveAttribute("fetchpriority", "high");
+    expect(coverImages[1]).not.toHaveAttribute("fetchpriority");
+    expect(coverImages[4]).toHaveAttribute("loading", "lazy");
+    expect(coverImages[4]).not.toHaveAttribute("fetchpriority");
+  });
+
+  it("adiciona aria-label e alvo minimo aos badges clicaveis", async () => {
+    setupApiMock({
+      projects: [createProject(1, { tags: ["acao"], genres: ["drama"] })],
+    });
+
+    render(
+      <MemoryRouter initialEntries={["/projetos"]}>
+        <Projects />
+        <LocationProbe />
+      </MemoryRouter>,
+    );
+
+    const tagButton = await screen.findByRole("button", { name: "Filtrar por tag Acao" });
+    const genreButton = await screen.findByRole("button", { name: "Filtrar por genero Drama" });
+
+    expect(tagButton).toHaveClass("min-h-6", "min-w-6", "rounded-md", "p-0.5");
+    expect(genreButton).toHaveClass("min-h-6", "min-w-6", "rounded-md", "p-0.5");
   });
 });
 

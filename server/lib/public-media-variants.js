@@ -9,11 +9,21 @@ const HERO_PRELOAD_RESPONSIVE_PRESET_ORDER = Object.freeze([
   "heroMd",
   "hero",
 ]);
+const POSTER_PRELOAD_RESPONSIVE_PRESET_ORDER = Object.freeze([
+  "posterThumbSm",
+  "posterThumb",
+  "poster",
+]);
 const HERO_PRELOAD_FALLBACK_WIDTHS = Object.freeze({
   heroXs: 768,
   heroSm: 960,
   heroMd: 1280,
   hero: 1600,
+});
+const POSTER_PRELOAD_FALLBACK_WIDTHS = Object.freeze({
+  posterThumbSm: 192,
+  posterThumb: 320,
+  poster: 920,
 });
 
 const fileExists = (value) => {
@@ -234,6 +244,41 @@ export const toResponsiveHeroPreloadCandidate = (presetRecord, presetKey) => {
   return { url, width };
 };
 
+const toResponsivePosterPreloadCandidate = (presetRecord, presetKey) => {
+  if (!presetRecord || typeof presetRecord !== "object") {
+    return null;
+  }
+  const formats =
+    presetRecord.formats && typeof presetRecord.formats === "object" ? presetRecord.formats : null;
+  if (!formats) {
+    return null;
+  }
+  const url =
+    String(formats?.avif?.url || "").trim() ||
+    String(formats?.webp?.url || "").trim() ||
+    String(formats?.fallback?.url || "").trim();
+  if (!url) {
+    return null;
+  }
+  const rawWidth = Number(presetRecord.width);
+  const width =
+    Number.isFinite(rawWidth) && rawWidth > 0
+      ? Math.round(rawWidth)
+      : Number(POSTER_PRELOAD_FALLBACK_WIDTHS[presetKey] || 0);
+  if (!width) {
+    return null;
+  }
+  return {
+    url,
+    width,
+    type: String(formats?.avif?.url || "").trim()
+      ? "image/avif"
+      : String(formats?.webp?.url || "").trim()
+        ? "image/webp"
+        : undefined,
+  };
+};
+
 export const resolveHomeHeroPreloadFromSlide = ({
   imageUrl,
   mediaVariants,
@@ -303,5 +348,68 @@ export const resolveHomeHeroPreloadFromSlide = ({
     imagesrcset,
     imagesizes: "100vw",
     fetchpriority: "high",
+  };
+};
+
+export const resolveProjectPosterPreload = ({
+  coverUrl,
+  mediaVariants,
+  resolveVariantUrl,
+  imagesizes = "(max-width: 767px) 100px, 142px",
+} = {}) => {
+  const sourceCoverUrl = String(coverUrl || "").trim();
+  if (!sourceCoverUrl) {
+    return null;
+  }
+  const normalizedCoverUrl = normalizePublicUploadUrl(sourceCoverUrl);
+  const variants = mediaVariants?.[normalizedCoverUrl]?.variants;
+  const fallbackHref =
+    (normalizedCoverUrl
+      ? readPublicVariantAssetUrl(mediaVariants?.[normalizedCoverUrl]?.variants?.posterThumb?.formats, "")
+      : "") ||
+    (typeof resolveVariantUrl === "function" ? resolveVariantUrl(sourceCoverUrl, "posterThumb") : "") ||
+    sourceCoverUrl;
+
+  if (!variants || typeof variants !== "object") {
+    return fallbackHref
+      ? {
+          href: fallbackHref,
+          as: "image",
+        }
+      : null;
+  }
+
+  const candidateByUrl = new Map();
+  POSTER_PRELOAD_RESPONSIVE_PRESET_ORDER.forEach((presetKey) => {
+    const candidate = toResponsivePosterPreloadCandidate(variants[presetKey], presetKey);
+    if (!candidate) {
+      return;
+    }
+    const current = candidateByUrl.get(candidate.url);
+    if (!current || candidate.width > current.width) {
+      candidateByUrl.set(candidate.url, candidate);
+    }
+  });
+
+  const responsiveCandidates = [...candidateByUrl.values()].sort(
+    (left, right) => left.width - right.width,
+  );
+  if (responsiveCandidates.length === 0) {
+    return fallbackHref
+      ? {
+          href: fallbackHref,
+          as: "image",
+        }
+      : null;
+  }
+
+  const srcset = responsiveCandidates.map((entry) => `${entry.url} ${entry.width}w`).join(", ");
+  const fallbackCandidate = responsiveCandidates[responsiveCandidates.length - 1];
+  return {
+    href: fallbackHref || fallbackCandidate.url,
+    as: "image",
+    type: fallbackCandidate.type,
+    imagesrcset: srcset,
+    imagesizes: String(imagesizes || "").trim() || "(max-width: 767px) 100px, 142px",
   };
 };

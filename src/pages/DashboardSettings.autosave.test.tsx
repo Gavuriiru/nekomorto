@@ -348,6 +348,8 @@ describe("DashboardSettings autosave", () => {
 
     expect(tokens).toContain("animate-slide-up");
     expect(tokens).toContain("opacity-0");
+    expect(tokens).toContain("w-full");
+    expect(tokens).toContain("sm:w-auto");
     expect(autosaveReveal).toHaveStyle({
       animationDelay: `${dashboardMotionDelays.headerActionsMs}ms`,
     });

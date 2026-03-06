@@ -15,7 +15,7 @@ import {
 const classTokens = (element: HTMLElement) => String(element.className).split(/\s+/).filter(Boolean);
 
 describe("AlertDialog mobile rounded", () => {
-  it("aplica rounded-lg no conteudo sem depender de sm:rounded-lg", async () => {
+  it("aplica rounded-lg e respiro lateral mobile no conteudo", async () => {
     render(
       <AlertDialog open>
         <AlertDialogContent>
@@ -36,5 +36,6 @@ describe("AlertDialog mobile rounded", () => {
 
     expect(tokens).toContain("rounded-lg");
     expect(tokens).not.toContain("sm:rounded-lg");
+    expect(tokens).toContain("w-[calc(100vw-1rem)]");
   });
 });

@@ -16,17 +16,23 @@ describe("public bootstrap payload", () => {
         {
           id: "project-1",
           title: "Projeto",
+          titleOriginal: "Projecto Original",
+          titleEnglish: "Project",
           synopsis: "Sinopse",
           description: "Descricao",
           type: "Anime",
           status: "Em andamento",
           tags: ["acao"],
+          genres: ["drama"],
           cover: "/uploads/cover.jpg",
           coverAlt: "Capa do projeto",
           banner: "/uploads/banner.jpg",
           bannerAlt: "Banner do projeto",
           heroImageUrl: "/uploads/hero.jpg",
           heroImageAlt: "Hero do projeto",
+          studio: "Studio Teste",
+          episodes: "12 episodios",
+          producers: ["Produtora 1"],
           volumeEntries: [
             {
               volume: 1,
@@ -130,6 +136,12 @@ describe("public bootstrap payload", () => {
     expect(project.coverAlt).toBe("Capa do projeto");
     expect(project.bannerAlt).toBe("Banner do projeto");
     expect(project.heroImageAlt).toBe("Hero do projeto");
+    expect(project.titleOriginal).toBe("Projecto Original");
+    expect(project.titleEnglish).toBe("Project");
+    expect(project.genres).toEqual(["drama"]);
+    expect(project.studio).toBe("Studio Teste");
+    expect(project.episodes).toBe("12 episodios");
+    expect(project.producers).toEqual(["Produtora 1"]);
     expect(project.views).toBe(0);
     expect(project.viewsDaily).toEqual({
       "2026-02-01": 3,
