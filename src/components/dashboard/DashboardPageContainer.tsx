@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import type { ComponentPropsWithoutRef, ReactNode } from "react";
 import { cn } from "@/lib/utils";
 import { dashboardPageLayoutTokens } from "@/components/dashboard/dashboard-page-tokens";
 
@@ -13,6 +13,9 @@ type DashboardPageContainerProps = {
   maxWidth?: keyof typeof maxWidthClassMap;
   className?: string;
   mainClassName?: string;
+  mainProps?: ComponentPropsWithoutRef<"main">;
+  sectionProps?: ComponentPropsWithoutRef<"section">;
+  reveal?: boolean;
 };
 
 const DashboardPageContainer = ({
@@ -20,18 +23,29 @@ const DashboardPageContainer = ({
   maxWidth = "6xl",
   className,
   mainClassName,
+  mainProps,
+  sectionProps,
+  reveal = true,
 }: DashboardPageContainerProps) => {
+  const { className: mainPropsClassName, ...resolvedMainProps } = mainProps || {};
+  const { className: sectionPropsClassName, ...resolvedSectionProps } = sectionProps || {};
+
   return (
-    <main className={cn(dashboardPageLayoutTokens.main, mainClassName)}>
+    <main
+      className={cn(dashboardPageLayoutTokens.main, mainClassName, mainPropsClassName)}
+      {...resolvedMainProps}
+    >
       <section
         className={cn(
           dashboardPageLayoutTokens.sectionBase,
           dashboardPageLayoutTokens.sectionSpacing,
-          "reveal",
+          reveal ? "reveal" : null,
           maxWidthClassMap[maxWidth],
           className,
+          sectionPropsClassName,
         )}
-        data-reveal
+        data-reveal={reveal ? true : undefined}
+        {...resolvedSectionProps}
       >
         {children}
       </section>

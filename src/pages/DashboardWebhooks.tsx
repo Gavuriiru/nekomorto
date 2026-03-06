@@ -316,7 +316,13 @@ const DashboardWebhooks = () => {
   const navigate = useNavigate();
   const apiBase = getApiBase();
 
-  const [currentUser, setCurrentUser] = useState<{ id: string; name: string; username: string; permissions?: string[] } | null>(null);
+  const [currentUser, setCurrentUser] = useState<{
+    id: string;
+    name: string;
+    username: string;
+    permissions?: string[];
+    grants?: Partial<Record<string, boolean>>;
+  } | null>(null);
   const [isLoadingUser, setIsLoadingUser] = useState(true);
   const [isLoading, setIsLoading] = useState(true);
   const [hasLoadError, setHasLoadError] = useState(false);
@@ -340,12 +346,18 @@ const DashboardWebhooks = () => {
   });
 
   const canManageIntegrations = useMemo(() => {
+    const grants =
+      currentUser?.grants && typeof currentUser.grants === "object" ? currentUser.grants : {};
     const permissions = Array.isArray(currentUser?.permissions) ? currentUser.permissions : [];
+    const hasPermission = (permission: "integracoes" | "configuracoes" | "projetos") =>
+      grants[permission] === true ||
+      permissions.includes(permission) ||
+      permissions.includes("*");
+
     return (
-      permissions.includes("*") ||
-      permissions.includes("integracoes") ||
-      permissions.includes("configuracoes") ||
-      permissions.includes("projetos")
+      hasPermission("integracoes") ||
+      hasPermission("configuracoes") ||
+      hasPermission("projetos")
     );
   }, [currentUser]);
 
@@ -688,7 +700,7 @@ const DashboardWebhooks = () => {
   if (isLoading) {
     return (
       <DashboardShell currentUser={currentUser} isLoadingUser={isLoadingUser} onUserCardClick={() => navigate("/dashboard/usuarios?edit=me")}>
-        <DashboardPageContainer>
+        <DashboardPageContainer reveal={false}>
           <AsyncState kind="loading" title="Carregando webhooks" description="Buscando configurações editoriais." />
         </DashboardPageContainer>
       </DashboardShell>
@@ -698,7 +710,7 @@ const DashboardWebhooks = () => {
   if (hasLoadError) {
     return (
       <DashboardShell currentUser={currentUser} isLoadingUser={isLoadingUser} onUserCardClick={() => navigate("/dashboard/usuarios?edit=me")}>
-        <DashboardPageContainer>
+        <DashboardPageContainer reveal={false}>
           <AsyncState
             kind="error"
             title="Falha ao carregar"
@@ -713,7 +725,7 @@ const DashboardWebhooks = () => {
   if (!isLoadingUser && !canManageIntegrations) {
     return (
       <DashboardShell currentUser={currentUser} isLoadingUser={isLoadingUser} onUserCardClick={() => navigate("/dashboard/usuarios?edit=me")}>
-        <DashboardPageContainer>
+        <DashboardPageContainer reveal={false}>
           <AsyncState
             kind="error"
             title="Acesso negado"
@@ -727,7 +739,7 @@ const DashboardWebhooks = () => {
 
   return (
     <DashboardShell currentUser={currentUser} isLoadingUser={isLoadingUser} onUserCardClick={() => navigate("/dashboard/usuarios?edit=me")}>
-      <DashboardPageContainer maxWidth="7xl">
+      <DashboardPageContainer maxWidth="7xl" reveal={false}>
         <DashboardPageHeader
           badge="Integrações"
           title="Webhooks editoriais"

@@ -49,8 +49,15 @@ describe("ImageLibraryDialog cancel button", () => {
       expect(apiFetchMock).toHaveBeenCalled();
     });
 
-    expect(screen.getByRole("button", { name: "Cancelar" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Salvar" })).toBeInTheDocument();
+    const clearButton = screen.getByRole("button", { name: /Limpar sele/i });
+    const cancelButton = screen.getByRole("button", { name: "Cancelar" });
+    const saveButton = screen.getByRole("button", { name: "Salvar" });
+
+    expect(clearButton).toBeInTheDocument();
+    expect(cancelButton).toBeInTheDocument();
+    expect(saveButton).toBeInTheDocument();
+    expect(clearButton.parentElement).toBe(cancelButton.parentElement);
+    expect(saveButton.parentElement).toBe(cancelButton.parentElement);
   });
 
   it("fecha sem salvar quando clica em Cancelar", async () => {

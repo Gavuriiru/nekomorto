@@ -51,12 +51,8 @@ const expectTriggerExpanded = async (name: RegExp | string, expanded: boolean) =
   return trigger;
 };
 
-const getFolderFilterSelect = async () => {
-  const controls = await screen.findByTestId("image-library-uploads-controls");
-  const selects = controls.querySelectorAll("select");
-  expect(selects.length).toBeGreaterThanOrEqual(1);
-  return selects[0] as HTMLSelectElement;
-};
+const getFolderFilterTrigger = async () =>
+  screen.findByRole("combobox", { name: "Filtrar por pasta" });
 
 describe("ImageLibraryDialog accordion context", () => {
   beforeEach(() => {
@@ -110,14 +106,17 @@ describe("ImageLibraryDialog accordion context", () => {
       listFolders: [projectRootFolder],
     });
 
-    const folderSelect = await getFolderFilterSelect();
+    const folderSelect = await getFolderFilterTrigger();
     await waitFor(() => {
-      expect(folderSelect.value).toBe(projectRootFolder);
+      expect(folderSelect).toHaveTextContent(projectRootFolder);
     });
 
-    await expectTriggerExpanded(/Raiz do projeto/i, true);
-    await expectTriggerExpanded(/capitulos\/volume-1\/capitulo-2/i, false);
-    await expectTriggerExpanded(/episodes/i, false);
+    const rootTrigger = await expectTriggerExpanded(/Raiz do projeto/i, true);
+    const chapterTrigger = await expectTriggerExpanded(/capitulos\/volume-1\/capitulo-2/i, false);
+    const episodesTrigger = await expectTriggerExpanded(/episodes/i, false);
+
+    expect(rootTrigger.compareDocumentPosition(chapterTrigger)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+    expect(rootTrigger.compareDocumentPosition(episodesTrigger)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
   });
 
   it("uploads aplicam fallback para ancestral mais proximo quando contexto nao existe", async () => {
@@ -156,9 +155,9 @@ describe("ImageLibraryDialog accordion context", () => {
       listFolders: [missingChapterFolder, projectRootFolder],
     });
 
-    const folderSelect = await getFolderFilterSelect();
+    const folderSelect = await getFolderFilterTrigger();
     await waitFor(() => {
-      expect(folderSelect.value).toBe("__all__");
+      expect(folderSelect).toHaveTextContent("Todas as pastas");
     });
 
     await expectTriggerExpanded(/capitulos\/volume-1/i, true);

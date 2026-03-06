@@ -13,19 +13,6 @@ vi.mock("@/components/DashboardShell", () => ({
   default: ({ children }: { children: ReactNode }) => <div>{children}</div>,
 }));
 
-vi.mock("@/components/dashboard/DashboardPageContainer", () => ({
-  default: ({ children }: { children: ReactNode }) => <div>{children}</div>,
-}));
-
-vi.mock("@/components/dashboard/DashboardPageHeader", () => ({
-  default: ({ title, actions }: { title: string; actions?: ReactNode }) => (
-    <div>
-      <h1>{title}</h1>
-      {actions}
-    </div>
-  ),
-}));
-
 vi.mock("@/hooks/use-page-meta", () => ({
   usePageMeta: () => undefined,
 }));
@@ -151,19 +138,23 @@ const baseSettings = {
 };
 
 const setupApiMock = ({
+  meResponse,
   testResponse,
   putResponse,
-}: { testResponse?: Response; putResponse?: Response } = {}) => {
+}: { meResponse?: Response; testResponse?: Response; putResponse?: Response } = {}) => {
   apiFetchMock.mockReset();
   apiFetchMock.mockImplementation(async (_base: string, path: string, options?: RequestInit) => {
     const method = String(options?.method || "GET").toUpperCase();
     if (path === "/api/me" && method === "GET") {
-      return mockJsonResponse(true, {
-        id: "user-1",
-        name: "Admin",
-        username: "admin",
-        permissions: ["integracoes"],
-      });
+      return (
+        meResponse ||
+        mockJsonResponse(true, {
+          id: "user-1",
+          name: "Admin",
+          username: "admin",
+          permissions: ["integracoes"],
+        })
+      );
     }
     if (path === "/api/integrations/webhooks/editorial" && method === "GET") {
       return mockJsonResponse(true, {
@@ -251,6 +242,72 @@ describe("DashboardWebhooks layout", () => {
     expectBefore(/Campos da embed/i, /URL da imagem/i);
     expectBefore(/URL da imagem/i, /Rodap/i);
     expectBefore(/Rodap/i, /Cor da embed/i);
+  });
+
+  it("permite carregar a página quando o acesso vem por grants em vez de permissions", async () => {
+    setupApiMock({
+      meResponse: mockJsonResponse(true, {
+        id: "user-1",
+        name: "Admin",
+        username: "admin",
+        grants: {
+          posts: false,
+          projetos: false,
+          comentarios: false,
+          paginas: false,
+          uploads: false,
+          analytics: false,
+          usuarios_basico: false,
+          usuarios_acesso: false,
+          configuracoes: false,
+          audit_log: false,
+          integracoes: true,
+        },
+      }),
+    });
+
+    render(
+      <MemoryRouter initialEntries={["/dashboard/webhooks"]}>
+        <DashboardWebhooks />
+      </MemoryRouter>,
+    );
+
+    await screen.findByRole("heading", { name: /Webhooks editoriais/i });
+    expect(screen.queryByText(/Acesso negado/i)).not.toBeInTheDocument();
+    expect(screen.getByText(/Role geral de lan/i)).toBeInTheDocument();
+  });
+
+  it("nao aplica reveal no section raiz e preserva o reveal proprio do badge", async () => {
+    setupApiMock();
+
+    render(
+      <MemoryRouter initialEntries={["/dashboard/webhooks"]}>
+        <DashboardWebhooks />
+      </MemoryRouter>,
+    );
+
+    const heading = await screen.findByRole("heading", { name: /Webhooks editoriais/i });
+    await screen.findByText(/Role geral de lan/i);
+
+    const rootSection = heading.closest("section");
+    const headerBadge = screen.getByText(/Integra/i);
+    const headerBadgeReveal = headerBadge.parentElement;
+    const typesSection = screen.getByTestId("dashboard-webhooks-section-types");
+    const postsSection = screen.getByTestId("dashboard-webhooks-section-posts");
+
+    expect(rootSection).not.toBeNull();
+    expect(classTokens(rootSection as HTMLElement)).not.toContain("reveal");
+    expect(rootSection).not.toHaveAttribute("data-reveal");
+
+    expect(headerBadgeReveal).not.toBeNull();
+    expect(classTokens(headerBadgeReveal as HTMLElement)).toContain("reveal");
+    expect(classTokens(headerBadgeReveal as HTMLElement)).toContain("reveal-delay-1");
+    expect(headerBadgeReveal).toHaveAttribute("data-reveal");
+
+    expect(classTokens(typesSection)).toContain("animate-slide-up");
+    expect(classTokens(typesSection)).toContain("opacity-0");
+    expect(classTokens(postsSection)).toContain("animate-slide-up");
+    expect(classTokens(postsSection)).toContain("opacity-0");
   });
 
   it("aplica motion aos accordions principais e aos blocos internos", async () => {

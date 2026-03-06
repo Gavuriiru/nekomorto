@@ -39,6 +39,13 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { toast } from "@/components/ui/use-toast";
 import { Loader2, Search } from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
@@ -278,6 +285,30 @@ const toRelativeProjectFolderLabel = ({
     return normalizedFolder.slice(normalizedRoot.length + 1);
   }
   return normalizedFolder;
+};
+
+const compareProjectFolderGroupsRootFirst = <T extends { folder: string; title: string }>(
+  left: T,
+  right: T,
+) => {
+  const leftFolder = sanitizeUploadFolderForComparison(left.folder);
+  const rightFolder = sanitizeUploadFolderForComparison(right.folder);
+  const leftProjectRoot = resolveProjectRootFromFolder(leftFolder);
+  const rightProjectRoot = resolveProjectRootFromFolder(rightFolder);
+
+  if (leftProjectRoot && leftProjectRoot === rightProjectRoot) {
+    const leftIsProjectRoot = leftFolder === leftProjectRoot;
+    const rightIsProjectRoot = rightFolder === rightProjectRoot;
+    if (leftIsProjectRoot !== rightIsProjectRoot) {
+      return leftIsProjectRoot ? -1 : 1;
+    }
+  }
+
+  const titleComparison = left.title.localeCompare(right.title, "pt-BR");
+  if (titleComparison !== 0) {
+    return titleComparison;
+  }
+  return leftFolder.localeCompare(rightFolder, "pt-BR");
 };
 
 const resolveContextProjectIdFromFolder = (folder: string | null | undefined) => {
@@ -1366,7 +1397,7 @@ const ImageLibraryDialog = ({
           items: sortLibraryItems(items),
         } satisfies UploadFolderGroup;
       })
-      .sort((left, right) => left.title.localeCompare(right.title, "pt-BR"));
+      .sort(compareProjectFolderGroupsRootFirst);
   }, [filteredUploads, resolvedUploadFolderForFilter, sortLibraryItems]);
   const uploadFolderFilterOptions = useMemo(() => {
     const set = new Set<string>();
@@ -1529,7 +1560,7 @@ const ImageLibraryDialog = ({
               }),
             };
           })
-          .sort((left, right) => left.title.localeCompare(right.title, "pt-BR"));
+          .sort(compareProjectFolderGroupsRootFirst);
         return {
           key: group.key,
           projectId: group.projectId,
@@ -2324,7 +2355,7 @@ const ImageLibraryDialog = ({
                 <button
                   type="button"
                   className={`group overflow-hidden rounded-xl border border-border/60 bg-card/60 text-left transition hover:border-primary/40 ${
-                    isSelected ? "ring-2 ring-primary/60 border-primary/60" : ""
+                    isSelected ? "ring-2 ring-inset ring-primary/60 border-primary/60" : ""
                   }`}
                   onClick={() =>
                     setSelection(item.url, {
@@ -2548,8 +2579,8 @@ const ImageLibraryDialog = ({
           </DialogHeader>
           <div className="mt-2 grid gap-2 sm:gap-3 lg:grid-cols-[1.25fr_0.95fr]">
             <div
-              className={`flex h-full flex-col justify-center rounded-2xl border border-dashed border-border/70 bg-card/50 p-3 text-sm text-muted-foreground transition sm:p-4 ${
-                isDragActive ? "ring-2 ring-primary/60 border-primary/60" : ""
+              className={`flex h-full flex-col rounded-2xl border border-dashed border-border/70 bg-card/50 p-3 text-sm text-muted-foreground transition sm:p-4 ${
+                isDragActive ? "ring-2 ring-inset ring-primary/60 border-primary/60" : ""
               }`}
               aria-busy={isUploading}
               onDragOver={(event) => {
@@ -2566,10 +2597,14 @@ const ImageLibraryDialog = ({
               }}
               onDrop={handleDrop}
             >
-              <p className="font-medium text-foreground">
-                Arraste, cole (Ctrl+V) ou escolha arquivos
-              </p>
-              <p className="mt-1 text-xs text-muted-foreground">Upload direto para o servidor.</p>
+              <div className="flex flex-1 flex-col justify-center">
+                <p className="font-medium text-foreground">
+                  Arraste, cole (Ctrl+V) ou escolha arquivos
+                </p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Upload direto para o servidor.
+                </p>
+              </div>
               <div className="mt-3">
                 <Input
                   type="file"
@@ -2586,6 +2621,21 @@ const ImageLibraryDialog = ({
                     Processando upload...
                   </p>
                 ) : null}
+              </div>
+              <div className="mt-4 space-y-2 border-t border-border/50 pt-4">
+                <Label htmlFor="image-library-search-input" className="text-xs font-medium">
+                  Pesquisar na biblioteca
+                </Label>
+                <div className="relative">
+                  <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground/80" />
+                  <Input
+                    id="image-library-search-input"
+                    value={searchQuery}
+                    onChange={(event) => setSearchQuery(event.target.value)}
+                    placeholder="Pesquisar por nome, projeto ou URL..."
+                    className="h-9 w-full border-border/60 bg-background/80 pl-9 text-sm transition-colors"
+                  />
+                </div>
               </div>
             </div>
             <div
@@ -2636,67 +2686,58 @@ const ImageLibraryDialog = ({
           <div className="mt-3 min-h-0 flex-1 space-y-6 overflow-auto no-scrollbar sm:mt-4 sm:space-y-8">
             <div>
               <div
-                data-testid="image-library-uploads-toolbar"
-                className="sm:sticky sm:top-0 z-10 -mx-1 mb-2 rounded-2xl border border-border/50 bg-background/90 px-2.5 py-2.5 backdrop-blur-md sm:px-3 sm:py-3"
+                data-testid="image-library-uploads-controls"
+                className="mb-3 flex flex-wrap items-center justify-between gap-3"
               >
-                <div className="flex flex-col gap-2.5">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <h3 className="text-sm font-semibold text-foreground">Uploads do servidor</h3>
-                    <p className="inline-flex items-center rounded-full border border-border/60 bg-card/70 px-2.5 py-1 text-[11px] font-medium text-muted-foreground">
-                      Selecionadas: {selectedUrls.length}
-                    </p>
-                  </div>
-                  <div className="flex flex-col gap-2 lg:flex-row lg:items-center">
-                    <div className="relative w-full lg:min-w-0 lg:flex-1">
-                      <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground/80" />
-                      <Input
-                        value={searchQuery}
-                        onChange={(event) => setSearchQuery(event.target.value)}
-                        placeholder="Pesquisar por nome, projeto ou URL..."
-                        className="h-9 w-full rounded-full border-border/60 bg-card/70 pl-9 text-sm transition-colors"
-                      />
-                    </div>
-                    <div
-                      data-testid="image-library-uploads-controls"
-                      className="flex flex-wrap items-center gap-2"
+                <div className="flex flex-1 flex-wrap items-center gap-2">
+                  <Select
+                    value={uploadsFolderFilter}
+                    onValueChange={setUploadsFolderFilter}
+                  >
+                    <SelectTrigger
+                      aria-label="Filtrar por pasta"
+                      className="h-9 min-w-0 w-full flex-1 basis-[11rem] bg-card/70 transition-[border-color,box-shadow] focus:border-primary/60 focus:ring-2 focus:ring-inset focus:ring-primary/60 focus:ring-offset-0 data-[state=open]:border-primary/60 data-[state=open]:ring-2 data-[state=open]:ring-inset data-[state=open]:ring-primary/60 data-[state=open]:ring-offset-0 sm:flex-none sm:w-[220px]"
                     >
-                      <select
-                        value={uploadsFolderFilter}
-                        onChange={(event) => setUploadsFolderFilter(event.target.value)}
-                        className="h-9 min-w-0 flex-1 basis-[10.5rem] rounded-full border border-input/80 bg-card/70 px-3 text-sm transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 sm:flex-none sm:basis-auto sm:min-w-[10rem]"
-                      >
-                        <option value="__all__">Todas as pastas</option>
-                        {uploadFolderFilterOptions.map((folder) => (
-                          <option key={folder} value={folder}>
-                            {folder}
-                          </option>
-                        ))}
-                      </select>
-                      <select
-                        value={sortMode}
-                        onChange={(event) =>
-                          setSortMode(event.target.value as "recent" | "oldest" | "name")
-                        }
-                        className="h-9 min-w-0 flex-1 basis-[9.5rem] rounded-full border border-input/80 bg-card/70 px-3 text-sm transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 sm:flex-none sm:basis-auto sm:min-w-[9rem]"
-                      >
-                        <option value="recent">Mais recentes</option>
-                        <option value="oldest">Mais antigos</option>
-                        <option value="name">Nome</option>
-                      </select>
-                      {allowDeselect ? (
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="outline"
-                          className="h-9 flex-none rounded-full border-border/70 bg-card/60 px-3.5 text-xs transition-colors sm:text-sm"
-                          onClick={() => setSelectedUrls([])}
-                        >
-                          Limpar seleção
-                        </Button>
-                      ) : null}
-                    </div>
-                  </div>
+                      <SelectValue placeholder="Todas as pastas" />
+                    </SelectTrigger>
+                    <SelectContent
+                      align="start"
+                      className="z-[210] origin-[var(--radix-select-content-transform-origin)]"
+                    >
+                      <SelectItem value="__all__">Todas as pastas</SelectItem>
+                      {uploadFolderFilterOptions.map((folder) => (
+                        <SelectItem key={folder} value={folder}>
+                          {folder}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Select
+                    value={sortMode}
+                    onValueChange={(value) => setSortMode(value as "recent" | "oldest" | "name")}
+                  >
+                    <SelectTrigger
+                      aria-label="Ordenar biblioteca"
+                      className="h-9 min-w-0 w-full flex-1 basis-[9.5rem] bg-card/70 transition-[border-color,box-shadow] focus:border-primary/60 focus:ring-2 focus:ring-inset focus:ring-primary/60 focus:ring-offset-0 data-[state=open]:border-primary/60 data-[state=open]:ring-2 data-[state=open]:ring-inset data-[state=open]:ring-primary/60 data-[state=open]:ring-offset-0 sm:flex-none sm:w-[180px]"
+                    >
+                      <SelectValue placeholder="Mais recentes" />
+                    </SelectTrigger>
+                    <SelectContent
+                      align="start"
+                      className="z-[210] origin-[var(--radix-select-content-transform-origin)]"
+                    >
+                      <SelectItem value="recent">Mais recentes</SelectItem>
+                      <SelectItem value="oldest">Mais antigos</SelectItem>
+                      <SelectItem value="name">Nome</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
+                <p
+                  data-testid="image-library-selection-count"
+                  className="inline-flex items-center rounded-full border border-border/60 bg-card/70 px-2.5 py-1 text-[11px] font-medium text-muted-foreground"
+                >
+                  Selecionadas: {selectedUrls.length}
+                </p>
               </div>
               {renderUploadGroups(
                 uploadFolderGroups,
@@ -2742,6 +2783,16 @@ const ImageLibraryDialog = ({
           </div>
 
           <div className="mt-4 flex flex-col-reverse justify-end gap-2 sm:flex-row">
+            {allowDeselect ? (
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full sm:w-auto"
+                onClick={() => setSelectedUrls([])}
+              >
+                Limpar seleção
+              </Button>
+            ) : null}
             <Button
               type="button"
               variant="outline"

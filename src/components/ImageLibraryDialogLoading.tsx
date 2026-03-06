@@ -50,45 +50,51 @@ const ImageLibraryDialogLoadingGrid = ({
 
   return (
     <div
-      className={cn("mt-2 grid gap-2 sm:gap-3 lg:grid-cols-[1.25fr_0.95fr]", className)}
+      className={cn("mt-2 flex min-h-0 flex-1 flex-col gap-3", className)}
       data-testid={testId}
       role="status"
       aria-live="polite"
       aria-busy="true"
     >
-      <div className="space-y-3 rounded-2xl border border-border/60 bg-card/50 p-3 sm:p-4">
-        <div
-          data-testid="image-library-loading-toolbar"
-          className="rounded-xl border border-border/60 bg-background/60 px-3 py-3"
-        >
-          <div className="grid gap-2 sm:grid-cols-2">
-            <Skeleton className="h-9 w-full" />
+      <div className="grid gap-2 sm:gap-3 lg:grid-cols-[1.25fr_0.95fr]">
+        <div className="space-y-4 rounded-2xl border border-dashed border-border/60 bg-card/50 p-3 sm:p-4">
+          <div className="space-y-2">
+            <Skeleton className="h-4 w-52" />
+            <Skeleton className="h-3 w-40" />
+          </div>
+          <div className="space-y-2">
+            <Skeleton className="h-10 w-full" />
+            <Skeleton className="h-3 w-32" />
+          </div>
+          <div className="space-y-2 border-t border-border/50 pt-4">
+            <Skeleton className="h-3 w-32" />
             <Skeleton className="h-9 w-full" />
           </div>
-          <div className="mt-3 grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
-            <Skeleton className="h-9 w-full" />
-            <Skeleton className="h-9 w-28" />
+        </div>
+        <div className="space-y-3 rounded-2xl border border-border/60 bg-card/70 p-3 sm:p-4">
+          <div className="space-y-2">
+            <Skeleton className="h-4 w-32" />
+            <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
+              <Skeleton className="h-9 w-full" />
+              <Skeleton className="h-9 w-28" />
+            </div>
           </div>
+          <div className="space-y-2 rounded-xl border border-border/60 bg-background/50 p-3">
+            <Skeleton className="h-4 w-24" />
+            <Skeleton className="h-9 w-full" />
+            <Skeleton className="h-24 w-full" />
+          </div>
+        </div>
+      </div>
+      <div className="min-h-0 flex-1 space-y-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex flex-1 flex-wrap items-center gap-2">
+            <Skeleton className="h-9 w-full sm:w-[220px]" />
+            <Skeleton className="h-9 w-full sm:w-[180px]" />
+          </div>
+          <Skeleton className="h-7 w-28 rounded-full" />
         </div>
         <ImageLibraryDialogLoadingGrid />
-      </div>
-      <div className="space-y-3 rounded-2xl border border-border/60 bg-card/70 p-3 sm:p-4">
-        <div className="space-y-2">
-          <Skeleton className="h-4 w-32" />
-          <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
-            <Skeleton className="h-9 w-full" />
-            <Skeleton className="h-9 w-28" />
-          </div>
-        </div>
-        <div className="space-y-2 rounded-xl border border-border/60 bg-background/50 p-3">
-          <Skeleton className="h-4 w-24" />
-          <Skeleton className="h-9 w-full" />
-          <Skeleton className="h-24 w-full" />
-        </div>
-        <div className="flex gap-2">
-          <Skeleton className="h-10 flex-1" />
-          <Skeleton className="h-10 flex-1" />
-        </div>
       </div>
       <span className="sr-only">Carregando biblioteca de imagens</span>
     </div>

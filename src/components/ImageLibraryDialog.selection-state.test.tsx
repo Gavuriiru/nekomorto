@@ -108,6 +108,7 @@ describe("ImageLibraryDialog selection state", () => {
     await waitFor(() => {
       expect(screen.getByText("Selecionadas: 1")).toBeInTheDocument();
       expect(imageButton).toHaveClass("ring-2");
+      expect(imageButton).toHaveClass("ring-inset");
     });
   });
 
@@ -119,6 +120,7 @@ describe("ImageLibraryDialog selection state", () => {
     await waitFor(() => {
       expect(screen.getByText("Selecionadas: 1")).toBeInTheDocument();
       expect(imageButton).toHaveClass("ring-2");
+      expect(imageButton).toHaveClass("ring-inset");
     });
   });
 
@@ -141,6 +143,7 @@ describe("ImageLibraryDialog selection state", () => {
     await waitFor(() => {
       expect(screen.getByText("Selecionadas: 1")).toBeInTheDocument();
       expect(imageButton).toHaveClass("ring-2");
+      expect(imageButton).toHaveClass("ring-inset");
     });
 
     fireEvent.click(imageButton);
@@ -148,6 +151,21 @@ describe("ImageLibraryDialog selection state", () => {
     await waitFor(() => {
       expect(screen.getByText("Selecionadas: 0")).toBeInTheDocument();
       expect(imageButton).not.toHaveClass("ring-2");
+      expect(imageButton).not.toHaveClass("ring-inset");
+    });
+  });
+
+  it("limpa a selecao atual pelo botao do footer", async () => {
+    renderDialog(["/uploads/posts/a.png"]);
+
+    await waitFor(() => {
+      expect(screen.getByText("Selecionadas: 1")).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /Limpar sele/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText("Selecionadas: 0")).toBeInTheDocument();
     });
   });
 

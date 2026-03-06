@@ -1,6 +1,7 @@
 import { Link, useNavigate } from "react-router-dom";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import DashboardShell from "@/components/DashboardShell";
+import DashboardPageContainer from "@/components/dashboard/DashboardPageContainer";
 import DashboardPageBadge from "@/components/dashboard/DashboardPageBadge";
 import {
   dashboardAnimationDelay,
@@ -742,514 +743,508 @@ const Dashboard = () => {
       isLoadingUser={isLoadingUser}
       onUserCardClick={() => navigate("/dashboard/usuarios?edit=me")}
     >
-      <main className="pt-24">
-        <section className="mx-auto w-full max-w-6xl px-6 pb-20 md:px-10 reveal" data-reveal>
-          <header className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
-            <div className="space-y-3">
-              <DashboardPageBadge>Painel interno</DashboardPageBadge>
-              <h1 className="text-3xl font-semibold lg:text-4xl animate-slide-up">
-                Painel de controle da comunidade
-              </h1>
-              <p
-                className="max-w-2xl text-sm text-muted-foreground animate-slide-up opacity-0"
-                style={dashboardAnimationDelay(dashboardMotionDelays.headerDescriptionMs)}
-              >
-                Visão geral dos projetos e do conteúdo. Assim que as integrações de analytics e
-                comentários estiverem ativas, os dados aparecem aqui automaticamente.
-              </p>
-            </div>
-            <div
-              className="flex items-center gap-3 overflow-x-auto whitespace-nowrap pb-1 animate-slide-up opacity-0"
-              style={dashboardAnimationDelay(dashboardMotionDelays.headerActionsMs)}
+      <DashboardPageContainer>
+        <header className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+          <div className="space-y-3">
+            <DashboardPageBadge>Painel interno</DashboardPageBadge>
+            <h1 className="text-3xl font-semibold lg:text-4xl animate-slide-up">
+              Painel de controle da comunidade
+            </h1>
+            <p
+              className="max-w-2xl text-sm text-muted-foreground animate-slide-up opacity-0"
+              style={dashboardAnimationDelay(dashboardMotionDelays.headerDescriptionMs)}
             >
+              Visão geral dos projetos e do conteúdo. Assim que as integrações de analytics e
+              comentários estiverem ativas, os dados aparecem aqui automaticamente.
+            </p>
+          </div>
+          <div
+            className="flex items-center gap-3 overflow-x-auto whitespace-nowrap pb-1 animate-slide-up opacity-0"
+            style={dashboardAnimationDelay(dashboardMotionDelays.headerActionsMs)}
+          >
+            <Button
+              variant="outline"
+              className="border-border/70 bg-card/60 px-4 text-muted-foreground hover:text-foreground"
+              onClick={() => setIsCustomizeOpen(true)}
+            >
+              <SlidersHorizontal className="mr-2 h-4 w-4" />
+              Personalizar painel
+            </Button>
+            {currentUser ? (
               <Button
                 variant="outline"
                 className="border-border/70 bg-card/60 px-4 text-muted-foreground hover:text-foreground"
-                onClick={() => setIsCustomizeOpen(true)}
+                onClick={handleExportReport}
               >
-                <SlidersHorizontal className="mr-2 h-4 w-4" />
-                Personalizar painel
+                Exportar relatório
               </Button>
-              {currentUser ? (
+            ) : (
+              <Link to="/login">
                 <Button
                   variant="outline"
                   className="border-border/70 bg-card/60 px-4 text-muted-foreground hover:text-foreground"
-                  onClick={handleExportReport}
                 >
-                  Exportar relatório
+                  Fazer login
                 </Button>
-              ) : (
-                <Link to="/login">
-                  <Button
-                    variant="outline"
-                    className="border-border/70 bg-card/60 px-4 text-muted-foreground hover:text-foreground"
-                  >
-                    Fazer login
-                  </Button>
-                </Link>
-              )}
-            </div>
-          </header>
+              </Link>
+            )}
+          </div>
+        </header>
 
-          {isLoadingOverview ? (
-            <AsyncState
-              kind="loading"
-              title="Carregando dashboard"
-              description="Buscando analytics, projetos, posts e comentários."
-            />
-          ) : hasOverviewError ? (
-            <AsyncState
-              kind="error"
-              title="Não foi possível carregar o dashboard"
-              description="Tente novamente em alguns instantes."
-              action={
-                <Button variant="outline" onClick={() => setReloadTick((previous) => previous + 1)}>
-                  Tentar novamente
-                </Button>
-              }
-            />
-          ) : (
-            <>
-              {selectedWidgetSet.has("metrics_overview") ? (
-                <div className="mt-10 grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-                  <div
-                    className="rounded-2xl border border-border/60 bg-linear-to-br from-card/70 to-background/60 p-5 animate-slide-up opacity-0"
-                    style={dashboardAnimationDelay(0)}
-                  >
-                    <p className="text-sm text-muted-foreground">Projetos cadastrados</p>
-                    <div className="mt-3 text-2xl font-semibold">{totalProjects}</div>
-                    <p className="mt-2 text-xs text-muted-foreground">Catálogo completo do site.</p>
-                  </div>
-                  <div
-                    className="rounded-2xl border border-border/60 bg-linear-to-br from-card/70 to-background/60 p-5 animate-slide-up opacity-0"
-                    style={dashboardAnimationDelay(dashboardMotionDelays.sectionStepMs)}
-                  >
-                    <p className="text-sm text-muted-foreground">Mídias disponíveis</p>
-                    <div className="mt-3 text-2xl font-semibold">{totalMedia}</div>
-                    <p className="mt-2 text-xs text-muted-foreground">
-                      Downloads ativos nos projetos.
-                    </p>
-                  </div>
-                  <div
-                    className="rounded-2xl border border-border/60 bg-linear-to-br from-card/70 to-background/60 p-5 animate-slide-up opacity-0"
-                    style={dashboardAnimationDelay(dashboardMotionDelays.sectionStepMs * 2)}
-                  >
-                    <p className="text-sm text-muted-foreground">Projetos ativos</p>
-                    <div className="mt-3 text-2xl font-semibold">{activeProjects}</div>
-                    <p className="mt-2 text-xs text-muted-foreground">Em andamento ou produção.</p>
-                  </div>
-                  <div
-                    className="rounded-2xl border border-border/60 bg-linear-to-br from-card/70 to-background/60 p-5 animate-slide-up opacity-0"
-                    style={dashboardAnimationDelay(dashboardMotionDelays.sectionStepMs * 3)}
-                  >
-                    <p className="text-sm text-muted-foreground">Projetos finalizados</p>
-                    <div className="mt-3 text-2xl font-semibold">{finishedProjects}</div>
-                    <p className="mt-2 text-xs text-muted-foreground">Completo ou lançado.</p>
-                  </div>
+        {isLoadingOverview ? (
+          <AsyncState
+            kind="loading"
+            title="Carregando dashboard"
+            description="Buscando analytics, projetos, posts e comentários."
+          />
+        ) : hasOverviewError ? (
+          <AsyncState
+            kind="error"
+            title="Não foi possível carregar o dashboard"
+            description="Tente novamente em alguns instantes."
+            action={
+              <Button variant="outline" onClick={() => setReloadTick((previous) => previous + 1)}>
+                Tentar novamente
+              </Button>
+            }
+          />
+        ) : (
+          <>
+            {selectedWidgetSet.has("metrics_overview") ? (
+              <div className="mt-10 grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                <div
+                  className="rounded-2xl border border-border/60 bg-linear-to-br from-card/70 to-background/60 p-5 animate-slide-up opacity-0"
+                  style={dashboardAnimationDelay(0)}
+                >
+                  <p className="text-sm text-muted-foreground">Projetos cadastrados</p>
+                  <div className="mt-3 text-2xl font-semibold">{totalProjects}</div>
+                  <p className="mt-2 text-xs text-muted-foreground">Catálogo completo do site.</p>
                 </div>
-              ) : null}
-
-              <section
-                className="mt-10 grid gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] reveal"
-                data-reveal
-              >
-                <div className="space-y-6">
-                  {selectedWidgetSet.has("analytics_summary") ? (
-                    <div
-                      className="rounded-3xl border border-border/60 bg-card/60 p-6 shadow-[0_20px_60px_-40px_rgba(0,0,0,0.8)] animate-slide-up opacity-0"
-                      style={dashboardAnimationDelay(dashboardMotionDelays.headerActionsMs)}
-                    >
-                      <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
-                        <div>
-                          <p className="text-sm text-muted-foreground">Análises de acessos</p>
-                          {hasAnalyticsData ? (
-                            <div className="mt-3 flex items-center gap-3">
-                              <span className="text-3xl font-semibold">{totalViewsLast7}</span>
-                              <Badge className="bg-card/80 text-muted-foreground">
-                                Últimos 7 dias
-                              </Badge>
-                            </div>
-                          ) : (
-                            <p className="mt-3 text-sm text-muted-foreground">
-                              Nenhum dado de acesso foi coletado ainda.
-                            </p>
-                          )}
-                          {hasAnalyticsData ? (
-                            <p className="mt-2 text-xs text-muted-foreground">
-                              {totalProjectViewsLast7} em projetos e {totalPostViewsLast7} em posts
-                            </p>
-                          ) : null}
-                          <div className="mt-4">
-                            <Button
-                              variant="outline"
-                              className="border-border/70 bg-card/60 px-4 text-muted-foreground hover:text-foreground"
-                              asChild
-                            >
-                              <Link to={analyticsAllHref}>Ver analytics completos</Link>
-                            </Button>
-                          </div>
-                        </div>
-                        <div className="w-full max-w-xs">
-                          <div className="h-32 rounded-2xl border border-border/60 bg-linear-to-br from-card/70 to-background/60 p-4">
-                            {hasAnalyticsData ? (
-                              <svg viewBox="0 0 100 40" className="h-full w-full">
-                                <defs>
-                                  <linearGradient id="visits-gradient" x1="0" y1="0" x2="0" y2="1">
-                                    <stop
-                                      offset="0%"
-                                      stopColor="hsl(var(--accent))"
-                                      stopOpacity="0.7"
-                                    />
-                                    <stop
-                                      offset="100%"
-                                      stopColor="hsl(var(--accent))"
-                                      stopOpacity="0"
-                                    />
-                                  </linearGradient>
-                                </defs>
-                                <path d={areaPath} fill="url(#visits-gradient)" />
-                                <polyline
-                                  points={chartPoints}
-                                  fill="none"
-                                  stroke="hsl(var(--accent))"
-                                  strokeWidth="2.5"
-                                  strokeLinejoin="round"
-                                  strokeLinecap="round"
-                                />
-                              </svg>
-                            ) : (
-                              <div className="flex h-full flex-col items-center justify-center text-center text-xs text-muted-foreground">
-                                <span>Gráfico indisponível</span>
-                                <span>Sem dados de projetos ainda</span>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  ) : null}
-
-                  {selectedWidgetSet.has("projects_rank") ? (
-                    <div
-                      className="rounded-3xl border border-border/60 bg-card/60 p-6 animate-slide-up opacity-0"
-                      style={dashboardAnimationDelay(dashboardMotionDelays.sectionLeadMs)}
-                    >
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <h2 className="text-lg font-semibold">Projetos mais acessados</h2>
-                          <p className="text-sm text-muted-foreground">
-                            Ranking por projetos individuais
-                          </p>
-                        </div>
-                        <Button
-                          variant="outline"
-                          className="border-border/70 bg-card/60 px-4 text-muted-foreground hover:text-foreground"
-                          asChild
-                        >
-                          <Link to={analyticsProjectHref}>Ver analytics de projetos</Link>
-                        </Button>
-                      </div>
-                      {hasProjectViewData ? (
-                        <div className="mt-6 space-y-4">
-                          {rankedProjects.slice(0, 3).map((project) => (
-                            <Link
-                              key={project.id}
-                              to={`/projeto/${project.id}`}
-                              className="block rounded-2xl border border-border/60 bg-card/60 p-4 transition hover:border-primary/40 hover:bg-primary/5"
-                            >
-                              <div className="flex items-center justify-between">
-                                <span className="text-sm font-medium">{project.title}</span>
-                                <div className="flex items-center gap-3 text-sm text-muted-foreground">
-                                  <span>{project.views} acessos</span>
-                                  <Badge className="bg-card/80 text-muted-foreground">
-                                    {project.status}
-                                  </Badge>
-                                </div>
-                              </div>
-                            </Link>
-                          ))}
-                        </div>
-                      ) : (
-                        <div className="mt-6 rounded-2xl border border-dashed border-border/60 bg-card/60 px-4 py-8 text-center text-sm text-muted-foreground">
-                          Conecte o backend de analytics para ver o ranking de acesso por projeto.
-                        </div>
-                      )}
-                    </div>
-                  ) : null}
-
-                  {selectedWidgetSet.has("recent_posts") ? (
-                    <div
-                      className="rounded-3xl border border-border/60 bg-card/60 p-6 animate-slide-up opacity-0"
-                      style={dashboardAnimationDelay(
-                        dashboardMotionDelays.sectionLeadMs + dashboardMotionDelays.sectionStepMs,
-                      )}
-                    >
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <h2 className="text-lg font-semibold">Posts mais recentes</h2>
-                          <p className="text-sm text-muted-foreground">
-                            Publicações e visualizações
-                          </p>
-                        </div>
-                        <Button
-                          variant="outline"
-                          className="border-border/70 bg-card/60 px-4 text-muted-foreground hover:text-foreground"
-                          asChild
-                        >
-                          <Link to={analyticsPostHref}>Ver analytics de posts</Link>
-                        </Button>
-                      </div>
-                      {recentPosts.length === 0 ? (
-                        <div className="mt-6 rounded-2xl border border-dashed border-border/60 bg-card/60 px-4 py-8 text-center text-sm text-muted-foreground">
-                          Nenhum post publicado ainda.
-                        </div>
-                      ) : (
-                        <div className="mt-6 space-y-4">
-                          {recentPosts.map((post) => (
-                            <Link
-                              key={post.id}
-                              to={`/postagem/${post.slug}`}
-                              className="flex flex-col gap-3 rounded-2xl border border-border/60 bg-card/60 p-4 transition hover:border-primary/40 hover:bg-primary/5 md:flex-row md:items-center md:justify-between"
-                            >
-                              <div>
-                                <p className="font-medium">{post.title}</p>
-                                <p className="text-xs text-muted-foreground">
-                                  Status: {post.status}
-                                </p>
-                              </div>
-                              <div className="flex items-center gap-3 text-sm">
-                                <span className="text-muted-foreground">
-                                  {post.views} visualizações
-                                </span>
-                                <Badge className="bg-card/80 text-muted-foreground">
-                                  {formatDateTime(post.updatedAt || post.publishedAt)}
-                                </Badge>
-                              </div>
-                            </Link>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  ) : null}
+                <div
+                  className="rounded-2xl border border-border/60 bg-linear-to-br from-card/70 to-background/60 p-5 animate-slide-up opacity-0"
+                  style={dashboardAnimationDelay(dashboardMotionDelays.sectionStepMs)}
+                >
+                  <p className="text-sm text-muted-foreground">Mídias disponíveis</p>
+                  <div className="mt-3 text-2xl font-semibold">{totalMedia}</div>
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    Downloads ativos nos projetos.
+                  </p>
                 </div>
+                <div
+                  className="rounded-2xl border border-border/60 bg-linear-to-br from-card/70 to-background/60 p-5 animate-slide-up opacity-0"
+                  style={dashboardAnimationDelay(dashboardMotionDelays.sectionStepMs * 2)}
+                >
+                  <p className="text-sm text-muted-foreground">Projetos ativos</p>
+                  <div className="mt-3 text-2xl font-semibold">{activeProjects}</div>
+                  <p className="mt-2 text-xs text-muted-foreground">Em andamento ou produção.</p>
+                </div>
+                <div
+                  className="rounded-2xl border border-border/60 bg-linear-to-br from-card/70 to-background/60 p-5 animate-slide-up opacity-0"
+                  style={dashboardAnimationDelay(dashboardMotionDelays.sectionStepMs * 3)}
+                >
+                  <p className="text-sm text-muted-foreground">Projetos finalizados</p>
+                  <div className="mt-3 text-2xl font-semibold">{finishedProjects}</div>
+                  <p className="mt-2 text-xs text-muted-foreground">Completo ou lançado.</p>
+                </div>
+              </div>
+            ) : null}
 
-                <aside className="space-y-6">
-                  {selectedWidgetSet.has("ops_status") && !hideOperationalAlertsCard ? (
-                    <div
-                      className="rounded-3xl border border-border/60 bg-card/60 p-6 animate-slide-up opacity-0"
-                      style={dashboardAnimationDelay(
-                        dashboardMotionDelays.sectionLeadMs + dashboardMotionDelays.sectionStepMs * 2,
-                      )}
-                    >
-                      <div className="flex items-center justify-between gap-3">
-                        <div>
-                          <h2 className="text-lg font-semibold">Status operacional</h2>
-                          <p className="text-sm text-muted-foreground">
-                            Healthchecks e alertas internos
-                          </p>
-                        </div>
-                        {isLoadingOperationalAlerts ? (
-                          <Skeleton
-                            className="h-6 w-16 rounded-full"
-                            data-testid="dashboard-ops-loading-badge"
-                          />
+            <section
+              className="mt-10 grid gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] reveal"
+              data-reveal
+            >
+              <div className="space-y-6">
+                {selectedWidgetSet.has("analytics_summary") ? (
+                  <div
+                    className="rounded-3xl border border-border/60 bg-card/60 p-6 shadow-[0_20px_60px_-40px_rgba(0,0,0,0.8)] animate-slide-up opacity-0"
+                    style={dashboardAnimationDelay(dashboardMotionDelays.headerActionsMs)}
+                  >
+                    <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+                      <div>
+                        <p className="text-sm text-muted-foreground">Análises de acessos</p>
+                        {hasAnalyticsData ? (
+                          <div className="mt-3 flex items-center gap-3">
+                            <span className="text-3xl font-semibold">{totalViewsLast7}</span>
+                            <Badge className="bg-card/80 text-muted-foreground">
+                              Últimos 7 dias
+                            </Badge>
+                          </div>
                         ) : (
-                          <Badge variant={operationalStatusVariant}>{operationalStatusLabel}</Badge>
+                          <p className="mt-3 text-sm text-muted-foreground">
+                            Nenhum dado de acesso foi coletado ainda.
+                          </p>
                         )}
-                      </div>
-                      {isLoadingOperationalAlerts ? (
-                        <div
-                          className="mt-4 space-y-3 rounded-2xl border border-dashed border-border/60 bg-card/60 px-4 py-6"
-                          data-testid="dashboard-ops-loading"
-                          role="status"
-                          aria-live="polite"
-                          aria-busy="true"
-                        >
-                          <Skeleton className="h-4 w-2/5" />
-                          <Skeleton className="h-3 w-full" />
-                          <Skeleton className="h-3 w-5/6" />
-                          <Skeleton className="h-10 w-full rounded-xl" />
-                          <span className="sr-only">Carregando status operacional...</span>
-                        </div>
-                      ) : operationalAlertsError ? (
-                        <div className="mt-4 space-y-3">
-                          <div className="rounded-2xl border border-dashed border-border/60 bg-card/60 px-4 py-6 text-sm text-muted-foreground">
-                            {operationalAlertsError}
-                          </div>
+                        {hasAnalyticsData ? (
+                          <p className="mt-2 text-xs text-muted-foreground">
+                            {totalProjectViewsLast7} em projetos e {totalPostViewsLast7} em posts
+                          </p>
+                        ) : null}
+                        <div className="mt-4">
                           <Button
                             variant="outline"
-                            size="sm"
-                            onClick={() => setReloadTick((value) => value + 1)}
+                            className="border-border/70 bg-card/60 px-4 text-muted-foreground hover:text-foreground"
+                            asChild
                           >
-                            Tentar novamente
+                            <Link to={analyticsAllHref}>Ver analytics completos</Link>
                           </Button>
                         </div>
-                      ) : (
-                        <div className="mt-4 space-y-4">
-                          {operationalAlerts?.generatedAt ? (
-                            <p className="text-xs text-muted-foreground">
-                              Última atualização: {formatDateTime(operationalAlerts.generatedAt)}
-                            </p>
-                          ) : null}
-                          {operationalActiveAlerts.length > 0 ? (
-                            <section className="space-y-3">
-                              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                                Alertas ativos
-                              </p>
-                              <div className="space-y-3">
-                                {operationalActiveAlerts.map((alert) => (
-                                  <div
-                                    key={alert.code}
-                                    className="rounded-2xl border border-border/60 bg-card/60 p-3"
-                                  >
-                                    <div className="flex items-center justify-between gap-2">
-                                      <p className="text-sm font-medium">{alert.title}</p>
-                                      <Badge
-                                        variant={alertSeverityVariant(alert.severity) ?? undefined}
-                                        className={
-                                          alertSeverityVariant(alert.severity)
-                                            ? undefined
-                                            : "bg-card/80 text-muted-foreground"
-                                        }
-                                      >
-                                        {operationalSeverityLabel(alert.severity)}
-                                      </Badge>
-                                    </div>
-                                    <p className="mt-1 text-xs text-muted-foreground">
-                                      {alert.description}
-                                    </p>
-                                  </div>
-                                ))}
-                              </div>
-                            </section>
-                          ) : null}
-                          {operationalCheckFindings.length > 0 ? (
-                            <section className="space-y-3">
-                              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                                Healthchecks degradados
-                              </p>
-                              <div className="space-y-3">
-                                {operationalCheckFindings.map((check) => (
-                                  <div
-                                    key={`check-${check.name}`}
-                                    className="rounded-2xl border border-border/60 bg-card/60 p-3"
-                                  >
-                                    <div className="flex items-center justify-between gap-2">
-                                      <p className="text-sm font-medium">{check.title}</p>
-                                      <Badge variant={alertSeverityVariant(check.severity) ?? "warning"}>
-                                        {operationalSeverityLabel(check.severity)}
-                                      </Badge>
-                                    </div>
-                                    <p className="mt-1 text-xs text-muted-foreground">
-                                      {check.description}
-                                    </p>
-                                  </div>
-                                ))}
-                              </div>
-                            </section>
-                          ) : null}
-                          {!hasOperationalReasons && (
-                            <div className="rounded-2xl border border-dashed border-border/60 bg-card/60 px-4 py-6 text-sm text-muted-foreground">
-                              {hasStatusWithoutReason
-                                ? "Status operacional degradado sem causa detalhada no payload."
-                                : "Nenhum alerta operacional ativo."}
+                      </div>
+                      <div className="w-full max-w-xs">
+                        <div className="h-32 rounded-2xl border border-border/60 bg-linear-to-br from-card/70 to-background/60 p-4">
+                          {hasAnalyticsData ? (
+                            <svg viewBox="0 0 100 40" className="h-full w-full">
+                              <defs>
+                                <linearGradient id="visits-gradient" x1="0" y1="0" x2="0" y2="1">
+                                  <stop
+                                    offset="0%"
+                                    stopColor="hsl(var(--accent))"
+                                    stopOpacity="0.7"
+                                  />
+                                  <stop
+                                    offset="100%"
+                                    stopColor="hsl(var(--accent))"
+                                    stopOpacity="0"
+                                  />
+                                </linearGradient>
+                              </defs>
+                              <path d={areaPath} fill="url(#visits-gradient)" />
+                              <polyline
+                                points={chartPoints}
+                                fill="none"
+                                stroke="hsl(var(--accent))"
+                                strokeWidth="2.5"
+                                strokeLinejoin="round"
+                                strokeLinecap="round"
+                              />
+                            </svg>
+                          ) : (
+                            <div className="flex h-full flex-col items-center justify-center text-center text-xs text-muted-foreground">
+                              <span>Gráfico indisponível</span>
+                              <span>Sem dados de projetos ainda</span>
                             </div>
                           )}
-                          <div className="pt-1">
-                            <Button
-                              variant="outline"
-                              className="w-full border-border/70 bg-card/60 px-4 text-muted-foreground hover:text-foreground"
-                              asChild
-                            >
-                              <Link to="/dashboard/audit-log">Ver audit log</Link>
-                            </Button>
-                          </div>
                         </div>
-                      )}
-                    </div>
-                  ) : null}
-                  {selectedWidgetSet.has("comments_queue") ? (
-                    <div
-                      className="rounded-3xl border border-border/60 bg-card/60 p-6 animate-slide-up opacity-0"
-                      style={dashboardAnimationDelay(
-                        dashboardMotionDelays.sectionLeadMs + dashboardMotionDelays.sectionStepMs * 3,
-                      )}
-                    >
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <h2 className="text-lg font-semibold">Comentários recentes</h2>
-                          <p className="text-sm text-muted-foreground">Sistema por página</p>
-                        </div>
-                        <Badge className="bg-card/80 text-muted-foreground">
-                          {pendingCommentsCount} pendentes
-                        </Badge>
                       </div>
-                      {recentComments.length === 0 ? (
-                        <div className="mt-6 rounded-2xl border border-dashed border-border/60 bg-card/60 px-4 py-8 text-center text-sm text-muted-foreground">
-                          Nenhum comentário registrado ainda.
-                        </div>
-                      ) : (
-                        <div className="mt-6 space-y-4">
-                          {recentComments.slice(0, 3).map((comment) => (
-                            <a
-                              key={comment.id}
-                              href={comment.url}
-                              className="block rounded-2xl border border-border/60 bg-card/60 p-4 transition hover:border-primary/40 hover:bg-primary/5"
-                            >
-                              <div className="flex items-center justify-between text-xs text-muted-foreground">
-                                <span>{comment.author}</span>
-                                <span>{formatDateTime(comment.createdAt)}</span>
-                              </div>
-                              <p className="mt-2 text-sm text-foreground">{comment.message}</p>
-                              <p className="mt-2 text-xs text-muted-foreground">
-                                Em: {comment.page}
-                              </p>
-                            </a>
-                          ))}
-                        </div>
-                      )}
                     </div>
-                  ) : null}
+                  </div>
+                ) : null}
 
-                  {selectedWidgetSet.has("projects_quick") ? (
-                    <div
-                      className="rounded-3xl border border-border/60 bg-card/60 p-6 overflow-hidden animate-slide-up opacity-0"
-                      style={dashboardAnimationDelay(
-                        dashboardMotionDelays.sectionLeadMs + dashboardMotionDelays.sectionStepMs * 4,
-                      )}
-                    >
-                      <h2 className="text-lg font-semibold">Projetos cadastrados</h2>
-                      <p className="text-sm text-muted-foreground">Acesso rápido ao catálogo.</p>
-                      <div className="mt-5 space-y-3">
-                        {projects.slice(0, 3).map((project) => (
+                {selectedWidgetSet.has("projects_rank") ? (
+                  <div
+                    className="rounded-3xl border border-border/60 bg-card/60 p-6 animate-slide-up opacity-0"
+                    style={dashboardAnimationDelay(dashboardMotionDelays.sectionLeadMs)}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h2 className="text-lg font-semibold">Projetos mais acessados</h2>
+                        <p className="text-sm text-muted-foreground">
+                          Ranking por projetos individuais
+                        </p>
+                      </div>
+                      <Button
+                        variant="outline"
+                        className="border-border/70 bg-card/60 px-4 text-muted-foreground hover:text-foreground"
+                        asChild
+                      >
+                        <Link to={analyticsProjectHref}>Ver analytics de projetos</Link>
+                      </Button>
+                    </div>
+                    {hasProjectViewData ? (
+                      <div className="mt-6 space-y-4">
+                        {rankedProjects.slice(0, 3).map((project) => (
                           <Link
                             key={project.id}
                             to={`/projeto/${project.id}`}
-                            className="flex items-center justify-between rounded-2xl border border-border/60 bg-card/60 px-4 py-3 text-sm transition hover:border-primary/40 hover:bg-primary/5"
+                            className="block rounded-2xl border border-border/60 bg-card/60 p-4 transition hover:border-primary/40 hover:bg-primary/5"
                           >
-                            <span className="font-medium">{project.title}</span>
-                            <Badge className="bg-card/80 text-muted-foreground">
-                              {project.status}
-                            </Badge>
+                            <div className="flex items-center justify-between">
+                              <span className="text-sm font-medium">{project.title}</span>
+                              <div className="flex items-center gap-3 text-sm text-muted-foreground">
+                                <span>{project.views} acessos</span>
+                                <Badge className="bg-card/80 text-muted-foreground">
+                                  {project.status}
+                                </Badge>
+                              </div>
+                            </div>
                           </Link>
                         ))}
-                        {projects.length > 3 && (
-                          <Link
-                            to="/projetos"
-                            className="block w-full rounded-xl border border-border/60 bg-card/60 px-4 py-3 text-center text-sm text-muted-foreground transition hover:border-primary/40 hover:bg-primary/5 hover:text-foreground"
-                          >
-                            Ver todos os projetos
-                          </Link>
-                        )}
                       </div>
+                    ) : (
+                      <div className="mt-6 rounded-2xl border border-dashed border-border/60 bg-card/60 px-4 py-8 text-center text-sm text-muted-foreground">
+                        Conecte o backend de analytics para ver o ranking de acesso por projeto.
+                      </div>
+                    )}
+                  </div>
+                ) : null}
+
+                {selectedWidgetSet.has("recent_posts") ? (
+                  <div
+                    className="rounded-3xl border border-border/60 bg-card/60 p-6 animate-slide-up opacity-0"
+                    style={dashboardAnimationDelay(
+                      dashboardMotionDelays.sectionLeadMs + dashboardMotionDelays.sectionStepMs,
+                    )}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h2 className="text-lg font-semibold">Posts mais recentes</h2>
+                        <p className="text-sm text-muted-foreground">Publicações e visualizações</p>
+                      </div>
+                      <Button
+                        variant="outline"
+                        className="border-border/70 bg-card/60 px-4 text-muted-foreground hover:text-foreground"
+                        asChild
+                      >
+                        <Link to={analyticsPostHref}>Ver analytics de posts</Link>
+                      </Button>
                     </div>
-                  ) : null}
-                </aside>
-              </section>
-            </>
-          )}
-        </section>
-      </main>
+                    {recentPosts.length === 0 ? (
+                      <div className="mt-6 rounded-2xl border border-dashed border-border/60 bg-card/60 px-4 py-8 text-center text-sm text-muted-foreground">
+                        Nenhum post publicado ainda.
+                      </div>
+                    ) : (
+                      <div className="mt-6 space-y-4">
+                        {recentPosts.map((post) => (
+                          <Link
+                            key={post.id}
+                            to={`/postagem/${post.slug}`}
+                            className="flex flex-col gap-3 rounded-2xl border border-border/60 bg-card/60 p-4 transition hover:border-primary/40 hover:bg-primary/5 md:flex-row md:items-center md:justify-between"
+                          >
+                            <div>
+                              <p className="font-medium">{post.title}</p>
+                              <p className="text-xs text-muted-foreground">Status: {post.status}</p>
+                            </div>
+                            <div className="flex items-center gap-3 text-sm">
+                              <span className="text-muted-foreground">
+                                {post.views} visualizações
+                              </span>
+                              <Badge className="bg-card/80 text-muted-foreground">
+                                {formatDateTime(post.updatedAt || post.publishedAt)}
+                              </Badge>
+                            </div>
+                          </Link>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ) : null}
+              </div>
+
+              <aside className="space-y-6">
+                {selectedWidgetSet.has("ops_status") && !hideOperationalAlertsCard ? (
+                  <div
+                    className="rounded-3xl border border-border/60 bg-card/60 p-6 animate-slide-up opacity-0"
+                    style={dashboardAnimationDelay(
+                      dashboardMotionDelays.sectionLeadMs + dashboardMotionDelays.sectionStepMs * 2,
+                    )}
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <h2 className="text-lg font-semibold">Status operacional</h2>
+                        <p className="text-sm text-muted-foreground">
+                          Healthchecks e alertas internos
+                        </p>
+                      </div>
+                      {isLoadingOperationalAlerts ? (
+                        <Skeleton
+                          className="h-6 w-16 rounded-full"
+                          data-testid="dashboard-ops-loading-badge"
+                        />
+                      ) : (
+                        <Badge variant={operationalStatusVariant}>{operationalStatusLabel}</Badge>
+                      )}
+                    </div>
+                    {isLoadingOperationalAlerts ? (
+                      <div
+                        className="mt-4 space-y-3 rounded-2xl border border-dashed border-border/60 bg-card/60 px-4 py-6"
+                        data-testid="dashboard-ops-loading"
+                        role="status"
+                        aria-live="polite"
+                        aria-busy="true"
+                      >
+                        <Skeleton className="h-4 w-2/5" />
+                        <Skeleton className="h-3 w-full" />
+                        <Skeleton className="h-3 w-5/6" />
+                        <Skeleton className="h-10 w-full rounded-xl" />
+                        <span className="sr-only">Carregando status operacional...</span>
+                      </div>
+                    ) : operationalAlertsError ? (
+                      <div className="mt-4 space-y-3">
+                        <div className="rounded-2xl border border-dashed border-border/60 bg-card/60 px-4 py-6 text-sm text-muted-foreground">
+                          {operationalAlertsError}
+                        </div>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setReloadTick((value) => value + 1)}
+                        >
+                          Tentar novamente
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className="mt-4 space-y-4">
+                        {operationalAlerts?.generatedAt ? (
+                          <p className="text-xs text-muted-foreground">
+                            Última atualização: {formatDateTime(operationalAlerts.generatedAt)}
+                          </p>
+                        ) : null}
+                        {operationalActiveAlerts.length > 0 ? (
+                          <section className="space-y-3">
+                            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                              Alertas ativos
+                            </p>
+                            <div className="space-y-3">
+                              {operationalActiveAlerts.map((alert) => (
+                                <div
+                                  key={alert.code}
+                                  className="rounded-2xl border border-border/60 bg-card/60 p-3"
+                                >
+                                  <div className="flex items-center justify-between gap-2">
+                                    <p className="text-sm font-medium">{alert.title}</p>
+                                    <Badge
+                                      variant={alertSeverityVariant(alert.severity) ?? undefined}
+                                      className={
+                                        alertSeverityVariant(alert.severity)
+                                          ? undefined
+                                          : "bg-card/80 text-muted-foreground"
+                                      }
+                                    >
+                                      {operationalSeverityLabel(alert.severity)}
+                                    </Badge>
+                                  </div>
+                                  <p className="mt-1 text-xs text-muted-foreground">
+                                    {alert.description}
+                                  </p>
+                                </div>
+                              ))}
+                            </div>
+                          </section>
+                        ) : null}
+                        {operationalCheckFindings.length > 0 ? (
+                          <section className="space-y-3">
+                            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                              Healthchecks degradados
+                            </p>
+                            <div className="space-y-3">
+                              {operationalCheckFindings.map((check) => (
+                                <div
+                                  key={`check-${check.name}`}
+                                  className="rounded-2xl border border-border/60 bg-card/60 p-3"
+                                >
+                                  <div className="flex items-center justify-between gap-2">
+                                    <p className="text-sm font-medium">{check.title}</p>
+                                    <Badge
+                                      variant={alertSeverityVariant(check.severity) ?? "warning"}
+                                    >
+                                      {operationalSeverityLabel(check.severity)}
+                                    </Badge>
+                                  </div>
+                                  <p className="mt-1 text-xs text-muted-foreground">
+                                    {check.description}
+                                  </p>
+                                </div>
+                              ))}
+                            </div>
+                          </section>
+                        ) : null}
+                        {!hasOperationalReasons && (
+                          <div className="rounded-2xl border border-dashed border-border/60 bg-card/60 px-4 py-6 text-sm text-muted-foreground">
+                            {hasStatusWithoutReason
+                              ? "Status operacional degradado sem causa detalhada no payload."
+                              : "Nenhum alerta operacional ativo."}
+                          </div>
+                        )}
+                        <div className="pt-1">
+                          <Button
+                            variant="outline"
+                            className="w-full border-border/70 bg-card/60 px-4 text-muted-foreground hover:text-foreground"
+                            asChild
+                          >
+                            <Link to="/dashboard/audit-log">Ver audit log</Link>
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ) : null}
+                {selectedWidgetSet.has("comments_queue") ? (
+                  <div
+                    className="rounded-3xl border border-border/60 bg-card/60 p-6 animate-slide-up opacity-0"
+                    style={dashboardAnimationDelay(
+                      dashboardMotionDelays.sectionLeadMs + dashboardMotionDelays.sectionStepMs * 3,
+                    )}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h2 className="text-lg font-semibold">Comentários recentes</h2>
+                        <p className="text-sm text-muted-foreground">Sistema por página</p>
+                      </div>
+                      <Badge className="bg-card/80 text-muted-foreground">
+                        {pendingCommentsCount} pendentes
+                      </Badge>
+                    </div>
+                    {recentComments.length === 0 ? (
+                      <div className="mt-6 rounded-2xl border border-dashed border-border/60 bg-card/60 px-4 py-8 text-center text-sm text-muted-foreground">
+                        Nenhum comentário registrado ainda.
+                      </div>
+                    ) : (
+                      <div className="mt-6 space-y-4">
+                        {recentComments.slice(0, 3).map((comment) => (
+                          <a
+                            key={comment.id}
+                            href={comment.url}
+                            className="block rounded-2xl border border-border/60 bg-card/60 p-4 transition hover:border-primary/40 hover:bg-primary/5"
+                          >
+                            <div className="flex items-center justify-between text-xs text-muted-foreground">
+                              <span>{comment.author}</span>
+                              <span>{formatDateTime(comment.createdAt)}</span>
+                            </div>
+                            <p className="mt-2 text-sm text-foreground">{comment.message}</p>
+                            <p className="mt-2 text-xs text-muted-foreground">Em: {comment.page}</p>
+                          </a>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ) : null}
+
+                {selectedWidgetSet.has("projects_quick") ? (
+                  <div
+                    className="rounded-3xl border border-border/60 bg-card/60 p-6 overflow-hidden animate-slide-up opacity-0"
+                    style={dashboardAnimationDelay(
+                      dashboardMotionDelays.sectionLeadMs + dashboardMotionDelays.sectionStepMs * 4,
+                    )}
+                  >
+                    <h2 className="text-lg font-semibold">Projetos cadastrados</h2>
+                    <p className="text-sm text-muted-foreground">Acesso rápido ao catálogo.</p>
+                    <div className="mt-5 space-y-3">
+                      {projects.slice(0, 3).map((project) => (
+                        <Link
+                          key={project.id}
+                          to={`/projeto/${project.id}`}
+                          className="flex items-center justify-between rounded-2xl border border-border/60 bg-card/60 px-4 py-3 text-sm transition hover:border-primary/40 hover:bg-primary/5"
+                        >
+                          <span className="font-medium">{project.title}</span>
+                          <Badge className="bg-card/80 text-muted-foreground">
+                            {project.status}
+                          </Badge>
+                        </Link>
+                      ))}
+                      {projects.length > 3 && (
+                        <Link
+                          to="/projetos"
+                          className="block w-full rounded-xl border border-border/60 bg-card/60 px-4 py-3 text-center text-sm text-muted-foreground transition hover:border-primary/40 hover:bg-primary/5 hover:text-foreground"
+                        >
+                          Ver todos os projetos
+                        </Link>
+                      )}
+                    </div>
+                  </div>
+                ) : null}
+              </aside>
+            </section>
+          </>
+        )}
+      </DashboardPageContainer>
       <Dialog open={isCustomizeOpen} onOpenChange={setIsCustomizeOpen}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>

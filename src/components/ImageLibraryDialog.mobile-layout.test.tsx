@@ -76,38 +76,56 @@ describe("ImageLibraryDialog mobile layout", () => {
     expect(importControlsTokens).toContain("grid");
     expect(importControlsTokens).toContain("grid-cols-[minmax(0,1fr)_auto]");
 
-    const selects = screen.getAllByRole("combobox");
+    const folderTrigger = screen.getByRole("combobox", { name: "Filtrar por pasta" });
+    const sortTrigger = screen.getByRole("combobox", { name: "Ordenar biblioteca" });
+    const comboboxes = screen.getAllByRole("combobox");
+    const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement | null;
     const searchInput = screen.getByPlaceholderText("Pesquisar por nome, projeto ou URL...");
     const searchInputTokens = classTokens(searchInput as HTMLElement);
     const clearSelectionButton = screen.getByRole("button", { name: /Limpar sele/i });
+    const cancelButton = screen.getByRole("button", { name: "Cancelar" });
+    const saveButton = screen.getByRole("button", { name: "Salvar" });
     const filterControls = screen.getByTestId("image-library-uploads-controls");
-    const toolbar = screen.getByTestId("image-library-uploads-toolbar");
-    const toolbarTokens = classTokens(toolbar);
+    const selectionCount = screen.getByTestId("image-library-selection-count");
 
-    expect(toolbarTokens).toContain("sm:sticky");
-    expect(toolbarTokens).toContain("sm:top-0");
-    expect(toolbarTokens).not.toContain("sticky");
-    expect(toolbarTokens).not.toContain("top-0");
+    expect(fileInput).toBeTruthy();
+    expect(
+      (fileInput as HTMLInputElement).compareDocumentPosition(searchInput) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(screen.queryByTestId("image-library-uploads-toolbar")).not.toBeInTheDocument();
     expect(searchInputTokens).toContain("pl-9");
-    expect(selects).toHaveLength(2);
+    expect(comboboxes).toHaveLength(2);
     expect(screen.getAllByRole("button", { name: /Limpar sele/i })).toHaveLength(1);
     expect(filterControls).toBeTruthy();
+    expect(selectionCount).toHaveTextContent("Selecionadas: 0");
+    expect(clearSelectionButton.parentElement).toBe(cancelButton.parentElement);
+    expect(saveButton.parentElement).toBe(cancelButton.parentElement);
 
     const filterControlsTokens = classTokens(filterControls);
 
     expect(filterControlsTokens).toContain("flex");
     expect(filterControlsTokens).toContain("flex-wrap");
     expect(filterControlsTokens).toContain("items-center");
+    expect(filterControlsTokens).toContain("justify-between");
 
-    for (const select of selects) {
-      const selectTokens = classTokens(select);
-      expect(selectTokens).toContain("min-w-0");
-      expect(selectTokens).toContain("rounded-full");
-    }
+    const folderTriggerTokens = classTokens(folderTrigger);
+    const sortTriggerTokens = classTokens(sortTrigger);
+
+    expect(folderTriggerTokens).toContain("w-full");
+    expect(folderTriggerTokens).toContain("sm:w-[220px]");
+    expect(folderTriggerTokens).toContain("rounded-md");
+    expect(folderTriggerTokens).toContain("focus:ring-inset");
+    expect(folderTriggerTokens).toContain("data-[state=open]:ring-inset");
+    expect(sortTriggerTokens).toContain("w-full");
+    expect(sortTriggerTokens).toContain("sm:w-[180px]");
+    expect(sortTriggerTokens).toContain("rounded-md");
+    expect(sortTriggerTokens).toContain("focus:ring-inset");
+    expect(sortTriggerTokens).toContain("data-[state=open]:ring-inset");
 
     const clearSelectionTokens = classTokens(clearSelectionButton);
 
-    expect(clearSelectionTokens).toContain("rounded-full");
-    expect(clearSelectionTokens).not.toContain("w-full");
+    expect(clearSelectionTokens).toContain("w-full");
+    expect(clearSelectionTokens).toContain("sm:w-auto");
   });
 });

@@ -79,21 +79,26 @@ describe("ImageLibraryDialog project groups", () => {
 
     fireEvent.click(group1);
 
+    let rootTrigger: HTMLElement | null = null;
+    let chapterTrigger: HTMLElement | null = null;
     await waitFor(() => {
-      expect(screen.getByRole("button", { name: /Raiz do projeto/i })).toBeInTheDocument();
-      expect(screen.getByRole("button", { name: /capitulos\/volume-1\/capitulo-1/i })).toBeInTheDocument();
+      rootTrigger = screen.getByRole("button", { name: /Raiz do projeto/i });
+      chapterTrigger = screen.getByRole("button", { name: /capitulos\/volume-1\/capitulo-1/i });
+      expect(rootTrigger).toBeInTheDocument();
+      expect(chapterTrigger).toBeInTheDocument();
     });
+    expect(rootTrigger!.compareDocumentPosition(chapterTrigger!)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
     expect(screen.queryByText("Projeto 1 (Capa)")).not.toBeInTheDocument();
     expect(screen.queryByText("Projeto 1 (Banner)")).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: /Raiz do projeto/i }));
+    fireEvent.click(rootTrigger as HTMLElement);
 
     await waitFor(() => {
       expect(screen.getByText("Projeto 1 (Capa)")).toBeInTheDocument();
     });
     expect(screen.queryByText("Projeto 1 (Banner)")).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: /capitulos\/volume-1\/capitulo-1/i }));
+    fireEvent.click(chapterTrigger as HTMLElement);
 
     await waitFor(() => {
       expect(screen.getByText("Projeto 1 (Banner)")).toBeInTheDocument();
