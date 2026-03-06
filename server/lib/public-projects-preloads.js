@@ -2,6 +2,7 @@ import { resolveProjectPosterPreload } from "./public-media-variants.js";
 
 export const PROJECTS_LIST_IMAGE_SIZES = "(max-width: 767px) 100px, 142px";
 export const PROJECTS_PRELOAD_LIMIT = 6;
+export const DESKTOP_PROJECTS_PRELOAD_MEDIA = "(min-width: 768px)";
 
 export const sortProjectsForPublicList = (projects) =>
   [...(Array.isArray(projects) ? projects : [])].sort((left, right) =>
@@ -27,6 +28,13 @@ export const resolvePublicProjectsListPreloads = ({
       if (!preload) {
         return null;
       }
-      return { ...preload, fetchpriority: "high" };
+      if (index === 0) {
+        return { ...preload, fetchpriority: "high" };
+      }
+      return {
+        ...preload,
+        fetchpriority: "high",
+        media: DESKTOP_PROJECTS_PRELOAD_MEDIA,
+      };
     })
     .filter(Boolean);

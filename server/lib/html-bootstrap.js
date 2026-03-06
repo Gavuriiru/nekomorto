@@ -351,7 +351,8 @@ export const injectPreloadLinks = ({ html, preloads = [] }) => {
     .forEach((entry) => {
       const href = String(entry.href || "").trim();
       const as = String(entry.as || "fetch").trim() || "fetch";
-      const key = `${as}::${href}`;
+      const media = String(entry.media || "").trim();
+      const key = `${as}::${href}::${media}`;
       if (!href || seen.has(key)) {
         return;
       }
@@ -383,6 +384,9 @@ export const injectPreloadLinks = ({ html, preloads = [] }) => {
       }
       if (entry.fetchpriority) {
         parts.push(`fetchpriority="${escapeHtmlAttribute(entry.fetchpriority)}"`);
+      }
+      if (entry.media) {
+        parts.push(`media="${escapeHtmlAttribute(entry.media)}"`);
       }
       return `${parts.join(" ")} />`;
     });

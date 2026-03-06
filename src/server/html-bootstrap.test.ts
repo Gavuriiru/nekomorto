@@ -78,6 +78,7 @@ describe("html bootstrap injection", () => {
           imagesrcset: "/uploads/hero-sm.avif 960w, /uploads/hero.avif 1600w",
           imagesizes: "100vw",
           fetchpriority: "high",
+          media: "(min-width: 768px)",
         },
       ],
     });
@@ -90,6 +91,7 @@ describe("html bootstrap injection", () => {
     expect(result).toContain('imagesrcset="/uploads/hero-sm.avif 960w, /uploads/hero.avif 1600w"');
     expect(result).toContain('imagesizes="100vw"');
     expect(result).toContain('fetchpriority="high"');
+    expect(result).toContain('media="(min-width: 768px)"');
   });
 
   it("injeta somente script inline no marker de bootstrap", () => {

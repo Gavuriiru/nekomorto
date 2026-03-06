@@ -121,6 +121,21 @@ const clearBootstrapPayload = () => {
   delete (window as BootstrapWindow).__BOOTSTRAP_PUBLIC__;
 };
 
+const originalMatchMedia = window.matchMedia;
+
+const setViewportIsMobile = (isMobile: boolean) => {
+  window.matchMedia = vi.fn().mockImplementation((query: string) => ({
+    matches: query === "(max-width: 767px)" ? isMobile : false,
+    media: query,
+    onchange: null,
+    addListener: () => {},
+    removeListener: () => {},
+    addEventListener: () => {},
+    removeEventListener: () => {},
+    dispatchEvent: () => false,
+  })) as unknown as typeof window.matchMedia;
+};
+
 describe("Projects query sync", () => {
   beforeEach(() => {
     setupApiMock();
@@ -135,11 +150,13 @@ describe("Projects query sync", () => {
         disconnect() {}
       },
     );
+    setViewportIsMobile(false);
   });
 
   afterEach(() => {
     vi.useRealTimers();
     clearBootstrapPayload();
+    window.matchMedia = originalMatchMedia;
   });
 
   it("normaliza query legada de genre para genero", async () => {
@@ -639,7 +656,7 @@ describe("Projects query sync", () => {
     expect(coverWrapper?.style.aspectRatio).toBe("9 / 14");
   });
 
-  it("prioriza as seis primeiras capas com posterThumb, sizes fixo e eager loading", async () => {
+  it("prioriza as seis primeiras capas no desktop com posterThumb, sizes fixo e eager loading", async () => {
     const projects = Array.from({ length: 7 }, (_, index) => ({
       ...createProject(index + 1, { title: `Projeto ${index + 1}` }),
       cover: `/uploads/projects/projeto-${index + 1}.png`,
@@ -696,6 +713,61 @@ describe("Projects query sync", () => {
     });
     expect(coverImages[6]).toHaveAttribute("loading", "lazy");
     expect(coverImages[6]).not.toHaveAttribute("fetchpriority");
+  });
+
+  it("prioriza apenas a primeira capa no mobile", async () => {
+    setViewportIsMobile(true);
+    const projects = Array.from({ length: 7 }, (_, index) => ({
+      ...createProject(index + 1, { title: `Projeto ${index + 1}` }),
+      cover: `/uploads/projects/projeto-${index + 1}.png`,
+    }));
+    const mediaVariants = Object.fromEntries(
+      projects.map((project, index) => [
+        project.cover,
+        {
+          variantsVersion: 3,
+          variants: {
+            posterThumb: {
+              width: 320,
+              formats: {
+                avif: { url: `/uploads/_variants/p${index + 1}/poster-thumb-v3.avif` },
+                webp: { url: `/uploads/_variants/p${index + 1}/poster-thumb-v3.webp` },
+                fallback: { url: `/uploads/_variants/p${index + 1}/poster-thumb-v3.jpeg` },
+              },
+            },
+            poster: {
+              width: 920,
+              formats: {
+                fallback: { url: `/uploads/_variants/p${index + 1}/poster-v3.jpeg` },
+              },
+            },
+          },
+        },
+      ]),
+    );
+
+    setupApiMock({
+      projects,
+      mediaVariants,
+    });
+
+    render(
+      <MemoryRouter initialEntries={["/projetos"]}>
+        <Projects />
+        <LocationProbe />
+      </MemoryRouter>,
+    );
+
+    const coverImages = await Promise.all(
+      projects.map((project) => screen.findByRole("img", { name: project.title })),
+    );
+
+    expect(coverImages[0]).toHaveAttribute("loading", "eager");
+    expect(coverImages[0]).toHaveAttribute("fetchpriority", "high");
+    coverImages.slice(1).forEach((coverImage) => {
+      expect(coverImage).toHaveAttribute("loading", "lazy");
+      expect(coverImage).not.toHaveAttribute("fetchpriority");
+    });
   });
 
   it("adiciona aria-label e alvo minimo aos badges clicaveis", async () => {

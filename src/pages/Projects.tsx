@@ -23,6 +23,7 @@ import {
 import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
 import type { Project } from "@/data/projects";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { usePageMeta } from "@/hooks/use-page-meta";
 import { useDynamicSynopsisClamp } from "@/hooks/use-dynamic-synopsis-clamp";
 import { publicPageLayoutTokens } from "@/components/public-page-tokens";
@@ -41,7 +42,8 @@ const PROJECTS_LIST_STATE_STORAGE_KEY = "public.projects.list-state.v1";
 const MAX_QUERY_LENGTH = 80;
 const SEARCH_QUERY_DEBOUNCE_MS = 60;
 const PROJECTS_LIST_IMAGE_SIZES = "(max-width: 767px) 100px, 142px";
-const PRIORITY_PROJECT_IMAGE_COUNT = 6;
+const MOBILE_PRIORITY_PROJECT_IMAGE_COUNT = 1;
+const DESKTOP_PRIORITY_PROJECT_IMAGE_COUNT = 6;
 
 const parseLetterParam = (value: string | null) => {
   const normalized = String(value || "")
@@ -76,7 +78,7 @@ type ProjectCardProps = {
   navigate: ReturnType<typeof useNavigate>;
   synopsisClampClass: string;
   mediaVariants: UploadMediaVariantsMap;
-  cardIndex: number;
+  isPriorityImage: boolean;
 };
 
 const getProjectBadgeAriaLabel = (item: ProjectBadgeItem) => {
@@ -96,13 +98,12 @@ const ProjectCard = ({
   navigate,
   synopsisClampClass,
   mediaVariants,
-  cardIndex,
+  isPriorityImage,
 }: ProjectCardProps) => {
   const [badgesRowWidth, setBadgesRowWidth] = useState(0);
   const [badgeWidths, setBadgeWidths] = useState<Record<string, number>>({});
   const badgesRowRef = useRef<HTMLDivElement | null>(null);
   const badgeMeasureRef = useRef<HTMLDivElement | null>(null);
-  const isPriorityImage = cardIndex < PRIORITY_PROJECT_IMAGE_COUNT;
   const { allItems, visibleItems, extraCount, showOverflowBadge } = useMemo(
     () =>
       prepareProjectBadges({
@@ -318,6 +319,7 @@ const ProjectCard = ({
 
 const Projects = () => {
   const apiBase = getApiBase();
+  const isMobile = useIsMobile();
   const hasMountedRef = useRef(false);
   const isApplyingUrlStateRef = useRef(false);
   const bootstrap = readWindowPublicBootstrap();
@@ -722,6 +724,9 @@ const Projects = () => {
 
   const pageStart = (currentPage - 1) * projectsPerPage;
   const paginatedProjects = filteredProjects.slice(pageStart, pageStart + projectsPerPage);
+  const priorityProjectImageCount = isMobile
+    ? MOBILE_PRIORITY_PROJECT_IMAGE_COUNT
+    : DESKTOP_PRIORITY_PROJECT_IMAGE_COUNT;
   const synopsisKeys = useMemo(
     () => paginatedProjects.map((project) => project.id),
     [paginatedProjects],
@@ -937,7 +942,7 @@ const Projects = () => {
                           navigate={navigate}
                           synopsisClampClass={getSynopsisClampClass(project.id)}
                           mediaVariants={projectsMediaVariants}
-                          cardIndex={index}
+                          isPriorityImage={index < priorityProjectImageCount}
                         />
                       </div>
                     ) : (
@@ -948,7 +953,7 @@ const Projects = () => {
                         navigate={navigate}
                         synopsisClampClass={getSynopsisClampClass(project.id)}
                         mediaVariants={projectsMediaVariants}
-                        cardIndex={index}
+                        isPriorityImage={index < priorityProjectImageCount}
                       />
                     )}
                   </div>
