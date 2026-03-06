@@ -6,16 +6,18 @@ import {
 } from "../../server/lib/public-projects-preloads.js";
 
 describe("public projects list preloads", () => {
-  it("ordena os projetos da listagem e pre-carrega as quatro primeiras capas", () => {
+  it("ordena os projetos da listagem e pre-carrega as seis primeiras capas", () => {
     const projects = [
       { title: "Zeta", cover: "/uploads/projects/zeta.png" },
       { title: "Alpha", cover: "/uploads/projects/alpha.png" },
       { title: "Beta", cover: "/uploads/projects/beta.png" },
       { title: "Delta", cover: "/uploads/projects/delta.png" },
       { title: "Gamma", cover: "/uploads/projects/gamma.png" },
+      { title: "Epsilon", cover: "/uploads/projects/epsilon.png" },
+      { title: "Eta", cover: "/uploads/projects/eta.png" },
     ];
     const mediaVariants = Object.fromEntries(
-      ["alpha", "beta", "delta", "gamma", "zeta"].map((slug, index) => [
+      ["alpha", "beta", "delta", "epsilon", "eta", "gamma", "zeta"].map((slug, index) => [
         `/uploads/projects/${slug}.png`,
         {
           variantsVersion: 3,
@@ -45,7 +47,7 @@ describe("public projects list preloads", () => {
       resolveVariantUrl: () => "",
     });
 
-    expect(preloads).toHaveLength(4);
+    expect(preloads).toHaveLength(6);
     expect(preloads[0]).toEqual(
       expect.objectContaining({
         href: "/uploads/_variants/alpha/poster-thumb-v3.jpeg",
@@ -57,8 +59,10 @@ describe("public projects list preloads", () => {
       }),
     );
     expect(preloads[0]?.imagesrcset).toContain("/uploads/_variants/alpha/poster-v3.avif 920w");
-    expect(preloads[1]?.href).toBe("/uploads/_variants/beta/poster-thumb-v3.jpeg");
-    expect(preloads[2]?.href).toBe("/uploads/_variants/delta/poster-thumb-v3.jpeg");
-    expect(preloads[3]?.href).toBe("/uploads/_variants/gamma/poster-thumb-v3.jpeg");
+    expect(preloads[1]).toEqual(expect.objectContaining({ href: "/uploads/_variants/beta/poster-thumb-v3.jpeg", fetchpriority: "high" }));
+    expect(preloads[2]).toEqual(expect.objectContaining({ href: "/uploads/_variants/delta/poster-thumb-v3.jpeg", fetchpriority: "high" }));
+    expect(preloads[3]).toEqual(expect.objectContaining({ href: "/uploads/_variants/epsilon/poster-thumb-v3.jpeg", fetchpriority: "high" }));
+    expect(preloads[4]).toEqual(expect.objectContaining({ href: "/uploads/_variants/eta/poster-thumb-v3.jpeg", fetchpriority: "high" }));
+    expect(preloads[5]).toEqual(expect.objectContaining({ href: "/uploads/_variants/gamma/poster-thumb-v3.jpeg", fetchpriority: "high" }));
   });
 });

@@ -639,8 +639,8 @@ describe("Projects query sync", () => {
     expect(coverWrapper?.style.aspectRatio).toBe("9 / 14");
   });
 
-  it("prioriza as quatro primeiras capas com posterThumb, sizes fixo e eager loading", async () => {
-    const projects = Array.from({ length: 5 }, (_, index) => ({
+  it("prioriza as seis primeiras capas com posterThumb, sizes fixo e eager loading", async () => {
+    const projects = Array.from({ length: 7 }, (_, index) => ({
       ...createProject(index + 1, { title: `Projeto ${index + 1}` }),
       cover: `/uploads/projects/projeto-${index + 1}.png`,
     }));
@@ -685,18 +685,17 @@ describe("Projects query sync", () => {
       projects.map((project) => screen.findByRole("img", { name: project.title })),
     );
 
-    coverImages.slice(0, 4).forEach((coverImage, index) => {
+    coverImages.slice(0, 6).forEach((coverImage, index) => {
       expect(coverImage).toHaveAttribute(
         "src",
         expect.stringContaining(`/uploads/_variants/p${index + 1}/poster-thumb-v3.jpeg`),
       );
       expect(coverImage).toHaveAttribute("sizes", PROJECTS_LIST_IMAGE_SIZES);
       expect(coverImage).toHaveAttribute("loading", "eager");
+      expect(coverImage).toHaveAttribute("fetchpriority", "high");
     });
-    expect(coverImages[0]).toHaveAttribute("fetchpriority", "high");
-    expect(coverImages[1]).not.toHaveAttribute("fetchpriority");
-    expect(coverImages[4]).toHaveAttribute("loading", "lazy");
-    expect(coverImages[4]).not.toHaveAttribute("fetchpriority");
+    expect(coverImages[6]).toHaveAttribute("loading", "lazy");
+    expect(coverImages[6]).not.toHaveAttribute("fetchpriority");
   });
 
   it("adiciona aria-label e alvo minimo aos badges clicaveis", async () => {

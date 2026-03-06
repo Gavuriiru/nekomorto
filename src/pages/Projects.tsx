@@ -41,7 +41,7 @@ const PROJECTS_LIST_STATE_STORAGE_KEY = "public.projects.list-state.v1";
 const MAX_QUERY_LENGTH = 80;
 const SEARCH_QUERY_DEBOUNCE_MS = 60;
 const PROJECTS_LIST_IMAGE_SIZES = "(max-width: 767px) 100px, 142px";
-const PRIORITY_PROJECT_IMAGE_COUNT = 4;
+const PRIORITY_PROJECT_IMAGE_COUNT = 6;
 
 const parseLetterParam = (value: string | null) => {
   const normalized = String(value || "")
@@ -103,7 +103,6 @@ const ProjectCard = ({
   const badgesRowRef = useRef<HTMLDivElement | null>(null);
   const badgeMeasureRef = useRef<HTMLDivElement | null>(null);
   const isPriorityImage = cardIndex < PRIORITY_PROJECT_IMAGE_COUNT;
-  const isPrimaryLcpImage = cardIndex === 0;
   const { allItems, visibleItems, extraCount, showOverflowBadge } = useMemo(
     () =>
       prepareProjectBadges({
@@ -194,7 +193,7 @@ const ProjectCard = ({
           imgClassName="h-full w-full object-cover object-center transition-transform duration-300 group-hover:scale-105"
           sizes={PROJECTS_LIST_IMAGE_SIZES}
           loading={isPriorityImage ? "eager" : "lazy"}
-          fetchPriority={isPrimaryLcpImage ? "high" : undefined}
+          fetchPriority={isPriorityImage ? "high" : undefined}
         />
       </div>
       <div

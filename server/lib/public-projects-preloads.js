@@ -1,7 +1,7 @@
 import { resolveProjectPosterPreload } from "./public-media-variants.js";
 
 export const PROJECTS_LIST_IMAGE_SIZES = "(max-width: 767px) 100px, 142px";
-export const PROJECTS_PRELOAD_LIMIT = 4;
+export const PROJECTS_PRELOAD_LIMIT = 6;
 
 export const sortProjectsForPublicList = (projects) =>
   [...(Array.isArray(projects) ? projects : [])].sort((left, right) =>
@@ -27,6 +27,6 @@ export const resolvePublicProjectsListPreloads = ({
       if (!preload) {
         return null;
       }
-      return index === 0 ? { ...preload, fetchpriority: "high" } : preload;
+      return { ...preload, fetchpriority: "high" };
     })
     .filter(Boolean);
