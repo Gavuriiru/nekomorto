@@ -2,10 +2,10 @@ import { Suspense, lazy, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { CalendarDays, Clock, User } from "lucide-react";
 
-import DiscordInviteCard from "@/components/DiscordInviteCard";
-import LatestEpisodeCard from "@/components/LatestEpisodeCard";
-import WorkStatusCard from "@/components/WorkStatusCard";
-import TopProjectsSection from "@/components/TopProjectsSection";
+import PublicUserProfileCard, {
+  type PublicUserProfileLinkType,
+  type PublicUserProfileMember,
+} from "@/components/PublicUserProfileCard";
 import ProjectEmbedCard from "@/components/ProjectEmbedCard";
 import CommentsSection from "@/components/CommentsSection";
 import UploadPicture from "@/components/UploadPicture";
@@ -26,9 +26,11 @@ const LexicalViewer = lazy(() => import("@/components/lexical/LexicalViewer"));
 
 const LexicalViewerFallback = () => (
   <div className="min-h-[320px] w-full rounded-xl border border-border/60 bg-background/60 p-6 text-sm text-muted-foreground">
-    Carregando conteúdo...
+    Carregando conteÃºdo...
   </div>
 );
+
+const normalizeAuthorKey = (value: unknown) => String(value || "").trim().toLowerCase();
 
 const Post = () => {
   const { slug } = useParams();
@@ -55,6 +57,9 @@ const Post = () => {
   const [loadError, setLoadError] = useState(false);
   const [currentUser, setCurrentUser] = useState<{ permissions?: string[] } | null>(null);
   const [mediaVariants, setMediaVariants] = useState<UploadMediaVariantsMap>({});
+  const [authorMember, setAuthorMember] = useState<PublicUserProfileMember | null>(null);
+  const [authorLinkTypes, setAuthorLinkTypes] = useState<PublicUserProfileLinkType[]>([]);
+  const [authorMediaVariants, setAuthorMediaVariants] = useState<UploadMediaVariantsMap>({});
   const trackedViewsRef = useRef<Set<string>>(new Set());
   const { settings } = useSiteSettings();
 
@@ -141,6 +146,65 @@ const Post = () => {
     void apiFetch(apiBase, `/api/public/posts/${post.slug}/view`, { method: "POST" });
   }, [apiBase, post?.slug]);
 
+  useEffect(() => {
+    let isActive = true;
+    const clearAuthorCard = () => {
+      setAuthorMember(null);
+      setAuthorLinkTypes([]);
+      setAuthorMediaVariants({});
+    };
+    const authorKey = normalizeAuthorKey(post?.author);
+    if (!authorKey) {
+      clearAuthorCard();
+      return () => {
+        isActive = false;
+      };
+    }
+
+    const loadAuthorCard = async () => {
+      try {
+        const [usersRes, linkTypesRes] = await Promise.all([
+          apiFetch(apiBase, "/api/public/users"),
+          apiFetch(apiBase, "/api/link-types"),
+        ]);
+        if (!usersRes.ok || !linkTypesRes.ok) {
+          if (isActive) {
+            clearAuthorCard();
+          }
+          return;
+        }
+        const [usersData, linkTypesData] = await Promise.all([usersRes.json(), linkTypesRes.json()]);
+        const users = Array.isArray(usersData?.users) ? usersData.users : [];
+        const matches = users.filter(
+          (candidate) => normalizeAuthorKey((candidate as { name?: string }).name) === authorKey,
+        );
+        if (!isActive) {
+          return;
+        }
+        if (matches.length !== 1) {
+          clearAuthorCard();
+          return;
+        }
+        setAuthorMember(matches[0] as PublicUserProfileMember);
+        setAuthorLinkTypes(Array.isArray(linkTypesData?.items) ? linkTypesData.items : []);
+        setAuthorMediaVariants(
+          usersData?.mediaVariants && typeof usersData.mediaVariants === "object"
+            ? usersData.mediaVariants
+            : {},
+        );
+      } catch {
+        if (isActive) {
+          clearAuthorCard();
+        }
+      }
+    };
+
+    void loadAuthorCard();
+    return () => {
+      isActive = false;
+    };
+  }, [apiBase, post?.author]);
+
   const shareImage = useMemo(
     () =>
       post?.slug
@@ -187,7 +251,6 @@ const Post = () => {
 
   const heroCoverSrc = post?.coverImageUrl || post?.seoImageUrl || "/placeholder.svg";
   const heroCoverAlt = post?.coverAlt || `Capa do post: ${post?.title || ""}`;
-  const readerDesktopCols = "lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]";
 
   return (
     <div className="min-h-screen bg-background">
@@ -202,7 +265,7 @@ const Post = () => {
           <div
             className={`${publicPageLayoutTokens.sectionBase} max-w-6xl rounded-2xl border border-dashed border-border/60 py-10 pt-20 text-sm text-muted-foreground bg-card/60`}
           >
-            Postagem não encontrada.
+            Postagem nÃ£o encontrada.
           </div>
         ) : (
           <>
@@ -271,9 +334,9 @@ const Post = () => {
 
             <section
               data-testid="post-reader-cover-bridge"
-              className={`${publicPageLayoutTokens.sectionBase} ${readerDesktopCols} relative z-10 hidden max-w-6xl md:block lg:grid lg:gap-8`}
+              className={`${publicPageLayoutTokens.sectionBase} relative z-20 -mt-24 hidden max-w-6xl md:block md:-mt-28`}
             >
-              <div data-testid="post-reader-cover-shell" className="w-full lg:col-start-1">
+              <div data-testid="post-reader-cover-shell" className="w-full">
                 <div
                   data-testid="post-reader-cover-frame"
                   className="relative aspect-3/2 overflow-hidden rounded-2xl border border-border/80 bg-card/40 shadow-[0_42px_120px_-48px_rgba(0,0,0,0.95)]"
@@ -294,15 +357,12 @@ const Post = () => {
             </section>
 
             <section
-              className={`${publicPageLayoutTokens.sectionBase} relative z-10 max-w-6xl pb-12 pt-6 md:pt-10`}
+              className={`${publicPageLayoutTokens.sectionBase} relative z-10 max-w-6xl pb-12 pt-4 md:pt-10`}
             >
-              <section
-                data-testid="post-reader-layout"
-                className={`grid gap-8 ${readerDesktopCols}`}
-              >
+              <section data-testid="post-reader-layout">
                 <article data-testid="post-reader-main" className="min-w-0 space-y-8">
                   <Card className="border-border/60 bg-card/85 shadow-[0_20px_60px_-40px_rgba(0,0,0,0.75)]">
-                    <CardContent className="min-w-0 space-y-7 p-6 text-sm leading-relaxed text-muted-foreground">
+                    <CardContent className="min-w-0 space-y-7 p-6 text-sm leading-relaxed text-muted-foreground md:p-8">
                       <Suspense fallback={<LexicalViewerFallback />}>
                         <LexicalViewer
                           value={post.content || ""}
@@ -315,18 +375,17 @@ const Post = () => {
 
                   {post.projectId ? <ProjectEmbedCard projectId={post.projectId} /> : null}
 
+                  {authorMember ? (
+                    <PublicUserProfileCard
+                      testId="post-author-card"
+                      member={authorMember}
+                      linkTypes={authorLinkTypes}
+                      mediaVariants={authorMediaVariants}
+                    />
+                  ) : null}
+
                   <CommentsSection targetType="post" targetId={post.slug} />
                 </article>
-
-                <aside
-                  data-testid="post-reader-sidebar"
-                  className="min-w-0 space-y-6 self-start lg:sticky lg:top-24"
-                >
-                  <LatestEpisodeCard />
-                  <WorkStatusCard />
-                  <TopProjectsSection />
-                  <DiscordInviteCard />
-                </aside>
               </section>
             </section>
           </>

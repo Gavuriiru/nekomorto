@@ -107,6 +107,7 @@ import {
   buildProjectOgImageResponse,
 } from "./lib/project-og.js";
 import { optimizeOgPngBuffer } from "./lib/og-image-output.js";
+import { createJsonFileCache } from "./lib/json-file-cache.js";
 import { buildOgRenderCacheKey, createOgRenderCache } from "./lib/og-render-cache.js";
 import {
   buildPostOgCardModel,
@@ -3675,37 +3676,25 @@ const updateLexicalPollVotes = (content, { question, optionUid, voterId, checked
   return { updated: true, content: JSON.stringify(parsed) };
 };
 
-const jsonFileCache = new Map();
+const jsonFileCache = createJsonFileCache();
 const shouldUseInMemoryCache = true;
-
-const cloneCachedValue = (value) => {
-  try {
-    return structuredClone(value);
-  } catch {
-    return value;
-  }
-};
 
 const readJsonFileFromCache = (cacheKey) => {
   if (!shouldUseInMemoryCache) {
     return null;
   }
-  const entry = jsonFileCache.get(cacheKey);
-  if (!entry) {
-    return null;
-  }
-  return cloneCachedValue(entry.value);
+  return jsonFileCache.read(cacheKey);
 };
 
 const writeJsonFileToCache = (cacheKey, value) => {
   if (!shouldUseInMemoryCache) {
     return;
   }
-  jsonFileCache.set(cacheKey, { value: cloneCachedValue(value) });
+  jsonFileCache.write(cacheKey, value);
 };
 
 const invalidateJsonFileCache = (cacheKey) => {
-  jsonFileCache.delete(cacheKey);
+  jsonFileCache.invalidate(cacheKey);
 };
 
 const defaultSiteSettings = {

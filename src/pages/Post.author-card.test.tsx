@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -18,6 +18,7 @@ vi.mock("@/hooks/use-site-settings", () => ({
   useSiteSettings: () => ({
     settings: {
       site: { defaultShareImage: "" },
+      teamRoles: [],
     },
   }),
 }));
@@ -34,28 +35,12 @@ vi.mock("react-router-dom", async () => {
   };
 });
 
-vi.mock("@/components/DiscordInviteCard", () => ({
-  default: () => null,
-}));
-
-vi.mock("@/components/LatestEpisodeCard", () => ({
-  default: () => null,
-}));
-
-vi.mock("@/components/WorkStatusCard", () => ({
-  default: () => null,
-}));
-
-vi.mock("@/components/TopProjectsSection", () => ({
-  default: () => null,
-}));
-
 vi.mock("@/components/ProjectEmbedCard", () => ({
-  default: () => null,
+  default: () => <div data-testid="project-embed-card" />,
 }));
 
 vi.mock("@/components/CommentsSection", () => ({
-  default: () => null,
+  default: () => <div data-testid="comments-section" />,
 }));
 
 vi.mock("@/components/lexical/LexicalViewer", () => ({
@@ -82,42 +67,63 @@ const postFixture = {
   publishedAt: "2026-02-10T12:00:00.000Z",
   views: 10,
   commentsCount: 2,
+  projectId: "project-1",
 };
 
-const setupApiMock = (postOverrides: Partial<typeof postFixture> = {}) => {
-  const post = {
-    ...postFixture,
-    ...postOverrides,
-  };
-  const mediaVariants = {
-    "/uploads/capa-post.jpg": {
-      variantsVersion: 1,
-      variants: {
-        card: {
-          formats: {
-            fallback: { url: "/uploads/_variants/post-1/card-v1.jpeg" },
-          },
-        },
-        hero: {
-          formats: {
-            fallback: { url: "/uploads/_variants/post-1/hero-v1.jpeg" },
-          },
+const authorFixture = {
+  id: "user-1",
+  name: "Admin",
+  avatarUrl: "/uploads/users/admin.png",
+  phrase: "Frase do admin",
+  bio: "Bio do admin",
+  roles: ["Membro"],
+  socials: [{ label: "site", href: "https://admin.dev" }],
+  favoriteWorks: { manga: [], anime: [] },
+  status: "active",
+};
+
+const usersMediaVariants = {
+  "/uploads/users/admin.png": {
+    variantsVersion: 1,
+    variants: {
+      square: {
+        formats: {
+          fallback: { url: "/uploads/_variants/admin/square-v1.png" },
         },
       },
     },
-  };
+  },
+};
+
+const setupApiMock = (users: unknown[]) => {
   apiFetchMock.mockReset();
   apiFetchMock.mockImplementation(async (_apiBase: string, endpoint: string, options?: RequestInit) => {
     const method = String(options?.method || "GET").toUpperCase();
 
     if (endpoint === "/api/public/posts/post-teste" && method === "GET") {
-      return mockJsonResponse(true, { post, mediaVariants });
+      return mockJsonResponse(true, {
+        post: postFixture,
+        mediaVariants: {
+          "/uploads/capa-post.jpg": {
+            variantsVersion: 1,
+            variants: {
+              card: {
+                formats: {
+                  fallback: { url: "/uploads/_variants/post-1/card-v1.jpeg" },
+                },
+              },
+            },
+          },
+        },
+      });
     }
     if (endpoint === "/api/public/users" && method === "GET") {
-      return mockJsonResponse(true, { users: [], mediaVariants: {} });
+      return mockJsonResponse(true, { users, mediaVariants: usersMediaVariants });
     }
     if (endpoint === "/api/link-types" && method === "GET") {
-      return mockJsonResponse(true, { items: [] });
+      return mockJsonResponse(true, {
+        items: [{ id: "site", label: "Site", icon: "globe" }],
+      });
     }
     if (endpoint === "/api/public/posts/post-teste/view" && method === "POST") {
       return mockJsonResponse(true, { views: 11 });
@@ -129,13 +135,13 @@ const setupApiMock = (postOverrides: Partial<typeof postFixture> = {}) => {
   });
 };
 
-describe("Post cover fit", () => {
+describe("Post author card", () => {
   beforeEach(() => {
     apiFetchMock.mockReset();
   });
 
-  it("renderiza capa do post com preenchimento total e container 3:2", async () => {
-    setupApiMock();
+  it("renderiza o card do autor entre embed e comentarios quando encontra um unico membro", async () => {
+    setupApiMock([authorFixture]);
 
     render(
       <MemoryRouter>
@@ -144,34 +150,21 @@ describe("Post cover fit", () => {
     );
 
     await screen.findByRole("heading", { name: "Post de Teste" });
-    const hero = screen.getByTestId("post-reader-hero");
-    expect(hero).toBeInTheDocument();
-    expect(hero).not.toHaveClass("border-b");
-    expect(screen.getByTestId("post-reader-cover-bridge")).toBeInTheDocument();
+    const authorCard = await screen.findByTestId("post-author-card");
 
-    const coverImage = await screen.findByRole("img", { name: "Capa de teste" });
-    expect(coverImage).toHaveAttribute(
-      "src",
-      expect.stringContaining("/uploads/_variants/post-1/card-v1.jpeg"),
-    );
-    expect(coverImage).toHaveClass(
-      "absolute",
-      "inset-0",
-      "block",
-      "h-full",
-      "w-full",
-      "object-cover",
-      "object-top",
-    );
+    expect(within(authorCard).getByRole("heading", { name: "Admin" })).toBeInTheDocument();
+    expect(within(authorCard).getByText('"Frase do admin"')).toBeInTheDocument();
+    expect(within(authorCard).getByText("Bio do admin")).toBeInTheDocument();
 
-    const coverFrame = screen.getByTestId("post-reader-cover-frame");
-    expect(coverFrame).toHaveClass("relative", "aspect-3/2", "overflow-hidden");
+    const embedCard = screen.getByTestId("project-embed-card");
+    const comments = screen.getByTestId("comments-section");
+
+    expect(embedCard.compareDocumentPosition(authorCard) & Node.DOCUMENT_POSITION_FOLLOWING).not.toBe(0);
+    expect(authorCard.compareDocumentPosition(comments) & Node.DOCUMENT_POSITION_FOLLOWING).not.toBe(0);
   });
 
-  it("remove breadcrumb e CTAs de navegacao e inicia sem offset global no main", async () => {
-    setupApiMock({
-      projectId: "project-1",
-    });
+  it("oculta o card do autor quando nao encontra correspondencia unica", async () => {
+    setupApiMock([]);
 
     render(
       <MemoryRouter>
@@ -180,14 +173,10 @@ describe("Post cover fit", () => {
     );
 
     await screen.findByRole("heading", { name: "Post de Teste" });
-    expect(screen.queryByRole("navigation", { name: /breadcrumb/i })).not.toBeInTheDocument();
-    expect(screen.queryByRole("link", { name: "Ir para projeto" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("link", { name: "Explorar projetos" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("link", { name: /Voltar ao in/i })).not.toBeInTheDocument();
+    await screen.findByTestId("comments-section");
 
-    const main = document.querySelector("main");
-    expect(main).not.toBeNull();
-    expect(main).not.toHaveClass("pt-20");
+    await waitFor(() => {
+      expect(screen.queryByTestId("post-author-card")).not.toBeInTheDocument();
+    });
   });
 });
-

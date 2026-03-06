@@ -92,6 +92,12 @@ const setupApiMock = (permissions: string[] | null) => {
     if (endpoint === "/api/public/posts/post-teste" && method === "GET") {
       return mockJsonResponse(true, { post: postFixture });
     }
+    if (endpoint === "/api/public/users" && method === "GET") {
+      return mockJsonResponse(true, { users: [], mediaVariants: {} });
+    }
+    if (endpoint === "/api/link-types" && method === "GET") {
+      return mockJsonResponse(true, { items: [] });
+    }
     if (endpoint === "/api/public/posts/post-teste/view" && method === "POST") {
       return mockJsonResponse(true, { views: 11 });
     }

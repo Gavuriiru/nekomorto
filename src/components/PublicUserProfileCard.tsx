@@ -1,0 +1,441 @@
+import { useEffect, useMemo, useState } from "react";
+import {
+  BadgeCheck,
+  Check,
+  Clock,
+  Code,
+  Globe,
+  Instagram,
+  Languages,
+  Layers,
+  MessageCircle,
+  Paintbrush,
+  Palette,
+  PenTool,
+  Shield,
+  Sparkles,
+  User,
+  Video,
+  X,
+  Youtube,
+} from "lucide-react";
+
+import ThemedSvgMaskIcon from "@/components/ThemedSvgMaskIcon";
+import UploadPicture from "@/components/UploadPicture";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent } from "@/components/ui/card";
+import { useSiteSettings } from "@/hooks/use-site-settings";
+import type { UploadMediaVariantsMap } from "@/lib/upload-variants";
+import { cn } from "@/lib/utils";
+import { isIconUrlSource, sanitizeIconSource, sanitizePublicHref } from "@/lib/url-safety";
+
+const FAVORITE_WORK_CATEGORIES = ["manga", "anime"] as const;
+
+export type FavoriteWorkCategory = (typeof FAVORITE_WORK_CATEGORIES)[number];
+export type FavoriteWorksByCategory = Record<FavoriteWorkCategory, string[]>;
+
+export type PublicUserProfileSocialLink = {
+  label: string;
+  href: string;
+};
+
+export type PublicUserProfileLinkType = {
+  id: string;
+  label: string;
+  icon: string;
+};
+
+export type PublicUserProfileMember = {
+  id: string;
+  name: string;
+  phrase: string;
+  bio: string;
+  avatarUrl?: string | null;
+  socials?: PublicUserProfileSocialLink[];
+  favoriteWorks?: FavoriteWorksByCategory;
+  permissions?: string[];
+  roles?: string[];
+  isAdmin?: boolean;
+  status?: "active" | "retired" | string;
+  order?: number;
+  avatarDisplay?: string;
+  accessRole?: string;
+};
+
+type PublicUserProfileCardProps = {
+  member: PublicUserProfileMember;
+  linkTypes?: PublicUserProfileLinkType[];
+  mediaVariants?: UploadMediaVariantsMap;
+  retired?: boolean;
+  imageSrc?: string;
+  testId?: string;
+};
+
+type PublicUserProfileAvatarProps = {
+  imageSrc: string;
+  name: string;
+  mediaVariants?: UploadMediaVariantsMap;
+};
+
+const MAX_FAVORITE_WORKS = 3;
+const MAX_FAVORITE_WORK_LENGTH = 80;
+
+const SOCIAL_ICONS = {
+  instagram: Instagram,
+  twitter: X,
+  x: X,
+  youtube: Youtube,
+  discord: MessageCircle,
+  "message-circle": MessageCircle,
+  site: Globe,
+  website: Globe,
+  portfolio: Globe,
+  globe: Globe,
+} as const;
+
+const ROLE_ICON_REGISTRY = {
+  languages: Languages,
+  check: Check,
+  "pen-tool": PenTool,
+  sparkles: Sparkles,
+  code: Code,
+  paintbrush: Paintbrush,
+  layers: Layers,
+  video: Video,
+  clock: Clock,
+  badge: BadgeCheck,
+  palette: Palette,
+  user: User,
+} as const;
+
+const normalizeFavoriteWorksList = (value: unknown): string[] => {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  const dedupe = new Set<string>();
+  const output: string[] = [];
+  for (const item of value) {
+    const title = String(item || "").trim().slice(0, MAX_FAVORITE_WORK_LENGTH);
+    if (!title) {
+      continue;
+    }
+    const dedupeKey = title.toLowerCase();
+    if (dedupe.has(dedupeKey)) {
+      continue;
+    }
+    dedupe.add(dedupeKey);
+    output.push(title);
+    if (output.length >= MAX_FAVORITE_WORKS) {
+      break;
+    }
+  }
+  return output;
+};
+
+const normalizeFavoriteWorksByCategory = (value: unknown): FavoriteWorksByCategory => {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return {
+      manga: [],
+      anime: [],
+    };
+  }
+  const source = value as Partial<Record<FavoriteWorkCategory, unknown>>;
+  return {
+    manga: normalizeFavoriteWorksList(source.manga),
+    anime: normalizeFavoriteWorksList(source.anime),
+  };
+};
+
+const PublicUserProfileAvatar = ({
+  imageSrc,
+  name,
+  mediaVariants,
+}: PublicUserProfileAvatarProps) => {
+  const [resolvedSrc, setResolvedSrc] = useState(imageSrc || "/placeholder.svg");
+
+  useEffect(() => {
+    setResolvedSrc(imageSrc || "/placeholder.svg");
+  }, [imageSrc]);
+
+  return (
+    <div className="relative z-10 h-56 w-56 overflow-hidden rounded-full border border-white/10 ring-4 ring-background/70 shadow-[0_20px_46px_-24px_rgba(0,0,0,0.82)] transition-transform duration-500 group-hover:scale-105 sm:h-60 sm:w-60 md:h-64 md:w-64 lg:h-64 lg:w-64">
+      <UploadPicture
+        src={resolvedSrc}
+        alt={name}
+        preset="square"
+        mediaVariants={mediaVariants}
+        referrerPolicy="no-referrer"
+        crossOrigin="anonymous"
+        className="block h-full w-full"
+        imgClassName="h-full w-full object-cover"
+        onError={() => {
+          if (resolvedSrc === "/placeholder.svg") {
+            return;
+          }
+          setResolvedSrc("/placeholder.svg");
+        }}
+      />
+    </div>
+  );
+};
+
+const resolveSocialLink = (
+  social: { label?: string; href?: string },
+  linkTypeMap: Map<string, PublicUserProfileLinkType>,
+) => {
+  const safeHref = sanitizePublicHref(social?.href);
+  if (!safeHref) {
+    return null;
+  }
+  const type = linkTypeMap.get(String(social?.label || ""));
+  const label = String(type?.label || social?.label || "").trim() || "Link";
+  const safeIconSource = sanitizeIconSource(type?.icon || "");
+  const customIcon = isIconUrlSource(safeIconSource);
+  const iconKey = customIcon ? "" : String(safeIconSource || "").toLowerCase();
+  const Icon = SOCIAL_ICONS[iconKey as keyof typeof SOCIAL_ICONS] || Globe;
+  return {
+    href: safeHref,
+    label,
+    customIcon,
+    iconSource: safeIconSource || "",
+    Icon,
+  };
+};
+
+const PublicUserProfileCard = ({
+  member,
+  linkTypes = [],
+  mediaVariants,
+  retired = false,
+  imageSrc,
+  testId,
+}: PublicUserProfileCardProps) => {
+  const { settings } = useSiteSettings();
+  const [isFavoritePanelOpen, setFavoritePanelOpen] = useState(false);
+
+  const roleIconMap = useMemo(
+    () => new Map((settings?.teamRoles || []).map((role) => [role.label, role.icon])),
+    [settings?.teamRoles],
+  );
+
+  const getRoleIcon = (role: string) => {
+    const key = roleIconMap.get(role);
+    if (key) {
+      return ROLE_ICON_REGISTRY[String(key).toLowerCase() as keyof typeof ROLE_ICON_REGISTRY] || null;
+    }
+    const normalized = role.toLowerCase();
+    if (normalized === "dono") {
+      return BadgeCheck;
+    }
+    if (normalized === "membro") {
+      return User;
+    }
+    if (normalized === "administrador") {
+      return Shield;
+    }
+    if (normalized.includes("aposent")) {
+      return Clock;
+    }
+    return null;
+  };
+
+  const favoriteWorks = normalizeFavoriteWorksByCategory(member.favoriteWorks);
+  const hasFavoriteWorks = favoriteWorks.manga.length > 0 || favoriteWorks.anime.length > 0;
+  const linkTypeMap = useMemo(
+    () => new Map((linkTypes || []).map((item) => [item.id, item])),
+    [linkTypes],
+  );
+  const resolvedImageSrc = String(imageSrc || member.avatarUrl || "").trim() || "/placeholder.svg";
+  const socials = (member.socials || []).filter((social) => social.href);
+
+  const renderRoleBadge = (label: string, key: string, tone: "default" | "retired" = "default") => {
+    const RoleIcon = getRoleIcon(label);
+    return (
+      <Badge
+        key={key}
+        variant="secondary"
+        className={cn(
+          "gap-1 border px-2.5 py-1 text-[10px] uppercase tracking-[0.14em]",
+          tone === "retired"
+            ? "border-primary/20 bg-primary/10 text-primary/90"
+            : "border-white/5 bg-white/[0.04] text-foreground/80",
+        )}
+      >
+        {RoleIcon ? <RoleIcon className="h-3 w-3" /> : null}
+        {label}
+      </Badge>
+    );
+  };
+
+  const renderMemberBadges = () => {
+    const areas = (member.roles || []).filter((item) => item !== "Dono");
+    const badges: Array<JSX.Element> = [];
+
+    if (retired) {
+      badges.push(renderRoleBadge("Aposentado", `${member.id}-retired`, "retired"));
+    }
+
+    if ((member.roles || []).includes("Dono")) {
+      badges.push(renderRoleBadge("Dono", `${member.id}-owner`));
+    } else if (member.isAdmin) {
+      badges.push(renderRoleBadge("Administrador", `${member.id}-admin`));
+    }
+
+    if (areas.length > 0) {
+      for (const area of areas) {
+        badges.push(renderRoleBadge(area, `${member.id}-${area}`));
+      }
+    } else if (!retired && !(member.roles || []).includes("Dono") && !member.isAdmin) {
+      badges.push(renderRoleBadge("Membro", `${member.id}-member`));
+    }
+
+    return <div className="flex flex-wrap gap-2 pt-1">{badges}</div>;
+  };
+
+  return (
+    <Card
+      data-testid={testId}
+      className={cn(
+        "group overflow-hidden rounded-[28px] border shadow-[0_24px_70px_-36px_rgba(0,0,0,0.75)] transition-colors duration-300",
+        retired
+          ? "border-border/35 bg-card/80 hover:border-primary/20 hover:bg-card/85"
+          : "border-border/50 bg-card/85 hover:border-primary/30 hover:bg-card/90",
+      )}
+    >
+      <CardContent className="p-5 sm:p-6">
+        <div className="flex flex-col gap-5 lg:grid lg:grid-cols-[260px_minmax(0,1fr)] lg:items-stretch">
+          <div
+            className={cn(
+              "relative flex min-h-64 items-center justify-center py-2 sm:min-h-72 lg:min-h-[280px]",
+              retired ? "text-foreground/80" : "text-foreground",
+            )}
+          >
+            <PublicUserProfileAvatar
+              imageSrc={resolvedImageSrc}
+              name={member.name}
+              mediaVariants={mediaVariants}
+            />
+          </div>
+
+          <div
+            className={cn(
+              "team-member-frame flex h-full flex-col gap-4 rounded-2xl border p-5 sm:p-6 lg:p-6",
+              hasFavoriteWorks && "team-member-frame--has-favorites",
+              retired && "team-member-frame--retired",
+            )}
+            data-mobile-favorites-open={hasFavoriteWorks && isFavoritePanelOpen ? "true" : "false"}
+          >
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+              <div className="min-w-0 space-y-3 sm:pr-4">
+                <h3 className="break-words text-lg font-semibold text-foreground">{member.name}</h3>
+              </div>
+              {socials.length > 0 ? (
+                <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+                  {socials.map((social) => {
+                    const resolved = resolveSocialLink(social, linkTypeMap);
+                    if (!resolved) {
+                      return null;
+                    }
+                    return (
+                      <a
+                        key={`${member.id}-${social.href}`}
+                        href={resolved.href}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex h-8 w-8 items-center justify-center rounded-full border border-primary/15 bg-background/60 text-primary/80 transition hover:border-primary/35 hover:text-primary"
+                        aria-label={resolved.label}
+                      >
+                        {resolved.customIcon ? (
+                          <ThemedSvgMaskIcon
+                            url={resolved.iconSource}
+                            label={resolved.label}
+                            className="h-4 w-4"
+                          />
+                        ) : (
+                          <resolved.Icon className="h-4 w-4" />
+                        )}
+                      </a>
+                    );
+                  })}
+                </div>
+              ) : null}
+            </div>
+
+            {hasFavoriteWorks ? (
+              <button
+                type="button"
+                className="team-member-favorites-toggle inline-flex w-fit items-center rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-primary transition hover:border-primary/35 hover:bg-primary/15 md:hidden"
+                aria-pressed={isFavoritePanelOpen}
+                aria-label={isFavoritePanelOpen ? "Ver bio" : "Ver obras favoritas"}
+                onClick={() => setFavoritePanelOpen((current) => !current)}
+              >
+                {isFavoritePanelOpen ? "Ver bio" : "Ver obras favoritas"}
+              </button>
+            ) : null}
+
+            <div className="team-member-panel-shell">
+              <div className="team-member-panel team-member-panel--bio flex flex-col gap-4">
+                <p
+                  className={cn(
+                    "rounded-2xl border px-3 py-2 text-xs italic leading-6",
+                    retired
+                      ? "border-white/[0.04] bg-white/[0.02] text-muted-foreground/90"
+                      : "border-primary/10 bg-primary/[0.06] text-muted-foreground/90",
+                  )}
+                >
+                  {member.phrase ? `"${member.phrase}"` : "-"}
+                </p>
+
+                <p className="text-sm leading-7 text-muted-foreground">
+                  {member.bio || "Sem biografia cadastrada."}
+                </p>
+
+                {renderMemberBadges()}
+              </div>
+
+              {hasFavoriteWorks ? (
+                <div className="team-member-panel team-member-panel--favorites flex flex-col gap-3">
+                  <p className="text-xs font-semibold uppercase tracking-[0.14em] text-primary/90">
+                    Obras favoritas
+                  </p>
+                  <div className="grid gap-3 md:grid-cols-2">
+                    {FAVORITE_WORK_CATEGORIES.map((category) => {
+                      const categoryLabel = category === "manga" ? "Mangá" : "Anime";
+                      const items = favoriteWorks[category];
+                      return (
+                        <div
+                          key={`${member.id}-${category}`}
+                          className="space-y-2 rounded-xl border border-primary/15 bg-primary/[0.04] p-3"
+                        >
+                          <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-primary/90">
+                            {categoryLabel}
+                          </p>
+                          {items.length > 0 ? (
+                            <ul className="space-y-2">
+                              {items.map((work, index) => (
+                                <li
+                                  key={`${member.id}-${category}-${work}-${index}`}
+                                  className="rounded-xl border border-primary/15 bg-primary/[0.06] px-3 py-2 text-sm text-foreground/90"
+                                >
+                                  {work}
+                                </li>
+                              ))}
+                            </ul>
+                          ) : (
+                            <p className="text-sm text-muted-foreground">Nenhuma obra cadastrada.</p>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              ) : null}
+            </div>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+};
+
+export default PublicUserProfileCard;

@@ -55,7 +55,7 @@ vi.mock("@/components/WorkStatusCard", () => ({
 }));
 
 vi.mock("@/components/TopProjectsSection", () => ({
-  default: () => <div data-testid="top-projects-card" />,
+  default: () => null,
 }));
 
 vi.mock("@/components/ProjectEmbedCard", () => ({
@@ -100,6 +100,12 @@ const setupApiMock = () => {
     if (endpoint === "/api/public/posts/post-teste" && method === "GET") {
       return mockJsonResponse(true, { post: postFixture });
     }
+    if (endpoint === "/api/public/users" && method === "GET") {
+      return mockJsonResponse(true, { users: [], mediaVariants: {} });
+    }
+    if (endpoint === "/api/link-types" && method === "GET") {
+      return mockJsonResponse(true, { items: [] });
+    }
     if (endpoint === "/api/public/posts/post-teste/view" && method === "POST") {
       return mockJsonResponse(true, { views: 11 });
     }
@@ -115,7 +121,7 @@ describe("Post reader layout", () => {
     apiFetchMock.mockReset();
   });
 
-  it("mantem estrutura editorial do hero e sidebar sticky sem bloco glass no texto", async () => {
+  it("mantem estrutura editorial do hero com leitor full-width sem sidebar auxiliar", async () => {
     setupApiMock();
 
     render(
@@ -134,9 +140,7 @@ describe("Post reader layout", () => {
     const coverFrame = screen.getByTestId("post-reader-cover-frame");
     const readerLayout = screen.getByTestId("post-reader-layout");
     const readerMain = screen.getByTestId("post-reader-main");
-    const readerSidebar = screen.getByTestId("post-reader-sidebar");
-    const topProjectsCard = screen.getByTestId("top-projects-card");
-    const lexicalViewer = screen.getByTestId("lexical-viewer");
+    const lexicalViewer = await screen.findByTestId("lexical-viewer");
 
     expect(hero).toBeInTheDocument();
     expect(heroLayout).toBeInTheDocument();
@@ -146,9 +150,8 @@ describe("Post reader layout", () => {
     expect(coverFrame).toBeInTheDocument();
     expect(readerLayout).toBeInTheDocument();
     expect(readerMain).toBeInTheDocument();
-    expect(readerSidebar).toBeInTheDocument();
-    expect(topProjectsCard).toBeInTheDocument();
-    expect(within(readerSidebar).getByTestId("top-projects-card")).toBeInTheDocument();
+    expect(screen.queryByTestId("post-author-card")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("post-reader-sidebar")).not.toBeInTheDocument();
 
     const heroLayoutClasses = classTokens(heroLayout);
     expect(heroLayoutClasses).toContain("grid");
@@ -167,15 +170,15 @@ describe("Post reader layout", () => {
     const coverBridgeClasses = classTokens(coverBridge);
     expect(coverBridgeClasses).toContain("hidden");
     expect(coverBridgeClasses).toContain("md:block");
-    expect(coverBridgeClasses).toContain("lg:grid");
-    expect(coverBridgeClasses).toContain("lg:gap-8");
-    expect(coverBridgeClasses).toContain("lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]");
-    expect(coverBridgeClasses).not.toContain("-mt-24");
-    expect(coverBridgeClasses).not.toContain("md:-mt-28");
+    expect(coverBridgeClasses).toContain("-mt-24");
+    expect(coverBridgeClasses).toContain("md:-mt-28");
+    expect(coverBridgeClasses).not.toContain("lg:grid");
+    expect(coverBridgeClasses).not.toContain("lg:gap-8");
+    expect(coverBridgeClasses).not.toContain("lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]");
 
     const coverShellClasses = classTokens(coverShell);
     expect(coverShellClasses).toContain("w-full");
-    expect(coverShellClasses).toContain("lg:col-start-1");
+    expect(coverShellClasses).not.toContain("lg:col-start-1");
     expect(coverShellClasses).not.toContain("max-w-[560px]");
     expect(coverShellClasses).not.toContain("lg:max-w-[640px]");
 
@@ -184,19 +187,15 @@ describe("Post reader layout", () => {
     expect(coverFrameClasses).toContain("border-border/80");
     expect(coverFrameClasses).toContain("shadow-[0_42px_120px_-48px_rgba(0,0,0,0.95)]");
 
-    const sidebarClasses = classTokens(readerSidebar);
-    expect(sidebarClasses).toContain("lg:sticky");
-    expect(sidebarClasses).toContain("lg:top-24");
-    expect(sidebarClasses).toContain("self-start");
-
     const readerLayoutClasses = classTokens(readerLayout);
-    expect(readerLayoutClasses).toContain("lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]");
+    expect(readerLayoutClasses).not.toContain("lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]");
+    expect(readerLayoutClasses).not.toContain("grid");
 
     const readerContent = lexicalViewer.parentElement as HTMLElement | null;
     expect(readerContent).not.toBeNull();
     const readerContentClasses = classTokens(readerContent as HTMLElement);
     expect(readerContentClasses).toContain("p-6");
-    expect(readerContentClasses).not.toContain("md:p-8");
+    expect(readerContentClasses).toContain("md:p-8");
 
     const infoClasses = classTokens(heroInfo);
     expect(infoClasses).not.toContain("bg-card/45");
@@ -208,7 +207,7 @@ describe("Post reader layout", () => {
     const readerLayoutWrapper = readerLayout.parentElement as HTMLElement | null;
     expect(readerLayoutWrapper).not.toBeNull();
     const readerLayoutWrapperClasses = classTokens(readerLayoutWrapper as HTMLElement);
-    expect(readerLayoutWrapperClasses).toContain("pt-6");
+    expect(readerLayoutWrapperClasses).toContain("pt-4");
     expect(readerLayoutWrapperClasses).toContain("md:pt-10");
 
     const main = document.querySelector("main");
