@@ -5,9 +5,11 @@ import {
   normalizeUploadUrl,
   runUploadsReorganization,
 } from "./uploads-reorganizer.js";
+import { normalizePublicUploadUrl } from "./public-media-variants.js";
 
 const CRITICAL_ISSUE_TYPES = new Set([
   "missing_source_file",
+  "missing_variant_file",
   "missing_upload_file_for_inventory",
 ]);
 
@@ -94,6 +96,46 @@ const collectMissingUploadRefsFromDatasets = (datasets, uploadsDir) => {
     .filter(Boolean);
 };
 
+const collectMissingVariantRefsFromUploads = (datasets, uploadsDir) => {
+  const uploads = Array.isArray(datasets?.uploads) ? datasets.uploads : [];
+  const issues = [];
+
+  uploads.forEach((upload) => {
+    const variants = upload?.variants;
+    if (!variants || typeof variants !== "object") {
+      return;
+    }
+    Object.entries(variants).forEach(([presetKey, presetRecord]) => {
+      const formats =
+        presetRecord?.formats && typeof presetRecord.formats === "object"
+          ? presetRecord.formats
+          : null;
+      if (!formats) {
+        return;
+      }
+      Object.entries(formats).forEach(([formatKey, formatRecord]) => {
+        const uploadUrl = normalizePublicUploadUrl(formatRecord?.url);
+        if (!uploadUrl) {
+          return;
+        }
+        const relative = getUploadRelativePath(uploadUrl);
+        const diskPath = path.join(uploadsDir, relative);
+        if (fileExists(diskPath)) {
+          return;
+        }
+        issues.push({
+          type: "missing_variant_file",
+          url: uploadUrl,
+          path: relative,
+          target: `${String(upload?.id || "")}:${presetKey}:${formatKey}`,
+        });
+      });
+    });
+  });
+
+  return issues;
+};
+
 const mergeCriticalIssues = (issues) => {
   const deduped = new Map();
   issues.forEach((issue) => {
@@ -136,10 +178,15 @@ export const runUploadsIntegrityCheck = ({
     reorganizationReport.rewritten || datasets || {},
     uploadsDir,
   ).map((issue) => normalizeIssue(issue, "dataset-scan"));
+  const criticalFromUploadsMetadata = collectMissingVariantRefsFromUploads(
+    reorganizationReport.rewritten || datasets || {},
+    uploadsDir,
+  ).map((issue) => normalizeIssue(issue, "uploads-metadata"));
 
   const criticalIssues = mergeCriticalIssues([
     ...criticalFromReorganization,
     ...criticalFromDatasetScan,
+    ...criticalFromUploadsMetadata,
   ]);
 
   const criticalCountByType = criticalIssues.reduce((acc, issue) => {
@@ -164,6 +211,7 @@ export const runUploadsIntegrityCheck = ({
 export const __testing = {
   collectUploadUrlsDeep,
   collectMissingUploadRefsFromDatasets,
+  collectMissingVariantRefsFromUploads,
   getUploadRelativePath,
   hasCriticalType,
   mergeCriticalIssues,

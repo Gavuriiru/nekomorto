@@ -185,94 +185,96 @@ const TopProjectsSection = () => {
             Ainda sem dados de visualizacao.
           </div>
         ) : (
-          <div
-            ref={synopsisRootRef}
-            data-testid="top-projects-list"
-            style={listLayoutStyle}
-            className={`no-scrollbar space-y-[var(--top-gap)] overflow-y-auto overscroll-contain pr-1 max-h-[calc((var(--top-card-h)*${TOP_PROJECTS_VISIBLE_MOBILE})+(var(--top-gap)*${TOP_PROJECTS_VISIBLE_MOBILE - 1}))] md:max-h-[calc((var(--top-card-h)*${TOP_PROJECTS_VISIBLE_DESKTOP})+(var(--top-gap)*${TOP_PROJECTS_VISIBLE_DESKTOP - 1}))]`}
-          >
-            {topProjects.map((entry, index) => {
-              const metricValue = mode === "30d" ? entry.views30d : mode === "7d" ? entry.views7d : entry.viewsAll;
+          <div className="overflow-hidden">
+            <div
+              ref={synopsisRootRef}
+              data-testid="top-projects-list"
+              style={listLayoutStyle}
+              className={`no-scrollbar -my-1 space-y-[var(--top-gap)] overflow-y-auto overscroll-contain pr-1 pt-1 pb-1 max-h-[calc((var(--top-card-h)*${TOP_PROJECTS_VISIBLE_MOBILE})+(var(--top-gap)*${TOP_PROJECTS_VISIBLE_MOBILE - 1})+0.5rem)] md:max-h-[calc((var(--top-card-h)*${TOP_PROJECTS_VISIBLE_DESKTOP})+(var(--top-gap)*${TOP_PROJECTS_VISIBLE_DESKTOP - 1})+0.5rem)]`}
+            >
+              {topProjects.map((entry, index) => {
+                const metricValue = mode === "30d" ? entry.views30d : mode === "7d" ? entry.views7d : entry.viewsAll;
 
-              return (
-                <Link
-                  key={entry.id}
-                  data-testid={`top-project-item-${index + 1}`}
-                  to={`/projeto/${entry.id}`}
-                  className="group relative block h-(--top-card-h) rounded-2xl border border-border/50 bg-linear-to-br from-background/70 via-background/40 to-background/70 transition-all duration-300 hover:-translate-y-1 hover:border-primary/40"
-                >
-                  <div className="absolute inset-4 flex h-auto items-stretch gap-4">
-                    <div
-                      className="h-full shrink-0 overflow-hidden rounded-xl bg-secondary/60"
-                      style={{ aspectRatio: PROJECT_COVER_ASPECT_RATIO }}
-                    >
-                      <UploadPicture
-                        src={entry.project.cover || "/placeholder.svg"}
-                        alt={entry.title}
-                        preset="posterThumb"
-                        mediaVariants={mediaVariants}
-                        sizes="96px"
-                        className="block h-full w-full"
-                        imgClassName="h-full w-full object-cover object-center transition-transform duration-300 group-hover:scale-105"
-                        loading="lazy"
-                      />
-                    </div>
-
-                    <div
-                      data-synopsis-role="column"
-                      data-synopsis-key={entry.id}
-                      className="flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden"
-                    >
+                return (
+                  <Link
+                    key={entry.id}
+                    data-testid={`top-project-item-${index + 1}`}
+                    to={`/projeto/${entry.id}`}
+                    className="group relative block h-(--top-card-h) rounded-2xl border border-border/50 bg-linear-to-br from-background/70 via-background/40 to-background/70 transition-all duration-300 hover:-translate-y-1 hover:border-primary/40"
+                  >
+                    <div className="absolute inset-4 flex h-auto items-stretch gap-4">
                       <div
-                        data-testid={`top-project-item-${index + 1}-meta-row`}
-                        className="flex min-w-0 items-center justify-between gap-2"
+                        className="h-full shrink-0 overflow-hidden rounded-xl bg-secondary/60"
+                        style={{ aspectRatio: PROJECT_COVER_ASPECT_RATIO }}
                       >
-                        <span
-                          data-testid={`top-project-item-${index + 1}-type`}
-                          className="min-w-0 truncate text-[10px] uppercase tracking-[0.16em] text-primary/80"
+                        <UploadPicture
+                          src={entry.project.cover || "/placeholder.svg"}
+                          alt={entry.title}
+                          preset="posterThumb"
+                          mediaVariants={mediaVariants}
+                          sizes="96px"
+                          className="block h-full w-full"
+                          imgClassName="h-full w-full object-cover object-center transition-transform duration-300 group-hover:scale-105"
+                          loading="lazy"
+                        />
+                      </div>
+
+                      <div
+                        data-synopsis-role="column"
+                        data-synopsis-key={entry.id}
+                        className="flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden"
+                      >
+                        <div
+                          data-testid={`top-project-item-${index + 1}-meta-row`}
+                          className="flex min-w-0 items-center justify-between gap-2"
                         >
-                          {entry.project.type || "Projeto"}
-                        </span>
-                        <div className="ml-auto inline-flex shrink-0 items-center gap-3 whitespace-nowrap">
                           <span
-                            data-testid={`top-project-item-${index + 1}-rank`}
-                            className="inline-flex items-center gap-1 text-[11px] text-muted-foreground"
-                            aria-label={`Posicao: ${index + 1}`}
+                            data-testid={`top-project-item-${index + 1}-type`}
+                            className="min-w-0 truncate text-[10px] uppercase tracking-[0.16em] text-primary/80"
                           >
-                            <Hash className="h-3.5 w-3.5 text-muted-foreground/80" aria-hidden="true" />
-                            {index + 1}
+                            {entry.project.type || "Projeto"}
                           </span>
-                          <span
-                            data-testid={`top-project-item-${index + 1}-metric`}
-                            className="inline-flex items-center gap-1 text-[11px] text-muted-foreground"
-                            aria-label={`Visualizacoes: ${numberFormatter.format(metricValue)}`}
-                          >
-                            <Eye className="h-3.5 w-3.5 text-muted-foreground/80" aria-hidden="true" />
-                            {numberFormatter.format(metricValue)}
-                          </span>
+                          <div className="ml-auto inline-flex shrink-0 items-center gap-3 whitespace-nowrap">
+                            <span
+                              data-testid={`top-project-item-${index + 1}-rank`}
+                              className="inline-flex items-center gap-1 text-[11px] text-muted-foreground"
+                              aria-label={`Posicao: ${index + 1}`}
+                            >
+                              <Hash className="h-3.5 w-3.5 text-muted-foreground/80" aria-hidden="true" />
+                              {index + 1}
+                            </span>
+                            <span
+                              data-testid={`top-project-item-${index + 1}-metric`}
+                              className="inline-flex items-center gap-1 text-[11px] text-muted-foreground"
+                              aria-label={`Visualizacoes: ${numberFormatter.format(metricValue)}`}
+                            >
+                              <Eye className="h-3.5 w-3.5 text-muted-foreground/80" aria-hidden="true" />
+                              {numberFormatter.format(metricValue)}
+                            </span>
+                          </div>
                         </div>
+                        <div data-synopsis-role="title" className="mt-1.5 space-y-1.5">
+                          <h3 className="line-clamp-2 text-base font-semibold leading-snug text-foreground transition-colors group-hover:text-primary">
+                            {entry.title}
+                          </h3>
+                        </div>
+                        <p
+                          data-synopsis-role="synopsis"
+                          className={cn(
+                            "mt-2 text-xs leading-relaxed text-muted-foreground",
+                            getSynopsisClampClass(entry.id),
+                          )}
+                        >
+                          {entry.project.synopsis ||
+                            entry.project.description ||
+                            "Sem sinopse cadastrada."}
+                        </p>
                       </div>
-                      <div data-synopsis-role="title" className="mt-1.5 space-y-1.5">
-                        <h3 className="line-clamp-2 text-base font-semibold leading-snug text-foreground transition-colors group-hover:text-primary">
-                          {entry.title}
-                        </h3>
-                      </div>
-                      <p
-                        data-synopsis-role="synopsis"
-                        className={cn(
-                          "mt-2 text-xs leading-relaxed text-muted-foreground",
-                          getSynopsisClampClass(entry.id),
-                        )}
-                      >
-                        {entry.project.synopsis ||
-                          entry.project.description ||
-                          "Sem sinopse cadastrada."}
-                      </p>
                     </div>
-                  </div>
-                </Link>
-              );
-            })}
+                  </Link>
+                );
+              })}
+            </div>
           </div>
         )}
       </CardContent>

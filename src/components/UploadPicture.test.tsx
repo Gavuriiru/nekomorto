@@ -1,5 +1,5 @@
-import { render } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { fireEvent, render } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
 
 import UploadPicture from "@/components/UploadPicture";
 import type { UploadMediaVariantsMap } from "@/lib/upload-variants";
@@ -521,5 +521,48 @@ describe("UploadPicture", () => {
       "srcset",
       expect.stringContaining("/uploads/_variants/u123/card-v1.jpeg"),
     );
+  });
+
+  it("faz fallback para o src original quando a variant falha sem repetir o erro indefinidamente", () => {
+    const mediaVariants: UploadMediaVariantsMap = {
+      "/uploads/posts/capa.png": {
+        variantsVersion: 1,
+        variants: {
+          hero: {
+            formats: {
+              avif: { url: "/uploads/_variants/u123/hero-v1.avif" },
+              fallback: { url: "/uploads/_variants/u123/hero-v1.jpeg" },
+            },
+          },
+        },
+      },
+    };
+    const onError = vi.fn();
+
+    const { container } = render(
+      <UploadPicture
+        src="/uploads/posts/capa.png"
+        alt="Hero com fallback"
+        preset="hero"
+        mediaVariants={mediaVariants}
+        onError={onError}
+      />,
+    );
+
+    let img = container.querySelector("img");
+    expect(img).not.toBeNull();
+    expect(container.querySelectorAll("source")).toHaveLength(1);
+    expect(img).toHaveAttribute("src", expect.stringContaining("/uploads/_variants/u123/hero-v1.jpeg"));
+
+    fireEvent.error(img as HTMLImageElement);
+
+    img = container.querySelector("img");
+    expect(container.querySelectorAll("source")).toHaveLength(0);
+    expect(img).toHaveAttribute("src", expect.stringContaining("/uploads/posts/capa.png"));
+    expect(onError).not.toHaveBeenCalled();
+
+    fireEvent.error(img as HTMLImageElement);
+
+    expect(onError).toHaveBeenCalledTimes(1);
   });
 });

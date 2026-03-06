@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { MemoryRouter, useLocation } from "react-router-dom";
 import { describe, expect, it, vi } from "vitest";
 
@@ -9,25 +9,6 @@ const apiFetchMock = vi.hoisted(() => vi.fn());
 
 vi.mock("@/components/DashboardShell", () => ({
   default: ({ children }: { children: ReactNode }) => <div>{children}</div>,
-}));
-
-vi.mock("@/components/dashboard/DashboardPageContainer", () => ({
-  default: ({ children }: { children: ReactNode }) => <div>{children}</div>,
-}));
-
-vi.mock("@/components/dashboard/DashboardPageHeader", () => ({
-  default: ({
-    title,
-    actions,
-  }: {
-    title: string;
-    actions?: ReactNode;
-  }) => (
-    <div>
-      <h1>{title}</h1>
-      {actions}
-    </div>
-  ),
 }));
 
 vi.mock("@/components/ImageLibraryDialog", () => ({
@@ -167,6 +148,8 @@ const LocationProbe = () => {
   return <div data-testid="location-search">{location.search}</div>;
 };
 
+const classTokens = (element: HTMLElement) => String(element.className).split(/\s+/).filter(Boolean);
+
 describe("DashboardPosts edit query", () => {
   it("abre criacao automaticamente com ?edit=new e limpa a query", async () => {
     setupApiMock({ canManagePosts: true });
@@ -179,7 +162,7 @@ describe("DashboardPosts edit query", () => {
     );
 
     await screen.findByRole("heading", { name: "Gerenciar posts" });
-    await screen.findByText("Nova postagem");
+    await screen.findByRole("heading", { name: "Nova postagem" });
     await waitFor(() => {
       expect(screen.getByTestId("location-search").textContent).toBe("");
     });
@@ -196,7 +179,7 @@ describe("DashboardPosts edit query", () => {
     );
 
     await screen.findByRole("heading", { name: "Gerenciar posts" });
-    await screen.findByText("Editar postagem");
+    await screen.findByRole("heading", { name: "Editar postagem" });
     await waitFor(() => {
       expect(screen.getByTestId("location-search").textContent).toBe("");
     });
@@ -231,7 +214,7 @@ describe("DashboardPosts edit query", () => {
     await waitFor(() => {
       expect(screen.getByTestId("location-search").textContent).toBe("");
     });
-    expect(screen.queryByText("Editar postagem")).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Editar postagem" })).not.toBeInTheDocument();
   });
 
   it("oculta botao de historico quando a unica versao equivale ao estado atual", async () => {
@@ -250,7 +233,7 @@ describe("DashboardPosts edit query", () => {
     );
 
     await screen.findByRole("heading", { name: "Gerenciar posts" });
-    await screen.findByText("Editar postagem");
+    await screen.findByRole("heading", { name: "Editar postagem" });
 
     await waitFor(() => {
       expect(
@@ -277,7 +260,7 @@ describe("DashboardPosts edit query", () => {
     );
 
     await screen.findByRole("heading", { name: "Gerenciar posts" });
-    await screen.findByText("Editar postagem");
+    await screen.findByRole("heading", { name: "Editar postagem" });
 
     await waitFor(() => {
       expect(screen.getByRole("button", { name: /Hist/i })).toBeInTheDocument();
@@ -301,10 +284,62 @@ describe("DashboardPosts edit query", () => {
     );
 
     await screen.findByRole("heading", { name: "Gerenciar posts" });
-    await screen.findByText("Editar postagem");
+    await screen.findByRole("heading", { name: "Editar postagem" });
 
     await waitFor(() => {
       expect(screen.getByRole("button", { name: /Hist/i })).toBeInTheDocument();
     });
+  });
+
+  it("usa shell no padrao do editor de projetos e controla classe editor-modal-scrolled", async () => {
+    setupApiMock({ canManagePosts: true });
+
+    render(
+      <MemoryRouter initialEntries={["/dashboard/posts?edit=post-1"]}>
+        <DashboardPosts />
+        <LocationProbe />
+      </MemoryRouter>,
+    );
+
+    await screen.findByRole("heading", { name: "Gerenciar posts" });
+    await screen.findByRole("heading", { name: "Editar postagem" });
+    await waitFor(() => {
+      expect(screen.getByTestId("location-search").textContent).toBe("");
+    });
+
+    const editorDialog = document.querySelector(".project-editor-dialog") as HTMLElement | null;
+    const editorTop = document.querySelector(".project-editor-top") as HTMLElement | null;
+    const editorFooter = document.querySelector(".project-editor-footer") as HTMLElement | null;
+
+    expect(editorDialog).not.toBeNull();
+    expect(editorTop).not.toBeNull();
+    expect(editorFooter).not.toBeNull();
+    expect(classTokens(editorTop as HTMLElement)).toContain("sticky");
+    expect(classTokens(editorFooter as HTMLElement)).toContain("sticky");
+    expect(screen.getByText("Postagem em edição")).toBeInTheDocument();
+    if (!editorDialog) {
+      throw new Error("Editor dialog not found");
+    }
+    expect(within(editorDialog).getByRole("button", { name: "Cancelar" })).toBeInTheDocument();
+    expect(within(editorDialog).getByRole("button", { name: "Excluir" })).toBeInTheDocument();
+    expect(within(editorDialog).getByRole("button", { name: "Salvar" })).toBeInTheDocument();
+    expect(
+      within(editorDialog).getByRole("button", { name: "Publicar agora" }),
+    ).toBeInTheDocument();
+    expect(editorDialog).not.toHaveClass("editor-modal-scrolled");
+
+    editorDialog.scrollTop = 24;
+    fireEvent.scroll(editorDialog);
+
+    await waitFor(() => {
+      expect(editorDialog).toHaveClass("editor-modal-scrolled");
+    });
+
+    fireEvent.click(within(editorDialog).getByRole("button", { name: "Cancelar" }));
+
+    await waitFor(() => {
+      expect(screen.queryByRole("heading", { name: "Editar postagem" })).not.toBeInTheDocument();
+    });
+    expect(document.querySelector(".project-editor-dialog.editor-modal-scrolled")).toBeNull();
   });
 });

@@ -1,4 +1,4 @@
-﻿import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import DashboardShell from "@/components/DashboardShell";
 import DashboardPageContainer from "@/components/dashboard/DashboardPageContainer";
@@ -36,7 +36,6 @@ import { toast } from "@/components/ui/use-toast";
 import {
   CalendarDays,
   Copy,
-  Edit3,
   Eye,
   History,
   List as ListIcon,
@@ -44,7 +43,6 @@ import {
   Plus,
   RotateCcw,
   Trash2,
-  X,
   UserRound,
 } from "lucide-react";
 import { createSlug, getLexicalText } from "@/lib/post-content";
@@ -99,6 +97,12 @@ const emptyForm = {
   projectId: "",
   tags: [] as string[],
 };
+
+const postStatusLabels = {
+  draft: "Rascunho",
+  scheduled: "Agendado",
+  published: "Publicado",
+} as const;
 
 const pad = (value: number) => String(value).padStart(2, "0");
 
@@ -1796,6 +1800,22 @@ const DashboardPosts = () => {
   const editingPostHasRestorableHistory = Boolean(
     editingPost?.id && versionHistoryAvailabilityByPostId[editingPost.id] === true,
   );
+  const editorSectionClassName =
+    "project-editor-section rounded-2xl border border-border/60 bg-card/70 px-4";
+  const editorSectionHeaderClassName =
+    "project-editor-section-trigger flex w-full items-center justify-between gap-4 py-3 text-left";
+  const editorSectionContentClassName = "project-editor-section-content px-1 pb-4";
+  const editorPostLabel = editingPost ? "Postagem em edição" : "Nova postagem";
+  const editorPostTitle = formState.title.trim() || "Sem título";
+  const editorPostId = editingPost?.id || "Será definido ao salvar";
+  const editorSlugValue = formState.slug.trim() || editingPost?.slug || "";
+  const editorPostSlug = editorSlugValue ? `/${editorSlugValue}` : "Slug será definido ao salvar";
+  const editorStatusLabel = postStatusLabels[formState.status];
+  const editorAuthorLabel = formState.author.trim() || currentUser?.name || "Sem autor";
+  const editorProjectLabel = formState.projectId
+    ? projectMap.get(formState.projectId)?.title || `ID ${formState.projectId}`
+    : "Sem projeto";
+  const editorTagCount = mergedTags.length;
 
   return (
     <>
@@ -1834,7 +1854,7 @@ const DashboardPosts = () => {
               />
               <Dialog open={isEditorOpen} onOpenChange={handleEditorOpenChange} modal={false}>
                 <DialogContent
-                  className={`max-w-6xl max-h-[92vh] overflow-y-auto no-scrollbar ${
+                  className={`project-editor-dialog max-h-[94vh] max-w-[min(1520px,calc(100vw-1rem))] overflow-y-auto no-scrollbar p-0 ${
                     isEditorDialogScrolled ? "editor-modal-scrolled" : ""
                   }`}
                   onScroll={(event) => {
@@ -1864,14 +1884,63 @@ const DashboardPosts = () => {
                     }
                   }}
                 >
-                  <DialogHeader>
-                    <DialogTitle>{editingPost ? "Editar postagem" : "Nova postagem"}</DialogTitle>
-                    <DialogDescription>
-                      Crie, edite e publique conteúdos sem sair da listagem.
-                    </DialogDescription>
-                  </DialogHeader>
+                  <div className="project-editor-top sticky top-0 z-20 border-b border-border/60 bg-background/95 backdrop-blur-sm supports-backdrop-filter:bg-background/80">
+                    <DialogHeader className="space-y-0 px-4 pb-4 pt-5 text-left md:px-6 lg:px-8">
+                      <div className="flex flex-wrap items-start justify-between gap-4">
+                        <div className="space-y-2">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <Badge
+                              variant="secondary"
+                              className="text-[10px] uppercase tracking-[0.12em]"
+                            >
+                              {editorPostLabel}
+                            </Badge>
+                            <Badge
+                              variant="outline"
+                              className="text-[10px] uppercase tracking-[0.12em]"
+                            >
+                              {editorStatusLabel}
+                            </Badge>
+                          </div>
+                          <DialogTitle className="text-xl md:text-2xl">
+                            {editingPost ? "Editar postagem" : "Nova postagem"}
+                          </DialogTitle>
+                          <DialogDescription className="max-w-2xl text-xs md:text-sm">
+                            Crie, edite e publique conteúdos sem sair da listagem.
+                          </DialogDescription>
+                        </div>
+                        <div className="rounded-xl border border-border/60 bg-card/65 px-3 py-2 text-right">
+                          <p className="text-[11px] uppercase tracking-[0.12em] text-muted-foreground">
+                            Postagem
+                          </p>
+                          <p className="max-w-[260px] truncate text-sm font-medium text-foreground">
+                            {editorPostTitle}
+                          </p>
+                          <p className="max-w-[260px] truncate text-[11px] text-muted-foreground">
+                            {editorPostSlug}
+                          </p>
+                        </div>
+                      </div>
+                    </DialogHeader>
+                    <div className="project-editor-status-bar flex flex-wrap items-center gap-2 border-t border-border/60 px-4 py-3 md:px-6 lg:px-8">
+                      <Badge variant="outline" className="text-[10px] uppercase tracking-[0.12em]">
+                        ID {editorPostId}
+                      </Badge>
+                      <Badge variant="secondary" className="text-[10px] uppercase tracking-[0.12em]">
+                        {editorStatusLabel}
+                      </Badge>
+                      <Badge variant="secondary" className="text-[10px] uppercase tracking-[0.12em]">
+                        {editorAuthorLabel}
+                      </Badge>
+                      <span className="max-w-[280px] truncate text-[11px] text-muted-foreground">
+                        {editorProjectLabel}
+                      </span>
+                      <span className="text-[11px] text-muted-foreground">
+                        {editorTagCount} {editorTagCount === 1 ? "tag" : "tags"}
+                      </span>
+                    </div>
+                  </div>
                   <div
-                    className="mt-2 space-y-8"
                     onFocusCapture={(event) => {
                       const target = event.target as HTMLElement | null;
                       if (target?.closest(".lexical-playground")) {
@@ -1880,158 +1949,192 @@ const DashboardPosts = () => {
                       editorRef.current?.blur();
                     }}
                   >
-                    <div className="grid gap-8 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
-                      <Suspense fallback={<LexicalEditorFallback />}>
-                        <LexicalEditor
-                          ref={editorRef}
-                          value={formState.contentLexical}
-                          onChange={(value) =>
-                            setFormState((prev) => ({
-                              ...prev,
-                              contentLexical: value,
-                            }))
-                          }
-                          placeholder="Escreva o conteúdo do post..."
-                          className="lexical-playground--stretch lexical-playground--modal min-w-0 w-full"
-                          imageLibraryOptions={postImageLibraryOptions}
-                        />
-                      </Suspense>
-
-                      <aside className="min-w-0 space-y-6">
-                        <Card className="border-border/60 bg-card/80">
-                          <CardContent className="space-y-5 p-6">
-                            <div className="space-y-2">
-                              <Label htmlFor="post-title">{"Título"}</Label>
-                              <Input
-                                id="post-title"
-                                value={formState.title}
-                                onChange={(event) =>
-                                  setFormState((prev) => ({ ...prev, title: event.target.value }))
-                                }
-                              />
+                    <div className="project-editor-layout space-y-6 px-4 pb-6 pt-4 md:px-6 md:pb-7 lg:px-8">
+                      <div className="grid gap-5 xl:grid-cols-[minmax(0,1.65fr)_minmax(340px,0.95fr)]">
+                        <section className={`${editorSectionClassName} min-w-0`} data-state="open">
+                          <div className={editorSectionHeaderClassName}>
+                            <div className="flex w-full items-center justify-between gap-4 text-left">
+                              <span className="text-sm font-semibold">Conteúdo</span>
+                              <span className="text-xs text-muted-foreground">
+                                Texto principal do post
+                              </span>
                             </div>
-                            <div className="space-y-2">
-                              <div className="flex items-center justify-between">
-                                <Label htmlFor="post-slug">Link</Label>
-                                <Button
-                                  type="button"
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => setIsSlugCustom((prev) => !prev)}
-                                >
-                                  {isSlugCustom ? "Automático" : "Personalizar"}
-                                </Button>
-                              </div>
-                              <Input
-                                id="post-slug"
-                                value={formState.slug}
-                                onChange={(event) => {
-                                  setIsSlugCustom(true);
-                                  setFormState((prev) => ({ ...prev, slug: event.target.value }));
-                                }}
-                                disabled={!isSlugCustom}
-                              />
-                            </div>
-                            <div className="space-y-2">
-                              <Label htmlFor="post-author">Autor</Label>
-                              <Input
-                                id="post-author"
-                                value={formState.author}
-                                onChange={(event) =>
-                                  setFormState((prev) => ({ ...prev, author: event.target.value }))
-                                }
-                              />
-                            </div>
-                            <div className="space-y-2">
-                              <Label htmlFor="post-status">Status</Label>
-                              <Select
-                                value={formState.status}
-                                onValueChange={(value) =>
+                          </div>
+                          <div className={editorSectionContentClassName}>
+                            <Suspense fallback={<LexicalEditorFallback />}>
+                              <LexicalEditor
+                                ref={editorRef}
+                                value={formState.contentLexical}
+                                onChange={(value) =>
                                   setFormState((prev) => ({
                                     ...prev,
-                                    status: value as "draft" | "scheduled" | "published",
+                                    contentLexical: value,
                                   }))
                                 }
-                              >
-                                <SelectTrigger id="post-status">
-                                  <SelectValue placeholder="Selecione" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="draft">Rascunho</SelectItem>
-                                  <SelectItem value="scheduled">Agendado</SelectItem>
-                                  <SelectItem value="published">Publicado</SelectItem>
-                                </SelectContent>
-                              </Select>
-                            </div>
-                            <div className="space-y-2">
-                              <Label htmlFor="post-date">{"Publicação"}</Label>
-                              <MuiDateTimeFieldsProvider>
-                                <div className="grid gap-3 md:grid-cols-[1.2fr_0.8fr]">
-                                  <MuiBrazilDateField
-                                    id="post-date"
-                                    value={publishDateValue}
-                                    onChange={handlePublishDateChange}
-                                  />
-                                  <div className="flex items-center gap-2">
-                                    <MuiBrazilTimeField
-                                      id="post-time"
-                                      value={publishTimeValue}
-                                      onChange={handlePublishTimeChange}
-                                      className="flex-1"
-                                    />
-                                    <Button
-                                      type="button"
-                                      size="sm"
-                                      variant="ghost"
-                                      className="h-8 px-2 text-xs"
-                                      onClick={handleSetNow}
-                                    >
-                                      Agora
-                                    </Button>
-                                  </div>
-                                </div>
-                              </MuiDateTimeFieldsProvider>
-                            </div>
-                          </CardContent>
-                        </Card>
+                                placeholder="Escreva o conteúdo do post..."
+                                className="lexical-playground--stretch lexical-playground--modal min-w-0 w-full"
+                                imageLibraryOptions={postImageLibraryOptions}
+                              />
+                            </Suspense>
+                          </div>
+                        </section>
 
-                        <Card className="border-border/60 bg-card/80">
-                          <CardContent className="space-y-4 p-6">
-                            <div className="space-y-2">
-                              <Label>Capa</Label>
-                              {editorResolvedCover.coverImageUrl ? (
-                                <div className="space-y-2">
-                                  <div className="overflow-hidden rounded-lg border border-border bg-muted/20">
-                                    <UploadPicture
-                                      src={editorResolvedCover.coverImageUrl}
-                                      alt={editorResolvedCover.coverAlt}
-                                      preset="card"
-                                      mediaVariants={mediaVariants}
-                                      className="block w-full"
-                                      imgClassName="aspect-3/2 w-full object-cover"
-                                    />
-                                  </div>
-                                  <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
-                                    <span className="min-w-0 truncate">
-                                      {editorCoverFileName || "Imagem"}
-                                    </span>
-                                    <Badge
-                                      variant={
-                                        editorResolvedCover.source === "manual"
-                                          ? "secondary"
-                                          : "outline"
-                                      }
-                                      className="shrink-0 text-[10px] uppercase"
-                                    >
-                                      {editorResolvedCover.source === "manual"
-                                        ? "Manual"
-                                        : "Automática"}
-                                    </Badge>
-                                  </div>
+                        <aside className="min-w-0 space-y-4 md:space-y-5">
+                          <section className={editorSectionClassName} data-state="open">
+                            <div className={editorSectionHeaderClassName}>
+                              <div className="flex w-full items-center justify-between gap-4 text-left">
+                                <span className="text-sm font-semibold">Publicação</span>
+                                <span className="text-xs text-muted-foreground">
+                                  {editorStatusLabel}
+                                </span>
+                              </div>
+                            </div>
+                            <div className={`${editorSectionContentClassName} space-y-5`}>
+                              <div className="space-y-2">
+                                <Label htmlFor="post-title">Título</Label>
+                                <Input
+                                  id="post-title"
+                                  value={formState.title}
+                                  onChange={(event) =>
+                                    setFormState((prev) => ({ ...prev, title: event.target.value }))
+                                  }
+                                />
+                              </div>
+                              <div className="space-y-2">
+                                <div className="flex items-center justify-between gap-2">
+                                  <Label htmlFor="post-slug">Link</Label>
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => setIsSlugCustom((prev) => !prev)}
+                                  >
+                                    {isSlugCustom ? "Automático" : "Personalizar"}
+                                  </Button>
                                 </div>
-                              ) : (
-                                <p className="text-xs text-muted-foreground">Sem capa definida.</p>
-                              )}
+                                <Input
+                                  id="post-slug"
+                                  value={formState.slug}
+                                  onChange={(event) => {
+                                    setIsSlugCustom(true);
+                                    setFormState((prev) => ({ ...prev, slug: event.target.value }));
+                                  }}
+                                  disabled={!isSlugCustom}
+                                />
+                              </div>
+                              <div className="space-y-2">
+                                <Label htmlFor="post-author">Autor</Label>
+                                <Input
+                                  id="post-author"
+                                  value={formState.author}
+                                  onChange={(event) =>
+                                    setFormState((prev) => ({ ...prev, author: event.target.value }))
+                                  }
+                                />
+                              </div>
+                              <div className="space-y-2">
+                                <Label htmlFor="post-status">Status</Label>
+                                <Select
+                                  value={formState.status}
+                                  onValueChange={(value) =>
+                                    setFormState((prev) => ({
+                                      ...prev,
+                                      status: value as "draft" | "scheduled" | "published",
+                                    }))
+                                  }
+                                >
+                                  <SelectTrigger id="post-status">
+                                    <SelectValue placeholder="Selecione" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="draft">Rascunho</SelectItem>
+                                    <SelectItem value="scheduled">Agendado</SelectItem>
+                                    <SelectItem value="published">Publicado</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                              <div className="space-y-2">
+                                <Label htmlFor="post-date">Publicação</Label>
+                                <MuiDateTimeFieldsProvider>
+                                  <div className="grid gap-3 md:grid-cols-[1.2fr_0.8fr]">
+                                    <MuiBrazilDateField
+                                      id="post-date"
+                                      value={publishDateValue}
+                                      onChange={handlePublishDateChange}
+                                    />
+                                    <div className="flex items-center gap-2">
+                                      <MuiBrazilTimeField
+                                        id="post-time"
+                                        value={publishTimeValue}
+                                        onChange={handlePublishTimeChange}
+                                        className="flex-1"
+                                      />
+                                      <Button
+                                        type="button"
+                                        size="sm"
+                                        variant="ghost"
+                                        className="h-8 px-2 text-xs"
+                                        onClick={handleSetNow}
+                                      >
+                                        Agora
+                                      </Button>
+                                    </div>
+                                  </div>
+                                </MuiDateTimeFieldsProvider>
+                              </div>
+                            </div>
+                          </section>
+
+                          <section className={editorSectionClassName} data-state="open">
+                            <div className={editorSectionHeaderClassName}>
+                              <div className="flex w-full items-center justify-between gap-4 text-left">
+                                <span className="text-sm font-semibold">Mídia</span>
+                                <span className="text-xs text-muted-foreground">
+                                  {editorResolvedCover.source === "manual"
+                                    ? "Capa manual"
+                                    : editorResolvedCover.coverImageUrl
+                                      ? "Fallback do conteúdo"
+                                      : "Sem capa"}
+                                </span>
+                              </div>
+                            </div>
+                            <div className={`${editorSectionContentClassName} space-y-4`}>
+                              <div className="space-y-2">
+                                <Label>Capa</Label>
+                                {editorResolvedCover.coverImageUrl ? (
+                                  <div className="space-y-2">
+                                    <div className="overflow-hidden rounded-lg border border-border bg-muted/20">
+                                      <UploadPicture
+                                        src={editorResolvedCover.coverImageUrl}
+                                        alt={editorResolvedCover.coverAlt}
+                                        preset="card"
+                                        mediaVariants={mediaVariants}
+                                        className="block w-full"
+                                        imgClassName="aspect-3/2 w-full object-cover"
+                                      />
+                                    </div>
+                                    <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
+                                      <span className="min-w-0 truncate">
+                                        {editorCoverFileName || "Imagem"}
+                                      </span>
+                                      <Badge
+                                        variant={
+                                          editorResolvedCover.source === "manual"
+                                            ? "secondary"
+                                            : "outline"
+                                        }
+                                        className="shrink-0 text-[10px] uppercase"
+                                      >
+                                        {editorResolvedCover.source === "manual"
+                                          ? "Manual"
+                                          : "Automática"}
+                                      </Badge>
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <p className="text-xs text-muted-foreground">Sem capa definida.</p>
+                                )}
+                              </div>
                               <Button
                                 type="button"
                                 variant="outline"
@@ -2041,12 +2144,18 @@ const DashboardPosts = () => {
                                 Biblioteca
                               </Button>
                             </div>
-                          </CardContent>
-                        </Card>
+                          </section>
 
-                        <Card className="border-border/60 bg-card/80">
-                          <CardContent className="space-y-4 p-6">
-                            <div className="space-y-2">
+                          <section className={editorSectionClassName} data-state="open">
+                            <div className={editorSectionHeaderClassName}>
+                              <div className="flex w-full items-center justify-between gap-4 text-left">
+                                <span className="text-sm font-semibold">Relacionamento</span>
+                                <span className="max-w-[180px] truncate text-xs text-muted-foreground">
+                                  {editorProjectLabel}
+                                </span>
+                              </div>
+                            </div>
+                            <div className={`${editorSectionContentClassName} space-y-2`}>
                               <Label>Projeto associado</Label>
                               <Select
                                 value={formState.projectId || "none"}
@@ -2070,13 +2179,18 @@ const DashboardPosts = () => {
                                 </SelectContent>
                               </Select>
                             </div>
-                          </CardContent>
-                        </Card>
+                          </section>
 
-                        <Card className="border-border/60 bg-card/80">
-                          <CardContent className="space-y-4 p-6">
-                            <div className="space-y-2">
-                              <Label>Tags</Label>
+                          <section className={editorSectionClassName} data-state="open">
+                            <div className={editorSectionHeaderClassName}>
+                              <div className="flex w-full items-center justify-between gap-4 text-left">
+                                <span className="text-sm font-semibold">Tags</span>
+                                <span className="text-xs text-muted-foreground">
+                                  {editorTagCount} {editorTagCount === 1 ? "tag" : "tags"}
+                                </span>
+                              </div>
+                            </div>
+                            <div className={`${editorSectionContentClassName} space-y-4`}>
                               <div className="flex flex-wrap gap-2">
                                 {mergedTags.map((tag) => {
                                   const isProjectTag = projectTags.includes(tag);
@@ -2124,91 +2238,83 @@ const DashboardPosts = () => {
                                   </span>
                                 ) : null}
                               </div>
+                              <div className="flex flex-wrap gap-2">
+                                <Input
+                                  ref={tagInputRef}
+                                  value={tagInput}
+                                  onChange={(event) => setTagInput(event.target.value)}
+                                  placeholder="Adicionar tag"
+                                  list="post-tag-options"
+                                  onBlur={() => {
+                                    if (tagInput.trim()) {
+                                      handleAddTag();
+                                    }
+                                  }}
+                                  onKeyDown={(event) => {
+                                    if (event.key === "Enter" || event.key === ",") {
+                                      event.preventDefault();
+                                      handleAddTag();
+                                    }
+                                  }}
+                                />
+                                <datalist id="post-tag-options">
+                                  {availableTags.map((tag) => (
+                                    <option key={tag} value={tag} />
+                                  ))}
+                                </datalist>
+                                <Button type="button" variant="secondary" onClick={handleAddTag}>
+                                  Adicionar
+                                </Button>
+                              </div>
                             </div>
-                            <div className="flex flex-wrap gap-2">
-                              <Input
-                                ref={tagInputRef}
-                                value={tagInput}
-                                onChange={(event) => setTagInput(event.target.value)}
-                                placeholder="Adicionar tag"
-                                list="post-tag-options"
-                                onBlur={() => {
-                                  if (tagInput.trim()) {
-                                    handleAddTag();
-                                  }
-                                }}
-                                onKeyDown={(event) => {
-                                  if (event.key === "Enter" || event.key === ",") {
-                                    event.preventDefault();
-                                    handleAddTag();
-                                  }
-                                }}
-                              />
-                              <datalist id="post-tag-options">
-                                {availableTags.map((tag) => (
-                                  <option key={tag} value={tag} />
-                                ))}
-                              </datalist>
-                              <Button type="button" variant="secondary" onClick={handleAddTag}>
-                                Adicionar
-                              </Button>
-                            </div>
-                          </CardContent>
-                        </Card>
+                          </section>
+                        </aside>
+                      </div>
 
-                        <div className="flex flex-wrap gap-3" />
-                      </aside>
+                      {formState.projectId ? (
+                        <ProjectEmbedCard projectId={formState.projectId} />
+                      ) : null}
                     </div>
-
-                    {formState.projectId ? (
-                      <ProjectEmbedCard projectId={formState.projectId} />
-                    ) : null}
-                    <div className="flex flex-wrap justify-end gap-3">
-                      <Button variant="ghost" onClick={requestCloseEditor} className="gap-2">
-                        <X className="h-4 w-4" />
-                        Fechar
-                      </Button>
-                      {editingPost ? (
-                        <>
-                          {editingPostHasRestorableHistory ? (
-                            <Button
-                              variant="outline"
-                              onClick={() => void openVersionHistory()}
-                              className="gap-2"
-                            >
-                              <History className="h-4 w-4" />
-                              Histórico
-                            </Button>
-                          ) : null}
-                          <Button variant="outline" onClick={handleDelete} className="gap-2">
-                            <Trash2 className="h-4 w-4" />
+                    <div className="project-editor-footer sticky bottom-0 z-20 flex flex-col gap-3 border-t border-border/60 bg-background/95 px-4 py-3 backdrop-blur-sm supports-backdrop-filter:bg-background/80 md:flex-row md:items-center md:justify-between md:px-6 md:py-4 lg:px-8">
+                      <div className="flex flex-wrap items-center gap-2">
+                        {editingPostHasRestorableHistory ? (
+                          <Button variant="outline" onClick={() => void openVersionHistory()}>
+                            Histórico
+                          </Button>
+                        ) : null}
+                        {editingPost ? (
+                          <Button variant="outline" onClick={handleDelete}>
                             Excluir
                           </Button>
-                          <Button onClick={() => handleSave()} className="gap-2">
-                            <Edit3 className="h-4 w-4" />
-                            Salvar
-                          </Button>
-                          {formState.status === "draft" ? (
-                            <Button onClick={() => handleSave("published")} className="gap-2">
-                              <Plus className="h-4 w-4" />
+                        ) : null}
+                      </div>
+                      <div className="flex flex-wrap items-center justify-end gap-2">
+                        <Button variant="ghost" onClick={requestCloseEditor}>
+                          Cancelar
+                        </Button>
+                        {editingPost ? (
+                          <>
+                            <Button onClick={() => handleSave()}>Salvar</Button>
+                            {formState.status === "draft" ? (
+                              <Button onClick={() => handleSave("published")}>
+                                Publicar agora
+                              </Button>
+                            ) : null}
+                          </>
+                        ) : (
+                          <>
+                            <Button variant="ghost" onClick={() => handleSave("draft")}>
+                              Salvar rascunho
+                            </Button>
+                            <Button variant="secondary" onClick={() => handleSave("scheduled")}>
+                              Agendar
+                            </Button>
+                            <Button onClick={() => handleSave("published")}>
                               Publicar agora
                             </Button>
-                          ) : null}
-                        </>
-                      ) : (
-                        <>
-                          <Button variant="ghost" onClick={() => handleSave("draft")}>
-                            Salvar rascunho
-                          </Button>
-                          <Button variant="secondary" onClick={() => handleSave("scheduled")}>
-                            Agendar
-                          </Button>
-                          <Button onClick={() => handleSave("published")} className="gap-2">
-                            <Plus className="h-4 w-4" />
-                            Publicar agora
-                          </Button>
-                        </>
-                      )}
+                          </>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </DialogContent>

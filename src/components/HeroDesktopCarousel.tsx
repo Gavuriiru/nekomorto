@@ -20,9 +20,7 @@ type HeroDesktopCarouselProps = {
   ) => React.ReactNode;
 };
 
-const HERO_AUTOPLAY_INTERVAL_MS = 6000;
-const HERO_AUTOPLAY_RESUME_DELAY_MS = 3000;
-const HERO_AUTOPLAY_INITIAL_DELAY_MS = 20000;
+const HERO_AUTOPLAY_INTERVAL_MS = 5000;
 
 const HeroDesktopCarousel = ({
   slides,
@@ -30,9 +28,7 @@ const HeroDesktopCarousel = ({
   renderSlide,
 }: HeroDesktopCarouselProps) => {
   const [api, setApi] = React.useState<CarouselApi | null>(null);
-  const autoplayRef = React.useRef<number | null>(null);
-  const resumeTimeoutRef = React.useRef<number | null>(null);
-  const initialAutoplayTimeoutRef = React.useRef<number | null>(null);
+  const autoplayTimeoutRef = React.useRef<number | null>(null);
   const [activeIndex, setActiveIndex] = React.useState(0);
   const [loadedSlideIds, setLoadedSlideIds] = React.useState<Set<string>>(
     () => new Set(),
@@ -79,51 +75,26 @@ const HeroDesktopCarousel = ({
     });
   }, [activeIndex, slides]);
 
-  const stopAutoplay = React.useCallback(() => {
-    if (autoplayRef.current !== null) {
-      window.clearInterval(autoplayRef.current);
-      autoplayRef.current = null;
+  const clearAutoplayTimeout = React.useCallback(() => {
+    if (autoplayTimeoutRef.current !== null) {
+      window.clearTimeout(autoplayTimeoutRef.current);
+      autoplayTimeoutRef.current = null;
     }
   }, []);
 
-  const clearInitialAutoplayTimeout = React.useCallback(() => {
-    if (initialAutoplayTimeoutRef.current !== null) {
-      window.clearTimeout(initialAutoplayTimeoutRef.current);
-      initialAutoplayTimeoutRef.current = null;
-    }
-  }, []);
-
-  const startAutoplay = React.useCallback(() => {
+  const scheduleAutoplay = React.useCallback(() => {
     if (!api) {
       return;
     }
     if (typeof document !== "undefined" && document.hidden) {
       return;
     }
-    stopAutoplay();
-    autoplayRef.current = window.setInterval(() => {
+    clearAutoplayTimeout();
+    autoplayTimeoutRef.current = window.setTimeout(() => {
+      autoplayTimeoutRef.current = null;
       api.scrollNext();
     }, HERO_AUTOPLAY_INTERVAL_MS);
-  }, [api, stopAutoplay]);
-
-  const scheduleInitialAutoplay = React.useCallback(() => {
-    clearInitialAutoplayTimeout();
-    initialAutoplayTimeoutRef.current = window.setTimeout(() => {
-      initialAutoplayTimeoutRef.current = null;
-      startAutoplay();
-    }, HERO_AUTOPLAY_INITIAL_DELAY_MS);
-  }, [clearInitialAutoplayTimeout, startAutoplay]);
-
-  const scheduleAutoplayResume = React.useCallback(() => {
-    stopAutoplay();
-    clearInitialAutoplayTimeout();
-    if (resumeTimeoutRef.current !== null) {
-      window.clearTimeout(resumeTimeoutRef.current);
-    }
-    resumeTimeoutRef.current = window.setTimeout(() => {
-      startAutoplay();
-    }, HERO_AUTOPLAY_RESUME_DELAY_MS);
-  }, [clearInitialAutoplayTimeout, startAutoplay, stopAutoplay]);
+  }, [api, clearAutoplayTimeout]);
 
   React.useEffect(() => {
     if (!api || slides.length <= 1) {
@@ -132,42 +103,26 @@ const HeroDesktopCarousel = ({
 
     const handleVisibilityChange = () => {
       if (document.hidden) {
-        stopAutoplay();
-        clearInitialAutoplayTimeout();
-        if (resumeTimeoutRef.current !== null) {
-          window.clearTimeout(resumeTimeoutRef.current);
-          resumeTimeoutRef.current = null;
-        }
+        clearAutoplayTimeout();
         return;
       }
-      if (resumeTimeoutRef.current !== null || autoplayRef.current !== null) {
-        return;
-      }
-      scheduleInitialAutoplay();
+      scheduleAutoplay();
     };
 
-    scheduleInitialAutoplay();
-    api.on("pointerDown", scheduleAutoplayResume);
+    scheduleAutoplay();
+    api.on("pointerDown", scheduleAutoplay);
+    api.on("select", scheduleAutoplay);
+    api.on("reInit", scheduleAutoplay);
     document.addEventListener("visibilitychange", handleVisibilityChange);
 
     return () => {
-      api.off("pointerDown", scheduleAutoplayResume);
+      api.off("pointerDown", scheduleAutoplay);
+      api.off("select", scheduleAutoplay);
+      api.off("reInit", scheduleAutoplay);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
-      stopAutoplay();
-      clearInitialAutoplayTimeout();
-      if (resumeTimeoutRef.current !== null) {
-        window.clearTimeout(resumeTimeoutRef.current);
-        resumeTimeoutRef.current = null;
-      }
+      clearAutoplayTimeout();
     };
-  }, [
-    api,
-    slides.length,
-    clearInitialAutoplayTimeout,
-    scheduleInitialAutoplay,
-    scheduleAutoplayResume,
-    stopAutoplay,
-  ]);
+  }, [api, slides.length, clearAutoplayTimeout, scheduleAutoplay]);
 
   const shouldRenderCarouselControls = slides.length > 1;
 
@@ -183,13 +138,13 @@ const HeroDesktopCarousel = ({
       {shouldRenderCarouselControls ? (
         <CarouselPrevious
           className="hidden md:flex left-auto right-20 bottom-8 top-auto h-9 w-9 translate-y-0 bg-background/50 hover:bg-background/70 border border-border/30 text-muted-foreground"
-          onClick={scheduleAutoplayResume}
+          onClick={scheduleAutoplay}
         />
       ) : null}
       {shouldRenderCarouselControls ? (
         <CarouselNext
           className="hidden md:flex right-8 bottom-8 top-auto h-9 w-9 translate-y-0 bg-background/50 hover:bg-background/70 border border-border/30 text-muted-foreground"
-          onClick={scheduleAutoplayResume}
+          onClick={scheduleAutoplay}
         />
       ) : null}
     </Carousel>

@@ -166,12 +166,18 @@ describe("TopProjectsSection", () => {
     expect(synopsisThird).toHaveClass("line-clamp-2");
 
     const list = screen.getByTestId("top-projects-list");
+    const listShell = list.parentElement as HTMLElement | null;
+    expect(listShell).not.toBeNull();
+    expect(listShell).toHaveClass("overflow-hidden");
     expect(list).toHaveClass(
       "no-scrollbar",
+      "-my-1",
       "overflow-y-auto",
       "overscroll-contain",
-      "max-h-[calc((var(--top-card-h)*2)+(var(--top-gap)*1))]",
-      "md:max-h-[calc((var(--top-card-h)*3)+(var(--top-gap)*2))]",
+      "pt-1",
+      "pb-1",
+      "max-h-[calc((var(--top-card-h)*2)+(var(--top-gap)*1)+0.5rem)]",
+      "md:max-h-[calc((var(--top-card-h)*3)+(var(--top-gap)*2)+0.5rem)]",
     );
     expect(String(list.getAttribute("style") || "")).toContain("--top-card-h: 164px");
     expect(String(list.getAttribute("style") || "")).toContain("--top-gap: 12px");

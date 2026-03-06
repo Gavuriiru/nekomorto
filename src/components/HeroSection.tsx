@@ -383,7 +383,7 @@ const HeroSlideFrame = ({
             <Link
               to={`/projeto/${slide.projectId}`}
               aria-label={`Acessar página de ${slide.title}`}
-              className="inline-flex items-center gap-2 rounded-lg bg-(--hero-accent,hsl(var(--primary))) px-6 py-3 font-semibold text-(--hero-accent-foreground,hsl(var(--primary-foreground))) transition-all hover:scale-105 hover:brightness-110"
+              className="inline-flex items-center gap-2 rounded-lg bg-primary px-6 py-3 font-semibold text-primary-foreground transition-all hover:scale-105 hover:brightness-110"
             >
               <Globe className="h-4 w-4" />
               Acessar Página
@@ -539,7 +539,7 @@ const HeroSection = () => {
       navbarOverlayClass={navbarOverlayClass}
       transparentPixel={transparentPixel}
       clampSynopsis={clampSynopsis}
-      shouldAnimateEntry={false}
+      shouldAnimateEntry={!isMobile}
     />
   ) : null;
 

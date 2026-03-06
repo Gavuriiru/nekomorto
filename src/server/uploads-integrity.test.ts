@@ -127,6 +127,37 @@ describe("runUploadsIntegrityCheck", () => {
     );
   });
 
+  it("falha quando o metadata de upload aponta para variant ausente", () => {
+    const { uploadsDir, datasets } = createTempWorkspace({
+      uploads: [
+        {
+          id: "upload-1",
+          url: "/uploads/projects/project-1/hero.jpg",
+          variants: {
+            hero: {
+              formats: {
+                avif: { url: "/uploads/_variants/upload-1/hero-v1.avif" },
+              },
+            },
+          },
+        },
+      ],
+    });
+
+    const result = runUploadsIntegrityCheck({ datasets, uploadsDir });
+    const missingVariantIssues = result.criticalIssues.filter((item) => item.type === "missing_variant_file");
+
+    expect(result.ok).toBe(false);
+    expect(missingVariantIssues).toEqual([
+      expect.objectContaining({
+        type: "missing_variant_file",
+        url: "/uploads/_variants/upload-1/hero-v1.avif",
+        path: "_variants/upload-1/hero-v1.avif",
+        source: "uploads-metadata",
+      }),
+    ]);
+  });
+
   it("normaliza URL absoluta de /uploads e valida corretamente", () => {
     const { uploadsDir, datasets } = createTempWorkspace(
       {

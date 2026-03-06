@@ -1,4 +1,5 @@
-import type { ImgHTMLAttributes } from "react";
+import type { ImgHTMLAttributes, SyntheticEvent } from "react";
+import { useEffect, useState } from "react";
 
 import { normalizeAssetUrl } from "@/lib/asset-url";
 import {
@@ -52,6 +53,7 @@ const UploadPicture = ({
   sizes,
   ...imgProps
 }: UploadPictureProps) => {
+  const [variantsDisabled, setVariantsDisabled] = useState(false);
   const variantSources = resolveUploadVariantSources({ src, preset, mediaVariants });
   const responsiveVariantSources = resolveUploadVariantResponsiveSources({
     src,
@@ -61,15 +63,22 @@ const UploadPicture = ({
   const focalPoint = applyFocalObjectPosition
     ? resolveUploadVariantFocalPoint({ src, preset, mediaVariants })
     : null;
+  const normalizedOriginalSrc = normalizeAssetUrl(src) || "/placeholder.svg";
   const avifSrc = normalizeAssetUrl(variantSources.avif);
   const webpSrc = normalizeAssetUrl(variantSources.webp);
   const avifSrcSet = normalizeSrcSet(responsiveVariantSources.avifSrcSet);
   const webpSrcSet = normalizeSrcSet(responsiveVariantSources.webpSrcSet);
   const fallbackSrcSet = normalizeSrcSet(responsiveVariantSources.fallbackSrcSet);
-  const fallbackSrc = normalizeAssetUrl(variantSources.fallback || src) || "/placeholder.svg";
+  const variantFallbackSrc = normalizeAssetUrl(variantSources.fallback || src) || "/placeholder.svg";
   const resolvedAvifSrcSet = avifSrcSet || avifSrc;
   const resolvedWebpSrcSet = webpSrcSet || webpSrc;
-  const resolvedFallbackSrcSet = fallbackSrcSet || fallbackSrc;
+  const resolvedFallbackSrcSet = fallbackSrcSet || variantFallbackSrc;
+  const hasVariantSources = Boolean(
+    resolvedAvifSrcSet || resolvedWebpSrcSet || variantFallbackSrc !== normalizedOriginalSrc,
+  );
+  const shouldUseVariants = hasVariantSources && !variantsDisabled;
+  const imgSrc = shouldUseVariants ? variantFallbackSrc : normalizedOriginalSrc;
+  const imgSrcSet = shouldUseVariants ? resolvedFallbackSrcSet : imgProps.srcSet;
   const imgStyle = {
     ...(imgProps.style || {}),
     ...(focalPoint
@@ -78,21 +87,39 @@ const UploadPicture = ({
         }
       : {}),
   };
+  const { onError, srcSet: _imgPropsSrcSet, ...restImgProps } = imgProps;
+
+  useEffect(() => {
+    setVariantsDisabled(false);
+  }, [src, preset, mediaVariants]);
+
+  const handleError = (event: SyntheticEvent<HTMLImageElement, Event>) => {
+    if (shouldUseVariants) {
+      setVariantsDisabled(true);
+      return;
+    }
+    onError?.(event);
+  };
 
   return (
     <picture className={className}>
-      {resolvedAvifSrcSet ? <source type="image/avif" srcSet={resolvedAvifSrcSet} sizes={sizes} /> : null}
-      {resolvedWebpSrcSet ? <source type="image/webp" srcSet={resolvedWebpSrcSet} sizes={sizes} /> : null}
+      {shouldUseVariants && resolvedAvifSrcSet ? (
+        <source type="image/avif" srcSet={resolvedAvifSrcSet} sizes={sizes} />
+      ) : null}
+      {shouldUseVariants && resolvedWebpSrcSet ? (
+        <source type="image/webp" srcSet={resolvedWebpSrcSet} sizes={sizes} />
+      ) : null}
       <img
-        {...imgProps}
-        src={fallbackSrc}
-        srcSet={resolvedFallbackSrcSet}
+        {...restImgProps}
+        src={imgSrc}
+        srcSet={imgSrcSet}
         sizes={sizes}
         alt={alt || ""}
         style={imgStyle}
         className={imgClassName}
         loading={loading}
         decoding={decoding}
+        onError={handleError}
       />
     </picture>
   );

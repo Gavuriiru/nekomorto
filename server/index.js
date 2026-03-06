@@ -75,6 +75,11 @@ import { createSlug, createUniqueSlug } from "./lib/post-slug.js";
 import { resolvePostStatus } from "./lib/post-status.js";
 import { dedupePostVersionRecordsNewestFirst } from "./lib/post-version-dedupe.js";
 import { prisma } from "./lib/prisma-client.js";
+import {
+  resolveExistingPublicVariantUrl,
+  resolveHomeHeroPreloadFromSlide,
+  sanitizePublicMediaVariantEntry,
+} from "./lib/public-media-variants.js";
 import { resolveRouteThemeColor } from "./lib/route-theme-color.js";
 import { localizeProjectImageFields } from "./lib/project-image-localizer.js";
 import {
@@ -201,6 +206,7 @@ import { diffOperationalAlertSets } from "./lib/webhooks/transitions.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+const PUBLIC_UPLOADS_DIR = path.join(__dirname, "..", "public", "uploads");
 
 const app = express();
 app.disable("x-powered-by");
@@ -4680,47 +4686,32 @@ const buildPublicMediaVariants = (...sources) => {
       ? Math.max(1, Math.floor(variantsVersionRaw))
       : 1;
     const focalState = readUploadFocalState(entry);
-    mediaVariants[normalizedUrl] = {
-      variantsVersion,
-      variants,
-      focalPoints: focalState.focalPoints,
-      focalPoint: focalState.focalPoint,
-    };
+    const sanitizedEntry = sanitizePublicMediaVariantEntry(
+      {
+        variantsVersion,
+        variants,
+        focalPoints: focalState.focalPoints,
+        focalPoint: focalState.focalPoint,
+      },
+      {
+        uploadsDir: PUBLIC_UPLOADS_DIR,
+      },
+    );
+    if (!sanitizedEntry) {
+      return;
+    }
+    mediaVariants[normalizedUrl] = sanitizedEntry;
   });
   return mediaVariants;
 };
 
-const readVariantAssetUrl = (formats, fallbackUrl) => {
-  const record = formats && typeof formats === "object" ? formats : {};
-  const fallback = String(record?.fallback?.url || "").trim();
-  if (fallback) {
-    return fallback;
-  }
-  const webp = String(record?.webp?.url || "").trim();
-  if (webp) {
-    return webp;
-  }
-  const source = String(fallbackUrl || "").trim();
-  if (source) {
-    return source;
-  }
-  const avif = String(record?.avif?.url || "").trim();
-  if (avif) {
-    return avif;
-  }
-  return "";
-};
-
-const resolveUploadVariantUrlFromEntry = ({ entry, preset, fallbackUrl }) => {
-  const variants = normalizeVariants(entry?.variants);
-  const presetRecord = variants?.[preset];
-  if (!presetRecord || typeof presetRecord !== "object") {
-    return String(fallbackUrl || "").trim();
-  }
-  const formats =
-    presetRecord.formats && typeof presetRecord.formats === "object" ? presetRecord.formats : null;
-  return readVariantAssetUrl(formats, fallbackUrl);
-};
+const resolveUploadVariantUrlFromEntry = ({ entry, preset, fallbackUrl }) =>
+  resolveExistingPublicVariantUrl({
+    entry,
+    preset,
+    fallbackUrl,
+    uploadsDir: PUBLIC_UPLOADS_DIR,
+  });
 
 const resolveMetaImageVariantUrl = (value, preset = "og") => {
   const fallbackUrl = String(value || "").trim();
@@ -11333,111 +11324,14 @@ const buildPublicBootstrapResponsePayload = ({
   return payload;
 };
 
-const HERO_PRELOAD_RESPONSIVE_PRESET_ORDER = Object.freeze([
-  "heroXs",
-  "heroSm",
-  "heroMd",
-  "hero",
-]);
-const HERO_PRELOAD_FALLBACK_WIDTHS = Object.freeze({
-  heroXs: 768,
-  heroSm: 960,
-  heroMd: 1280,
-  hero: 1600,
-});
-
-const toResponsiveHeroPreloadCandidate = (presetRecord, presetKey) => {
-  if (!presetRecord || typeof presetRecord !== "object") {
-    return null;
-  }
-  const formats =
-    presetRecord.formats && typeof presetRecord.formats === "object" ? presetRecord.formats : null;
-  if (!formats) {
-    return null;
-  }
-  const url = String(formats?.avif?.url || "").trim();
-  if (!url) {
-    return null;
-  }
-  const rawWidth = Number(presetRecord.width);
-  const width =
-    Number.isFinite(rawWidth) && rawWidth > 0
-      ? Math.round(rawWidth)
-      : Number(HERO_PRELOAD_FALLBACK_WIDTHS[presetKey] || 0);
-  if (!width) {
-    return null;
-  }
-  return { url, width };
-};
-
 const resolveHomeHeroPreload = (publicBootstrap) => {
   const slides = buildPublicHeroSlides(publicBootstrap?.projects, publicBootstrap?.updates);
   const firstSlide = slides[0];
-  if (!firstSlide?.image) {
-    return null;
-  }
-  const normalizedImageUrl = normalizeUploadUrlValue(firstSlide.image);
-  const heroVariantUrl =
-    readVariantAssetUrl(
-      publicBootstrap?.mediaVariants?.[normalizedImageUrl]?.variants?.hero?.formats,
-      "",
-    ) || resolveMetaImageVariantUrl(firstSlide.image, "hero");
-  const fallbackHref = heroVariantUrl || firstSlide.image;
-  if (!normalizedImageUrl) {
-    return fallbackHref
-      ? {
-          href: fallbackHref,
-          as: "image",
-          fetchpriority: "high",
-        }
-      : null;
-  }
-
-  const variants = publicBootstrap?.mediaVariants?.[normalizedImageUrl]?.variants;
-  if (!variants || typeof variants !== "object") {
-    return fallbackHref
-      ? {
-          href: fallbackHref,
-          as: "image",
-          fetchpriority: "high",
-        }
-      : null;
-  }
-
-  const candidateByUrl = new Map();
-  HERO_PRELOAD_RESPONSIVE_PRESET_ORDER.forEach((presetKey) => {
-    const presetRecord = variants[presetKey];
-    const candidate = toResponsiveHeroPreloadCandidate(presetRecord, presetKey);
-    if (!candidate) {
-      return;
-    }
-    const current = candidateByUrl.get(candidate.url);
-    if (!current || candidate.width > current.width) {
-      candidateByUrl.set(candidate.url, candidate);
-    }
+  return resolveHomeHeroPreloadFromSlide({
+    imageUrl: firstSlide?.image || "",
+    mediaVariants: publicBootstrap?.mediaVariants,
+    resolveVariantUrl: resolveMetaImageVariantUrl,
   });
-
-  const responsiveCandidates = [...candidateByUrl.values()].sort((left, right) => left.width - right.width);
-  if (responsiveCandidates.length === 0) {
-    return fallbackHref
-      ? {
-          href: fallbackHref,
-          as: "image",
-          fetchpriority: "high",
-        }
-      : null;
-  }
-
-  const imagesrcset = responsiveCandidates.map((entry) => `${entry.url} ${entry.width}w`).join(", ");
-  const fallbackCandidate = responsiveCandidates[responsiveCandidates.length - 1];
-  return {
-    href: fallbackHref || fallbackCandidate.url,
-    as: "image",
-    type: "image/avif",
-    imagesrcset,
-    imagesizes: "100vw",
-    fetchpriority: "high",
-  };
 };
 
 const escapeHtmlAttribute = (value) =>
