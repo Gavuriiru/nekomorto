@@ -1,11 +1,5 @@
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/components/ui/accordion";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import AsyncState from "@/components/ui/async-state";
@@ -48,8 +42,8 @@ const PROJECTS_LIST_STATE_STORAGE_KEY = "public.projects.list-state.v1";
 const MAX_QUERY_LENGTH = 80;
 const SEARCH_QUERY_DEBOUNCE_MS = 60;
 const PROJECTS_LIST_IMAGE_SIZES = "(max-width: 767px) 100px, 142px";
-const MOBILE_PRIORITY_PROJECT_IMAGE_COUNT = 1;
-const DESKTOP_PRIORITY_PROJECT_IMAGE_COUNT = 6;
+const PRIORITY_PROJECT_IMAGE_COUNT = 1;
+const MOBILE_FILTERS_PANEL_ID = "projects-mobile-filters-panel";
 
 const parseLetterParam = (value: string | null) => {
   const normalized = String(value || "")
@@ -433,6 +427,7 @@ const Projects = () => {
   const [projectsMediaVariants, setProjectsMediaVariants] = useState<UploadMediaVariantsMap>(
     () => bootstrapMediaVariants,
   );
+  const [isMobileFiltersOpen, setIsMobileFiltersOpen] = useState(false);
   const [searchParams, setSearchParams] = useSearchParams();
   const [selectedLetter, setSelectedLetter] = useState(() =>
     parseLetterParam(searchParams.get("letter")),
@@ -823,9 +818,6 @@ const Projects = () => {
 
   const pageStart = (currentPage - 1) * projectsPerPage;
   const paginatedProjects = filteredProjects.slice(pageStart, pageStart + projectsPerPage);
-  const priorityProjectImageCount = isMobile
-    ? MOBILE_PRIORITY_PROJECT_IMAGE_COUNT
-    : DESKTOP_PRIORITY_PROJECT_IMAGE_COUNT;
   const isDesktopSynopsisClampEnabled = !isMobile && paginatedProjects.length > 0;
   const synopsisKeys = useMemo(
     () => paginatedProjects.map((project) => project.id),
@@ -987,33 +979,37 @@ const Projects = () => {
             </div>
             {isMobile ? (
               <div>
-                <Accordion type="single" collapsible className="rounded-xl bg-background/40 px-4 shadow-sm">
-                  <AccordionItem value="filters" className="border-none">
-                    <AccordionTrigger className="py-3 text-left hover:no-underline">
-                      <div className="flex min-w-0 flex-1 items-center justify-between gap-3">
-                        <div className="min-w-0">
-                          <span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-                            Filtros
-                          </span>
-                          <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-                            <span className="font-semibold text-foreground">{filteredProjects.length}</span>
-                            <span>projetos encontrados</span>
-                          </div>
-                        </div>
-                        <span className="shrink-0 rounded-full bg-primary/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-primary">
-                          {activeFiltersSummary}
-                        </span>
+                <div className="rounded-xl bg-background/40 px-4 py-3 shadow-sm">
+                  <button
+                    type="button"
+                    aria-expanded={isMobileFiltersOpen}
+                    aria-controls={MOBILE_FILTERS_PANEL_ID}
+                    className="flex w-full min-w-0 items-center justify-between gap-3 text-left"
+                    onClick={() => setIsMobileFiltersOpen((current) => !current)}
+                  >
+                    <div className="min-w-0">
+                      <span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+                        Filtros
+                      </span>
+                      <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+                        <span className="font-semibold text-foreground">{filteredProjects.length}</span>
+                        <span>projetos encontrados</span>
                       </div>
-                    </AccordionTrigger>
-                    <AccordionContent className="space-y-4 pt-1">
+                    </div>
+                    <span className="shrink-0 rounded-full bg-primary/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-primary">
+                      {activeFiltersSummary}
+                    </span>
+                  </button>
+                  {isMobileFiltersOpen ? (
+                    <div id={MOBILE_FILTERS_PANEL_ID} className="space-y-4 pt-4">
                       <div className="grid gap-3">{filterControls}</div>
                       <ProjectsResultsSummary
                         filteredProjectsCount={filteredProjects.length}
                         onResetFilters={resetFilters}
                       />
-                    </AccordionContent>
-                  </AccordionItem>
-                </Accordion>
+                    </div>
+                  ) : null}
+                </div>
               </div>
             ) : null}
             {!isMobile ? (
@@ -1178,7 +1174,7 @@ const Projects = () => {
                           navigate={navigate}
                           synopsisClampClass={getSynopsisClampClass(project.id)}
                           mediaVariants={projectsMediaVariants}
-                          isPriorityImage={index < priorityProjectImageCount}
+                          isPriorityImage={index < PRIORITY_PROJECT_IMAGE_COUNT}
                           isMobile={isMobile}
                         />
                       </div>
@@ -1190,7 +1186,7 @@ const Projects = () => {
                         navigate={navigate}
                         synopsisClampClass={getSynopsisClampClass(project.id)}
                         mediaVariants={projectsMediaVariants}
-                        isPriorityImage={index < priorityProjectImageCount}
+                        isPriorityImage={index < PRIORITY_PROJECT_IMAGE_COUNT}
                         isMobile={isMobile}
                       />
                     )}

@@ -175,4 +175,46 @@ describe("DashboardUsers avatar refresh", () => {
     expect(afterParsed.pathname).toBe(beforeParsed.pathname);
     expect(afterParsed.version).not.toBe(beforeParsed.version);
   });
+
+  it("usa proxy same-origin para avatar do Discord no dashboard", async () => {
+    const discordAvatarUser = {
+      ...userFixture,
+      avatarUrl: "https://cdn.discordapp.com/avatars/123456789/avatar_hash.png?size=64",
+    };
+
+    apiFetchMock.mockImplementation(async (_base: string, path: string, options?: RequestInit) => {
+      const method = String(options?.method || "GET").toUpperCase();
+      if (path === "/api/users" && method === "GET") {
+        return mockJsonResponse(true, {
+          users: [discordAvatarUser],
+          ownerIds: ["user-1"],
+        });
+      }
+      if (path === "/api/me" && method === "GET") {
+        return mockJsonResponse(true, {
+          id: "user-1",
+          name: "Admin",
+          username: "admin",
+        });
+      }
+      if (path === "/api/link-types" && method === "GET") {
+        return mockJsonResponse(true, { items: [] });
+      }
+      return mockJsonResponse(false, { error: "not_found" }, 404);
+    });
+
+    renderPage();
+
+    expect(await screen.findByAltText("Admin")).toHaveAttribute(
+      "src",
+      "/api/public/discord-avatar/123456789/avatar_hash.png?size=128",
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /Abrir usu.rio Admin/i }));
+    const dialog = await screen.findByRole("dialog");
+    expect(within(dialog).getByAltText("Admin")).toHaveAttribute(
+      "src",
+      "/api/public/discord-avatar/123456789/avatar_hash.png?size=128",
+    );
+  });
 });

@@ -136,7 +136,7 @@ describe("Projects accessibility", () => {
     expect(apiFetchMock).not.toHaveBeenCalled();
   });
 
-  it("mantem o accordion mobile acessivel ao abrir os filtros", async () => {
+  it("mantem o disclosure mobile acessivel ao abrir os filtros", async () => {
     setViewportIsMobile(true);
 
     const { container } = render(
@@ -147,10 +147,12 @@ describe("Projects accessibility", () => {
 
     const trigger = await screen.findByRole("button", { name: /^Filtros\b/i });
     expect(trigger).toBeInTheDocument();
+    expect(trigger).toHaveAttribute("aria-expanded", "false");
     expect(screen.queryByRole("combobox", { name: "Filtrar por letra" })).not.toBeInTheDocument();
 
     fireEvent.click(trigger);
 
+    expect(trigger).toHaveAttribute("aria-expanded", "true");
     expect(await screen.findByRole("combobox", { name: "Filtrar por letra" })).toBeInTheDocument();
     expect(screen.getByRole("combobox", { name: "Filtrar por tag" })).toBeInTheDocument();
     expect(screen.getByRole("combobox", { name: "Filtrar por genero" })).toBeInTheDocument();

@@ -488,17 +488,26 @@ describe("Projects query sync", () => {
     const trigger = screen.getByRole("button", { name: /^Filtros\b/i });
 
     expect(searchInput).toHaveValue("alpha");
+    expect(trigger).toHaveAttribute("aria-expanded", "false");
     expect(trigger).toHaveTextContent("21");
     expect(trigger).toHaveTextContent("2 filtros ativos");
     expect(screen.queryByRole("combobox", { name: "Filtrar por letra" })).not.toBeInTheDocument();
 
     fireEvent.click(trigger);
 
+    expect(trigger).toHaveAttribute("aria-expanded", "true");
     expect(await screen.findByRole("combobox", { name: "Filtrar por letra" })).toBeInTheDocument();
     expect(screen.getByRole("combobox", { name: "Filtrar por tag" })).toBeInTheDocument();
     expect(screen.getByRole("combobox", { name: "Filtrar por genero" })).toBeInTheDocument();
     expect(screen.getByRole("combobox", { name: "Filtrar por formato" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Limpar filtros" })).toBeInTheDocument();
+
+    fireEvent.click(trigger);
+
+    expect(trigger).toHaveAttribute("aria-expanded", "false");
+    await waitFor(() => {
+      expect(screen.queryByRole("combobox", { name: "Filtrar por letra" })).not.toBeInTheDocument();
+    });
   });
 
   it("hidrata a listagem com bootstrap completo sem fetch inicial", async () => {
@@ -750,7 +759,7 @@ describe("Projects query sync", () => {
     expect(coverWrapper?.style.aspectRatio).toBe("9 / 14");
   });
 
-  it("prioriza as seis primeiras capas no desktop com posterThumb, sizes fixo e eager loading", async () => {
+  it("prioriza apenas a primeira capa no desktop e preserva a medicao de layout auxiliar", async () => {
     const projects = Array.from({ length: 7 }, (_, index) => ({
       ...createProject(index + 1, { title: `Projeto ${index + 1}` }),
       cover: `/uploads/projects/projeto-${index + 1}.png`,
@@ -796,17 +805,22 @@ describe("Projects query sync", () => {
       projects.map((project) => screen.findByRole("img", { name: project.title })),
     );
 
-    coverImages.slice(0, 6).forEach((coverImage, index) => {
+    expect(coverImages[0]).toHaveAttribute(
+      "src",
+      expect.stringContaining("/uploads/_variants/p1/poster-thumb-v3.jpeg"),
+    );
+    expect(coverImages[0]).toHaveAttribute("sizes", PROJECTS_LIST_IMAGE_SIZES);
+    expect(coverImages[0]).toHaveAttribute("loading", "eager");
+    expect(coverImages[0]).toHaveAttribute("fetchpriority", "high");
+    coverImages.slice(1).forEach((coverImage, index) => {
       expect(coverImage).toHaveAttribute(
         "src",
-        expect.stringContaining(`/uploads/_variants/p${index + 1}/poster-thumb-v3.jpeg`),
+        expect.stringContaining(`/uploads/_variants/p${index + 2}/poster-thumb-v3.jpeg`),
       );
       expect(coverImage).toHaveAttribute("sizes", PROJECTS_LIST_IMAGE_SIZES);
-      expect(coverImage).toHaveAttribute("loading", "eager");
-      expect(coverImage).toHaveAttribute("fetchpriority", "high");
+      expect(coverImage).toHaveAttribute("loading", "lazy");
+      expect(coverImage).not.toHaveAttribute("fetchpriority");
     });
-    expect(coverImages[6]).toHaveAttribute("loading", "lazy");
-    expect(coverImages[6]).not.toHaveAttribute("fetchpriority");
     expect(container.querySelector("[data-badge-key]")).not.toBeNull();
     expect(resizeObserverObserveMock).toHaveBeenCalled();
   });

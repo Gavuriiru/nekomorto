@@ -61,4 +61,32 @@ describe("PublicUserProfileCard", () => {
     expect(toggleButton).toHaveAttribute("aria-pressed", "true");
     expect(favoriteFrame).toHaveAttribute("data-mobile-favorites-open", "true");
   });
+
+  it("usa proxy same-origin para avatar do Discord em perfis publicos", () => {
+    render(
+      <PublicUserProfileCard
+        member={{
+          id: "member-1",
+          name: "Admin",
+          avatarUrl: "https://cdn.discordapp.com/avatars/123456789/avatar_hash.png?size=128",
+          phrase: "Frase",
+          bio: "Bio",
+          roles: ["Tradutor"],
+          favoriteWorks: {
+            manga: [],
+            anime: [],
+          },
+          socials: [],
+          status: "active",
+        }}
+        linkTypes={[]}
+        mediaVariants={{}}
+      />,
+    );
+
+    const avatar = screen.getByAltText("Admin");
+    expect(avatar.getAttribute("src")).toContain(
+      "/api/public/discord-avatar/123456789/avatar_hash.png?size=256",
+    );
+  });
 });

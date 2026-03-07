@@ -62,6 +62,7 @@ import {
 } from "lucide-react";
 import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
+import { resolveDiscordAvatarRenderUrl } from "@/lib/discord-avatar";
 import { usePageMeta } from "@/hooks/use-page-meta";
 import { useEditorScrollLock } from "@/hooks/use-editor-scroll-lock";
 import { useEditorScrollStability } from "@/hooks/use-editor-scroll-stability";
@@ -533,7 +534,11 @@ const DashboardUsers = () => {
     setAvatarCacheVersion((prev) => prev + 1);
   }, []);
   const toAvatarRenderUrl = useCallback(
-    (avatarUrl: string | null | undefined) => addAvatarCacheBust(avatarUrl, avatarCacheVersion),
+    (avatarUrl: string | null | undefined) =>
+      addAvatarCacheBust(
+        resolveDiscordAvatarRenderUrl(String(avatarUrl || ""), 128),
+        avatarCacheVersion,
+      ),
     [avatarCacheVersion],
   );
   const handleLibraryOpenChange = useCallback(

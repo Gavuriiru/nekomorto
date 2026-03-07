@@ -56,6 +56,7 @@ import {
   injectHomeHeroShell,
   injectPreloadLinks,
 } from "./lib/html-bootstrap.js";
+import { proxyDiscordAvatarRequest } from "./lib/discord-avatar-proxy.js";
 import { createIdempotencyFingerprint, createIdempotencyStore } from "./lib/idempotency-store.js";
 import { createJobQueue } from "./lib/job-queue.js";
 import { createMetricsRegistry } from "./lib/metrics.js";
@@ -6552,6 +6553,23 @@ app.get("/api/public/me", (req, res) => {
   }
 
   return res.json({ user: buildUserPayload(req.session.user) });
+});
+
+app.get("/api/public/discord-avatar/:userId/:avatarFile", async (req, res) => {
+  const result = await proxyDiscordAvatarRequest({
+    userId: req.params.userId,
+    avatarFile: req.params.avatarFile,
+    size: req.query.size,
+  });
+
+  if (!result.ok) {
+    res.setHeader("Cache-Control", "no-store");
+    return res.status(result.status).end();
+  }
+
+  res.setHeader("Cache-Control", result.cacheControl);
+  res.setHeader("Content-Length", String(result.body.length));
+  return res.status(200).type(result.contentType).send(result.body);
 });
 
 app.get("/api/version", (_req, res) => {

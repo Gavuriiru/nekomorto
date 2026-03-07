@@ -25,6 +25,7 @@ import UploadPicture from "@/components/UploadPicture";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { useSiteSettings } from "@/hooks/use-site-settings";
+import { resolveDiscordAvatarRenderUrl } from "@/lib/discord-avatar";
 import type { UploadMediaVariantsMap } from "@/lib/upload-variants";
 import { cn } from "@/lib/utils";
 import { isIconUrlSource, sanitizeIconSource, sanitizePublicHref } from "@/lib/url-safety";
@@ -151,11 +152,13 @@ const PublicUserProfileAvatar = ({
   name,
   mediaVariants,
 }: PublicUserProfileAvatarProps) => {
-  const [resolvedSrc, setResolvedSrc] = useState(imageSrc || "/placeholder.svg");
+  const normalizedImageSrc =
+    resolveDiscordAvatarRenderUrl(imageSrc || "/placeholder.svg", 256) || "/placeholder.svg";
+  const [resolvedSrc, setResolvedSrc] = useState(normalizedImageSrc);
 
   useEffect(() => {
-    setResolvedSrc(imageSrc || "/placeholder.svg");
-  }, [imageSrc]);
+    setResolvedSrc(normalizedImageSrc);
+  }, [normalizedImageSrc]);
 
   return (
     <div className="relative z-10 h-56 w-56 overflow-hidden rounded-full border border-white/10 ring-4 ring-background/70 shadow-[0_20px_46px_-24px_rgba(0,0,0,0.82)] transition-transform duration-500 group-hover:scale-105 sm:h-60 sm:w-60 md:h-64 md:w-64 lg:h-64 lg:w-64">

@@ -1,6 +1,7 @@
 import * as React from "react";
 import * as AvatarPrimitive from "@radix-ui/react-avatar";
 
+import { resolveDiscordAvatarRenderUrl } from "@/lib/discord-avatar";
 import { cn } from "@/lib/utils";
 
 const Avatar = React.forwardRef<
@@ -18,13 +19,18 @@ Avatar.displayName = AvatarPrimitive.Root.displayName;
 const AvatarImage = React.forwardRef<
   React.ElementRef<typeof AvatarPrimitive.Image>,
   React.ComponentPropsWithoutRef<typeof AvatarPrimitive.Image>
->(({ className, ...props }, ref) => (
-  <AvatarPrimitive.Image
-    ref={ref}
-    className={cn("aspect-square h-full w-full rounded-full object-cover object-center", className)}
-    {...props}
-  />
-));
+>(({ className, src, ...props }, ref) => {
+  const resolvedSrc = typeof src === "string" ? resolveDiscordAvatarRenderUrl(src, 128) : src;
+
+  return (
+    <AvatarPrimitive.Image
+      ref={ref}
+      src={resolvedSrc}
+      className={cn("aspect-square h-full w-full rounded-full object-cover object-center", className)}
+      {...props}
+    />
+  );
+});
 AvatarImage.displayName = AvatarPrimitive.Image.displayName;
 
 const AvatarFallback = React.forwardRef<
