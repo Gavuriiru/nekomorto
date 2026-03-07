@@ -105,6 +105,64 @@ const getProjectBadgeAriaLabel = (item: ProjectBadgeItem) => {
   return item.label;
 };
 
+const PROJECT_PRIMARY_BADGE_CLASS_NAME =
+  "inline-flex h-6 shrink-0 whitespace-nowrap px-2 text-[9px] uppercase leading-none";
+const PROJECT_PRIMARY_BADGE_BUTTON_CLASS_NAME =
+  "inline-flex min-h-6 min-w-6 shrink-0 items-center justify-center rounded-md p-0.5";
+
+type ProjectPrimaryBadgeProps = {
+  item: ProjectBadgeItem;
+  navigate?: ReturnType<typeof useNavigate>;
+  badgeKey?: string;
+  measure?: boolean;
+};
+
+const ProjectPrimaryBadge = ({
+  item,
+  navigate,
+  badgeKey,
+  measure = false,
+}: ProjectPrimaryBadgeProps) => {
+  const badge = (
+    <Badge
+      data-badge-key={item.href ? undefined : badgeKey}
+      variant={item.variant}
+      className={PROJECT_PRIMARY_BADGE_CLASS_NAME}
+      title={item.label}
+      aria-hidden={measure ? true : undefined}
+    >
+      {item.label}
+    </Badge>
+  );
+
+  if (!item.href) {
+    return badge;
+  }
+
+  return (
+    <button
+      type="button"
+      data-badge-key={badgeKey}
+      className={PROJECT_PRIMARY_BADGE_BUTTON_CLASS_NAME}
+      title={item.label}
+      aria-label={measure ? undefined : getProjectBadgeAriaLabel(item)}
+      aria-hidden={measure ? true : undefined}
+      tabIndex={measure ? -1 : undefined}
+      onClick={
+        measure || !navigate
+          ? undefined
+          : (event) => {
+              event.preventDefault();
+              event.stopPropagation();
+              navigate(item.href!);
+            }
+      }
+    >
+      {badge}
+    </button>
+  );
+};
+
 type ProjectsFilterFieldProps = {
   label: string;
   className?: string;
@@ -300,38 +358,9 @@ const ProjectCard = ({
               ref={badgesRowRef}
               className="hidden min-w-0 flex-nowrap items-center gap-1 overflow-hidden sm:flex"
             >
-              {visibleItems.map((item) =>
-                item.href ? (
-                  <button
-                    key={item.key}
-                    type="button"
-                    className="inline-flex min-h-6 min-w-6 shrink-0 items-center justify-center rounded-md p-0.5"
-                    title={item.label}
-                    aria-label={getProjectBadgeAriaLabel(item)}
-                    onClick={(event) => {
-                      event.preventDefault();
-                      event.stopPropagation();
-                      navigate(item.href);
-                    }}
-                  >
-                    <Badge
-                      variant={item.variant}
-                      className="inline-flex h-6 shrink-0 whitespace-nowrap px-2 text-[9px] uppercase leading-none"
-                    >
-                      {item.label}
-                    </Badge>
-                  </button>
-                ) : (
-                  <Badge
-                    key={item.key}
-                    variant={item.variant}
-                    className="inline-flex h-6 shrink-0 whitespace-nowrap px-2 text-[9px] uppercase leading-none"
-                    title={item.label}
-                  >
-                    {item.label}
-                  </Badge>
-                ),
-              )}
+              {visibleItems.map((item) => (
+                <ProjectPrimaryBadge key={item.key} item={item} navigate={navigate} />
+              ))}
               {showOverflowBadge ? (
                 <Badge
                   key={`extra-${project.id}`}
@@ -351,14 +380,12 @@ const ProjectCard = ({
               className="pointer-events-none absolute -left-[9999px] top-0 flex items-center gap-1 opacity-0"
             >
               {allItems.map((item) => (
-                <Badge
+                <ProjectPrimaryBadge
                   key={`measure-${item.key}`}
-                  data-badge-key={item.key}
-                  variant={item.variant}
-                  className="inline-flex h-6 shrink-0 whitespace-nowrap px-2 text-[9px] uppercase leading-none"
-                >
-                  {item.label}
-                </Badge>
+                  item={item}
+                  badgeKey={item.key}
+                  measure
+                />
               ))}
             </div>
           ) : null}

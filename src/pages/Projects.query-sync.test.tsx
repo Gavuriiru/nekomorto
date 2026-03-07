@@ -138,6 +138,55 @@ const setViewportIsMobile = (isMobile: boolean) => {
   })) as unknown as typeof window.matchMedia;
 };
 
+const mockPrimaryBadgeLayoutMetrics = ({
+  rowWidth,
+  clickableBadgeShellWidth,
+  badgeWidth,
+}: {
+  rowWidth: number;
+  clickableBadgeShellWidth: number;
+  badgeWidth: number;
+}) => {
+  const clientWidthDescriptor = Object.getOwnPropertyDescriptor(HTMLElement.prototype, "clientWidth");
+  const offsetWidthDescriptor = Object.getOwnPropertyDescriptor(HTMLElement.prototype, "offsetWidth");
+
+  Object.defineProperty(HTMLElement.prototype, "clientWidth", {
+    configurable: true,
+    get() {
+      const element = this as HTMLElement;
+      if (
+        element.tagName === "DIV" &&
+        element.classList.contains("flex-nowrap") &&
+        element.classList.contains("overflow-hidden") &&
+        element.classList.contains("sm:flex")
+      ) {
+        return rowWidth;
+      }
+      return clientWidthDescriptor?.get?.call(element) ?? 0;
+    },
+  });
+
+  Object.defineProperty(HTMLElement.prototype, "offsetWidth", {
+    configurable: true,
+    get() {
+      const element = this as HTMLElement;
+      if (element.dataset.badgeKey) {
+        return element.tagName === "BUTTON" ? clickableBadgeShellWidth : badgeWidth;
+      }
+      return offsetWidthDescriptor?.get?.call(element) ?? 0;
+    },
+  });
+
+  return () => {
+    if (clientWidthDescriptor) {
+      Object.defineProperty(HTMLElement.prototype, "clientWidth", clientWidthDescriptor);
+    }
+    if (offsetWidthDescriptor) {
+      Object.defineProperty(HTMLElement.prototype, "offsetWidth", offsetWidthDescriptor);
+    }
+  };
+};
+
 describe("Projects query sync", () => {
   beforeEach(() => {
     setupApiMock();
@@ -820,6 +869,44 @@ describe("Projects query sync", () => {
       expect(node).toHaveClass("line-clamp-2");
     });
     expect(resizeObserverObserveMock).not.toHaveBeenCalled();
+  });
+
+  it("usa a largura real do shell clicavel ao decidir quantos badges cabem", async () => {
+    const restoreLayoutMetrics = mockPrimaryBadgeLayoutMetrics({
+      rowWidth: 116,
+      clickableBadgeShellWidth: 44,
+      badgeWidth: 36,
+    });
+
+    try {
+      setupApiMock({
+        projects: [
+          createProject(1, {
+            tags: ["acao", "comedia"],
+            genres: ["drama"],
+          }),
+        ],
+      });
+
+      render(
+        <MemoryRouter initialEntries={["/projetos"]}>
+          <Projects />
+          <LocationProbe />
+        </MemoryRouter>,
+      );
+
+      await screen.findByText("Projeto 1");
+
+      await waitFor(() => {
+        expect(screen.getByText("+2")).toBeInTheDocument();
+      });
+
+      expect(screen.getByRole("button", { name: "Filtrar por tag Acao" })).toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "Filtrar por tag comedia" })).not.toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "Filtrar por genero Drama" })).not.toBeInTheDocument();
+    } finally {
+      restoreLayoutMetrics();
+    }
   });
 
   it("adiciona aria-label e alvo minimo aos badges clicaveis", async () => {
