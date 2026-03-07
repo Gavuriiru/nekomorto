@@ -58,6 +58,7 @@ import {
   writeAutosavePreference,
 } from "@/config/autosave";
 import { useAutosave } from "@/hooks/use-autosave";
+import { filterImageLibraryFoldersByAccess } from "@/lib/image-library-scope";
 import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
 import { applyBeforeUnloadCompatibility } from "@/lib/before-unload";
@@ -418,6 +419,7 @@ const DashboardPages = () => {
     name: string;
     username: string;
     avatarUrl?: string | null;
+    grants?: Partial<Record<string, boolean>>;
   } | null>(null);
   const [isLoadingUser, setIsLoadingUser] = useState(true);
   const [isPreviewLibraryOpen, setIsPreviewLibraryOpen] = useState(false);
@@ -425,6 +427,13 @@ const DashboardPages = () => {
 
   const merchantName =
     String(settings.site.name || settings.footer.brandName || "NEKOMATA").trim() || "NEKOMATA";
+  const previewLibraryFolders = useMemo(
+    () =>
+      filterImageLibraryFoldersByAccess(["shared", "posts", "projects"], {
+        grants: currentUser?.grants,
+      }),
+    [currentUser?.grants],
+  );
   const qrPreview = usePixQrCode({
     pixKey: pages.donations.pixKey,
     pixNote: pages.donations.pixNote,
@@ -2086,7 +2095,7 @@ const DashboardPages = () => {
           apiBase={apiBase}
           description="Escolha uma imagem para o preview de compartilhamento da página."
           uploadFolder="shared"
-          listFolders={["shared", "posts", "projects"]}
+          listFolders={previewLibraryFolders}
           listAll={false}
           includeProjectImages
           projectImagesView="by-project"

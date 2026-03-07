@@ -58,6 +58,7 @@ import {
   fetchPostVersions,
   rollbackPostVersion,
 } from "@/lib/editorial-admin";
+import { filterImageLibraryFoldersByAccess } from "@/lib/image-library-scope";
 import { DEFAULT_POST_COVER_ALT, resolveAssetAltText } from "@/lib/image-alt";
 import { applyBeforeUnloadCompatibility } from "@/lib/before-unload";
 import { formatDateTimeShort } from "@/lib/date";
@@ -1119,14 +1120,16 @@ const DashboardPosts = () => {
   const postImageLibraryOptions = useMemo(
     () => ({
       uploadFolder: "posts",
-      listFolders: ["posts", "shared"],
+      listFolders: filterImageLibraryFoldersByAccess(["posts", "shared"], {
+        grants: { posts: canManagePosts },
+      }),
       listAll: false,
       includeProjectImages: true,
       projectImageProjectIds: [],
       projectImagesView: "by-project" as const,
       currentSelectionUrls: embeddedUploadUrls,
     }),
-    [embeddedUploadUrls],
+    [canManagePosts, embeddedUploadUrls],
   );
   const projectTags = useMemo(() => {
     if (!formState.projectId) {

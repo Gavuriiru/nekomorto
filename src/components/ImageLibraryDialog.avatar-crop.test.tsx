@@ -1,17 +1,41 @@
 import { useState } from "react";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import ImageLibraryDialog from "@/components/ImageLibraryDialog";
+import ImageLibraryDialog, {
+  renderAvatarCropDataUrl,
+} from "@/components/ImageLibraryDialog";
 
-const { apiFetchMock, toastMock, cropperRenderMock, cropperGetCanvasMock, cropperToDataUrlMock } =
+const {
+  apiFetchMock,
+  toastMock,
+  cropperRenderMock,
+  cropperGetCanvasMock,
+  cropperGetCoordinatesMock,
+  cropperGetImageMock,
+  cropperGetStateMock,
+  cropperToDataUrlMock,
+  drawCroppedAreaMock,
+} =
   vi.hoisted(() => ({
     apiFetchMock: vi.fn(),
     toastMock: vi.fn(),
     cropperRenderMock: vi.fn(),
     cropperGetCanvasMock: vi.fn(),
+    cropperGetCoordinatesMock: vi.fn(),
+    cropperGetImageMock: vi.fn(),
+    cropperGetStateMock: vi.fn(),
     cropperToDataUrlMock: vi.fn(),
+    drawCroppedAreaMock: vi.fn(),
   }));
+
+vi.mock("advanced-cropper", async () => {
+  const actual = await vi.importActual<typeof import("advanced-cropper")>("advanced-cropper");
+  return {
+    ...actual,
+    drawCroppedArea: (...args: unknown[]) => drawCroppedAreaMock(...args),
+  };
+});
 
 vi.mock("react-advanced-cropper", async () => {
   const React = await vi.importActual<typeof import("react")>("react");
@@ -20,6 +44,9 @@ vi.mock("react-advanced-cropper", async () => {
     const cropperApi = React.useMemo(
       () => ({
         getCanvas: (...args: unknown[]) => cropperGetCanvasMock(...args),
+        getCoordinates: (...args: unknown[]) => cropperGetCoordinatesMock(...args),
+        getImage: (...args: unknown[]) => cropperGetImageMock(...args),
+        getState: (...args: unknown[]) => cropperGetStateMock(...args),
       }),
       [],
     );
@@ -136,18 +163,103 @@ const getLastRenderedCropperSrc = () => {
   return String(lastCall?.src || "");
 };
 
+const originalImage = globalThis.Image;
+
+class MockImage {
+  onload: null | (() => void) = null;
+  onerror: null | (() => void) = null;
+  private currentSrc = "";
+  naturalWidth = 512;
+  naturalHeight = 512;
+  width = 512;
+  height = 512;
+
+  set src(value: string) {
+    this.currentSrc = value;
+    window.setTimeout(() => {
+      this.onload?.();
+    }, 0);
+  }
+
+  get src() {
+    return this.currentSrc;
+  }
+}
+
 describe("ImageLibraryDialog avatar crop flow", () => {
   beforeEach(() => {
     ensureDomRectFromRect();
+    vi.stubGlobal("Image", MockImage as unknown as typeof Image);
     apiFetchMock.mockReset();
     toastMock.mockReset();
     cropperRenderMock.mockReset();
     cropperGetCanvasMock.mockReset();
+    cropperGetCoordinatesMock.mockReset();
+    cropperGetImageMock.mockReset();
+    cropperGetStateMock.mockReset();
     cropperToDataUrlMock.mockReset();
+    drawCroppedAreaMock.mockReset();
     cropperToDataUrlMock.mockReturnValue("data:image/png;base64,cropped-avatar");
     cropperGetCanvasMock.mockReturnValue({
       toDataURL: cropperToDataUrlMock,
     } as unknown as HTMLCanvasElement);
+    cropperGetCoordinatesMock.mockReturnValue({
+      left: 12,
+      top: 18,
+      width: 144,
+      height: 144,
+    });
+    cropperGetImageMock.mockReturnValue({
+      src: "data:image/png;base64,source-avatar",
+      revoke: false,
+      transforms: {
+        rotate: 0,
+        flip: {
+          horizontal: false,
+          vertical: false,
+        },
+      },
+      arrayBuffer: null,
+      width: 320,
+      height: 320,
+    });
+    cropperGetStateMock.mockReturnValue({
+      boundary: { width: 320, height: 320 },
+      imageSize: { width: 320, height: 320 },
+      transforms: {
+        rotate: 0,
+        flip: {
+          horizontal: false,
+          vertical: false,
+        },
+      },
+      visibleArea: {
+        left: 0,
+        top: 0,
+        width: 320,
+        height: 320,
+      },
+      coordinates: {
+        left: 12,
+        top: 18,
+        width: 144,
+        height: 144,
+      },
+    });
+    drawCroppedAreaMock.mockImplementation(
+      (_state: unknown, _image: unknown, resultCanvas: HTMLCanvasElement) => {
+        Object.defineProperty(resultCanvas, "toDataURL", {
+          configurable: true,
+          value: cropperToDataUrlMock,
+        });
+        return resultCanvas;
+      },
+    );
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    globalThis.Image = originalImage;
   });
 
   it("abre editor de avatar somente quando cropAvatar estiver habilitado", async () => {
@@ -189,6 +301,7 @@ describe("ImageLibraryDialog avatar crop flow", () => {
         cropAvatar
         cropTargetFolder="users"
         cropSlot="avatar-user-1"
+        scopeUserId="user-1"
         onSave={() => undefined}
       />,
     );
@@ -214,6 +327,9 @@ describe("ImageLibraryDialog avatar crop flow", () => {
       | undefined;
     expect(cropperProps).toBeTruthy();
     expect(cropperProps?.imageRestriction).toBe("stencil");
+    expect(cropperProps?.transformImage).toMatchObject({
+      adjustStencil: false,
+    });
     expect(cropperProps?.stencilProps).toMatchObject({
       movable: false,
       resizable: false,
@@ -236,8 +352,8 @@ describe("ImageLibraryDialog avatar crop flow", () => {
       boundary: { width: 220, height: 320 },
     });
     expect(stencilSizeResult).toEqual({
-      width: 320,
-      height: 320,
+      width: 220,
+      height: 220,
     });
   });
 
@@ -283,6 +399,7 @@ describe("ImageLibraryDialog avatar crop flow", () => {
         cropAvatar
         cropTargetFolder="users"
         cropSlot="avatar-user-1"
+        scopeUserId="user-1"
         onSave={() => undefined}
       />,
     );
@@ -295,13 +412,16 @@ describe("ImageLibraryDialog avatar crop flow", () => {
     fireEvent.click(applyButton);
 
     await waitFor(() => {
-      expect(cropperGetCanvasMock).toHaveBeenCalledWith({
-        width: 512,
-        height: 512,
-      });
+      expect(drawCroppedAreaMock).toHaveBeenCalled();
     });
+    expect(cropperGetCanvasMock).not.toHaveBeenCalled();
 
     await waitFor(() => {
+      expect(apiFetchMock).toHaveBeenCalledWith(
+        "http://api.local",
+        "/api/uploads/list?folder=users&recursive=1&scopeUserId=user-1",
+        expect.any(Object),
+      );
       const cropCall = apiFetchMock.mock.calls.find((call) => String(call[1] || "") === "/api/uploads/image");
       expect(cropCall).toBeTruthy();
       const request = cropCall?.[2] as { body?: string };
@@ -310,6 +430,7 @@ describe("ImageLibraryDialog avatar crop flow", () => {
         folder: "users",
         slot: "avatar-user-1",
         filename: "avatar-user-1.png",
+        scopeUserId: "user-1",
       });
     });
 
@@ -792,6 +913,225 @@ describe("ImageLibraryDialog avatar crop flow", () => {
     });
   });
 
+  it("autoabre o cropper apos upload no fluxo de avatar", async () => {
+    let listCalls = 0;
+    apiFetchMock.mockImplementation(async (_base: string, path: string) => {
+      if (path.startsWith("/api/uploads/list")) {
+        listCalls += 1;
+        if (listCalls > 1) {
+          return buildUploadListResponse([
+            {
+              name: "fresh-upload.png",
+              label: "Upload Recente",
+              fileName: "fresh-upload.png",
+              folder: "users",
+              mime: "image/png",
+              size: 1200,
+              url: "/uploads/users/fresh-upload.png",
+            },
+          ]);
+        }
+        return buildUploadListResponse([]);
+      }
+      if (path === "/api/uploads/image") {
+        return mockJsonResponse(true, { url: "/uploads/users/fresh-upload.png" });
+      }
+      if (path === "/api/uploads/project-images") {
+        return mockJsonResponse(true, { items: [] });
+      }
+      return mockJsonResponse(false, { error: "not_found" }, 404);
+    });
+
+    render(
+      <ImageLibraryDialog
+        open
+        onOpenChange={() => undefined}
+        apiBase="http://api.local"
+        uploadFolder="users"
+        listFolders={["users"]}
+        listAll={false}
+        mode="single"
+        cropAvatar
+        cropTargetFolder="users"
+        cropSlot="avatar-user-1"
+        onSave={() => undefined}
+      />,
+    );
+
+    const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement | null;
+    expect(fileInput).toBeTruthy();
+    fireEvent.change(fileInput as HTMLInputElement, {
+      target: { files: [new File(["avatar"], "fresh-upload.png", { type: "image/png" })] },
+    });
+
+    expect(await screen.findByRole("heading", { name: "Editor de avatar" })).toBeInTheDocument();
+    expect(await screen.findByText("Upload Recente")).toBeInTheDocument();
+  });
+
+  it("autoabre o cropper apos importar por URL no fluxo de avatar", async () => {
+    let listCalls = 0;
+    apiFetchMock.mockImplementation(async (_base: string, path: string) => {
+      if (path.startsWith("/api/uploads/list")) {
+        listCalls += 1;
+        if (listCalls > 1) {
+          return buildUploadListResponse([
+            {
+              name: "imported-avatar.png",
+              label: "Avatar Importado",
+              fileName: "imported-avatar.png",
+              folder: "users",
+              mime: "image/png",
+              size: 1200,
+              url: "/uploads/users/imported-avatar.png",
+            },
+          ]);
+        }
+        return buildUploadListResponse([]);
+      }
+      if (path === "/api/uploads/image-from-url") {
+        return mockJsonResponse(true, { url: "/uploads/users/imported-avatar.png" });
+      }
+      if (path === "/api/uploads/project-images") {
+        return mockJsonResponse(true, { items: [] });
+      }
+      return mockJsonResponse(false, { error: "not_found" }, 404);
+    });
+
+    render(
+      <ImageLibraryDialog
+        open
+        onOpenChange={() => undefined}
+        apiBase="http://api.local"
+        uploadFolder="users"
+        listFolders={["users"]}
+        listAll={false}
+        mode="single"
+        cropAvatar
+        cropTargetFolder="users"
+        cropSlot="avatar-user-1"
+        onSave={() => undefined}
+      />,
+    );
+
+    const urlInput = await screen.findByPlaceholderText("https://site.com/imagem.png");
+    fireEvent.change(urlInput, { target: { value: "https://cdn.site/avatar.png" } });
+    fireEvent.click(screen.getByRole("button", { name: "Importar URL" }));
+
+    expect(await screen.findByRole("heading", { name: "Editor de avatar" })).toBeInTheDocument();
+    expect(await screen.findByText("Avatar Importado")).toBeInTheDocument();
+  });
+
+  it("reabre o cropper em dedupe hit mesmo quando a URL retornada ja estava selecionada", async () => {
+    apiFetchMock.mockImplementation(async (_base: string, path: string) => {
+      if (path.startsWith("/api/uploads/list")) {
+        return buildUploadListResponse([
+          {
+            name: "existing.png",
+            label: "Existente",
+            fileName: "existing.png",
+            folder: "users",
+            mime: "image/png",
+            size: 100,
+            url: "/uploads/users/existing.png",
+          },
+        ]);
+      }
+      if (path === "/api/uploads/image") {
+        return mockJsonResponse(true, { url: "/uploads/users/existing.png" });
+      }
+      if (path === "/api/uploads/project-images") {
+        return mockJsonResponse(true, { items: [] });
+      }
+      return mockJsonResponse(false, { error: "not_found" }, 404);
+    });
+
+    render(
+      <ImageLibraryDialog
+        open
+        onOpenChange={() => undefined}
+        apiBase="http://api.local"
+        uploadFolder="users"
+        listFolders={["users"]}
+        listAll={false}
+        mode="single"
+        cropAvatar
+        cropTargetFolder="users"
+        cropSlot="avatar-user-1"
+        currentSelectionUrls={["/uploads/users/existing.png"]}
+        onSave={() => undefined}
+      />,
+    );
+
+    expect(await screen.findByText("Existente")).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Editor de avatar" })).not.toBeInTheDocument();
+
+    const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement | null;
+    expect(fileInput).toBeTruthy();
+    fireEvent.change(fileInput as HTMLInputElement, {
+      target: { files: [new File(["avatar"], "same.png", { type: "image/png" })] },
+    });
+
+    expect(await screen.findByRole("heading", { name: "Editor de avatar" })).toBeInTheDocument();
+  });
+
+  it("nao autoabre o cropper quando o upload retornado ja e o avatar final slot-managed", async () => {
+    let listCalls = 0;
+    apiFetchMock.mockImplementation(async (_base: string, path: string) => {
+      if (path.startsWith("/api/uploads/list")) {
+        listCalls += 1;
+        if (listCalls > 1) {
+          return buildUploadListResponse([
+            {
+              name: "avatar-user-1.png",
+              label: "Avatar Final",
+              fileName: "avatar-user-1.png",
+              folder: "users",
+              mime: "image/png",
+              size: 1200,
+              url: "/uploads/users/avatar-user-1.png",
+              slotManaged: true,
+            },
+          ]);
+        }
+        return buildUploadListResponse([]);
+      }
+      if (path === "/api/uploads/image") {
+        return mockJsonResponse(true, { url: "/uploads/users/avatar-user-1.png" });
+      }
+      if (path === "/api/uploads/project-images") {
+        return mockJsonResponse(true, { items: [] });
+      }
+      return mockJsonResponse(false, { error: "not_found" }, 404);
+    });
+
+    render(
+      <ImageLibraryDialog
+        open
+        onOpenChange={() => undefined}
+        apiBase="http://api.local"
+        uploadFolder="users"
+        listFolders={["users"]}
+        listAll={false}
+        mode="single"
+        cropAvatar
+        cropTargetFolder="users"
+        cropSlot="avatar-user-1"
+        onSave={() => undefined}
+      />,
+    );
+
+    const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement | null;
+    expect(fileInput).toBeTruthy();
+    fireEvent.change(fileInput as HTMLInputElement, {
+      target: { files: [new File(["avatar"], "avatar-user-1.png", { type: "image/png" })] },
+    });
+
+    expect(await screen.findByText("Avatar Final")).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.queryByRole("heading", { name: "Editor de avatar" })).not.toBeInTheDocument();
+    });
+  });
+
   it("atualiza thumbnail e cropper com cache-bust quando o avatar final reutiliza a mesma URL", async () => {
     let listCalls = 0;
     apiFetchMock.mockImplementation(async (_base: string, path: string) => {
@@ -999,6 +1339,135 @@ describe("ImageLibraryDialog avatar crop flow", () => {
       expect(baseButton as HTMLButtonElement).not.toHaveClass("ring-2");
       expect(finalAvatarButton as HTMLButtonElement).toHaveClass("ring-2");
     });
+  });
+
+  it("gera o PNG final a partir de state, image e coordinates do cropper", async () => {
+    const cropperHandle = {
+      getState: () => ({
+        boundary: { width: 320, height: 320 },
+        imageSize: { width: 320, height: 320 },
+        transforms: {
+          rotate: 0,
+          flip: {
+            horizontal: false,
+            vertical: false,
+          },
+        },
+        visibleArea: {
+          left: 0,
+          top: 0,
+          width: 320,
+          height: 320,
+        },
+        coordinates: {
+          left: 5,
+          top: 7,
+          width: 120,
+          height: 120,
+        },
+      }),
+      getCoordinates: () => ({
+        left: 11,
+        top: 13,
+        width: 144,
+        height: 144,
+      }),
+      getImage: () => ({
+        src: "/uploads/users/source-avatar.png",
+        revoke: false,
+        transforms: {
+          rotate: 0,
+          flip: {
+            horizontal: false,
+            vertical: false,
+          },
+        },
+        arrayBuffer: null,
+        width: 320,
+        height: 320,
+      }),
+    };
+
+    const dataUrl = await renderAvatarCropDataUrl(
+      cropperHandle as Parameters<typeof renderAvatarCropDataUrl>[0],
+    );
+
+    expect(dataUrl).toBe("data:image/png;base64,cropped-avatar");
+    expect(drawCroppedAreaMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        coordinates: {
+          left: 11,
+          top: 13,
+          width: 144,
+          height: 144,
+        },
+      }),
+      expect.objectContaining({
+        src: "/uploads/users/source-avatar.png",
+      }),
+      expect.any(HTMLCanvasElement),
+      expect.any(HTMLCanvasElement),
+      expect.objectContaining({
+        width: 512,
+        height: 512,
+      }),
+    );
+  });
+
+  it("falha de forma controlada quando o cropper nao expõe state/image/coordenadas", async () => {
+    await expect(
+      renderAvatarCropDataUrl(
+        {
+          getState: () => null,
+          getCoordinates: () => null,
+          getImage: () => null,
+        } as Parameters<typeof renderAvatarCropDataUrl>[0],
+      ),
+    ).rejects.toThrow("cropper_state_unavailable");
+  });
+
+  it("nao envia upload quando o cropper nao consegue fornecer o recorte atual", async () => {
+    cropperGetStateMock.mockReturnValue(null);
+    apiFetchMock.mockImplementation(async (_base: string, path: string) => {
+      if (path.startsWith("/api/uploads/list")) {
+        return buildUploadListResponse([baseUploadItem]);
+      }
+      if (path === "/api/uploads/project-images") {
+        return mockJsonResponse(true, { items: [] });
+      }
+      return mockJsonResponse(false, { error: "not_found" }, 404);
+    });
+
+    render(
+      <ImageLibraryDialog
+        open
+        onOpenChange={() => undefined}
+        apiBase="http://api.local"
+        uploadFolder="users"
+        listFolders={["users"]}
+        listAll={false}
+        mode="single"
+        cropAvatar
+        cropTargetFolder="users"
+        cropSlot="avatar-user-1"
+        onSave={() => undefined}
+      />,
+    );
+
+    fireEvent.click(await screen.findByRole("button", { name: /Avatar Base/i }));
+    await screen.findByRole("heading", { name: "Editor de avatar" });
+
+    const applyButton = screen.getByRole("button", { name: "Aplicar avatar" });
+    await waitFor(() => expect(applyButton).toBeEnabled());
+    fireEvent.click(applyButton);
+
+    await waitFor(() => {
+      expect(toastMock).toHaveBeenCalled();
+    });
+    const calledUploadEndpoint = apiFetchMock.mock.calls.some(
+      (call) => String(call[1] || "") === "/api/uploads/image",
+    );
+    expect(calledUploadEndpoint).toBe(false);
   });
 });
 

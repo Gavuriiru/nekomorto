@@ -83,6 +83,7 @@ import { createSlug } from "@/lib/post-content";
 import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
 import { parseAniListMediaId } from "@/lib/anilist";
+import { filterImageLibraryFoldersByAccess } from "@/lib/image-library-scope";
 import {
   DEFAULT_PROJECT_BANNER_ALT,
   DEFAULT_PROJECT_COVER_ALT,
@@ -1686,17 +1687,24 @@ const DashboardProjectsEditor = () => {
     const normalizedProjectId = String(formState.id || "").trim();
     return normalizedProjectId ? [normalizedProjectId] : [];
   }, [formState.id]);
+  const filterProjectLibraryFolders = useCallback(
+    (folders: string[]) =>
+      filterImageLibraryFoldersByAccess(folders, {
+        grants: { projetos: canManageProjects },
+      }),
+    [canManageProjects],
+  );
   const projectAssetLibraryOptions = useMemo(
     () =>
       ({
         uploadFolder: projectRootFolder,
-        listFolders: [projectRootFolder, projectEpisodesFolder],
+        listFolders: filterProjectLibraryFolders([projectRootFolder, projectEpisodesFolder]),
         listAll: false,
         includeProjectImages: true,
         projectImageProjectIds: scopedProjectImageIds,
         projectImagesView: "by-project",
       }) satisfies ImageLibraryOptions,
-    [projectEpisodesFolder, projectRootFolder, scopedProjectImageIds],
+    [filterProjectLibraryFolders, projectEpisodesFolder, projectRootFolder, scopedProjectImageIds],
   );
   const buildEpisodeLibraryOptions = useCallback(
     (episode: EditorProjectEpisode, index: number): ImageLibraryOptions => {
@@ -1708,7 +1716,12 @@ const DashboardProjectsEditor = () => {
         });
         return {
           uploadFolder: chapterFolder,
-          listFolders: [chapterFolder, projectChaptersFolder, projectEpisodesFolder, projectRootFolder],
+          listFolders: filterProjectLibraryFolders([
+            chapterFolder,
+            projectChaptersFolder,
+            projectEpisodesFolder,
+            projectRootFolder,
+          ]),
           listAll: false,
           includeProjectImages: true,
           projectImageProjectIds: scopedProjectImageIds,
@@ -1717,7 +1730,7 @@ const DashboardProjectsEditor = () => {
       }
       return {
         uploadFolder: projectEpisodesFolder,
-        listFolders: [projectEpisodesFolder, projectRootFolder],
+        listFolders: filterProjectLibraryFolders([projectEpisodesFolder, projectRootFolder]),
         listAll: false,
         includeProjectImages: true,
         projectImageProjectIds: scopedProjectImageIds,
@@ -1726,6 +1739,7 @@ const DashboardProjectsEditor = () => {
     },
     [
       isChapterBased,
+      filterProjectLibraryFolders,
       projectChaptersFolder,
       projectEpisodesFolder,
       projectRootFolder,
@@ -1739,7 +1753,7 @@ const DashboardProjectsEditor = () => {
       }
       return {
         uploadFolder: projectEpisodesFolder,
-        listFolders: [projectEpisodesFolder, projectRootFolder],
+        listFolders: filterProjectLibraryFolders([projectEpisodesFolder, projectRootFolder]),
         listAll: false,
         includeProjectImages: true,
         projectImageProjectIds: scopedProjectImageIds,
@@ -1749,6 +1763,7 @@ const DashboardProjectsEditor = () => {
     [
       buildEpisodeLibraryOptions,
       episodeCoverIndex,
+      filterProjectLibraryFolders,
       formState.episodeDownloads,
       projectEpisodesFolder,
       projectRootFolder,
@@ -1759,13 +1774,23 @@ const DashboardProjectsEditor = () => {
     () =>
       ({
         uploadFolder: projectVolumeCoversFolder,
-        listFolders: [projectVolumeCoversFolder, projectRootFolder, projectEpisodesFolder],
+        listFolders: filterProjectLibraryFolders([
+          projectVolumeCoversFolder,
+          projectRootFolder,
+          projectEpisodesFolder,
+        ]),
         listAll: false,
         includeProjectImages: true,
         projectImageProjectIds: scopedProjectImageIds,
         projectImagesView: "by-project",
       }) satisfies ImageLibraryOptions,
-    [projectEpisodesFolder, projectRootFolder, projectVolumeCoversFolder, scopedProjectImageIds],
+    [
+      filterProjectLibraryFolders,
+      projectEpisodesFolder,
+      projectRootFolder,
+      projectVolumeCoversFolder,
+      scopedProjectImageIds,
+    ],
   );
   const activeLibraryOptions = useMemo(
     () => {

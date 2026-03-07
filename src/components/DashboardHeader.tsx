@@ -40,12 +40,14 @@ import { useDynamicSynopsisClamp } from "@/hooks/use-dynamic-synopsis-clamp";
 import { useGlobalShortcuts } from "@/hooks/use-global-shortcuts";
 import { isEditableShortcutTarget } from "@/lib/keyboard-shortcuts";
 import { sanitizePublicHref } from "@/lib/url-safety";
+import { buildAvatarRenderUrl } from "@/lib/avatar-render-url";
 import { uiCopy } from "@/lib/ui-copy";
 
 type DashboardHeaderUser = {
   name?: string;
   username?: string;
   avatarUrl?: string | null;
+  revision?: string | null;
 };
 
 type DashboardHeaderProps = {
@@ -129,6 +131,10 @@ const DashboardHeader = ({
     }
     return currentPath === targetPath || currentPath.startsWith(`${targetPath}/`);
   };
+  const currentUserAvatarUrl = useMemo(
+    () => buildAvatarRenderUrl(currentUser?.avatarUrl, 128, currentUser?.revision),
+    [currentUser?.avatarUrl, currentUser?.revision],
+  );
   const userName = currentUser?.name || currentUser?.username || uiCopy.user.account;
   const userInitials = (currentUser?.name || currentUser?.username || "??")
     .split(" ")
@@ -662,8 +668,8 @@ const DashboardHeader = ({
                   className="h-10 rounded-full border border-border/60 bg-card/50 px-2 text-foreground hover:bg-accent"
                 >
                   <Avatar className="h-8 w-8 border border-border/70">
-                    {currentUser?.avatarUrl ? (
-                      <AvatarImage src={currentUser.avatarUrl} alt={userName} />
+                    {currentUserAvatarUrl ? (
+                      <AvatarImage src={currentUserAvatarUrl} alt={userName} />
                     ) : null}
                     <AvatarFallback className="bg-card/80 text-xs text-foreground">
                       {userInitials}

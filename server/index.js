@@ -172,7 +172,8 @@ import {
 import { buildDiskStorageAreaSummary, runUploadsCleanup } from "./lib/uploads-cleanup.js";
 import { runUploadsReorganization } from "./lib/uploads-reorganizer.js";
 import {
-  resolveAvatarUploadScopeAccess,
+  isUploadFolderAllowedInScope,
+  resolveUploadScopeAccess,
   shouldIncludeUploadInHashDedupe,
 } from "./lib/avatar-upload-scope.js";
 import {
@@ -6590,10 +6591,68 @@ app.post("/api/auth/mfa/verify", async (req, res) => {
   });
 });
 
+const resolveUserAvatarRenderVersion = (avatarUrl, uploadsInput = null) => {
+  const normalizedAvatarUrl = normalizeUploadUrl(avatarUrl);
+  if (!normalizedAvatarUrl) {
+    return "";
+  }
+  const uploads = Array.isArray(uploadsInput) ? uploadsInput : loadUploads();
+  const matchedUpload = uploads.find(
+    (item) => normalizeUploadUrl(item?.url) === normalizedAvatarUrl,
+  );
+  if (!matchedUpload) {
+    return "";
+  }
+  const variantsVersion = Number(matchedUpload?.variantsVersion);
+  if (Number.isFinite(variantsVersion) && variantsVersion > 0) {
+    return `variant-${variantsVersion}`;
+  }
+  const createdAt = String(matchedUpload?.createdAt || "").trim();
+  if (!createdAt) {
+    return "";
+  }
+  const createdAtTimestamp = new Date(createdAt).getTime();
+  if (Number.isFinite(createdAtTimestamp) && createdAtTimestamp > 0) {
+    return `created-${createdAtTimestamp}`;
+  }
+  return `created-${createdAt}`;
+};
+
+const buildUserProfileRevisionToken = (user, uploadsInput = null) =>
+  createRevisionToken({
+    id: String(user?.id || ""),
+    name: String(user?.name || ""),
+    username: String(user?.username || ""),
+    avatarUrl: String(user?.avatarUrl || ""),
+    avatarDisplay: normalizeAvatarDisplay(user?.avatarDisplay),
+    avatarRenderVersion: resolveUserAvatarRenderVersion(user?.avatarUrl, uploadsInput),
+  });
+
+const withUserProfileRevision = (user, uploadsInput = null) => ({
+  ...user,
+  revision: buildUserProfileRevisionToken(user, uploadsInput),
+});
+
+const syncSessionUserDisplayProfile = (req, user, uploadsInput = null) => {
+  if (!req?.session?.user || !user) {
+    return;
+  }
+  const nextSessionUser = {
+    ...req.session.user,
+    name: String(user?.name || req.session.user.name || ""),
+    phrase: String(user?.phrase || ""),
+    bio: String(user?.bio || ""),
+    avatarUrl: user?.avatarUrl || null,
+    avatarDisplay: normalizeAvatarDisplay(user?.avatarDisplay),
+  };
+  req.session.user = withUserProfileRevision(nextSessionUser, uploadsInput);
+};
+
 const buildUserPayload = (sessionUser) => {
   ensureOwnerUser(sessionUser);
   const users = normalizeUsers(loadUsers());
   const matched = users.find((user) => user.id === String(sessionUser.id));
+  const uploads = loadUploads();
   const ownerIds = loadOwnerIds().map((id) => String(id));
   const primaryOwnerId = ownerIds[0] ? String(ownerIds[0]) : null;
   const accessRole = computeEffectiveAccessRole({
@@ -6614,16 +6673,24 @@ const buildUserPayload = (sessionUser) => {
     matched?.roles || [],
     ownerIds.includes(String(sessionUser?.id || "")),
   );
-  return {
+  const payload = {
     ...sessionUser,
+    name: String(matched?.name || sessionUser?.name || ""),
+    phrase: String(matched?.phrase || sessionUser?.phrase || ""),
+    bio: String(matched?.bio || sessionUser?.bio || ""),
+    avatarUrl: matched ? matched.avatarUrl || null : sessionUser?.avatarUrl || null,
+    avatarDisplay: normalizeAvatarDisplay(matched?.avatarDisplay || sessionUser?.avatarDisplay),
+    socials: matched?.socials || sessionUser?.socials || [],
+    favoriteWorks: matched?.favoriteWorks || sessionUser?.favoriteWorks || {},
+    status: matched?.status || sessionUser?.status || "active",
     permissions: permissionsForRead(matched?.permissions || []),
     roles,
     accessRole,
     ownerIds,
     primaryOwnerId,
     grants,
-    avatarDisplay: normalizeAvatarDisplay(matched?.avatarDisplay),
   };
+  return withUserProfileRevision(payload, uploads);
 };
 
 app.get("/api/me", (req, res) => {
@@ -8990,6 +9057,27 @@ const canManageUsersAccess = (userId) => {
   const permissions = Array.isArray(user?.permissions) ? user.permissions : [];
   return permissions.includes("*") || permissions.includes("usuarios");
 };
+
+const normalizeUploadScopeUserId = (value) => String(value || "").trim();
+
+const resolveRequestUploadAccessScope = ({
+  sessionUser,
+  folder = "",
+  listAll = false,
+  scopeUserId = "",
+} = {}) =>
+  resolveUploadScopeAccess({
+    hasUploadManagement: canManageUploads(sessionUser?.id),
+    canManagePosts: canManagePosts(sessionUser?.id),
+    canManageProjects: canManageProjects(sessionUser?.id),
+    canManageUsersBasic: canManageUsersBasic(sessionUser?.id),
+    canManagePages: canManagePages(sessionUser?.id),
+    canManageSettings: canManageSettings(sessionUser?.id),
+    sessionUserId: String(sessionUser?.id || "").trim(),
+    scopeUserId: normalizeUploadScopeUserId(scopeUserId),
+    folder,
+    listAll,
+  });
 
 const enforceUserAccessInvariants = (usersInput) => {
   const ownerIds = loadOwnerIds().map((id) => String(id));
@@ -12583,12 +12671,12 @@ app.get("/api/anilist/:id", requireAuth, async (req, res) => {
 
 app.post("/api/uploads/image", requireAuth, async (req, res) => {
   const sessionUser = req.session.user;
-  const { dataUrl, filename, folder, slot } = req.body || {};
+  const { dataUrl, filename, folder, slot, scopeUserId } = req.body || {};
   const safeFolder = sanitizeUploadFolder(folder);
-  const uploadAccessScope = resolveAvatarUploadScopeAccess({
-    hasUploadManagement: canManageUploads(sessionUser?.id),
-    hasUsersBasic: canManageUsersBasic(sessionUser?.id),
+  const uploadAccessScope = resolveRequestUploadAccessScope({
+    sessionUser,
     folder: safeFolder,
+    scopeUserId,
   });
   if (!uploadAccessScope.allowed) {
     return res.status(403).json({ error: "forbidden" });
@@ -12783,13 +12871,14 @@ app.post("/api/uploads/image", requireAuth, async (req, res) => {
 app.get("/api/uploads/list", requireAuth, (req, res) => {
   const sessionUser = req.session.user;
   const folder = typeof req.query.folder === "string" ? req.query.folder.trim() : "";
+  const scopeUserId = normalizeUploadScopeUserId(req.query.scopeUserId);
   const listAll = folder === "__all__";
   const safeFolder = listAll ? "" : sanitizeUploadFolder(folder);
-  const uploadAccessScope = resolveAvatarUploadScopeAccess({
-    hasUploadManagement: canManageUploads(sessionUser?.id),
-    hasUsersBasic: canManageUsersBasic(sessionUser?.id),
+  const uploadAccessScope = resolveRequestUploadAccessScope({
+    sessionUser,
     folder: safeFolder,
     listAll,
+    scopeUserId,
   });
   if (!uploadAccessScope.allowed) {
     return res.status(403).json({ error: "forbidden" });
@@ -12822,10 +12911,10 @@ app.get("/api/uploads/list", requireAuth, (req, res) => {
         if (normalizedBase === "_variants" || normalizedBase.startsWith("_variants/")) {
           return;
         }
-        if (listAll && isPrivateUploadFolder(normalizedBase)) {
-          return;
-        }
         if (entry.isDirectory()) {
+          if (!isUploadFolderAllowedInScope(normalizedBase, uploadAccessScope)) {
+            return;
+          }
           results.push(...collectFiles(fullPath, nextBase));
           return;
         }
@@ -12837,6 +12926,11 @@ app.get("/api/uploads/list", requireAuth, (req, res) => {
         const normalizedUrl = normalizeUploadUrl(url) || url;
         const stat = fs.statSync(fullPath);
         const meta = uploadMetaMap.get(normalizedUrl) || null;
+        const resolvedFolder =
+          meta?.folder ?? path.dirname(relative).replace(/\\/g, "/").replace(/^\.$/, "");
+        if (!isUploadFolderAllowedInScope(resolvedFolder, uploadAccessScope)) {
+          return;
+        }
         const inUse = usedUrls.has(normalizedUrl);
         const focalState = readUploadFocalState(meta);
         results.push({
@@ -12844,7 +12938,7 @@ app.get("/api/uploads/list", requireAuth, (req, res) => {
           name: entry.name,
           url: normalizedUrl,
           source: "upload",
-          folder: meta?.folder ?? path.dirname(relative).replace(/\\/g, "/").replace(/^\.$/, ""),
+          folder: resolvedFolder,
           fileName: meta?.fileName || entry.name,
           mime: meta?.mime || getUploadMimeFromExtension(path.extname(entry.name).replace(".", "")),
           size: typeof meta?.size === "number" ? meta.size : stat.size,
@@ -12887,6 +12981,10 @@ app.get("/api/uploads/list", requireAuth, (req, res) => {
             const normalizedUrl = normalizeUploadUrl(url) || url;
             const stat = fs.statSync(fullPath);
             const meta = uploadMetaMap.get(normalizedUrl) || null;
+            const resolvedFolder = meta?.folder ?? safeFolder;
+            if (!isUploadFolderAllowedInScope(resolvedFolder, uploadAccessScope)) {
+              return null;
+            }
             const inUse = usedUrls.has(normalizedUrl);
             const focalState = readUploadFocalState(meta);
             return {
@@ -12894,7 +12992,7 @@ app.get("/api/uploads/list", requireAuth, (req, res) => {
               name: item,
               url: normalizedUrl,
               source: "upload",
-              folder: meta?.folder ?? safeFolder,
+              folder: resolvedFolder,
               fileName: meta?.fileName || item,
               mime: meta?.mime || getUploadMimeFromExtension(path.extname(item).replace(".", "")),
               size: typeof meta?.size === "number" ? meta.size : stat.size,
@@ -12922,7 +13020,8 @@ app.get("/api/uploads/list", requireAuth, (req, res) => {
               inUse,
               canDelete: !inUse,
             };
-          });
+          })
+          .filter(Boolean);
     return res.json({ files });
   } catch {
     return res.json({ files: [] });
@@ -13333,10 +13432,10 @@ app.get("/api/uploads/project-images", requireAuth, (req, res) => {
 app.post("/api/uploads/image-from-url", requireAuth, async (req, res) => {
   const sessionUser = req.session.user;
   const safeFolder = sanitizeUploadFolder(req.body?.folder || "");
-  const uploadAccessScope = resolveAvatarUploadScopeAccess({
-    hasUploadManagement: canManageUploads(sessionUser?.id),
-    hasUsersBasic: canManageUsersBasic(sessionUser?.id),
+  const uploadAccessScope = resolveRequestUploadAccessScope({
+    sessionUser,
     folder: safeFolder,
+    scopeUserId: req.body?.scopeUserId,
   });
   if (!uploadAccessScope.allowed) {
     return res.status(403).json({ error: "forbidden" });
@@ -14181,11 +14280,12 @@ app.put("/api/users/:id", (req, res) => {
     }
     appendAuditLog(req, "users.update", "users", { id: targetId });
     const responseUser = applyOwnerRole(updated);
+    const responseUploads = loadUploads();
+    if (targetId === String(sessionUser?.id || "")) {
+      syncSessionUserDisplayProfile(req, responseUser, responseUploads);
+    }
     return res.json({
-      user: {
-        ...responseUser,
-        revision: createRevisionToken(responseUser),
-      },
+      user: withUserProfileRevision(responseUser, responseUploads),
     });
   }
 
@@ -14367,11 +14467,12 @@ app.put("/api/users/:id", (req, res) => {
       },
     });
   }
+  const responseUploads = loadUploads();
+  if (targetId === String(sessionUser?.id || "")) {
+    syncSessionUserDisplayProfile(req, afterSnapshot, responseUploads);
+  }
   return res.json({
-    user: {
-      ...afterSnapshot,
-      revision: createRevisionToken(afterSnapshot),
-    },
+    user: withUserProfileRevision(afterSnapshot, responseUploads),
   });
 });
 
@@ -14562,11 +14663,10 @@ app.put("/api/users/self", requireAuth, (req, res) => {
     after: afterSnapshot,
     changes: diffUserFields(beforeSnapshot, afterSnapshot, BASIC_PROFILE_FIELDS),
   });
+  const responseUploads = loadUploads();
+  syncSessionUserDisplayProfile(req, persisted, responseUploads);
   return res.json({
-    user: {
-      ...afterSnapshot,
-      revision: createRevisionToken(afterSnapshot),
-    },
+    user: withUserProfileRevision(afterSnapshot, responseUploads),
   });
 });
 

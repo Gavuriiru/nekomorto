@@ -11,7 +11,7 @@ export const getUploadScopeRootSegment = (value) => {
   return String(normalized.split("/")[0] || "").toLowerCase();
 };
 
-export const isUsersUploadScopeFolder = (value) => getUploadScopeRootSegment(value) === "users";
+const normalizeScopeUserId = (value) => String(value || "").trim();
 
 const resolveEntryFolder = (entry) => {
   if (!entry || typeof entry !== "object") {
@@ -32,39 +32,99 @@ const resolveEntryFolder = (entry) => {
   return segments.slice(0, -1).join("/");
 };
 
-export const resolveAvatarUploadScopeAccess = ({
+const buildAllowedUploadRoots = ({
+  canManagePosts = false,
+  canManageProjects = false,
+  canManageUsersBasic = false,
+  canManagePages = false,
+  canManageSettings = false,
+  sessionUserId = "",
+  scopeUserId = "",
+} = {}) => {
+  const allowedRoots = new Set();
+  if (canManagePosts) {
+    allowedRoots.add("posts");
+  }
+  if (canManageProjects) {
+    allowedRoots.add("projects");
+  }
+  const normalizedSessionUserId = normalizeScopeUserId(sessionUserId);
+  const normalizedScopeUserId = normalizeScopeUserId(scopeUserId);
+  if (
+    canManageUsersBasic ||
+    (normalizedSessionUserId && normalizedScopeUserId && normalizedSessionUserId === normalizedScopeUserId)
+  ) {
+    allowedRoots.add("users");
+  }
+  if (canManagePages || canManagePosts || canManageSettings) {
+    allowedRoots.add("shared");
+  }
+  if (canManageSettings) {
+    allowedRoots.add("");
+    allowedRoots.add("branding");
+    allowedRoots.add("downloads");
+    allowedRoots.add("socials");
+  }
+  return Array.from(allowedRoots);
+};
+
+export const resolveUploadScopeAccess = ({
   hasUploadManagement = false,
-  hasUsersBasic = false,
+  canManagePosts = false,
+  canManageProjects = false,
+  canManageUsersBasic = false,
+  canManagePages = false,
+  canManageSettings = false,
+  sessionUserId = "",
+  scopeUserId = "",
   folder = "",
   listAll = false,
 } = {}) => {
   if (hasUploadManagement) {
     return {
       allowed: true,
-      limitedToAvatarScope: false,
+      hasFullAccess: true,
+      allowedRoots: [],
     };
   }
-  if (!hasUsersBasic) {
+  const allowedRoots = buildAllowedUploadRoots({
+    canManagePosts,
+    canManageProjects,
+    canManageUsersBasic,
+    canManagePages,
+    canManageSettings,
+    sessionUserId,
+    scopeUserId,
+  });
+  if (allowedRoots.length === 0) {
     return {
       allowed: false,
-      limitedToAvatarScope: false,
+      hasFullAccess: false,
+      allowedRoots,
     };
   }
-  if (listAll || !isUsersUploadScopeFolder(folder)) {
+  if (listAll) {
     return {
-      allowed: false,
-      limitedToAvatarScope: true,
+      allowed: true,
+      hasFullAccess: false,
+      allowedRoots,
     };
   }
+  const requestedRoot = getUploadScopeRootSegment(folder);
   return {
-    allowed: true,
-    limitedToAvatarScope: true,
+    allowed: allowedRoots.includes(requestedRoot),
+    hasFullAccess: false,
+    allowedRoots,
   };
 };
 
-export const shouldIncludeUploadInHashDedupe = (entry, { limitedToAvatarScope = false } = {}) => {
-  if (!limitedToAvatarScope) {
+export const isUploadFolderAllowedInScope = (folder, { hasFullAccess = false, allowedRoots = [] } = {}) => {
+  if (hasFullAccess) {
     return true;
   }
-  return isUsersUploadScopeFolder(resolveEntryFolder(entry));
+  return allowedRoots.includes(getUploadScopeRootSegment(folder));
+};
+
+export const shouldIncludeUploadInHashDedupe = (entry, accessScope = {}) => {
+  return isUploadFolderAllowedInScope(resolveEntryFolder(entry), accessScope);
 };

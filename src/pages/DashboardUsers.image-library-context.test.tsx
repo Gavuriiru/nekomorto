@@ -111,6 +111,7 @@ describe("DashboardUsers image library context", () => {
       cropAvatar?: boolean;
       cropTargetFolder?: string;
       currentSelectionUrls?: string[];
+      scopeUserId?: string;
       allowUploadManagementActions?: boolean;
     };
 
@@ -122,10 +123,11 @@ describe("DashboardUsers image library context", () => {
     expect(imageLibraryProps.cropAvatar).toBe(true);
     expect(imageLibraryProps.cropTargetFolder).toBe("users");
     expect(imageLibraryProps.currentSelectionUrls).toEqual(["/uploads/users/avatar-user-1.png"]);
+    expect(imageLibraryProps.scopeUserId).toBe("user-1");
     expect(imageLibraryProps.allowUploadManagementActions).toBe(false);
   });
 
-  it("abre a biblioteca de avatar em escopo amplo quando o ator tem uploads", async () => {
+  it("filtra as pastas do avatar pelos grants disponiveis e mantem acoes de upload quando permitido", async () => {
     apiFetchMock.mockReset();
     imageLibraryPropsSpy.mockReset();
     apiFetchMock.mockImplementation(async (_base: string, path: string, options?: RequestInit) => {
@@ -156,6 +158,8 @@ describe("DashboardUsers image library context", () => {
           username: "admin",
           grants: {
             usuarios_basico: true,
+            posts: true,
+            projetos: true,
             uploads: true,
           },
         });
@@ -179,11 +183,15 @@ describe("DashboardUsers image library context", () => {
     });
 
     const imageLibraryProps = imageLibraryPropsSpy.mock.calls.at(-1)?.[0] as {
+      listFolders?: string[];
       listAll?: boolean;
+      scopeUserId?: string;
       allowUploadManagementActions?: boolean;
     };
 
-    expect(imageLibraryProps.listAll).toBe(true);
+    expect(imageLibraryProps.listFolders).toEqual(["users", "posts", "projects"]);
+    expect(imageLibraryProps.listAll).toBe(false);
+    expect(imageLibraryProps.scopeUserId).toBe("user-1");
     expect(imageLibraryProps.allowUploadManagementActions).toBe(true);
   });
 });

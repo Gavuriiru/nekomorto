@@ -23,6 +23,7 @@ import {
   resolveAccessRole,
   resolveGrants,
 } from "@/lib/access-control";
+import { buildAvatarRenderUrl } from "@/lib/avatar-render-url";
 import { uiCopy } from "@/lib/ui-copy";
 
 type DashboardUser = {
@@ -30,6 +31,7 @@ type DashboardUser = {
   name?: string;
   username?: string;
   avatarUrl?: string | null;
+  revision?: string | null;
   accessRole?: string;
   permissions?: string[];
   ownerIds?: string[];
@@ -120,6 +122,10 @@ const DashboardShell = ({
     .join("")
     .toUpperCase();
   const initials = initialsRaw || "??";
+  const userAvatarUrl = useMemo(
+    () => buildAvatarRenderUrl(effectiveUser?.avatarUrl, 128, effectiveUser?.revision),
+    [effectiveUser?.avatarUrl, effectiveUser?.revision],
+  );
   const isUserClickable = Boolean(onUserCardClick);
   const userCardBaseClass =
     "relative flex items-center gap-3 rounded-xl border border-sidebar-border/80 bg-sidebar-accent/20 p-3 transition hover:border-sidebar-ring/40 hover:bg-sidebar-accent/35 group-data-[collapsible=icon]:hidden";
@@ -149,8 +155,8 @@ const DashboardShell = ({
                 </button>
               ) : null}
               <Avatar className="h-11 w-11 border border-sidebar-border">
-                {effectiveUser?.avatarUrl ? (
-                  <AvatarImage src={effectiveUser.avatarUrl} alt={userName} />
+                {userAvatarUrl ? (
+                  <AvatarImage src={userAvatarUrl} alt={userName} />
                 ) : null}
                 <AvatarFallback className="bg-sidebar-primary/10 text-xs text-sidebar-foreground">
                   {initials}
@@ -176,8 +182,8 @@ const DashboardShell = ({
                 </button>
               ) : null}
               <Avatar className="h-8 w-8 border border-sidebar-border shadow-xs">
-                {effectiveUser?.avatarUrl ? (
-                  <AvatarImage src={effectiveUser.avatarUrl} alt={userName} />
+                {userAvatarUrl ? (
+                  <AvatarImage src={userAvatarUrl} alt={userName} />
                 ) : null}
                 <AvatarFallback className="bg-sidebar-primary/10 text-[10px] text-sidebar-foreground">
                   {initials}

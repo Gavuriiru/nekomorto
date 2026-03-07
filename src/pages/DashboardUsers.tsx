@@ -62,7 +62,7 @@ import {
 } from "lucide-react";
 import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
-import { resolveDiscordAvatarRenderUrl } from "@/lib/discord-avatar";
+import { buildAvatarRenderUrl } from "@/lib/avatar-render-url";
 import { usePageMeta } from "@/hooks/use-page-meta";
 import { useEditorScrollLock } from "@/hooks/use-editor-scroll-lock";
 import { useEditorScrollStability } from "@/hooks/use-editor-scroll-stability";
@@ -70,6 +70,7 @@ import { useSiteSettings } from "@/hooks/use-site-settings";
 import { toast } from "@/components/ui/use-toast";
 import ThemedSvgLogo from "@/components/ThemedSvgLogo";
 import { type AccessRole, permissionIds } from "@/lib/access-control";
+import { filterImageLibraryFoldersByAccess } from "@/lib/image-library-scope";
 
 const ImageLibraryDialog = lazy(() => import("@/components/ImageLibraryDialog"));
 
@@ -299,30 +300,6 @@ const isIconUrl = (value?: string | null) => {
   return value.startsWith("http") || value.startsWith("data:") || value.startsWith("/uploads/");
 };
 
-const addAvatarCacheBust = (avatarUrl: string | null | undefined, cacheVersion: number) => {
-  const trimmed = String(avatarUrl || "").trim();
-  if (!trimmed) {
-    return "";
-  }
-
-  if (trimmed.startsWith("/uploads/")) {
-    const parsed = new URL(trimmed, "http://localhost");
-    parsed.searchParams.set("v", String(cacheVersion));
-    return `${parsed.pathname}${parsed.search}${parsed.hash}`;
-  }
-
-  try {
-    const parsed = new URL(trimmed);
-    if (!parsed.pathname.startsWith("/uploads/")) {
-      return trimmed;
-    }
-    parsed.searchParams.set("v", String(cacheVersion));
-    return parsed.toString();
-  } catch {
-    return trimmed;
-  }
-};
-
 const reorderItems = <T,>(items: T[], from: number, to: number) => {
   if (from === to) {
     return items;
@@ -419,6 +396,7 @@ const DashboardUsers = () => {
     name: string;
     username: string;
     avatarUrl?: string | null;
+    revision?: string | null;
     accessRole?: AccessRole;
     grants?: Partial<Record<string, boolean>>;
     permissions?: string[];
@@ -474,7 +452,6 @@ const DashboardUsers = () => {
     ],
     [],
   );
-  const avatarLibraryFolders = useMemo(() => ["users"], []);
   const primaryOwnerId = useMemo(
     () => String(currentUser?.primaryOwnerId || ownerIds[0] || ""),
     [currentUser?.primaryOwnerId, ownerIds],
@@ -536,9 +513,10 @@ const DashboardUsers = () => {
   }, []);
   const toAvatarRenderUrl = useCallback(
     (avatarUrl: string | null | undefined) =>
-      addAvatarCacheBust(
-        resolveDiscordAvatarRenderUrl(String(avatarUrl || ""), 128),
-        avatarCacheVersion,
+      buildAvatarRenderUrl(
+        avatarUrl,
+        128,
+        avatarCacheVersion > 0 ? String(avatarCacheVersion) : "",
       ),
     [avatarCacheVersion],
   );
@@ -625,6 +603,14 @@ const DashboardUsers = () => {
   const isAdminRecord = (user: UserRecord) => resolveUserAccessRole(user) === "admin";
   const isAdminForm = formState.accessRole === "admin";
   const isEditingSelf = Boolean(editingUser && currentUser && editingUser.id === currentUser.id);
+  const avatarLibraryFolders = useMemo(
+    () =>
+      filterImageLibraryFoldersByAccess(["users", "posts", "projects"], {
+        grants: currentUser?.grants,
+        allowUsersSelf: isEditingSelf,
+      }),
+    [currentUser?.grants, isEditingSelf],
+  );
   const showSelfSecuritySection = isEditingSelf && isDialogOpen;
   const canCreateUsers = canManageUsers;
   const canEditBasicFields = !editingUser
@@ -1075,6 +1061,7 @@ const DashboardUsers = () => {
     if (response.ok) {
       const data = await response.json();
       const targetId = editingUser ? editingUser.id : data.user?.id || basePayload.id;
+      const isSelfSave = Boolean(currentUser && targetId === currentUser.id);
       const wasOwner = Boolean(editingUser && ownerIds.includes(editingUser.id));
       const shouldKeepOwner = Boolean(ownerToggle);
       if (canManageOwners && targetId) {
@@ -1108,6 +1095,17 @@ const DashboardUsers = () => {
         setUsers((prev) => prev.map((user) => (user.id === editingUser.id ? data.user : user)));
       } else {
         setUsers((prev) => [...prev, data.user]);
+      }
+      if (isSelfSave) {
+        setCurrentUser((prev) =>
+          prev
+            ? {
+                ...prev,
+                ...data.user,
+                username: prev.username,
+              }
+            : prev,
+        );
       }
       if (wasOwner && !shouldKeepOwner) {
         setFormState((prev) => ({
@@ -1714,13 +1712,14 @@ const DashboardUsers = () => {
           description="Selecione uma imagem já enviada para reutilizar ou envie um novo arquivo."
           uploadFolder="users"
           listFolders={avatarLibraryFolders}
-          listAll={actorCanUploadManagement}
+          listAll={false}
           allowDeselect
           mode="single"
           cropAvatar
           cropTargetFolder="users"
           cropSlot={formState.id ? `avatar-${formState.id}` : undefined}
           currentSelectionUrls={formState.avatarUrl ? [formState.avatarUrl] : undefined}
+          scopeUserId={isEditingSelf ? currentUser?.id : undefined}
           allowUploadManagementActions={actorCanUploadManagement}
           onSave={({ urls }) => handleLibrarySave({ urls })}
         />

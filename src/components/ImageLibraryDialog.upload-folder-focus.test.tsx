@@ -7,6 +7,39 @@ const { apiFetchMock } = vi.hoisted(() => ({
   apiFetchMock: vi.fn(),
 }));
 
+vi.mock("react-advanced-cropper", async () => {
+  const React = await vi.importActual<typeof import("react")>("react");
+  const FixedCropper = React.forwardRef((props: Record<string, unknown>, ref: React.ForwardedRef<unknown>) => {
+    const cropperApi = {
+      getCanvas: () => null,
+      getCoordinates: () => null,
+      getImage: () => null,
+      getState: () => null,
+    };
+    if (typeof ref === "function") {
+      ref(cropperApi);
+    } else if (ref && typeof ref === "object") {
+      (ref as { current: unknown }).current = cropperApi;
+    }
+    React.useEffect(() => {
+      const onReady = props.onReady;
+      if (typeof onReady === "function") {
+        const timeout = window.setTimeout(() => onReady(cropperApi), 0);
+        return () => window.clearTimeout(timeout);
+      }
+      return undefined;
+    }, [props.onReady]);
+    return React.createElement("div", { "data-testid": "advanced-cropper-focus-mock" });
+  });
+
+  return {
+    Cropper: FixedCropper,
+    FixedCropper,
+    CircleStencil: () => null,
+    RectangleStencil: () => null,
+  };
+});
+
 vi.mock("@/lib/api-client", () => ({
   apiFetch: (...args: unknown[]) => apiFetchMock(...args),
 }));
@@ -68,20 +101,21 @@ const renderDialog = () =>
     />,
   );
 
-const renderAvatarDialog = (listAll: boolean) =>
+const renderAvatarDialog = (listFolders: string[]) =>
   render(
     <ImageLibraryDialog
       open
       onOpenChange={() => undefined}
       apiBase="http://api.local"
       uploadFolder="users"
-      listFolders={["users"]}
-      listAll={listAll}
+      listFolders={listFolders}
+      listAll={false}
       includeProjectImages={false}
       mode="single"
       cropAvatar
       cropTargetFolder="users"
       cropSlot="avatar-user-1"
+      scopeUserId="user-1"
       onSave={() => undefined}
     />,
   );
@@ -187,7 +221,7 @@ describe("ImageLibraryDialog upload folder focus", () => {
       return mockJsonResponse(false, { error: "not_found" }, 404);
     });
 
-    renderAvatarDialog(false);
+    renderAvatarDialog(["users"]);
 
     const folderSelect = await getFolderFilterTrigger();
     await waitFor(() => {
@@ -201,7 +235,7 @@ describe("ImageLibraryDialog upload folder focus", () => {
     expect(screen.queryByRole("option", { name: "Todas as pastas" })).not.toBeInTheDocument();
   });
 
-  it("carrega users e biblioteca ampla quando o avatar tem acesso a uploads", async () => {
+  it("carrega apenas os roots explicitamente autorizados no avatar", async () => {
     apiFetchMock.mockImplementation(async (_base: string, path: string) => {
       if (path.includes("folder=users")) {
         return mockJsonResponse(true, {
@@ -218,17 +252,32 @@ describe("ImageLibraryDialog upload folder focus", () => {
           ],
         });
       }
-      if (path.includes("folder=__all__")) {
+      if (path.includes("folder=posts")) {
         return mockJsonResponse(true, {
           files: [
             {
               name: "publica.png",
-              label: "Biblioteca Global",
+              label: "Biblioteca Posts",
               fileName: "publica.png",
               folder: "posts",
               mime: "image/png",
               size: 100,
               url: "/uploads/posts/publica.png",
+            },
+          ],
+        });
+      }
+      if (path.includes("folder=projects")) {
+        return mockJsonResponse(true, {
+          files: [
+            {
+              name: "projeto.png",
+              label: "Biblioteca Projetos",
+              fileName: "projeto.png",
+              folder: "projects/proj-1",
+              mime: "image/png",
+              size: 100,
+              url: "/uploads/projects/proj-1/projeto.png",
             },
           ],
         });
@@ -239,17 +288,22 @@ describe("ImageLibraryDialog upload folder focus", () => {
       return mockJsonResponse(false, { error: "not_found" }, 404);
     });
 
-    renderAvatarDialog(true);
+    renderAvatarDialog(["users", "posts", "projects"]);
 
     await waitFor(() => {
       expect(apiFetchMock).toHaveBeenCalledWith(
         "http://api.local",
-        "/api/uploads/list?folder=users&recursive=1",
+        "/api/uploads/list?folder=users&recursive=1&scopeUserId=user-1",
         expect.any(Object),
       );
       expect(apiFetchMock).toHaveBeenCalledWith(
         "http://api.local",
-        "/api/uploads/list?folder=__all__",
+        "/api/uploads/list?folder=posts&recursive=1&scopeUserId=user-1",
+        expect.any(Object),
+      );
+      expect(apiFetchMock).toHaveBeenCalledWith(
+        "http://api.local",
+        "/api/uploads/list?folder=projects&recursive=1&scopeUserId=user-1",
         expect.any(Object),
       );
     });
@@ -269,8 +323,107 @@ describe("ImageLibraryDialog upload folder focus", () => {
     if (postsTrigger.getAttribute("aria-expanded") !== "true") {
       fireEvent.click(postsTrigger);
     }
-
     expect(await screen.findByText("Avatar Atual")).toBeInTheDocument();
-    expect(await screen.findByText("Biblioteca Global")).toBeInTheDocument();
+    expect(await screen.findByText("Biblioteca Posts")).toBeInTheDocument();
+  });
+
+  it("revela novamente o retorno do segundo upload depois de um dedupe hit inicial", async () => {
+    let listCalls = 0;
+    let uploadCalls = 0;
+    apiFetchMock.mockImplementation(async (_base: string, path: string, options?: RequestInit) => {
+      if (path.startsWith("/api/uploads/list")) {
+        listCalls += 1;
+        if (listCalls === 1) {
+          return mockJsonResponse(true, {
+            files: [
+              {
+                name: "existing.png",
+                label: "Existente",
+                fileName: "existing.png",
+                folder: "users",
+                mime: "image/png",
+                size: 100,
+                url: "/uploads/users/existing.png",
+              },
+            ],
+          });
+        }
+        if (listCalls === 2) {
+          return mockJsonResponse(true, {
+            files: [
+              {
+                name: "existing.png",
+                label: "Existente",
+                fileName: "existing.png",
+                folder: "users",
+                mime: "image/png",
+                size: 100,
+                url: "/uploads/users/existing.png",
+              },
+            ],
+          });
+        }
+        return mockJsonResponse(true, {
+          files: [
+            {
+              name: "existing.png",
+              label: "Existente",
+              fileName: "existing.png",
+              folder: "users",
+              mime: "image/png",
+              size: 100,
+              url: "/uploads/users/existing.png",
+            },
+            {
+              name: "novo.png",
+              label: "Novo Upload",
+              fileName: "novo.png",
+              folder: "users",
+              mime: "image/png",
+              size: 100,
+              url: "/uploads/users/novo.png",
+            },
+          ],
+        });
+      }
+      if (path === "/api/uploads/image" && String(options?.method || "GET").toUpperCase() === "POST") {
+        uploadCalls += 1;
+        return mockJsonResponse(true, {
+          url: uploadCalls === 1 ? "/uploads/users/existing.png" : "/uploads/users/novo.png",
+        });
+      }
+      if (path === "/api/uploads/project-images") {
+        return mockJsonResponse(true, { items: [] });
+      }
+      return mockJsonResponse(false, { error: "not_found" }, 404);
+    });
+
+    renderAvatarDialog(["users"]);
+
+    const searchInput = screen.getByPlaceholderText("Pesquisar por nome, projeto ou URL...");
+    fireEvent.change(searchInput, { target: { value: "oculto" } });
+
+    const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement | null;
+    expect(fileInput).toBeTruthy();
+
+    fireEvent.change(fileInput as HTMLInputElement, {
+      target: { files: [new File(["same"], "same.png", { type: "image/png" })] },
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText("Existente")).toBeInTheDocument();
+      expect(searchInput).toHaveValue("");
+    });
+
+    fireEvent.change(fileInput as HTMLInputElement, {
+      target: { files: [new File(["new"], "new.png", { type: "image/png" })] },
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText("Novo Upload")).toBeInTheDocument();
+      expect(screen.getByText("Selecionadas: 1")).toBeInTheDocument();
+    });
+
+    expect(HTMLElement.prototype.scrollIntoView).toHaveBeenCalled();
   });
 });

@@ -9,7 +9,7 @@ import {
   type SyntheticEvent,
 } from "react";
 import { CircleStencil, FixedCropper, type FixedCropperRef } from "react-advanced-cropper";
-import { ImageRestriction } from "advanced-cropper";
+import { drawCroppedArea, ImageRestriction } from "advanced-cropper";
 import "react-advanced-cropper/dist/style.css";
 
 import {
@@ -108,6 +108,7 @@ export type ImageLibraryOptions = {
   projectImageProjectIds?: string[];
   projectImagesView?: "flat" | "by-project";
   currentSelectionUrls?: string[];
+  scopeUserId?: string;
 };
 
 type ImageLibraryDialogProps = {
@@ -130,12 +131,14 @@ type ImageLibraryDialogProps = {
   cropAvatar?: boolean;
   cropTargetFolder?: string;
   cropSlot?: string;
+  scopeUserId?: string;
   allowUploadManagementActions?: boolean;
   onSave: (payload: ImageLibrarySavePayload) => void;
 };
 
 const CROPPER_BOUNDARY_SIZE = 320;
 const CROPPER_OUTPUT_SIZE = 512;
+type AvatarCropperHandle = Pick<FixedCropperRef, "getCoordinates" | "getImage" | "getState">;
 
 const fileToDataUrl = (file: File) =>
   new Promise<string>((resolve, reject) => {
@@ -144,6 +147,86 @@ const fileToDataUrl = (file: File) =>
     reader.onerror = () => reject(new Error("file_read_failed"));
     reader.readAsDataURL(file);
   });
+
+const loadAvatarCropSourceImage = (src: string) =>
+  new Promise<HTMLImageElement>((resolve, reject) => {
+    const image = new Image();
+    const handleLoad = () => {
+      image.onload = null;
+      image.onerror = null;
+      resolve(image);
+    };
+    const handleError = () => {
+      image.onload = null;
+      image.onerror = null;
+      reject(new Error("cropper_image_load_failed"));
+    };
+    image.onload = handleLoad;
+    image.onerror = handleError;
+    image.src = src;
+  });
+
+export const resolveAvatarCropStencilSize = (state?: {
+  boundary?: { width?: number; height?: number };
+}) => {
+  const boundaryWidth = Number(state?.boundary?.width);
+  const boundaryHeight = Number(state?.boundary?.height);
+  const size = Math.max(
+    1,
+    Math.min(
+      CROPPER_BOUNDARY_SIZE,
+      Number.isFinite(boundaryWidth) && boundaryWidth > 0 ? boundaryWidth : CROPPER_BOUNDARY_SIZE,
+      Number.isFinite(boundaryHeight) && boundaryHeight > 0
+        ? boundaryHeight
+        : CROPPER_BOUNDARY_SIZE,
+    ),
+  );
+  return {
+    width: size,
+    height: size,
+  };
+};
+
+export const renderAvatarCropDataUrl = async (
+  cropper: AvatarCropperHandle | null,
+  fallbackSrc = "",
+) => {
+  const state = cropper?.getState();
+  const coordinates = cropper?.getCoordinates();
+  const cropperImage = cropper?.getImage();
+  const imageSrc = String(cropperImage?.src || fallbackSrc || "").trim();
+  if (!state || !coordinates || !cropperImage || !imageSrc) {
+    throw new Error("cropper_state_unavailable");
+  }
+  if (coordinates.width <= 0 || coordinates.height <= 0) {
+    throw new Error("cropper_coordinates_invalid");
+  }
+  const sourceImage = await loadAvatarCropSourceImage(imageSrc);
+  const resultCanvas = document.createElement("canvas");
+  const spareCanvas = document.createElement("canvas");
+  const renderedCanvas = drawCroppedArea(
+    {
+      ...state,
+      coordinates,
+      transforms: state.transforms || cropperImage.transforms,
+    },
+    sourceImage,
+    resultCanvas,
+    spareCanvas,
+    {
+      width: CROPPER_OUTPUT_SIZE,
+      height: CROPPER_OUTPUT_SIZE,
+      fillColor: "transparent",
+      imageSmoothingEnabled: true,
+      imageSmoothingQuality: "high",
+    },
+  );
+  const normalizedDataUrl = String(renderedCanvas?.toDataURL("image/png") || "").trim();
+  if (!normalizedDataUrl) {
+    throw new Error("empty_crop_result");
+  }
+  return normalizedDataUrl;
+};
 
 const toEffectiveName = (item: LibraryImageItem) =>
   item.name || item.fileName || item.label || "Imagem";
@@ -612,14 +695,7 @@ const AvatarCropWorkspace = ({
     }
 
     try {
-      const canvas = cropper.getCanvas({
-        width: CROPPER_OUTPUT_SIZE,
-        height: CROPPER_OUTPUT_SIZE,
-      });
-      const normalizedDataUrl = String(canvas?.toDataURL("image/png") || "").trim();
-      if (!normalizedDataUrl) {
-        throw new Error("empty_crop_result");
-      }
+      const normalizedDataUrl = await renderAvatarCropDataUrl(cropper, src);
       await onApplyCrop(normalizedDataUrl);
     } catch {
       toast({
@@ -627,7 +703,7 @@ const AvatarCropWorkspace = ({
         description: "Tente novamente em alguns instantes.",
       });
     }
-  }, [isCropReady, onApplyCrop]);
+  }, [isCropReady, onApplyCrop, src]);
 
   return (
     <>
@@ -648,11 +724,9 @@ const AvatarCropWorkspace = ({
                 src={src}
                 className="avatar-cropper-root"
                 stencilComponent={CircleStencil}
-                stencilSize={() => ({
-                  width: CROPPER_BOUNDARY_SIZE,
-                  height: CROPPER_BOUNDARY_SIZE,
-                })}
+                stencilSize={(state) => resolveAvatarCropStencilSize(state)}
                 imageRestriction={ImageRestriction.stencil}
+                transformImage={{ adjustStencil: false }}
                 transitions={false}
                 onReady={() => setIsCropReady(true)}
                 onError={() => {
@@ -1234,6 +1308,7 @@ const ImageLibraryDialog = ({
   cropAvatar = false,
   cropTargetFolder,
   cropSlot,
+  scopeUserId,
   allowUploadManagementActions = true,
   onSave,
 }: ImageLibraryDialogProps) => {
@@ -1268,9 +1343,15 @@ const ImageLibraryDialog = ({
   const [isApplyingCrop, setIsApplyingCrop] = useState(false);
   const [isCropDialogOpen, setIsCropDialogOpen] = useState(false);
   const [isLibraryHydratedForOpen, setIsLibraryHydratedForOpen] = useState(false);
-  const [pendingRevealUploadUrl, setPendingRevealUploadUrl] = useState("");
+  const [pendingRevealRequest, setPendingRevealRequest] = useState<{
+    url: string;
+    token: number;
+    openCrop: boolean;
+  } | null>(null);
   const hasInitializedUploadAccordionStateForOpenRef = useRef(false);
   const hasInitializedProjectAccordionStateForOpenRef = useRef(false);
+  const revealRequestTokenRef = useRef(0);
+  const uploadCardRefs = useRef<Record<string, HTMLButtonElement | null>>({});
   const resolvedUploadFolderForFilter = useMemo(
     () => sanitizeUploadFolderForComparison(uploadFolder),
     [uploadFolder],
@@ -1397,6 +1478,46 @@ const ImageLibraryDialog = ({
     }
     return primarySelectedRenderUrl;
   }, [primarySelectedItem, primarySelectedRenderUrl]);
+  const requestRevealUpload = useCallback((url: string, options?: { openCrop?: boolean }) => {
+    const trimmedUrl = String(url || "").trim();
+    if (!trimmedUrl) {
+      return;
+    }
+    revealRequestTokenRef.current += 1;
+    setPendingRevealRequest({
+      url: trimmedUrl,
+      token: revealRequestTokenRef.current,
+      openCrop: options?.openCrop === true,
+    });
+  }, []);
+  const shouldAutoOpenAvatarCrop = useCallback(
+    (url: string) => {
+      if (!cropAvatar || mode !== "single") {
+        return false;
+      }
+      const normalizedCropSlot = String(cropSlot || "").trim();
+      if (!normalizedCropSlot) {
+        return true;
+      }
+      return !isAvatarSlotSelection({
+        url,
+        slot: normalizedCropSlot,
+        folder: cropTargetFolder || "users",
+      });
+    },
+    [cropAvatar, cropSlot, cropTargetFolder, mode],
+  );
+  const setUploadCardRef = useCallback((url: string, node: HTMLButtonElement | null) => {
+    const key = toComparableSelectionKey(url);
+    if (!key) {
+      return;
+    }
+    if (node) {
+      uploadCardRefs.current[key] = node;
+      return;
+    }
+    delete uploadCardRefs.current[key];
+  }, []);
   const normalizedSearch = searchQuery.trim().toLowerCase();
 
   const sortLibraryItems = useCallback(
@@ -1765,7 +1886,7 @@ const ImageLibraryDialog = ({
       setOpenUploadGroupKeys([]);
       setOpenProjectGroupKeys([]);
       setOpenProjectFolderKeysByGroup({});
-      setPendingRevealUploadUrl("");
+      setPendingRevealRequest(null);
       setUploadsLoadError("");
       return;
     }
@@ -1825,10 +1946,10 @@ const ImageLibraryDialog = ({
   ]);
 
   useEffect(() => {
-    if (!open || !cropAvatar || !pendingRevealUploadUrl) {
+    if (!open || !cropAvatar || !pendingRevealRequest?.url) {
       return;
     }
-    const targetKey = toComparableSelectionKey(pendingRevealUploadUrl);
+    const targetKey = toComparableSelectionKey(pendingRevealRequest.url);
     const matchedUpload =
       uploads.find((item) => toComparableSelectionKey(item.url) === targetKey) ??
       allItemsByComparableKey.get(targetKey);
@@ -1859,12 +1980,25 @@ const ImageLibraryDialog = ({
     const targetGroup = uploadFolderGroups.find((group) =>
       group.items.some((item) => toComparableSelectionKey(item.url) === targetKey),
     );
-    if (targetGroup) {
-      setOpenUploadGroupKeys((prev) =>
-        prev.length === 1 && prev[0] === targetGroup.key ? prev : [targetGroup.key],
-      );
+    if (targetGroup && !openUploadGroupKeys.includes(targetGroup.key)) {
+      setOpenUploadGroupKeys([targetGroup.key]);
+      return;
     }
-    setPendingRevealUploadUrl("");
+    const targetCard = uploadCardRefs.current[targetKey];
+    if (!targetCard) {
+      return;
+    }
+    if (typeof targetCard.scrollIntoView === "function") {
+      targetCard.scrollIntoView({
+        block: "nearest",
+        inline: "nearest",
+        behavior: "smooth",
+      });
+    }
+    if (pendingRevealRequest.openCrop && shouldAutoOpenAvatarCrop(matchedUpload.url)) {
+      setIsCropDialogOpen(true);
+    }
+    setPendingRevealRequest(null);
   }, [
     allItemsByComparableKey,
     cropAvatar,
@@ -1872,7 +2006,9 @@ const ImageLibraryDialog = ({
     matchesSearch,
     normalizedSearch,
     open,
-    pendingRevealUploadUrl,
+    openUploadGroupKeys,
+    pendingRevealRequest,
+    shouldAutoOpenAvatarCrop,
     uploadFolderGroups,
     uploads,
     uploadsFolderFilter,
@@ -1890,6 +2026,9 @@ const ImageLibraryDialog = ({
             if (folder !== "__all__") {
               params.set("recursive", "1");
             }
+          }
+          if (scopeUserId) {
+            params.set("scopeUserId", scopeUserId);
           }
           const query = params.toString();
           return apiFetch(apiBase, `/api/uploads/list${query ? `?${query}` : ""}`, { auth: true });
@@ -1974,7 +2113,7 @@ const ImageLibraryDialog = ({
     } finally {
       setIsLoading(false);
     }
-  }, [apiBase, foldersToRequest]);
+  }, [apiBase, foldersToRequest, scopeUserId]);
 
   const loadProjectImages = useCallback(async () => {
     if (!includeProjectImages) {
@@ -2150,6 +2289,7 @@ const ImageLibraryDialog = ({
               dataUrl,
               filename: file.name,
               folder: uploadFolder || undefined,
+              scopeUserId: scopeUserId || undefined,
             }),
           });
           if (!response.ok) {
@@ -2182,7 +2322,9 @@ const ImageLibraryDialog = ({
             setSelectedUrls([lastUploadedUrl]);
           }
           if (cropAvatar && mode === "single" && lastUploadedUrl) {
-            setPendingRevealUploadUrl(lastUploadedUrl);
+            requestRevealUpload(lastUploadedUrl, {
+              openCrop: shouldAutoOpenAvatarCrop(lastUploadedUrl),
+            });
           }
           toast({
             title:
@@ -2202,7 +2344,16 @@ const ImageLibraryDialog = ({
         setIsUploading(false);
       }
     },
-    [apiBase, cropAvatar, loadUploads, mode, uploadFolder],
+    [
+      apiBase,
+      cropAvatar,
+      loadUploads,
+      mode,
+      requestRevealUpload,
+      scopeUserId,
+      shouldAutoOpenAvatarCrop,
+      uploadFolder,
+    ],
   );
 
   const handleImportFromUrl = useCallback(async () => {
@@ -2219,6 +2370,7 @@ const ImageLibraryDialog = ({
         body: JSON.stringify({
           url: value,
           folder: uploadFolder || undefined,
+          scopeUserId: scopeUserId || undefined,
         }),
       });
       if (!response.ok) {
@@ -2242,7 +2394,9 @@ const ImageLibraryDialog = ({
         setSelectedUrls([createdUrl]);
       }
       if (cropAvatar && mode === "single") {
-        setPendingRevealUploadUrl(createdUrl);
+        requestRevealUpload(createdUrl, {
+          openCrop: shouldAutoOpenAvatarCrop(createdUrl),
+        });
       }
       toast({
         title: "Imagem importada",
@@ -2252,7 +2406,17 @@ const ImageLibraryDialog = ({
     } finally {
       setIsUploading(false);
     }
-  }, [apiBase, cropAvatar, loadUploads, mode, uploadFolder, urlInput]);
+  }, [
+    apiBase,
+    cropAvatar,
+    loadUploads,
+    mode,
+    requestRevealUpload,
+    scopeUserId,
+    shouldAutoOpenAvatarCrop,
+    uploadFolder,
+    urlInput,
+  ]);
 
   const handleDrop = (event: React.DragEvent<HTMLDivElement>) => {
     event.preventDefault();
@@ -2560,6 +2724,7 @@ const ImageLibraryDialog = ({
             filename: targetFilename,
             folder: targetFolder,
             slot: cropAvatar ? normalizedCropSlot : undefined,
+            scopeUserId: scopeUserId || undefined,
           }),
         });
         if (!response.ok) {
@@ -2577,7 +2742,7 @@ const ImageLibraryDialog = ({
 
         await loadUploads();
         setSelectedUrls([nextUrl]);
-        setPendingRevealUploadUrl(nextUrl);
+        requestRevealUpload(nextUrl, { openCrop: false });
         setIsCropDialogOpen(false);
         toast({
           title: "Avatar atualizado",
@@ -2593,7 +2758,16 @@ const ImageLibraryDialog = ({
         setIsApplyingCrop(false);
       }
     },
-    [apiBase, cropAvatar, cropSlot, cropTargetFolder, loadUploads, uploadFolder],
+    [
+      apiBase,
+      cropAvatar,
+      cropSlot,
+      cropTargetFolder,
+      loadUploads,
+      requestRevealUpload,
+      scopeUserId,
+      uploadFolder,
+    ],
   );
 
   const renderGrid = (items: LibraryImageItem[], emptyText: string) => {
@@ -2620,6 +2794,7 @@ const ImageLibraryDialog = ({
             <ContextMenu key={`${item.source}:${item.url}`}>
               <ContextMenuTrigger asChild>
                 <button
+                  ref={(node) => setUploadCardRef(item.url, node)}
                   type="button"
                   className={`group overflow-hidden rounded-xl border border-border/60 bg-card/60 text-left transition hover:border-primary/40 ${
                     isSelected ? "ring-2 ring-inset ring-primary/60 border-primary/60" : ""
