@@ -21,6 +21,19 @@ export const UPLOAD_VARIANT_PRESETS = Object.freeze({
 });
 
 export const UPLOAD_VARIANT_PRESET_KEYS = Object.freeze(Object.keys(UPLOAD_VARIANT_PRESETS));
+export const PROJECT_UPLOAD_VARIANT_PRESET_KEYS = Object.freeze([
+  "cardHomeXs",
+  "cardHomeSm",
+  "cardHome",
+  "cardWide",
+  "heroXs",
+  "heroSm",
+  "heroMd",
+  "hero",
+  "poster",
+  "posterThumbSm",
+  "posterThumb",
+]);
 const UPLOAD_VARIANT_AVIF_QUALITY = Object.freeze({
   cardHomeXs: 47,
   cardHomeSm: 47,
@@ -64,7 +77,9 @@ const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 const roundNormalized = (value) => Math.round(value * 1_000_000) / 1_000_000;
 
 const normalizeUploadMime = (value) => {
-  const normalized = String(value || "").trim().toLowerCase();
+  const normalized = String(value || "")
+    .trim()
+    .toLowerCase();
   if (normalized === "image/jpg") {
     return "image/jpeg";
   }
@@ -72,7 +87,9 @@ const normalizeUploadMime = (value) => {
 };
 
 const toArea = (value) => {
-  const trimmed = String(value || "").trim().replace(/^\/+/, "");
+  const trimmed = String(value || "")
+    .trim()
+    .replace(/^\/+/, "");
   if (!trimmed) {
     return "root";
   }
@@ -88,6 +105,46 @@ const sanitizeVariantVersion = (value) => {
     return 1;
   }
   return Math.floor(parsed);
+};
+
+const normalizeVariantPresetKeyList = (value) => {
+  const list = Array.isArray(value) ? value : [];
+  const seen = new Set();
+  const next = [];
+  list.forEach((item) => {
+    const presetKey = String(item || "").trim();
+    if (!presetKey || !Object.prototype.hasOwnProperty.call(UPLOAD_VARIANT_PRESETS, presetKey)) {
+      return;
+    }
+    if (seen.has(presetKey)) {
+      return;
+    }
+    seen.add(presetKey);
+    next.push(presetKey);
+  });
+  return next;
+};
+
+export const mergeUploadVariantPresetKeys = (...values) => {
+  const merged = values.flatMap((item) => normalizeVariantPresetKeyList(item));
+  const next = normalizeVariantPresetKeyList(merged);
+  return next.length > 0 ? next : [...UPLOAD_VARIANT_PRESET_KEYS];
+};
+
+export const resolveUploadVariantPresetKeysForArea = (value) => {
+  const area = toArea(value);
+  if (area === "projects") {
+    return [...PROJECT_UPLOAD_VARIANT_PRESET_KEYS];
+  }
+  return [...UPLOAD_VARIANT_PRESET_KEYS];
+};
+
+export const resolveUploadVariantPresetKeysForEntry = (entry) => {
+  const area = String(entry?.area || "").trim();
+  if (area) {
+    return resolveUploadVariantPresetKeysForArea(area);
+  }
+  return resolveUploadVariantPresetKeysForArea(entry?.folder || "");
 };
 
 const normalizeVariantFormats = (value) => {
@@ -136,7 +193,13 @@ const sumVariantSizes = (variants) => {
   return { bytes, files };
 };
 
-const computeFocalCoverRect = ({ sourceWidth, sourceHeight, targetWidth, targetHeight, focalPoint }) => {
+const computeFocalCoverRect = ({
+  sourceWidth,
+  sourceHeight,
+  targetWidth,
+  targetHeight,
+  focalPoint,
+}) => {
   const safeSourceWidth = Math.max(1, Math.floor(Number(sourceWidth || 1)));
   const safeSourceHeight = Math.max(1, Math.floor(Number(sourceHeight || 1)));
   const safeTargetWidth = Math.max(1, Math.floor(Number(targetWidth || 1)));
@@ -392,7 +455,9 @@ export const normalizeFocalPoints = (value, fallbackValue) => {
     const cropSource = resolvePresetFocalCropSource({ value, fallback: fallbackValue, presetKey });
     next[presetKey] = cropSource
       ? deriveFocalPointFromCropRect(cropSource)
-      : normalizeFocalPoint(resolvePresetFocalSource({ value, fallback: fallbackValue, presetKey }));
+      : normalizeFocalPoint(
+          resolvePresetFocalSource({ value, fallback: fallbackValue, presetKey }),
+        );
   });
   return next;
 };
@@ -400,7 +465,8 @@ export const normalizeFocalPoints = (value, fallbackValue) => {
 export const deriveFocalPointsFromCrops = (value, fallbackValue) =>
   normalizeFocalPoints(value, fallbackValue);
 
-export const getPrimaryFocalPoint = (value, fallbackValue) => normalizeFocalPoints(value, fallbackValue).card;
+export const getPrimaryFocalPoint = (value, fallbackValue) =>
+  normalizeFocalPoints(value, fallbackValue).card;
 
 const computeFocalCoverRectFromCrop = ({
   sourceWidth,
@@ -429,7 +495,12 @@ const computeFocalCoverRectFromCrop = ({
   });
   const rawWidth = normalizedCrop.width * safeSourceWidth;
   const rawHeight = normalizedCrop.height * safeSourceHeight;
-  if (!Number.isFinite(rawWidth) || !Number.isFinite(rawHeight) || rawWidth <= 0 || rawHeight <= 0) {
+  if (
+    !Number.isFinite(rawWidth) ||
+    !Number.isFinite(rawHeight) ||
+    rawWidth <= 0 ||
+    rawHeight <= 0
+  ) {
     return fallbackRect;
   }
   const targetRatio = safeTargetWidth / safeTargetHeight;
@@ -444,8 +515,16 @@ const computeFocalCoverRectFromCrop = ({
     return fallbackRect;
   }
   return {
-    left: clamp(Math.round(normalizedCrop.left * safeSourceWidth), 0, Math.max(0, safeSourceWidth - cropWidth)),
-    top: clamp(Math.round(normalizedCrop.top * safeSourceHeight), 0, Math.max(0, safeSourceHeight - cropHeight)),
+    left: clamp(
+      Math.round(normalizedCrop.left * safeSourceWidth),
+      0,
+      Math.max(0, safeSourceWidth - cropWidth),
+    ),
+    top: clamp(
+      Math.round(normalizedCrop.top * safeSourceHeight),
+      0,
+      Math.max(0, safeSourceHeight - cropHeight),
+    ),
     width: cropWidth,
     height: cropHeight,
   };
@@ -483,16 +562,22 @@ const deriveNestedCoverRect = ({
 
 export const deriveUploadArea = (folder) => toArea(folder);
 
-export const computeBufferSha256 = (buffer) => crypto.createHash("sha256").update(buffer).digest("hex");
+export const computeBufferSha256 = (buffer) =>
+  crypto.createHash("sha256").update(buffer).digest("hex");
 
 export const findUploadByHash = (uploads, hashSha256) => {
-  const target = String(hashSha256 || "").trim().toLowerCase();
+  const target = String(hashSha256 || "")
+    .trim()
+    .toLowerCase();
   if (!target) {
     return null;
   }
   return (
     (Array.isArray(uploads) ? uploads : []).find(
-      (entry) => String(entry?.hashSha256 || "").trim().toLowerCase() === target,
+      (entry) =>
+        String(entry?.hashSha256 || "")
+          .trim()
+          .toLowerCase() === target,
     ) || null
   );
 };
@@ -520,6 +605,7 @@ export const generateUploadVariants = async ({
   focalPoints,
   focalCrops,
   variantsVersion = 1,
+  variantPresetKeys,
 } = {}) => {
   if (!isRasterUploadMime(sourceMime)) {
     return { variants: {}, sourceWidth: null, sourceHeight: null, variantBytes: 0 };
@@ -549,7 +635,10 @@ export const generateUploadVariants = async ({
           sourceHeight,
         });
   const effectiveFocalPoints =
-    typeof focalCrops !== "undefined" ? deriveFocalPointsFromCrops(safeFocalCrops) : safeFocalPoints;
+    typeof focalCrops !== "undefined"
+      ? deriveFocalPointsFromCrops(safeFocalCrops)
+      : safeFocalPoints;
+  const presetKeys = mergeUploadVariantPresetKeys(variantPresetKeys);
   const variantDir = resetVariantDirectory(uploadsDir, uploadId);
   const cardBaseRect = computeFocalCoverRectFromCrop({
     sourceWidth,
@@ -642,7 +731,8 @@ export const generateUploadVariants = async ({
   const variants = {};
   let variantBytes = 0;
 
-  for (const [presetKey, preset] of Object.entries(UPLOAD_VARIANT_PRESETS)) {
+  for (const presetKey of presetKeys) {
+    const preset = UPLOAD_VARIANT_PRESETS[presetKey];
     const rect = variantRects[presetKey];
     const base = createBaseVariantPipeline({ sourcePath, rect, preset });
     const avifQuality =
@@ -696,6 +786,7 @@ export const attachUploadMediaMetadata = async ({
   focalCrops,
   variantsVersion,
   regenerateVariants = true,
+  variantPresetKeys,
 } = {}) => {
   const current = entry && typeof entry === "object" ? { ...entry } : {};
   const incomingFocalPoints =
@@ -704,9 +795,21 @@ export const attachUploadMediaMetadata = async ({
       : typeof focalPoint !== "undefined"
         ? normalizeFocalPoints(focalPoint)
         : normalizeFocalPoints(current?.focalPoints, current?.focalPoint);
-  const normalizedHash = String(hashSha256 || current.hashSha256 || "").trim().toLowerCase();
+  const normalizedHash = String(hashSha256 || current.hashSha256 || "")
+    .trim()
+    .toLowerCase();
   const nextVersion = sanitizeVariantVersion(variantsVersion ?? current.variantsVersion ?? 1);
   let nextVariants = normalizeVariants(current.variants);
+  const existingVariantPresetKeys = Object.keys(nextVariants);
+  const requiredVariantPresetKeys =
+    normalizeVariantPresetKeyList(variantPresetKeys).length > 0
+      ? normalizeVariantPresetKeyList(variantPresetKeys)
+      : existingVariantPresetKeys.length > 0
+        ? mergeUploadVariantPresetKeys(
+            existingVariantPresetKeys,
+            resolveUploadVariantPresetKeysForEntry(current),
+          )
+        : resolveUploadVariantPresetKeysForEntry(current);
   let sourceWidth = toNumberOrNull(current.width);
   let sourceHeight = toNumberOrNull(current.height);
   let variantBytes = sumVariantSizes(nextVariants).bytes;
@@ -720,6 +823,7 @@ export const attachUploadMediaMetadata = async ({
       focalPoints: incomingFocalPoints,
       focalCrops,
       variantsVersion: nextVersion,
+      variantPresetKeys: requiredVariantPresetKeys,
     });
     nextVariants = normalizeVariants(generated.variants);
     sourceWidth = toNumberOrNull(generated.sourceWidth) ?? sourceWidth;
@@ -758,7 +862,7 @@ export const attachUploadMediaMetadata = async ({
     variantsVersion: nextVersion,
     variants: nextVariants,
     variantBytes: Number.isFinite(variantBytes) ? variantBytes : 0,
-    area: deriveUploadArea(current.folder || ""),
+    area: deriveUploadArea(current.area || current.folder || ""),
     width: Number.isFinite(sourceWidth) ? sourceWidth : null,
     height: Number.isFinite(sourceHeight) ? sourceHeight : null,
   };

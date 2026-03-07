@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
-import { render, screen, waitFor, within } from "@testing-library/react";
-import { MemoryRouter } from "react-router-dom";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import DashboardAnalytics from "@/pages/DashboardAnalytics";
@@ -56,7 +56,27 @@ const mockJsonResponse = (ok: boolean, payload: unknown, status = ok ? 200 : 500
     json: async () => payload,
   }) as Response;
 
-const setupApiMock = () => {
+type TopContentEntry = {
+  resourceType: string;
+  resourceId: string;
+  title: string;
+  views: number;
+  uniqueViews: number;
+};
+
+const setupApiMock = ({
+  topEntries = [
+    {
+      resourceType: "project",
+      resourceId: "p-1",
+      title: "Projeto 1",
+      views: 100,
+      uniqueViews: 60,
+    },
+  ],
+}: {
+  topEntries?: TopContentEntry[];
+} = {}) => {
   apiFetchMock.mockReset();
   apiFetchMock.mockImplementation(async (_apiBase: string, endpoint: string) => {
     const url = new URL(`https://example.test${endpoint}`);
@@ -90,15 +110,7 @@ const setupApiMock = () => {
     }
     if (endpoint.startsWith("/api/analytics/top-content?")) {
       return mockJsonResponse(true, {
-        entries: [
-          {
-            resourceType: "project",
-            resourceId: "p-1",
-            title: "Projeto 1",
-            views: 100,
-            uniqueViews: 60,
-          },
-        ],
+        entries: topEntries,
       });
     }
     if (endpoint.startsWith("/api/analytics/acquisition?")) {
@@ -111,11 +123,27 @@ const setupApiMock = () => {
   });
 };
 const classTokens = (element: HTMLElement) => String(element.className).split(/\s+/).filter(Boolean);
+const LocationProbe = () => {
+  const location = useLocation();
+  return <div data-testid="location-pathname">{location.pathname}</div>;
+};
 
-const renderPage = (search = "range=30d&type=all&metric=views") =>
+const renderPage = (
+  search = "range=30d&type=all&metric=views",
+  { withRoutes = false }: { withRoutes?: boolean } = {},
+) =>
   render(
     <MemoryRouter initialEntries={[`/dashboard/analytics?${search}`]}>
-      <DashboardAnalytics />
+      {withRoutes ? (
+        <Routes>
+          <Route path="/dashboard/analytics" element={<DashboardAnalytics />} />
+          <Route path="/postagem/:slug" element={<div data-testid="post-page">Post page</div>} />
+          <Route path="/projeto/:id" element={<div data-testid="project-page">Project page</div>} />
+        </Routes>
+      ) : (
+        <DashboardAnalytics />
+      )}
+      <LocationProbe />
     </MemoryRouter>,
   );
 
@@ -130,6 +158,8 @@ describe("DashboardAnalytics", () => {
     renderPage();
 
     await screen.findByText(/Performance e aquisi/i);
+    expect(screen.getByRole("heading", { name: "Ranking" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Top conteúdos" })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Exportar" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Exportar CSV" })).not.toBeInTheDocument();
     expect(screen.getAllByText("Views").length).toBeGreaterThan(0);
@@ -198,5 +228,96 @@ describe("DashboardAnalytics", () => {
 
     const countBadge = within(acquisitionRow as HTMLElement).getByText("30");
     expect(classTokens(countBadge)).toContain("shrink-0");
+  });
+
+  it("renderiza links nativos para posts e projetos em top conteudos", async () => {
+    setupApiMock({
+      topEntries: [
+        {
+          resourceType: "project",
+          resourceId: "project-1",
+          title: "Projeto 1",
+          views: 100,
+          uniqueViews: 60,
+        },
+        {
+          resourceType: "post",
+          resourceId: "post-slug",
+          title: "Post 1",
+          views: 80,
+          uniqueViews: 40,
+        },
+      ],
+    });
+
+    renderPage();
+
+    const projectLink = await screen.findByRole("link", { name: /Abrir Projeto Projeto 1/i });
+    const postLink = screen.getByRole("link", { name: /Abrir Post Post 1/i });
+
+    expect(projectLink).toHaveAttribute("href", "/projeto/project-1");
+    expect(postLink).toHaveAttribute("href", "/postagem/post-slug");
+    expect(projectLink).not.toHaveAttribute("tabindex", "-1");
+    expect(postLink).not.toHaveAttribute("tabindex", "-1");
+    expect(classTokens(projectLink)).toContain("w-full");
+    expect(classTokens(projectLink)).toContain("group");
+    expect(classTokens(projectLink)).toContain("sm:grid-cols-[140px_minmax(0,1fr)_96px_96px]");
+    expect(classTokens(projectLink)).toContain("sm:px-0");
+    expect(classTokens(projectLink)).toContain("sm:gap-0");
+    expect(classTokens(projectLink)).not.toContain("sm:gap-4");
+
+    const projectTitle = within(projectLink).getByText("Projeto 1");
+    expect(classTokens(projectTitle)).not.toContain("group-hover:underline");
+    expect(classTokens(projectTitle)).not.toContain("group-focus-visible:underline");
+
+    const typeWrapper = projectTitle.parentElement?.previousElementSibling as HTMLElement | null;
+    const titleWrapper = projectTitle.parentElement as HTMLElement | null;
+    const viewsWrapper = projectTitle.parentElement?.nextElementSibling as HTMLElement | null;
+    const uniqueWrapper = viewsWrapper?.nextElementSibling as HTMLElement | null;
+
+    expect(typeWrapper).not.toBeNull();
+    expect(titleWrapper).not.toBeNull();
+    expect(viewsWrapper).not.toBeNull();
+    expect(uniqueWrapper).not.toBeNull();
+    expect(classTokens(typeWrapper as HTMLElement)).toContain("sm:px-4");
+    expect(classTokens(titleWrapper as HTMLElement)).toContain("sm:px-4");
+    expect(classTokens(viewsWrapper as HTMLElement)).toContain("sm:px-4");
+    expect(classTokens(uniqueWrapper as HTMLElement)).toContain("sm:px-4");
+  });
+
+  it("usa tabela fixa para alinhar o ranking com o cabecalho", async () => {
+    renderPage();
+
+    const rankingHeading = await screen.findByRole("heading", { name: "Ranking" });
+    const rankingCard = rankingHeading.closest(".rounded-xl, .rounded-2xl, .rounded-3xl") ?? rankingHeading.parentElement?.parentElement;
+    expect(rankingCard).not.toBeNull();
+
+    const table = within(rankingCard as HTMLElement).getByRole("table");
+    expect(classTokens(table)).toContain("table-fixed");
+
+    const cols = table.querySelectorAll("colgroup col");
+    expect(cols).toHaveLength(4);
+  });
+
+  it("navega para a pagina publica ao clicar no link do top conteudo", async () => {
+    setupApiMock({
+      topEntries: [
+        {
+          resourceType: "post",
+          resourceId: "post-slug",
+          title: "Post 1",
+          views: 80,
+          uniqueViews: 40,
+        },
+      ],
+    });
+
+    renderPage("range=30d&type=all&metric=views", { withRoutes: true });
+
+    const postLink = await screen.findByRole("link", { name: /Abrir Post Post 1/i });
+    fireEvent.click(postLink);
+
+    await screen.findByTestId("post-page");
+    expect(screen.getByTestId("location-pathname")).toHaveTextContent("/postagem/post-slug");
   });
 });

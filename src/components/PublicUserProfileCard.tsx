@@ -27,48 +27,26 @@ import { Card, CardContent } from "@/components/ui/card";
 import { useSiteSettings } from "@/hooks/use-site-settings";
 import { resolveDiscordAvatarRenderUrl } from "@/lib/discord-avatar";
 import type { UploadMediaVariantsMap } from "@/lib/upload-variants";
+import type {
+  FavoriteWorkCategory,
+  FavoriteWorksByCategory,
+  PublicTeamLinkType,
+  PublicTeamMember,
+} from "@/types/public-team";
 import { cn } from "@/lib/utils";
 import { isIconUrlSource, sanitizeIconSource, sanitizePublicHref } from "@/lib/url-safety";
 
 const FAVORITE_WORK_CATEGORIES = ["manga", "anime"] as const;
 
-export type FavoriteWorkCategory = (typeof FAVORITE_WORK_CATEGORIES)[number];
-export type FavoriteWorksByCategory = Record<FavoriteWorkCategory, string[]>;
-
-export type PublicUserProfileSocialLink = {
-  label: string;
-  href: string;
-};
-
-export type PublicUserProfileLinkType = {
-  id: string;
-  label: string;
-  icon: string;
-};
-
-export type PublicUserProfileMember = {
-  id: string;
-  name: string;
-  phrase: string;
-  bio: string;
-  avatarUrl?: string | null;
-  socials?: PublicUserProfileSocialLink[];
-  favoriteWorks?: FavoriteWorksByCategory;
-  permissions?: string[];
-  roles?: string[];
-  isAdmin?: boolean;
-  status?: "active" | "retired" | string;
-  order?: number;
-  avatarDisplay?: string;
-  accessRole?: string;
-};
-
 type PublicUserProfileCardProps = {
-  member: PublicUserProfileMember;
-  linkTypes?: PublicUserProfileLinkType[];
+  member: PublicTeamMember;
+  linkTypes?: PublicTeamLinkType[];
   mediaVariants?: UploadMediaVariantsMap;
   retired?: boolean;
   imageSrc?: string;
+  imageLoading?: "eager" | "lazy";
+  imageFetchPriority?: "high" | "low" | "auto";
+  imageSizes?: string;
   testId?: string;
 };
 
@@ -76,6 +54,9 @@ type PublicUserProfileAvatarProps = {
   imageSrc: string;
   name: string;
   mediaVariants?: UploadMediaVariantsMap;
+  loading?: "eager" | "lazy";
+  fetchPriority?: "high" | "low" | "auto";
+  sizes?: string;
 };
 
 const MAX_FAVORITE_WORKS = 3;
@@ -151,6 +132,9 @@ const PublicUserProfileAvatar = ({
   imageSrc,
   name,
   mediaVariants,
+  loading,
+  fetchPriority,
+  sizes,
 }: PublicUserProfileAvatarProps) => {
   const normalizedImageSrc =
     resolveDiscordAvatarRenderUrl(imageSrc || "/placeholder.svg", 256) || "/placeholder.svg";
@@ -171,6 +155,9 @@ const PublicUserProfileAvatar = ({
         crossOrigin="anonymous"
         className="block h-full w-full"
         imgClassName="h-full w-full object-cover"
+        loading={loading}
+        fetchPriority={fetchPriority}
+        sizes={sizes}
         onError={() => {
           if (resolvedSrc === "/placeholder.svg") {
             return;
@@ -184,7 +171,7 @@ const PublicUserProfileAvatar = ({
 
 const resolveSocialLink = (
   social: { label?: string; href?: string },
-  linkTypeMap: Map<string, PublicUserProfileLinkType>,
+  linkTypeMap: Map<string, PublicTeamLinkType>,
 ) => {
   const safeHref = sanitizePublicHref(social?.href);
   if (!safeHref) {
@@ -211,6 +198,9 @@ const PublicUserProfileCard = ({
   mediaVariants,
   retired = false,
   imageSrc,
+  imageLoading,
+  imageFetchPriority,
+  imageSizes,
   testId,
 }: PublicUserProfileCardProps) => {
   const { settings } = useSiteSettings();
@@ -317,6 +307,9 @@ const PublicUserProfileCard = ({
               imageSrc={resolvedImageSrc}
               name={member.name}
               mediaVariants={mediaVariants}
+              loading={imageLoading}
+              fetchPriority={imageFetchPriority}
+              sizes={imageSizes}
             />
           </div>
 

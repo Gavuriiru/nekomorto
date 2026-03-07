@@ -6,6 +6,10 @@ import Team from "@/pages/Team";
 const apiFetchMock = vi.hoisted(() => vi.fn());
 const supportsMock = vi.hoisted(() => vi.fn());
 const imageState = vi.hoisted(() => ({ shouldFail: false }));
+type BootstrapWindow = Window &
+  typeof globalThis & {
+    __BOOTSTRAP_PUBLIC__?: unknown;
+  };
 
 vi.mock("@/lib/api-base", () => ({
   getApiBase: () => "",
@@ -52,6 +56,7 @@ const mockJsonResponse = (ok: boolean, payload: unknown, status = ok ? 200 : 500
 
 describe("Team social icon theme tint", () => {
   beforeEach(() => {
+    delete (window as BootstrapWindow).__BOOTSTRAP_PUBLIC__;
     imageState.shouldFail = false;
     supportsMock.mockReset();
     supportsMock.mockImplementation(

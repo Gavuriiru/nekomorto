@@ -6,7 +6,10 @@ import {
   attachUploadMediaMetadata,
   computeBufferSha256,
   findUploadByHash,
+  mergeUploadVariantPresetKeys,
   normalizeVariants,
+  resolveUploadAbsolutePath,
+  resolveUploadVariantPresetKeysForArea,
 } from "./upload-media.js";
 
 const MAX_SVG_SIZE_BYTES = 256 * 1024;
@@ -36,7 +39,9 @@ export const EPUB_IMPORT_TMP_PREFIX = "tmp/epub-imports";
 export const EPUB_IMPORT_TMP_TTL_MS = 72 * 60 * 60 * 1000;
 
 const normalizeUploadMime = (value) => {
-  const normalized = String(value || "").trim().toLowerCase();
+  const normalized = String(value || "")
+    .trim()
+    .toLowerCase();
   if (normalized === "image/jpg") {
     return "image/jpeg";
   }
@@ -76,20 +81,28 @@ const sanitizeSvg = (value) => {
   output = output.replace(/\son\w+\s*=\s*(["']).*?\1/gi, "");
   output = output.replace(/javascript:/gi, "");
   output = output.replace(/data:(?!image\/(png|jpe?g|gif|webp);base64)/gi, "");
-  output = output.replace(/(href|xlink:href|src)\s*=\s*(["'])(.*?)\2/gi, (_match, attr, quote, url) => {
-    const safe = String(url || "");
-    if (safe.startsWith("#") || safe.startsWith("/")) {
-      return `${attr}=${quote}${safe}${quote}`;
-    }
-    return "";
-  });
+  output = output.replace(
+    /(href|xlink:href|src)\s*=\s*(["'])(.*?)\2/gi,
+    (_match, attr, quote, url) => {
+      const safe = String(url || "");
+      if (safe.startsWith("#") || safe.startsWith("/")) {
+        return `${attr}=${quote}${safe}${quote}`;
+      }
+      return "";
+    },
+  );
   return output;
 };
 
 const validateRasterDimensions = ({ width, height }) => {
   const safeWidth = Number(width);
   const safeHeight = Number(height);
-  if (!Number.isFinite(safeWidth) || !Number.isFinite(safeHeight) || safeWidth <= 0 || safeHeight <= 0) {
+  if (
+    !Number.isFinite(safeWidth) ||
+    !Number.isFinite(safeHeight) ||
+    safeWidth <= 0 ||
+    safeHeight <= 0
+  ) {
     return { valid: false, error: "invalid_image_dimensions" };
   }
   if (safeWidth > MAX_UPLOAD_IMAGE_DIMENSION || safeHeight > MAX_UPLOAD_IMAGE_DIMENSION) {
@@ -147,6 +160,45 @@ const validateUploadImageBuffer = async (buffer, requestedMime) => {
 const buildUploadRelativeUrl = ({ folder, fileName }) =>
   `/uploads/${folder ? `${folder}/` : ""}${fileName}`;
 
+const ensureUploadHasRequiredVariants = async ({
+  uploadsDir,
+  uploadEntry,
+  sourceMime,
+  hashSha256,
+  variantPresetKeys,
+} = {}) => {
+  const currentEntry = uploadEntry && typeof uploadEntry === "object" ? uploadEntry : null;
+  if (!currentEntry) {
+    return uploadEntry;
+  }
+  const currentVariantPresetKeys = Object.keys(normalizeVariants(currentEntry?.variants));
+  const requiredVariantPresetKeys = mergeUploadVariantPresetKeys(
+    currentVariantPresetKeys,
+    variantPresetKeys,
+  );
+  if (requiredVariantPresetKeys.length <= currentVariantPresetKeys.length) {
+    return currentEntry;
+  }
+  const sourcePath = resolveUploadAbsolutePath({ uploadsDir, uploadUrl: currentEntry?.url });
+  if (!sourcePath || !fs.existsSync(sourcePath)) {
+    return currentEntry;
+  }
+  try {
+    return await attachUploadMediaMetadata({
+      uploadsDir,
+      entry: currentEntry,
+      sourcePath,
+      sourceMime: sourceMime || normalizeUploadMime(currentEntry?.mime),
+      hashSha256,
+      variantsVersion: Math.max(1, Number(currentEntry?.variantsVersion || 1)),
+      regenerateVariants: true,
+      variantPresetKeys: requiredVariantPresetKeys,
+    });
+  } catch {
+    return currentEntry;
+  }
+};
+
 export const buildEpubImportTempFolder = ({ userId, importId }) =>
   sanitizeUploadFolder(
     `${EPUB_IMPORT_TMP_PREFIX}/${String(userId || "anonymous").trim() || "anonymous"}/${String(importId || "").trim() || crypto.randomUUID()}`,
@@ -173,6 +225,7 @@ export const storeUploadImageBuffer = async ({
   }
 
   const normalizedMime = validation.mime;
+  const safeFolder = sanitizeUploadFolder(folder);
   const sourceBuffer =
     normalizedMime === "image/svg+xml"
       ? Buffer.from(sanitizeSvg(Buffer.from(buffer).toString("utf-8")), "utf-8")
@@ -180,17 +233,31 @@ export const storeUploadImageBuffer = async ({
   const hashSha256 = computeBufferSha256(sourceBuffer);
   const dedupeEntry = findUploadByHash(nextUploads, hashSha256);
   if (dedupeEntry) {
-    return {
+    const ensuredEntry = await ensureUploadHasRequiredVariants({
+      uploadsDir,
       uploadEntry: dedupeEntry,
+      sourceMime: normalizedMime,
+      hashSha256,
+      variantPresetKeys: resolveUploadVariantPresetKeysForArea(safeFolder),
+    });
+    if (ensuredEntry !== dedupeEntry) {
+      const dedupeIndex = nextUploads.findIndex(
+        (item) => String(item?.id || "") === String(dedupeEntry?.id || ""),
+      );
+      if (dedupeIndex >= 0) {
+        nextUploads[dedupeIndex] = ensuredEntry;
+      }
+    }
+    return {
+      uploadEntry: ensuredEntry,
       uploads: nextUploads,
       dedupeHit: true,
-      variantsGenerated: Object.keys(normalizeVariants(dedupeEntry?.variants)).length > 0,
+      variantsGenerated: Object.keys(normalizeVariants(ensuredEntry?.variants)).length > 0,
       variantGenerationError: "",
       hashSha256,
     };
   }
 
-  const safeFolder = sanitizeUploadFolder(folder);
   const ext = getUploadExtFromMime(normalizedMime);
   const safeName = sanitizeUploadBaseName(filename || "upload");
   const fileName = `${safeName || "imagem"}-${Date.now()}-${crypto.randomBytes(4).toString("hex")}.${ext}`;

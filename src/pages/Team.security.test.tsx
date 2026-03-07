@@ -5,6 +5,10 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import Team from "@/pages/Team";
 
 const apiFetchMock = vi.hoisted(() => vi.fn());
+type BootstrapWindow = Window &
+  typeof globalThis & {
+    __BOOTSTRAP_PUBLIC__?: unknown;
+  };
 
 vi.mock("@/lib/api-base", () => ({
   getApiBase: () => "",
@@ -35,6 +39,7 @@ const mockJsonResponse = (ok: boolean, payload: unknown, status = ok ? 200 : 500
 
 describe("Team security hardening", () => {
   beforeEach(() => {
+    delete (window as BootstrapWindow).__BOOTSTRAP_PUBLIC__;
     apiFetchMock.mockReset();
     apiFetchMock.mockImplementation(async (_apiBase: string, endpoint: string, options?: RequestInit) => {
       const method = String(options?.method || "GET").toUpperCase();

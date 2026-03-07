@@ -14,6 +14,7 @@ const POSTER_PRELOAD_RESPONSIVE_PRESET_ORDER = Object.freeze([
   "posterThumb",
   "poster",
 ]);
+const SQUARE_PRELOAD_RESPONSIVE_PRESET_ORDER = Object.freeze(["square"]);
 const HERO_PRELOAD_FALLBACK_WIDTHS = Object.freeze({
   heroXs: 768,
   heroSm: 960,
@@ -24,6 +25,9 @@ const POSTER_PRELOAD_FALLBACK_WIDTHS = Object.freeze({
   posterThumbSm: 192,
   posterThumb: 320,
   poster: 920,
+});
+const SQUARE_PRELOAD_FALLBACK_WIDTHS = Object.freeze({
+  square: 512,
 });
 
 const fileExists = (value) => {
@@ -279,6 +283,41 @@ const toResponsivePosterPreloadCandidate = (presetRecord, presetKey) => {
   };
 };
 
+const toResponsiveSquarePreloadCandidate = (presetRecord, presetKey) => {
+  if (!presetRecord || typeof presetRecord !== "object") {
+    return null;
+  }
+  const formats =
+    presetRecord.formats && typeof presetRecord.formats === "object" ? presetRecord.formats : null;
+  if (!formats) {
+    return null;
+  }
+  const url =
+    String(formats?.avif?.url || "").trim() ||
+    String(formats?.webp?.url || "").trim() ||
+    String(formats?.fallback?.url || "").trim();
+  if (!url) {
+    return null;
+  }
+  const rawWidth = Number(presetRecord.width);
+  const width =
+    Number.isFinite(rawWidth) && rawWidth > 0
+      ? Math.round(rawWidth)
+      : Number(SQUARE_PRELOAD_FALLBACK_WIDTHS[presetKey] || 0);
+  if (!width) {
+    return null;
+  }
+  return {
+    url,
+    width,
+    type: String(formats?.avif?.url || "").trim()
+      ? "image/avif"
+      : String(formats?.webp?.url || "").trim()
+        ? "image/webp"
+        : undefined,
+  };
+};
+
 export const resolveHomeHeroPreloadFromSlide = ({
   imageUrl,
   mediaVariants,
@@ -411,5 +450,71 @@ export const resolveProjectPosterPreload = ({
     type: fallbackCandidate.type,
     imagesrcset: srcset,
     imagesizes: String(imagesizes || "").trim() || "(max-width: 767px) 100px, 142px",
+  };
+};
+
+export const resolveTeamAvatarPreload = ({
+  avatarUrl,
+  mediaVariants,
+  resolveVariantUrl,
+  imagesizes = "(max-width: 639px) 224px, (max-width: 767px) 240px, 256px",
+} = {}) => {
+  const sourceAvatarUrl = String(avatarUrl || "").trim();
+  if (!sourceAvatarUrl) {
+    return null;
+  }
+  const normalizedAvatarUrl = normalizePublicUploadUrl(sourceAvatarUrl);
+  const variants = mediaVariants?.[normalizedAvatarUrl]?.variants;
+  const fallbackHref =
+    (normalizedAvatarUrl
+      ? readPublicVariantAssetUrl(mediaVariants?.[normalizedAvatarUrl]?.variants?.square?.formats, "")
+      : "") ||
+    (typeof resolveVariantUrl === "function" ? resolveVariantUrl(sourceAvatarUrl, "square") : "") ||
+    sourceAvatarUrl;
+
+  if (!variants || typeof variants !== "object") {
+    return fallbackHref
+      ? {
+          href: fallbackHref,
+          as: "image",
+          fetchpriority: "high",
+        }
+      : null;
+  }
+
+  const candidateByUrl = new Map();
+  SQUARE_PRELOAD_RESPONSIVE_PRESET_ORDER.forEach((presetKey) => {
+    const candidate = toResponsiveSquarePreloadCandidate(variants[presetKey], presetKey);
+    if (!candidate) {
+      return;
+    }
+    const current = candidateByUrl.get(candidate.url);
+    if (!current || candidate.width > current.width) {
+      candidateByUrl.set(candidate.url, candidate);
+    }
+  });
+
+  const responsiveCandidates = [...candidateByUrl.values()].sort(
+    (left, right) => left.width - right.width,
+  );
+  if (responsiveCandidates.length === 0) {
+    return fallbackHref
+      ? {
+          href: fallbackHref,
+          as: "image",
+          fetchpriority: "high",
+        }
+      : null;
+  }
+
+  const srcset = responsiveCandidates.map((entry) => `${entry.url} ${entry.width}w`).join(", ");
+  const fallbackCandidate = responsiveCandidates[responsiveCandidates.length - 1];
+  return {
+    href: fallbackHref || fallbackCandidate.url,
+    as: "image",
+    type: fallbackCandidate.type,
+    imagesrcset: srcset,
+    imagesizes: String(imagesizes || "").trim() || "(max-width: 639px) 224px, (max-width: 767px) 240px, 256px",
+    fetchpriority: "high",
   };
 };

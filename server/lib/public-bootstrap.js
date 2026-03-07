@@ -45,6 +45,16 @@ const safeSources = (value) =>
         .filter((source) => source.label || source.url)
     : [];
 
+const safeTeamSocials = (value) =>
+  Array.isArray(value)
+    ? value
+        .map((source) => ({
+          label: safeString(source?.label).trim(),
+          href: safeString(source?.href).trim(),
+        }))
+        .filter((source) => source.label || source.href)
+    : [];
+
 const sanitizeVolumeCovers = (covers) =>
   Array.isArray(covers)
     ? covers
@@ -157,6 +167,39 @@ export const toPublicBootstrapUpdate = (update) => ({
   unit: safeString(update?.unit),
 });
 
+const sanitizeFavoriteWorksByCategory = (favoriteWorks) => {
+  if (!favoriteWorks || typeof favoriteWorks !== "object" || Array.isArray(favoriteWorks)) {
+    return {};
+  }
+  return {
+    manga: safeStringArray(favoriteWorks.manga),
+    anime: safeStringArray(favoriteWorks.anime),
+  };
+};
+
+export const toPublicBootstrapTeamMember = (member) => ({
+  id: safeString(member?.id),
+  name: safeString(member?.name),
+  phrase: safeString(member?.phrase),
+  bio: safeString(member?.bio),
+  avatarUrl: safeString(member?.avatarUrl),
+  avatarDisplay: safeString(member?.avatarDisplay),
+  socials: safeTeamSocials(member?.socials),
+  favoriteWorks: sanitizeFavoriteWorksByCategory(member?.favoriteWorks),
+  permissions: safeStringArray(member?.permissions),
+  roles: safeStringArray(member?.roles),
+  isAdmin: Boolean(member?.isAdmin),
+  status: safeString(member?.status),
+  order: Number.isFinite(Number(member?.order)) ? Number(member.order) : undefined,
+  accessRole: safeString(member?.accessRole),
+});
+
+export const toPublicBootstrapTeamLinkType = (item) => ({
+  id: safeString(item?.id),
+  label: safeString(item?.label),
+  icon: safeString(item?.icon),
+});
+
 export const normalizePublicTagTranslations = (translations) => ({
   tags:
     translations?.tags && typeof translations.tags === "object" && !Array.isArray(translations.tags)
@@ -180,6 +223,8 @@ export const buildPublicBootstrapPayload = ({
   projects,
   posts,
   updates,
+  teamMembers,
+  teamLinkTypes,
   tagTranslations,
   generatedAt,
   payloadMode = "full",
@@ -189,6 +234,8 @@ export const buildPublicBootstrapPayload = ({
   projects: Array.isArray(projects) ? projects.map(toPublicBootstrapProject) : [],
   posts: Array.isArray(posts) ? posts.map(toPublicBootstrapPost) : [],
   updates: Array.isArray(updates) ? updates.map(toPublicBootstrapUpdate) : [],
+  teamMembers: Array.isArray(teamMembers) ? teamMembers.map(toPublicBootstrapTeamMember) : [],
+  teamLinkTypes: Array.isArray(teamLinkTypes) ? teamLinkTypes.map(toPublicBootstrapTeamLinkType) : [],
   tagTranslations: normalizePublicTagTranslations(tagTranslations),
   generatedAt: safeString(generatedAt || new Date().toISOString()),
   payloadMode: normalizePublicBootstrapPayloadMode(payloadMode),

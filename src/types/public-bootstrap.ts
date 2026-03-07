@@ -4,6 +4,7 @@ import {
   emptyPublicPagesConfig,
   type PublicPagesConfig,
 } from "@/types/public-pages";
+import type { PublicTeamLinkType, PublicTeamMember } from "@/types/public-team";
 
 export type PublicBootstrapEpisode = {
   number: number;
@@ -97,6 +98,8 @@ export type PublicBootstrapPayload = {
   projects: PublicBootstrapProject[];
   posts: PublicBootstrapPost[];
   updates: PublicBootstrapUpdate[];
+  teamMembers: PublicTeamMember[];
+  teamLinkTypes: PublicTeamLinkType[];
   mediaVariants?: UploadMediaVariantsMap;
   tagTranslations: {
     tags: Record<string, string>;
@@ -113,6 +116,8 @@ export const emptyPublicBootstrapPayload: PublicBootstrapPayload = {
   projects: [],
   posts: [],
   updates: [],
+  teamMembers: [],
+  teamLinkTypes: [],
   mediaVariants: {},
   tagTranslations: {
     tags: {},

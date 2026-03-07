@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { CartesianGrid, Line, LineChart, XAxis, YAxis } from "recharts";
 
 import DashboardPageContainer from "@/components/dashboard/DashboardPageContainer";
@@ -103,6 +103,20 @@ const formatChartDateLabel = (value: string) => {
     return value;
   }
   return `${day}/${month}`;
+};
+const getTopContentHref = (resourceType: string, resourceId: string) => {
+  const normalizedType = String(resourceType || "").toLowerCase();
+  const normalizedId = String(resourceId || "").trim();
+  if (!normalizedId) {
+    return null;
+  }
+  if (normalizedType === "project") {
+    return `/projeto/${encodeURIComponent(normalizedId)}`;
+  }
+  if (normalizedType === "post") {
+    return `/postagem/${encodeURIComponent(normalizedId)}`;
+  }
+  return null;
 };
 const parseRange = (value: string | null): RangeValue =>
   value === "7d" || value === "30d" || value === "90d" ? value : "30d";
@@ -588,11 +602,17 @@ const DashboardAnalytics = () => {
               )}
             >
               <CardHeader>
-                <CardTitle>Top conteúdos</CardTitle>
+                <CardTitle>Ranking</CardTitle>
               </CardHeader>
               <CardContent>
                 {topEntries.length ? (
-                  <Table>
+                  <Table className="table-fixed">
+                    <colgroup>
+                      <col className="sm:w-[140px]" />
+                      <col />
+                      <col className="sm:w-[96px]" />
+                      <col className="sm:w-[96px]" />
+                    </colgroup>
                     <TableHeader>
                       <TableRow>
                         <TableHead>Tipo</TableHead>
@@ -602,16 +622,65 @@ const DashboardAnalytics = () => {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {topEntries.map((entry) => (
-                        <TableRow key={`${entry.resourceType}:${entry.resourceId}`}>
-                          <TableCell>{formatResourceType(entry.resourceType)}</TableCell>
-                          <TableCell>{entry.title}</TableCell>
-                          <TableCell className="text-right">{formatInt(entry.views)}</TableCell>
-                          <TableCell className="text-right">
-                            {formatInt(entry.uniqueViews)}
-                          </TableCell>
-                        </TableRow>
-                      ))}
+                      {topEntries.map((entry) => {
+                        const entryHref = getTopContentHref(entry.resourceType, entry.resourceId);
+                        return (
+                          <TableRow
+                            key={`${entry.resourceType}:${entry.resourceId}`}
+                            className={entryHref ? "hover:bg-transparent" : undefined}
+                          >
+                            {entryHref ? (
+                              <TableCell colSpan={4} className="p-0">
+                                <Link
+                                  to={entryHref}
+                                  className="group grid w-full gap-3 px-4 py-4 text-sm transition hover:bg-muted/50 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:ring-inset sm:grid-cols-[140px_minmax(0,1fr)_96px_96px] sm:items-center sm:gap-0 sm:px-0"
+                                  aria-label={`Abrir ${formatResourceType(entry.resourceType)} ${entry.title}`}
+                                >
+                                  <span className="flex flex-col gap-1 sm:px-4">
+                                    <span className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground sm:hidden">
+                                      Tipo
+                                    </span>
+                                    <span className="text-muted-foreground">
+                                      {formatResourceType(entry.resourceType)}
+                                    </span>
+                                  </span>
+                                  <span className="min-w-0 flex flex-col gap-1 sm:px-4">
+                                    <span className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground sm:hidden">
+                                      Titulo
+                                    </span>
+                                    <span className="truncate font-medium text-foreground">
+                                      {entry.title}
+                                    </span>
+                                  </span>
+                                  <span className="flex flex-col gap-1 sm:px-4 sm:text-right">
+                                    <span className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground sm:hidden">
+                                      Views
+                                    </span>
+                                    <span className="sm:text-right">{formatInt(entry.views)}</span>
+                                  </span>
+                                  <span className="flex flex-col gap-1 sm:px-4 sm:text-right">
+                                    <span className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground sm:hidden">
+                                      Unicas
+                                    </span>
+                                    <span className="sm:text-right">
+                                      {formatInt(entry.uniqueViews)}
+                                    </span>
+                                  </span>
+                                </Link>
+                              </TableCell>
+                            ) : (
+                              <>
+                                <TableCell>{formatResourceType(entry.resourceType)}</TableCell>
+                                <TableCell>{entry.title}</TableCell>
+                                <TableCell className="text-right">{formatInt(entry.views)}</TableCell>
+                                <TableCell className="text-right">
+                                  {formatInt(entry.uniqueViews)}
+                                </TableCell>
+                              </>
+                            )}
+                          </TableRow>
+                        );
+                      })}
                     </TableBody>
                   </Table>
                 ) : (

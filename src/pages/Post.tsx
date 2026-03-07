@@ -2,10 +2,7 @@ import { Suspense, lazy, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { CalendarDays, Clock, User } from "lucide-react";
 
-import PublicUserProfileCard, {
-  type PublicUserProfileLinkType,
-  type PublicUserProfileMember,
-} from "@/components/PublicUserProfileCard";
+import PublicUserProfileCard from "@/components/PublicUserProfileCard";
 import ProjectEmbedCard from "@/components/ProjectEmbedCard";
 import CommentsSection from "@/components/CommentsSection";
 import UploadPicture from "@/components/UploadPicture";
@@ -21,6 +18,7 @@ import { usePageMeta } from "@/hooks/use-page-meta";
 import { useSiteSettings } from "@/hooks/use-site-settings";
 import { formatDateTime } from "@/lib/date";
 import type { UploadMediaVariantsMap } from "@/lib/upload-variants";
+import type { PublicTeamLinkType, PublicTeamMember } from "@/types/public-team";
 
 const LexicalViewer = lazy(() => import("@/components/lexical/LexicalViewer"));
 
@@ -57,8 +55,8 @@ const Post = () => {
   const [loadError, setLoadError] = useState(false);
   const [currentUser, setCurrentUser] = useState<{ permissions?: string[] } | null>(null);
   const [mediaVariants, setMediaVariants] = useState<UploadMediaVariantsMap>({});
-  const [authorMember, setAuthorMember] = useState<PublicUserProfileMember | null>(null);
-  const [authorLinkTypes, setAuthorLinkTypes] = useState<PublicUserProfileLinkType[]>([]);
+  const [authorMember, setAuthorMember] = useState<PublicTeamMember | null>(null);
+  const [authorLinkTypes, setAuthorLinkTypes] = useState<PublicTeamLinkType[]>([]);
   const [authorMediaVariants, setAuthorMediaVariants] = useState<UploadMediaVariantsMap>({});
   const trackedViewsRef = useRef<Set<string>>(new Set());
   const { settings } = useSiteSettings();
@@ -185,7 +183,7 @@ const Post = () => {
           clearAuthorCard();
           return;
         }
-        setAuthorMember(matches[0] as PublicUserProfileMember);
+        setAuthorMember(matches[0] as PublicTeamMember);
         setAuthorLinkTypes(Array.isArray(linkTypesData?.items) ? linkTypesData.items : []);
         setAuthorMediaVariants(
           usersData?.mediaVariants && typeof usersData.mediaVariants === "object"

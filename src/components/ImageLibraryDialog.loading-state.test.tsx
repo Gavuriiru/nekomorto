@@ -78,4 +78,32 @@ describe("ImageLibraryDialog loading state", () => {
       );
     });
   });
+
+  it("exibe erro de permissao quando a listagem de uploads falha com 403", async () => {
+    apiFetchMock.mockImplementation(async (_base: string, path: string) => {
+      if (path.startsWith("/api/uploads/list")) {
+        return mockJsonResponse(false, { error: "forbidden" }, 403);
+      }
+      if (path === "/api/uploads/project-images") {
+        return mockJsonResponse(true, { items: [] });
+      }
+      return mockJsonResponse(false, { error: "not_found" }, 404);
+    });
+
+    render(
+      <ImageLibraryDialog
+        open
+        onOpenChange={() => undefined}
+        apiBase="http://api.local"
+        listFolders={["users"]}
+        listAll={false}
+        onSave={() => undefined}
+      />,
+    );
+
+    expect(await screen.findByTestId("image-library-uploads-error")).toHaveTextContent(
+      "Você não tem permissão para visualizar uploads neste contexto.",
+    );
+    expect(screen.queryByText(/Nenhum upload/i)).not.toBeInTheDocument();
+  });
 });

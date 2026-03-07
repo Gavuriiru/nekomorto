@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { render, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { describe, expect, it, vi } from "vitest";
 
@@ -49,7 +49,7 @@ const mockJsonResponse = (ok: boolean, payload: unknown, status = ok ? 200 : 500
   }) as Response;
 
 describe("DashboardUsers image library context", () => {
-  it("passa contexto de avatar com pasta users e sem imagens de projeto", async () => {
+  it("passa contexto de avatar com pasta users, selecao atual e sem imagens de projeto", async () => {
     apiFetchMock.mockReset();
     imageLibraryPropsSpy.mockReset();
     apiFetchMock.mockImplementation(async (_base: string, path: string, options?: RequestInit) => {
@@ -78,6 +78,10 @@ describe("DashboardUsers image library context", () => {
           id: "user-1",
           name: "Admin",
           username: "admin",
+          grants: {
+            usuarios_basico: true,
+            uploads: false,
+          },
         });
       }
       if (path === "/api/link-types" && method === "GET") {
@@ -92,6 +96,8 @@ describe("DashboardUsers image library context", () => {
       </MemoryRouter>,
     );
 
+    fireEvent.click(await screen.findByRole("button", { name: /Abrir usu.rio Admin/i }));
+
     await waitFor(() => {
       expect(imageLibraryPropsSpy).toHaveBeenCalled();
     });
@@ -105,6 +111,7 @@ describe("DashboardUsers image library context", () => {
       cropAvatar?: boolean;
       cropTargetFolder?: string;
       currentSelectionUrls?: string[];
+      allowUploadManagementActions?: boolean;
     };
 
     expect(imageLibraryProps.uploadFolder).toBe("users");
@@ -114,6 +121,69 @@ describe("DashboardUsers image library context", () => {
     expect(imageLibraryProps.projectImagesView).toBeUndefined();
     expect(imageLibraryProps.cropAvatar).toBe(true);
     expect(imageLibraryProps.cropTargetFolder).toBe("users");
-    expect(imageLibraryProps.currentSelectionUrls).toBeUndefined();
+    expect(imageLibraryProps.currentSelectionUrls).toEqual(["/uploads/users/avatar-user-1.png"]);
+    expect(imageLibraryProps.allowUploadManagementActions).toBe(false);
+  });
+
+  it("abre a biblioteca de avatar em escopo amplo quando o ator tem uploads", async () => {
+    apiFetchMock.mockReset();
+    imageLibraryPropsSpy.mockReset();
+    apiFetchMock.mockImplementation(async (_base: string, path: string, options?: RequestInit) => {
+      const method = String(options?.method || "GET").toUpperCase();
+      if (path === "/api/users" && method === "GET") {
+        return mockJsonResponse(true, {
+          users: [
+            {
+              id: "user-1",
+              name: "Admin",
+              phrase: "",
+              bio: "",
+              avatarUrl: "/uploads/users/avatar-user-1.png",
+              socials: [],
+              status: "active",
+              permissions: ["*"],
+              roles: [],
+              order: 0,
+            },
+          ],
+          ownerIds: ["user-1"],
+        });
+      }
+      if (path === "/api/me" && method === "GET") {
+        return mockJsonResponse(true, {
+          id: "user-1",
+          name: "Admin",
+          username: "admin",
+          grants: {
+            usuarios_basico: true,
+            uploads: true,
+          },
+        });
+      }
+      if (path === "/api/link-types" && method === "GET") {
+        return mockJsonResponse(true, { items: [] });
+      }
+      return mockJsonResponse(false, { error: "not_found" }, 404);
+    });
+
+    render(
+      <MemoryRouter initialEntries={["/dashboard/usuarios"]}>
+        <DashboardUsers />
+      </MemoryRouter>,
+    );
+
+    fireEvent.click(await screen.findByRole("button", { name: /Abrir usu.rio Admin/i }));
+
+    await waitFor(() => {
+      expect(imageLibraryPropsSpy).toHaveBeenCalled();
+    });
+
+    const imageLibraryProps = imageLibraryPropsSpy.mock.calls.at(-1)?.[0] as {
+      listAll?: boolean;
+      allowUploadManagementActions?: boolean;
+    };
+
+    expect(imageLibraryProps.listAll).toBe(true);
+    expect(imageLibraryProps.allowUploadManagementActions).toBe(true);
   });
 });

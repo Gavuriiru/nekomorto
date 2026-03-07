@@ -39,6 +39,7 @@
     "uploads:generate-inventory": "node --env-file=.env scripts/generate-uploads-inventory.mjs",
     "uploads:localize-project-images": "node --env-file=.env scripts/localize-project-images.mjs",
     "uploads:isolate-project-images": "node --env-file=.env scripts/isolate-project-images.mjs",
+    "uploads:backfill-project-variant-profiles": "node --env-file=.env scripts/backfill-project-upload-variant-profiles.mjs",
     "uploads:backfill-media": "node --env-file=.env scripts/backfill-upload-media.mjs",
     "uploads:backfill-variants-avif-only": "node --env-file=.env scripts/backfill-upload-variants-avif-only.mjs",
     "users:migrate-permissions-v2": "node --env-file=.env scripts/migrate-permissions-v2.mjs",

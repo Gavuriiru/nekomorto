@@ -12,7 +12,7 @@ vi.mock("@/components/DashboardShell", () => ({
 }));
 
 vi.mock("@/components/ImageLibraryDialog", () => ({
-  default: () => null,
+  default: ({ open }: { open?: boolean }) => (open ? <div data-testid="image-library-dialog" /> : null),
 }));
 
 vi.mock("@/hooks/use-page-meta", () => ({
@@ -132,6 +132,11 @@ describe("DashboardUsers permissions matrix", () => {
       await screen.findByRole("button", { name: /Abrir usu.*rio Colaborador/i }),
     );
     const dialog = await screen.findByRole("dialog");
+    const libraryButton = within(dialog).getByRole("button", { name: "Biblioteca" });
+    expect(libraryButton).toBeEnabled();
+
+    fireEvent.click(libraryButton);
+    expect(await screen.findByTestId("image-library-dialog")).toBeInTheDocument();
 
     fireEvent.change(within(dialog).getByLabelText("Nome"), {
       target: { value: "Colaborador Editado" },

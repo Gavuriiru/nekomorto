@@ -99,6 +99,33 @@ describe("public bootstrap payload", () => {
           unit: "Episódio",
         },
       ],
+      teamMembers: [
+        {
+          id: "team-1",
+          name: "Integrante",
+          phrase: "Frase",
+          bio: "Bio",
+          avatarUrl: "/uploads/users/team-1.png",
+          socials: [{ label: "site", href: "https://example.com/team-1" }],
+          favoriteWorks: {
+            manga: ["Manga A"],
+            anime: ["Anime A"],
+          },
+          permissions: ["users.read"],
+          roles: ["Membro"],
+          isAdmin: false,
+          status: "active",
+          order: 3,
+          accessRole: "normal",
+        },
+      ],
+      teamLinkTypes: [
+        {
+          id: "site",
+          label: "Site",
+          icon: "globe",
+        },
+      ],
       tagTranslations: {
         tags: { acao: "Ação" },
         genres: { drama: "Drama" },
@@ -115,6 +142,8 @@ describe("public bootstrap payload", () => {
         projects: expect.any(Array),
         posts: expect.any(Array),
         updates: expect.any(Array),
+        teamMembers: expect.any(Array),
+        teamLinkTypes: expect.any(Array),
         tagTranslations: expect.any(Object),
         generatedAt: "2026-02-10T10:00:00.000Z",
         payloadMode: "critical-home",
@@ -123,6 +152,8 @@ describe("public bootstrap payload", () => {
     expect(payload.projects).toHaveLength(1);
     expect(payload.posts).toHaveLength(1);
     expect(payload.updates).toHaveLength(1);
+    expect(payload.teamMembers).toHaveLength(1);
+    expect(payload.teamLinkTypes).toHaveLength(1);
     expect((payload.updates[0] as Record<string, unknown>).volume).toBe(1);
     expect(payload.pages).toEqual({
       home: {
@@ -171,6 +202,20 @@ describe("public bootstrap payload", () => {
       }),
     ]);
     expect((project.episodeDownloads as Array<Record<string, unknown>>)[0]).not.toHaveProperty("content");
+    expect(payload.teamMembers[0]).toEqual(
+      expect.objectContaining({
+        id: "team-1",
+        name: "Integrante",
+        avatarUrl: "/uploads/users/team-1.png",
+        socials: [{ label: "site", href: "https://example.com/team-1" }],
+        favoriteWorks: { manga: ["Manga A"], anime: ["Anime A"] },
+      }),
+    );
+    expect(payload.teamLinkTypes[0]).toEqual({
+      id: "site",
+      label: "Site",
+      icon: "globe",
+    });
   });
 
   it("falls back to full payload mode when value is missing or invalid", () => {

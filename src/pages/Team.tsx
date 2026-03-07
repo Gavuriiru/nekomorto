@@ -1,25 +1,48 @@
 import { useEffect, useMemo, useState } from "react";
 
 import PublicPageHero from "@/components/PublicPageHero";
-import PublicUserProfileCard, {
-  type PublicUserProfileLinkType,
-  type PublicUserProfileMember,
-} from "@/components/PublicUserProfileCard";
+import PublicUserProfileCard from "@/components/PublicUserProfileCard";
 import { publicPageLayoutTokens } from "@/components/public-page-tokens";
 import { usePageMeta } from "@/hooks/use-page-meta";
 import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
 import { readWindowPublicBootstrap } from "@/lib/public-bootstrap-global";
-import type { UploadMediaVariantsMap } from "@/lib/upload-variants";
+import {
+  normalizeUploadVariantUrlKey,
+  type UploadMediaVariantsMap,
+} from "@/lib/upload-variants";
+import type { PublicTeamLinkType, PublicTeamMember } from "@/types/public-team";
+
+const TEAM_AVATAR_IMAGE_SIZES = "(max-width: 639px) 224px, (max-width: 767px) 240px, 256px";
 
 const Team = () => {
   const apiBase = getApiBase();
-  const [members, setMembers] = useState<PublicUserProfileMember[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [cacheBust, setCacheBust] = useState(Date.now());
-  const [linkTypes, setLinkTypes] = useState<PublicUserProfileLinkType[]>([]);
-  const [memberMediaVariants, setMemberMediaVariants] = useState<UploadMediaVariantsMap>({});
   const bootstrap = readWindowPublicBootstrap();
+  const hasFullBootstrap = Boolean(bootstrap && bootstrap.payloadMode !== "critical-home");
+  const bootstrapHasTeamSnapshot =
+    typeof window !== "undefined" &&
+    (() => {
+      const rawBootstrap = (
+        window as Window & {
+          __BOOTSTRAP_PUBLIC__?: { teamMembers?: unknown; teamLinkTypes?: unknown };
+        }
+      ).__BOOTSTRAP_PUBLIC__;
+      return Boolean(
+        rawBootstrap &&
+          typeof rawBootstrap === "object" &&
+          (Array.isArray(rawBootstrap.teamMembers) || Array.isArray(rawBootstrap.teamLinkTypes)),
+      );
+    })();
+  const hasTeamBootstrapSnapshot = hasFullBootstrap && bootstrapHasTeamSnapshot;
+  const bootstrapMembers = hasTeamBootstrapSnapshot ? bootstrap?.teamMembers || [] : [];
+  const bootstrapLinkTypes = hasTeamBootstrapSnapshot ? bootstrap?.teamLinkTypes || [] : [];
+  const bootstrapMediaVariants = hasTeamBootstrapSnapshot ? bootstrap?.mediaVariants || {} : {};
+  const [members, setMembers] = useState<PublicTeamMember[]>(() => bootstrapMembers);
+  const [isLoading, setIsLoading] = useState(() => !hasTeamBootstrapSnapshot);
+  const [linkTypes, setLinkTypes] = useState<PublicTeamLinkType[]>(() => bootstrapLinkTypes);
+  const [memberMediaVariants, setMemberMediaVariants] = useState<UploadMediaVariantsMap>(
+    () => bootstrapMediaVariants,
+  );
   const pageCopy = useMemo(
     () => ({
       shareImage: "",
@@ -44,6 +67,9 @@ const Team = () => {
   });
 
   useEffect(() => {
+    if (hasTeamBootstrapSnapshot) {
+      return;
+    }
     let isActive = true;
     const load = async () => {
       try {
@@ -58,7 +84,6 @@ const Team = () => {
             setMemberMediaVariants(
               data?.mediaVariants && typeof data.mediaVariants === "object" ? data.mediaVariants : {},
             );
-            setCacheBust(Date.now());
           }
         } else if (isActive) {
           setMembers([]);
@@ -77,13 +102,11 @@ const Team = () => {
       }
     };
 
-    load();
-    const interval = setInterval(load, 15000);
+    void load();
     return () => {
       isActive = false;
-      clearInterval(interval);
     };
-  }, [apiBase]);
+  }, [apiBase, hasTeamBootstrapSnapshot]);
 
   const normalizedStatus = (status?: string | null) => (status || "").toLowerCase();
   const retiredMembers = members
@@ -101,17 +124,28 @@ const Team = () => {
     )
     .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
 
-  const getMemberImageSrc = (member: PublicUserProfileMember) => {
-    const image = member.avatarUrl || "/placeholder.svg";
-    return image && image !== "/placeholder.svg"
-      ? image.includes("?")
-        ? `${image}&v=${cacheBust}`
-        : `${image}?v=${cacheBust}`
-      : "/placeholder.svg";
+  const getMemberImageSrc = (member: PublicTeamMember) => {
+    const image = String(member.avatarUrl || "").trim();
+    if (!image || image === "/placeholder.svg") {
+      return "/placeholder.svg";
+    }
+    const variantKey = normalizeUploadVariantUrlKey(image);
+    const variantsVersion = Number(memberMediaVariants?.[variantKey]?.variantsVersion);
+    if (!Number.isFinite(variantsVersion) || variantsVersion <= 0) {
+      return image;
+    }
+    const normalizedVersion = Math.floor(variantsVersion);
+    return image.includes("?") ? `${image}&v=${normalizedVersion}` : `${image}?v=${normalizedVersion}`;
   };
 
-  const renderMemberCard = (member: PublicUserProfileMember, options?: { retired?: boolean }) => {
+  const prioritizedMemberId = activeMembers[0]?.id || retiredMembers[0]?.id || "";
+
+  const renderMemberCard = (
+    member: PublicTeamMember,
+    options?: { retired?: boolean; prioritizeImage?: boolean },
+  ) => {
     const isRetiredCard = options?.retired ?? false;
+    const shouldPrioritizeImage = options?.prioritizeImage ?? false;
     return (
       <PublicUserProfileCard
         key={member.id}
@@ -120,6 +154,9 @@ const Team = () => {
         mediaVariants={memberMediaVariants}
         retired={isRetiredCard}
         imageSrc={getMemberImageSrc(member)}
+        imageLoading={shouldPrioritizeImage ? "eager" : "lazy"}
+        imageFetchPriority={shouldPrioritizeImage ? "high" : "auto"}
+        imageSizes={TEAM_AVATAR_IMAGE_SIZES}
       />
     );
   };
@@ -148,7 +185,11 @@ const Team = () => {
           ) : (
             <>
               <div className="mt-10 grid gap-8 md:gap-10">
-                {activeMembers.map((member) => renderMemberCard(member))}
+                {activeMembers.map((member) =>
+                  renderMemberCard(member, {
+                    prioritizeImage: member.id === prioritizedMemberId,
+                  }),
+                )}
               </div>
 
               {retiredMembers.length > 0 ? (
@@ -160,7 +201,12 @@ const Team = () => {
                     <p className="text-sm text-muted-foreground">{pageCopy.retiredSubtitle}</p>
                   </div>
                   <div className="mt-8 grid gap-8 md:gap-10">
-                    {retiredMembers.map((member) => renderMemberCard(member, { retired: true }))}
+                    {retiredMembers.map((member) =>
+                      renderMemberCard(member, {
+                        retired: true,
+                        prioritizeImage: member.id === prioritizedMemberId,
+                      }),
+                    )}
                   </div>
                 </div>
               ) : null}

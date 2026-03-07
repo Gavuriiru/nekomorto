@@ -5,6 +5,10 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import Team from "@/pages/Team";
 
 const apiFetchMock = vi.hoisted(() => vi.fn());
+type BootstrapWindow = Window &
+  typeof globalThis & {
+    __BOOTSTRAP_PUBLIC__?: unknown;
+  };
 
 vi.mock("@/lib/api-base", () => ({
   getApiBase: () => "",
@@ -102,6 +106,14 @@ const linkTypesFixture = [
   { id: "twitter", label: "Twitter", icon: "twitter" },
   { id: "site", label: "Site", icon: "globe" },
 ];
+
+const setBootstrapPayload = (payload: unknown) => {
+  (window as BootstrapWindow).__BOOTSTRAP_PUBLIC__ = payload;
+};
+
+const clearBootstrapPayload = () => {
+  delete (window as BootstrapWindow).__BOOTSTRAP_PUBLIC__;
+};
 
 const classTokens = (element: HTMLElement) => String(element.className).split(/\s+/).filter(Boolean);
 
@@ -232,6 +244,7 @@ const setupApiMock = (users = usersFixture) => {
 
 describe("Team mobile social layout", () => {
   beforeEach(() => {
+    clearBootstrapPayload();
     setupApiMock();
   });
 
@@ -320,6 +333,58 @@ describe("Team mobile social layout", () => {
     expect(avatarImage).toHaveAttribute("src", expect.stringContaining("/square-v2.png"));
   });
 
+  it("hidrata a pagina com bootstrap completo sem fetch inicial e sem polling", async () => {
+    vi.useFakeTimers();
+    setBootstrapPayload({
+      settings: {},
+      pages: { team: {} },
+      projects: [],
+      posts: [],
+      updates: [],
+      teamMembers: usersFixture,
+      teamLinkTypes: linkTypesFixture,
+      mediaVariants: usersMediaVariantsFixture,
+      tagTranslations: { tags: {}, genres: {}, staffRoles: {} },
+      generatedAt: "2026-03-06T00:00:00.000Z",
+      payloadMode: "full",
+    });
+    apiFetchMock.mockReset();
+    try {
+      render(
+        <MemoryRouter>
+          <Team />
+        </MemoryRouter>,
+      );
+
+      expect(screen.getByRole("heading", { name: activeMemberName })).toBeInTheDocument();
+      await vi.advanceTimersByTimeAsync(20_000);
+
+      expect(apiFetchMock).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("prioriza apenas o primeiro avatar visivel para LCP", async () => {
+    render(
+      <MemoryRouter>
+        <Team />
+      </MemoryRouter>,
+    );
+
+    const prioritizedAvatar = await screen.findByRole("img", { name: activeMemberName });
+    const deferredAvatar = await screen.findByRole("img", { name: retiredMemberName });
+
+    expect(prioritizedAvatar).toHaveAttribute("loading", "eager");
+    expect(prioritizedAvatar).toHaveAttribute("fetchpriority", "high");
+    expect(prioritizedAvatar).toHaveAttribute(
+      "sizes",
+      "(max-width: 639px) 224px, (max-width: 767px) 240px, 256px",
+    );
+    expect(deferredAvatar).toHaveAttribute("loading", "lazy");
+    expect(deferredAvatar).toHaveAttribute("fetchpriority", "auto");
+  });
+
   it("mantem o mesmo layout empilhado quando ha apenas membros aposentados", async () => {
     setupApiMock([usersFixture[1]]);
 
@@ -337,5 +402,19 @@ describe("Team mobile social layout", () => {
     assertSocialFlow(socialContainer);
     expect(classTokens(card)).not.toContain("mt-20");
     expect(classTokens(card)).not.toContain("grayscale");
+  });
+
+  it("prioriza o primeiro aposentado quando nao ha membros ativos", async () => {
+    setupApiMock([usersFixture[1]]);
+
+    render(
+      <MemoryRouter>
+        <Team />
+      </MemoryRouter>,
+    );
+
+    const retiredAvatar = await screen.findByRole("img", { name: retiredMemberName });
+    expect(retiredAvatar).toHaveAttribute("loading", "eager");
+    expect(retiredAvatar).toHaveAttribute("fetchpriority", "high");
   });
 });

@@ -5,7 +5,13 @@ import path from "path";
 import sharp from "sharp";
 import { afterEach, describe, expect, it } from "vitest";
 
-import { buildStorageAreaSummary, generateUploadVariants } from "../../server/lib/upload-media.js";
+import {
+  buildStorageAreaSummary,
+  generateUploadVariants,
+  PROJECT_UPLOAD_VARIANT_PRESET_KEYS,
+  UPLOAD_VARIANT_PRESET_KEYS,
+} from "../../server/lib/upload-media.js";
+import { storeUploadImageBuffer } from "../../server/lib/uploads-import.js";
 
 const tempDirs: string[] = [];
 
@@ -165,5 +171,86 @@ describe("upload-media", () => {
 
     expect(generated.variants.posterThumbSm?.formats?.avif?.size).toBeLessThanOrEqual(9_000);
     expect(generated.variants.posterThumb?.formats?.avif?.size).toBeLessThanOrEqual(46_000);
+  }, 15_000);
+
+  it("gera apenas o perfil enxuto para uploads de projects quando solicitado", async () => {
+    const uploadsDir = createTempUploadsDir();
+    const sourcePath = path.join(uploadsDir, "project-source.png");
+
+    await createPatternSourceImage(sourcePath);
+
+    const generated = await generateUploadVariants({
+      uploadsDir,
+      uploadId: "project-upload",
+      sourcePath,
+      sourceMime: "image/png",
+      variantsVersion: 1,
+      variantPresetKeys: PROJECT_UPLOAD_VARIANT_PRESET_KEYS,
+    });
+
+    const variantDir = path.join(uploadsDir, "_variants", "project-upload");
+    const files = fs.readdirSync(variantDir);
+
+    expect(files).toHaveLength(PROJECT_UPLOAD_VARIANT_PRESET_KEYS.length);
+    expect(Object.keys(generated.variants)).toEqual(PROJECT_UPLOAD_VARIANT_PRESET_KEYS);
+    expect(files).toEqual(
+      expect.not.arrayContaining(["card-v1.avif", "og-v1.avif", "square-v1.avif"]),
+    );
+    expect(files).toEqual(
+      expect.arrayContaining([
+        "cardHomeXs-v1.avif",
+        "cardHomeSm-v1.avif",
+        "cardHome-v1.avif",
+        "cardWide-v1.avif",
+        "heroXs-v1.avif",
+        "heroSm-v1.avif",
+        "heroMd-v1.avif",
+        "hero-v1.avif",
+        "poster-v1.avif",
+        "posterThumbSm-v1.avif",
+        "posterThumb-v1.avif",
+      ]),
+    );
+  }, 15_000);
+
+  it("expande variantes deduplicadas quando a mesma imagem volta em uma area com perfil maior", async () => {
+    const uploadsDir = createTempUploadsDir();
+    const buffer = await sharp({
+      create: {
+        width: 1280,
+        height: 1800,
+        channels: 3,
+        background: { r: 180, g: 96, b: 120 },
+      },
+    })
+      .png()
+      .toBuffer();
+
+    const first = await storeUploadImageBuffer({
+      uploadsDir,
+      uploads: [],
+      buffer,
+      mime: "image/png",
+      filename: "project-cover.png",
+      folder: "projects/demo",
+    });
+
+    expect(Object.keys(first.uploadEntry.variants)).toEqual(PROJECT_UPLOAD_VARIANT_PRESET_KEYS);
+
+    const second = await storeUploadImageBuffer({
+      uploadsDir,
+      uploads: first.uploads,
+      buffer,
+      mime: "image/png",
+      filename: "post-cover.png",
+      folder: "posts",
+    });
+
+    expect(second.dedupeHit).toBe(true);
+    expect(second.uploadEntry.id).toBe(first.uploadEntry.id);
+    expect(Object.keys(second.uploadEntry.variants)).toEqual(UPLOAD_VARIANT_PRESET_KEYS);
+    expect(second.uploadEntry.variants.card?.formats?.avif?.url).toContain("/card-v1.avif");
+    expect(second.uploadEntry.variants.og?.formats?.avif?.url).toContain("/og-v1.avif");
+    expect(second.uploadEntry.variants.square?.formats?.avif?.url).toContain("/square-v1.avif");
   }, 15_000);
 });

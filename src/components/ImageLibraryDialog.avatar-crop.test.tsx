@@ -129,6 +129,13 @@ const ensureDomRectFromRect = () => {
   globalScope.DOMRect = domRectCtor;
 };
 
+const getLastRenderedCropperSrc = () => {
+  const lastCall = cropperRenderMock.mock.calls[cropperRenderMock.mock.calls.length - 1]?.[0] as
+    | { src?: string }
+    | undefined;
+  return String(lastCall?.src || "");
+};
+
 describe("ImageLibraryDialog avatar crop flow", () => {
   beforeEach(() => {
     ensureDomRectFromRect();
@@ -309,7 +316,7 @@ describe("ImageLibraryDialog avatar crop flow", () => {
     expect(await screen.findByText("Avatar Base")).toBeInTheDocument();
     await waitFor(() => {
       expect(screen.getByText("Selecionadas: 1")).toBeInTheDocument();
-      expect(screen.queryByText("Avatar Final")).not.toBeInTheDocument();
+      expect(screen.getByText("Avatar Final")).toBeInTheDocument();
     });
     expect(toastMock).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -528,6 +535,45 @@ describe("ImageLibraryDialog avatar crop flow", () => {
     });
   });
 
+  it("oculta acoes de gestao quando o fluxo de avatar usa permissao limitada", async () => {
+    apiFetchMock.mockImplementation(async (_base: string, path: string) => {
+      if (path.startsWith("/api/uploads/list")) {
+        return buildUploadListResponse([baseUploadItem]);
+      }
+      if (path === "/api/uploads/project-images") {
+        return mockJsonResponse(true, { items: [] });
+      }
+      return mockJsonResponse(false, { error: "not_found" }, 404);
+    });
+
+    render(
+      <ImageLibraryDialog
+        open
+        onOpenChange={() => undefined}
+        apiBase="http://api.local"
+        uploadFolder="users"
+        listFolders={["users"]}
+        listAll={false}
+        mode="single"
+        cropAvatar
+        cropTargetFolder="users"
+        cropSlot="avatar-user-1"
+        allowUploadManagementActions={false}
+        onSave={() => undefined}
+      />,
+    );
+
+    const imageButton = (await screen.findByText("Avatar Base")).closest("button");
+    expect(imageButton).toBeTruthy();
+    fireEvent.contextMenu(imageButton as HTMLButtonElement);
+
+    expect(await screen.findByRole("menuitem", { name: "Editar avatar" })).toBeInTheDocument();
+    expect(screen.queryByRole("menuitem", { name: "Renomear" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("menuitem", { name: "Excluir" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("menuitem", { name: "Editar texto alternativo" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("menuitem", { name: "Definir ponto focal" })).not.toBeInTheDocument();
+  });
+
   it("bloqueia salvar no fluxo de avatar quando a selecao nao e o slot final recortado", async () => {
     apiFetchMock.mockImplementation(async (_base: string, path: string) => {
       if (path.startsWith("/api/uploads/list")) {
@@ -618,6 +664,232 @@ describe("ImageLibraryDialog avatar crop flow", () => {
     expect(calledUploadEndpoint).toBe(false);
   });
 
+  it("mantem visivel o avatar atual legado e oculta outros avatares finais no fluxo de avatar", async () => {
+    apiFetchMock.mockImplementation(async (_base: string, path: string) => {
+      if (path.startsWith("/api/uploads/list")) {
+        return buildUploadListResponse([
+          baseUploadItem,
+          {
+            name: "avatar-user-1.png",
+            label: "Avatar Atual",
+            fileName: "avatar-user-1.png",
+            folder: "users",
+            mime: "image/png",
+            size: 1200,
+            url: "/uploads/users/avatar-user-1.png",
+          },
+          {
+            name: "avatar-380305493391966208.png",
+            label: "Avatar Oculto",
+            fileName: "avatar-380305493391966208.png",
+            folder: "users",
+            mime: "image/png",
+            size: 1200,
+            url: "/uploads/users/avatar-380305493391966208.png",
+          },
+        ]);
+      }
+      if (path === "/api/uploads/project-images") {
+        return mockJsonResponse(true, { items: [] });
+      }
+      return mockJsonResponse(false, { error: "not_found" }, 404);
+    });
+
+    render(
+      <ImageLibraryDialog
+        open
+        onOpenChange={() => undefined}
+        apiBase="http://api.local"
+        uploadFolder="users"
+        listFolders={["users"]}
+        listAll={false}
+        mode="single"
+        cropAvatar
+        cropTargetFolder="users"
+        cropSlot="avatar-user-1"
+        currentSelectionUrls={["/uploads/users/avatar-user-1.png"]}
+        onSave={() => undefined}
+      />,
+    );
+
+    expect(await screen.findByText("Avatar Base")).toBeInTheDocument();
+    const currentAvatarButton = (await screen.findByText("Avatar Atual")).closest("button");
+    expect(currentAvatarButton).toBeTruthy();
+    await waitFor(() => {
+      expect(screen.getByText("Selecionadas: 1")).toBeInTheDocument();
+      expect(currentAvatarButton as HTMLButtonElement).toHaveClass("ring-2");
+    });
+    expect(screen.queryByText("Avatar Oculto")).not.toBeInTheDocument();
+  });
+
+  it("revela o upload retornado no fluxo de avatar mesmo quando a busca o esconderia", async () => {
+    let listCalls = 0;
+    apiFetchMock.mockImplementation(async (_base: string, path: string) => {
+      if (path.startsWith("/api/uploads/list")) {
+        listCalls += 1;
+        if (listCalls > 1) {
+          return buildUploadListResponse([
+            {
+              name: "avatar-1712345678901.png",
+              label: "Avatar Upload",
+              fileName: "avatar-1712345678901.png",
+              folder: "users",
+              mime: "image/png",
+              size: 1200,
+              url: "/uploads/users/avatar-1712345678901.png",
+            },
+          ]);
+        }
+        return buildUploadListResponse([]);
+      }
+      if (path === "/api/uploads/image") {
+        return mockJsonResponse(true, { url: "/uploads/users/avatar-1712345678901.png" });
+      }
+      if (path === "/api/uploads/project-images") {
+        return mockJsonResponse(true, { items: [] });
+      }
+      return mockJsonResponse(false, { error: "not_found" }, 404);
+    });
+
+    render(
+      <ImageLibraryDialog
+        open
+        onOpenChange={() => undefined}
+        apiBase="http://api.local"
+        uploadFolder="users"
+        listFolders={["users"]}
+        listAll={false}
+        mode="single"
+        cropAvatar
+        cropTargetFolder="users"
+        cropSlot="avatar-user-1"
+        allowUploadManagementActions={false}
+        onSave={() => undefined}
+      />,
+    );
+
+    expect(await screen.findByText("Nenhum upload corresponde aos filtros atuais.")).toBeInTheDocument();
+
+    const searchInput = screen.getByPlaceholderText("Pesquisar por nome, projeto ou URL...");
+    fireEvent.change(searchInput, { target: { value: "nao-encontra-avatar" } });
+
+    const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement | null;
+    expect(fileInput).toBeTruthy();
+    const file = new File(["avatar"], "avatar.png", { type: "image/png" });
+    fireEvent.change(fileInput as HTMLInputElement, { target: { files: [file] } });
+
+    await waitFor(() => {
+      expect(toastMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          title: "Imagem enviada",
+        }),
+      );
+    });
+    expect(await screen.findByText("Avatar Upload")).toBeInTheDocument();
+    await waitFor(() => {
+      expect(searchInput).toHaveValue("");
+      expect(screen.getByText("Selecionadas: 1")).toBeInTheDocument();
+    });
+  });
+
+  it("atualiza thumbnail e cropper com cache-bust quando o avatar final reutiliza a mesma URL", async () => {
+    let listCalls = 0;
+    apiFetchMock.mockImplementation(async (_base: string, path: string) => {
+      if (path.startsWith("/api/uploads/list")) {
+        listCalls += 1;
+        if (listCalls > 1) {
+          return buildUploadListResponse([
+            {
+              ...baseUploadItem,
+              variantsVersion: 1,
+            },
+            {
+              name: "avatar-user-1.png",
+              label: "Avatar Final",
+              fileName: "avatar-user-1.png",
+              folder: "users",
+              mime: "image/png",
+              size: 1200,
+              url: "/uploads/users/avatar-user-1.png",
+              variantsVersion: 2,
+            },
+          ]);
+        }
+        return buildUploadListResponse([
+          {
+            ...baseUploadItem,
+            variantsVersion: 1,
+          },
+          {
+            name: "avatar-user-1.png",
+            label: "Avatar Final",
+            fileName: "avatar-user-1.png",
+            folder: "users",
+            mime: "image/png",
+            size: 1200,
+            url: "/uploads/users/avatar-user-1.png",
+            variantsVersion: 1,
+          },
+        ]);
+      }
+      if (path === "/api/uploads/image") {
+        return mockJsonResponse(true, { url: "/uploads/users/avatar-user-1.png" });
+      }
+      if (path === "/api/uploads/project-images") {
+        return mockJsonResponse(true, { items: [] });
+      }
+      return mockJsonResponse(false, { error: "not_found" }, 404);
+    });
+
+    render(
+      <ImageLibraryDialog
+        open
+        onOpenChange={() => undefined}
+        apiBase="http://api.local"
+        uploadFolder="users"
+        listFolders={["users"]}
+        listAll={false}
+        mode="single"
+        cropAvatar
+        cropTargetFolder="users"
+        cropSlot="avatar-user-1"
+        currentSelectionUrls={["/uploads/users/avatar-user-1.png"]}
+        onSave={() => undefined}
+      />,
+    );
+
+    const finalAvatarButtonBefore = (await screen.findByText("Avatar Final")).closest("button");
+    expect(finalAvatarButtonBefore).toBeTruthy();
+    const finalAvatarImageBefore = (finalAvatarButtonBefore as HTMLButtonElement).querySelector("img");
+    expect(finalAvatarImageBefore).toBeTruthy();
+    expect(finalAvatarImageBefore?.getAttribute("src")).toContain("variant-1");
+
+    fireEvent.click(finalAvatarButtonBefore as HTMLButtonElement);
+    await screen.findByRole("heading", { name: "Editor de avatar" });
+    expect(getLastRenderedCropperSrc()).toContain("variant-1");
+
+    const applyButton = screen.getByRole("button", { name: "Aplicar avatar" });
+    await waitFor(() => expect(applyButton).toBeEnabled());
+    fireEvent.click(applyButton);
+
+    await waitFor(() => {
+      const finalAvatarImageAfter = screen
+        .getByText("Avatar Final")
+        .closest("button")
+        ?.querySelector("img");
+      expect(finalAvatarImageAfter?.getAttribute("src")).toContain("variant-2");
+    });
+
+    const finalAvatarButtonForReopen = screen.getByText("Avatar Final").closest("button");
+    expect(finalAvatarButtonForReopen).toBeTruthy();
+    fireEvent.click(finalAvatarButtonForReopen as HTMLButtonElement);
+    await screen.findByRole("heading", { name: "Editor de avatar" });
+
+    await waitFor(() => {
+      expect(getLastRenderedCropperSrc()).toContain("variant-2");
+    });
+  });
+
   it("mantem apenas a imagem salva selecionada ao fechar e reabrir no fluxo de avatar", async () => {
     const uploadFiles = [
       baseUploadItem,
@@ -700,7 +972,7 @@ describe("ImageLibraryDialog avatar crop flow", () => {
 
     await waitFor(() => {
       expect(screen.getByText("Selecionadas: 1")).toBeInTheDocument();
-      expect(screen.queryByText("Avatar Final")).not.toBeInTheDocument();
+      expect(screen.getByText("Avatar Final")).toBeInTheDocument();
       expect(screen.queryByText("Avatar Final Cache")).not.toBeInTheDocument();
     });
 
@@ -717,13 +989,15 @@ describe("ImageLibraryDialog avatar crop flow", () => {
     fireEvent.click(screen.getByRole("button", { name: "Abrir biblioteca mock" }));
 
     const baseButton = (await screen.findByText("Avatar Base")).closest("button");
+    const finalAvatarButton = (await screen.findByText("Avatar Final")).closest("button");
     expect(baseButton).toBeTruthy();
-    expect(screen.queryByText("Avatar Final")).not.toBeInTheDocument();
+    expect(finalAvatarButton).toBeTruthy();
     expect(screen.queryByText("Avatar Final Cache")).not.toBeInTheDocument();
 
     await waitFor(() => {
       expect(screen.getByText("Selecionadas: 1")).toBeInTheDocument();
       expect(baseButton as HTMLButtonElement).not.toHaveClass("ring-2");
+      expect(finalAvatarButton as HTMLButtonElement).toHaveClass("ring-2");
     });
   });
 });

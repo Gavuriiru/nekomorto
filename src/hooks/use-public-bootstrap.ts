@@ -7,6 +7,7 @@ import {
 } from "@/types/public-bootstrap";
 import { normalizePublicPagesConfig } from "@/lib/public-pages";
 import type { UploadMediaVariantsMap } from "@/lib/upload-variants";
+import type { PublicTeamLinkType, PublicTeamMember } from "@/types/public-team";
 import {
   asPublicBootstrapPayload,
   readWindowPublicBootstrap,
@@ -80,6 +81,12 @@ const normalizePublicBootstrapPayload = (value: unknown): PublicBootstrapPayload
     projects: Array.isArray(data?.projects) ? data.projects : [],
     posts: Array.isArray(data?.posts) ? data.posts : [],
     updates: Array.isArray(data?.updates) ? data.updates : [],
+    teamMembers: Array.isArray(data?.teamMembers)
+      ? (data.teamMembers as PublicTeamMember[])
+      : [],
+    teamLinkTypes: Array.isArray(data?.teamLinkTypes)
+      ? (data.teamLinkTypes as PublicTeamLinkType[])
+      : [],
     mediaVariants:
       data?.mediaVariants && typeof data.mediaVariants === "object"
         ? (data.mediaVariants as UploadMediaVariantsMap)

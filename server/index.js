@@ -81,6 +81,7 @@ import {
   resolveHomeHeroPreloadFromSlide,
   sanitizePublicMediaVariantEntry,
 } from "./lib/public-media-variants.js";
+import { resolvePublicTeamAvatarPreload } from "./lib/public-team-preloads.js";
 import { resolvePublicProjectsListPreloads } from "./lib/public-projects-preloads.js";
 import { resolveRouteThemeColor } from "./lib/route-theme-color.js";
 import { localizeProjectImageFields } from "./lib/project-image-localizer.js";
@@ -94,10 +95,7 @@ import {
   findDuplicateEpisodeKey,
   resolveEpisodeLookup,
 } from "./lib/project-episodes.js";
-import {
-  buildPublicReadableProjects,
-  buildPublicVisibleProjects,
-} from "./lib/public-projects.js";
+import { buildPublicReadableProjects, buildPublicVisibleProjects } from "./lib/public-projects.js";
 import { findDuplicateVolumeCover } from "./lib/project-volume-covers.js";
 import { deriveChapterSynopsis } from "./lib/chapter-synopsis.js";
 import { exportProjectEpub } from "./lib/project-epub-export.js";
@@ -174,15 +172,21 @@ import {
 import { buildDiskStorageAreaSummary, runUploadsCleanup } from "./lib/uploads-cleanup.js";
 import { runUploadsReorganization } from "./lib/uploads-reorganizer.js";
 import {
+  resolveAvatarUploadScopeAccess,
+  shouldIncludeUploadInHashDedupe,
+} from "./lib/avatar-upload-scope.js";
+import {
   attachUploadMediaMetadata,
   computeBufferSha256,
   deriveFocalPointsFromCrops,
   findUploadByHash,
   getPrimaryFocalPoint,
+  mergeUploadVariantPresetKeys,
   normalizeFocalCrops,
   normalizeFocalPoints,
   normalizeVariants,
   resolveUploadAbsolutePath,
+  resolveUploadVariantPresetKeysForArea,
 } from "./lib/upload-media.js";
 import {
   sanitizeAssetUrl,
@@ -388,7 +392,15 @@ const AUDIT_META_ALLOWLIST = {
   "auth.bootstrap.disabled": [],
   "auth.bootstrap.rate_limited": [],
   "users.delete": ["id", "wasOwner"],
-  "uploads.image": ["uploadId", "fileName", "folder", "url", "hashSha256", "dedupeHit", "variantBytes"],
+  "uploads.image": [
+    "uploadId",
+    "fileName",
+    "folder",
+    "url",
+    "hashSha256",
+    "dedupeHit",
+    "variantBytes",
+  ],
   "uploads.image_from_url": [
     "uploadId",
     "fileName",
@@ -785,7 +797,15 @@ const sanitizeSecurityEventData = (data) => {
   return output;
 };
 
-const emitSecurityEvent = ({ req, type, severity, riskScore, actorUserId, targetUserId, data } = {}) => {
+const emitSecurityEvent = ({
+  req,
+  type,
+  severity,
+  riskScore,
+  actorUserId,
+  targetUserId,
+  data,
+} = {}) => {
   const payload = createSecurityEventPayload({
     type,
     severity,
@@ -2949,7 +2969,11 @@ const ensureNoEditConflict = () => true;
 
 const loadUserMfaTotpRecord = (userId) => {
   const normalizedId = String(userId || "").trim();
-  if (!normalizedId || !dataRepository || typeof dataRepository.loadUserMfaTotpRecord !== "function") {
+  if (
+    !normalizedId ||
+    !dataRepository ||
+    typeof dataRepository.loadUserMfaTotpRecord !== "function"
+  ) {
     return null;
   }
   return dataRepository.loadUserMfaTotpRecord(normalizedId);
@@ -2999,7 +3023,9 @@ const getUserTotpSecret = (userId) => {
   }
   try {
     const parsed = JSON.parse(decrypted);
-    const secret = String(parsed?.secret || "").trim().toUpperCase();
+    const secret = String(parsed?.secret || "")
+      .trim()
+      .toUpperCase();
     if (!secret) {
       return null;
     }
@@ -3010,40 +3036,28 @@ const getUserTotpSecret = (userId) => {
 };
 
 const loadUserSessionIndexRecords = ({ userId = null, includeRevoked = true } = {}) => {
-  if (
-    !dataRepository ||
-    typeof dataRepository.loadUserSessionIndexRecords !== "function"
-  ) {
+  if (!dataRepository || typeof dataRepository.loadUserSessionIndexRecords !== "function") {
     return [];
   }
   return dataRepository.loadUserSessionIndexRecords({ userId, includeRevoked });
 };
 
 const upsertUserSessionIndexRecord = (record) => {
-  if (
-    !dataRepository ||
-    typeof dataRepository.upsertUserSessionIndexRecord !== "function"
-  ) {
+  if (!dataRepository || typeof dataRepository.upsertUserSessionIndexRecord !== "function") {
     return;
   }
   dataRepository.upsertUserSessionIndexRecord(record);
 };
 
 const revokeUserSessionIndexRecord = (sid, options = {}) => {
-  if (
-    !dataRepository ||
-    typeof dataRepository.revokeUserSessionIndexRecord !== "function"
-  ) {
+  if (!dataRepository || typeof dataRepository.revokeUserSessionIndexRecord !== "function") {
     return;
   }
   dataRepository.revokeUserSessionIndexRecord(sid, options);
 };
 
 const removeUserSessionIndexRecord = (sid) => {
-  if (
-    !dataRepository ||
-    typeof dataRepository.removeUserSessionIndexRecord !== "function"
-  ) {
+  if (!dataRepository || typeof dataRepository.removeUserSessionIndexRecord !== "function") {
     return;
   }
   dataRepository.removeUserSessionIndexRecord(sid);
@@ -3110,7 +3124,11 @@ const destroySessionBySid = (sid) =>
     }
   });
 
-const revokeSessionBySid = async ({ sid, revokedBy = null, revokeReason = "manual_revoke" } = {}) => {
+const revokeSessionBySid = async ({
+  sid,
+  revokedBy = null,
+  revokeReason = "manual_revoke",
+} = {}) => {
   const normalizedSid = String(sid || "").trim();
   if (!normalizedSid) {
     return false;
@@ -3129,7 +3147,11 @@ const resolveRecoveryCodesRemaining = (record) => {
   return list.filter((item) => typeof item === "string" && item.trim()).length;
 };
 
-const verifyTotpOrRecoveryCode = ({ userId, codeOrRecoveryCode, consumeRecoveryCode = true } = {}) => {
+const verifyTotpOrRecoveryCode = ({
+  userId,
+  codeOrRecoveryCode,
+  consumeRecoveryCode = true,
+} = {}) => {
   const normalizedUserId = String(userId || "").trim();
   if (!normalizedUserId) {
     return { ok: false, reason: "invalid_user" };
@@ -3141,7 +3163,13 @@ const verifyTotpOrRecoveryCode = ({ userId, codeOrRecoveryCode, consumeRecoveryC
 
   const secret = getUserTotpSecret(normalizedUserId);
   if (secret && verifyTotpCode({ secret, code })) {
-    return { ok: true, method: "totp", remainingRecoveryCodes: resolveRecoveryCodesRemaining(loadUserMfaTotpRecord(normalizedUserId)) };
+    return {
+      ok: true,
+      method: "totp",
+      remainingRecoveryCodes: resolveRecoveryCodesRemaining(
+        loadUserMfaTotpRecord(normalizedUserId),
+      ),
+    };
   }
 
   const record = loadUserMfaTotpRecord(normalizedUserId);
@@ -3192,8 +3220,9 @@ const resolveMfaMetadata = ({ req, userId, accountName } = {}) => {
   const sessionUser = req?.session?.user || req?.session?.pendingMfaUser || null;
   const issuer = String(MFA_ISSUER || "Nekomata").trim() || "Nekomata";
   const accountLabel =
-    String(accountName || sessionUser?.username || sessionUser?.name || normalizedUserId || "user").trim() ||
-    "user";
+    String(
+      accountName || sessionUser?.username || sessionUser?.name || normalizedUserId || "user",
+    ).trim() || "user";
   const siteSettings = loadSiteSettings();
   const iconUrl = toAbsoluteAssetUrl(
     sessionUser?.avatarUrl || MFA_ICON_URL || siteSettings?.site?.faviconUrl || "",
@@ -3280,7 +3309,11 @@ const updateSessionIndexFromRequest = (req, { force = false } = {}) => {
   }
   const nowTs = Date.now();
   const lastTouchTs = Number(sessionIndexTouchTsBySid.get(sid) || 0);
-  if (!force && Number.isFinite(lastTouchTs) && nowTs - lastTouchTs < SESSION_INDEX_TOUCH_MIN_INTERVAL_MS) {
+  if (
+    !force &&
+    Number.isFinite(lastTouchTs) &&
+    nowTs - lastTouchTs < SESSION_INDEX_TOUCH_MIN_INTERVAL_MS
+  ) {
     return;
   }
   sessionIndexTouchTsBySid.set(sid, nowTs);
@@ -3443,13 +3476,15 @@ const maybeEmitAdminActionFromNewNetwork = (req) => {
     return;
   }
   const nowTs = Date.now();
-  const hasKnownNetwork = loadUserSessionIndexRecords({ userId, includeRevoked: true }).some((item) => {
-    const ts = new Date(item?.lastSeenAt || 0).getTime();
-    if (!Number.isFinite(ts) || nowTs - ts > NEW_NETWORK_LOOKBACK_MS) {
-      return false;
-    }
-    return getIpv4Network24(item?.lastIp) === network;
-  });
+  const hasKnownNetwork = loadUserSessionIndexRecords({ userId, includeRevoked: true }).some(
+    (item) => {
+      const ts = new Date(item?.lastSeenAt || 0).getTime();
+      if (!Number.isFinite(ts) || nowTs - ts > NEW_NETWORK_LOOKBACK_MS) {
+        return false;
+      }
+      return getIpv4Network24(item?.lastIp) === network;
+    },
+  );
   if (
     hasKnownNetwork ||
     !shouldEmitSecurityRuleEvent("admin_action_from_new_network_warning", `${userId}:${network}`)
@@ -4480,14 +4515,13 @@ const upsertUploadEntries = (incomingEntries) => {
         : Number.isFinite(Number(current?.variantsVersion))
           ? Number(current.variantsVersion)
           : 1,
-      variants:
-        normalizeVariants(
-          entry?.variants && typeof entry.variants === "object"
-            ? entry.variants
-            : current?.variants && typeof current.variants === "object"
-              ? current.variants
-              : {},
-        ),
+      variants: normalizeVariants(
+        entry?.variants && typeof entry.variants === "object"
+          ? entry.variants
+          : current?.variants && typeof current.variants === "object"
+            ? current.variants
+            : {},
+      ),
       variantBytes: Number.isFinite(Number(entry?.variantBytes))
         ? Number(entry.variantBytes)
         : Number.isFinite(Number(current?.variantBytes))
@@ -4508,6 +4542,59 @@ const upsertUploadEntries = (incomingEntries) => {
   );
   writeUploads(nextUploads);
   return { changed: true, uploads: nextUploads };
+};
+
+const ensureUploadEntryHasRequiredVariants = async ({
+  uploads,
+  uploadsDir,
+  entry,
+  sourceMime,
+  hashSha256,
+  requiredVariantPresetKeys,
+} = {}) => {
+  const currentEntry = entry && typeof entry === "object" ? entry : null;
+  if (!currentEntry) {
+    return { entry, uploads: Array.isArray(uploads) ? uploads : [], changed: false };
+  }
+  const currentVariantPresetKeys = Object.keys(normalizeVariants(currentEntry?.variants));
+  const mergedVariantPresetKeys = mergeUploadVariantPresetKeys(
+    currentVariantPresetKeys,
+    requiredVariantPresetKeys,
+  );
+  if (mergedVariantPresetKeys.length <= currentVariantPresetKeys.length) {
+    return { entry: currentEntry, uploads: Array.isArray(uploads) ? uploads : [], changed: false };
+  }
+  const sourcePath = resolveUploadAbsolutePath({ uploadsDir, uploadUrl: currentEntry?.url });
+  if (!sourcePath || !fs.existsSync(sourcePath)) {
+    return { entry: currentEntry, uploads: Array.isArray(uploads) ? uploads : [], changed: false };
+  }
+
+  try {
+    const updatedEntry = await attachUploadMediaMetadata({
+      uploadsDir,
+      entry: currentEntry,
+      sourcePath,
+      sourceMime: sourceMime || currentEntry?.mime,
+      hashSha256,
+      variantsVersion: Math.max(1, Number(currentEntry?.variantsVersion || 1)),
+      regenerateVariants: true,
+      variantPresetKeys: mergedVariantPresetKeys,
+    });
+    if (JSON.stringify(updatedEntry) === JSON.stringify(currentEntry)) {
+      return {
+        entry: updatedEntry,
+        uploads: Array.isArray(uploads) ? uploads : [],
+        changed: false,
+      };
+    }
+    const nextUploads = (Array.isArray(uploads) ? uploads : []).map((item) =>
+      String(item?.id || "") === String(currentEntry?.id || "") ? updatedEntry : item,
+    );
+    writeUploads(nextUploads);
+    return { entry: updatedEntry, uploads: nextUploads, changed: true };
+  } catch {
+    return { entry: currentEntry, uploads: Array.isArray(uploads) ? uploads : [], changed: false };
+  }
 };
 
 const PRIVATE_UPLOAD_FOLDERS = new Set(["downloads", "socials", "users"]);
@@ -4545,7 +4632,8 @@ const normalizeUploadUrlValue = (value) => {
   return null;
 };
 
-const hasOwnField = (value, key) => Boolean(value && Object.prototype.hasOwnProperty.call(value, key));
+const hasOwnField = (value, key) =>
+  Boolean(value && Object.prototype.hasOwnProperty.call(value, key));
 
 const readUploadFocalState = (value) => {
   const focalCrops = normalizeFocalCrops(value?.focalCrops, undefined, {
@@ -4563,6 +4651,9 @@ const readUploadFocalState = (value) => {
 };
 
 const readUploadAltText = (value) => String(value?.altText || "").trim();
+const readUploadSlot = (value) => sanitizeUploadSlot(value?.slot);
+const readUploadSlotManaged = (value) =>
+  hasOwnField(value, "slotManaged") ? value?.slotManaged === true : undefined;
 
 const resolveIncomingUploadFocalState = (incoming, current) => {
   if (hasOwnField(incoming, "focalCrops")) {
@@ -4580,7 +4671,10 @@ const resolveIncomingUploadFocalState = (incoming, current) => {
     };
   }
   if (hasOwnField(incoming, "focalPoints")) {
-    const focalPoints = normalizeFocalPoints(incoming.focalPoints, current?.focalPoints ?? current?.focalPoint);
+    const focalPoints = normalizeFocalPoints(
+      incoming.focalPoints,
+      current?.focalPoints ?? current?.focalPoint,
+    );
     const focalCrops = normalizeFocalCrops(undefined, undefined, {
       sourceWidth: current?.width,
       sourceHeight: current?.height,
@@ -5537,9 +5631,15 @@ const normalizeProjects = (projects) =>
               ? Math.round(resolvedRawSizeBytes)
               : undefined;
           const entryKind =
-            String(episodeObject?.entryKind || "").trim().toLowerCase() === "extra" ? "extra" : "main";
+            String(episodeObject?.entryKind || "")
+              .trim()
+              .toLowerCase() === "extra"
+              ? "extra"
+              : "main";
           const readingOrderRaw = Number(episodeObject?.readingOrder);
-          const readingOrder = Number.isFinite(readingOrderRaw) ? Math.round(readingOrderRaw) : undefined;
+          const readingOrder = Number.isFinite(readingOrderRaw)
+            ? Math.round(readingOrderRaw)
+            : undefined;
           return {
             ...episodeWithoutSynopsis,
             number: Number.isFinite(Number(episode?.number)) ? Number(episode.number) : 0,
@@ -5549,14 +5649,18 @@ const normalizeProjects = (projects) =>
             entrySubtype: String(episodeObject?.entrySubtype || "").trim() || undefined,
             readingOrder,
             displayLabel:
-              entryKind === "extra" ? String(episodeObject?.displayLabel || "").trim() || undefined : undefined,
+              entryKind === "extra"
+                ? String(episodeObject?.displayLabel || "").trim() || undefined
+                : undefined,
             releaseDate: String(episode?.releaseDate || ""),
             duration: String(episode?.duration || ""),
             coverImageUrl: String(episode?.coverImageUrl || "").trim() || undefined,
             content: typeof episode?.content === "string" ? episode.content : "",
             contentFormat: episode?.contentFormat === "lexical" ? "lexical" : "lexical",
             publicationStatus:
-              String(episodeObject?.publicationStatus || "").trim().toLowerCase() === "draft"
+              String(episodeObject?.publicationStatus || "")
+                .trim()
+                .toLowerCase() === "draft"
                 ? "draft"
                 : "published",
             sources: normalizedSources,
@@ -5885,7 +5989,9 @@ const findProjectChapterByEpisodeNumber = (project, episodeNumber, volume) => {
   const chapter = lookup.episode;
   const synopsis = deriveChapterSynopsis(chapter);
   return {
-    number: Number.isFinite(Number(chapter.number)) ? Number(chapter.number) : Number(episodeNumber),
+    number: Number.isFinite(Number(chapter.number))
+      ? Number(chapter.number)
+      : Number(episodeNumber),
     volume: Number.isFinite(Number(chapter.volume)) ? Number(chapter.volume) : "",
     title: String(chapter.title || ""),
     synopsis,
@@ -6197,7 +6303,7 @@ app.get("/auth/discord", async (req, res) => {
 app.get("/login", async (req, res, next) => {
   const hasOAuthCallbackParams = Boolean(
     (typeof req.query?.code === "string" && req.query.code.trim()) ||
-    (typeof req.query?.state === "string" && req.query.state.trim()),
+      (typeof req.query?.state === "string" && req.query.state.trim()),
   );
   if (!hasOAuthCallbackParams) {
     return next();
@@ -6419,9 +6525,7 @@ app.post("/api/auth/mfa/verify", async (req, res) => {
     return res.status(401).json({ error: "mfa_not_pending" });
   }
 
-  const codeOrRecoveryCode =
-    String(req.body?.codeOrRecoveryCode || req.body?.code || "")
-      .trim();
+  const codeOrRecoveryCode = String(req.body?.codeOrRecoveryCode || req.body?.code || "").trim();
   if (!codeOrRecoveryCode) {
     return res.status(400).json({ error: "code_required" });
   }
@@ -7287,7 +7391,9 @@ app.delete("/api/me/sessions/others", requireAuth, async (req, res) => {
   res.setHeader("Cache-Control", "no-store");
   const userId = String(req.session?.user?.id || "").trim();
   const currentSid = String(req.sessionID || "");
-  const sessions = listActiveSessionsForUser(userId).filter((entry) => String(entry.sid || "") !== currentSid);
+  const sessions = listActiveSessionsForUser(userId).filter(
+    (entry) => String(entry.sid || "") !== currentSid,
+  );
   await Promise.all(
     sessions.map((entry) =>
       revokeSessionBySid({
@@ -7314,7 +7420,9 @@ app.delete("/api/me/sessions/:sid", requireAuth, async (req, res) => {
   if (targetSid === currentSid) {
     return res.status(400).json({ error: "cannot_revoke_current_session" });
   }
-  const target = listActiveSessionsForUser(userId).find((entry) => String(entry.sid || "") === targetSid);
+  const target = listActiveSessionsForUser(userId).find(
+    (entry) => String(entry.sid || "") === targetSid,
+  );
   if (!target) {
     return res.status(404).json({ error: "session_not_found" });
   }
@@ -7538,16 +7646,7 @@ const EXPORT_HEADERS_BY_DATASET = Object.freeze({
     "requestId",
     "data",
   ],
-  users: [
-    "id",
-    "name",
-    "status",
-    "accessRole",
-    "permissions",
-    "roles",
-    "isOwner",
-    "updatedAt",
-  ],
+  users: ["id", "name", "status", "accessRole", "permissions", "roles", "isOwner", "updatedAt"],
   sessions: [
     "sid",
     "userId",
@@ -7715,7 +7814,9 @@ const toAdminExportJobApiResponse = (job) => ({
 });
 
 const runAdminExportJob = async (jobId) => {
-  const current = loadAdminExportJobs().find((entry) => String(entry?.id || "") === String(jobId || ""));
+  const current = loadAdminExportJobs().find(
+    (entry) => String(entry?.id || "") === String(jobId || ""),
+  );
   if (!current) {
     return null;
   }
@@ -7746,7 +7847,9 @@ const runAdminExportJob = async (jobId) => {
       filePath,
       rowCount: payload.rows.length,
       finishedAt: finishedAt.toISOString(),
-      expiresAt: new Date(finishedAt.getTime() + ADMIN_EXPORT_TTL_HOURS * 60 * 60 * 1000).toISOString(),
+      expiresAt: new Date(
+        finishedAt.getTime() + ADMIN_EXPORT_TTL_HOURS * 60 * 60 * 1000,
+      ).toISOString(),
       error: payload.truncated ? "truncated_max_rows" : null,
     });
     appendAuditLog(createSystemAuditReq(), "admin.exports.completed", "exports", {
@@ -8011,7 +8114,9 @@ app.delete("/api/admin/users/:id/sessions/:sid", requireAuth, async (req, res) =
   if (!targetId || !sid) {
     return res.status(400).json({ error: "invalid_params" });
   }
-  const target = listActiveSessionsForUser(targetId).find((entry) => String(entry.sid || "") === sid);
+  const target = listActiveSessionsForUser(targetId).find(
+    (entry) => String(entry.sid || "") === sid,
+  );
   if (!target) {
     return res.status(404).json({ error: "session_not_found" });
   }
@@ -8062,7 +8167,9 @@ app.post("/api/admin/exports", requireAuth, async (req, res) => {
     format,
   });
   void enqueueAdminExportJob(job.id).catch((error) => {
-    console.error(`[admin-export] failed to enqueue job ${job.id}: ${String(error?.message || error)}`);
+    console.error(
+      `[admin-export] failed to enqueue job ${job.id}: ${String(error?.message || error)}`,
+    );
   });
   return res.status(202).json({ job: toAdminExportJobApiResponse(job) });
 });
@@ -8088,7 +8195,9 @@ app.get("/api/admin/exports", requireAuth, (req, res) => {
     rows = rows.filter((entry) => normalizeExportDataset(entry.dataset) === datasetFilter);
   }
   if (String(req.query.requestedBy || "").trim()) {
-    rows = rows.filter((entry) => String(entry.requestedBy || "") === String(req.query.requestedBy || ""));
+    rows = rows.filter(
+      (entry) => String(entry.requestedBy || "") === String(req.query.requestedBy || ""),
+    );
   }
   rows.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
   const total = rows.length;
@@ -8101,7 +8210,9 @@ app.get("/api/admin/exports/:id", requireAuth, (req, res) => {
   if (!canManageSecurityAdmin(actorId)) {
     return res.status(403).json({ error: "forbidden" });
   }
-  const job = loadAdminExportJobs().find((entry) => String(entry?.id || "") === String(req.params.id || ""));
+  const job = loadAdminExportJobs().find(
+    (entry) => String(entry?.id || "") === String(req.params.id || ""),
+  );
   if (!job) {
     return res.status(404).json({ error: "not_found" });
   }
@@ -8112,7 +8223,9 @@ app.get("/api/admin/exports/:id/download", requireAuth, (req, res) => {
   if (!canManageSecurityAdmin(actorId)) {
     return res.status(403).json({ error: "forbidden" });
   }
-  const job = loadAdminExportJobs().find((entry) => String(entry?.id || "") === String(req.params.id || ""));
+  const job = loadAdminExportJobs().find(
+    (entry) => String(entry?.id || "") === String(req.params.id || ""),
+  );
   if (!job) {
     return res.status(404).json({ error: "not_found" });
   }
@@ -8137,7 +8250,10 @@ app.get("/api/admin/exports/:id/download", requireAuth, (req, res) => {
     dataset: job.dataset,
   });
   const extension = normalizeExportFormat(job.format) === "jsonl" ? "jsonl" : "csv";
-  res.setHeader("Content-Disposition", `attachment; filename=\"${job.dataset}-${job.id}.${extension}\"`);
+  res.setHeader(
+    "Content-Disposition",
+    `attachment; filename=\"${job.dataset}-${job.id}.${extension}\"`,
+  );
   res.setHeader(
     "Content-Type",
     extension === "jsonl" ? "application/x-ndjson; charset=utf-8" : "text/csv; charset=utf-8",
@@ -8149,7 +8265,9 @@ app.delete("/api/admin/exports/:id", requireAuth, (req, res) => {
   if (!canManageSecurityAdmin(actorId)) {
     return res.status(403).json({ error: "forbidden" });
   }
-  const job = loadAdminExportJobs().find((entry) => String(entry?.id || "") === String(req.params.id || ""));
+  const job = loadAdminExportJobs().find(
+    (entry) => String(entry?.id || "") === String(req.params.id || ""),
+  );
   if (!job) {
     return res.status(404).json({ error: "not_found" });
   }
@@ -8454,6 +8572,29 @@ const applyOwnerRole = (user) => {
   };
 };
 
+const buildPublicTeamMembers = () => {
+  const ownerIds = loadOwnerIds().map((id) => String(id));
+  return normalizeUsers(loadUsers())
+    .sort((a, b) => a.order - b.order)
+    .map((user) => {
+      const withAccess = userWithAccessForResponse(user, ownerIds);
+      return {
+        id: user.id,
+        name: user.name,
+        phrase: user.phrase,
+        bio: user.bio,
+        avatarUrl: user.avatarUrl,
+        avatarDisplay: normalizeAvatarDisplay(user.avatarDisplay),
+        socials: user.socials,
+        favoriteWorks: user.favoriteWorks,
+        roles: applyOwnerRole(user).roles,
+        accessRole: withAccess.accessRole,
+        isAdmin: withAccess.accessRole === AccessRole.ADMIN,
+        status: user.status,
+      };
+    });
+};
+
 const getUserAccessContextById = (userId, usersInput = null) => {
   const normalizedId = String(userId || "");
   if (!normalizedId) {
@@ -8686,7 +8827,11 @@ const parseDashboardNotificationsLimit = (value) => {
 };
 
 const toDashboardNotificationId = (value) =>
-  crypto.createHash("sha256").update(String(value || "")).digest("hex").slice(0, 16);
+  crypto
+    .createHash("sha256")
+    .update(String(value || ""))
+    .digest("hex")
+    .slice(0, 16);
 
 app.get("/api/dashboard/notifications", requireAuth, async (req, res) => {
   res.setHeader("Cache-Control", "no-store");
@@ -8747,7 +8892,9 @@ app.get("/api/dashboard/notifications", requireAuth, async (req, res) => {
   if (canManageSettings(userId)) {
     try {
       const snapshot = await evaluateOperationalMonitoring();
-      const operationalAlerts = Array.isArray(snapshot?.alerts?.alerts) ? snapshot.alerts.alerts : [];
+      const operationalAlerts = Array.isArray(snapshot?.alerts?.alerts)
+        ? snapshot.alerts.alerts
+        : [];
       operationalAlerts.forEach((alert) => {
         if (!alert || (alert.severity !== "critical" && alert.severity !== "warning")) {
           return;
@@ -8770,7 +8917,9 @@ app.get("/api/dashboard/notifications", requireAuth, async (req, res) => {
 
   if (canManageIntegrations(userId)) {
     const webhookFailures = loadAuditLog()
-      .filter((entry) => ["editorial_webhook.failed", "ops_alerts.webhook.failed"].includes(entry.action))
+      .filter((entry) =>
+        ["editorial_webhook.failed", "ops_alerts.webhook.failed"].includes(entry.action),
+      )
       .sort((a, b) => new Date(b.ts).getTime() - new Date(a.ts).getTime())
       .slice(0, 10);
     webhookFailures.forEach((entry) => {
@@ -8781,7 +8930,9 @@ app.get("/api/dashboard/notifications", requireAuth, async (req, res) => {
         severity: "warning",
         title: "Falha em webhook",
         description:
-          String(entry?.meta?.code || "").trim() || String(entry?.meta?.error || "").trim() || "Entrega falhou.",
+          String(entry?.meta?.code || "").trim() ||
+          String(entry?.meta?.error || "").trim() ||
+          "Entrega falhou.",
         href: "/dashboard/webhooks",
         ts: entry.ts || new Date().toISOString(),
       });
@@ -8809,7 +8960,6 @@ app.get("/api/dashboard/notifications", requireAuth, async (req, res) => {
     summary,
   });
 });
-
 
 const canManageUsersBasic = (userId) => {
   if (!userId) {
@@ -9172,26 +9322,7 @@ app.post("/api/bootstrap-owner", requireAuth, async (req, res) => {
 });
 
 app.get("/api/public/users", (req, res) => {
-  const ownerIds = loadOwnerIds().map((id) => String(id));
-  const users = normalizeUsers(loadUsers())
-    .sort((a, b) => a.order - b.order)
-    .map((user) => {
-      const withAccess = userWithAccessForResponse(user, ownerIds);
-      return {
-        id: user.id,
-        name: user.name,
-        phrase: user.phrase,
-        bio: user.bio,
-        avatarUrl: user.avatarUrl,
-        avatarDisplay: normalizeAvatarDisplay(user.avatarDisplay),
-        socials: user.socials,
-        favoriteWorks: user.favoriteWorks,
-        roles: applyOwnerRole(user).roles,
-        accessRole: withAccess.accessRole,
-        isAdmin: withAccess.accessRole === AccessRole.ADMIN,
-        status: user.status,
-      };
-    });
+  const users = buildPublicTeamMembers();
 
   res.json({
     users,
@@ -10339,90 +10470,88 @@ app.get("/api/project-types", requireAuth, (req, res) => {
   return res.json({ types });
 });
 
-app.post(
-  "/api/projects/epub/import",
-  requireAuth,
-  parseEpubImportRequestBody,
-  async (req, res) => {
-    const sessionUser = req.session.user;
-    if (!canManageProjects(sessionUser?.id)) {
-      return res.status(403).json({ error: "forbidden" });
-    }
+app.post("/api/projects/epub/import", requireAuth, parseEpubImportRequestBody, async (req, res) => {
+  const sessionUser = req.session.user;
+  if (!canManageProjects(sessionUser?.id)) {
+    return res.status(403).json({ error: "forbidden" });
+  }
 
-    const isMultipartRequest = String(req.headers["content-type"] || "")
-      .toLowerCase()
-      .includes("multipart/form-data");
-    const rawProjectId = String(req.query.projectId || "").trim();
-    const targetVolumeRaw = isMultipartRequest
-      ? getSingleMultipartValue(req.body?.targetVolume)
-      : req.query.targetVolume;
-    const defaultStatusRaw = isMultipartRequest
-      ? getSingleMultipartValue(req.body?.defaultStatus)
-      : req.query.defaultStatus;
-    const defaultStatus = String(defaultStatusRaw || "draft").trim().toLowerCase();
-    const targetVolume =
-      targetVolumeRaw !== undefined &&
-      targetVolumeRaw !== null &&
-      String(targetVolumeRaw).trim() !== "" &&
-      Number.isFinite(Number(targetVolumeRaw))
-        ? Number(targetVolumeRaw)
-        : undefined;
-    const buffer = isMultipartRequest
-      ? Buffer.isBuffer(req.file?.buffer)
-        ? req.file.buffer
-        : Buffer.from([])
-      : Buffer.isBuffer(req.body)
-        ? req.body
-        : Buffer.from([]);
+  const isMultipartRequest = String(req.headers["content-type"] || "")
+    .toLowerCase()
+    .includes("multipart/form-data");
+  const rawProjectId = String(req.query.projectId || "").trim();
+  const targetVolumeRaw = isMultipartRequest
+    ? getSingleMultipartValue(req.body?.targetVolume)
+    : req.query.targetVolume;
+  const defaultStatusRaw = isMultipartRequest
+    ? getSingleMultipartValue(req.body?.defaultStatus)
+    : req.query.defaultStatus;
+  const defaultStatus = String(defaultStatusRaw || "draft")
+    .trim()
+    .toLowerCase();
+  const targetVolume =
+    targetVolumeRaw !== undefined &&
+    targetVolumeRaw !== null &&
+    String(targetVolumeRaw).trim() !== "" &&
+    Number.isFinite(Number(targetVolumeRaw))
+      ? Number(targetVolumeRaw)
+      : undefined;
+  const buffer = isMultipartRequest
+    ? Buffer.isBuffer(req.file?.buffer)
+      ? req.file.buffer
+      : Buffer.from([])
+    : Buffer.isBuffer(req.body)
+      ? req.body
+      : Buffer.from([]);
 
-    if (isMultipartRequest && !req.file) {
-      return res.status(400).json({ error: "file_required" });
-    }
+  if (isMultipartRequest && !req.file) {
+    return res.status(400).json({ error: "file_required" });
+  }
 
-    if (!buffer.length) {
-      return res.status(400).json({ error: "empty_epub_upload" });
-    }
+  if (!buffer.length) {
+    return res.status(400).json({ error: "empty_epub_upload" });
+  }
 
-    let project = null;
-    try {
-      project = normalizeProjectSnapshotForEpubImport(req.body?.project);
-    } catch (error) {
-      if (error?.code === "duplicate_episode_key") {
-        return res.status(400).json({ error: "duplicate_episode_key", key: error.key });
-      }
-      if (error?.code === "duplicate_volume_cover_key") {
-        return res.status(400).json({ error: "duplicate_volume_cover_key", key: error.key });
-      }
-      return res.status(400).json({ error: "invalid_project_snapshot" });
+  let project = null;
+  try {
+    project = normalizeProjectSnapshotForEpubImport(req.body?.project);
+  } catch (error) {
+    if (error?.code === "duplicate_episode_key") {
+      return res.status(400).json({ error: "duplicate_episode_key", key: error.key });
     }
+    if (error?.code === "duplicate_volume_cover_key") {
+      return res.status(400).json({ error: "duplicate_volume_cover_key", key: error.key });
+    }
+    return res.status(400).json({ error: "invalid_project_snapshot" });
+  }
 
-    if (!project && rawProjectId) {
-      project =
-        normalizeProjects(loadProjects()).find((item) => item.id === rawProjectId && !item.deletedAt) ||
-        null;
-      if (!project) {
-        return res.status(404).json({ error: "project_not_found" });
-      }
+  if (!project && rawProjectId) {
+    project =
+      normalizeProjects(loadProjects()).find(
+        (item) => item.id === rawProjectId && !item.deletedAt,
+      ) || null;
+    if (!project) {
+      return res.status(404).json({ error: "project_not_found" });
     }
+  }
 
-    try {
-      const preview = await importProjectEpub({
-        buffer,
-        project,
-        targetVolume,
-        defaultStatus,
-        uploadsDir: path.join(__dirname, "..", "public", "uploads"),
-        loadUploads,
-        writeUploads,
-        uploadUserId: sessionUser?.id,
-      });
-      return res.json(preview);
-    } catch (error) {
-      const mappedError = mapEpubImportExecutionError(error);
-      return res.status(mappedError.status).json(mappedError.body);
-    }
-  },
-);
+  try {
+    const preview = await importProjectEpub({
+      buffer,
+      project,
+      targetVolume,
+      defaultStatus,
+      uploadsDir: path.join(__dirname, "..", "public", "uploads"),
+      loadUploads,
+      writeUploads,
+      uploadUserId: sessionUser?.id,
+    });
+    return res.json(preview);
+  } catch (error) {
+    const mappedError = mapEpubImportExecutionError(error);
+    return res.status(mappedError.status).json(mappedError.body);
+  }
+});
 
 app.post("/api/projects/epub/import/cleanup", requireAuth, (req, res) => {
   const sessionUser = req.session.user;
@@ -10470,7 +10599,9 @@ app.post("/api/projects/epub/export", requireAuth, async (req, res) => {
   }
   const duplicateVolumeCoverKey = findDuplicateVolumeCover(normalizedProject.volumeEntries);
   if (duplicateVolumeCoverKey) {
-    return res.status(400).json({ error: "duplicate_volume_cover_key", key: duplicateVolumeCoverKey.key });
+    return res
+      .status(400)
+      .json({ error: "duplicate_volume_cover_key", key: duplicateVolumeCoverKey.key });
   }
 
   try {
@@ -10543,7 +10674,9 @@ app.post("/api/projects", requireAuth, async (req, res) => {
   }
   const duplicateVolumeCoverKey = findDuplicateVolumeCover(nextProjectNormalized.volumeEntries);
   if (duplicateVolumeCoverKey) {
-    return res.status(400).json({ error: "duplicate_volume_cover_key", key: duplicateVolumeCoverKey.key });
+    return res
+      .status(400)
+      .json({ error: "duplicate_volume_cover_key", key: duplicateVolumeCoverKey.key });
   }
   const nextProject = applyEpisodePublicationMetadata(null, nextProjectNormalized, now);
 
@@ -10556,10 +10689,12 @@ app.post("/api/projects", requireAuth, async (req, res) => {
   });
 
   const updates = loadUpdates();
-  const episodeWebhookUpdates = collectEpisodeUpdatesByVisibility(null, nextProject, now).map((item) => ({
-    ...item,
-    updatedAt: item.updatedAt || now,
-  }));
+  const episodeWebhookUpdates = collectEpisodeUpdatesByVisibility(null, nextProject, now).map(
+    (item) => ({
+      ...item,
+      updatedAt: item.updatedAt || now,
+    }),
+  );
   const episodeUpdateRecords = episodeWebhookUpdates.map((item) => ({
     id: crypto.randomUUID(),
     projectId: nextProject.id,
@@ -10704,7 +10839,9 @@ app.put("/api/projects/:id", requireAuth, async (req, res) => {
   }
   const duplicateVolumeCoverKey = findDuplicateVolumeCover(mergedNormalized.volumeEntries);
   if (duplicateVolumeCoverKey) {
-    return res.status(400).json({ error: "duplicate_volume_cover_key", key: duplicateVolumeCoverKey.key });
+    return res
+      .status(400)
+      .json({ error: "duplicate_volume_cover_key", key: duplicateVolumeCoverKey.key });
   }
   const merged = applyEpisodePublicationMetadata(existing, mergedNormalized, now);
 
@@ -10717,10 +10854,12 @@ app.put("/api/projects/:id", requireAuth, async (req, res) => {
   });
 
   const updates = loadUpdates();
-  const episodeWebhookUpdates = collectEpisodeUpdatesByVisibility(existing, merged, now).map((item) => ({
-    ...item,
-    updatedAt: item.updatedAt || now,
-  }));
+  const episodeWebhookUpdates = collectEpisodeUpdatesByVisibility(existing, merged, now).map(
+    (item) => ({
+      ...item,
+      updatedAt: item.updatedAt || now,
+    }),
+  );
   const episodeUpdateRecords = episodeWebhookUpdates.map((item) => ({
     id: crypto.randomUUID(),
     projectId: merged.id,
@@ -11216,9 +11355,7 @@ const toCriticalHomeUpdatePayload = (update) => ({
   id: String(update?.id || "").trim(),
   projectId: String(update?.projectId || "").trim(),
   projectTitle: String(update?.projectTitle || ""),
-  episodeNumber: Number.isFinite(Number(update?.episodeNumber))
-    ? Number(update.episodeNumber)
-    : 0,
+  episodeNumber: Number.isFinite(Number(update?.episodeNumber)) ? Number(update.episodeNumber) : 0,
   volume: Number.isFinite(Number(update?.volume)) ? Number(update.volume) : undefined,
   kind: String(update?.kind || ""),
   reason: String(update?.reason || ""),
@@ -11237,13 +11374,7 @@ const toCriticalHomePagesPayload = (pages) => ({
       : { shareImage: "", shareImageAlt: "" },
 });
 
-const buildCriticalHomeBootstrapPayload = ({
-  settings,
-  pages,
-  projects,
-  updates,
-  generatedAt,
-}) => {
+const buildCriticalHomeBootstrapPayload = ({ settings, pages, projects, updates, generatedAt }) => {
   const heroSlides = buildPublicHeroSlides(projects, updates);
   const heroProjectIds = new Set(heroSlides.map((slide) => String(slide?.id || "").trim()));
   const criticalProjects = projects
@@ -11323,12 +11454,16 @@ const buildPublicBootstrapResponsePayload = ({
     });
   }
 
+  const teamMembers = buildPublicTeamMembers();
+  const teamLinkTypes = loadLinkTypes();
   const payload = buildPublicBootstrapPayload({
     settings,
     pages,
     projects,
     posts,
     updates,
+    teamMembers,
+    teamLinkTypes,
     tagTranslations: loadTagTranslations(),
     generatedAt,
     payloadMode: PUBLIC_BOOTSTRAP_MODE_FULL,
@@ -11337,6 +11472,8 @@ const buildPublicBootstrapResponsePayload = ({
     payload.projects,
     payload.posts,
     payload.updates,
+    payload.teamMembers,
+    payload.teamLinkTypes,
     payload.pages,
     { image: settings?.site?.defaultShareImage || "" },
   );
@@ -11432,6 +11569,16 @@ const injectPublicBootstrapHtml = ({
         resolveVariantUrl: resolveMetaImageVariantUrl,
       }),
     );
+  }
+  if (req?.path === "/equipe") {
+    const teamAvatarPreload = resolvePublicTeamAvatarPreload({
+      teamMembers: publicBootstrap?.teamMembers,
+      mediaVariants: publicBootstrap?.mediaVariants,
+      resolveVariantUrl: resolveMetaImageVariantUrl,
+    });
+    if (teamAvatarPreload) {
+      preloads.push(teamAvatarPreload);
+    }
   }
   if (preloads.length > 0) {
     nextHtml = injectPreloadLinks({
@@ -11760,9 +11907,16 @@ app.get("/api/public/projects/:id/chapters/:number", (req, res) => {
       number: chapter.number,
       volume: chapter.volume,
       title: chapter.title,
-      entryKind: String(chapter.entryKind || "").trim().toLowerCase() === "extra" ? "extra" : "main",
+      entryKind:
+        String(chapter.entryKind || "")
+          .trim()
+          .toLowerCase() === "extra"
+          ? "extra"
+          : "main",
       entrySubtype: String(chapter.entrySubtype || "").trim(),
-      readingOrder: Number.isFinite(Number(chapter.readingOrder)) ? Number(chapter.readingOrder) : undefined,
+      readingOrder: Number.isFinite(Number(chapter.readingOrder))
+        ? Number(chapter.readingOrder)
+        : undefined,
       displayLabel: String(chapter.displayLabel || "").trim(),
       synopsis: deriveChapterSynopsis(chapter),
       releaseDate: chapter.releaseDate || "",
@@ -12429,7 +12583,14 @@ app.get("/api/anilist/:id", requireAuth, async (req, res) => {
 
 app.post("/api/uploads/image", requireAuth, async (req, res) => {
   const sessionUser = req.session.user;
-  if (!canManageUploads(sessionUser?.id)) {
+  const { dataUrl, filename, folder, slot } = req.body || {};
+  const safeFolder = sanitizeUploadFolder(folder);
+  const uploadAccessScope = resolveAvatarUploadScopeAccess({
+    hasUploadManagement: canManageUploads(sessionUser?.id),
+    hasUsersBasic: canManageUsersBasic(sessionUser?.id),
+    folder: safeFolder,
+  });
+  if (!uploadAccessScope.allowed) {
     return res.status(403).json({ error: "forbidden" });
   }
   const ip = req.headers["x-forwarded-for"]?.split(",")[0]?.trim() || req.ip;
@@ -12437,7 +12598,6 @@ app.post("/api/uploads/image", requireAuth, async (req, res) => {
     return res.status(429).json({ error: "rate_limited" });
   }
 
-  const { dataUrl, filename, folder, slot } = req.body || {};
   if (!dataUrl || typeof dataUrl !== "string") {
     return res.status(400).json({ error: "data_url_required" });
   }
@@ -12466,36 +12626,48 @@ app.post("/api/uploads/image", requireAuth, async (req, res) => {
   if (mime === "image/svg+xml" && buffer.length > MAX_SVG_SIZE_BYTES) {
     return res.status(400).json({ error: "svg_too_large" });
   }
-  const safeFolder = sanitizeUploadFolder(folder);
   const uploadsDir = path.join(__dirname, "..", "public", "uploads");
   const sourceBuffer =
     mime === "image/svg+xml" ? Buffer.from(sanitizeSvg(buffer.toString("utf-8")), "utf-8") : buffer;
   const hashSha256 = computeBufferSha256(sourceBuffer);
   const uploads = loadUploads();
-  const dedupeEntry = findUploadByHash(uploads, hashSha256);
+  const dedupeEntry = findUploadByHash(
+    uploads.filter((item) => shouldIncludeUploadInHashDedupe(item, uploadAccessScope)),
+    hashSha256,
+  );
   if (dedupeEntry) {
-    const dedupeVariantsGenerated = Object.keys(normalizeVariants(dedupeEntry?.variants)).length > 0;
-    const dedupeFocalState = readUploadFocalState(dedupeEntry);
+    const dedupeResolution = await ensureUploadEntryHasRequiredVariants({
+      uploads,
+      uploadsDir,
+      entry: dedupeEntry,
+      sourceMime: mime,
+      hashSha256,
+      requiredVariantPresetKeys: resolveUploadVariantPresetKeysForArea(safeFolder),
+    });
+    const resolvedDedupeEntry = dedupeResolution.entry;
+    const dedupeVariantsGenerated =
+      Object.keys(normalizeVariants(resolvedDedupeEntry?.variants)).length > 0;
+    const dedupeFocalState = readUploadFocalState(resolvedDedupeEntry);
     appendAuditLog(req, "uploads.image", "uploads", {
-      uploadId: dedupeEntry.id,
-      fileName: dedupeEntry.fileName,
-      folder: dedupeEntry.folder || "",
-      url: dedupeEntry.url,
+      uploadId: resolvedDedupeEntry.id,
+      fileName: resolvedDedupeEntry.fileName,
+      folder: resolvedDedupeEntry.folder || "",
+      url: resolvedDedupeEntry.url,
       hashSha256,
       dedupeHit: true,
-      variantBytes: Number(dedupeEntry?.variantBytes || 0),
+      variantBytes: Number(resolvedDedupeEntry?.variantBytes || 0),
     });
     return res.json({
-      uploadId: dedupeEntry.id,
-      url: dedupeEntry.url,
-      fileName: dedupeEntry.fileName,
+      uploadId: resolvedDedupeEntry.id,
+      url: resolvedDedupeEntry.url,
+      fileName: resolvedDedupeEntry.fileName,
       hashSha256,
       dedupeHit: true,
       focalCrops: dedupeFocalState.focalCrops,
       focalPoints: dedupeFocalState.focalPoints,
       focalPoint: dedupeFocalState.focalPoint,
-      variants: normalizeVariants(dedupeEntry.variants),
-      area: dedupeEntry.area || "",
+      variants: normalizeVariants(resolvedDedupeEntry.variants),
+      area: resolvedDedupeEntry.area || "",
       variantsGenerated: dedupeVariantsGenerated,
     });
   }
@@ -12529,6 +12701,8 @@ app.post("/api/uploads/image", requireAuth, async (req, res) => {
     area: safeFolder ? String(safeFolder).split("/")[0] : "root",
     createdAt: new Date().toISOString(),
     altText: readUploadAltText(existingEntry),
+    slot: safeSlot || readUploadSlot(existingEntry) || undefined,
+    slotManaged: useSlotName ? true : readUploadSlotManaged(existingEntry),
   };
   const requestedFocalState = resolveIncomingUploadFocalState(requestedFocalPayload, {
     ...(existingEntry || {}),
@@ -12544,7 +12718,9 @@ app.post("/api/uploads/image", requireAuth, async (req, res) => {
       sourcePath: filePath,
       sourceMime: mime,
       hashSha256,
-      focalCrops: hasOwnField(requestedFocalPayload, "focalCrops") ? requestedFocalState.focalCrops : undefined,
+      focalCrops: hasOwnField(requestedFocalPayload, "focalCrops")
+        ? requestedFocalState.focalCrops
+        : undefined,
       focalPoints: requestedFocalState.focalPoints,
       variantsVersion,
       regenerateVariants: true,
@@ -12606,15 +12782,24 @@ app.post("/api/uploads/image", requireAuth, async (req, res) => {
 
 app.get("/api/uploads/list", requireAuth, (req, res) => {
   const sessionUser = req.session.user;
-  if (!canManageUploads(sessionUser?.id)) {
+  const folder = typeof req.query.folder === "string" ? req.query.folder.trim() : "";
+  const listAll = folder === "__all__";
+  const safeFolder = listAll ? "" : sanitizeUploadFolder(folder);
+  const uploadAccessScope = resolveAvatarUploadScopeAccess({
+    hasUploadManagement: canManageUploads(sessionUser?.id),
+    hasUsersBasic: canManageUsersBasic(sessionUser?.id),
+    folder: safeFolder,
+    listAll,
+  });
+  if (!uploadAccessScope.allowed) {
     return res.status(403).json({ error: "forbidden" });
   }
   const uploadsDir = path.join(__dirname, "..", "public", "uploads");
-  const folder = typeof req.query.folder === "string" ? req.query.folder.trim() : "";
-  const listAll = folder === "__all__";
-  const recursive = String(req.query.recursive || "").trim().toLowerCase();
-  const listRecursively = listAll || (Boolean(folder) && (recursive === "1" || recursive === "true"));
-  const safeFolder = listAll ? "" : sanitizeUploadFolder(folder);
+  const recursive = String(req.query.recursive || "")
+    .trim()
+    .toLowerCase();
+  const listRecursively =
+    listAll || (Boolean(folder) && (recursive === "1" || recursive === "true"));
   const targetDir = safeFolder ? path.join(uploadsDir, safeFolder) : uploadsDir;
   try {
     const usedUrls = getUsedUploadUrls();
@@ -12678,8 +12863,13 @@ app.get("/api/uploads/list", requireAuth, (req, res) => {
           area:
             typeof meta?.area === "string" && meta.area
               ? meta.area
-              : String((meta?.folder || path.dirname(relative).replace(/\\/g, "/")).split("/")[0] || "root"),
+              : String(
+                  (meta?.folder || path.dirname(relative).replace(/\\/g, "/")).split("/")[0] ||
+                    "root",
+                ),
           altText: readUploadAltText(meta),
+          slot: readUploadSlot(meta) || undefined,
+          slotManaged: readUploadSlotManaged(meta),
           inUse,
           canDelete: !inUse,
         });
@@ -12719,12 +12909,16 @@ app.get("/api/uploads/list", requireAuth, (req, res) => {
                 ? Number(meta.variantsVersion)
                 : 1,
               variants: normalizeVariants(meta?.variants),
-              variantBytes: Number.isFinite(Number(meta?.variantBytes)) ? Number(meta.variantBytes) : 0,
+              variantBytes: Number.isFinite(Number(meta?.variantBytes))
+                ? Number(meta.variantBytes)
+                : 0,
               area:
                 typeof meta?.area === "string" && meta.area
                   ? meta.area
                   : String((meta?.folder || safeFolder || "").split("/")[0] || "root"),
               altText: readUploadAltText(meta),
+              slot: readUploadSlot(meta) || undefined,
+              slotManaged: readUploadSlotManaged(meta),
               inUse,
               canDelete: !inUse,
             };
@@ -12755,7 +12949,9 @@ app.patch("/api/uploads/:id/focal-point", requireAuth, async (req, res) => {
   if (!sourcePath || !fs.existsSync(sourcePath)) {
     return res.status(404).json({ error: "upload_file_not_found" });
   }
-  let hashSha256 = String(current?.hashSha256 || "").trim().toLowerCase();
+  let hashSha256 = String(current?.hashSha256 || "")
+    .trim()
+    .toLowerCase();
   if (!hashSha256) {
     try {
       const sourceBuffer = fs.readFileSync(sourcePath);
@@ -12782,7 +12978,9 @@ app.patch("/api/uploads/:id/focal-point", requireAuth, async (req, res) => {
       sourcePath,
       sourceMime: current?.mime,
       hashSha256,
-      focalCrops: hasOwnField(requestedFocalPayload, "focalCrops") ? nextFocalState.focalCrops : undefined,
+      focalCrops: hasOwnField(requestedFocalPayload, "focalCrops")
+        ? nextFocalState.focalCrops
+        : undefined,
       focalPoints: nextFocalState.focalPoints,
       variantsVersion: nextVersion,
       regenerateVariants: true,
@@ -12818,7 +13016,9 @@ app.patch("/api/uploads/:id/focal-point", requireAuth, async (req, res) => {
         ? Number(updated.variantsVersion)
         : 1,
       variants: normalizeVariants(updated.variants),
-      variantBytes: Number.isFinite(Number(updated.variantBytes)) ? Number(updated.variantBytes) : 0,
+      variantBytes: Number.isFinite(Number(updated.variantBytes))
+        ? Number(updated.variantBytes)
+        : 0,
       area: updated.area || "",
       altText: readUploadAltText(updated),
       createdAt: updated.createdAt || null,
@@ -12991,7 +13191,9 @@ const resolveEpisodeCoverFolder = ({ project, episode, index, folders }) => {
   if (!isChapterBasedType(project?.type || "")) {
     return folders.projectEpisodesFolder;
   }
-  const chapterNumber = Number.isFinite(Number(episode?.number)) ? Number(episode.number) : index + 1;
+  const chapterNumber = Number.isFinite(Number(episode?.number))
+    ? Number(episode.number)
+    : index + 1;
   const safeChapterNumber =
     Number.isFinite(chapterNumber) && chapterNumber > 0 ? Math.floor(chapterNumber) : index + 1;
   const volumeSegment = resolveVolumeFolderSegment(episode?.volume);
@@ -13007,13 +13209,16 @@ const collectProjectImageItems = (projects) => {
     if (!normalizedUrl) {
       return;
     }
-    const projectKey = String(project?.id || "").trim() || String(project?.title || "").trim() || "__draft__";
+    const projectKey =
+      String(project?.id || "").trim() || String(project?.title || "").trim() || "__draft__";
     const dedupeKey = `${projectKey}\u0001${normalizedUrl}`;
     if (dedupe.has(dedupeKey)) {
       return;
     }
     dedupe.add(dedupeKey);
-    const resolvedFolder = String(folder || getUploadFolderFromUrlValue(normalizedUrl) || "").trim();
+    const resolvedFolder = String(
+      folder || getUploadFolderFromUrlValue(normalizedUrl) || "",
+    ).trim();
     items.push({
       source: "project",
       url: normalizedUrl,
@@ -13057,7 +13262,13 @@ const collectProjectImageItems = (projects) => {
       const volumeFolder = `${folders.projectVolumeCoversFolder}/${resolveVolumeFolderSegment(
         cover?.volume,
       )}`;
-      push(project, cover?.coverImageUrl, "volume-cover", `${project.title} (${suffix})`, volumeFolder);
+      push(
+        project,
+        cover?.coverImageUrl,
+        "volume-cover",
+        `${project.title} (${suffix})`,
+        volumeFolder,
+      );
     });
 
     (Array.isArray(project.relations) ? project.relations : []).forEach((relation, index) => {
@@ -13086,9 +13297,17 @@ const collectProjectImageItems = (projects) => {
       (episode, index) => {
         const suffix = episode?.number ? `Cap/Ep ${episode.number}` : `Cap/Ep ${index + 1}`;
         const episodeFolder = resolveEpisodeCoverFolder({ project, episode, index, folders });
-        push(project, episode?.coverImageUrl, "episode-cover", `${project.title} (${suffix})`, episodeFolder);
+        push(
+          project,
+          episode?.coverImageUrl,
+          "episode-cover",
+          `${project.title} (${suffix})`,
+          episodeFolder,
+        );
         const episodeLabel = String(episode?.title || "").trim();
-        const episodeContext = episodeLabel ? `${project.title} (${episodeLabel})` : `${project.title} (${suffix})`;
+        const episodeContext = episodeLabel
+          ? `${project.title} (${episodeLabel})`
+          : `${project.title} (${suffix})`;
         pushFromText(
           project,
           episode?.content,
@@ -13113,7 +13332,13 @@ app.get("/api/uploads/project-images", requireAuth, (req, res) => {
 
 app.post("/api/uploads/image-from-url", requireAuth, async (req, res) => {
   const sessionUser = req.session.user;
-  if (!canManageUploads(sessionUser?.id)) {
+  const safeFolder = sanitizeUploadFolder(req.body?.folder || "");
+  const uploadAccessScope = resolveAvatarUploadScopeAccess({
+    hasUploadManagement: canManageUploads(sessionUser?.id),
+    hasUsersBasic: canManageUsersBasic(sessionUser?.id),
+    folder: safeFolder,
+  });
+  if (!uploadAccessScope.allowed) {
     return res.status(403).json({ error: "forbidden" });
   }
   const ip = req.headers["x-forwarded-for"]?.split(",")[0]?.trim() || req.ip;
@@ -13125,7 +13350,7 @@ app.post("/api/uploads/image-from-url", requireAuth, async (req, res) => {
   const uploadsDir = path.join(__dirname, "..", "public", "uploads");
   const importResult = await importRemoteImageFile({
     remoteUrl,
-    folder: req.body?.folder || "",
+    folder: safeFolder,
     uploadsDir,
     timeoutMs: 20_000,
   });
@@ -13168,37 +13393,50 @@ app.post("/api/uploads/image-from-url", requireAuth, async (req, res) => {
   const uploads = loadUploads();
   const dedupeEntry = (Array.isArray(uploads) ? uploads : []).find(
     (item) =>
+      shouldIncludeUploadInHashDedupe(item, uploadAccessScope) &&
       String(item?.url || "") !== String(entry?.url || "") &&
-      String(item?.hashSha256 || "").trim().toLowerCase() === hashSha256,
+      String(item?.hashSha256 || "")
+        .trim()
+        .toLowerCase() === hashSha256,
   );
   if (dedupeEntry) {
-    const dedupeVariantsGenerated = Object.keys(normalizeVariants(dedupeEntry?.variants)).length > 0;
-    const dedupeFocalState = readUploadFocalState(dedupeEntry);
+    const dedupeResolution = await ensureUploadEntryHasRequiredVariants({
+      uploads,
+      uploadsDir,
+      entry: dedupeEntry,
+      sourceMime: entry?.mime,
+      hashSha256,
+      requiredVariantPresetKeys: resolveUploadVariantPresetKeysForArea(safeFolder),
+    });
+    const resolvedDedupeEntry = dedupeResolution.entry;
+    const dedupeVariantsGenerated =
+      Object.keys(normalizeVariants(resolvedDedupeEntry?.variants)).length > 0;
+    const dedupeFocalState = readUploadFocalState(resolvedDedupeEntry);
     try {
       fs.unlinkSync(sourcePath);
     } catch {
       // ignore cleanup failure and keep dedupe response
     }
     appendAuditLog(req, "uploads.image_from_url", "uploads", {
-      uploadId: dedupeEntry.id,
-      url: dedupeEntry.url,
+      uploadId: resolvedDedupeEntry.id,
+      url: resolvedDedupeEntry.url,
       remoteUrl,
-      folder: dedupeEntry.folder || "",
+      folder: resolvedDedupeEntry.folder || "",
       hashSha256,
       dedupeHit: true,
-      variantBytes: Number(dedupeEntry?.variantBytes || 0),
+      variantBytes: Number(resolvedDedupeEntry?.variantBytes || 0),
     });
     return res.json({
-      uploadId: dedupeEntry.id,
-      url: dedupeEntry.url,
-      fileName: dedupeEntry.fileName,
+      uploadId: resolvedDedupeEntry.id,
+      url: resolvedDedupeEntry.url,
+      fileName: resolvedDedupeEntry.fileName,
       hashSha256,
       dedupeHit: true,
       focalCrops: dedupeFocalState.focalCrops,
       focalPoints: dedupeFocalState.focalPoints,
       focalPoint: dedupeFocalState.focalPoint,
-      variants: normalizeVariants(dedupeEntry.variants),
-      area: dedupeEntry.area || "",
+      variants: normalizeVariants(resolvedDedupeEntry.variants),
+      area: resolvedDedupeEntry.area || "",
       variantsGenerated: dedupeVariantsGenerated,
     });
   }
@@ -13216,7 +13454,9 @@ app.post("/api/uploads/image-from-url", requireAuth, async (req, res) => {
       sourcePath,
       sourceMime: entry?.mime,
       hashSha256,
-      focalCrops: hasOwnField(requestedFocalPayload, "focalCrops") ? requestedFocalState.focalCrops : undefined,
+      focalCrops: hasOwnField(requestedFocalPayload, "focalCrops")
+        ? requestedFocalState.focalCrops
+        : undefined,
       focalPoints: requestedFocalState.focalPoints,
       variantsVersion: Math.max(1, Number(entry?.variantsVersion || 1)),
       regenerateVariants: true,
@@ -14102,7 +14342,8 @@ app.put("/api/users/:id", (req, res) => {
     ]),
   });
   const hasPrivilegeEscalation =
-    JSON.stringify(beforeSnapshot.permissions || []) !== JSON.stringify(afterSnapshot.permissions || []) ||
+    JSON.stringify(beforeSnapshot.permissions || []) !==
+      JSON.stringify(afterSnapshot.permissions || []) ||
     String(beforeSnapshot.accessRole || "") !== String(afterSnapshot.accessRole || "") ||
     String(beforeSnapshot.status || "") !== String(afterSnapshot.status || "");
   if (
@@ -14516,11 +14757,7 @@ app.get(
           pages,
           bootstrapMode: PUBLIC_BOOTSTRAP_MODE_FULL,
         });
-        return await sendHtml(
-          req,
-          res,
-          html,
-        );
+        return await sendHtml(req, res, html);
       }
       if (req.path.startsWith("/projeto/") || req.path.startsWith("/projetos/")) {
         const id = String(req.params.id || "");
@@ -14546,11 +14783,7 @@ app.get(
           pages,
           bootstrapMode: PUBLIC_BOOTSTRAP_MODE_FULL,
         });
-        return await sendHtml(
-          req,
-          res,
-          html,
-        );
+        return await sendHtml(req, res, html);
       }
       const meta = buildSiteMetaWithSettings(settings);
       const structuredData = buildSchemaOrgPayload({
@@ -14572,16 +14805,10 @@ app.get(
         pages,
         includeHeroImagePreload: req.path === "/",
         bootstrapMode:
-          req.path === "/"
-            ? PUBLIC_BOOTSTRAP_MODE_CRITICAL_HOME
-            : PUBLIC_BOOTSTRAP_MODE_FULL,
+          req.path === "/" ? PUBLIC_BOOTSTRAP_MODE_CRITICAL_HOME : PUBLIC_BOOTSTRAP_MODE_FULL,
         includeHomeHeroShell: req.path === "/" && isHomeHeroShellEnabled,
       });
-      return await sendHtml(
-        req,
-        res,
-        html,
-      );
+      return await sendHtml(req, res, html);
     } catch {
       return await sendHtml(req, res, getIndexHtml());
     }
@@ -14628,9 +14855,7 @@ app.get("*", async (req, res) => {
           includeHeroImagePreload: req.path === "/",
           includeProjectsImagePreloads: req.path === "/projetos",
           bootstrapMode:
-            req.path === "/"
-              ? PUBLIC_BOOTSTRAP_MODE_CRITICAL_HOME
-              : PUBLIC_BOOTSTRAP_MODE_FULL,
+            req.path === "/" ? PUBLIC_BOOTSTRAP_MODE_CRITICAL_HOME : PUBLIC_BOOTSTRAP_MODE_FULL,
           includeHomeHeroShell: req.path === "/" && isHomeHeroShellEnabled,
         })
       : renderMetaHtml({
@@ -14640,11 +14865,7 @@ app.get("*", async (req, res) => {
           structuredData,
           themeColor: routeThemeColor,
         });
-    return await sendHtml(
-      req,
-      res,
-      html,
-    );
+    return await sendHtml(req, res, html);
   } catch {
     return await sendHtml(req, res, getIndexHtml());
   }
@@ -14720,4 +14941,3 @@ httpServer.on("close", () => {
   }
   void rateLimiter.close();
 });
-

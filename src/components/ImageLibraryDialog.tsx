@@ -91,6 +91,8 @@ export type LibraryImageItem = {
   variantBytes?: number;
   area?: string;
   altText?: string;
+  slot?: string;
+  slotManaged?: boolean;
 };
 
 export type ImageLibrarySavePayload = {
@@ -128,6 +130,7 @@ type ImageLibraryDialogProps = {
   cropAvatar?: boolean;
   cropTargetFolder?: string;
   cropSlot?: string;
+  allowUploadManagementActions?: boolean;
   onSave: (payload: ImageLibrarySavePayload) => void;
 };
 
@@ -187,6 +190,64 @@ const sanitizeUploadSlotForComparison = (value: string | null | undefined) =>
 
 const escapeRegexPattern = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 const AVATAR_UPLOAD_FILENAME_PATTERN = /^avatar-[a-z0-9-]+\.(png|jpe?g|gif|webp|svg)$/i;
+const UPLOADER_TIMESTAMP_SUFFIX_PATTERN = /-\d{13}$/;
+
+const getUploadsListErrorMessage = (status?: number | null) =>
+  status === 403
+    ? "Você não tem permissão para visualizar uploads neste contexto."
+    : "Não foi possível carregar os uploads agora.";
+
+const getUploadPermissionToastTitle = () =>
+  "Você não tem permissão para enviar imagens neste contexto.";
+
+const getImportPermissionToastTitle = () =>
+  "Você não tem permissão para importar imagens neste contexto.";
+
+const toLibraryItemRenderVersion = (item: LibraryImageItem) => {
+  const variantVersion = Number(item.variantsVersion);
+  if (Number.isFinite(variantVersion) && variantVersion > 0) {
+    return `variant-${variantVersion}`;
+  }
+  const createdAt = String(item.createdAt || "").trim();
+  if (!createdAt) {
+    return "variant-1";
+  }
+  const createdAtTimestamp = new Date(createdAt).getTime();
+  if (Number.isFinite(createdAtTimestamp) && createdAtTimestamp > 0) {
+    return `created-${createdAtTimestamp}`;
+  }
+  return `created-${createdAt}`;
+};
+
+const appendRenderVersionToUrl = (value: string, version: string) => {
+  const trimmed = String(value || "").trim();
+  if (!trimmed || !version) {
+    return trimmed;
+  }
+  try {
+    const isRelativeUrl = trimmed.startsWith("/");
+    const parsed = isRelativeUrl ? new URL(trimmed, "http://localhost") : new URL(trimmed);
+    parsed.searchParams.set("v", version);
+    if (isRelativeUrl) {
+      return `${parsed.pathname}${parsed.search}${parsed.hash}`;
+    }
+    return parsed.toString();
+  } catch {
+    const [withoutHash, hashFragment = ""] = trimmed.split("#", 2);
+    const [basePath, search = ""] = withoutHash.split("?", 2);
+    const params = new URLSearchParams(search);
+    params.set("v", version);
+    const nextSearch = params.toString();
+    return `${basePath}${nextSearch ? `?${nextSearch}` : ""}${hashFragment ? `#${hashFragment}` : ""}`;
+  }
+};
+
+const toLibraryItemRenderUrl = (item: LibraryImageItem) => {
+  if (item.source !== "upload") {
+    return item.url;
+  }
+  return appendRenderVersionToUrl(item.url, toLibraryItemRenderVersion(item));
+};
 
 const getUploadRootSegment = (value: string | null | undefined) => {
   const normalizedFolder = sanitizeUploadFolderForComparison(value);
@@ -348,14 +409,26 @@ const resolveClosestFolderGroupKey = <T extends { key: string; folder: string }>
   return "";
 };
 
+const isLegacyGeneratedAvatarFileName = (value: string | null | undefined) => {
+  const fileName = String(value || "").trim();
+  if (!AVATAR_UPLOAD_FILENAME_PATTERN.test(fileName)) {
+    return false;
+  }
+  const stem = fileName.replace(/\.[^.]+$/, "");
+  return !UPLOADER_TIMESTAMP_SUFFIX_PATTERN.test(stem);
+};
+
 const isAvatarGeneratedUsersUpload = (item: LibraryImageItem) => {
   const parsedPath = parseUploadUrlPath(item.url);
   const folder = sanitizeUploadFolderForComparison(item.folder) || parsedPath.folder;
   if (getUploadRootSegment(folder) !== "users") {
     return false;
   }
+  if (typeof item.slotManaged === "boolean") {
+    return item.slotManaged;
+  }
   const fileName = String(item.fileName || "").trim() || parsedPath.fileName;
-  return AVATAR_UPLOAD_FILENAME_PATTERN.test(fileName);
+  return isLegacyGeneratedAvatarFileName(fileName);
 };
 
 const isAvatarSlotSelection = ({
@@ -704,6 +777,7 @@ const getFocalCropHandleStyle = (handle: FocalCropHandle): CSSProperties => {
 
 type FocalPointWorkspaceProps = {
   item: LibraryImageItem;
+  renderUrl: string;
   draft: UploadFocalCrops;
   activePreset: UploadFocalPresetKey;
   onDraftChange: (next: UploadFocalCrops) => void;
@@ -712,6 +786,7 @@ type FocalPointWorkspaceProps = {
 
 const FocalPointWorkspace = ({
   item,
+  renderUrl,
   draft,
   activePreset,
   onDraftChange,
@@ -767,11 +842,11 @@ const FocalPointWorkspace = ({
       width: typeof item.width === "number" ? Math.max(0, item.width) : 0,
       height: typeof item.height === "number" ? Math.max(0, item.height) : 0,
     });
-  }, [item.height, item.url, item.width]);
+  }, [item.height, item.width, renderUrl]);
 
   useEffect(() => {
     setInteraction(null);
-  }, [activePreset, item.url]);
+  }, [activePreset, renderUrl]);
 
   useEffect(() => {
     const frame = frameRef.current;
@@ -800,7 +875,7 @@ const FocalPointWorkspace = ({
       window.cancelAnimationFrame(rafId);
       window.removeEventListener("resize", syncStageMetrics);
     };
-  }, [item.url, syncStageMetrics]);
+  }, [renderUrl, syncStageMetrics]);
 
   const updateActivePresetCrop = useCallback(
     (nextCrop: UploadFocalCropRect) => {
@@ -1051,7 +1126,7 @@ const FocalPointWorkspace = ({
                   style={{ aspectRatio: `${dimensions.width} / ${dimensions.height}` }}
                 >
                   <img
-                    src={item.url}
+                    src={renderUrl}
                     alt=""
                     aria-hidden="true"
                     data-testid={`focal-preview-${preset}-image`}
@@ -1095,7 +1170,7 @@ const FocalPointWorkspace = ({
             }}
           >
             <img
-              src={item.url}
+              src={renderUrl}
               alt={toEffectiveName(item)}
               data-testid="focal-stage-image"
               className="pointer-events-none block h-full w-full select-none object-contain object-center"
@@ -1159,10 +1234,12 @@ const ImageLibraryDialog = ({
   cropAvatar = false,
   cropTargetFolder,
   cropSlot,
+  allowUploadManagementActions = true,
   onSave,
 }: ImageLibraryDialogProps) => {
   const [isLoading, setIsLoading] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [uploadsLoadError, setUploadsLoadError] = useState("");
   const [isDragActive, setIsDragActive] = useState(false);
   const [uploads, setUploads] = useState<LibraryImageItem[]>([]);
   const [projectImages, setProjectImages] = useState<LibraryImageItem[]>([]);
@@ -1191,7 +1268,9 @@ const ImageLibraryDialog = ({
   const [isApplyingCrop, setIsApplyingCrop] = useState(false);
   const [isCropDialogOpen, setIsCropDialogOpen] = useState(false);
   const [isLibraryHydratedForOpen, setIsLibraryHydratedForOpen] = useState(false);
-  const hasInitializedAccordionStateForOpenRef = useRef(false);
+  const [pendingRevealUploadUrl, setPendingRevealUploadUrl] = useState("");
+  const hasInitializedUploadAccordionStateForOpenRef = useRef(false);
+  const hasInitializedProjectAccordionStateForOpenRef = useRef(false);
   const resolvedUploadFolderForFilter = useMemo(
     () => sanitizeUploadFolderForComparison(uploadFolder),
     [uploadFolder],
@@ -1223,9 +1302,12 @@ const ImageLibraryDialog = ({
 
   const folders = useMemo(() => {
     const set = new Set<string>();
-    normalizedListFolders.forEach((folder) => set.add(folder));
-    if (uploadFolder) {
-      set.add(uploadFolder);
+    normalizedListFolders
+      .map((folder) => sanitizeUploadFolderForComparison(folder))
+      .filter(Boolean)
+      .forEach((folder) => set.add(folder));
+    if (resolvedUploadFolderForFilter) {
+      set.add(resolvedUploadFolderForFilter);
     }
     if (listAll) {
       set.add("__all__");
@@ -1234,7 +1316,7 @@ const ImageLibraryDialog = ({
       set.add("");
     }
     return Array.from(set);
-  }, [listAll, normalizedListFolders, uploadFolder]);
+  }, [listAll, normalizedListFolders, resolvedUploadFolderForFilter]);
   const foldersToRequest = useMemo(() => {
     const unique = Array.from(
       new Set(
@@ -1296,6 +1378,25 @@ const ImageLibraryDialog = ({
   }, [allItems, allItemsByComparableKey, selectedUrls]);
 
   const primarySelectedUrl = selectedUrls[0] || "";
+  const primarySelectedItem = useMemo(() => {
+    const trimmed = String(primarySelectedUrl || "").trim();
+    if (!trimmed) {
+      return null;
+    }
+    return allItems.get(trimmed) ?? allItemsByComparableKey.get(toComparableSelectionKey(trimmed)) ?? null;
+  }, [allItems, allItemsByComparableKey, primarySelectedUrl]);
+  const primarySelectedRenderUrl = useMemo(() => {
+    if (primarySelectedItem) {
+      return toLibraryItemRenderUrl(primarySelectedItem);
+    }
+    return primarySelectedUrl;
+  }, [primarySelectedItem, primarySelectedUrl]);
+  const primarySelectedRenderKey = useMemo(() => {
+    if (primarySelectedItem) {
+      return `${primarySelectedItem.url}:${toLibraryItemRenderVersion(primarySelectedItem)}`;
+    }
+    return primarySelectedRenderUrl;
+  }, [primarySelectedItem, primarySelectedRenderUrl]);
   const normalizedSearch = searchQuery.trim().toLowerCase();
 
   const sortLibraryItems = useCallback(
@@ -1349,8 +1450,13 @@ const ImageLibraryDialog = ({
     if (!cropAvatar) {
       return uploads;
     }
-    return uploads.filter((item) => !isAvatarGeneratedUsersUpload(item));
-  }, [cropAvatar, uploads]);
+    return uploads.filter((item) => {
+      if (!isAvatarGeneratedUsersUpload(item)) {
+        return true;
+      }
+      return selectedResolvedUrlSet.has(item.url);
+    });
+  }, [cropAvatar, selectedResolvedUrlSet, uploads]);
 
   const filteredUploads = useMemo(() => {
     const bySearch = visibleUploads.filter(matchesSearch);
@@ -1360,7 +1466,7 @@ const ImageLibraryDialog = ({
         : bySearch.filter(
             (item) =>
               isFolderWithinSelection({
-                itemFolder: item.folder,
+                itemFolder: resolveItemFolder(item),
                 selectedFolder: uploadsFolderFilter,
               }),
           );
@@ -1401,11 +1507,19 @@ const ImageLibraryDialog = ({
   }, [filteredUploads, resolvedUploadFolderForFilter, sortLibraryItems]);
   const uploadFolderFilterOptions = useMemo(() => {
     const set = new Set<string>();
+    normalizedListFolders.forEach((folder) => {
+      listFolderAncestors(folder).forEach((candidate) => set.add(candidate));
+    });
+    listFolderAncestors(resolvedUploadFolderForFilter).forEach((candidate) => set.add(candidate));
     uploads.forEach((item) => {
-      listFolderAncestors(item.folder).forEach((folder) => set.add(folder));
+      listFolderAncestors(resolveItemFolder(item)).forEach((candidate) => set.add(candidate));
     });
     return Array.from(set).sort((a, b) => a.localeCompare(b, "pt-BR"));
-  }, [uploads]);
+  }, [normalizedListFolders, resolvedUploadFolderForFilter, uploads]);
+  const shouldShowAllFoldersFilterOption = useMemo(
+    () => listAll || uploadFolderFilterOptions.length > 1,
+    [listAll, uploadFolderFilterOptions.length],
+  );
   const isUploadsFilterReadyForInitialExpansion = useMemo(() => {
     if (uploads.length === 0) {
       return true;
@@ -1427,16 +1541,32 @@ const ImageLibraryDialog = ({
   }, [open, resolvedUploadFolderForFilter]);
 
   useEffect(() => {
+    const fallbackFilter = resolvedUploadFolderForFilter || uploadFolderFilterOptions[0] || "__all__";
     if (uploadsFolderFilter === "__all__") {
+      if (!shouldShowAllFoldersFilterOption && fallbackFilter !== "__all__") {
+        setUploadsFolderFilter(fallbackFilter);
+      }
       return;
     }
     if (uploadFolderFilterOptions.length === 0) {
+      if (
+        !shouldShowAllFoldersFilterOption &&
+        fallbackFilter !== "__all__" &&
+        uploadsFolderFilter !== fallbackFilter
+      ) {
+        setUploadsFolderFilter(fallbackFilter);
+      }
       return;
     }
     if (!uploadFolderFilterOptions.includes(uploadsFolderFilter)) {
-      setUploadsFolderFilter("__all__");
+      setUploadsFolderFilter(shouldShowAllFoldersFilterOption ? "__all__" : fallbackFilter);
     }
-  }, [uploadFolderFilterOptions, uploadsFolderFilter]);
+  }, [
+    resolvedUploadFolderForFilter,
+    shouldShowAllFoldersFilterOption,
+    uploadFolderFilterOptions,
+    uploadsFolderFilter,
+  ]);
 
   const selectionSeed = useMemo(
     () =>
@@ -1630,10 +1760,19 @@ const ImageLibraryDialog = ({
 
   useEffect(() => {
     if (!open) {
-      hasInitializedAccordionStateForOpenRef.current = false;
+      hasInitializedUploadAccordionStateForOpenRef.current = false;
+      hasInitializedProjectAccordionStateForOpenRef.current = false;
       setOpenUploadGroupKeys([]);
       setOpenProjectGroupKeys([]);
       setOpenProjectFolderKeysByGroup({});
+      setPendingRevealUploadUrl("");
+      setUploadsLoadError("");
+      return;
+    }
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) {
       return;
     }
     if (!isLibraryHydratedForOpen) {
@@ -1642,23 +1781,106 @@ const ImageLibraryDialog = ({
     if (!isUploadsFilterReadyForInitialExpansion) {
       return;
     }
-    if (hasInitializedAccordionStateForOpenRef.current) {
+    if (hasInitializedUploadAccordionStateForOpenRef.current) {
       return;
     }
-    hasInitializedAccordionStateForOpenRef.current = true;
+    if (uploadFolderGroups.length === 0) {
+      return;
+    }
+    hasInitializedUploadAccordionStateForOpenRef.current = true;
     setOpenUploadGroupKeys(initialOpenUploadGroupKeys);
-    setOpenProjectGroupKeys(initialProjectAccordionState.groupKeys);
-    setOpenProjectFolderKeysByGroup(initialProjectAccordionState.folderKeysByGroup);
   }, [
     initialOpenUploadGroupKeys,
-    initialProjectAccordionState,
     isLibraryHydratedForOpen,
     isUploadsFilterReadyForInitialExpansion,
     open,
+    uploadFolderGroups.length,
   ]);
 
-  const loadUploads = useCallback(async () => {
+  useEffect(() => {
+    if (!open) {
+      return;
+    }
+    if (!isLibraryHydratedForOpen) {
+      return;
+    }
+    if (projectImagesView !== "by-project") {
+      return;
+    }
+    if (hasInitializedProjectAccordionStateForOpenRef.current) {
+      return;
+    }
+    if (projectImageGroups.length === 0) {
+      return;
+    }
+    hasInitializedProjectAccordionStateForOpenRef.current = true;
+    setOpenProjectGroupKeys(initialProjectAccordionState.groupKeys);
+    setOpenProjectFolderKeysByGroup(initialProjectAccordionState.folderKeysByGroup);
+  }, [
+    initialProjectAccordionState,
+    isLibraryHydratedForOpen,
+    open,
+    projectImageGroups.length,
+    projectImagesView,
+  ]);
+
+  useEffect(() => {
+    if (!open || !cropAvatar || !pendingRevealUploadUrl) {
+      return;
+    }
+    const targetKey = toComparableSelectionKey(pendingRevealUploadUrl);
+    const matchedUpload =
+      uploads.find((item) => toComparableSelectionKey(item.url) === targetKey) ??
+      allItemsByComparableKey.get(targetKey);
+    if (!matchedUpload || matchedUpload.source !== "upload") {
+      return;
+    }
+    if (normalizedSearch && !matchesSearch(matchedUpload)) {
+      setSearchQuery("");
+      return;
+    }
+    const targetFolder = resolveItemFolder(matchedUpload);
+    const matchesCurrentFolderFilter =
+      uploadsFolderFilter === "__all__" ||
+      isFolderWithinSelection({
+        itemFolder: targetFolder,
+        selectedFolder: uploadsFolderFilter,
+      });
+    if (!matchesCurrentFolderFilter) {
+      setUploadsFolderFilter(targetFolder || "__all__");
+      return;
+    }
+    const isVisibleInFilteredUploads = filteredUploads.some(
+      (item) => toComparableSelectionKey(item.url) === targetKey,
+    );
+    if (!isVisibleInFilteredUploads) {
+      return;
+    }
+    const targetGroup = uploadFolderGroups.find((group) =>
+      group.items.some((item) => toComparableSelectionKey(item.url) === targetKey),
+    );
+    if (targetGroup) {
+      setOpenUploadGroupKeys((prev) =>
+        prev.length === 1 && prev[0] === targetGroup.key ? prev : [targetGroup.key],
+      );
+    }
+    setPendingRevealUploadUrl("");
+  }, [
+    allItemsByComparableKey,
+    cropAvatar,
+    filteredUploads,
+    matchesSearch,
+    normalizedSearch,
+    open,
+    pendingRevealUploadUrl,
+    uploadFolderGroups,
+    uploads,
+    uploadsFolderFilter,
+  ]);
+
+  const loadUploads = useCallback(async (): Promise<LibraryImageItem[]> => {
     setIsLoading(true);
+    setUploadsLoadError("");
     try {
       const responses = await Promise.all(
         foldersToRequest.map((folder) => {
@@ -1674,10 +1896,16 @@ const ImageLibraryDialog = ({
         }),
       );
       const files: LibraryImageItem[] = [];
+      let successfulResponses = 0;
+      let firstErrorStatus: number | null = null;
       for (const response of responses) {
         if (!response.ok) {
+          if (firstErrorStatus === null) {
+            firstErrorStatus = response.status;
+          }
           continue;
         }
+        successfulResponses += 1;
         const data = await response.json();
         if (!Array.isArray(data.files)) {
           continue;
@@ -1721,6 +1949,8 @@ const ImageLibraryDialog = ({
               : 0,
             area: typeof file.area === "string" ? file.area : "",
             altText: typeof file.altText === "string" ? file.altText : "",
+            slot: typeof file.slot === "string" ? file.slot : undefined,
+            slotManaged: typeof file.slotManaged === "boolean" ? file.slotManaged : undefined,
           });
         }
       }
@@ -1728,7 +1958,19 @@ const ImageLibraryDialog = ({
       files.forEach((item) => {
         unique.set(item.url, item);
       });
-      setUploads(Array.from(unique.values()));
+      if (successfulResponses === 0 && firstErrorStatus !== null) {
+        setUploads([]);
+        setUploadsLoadError(getUploadsListErrorMessage(firstErrorStatus));
+        return [];
+      }
+      const nextUploads = Array.from(unique.values());
+      setUploadsLoadError("");
+      setUploads(nextUploads);
+      return nextUploads;
+    } catch {
+      setUploads([]);
+      setUploadsLoadError(getUploadsListErrorMessage());
+      return [];
     } finally {
       setIsLoading(false);
     }
@@ -1911,6 +2153,10 @@ const ImageLibraryDialog = ({
             }),
           });
           if (!response.ok) {
+            if (response.status === 403) {
+              toast({ title: getUploadPermissionToastTitle() });
+              return;
+            }
             throw new Error("upload_failed");
           }
           const data = await response.json();
@@ -1921,6 +2167,7 @@ const ImageLibraryDialog = ({
         }
         await loadUploads();
         if (uploadedUrls.length > 0) {
+          const lastUploadedUrl = uploadedUrls[uploadedUrls.length - 1] || "";
           if (mode === "multiple") {
             setSelectedUrls((prev) => {
               const next = [...prev];
@@ -1932,7 +2179,10 @@ const ImageLibraryDialog = ({
               return next;
             });
           } else {
-            setSelectedUrls([uploadedUrls[uploadedUrls.length - 1]]);
+            setSelectedUrls([lastUploadedUrl]);
+          }
+          if (cropAvatar && mode === "single" && lastUploadedUrl) {
+            setPendingRevealUploadUrl(lastUploadedUrl);
           }
           toast({
             title:
@@ -1952,7 +2202,7 @@ const ImageLibraryDialog = ({
         setIsUploading(false);
       }
     },
-    [apiBase, loadUploads, mode, uploadFolder],
+    [apiBase, cropAvatar, loadUploads, mode, uploadFolder],
   );
 
   const handleImportFromUrl = useCallback(async () => {
@@ -1972,6 +2222,10 @@ const ImageLibraryDialog = ({
         }),
       });
       if (!response.ok) {
+        if (response.status === 403) {
+          toast({ title: getImportPermissionToastTitle() });
+          return;
+        }
         toast({ title: "Não foi possível importar a imagem por URL." });
         return;
       }
@@ -1987,6 +2241,9 @@ const ImageLibraryDialog = ({
       } else {
         setSelectedUrls([createdUrl]);
       }
+      if (cropAvatar && mode === "single") {
+        setPendingRevealUploadUrl(createdUrl);
+      }
       toast({
         title: "Imagem importada",
         description: "A imagem foi importada por URL com sucesso.",
@@ -1995,7 +2252,7 @@ const ImageLibraryDialog = ({
     } finally {
       setIsUploading(false);
     }
-  }, [apiBase, loadUploads, mode, uploadFolder, urlInput]);
+  }, [apiBase, cropAvatar, loadUploads, mode, uploadFolder, urlInput]);
 
   const handleDrop = (event: React.DragEvent<HTMLDivElement>) => {
     event.preventDefault();
@@ -2306,6 +2563,10 @@ const ImageLibraryDialog = ({
           }),
         });
         if (!response.ok) {
+          if (response.status === 403) {
+            toast({ title: getUploadPermissionToastTitle() });
+            return;
+          }
           throw new Error("apply_crop_upload_failed");
         }
         const data = await response.json();
@@ -2316,6 +2577,7 @@ const ImageLibraryDialog = ({
 
         await loadUploads();
         setSelectedUrls([nextUrl]);
+        setPendingRevealUploadUrl(nextUrl);
         setIsCropDialogOpen(false);
         toast({
           title: "Avatar atualizado",
@@ -2345,10 +2607,15 @@ const ImageLibraryDialog = ({
       <div className="mt-3 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
         {items.map((item) => {
           const isSelected = selectedResolvedUrlSet.has(item.url);
-          const canRename = item.source === "upload";
-          const canDelete = item.source === "upload" && Boolean(item.canDelete);
-          const canEditFocal = item.source === "upload" && Boolean(item.id);
-          const canEditAltText = item.source === "upload" && Boolean(item.id);
+          const itemRenderUrl = toLibraryItemRenderUrl(item);
+          const canRename = allowUploadManagementActions && item.source === "upload";
+          const canDelete =
+            allowUploadManagementActions && item.source === "upload" && Boolean(item.canDelete);
+          const canEditFocal =
+            allowUploadManagementActions && item.source === "upload" && Boolean(item.id);
+          const canEditAltText =
+            allowUploadManagementActions && item.source === "upload" && Boolean(item.id);
+          const hasManagementActions = canRename || canDelete || canEditFocal || canEditAltText;
           return (
             <ContextMenu key={`${item.source}:${item.url}`}>
               <ContextMenuTrigger asChild>
@@ -2362,12 +2629,12 @@ const ImageLibraryDialog = ({
                       openCrop: cropAvatar && mode === "single",
                     })
                   }
-                >
-                  <img
-                    src={item.url}
-                    alt={toEffectiveName(item)}
-                    className="h-28 w-full object-cover"
-                  />
+                  >
+                    <img
+                      src={itemRenderUrl}
+                      alt={toEffectiveName(item)}
+                      className="h-28 w-full object-cover"
+                    />
                   <div className="p-2 text-xs text-muted-foreground line-clamp-2">
                     {item.label || toEffectiveName(item)}
                   </div>
@@ -2387,61 +2654,73 @@ const ImageLibraryDialog = ({
                     Editar avatar
                   </ContextMenuItem>
                 ) : null}
-                {cropAvatar && mode === "single" ? <ContextMenuSeparator /> : null}
-                <ContextMenuItem
-                  disabled={!canEditFocal}
-                  onSelect={() => {
-                    if (!canEditFocal) {
-                      return;
-                    }
-                    beginFocalPointEdit(item);
-                  }}
-                >
-                  Definir ponto focal
-                </ContextMenuItem>
-                <ContextMenuItem
-                  disabled={!canEditAltText}
-                  onSelect={() => {
-                    if (!canEditAltText) {
-                      return;
-                    }
-                    beginAltTextEdit(item);
-                  }}
-                >
-                  Editar texto alternativo
-                </ContextMenuItem>
-                <ContextMenuItem
-                  disabled={!canRename}
-                  onSelect={() => {
-                    if (!canRename) {
-                      return;
-                    }
-                    setRenameTarget(item);
-                    setRenameValue(toEffectiveName(item));
-                  }}
-                >
-                  Renomear
-                </ContextMenuItem>
-                <ContextMenuItem
-                  disabled={!canDelete || isDeleting}
-                  onSelect={() => {
-                    if (!canDelete) {
-                      return;
-                    }
-                    setDeleteTarget(item);
-                  }}
-                >
-                  Excluir
-                </ContextMenuItem>
-                {!canRename || !canDelete || !canEditFocal || !canEditAltText ? (
+                {cropAvatar && mode === "single" && hasManagementActions ? (
+                  <ContextMenuSeparator />
+                ) : null}
+                {hasManagementActions ? (
+                  <>
+                    <ContextMenuItem
+                      disabled={!canEditFocal}
+                      onSelect={() => {
+                        if (!canEditFocal) {
+                          return;
+                        }
+                        beginFocalPointEdit(item);
+                      }}
+                    >
+                      Definir ponto focal
+                    </ContextMenuItem>
+                    <ContextMenuItem
+                      disabled={!canEditAltText}
+                      onSelect={() => {
+                        if (!canEditAltText) {
+                          return;
+                        }
+                        beginAltTextEdit(item);
+                      }}
+                    >
+                      Editar texto alternativo
+                    </ContextMenuItem>
+                    <ContextMenuItem
+                      disabled={!canRename}
+                      onSelect={() => {
+                        if (!canRename) {
+                          return;
+                        }
+                        setRenameTarget(item);
+                        setRenameValue(toEffectiveName(item));
+                      }}
+                    >
+                      Renomear
+                    </ContextMenuItem>
+                    <ContextMenuItem
+                      disabled={!canDelete || isDeleting}
+                      onSelect={() => {
+                        if (!canDelete) {
+                          return;
+                        }
+                        setDeleteTarget(item);
+                      }}
+                    >
+                      Excluir
+                    </ContextMenuItem>
+                    {!canRename || !canDelete || !canEditFocal || !canEditAltText ? (
+                      <>
+                        <ContextMenuSeparator />
+                        <ContextMenuLabel className="text-xs font-normal text-muted-foreground">
+                          {item.inUse
+                            ? "Exclusão bloqueada: imagem em uso."
+                            : "Ações indisponíveis."}
+                        </ContextMenuLabel>
+                      </>
+                    ) : null}
+                  </>
+                ) : null}
+                {item.source === "project" ? (
                   <>
                     <ContextMenuSeparator />
                     <ContextMenuLabel className="text-xs font-normal text-muted-foreground">
-                      {item.source === "project"
-                        ? "Item somente leitura (projeto). Texto alternativo editavel apenas em uploads."
-                        : item.inUse
-                          ? "Exclusão bloqueada: imagem em uso."
-                          : "Ações indisponíveis."}
+                      Item somente leitura (projeto). Texto alternativo editável apenas em uploads.
                     </ContextMenuLabel>
                   </>
                 ) : null}
@@ -2535,6 +2814,13 @@ const ImageLibraryDialog = ({
   const renderUploadGroups = (groups: UploadFolderGroup[], emptyText: string) => {
     if (isLoading) {
       return <ImageLibraryDialogLoadingGrid className="mt-3" testId="image-library-loading-grid" />;
+    }
+    if (uploadsLoadError) {
+      return (
+        <p data-testid="image-library-uploads-error" className="mt-3 text-xs text-destructive">
+          {uploadsLoadError}
+        </p>
+      );
     }
     if (groups.length === 0) {
       return <p className="mt-3 text-xs text-muted-foreground">{emptyText}</p>;
@@ -2704,7 +2990,9 @@ const ImageLibraryDialog = ({
                       align="start"
                       className="z-[210] origin-[var(--radix-select-content-transform-origin)]"
                     >
-                      <SelectItem value="__all__">Todas as pastas</SelectItem>
+                      {shouldShowAllFoldersFilterOption ? (
+                        <SelectItem value="__all__">Todas as pastas</SelectItem>
+                      ) : null}
                       {uploadFolderFilterOptions.map((folder) => (
                         <SelectItem key={folder} value={folder}>
                           {folder}
@@ -2831,8 +3119,8 @@ const ImageLibraryDialog = ({
           </DialogHeader>
           {primarySelectedUrl ? (
             <AvatarCropWorkspace
-              key={primarySelectedUrl}
-              src={primarySelectedUrl}
+              key={primarySelectedRenderKey}
+              src={primarySelectedRenderUrl}
               isApplyingCrop={isApplyingCrop}
               onCancel={() => setIsCropDialogOpen(false)}
               onApplyCrop={applyCrop}
@@ -2868,6 +3156,7 @@ const ImageLibraryDialog = ({
               <div className="min-h-0 flex-1 overflow-auto pr-1">
                 <FocalPointWorkspace
                   item={focalTarget}
+                  renderUrl={toLibraryItemRenderUrl(focalTarget)}
                   draft={focalCropDraft}
                   activePreset={activeFocalPreset}
                   onDraftChange={setFocalCropDraft}

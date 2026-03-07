@@ -68,6 +68,24 @@ const renderDialog = () =>
     />,
   );
 
+const renderAvatarDialog = (listAll: boolean) =>
+  render(
+    <ImageLibraryDialog
+      open
+      onOpenChange={() => undefined}
+      apiBase="http://api.local"
+      uploadFolder="users"
+      listFolders={["users"]}
+      listAll={listAll}
+      includeProjectImages={false}
+      mode="single"
+      cropAvatar
+      cropTargetFolder="users"
+      cropSlot="avatar-user-1"
+      onSave={() => undefined}
+    />,
+  );
+
 const getFolderFilterTrigger = async () =>
   screen.findByRole("combobox", { name: "Filtrar por pasta" });
 
@@ -156,5 +174,103 @@ describe("ImageLibraryDialog upload folder focus", () => {
     expect(String(listbox.className)).toContain(
       "origin-[var(--radix-select-content-transform-origin)]",
     );
+  });
+
+  it("oculta 'Todas as pastas' quando o fluxo de avatar so pode navegar em users", async () => {
+    apiFetchMock.mockImplementation(async (_base: string, path: string) => {
+      if (path.startsWith("/api/uploads/list")) {
+        return mockJsonResponse(true, { files: [] });
+      }
+      if (path === "/api/uploads/project-images") {
+        return mockJsonResponse(true, { items: [] });
+      }
+      return mockJsonResponse(false, { error: "not_found" }, 404);
+    });
+
+    renderAvatarDialog(false);
+
+    const folderSelect = await getFolderFilterTrigger();
+    await waitFor(() => {
+      expect(folderSelect).toHaveTextContent("users");
+    });
+
+    folderSelect.focus();
+    fireEvent.keyDown(folderSelect, { key: "ArrowDown", code: "ArrowDown" });
+
+    expect(await screen.findByRole("option", { name: "users" })).toBeVisible();
+    expect(screen.queryByRole("option", { name: "Todas as pastas" })).not.toBeInTheDocument();
+  });
+
+  it("carrega users e biblioteca ampla quando o avatar tem acesso a uploads", async () => {
+    apiFetchMock.mockImplementation(async (_base: string, path: string) => {
+      if (path.includes("folder=users")) {
+        return mockJsonResponse(true, {
+          files: [
+            {
+              name: "manual-avatar.png",
+              label: "Avatar Atual",
+              fileName: "manual-avatar.png",
+              folder: "users",
+              mime: "image/png",
+              size: 100,
+              url: "/uploads/users/manual-avatar.png",
+            },
+          ],
+        });
+      }
+      if (path.includes("folder=__all__")) {
+        return mockJsonResponse(true, {
+          files: [
+            {
+              name: "publica.png",
+              label: "Biblioteca Global",
+              fileName: "publica.png",
+              folder: "posts",
+              mime: "image/png",
+              size: 100,
+              url: "/uploads/posts/publica.png",
+            },
+          ],
+        });
+      }
+      if (path === "/api/uploads/project-images") {
+        return mockJsonResponse(true, { items: [] });
+      }
+      return mockJsonResponse(false, { error: "not_found" }, 404);
+    });
+
+    renderAvatarDialog(true);
+
+    await waitFor(() => {
+      expect(apiFetchMock).toHaveBeenCalledWith(
+        "http://api.local",
+        "/api/uploads/list?folder=users&recursive=1",
+        expect.any(Object),
+      );
+      expect(apiFetchMock).toHaveBeenCalledWith(
+        "http://api.local",
+        "/api/uploads/list?folder=__all__",
+        expect.any(Object),
+      );
+    });
+
+    const folderSelect = await getFolderFilterTrigger();
+    await waitFor(() => {
+      expect(folderSelect).toHaveTextContent("users");
+    });
+
+    await selectFolderFilterOption("Todas as pastas");
+
+    const usersTrigger = await screen.findByRole("button", { name: /users/i });
+    if (usersTrigger.getAttribute("aria-expanded") !== "true") {
+      fireEvent.click(usersTrigger);
+    }
+    const postsTrigger = await screen.findByRole("button", { name: /posts/i });
+    if (postsTrigger.getAttribute("aria-expanded") !== "true") {
+      fireEvent.click(postsTrigger);
+    }
+
+    expect(await screen.findByText("Avatar Atual")).toBeInTheDocument();
+    expect(await screen.findByText("Biblioteca Global")).toBeInTheDocument();
   });
 });

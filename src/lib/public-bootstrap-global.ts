@@ -5,6 +5,7 @@ import {
   type PublicBootstrapPayloadMode,
   type PublicBootstrapPayload,
 } from "@/types/public-bootstrap";
+import type { PublicTeamLinkType, PublicTeamMember } from "@/types/public-team";
 
 export type PublicBootstrapCurrentUser = {
   id: string;
@@ -37,6 +38,12 @@ export const asPublicBootstrapPayload = (value: unknown): PublicBootstrapPayload
     projects: Array.isArray(candidate.projects) ? candidate.projects : [],
     posts: Array.isArray(candidate.posts) ? candidate.posts : [],
     updates: Array.isArray(candidate.updates) ? candidate.updates : [],
+    teamMembers: Array.isArray(candidate.teamMembers)
+      ? (candidate.teamMembers as PublicTeamMember[])
+      : [],
+    teamLinkTypes: Array.isArray(candidate.teamLinkTypes)
+      ? (candidate.teamLinkTypes as PublicTeamLinkType[])
+      : [],
     mediaVariants:
       candidate.mediaVariants && typeof candidate.mediaVariants === "object"
         ? (candidate.mediaVariants as UploadMediaVariantsMap)

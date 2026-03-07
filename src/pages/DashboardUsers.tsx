@@ -511,6 +511,7 @@ const DashboardUsers = () => {
   const isAdminActor = actorAccessRole === "admin";
   const actorCanUsersBasic = currentUser?.grants?.usuarios_basico === true;
   const actorCanUsersAccess = currentUser?.grants?.usuarios_acesso === true;
+  const actorCanUploadManagement = currentUser?.grants?.uploads === true;
   const canManageUsers =
     actorCanUsersAccess && (isPrimaryOwnerActor || isSecondaryOwnerActor || isAdminActor);
   const canManageOwners = isPrimaryOwnerActor;
@@ -1713,12 +1714,14 @@ const DashboardUsers = () => {
           description="Selecione uma imagem já enviada para reutilizar ou envie um novo arquivo."
           uploadFolder="users"
           listFolders={avatarLibraryFolders}
-          listAll={false}
+          listAll={actorCanUploadManagement}
           allowDeselect
           mode="single"
           cropAvatar
           cropTargetFolder="users"
           cropSlot={formState.id ? `avatar-${formState.id}` : undefined}
+          currentSelectionUrls={formState.avatarUrl ? [formState.avatarUrl] : undefined}
+          allowUploadManagementActions={actorCanUploadManagement}
           onSave={({ urls }) => handleLibrarySave({ urls })}
         />
       </Suspense>
