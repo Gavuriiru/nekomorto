@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { axe } from "jest-axe";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import Projects from "@/pages/Projects";
 
 const apiFetchMock = vi.hoisted(() => vi.fn());
+const originalMatchMedia = window.matchMedia;
 
 type BootstrapWindow = Window &
   typeof globalThis & {
@@ -32,11 +33,25 @@ const clearBootstrapPayload = () => {
   delete (window as BootstrapWindow).__BOOTSTRAP_PUBLIC__;
 };
 
+const setViewportIsMobile = (isMobile: boolean) => {
+  window.matchMedia = vi.fn().mockImplementation((query: string) => ({
+    matches: query === "(max-width: 767px)" ? isMobile : false,
+    media: query,
+    onchange: null,
+    addListener: () => {},
+    removeListener: () => {},
+    addEventListener: () => {},
+    removeEventListener: () => {},
+    dispatchEvent: () => false,
+  })) as unknown as typeof window.matchMedia;
+};
+
 describe("Projects accessibility", () => {
   beforeEach(() => {
     apiFetchMock.mockReset();
     clearBootstrapPayload();
     window.scrollTo = vi.fn();
+    setViewportIsMobile(false);
     vi.stubGlobal(
       "ResizeObserver",
       class {
@@ -103,9 +118,10 @@ describe("Projects accessibility", () => {
 
   afterEach(() => {
     clearBootstrapPayload();
+    window.matchMedia = originalMatchMedia;
   });
 
-  it("mantem os quatro filtros nomeados e sem violacoes axe", async () => {
+  it("mantem os quatro filtros nomeados no desktop e sem violacoes axe", async () => {
     const { container } = render(
       <MemoryRouter initialEntries={["/projetos"]}>
         <Projects />
@@ -118,5 +134,27 @@ describe("Projects accessibility", () => {
     expect(screen.getByRole("combobox", { name: "Filtrar por formato" })).toBeInTheDocument();
     expect(await axe(container)).toHaveNoViolations();
     expect(apiFetchMock).not.toHaveBeenCalled();
+  });
+
+  it("mantem o accordion mobile acessivel ao abrir os filtros", async () => {
+    setViewportIsMobile(true);
+
+    const { container } = render(
+      <MemoryRouter initialEntries={["/projetos"]}>
+        <Projects />
+      </MemoryRouter>,
+    );
+
+    const trigger = await screen.findByRole("button", { name: /^Filtros\b/i });
+    expect(trigger).toBeInTheDocument();
+    expect(screen.queryByRole("combobox", { name: "Filtrar por letra" })).not.toBeInTheDocument();
+
+    fireEvent.click(trigger);
+
+    expect(await screen.findByRole("combobox", { name: "Filtrar por letra" })).toBeInTheDocument();
+    expect(screen.getByRole("combobox", { name: "Filtrar por tag" })).toBeInTheDocument();
+    expect(screen.getByRole("combobox", { name: "Filtrar por genero" })).toBeInTheDocument();
+    expect(screen.getByRole("combobox", { name: "Filtrar por formato" })).toBeInTheDocument();
+    expect(await axe(container)).toHaveNoViolations();
   });
 });

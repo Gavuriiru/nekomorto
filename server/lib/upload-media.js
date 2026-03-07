@@ -29,8 +29,8 @@ const UPLOAD_VARIANT_AVIF_QUALITY = Object.freeze({
   heroSm: 34,
   heroMd: 40,
   hero: 45,
-  posterThumbSm: 46,
-  posterThumb: 46,
+  posterThumbSm: 40,
+  posterThumb: 42,
 });
 const UPLOAD_FOCAL_PRESET_KEYS = Object.freeze(["card", "hero"]);
 const UPLOAD_FOCAL_PRESET_FALLBACK_ORDER = Object.freeze({

@@ -15,6 +15,24 @@ const createTempUploadsDir = () => {
   return dir;
 };
 
+const createPatternSourceImage = async (sourcePath: string) => {
+  const width = 1280;
+  const height = 1800;
+  const channels = 3;
+  const buffer = Buffer.alloc(width * height * channels);
+
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      const index = (y * width + x) * channels;
+      buffer[index] = (x * 17 + y * 11) % 256;
+      buffer[index + 1] = (x * 7 + y * 19 + ((x ^ y) % 97)) % 256;
+      buffer[index + 2] = (x * 13 + y * 5 + ((x * y) % 251)) % 256;
+    }
+  }
+
+  await sharp(buffer, { raw: { width, height, channels } }).png().toFile(sourcePath);
+};
+
 afterEach(() => {
   tempDirs.splice(0).forEach((dir) => {
     fs.rmSync(dir, { recursive: true, force: true });
@@ -130,4 +148,22 @@ describe("upload-media", () => {
       },
     ]);
   });
+
+  it("mantem posterThumbSm e posterThumb abaixo dos tetos esperados", async () => {
+    const uploadsDir = createTempUploadsDir();
+    const sourcePath = path.join(uploadsDir, "pattern-source.png");
+
+    await createPatternSourceImage(sourcePath);
+
+    const generated = await generateUploadVariants({
+      uploadsDir,
+      uploadId: "upload-pattern",
+      sourcePath,
+      sourceMime: "image/png",
+      variantsVersion: 1,
+    });
+
+    expect(generated.variants.posterThumbSm?.formats?.avif?.size).toBeLessThanOrEqual(9_000);
+    expect(generated.variants.posterThumb?.formats?.avif?.size).toBeLessThanOrEqual(46_000);
+  }, 15_000);
 });

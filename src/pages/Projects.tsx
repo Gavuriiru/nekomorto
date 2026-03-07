@@ -1,5 +1,11 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import AsyncState from "@/components/ui/async-state";
@@ -79,7 +85,15 @@ type ProjectCardProps = {
   synopsisClampClass: string;
   mediaVariants: UploadMediaVariantsMap;
   isPriorityImage: boolean;
+  isMobile: boolean;
 };
+
+const EMPTY_BADGE_LAYOUT = Object.freeze({
+  allItems: Object.freeze([]) as ProjectBadgeItem[],
+  visibleItems: Object.freeze([]) as ProjectBadgeItem[],
+  extraCount: 0,
+  showOverflowBadge: false,
+});
 
 const getProjectBadgeAriaLabel = (item: ProjectBadgeItem) => {
   if (item.key.startsWith("tag-")) {
@@ -91,6 +105,50 @@ const getProjectBadgeAriaLabel = (item: ProjectBadgeItem) => {
   return item.label;
 };
 
+type ProjectsFilterFieldProps = {
+  label: string;
+  className?: string;
+  children: ReactNode;
+};
+
+const ProjectsFilterField = ({ label, className, children }: ProjectsFilterFieldProps) => (
+  <div className={cn("flex flex-col gap-2", className)}>
+    <span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+      {label}
+    </span>
+    {children}
+  </div>
+);
+
+type ProjectsResultsSummaryProps = {
+  filteredProjectsCount: number;
+  onResetFilters: () => void;
+  className?: string;
+};
+
+const ProjectsResultsSummary = ({
+  filteredProjectsCount,
+  onResetFilters,
+  className,
+}: ProjectsResultsSummaryProps) => (
+  <div
+    className={cn(
+      "flex flex-wrap items-center justify-between gap-3 rounded-xl bg-background/40 px-4 py-3 text-sm text-muted-foreground",
+      className,
+    )}
+  >
+    <div className="flex flex-wrap gap-2">
+      <span className="font-semibold text-foreground">{filteredProjectsCount}</span>
+      <span>projetos encontrados</span>
+      <span className="text-muted-foreground">&bull;</span>
+      <span>Atualizado semanalmente</span>
+    </div>
+    <Button variant="ghost" onClick={onResetFilters} className="w-full text-xs uppercase sm:w-auto">
+      Limpar filtros
+    </Button>
+  </div>
+);
+
 const ProjectCard = ({
   project,
   tagTranslations,
@@ -99,6 +157,7 @@ const ProjectCard = ({
   synopsisClampClass,
   mediaVariants,
   isPriorityImage,
+  isMobile,
 }: ProjectCardProps) => {
   const [badgesRowWidth, setBadgesRowWidth] = useState(0);
   const [badgeWidths, setBadgeWidths] = useState<Record<string, number>>({});
@@ -106,23 +165,26 @@ const ProjectCard = ({
   const badgeMeasureRef = useRef<HTMLDivElement | null>(null);
   const { allItems, visibleItems, extraCount, showOverflowBadge } = useMemo(
     () =>
-      prepareProjectBadges({
-        tags: project.tags,
-        genres: project.genres || [],
-        producers: project.producers || [],
-        tagTranslations,
-        genreTranslations,
-        maxVisible: 3,
-        maxChars: 18,
-        maxRowWidth: badgesRowWidth,
-        badgeWidths,
-        overflowBadgeWidth: 36,
-        gapPx: 4,
-      }),
+      isMobile
+        ? EMPTY_BADGE_LAYOUT
+        : prepareProjectBadges({
+            tags: project.tags,
+            genres: project.genres || [],
+            producers: project.producers || [],
+            tagTranslations,
+            genreTranslations,
+            maxVisible: 3,
+            maxChars: 18,
+            maxRowWidth: badgesRowWidth,
+            badgeWidths,
+            overflowBadgeWidth: 36,
+            gapPx: 4,
+          }),
     [
       badgeWidths,
       badgesRowWidth,
       genreTranslations,
+      isMobile,
       project.genres,
       project.producers,
       project.tags,
@@ -131,6 +193,10 @@ const ProjectCard = ({
   );
 
   useEffect(() => {
+    if (isMobile) {
+      setBadgesRowWidth(0);
+      return;
+    }
     const rowNode = badgesRowRef.current;
     if (!rowNode) {
       setBadgesRowWidth(0);
@@ -143,12 +209,16 @@ const ProjectCard = ({
     const observer = new ResizeObserver(updateWidth);
     observer.observe(rowNode);
     return () => observer.disconnect();
-  }, [allItems.length, project.id]);
+  }, [allItems.length, isMobile, project.id]);
 
   useEffect(() => {
+    if (isMobile) {
+      setBadgeWidths((current) => (Object.keys(current).length > 0 ? {} : current));
+      return;
+    }
     const measureNode = badgeMeasureRef.current;
     if (!measureNode || allItems.length === 0) {
-      setBadgeWidths({});
+      setBadgeWidths((current) => (Object.keys(current).length > 0 ? {} : current));
       return;
     }
 
@@ -174,7 +244,7 @@ const ProjectCard = ({
       }
       return current;
     });
-  }, [allItems]);
+  }, [allItems, isMobile]);
 
   return (
     <Link
@@ -225,7 +295,7 @@ const ProjectCard = ({
           data-synopsis-role="badges"
           className="relative mt-auto flex shrink-0 flex-col gap-2 pt-3"
         >
-          {visibleItems.length > 0 || extraCount > 0 ? (
+          {!isMobile && (visibleItems.length > 0 || extraCount > 0) ? (
             <div
               ref={badgesRowRef}
               className="hidden min-w-0 flex-nowrap items-center gap-1 overflow-hidden sm:flex"
@@ -274,22 +344,24 @@ const ProjectCard = ({
               ) : null}
             </div>
           ) : null}
-          <div
-            ref={badgeMeasureRef}
-            aria-hidden
-            className="pointer-events-none absolute -left-[9999px] top-0 flex items-center gap-1 opacity-0"
-          >
-            {allItems.map((item) => (
-              <Badge
-                key={`measure-${item.key}`}
-                data-badge-key={item.key}
-                variant={item.variant}
-                className="inline-flex h-6 shrink-0 whitespace-nowrap px-2 text-[9px] uppercase leading-none"
-              >
-                {item.label}
-              </Badge>
-            ))}
-          </div>
+          {!isMobile && allItems.length > 0 ? (
+            <div
+              ref={badgeMeasureRef}
+              aria-hidden
+              className="pointer-events-none absolute -left-[9999px] top-0 flex items-center gap-1 opacity-0"
+            >
+              {allItems.map((item) => (
+                <Badge
+                  key={`measure-${item.key}`}
+                  data-badge-key={item.key}
+                  variant={item.variant}
+                  className="inline-flex h-6 shrink-0 whitespace-nowrap px-2 text-[9px] uppercase leading-none"
+                >
+                  {item.label}
+                </Badge>
+              ))}
+            </div>
+          ) : null}
 
           <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
             {project.status ? (
@@ -727,16 +799,20 @@ const Projects = () => {
   const priorityProjectImageCount = isMobile
     ? MOBILE_PRIORITY_PROJECT_IMAGE_COUNT
     : DESKTOP_PRIORITY_PROJECT_IMAGE_COUNT;
+  const isDesktopSynopsisClampEnabled = !isMobile && paginatedProjects.length > 0;
   const synopsisKeys = useMemo(
     () => paginatedProjects.map((project) => project.id),
     [paginatedProjects],
   );
   const { rootRef: listRootRef, lineByKey } = useDynamicSynopsisClamp({
-    enabled: paginatedProjects.length > 0,
+    enabled: isDesktopSynopsisClampEnabled,
     keys: synopsisKeys,
     maxLines: 4,
   });
   const getSynopsisClampClass = (projectId: string) => {
+    if (isMobile) {
+      return "line-clamp-2";
+    }
     const lines = lineByKey[projectId] ?? 2;
     if (lines <= 0) {
       return "hidden";
@@ -767,14 +843,109 @@ const Projects = () => {
     }
   }, [searchParams, setSearchParams]);
 
+  const activeFilterCount = [
+    selectedLetter !== "Todas",
+    selectedTag !== "Todas",
+    selectedGenre !== "Todos",
+    selectedType !== "Todos",
+  ].filter(Boolean).length;
+  const activeFiltersSummary =
+    activeFilterCount === 0
+      ? "Nenhum filtro ativo"
+      : activeFilterCount === 1
+        ? "1 filtro ativo"
+        : `${activeFilterCount} filtros ativos`;
+
+  const filterControls = (
+    <>
+      <ProjectsFilterField label="A-Z">
+        <Select
+          value={selectedLetter}
+          onValueChange={(value) => {
+            setSelectedLetter(value);
+            setCurrentPage(1);
+          }}
+        >
+          <SelectTrigger className="bg-background/60" aria-label="Filtrar por letra">
+            <SelectValue placeholder="Todas as letras" />
+          </SelectTrigger>
+          <SelectContent>
+            {alphabetOptions.map((letter) => (
+              <SelectItem key={letter} value={letter}>
+                {letter}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </ProjectsFilterField>
+
+      <ProjectsFilterField label="Tags">
+        <Select
+          value={selectedTag}
+          onValueChange={(value) => updateFilterQuery(value, selectedGenre)}
+        >
+          <SelectTrigger className="bg-background/60" aria-label="Filtrar por tag">
+            <SelectValue placeholder="Todas as tags" />
+          </SelectTrigger>
+          <SelectContent>
+            {tagOptions.map((tag) => (
+              <SelectItem key={tag} value={tag}>
+                {tagTranslations[tag] || tag}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </ProjectsFilterField>
+
+      <ProjectsFilterField label="GÃªneros">
+        <Select
+          value={selectedGenre}
+          onValueChange={(value) => updateFilterQuery(selectedTag, value)}
+        >
+          <SelectTrigger className="bg-background/60" aria-label="Filtrar por genero">
+            <SelectValue placeholder="Todos os generos" />
+          </SelectTrigger>
+          <SelectContent>
+            {genreOptions.map((genre) => (
+              <SelectItem key={genre} value={genre}>
+                {genreTranslations[genre] || genre}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </ProjectsFilterField>
+
+      <ProjectsFilterField label="Formato">
+        <Select
+          value={selectedType}
+          onValueChange={(value) => {
+            setSelectedType(value);
+            setCurrentPage(1);
+          }}
+        >
+          <SelectTrigger className="bg-background/60" aria-label="Filtrar por formato">
+            <SelectValue placeholder="Todos os formatos" />
+          </SelectTrigger>
+          <SelectContent>
+            {typeOptions.map((type) => (
+              <SelectItem key={type} value={type}>
+                {type}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </ProjectsFilterField>
+    </>
+  );
+
   return (
     <div className="min-h-screen text-foreground">
-      <main className="pt-28">
+      <main className="pt-20 md:pt-28">
         <section
           className={`${publicPageLayoutTokens.sectionBase} max-w-6xl pb-20 reveal`}
           data-reveal
         >
-          <div className="grid gap-4 rounded-2xl bg-card/70 p-6 shadow-lg md:grid-cols-4">
+          <div className="grid gap-3 rounded-2xl bg-card/70 p-4 shadow-lg md:grid-cols-4 md:gap-4 md:p-6">
             <div className="md:col-span-4 flex flex-col gap-2">
               <span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
                 Busca
@@ -787,7 +958,40 @@ const Projects = () => {
                 aria-label="Buscar projetos"
               />
             </div>
-            <div className="flex flex-col gap-2">
+            {isMobile ? (
+              <div>
+                <Accordion type="single" collapsible className="rounded-xl bg-background/40 px-4 shadow-sm">
+                  <AccordionItem value="filters" className="border-none">
+                    <AccordionTrigger className="py-3 text-left hover:no-underline">
+                      <div className="flex min-w-0 flex-1 items-center justify-between gap-3">
+                        <div className="min-w-0">
+                          <span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+                            Filtros
+                          </span>
+                          <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+                            <span className="font-semibold text-foreground">{filteredProjects.length}</span>
+                            <span>projetos encontrados</span>
+                          </div>
+                        </div>
+                        <span className="shrink-0 rounded-full bg-primary/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-primary">
+                          {activeFiltersSummary}
+                        </span>
+                      </div>
+                    </AccordionTrigger>
+                    <AccordionContent className="space-y-4 pt-1">
+                      <div className="grid gap-3">{filterControls}</div>
+                      <ProjectsResultsSummary
+                        filteredProjectsCount={filteredProjects.length}
+                        onResetFilters={resetFilters}
+                      />
+                    </AccordionContent>
+                  </AccordionItem>
+                </Accordion>
+              </div>
+            ) : null}
+            {!isMobile ? (
+              <>
+            <div className="hidden md:flex md:flex-col gap-2">
               <span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
                 A-Z
               </span>
@@ -811,7 +1015,7 @@ const Projects = () => {
               </Select>
             </div>
 
-            <div className="flex flex-col gap-2">
+            <div className="hidden md:flex md:flex-col gap-2">
               <span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
                 Tags
               </span>
@@ -853,7 +1057,7 @@ const Projects = () => {
               </Select>
             </div>
 
-            <div className="flex flex-col gap-2">
+            <div className="hidden md:flex md:flex-col gap-2">
               <span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
                 Formato
               </span>
@@ -888,6 +1092,8 @@ const Projects = () => {
                 Limpar filtros
               </Button>
             </div>
+              </>
+            ) : null}
           </div>
           {isLoadingProjects ? (
             <AsyncState
@@ -924,7 +1130,10 @@ const Projects = () => {
               }
             />
           ) : (
-            <div ref={listRootRef} className="mt-10 grid gap-6 md:grid-cols-2 md:auto-rows-fr">
+            <div
+              ref={isDesktopSynopsisClampEnabled ? listRootRef : undefined}
+              className="mt-10 grid gap-6 md:grid-cols-2 md:auto-rows-fr"
+            >
               {paginatedProjects.map((project, index) => {
                 const isLastSingle =
                   paginatedProjects.length % 2 === 1 && index === paginatedProjects.length - 1;
@@ -943,6 +1152,7 @@ const Projects = () => {
                           synopsisClampClass={getSynopsisClampClass(project.id)}
                           mediaVariants={projectsMediaVariants}
                           isPriorityImage={index < priorityProjectImageCount}
+                          isMobile={isMobile}
                         />
                       </div>
                     ) : (
@@ -954,6 +1164,7 @@ const Projects = () => {
                         synopsisClampClass={getSynopsisClampClass(project.id)}
                         mediaVariants={projectsMediaVariants}
                         isPriorityImage={index < priorityProjectImageCount}
+                        isMobile={isMobile}
                       />
                     )}
                   </div>

@@ -5,6 +5,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import Projects from "@/pages/Projects";
 
 const apiFetchMock = vi.hoisted(() => vi.fn());
+const resizeObserverObserveMock = vi.hoisted(() => vi.fn());
+const resizeObserverDisconnectMock = vi.hoisted(() => vi.fn());
 const PROJECTS_LIST_STATE_STORAGE_KEY = "public.projects.list-state.v1";
 const SEARCH_QUERY_DEBOUNCE_MS = 60;
 const PROJECTS_LIST_IMAGE_SIZES = "(max-width: 767px) 100px, 142px";
@@ -142,12 +144,18 @@ describe("Projects query sync", () => {
     window.scrollTo = vi.fn();
     window.localStorage.clear();
     clearBootstrapPayload();
+    resizeObserverObserveMock.mockReset();
+    resizeObserverDisconnectMock.mockReset();
     vi.stubGlobal(
       "ResizeObserver",
       class {
-        observe() {}
+        observe(...args: unknown[]) {
+          resizeObserverObserveMock(...args);
+        }
         unobserve() {}
-        disconnect() {}
+        disconnect(...args: unknown[]) {
+          resizeObserverDisconnectMock(...args);
+        }
       },
     );
     setViewportIsMobile(false);
@@ -405,6 +413,43 @@ describe("Projects query sync", () => {
 
     expect(await screen.findByPlaceholderText("Buscar por t\u00EDtulo, sinopse, tag ou g\u00EAnero")).toBeInTheDocument();
     expect(screen.getByText("G\u00EAneros")).toBeInTheDocument();
+  });
+
+  it("mantem a busca visivel e recolhe os filtros por padrao no mobile", async () => {
+    setViewportIsMobile(true);
+    setupApiMock({
+      projects: Array.from({ length: 21 }, (_, index) =>
+        createProject(index + 1, {
+          title: `Alpha ${index + 1}`,
+          type: "Anime",
+          tags: ["acao"],
+          genres: ["drama"],
+        }),
+      ),
+    });
+
+    render(
+      <MemoryRouter initialEntries={["/projetos?q=alpha&tag=acao&type=Anime"]}>
+        <Projects />
+        <LocationProbe />
+      </MemoryRouter>,
+    );
+
+    const searchInput = await screen.findByLabelText("Buscar projetos");
+    const trigger = screen.getByRole("button", { name: /^Filtros\b/i });
+
+    expect(searchInput).toHaveValue("alpha");
+    expect(trigger).toHaveTextContent("21");
+    expect(trigger).toHaveTextContent("2 filtros ativos");
+    expect(screen.queryByRole("combobox", { name: "Filtrar por letra" })).not.toBeInTheDocument();
+
+    fireEvent.click(trigger);
+
+    expect(await screen.findByRole("combobox", { name: "Filtrar por letra" })).toBeInTheDocument();
+    expect(screen.getByRole("combobox", { name: "Filtrar por tag" })).toBeInTheDocument();
+    expect(screen.getByRole("combobox", { name: "Filtrar por genero" })).toBeInTheDocument();
+    expect(screen.getByRole("combobox", { name: "Filtrar por formato" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Limpar filtros" })).toBeInTheDocument();
   });
 
   it("hidrata a listagem com bootstrap completo sem fetch inicial", async () => {
@@ -691,7 +736,7 @@ describe("Projects query sync", () => {
       mediaVariants,
     });
 
-    render(
+    const { container } = render(
       <MemoryRouter initialEntries={["/projetos"]}>
         <Projects />
         <LocationProbe />
@@ -713,9 +758,11 @@ describe("Projects query sync", () => {
     });
     expect(coverImages[6]).toHaveAttribute("loading", "lazy");
     expect(coverImages[6]).not.toHaveAttribute("fetchpriority");
+    expect(container.querySelector("[data-badge-key]")).not.toBeNull();
+    expect(resizeObserverObserveMock).toHaveBeenCalled();
   });
 
-  it("prioriza apenas a primeira capa no mobile", async () => {
+  it("prioriza apenas a primeira capa no mobile e remove medicao de layout auxiliar", async () => {
     setViewportIsMobile(true);
     const projects = Array.from({ length: 7 }, (_, index) => ({
       ...createProject(index + 1, { title: `Projeto ${index + 1}` }),
@@ -751,7 +798,7 @@ describe("Projects query sync", () => {
       mediaVariants,
     });
 
-    render(
+    const { container } = render(
       <MemoryRouter initialEntries={["/projetos"]}>
         <Projects />
         <LocationProbe />
@@ -768,6 +815,11 @@ describe("Projects query sync", () => {
       expect(coverImage).toHaveAttribute("loading", "lazy");
       expect(coverImage).not.toHaveAttribute("fetchpriority");
     });
+    expect(container.querySelector("[data-badge-key]")).toBeNull();
+    Array.from(container.querySelectorAll('[data-synopsis-role="synopsis"]')).forEach((node) => {
+      expect(node).toHaveClass("line-clamp-2");
+    });
+    expect(resizeObserverObserveMock).not.toHaveBeenCalled();
   });
 
   it("adiciona aria-label e alvo minimo aos badges clicaveis", async () => {
