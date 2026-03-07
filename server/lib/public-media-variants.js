@@ -60,6 +60,31 @@ export const normalizePublicUploadUrl = (value) => {
   return "";
 };
 
+export const shouldExposePublicUploadInMediaVariants = ({
+  uploadUrl,
+  folder,
+  allowPrivateUrls = [],
+} = {}) => {
+  const normalizedUploadUrl = normalizePublicUploadUrl(uploadUrl);
+  if (!normalizedUploadUrl) {
+    return false;
+  }
+  const normalizedFolder = String(folder || "").trim().toLowerCase();
+  if (
+    normalizedFolder !== "users" &&
+    normalizedFolder !== "downloads" &&
+    normalizedFolder !== "socials"
+  ) {
+    return true;
+  }
+  const allowedPrivateUrlSet = new Set(
+    (Array.isArray(allowPrivateUrls) ? allowPrivateUrls : [])
+      .map((value) => normalizePublicUploadUrl(value))
+      .filter(Boolean),
+  );
+  return allowedPrivateUrlSet.has(normalizedUploadUrl);
+};
+
 export const resolvePublicUploadDiskPath = ({
   uploadsDir = path.join(process.cwd(), "public", "uploads"),
   uploadUrl,

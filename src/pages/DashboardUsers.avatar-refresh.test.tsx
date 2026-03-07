@@ -14,14 +14,40 @@ vi.mock("@/components/DashboardShell", () => ({
 }));
 
 vi.mock("@/components/ImageLibraryDialog", () => ({
-  default: (props: { open?: boolean; onOpenChange: (open: boolean) => void }) => {
+  default: (props: {
+    open?: boolean;
+    onOpenChange: (open: boolean) => void;
+    onSave: (payload: {
+      urls: string[];
+      items: Array<{ variantsVersion?: number; createdAt?: string }>;
+    }) => void;
+  }) => {
     if (!props.open) {
       return null;
     }
     return (
-      <button type="button" onClick={() => props.onOpenChange(false)}>
-        Fechar biblioteca mock
-      </button>
+      <div>
+        <button
+          type="button"
+          onClick={() => {
+            props.onSave({
+              urls: ["/uploads/users/avatar-user-1.png"],
+              items: [
+                {
+                  variantsVersion: 2,
+                  createdAt: "2026-03-01T00:00:00.000Z",
+                },
+              ],
+            });
+            props.onOpenChange(false);
+          }}
+        >
+          Selecionar avatar revisado
+        </button>
+        <button type="button" onClick={() => props.onOpenChange(false)}>
+          Fechar biblioteca mock
+        </button>
+      </div>
     );
   },
 }));
@@ -59,6 +85,7 @@ const userFixture = {
   phrase: "",
   bio: "",
   avatarUrl: "/uploads/users/avatar-user-1.png",
+  revision: "rev-1",
   socials: [],
   status: "active" as const,
   permissions: ["*"],
@@ -97,6 +124,9 @@ describe("DashboardUsers avatar refresh", () => {
           id: "user-1",
           name: "Admin",
           username: "admin",
+          avatarUrl: userFixture.avatarUrl,
+          revision: userFixture.revision,
+          grants: {},
         });
       }
       if (path === "/api/link-types" && method === "GET") {
@@ -107,6 +137,7 @@ describe("DashboardUsers avatar refresh", () => {
           user: {
             ...userFixture,
             avatarUrl: "/uploads/users/avatar-user-1.png",
+            revision: "rev-2",
           },
         });
       }
@@ -114,10 +145,10 @@ describe("DashboardUsers avatar refresh", () => {
     });
   });
 
-  it("atualiza o preview de avatar ao fechar a biblioteca", async () => {
+  it("atualiza o preview de avatar ao selecionar uma revisao na biblioteca", async () => {
     renderPage();
 
-    fireEvent.click(await screen.findByRole("button", { name: "Abrir usuário Admin" }));
+    fireEvent.click(await screen.findByRole("button", { name: /Abrir usu.rio Admin/i }));
 
     const dialog = await screen.findByRole("dialog");
     const previewBefore = within(dialog).getByAltText("Admin");
@@ -125,7 +156,7 @@ describe("DashboardUsers avatar refresh", () => {
     expect(srcBefore).toBeTruthy();
 
     fireEvent.click(within(dialog).getByRole("button", { name: "Biblioteca" }));
-    fireEvent.click(await screen.findByText("Fechar biblioteca mock"));
+    fireEvent.click(await screen.findByText("Selecionar avatar revisado"));
 
     await waitFor(() => {
       const previewAfter = within(dialog).getByAltText("Admin");
@@ -136,18 +167,18 @@ describe("DashboardUsers avatar refresh", () => {
       const beforeParsed = parseAvatarSrc(String(srcBefore));
       const afterParsed = parseAvatarSrc(String(srcAfter));
       expect(afterParsed.pathname).toBe(beforeParsed.pathname);
-      expect(afterParsed.version).not.toBe(beforeParsed.version);
+      expect(afterParsed.version).toBe("variant-2");
     });
   });
 
-  it("atualiza o avatar do card ao salvar com a mesma URL", async () => {
+  it("atualiza o avatar do card ao salvar com a mesma URL usando a revision do backend", async () => {
     renderPage();
 
     const cardBefore = await screen.findByAltText("Admin");
     const srcBefore = cardBefore.getAttribute("src");
     expect(srcBefore).toBeTruthy();
 
-    fireEvent.click(screen.getByRole("button", { name: "Abrir usuário Admin" }));
+    fireEvent.click(screen.getByRole("button", { name: /Abrir usu.rio Admin/i }));
     const dialog = await screen.findByRole("dialog");
     fireEvent.click(within(dialog).getByRole("button", { name: "Salvar" }));
 
@@ -170,16 +201,16 @@ describe("DashboardUsers avatar refresh", () => {
     expect(srcAfter).toBeTruthy();
     expect(srcAfter).not.toBe(srcBefore);
 
-    const beforeParsed = parseAvatarSrc(String(srcBefore));
     const afterParsed = parseAvatarSrc(String(srcAfter));
-    expect(afterParsed.pathname).toBe(beforeParsed.pathname);
-    expect(afterParsed.version).not.toBe(beforeParsed.version);
+    expect(afterParsed.pathname).toBe("/uploads/users/avatar-user-1.png");
+    expect(afterParsed.version).toBe("rev-2");
   });
 
   it("usa proxy same-origin para avatar do Discord no dashboard", async () => {
     const discordAvatarUser = {
       ...userFixture,
       avatarUrl: "https://cdn.discordapp.com/avatars/123456789/avatar_hash.png?size=64",
+      revision: "rev-discord",
     };
 
     apiFetchMock.mockImplementation(async (_base: string, path: string, options?: RequestInit) => {
@@ -195,6 +226,9 @@ describe("DashboardUsers avatar refresh", () => {
           id: "user-1",
           name: "Admin",
           username: "admin",
+          avatarUrl: discordAvatarUser.avatarUrl,
+          revision: discordAvatarUser.revision,
+          grants: {},
         });
       }
       if (path === "/api/link-types" && method === "GET") {
@@ -207,14 +241,14 @@ describe("DashboardUsers avatar refresh", () => {
 
     expect(await screen.findByAltText("Admin")).toHaveAttribute(
       "src",
-      "/api/public/discord-avatar/123456789/avatar_hash.png?size=128",
+      "/api/public/discord-avatar/123456789/avatar_hash.png?size=128&v=rev-discord",
     );
 
     fireEvent.click(screen.getByRole("button", { name: /Abrir usu.rio Admin/i }));
     const dialog = await screen.findByRole("dialog");
     expect(within(dialog).getByAltText("Admin")).toHaveAttribute(
       "src",
-      "/api/public/discord-avatar/123456789/avatar_hash.png?size=128",
+      "/api/public/discord-avatar/123456789/avatar_hash.png?size=128&v=rev-discord",
     );
   });
 });

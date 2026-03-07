@@ -80,6 +80,7 @@ import {
   resolveExistingPublicVariantUrl,
   resolveHomeHeroPreloadFromSlide,
   sanitizePublicMediaVariantEntry,
+  shouldExposePublicUploadInMediaVariants,
 } from "./lib/public-media-variants.js";
 import { resolvePublicTeamAvatarPreload } from "./lib/public-team-preloads.js";
 import { resolvePublicProjectsListPreloads } from "./lib/public-projects-preloads.js";
@@ -189,6 +190,12 @@ import {
   resolveUploadAbsolutePath,
   resolveUploadVariantPresetKeysForArea,
 } from "./lib/upload-media.js";
+import {
+  isDiscordAvatarUrl,
+  resolveEffectiveUserAvatarUrl,
+  resolveUserAvatarRenderVersion,
+  shouldSyncDiscordAvatarToStoredUser,
+} from "./lib/user-avatar.js";
 import {
   sanitizeAssetUrl,
   sanitizeFavoriteWorksByCategory,
@@ -4757,12 +4764,16 @@ const collectPublicUploadUrls = (value, urls, seen = new WeakSet()) => {
   }
 };
 
-const buildPublicMediaVariants = (...sources) => {
+const buildPublicMediaVariants = (sourcesInput, options = {}) => {
+  const sources = Array.isArray(sourcesInput) ? sourcesInput : [sourcesInput];
   const urls = new Set();
   sources.forEach((source) => collectPublicUploadUrls(source, urls));
   if (urls.size === 0) {
     return {};
   }
+  const allowPrivateUrls = Array.isArray(options?.allowPrivateUrls)
+    ? options.allowPrivateUrls
+    : [];
   const uploads = loadUploads();
   const mediaVariants = {};
   uploads.forEach((entry) => {
@@ -4771,7 +4782,13 @@ const buildPublicMediaVariants = (...sources) => {
       return;
     }
     const folder = String(entry?.folder || getUploadFolderFromUrlValue(normalizedUrl) || "");
-    if (isPrivateUploadFolder(folder)) {
+    if (
+      !shouldExposePublicUploadInMediaVariants({
+        uploadUrl: normalizedUrl,
+        folder,
+        allowPrivateUrls,
+      })
+    ) {
       return;
     }
     const variants = normalizeVariants(entry?.variants);
@@ -6252,6 +6269,39 @@ const createDiscordAvatarUrl = (user) => {
   return `https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png?size=128`;
 };
 
+const syncPersistedDiscordAvatarForLogin = ({ userId, discordAvatarUrl }) => {
+  const normalizedUserId = String(userId || "").trim();
+  if (!normalizedUserId) {
+    return;
+  }
+  let users = normalizeUsers(loadUsers());
+  const targetIndex = users.findIndex((user) => user.id === normalizedUserId);
+  if (targetIndex === -1) {
+    return;
+  }
+  const existing = users[targetIndex];
+  if (
+    !shouldSyncDiscordAvatarToStoredUser({
+      storedAvatarUrl: existing?.avatarUrl,
+      discordAvatarUrl,
+    })
+  ) {
+    return;
+  }
+  users[targetIndex] = {
+    ...existing,
+    avatarUrl: String(discordAvatarUrl || "").trim() || null,
+  };
+  users = isRbacV2Enabled
+    ? enforceUserAccessInvariants(users)
+    : normalizeUsers(users).map((user) =>
+        isOwner(user.id) ? { ...user, status: "active", permissions: ["*"] } : user,
+      );
+  users.sort((a, b) => a.order - b.order);
+  writeUsers(users);
+  syncAllowedUsers(users);
+};
+
 app.get("/auth/discord", async (req, res) => {
   const ip = req.headers["x-forwarded-for"]?.split(",")[0]?.trim() || req.ip;
   if (!(await canAttemptAuth(ip))) {
@@ -6443,6 +6493,10 @@ app.get("/login", async (req, res, next) => {
       email: discordUser.email || null,
       avatarUrl: createDiscordAvatarUrl(discordUser),
     };
+    syncPersistedDiscordAvatarForLogin({
+      userId: authenticatedUser.id,
+      discordAvatarUrl: authenticatedUser.avatarUrl,
+    });
     ensureOwnerUser(authenticatedUser);
     const requiresMfa = isTotpEnabledForUser(authenticatedUser.id);
     try {
@@ -6591,32 +6645,22 @@ app.post("/api/auth/mfa/verify", async (req, res) => {
   });
 });
 
-const resolveUserAvatarRenderVersion = (avatarUrl, uploadsInput = null) => {
-  const normalizedAvatarUrl = normalizeUploadUrl(avatarUrl);
-  if (!normalizedAvatarUrl) {
-    return "";
+const withEffectiveAvatarUrl = (user, fallbackAvatarUrl = null) => {
+  if (!user) {
+    return user;
   }
-  const uploads = Array.isArray(uploadsInput) ? uploadsInput : loadUploads();
-  const matchedUpload = uploads.find(
-    (item) => normalizeUploadUrl(item?.url) === normalizedAvatarUrl,
-  );
-  if (!matchedUpload) {
-    return "";
-  }
-  const variantsVersion = Number(matchedUpload?.variantsVersion);
-  if (Number.isFinite(variantsVersion) && variantsVersion > 0) {
-    return `variant-${variantsVersion}`;
-  }
-  const createdAt = String(matchedUpload?.createdAt || "").trim();
-  if (!createdAt) {
-    return "";
-  }
-  const createdAtTimestamp = new Date(createdAt).getTime();
-  if (Number.isFinite(createdAtTimestamp) && createdAtTimestamp > 0) {
-    return `created-${createdAtTimestamp}`;
-  }
-  return `created-${createdAt}`;
+  return {
+    ...user,
+    avatarUrl:
+      resolveEffectiveUserAvatarUrl({
+        storedAvatarUrl: user?.avatarUrl,
+        fallbackAvatarUrl,
+      }) || null,
+  };
 };
+
+const resolveDiscordAvatarFallbackUrl = (value) =>
+  isDiscordAvatarUrl(value) ? String(value || "").trim() : null;
 
 const buildUserProfileRevisionToken = (user, uploadsInput = null) =>
   createRevisionToken({
@@ -6625,7 +6669,10 @@ const buildUserProfileRevisionToken = (user, uploadsInput = null) =>
     username: String(user?.username || ""),
     avatarUrl: String(user?.avatarUrl || ""),
     avatarDisplay: normalizeAvatarDisplay(user?.avatarDisplay),
-    avatarRenderVersion: resolveUserAvatarRenderVersion(user?.avatarUrl, uploadsInput),
+    avatarRenderVersion: resolveUserAvatarRenderVersion({
+      avatarUrl: user?.avatarUrl,
+      uploads: Array.isArray(uploadsInput) ? uploadsInput : loadUploads(),
+    }),
   });
 
 const withUserProfileRevision = (user, uploadsInput = null) => ({
@@ -6637,12 +6684,17 @@ const syncSessionUserDisplayProfile = (req, user, uploadsInput = null) => {
   if (!req?.session?.user || !user) {
     return;
   }
+  const resolvedAvatarUrl =
+    resolveEffectiveUserAvatarUrl({
+      storedAvatarUrl: user?.avatarUrl,
+      fallbackAvatarUrl: resolveDiscordAvatarFallbackUrl(req.session.user?.avatarUrl),
+    }) || null;
   const nextSessionUser = {
     ...req.session.user,
     name: String(user?.name || req.session.user.name || ""),
     phrase: String(user?.phrase || ""),
     bio: String(user?.bio || ""),
-    avatarUrl: user?.avatarUrl || null,
+    avatarUrl: resolvedAvatarUrl,
     avatarDisplay: normalizeAvatarDisplay(user?.avatarDisplay),
   };
   req.session.user = withUserProfileRevision(nextSessionUser, uploadsInput);
@@ -6673,12 +6725,17 @@ const buildUserPayload = (sessionUser) => {
     matched?.roles || [],
     ownerIds.includes(String(sessionUser?.id || "")),
   );
+  const avatarUrl =
+    resolveEffectiveUserAvatarUrl({
+      storedAvatarUrl: matched?.avatarUrl,
+      fallbackAvatarUrl: resolveDiscordAvatarFallbackUrl(sessionUser?.avatarUrl),
+    }) || null;
   const payload = {
     ...sessionUser,
     name: String(matched?.name || sessionUser?.name || ""),
     phrase: String(matched?.phrase || sessionUser?.phrase || ""),
     bio: String(matched?.bio || sessionUser?.bio || ""),
-    avatarUrl: matched ? matched.avatarUrl || null : sessionUser?.avatarUrl || null,
+    avatarUrl,
     avatarDisplay: normalizeAvatarDisplay(matched?.avatarDisplay || sessionUser?.avatarDisplay),
     socials: matched?.socials || sessionUser?.socials || [],
     favoriteWorks: matched?.favoriteWorks || sessionUser?.favoriteWorks || {},
@@ -9240,12 +9297,10 @@ app.get("/api/users", requireAuth, (req, res) => {
   writeUsers(users);
   syncAllowedUsers(users);
   const ownerIds = loadOwnerIds().map((id) => String(id));
+  const uploads = loadUploads();
   const responseUsers = users.map((user) => {
     const apiUser = applyOwnerRole(userWithAccessForResponse(user, ownerIds));
-    return {
-      ...apiUser,
-      revision: createRevisionToken(apiUser),
-    };
+    return withUserProfileRevision(apiUser, uploads);
   });
   appendAuditLog(req, "users.read", "users", {});
   res.json({
@@ -9411,10 +9466,13 @@ app.post("/api/bootstrap-owner", requireAuth, async (req, res) => {
 
 app.get("/api/public/users", (req, res) => {
   const users = buildPublicTeamMembers();
+  const teamAvatarUrls = users.map((user) => user?.avatarUrl).filter(Boolean);
 
   res.json({
     users,
-    mediaVariants: buildPublicMediaVariants(users),
+    mediaVariants: buildPublicMediaVariants([users], {
+      allowPrivateUrls: teamAvatarUrls,
+    }),
   });
 });
 
@@ -11488,10 +11546,12 @@ const buildCriticalHomeBootstrapPayload = ({ settings, pages, projects, updates,
     payloadMode: PUBLIC_BOOTSTRAP_MODE_CRITICAL_HOME,
   });
   payload.mediaVariants = buildPublicMediaVariants(
-    payload.projects,
-    payload.updates,
-    payload.pages,
-    { image: settings?.site?.defaultShareImage || "" },
+    [
+      payload.projects,
+      payload.updates,
+      payload.pages,
+      { image: settings?.site?.defaultShareImage || "" },
+    ],
   );
   return payload;
 };
@@ -11557,13 +11617,18 @@ const buildPublicBootstrapResponsePayload = ({
     payloadMode: PUBLIC_BOOTSTRAP_MODE_FULL,
   });
   payload.mediaVariants = buildPublicMediaVariants(
-    payload.projects,
-    payload.posts,
-    payload.updates,
-    payload.teamMembers,
-    payload.teamLinkTypes,
-    payload.pages,
-    { image: settings?.site?.defaultShareImage || "" },
+    [
+      payload.projects,
+      payload.posts,
+      payload.updates,
+      payload.teamMembers,
+      payload.teamLinkTypes,
+      payload.pages,
+      { image: settings?.site?.defaultShareImage || "" },
+    ],
+    {
+      allowPrivateUrls: payload.teamMembers.map((member) => member?.avatarUrl).filter(Boolean),
+    },
   );
   return payload;
 };
@@ -12400,9 +12465,10 @@ app.get("/api/public/pages", (req, res) => {
   const settings = loadSiteSettings();
   return res.json({
     pages,
-    mediaVariants: buildPublicMediaVariants(pages, {
-      image: settings?.site?.defaultShareImage || "",
-    }),
+    mediaVariants: buildPublicMediaVariants([
+      pages,
+      { image: settings?.site?.defaultShareImage || "" },
+    ]),
     revision: createRevisionToken(pages),
   });
 });
@@ -14011,7 +14077,7 @@ app.post("/api/users", requireAuth, (req, res) => {
     writeUsers(users);
     syncAllowedUsers(users);
     appendAuditLog(req, "users.create", "users", { id: newUser.id });
-    return res.status(201).json({ user: newUser });
+    return res.status(201).json({ user: withUserProfileRevision(newUser, loadUploads()) });
   }
 
   const actorContext = getUserAccessContextById(sessionUser?.id);
@@ -14073,7 +14139,9 @@ app.post("/api/users", requireAuth, (req, res) => {
     id: createdUser.id,
     after: toUserApiResponse(createdUser, ownerIds),
   });
-  return res.status(201).json({ user: toUserApiResponse(createdUser, ownerIds) });
+  return res.status(201).json({
+    user: withUserProfileRevision(toUserApiResponse(createdUser, ownerIds), loadUploads()),
+  });
 });
 
 app.put("/api/users/reorder", requireAuth, (req, res) => {
@@ -14204,7 +14272,8 @@ app.put("/api/users/:id", (req, res) => {
   const existing = users[index];
   const ownerIds = loadOwnerIds().map((id) => String(id));
   const currentUserSnapshot = toUserApiResponse(existing, ownerIds);
-  const currentRevision = createRevisionToken(currentUserSnapshot);
+  const responseUploads = loadUploads();
+  const currentRevision = buildUserProfileRevisionToken(currentUserSnapshot, responseUploads);
 
   if (!isRbacV2Enabled) {
     const isOwnerRequest = isOwner(sessionUser.id);
@@ -14280,12 +14349,20 @@ app.put("/api/users/:id", (req, res) => {
     }
     appendAuditLog(req, "users.update", "users", { id: targetId });
     const responseUser = applyOwnerRole(updated);
-    const responseUploads = loadUploads();
     if (targetId === String(sessionUser?.id || "")) {
       syncSessionUserDisplayProfile(req, responseUser, responseUploads);
     }
     return res.json({
-      user: withUserProfileRevision(responseUser, responseUploads),
+      user:
+        targetId === String(sessionUser?.id || "")
+          ? withUserProfileRevision(
+              withEffectiveAvatarUrl(
+                responseUser,
+                resolveDiscordAvatarFallbackUrl(req.session?.user?.avatarUrl),
+              ),
+              responseUploads,
+            )
+          : withUserProfileRevision(responseUser, responseUploads),
     });
   }
 
@@ -14467,12 +14544,20 @@ app.put("/api/users/:id", (req, res) => {
       },
     });
   }
-  const responseUploads = loadUploads();
   if (targetId === String(sessionUser?.id || "")) {
     syncSessionUserDisplayProfile(req, afterSnapshot, responseUploads);
   }
   return res.json({
-    user: withUserProfileRevision(afterSnapshot, responseUploads),
+    user:
+      targetId === String(sessionUser?.id || "")
+        ? withUserProfileRevision(
+            withEffectiveAvatarUrl(
+              afterSnapshot,
+              resolveDiscordAvatarFallbackUrl(req.session?.user?.avatarUrl),
+            ),
+            responseUploads,
+          )
+        : withUserProfileRevision(afterSnapshot, responseUploads),
   });
 });
 
@@ -14614,7 +14699,8 @@ app.put("/api/users/self", requireAuth, (req, res) => {
   const existing = users[index];
   const ownerIds = loadOwnerIds().map((id) => String(id));
   const currentUserSnapshot = toUserApiResponse(existing, ownerIds);
-  const currentRevision = createRevisionToken(currentUserSnapshot);
+  const responseUploads = loadUploads();
+  const currentRevision = buildUserProfileRevisionToken(currentUserSnapshot, responseUploads);
   const noConflict = ensureNoEditConflict({
     req,
     res,
@@ -14663,10 +14749,15 @@ app.put("/api/users/self", requireAuth, (req, res) => {
     after: afterSnapshot,
     changes: diffUserFields(beforeSnapshot, afterSnapshot, BASIC_PROFILE_FIELDS),
   });
-  const responseUploads = loadUploads();
   syncSessionUserDisplayProfile(req, persisted, responseUploads);
   return res.json({
-    user: withUserProfileRevision(afterSnapshot, responseUploads),
+    user: withUserProfileRevision(
+      withEffectiveAvatarUrl(
+        afterSnapshot,
+        resolveDiscordAvatarFallbackUrl(req.session?.user?.avatarUrl),
+      ),
+      responseUploads,
+    ),
   });
 });
 

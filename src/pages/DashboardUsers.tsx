@@ -85,6 +85,7 @@ type UserRecord = {
   phrase: string;
   bio: string;
   avatarUrl?: string | null;
+  revision?: string | null;
   socials?: Array<{ label: string; href: string }>;
   favoriteWorks?: FavoriteWorksByCategory;
   status: "active" | "retired";
@@ -177,6 +178,24 @@ const createEmptyForm = () => ({
   permissions: [] as string[],
   roles: [] as string[],
 });
+
+const deriveAvatarPreviewRevisionFromItem = (
+  item?: { variantsVersion?: number; createdAt?: string } | null,
+) => {
+  const variantsVersion = Number(item?.variantsVersion);
+  if (Number.isFinite(variantsVersion) && variantsVersion > 0) {
+    return `variant-${Math.floor(variantsVersion)}`;
+  }
+  const createdAt = String(item?.createdAt || "").trim();
+  if (!createdAt) {
+    return "";
+  }
+  const createdAtTimestamp = new Date(createdAt).getTime();
+  if (Number.isFinite(createdAtTimestamp) && createdAtTimestamp > 0) {
+    return `created-${createdAtTimestamp}`;
+  }
+  return `created-${createdAt}`;
+};
 
 const permissionOptions: Array<{ id: (typeof permissionIds)[number]; label: string }> = [
   { id: "posts", label: "Posts" },
@@ -423,7 +442,9 @@ const DashboardUsers = () => {
   const [ownerToggle, setOwnerToggle] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<UserRecord | null>(null);
   const [isLibraryOpen, setIsLibraryOpen] = useState(false);
-  const [avatarCacheVersion, setAvatarCacheVersion] = useState(0);
+  const [editorAvatarPreviewRevision, setEditorAvatarPreviewRevision] = useState<string | null>(
+    null,
+  );
   const [linkTypes, setLinkTypes] = useState<Array<{ id: string; label: string; icon: string }>>(
     [],
   );
@@ -508,37 +529,40 @@ const DashboardUsers = () => {
     setSocialDragIndex(null);
     setSocialDragOverIndex(null);
   }, []);
-  const bumpAvatarCacheVersion = useCallback(() => {
-    setAvatarCacheVersion((prev) => prev + 1);
-  }, []);
   const toAvatarRenderUrl = useCallback(
-    (avatarUrl: string | null | undefined) =>
-      buildAvatarRenderUrl(
-        avatarUrl,
-        128,
-        avatarCacheVersion > 0 ? String(avatarCacheVersion) : "",
-      ),
-    [avatarCacheVersion],
+    (avatarUrl: string | null | undefined, revision: string | null | undefined = "") =>
+      buildAvatarRenderUrl(avatarUrl, 128, revision),
+    [],
   );
-  const handleLibraryOpenChange = useCallback(
-    (nextOpen: boolean) => {
-      setIsLibraryOpen(nextOpen);
-      if (!nextOpen) {
-        bumpAvatarCacheVersion();
-      }
-    },
-    [bumpAvatarCacheVersion],
-  );
+  const handleLibraryOpenChange = useCallback((nextOpen: boolean) => {
+    setIsLibraryOpen(nextOpen);
+  }, []);
   const openLibrary = () => {
     setIsLibraryOpen(true);
   };
-  const handleLibrarySave = useCallback(({ urls }: { urls: string[] }) => {
-    const url = urls[0] || "";
-    setFormState((prev) => ({
-      ...prev,
-      avatarUrl: url,
-    }));
-  }, []);
+  const handleLibrarySave = useCallback(
+    ({
+      urls,
+      items,
+    }: {
+      urls: string[];
+      items?: Array<{ variantsVersion?: number; createdAt?: string }> | undefined;
+    }) => {
+      const url = urls[0] || "";
+      const selectedItem = Array.isArray(items) ? items[0] || null : null;
+      setFormState((prev) => ({
+        ...prev,
+        avatarUrl: url,
+      }));
+      setEditorAvatarPreviewRevision((prev) => {
+        if (!url) {
+          return null;
+        }
+        return deriveAvatarPreviewRevisionFromItem(selectedItem) || prev || null;
+      });
+    },
+    [],
+  );
   const openEditDialog = useCallback(
     (user: UserRecord) => {
       const normalizedPermissions = Array.from(
@@ -564,6 +588,7 @@ const DashboardUsers = () => {
         permissions: normalizedPermissions,
         roles: normalizedRoles ? [...normalizedRoles] : [],
       });
+      setEditorAvatarPreviewRevision(user.revision || null);
       setOwnerToggle(isOwnerUser(user));
       setEditorAccordionValue(
         getDefaultUserEditorAccordionValue(Boolean(currentUser && user.id === currentUser.id)),
@@ -964,6 +989,7 @@ const DashboardUsers = () => {
   const openNewDialog = () => {
     setEditingUser(null);
     setFormState({ ...createEmptyForm(), accessRole: "normal", permissions: [] });
+    setEditorAvatarPreviewRevision(null);
     setOwnerToggle(false);
     clearSocialDragState();
     setEditorAccordionValue(getDefaultUserEditorAccordionValue(false));
@@ -1096,6 +1122,7 @@ const DashboardUsers = () => {
       } else {
         setUsers((prev) => [...prev, data.user]);
       }
+      setEditorAvatarPreviewRevision(data.user?.revision || null);
       if (isSelfSave) {
         setCurrentUser((prev) =>
           prev
@@ -1113,7 +1140,6 @@ const DashboardUsers = () => {
           accessRole: "normal",
         }));
       }
-      bumpAvatarCacheVersion();
       setIsDialogOpen(false);
       toast({
         title: editingUser ? "Usuário atualizado" : "Usuário criado",
@@ -1506,7 +1532,7 @@ const DashboardUsers = () => {
                             ) : null}
                             <div className="pointer-events-none flex gap-4">
                             <DashboardAvatar
-                              avatarUrl={toAvatarRenderUrl(user.avatarUrl)}
+                              avatarUrl={toAvatarRenderUrl(user.avatarUrl, user.revision)}
                               name={user.name}
                               sizeClassName="h-14 w-14"
                               frameClassName="border border-border/60 bg-card/60"
@@ -1626,7 +1652,7 @@ const DashboardUsers = () => {
                               ) : null}
                               <div className="pointer-events-none flex gap-4">
                               <DashboardAvatar
-                                avatarUrl={toAvatarRenderUrl(user.avatarUrl)}
+                                avatarUrl={toAvatarRenderUrl(user.avatarUrl, user.revision)}
                                 name={user.name}
                                 sizeClassName="h-14 w-14"
                                 frameClassName="border border-border/60 bg-card/60"
@@ -1721,7 +1747,7 @@ const DashboardUsers = () => {
           currentSelectionUrls={formState.avatarUrl ? [formState.avatarUrl] : undefined}
           scopeUserId={isEditingSelf ? currentUser?.id : undefined}
           allowUploadManagementActions={actorCanUploadManagement}
-          onSave={({ urls }) => handleLibrarySave({ urls })}
+          onSave={({ urls, items }) => handleLibrarySave({ urls, items })}
         />
       </Suspense>
 
@@ -1933,7 +1959,7 @@ const DashboardUsers = () => {
               <div className="flex flex-wrap items-center gap-3">
                 {formState.avatarUrl ? (
                   <DashboardAvatar
-                    avatarUrl={toAvatarRenderUrl(formState.avatarUrl)}
+                    avatarUrl={toAvatarRenderUrl(formState.avatarUrl, editorAvatarPreviewRevision)}
                     name={formState.name || "Avatar"}
                     sizeClassName="h-12 w-12"
                     frameClassName="border border-border/60 bg-card/60"

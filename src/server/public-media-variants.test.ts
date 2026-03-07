@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import {
   resolveHomeHeroPreloadFromSlide,
   sanitizePublicMediaVariantEntry,
+  shouldExposePublicUploadInMediaVariants,
 } from "../../server/lib/public-media-variants.js";
 
 const tempRoots: string[] = [];
@@ -106,5 +107,22 @@ describe("public media variants", () => {
       as: "image",
       fetchpriority: "high",
     });
+  });
+
+  it("permite variants privadas de users apenas para avatares explicitamente publicados na equipe", () => {
+    expect(
+      shouldExposePublicUploadInMediaVariants({
+        uploadUrl: "/uploads/users/team-1.png",
+        folder: "users",
+        allowPrivateUrls: ["/uploads/users/team-1.png"],
+      }),
+    ).toBe(true);
+    expect(
+      shouldExposePublicUploadInMediaVariants({
+        uploadUrl: "/uploads/users/team-2.png",
+        folder: "users",
+        allowPrivateUrls: ["/uploads/users/team-1.png"],
+      }),
+    ).toBe(false);
   });
 });

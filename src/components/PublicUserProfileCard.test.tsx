@@ -95,4 +95,51 @@ describe("PublicUserProfileCard", () => {
       "/api/public/discord-avatar/123456789/avatar_hash.png?size=256",
     );
   });
+
+  it("prefere a variante AVIF quadrada quando o avatar publico da equipe a expõe", () => {
+    const { container } = render(
+      <PublicUserProfileCard
+        member={{
+          id: "member-1",
+          name: "Admin",
+          avatarUrl: "/uploads/users/admin.png",
+          phrase: "Frase",
+          bio: "Bio",
+          roles: [],
+          favoriteWorks: {
+            manga: [],
+            anime: [],
+          },
+          socials: [],
+          status: "active",
+        }}
+        linkTypes={[]}
+        mediaVariants={{
+          "/uploads/users/admin.png": {
+            variantsVersion: 2,
+            variants: {
+              square: {
+                width: 512,
+                height: 512,
+                formats: {
+                  avif: {
+                    url: "/uploads/_variants/u-1/square-v2.avif",
+                  },
+                  fallback: {
+                    url: "/uploads/_variants/u-1/square-v2.png",
+                  },
+                },
+              },
+            },
+          },
+        }}
+      />,
+    );
+
+    const avifSource = container.querySelector('source[type="image/avif"]');
+    expect(avifSource).toHaveAttribute(
+      "srcset",
+      "http://localhost:3000/uploads/_variants/u-1/square-v2.avif 512w",
+    );
+  });
 });
