@@ -51,6 +51,12 @@ describe("PublicUserProfileCard", () => {
       "flex-col",
       "gap-4",
     );
+    expect((favoriteFrame as HTMLElement).querySelector(".team-member-panel--bio")).not.toHaveClass(
+      "flex",
+    );
+    expect(
+      (favoriteFrame as HTMLElement).querySelector(".team-member-panel--favorites"),
+    ).not.toHaveClass("flex");
 
     const toggleButton = within(favoriteFrame as HTMLElement).getByRole("button", {
       name: "Ver obras favoritas",

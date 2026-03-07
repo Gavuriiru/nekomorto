@@ -150,5 +150,7 @@ describe("Team favorite works layout", () => {
     expect(panelShell).not.toBeNull();
     expect(bioPanel).not.toBeNull();
     expect(favoritesPanel).not.toBeNull();
+    expect(bioPanel).not.toHaveClass("flex");
+    expect(favoritesPanel).not.toHaveClass("flex");
   });
 });

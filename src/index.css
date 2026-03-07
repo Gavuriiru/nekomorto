@@ -389,6 +389,10 @@
     transition: opacity 200ms ease, transform 200ms ease;
   }
 
+  .team-member-panel--bio {
+    display: flex;
+  }
+
   .team-member-panel--favorites {
     display: none;
   }

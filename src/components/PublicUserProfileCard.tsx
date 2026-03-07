@@ -377,7 +377,7 @@ const PublicUserProfileCard = ({
             ) : null}
 
             <div className="team-member-panel-shell flex flex-col gap-4">
-              <div className="team-member-panel team-member-panel--bio flex flex-col gap-4">
+              <div className="team-member-panel team-member-panel--bio flex-col gap-4">
                 <p
                   className={cn(
                     "rounded-2xl border px-3 py-2 text-xs italic leading-6",
@@ -397,7 +397,7 @@ const PublicUserProfileCard = ({
               </div>
 
               {hasFavoriteWorks ? (
-                <div className="team-member-panel team-member-panel--favorites flex flex-col gap-3">
+                <div className="team-member-panel team-member-panel--favorites flex-col gap-3">
                   <p className="text-xs font-semibold uppercase tracking-[0.14em] text-primary/90">
                     Obras favoritas
                   </p>
