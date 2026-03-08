@@ -901,10 +901,27 @@ export class DbDataRepository {
   writeUpdates(updates) {
     const previousUpdates = cloneValue(this.snapshot.updates);
     const nextUpdates = cloneValue(ensureArray(updates));
+    const references = {
+      projects: cloneValue(this.snapshot.projects),
+    };
     this.snapshot.updates = nextUpdates;
     this.enqueuePersist("updates", async () => {
       if (this.normalizedSchemaAvailable) {
-        await syncUpdatesToNormalized(prisma, previousUpdates, nextUpdates);
+        const normalizedResult = await syncUpdatesToNormalized(
+          prisma,
+          previousUpdates,
+          nextUpdates,
+          references,
+        );
+        if (
+          Array.isArray(normalizedResult?.quarantined) &&
+          normalizedResult.quarantined.length > 0
+        ) {
+          this.reportError(
+            "updates_v2_quarantine",
+            new Error(`quarantined=${normalizedResult.quarantined.length}`),
+          );
+        }
       }
       const rows = nextUpdates.map((update, index) => ({
         id: String(update?.id || crypto.randomUUID()),

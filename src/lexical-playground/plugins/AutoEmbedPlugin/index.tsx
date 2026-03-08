@@ -6,7 +6,7 @@
  *
  */
 
-import type {LexicalEditor} from 'lexical';
+import type {LexicalCommand, LexicalEditor} from 'lexical';
 import type {JSX} from 'react';
 
 import {
@@ -17,13 +17,21 @@ import {
   URL_MATCHER,
 } from '@lexical/react/LexicalAutoEmbedPlugin';
 import {useLexicalComposerContext} from '@lexical/react/LexicalComposerContext';
-import {useMemo, useState} from 'react';
+import {
+  COMMAND_PRIORITY_EDITOR,
+  createCommand,
+} from 'lexical';
+import {useCallback, useEffect, useMemo, useState} from 'react';
 import * as React from 'react';
 import * as ReactDOM from 'react-dom';
 
 import useModal from '../../hooks/useModal';
 import Button from '../../ui/Button';
 import {DialogActions} from '../../ui/Dialog';
+import {
+  restoreSelectionForInsertion,
+  type RangeSelectionSnapshot,
+} from '../ImagesPlugin/selectionSnapshot';
 import {INSERT_TWEET_COMMAND} from '../TwitterPlugin';
 import {INSERT_YOUTUBE_COMMAND} from '../YouTubePlugin';
 
@@ -119,6 +127,14 @@ export const EmbedConfigs = [
   YoutubeEmbedConfig,
 ];
 
+type OpenEmbedModalCommandPayload = Readonly<{
+  selectionSnapshot?: RangeSelectionSnapshot | null;
+  type: PlaygroundEmbedConfig['type'];
+}>;
+
+export const OPEN_EMBED_MODAL_WITH_SELECTION_COMMAND: LexicalCommand<OpenEmbedModalCommandPayload> =
+  createCommand('OPEN_EMBED_MODAL_WITH_SELECTION_COMMAND');
+
 function AutoEmbedMenuItem({
   index,
   isSelected,
@@ -194,9 +210,11 @@ const debounce = (callback: (text: string) => void, delay: number) => {
 export function AutoEmbedDialog({
   embedConfig,
   onClose,
+  selectionSnapshot,
 }: {
   embedConfig: PlaygroundEmbedConfig;
   onClose: () => void;
+  selectionSnapshot?: RangeSelectionSnapshot | null;
 }): JSX.Element {
   const [text, setText] = useState('');
   const [editor] = useLexicalComposerContext();
@@ -221,7 +239,10 @@ export function AutoEmbedDialog({
 
   const onClick = () => {
     if (embedResult != null) {
-      embedConfig.insertNode(editor, embedResult);
+      editor.update(() => {
+        restoreSelectionForInsertion(selectionSnapshot);
+        embedConfig.insertNode(editor, embedResult);
+      });
       onClose();
     }
   };
@@ -255,13 +276,43 @@ export function AutoEmbedDialog({
 }
 
 export default function AutoEmbedPlugin(): JSX.Element {
+  const [editor] = useLexicalComposerContext();
   const [modal, showModal] = useModal();
 
-  const openEmbedModal = (embedConfig: PlaygroundEmbedConfig) => {
-    showModal(`Embed ${embedConfig.contentName}`, (onClose) => (
-      <AutoEmbedDialog embedConfig={embedConfig} onClose={onClose} />
-    ));
-  };
+  const openEmbedModal = useCallback(
+    (
+      embedConfig: PlaygroundEmbedConfig,
+      selectionSnapshot?: RangeSelectionSnapshot | null,
+    ) => {
+      showModal(`Embed ${embedConfig.contentName}`, (onClose) => (
+        <AutoEmbedDialog
+          embedConfig={embedConfig}
+          onClose={onClose}
+          selectionSnapshot={selectionSnapshot}
+        />
+      ));
+    },
+    [showModal],
+  );
+
+  useEffect(() => {
+    return editor.registerCommand<OpenEmbedModalCommandPayload>(
+      OPEN_EMBED_MODAL_WITH_SELECTION_COMMAND,
+      (payload) => {
+        const embedConfig = EmbedConfigs.find(
+          (config) => config.type === payload.type,
+        );
+
+        if (!embedConfig) {
+          return false;
+        }
+
+        openEmbedModal(embedConfig, payload.selectionSnapshot);
+        return true;
+      },
+      COMMAND_PRIORITY_EDITOR,
+    );
+  }, [editor, openEmbedModal]);
 
   const getMenuOptions = (
     activeEmbedConfig: PlaygroundEmbedConfig,

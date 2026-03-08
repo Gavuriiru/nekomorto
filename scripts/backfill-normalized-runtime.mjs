@@ -105,6 +105,20 @@ const loadLegacyState = async () => {
 
 const buildIntegrityReport = (legacy) => {
   const knownUserIds = new Set(ensureArray(legacy.users).map((entry) => String(entry?.id || "")));
+  const uploadHashBuckets = new Map();
+  ensureArray(legacy.uploads).forEach((entry) => {
+    const hash = String(entry?.hashSha256 || "").trim();
+    if (!hash) {
+      return;
+    }
+    const bucket = uploadHashBuckets.get(hash) || [];
+    bucket.push({
+      id: String(entry?.id || ""),
+      url: String(entry?.url || ""),
+      fileName: String(entry?.fileName || ""),
+    });
+    uploadHashBuckets.set(hash, bucket);
+  });
   return {
     orphanOwnerIds: ensureArray(legacy.ownerIds).filter((userId) => !knownUserIds.has(userId)),
     orphanAllowedUsers: ensureArray(legacy.allowedUsers).filter((userId) => !knownUserIds.has(userId)),
@@ -112,6 +126,12 @@ const buildIntegrityReport = (legacy) => {
     orphanSessionUsers: ensureArray(legacy.userSessionIndex)
       .filter((entry) => entry?.userId && !knownUserIds.has(String(entry.userId)))
       .map((entry) => cloneValue(entry)),
+    duplicateUploadHashes: Array.from(uploadHashBuckets.entries())
+      .filter(([, entries]) => entries.length > 1)
+      .map(([hash, entries]) => ({
+        hash,
+        entries: cloneValue(entries),
+      })),
   };
 };
 
@@ -140,13 +160,16 @@ const main = async () => {
 
   if (domains.includes("uploads")) {
     const previous = await loadUploadsFromNormalized(prisma);
-    await syncUploadsToNormalized(prisma, previous, legacy.uploads);
+    const result = await syncUploadsToNormalized(prisma, previous, legacy.uploads);
     await upsertNormalizedRuntimeState(prisma, "uploads", {
       status: "ready",
       rowCount: legacy.uploads.length,
       quarantineCount: 0,
       checksum: checksum(legacy.uploads),
-      data: { backfilledAt: new Date().toISOString() },
+      data: {
+        backfilledAt: new Date().toISOString(),
+        deduplicatedHashCount: Number(result?.deduplicatedHashCount || 0),
+      },
     });
   }
 
@@ -188,11 +211,18 @@ const main = async () => {
 
   if (domains.includes("updates")) {
     const previous = await loadUpdatesFromNormalized(prisma);
-    await syncUpdatesToNormalized(prisma, previous, legacy.updates);
+    const loadedProjects = domains.includes("projects")
+      ? legacy.projects
+      : await loadProjectsFromNormalized(prisma);
+    const normalizedProjects = loadedProjects.length > 0 ? loadedProjects : legacy.projects;
+    const result = await syncUpdatesToNormalized(prisma, previous, legacy.updates, {
+      projects: normalizedProjects,
+    });
+    report.quarantine.updates = cloneValue(result.quarantined || []);
     await upsertNormalizedRuntimeState(prisma, "updates", {
       status: "ready",
-      rowCount: legacy.updates.length,
-      quarantineCount: 0,
+      rowCount: legacy.updates.length - ensureArray(result.quarantined).length,
+      quarantineCount: ensureArray(result.quarantined).length,
       checksum: checksum(legacy.updates),
       data: { backfilledAt: new Date().toISOString() },
     });

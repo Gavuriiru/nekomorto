@@ -1,11 +1,33 @@
 import type { ReactNode } from "react";
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { MemoryRouter, useLocation } from "react-router-dom";
 import { describe, expect, it, vi } from "vitest";
 
 import DashboardPosts from "@/pages/DashboardPosts";
 
-const apiFetchMock = vi.hoisted(() => vi.fn());
+const { apiFetchMock, resizeObserverInstances } = vi.hoisted(() => ({
+  apiFetchMock: vi.fn(),
+  resizeObserverInstances: [] as Array<{
+    callback: ResizeObserverCallback;
+    disconnect: ReturnType<typeof vi.fn>;
+    observe: ReturnType<typeof vi.fn>;
+  }>,
+}));
+
+class ResizeObserverMock {
+  observe = vi.fn();
+  disconnect = vi.fn();
+
+  constructor(callback: ResizeObserverCallback) {
+    resizeObserverInstances.push({
+      callback,
+      disconnect: this.disconnect,
+      observe: this.observe,
+    });
+  }
+}
+
+vi.stubGlobal("ResizeObserver", ResizeObserverMock);
 
 vi.mock("@/components/DashboardShell", () => ({
   default: ({ children }: { children: ReactNode }) => <div>{children}</div>,
@@ -104,6 +126,7 @@ const setupApiMock = ({
   versionsResponse?: { versions?: unknown[]; nextCursor?: string | null } | "error";
 }) => {
   apiFetchMock.mockReset();
+  resizeObserverInstances.length = 0;
   apiFetchMock.mockImplementation(async (_base: string, path: string, options?: RequestInit) => {
     const method = String(options?.method || "GET").toUpperCase();
 
@@ -149,6 +172,18 @@ const LocationProbe = () => {
 };
 
 const classTokens = (element: HTMLElement) => String(element.className).split(/\s+/).filter(Boolean);
+const createDomRect = (height: number): DOMRect =>
+  ({
+    bottom: height,
+    height,
+    left: 0,
+    right: 0,
+    toJSON: () => ({}),
+    top: 0,
+    width: 0,
+    x: 0,
+    y: 0,
+  }) as DOMRect;
 
 describe("DashboardPosts edit query", () => {
   it("abre criacao automaticamente com ?edit=new e limpa a query", async () => {
@@ -308,18 +343,45 @@ describe("DashboardPosts edit query", () => {
     });
 
     const editorDialog = document.querySelector(".project-editor-dialog") as HTMLElement | null;
+    const editorScrollShell = document.querySelector(
+      ".project-editor-scroll-shell",
+    ) as HTMLElement | null;
     const editorTop = document.querySelector(".project-editor-top") as HTMLElement | null;
     const editorFooter = document.querySelector(".project-editor-footer") as HTMLElement | null;
+    const editorHeader = editorTop?.firstElementChild as HTMLElement | null;
+    const editorStatusBar = editorTop?.lastElementChild as HTMLElement | null;
+    const editorLayout = document.querySelector(".project-editor-layout") as HTMLElement | null;
+    const editorSectionContent = document.querySelector(
+      ".project-editor-section-content",
+    ) as HTMLElement | null;
 
     expect(editorDialog).not.toBeNull();
+    expect(editorScrollShell).not.toBeNull();
     expect(editorTop).not.toBeNull();
     expect(editorFooter).not.toBeNull();
+    expect(editorHeader).not.toBeNull();
+    expect(editorStatusBar).not.toBeNull();
+    expect(editorLayout).not.toBeNull();
+    expect(editorSectionContent).not.toBeNull();
+    expect(document.querySelector(".project-editor-dialog-surface")).toBeNull();
+    expect(classTokens(editorScrollShell as HTMLElement)).toContain("overflow-y-auto");
+    expect(classTokens(editorScrollShell as HTMLElement)).not.toContain("max-h-[94vh]");
     expect(classTokens(editorTop as HTMLElement)).toContain("sticky");
     expect(classTokens(editorFooter as HTMLElement)).toContain("sticky");
+    expect(classTokens(editorHeader as HTMLElement)).toContain("pt-3.5");
+    expect(classTokens(editorHeader as HTMLElement)).toContain("pb-2.5");
+    expect(classTokens(editorStatusBar as HTMLElement)).toContain("py-1.5");
+    expect(classTokens(editorLayout as HTMLElement)).toContain("space-y-4");
+    expect(classTokens(editorLayout as HTMLElement)).toContain("pt-2.5");
+    expect(classTokens(editorLayout as HTMLElement)).toContain("pb-4");
+    expect(classTokens(editorFooter as HTMLElement)).toContain("py-2");
+    expect(classTokens(editorFooter as HTMLElement)).toContain("md:py-2.5");
+    expect(classTokens(editorSectionContent as HTMLElement)).toContain("pb-2.5");
     expect(screen.getByText("Postagem em edição")).toBeInTheDocument();
-    if (!editorDialog) {
+    if (!editorDialog || !editorScrollShell) {
       throw new Error("Editor dialog not found");
     }
+    expect(editorDialog.contains(editorScrollShell)).toBe(true);
     expect(within(editorDialog).getByRole("button", { name: "Cancelar" })).toBeInTheDocument();
     expect(within(editorDialog).getByRole("button", { name: "Excluir" })).toBeInTheDocument();
     expect(within(editorDialog).getByRole("button", { name: "Salvar" })).toBeInTheDocument();
@@ -328,8 +390,8 @@ describe("DashboardPosts edit query", () => {
     ).toBeInTheDocument();
     expect(editorDialog).not.toHaveClass("editor-modal-scrolled");
 
-    editorDialog.scrollTop = 24;
-    fireEvent.scroll(editorDialog);
+    editorScrollShell.scrollTop = 24;
+    fireEvent.scroll(editorScrollShell);
 
     await waitFor(() => {
       expect(editorDialog).toHaveClass("editor-modal-scrolled");
@@ -341,5 +403,58 @@ describe("DashboardPosts edit query", () => {
       expect(screen.queryByRole("heading", { name: "Editar postagem" })).not.toBeInTheDocument();
     });
     expect(document.querySelector(".project-editor-dialog.editor-modal-scrolled")).toBeNull();
+  });
+
+  it("sincroniza o offset sticky do lexical com a altura da barra superior do modal", async () => {
+    setupApiMock({ canManagePosts: true });
+
+    render(
+      <MemoryRouter initialEntries={["/dashboard/posts?edit=post-1"]}>
+        <DashboardPosts />
+        <LocationProbe />
+      </MemoryRouter>,
+    );
+
+    await screen.findByRole("heading", { name: "Gerenciar posts" });
+    await screen.findByRole("heading", { name: "Editar postagem" });
+
+    const editorTop = document.querySelector(".project-editor-top") as HTMLElement | null;
+    const lexicalWrapper = document.querySelector(".post-editor-lexical-wrapper") as HTMLElement | null;
+
+    expect(editorTop).not.toBeNull();
+    expect(lexicalWrapper).not.toBeNull();
+    if (!editorTop || !lexicalWrapper) {
+      throw new Error("Required post editor elements not found");
+    }
+
+    const resizeObserverInstance = resizeObserverInstances.at(-1);
+    expect(resizeObserverInstance).toBeDefined();
+
+    const getBoundingClientRectSpy = vi.spyOn(editorTop, "getBoundingClientRect");
+    getBoundingClientRectSpy.mockReturnValue(createDomRect(96));
+
+    await act(async () => {
+      resizeObserverInstance?.callback(
+        [{ target: editorTop }] as ResizeObserverEntry[],
+        {} as ResizeObserver,
+      );
+    });
+
+    await waitFor(() => {
+      expect(lexicalWrapper.style.getPropertyValue("--post-editor-toolbar-sticky-top")).toBe("101px");
+    });
+
+    getBoundingClientRectSpy.mockReturnValue(createDomRect(132));
+
+    await act(async () => {
+      resizeObserverInstance?.callback(
+        [{ target: editorTop }] as ResizeObserverEntry[],
+        {} as ResizeObserver,
+      );
+    });
+
+    await waitFor(() => {
+      expect(lexicalWrapper.style.getPropertyValue("--post-editor-toolbar-sticky-top")).toBe("137px");
+    });
   });
 });

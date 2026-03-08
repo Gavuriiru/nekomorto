@@ -9,6 +9,14 @@ const prismaMock = vi.hoisted(() => ({
     deleteMany: vi.fn(async (args: unknown) => args),
     upsert: vi.fn(async (args: unknown) => args),
   },
+  updateV2Record: {
+    deleteMany: vi.fn(async (args: unknown) => args),
+    upsert: vi.fn(async (args: unknown) => args),
+  },
+  updateRecord: {
+    deleteMany: vi.fn(async (args: unknown) => args),
+    upsert: vi.fn(async (args: unknown) => args),
+  },
   userRecord: {
     deleteMany: vi.fn(async (args: unknown) => args),
     upsert: vi.fn(async (args: unknown) => args),
@@ -60,6 +68,10 @@ describe("DbDataRepository normalized dual-write", () => {
     prismaMock.uploadRecord.upsert.mockClear();
     prismaMock.uploadV2Record.deleteMany.mockClear();
     prismaMock.uploadV2Record.upsert.mockClear();
+    prismaMock.updateV2Record.deleteMany.mockClear();
+    prismaMock.updateV2Record.upsert.mockClear();
+    prismaMock.updateRecord.deleteMany.mockClear();
+    prismaMock.updateRecord.upsert.mockClear();
     prismaMock.userRecord.deleteMany.mockClear();
     prismaMock.userRecord.upsert.mockClear();
     prismaMock.userV2Record.deleteMany.mockClear();
@@ -127,6 +139,78 @@ describe("DbDataRepository normalized dual-write", () => {
       }),
     );
     expect(prismaMock.uploadV2Record.deleteMany).not.toHaveBeenCalled();
+  });
+
+  it("nulifica hashSha256 duplicado no lote para respeitar a constraint unica", async () => {
+    const repo = createRepo();
+
+    repo.writeUploads([
+      {
+        id: "upload-1",
+        url: "/uploads/a.jpg",
+        fileName: "a.jpg",
+        folder: "posts",
+        mime: "image/jpeg",
+        hashSha256: "dup-hash",
+        createdAt: "2026-03-01T00:00:00.000Z",
+      },
+      {
+        id: "upload-2",
+        url: "/uploads/b.jpg",
+        fileName: "b.jpg",
+        folder: "posts",
+        mime: "image/jpeg",
+        hashSha256: "dup-hash",
+        createdAt: "2026-03-01T00:00:00.000Z",
+      },
+    ]);
+
+    await repo.persistQueue;
+
+    expect(prismaMock.uploadV2Record.upsert).toHaveBeenCalledTimes(2);
+    expect(prismaMock.uploadV2Record.upsert).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        create: expect.objectContaining({
+          id: "upload-1",
+          hashSha256: "dup-hash",
+        }),
+      }),
+    );
+    expect(prismaMock.uploadV2Record.upsert).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        create: expect.objectContaining({
+          id: "upload-2",
+          hashSha256: null,
+        }),
+      }),
+    );
+  });
+
+  it("quarentena updates com projectId orfao antes de tocar updates_v2", async () => {
+    const repo = createRepo();
+    repo.snapshot.projects = [{ id: "project-1", title: "Projeto 1" }];
+
+    repo.writeUpdates([
+      {
+        id: "update-1",
+        projectId: "missing-project",
+        projectTitle: "Projeto perdido",
+        episodeNumber: "1",
+        kind: "release",
+        reason: "new_episode",
+        unit: "episode",
+        image: "",
+        updatedAt: "2026-03-01T00:00:00.000Z",
+      },
+    ]);
+
+    await repo.persistQueue;
+
+    expect(prismaMock.updateV2Record.upsert).not.toHaveBeenCalled();
+    expect(repo.health.lastPersistErrorLabel).toBe("updates_v2_quarantine");
+    expect(String(repo.health.lastPersistErrorMessage || "")).toContain("quarantined=1");
   });
 
   it("faz upsert incremental em users_v2 e recria apenas as tabelas-filhas do usuario alterado", async () => {

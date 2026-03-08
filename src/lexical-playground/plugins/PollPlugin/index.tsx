@@ -29,6 +29,10 @@ import {
   createPollOption,
   PollNode,
 } from '../../nodes/PollNode';
+import {
+  restoreSelectionForInsertion,
+  type RangeSelectionSnapshot,
+} from '../ImagesPlugin/selectionSnapshot';
 import Button from '../../ui/Button';
 import {DialogActions} from '../../ui/Dialog';
 import TextInput from '../../ui/TextInput';
@@ -41,17 +45,27 @@ export function InsertPollDialog({
   activeEditor,
   fallbackEditor,
   onClose,
+  selectionSnapshot,
 }: {
   activeEditor: LexicalEditor;
   fallbackEditor?: LexicalEditor;
   onClose: () => void;
+  selectionSnapshot?: RangeSelectionSnapshot | null;
 }): JSX.Element {
   const [question, setQuestion] = useState('');
 
   const onClick = () => {
-    const handled = activeEditor.dispatchCommand(INSERT_POLL_COMMAND, question);
+    let handled = false;
+    activeEditor.update(() => {
+      restoreSelectionForInsertion(selectionSnapshot);
+      handled = activeEditor.dispatchCommand(INSERT_POLL_COMMAND, question);
+    });
+
     if (!handled && fallbackEditor && fallbackEditor !== activeEditor) {
-      fallbackEditor.dispatchCommand(INSERT_POLL_COMMAND, question);
+      fallbackEditor.update(() => {
+        restoreSelectionForInsertion(null);
+        fallbackEditor.dispatchCommand(INSERT_POLL_COMMAND, question);
+      });
     }
     onClose();
   };

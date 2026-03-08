@@ -112,34 +112,80 @@ const buildRuntimeStatePayload = ({
 
 export const NORMALIZED_DOMAIN_READY = "ready";
 
+const createNormalizedRuntimeStateMap = ({
+  available = false,
+  source = "error",
+  rows = [],
+} = {}) => {
+  const state = new Map(
+    ensureArray(rows).map((row) => [
+      String(row?.domain || ""),
+      {
+        domain: String(row?.domain || ""),
+        status: String(row?.status || "pending"),
+        rowCount: row?.rowCount ?? null,
+        quarantineCount: row?.quarantineCount ?? 0,
+        checksum: row?.checksum ?? null,
+        data: cloneValue(row?.data || null),
+        updatedAt: row?.updatedAt ? new Date(row.updatedAt).toISOString() : null,
+      },
+    ]),
+  );
+  state.available = available;
+  state.source = String(source || "error");
+  return state;
+};
+
+const probeNormalizedRuntimeStateTable = async (db) => {
+  if (typeof db?.$queryRaw !== "function") {
+    return { ok: false, exists: false, source: "unsupported_client" };
+  }
+  try {
+    const rows = await db.$queryRaw`
+      SELECT to_regclass('public.normalized_runtime_state')::text AS table_name
+    `;
+    const tableName = Array.isArray(rows) ? rows[0]?.table_name ?? null : null;
+    if (tableName) {
+      return { ok: true, exists: true, source: "normalized_runtime_state" };
+    }
+    return { ok: true, exists: false, source: "missing_schema" };
+  } catch {
+    return { ok: false, exists: false, source: "error" };
+  }
+};
+
 export const loadNormalizedRuntimeStateMap = async (db) => {
   if (!hasModelMethod(db, "normalizedRuntimeStateRecord", "findMany")) {
-    const unavailable = new Map();
-    unavailable.available = false;
-    return unavailable;
+    return createNormalizedRuntimeStateMap({
+      available: false,
+      source: "unsupported_client",
+    });
+  }
+  const probe = await probeNormalizedRuntimeStateTable(db);
+  if (!probe.ok) {
+    return createNormalizedRuntimeStateMap({
+      available: false,
+      source: probe.source,
+    });
+  }
+  if (!probe.exists) {
+    return createNormalizedRuntimeStateMap({
+      available: false,
+      source: probe.source,
+    });
   }
   try {
     const rows = await db.normalizedRuntimeStateRecord.findMany({});
-    const state = new Map(
-      ensureArray(rows).map((row) => [
-        String(row?.domain || ""),
-        {
-          domain: String(row?.domain || ""),
-          status: String(row?.status || "pending"),
-          rowCount: row?.rowCount ?? null,
-          quarantineCount: row?.quarantineCount ?? 0,
-          checksum: row?.checksum ?? null,
-          data: cloneValue(row?.data || null),
-          updatedAt: row?.updatedAt ? new Date(row.updatedAt).toISOString() : null,
-        },
-      ]),
-    );
-    state.available = true;
-    return state;
+    return createNormalizedRuntimeStateMap({
+      available: true,
+      source: "normalized_runtime_state",
+      rows,
+    });
   } catch {
-    const unavailable = new Map();
-    unavailable.available = false;
-    return unavailable;
+    return createNormalizedRuntimeStateMap({
+      available: false,
+      source: "error",
+    });
   }
 };
 
@@ -385,6 +431,28 @@ const uploadRowFromEntry = (entry, index) => ({
   updatedAt: toDateOrNull(entry?.updatedAt) || toDateOrNull(entry?.createdAt) || new Date(),
 });
 
+const normalizeUploadEntriesForStorage = (entries) => {
+  const seenHashes = new Set();
+  let deduplicatedHashCount = 0;
+  const normalizedEntries = ensureArray(entries).map((entry) => {
+    const normalizedEntry = cloneValue(entry || {});
+    const normalizedHash = String(normalizedEntry?.hashSha256 || "").trim();
+    if (!normalizedHash) {
+      normalizedEntry.hashSha256 = "";
+      return normalizedEntry;
+    }
+    if (seenHashes.has(normalizedHash)) {
+      normalizedEntry.hashSha256 = "";
+      deduplicatedHashCount += 1;
+      return normalizedEntry;
+    }
+    seenHashes.add(normalizedHash);
+    normalizedEntry.hashSha256 = normalizedHash;
+    return normalizedEntry;
+  });
+  return { entries: normalizedEntries, deduplicatedHashCount };
+};
+
 export const loadUploadsFromNormalized = async (db) => {
   if (!hasModelMethod(db, "uploadV2Record", "findMany")) {
     return [];
@@ -415,11 +483,14 @@ export const loadUploadsFromNormalized = async (db) => {
 
 export const syncUploadsToNormalized = async (db, previousUploads, nextUploads) => {
   if (!hasModelMethod(db, "uploadV2Record", "upsert") || typeof db?.$transaction !== "function") {
-    return { changed: false, deleteCount: 0, upsertCount: 0 };
+    return { changed: false, deleteCount: 0, upsertCount: 0, deduplicatedHashCount: 0 };
   }
-  const { changedEntries, deletedIds } = diffCollectionsById(previousUploads, nextUploads);
+  const { entries: safePreviousUploads } = normalizeUploadEntriesForStorage(previousUploads);
+  const { entries: safeNextUploads, deduplicatedHashCount } =
+    normalizeUploadEntriesForStorage(nextUploads);
+  const { changedEntries, deletedIds } = diffCollectionsById(safePreviousUploads, safeNextUploads);
   if (changedEntries.length === 0 && deletedIds.length === 0) {
-    return { changed: false, deleteCount: 0, upsertCount: 0 };
+    return { changed: false, deleteCount: 0, upsertCount: 0, deduplicatedHashCount };
   }
   const ops = [];
   deletedIds.forEach((id) => {
@@ -436,7 +507,12 @@ export const syncUploadsToNormalized = async (db, previousUploads, nextUploads) 
     );
   });
   await db.$transaction(ops);
-  return { changed: true, deleteCount: deletedIds.length, upsertCount: changedEntries.length };
+  return {
+    changed: true,
+    deleteCount: deletedIds.length,
+    upsertCount: changedEntries.length,
+    deduplicatedHashCount,
+  };
 };
 
 const projectRowFromEntry = (entry, index) => ({
@@ -934,6 +1010,31 @@ const updateRowFromEntry = (entry, index) => ({
   updatedAt: toDateOrNull(entry?.updatedAt),
 });
 
+const normalizeUpdatesForStorage = (entries, { projects = [] } = {}) => {
+  const knownProjectIds = new Set(
+    ensureArray(projects)
+      .map((entry) => String(entry?.id || "").trim())
+      .filter(Boolean),
+  );
+  const quarantined = [];
+  const normalizedEntries = [];
+  ensureArray(entries).forEach((entry) => {
+    const normalizedEntry = cloneValue(entry || {});
+    const projectId = String(normalizedEntry?.projectId || "").trim();
+    normalizedEntry.projectId = projectId;
+    if (!projectId) {
+      quarantined.push({ reason: "missing_project_id", entry: normalizedEntry });
+      return;
+    }
+    if (!knownProjectIds.has(projectId)) {
+      quarantined.push({ reason: "missing_project", entry: normalizedEntry });
+      return;
+    }
+    normalizedEntries.push(normalizedEntry);
+  });
+  return { entries: normalizedEntries, quarantined };
+};
+
 export const loadUpdatesFromNormalized = async (db) => {
   if (!hasModelMethod(db, "updateV2Record", "findMany")) {
     return [];
@@ -952,13 +1053,18 @@ export const loadUpdatesFromNormalized = async (db) => {
   }));
 };
 
-export const syncUpdatesToNormalized = async (db, previousUpdates, nextUpdates) => {
+export const syncUpdatesToNormalized = async (db, previousUpdates, nextUpdates, references = {}) => {
   if (!hasModelMethod(db, "updateV2Record", "upsert") || typeof db?.$transaction !== "function") {
-    return { changed: false, deleteCount: 0, upsertCount: 0 };
+    return { changed: false, deleteCount: 0, upsertCount: 0, quarantined: [] };
   }
-  const { changedEntries, deletedIds } = diffCollectionsById(previousUpdates, nextUpdates);
+  const { entries: safePreviousUpdates } = normalizeUpdatesForStorage(previousUpdates, references);
+  const { entries: safeNextUpdates, quarantined } = normalizeUpdatesForStorage(
+    nextUpdates,
+    references,
+  );
+  const { changedEntries, deletedIds } = diffCollectionsById(safePreviousUpdates, safeNextUpdates);
   if (changedEntries.length === 0 && deletedIds.length === 0) {
-    return { changed: false, deleteCount: 0, upsertCount: 0 };
+    return { changed: false, deleteCount: 0, upsertCount: 0, quarantined };
   }
   const ops = [];
   deletedIds.forEach((id) => {
@@ -975,7 +1081,12 @@ export const syncUpdatesToNormalized = async (db, previousUpdates, nextUpdates) 
     );
   });
   await db.$transaction(ops);
-  return { changed: true, deleteCount: deletedIds.length, upsertCount: changedEntries.length };
+  return {
+    changed: true,
+    deleteCount: deletedIds.length,
+    upsertCount: changedEntries.length,
+    quarantined,
+  };
 };
 
 const resolveCommentTargetRefs = (comment, { posts = [], projects = [] } = {}) => {

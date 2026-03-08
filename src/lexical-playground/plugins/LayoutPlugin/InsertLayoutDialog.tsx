@@ -14,6 +14,10 @@ import {useState} from 'react';
 
 import Button from '../../ui/Button';
 import DropDown, {DropDownItem} from '../../ui/DropDown';
+import {
+  restoreSelectionForInsertion,
+  type RangeSelectionSnapshot,
+} from '../ImagesPlugin/selectionSnapshot';
 import {INSERT_LAYOUT_COMMAND} from './LayoutPlugin';
 
 const LAYOUTS = [
@@ -27,15 +31,20 @@ const LAYOUTS = [
 export default function InsertLayoutDialog({
   activeEditor,
   onClose,
+  selectionSnapshot,
 }: {
   activeEditor: LexicalEditor;
   onClose: () => void;
+  selectionSnapshot?: RangeSelectionSnapshot | null;
 }): JSX.Element {
   const [layout, setLayout] = useState(LAYOUTS[0].value);
   const buttonLabel = LAYOUTS.find((item) => item.value === layout)?.label;
 
   const onClick = () => {
-    activeEditor.dispatchCommand(INSERT_LAYOUT_COMMAND, layout);
+    activeEditor.update(() => {
+      restoreSelectionForInsertion(selectionSnapshot);
+      activeEditor.dispatchCommand(INSERT_LAYOUT_COMMAND, layout);
+    });
     onClose();
   };
 

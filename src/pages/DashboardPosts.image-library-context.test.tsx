@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import type { ReactNode } from "react";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
@@ -145,6 +147,15 @@ describe("DashboardPosts image library context", () => {
       projectImagesView: "by-project",
       currentSelectionUrls: [],
     });
+    expect(String((lexicalProps as { className?: string }).className || "")).toContain(
+      "lexical-playground--modal",
+    );
+    expect(String((lexicalProps as { className?: string }).className || "")).toContain(
+      "lexical-playground--post-editor",
+    );
+    expect(String((lexicalProps as { className?: string }).className || "")).toContain(
+      "lexical-playground--stretch",
+    );
 
     const imageLibraryProps = imageLibraryPropsSpy.mock.calls.at(-1)?.[0] as {
       uploadFolder?: string;
@@ -232,5 +243,13 @@ describe("DashboardPosts image library context", () => {
       listFolders?: string[];
     };
     expect(imageLibraryProps.listFolders).toEqual(["posts", "shared"]);
+  });
+
+  it("usa altura-base compactada no modo post-editor do lexical", () => {
+    const cssPath = resolve(process.cwd(), "src/lexical-playground/playground-overrides.css");
+    const cssSource = readFileSync(cssPath, "utf8");
+
+    expect(cssSource).toContain("min-height: 540px;");
+    expect(cssSource).toContain("min-height: 360px;");
   });
 });

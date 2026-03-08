@@ -4476,8 +4476,8 @@ const DashboardProjectsEditor = () => {
   const editorSectionClassName =
     "project-editor-section rounded-2xl border border-border/60 bg-card/70 px-4";
   const editorSectionTriggerClassName =
-    "project-editor-section-trigger py-3 text-sm font-semibold hover:no-underline";
-  const editorSectionContentClassName = "project-editor-section-content pb-4 px-1";
+    "project-editor-section-trigger py-2 text-sm font-semibold hover:no-underline";
+  const editorSectionContentClassName = "project-editor-section-content pb-2.5 px-1";
   const chapterOpenContentClassName = "project-editor-open-overflow";
   const editorProjectLabel = editingProject ? "Projeto em edição" : "Novo projeto";
   const editorProjectTitle = formState.title.trim() || "Sem título";
@@ -4592,6 +4592,7 @@ const DashboardProjectsEditor = () => {
                 {paginatedProjects.map((project, index) => (
                   <Card
                     key={project.id}
+                    data-testid={`dashboard-project-card-${project.id}`}
                     className={`${dashboardPageLayoutTokens.listCard} group overflow-hidden transition hover:border-primary/40 animate-slide-up opacity-0`}
                     style={dashboardAnimationDelay(dashboardClampedStaggerMs(index))}
                   >
@@ -4623,8 +4624,14 @@ const DashboardProjectsEditor = () => {
                             </Badge>
                           ) : null}
                         </div>
-                        <div className="flex flex-1 flex-col gap-4 p-6">
-                          <div className="flex flex-wrap items-start justify-between gap-4">
+                        <div
+                          data-slot="project-card-content"
+                          className="flex h-full min-h-0 flex-1 flex-col p-6"
+                        >
+                          <div
+                            data-slot="project-card-top"
+                            className="flex flex-wrap items-start justify-between gap-4"
+                          >
                             <div className="space-y-2">
                               <div className="flex flex-wrap items-center gap-2">
                                 <Badge variant="outline" className="text-[10px] uppercase">
@@ -4681,12 +4688,19 @@ const DashboardProjectsEditor = () => {
                             </div>
                           </div>
 
-                          <p className="text-sm text-muted-foreground line-clamp-3">
-                            {project.synopsis}
-                          </p>
+                          <div
+                            data-slot="project-card-middle"
+                            className="mt-4 flex min-h-0 flex-1 flex-col gap-4"
+                          >
+                            <p
+                              data-slot="project-card-synopsis"
+                              className="text-sm text-muted-foreground line-clamp-3"
+                            >
+                              {project.synopsis}
+                            </p>
 
                           {project.tags.length > 0 ? (
-                            <div className="flex flex-wrap gap-2">
+                            <div data-slot="project-card-tags" className="flex flex-wrap gap-2">
                               {sortByTranslatedLabel(project.tags || [], (tag) =>
                                 translateTag(tag, tagTranslationMap),
                               )
@@ -4703,7 +4717,7 @@ const DashboardProjectsEditor = () => {
                             </div>
                           ) : null}
                           {project.genres?.length ? (
-                            <div className="flex flex-wrap gap-2">
+                            <div data-slot="project-card-genres" className="flex flex-wrap gap-2">
                               {sortByTranslatedLabel(project.genres || [], (genre) =>
                                 translateGenre(genre, genreTranslationMap),
                               )
@@ -4720,7 +4734,10 @@ const DashboardProjectsEditor = () => {
                             </div>
                           ) : null}
 
-                          <div className="flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
+                          <div
+                            data-slot="project-card-meta"
+                            className="mt-auto flex flex-wrap items-center gap-4 text-xs text-muted-foreground"
+                          >
                             <span className="inline-flex items-center gap-2">
                               {project.views} visualizações
                             </span>
@@ -4731,6 +4748,7 @@ const DashboardProjectsEditor = () => {
                               ID {project.id}
                             </span>
                           </div>
+                        </div>
                         </div>
                       </div>
                     </CardContent>
@@ -4834,13 +4852,9 @@ const DashboardProjectsEditor = () => {
 
       <Dialog open={isEditorOpen} onOpenChange={handleEditorOpenChange} modal={false}>
         <DialogContent
-          className={`project-editor-dialog max-h-[94vh] max-w-[min(1520px,calc(100vw-1rem))] overflow-y-auto no-scrollbar p-0 ${
+          className={`project-editor-dialog max-w-[min(1520px,calc(100vw-1rem))] gap-0 p-0 ${
             isEditorDialogScrolled ? "editor-modal-scrolled" : ""
           }`}
-          onScroll={(event) => {
-            const nextScrolled = event.currentTarget.scrollTop > 0;
-            setIsEditorDialogScrolled((prev) => (prev === nextScrolled ? prev : nextScrolled));
-          }}
           onPointerDownOutside={(event) => {
             if (isLibraryOpen) {
               event.preventDefault();
@@ -4862,8 +4876,15 @@ const DashboardProjectsEditor = () => {
             }
           }}
         >
+          <div
+            className="project-editor-scroll-shell overflow-y-auto no-scrollbar"
+            onScroll={(event) => {
+              const nextScrolled = event.currentTarget.scrollTop > 0;
+              setIsEditorDialogScrolled((prev) => (prev === nextScrolled ? prev : nextScrolled));
+            }}
+          >
           <div className="project-editor-top sticky top-0 z-20 border-b border-border/60 bg-background/95 backdrop-blur-sm supports-backdrop-filter:bg-background/80">
-            <DialogHeader className="space-y-0 px-4 pb-4 pt-5 text-left md:px-6 lg:px-8">
+            <DialogHeader className="space-y-0 px-4 pb-2.5 pt-3.5 text-left md:px-6 lg:px-8">
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <div className="space-y-2">
                   <div className="flex flex-wrap items-center gap-2">
@@ -4884,7 +4905,7 @@ const DashboardProjectsEditor = () => {
                     manualmente.
                   </DialogDescription>
                 </div>
-                <div className="rounded-xl border border-border/60 bg-card/65 px-3 py-2 text-right">
+                <div className="rounded-xl border border-border/60 bg-card/65 px-3 py-1.5 text-right">
                   <p className="text-[11px] uppercase tracking-[0.12em] text-muted-foreground">
                     Projeto
                   </p>
@@ -4894,7 +4915,7 @@ const DashboardProjectsEditor = () => {
                 </div>
               </div>
             </DialogHeader>
-            <div className="project-editor-status-bar flex flex-wrap items-center gap-2 border-t border-border/60 px-4 py-3 md:px-6 lg:px-8">
+            <div className="project-editor-status-bar flex flex-wrap items-center gap-2 border-t border-border/60 px-4 py-1.5 md:px-6 lg:px-8">
               <Badge variant="outline" className="text-[10px] uppercase tracking-[0.12em]">
                 ID {editorProjectId}
               </Badge>
@@ -4910,12 +4931,12 @@ const DashboardProjectsEditor = () => {
             </div>
           </div>
 
-          <div className="project-editor-layout grid gap-5 px-4 pb-6 pt-4 md:gap-6 md:px-6 md:pb-7 lg:gap-7 lg:px-8">
+          <div className="project-editor-layout grid gap-3.5 px-4 pb-4 pt-2.5 md:gap-4 md:px-6 md:pb-5 lg:gap-5 lg:px-8">
             <Accordion
               type="multiple"
               value={editorAccordionValue}
               onValueChange={setEditorAccordionValue}
-              className="project-editor-accordion space-y-3"
+              className="project-editor-accordion space-y-2.5"
             >
               <AccordionItem value="importacao" className={editorSectionClassName}>
                 <AccordionTrigger className={editorSectionTriggerClassName}>
@@ -6823,11 +6844,12 @@ const DashboardProjectsEditor = () => {
               ))}
             </datalist>
           </div>
-          <div className="project-editor-footer sticky bottom-0 z-20 flex justify-end gap-3 border-t border-border/60 bg-background/95 px-4 py-3 backdrop-blur-sm supports-backdrop-filter:bg-background/80 md:px-6 md:py-4 lg:px-8">
+          <div className="project-editor-footer sticky bottom-0 z-20 flex justify-end gap-3 border-t border-border/60 bg-background/95 px-4 py-2 backdrop-blur-sm supports-backdrop-filter:bg-background/80 md:px-6 md:py-2.5 lg:px-8">
             <Button variant="ghost" onClick={requestCloseEditor}>
               Cancelar
             </Button>
             <Button onClick={handleSave}>Salvar projeto</Button>
+          </div>
           </div>
         </DialogContent>
       </Dialog>

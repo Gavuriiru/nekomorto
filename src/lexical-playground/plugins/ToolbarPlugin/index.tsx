@@ -16,7 +16,6 @@ import {
 } from '@lexical/code';
 import {$isLinkNode, TOGGLE_LINK_COMMAND} from '@lexical/link';
 import {$isListNode, ListNode} from '@lexical/list';
-import {INSERT_EMBED_COMMAND} from '@lexical/react/LexicalAutoEmbedPlugin';
 import {INSERT_HORIZONTAL_RULE_COMMAND} from '@lexical/react/LexicalHorizontalRuleNode';
 import {$isHeadingNode} from '@lexical/rich-text';
 import {
@@ -85,11 +84,19 @@ import Button from '../../ui/Button';
 import {isKeyboardInput} from '../../utils/focusUtils';
 import {getSelectedNode} from '../../utils/getSelectedNode';
 import {sanitizeUrl} from '../../utils/url';
-import {EmbedConfigs} from '../AutoEmbedPlugin';
+import {
+  EmbedConfigs,
+  OPEN_EMBED_MODAL_WITH_SELECTION_COMMAND,
+} from '../AutoEmbedPlugin';
 import {INSERT_COLLAPSIBLE_COMMAND} from '../CollapsiblePlugin';
 import {
   InsertImageDialog,
 } from '../ImagesPlugin';
+import {
+  captureCurrentRangeSelection,
+  restoreSelectionForInsertion,
+  type RangeSelectionSnapshot,
+} from '../ImagesPlugin/selectionSnapshot';
 import InsertLayoutDialog from '../LayoutPlugin/InsertLayoutDialog';
 import {InsertPollDialog} from '../PollPlugin';
 import {InsertTableDialog} from '../TablePlugin';
@@ -569,6 +576,10 @@ export default function ToolbarPlugin({
   const {toolbarState, updateToolbarState} = useToolbarState();
   const toolbarRef = useRef<HTMLDivElement | null>(null);
   const scrollRootRef = useRef<HTMLElement | Window | null>(null);
+  const imageSelectionSnapshotRef = useRef<RangeSelectionSnapshot | null>(null);
+  const insertSelectionSnapshotRef = useRef<RangeSelectionSnapshot | null>(
+    null,
+  );
   const [isToolbarCompact, setIsToolbarCompact] = useState(true);
   const [isToolbarStuck, setIsToolbarStuck] = useState(false);
   const [isImageLibraryOpen, setIsImageLibraryOpen] = useState(false);
@@ -1045,6 +1056,93 @@ export default function ToolbarPlugin({
     }
   }, [activeEditor, setIsLinkEditMode, toolbarState.isLink]);
 
+  const captureImageLibrarySelection = useCallback(
+    (event?: React.MouseEvent<HTMLButtonElement>) => {
+      event?.preventDefault();
+      imageSelectionSnapshotRef.current =
+        captureCurrentRangeSelection(activeEditor);
+    },
+    [activeEditor],
+  );
+
+  const openImageLibrary = useCallback(() => {
+    if (imageSelectionSnapshotRef.current === null) {
+      imageSelectionSnapshotRef.current =
+        captureCurrentRangeSelection(activeEditor);
+    }
+    setIsImageLibraryOpen(true);
+  }, [activeEditor]);
+
+  const captureInsertSelection = useCallback(
+    (event?: React.MouseEvent<HTMLButtonElement>) => {
+      event?.preventDefault();
+      insertSelectionSnapshotRef.current =
+        captureCurrentRangeSelection(activeEditor);
+    },
+    [activeEditor],
+  );
+
+  const takeInsertSelectionSnapshot = useCallback(() => {
+    if (insertSelectionSnapshotRef.current === null) {
+      insertSelectionSnapshotRef.current =
+        captureCurrentRangeSelection(activeEditor);
+    }
+
+    const selectionSnapshot = insertSelectionSnapshotRef.current;
+    insertSelectionSnapshotRef.current = null;
+    return selectionSnapshot;
+  }, [activeEditor]);
+
+  const openInsertTableDialog = () => {
+    const selectionSnapshot = takeInsertSelectionSnapshot();
+    showModal('Insert Table', (onClose) => (
+      <InsertTableDialog
+        activeEditor={activeEditor}
+        onClose={onClose}
+        selectionSnapshot={selectionSnapshot}
+      />
+    ));
+  };
+
+  const openInsertPollDialog = () => {
+    const selectionSnapshot = takeInsertSelectionSnapshot();
+    showModal('Inserir enquete', (onClose) => (
+      <InsertPollDialog
+        activeEditor={activeEditor}
+        fallbackEditor={editor}
+        onClose={onClose}
+        selectionSnapshot={selectionSnapshot}
+      />
+    ));
+  };
+
+  const openInsertLayoutDialog = () => {
+    const selectionSnapshot = takeInsertSelectionSnapshot();
+    showModal('Insert Columns Layout', (onClose) => (
+      <InsertLayoutDialog
+        activeEditor={activeEditor}
+        onClose={onClose}
+        selectionSnapshot={selectionSnapshot}
+      />
+    ));
+  };
+
+  const insertCollapsibleSection = () => {
+    const selectionSnapshot = takeInsertSelectionSnapshot();
+    activeEditor.update(() => {
+      restoreSelectionForInsertion(selectionSnapshot);
+      activeEditor.dispatchCommand(INSERT_COLLAPSIBLE_COMMAND, undefined);
+    });
+  };
+
+  const openToolbarEmbedModal = (type: (typeof EmbedConfigs)[number]['type']) => {
+    const selectionSnapshot = takeInsertSelectionSnapshot();
+    dispatchToolbarCommand(OPEN_EMBED_MODAL_WITH_SELECTION_COMMAND, {
+      selectionSnapshot,
+      type,
+    });
+  };
+
   const onCodeLanguageSelect = useCallback(
     (value: string) => {
       activeEditor.update(() => {
@@ -1357,8 +1455,9 @@ export default function ToolbarPlugin({
                   <span className="text">Linha horizontal</span>
                 </DropDownItem>
                 <DropDownItem
+                  onMouseDown={captureImageLibrarySelection}
                   onClick={() => {
-                    setIsImageLibraryOpen(true);
+                    openImageLibrary();
                   }}
                   className="item">
                   <i className="icon image" />
@@ -1366,49 +1465,35 @@ export default function ToolbarPlugin({
                 </DropDownItem>
                 <DropDownItem
                   onClick={() => {
-                    showModal('Insert Table', (onClose) => (
-                      <InsertTableDialog
-                        activeEditor={activeEditor}
-                        onClose={onClose}
-                      />
-                    ));
+                    openInsertTableDialog();
                   }}
+                  onMouseDown={captureInsertSelection}
                   className="item">
                   <i className="icon table" />
                   <span className="text">Tabela</span>
                 </DropDownItem>
                 <DropDownItem
                   onClick={() => {
-                    showModal('Inserir enquete', (onClose) => (
-                      <InsertPollDialog
-                        activeEditor={activeEditor}
-                        fallbackEditor={editor}
-                        onClose={onClose}
-                      />
-                    ));
+                    openInsertPollDialog();
                   }}
+                  onMouseDown={captureInsertSelection}
                   className="item">
                   <i className="icon poll" />
                   <span className="text">Enquete</span>
                 </DropDownItem>
                 <DropDownItem
                   onClick={() => {
-                    showModal('Insert Columns Layout', (onClose) => (
-                      <InsertLayoutDialog
-                        activeEditor={activeEditor}
-                        onClose={onClose}
-                      />
-                    ));
+                    openInsertLayoutDialog();
                   }}
+                  onMouseDown={captureInsertSelection}
                   className="item">
                   <i className="icon columns" />
                   <span className="text">Layout de colunas</span>
                 </DropDownItem>
 
                 <DropDownItem
-                  onClick={() =>
-                    dispatchToolbarCommand(INSERT_COLLAPSIBLE_COMMAND)
-                  }
+                  onClick={() => insertCollapsibleSection()}
+                  onMouseDown={captureInsertSelection}
                   className="item">
                   <i className="icon caret-right" />
                   <span className="text">Seção recolhível</span>
@@ -1416,12 +1501,8 @@ export default function ToolbarPlugin({
                 {EmbedConfigs.map((embedConfig) => (
                   <DropDownItem
                     key={embedConfig.type}
-                    onClick={() =>
-                      dispatchToolbarCommand(
-                        INSERT_EMBED_COMMAND,
-                        embedConfig.type,
-                      )
-                    }
+                    onClick={() => openToolbarEmbedModal(embedConfig.type)}
+                    onMouseDown={captureInsertSelection}
                     className="item">
                     {embedConfig.icon}
                     <span className="text">{embedConfig.contentName}</span>
@@ -1460,8 +1541,12 @@ export default function ToolbarPlugin({
       {isImageLibraryOpen ? (
         <InsertImageDialog
           activeEditor={activeEditor}
-          onClose={() => setIsImageLibraryOpen(false)}
+          onClose={() => {
+            imageSelectionSnapshotRef.current = null;
+            setIsImageLibraryOpen(false);
+          }}
           imageLibraryOptions={imageLibraryOptions}
+          selectionSnapshot={imageSelectionSnapshotRef.current}
         />
       ) : null}
     </div>

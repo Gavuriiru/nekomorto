@@ -382,15 +382,50 @@ describe("DashboardProjectsEditor edit query", () => {
     });
 
     const editorDialog = document.querySelector(".project-editor-dialog") as HTMLElement | null;
+    const editorScrollShell = document.querySelector(
+      ".project-editor-scroll-shell",
+    ) as HTMLElement | null;
+    const editorTop = document.querySelector(".project-editor-top") as HTMLElement | null;
+    const editorFooter = document.querySelector(".project-editor-footer") as HTMLElement | null;
+    const editorHeader = editorTop?.firstElementChild as HTMLElement | null;
+    const editorStatusBar = editorTop?.lastElementChild as HTMLElement | null;
+    const editorLayout = document.querySelector(".project-editor-layout") as HTMLElement | null;
+    const editorSectionContent = document.querySelector(
+      ".project-editor-section-content",
+    ) as HTMLElement | null;
+    const editorAccordion = document.querySelector(".project-editor-accordion") as HTMLElement | null;
     expect(editorDialog).not.toBeNull();
+    expect(editorScrollShell).not.toBeNull();
+    expect(editorHeader).not.toBeNull();
+    expect(editorStatusBar).not.toBeNull();
+    expect(editorLayout).not.toBeNull();
+    expect(editorSectionContent).not.toBeNull();
+    expect(editorAccordion).not.toBeNull();
+    expect(editorTop?.className).toContain("sticky");
+    expect(editorFooter?.className).toContain("sticky");
+    expect(document.querySelector(".project-editor-dialog-surface")).toBeNull();
+    expect(editorScrollShell?.className).toContain("overflow-y-auto");
+    expect(editorScrollShell?.className).not.toContain("max-h-[94vh]");
+    expect(editorHeader?.className).toContain("pt-3.5");
+    expect(editorHeader?.className).toContain("pb-2.5");
+    expect(editorStatusBar?.className).toContain("py-1.5");
+    expect(editorLayout?.className).toContain("gap-3.5");
+    expect(editorLayout?.className).toContain("pt-2.5");
+    expect(editorLayout?.className).toContain("pb-4");
+    expect(editorFooter?.className).toContain("py-2");
+    expect(editorFooter?.className).toContain("md:py-2.5");
+    expect(editorSectionContent?.className).toContain("pb-2.5");
+    expect(editorAccordion?.className).toContain("space-y-2.5");
     expect(editorDialog).not.toHaveClass("editor-modal-scrolled");
 
-    if (!editorDialog) {
+    if (!editorDialog || !editorScrollShell) {
       throw new Error("Editor dialog not found");
     }
 
-    editorDialog.scrollTop = 24;
-    fireEvent.scroll(editorDialog);
+    expect(editorDialog.contains(editorScrollShell)).toBe(true);
+
+    editorScrollShell.scrollTop = 24;
+    fireEvent.scroll(editorScrollShell);
 
     await waitFor(() => {
       expect(editorDialog).toHaveClass("editor-modal-scrolled");

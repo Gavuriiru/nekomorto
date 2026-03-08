@@ -15,18 +15,11 @@ import {
   TOGGLE_LINK_COMMAND,
 } from '@lexical/link';
 import {useLexicalComposerContext} from '@lexical/react/LexicalComposerContext';
+import {$findMatchingParent, mergeRegister} from '@lexical/utils';
 import {
-  $findMatchingParent,
-  $wrapNodeInElement,
-  mergeRegister,
-} from '@lexical/utils';
-import {
-  $createParagraphNode,
   $createRangeSelection,
   $getSelection,
-  $insertNodes,
   $isNodeSelection,
-  $isRootOrShadowRoot,
   $setSelection,
   COMMAND_PRIORITY_EDITOR,
   COMMAND_PRIORITY_HIGH,
@@ -47,13 +40,15 @@ import ImageLibraryDialog from '@/components/ImageLibraryDialog';
 import type {ImageLibraryOptions} from '@/components/ImageLibraryDialog';
 import {getApiBase} from '@/lib/api-base';
 import {
-  $createImageNode,
   $isImageNode,
   ImageNode,
-  ImagePayload,
 } from '../../nodes/ImageNode';
-
-export type InsertImagePayload = Readonly<ImagePayload>;
+import {
+  insertImagePayloadAtCurrentSelection,
+  insertImagesIntoEditor,
+  type InsertImagePayload,
+} from './imageInsertion';
+import type {RangeSelectionSnapshot} from './selectionSnapshot';
 
 export const INSERT_IMAGE_COMMAND: LexicalCommand<InsertImagePayload> =
   createCommand('INSERT_IMAGE_COMMAND');
@@ -81,21 +76,24 @@ export function InsertImageDialog({
   activeEditor,
   onClose,
   imageLibraryOptions,
+  selectionSnapshot,
 }: {
   activeEditor: LexicalEditor;
   onClose: () => void;
   imageLibraryOptions?: ImageLibraryOptions;
+  selectionSnapshot?: RangeSelectionSnapshot | null;
 }): JSX.Element {
   const apiBase = getApiBase();
-  const initialSelectionComparableSet = React.useMemo(
-    () =>
-      new Set(
-        (Array.isArray(imageLibraryOptions?.currentSelectionUrls) ? imageLibraryOptions.currentSelectionUrls : [])
-          .map((url) => normalizeComparableUploadUrl(url))
-          .filter(Boolean),
-      ),
-    [imageLibraryOptions?.currentSelectionUrls],
-  );
+  const initialSelectionComparableSet = React.useMemo(() => {
+    return new Set(
+      (Array.isArray(imageLibraryOptions?.currentSelectionUrls)
+        ? imageLibraryOptions.currentSelectionUrls
+        : []
+      )
+        .map((url) => normalizeComparableUploadUrl(url))
+        .filter(Boolean),
+    );
+  }, [imageLibraryOptions?.currentSelectionUrls]);
 
   return (
     <ImageLibraryDialog
@@ -118,28 +116,55 @@ export function InsertImageDialog({
       mode="multiple"
       allowDeselect
       onSave={({items}) => {
-        const insertedComparableSet = new Set<string>();
-        items.forEach((item) => {
-          const comparable = normalizeComparableUploadUrl(item.url);
-          if (!comparable) {
-            return;
-          }
-          if (initialSelectionComparableSet.has(comparable)) {
-            return;
-          }
-          if (insertedComparableSet.has(comparable)) {
-            return;
-          }
-          insertedComparableSet.add(comparable);
-          activeEditor.dispatchCommand(INSERT_IMAGE_COMMAND, {
-            altText: String(item.name || item.label || item.url || 'Imagem'),
-            src: item.url,
-          });
-        });
+        const payloads = getNewImageInsertPayloads(
+          items,
+          initialSelectionComparableSet,
+        );
+
+        if (payloads.length === 0) {
+          return;
+        }
+
+        insertImagesIntoEditor(activeEditor, payloads, selectionSnapshot);
       }}
     />
   );
 }
+
+type ImageLibraryInsertItem = {
+  label?: string;
+  name?: string;
+  url: string;
+};
+
+export const getNewImageInsertPayloads = (
+  items: readonly ImageLibraryInsertItem[],
+  initialSelectionComparableSet: ReadonlySet<string>,
+): InsertImagePayload[] => {
+  const insertedComparableSet = new Set<string>();
+  const payloads: InsertImagePayload[] = [];
+
+  items.forEach((item) => {
+    const comparable = normalizeComparableUploadUrl(item.url);
+    if (!comparable) {
+      return;
+    }
+    if (initialSelectionComparableSet.has(comparable)) {
+      return;
+    }
+    if (insertedComparableSet.has(comparable)) {
+      return;
+    }
+
+    insertedComparableSet.add(comparable);
+    payloads.push({
+      altText: String(item.name || item.label || item.url || 'Imagem'),
+      src: item.url,
+    });
+  });
+
+  return payloads;
+};
 
 export default function ImagesPlugin({
   captionsEnabled,
@@ -159,12 +184,7 @@ export default function ImagesPlugin({
       editor.registerCommand<InsertImagePayload>(
         INSERT_IMAGE_COMMAND,
         (payload) => {
-          const imageNode = $createImageNode(payload);
-          $insertNodes([imageNode]);
-          if ($isRootOrShadowRoot(imageNode.getParentOrThrow())) {
-            $wrapNodeInElement(imageNode, $createParagraphNode).selectEnd();
-          }
-
+          insertImagePayloadAtCurrentSelection(payload);
           return true;
         },
         COMMAND_PRIORITY_EDITOR,

@@ -21,6 +21,10 @@ import {createContext, useContext, useEffect, useMemo, useState} from 'react';
 import Button from '../ui/Button';
 import {DialogActions} from '../ui/Dialog';
 import TextInput from '../ui/TextInput';
+import {
+  restoreSelectionForInsertion,
+  type RangeSelectionSnapshot,
+} from './ImagesPlugin/selectionSnapshot';
 
 export type InsertTableCommandPayload = Readonly<{
   columns: string;
@@ -81,9 +85,11 @@ export function TableContext({children}: {children: JSX.Element}) {
 export function InsertTableDialog({
   activeEditor,
   onClose,
+  selectionSnapshot,
 }: {
   activeEditor: LexicalEditor;
   onClose: () => void;
+  selectionSnapshot?: RangeSelectionSnapshot | null;
 }): JSX.Element {
   const [rows, setRows] = useState('5');
   const [columns, setColumns] = useState('5');
@@ -100,9 +106,12 @@ export function InsertTableDialog({
   }, [rows, columns]);
 
   const onClick = () => {
-    activeEditor.dispatchCommand(INSERT_TABLE_COMMAND, {
-      columns,
-      rows,
+    activeEditor.update(() => {
+      restoreSelectionForInsertion(selectionSnapshot);
+      activeEditor.dispatchCommand(INSERT_TABLE_COMMAND, {
+        columns,
+        rows,
+      });
     });
 
     onClose();

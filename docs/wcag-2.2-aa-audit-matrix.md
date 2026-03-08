@@ -17,11 +17,11 @@ This matrix documents the accessibility work delivered in Categoria 5 and how it
 | 1.3.1 Info and Relationships | Navigation landmarks and structural semantics | Skip links, `main`, dashboard navigation targets, semantic native buttons replacing pseudo-buttons | `src/components/SkipLinks.a11y.test.tsx`, manual keyboard audit |
 | 1.4.3 Contrast (Minimum) | Shared theme tokens | Dark and light tokens validated against required text pairs | `src/test/theme-tokens.contrast.test.ts` |
 | 1.4.11 Non-text Contrast | Focus rings and sidebar focus indicators | `ring` and `sidebar-ring` validated against page backgrounds | `src/test/theme-tokens.contrast.test.ts` |
-| 2.1.1 Keyboard | Public and dashboard interactions | Keyboard skip links, native buttons, keyboard reorder controls for custom sortable surfaces | `src/components/ReorderControls.keyboard.test.tsx`, manual keyboard audit |
+| 2.1.1 Keyboard | Public and dashboard interactions | Keyboard skip links, native buttons, and non-drag keyboard alternatives for custom sortable surfaces | `src/components/ReorderControls.keyboard.test.tsx`, `src/pages/DashboardPosts.tag-reorder.test.tsx`, manual keyboard audit |
 | 2.4.3 Focus Order | Shell entry points | Skip links move focus to stable targets in public and dashboard shells | Manual verification on public shell and dashboard shell |
 | 2.4.7 Focus Visible | Interactive controls | Native buttons and ring tokens provide visible focus states | Manual verification with keyboard-only navigation |
 | 2.4.11 Focus Not Obscured | Shell jump targets | Focus targets use `scroll-margin-top` to avoid sticky header overlap | Manual verification on public and dashboard shells |
-| 2.5.7 Dragging Movements | Sortable lists | All critical reorder flows keep drag support but now expose explicit move up/down controls | `src/components/ReorderControls.keyboard.test.tsx`, page-level manual verification |
+| 2.5.7 Dragging Movements | Sortable lists | All critical reorder flows keep drag support and preserve a non-drag alternative through explicit controls or keyboard shortcuts on the item itself | `src/components/ReorderControls.keyboard.test.tsx`, `src/pages/DashboardPosts.tag-reorder.test.tsx`, page-level manual verification |
 | 3.3.1 Error Identification | Critical image alt fields | Inline errors with `role="alert"` and destructive save-blocking | Existing dashboard validation tests plus manual verification |
 | 3.3.2 Labels or Instructions | Alt text inputs and icon-only controls | Added labels, `aria-label`, and helper copy on required fields | Manual verification and targeted component tests |
 
@@ -30,6 +30,7 @@ This matrix documents the accessibility work delivered in Categoria 5 and how it
 - `npm run test:a11y` runs:
 - `src/components/SkipLinks.a11y.test.tsx`
 - `src/components/ReorderControls.keyboard.test.tsx`
+- `src/pages/DashboardPosts.tag-reorder.test.tsx`
 - `src/hooks/use-page-meta.a11y.test.tsx`
 - `src/test/theme-tokens.contrast.test.ts`
 

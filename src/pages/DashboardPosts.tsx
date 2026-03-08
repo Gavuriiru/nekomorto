@@ -1,4 +1,15 @@
-import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  Suspense,
+  lazy,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+  type KeyboardEvent as ReactKeyboardEvent,
+} from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import DashboardShell from "@/components/DashboardShell";
 import DashboardPageContainer from "@/components/dashboard/DashboardPageContainer";
@@ -9,7 +20,6 @@ import {
 } from "@/components/dashboard/dashboard-motion";
 import UploadPicture from "@/components/UploadPicture";
 import { ImageLibraryDialogLoadingFallback } from "@/components/ImageLibraryDialogLoading";
-import ReorderControls from "@/components/ReorderControls";
 import { dashboardPageLayoutTokens } from "@/components/dashboard/dashboard-page-tokens";
 import AsyncState from "@/components/ui/async-state";
 import { Badge } from "@/components/ui/badge";
@@ -63,6 +73,7 @@ import { DEFAULT_POST_COVER_ALT, resolveAssetAltText } from "@/lib/image-alt";
 import { applyBeforeUnloadCompatibility } from "@/lib/before-unload";
 import { formatDateTimeShort } from "@/lib/date";
 import { buildTranslationMap, sortByTranslatedLabel, translateTag } from "@/lib/project-taxonomy";
+import { useAccessibilityAnnouncer } from "@/hooks/accessibility-announcer";
 import { usePageMeta } from "@/hooks/use-page-meta";
 import { useEditorScrollLock } from "@/hooks/use-editor-scroll-lock";
 import { useEditorScrollStability } from "@/hooks/use-editor-scroll-stability";
@@ -98,6 +109,8 @@ const emptyForm = {
   projectId: "",
   tags: [] as string[],
 };
+
+const POST_EDITOR_TOOLBAR_STICKY_OFFSET_PX = 5;
 
 const postStatusLabels = {
   draft: "Rascunho",
@@ -316,7 +329,7 @@ const ImageLibraryDialog = lazy(() => import("@/components/ImageLibraryDialog"))
 
 const LexicalEditorFallback = () => (
   <div
-    className="min-h-[460px] w-full rounded-2xl border border-border/60 bg-card/60 p-6"
+    className="min-h-[460px] w-full rounded-2xl border border-border/60 bg-card/60 p-6 lg:min-h-[680px]"
     role="status"
     aria-live="polite"
     aria-busy="true"
@@ -475,6 +488,7 @@ const DashboardPosts = () => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const apiBase = getApiBase();
+  const { announce } = useAccessibilityAnnouncer();
   const restoreWindowMs = 3 * 24 * 60 * 60 * 1000;
   const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
   const [posts, setPosts] = useState<PostRecord[]>([]);
@@ -495,6 +509,8 @@ const DashboardPosts = () => {
   useEditorScrollLock(isEditorOpen);
   useEditorScrollStability(isEditorOpen);
   const [isEditorDialogScrolled, setIsEditorDialogScrolled] = useState(false);
+  const [postEditorToolbarStickyTop, setPostEditorToolbarStickyTop] = useState(0);
+  const [editorTopElement, setEditorTopElement] = useState<HTMLDivElement | null>(null);
   const [editingPost, setEditingPost] = useState<PostRecord | null>(null);
   const [formState, setFormState] = useState(emptyForm);
   const [isSlugCustom, setIsSlugCustom] = useState(false);
@@ -579,6 +595,13 @@ const DashboardPosts = () => {
       }),
     [formState.contentLexical, formState.coverAlt, formState.coverImageUrl, formState.title],
   );
+  const postEditorLexicalWrapperStyle = useMemo(
+    () =>
+      ({
+        "--post-editor-toolbar-sticky-top": `${postEditorToolbarStickyTop + POST_EDITOR_TOOLBAR_STICKY_OFFSET_PX}px`,
+      }) as CSSProperties,
+    [postEditorToolbarStickyTop],
+  );
   const editorCoverFileName = useMemo(
     () => getImageFileNameFromUrl(editorResolvedCover.coverImageUrl),
     [editorResolvedCover.coverImageUrl],
@@ -597,6 +620,43 @@ const DashboardPosts = () => {
       setIsEditorDialogScrolled(false);
     }
   }, [isEditorOpen]);
+
+  useLayoutEffect(() => {
+    if (!isEditorOpen) {
+      setPostEditorToolbarStickyTop(0);
+      return;
+    }
+
+    if (!editorTopElement) {
+      return;
+    }
+
+    const editorTop = editorTopElement;
+
+    const updateStickyTop = () => {
+      const nextTop = Math.max(0, Math.ceil(editorTop.getBoundingClientRect().height));
+      setPostEditorToolbarStickyTop((prev) => (prev === nextTop ? prev : nextTop));
+    };
+
+    updateStickyTop();
+    window.addEventListener("resize", updateStickyTop);
+
+    if (typeof ResizeObserver === "undefined") {
+      return () => {
+        window.removeEventListener("resize", updateStickyTop);
+      };
+    }
+
+    const observer = new ResizeObserver(() => {
+      updateStickyTop();
+    });
+    observer.observe(editorTop);
+
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("resize", updateStickyTop);
+    };
+  }, [editorTopElement, isEditorOpen]);
 
   const loadPosts = async () => {
     const response = await apiFetch(apiBase, "/api/posts", { auth: true });
@@ -1493,6 +1553,34 @@ const DashboardPosts = () => {
     setTagOrder((prev) => prev.filter((item) => item !== tag));
   };
 
+  const announceTagMove = useCallback(
+    (tag: string, targetIndex: number) => {
+      announce(`${displayTag(tag)} movida para a posição ${targetIndex + 1}.`);
+    },
+    [announce, displayTag],
+  );
+
+  const moveTag = useCallback(
+    (tag: string, targetIndex: number) => {
+      setTagOrder((prev) => {
+        const source = prev.length > 0 ? [...prev] : [...mergedTags];
+        const fromIndex = source.indexOf(tag);
+        if (
+          fromIndex === -1 ||
+          fromIndex === targetIndex ||
+          targetIndex < 0 ||
+          targetIndex >= source.length
+        ) {
+          return prev.length > 0 ? prev : source;
+        }
+        source.splice(fromIndex, 1);
+        source.splice(targetIndex, 0, tag);
+        return source;
+      });
+    },
+    [mergedTags],
+  );
+
   const handleTagDragStart = (tag: string) => {
     setDraggedTag(tag);
   };
@@ -1502,33 +1590,34 @@ const DashboardPosts = () => {
       setDraggedTag(null);
       return;
     }
-    setTagOrder((prev) => {
-      const tags = [...prev];
-      const fromIndex = tags.indexOf(draggedTag);
-      const toIndex = tags.indexOf(targetTag);
-      if (fromIndex === -1 || toIndex === -1) {
-        return prev;
-      }
-      tags.splice(fromIndex, 1);
-      tags.splice(toIndex, 0, draggedTag);
-      return tags;
-    });
+    const targetIndex = mergedTags.indexOf(targetTag);
+    if (targetIndex !== -1) {
+      moveTag(draggedTag, targetIndex);
+      announceTagMove(draggedTag, targetIndex);
+    }
     setDraggedTag(null);
   };
-  const moveTag = useCallback(
-    (tag: string, targetIndex: number) => {
-      setTagOrder((prev) => {
-        const source = prev.length > 0 ? [...prev] : [...mergedTags];
-        const fromIndex = source.indexOf(tag);
-        if (fromIndex === -1 || fromIndex === targetIndex) {
-          return prev.length > 0 ? prev : source;
-        }
-        source.splice(fromIndex, 1);
-        source.splice(targetIndex, 0, tag);
-        return source;
-      });
+
+  const handleTagKeyDown = useCallback(
+    (event: ReactKeyboardEvent<HTMLButtonElement>, tag: string, tagIndex: number) => {
+      if (!event.altKey) {
+        return;
+      }
+      if (event.key === "ArrowUp" && tagIndex > 0) {
+        event.preventDefault();
+        const targetIndex = tagIndex - 1;
+        moveTag(tag, targetIndex);
+        announceTagMove(tag, targetIndex);
+        return;
+      }
+      if (event.key === "ArrowDown" && tagIndex < mergedTags.length - 1) {
+        event.preventDefault();
+        const targetIndex = tagIndex + 1;
+        moveTag(tag, targetIndex);
+        announceTagMove(tag, targetIndex);
+      }
     },
-    [mergedTags],
+    [announceTagMove, mergedTags.length, moveTag],
   );
 
   const openLibrary = () => {
@@ -1806,8 +1895,8 @@ const DashboardPosts = () => {
   const editorSectionClassName =
     "project-editor-section rounded-2xl border border-border/60 bg-card/70 px-4";
   const editorSectionHeaderClassName =
-    "project-editor-section-trigger flex w-full items-center justify-between gap-4 py-3 text-left";
-  const editorSectionContentClassName = "project-editor-section-content px-1 pb-4";
+    "project-editor-section-trigger flex w-full items-center justify-between gap-4 py-2 text-left";
+  const editorSectionContentClassName = "project-editor-section-content px-1 pb-2.5";
   const editorPostLabel = editingPost ? "Postagem em edição" : "Nova postagem";
   const editorPostTitle = formState.title.trim() || "Sem título";
   const editorPostId = editingPost?.id || "Será definido ao salvar";
@@ -1857,15 +1946,9 @@ const DashboardPosts = () => {
               />
               <Dialog open={isEditorOpen} onOpenChange={handleEditorOpenChange} modal={false}>
                 <DialogContent
-                  className={`project-editor-dialog max-h-[94vh] max-w-[min(1520px,calc(100vw-1rem))] overflow-y-auto no-scrollbar p-0 ${
+                  className={`project-editor-dialog max-w-[min(1520px,calc(100vw-1rem))] gap-0 p-0 ${
                     isEditorDialogScrolled ? "editor-modal-scrolled" : ""
                   }`}
-                  onScroll={(event) => {
-                    const nextScrolled = event.currentTarget.scrollTop > 0;
-                    setIsEditorDialogScrolled((prev) =>
-                      prev === nextScrolled ? prev : nextScrolled,
-                    );
-                  }}
                   onPointerDownOutside={(event) => {
                     if (isLibraryOpen) {
                       event.preventDefault();
@@ -1887,8 +1970,20 @@ const DashboardPosts = () => {
                     }
                   }}
                 >
-                  <div className="project-editor-top sticky top-0 z-20 border-b border-border/60 bg-background/95 backdrop-blur-sm supports-backdrop-filter:bg-background/80">
-                    <DialogHeader className="space-y-0 px-4 pb-4 pt-5 text-left md:px-6 lg:px-8">
+                  <div
+                    className="project-editor-scroll-shell overflow-y-auto no-scrollbar"
+                    onScroll={(event) => {
+                      const nextScrolled = event.currentTarget.scrollTop > 0;
+                      setIsEditorDialogScrolled((prev) =>
+                        prev === nextScrolled ? prev : nextScrolled,
+                      );
+                    }}
+                  >
+                  <div
+                    ref={setEditorTopElement}
+                    className="project-editor-top sticky top-0 z-20 border-b border-border/60 bg-background/95 backdrop-blur-sm supports-backdrop-filter:bg-background/80"
+                  >
+                    <DialogHeader className="space-y-0 px-4 pb-2.5 pt-3.5 text-left md:px-6 lg:px-8">
                       <div className="flex flex-wrap items-start justify-between gap-4">
                         <div className="space-y-2">
                           <div className="flex flex-wrap items-center gap-2">
@@ -1912,7 +2007,7 @@ const DashboardPosts = () => {
                             Crie, edite e publique conteúdos sem sair da listagem.
                           </DialogDescription>
                         </div>
-                        <div className="rounded-xl border border-border/60 bg-card/65 px-3 py-2 text-right">
+                        <div className="rounded-xl border border-border/60 bg-card/65 px-3 py-1.5 text-right">
                           <p className="text-[11px] uppercase tracking-[0.12em] text-muted-foreground">
                             Postagem
                           </p>
@@ -1925,7 +2020,7 @@ const DashboardPosts = () => {
                         </div>
                       </div>
                     </DialogHeader>
-                    <div className="project-editor-status-bar flex flex-wrap items-center gap-2 border-t border-border/60 px-4 py-3 md:px-6 lg:px-8">
+                    <div className="project-editor-status-bar flex flex-wrap items-center gap-2 border-t border-border/60 px-4 py-1.5 md:px-6 lg:px-8">
                       <Badge variant="outline" className="text-[10px] uppercase tracking-[0.12em]">
                         ID {editorPostId}
                       </Badge>
@@ -1952,8 +2047,8 @@ const DashboardPosts = () => {
                       editorRef.current?.blur();
                     }}
                   >
-                    <div className="project-editor-layout space-y-6 px-4 pb-6 pt-4 md:px-6 md:pb-7 lg:px-8">
-                      <div className="grid gap-5 xl:grid-cols-[minmax(0,1.65fr)_minmax(340px,0.95fr)]">
+                    <div className="project-editor-layout space-y-4 px-4 pb-4 pt-2.5 md:px-6 md:pb-5 lg:px-8">
+                      <div className="grid gap-3.5 xl:grid-cols-[minmax(0,1.65fr)_minmax(340px,0.95fr)]">
                         <section className={`${editorSectionClassName} min-w-0`} data-state="open">
                           <div className={editorSectionHeaderClassName}>
                             <div className="flex w-full items-center justify-between gap-4 text-left">
@@ -1964,8 +2059,12 @@ const DashboardPosts = () => {
                             </div>
                           </div>
                           <div className={editorSectionContentClassName}>
-                            <Suspense fallback={<LexicalEditorFallback />}>
-                              <LexicalEditor
+                            <div
+                              className="post-editor-lexical-wrapper min-w-0"
+                              style={postEditorLexicalWrapperStyle}
+                            >
+                              <Suspense fallback={<LexicalEditorFallback />}>
+                                <LexicalEditor
                                 ref={editorRef}
                                 value={formState.contentLexical}
                                 onChange={(value) =>
@@ -1975,14 +2074,15 @@ const DashboardPosts = () => {
                                   }))
                                 }
                                 placeholder="Escreva o conteúdo do post..."
-                                className="lexical-playground--stretch lexical-playground--modal min-w-0 w-full"
+                                className="lexical-playground--modal lexical-playground--stretch lexical-playground--post-editor min-w-0 w-full"
                                 imageLibraryOptions={postImageLibraryOptions}
-                              />
-                            </Suspense>
+                                />
+                              </Suspense>
+                            </div>
                           </div>
                         </section>
 
-                        <aside className="min-w-0 space-y-4 md:space-y-5">
+                        <aside className="min-w-0 space-y-3.5 md:space-y-4">
                           <section className={editorSectionClassName} data-state="open">
                             <div className={editorSectionHeaderClassName}>
                               <div className="flex w-full items-center justify-between gap-4 text-left">
@@ -1992,7 +2092,7 @@ const DashboardPosts = () => {
                                 </span>
                               </div>
                             </div>
-                            <div className={`${editorSectionContentClassName} space-y-5`}>
+                            <div className={`${editorSectionContentClassName} space-y-4`}>
                               <div className="space-y-2">
                                 <Label htmlFor="post-title">Título</Label>
                                 <Input
@@ -2198,26 +2298,34 @@ const DashboardPosts = () => {
                                 {mergedTags.map((tag) => {
                                   const isProjectTag = projectTags.includes(tag);
                                   const tagIndex = mergedTags.indexOf(tag);
+                                  const tagLabel = displayTag(tag);
+                                  const tagHint = isProjectTag
+                                    ? `Tag ${tagLabel}. Arraste para reordenar ou use Alt+Seta para mover.`
+                                    : `Tag ${tagLabel}. Clique para remover, arraste para reordenar ou use Alt+Seta para mover.`;
                                   return (
                                     <div key={`tag-${tag}`} className="flex items-center gap-1">
                                       <button
                                         type="button"
-                                        className="group"
+                                        className="group cursor-grab active:cursor-grabbing"
                                         draggable
                                         onDragStart={() => handleTagDragStart(tag)}
+                                        onDragEnd={() => setDraggedTag(null)}
                                         onDragOver={(event) => event.preventDefault()}
                                         onDrop={() => handleTagDrop(tag)}
+                                        onKeyDown={(event) => handleTagKeyDown(event, tag, tagIndex)}
                                         onClick={() => {
                                           if (!isProjectTag) {
                                             handleRemoveTag(tag);
                                           }
                                         }}
+                                        title={tagHint}
+                                        aria-label={tagHint}
                                       >
                                         <Badge
                                           variant={isProjectTag ? "secondary" : "outline"}
                                           className="text-[10px] uppercase"
                                         >
-                                          {displayTag(tag)}
+                                          {tagLabel}
                                           {isProjectTag ? null : (
                                             <span className="ml-2 text-[10px] text-muted-foreground group-hover:text-foreground">
                                               ?
@@ -2225,13 +2333,6 @@ const DashboardPosts = () => {
                                           )}
                                         </Badge>
                                       </button>
-                                      <ReorderControls
-                                        label={`tag ${displayTag(tag)}`}
-                                        index={tagIndex}
-                                        total={mergedTags.length}
-                                        onMove={(targetIndex) => moveTag(tag, targetIndex)}
-                                        buttonClassName="h-7 w-7"
-                                      />
                                     </div>
                                   );
                                 })}
@@ -2278,7 +2379,7 @@ const DashboardPosts = () => {
                         <ProjectEmbedCard projectId={formState.projectId} />
                       ) : null}
                     </div>
-                    <div className="project-editor-footer sticky bottom-0 z-20 flex flex-col gap-3 border-t border-border/60 bg-background/95 px-4 py-3 backdrop-blur-sm supports-backdrop-filter:bg-background/80 md:flex-row md:items-center md:justify-between md:px-6 md:py-4 lg:px-8">
+                    <div className="project-editor-footer sticky bottom-0 z-20 flex flex-col gap-3 border-t border-border/60 bg-background/95 px-4 py-2 backdrop-blur-sm supports-backdrop-filter:bg-background/80 md:flex-row md:items-center md:justify-between md:px-6 md:py-2.5 lg:px-8">
                       <div className="flex flex-wrap items-center gap-2">
                         {editingPostHasRestorableHistory ? (
                           <Button variant="outline" onClick={() => void openVersionHistory()}>
@@ -2319,6 +2420,7 @@ const DashboardPosts = () => {
                         )}
                       </div>
                     </div>
+                  </div>
                   </div>
                 </DialogContent>
               </Dialog>

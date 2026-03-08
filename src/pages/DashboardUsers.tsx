@@ -1387,8 +1387,8 @@ const DashboardUsers = () => {
   const editorSectionClassName =
     "project-editor-section rounded-2xl border border-border/60 bg-card/70 px-4";
   const editorSectionTriggerClassName =
-    "project-editor-section-trigger py-3 text-sm font-semibold hover:no-underline";
-  const editorSectionContentClassName = "project-editor-section-content pb-4 px-1";
+    "project-editor-section-trigger py-2 text-sm font-semibold hover:no-underline";
+  const editorSectionContentClassName = "project-editor-section-content pb-2.5 px-1";
   const editorUserLabel = editingUser ? "Usuário em edição" : "Novo usuário";
   const editorUserTitle = formState.name.trim() || "Sem nome";
   const editorUserId = formState.id.trim() || "Será definido ao salvar";
@@ -1762,13 +1762,9 @@ const DashboardUsers = () => {
 
       <Dialog open={isDialogOpen} onOpenChange={handleEditorOpenChange} modal={false}>
         <DialogContent
-          className={`project-editor-dialog max-h-[94vh] max-w-[min(1520px,calc(100vw-1rem))] overflow-y-auto no-scrollbar p-0 ${
+          className={`project-editor-dialog max-w-[min(1520px,calc(100vw-1rem))] gap-0 p-0 ${
             isEditorDialogScrolled ? "editor-modal-scrolled" : ""
           }`}
-          onScroll={(event) => {
-            const nextScrolled = event.currentTarget.scrollTop > 0;
-            setIsEditorDialogScrolled((prev) => (prev === nextScrolled ? prev : nextScrolled));
-          }}
           onPointerDownOutside={(event) => {
             if (isLibraryOpen) {
               event.preventDefault();
@@ -1780,8 +1776,15 @@ const DashboardUsers = () => {
             }
           }}
         >
+          <div
+            className="project-editor-scroll-shell overflow-y-auto no-scrollbar"
+            onScroll={(event) => {
+              const nextScrolled = event.currentTarget.scrollTop > 0;
+              setIsEditorDialogScrolled((prev) => (prev === nextScrolled ? prev : nextScrolled));
+            }}
+          >
           <div className="project-editor-top sticky top-0 z-20 border-b border-border/60 bg-background/95 backdrop-blur-sm supports-backdrop-filter:bg-background/80">
-            <DialogHeader className="space-y-0 px-4 pb-4 pt-5 text-left md:px-6 lg:px-8">
+            <DialogHeader className="space-y-0 px-4 pb-2.5 pt-3.5 text-left md:px-6 lg:px-8">
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <div className="space-y-2">
                   <div className="flex flex-wrap items-center gap-2">
@@ -1801,7 +1804,7 @@ const DashboardUsers = () => {
                     {editorDialogDescription}
                   </DialogDescription>
                 </div>
-                <div className="rounded-xl border border-border/60 bg-card/65 px-3 py-2 text-right">
+                <div className="rounded-xl border border-border/60 bg-card/65 px-3 py-1.5 text-right">
                   <p className="text-[11px] uppercase tracking-[0.12em] text-muted-foreground">
                     Usuário
                   </p>
@@ -1811,7 +1814,7 @@ const DashboardUsers = () => {
                 </div>
               </div>
             </DialogHeader>
-            <div className="project-editor-status-bar flex flex-wrap items-center gap-2 border-t border-border/60 px-4 py-3 md:px-6 lg:px-8">
+            <div className="project-editor-status-bar flex flex-wrap items-center gap-2 border-t border-border/60 px-4 py-1.5 md:px-6 lg:px-8">
               <Badge variant="outline" className="text-[10px] uppercase tracking-[0.12em]">
                 ID {editorUserId}
               </Badge>
@@ -1828,7 +1831,7 @@ const DashboardUsers = () => {
             </div>
           </div>
 
-          <div className="project-editor-layout grid gap-5 px-4 pb-6 pt-4 md:gap-6 md:px-6 md:pb-7 lg:gap-7 lg:px-8">
+          <div className="project-editor-layout grid gap-3.5 px-4 pb-4 pt-2.5 md:gap-4 md:px-6 md:pb-5 lg:gap-5 lg:px-8">
             {basicProfileOnlyEdit ? (
               <div className="rounded-2xl border border-border/60 bg-card/60 px-4 py-3 text-xs text-muted-foreground">
                 Você só pode alterar informações básicas deste usuário.
@@ -1838,7 +1841,7 @@ const DashboardUsers = () => {
               type="multiple"
               value={editorAccordionValue}
               onValueChange={setEditorAccordionValue}
-              className="project-editor-accordion space-y-3"
+              className="project-editor-accordion space-y-2.5"
             >
               <AccordionItem value="dados-principais" className={editorSectionClassName}>
                 <AccordionTrigger className={editorSectionTriggerClassName}>
@@ -2575,7 +2578,7 @@ const DashboardUsers = () => {
               </AccordionItem>
             </Accordion>
           </div>
-          <div className="project-editor-footer sticky bottom-0 z-20 flex justify-end gap-3 border-t border-border/60 bg-background/95 px-4 py-3 backdrop-blur-sm supports-backdrop-filter:bg-background/80 md:px-6 md:py-4 lg:px-8">
+          <div className="project-editor-footer sticky bottom-0 z-20 flex justify-end gap-3 border-t border-border/60 bg-background/95 px-4 py-2 backdrop-blur-sm supports-backdrop-filter:bg-background/80 md:px-6 md:py-2.5 lg:px-8">
               {editingUser ? (
                 <Button
                   variant="destructive"
@@ -2600,6 +2603,7 @@ const DashboardUsers = () => {
                 Salvar
               </Button>
             </div>
+          </div>
         </DialogContent>
       </Dialog>
       <Dialog

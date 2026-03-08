@@ -1,99 +1,167 @@
-import { render } from "@testing-library/react";
-import type { LexicalEditor } from "lexical";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import {render} from '@testing-library/react';
+import type {LexicalEditor} from 'lexical';
+import {beforeEach, describe, expect, it, vi} from 'vitest';
 
-import { INSERT_IMAGE_COMMAND, InsertImageDialog } from "@/lexical-playground/plugins/ImagesPlugin";
-
-const { imageLibraryPropsSpy } = vi.hoisted(() => ({
+const {imageLibraryPropsSpy, insertImagesIntoEditorSpy} = vi.hoisted(() => ({
   imageLibraryPropsSpy: vi.fn(),
+  insertImagesIntoEditorSpy: vi.fn(),
 }));
 
-vi.mock("@/components/ImageLibraryDialog", () => ({
+vi.mock('@/components/ImageLibraryDialog', () => ({
   default: (props: unknown) => {
     imageLibraryPropsSpy(props);
     return <div data-testid="mock-image-library-dialog" />;
   },
 }));
 
-vi.mock("@/lib/api-base", () => ({
-  getApiBase: () => "http://api.local",
+vi.mock('@/lib/api-base', () => ({
+  getApiBase: () => 'http://api.local',
 }));
 
-describe("InsertImageDialog", () => {
+vi.mock('@/lexical-playground/plugins/ImagesPlugin/imageInsertion', async () => {
+  const actual = await vi.importActual<
+    typeof import('@/lexical-playground/plugins/ImagesPlugin/imageInsertion')
+  >('@/lexical-playground/plugins/ImagesPlugin/imageInsertion');
+
+  return {
+    ...actual,
+    insertImagesIntoEditor: insertImagesIntoEditorSpy,
+  };
+});
+
+import {
+  InsertImageDialog,
+  getNewImageInsertPayloads,
+} from '@/lexical-playground/plugins/ImagesPlugin';
+
+describe('InsertImageDialog', () => {
   beforeEach(() => {
     imageLibraryPropsSpy.mockReset();
+    insertImagesIntoEditorSpy.mockReset();
   });
 
-  it("repassa projectImagesView e currentSelectionUrls para a biblioteca", () => {
-    const activeEditor = { dispatchCommand: vi.fn() } as unknown as LexicalEditor;
+  it('repassa projectImagesView e currentSelectionUrls para a biblioteca', () => {
+    const activeEditor = {} as LexicalEditor;
 
     render(
       <InsertImageDialog
         activeEditor={activeEditor}
         onClose={() => undefined}
         imageLibraryOptions={{
-          uploadFolder: "posts",
-          listFolders: ["posts", "shared"],
+          uploadFolder: 'posts',
+          listFolders: ['posts', 'shared'],
           listAll: false,
           includeProjectImages: true,
           projectImageProjectIds: [],
-          projectImagesView: "by-project",
-          currentSelectionUrls: ["/uploads/posts/a.png"],
+          projectImagesView: 'by-project',
+          currentSelectionUrls: ['/uploads/posts/a.png'],
         }}
       />,
     );
 
     const props = imageLibraryPropsSpy.mock.calls.at(-1)?.[0] as {
-      projectImagesView?: "flat" | "by-project";
       currentSelectionUrls?: string[];
+      projectImagesView?: 'flat' | 'by-project';
     };
-    expect(props.projectImagesView).toBe("by-project");
-    expect(props.currentSelectionUrls).toEqual(["/uploads/posts/a.png"]);
+
+    expect(props.projectImagesView).toBe('by-project');
+    expect(props.currentSelectionUrls).toEqual(['/uploads/posts/a.png']);
   });
 
-  it("insere apenas imagens novas ao salvar", () => {
-    const dispatchCommand = vi.fn();
-    const activeEditor = { dispatchCommand } as unknown as LexicalEditor;
+  it('filtra imagens ja selecionadas e duplicadas, preservando a ordem das novas', () => {
+    expect(
+      getNewImageInsertPayloads(
+        [
+          {url: '/uploads/posts/a.png', name: 'Imagem A'},
+          {
+            url: 'http://localhost:8080/uploads/posts/a.png?cache=1',
+            name: 'Imagem A equivalente',
+          },
+          {url: '/uploads/posts/b.png', name: 'Imagem B'},
+          {url: '/uploads/posts/b.png?cache=2', name: 'Imagem B duplicada'},
+          {url: '/uploads/posts/c.png', label: 'Imagem C'},
+        ],
+        new Set(['/uploads/posts/a.png']),
+      ),
+    ).toEqual([
+      {altText: 'Imagem B', src: '/uploads/posts/b.png'},
+      {altText: 'Imagem C', src: '/uploads/posts/c.png'},
+    ]);
+  });
+
+  it('insere as imagens novas em uma unica chamada com snapshot explicito', () => {
+    const activeEditor = {} as LexicalEditor;
+    const selectionSnapshot = {anchor: {key: 'a'}, focus: {key: 'b'}} as never;
 
     render(
       <InsertImageDialog
         activeEditor={activeEditor}
         onClose={() => undefined}
+        selectionSnapshot={selectionSnapshot}
         imageLibraryOptions={{
-          currentSelectionUrls: ["/uploads/posts/a.png"],
+          currentSelectionUrls: ['/uploads/posts/a.png'],
         }}
       />,
     );
 
     const props = imageLibraryPropsSpy.mock.calls.at(-1)?.[0] as {
       onSave: (payload: {
-        urls: string[];
-        items: Array<{ source: "upload" | "project"; url: string; name?: string; label?: string }>;
+        items: Array<{
+          label?: string;
+          name?: string;
+          source: 'project' | 'upload';
+          url: string;
+        }>;
       }) => void;
     };
 
     props.onSave({
-      urls: [
-        "/uploads/posts/a.png",
-        "http://localhost:8080/uploads/posts/a.png?cache=1",
-        "/uploads/posts/b.png",
-      ],
       items: [
-        { source: "upload", url: "/uploads/posts/a.png", name: "Imagem A" },
-        {
-          source: "upload",
-          url: "http://localhost:8080/uploads/posts/a.png?cache=1",
-          name: "Imagem A equivalente",
-        },
-        { source: "upload", url: "/uploads/posts/b.png", name: "Imagem B" },
-        { source: "upload", url: "/uploads/posts/b.png?cache=2", name: "Imagem B duplicada" },
+        {source: 'upload', url: '/uploads/posts/a.png', name: 'Imagem A'},
+        {source: 'upload', url: '/uploads/posts/b.png', name: 'Imagem B'},
+        {source: 'upload', url: '/uploads/posts/c.png', label: 'Imagem C'},
       ],
     });
 
-    expect(dispatchCommand).toHaveBeenCalledTimes(1);
-    expect(dispatchCommand).toHaveBeenCalledWith(
-      INSERT_IMAGE_COMMAND,
-      expect.objectContaining({ src: "/uploads/posts/b.png" }),
+    expect(insertImagesIntoEditorSpy).toHaveBeenCalledTimes(1);
+    expect(insertImagesIntoEditorSpy).toHaveBeenCalledWith(
+      activeEditor,
+      [
+        {altText: 'Imagem B', src: '/uploads/posts/b.png'},
+        {altText: 'Imagem C', src: '/uploads/posts/c.png'},
+      ],
+      selectionSnapshot,
     );
+  });
+
+  it('nao tenta inserir nada quando nao ha imagens novas', () => {
+    const activeEditor = {} as LexicalEditor;
+
+    render(
+      <InsertImageDialog
+        activeEditor={activeEditor}
+        onClose={() => undefined}
+        imageLibraryOptions={{
+          currentSelectionUrls: ['/uploads/posts/a.png'],
+        }}
+      />,
+    );
+
+    const props = imageLibraryPropsSpy.mock.calls.at(-1)?.[0] as {
+      onSave: (payload: {
+        items: Array<{
+          label?: string;
+          name?: string;
+          source: 'project' | 'upload';
+          url: string;
+        }>;
+      }) => void;
+    };
+
+    props.onSave({
+      items: [{source: 'upload', url: '/uploads/posts/a.png', name: 'Imagem A'}],
+    });
+
+    expect(insertImagesIntoEditorSpy).not.toHaveBeenCalled();
   });
 });

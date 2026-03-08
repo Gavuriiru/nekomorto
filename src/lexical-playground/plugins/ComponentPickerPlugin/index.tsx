@@ -41,6 +41,10 @@ import useModal from '../../hooks/useModal';
 import {EmbedConfigs} from '../AutoEmbedPlugin';
 import {INSERT_COLLAPSIBLE_COMMAND} from '../CollapsiblePlugin';
 import {InsertImageDialog} from '../ImagesPlugin';
+import {
+  cloneCurrentRangeSelection,
+  type RangeSelectionSnapshot,
+} from '../ImagesPlugin/selectionSnapshot';
 import InsertLayoutDialog from '../LayoutPlugin/InsertLayoutDialog';
 import {InsertPollDialog} from '../PollPlugin';
 import {InsertTableDialog} from '../TablePlugin';
@@ -52,6 +56,7 @@ export class ComponentPickerOption extends MenuOption {
   icon?: JSX.Element;
   // For extra searching.
   keywords: Array<string>;
+  type?: 'image';
   // TBD
   keyboardShortcut?: string;
   // What happens when you select this option?
@@ -62,6 +67,7 @@ export class ComponentPickerOption extends MenuOption {
     options: {
       icon?: JSX.Element;
       keywords?: Array<string>;
+      type?: 'image';
       keyboardShortcut?: string;
       onSelect: (queryString: string) => void;
     },
@@ -70,6 +76,7 @@ export class ComponentPickerOption extends MenuOption {
     this.title = title;
     this.keywords = options.keywords || [];
     this.icon = options.icon;
+    this.type = options.type;
     this.keyboardShortcut = options.keyboardShortcut;
     this.onSelect = options.onSelect.bind(this);
   }
@@ -145,7 +152,7 @@ export type ShowModal = ReturnType<typeof useModal>[1];
 export function getBaseOptions(
   editor: LexicalEditor,
   showModal: ShowModal,
-  onOpenImageLibrary: () => void,
+  _onOpenImageLibrary?: () => void,
 ) {
   return [
     new ComponentPickerOption('Paragraph', {
@@ -260,7 +267,8 @@ export function getBaseOptions(
     new ComponentPickerOption('Image', {
       icon: <i className="icon image" />,
       keywords: ['image', 'photo', 'picture', 'file'],
-      onSelect: () => onOpenImageLibrary(),
+      type: 'image',
+      onSelect: () => undefined,
     }),
     new ComponentPickerOption('Collapsible', {
       icon: <i className="icon caret-right" />,
@@ -297,6 +305,8 @@ export default function ComponentPickerMenuPlugin({
   const [modal, showModal] = useModal();
   const [queryString, setQueryString] = useState<string | null>(null);
   const [isImageLibraryOpen, setIsImageLibraryOpen] = useState(false);
+  const [imageSelectionSnapshot, setImageSelectionSnapshot] =
+    useState<RangeSelectionSnapshot | null>(null);
 
   const checkForTriggerMatch = useBasicTypeaheadTriggerMatch('/', {
     allowWhitespace: true,
@@ -304,7 +314,7 @@ export default function ComponentPickerMenuPlugin({
   });
 
   const options = useMemo(() => {
-    const baseOptions = getBaseOptions(editor, showModal, () => setIsImageLibraryOpen(true));
+    const baseOptions = getBaseOptions(editor, showModal);
 
     if (!queryString) {
       return baseOptions;
@@ -329,11 +339,25 @@ export default function ComponentPickerMenuPlugin({
       closeMenu: () => void,
       matchingString: string,
     ) => {
+      let nextImageSelectionSnapshot: RangeSelectionSnapshot | null = null;
+
       editor.update(() => {
         nodeToRemove?.remove();
+
+        if (selectedOption.type === 'image') {
+          nextImageSelectionSnapshot = cloneCurrentRangeSelection();
+          closeMenu();
+          return;
+        }
+
         selectedOption.onSelect(matchingString);
         closeMenu();
       });
+
+      if (selectedOption.type === 'image') {
+        setImageSelectionSnapshot(nextImageSelectionSnapshot);
+        setIsImageLibraryOpen(true);
+      }
     },
     [editor],
   );
@@ -344,8 +368,12 @@ export default function ComponentPickerMenuPlugin({
       {isImageLibraryOpen ? (
         <InsertImageDialog
           activeEditor={editor}
-          onClose={() => setIsImageLibraryOpen(false)}
+          onClose={() => {
+            setImageSelectionSnapshot(null);
+            setIsImageLibraryOpen(false);
+          }}
           imageLibraryOptions={imageLibraryOptions}
+          selectionSnapshot={imageSelectionSnapshot}
         />
       ) : null}
       {!isImageLibraryOpen ? (
