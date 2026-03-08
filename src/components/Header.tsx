@@ -21,9 +21,9 @@ import {
   getFirstAllowedDashboardRoute,
   resolveGrants,
 } from "@/lib/access-control";
+import { buildAvatarRenderUrl } from "@/lib/avatar-render-url";
 import { sanitizePublicHref } from "@/lib/url-safety";
 import { uiCopy } from "@/lib/ui-copy";
-import { withDiscordAvatarSize } from "@/lib/discord-avatar";
 import type { SearchSuggestion } from "@/types/search-suggestion";
 import type { UploadMediaVariantsMap } from "@/lib/upload-variants";
 import {
@@ -477,8 +477,8 @@ const Header = ({ variant = "fixed", leading, className }: HeaderProps) => {
     [currentUser],
   );
   const headerAvatarUrl = useMemo(
-    () => withDiscordAvatarSize(String(currentUser?.avatarUrl || ""), 64),
-    [currentUser?.avatarUrl],
+    () => buildAvatarRenderUrl(currentUser?.avatarUrl, 64, currentUser?.revision),
+    [currentUser?.avatarUrl, currentUser?.revision],
   );
 
   useGlobalShortcuts({

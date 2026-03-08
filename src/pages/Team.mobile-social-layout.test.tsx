@@ -257,9 +257,16 @@ describe("Team mobile social layout", () => {
 
     expect(document.querySelector(".public-page-hero")).not.toBeNull();
     expect(screen.getByText("Equipe")).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: /Conheça quem faz o projeto acontecer/i })).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", {
+        level: 1,
+        name: /faz o projeto acontecer/i,
+      }),
+    ).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { level: 2, name: "Membros ativos" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { level: 2, name: "Membros aposentados" })).toBeInTheDocument();
 
-    await screen.findByRole("heading", { name: activeMemberName });
+    await screen.findByRole("heading", { level: 3, name: activeMemberName });
     const { heading, headingRow, layoutStack, avatarSlot, avatarStage, contentPanel, card, socialContainer } =
       getMemberLayoutByName(activeMemberName);
 
@@ -394,7 +401,10 @@ describe("Team mobile social layout", () => {
       </MemoryRouter>,
     );
 
-    await screen.findByRole("heading", { name: retiredMemberName });
+    expect(await screen.findByRole("heading", { level: 2, name: "Membros aposentados" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { level: 2, name: "Membros ativos" })).not.toBeInTheDocument();
+
+    await screen.findByRole("heading", { level: 3, name: retiredMemberName });
     const { layoutStack, avatarSlot, avatarStage, contentPanel, card, socialContainer } =
       getMemberLayoutByName(retiredMemberName);
 

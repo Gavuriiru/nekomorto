@@ -6411,6 +6411,14 @@ app.get("/login", async (req, res, next) => {
   }
 
   try {
+    const redirectToLoginServerError = () =>
+      res.redirect(
+        buildAuthRedirectUrl({
+          appOrigin: loginAppOrigin,
+          path: "/login",
+          searchParams: { error: "server_error" },
+        }),
+      );
     const redirectUri = req.session?.discordRedirectUri || resolveDiscordRedirectUri(req);
     if (req.session) {
       req.session.discordRedirectUri = null;
@@ -6512,13 +6520,7 @@ app.get("/login", async (req, res, next) => {
       metricsRegistry.inc("auth_login_total", { status: "failed" });
       handleAuthFailureSecuritySignals({ req, error: "session_regenerate_failed" });
       appendAuditLog(req, "auth.login.failed", "auth", { error: "session_regenerate_failed" });
-      return res.redirect(
-        buildAuthRedirectUrl({
-          appOrigin: loginAppOrigin,
-          path: "/login",
-          searchParams: { error: "server_error" },
-        }),
-      );
+      return redirectToLoginServerError();
     }
     if (req.session) {
       req.session.oauthState = null;
@@ -6529,6 +6531,14 @@ app.get("/login", async (req, res, next) => {
       req.session.pendingMfaUser = authenticatedUser;
       req.session.user = null;
       req.session.mfaVerifiedAt = null;
+      try {
+        await saveSessionState(req);
+      } catch {
+        metricsRegistry.inc("auth_login_total", { status: "failed" });
+        handleAuthFailureSecuritySignals({ req, error: "session_persist_failed" });
+        appendAuditLog(req, "auth.login.failed", "auth", { error: "session_persist_failed" });
+        return redirectToLoginServerError();
+      }
       updateSessionIndexFromRequest(req, { force: true });
       appendAuditLog(req, "auth.login.mfa_required", "auth", { userId: discordUser.id });
       metricsRegistry.inc("auth_login_total", { status: "mfa_required" });
@@ -6548,6 +6558,14 @@ app.get("/login", async (req, res, next) => {
       req.session.loginNext = null;
       req.session.loginAppOrigin = null;
       req.session.mfaVerifiedAt = new Date().toISOString();
+    }
+    try {
+      await saveSessionState(req);
+    } catch {
+      metricsRegistry.inc("auth_login_total", { status: "failed" });
+      handleAuthFailureSecuritySignals({ req, error: "session_persist_failed" });
+      appendAuditLog(req, "auth.login.failed", "auth", { error: "session_persist_failed" });
+      return redirectToLoginServerError();
     }
     updateSessionIndexFromRequest(req, { force: true });
     maybeEmitNewNetworkLoginEvent({ req, userId: authenticatedUser.id });
@@ -6625,6 +6643,11 @@ app.post("/api/auth/mfa/verify", async (req, res) => {
   }
   if (req.session) {
     req.session.pendingMfaUser = null;
+  }
+  try {
+    await saveSessionState(req);
+  } catch {
+    return res.status(500).json({ error: "session_regenerate_failed" });
   }
   updateSessionIndexFromRequest(req, { force: true });
   maybeEmitNewNetworkLoginEvent({ req, userId: pendingUser.id });

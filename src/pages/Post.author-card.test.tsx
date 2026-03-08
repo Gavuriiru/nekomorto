@@ -149,10 +149,11 @@ describe("Post author card", () => {
       </MemoryRouter>,
     );
 
-    await screen.findByRole("heading", { name: "Post de Teste" });
+    expect(await screen.findByRole("heading", { level: 1, name: "Post de Teste" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { level: 2, name: "Sobre o autor" })).toBeInTheDocument();
     const authorCard = await screen.findByTestId("post-author-card");
 
-    expect(within(authorCard).getByRole("heading", { name: "Admin" })).toBeInTheDocument();
+    expect(within(authorCard).getByRole("heading", { level: 3, name: "Admin" })).toBeInTheDocument();
     expect(within(authorCard).getByText('"Frase do admin"')).toBeInTheDocument();
     expect(within(authorCard).getByText("Bio do admin")).toBeInTheDocument();
 

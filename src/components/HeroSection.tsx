@@ -245,6 +245,7 @@ type HeroSlideFrameProps = {
   transparentPixel: string;
   clampSynopsis: (text: string, limit?: number) => string;
   shouldAnimateEntry: boolean;
+  entryAnimationKey?: number | string | null;
 };
 
 const HeroSlideFrame = ({
@@ -260,6 +261,7 @@ const HeroSlideFrame = ({
   transparentPixel,
   clampSynopsis,
   shouldAnimateEntry,
+  entryAnimationKey,
 }: HeroSlideFrameProps) => {
   const isActive = index === activeIndex;
   const isPrioritySlide = index === 0 || isActive;
@@ -271,6 +273,9 @@ const HeroSlideFrame = ({
   const entryAnimationClass = shouldAnimateEntry ? "animate-slide-up opacity-0" : "";
   const getEntryAnimationStyle = (style: React.CSSProperties) =>
     shouldAnimateEntry ? style : undefined;
+  const contentKey = shouldAnimateEntry
+    ? `hero-slide-content-${slide.id}-${String(entryAnimationKey ?? "initial")}`
+    : `hero-slide-content-${slide.id}-static`;
 
   return (
     <div className={`relative flex items-end overflow-hidden ${heroViewportClass}`}>
@@ -321,7 +326,7 @@ const HeroSlideFrame = ({
       ) : null}
 
       <div className="relative z-10 w-full px-6 pb-16 md:px-12 md:pb-24">
-        <div className="max-w-3xl">
+        <div key={contentKey} className="max-w-3xl">
           <div
             data-testid={`hero-slide-meta-${slide.id}`}
             className="mb-3 flex flex-col items-start gap-2 text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground md:flex-row md:flex-wrap md:items-center md:gap-3"
@@ -499,6 +504,7 @@ const HeroSection = () => {
       index: number,
       activeIndex: number,
       loadedSlideIds: Set<string>,
+      activeAnimationCycle: number | null,
     ) => (
       <HeroSlideFrame
         slide={slide}
@@ -512,7 +518,8 @@ const HeroSection = () => {
         navbarOverlayClass={navbarOverlayClass}
         transparentPixel={transparentPixel}
         clampSynopsis={clampSynopsis}
-        shouldAnimateEntry={false}
+        shouldAnimateEntry={index === activeIndex && activeAnimationCycle !== null}
+        entryAnimationKey={index === activeIndex ? activeAnimationCycle : null}
       />
     ),
     [

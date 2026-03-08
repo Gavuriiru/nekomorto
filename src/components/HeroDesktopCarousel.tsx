@@ -17,6 +17,7 @@ type HeroDesktopCarouselProps = {
     index: number,
     activeIndex: number,
     loadedSlideIds: Set<string>,
+    activeAnimationCycle: number | null,
   ) => React.ReactNode;
 };
 
@@ -29,23 +30,43 @@ const HeroDesktopCarousel = ({
 }: HeroDesktopCarouselProps) => {
   const [api, setApi] = React.useState<CarouselApi | null>(null);
   const autoplayTimeoutRef = React.useRef<number | null>(null);
+  const previousSelectedIndexRef = React.useRef<number | null>(null);
   const [activeIndex, setActiveIndex] = React.useState(0);
+  const [activeAnimationCycle, setActiveAnimationCycle] = React.useState<number | null>(null);
   const [loadedSlideIds, setLoadedSlideIds] = React.useState<Set<string>>(
     () => new Set(),
   );
 
   React.useEffect(() => {
+    previousSelectedIndexRef.current = null;
     setActiveIndex(0);
+    setActiveAnimationCycle(null);
     setLoadedSlideIds(new Set());
   }, [slides]);
 
-  React.useEffect(() => {
+  React.useLayoutEffect(() => {
     if (!api) {
+      previousSelectedIndexRef.current = null;
       setActiveIndex(0);
+      setActiveAnimationCycle(null);
       return;
     }
     const syncSelectedIndex = () => {
-      setActiveIndex(api.selectedScrollSnap());
+      const nextIndex = api.selectedScrollSnap();
+      setActiveIndex(nextIndex);
+
+      if (previousSelectedIndexRef.current === null) {
+        previousSelectedIndexRef.current = nextIndex;
+        setActiveAnimationCycle(0);
+        return;
+      }
+
+      if (previousSelectedIndexRef.current === nextIndex) {
+        return;
+      }
+
+      previousSelectedIndexRef.current = nextIndex;
+      setActiveAnimationCycle((previousCycle) => (previousCycle ?? 0) + 1);
     };
     syncSelectedIndex();
     api.on("select", syncSelectedIndex);
@@ -131,7 +152,7 @@ const HeroDesktopCarousel = ({
       <CarouselContent className="ml-0">
         {slides.map((slide, index) => (
           <CarouselItem key={slide.id} className="pl-0">
-            {renderSlide(slide, index, activeIndex, loadedSlideIds)}
+            {renderSlide(slide, index, activeIndex, loadedSlideIds, activeAnimationCycle)}
           </CarouselItem>
         ))}
       </CarouselContent>

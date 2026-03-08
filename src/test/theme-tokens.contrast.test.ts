@@ -103,10 +103,13 @@ describe("theme token contrast", () => {
   it("keeps required text pairs at or above 4.5:1 in dark and light themes", () => {
     const textPairs: Array<[string, string]> = [
       ["foreground", "background"],
+      ["foreground", "card"],
       ["card-foreground", "card"],
       ["popover-foreground", "popover"],
       ["secondary-foreground", "secondary"],
       ["muted-foreground", "muted"],
+      ["muted-foreground", "background"],
+      ["muted-foreground", "card"],
       ["primary-foreground", "primary"],
       ["accent-foreground", "accent"],
       ["destructive-foreground", "destructive"],

@@ -151,4 +151,47 @@ describe("Header discord avatar proxy", () => {
       "/api/public/discord-avatar/123456789/avatar_hash.png?size=64",
     );
   });
+
+  it("anexa a revision em avatars locais para invalidar cache na navbar publica", async () => {
+    apiFetchMock.mockImplementation(async (_apiBase: string, endpoint: string, options?: RequestInit) => {
+      const method = String(options?.method || "GET").toUpperCase();
+      if (endpoint === "/api/public/me" && method === "GET") {
+        return mockJsonResponse(true, {
+          user: {
+            id: "user-1",
+            name: "Admin",
+            username: "admin",
+            avatarUrl: "/uploads/users/avatar-user-1.png",
+            revision: "rev-2",
+          },
+        });
+      }
+      return mockJsonResponse(false, { error: "not_found" }, 404);
+    });
+
+    (
+      window as Window & {
+        __BOOTSTRAP_PUBLIC__?: unknown;
+        __BOOTSTRAP_PUBLIC_ME__?: unknown;
+      }
+    ).__BOOTSTRAP_PUBLIC_ME__ = {
+      id: "user-1",
+      name: "Admin",
+      username: "admin",
+      avatarUrl: "/uploads/users/avatar-user-1.png",
+      revision: "rev-2",
+    };
+
+    render(
+      <MemoryRouter initialEntries={["/"]}>
+        <Header />
+      </MemoryRouter>,
+    );
+
+    const menus = await screen.findByTestId("header-action-menus");
+    expect(menus).toHaveAttribute(
+      "data-avatar-url",
+      "/uploads/users/avatar-user-1.png?v=rev-2",
+    );
+  });
 });

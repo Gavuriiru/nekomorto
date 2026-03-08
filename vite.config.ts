@@ -109,6 +109,7 @@ export default defineConfig(({ mode }) => {
         workbox: {
           cleanupOutdatedCaches: true,
           clientsClaim: true,
+          directoryIndex: null,
           manifestTransforms: [
             async (entries) => {
               const seenUrls = new Set<string>();

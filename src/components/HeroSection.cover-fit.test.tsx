@@ -19,6 +19,9 @@ const browserIdleState = vi.hoisted(() => ({
 }));
 const carouselState = vi.hoisted(() => ({
   scrollNext: vi.fn(),
+  selectedIndex: 0,
+  slideCount: 0,
+  api: null as null | { scrollNext: () => void; scrollPrev: () => void },
 }));
 
 vi.mock("@/hooks/use-public-bootstrap", () => ({
@@ -77,11 +80,22 @@ vi.mock("@/components/ui/carousel", () => {
       }
 
       const listeners = new Map<string, Set<() => void>>();
+      const notify = (event: string) => {
+        listeners.get(event)?.forEach((callback) => callback());
+      };
       const api = {
-        selectedScrollSnap: () => 0,
+        selectedScrollSnap: () => carouselState.selectedIndex,
         scrollNext: () => {
           carouselState.scrollNext();
-          listeners.get("select")?.forEach((callback) => callback());
+          const slideCount = Math.max(carouselState.slideCount, 1);
+          carouselState.selectedIndex = (carouselState.selectedIndex + 1) % slideCount;
+          notify("select");
+        },
+        scrollPrev: () => {
+          const slideCount = Math.max(carouselState.slideCount, 1);
+          carouselState.selectedIndex =
+            (carouselState.selectedIndex - 1 + slideCount) % slideCount;
+          notify("select");
         },
         on: (event: string, callback: () => void) => {
           const callbacks = listeners.get(event) || new Set<() => void>();
@@ -93,9 +107,11 @@ vi.mock("@/components/ui/carousel", () => {
         },
       };
 
+      carouselState.api = api;
       setApi(api);
 
       return () => {
+        carouselState.api = null;
         listeners.clear();
       };
     }, [setApi]);
@@ -109,7 +125,10 @@ vi.mock("@/components/ui/carousel", () => {
   }: {
     children: ReactNode;
     className?: string;
-  }) => <div className={className}>{children}</div>;
+  }) => {
+    carouselState.slideCount = React.Children.count(children);
+    return <div className={className}>{children}</div>;
+  };
 
   const CarouselItem = ({
     children,
@@ -125,9 +144,23 @@ vi.mock("@/components/ui/carousel", () => {
   }: {
     className?: string;
     onClick?: React.MouseEventHandler<HTMLButtonElement>;
-  }) => (
-    <button type="button" aria-label="previous slide" className={className} onClick={onClick} />
-  );
+  }) => {
+    const handleClick: React.MouseEventHandler<HTMLButtonElement> = (event) => {
+      onClick?.(event);
+      if (!event.defaultPrevented) {
+        carouselState.api?.scrollPrev();
+      }
+    };
+
+    return (
+      <button
+        type="button"
+        aria-label="previous slide"
+        className={className}
+        onClick={handleClick}
+      />
+    );
+  };
 
   const CarouselNext = ({
     className,
@@ -135,9 +168,23 @@ vi.mock("@/components/ui/carousel", () => {
   }: {
     className?: string;
     onClick?: React.MouseEventHandler<HTMLButtonElement>;
-  }) => (
-    <button type="button" aria-label="next slide" className={className} onClick={onClick} />
-  );
+  }) => {
+    const handleClick: React.MouseEventHandler<HTMLButtonElement> = (event) => {
+      onClick?.(event);
+      if (!event.defaultPrevented) {
+        carouselState.api?.scrollNext();
+      }
+    };
+
+    return (
+      <button
+        type="button"
+        aria-label="next slide"
+        className={className}
+        onClick={handleClick}
+      />
+    );
+  };
 
   return {
     Carousel,
@@ -230,6 +277,111 @@ const runBrowserIdleCallbacks = () => {
   );
 };
 
+const escapeRegExp = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+const getHeroSlideEntryElements = ({
+  slideId,
+  title,
+  synopsis,
+}: {
+  slideId: string;
+  title: string;
+  synopsis: string;
+}) => {
+  const typeStatus = screen.getByTestId(`hero-slide-type-status-${slideId}`);
+  const [type, separator, status] = Array.from(
+    typeStatus.querySelectorAll("span"),
+  ) as HTMLElement[];
+  const heading = screen.getByRole("heading", { name: title });
+  const synopsisText = screen.getByText(synopsis);
+  const actions = screen.getByRole("link", {
+    name: new RegExp(escapeRegExp(title)),
+  }).parentElement as HTMLDivElement;
+
+  return {
+    latest: screen.queryByTestId(`hero-slide-latest-${slideId}`),
+    type,
+    separator,
+    status,
+    heading,
+    synopsisText,
+    actions,
+  };
+};
+
+const expectAnimatedHeroSlideEntry = ({
+  slideId,
+  title,
+  synopsis,
+  expectLatest = false,
+}: {
+  slideId: string;
+  title: string;
+  synopsis: string;
+  expectLatest?: boolean;
+}) => {
+  const { latest, type, separator, status, heading, synopsisText, actions } =
+    getHeroSlideEntryElements({
+      slideId,
+      title,
+      synopsis,
+    });
+
+  if (expectLatest) {
+    expect(latest).toHaveClass("animate-slide-up", "opacity-0");
+    expect(latest).toHaveStyle({ animationDelay: "120ms" });
+  } else {
+    expect(latest).not.toBeInTheDocument();
+  }
+
+  expect(type).toHaveClass("animate-slide-up", "opacity-0");
+  expect(separator).toHaveClass("animate-slide-up", "opacity-0");
+  expect(status).toHaveClass("animate-slide-up", "opacity-0");
+  expect(heading).toHaveClass("animate-slide-up", "opacity-0");
+  expect(synopsisText).toHaveClass("animate-slide-up", "opacity-0");
+  expect(actions).toHaveClass("animate-slide-up", "opacity-0");
+
+  expect(type).toHaveStyle({ animationDelay: "120ms" });
+  expect(separator).toHaveStyle({ animationDelay: "120ms" });
+  expect(status).toHaveStyle({ animationDelay: "120ms" });
+  expect(heading).toHaveStyle({ animationDelay: "240ms" });
+  expect(synopsisText).toHaveStyle({ animationDelay: "360ms" });
+  expect(actions).toHaveStyle({ animationDelay: "520ms" });
+};
+
+const expectStaticHeroSlideEntry = ({
+  slideId,
+  title,
+  synopsis,
+  expectLatest = false,
+}: {
+  slideId: string;
+  title: string;
+  synopsis: string;
+  expectLatest?: boolean;
+}) => {
+  const { latest, type, separator, status, heading, synopsisText, actions } =
+    getHeroSlideEntryElements({
+      slideId,
+      title,
+      synopsis,
+    });
+
+  if (expectLatest) {
+    expect(latest).toBeInTheDocument();
+    expect(latest).not.toHaveClass("animate-slide-up");
+  } else {
+    expect(latest).not.toBeInTheDocument();
+  }
+
+  expect(type).not.toHaveClass("animate-slide-up");
+  expect(separator).not.toHaveClass("animate-slide-up");
+  expect(status).not.toHaveClass("animate-slide-up");
+  expect(heading).not.toHaveClass("animate-slide-up");
+  expect(synopsisText).not.toHaveClass("animate-slide-up");
+  expect(actions).not.toHaveClass("animate-slide-up");
+};
+
 describe("HeroSection cover fit", () => {
   beforeEach(() => {
     usePublicBootstrapMock.mockReset();
@@ -238,6 +390,9 @@ describe("HeroSection cover fit", () => {
     browserIdleState.autoRun = true;
     browserIdleState.callbacks.splice(0, browserIdleState.callbacks.length);
     carouselState.scrollNext.mockReset();
+    carouselState.selectedIndex = 0;
+    carouselState.slideCount = 0;
+    carouselState.api = null;
   });
 
   afterEach(() => {
@@ -332,7 +487,7 @@ describe("HeroSection cover fit", () => {
     );
   });
 
-  it("anima o fallback inicial no desktop e nao reaplica a animacao quando o carrossel assume", async () => {
+  it("anima o fallback inicial no desktop e mantem animacao quando o carrossel assume", async () => {
     browserIdleState.autoRun = false;
     setupBootstrapMock({ includeSecondProject: true });
 
@@ -342,35 +497,14 @@ describe("HeroSection cover fit", () => {
       </MemoryRouter>,
     );
 
-    const latest = await screen.findByTestId("hero-slide-latest-project-1");
-    const typeStatus = screen.getByTestId("hero-slide-type-status-project-1");
-    const [type, separator, status] = Array.from(
-      typeStatus.querySelectorAll("span"),
-    ) as HTMLElement[];
-    const heading = screen.getByRole("heading", { name: "Projeto com Hero" });
-    const synopsis = screen.getByText("Sinopse de teste");
-    const actions = screen.getByRole("link", { name: /Projeto com Hero/ })
-      .parentElement as HTMLDivElement;
-
+    await screen.findByTestId("hero-slide-latest-project-1");
     expect(screen.queryByTestId("hero-slide-meta-project-2")).not.toBeInTheDocument();
-    expect(type).toHaveTextContent("Anime");
-    expect(separator).toHaveTextContent("•");
-    expect(status).toHaveTextContent("Em andamento");
-    expect(latest).toHaveClass("animate-slide-up", "opacity-0");
-    expect(type).toHaveClass("animate-slide-up", "opacity-0");
-    expect(separator).toHaveClass("animate-slide-up", "opacity-0");
-    expect(status).toHaveClass("animate-slide-up", "opacity-0");
-    expect(heading).toHaveClass("animate-slide-up", "opacity-0");
-    expect(synopsis).toHaveClass("animate-slide-up", "opacity-0");
-    expect(actions).toHaveClass("animate-slide-up", "opacity-0");
-
-    expect(latest).toHaveStyle({ animationDelay: "120ms" });
-    expect(type).toHaveStyle({ animationDelay: "120ms" });
-    expect(separator).toHaveStyle({ animationDelay: "120ms" });
-    expect(status).toHaveStyle({ animationDelay: "120ms" });
-    expect(heading).toHaveStyle({ animationDelay: "240ms" });
-    expect(synopsis).toHaveStyle({ animationDelay: "360ms" });
-    expect(actions).toHaveStyle({ animationDelay: "520ms" });
+    expectAnimatedHeroSlideEntry({
+      slideId: "project-1",
+      title: "Projeto com Hero",
+      synopsis: "Sinopse de teste",
+      expectLatest: true,
+    });
 
     await act(async () => {
       runBrowserIdleCallbacks();
@@ -378,18 +512,90 @@ describe("HeroSection cover fit", () => {
     });
 
     await screen.findByTestId("hero-slide-meta-project-2");
+    expectAnimatedHeroSlideEntry({
+      slideId: "project-1",
+      title: "Projeto com Hero",
+      synopsis: "Sinopse de teste",
+      expectLatest: true,
+    });
+  });
 
-    const mountedTypeStatus = screen.getByTestId("hero-slide-type-status-project-1");
-    const mountedType = within(mountedTypeStatus).getByText("Anime");
-    const mountedStatus = within(mountedTypeStatus).getByText("Em andamento");
-    const mountedHeading = screen.getByRole("heading", { name: "Projeto com Hero" });
+  it("anima o slide inicial quando o carrossel desktop monta no carregamento", async () => {
+    setupBootstrapMock({ includeSecondProject: true });
 
-    expect(mountedType).not.toHaveClass("animate-slide-up");
-    expect(mountedStatus).not.toHaveClass("animate-slide-up");
-    expect(mountedType).not.toHaveClass("opacity-0");
-    expect(mountedStatus).not.toHaveClass("opacity-0");
-    expect(mountedHeading).not.toHaveClass("animate-slide-up");
-    expect(mountedHeading).not.toHaveClass("opacity-0");
+    render(
+      <MemoryRouter>
+        <HeroSection />
+      </MemoryRouter>,
+    );
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+    await screen.findByTestId("hero-slide-meta-project-2");
+
+    expectAnimatedHeroSlideEntry({
+      slideId: "project-1",
+      title: "Projeto com Hero",
+      synopsis: "Sinopse de teste",
+      expectLatest: true,
+    });
+  });
+
+  it("reaplica a animacao no slide ativo a cada troca real do carrossel desktop", async () => {
+    setupBootstrapMock({ includeSecondProject: true });
+
+    render(
+      <MemoryRouter>
+        <HeroSection />
+      </MemoryRouter>,
+    );
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+    await screen.findByTestId("hero-slide-meta-project-2");
+
+    expectAnimatedHeroSlideEntry({
+      slideId: "project-1",
+      title: "Projeto com Hero",
+      synopsis: "Sinopse de teste",
+      expectLatest: true,
+    });
+    const initialProjectOne = getHeroSlideEntryElements({
+      slideId: "project-1",
+      title: "Projeto com Hero",
+      synopsis: "Sinopse de teste",
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /next slide/i }));
+
+    expectAnimatedHeroSlideEntry({
+      slideId: "project-2",
+      title: "Projeto Secundario",
+      synopsis: "Sinopse secundaria",
+    });
+    expectStaticHeroSlideEntry({
+      slideId: "project-1",
+      title: "Projeto com Hero",
+      synopsis: "Sinopse de teste",
+      expectLatest: true,
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /next slide/i }));
+
+    expectAnimatedHeroSlideEntry({
+      slideId: "project-1",
+      title: "Projeto com Hero",
+      synopsis: "Sinopse de teste",
+      expectLatest: true,
+    });
+    const returnedProjectOne = getHeroSlideEntryElements({
+      slideId: "project-1",
+      title: "Projeto com Hero",
+      synopsis: "Sinopse de teste",
+    });
+    expect(returnedProjectOne.heading).not.toBe(initialProjectOne.heading);
   });
 
   it("inicia autoplay do carrossel em 5s", async () => {
@@ -438,16 +644,17 @@ describe("HeroSection cover fit", () => {
     expect(carouselState.scrollNext).not.toHaveBeenCalled();
 
     fireEvent.click(screen.getByRole("button", { name: /next slide/i }));
+    expect(carouselState.scrollNext).toHaveBeenCalledTimes(1);
 
     act(() => {
       vi.advanceTimersByTime(4999);
     });
-    expect(carouselState.scrollNext).not.toHaveBeenCalled();
+    expect(carouselState.scrollNext).toHaveBeenCalledTimes(1);
 
     act(() => {
       vi.advanceTimersByTime(1);
     });
-    expect(carouselState.scrollNext).toHaveBeenCalledTimes(1);
+    expect(carouselState.scrollNext).toHaveBeenCalledTimes(2);
   });
 
   it("renderiza overlay superior para contraste da navbar no tema claro", async () => {

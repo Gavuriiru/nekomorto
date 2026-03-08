@@ -169,8 +169,10 @@ const About = () => {
                     key={item.label}
                     className="group rounded-2xl border border-border/60 bg-background/60 p-5 transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:bg-background/80 hover:shadow-lg"
                   >
-                    <div className="flex items-center gap-3 text-xs font-semibold uppercase tracking-widest text-primary/80 transition-colors duration-300 group-hover:text-primary">
-                      <HighlightIcon className="h-4 w-4 text-primary/80 transition-colors duration-300 group-hover:text-primary" />
+                    <div
+                      className={`${publicPageLayoutTokens.sectionLabelBase} ${publicPageLayoutTokens.sectionLabelXs}`}
+                    >
+                      <HighlightIcon className={publicPageLayoutTokens.sectionLabelIcon} />
                       {item.label}
                     </div>
                     <p className="mt-2 text-sm text-muted-foreground transition-colors duration-300 group-hover:text-foreground/80">
@@ -182,12 +184,12 @@ const About = () => {
             </div>
             <Card className="group border-border/60 bg-card/80 shadow-lg transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:bg-card/90 hover:shadow-lg">
               <CardContent className="space-y-5 p-6 md:p-8">
-                <div className="flex items-center gap-3 text-sm font-semibold uppercase tracking-widest text-muted-foreground transition-colors duration-300 group-hover:text-primary">
+                <div
+                  className={`${publicPageLayoutTokens.sectionLabelBase} ${publicPageLayoutTokens.sectionLabelSm}`}
+                >
                   {(() => {
                     const ManifestoIcon = iconMap[about.manifestoIcon] || Flame;
-                    return (
-                      <ManifestoIcon className="h-4 w-4 text-primary/80 transition-colors duration-300 group-hover:text-primary" />
-                    );
+                    return <ManifestoIcon className={publicPageLayoutTokens.sectionLabelIcon} />;
                   })()}
                   {about.manifestoTitle}
                 </div>
@@ -217,8 +219,10 @@ const About = () => {
                   className="group border-border/60 bg-card/80 shadow-lg transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:bg-card/90 hover:shadow-lg"
                 >
                   <CardContent className="space-y-3 p-6">
-                    <div className="flex items-center gap-3 text-sm font-semibold uppercase tracking-widest text-muted-foreground transition-colors duration-300 group-hover:text-primary">
-                      <Icon className="h-4 w-4 text-primary/80 transition-colors duration-300 group-hover:text-primary" />
+                    <div
+                      className={`${publicPageLayoutTokens.sectionLabelBase} ${publicPageLayoutTokens.sectionLabelSm}`}
+                    >
+                      <Icon className={publicPageLayoutTokens.sectionLabelIcon} />
                       {pillar.title}
                     </div>
                     <p className="text-sm text-muted-foreground transition-colors duration-300 group-hover:text-foreground/80">
@@ -244,8 +248,10 @@ const About = () => {
                   className="group border-border/60 bg-card/80 shadow-lg transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:bg-card/90 hover:shadow-lg"
                 >
                   <CardContent className="space-y-3 p-6">
-                    <div className="flex items-center gap-3 text-sm font-semibold uppercase tracking-widest text-muted-foreground transition-colors duration-300 group-hover:text-primary">
-                      <Icon className="h-4 w-4 text-primary/80 transition-colors duration-300 group-hover:text-primary" />
+                    <div
+                      className={`${publicPageLayoutTokens.sectionLabelBase} ${publicPageLayoutTokens.sectionLabelSm}`}
+                    >
+                      <Icon className={publicPageLayoutTokens.sectionLabelIcon} />
                       {value.title}
                     </div>
                     <p className="text-sm text-muted-foreground transition-colors duration-300 group-hover:text-foreground/80">

@@ -12,6 +12,7 @@ export type PublicBootstrapCurrentUser = {
   name: string;
   username: string;
   avatarUrl?: string | null;
+  revision?: string | null;
   accessRole?: string;
   permissions?: string[];
   ownerIds?: string[];
@@ -82,6 +83,7 @@ export const asPublicBootstrapCurrentUser = (
     name: String(candidate.name || ""),
     username: String(candidate.username || ""),
     avatarUrl: candidate.avatarUrl ? String(candidate.avatarUrl) : null,
+    revision: candidate.revision ? String(candidate.revision) : null,
     accessRole: candidate.accessRole ? String(candidate.accessRole) : undefined,
     permissions,
     ownerIds,

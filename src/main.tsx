@@ -5,6 +5,7 @@ import { apiFetch } from "@/lib/api-client";
 import { primePublicBootstrapCache } from "@/hooks/use-public-bootstrap";
 import { scheduleOnBrowserLoadIdle } from "@/lib/browser-idle";
 import { asPublicBootstrapPayload } from "@/lib/public-bootstrap-global";
+import { shouldRegisterPwaImmediately } from "@/lib/pwa-navigation";
 import "./index.css";
 
 const HOME_HERO_READY_EVENT = "nekomata:hero-ready";
@@ -79,14 +80,27 @@ const armHomeHeroShellCleanup = () => {
 };
 
 const bootstrap = async () => {
-  scheduleOnBrowserLoadIdle(
-    () => {
-      void import("@/lib/pwa-register")
-        .then(({ registerPwa }) => registerPwa())
-        .catch(() => null);
-    },
-    { delayMs: 15000 },
-  );
+  const registerPwa = () => {
+    void import("@/lib/pwa-register")
+      .then(({ registerPwa }) => registerPwa())
+      .catch(() => null);
+  };
+
+  if (
+    shouldRegisterPwaImmediately({
+      pathname: window.location.pathname,
+      hasServiceWorkerController: Boolean(window.navigator.serviceWorker?.controller),
+    })
+  ) {
+    registerPwa();
+  } else {
+    scheduleOnBrowserLoadIdle(
+      () => {
+        registerPwa();
+      },
+      { delayMs: 15000 },
+    );
+  }
 
   const apiBase = getApiBase();
   const globalWindow = window as Window & {

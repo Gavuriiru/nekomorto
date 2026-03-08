@@ -135,27 +135,29 @@ const DashboardAvatar = ({
 }: DashboardAvatarProps) => {
   const [hasError, setHasError] = useState(false);
   const hasImage = Boolean(avatarUrl) && !hasError;
+  const wrapperClassName =
+    `${sizeClassName} ${frameClassName} relative shrink-0 overflow-hidden rounded-full`;
 
   useEffect(() => {
     setHasError(false);
   }, [avatarUrl]);
 
-  if (!hasImage) {
-    return <div className={fallbackClassName}>{fallbackText}</div>;
-  }
-
   return (
-    <div
-      className={`${sizeClassName} ${frameClassName} relative shrink-0 overflow-hidden rounded-full`}
-    >
-      <img
-        src={String(avatarUrl)}
-        alt={name}
-        referrerPolicy="no-referrer"
-        crossOrigin="anonymous"
-        className="h-full w-full object-cover"
-        onError={() => setHasError(true)}
-      />
+    <div className={wrapperClassName}>
+      {hasImage ? (
+        <img
+          src={String(avatarUrl)}
+          alt={name}
+          referrerPolicy="no-referrer"
+          crossOrigin="anonymous"
+          className="h-full w-full object-cover"
+          onError={() => setHasError(true)}
+        />
+      ) : (
+        <div className={`flex h-full w-full items-center justify-center ${fallbackClassName}`}>
+          {fallbackText}
+        </div>
+      )}
     </div>
   );
 };
@@ -1531,14 +1533,14 @@ const DashboardUsers = () => {
                               </button>
                             ) : null}
                             <div className="pointer-events-none flex gap-4">
-                            <DashboardAvatar
-                              avatarUrl={toAvatarRenderUrl(user.avatarUrl, user.revision)}
-                              name={user.name}
-                              sizeClassName="h-14 w-14"
-                              frameClassName="border border-border/60 bg-card/60"
-                              fallbackClassName="flex h-14 w-14 items-center justify-center rounded-full border border-border/60 bg-card/80 text-sm text-foreground"
-                              fallbackText={user.name.slice(0, 2).toUpperCase()}
-                            />
+                              <DashboardAvatar
+                                avatarUrl={toAvatarRenderUrl(user.avatarUrl, user.revision)}
+                                name={user.name}
+                                sizeClassName="h-14 w-14"
+                                frameClassName="border border-border/60 bg-card/60"
+                                fallbackClassName="bg-card/80 text-sm text-foreground"
+                                fallbackText={user.name.slice(0, 2).toUpperCase()}
+                              />
                             <div>
                               <div className="flex items-center gap-2">
                                 <h3 className="text-lg font-semibold">{user.name}</h3>
@@ -1651,14 +1653,14 @@ const DashboardUsers = () => {
                                 </button>
                               ) : null}
                               <div className="pointer-events-none flex gap-4">
-                              <DashboardAvatar
-                                avatarUrl={toAvatarRenderUrl(user.avatarUrl, user.revision)}
-                                name={user.name}
-                                sizeClassName="h-14 w-14"
-                                frameClassName="border border-border/60 bg-card/60"
-                                fallbackClassName="flex h-14 w-14 items-center justify-center rounded-full border border-border/60 bg-card/80 text-sm text-foreground"
-                                fallbackText={user.name.slice(0, 2).toUpperCase()}
-                              />
+                                <DashboardAvatar
+                                  avatarUrl={toAvatarRenderUrl(user.avatarUrl, user.revision)}
+                                  name={user.name}
+                                  sizeClassName="h-14 w-14"
+                                  frameClassName="border border-border/60 bg-card/60"
+                                  fallbackClassName="bg-card/80 text-sm text-foreground"
+                                  fallbackText={user.name.slice(0, 2).toUpperCase()}
+                                />
                               <div>
                                 <div className="flex items-center gap-2">
                                   <h3 className="text-lg font-semibold">{user.name}</h3>
@@ -1963,11 +1965,11 @@ const DashboardUsers = () => {
                     name={formState.name || "Avatar"}
                     sizeClassName="h-12 w-12"
                     frameClassName="border border-border/60 bg-card/60"
-                    fallbackClassName="flex h-12 w-12 items-center justify-center rounded-full border border-border/60 bg-card/60 text-xs text-foreground"
+                    fallbackClassName="bg-card/60 text-xs text-foreground"
                     fallbackText={(formState.name || "U").slice(0, 1).toUpperCase()}
                   />
                 ) : (
-                  <div className="flex h-12 w-12 items-center justify-center rounded-full border border-dashed border-border/60 text-[10px] text-muted-foreground">
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-dashed border-border/60 text-[10px] text-muted-foreground">
                     Sem imagem
                   </div>
                 )}

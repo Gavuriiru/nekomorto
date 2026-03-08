@@ -374,12 +374,17 @@ const Post = () => {
                   {post.projectId ? <ProjectEmbedCard projectId={post.projectId} /> : null}
 
                   {authorMember ? (
-                    <PublicUserProfileCard
-                      testId="post-author-card"
-                      member={authorMember}
-                      linkTypes={authorLinkTypes}
-                      mediaVariants={authorMediaVariants}
-                    />
+                    <section aria-labelledby="post-author-heading">
+                      <h2 id="post-author-heading" className="sr-only">
+                        Sobre o autor
+                      </h2>
+                      <PublicUserProfileCard
+                        testId="post-author-card"
+                        member={authorMember}
+                        linkTypes={authorLinkTypes}
+                        mediaVariants={authorMediaVariants}
+                      />
+                    </section>
                   ) : null}
 
                   <CommentsSection targetType="post" targetId={post.slug} />

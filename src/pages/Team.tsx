@@ -184,18 +184,28 @@ const Team = () => {
             </div>
           ) : (
             <>
-              <div className="mt-10 grid gap-8 md:gap-10">
-                {activeMembers.map((member) =>
-                  renderMemberCard(member, {
-                    prioritizeImage: member.id === prioritizedMemberId,
-                  }),
-                )}
-              </div>
+              {activeMembers.length > 0 ? (
+                <section className="mt-10" aria-labelledby="team-active-members-heading">
+                  <h2 id="team-active-members-heading" className="sr-only">
+                    Membros ativos
+                  </h2>
+                  <div className="grid gap-8 md:gap-10">
+                    {activeMembers.map((member) =>
+                      renderMemberCard(member, {
+                        prioritizeImage: member.id === prioritizedMemberId,
+                      }),
+                    )}
+                  </div>
+                </section>
+              ) : null}
 
               {retiredMembers.length > 0 ? (
-                <div className="mt-16 space-y-6">
+                <section className="mt-16 space-y-6" aria-labelledby="team-retired-members-heading">
                   <div>
-                    <h2 className="text-lg font-semibold text-foreground">
+                    <h2
+                      id="team-retired-members-heading"
+                      className="text-lg font-semibold text-foreground"
+                    >
                       {pageCopy.retiredTitle}
                     </h2>
                     <p className="text-sm text-muted-foreground">{pageCopy.retiredSubtitle}</p>
@@ -208,7 +218,7 @@ const Team = () => {
                       }),
                     )}
                   </div>
-                </div>
+                </section>
               ) : null}
             </>
           )}
