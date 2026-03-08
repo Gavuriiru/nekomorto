@@ -1,8 +1,8 @@
 import "dotenv/config";
 import crypto from "crypto";
 import fs from "fs";
-import path from "path";
 import { createServer as createHttpServer } from "node:http";
+import path from "path";
 import { fileURLToPath } from "url";
 import compression from "compression";
 import connectPgSimple from "connect-pg-simple";
@@ -12,6 +12,16 @@ import express from "express";
 import session from "express-session";
 import multer from "multer";
 import { Pool } from "pg";
+import {
+  ADMIN_EXPORT_DATASETS,
+  filterByDateRange,
+  filterExportEntries,
+  normalizeExportDataset,
+  normalizeExportFilters,
+  normalizeExportFormat,
+  normalizeExportStatus,
+  writeExportFile,
+} from "./lib/admin-exports.js";
 import { API_CONTRACT_VERSION, buildApiContractV1 } from "./lib/api-contract-v1.js";
 import {
   AccessRole,
@@ -30,102 +40,97 @@ import {
   removeOwnerRoleLabel,
   sanitizePermissionsForStorage,
 } from "./lib/authz.js";
+import {
+  isUploadFolderAllowedInScope,
+  resolveUploadScopeAccess,
+  shouldIncludeUploadInHashDedupe,
+} from "./lib/avatar-upload-scope.js";
+import { getBuildMetadata } from "./lib/build-metadata.js";
+import { deriveChapterSynopsis } from "./lib/chapter-synopsis.js";
 import { bulkModeratePendingComments } from "./lib/comments-bulk-moderation.js";
 import { buildCorsOptionsForRequest } from "./lib/cors-policy.js";
 import { createDataRepository } from "./lib/data-repository.js";
-import {
-  ADMIN_EXPORT_DATASETS,
-  filterByDateRange,
-  filterExportEntries,
-  normalizeExportDataset,
-  normalizeExportFilters,
-  normalizeExportFormat,
-  normalizeExportStatus,
-  writeExportFile,
-} from "./lib/admin-exports.js";
+import { proxyDiscordAvatarRequest } from "./lib/discord-avatar-proxy.js";
 import { buildEditorialCalendarItems } from "./lib/editorial-calendar.js";
 import { createViteDevServer, resolveClientIndexPath } from "./lib/frontend-runtime.js";
 import { buildHealthStatusResponse } from "./lib/health-checks.js";
-import {
-  HTML_CACHE_CONTROL_PRIVATE_REVALIDATE,
-  resolveHtmlCacheControl,
-} from "./lib/html-cache-control.js";
 import {
   extractLocalStylesheetHrefs,
   injectBootstrapGlobals,
   injectHomeHeroShell,
   injectPreloadLinks,
 } from "./lib/html-bootstrap.js";
-import { proxyDiscordAvatarRequest } from "./lib/discord-avatar-proxy.js";
+import {
+  HTML_CACHE_CONTROL_PRIVATE_REVALIDATE,
+  resolveHtmlCacheControl,
+} from "./lib/html-cache-control.js";
 import { createIdempotencyFingerprint, createIdempotencyStore } from "./lib/idempotency-store.js";
 import { createJobQueue } from "./lib/job-queue.js";
+import { createJsonFileCache } from "./lib/json-file-cache.js";
+import { truncateMetaDescription } from "./lib/meta-description.js";
 import { createMetricsRegistry } from "./lib/metrics.js";
-import { canAccessApiDuringPendingMfa } from "./lib/pending-mfa-guard.js";
+import { optimizeOgPngBuffer } from "./lib/og-image-output.js";
+import { buildOgRenderCacheKey, createOgRenderCache } from "./lib/og-render-cache.js";
 import {
   buildOperationalAlertsResponse,
   buildOperationalAlertsV1,
 } from "./lib/operational-alerts.js";
-import { getBuildMetadata } from "./lib/build-metadata.js";
 import {
   buildOriginConfig,
   isAllowedOrigin as isAllowedOriginByConfig,
   resolveAuthAppOrigin,
   resolveDiscordRedirectUri as resolveDiscordRedirectUriByConfig,
 } from "./lib/origin-config.js";
+import { canAccessApiDuringPendingMfa } from "./lib/pending-mfa-guard.js";
+import {
+  buildPostOgCardModel,
+  buildPostOgImagePath,
+  buildPostOgImageResponse,
+} from "./lib/post-og.js";
 import { createSlug, createUniqueSlug } from "./lib/post-slug.js";
 import { resolvePostStatus } from "./lib/post-status.js";
 import { dedupePostVersionRecordsNewestFirst } from "./lib/post-version-dedupe.js";
 import { prisma } from "./lib/prisma-client.js";
+import { applyProjectChapterUpdate } from "./lib/project-chapter-editor.js";
 import {
-  resolveExistingPublicVariantUrl,
-  resolveHomeHeroPreloadFromSlide,
-  sanitizePublicMediaVariantEntry,
-  shouldExposePublicUploadInMediaVariants,
-} from "./lib/public-media-variants.js";
-import { resolvePublicTeamAvatarPreload } from "./lib/public-team-preloads.js";
-import { resolvePublicProjectsListPreloads } from "./lib/public-projects-preloads.js";
-import { resolveRouteThemeColor } from "./lib/route-theme-color.js";
-import { localizeProjectImageFields } from "./lib/project-image-localizer.js";
-import {
+  applyEpisodePublicationMetadata,
   collectEpisodeUpdates as collectEpisodeUpdatesByVisibility,
   isEpisodePublic,
-  applyEpisodePublicationMetadata,
 } from "./lib/project-episode-updates.js";
 import {
   buildEpisodeKey,
   findDuplicateEpisodeKey,
   resolveEpisodeLookup,
 } from "./lib/project-episodes.js";
-import { buildPublicReadableProjects, buildPublicVisibleProjects } from "./lib/public-projects.js";
-import { findDuplicateVolumeCover } from "./lib/project-volume-covers.js";
-import { deriveChapterSynopsis } from "./lib/chapter-synopsis.js";
 import { exportProjectEpub } from "./lib/project-epub-export.js";
-import { importProjectEpub } from "./lib/project-epub-import.js";
 import { cleanupProjectEpubImportTempUploads } from "./lib/project-epub-import-cleanup.js";
 import {
   EPUB_IMPORT_MULTIPART_LIMITS,
   mapEpubImportExecutionError,
   mapEpubImportMultipartError,
 } from "./lib/project-epub-import-request.js";
+import { importProjectEpub } from "./lib/project-epub-import.js";
+import { localizeProjectImageFields } from "./lib/project-image-localizer.js";
 import {
   buildProjectOgCardModel,
   buildProjectOgImagePath,
   buildProjectOgImageResponse,
 } from "./lib/project-og.js";
-import { optimizeOgPngBuffer } from "./lib/og-image-output.js";
-import { createJsonFileCache } from "./lib/json-file-cache.js";
-import { buildOgRenderCacheKey, createOgRenderCache } from "./lib/og-render-cache.js";
-import {
-  buildPostOgCardModel,
-  buildPostOgImagePath,
-  buildPostOgImageResponse,
-} from "./lib/post-og.js";
-import { truncateMetaDescription } from "./lib/meta-description.js";
+import { findDuplicateVolumeCover } from "./lib/project-volume-covers.js";
 import {
   normalizeLegacyInviteCardText,
   normalizeLegacyUpdateRecord,
 } from "./lib/pt-legacy-normalization.js";
 import { buildPublicBootstrapPayload } from "./lib/public-bootstrap.js";
+import {
+  resolveExistingPublicVariantUrl,
+  resolveHomeHeroPreloadFromSlide,
+  sanitizePublicMediaVariantEntry,
+  shouldExposePublicUploadInMediaVariants,
+} from "./lib/public-media-variants.js";
+import { resolvePublicProjectsListPreloads } from "./lib/public-projects-preloads.js";
+import { buildPublicReadableProjects, buildPublicVisibleProjects } from "./lib/public-projects.js";
+import { normalizePublicRedirects, resolvePublicRedirect } from "./lib/public-redirects.js";
 import {
   buildPublicSearchSuggestions,
   normalizeSearchQuery,
@@ -133,11 +138,14 @@ import {
   parseSearchScope,
   publicSearchConfig,
 } from "./lib/public-search.js";
+import { resolvePublicTeamAvatarPreload } from "./lib/public-team-preloads.js";
 import { createRateLimiter } from "./lib/rate-limiter.js";
-import { createRevisionToken } from "./lib/revision-token.js";
 import { importRemoteImageFile } from "./lib/remote-image-import.js";
 import { createResponseCache } from "./lib/response-cache.js";
+import { createRevisionToken } from "./lib/revision-token.js";
+import { resolveRouteThemeColor } from "./lib/route-theme-color.js";
 import { buildRssXml } from "./lib/rss-xml.js";
+import { buildSchemaOrgPayload, serializeSchemaOrgEntry } from "./lib/schema-org.js";
 import {
   decryptStringWithKeyring,
   encryptStringWithKeyring,
@@ -145,12 +153,12 @@ import {
   resolveSessionSecrets,
 } from "./lib/security-crypto.js";
 import {
+  SecurityEventSeverity,
+  SecurityEventStatus,
   createSecurityEventPayload,
   createSlidingWindowCounter,
   getIpv4Network24,
   normalizeSecurityEventStatus,
-  SecurityEventSeverity,
-  SecurityEventStatus,
 } from "./lib/security-events.js";
 import { applySecurityHeaders, injectNonceIntoHtmlScripts } from "./lib/security-headers.js";
 import {
@@ -160,8 +168,6 @@ import {
 } from "./lib/session-auth.js";
 import { buildSessionCookieConfig } from "./lib/session-cookie-config.js";
 import { buildSitemapXml } from "./lib/sitemap-xml.js";
-import { normalizePublicRedirects, resolvePublicRedirect } from "./lib/public-redirects.js";
-import { buildSchemaOrgPayload, serializeSchemaOrgEntry } from "./lib/schema-org.js";
 import {
   buildOtpAuthUrl,
   generateRecoveryCodes,
@@ -170,13 +176,6 @@ import {
   normalizeRecoveryCode,
   verifyTotpCode,
 } from "./lib/totp.js";
-import { buildDiskStorageAreaSummary, runUploadsCleanup } from "./lib/uploads-cleanup.js";
-import { runUploadsReorganization } from "./lib/uploads-reorganizer.js";
-import {
-  isUploadFolderAllowedInScope,
-  resolveUploadScopeAccess,
-  shouldIncludeUploadInHashDedupe,
-} from "./lib/avatar-upload-scope.js";
 import {
   attachUploadMediaMetadata,
   computeBufferSha256,
@@ -190,12 +189,8 @@ import {
   resolveUploadAbsolutePath,
   resolveUploadVariantPresetKeysForArea,
 } from "./lib/upload-media.js";
-import {
-  isDiscordAvatarUrl,
-  resolveEffectiveUserAvatarUrl,
-  resolveUserAvatarRenderVersion,
-  shouldSyncDiscordAvatarToStoredUser,
-} from "./lib/user-avatar.js";
+import { buildDiskStorageAreaSummary, runUploadsCleanup } from "./lib/uploads-cleanup.js";
+import { runUploadsReorganization } from "./lib/uploads-reorganizer.js";
 import {
   sanitizeAssetUrl,
   sanitizeFavoriteWorksByCategory,
@@ -203,6 +198,12 @@ import {
   sanitizePublicHref,
   sanitizeSocials,
 } from "./lib/url-safety.js";
+import {
+  isDiscordAvatarUrl,
+  resolveEffectiveUserAvatarUrl,
+  resolveUserAvatarRenderVersion,
+  shouldSyncDiscordAvatarToStoredUser,
+} from "./lib/user-avatar.js";
 import { dispatchWebhookMessage } from "./lib/webhooks/dispatcher.js";
 import {
   buildEditorialEventContext,
@@ -4771,9 +4772,7 @@ const buildPublicMediaVariants = (sourcesInput, options = {}) => {
   if (urls.size === 0) {
     return {};
   }
-  const allowPrivateUrls = Array.isArray(options?.allowPrivateUrls)
-    ? options.allowPrivateUrls
-    : [];
+  const allowPrivateUrls = Array.isArray(options?.allowPrivateUrls) ? options.allowPrivateUrls : [];
   const uploads = loadUploads();
   const mediaVariants = {};
   uploads.forEach((entry) => {
@@ -10776,6 +10775,24 @@ app.get("/api/projects", requireAuth, (req, res) => {
   res.json({ projects });
 });
 
+app.get("/api/projects/:id", requireAuth, (req, res) => {
+  const sessionUser = req.session.user;
+  if (!canManageProjects(sessionUser?.id)) {
+    return res.status(403).json({ error: "forbidden" });
+  }
+  const projectId = String(req.params.id || "").trim();
+  const project = normalizeProjects(loadProjects()).find((item) => item.id === projectId);
+  if (!project) {
+    return res.status(404).json({ error: "not_found" });
+  }
+  return res.json({
+    project: {
+      ...project,
+      revision: createRevisionToken(project),
+    },
+  });
+});
+
 app.get("/api/project-types", requireAuth, (req, res) => {
   const sessionUser = req.session.user;
   if (!canManageProjects(sessionUser?.id)) {
@@ -11095,6 +11112,170 @@ app.post("/api/projects", requireAuth, async (req, res) => {
   }
 
   return res.status(201).json({ project: persistedProject });
+});
+
+app.put("/api/projects/:id/chapters/:number", requireAuth, async (req, res) => {
+  const sessionUser = req.session.user;
+  if (!canManageProjects(sessionUser?.id)) {
+    return res.status(403).json({ error: "forbidden" });
+  }
+  const options = parseEditRevisionOptions(req.body);
+  const projectId = String(req.params.id || "").trim();
+  const chapterNumber = Number(req.params.number);
+  const volumeRaw = req.query.volume;
+  const volume =
+    volumeRaw !== undefined &&
+    volumeRaw !== null &&
+    String(volumeRaw).trim() !== "" &&
+    Number.isFinite(Number(volumeRaw))
+      ? Number(volumeRaw)
+      : undefined;
+
+  if (!Number.isFinite(chapterNumber)) {
+    return res.status(400).json({ error: "invalid_chapter" });
+  }
+
+  let projects = normalizeProjects(loadProjects());
+  const index = projects.findIndex((project) => project.id === projectId);
+  if (index === -1) {
+    return res.status(404).json({ error: "not_found" });
+  }
+
+  const existing = projects[index];
+  const currentRevision = createRevisionToken(existing);
+  const noConflict = ensureNoEditConflict({
+    req,
+    res,
+    resourceType: "project",
+    resourceId: existing.id,
+    current: existing,
+    currentRevision,
+    options,
+  });
+  if (!noConflict) {
+    return noConflict;
+  }
+
+  const chapterPayload =
+    req.body?.chapter && typeof req.body.chapter === "object" ? req.body.chapter : null;
+  if (!chapterPayload) {
+    return res.status(400).json({ error: "chapter_required" });
+  }
+
+  const chapterDraft = applyProjectChapterUpdate({
+    project: existing,
+    targetNumber: chapterNumber,
+    targetVolume: volume,
+    chapter: chapterPayload,
+  });
+  if (!chapterDraft.ok) {
+    return res
+      .status(chapterDraft.code === "volume_required" ? 400 : 404)
+      .json({ error: chapterDraft.code });
+  }
+
+  const now = new Date().toISOString();
+  const mergedRaw = normalizeProjects([
+    {
+      ...chapterDraft.project,
+      id: existing.id,
+      updatedAt: now,
+    },
+  ])[0];
+  const localizedUpdate = await localizeProjectImageFields({
+    project: mergedRaw,
+    importRemoteImage: ({ remoteUrl, folder, ...importOptions }) =>
+      importRemoteImageFile({
+        remoteUrl,
+        folder,
+        ...importOptions,
+        uploadsDir: path.join(__dirname, "..", "public", "uploads"),
+      }),
+    maxConcurrent: 4,
+  });
+  const mergedNormalized = normalizeProjects([localizedUpdate.project])[0];
+  upsertUploadEntries(localizedUpdate.uploadsToUpsert);
+  const duplicateEpisodeKey = findDuplicateEpisodeKey(mergedNormalized.episodeDownloads);
+  if (duplicateEpisodeKey) {
+    return res.status(400).json({ error: "duplicate_episode_key", key: duplicateEpisodeKey.key });
+  }
+  const duplicateVolumeCoverKey = findDuplicateVolumeCover(mergedNormalized.volumeEntries);
+  if (duplicateVolumeCoverKey) {
+    return res
+      .status(400)
+      .json({ error: "duplicate_volume_cover_key", key: duplicateVolumeCoverKey.key });
+  }
+  const merged = applyEpisodePublicationMetadata(existing, mergedNormalized, now);
+
+  projects[index] = merged;
+  writeProjects(projects);
+  appendAuditLog(req, "projects.chapter.update", "projects", {
+    id: merged.id,
+    chapterNumber,
+    volume: Number.isFinite(Number(volume)) ? Number(volume) : null,
+    count: localizedUpdate.summary.downloaded,
+    failures: localizedUpdate.summary.failed,
+  });
+
+  const updates = loadUpdates();
+  const episodeWebhookUpdates = collectEpisodeUpdatesByVisibility(existing, merged, now).map(
+    (item) => ({
+      ...item,
+      updatedAt: item.updatedAt || now,
+    }),
+  );
+  const episodeUpdateRecords = episodeWebhookUpdates.map((item) => ({
+    id: crypto.randomUUID(),
+    projectId: merged.id,
+    projectTitle: merged.title,
+    episodeNumber: item.episodeNumber,
+    volume: item.volume,
+    kind: item.kind,
+    reason: item.reason,
+    unit: item.unit,
+    updatedAt: item.updatedAt,
+    image: merged.cover || "",
+  }));
+  const nextUpdates =
+    episodeUpdateRecords.length > 0 ? [...updates, ...episodeUpdateRecords] : updates;
+  if (nextUpdates.length !== updates.length) {
+    writeUpdates(nextUpdates);
+  }
+
+  await runAutoUploadReorganization({ trigger: "project-save", req });
+  const persistedProject =
+    normalizeProjects(loadProjects()).find((project) => project.id === merged.id) || merged;
+  for (const update of episodeWebhookUpdates) {
+    const eventKey = resolveProjectWebhookEventKey(update.kind);
+    if (!eventKey) {
+      continue;
+    }
+    await dispatchEditorialWebhookEvent({
+      eventKey,
+      project: persistedProject,
+      update,
+      chapter: findProjectChapterByEpisodeNumber(
+        persistedProject,
+        update.episodeNumber,
+        update.volume,
+      ),
+      req,
+    });
+  }
+
+  const persistedChapterLookup = resolveEpisodeLookup(
+    persistedProject,
+    chapterDraft.chapter.number,
+    chapterDraft.chapter.volume,
+  );
+
+  return res.json({
+    project: {
+      ...persistedProject,
+      revision: createRevisionToken(persistedProject),
+    },
+    chapter: persistedChapterLookup.ok ? persistedChapterLookup.episode : null,
+  });
 });
 
 app.put("/api/projects/:id", requireAuth, async (req, res) => {
@@ -11714,14 +11895,12 @@ const buildCriticalHomeBootstrapPayload = ({ settings, pages, projects, updates,
     generatedAt,
     payloadMode: PUBLIC_BOOTSTRAP_MODE_CRITICAL_HOME,
   });
-  payload.mediaVariants = buildPublicMediaVariants(
-    [
-      payload.projects,
-      payload.updates,
-      payload.pages,
-      { image: settings?.site?.defaultShareImage || "" },
-    ],
-  );
+  payload.mediaVariants = buildPublicMediaVariants([
+    payload.projects,
+    payload.updates,
+    payload.pages,
+    { image: settings?.site?.defaultShareImage || "" },
+  ]);
   return payload;
 };
 

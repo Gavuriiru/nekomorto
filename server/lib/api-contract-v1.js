@@ -138,6 +138,23 @@ const CONTRACT_BASE = Object.freeze({
       ],
     },
     {
+      method: "GET",
+      path: "/api/projects/:id",
+      auth: "session",
+      cache: "no-store",
+    },
+    {
+      method: "PUT",
+      path: "/api/projects/:id/chapters/:number",
+      auth: "session",
+      cache: "no-store",
+      idempotent: "optional_by_header",
+      notes: [
+        "Accepts chapter payload in body.chapter.",
+        "Supports optional ?volume= to resolve chapters in multivolume light novels.",
+      ],
+    },
+    {
       method: "PATCH",
       path: "/api/uploads/:id/focal-point",
       auth: "session",

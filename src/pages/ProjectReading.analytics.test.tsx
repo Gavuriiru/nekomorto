@@ -223,7 +223,7 @@ describe("ProjectReading analytics", () => {
     const editLink = await screen.findByRole("link", { name: /Editar cap.tulo/i });
     expect(editLink).toHaveAttribute(
       "href",
-      "/dashboard/projetos?edit=projeto-teste&chapter=1&volume=2",
+      "/dashboard/projetos/projeto-teste/capitulos/1?volume=2",
     );
     expect(editLink.querySelector("svg")).not.toBeNull();
   });

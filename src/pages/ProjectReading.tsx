@@ -1,21 +1,22 @@
-﻿import { Suspense, lazy, useEffect, useMemo, useRef, useState } from "react";
-import { Link, useParams, useSearchParams } from "react-router-dom";
-import { ArrowLeft, ChevronLeft, ChevronRight, PencilLine } from "lucide-react";
-import CommentsSection from "@/components/CommentsSection";
+﻿import CommentsSection from "@/components/CommentsSection";
 import UploadPicture from "@/components/UploadPicture";
+import { publicPageLayoutTokens } from "@/components/public-page-tokens";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { publicPageLayoutTokens } from "@/components/public-page-tokens";
+import type { Project } from "@/data/projects";
 import { usePageMeta } from "@/hooks/use-page-meta";
 import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
+import { buildDashboardProjectChapterEditorHref } from "@/lib/project-editor-routes";
 import { buildEpisodeKey } from "@/lib/project-episode-key";
+import { isLightNovelType } from "@/lib/project-utils";
 import { findVolumeCoverByVolume } from "@/lib/project-volume-cover-key";
 import { normalizeProjectVolumeEntries } from "@/lib/project-volume-entries";
-import { isLightNovelType } from "@/lib/project-utils";
-import type { Project } from "@/data/projects";
 import type { UploadMediaVariantsMap } from "@/lib/upload-variants";
+import { ArrowLeft, ChevronLeft, ChevronRight, PencilLine } from "lucide-react";
+import { Suspense, lazy, useEffect, useMemo, useRef, useState } from "react";
+import { Link, useParams, useSearchParams } from "react-router-dom";
 import NotFound from "./NotFound";
 
 const LexicalViewer = lazy(() => import("@/components/lexical/LexicalViewer"));
@@ -62,9 +63,18 @@ const ProjectReading = () => {
         : chapterNumber
           ? `Capítulo ${chapterNumber}`
           : "Capítulo";
-    const titlePart = chapterContent?.title ? `${chapterLabel} - ${chapterContent.title}` : chapterLabel;
+    const titlePart = chapterContent?.title
+      ? `${chapterLabel} - ${chapterContent.title}`
+      : chapterLabel;
     return `${titlePart} - ${project.title}`;
-  }, [chapter, chapterContent?.displayLabel, chapterContent?.entryKind, chapterContent?.number, chapterContent?.title, project]);
+  }, [
+    chapter,
+    chapterContent?.displayLabel,
+    chapterContent?.entryKind,
+    chapterContent?.number,
+    chapterContent?.title,
+    project,
+  ]);
 
   useEffect(() => {
     if (!slug) {
@@ -262,7 +272,9 @@ const ProjectReading = () => {
   );
 
   const resolvedChapterSynopsis = useMemo(() => {
-    const explicitChapterSynopsis = String(chapterContent?.synopsis || chapterData?.synopsis || "").trim();
+    const explicitChapterSynopsis = String(
+      chapterContent?.synopsis || chapterData?.synopsis || "",
+    ).trim();
     if (explicitChapterSynopsis) {
       return explicitChapterSynopsis;
     }
@@ -298,13 +310,22 @@ const ProjectReading = () => {
       ? sortedChapters[currentIndex + 1]
       : null;
   const chapterBadgeLabel = useMemo(() => {
-    const isExtra =
-      chapterContent?.entryKind === "extra" || chapterData?.entryKind === "extra";
+    const isExtra = chapterContent?.entryKind === "extra" || chapterData?.entryKind === "extra";
     if (isExtra) {
-      return String(chapterContent?.displayLabel || chapterData?.displayLabel || "Extra").trim() || "Extra";
+      return (
+        String(chapterContent?.displayLabel || chapterData?.displayLabel || "Extra").trim() ||
+        "Extra"
+      );
     }
     return `Cap ${chapterData?.number ?? chapterNumber}`;
-  }, [chapterContent?.displayLabel, chapterContent?.entryKind, chapterData?.displayLabel, chapterData?.entryKind, chapterData?.number, chapterNumber]);
+  }, [
+    chapterContent?.displayLabel,
+    chapterContent?.entryKind,
+    chapterData?.displayLabel,
+    chapterData?.entryKind,
+    chapterData?.number,
+    chapterNumber,
+  ]);
   const canEditChapter = useMemo(() => {
     const permissions = Array.isArray(currentUser?.permissions) ? currentUser.permissions : [];
     return permissions.includes("*") || permissions.includes("projetos");
@@ -317,14 +338,7 @@ const ProjectReading = () => {
     if (!Number.isFinite(chapterNumberValue)) {
       return "";
     }
-    const params = new URLSearchParams({
-      edit: project.id,
-      chapter: String(chapterNumberValue),
-    });
-    if (Number.isFinite(activeVolume)) {
-      params.set("volume", String(activeVolume));
-    }
-    return `/dashboard/projetos?${params.toString()}`;
+    return buildDashboardProjectChapterEditorHref(project.id, chapterNumberValue, activeVolume);
   }, [activeVolume, chapterContent?.number, chapterData?.number, chapterNumber, project?.id]);
 
   useEffect(() => {
@@ -335,7 +349,10 @@ const ProjectReading = () => {
       }
       const volumeQuery = Number.isFinite(volumeParam) ? `?volume=${volumeParam}` : "";
       try {
-        const response = await apiFetch(apiBase, `/api/public/projects/${project.id}/chapters/${chapterNumber}${volumeQuery}`);
+        const response = await apiFetch(
+          apiBase,
+          `/api/public/projects/${project.id}/chapters/${chapterNumber}${volumeQuery}`,
+        );
         if (!response.ok) {
           if (isActive) {
             setChapterContent(null);
@@ -412,7 +429,10 @@ const ProjectReading = () => {
   return (
     <div className="flex min-h-screen flex-col">
       <main className="flex-1 bg-background">
-        <section data-testid="project-reading-hero" className="project-reading-masthead relative overflow-hidden">
+        <section
+          data-testid="project-reading-hero"
+          className="project-reading-masthead relative overflow-hidden"
+        >
           <UploadPicture
             src={heroImage}
             alt=""
@@ -434,18 +454,22 @@ const ProjectReading = () => {
             <div className="project-reading-masthead__layout grid items-center gap-8 md:gap-10 md:grid-cols-[minmax(0,1fr)_250px] lg:grid-cols-[minmax(0,1fr)_270px]">
               <div className="project-reading-masthead__body order-2 mx-auto w-48 md:order-1 md:w-full">
                 <div className="project-reading-masthead__meta flex w-full flex-wrap items-center gap-2">
-                  <Badge variant="outline" className="project-reading-masthead__badge project-reading-masthead__badge--type text-xs uppercase tracking-wide">
+                  <Badge
+                    variant="outline"
+                    className="project-reading-masthead__badge project-reading-masthead__badge--type text-xs uppercase tracking-wide"
+                  >
                     Light Novel
                   </Badge>
-                  <Badge variant="outline" className="project-reading-masthead__badge project-reading-masthead__badge--chapter text-xs uppercase tracking-wide">
+                  <Badge
+                    variant="outline"
+                    className="project-reading-masthead__badge project-reading-masthead__badge--chapter text-xs uppercase tracking-wide"
+                  >
                     {chapterBadgeLabel}
                     {Number.isFinite(activeVolume) ? ` • Vol. ${activeVolume}` : ""}
                   </Badge>
                 </div>
                 <div className="project-reading-masthead__heading mt-4 space-y-2">
-                  <p className="project-reading-masthead__overline">
-                    {project.title}
-                  </p>
+                  <p className="project-reading-masthead__overline">{project.title}</p>
                   <h1 className="project-reading-masthead__title">
                     {chapterContent?.title || chapterData?.title || project.title}
                   </h1>
@@ -476,7 +500,8 @@ const ProjectReading = () => {
                       <Link to={editChapterHref}>
                         <PencilLine className="h-4 w-4" aria-hidden="true" />
                         <span>
-                          {chapterContent?.entryKind === "extra" || chapterData?.entryKind === "extra"
+                          {chapterContent?.entryKind === "extra" ||
+                          chapterData?.entryKind === "extra"
                             ? "Editar extra"
                             : "Editar capítulo"}
                         </span>
@@ -524,7 +549,9 @@ const ProjectReading = () => {
                                 type: "chapter",
                                 projectId: project.id,
                                 chapterNumber: chapterData?.number ?? chapterNumber,
-                                volume: chapterData?.volume ?? (Number.isFinite(volumeParam) ? volumeParam : undefined),
+                                volume:
+                                  chapterData?.volume ??
+                                  (Number.isFinite(volumeParam) ? volumeParam : undefined),
                               }
                             : undefined
                         }
@@ -584,7 +611,9 @@ const ProjectReading = () => {
                 targetType="chapter"
                 targetId={project.id}
                 chapterNumber={chapterData?.number ?? chapterNumber}
-                volume={chapterData?.volume ?? (Number.isFinite(volumeParam) ? volumeParam : undefined)}
+                volume={
+                  chapterData?.volume ?? (Number.isFinite(volumeParam) ? volumeParam : undefined)
+                }
               />
             </article>
           </section>
@@ -595,4 +624,3 @@ const ProjectReading = () => {
 };
 
 export default ProjectReading;
-

@@ -1,17 +1,8 @@
-import {
-  Suspense,
-  lazy,
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  type ChangeEvent,
-} from "react";
-import { Link, useNavigate, useSearchParams } from "react-router-dom";
-import type { MouseEvent as ReactMouseEvent } from "react";
 import DashboardShell from "@/components/DashboardShell";
+import type { ImageLibraryOptions } from "@/components/ImageLibraryDialog";
+import { ImageLibraryDialogLoadingFallback } from "@/components/ImageLibraryDialogLoading";
 import ReorderControls from "@/components/ReorderControls";
+import ThemedSvgLogo from "@/components/ThemedSvgLogo";
 import DashboardPageContainer from "@/components/dashboard/DashboardPageContainer";
 import DashboardPageHeader from "@/components/dashboard/DashboardPageHeader";
 import {
@@ -19,19 +10,18 @@ import {
   dashboardClampedStaggerMs,
 } from "@/components/dashboard/dashboard-motion";
 import { dashboardPageLayoutTokens } from "@/components/dashboard/dashboard-page-tokens";
-import { ImageLibraryDialogLoadingFallback } from "@/components/ImageLibraryDialogLoading";
-import type { ImageLibraryOptions } from "@/components/ImageLibraryDialog";
-import ThemedSvgLogo from "@/components/ThemedSvgLogo";
-import AsyncState from "@/components/ui/async-state";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import type { LexicalEditorHandle } from "@/components/lexical/LexicalEditor";
 import {
   Accordion,
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
+import AsyncState from "@/components/ui/async-state";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -41,17 +31,6 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Checkbox } from "@/components/ui/checkbox";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
-import { Switch } from "@/components/ui/switch";
 import {
   Pagination,
   PaginationContent,
@@ -60,30 +39,28 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from "@/components/ui/pagination";
-import { toast } from "@/components/ui/use-toast";
 import {
-  Eye,
-  FileText,
-  LayoutGrid,
-  MessageSquare,
-  Plus,
-  Copy,
-  Settings,
-  Shield,
-  Trash2,
-  UserRound,
-  Download,
-  Send,
-  Cloud,
-  HardDrive,
-  Link2,
-  Loader2,
-} from "lucide-react";
-import { createSlug } from "@/lib/post-content";
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Switch } from "@/components/ui/switch";
+import { Textarea } from "@/components/ui/textarea";
+import { toast } from "@/components/ui/use-toast";
+import type { ProjectEpisode, ProjectVolumeCover, ProjectVolumeEntry } from "@/data/projects";
+import { useEditorScrollLock } from "@/hooks/use-editor-scroll-lock";
+import { useEditorScrollStability } from "@/hooks/use-editor-scroll-stability";
+import { usePageMeta } from "@/hooks/use-page-meta";
+import { useSiteSettings } from "@/hooks/use-site-settings";
+import { parseAniListMediaId } from "@/lib/anilist";
 import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
-import { parseAniListMediaId } from "@/lib/anilist";
-import { filterImageLibraryFoldersByAccess } from "@/lib/image-library-scope";
+import { logOriginApiBaseMismatchOnce } from "@/lib/dev-diagnostics";
+import { formatBytesCompact, parseHumanSizeToBytes } from "@/lib/file-size";
+import { formatBuildMetadataLabel, getFrontendBuildMetadata } from "@/lib/frontend-build";
 import {
   DEFAULT_PROJECT_BANNER_ALT,
   DEFAULT_PROJECT_COVER_ALT,
@@ -91,6 +68,17 @@ import {
   getEpisodeCoverAltFallback,
   resolveAssetAltText,
 } from "@/lib/image-alt";
+import { filterImageLibraryFoldersByAccess } from "@/lib/image-library-scope";
+import { createSlug } from "@/lib/post-content";
+import { buildDashboardProjectChapterEditorHref } from "@/lib/project-editor-routes";
+import {
+  EXTRA_TECHNICAL_NUMBER_BASE,
+  buildEpisodeKey,
+  findDuplicateEpisodeKey,
+  resolveEpisodeLookup,
+  resolveNextExtraTechnicalNumber,
+} from "@/lib/project-episode-key";
+import { buildChapterFolder, resolveProjectImageFolders } from "@/lib/project-image-folders";
 import {
   buildTranslationMap,
   sortByTranslatedLabel,
@@ -99,36 +87,44 @@ import {
   translateRelation,
   translateTag,
 } from "@/lib/project-taxonomy";
-import {
-  buildEpisodeKey,
-  EXTRA_TECHNICAL_NUMBER_BASE,
-  findDuplicateEpisodeKey,
-  resolveNextExtraTechnicalNumber,
-} from "@/lib/project-episode-key";
-import {
-  buildVolumeCoverKey,
-  findDuplicateVolumeCover,
-} from "@/lib/project-volume-cover-key";
 import { isChapterBasedType, isLightNovelType, isMangaType } from "@/lib/project-utils";
-import { formatBytesCompact, parseHumanSizeToBytes } from "@/lib/file-size";
-import { formatBuildMetadataLabel, getFrontendBuildMetadata } from "@/lib/frontend-build";
-import { logOriginApiBaseMismatchOnce } from "@/lib/dev-diagnostics";
+import { buildVolumeCoverKey, findDuplicateVolumeCover } from "@/lib/project-volume-cover-key";
 import { normalizeProjectVolumeEntries } from "@/lib/project-volume-entries";
-import { usePageMeta } from "@/hooks/use-page-meta";
-import { useEditorScrollLock } from "@/hooks/use-editor-scroll-lock";
-import { useEditorScrollStability } from "@/hooks/use-editor-scroll-stability";
-import type { LexicalEditorHandle } from "@/components/lexical/LexicalEditor";
-import type {
-  ProjectEpisode,
-  ProjectVolumeCover,
-  ProjectVolumeEntry,
-} from "@/data/projects";
-import { useSiteSettings } from "@/hooks/use-site-settings";
 import type {
   ApiContractBuildMetadata,
   ApiContractCapabilities,
   ApiContractV1,
 } from "@/types/api-contract";
+import {
+  Cloud,
+  Copy,
+  Download,
+  Eye,
+  FileText,
+  HardDrive,
+  LayoutGrid,
+  Link2,
+  Loader2,
+  MessageSquare,
+  Plus,
+  Send,
+  Settings,
+  Shield,
+  Trash2,
+  UserRound,
+} from "lucide-react";
+import {
+  type ChangeEvent,
+  Suspense,
+  lazy,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import type { MouseEvent as ReactMouseEvent } from "react";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 
 const LexicalEditor = lazy(() => import("@/components/lexical/LexicalEditor"));
 const ImageLibraryDialog = lazy(() => import("@/components/ImageLibraryDialog"));
@@ -331,7 +327,9 @@ type EpubImportProjectSnapshot = {
 };
 
 const buildEpubImportProjectSnapshot = (project: ProjectForm): EpubImportProjectSnapshot => {
-  const episodeDownloads = (Array.isArray(project?.episodeDownloads) ? project.episodeDownloads : [])
+  const episodeDownloads = (
+    Array.isArray(project?.episodeDownloads) ? project.episodeDownloads : []
+  )
     .map((episode): EpubImportProjectSnapshot["episodeDownloads"][number] | null => {
       const number = Number(episode?.number);
       if (!Number.isFinite(number)) {
@@ -346,9 +344,13 @@ const buildEpubImportProjectSnapshot = (project: ProjectForm): EpubImportProject
         title: String(episode?.title || "").trim(),
         entryKind,
         entrySubtype: String(episode?.entrySubtype || "").trim() || undefined,
-        readingOrder: Number.isFinite(parsedReadingOrder) ? Math.round(parsedReadingOrder) : undefined,
+        readingOrder: Number.isFinite(parsedReadingOrder)
+          ? Math.round(parsedReadingOrder)
+          : undefined,
         displayLabel:
-          entryKind === "extra" ? String(episode?.displayLabel || "").trim() || undefined : undefined,
+          entryKind === "extra"
+            ? String(episode?.displayLabel || "").trim() || undefined
+            : undefined,
         publicationStatus: episode?.publicationStatus === "published" ? "published" : "draft",
       };
     })
@@ -368,9 +370,7 @@ const buildEpubImportProjectSnapshot = (project: ProjectForm): EpubImportProject
         coverImageAlt: String(entry?.coverImageAlt || "").trim(),
       };
     })
-    .filter((entry): entry is EpubImportProjectSnapshot["volumeEntries"][number] =>
-      Boolean(entry),
-    );
+    .filter((entry): entry is EpubImportProjectSnapshot["volumeEntries"][number] => Boolean(entry));
 
   const volumeCovers = (Array.isArray(project?.volumeCovers) ? project.volumeCovers : [])
     .map((cover) => {
@@ -950,38 +950,6 @@ const shouldSkipEpisodeHeaderToggle = (target: EventTarget | null) => {
   return Boolean(target.closest(episodeHeaderNoToggleSelector));
 };
 
-const resolveProjectImageFolders = (projectId: string, projectTitle: string) => {
-  const normalizedId = String(projectId || "").trim();
-  const normalizedSlug = createSlug(String(projectTitle || "").trim());
-  const projectKey = normalizedId || normalizedSlug || "draft";
-  const projectRootFolder = `projects/${projectKey}`;
-  return {
-    projectRootFolder,
-    projectEpisodesFolder: `${projectRootFolder}/episodes`,
-    projectVolumeCoversFolder: `${projectRootFolder}/volumes`,
-    projectChaptersFolder: `${projectRootFolder}/capitulos`,
-  };
-};
-
-const buildLightNovelChapterFolder = ({
-  projectChaptersFolder,
-  episode,
-  index,
-}: {
-  projectChaptersFolder: string;
-  episode: EditorProjectEpisode;
-  index: number;
-}) => {
-  const parsedNumber = Number(episode?.number);
-  const chapterNumber = Number.isFinite(parsedNumber) && parsedNumber > 0 ? Math.floor(parsedNumber) : index + 1;
-  const parsedVolume = Number(episode?.volume);
-  const volumeSegment =
-    Number.isFinite(parsedVolume) && parsedVolume > 0
-      ? `volume-${Math.floor(parsedVolume)}`
-      : "volume-sem-volume";
-  return `${projectChaptersFolder}/${volumeSegment}/capitulo-${chapterNumber}`;
-};
-
 const generateLocalId = () => {
   const alpha = String.fromCharCode(97 + Math.floor(Math.random() * 26));
   const random = Math.random().toString(36).slice(2, 9);
@@ -1215,10 +1183,12 @@ const DashboardProjectsEditor = () => {
   const [epubImportFile, setEpubImportFile] = useState<File | null>(null);
   const [epubImportTargetVolume, setEpubImportTargetVolume] = useState<string>("");
   const [epubImportAsDraft, setEpubImportAsDraft] = useState(true);
-  const [backendCapabilities, setBackendCapabilities] =
-    useState<ApiContractCapabilities | null>(null);
-  const [backendBuildMetadata, setBackendBuildMetadata] =
-    useState<ApiContractBuildMetadata | null>(null);
+  const [backendCapabilities, setBackendCapabilities] = useState<ApiContractCapabilities | null>(
+    null,
+  );
+  const [backendBuildMetadata, setBackendBuildMetadata] = useState<ApiContractBuildMetadata | null>(
+    null,
+  );
   const [backendCapabilitiesError, setBackendCapabilitiesError] = useState<string | null>(null);
   const [epubRouteStatus, setEpubRouteStatus] = useState<EpubRouteStatus>("unknown");
   const [isImportingEpub, setIsImportingEpub] = useState(false);
@@ -1234,7 +1204,9 @@ const DashboardProjectsEditor = () => {
   const pendingEpisodeToScrollRef = useRef<EditorProjectEpisode | null>(null);
   const pendingEpisodeFocusRef = useRef<{ number: number; volume?: number } | null>(null);
   const previousEpisodeCountRef = useRef(0);
-  const episodeCardNodeMapRef = useRef<WeakMap<EditorProjectEpisode, HTMLDivElement>>(new WeakMap());
+  const episodeCardNodeMapRef = useRef<WeakMap<EditorProjectEpisode, HTMLDivElement>>(
+    new WeakMap(),
+  );
   const volumeGroupNodeMapRef = useRef<Map<string, HTMLDivElement>>(new Map());
   const contentSectionRef = useRef<HTMLDivElement | null>(null);
   const epubImportInputRef = useRef<HTMLInputElement | null>(null);
@@ -1679,7 +1651,12 @@ const DashboardProjectsEditor = () => {
   const supportsVolumeEntries = isLightNovel || isManga;
   const isChapterBased = isChapterBasedType(formState.type || "");
   const stageOptions = isChapterBased ? mangaStages : animeStages;
-  const { projectRootFolder, projectEpisodesFolder, projectVolumeCoversFolder, projectChaptersFolder } = useMemo(
+  const {
+    projectRootFolder,
+    projectEpisodesFolder,
+    projectVolumeCoversFolder,
+    projectChaptersFolder,
+  } = useMemo(
     () => resolveProjectImageFolders(formState.id, formState.title),
     [formState.id, formState.title],
   );
@@ -1709,7 +1686,7 @@ const DashboardProjectsEditor = () => {
   const buildEpisodeLibraryOptions = useCallback(
     (episode: EditorProjectEpisode, index: number): ImageLibraryOptions => {
       if (isChapterBased) {
-        const chapterFolder = buildLightNovelChapterFolder({
+        const chapterFolder = buildChapterFolder({
           projectChaptersFolder,
           episode,
           index,
@@ -1746,30 +1723,30 @@ const DashboardProjectsEditor = () => {
       scopedProjectImageIds,
     ],
   );
-  const episodeAssetLibraryOptions = useMemo(
-    () => {
-      if (episodeCoverIndex !== null && formState.episodeDownloads[episodeCoverIndex]) {
-        return buildEpisodeLibraryOptions(formState.episodeDownloads[episodeCoverIndex], episodeCoverIndex);
-      }
-      return {
-        uploadFolder: projectEpisodesFolder,
-        listFolders: filterProjectLibraryFolders([projectEpisodesFolder, projectRootFolder]),
-        listAll: false,
-        includeProjectImages: true,
-        projectImageProjectIds: scopedProjectImageIds,
-        projectImagesView: "by-project",
-      } satisfies ImageLibraryOptions;
-    },
-    [
-      buildEpisodeLibraryOptions,
-      episodeCoverIndex,
-      filterProjectLibraryFolders,
-      formState.episodeDownloads,
-      projectEpisodesFolder,
-      projectRootFolder,
-      scopedProjectImageIds,
-    ],
-  );
+  const episodeAssetLibraryOptions = useMemo(() => {
+    if (episodeCoverIndex !== null && formState.episodeDownloads[episodeCoverIndex]) {
+      return buildEpisodeLibraryOptions(
+        formState.episodeDownloads[episodeCoverIndex],
+        episodeCoverIndex,
+      );
+    }
+    return {
+      uploadFolder: projectEpisodesFolder,
+      listFolders: filterProjectLibraryFolders([projectEpisodesFolder, projectRootFolder]),
+      listAll: false,
+      includeProjectImages: true,
+      projectImageProjectIds: scopedProjectImageIds,
+      projectImagesView: "by-project",
+    } satisfies ImageLibraryOptions;
+  }, [
+    buildEpisodeLibraryOptions,
+    episodeCoverIndex,
+    filterProjectLibraryFolders,
+    formState.episodeDownloads,
+    projectEpisodesFolder,
+    projectRootFolder,
+    scopedProjectImageIds,
+  ]);
   const volumeCoverAssetLibraryOptions = useMemo(
     () =>
       ({
@@ -1792,23 +1769,20 @@ const DashboardProjectsEditor = () => {
       scopedProjectImageIds,
     ],
   );
-  const activeLibraryOptions = useMemo(
-    () => {
-      if (libraryTarget === "episode-cover") {
-        return episodeAssetLibraryOptions;
-      }
-      if (libraryTarget === "volume-cover") {
-        return volumeCoverAssetLibraryOptions;
-      }
-      return projectAssetLibraryOptions;
-    },
-    [
-      episodeAssetLibraryOptions,
-      libraryTarget,
-      projectAssetLibraryOptions,
-      volumeCoverAssetLibraryOptions,
-    ],
-  );
+  const activeLibraryOptions = useMemo(() => {
+    if (libraryTarget === "episode-cover") {
+      return episodeAssetLibraryOptions;
+    }
+    if (libraryTarget === "volume-cover") {
+      return volumeCoverAssetLibraryOptions;
+    }
+    return projectAssetLibraryOptions;
+  }, [
+    episodeAssetLibraryOptions,
+    libraryTarget,
+    projectAssetLibraryOptions,
+    volumeCoverAssetLibraryOptions,
+  ]);
 
   const getEpisodeEntryKind = useCallback(
     (episode: Partial<EditorProjectEpisode> | null | undefined): "main" | "extra" =>
@@ -1854,9 +1828,7 @@ const DashboardProjectsEditor = () => {
       const excludeIndex = Number.isFinite(Number(options?.excludeIndex))
         ? Number(options?.excludeIndex)
         : -1;
-      const volume = Number.isFinite(Number(options?.volume))
-        ? Number(options?.volume)
-        : undefined;
+      const volume = Number.isFinite(Number(options?.volume)) ? Number(options?.volume) : undefined;
       const reservedKeys = new Set(
         list
           .map((episode, index) => {
@@ -1903,10 +1875,8 @@ const DashboardProjectsEditor = () => {
 
   const addVolumeEntry = useCallback(() => {
     setFormState((prev) => {
-      const nextVolume = prev.volumeEntries.reduce(
-        (max, entry) => Math.max(max, Number(entry.volume) || 0),
-        0,
-      ) + 1;
+      const nextVolume =
+        prev.volumeEntries.reduce((max, entry) => Math.max(max, Number(entry.volume) || 0), 0) + 1;
       const nextGroupKey = buildVolumeCoverKey(nextVolume);
       pendingVolumeGroupToExpandRef.current = nextGroupKey;
       setCollapsedVolumeGroups((flags) => ({
@@ -2058,12 +2028,7 @@ const DashboardProjectsEditor = () => {
     return episodeGroupsForRender
       .filter((group) => collapsedVolumeGroups[group.key] === false)
       .map((group) => group.key);
-  }, [
-    collapsedVolumeGroups,
-    episodeGroupsForRender,
-    isChapterBased,
-    supportsVolumeEntries,
-  ]);
+  }, [collapsedVolumeGroups, episodeGroupsForRender, isChapterBased, supportsVolumeEntries]);
 
   const handleVolumeGroupAccordionChange = useCallback(
     (values: string[]) => {
@@ -2284,9 +2249,7 @@ const DashboardProjectsEditor = () => {
         next.coverAlt = nextUrl ? resolveAssetAltText(altText, DEFAULT_PROJECT_COVER_ALT) : "";
       } else if (libraryTarget === "banner") {
         next.banner = nextUrl;
-        next.bannerAlt = nextUrl
-          ? resolveAssetAltText(altText, DEFAULT_PROJECT_BANNER_ALT)
-          : "";
+        next.bannerAlt = nextUrl ? resolveAssetAltText(altText, DEFAULT_PROJECT_BANNER_ALT) : "";
       } else if (libraryTarget === "hero") {
         next.heroImageUrl = nextUrl;
         next.heroImageAlt = nextUrl ? resolveAssetAltText(altText, DEFAULT_PROJECT_HERO_ALT) : "";
@@ -2338,10 +2301,7 @@ const DashboardProjectsEditor = () => {
           ...targetEntry,
           coverImageUrl: nextUrl,
           coverImageAlt: nextUrl
-            ? resolveAssetAltText(
-                altText,
-                `Capa do volume ${targetEntry.volume}`,
-              )
+            ? resolveAssetAltText(altText, `Capa do volume ${targetEntry.volume}`)
             : "",
         };
         nextVolumeEntries.sort((left, right) => left.volume - right.volume);
@@ -2683,165 +2643,168 @@ const DashboardProjectsEditor = () => {
     setIsEditorOpen(true);
   };
 
-  const openEdit = useCallback((project: ProjectRecord) => {
-    resetPendingContentNavigation();
-    clearPendingEpubImportIds();
-    const pendingEpisodeFocus = pendingEpisodeFocusRef.current;
-    const shouldOpenEpisodesSection = Boolean(pendingEpisodeFocus);
-    const initialEpisodes: EditorProjectEpisode[] = Array.isArray(project.episodeDownloads)
+  const openEdit = useCallback(
+    (project: ProjectRecord) => {
+      resetPendingContentNavigation();
+      clearPendingEpubImportIds();
+      const pendingEpisodeFocus = pendingEpisodeFocusRef.current;
+      const shouldOpenEpisodesSection = Boolean(pendingEpisodeFocus);
+      const initialEpisodes: EditorProjectEpisode[] = Array.isArray(project.episodeDownloads)
         ? project.episodeDownloads.map(
-          (episode): EditorProjectEpisode => ({
-            ...episode,
-            synopsis: String(episode.synopsis || "").trim(),
-            _editorKey: resolveEpisodeEditorKey(episode),
-            entryKind: episode.entryKind === "extra" ? "extra" : "main",
-            entrySubtype: String(episode.entrySubtype || "").trim() || undefined,
-            readingOrder: Number.isFinite(Number(episode.readingOrder))
-              ? Number(episode.readingOrder)
-              : undefined,
-            displayLabel:
-              episode.entryKind === "extra"
-                ? String(episode.displayLabel || "").trim() || undefined
+            (episode): EditorProjectEpisode => ({
+              ...episode,
+              synopsis: String(episode.synopsis || "").trim(),
+              _editorKey: resolveEpisodeEditorKey(episode),
+              entryKind: episode.entryKind === "extra" ? "extra" : "main",
+              entrySubtype: String(episode.entrySubtype || "").trim() || undefined,
+              readingOrder: Number.isFinite(Number(episode.readingOrder))
+                ? Number(episode.readingOrder)
                 : undefined,
-            content: episode.content || "",
-            contentFormat: "lexical",
-            publicationStatus: episode.publicationStatus === "draft" ? "draft" : "published",
-            coverImageAlt: episode.coverImageUrl
-              ? resolveAssetAltText(
-                  episode.coverImageAlt,
-                  getEpisodeCoverAltFallback(isChapterBasedType(project.type || "")),
-                )
-              : "",
-          }),
-        )
-      : [];
-    const focusedEpisodeIndex = (() => {
-      if (!pendingEpisodeFocus) {
-        return -1;
-      }
-      const matches = initialEpisodes
-        .map((episode, index) => ({ episode, index }))
-        .filter(({ episode }) => {
-          if (Number(episode.number) !== pendingEpisodeFocus.number) {
-            return false;
-          }
-          if (!Number.isFinite(pendingEpisodeFocus.volume)) {
-            return true;
-          }
-          return (
-            buildEpisodeKey(episode.number, episode.volume) ===
-            buildEpisodeKey(pendingEpisodeFocus.number, pendingEpisodeFocus.volume)
-          );
+              displayLabel:
+                episode.entryKind === "extra"
+                  ? String(episode.displayLabel || "").trim() || undefined
+                  : undefined,
+              content: episode.content || "",
+              contentFormat: "lexical",
+              publicationStatus: episode.publicationStatus === "draft" ? "draft" : "published",
+              coverImageAlt: episode.coverImageUrl
+                ? resolveAssetAltText(
+                    episode.coverImageAlt,
+                    getEpisodeCoverAltFallback(isChapterBasedType(project.type || "")),
+                  )
+                : "",
+            }),
+          )
+        : [];
+      const focusedEpisodeIndex = (() => {
+        if (!pendingEpisodeFocus) {
+          return -1;
+        }
+        const matches = initialEpisodes
+          .map((episode, index) => ({ episode, index }))
+          .filter(({ episode }) => {
+            if (Number(episode.number) !== pendingEpisodeFocus.number) {
+              return false;
+            }
+            if (!Number.isFinite(pendingEpisodeFocus.volume)) {
+              return true;
+            }
+            return (
+              buildEpisodeKey(episode.number, episode.volume) ===
+              buildEpisodeKey(pendingEpisodeFocus.number, pendingEpisodeFocus.volume)
+            );
+          });
+        if (!matches.length) {
+          return -1;
+        }
+        if (!Number.isFinite(pendingEpisodeFocus.volume) && matches.length !== 1) {
+          return -1;
+        }
+        return matches[0]?.index ?? -1;
+      })();
+      const focusedEpisode =
+        focusedEpisodeIndex >= 0 ? initialEpisodes[focusedEpisodeIndex] || null : null;
+      const focusedVolumeGroupKey = focusedEpisode
+        ? buildVolumeCoverKey(focusedEpisode.volume)
+        : null;
+      const mergedSynopsis = project.synopsis || project.description || "";
+      const normalizedVolumeEntries = normalizeProjectVolumeEntries(
+        Array.isArray(project.volumeEntries)
+          ? project.volumeEntries
+          : Array.isArray(project.volumeCovers)
+            ? project.volumeCovers
+            : [],
+      );
+      const nextForm: ProjectForm = {
+        id: project.id,
+        anilistId: project.anilistId ?? null,
+        title: project.title || "",
+        titleOriginal: project.titleOriginal || "",
+        titleEnglish: project.titleEnglish || "",
+        synopsis: mergedSynopsis,
+        description: mergedSynopsis,
+        type: project.type || "",
+        status: project.status || "",
+        year: project.year || "",
+        studio: project.studio || "",
+        episodes: project.episodes || "",
+        tags: Array.isArray(project.tags) ? project.tags : [],
+        genres: Array.isArray(project.genres) ? project.genres : [],
+        cover: project.cover || "",
+        coverAlt: project.cover
+          ? resolveAssetAltText(project.coverAlt, DEFAULT_PROJECT_COVER_ALT)
+          : "",
+        banner: project.banner || "",
+        bannerAlt: project.banner
+          ? resolveAssetAltText(project.bannerAlt, DEFAULT_PROJECT_BANNER_ALT)
+          : "",
+        season: project.season || "",
+        schedule: project.schedule || "",
+        rating: project.rating || "",
+        country: project.country || "",
+        source: project.source || "",
+        discordRoleId: project.discordRoleId || "",
+        producers: Array.isArray(project.producers) ? project.producers : [],
+        score: project.score ?? null,
+        startDate: project.startDate || "",
+        endDate: project.endDate || "",
+        relations: Array.isArray(project.relations) ? project.relations : [],
+        staff: Array.isArray(project.staff) ? project.staff : [],
+        animeStaff: Array.isArray(project.animeStaff) ? project.animeStaff : [],
+        trailerUrl: project.trailerUrl || "",
+        forceHero: Boolean(project.forceHero),
+        heroImageUrl: project.heroImageUrl || "",
+        heroImageAlt: project.heroImageUrl
+          ? resolveAssetAltText(project.heroImageAlt, DEFAULT_PROJECT_HERO_ALT)
+          : "",
+        volumeEntries: normalizedVolumeEntries,
+        volumeCovers: normalizedVolumeEntries
+          .filter((entry) => String(entry.coverImageUrl || "").trim())
+          .map((entry) => ({
+            volume: entry.volume,
+            coverImageUrl: entry.coverImageUrl,
+            coverImageAlt: entry.coverImageAlt || `Capa do volume ${entry.volume}`,
+          })),
+        episodeDownloads: initialEpisodes,
+      };
+      const nextAniListInput = project.anilistId ? String(project.anilistId) : "";
+      setEditingProject(project);
+      setFormState(nextForm);
+      setAnilistIdInput(nextAniListInput);
+      resetEpubImportSelection();
+      setEpubImportTargetVolume("");
+      setEpubImportAsDraft(true);
+      setEpubExportVolume("");
+      setEpubExportIncludeDrafts(false);
+      setEditorAccordionValue(
+        shouldOpenEpisodesSection ? ["dados-principais", "episodios"] : ["dados-principais"],
+      );
+      setEpisodeDateDraft({});
+      setEpisodeTimeDraft({});
+      setEpisodeSizeDrafts({});
+      setEpisodeSizeErrors({});
+      episodeSizeInputRefs.current = {};
+      setAnimeStaffMemberInput({});
+      editorInitialSnapshotRef.current = buildProjectEditorSnapshot(nextForm, nextAniListInput);
+      pendingEpisodeToScrollRef.current = focusedEpisode;
+      setCollapsedEpisodes(() => {
+        const next: Record<number, boolean> = {};
+        initialEpisodes.forEach((_, index) => {
+          next[index] = focusedEpisodeIndex >= 0 ? index !== focusedEpisodeIndex : true;
         });
-      if (!matches.length) {
-        return -1;
-      }
-      if (!Number.isFinite(pendingEpisodeFocus.volume) && matches.length !== 1) {
-        return -1;
-      }
-      return matches[0]?.index ?? -1;
-    })();
-    const focusedEpisode =
-      focusedEpisodeIndex >= 0 ? initialEpisodes[focusedEpisodeIndex] || null : null;
-    const focusedVolumeGroupKey = focusedEpisode
-      ? buildVolumeCoverKey(focusedEpisode.volume)
-      : null;
-    const mergedSynopsis = project.synopsis || project.description || "";
-    const normalizedVolumeEntries = normalizeProjectVolumeEntries(
-      Array.isArray(project.volumeEntries)
-        ? project.volumeEntries
-        : Array.isArray(project.volumeCovers)
-          ? project.volumeCovers
-          : [],
-    );
-    const nextForm: ProjectForm = {
-      id: project.id,
-      anilistId: project.anilistId ?? null,
-      title: project.title || "",
-      titleOriginal: project.titleOriginal || "",
-      titleEnglish: project.titleEnglish || "",
-      synopsis: mergedSynopsis,
-      description: mergedSynopsis,
-      type: project.type || "",
-      status: project.status || "",
-      year: project.year || "",
-      studio: project.studio || "",
-      episodes: project.episodes || "",
-      tags: Array.isArray(project.tags) ? project.tags : [],
-      genres: Array.isArray(project.genres) ? project.genres : [],
-      cover: project.cover || "",
-      coverAlt: project.cover
-        ? resolveAssetAltText(project.coverAlt, DEFAULT_PROJECT_COVER_ALT)
-        : "",
-      banner: project.banner || "",
-      bannerAlt: project.banner
-        ? resolveAssetAltText(project.bannerAlt, DEFAULT_PROJECT_BANNER_ALT)
-        : "",
-      season: project.season || "",
-      schedule: project.schedule || "",
-      rating: project.rating || "",
-      country: project.country || "",
-      source: project.source || "",
-      discordRoleId: project.discordRoleId || "",
-      producers: Array.isArray(project.producers) ? project.producers : [],
-      score: project.score ?? null,
-      startDate: project.startDate || "",
-      endDate: project.endDate || "",
-      relations: Array.isArray(project.relations) ? project.relations : [],
-      staff: Array.isArray(project.staff) ? project.staff : [],
-      animeStaff: Array.isArray(project.animeStaff) ? project.animeStaff : [],
-      trailerUrl: project.trailerUrl || "",
-      forceHero: Boolean(project.forceHero),
-      heroImageUrl: project.heroImageUrl || "",
-      heroImageAlt: project.heroImageUrl
-        ? resolveAssetAltText(project.heroImageAlt, DEFAULT_PROJECT_HERO_ALT)
-        : "",
-      volumeEntries: normalizedVolumeEntries,
-      volumeCovers: normalizedVolumeEntries
-        .filter((entry) => String(entry.coverImageUrl || "").trim())
-        .map((entry) => ({
-          volume: entry.volume,
-          coverImageUrl: entry.coverImageUrl,
-          coverImageAlt: entry.coverImageAlt || `Capa do volume ${entry.volume}`,
-        })),
-      episodeDownloads: initialEpisodes,
-    };
-    const nextAniListInput = project.anilistId ? String(project.anilistId) : "";
-    setEditingProject(project);
-    setFormState(nextForm);
-    setAnilistIdInput(nextAniListInput);
-    resetEpubImportSelection();
-    setEpubImportTargetVolume("");
-    setEpubImportAsDraft(true);
-    setEpubExportVolume("");
-    setEpubExportIncludeDrafts(false);
-    setEditorAccordionValue(
-      shouldOpenEpisodesSection ? ["dados-principais", "episodios"] : ["dados-principais"],
-    );
-    setEpisodeDateDraft({});
-    setEpisodeTimeDraft({});
-    setEpisodeSizeDrafts({});
-    setEpisodeSizeErrors({});
-    episodeSizeInputRefs.current = {};
-    setAnimeStaffMemberInput({});
-    editorInitialSnapshotRef.current = buildProjectEditorSnapshot(nextForm, nextAniListInput);
-    pendingEpisodeToScrollRef.current = focusedEpisode;
-    setCollapsedEpisodes(() => {
-      const next: Record<number, boolean> = {};
-      initialEpisodes.forEach((_, index) => {
-        next[index] = focusedEpisodeIndex >= 0 ? index !== focusedEpisodeIndex : true;
+        return next;
       });
-      return next;
-    });
-    setCollapsedVolumeGroups(() =>
-      focusedVolumeGroupKey
-        ? {
-            [focusedVolumeGroupKey]: false,
-          }
-        : {},
-    );
-    setIsEditorOpen(true);
-  }, [clearPendingEpubImportIds, resetEpubImportSelection, resetPendingContentNavigation]);
+      setCollapsedVolumeGroups(() =>
+        focusedVolumeGroupKey
+          ? {
+              [focusedVolumeGroupKey]: false,
+            }
+          : {},
+      );
+      setIsEditorOpen(true);
+    },
+    [clearPendingEpubImportIds, resetEpubImportSelection, resetPendingContentNavigation],
+  );
 
   useEffect(() => {
     const editTarget = (searchParams.get("edit") || "").trim();
@@ -2869,7 +2832,9 @@ const DashboardProjectsEditor = () => {
     const hasChapterTarget = chapterTarget.length > 0 && Number.isFinite(parsedChapterNumber);
     const parsedVolumeNumber = Number(volumeTarget);
     const resolvedVolumeTarget =
-      volumeTarget.length > 0 && Number.isFinite(parsedVolumeNumber) ? parsedVolumeNumber : undefined;
+      volumeTarget.length > 0 && Number.isFinite(parsedVolumeNumber)
+        ? parsedVolumeNumber
+        : undefined;
     if (canManageProjects && editTarget === "new") {
       pendingEpisodeFocusRef.current = null;
       openCreate();
@@ -2878,6 +2843,24 @@ const DashboardProjectsEditor = () => {
         ? projects.find((project) => project.id === editTarget) || null
         : null;
       if (target) {
+        if (hasChapterTarget && isLightNovelType(target.type || "")) {
+          const chapterLookup = resolveEpisodeLookup(
+            target.episodeDownloads || [],
+            parsedChapterNumber,
+            resolvedVolumeTarget,
+          );
+          if (chapterLookup.ok) {
+            navigate(
+              buildDashboardProjectChapterEditorHref(
+                target.id,
+                chapterLookup.episode.number,
+                chapterLookup.episode.volume,
+              ),
+              { replace: true },
+            );
+            return;
+          }
+        }
         pendingEpisodeFocusRef.current = hasChapterTarget
           ? {
               number: parsedChapterNumber,
@@ -2899,6 +2882,7 @@ const DashboardProjectsEditor = () => {
     openCreate,
     openEdit,
     projects,
+    navigate,
     searchParams,
     setSearchParams,
   ]);
@@ -2919,16 +2903,19 @@ const DashboardProjectsEditor = () => {
     setConfirmOpen(true);
   };
 
-  const revealEpisodeAtIndex = useCallback((index: number) => {
-    const episode = formState.episodeDownloads[index];
-    if (episode) {
-      pendingEpisodeToScrollRef.current = episode;
-    }
-    setCollapsedEpisodes((prev) => ({
-      ...prev,
-      [index]: false,
-    }));
-  }, [formState.episodeDownloads]);
+  const revealEpisodeAtIndex = useCallback(
+    (index: number) => {
+      const episode = formState.episodeDownloads[index];
+      if (episode) {
+        pendingEpisodeToScrollRef.current = episode;
+      }
+      setCollapsedEpisodes((prev) => ({
+        ...prev,
+        [index]: false,
+      }));
+    },
+    [formState.episodeDownloads],
+  );
 
   useEffect(() => {
     const pendingEpisodeFocus = pendingEpisodeFocusRef.current;
@@ -2967,9 +2954,7 @@ const DashboardProjectsEditor = () => {
       return;
     }
 
-    setEditorAccordionValue((prev) =>
-      prev.includes("episodios") ? prev : [...prev, "episodios"],
-    );
+    setEditorAccordionValue((prev) => (prev.includes("episodios") ? prev : [...prev, "episodios"]));
     revealEpisodeAtIndex(targetIndex);
     pendingEpisodeFocusRef.current = null;
   }, [isEditorOpen, revealEpisodeAtIndex, sortedEpisodeDownloads]);
@@ -3009,7 +2994,10 @@ const DashboardProjectsEditor = () => {
       setFormState((prev) => {
         const nextEpisodes = [...prev.episodeDownloads];
         const episodeIndexByKey = new Map(
-          nextEpisodes.map((episode, index) => [buildEpisodeKey(episode.number, episode.volume), index]),
+          nextEpisodes.map((episode, index) => [
+            buildEpisodeKey(episode.number, episode.volume),
+            index,
+          ]),
         );
         chapters.forEach((chapter) => {
           const key = buildEpisodeKey(chapter.number, chapter.volume);
@@ -3110,9 +3098,7 @@ const DashboardProjectsEditor = () => {
           if (!Number.isFinite(parsedVolume)) {
             return;
           }
-          const existingIndex = nextVolumeEntries.findIndex(
-            (item) => item.volume === parsedVolume,
-          );
+          const existingIndex = nextVolumeEntries.findIndex((item) => item.volume === parsedVolume);
           if (cover.mergeMode === "preserve_existing" && existingIndex >= 0) {
             return;
           }
@@ -3311,9 +3297,7 @@ const DashboardProjectsEditor = () => {
       setEpubRouteStatus("ok");
       const data = await response.json();
       registerPendingEpubImportIds(data);
-      const chapters = Array.isArray(data?.chapters)
-        ? (data.chapters as ProjectEpisode[])
-        : [];
+      const chapters = Array.isArray(data?.chapters) ? (data.chapters as ProjectEpisode[]) : [];
       const volumeCovers = Array.isArray(data?.volumeCovers)
         ? (data.volumeCovers as Array<
             ProjectVolumeCover & {
@@ -3389,7 +3373,9 @@ const DashboardProjectsEditor = () => {
         title: "EPUB importado",
         description: [
           `${importedChapterCount} capítulo(s) incorporados ao formulário para revisão.`,
-          ...(mainImportedCount > 0 ? [`${mainImportedCount} capítulo(s) principais detectados.`] : []),
+          ...(mainImportedCount > 0
+            ? [`${mainImportedCount} capítulo(s) principais detectados.`]
+            : []),
           ...(extrasImportedCount > 0 ? [`${extrasImportedCount} extra(s) detectados.`] : []),
           ...(boilerplatePromoted > 0
             ? [`${boilerplatePromoted} item(ns) de boilerplate foram promovidos para extras.`]
@@ -3397,7 +3383,9 @@ const DashboardProjectsEditor = () => {
           ...(boilerplateDiscarded > 0
             ? [`${boilerplateDiscarded} item(ns) de boilerplate foram descartados.`]
             : []),
-          ...(imagesImported > 0 ? [`${imagesImported} imagem(ns) interna(s) foram importadas.`] : []),
+          ...(imagesImported > 0
+            ? [`${imagesImported} imagem(ns) interna(s) foram importadas.`]
+            : []),
           ...(imageImportFailures > 0
             ? [`${imageImportFailures} imagem(ns) falharam e foram ignoradas.`]
             : []),
@@ -3588,7 +3576,10 @@ const DashboardProjectsEditor = () => {
         return;
       }
       setEpubRouteStatus("ok");
-      await downloadBinaryResponse(response, `${createSlug(formState.title || "projeto") || "projeto"}.epub`);
+      await downloadBinaryResponse(
+        response,
+        `${createSlug(formState.title || "projeto") || "projeto"}.epub`,
+      );
       toast({
         title: "EPUB exportado",
         description: "O volume foi gerado com o snapshot atual do formulário.",
@@ -3633,33 +3624,43 @@ const DashboardProjectsEditor = () => {
       return;
     }
 
-    const normalizedEpisodesForSave: EditorProjectEpisode[] = formState.episodeDownloads.map((episode) => {
-      const parsedNumber = Number(episode.number);
-      const parsedVolume = Number(episode.volume);
-      const parsedReadingOrder = Number(episode.readingOrder);
-      const entryKind: "main" | "extra" = episode.entryKind === "extra" ? "extra" : "main";
-      return {
-        ...episode,
-        number: Number.isFinite(parsedNumber) ? parsedNumber : 0,
-        volume: Number.isFinite(parsedVolume) ? parsedVolume : undefined,
-        entryKind,
-        entrySubtype: String(episode.entrySubtype || "").trim() || (entryKind === "extra" ? "extra" : "chapter"),
-        readingOrder: Number.isFinite(parsedReadingOrder) ? Math.round(parsedReadingOrder) : undefined,
-        displayLabel:
-          entryKind === "extra" ? String(episode.displayLabel || "").trim() || undefined : undefined,
-        contentFormat: "lexical" as const,
-        publicationStatus: episode.publicationStatus === "draft" ? "draft" : "published",
-        sources: Array.isArray(episode.sources)
-          ? episode.sources.map((source) => ({ ...source }))
-          : [],
-      };
-    });
+    const normalizedEpisodesForSave: EditorProjectEpisode[] = formState.episodeDownloads.map(
+      (episode) => {
+        const parsedNumber = Number(episode.number);
+        const parsedVolume = Number(episode.volume);
+        const parsedReadingOrder = Number(episode.readingOrder);
+        const entryKind: "main" | "extra" = episode.entryKind === "extra" ? "extra" : "main";
+        return {
+          ...episode,
+          number: Number.isFinite(parsedNumber) ? parsedNumber : 0,
+          volume: Number.isFinite(parsedVolume) ? parsedVolume : undefined,
+          entryKind,
+          entrySubtype:
+            String(episode.entrySubtype || "").trim() ||
+            (entryKind === "extra" ? "extra" : "chapter"),
+          readingOrder: Number.isFinite(parsedReadingOrder)
+            ? Math.round(parsedReadingOrder)
+            : undefined,
+          displayLabel:
+            entryKind === "extra"
+              ? String(episode.displayLabel || "").trim() || undefined
+              : undefined,
+          contentFormat: "lexical" as const,
+          publicationStatus: episode.publicationStatus === "draft" ? "draft" : "published",
+          sources: Array.isArray(episode.sources)
+            ? episode.sources.map((source) => ({ ...source }))
+            : [],
+        };
+      },
+    );
     const duplicateEpisode = findDuplicateEpisodeKey(normalizedEpisodesForSave);
     if (duplicateEpisode) {
       const duplicateIndex = normalizedEpisodesForSave.findIndex(
         (episode) => buildEpisodeKey(episode.number, episode.volume) === duplicateEpisode.key,
       );
-      setEditorAccordionValue((prev) => (prev.includes("episodios") ? prev : [...prev, "episodios"]));
+      setEditorAccordionValue((prev) =>
+        prev.includes("episodios") ? prev : [...prev, "episodios"],
+      );
       if (duplicateIndex >= 0) {
         revealEpisodeAtIndex(duplicateIndex);
       }
@@ -3694,7 +3695,9 @@ const DashboardProjectsEditor = () => {
       : [];
     const duplicateVolumeEntry = findDuplicateVolumeCover(normalizedVolumeEntriesForSave);
     if (supportsVolumeEntriesForSave && duplicateVolumeEntry) {
-      setEditorAccordionValue((prev) => (prev.includes("episodios") ? prev : [...prev, "episodios"]));
+      setEditorAccordionValue((prev) =>
+        prev.includes("episodios") ? prev : [...prev, "episodios"],
+      );
       toast({
         title: "Volumes duplicados",
         description: "Cada volume pode aparecer apenas uma vez.",
@@ -3933,7 +3936,9 @@ const DashboardProjectsEditor = () => {
         const duplicateIndex = normalizedEpisodesForSave.findIndex(
           (episode) => buildEpisodeKey(episode.number, episode.volume) === duplicateKey,
         );
-        setEditorAccordionValue((prev) => (prev.includes("episodios") ? prev : [...prev, "episodios"]));
+        setEditorAccordionValue((prev) =>
+          prev.includes("episodios") ? prev : [...prev, "episodios"],
+        );
         if (duplicateIndex >= 0) {
           revealEpisodeAtIndex(duplicateIndex);
         }
@@ -3946,7 +3951,9 @@ const DashboardProjectsEditor = () => {
         return;
       }
       if (code === "duplicate_volume_cover_key") {
-        setEditorAccordionValue((prev) => (prev.includes("episodios") ? prev : [...prev, "episodios"]));
+        setEditorAccordionValue((prev) =>
+          prev.includes("episodios") ? prev : [...prev, "episodios"],
+        );
         toast({
           title: "Volumes duplicados",
           description:
@@ -4647,12 +4654,7 @@ const DashboardProjectsEditor = () => {
                               <p className="text-xs text-muted-foreground">{project.studio}</p>
                             </div>
                             <div className="relative z-20 flex items-center gap-2">
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                title="Visualizar"
-                                asChild
-                              >
+                              <Button variant="ghost" size="icon" title="Visualizar" asChild>
                                 <Link to={`/projeto/${project.id}`}>
                                   <Eye className="h-4 w-4" />
                                 </Link>
@@ -4699,56 +4701,56 @@ const DashboardProjectsEditor = () => {
                               {project.synopsis}
                             </p>
 
-                          {project.tags.length > 0 ? (
-                            <div data-slot="project-card-tags" className="flex flex-wrap gap-2">
-                              {sortByTranslatedLabel(project.tags || [], (tag) =>
-                                translateTag(tag, tagTranslationMap),
-                              )
-                                .slice(0, 4)
-                                .map((tag) => (
-                                  <Badge
-                                    key={tag}
-                                    variant="secondary"
-                                    className="text-[10px] uppercase"
-                                  >
-                                    {translateTag(tag, tagTranslationMap)}
-                                  </Badge>
-                                ))}
-                            </div>
-                          ) : null}
-                          {project.genres?.length ? (
-                            <div data-slot="project-card-genres" className="flex flex-wrap gap-2">
-                              {sortByTranslatedLabel(project.genres || [], (genre) =>
-                                translateGenre(genre, genreTranslationMap),
-                              )
-                                .slice(0, 4)
-                                .map((genre) => (
-                                  <Badge
-                                    key={genre}
-                                    variant="outline"
-                                    className="text-[10px] uppercase"
-                                  >
-                                    {translateGenre(genre, genreTranslationMap)}
-                                  </Badge>
-                                ))}
-                            </div>
-                          ) : null}
+                            {project.tags.length > 0 ? (
+                              <div data-slot="project-card-tags" className="flex flex-wrap gap-2">
+                                {sortByTranslatedLabel(project.tags || [], (tag) =>
+                                  translateTag(tag, tagTranslationMap),
+                                )
+                                  .slice(0, 4)
+                                  .map((tag) => (
+                                    <Badge
+                                      key={tag}
+                                      variant="secondary"
+                                      className="text-[10px] uppercase"
+                                    >
+                                      {translateTag(tag, tagTranslationMap)}
+                                    </Badge>
+                                  ))}
+                              </div>
+                            ) : null}
+                            {project.genres?.length ? (
+                              <div data-slot="project-card-genres" className="flex flex-wrap gap-2">
+                                {sortByTranslatedLabel(project.genres || [], (genre) =>
+                                  translateGenre(genre, genreTranslationMap),
+                                )
+                                  .slice(0, 4)
+                                  .map((genre) => (
+                                    <Badge
+                                      key={genre}
+                                      variant="outline"
+                                      className="text-[10px] uppercase"
+                                    >
+                                      {translateGenre(genre, genreTranslationMap)}
+                                    </Badge>
+                                  ))}
+                              </div>
+                            ) : null}
 
-                          <div
-                            data-slot="project-card-meta"
-                            className="mt-auto flex flex-wrap items-center gap-4 text-xs text-muted-foreground"
-                          >
-                            <span className="inline-flex items-center gap-2">
-                              {project.views} visualizações
-                            </span>
-                            <span className="inline-flex items-center gap-2">
-                              {project.commentsCount} comentários
-                            </span>
-                            <span className="ml-auto text-xs text-muted-foreground">
-                              ID {project.id}
-                            </span>
+                            <div
+                              data-slot="project-card-meta"
+                              className="mt-auto flex flex-wrap items-center gap-4 text-xs text-muted-foreground"
+                            >
+                              <span className="inline-flex items-center gap-2">
+                                {project.views} visualizações
+                              </span>
+                              <span className="inline-flex items-center gap-2">
+                                {project.commentsCount} comentários
+                              </span>
+                              <span className="ml-auto text-xs text-muted-foreground">
+                                ID {project.id}
+                              </span>
+                            </div>
                           </div>
-                        </div>
                         </div>
                       </div>
                     </CardContent>
@@ -4884,1974 +4886,2282 @@ const DashboardProjectsEditor = () => {
                 setIsEditorDialogScrolled((prev) => (prev === nextScrolled ? prev : nextScrolled));
               }}
             >
-          <div className="project-editor-top sticky top-0 z-20 border-b border-border/60 bg-background/95 backdrop-blur-sm supports-backdrop-filter:bg-background/80">
-            <DialogHeader className="space-y-0 px-4 pb-2.5 pt-3.5 text-left md:px-6 lg:px-8">
-              <div className="flex flex-wrap items-start justify-between gap-4">
-                <div className="space-y-2">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Badge variant="secondary" className="text-[10px] uppercase tracking-[0.12em]">
-                      {editorProjectLabel}
-                    </Badge>
-                    {formState.anilistId ? (
-                      <Badge variant="outline" className="text-[10px] uppercase tracking-[0.12em]">
-                        AniList {formState.anilistId}
-                      </Badge>
-                    ) : null}
+              <div className="project-editor-top sticky top-0 z-20 border-b border-border/60 bg-background/95 backdrop-blur-sm supports-backdrop-filter:bg-background/80">
+                <DialogHeader className="space-y-0 px-4 pb-2.5 pt-3.5 text-left md:px-6 lg:px-8">
+                  <div className="flex flex-wrap items-start justify-between gap-4">
+                    <div className="space-y-2">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Badge
+                          variant="secondary"
+                          className="text-[10px] uppercase tracking-[0.12em]"
+                        >
+                          {editorProjectLabel}
+                        </Badge>
+                        {formState.anilistId ? (
+                          <Badge
+                            variant="outline"
+                            className="text-[10px] uppercase tracking-[0.12em]"
+                          >
+                            AniList {formState.anilistId}
+                          </Badge>
+                        ) : null}
+                      </div>
+                      <DialogTitle className="text-xl md:text-2xl">
+                        {editingProject ? "Editar projeto" : "Novo projeto"}
+                      </DialogTitle>
+                      <DialogDescription className="max-w-2xl text-xs md:text-sm">
+                        Busque no AniList para preencher automaticamente ou ajuste todos os dados
+                        manualmente.
+                      </DialogDescription>
+                    </div>
+                    <div className="rounded-xl border border-border/60 bg-card/65 px-3 py-1.5 text-right">
+                      <p className="text-[11px] uppercase tracking-[0.12em] text-muted-foreground">
+                        Projeto
+                      </p>
+                      <p className="max-w-[210px] truncate text-sm font-medium text-foreground">
+                        {editorProjectTitle}
+                      </p>
+                    </div>
                   </div>
-                  <DialogTitle className="text-xl md:text-2xl">
-                    {editingProject ? "Editar projeto" : "Novo projeto"}
-                  </DialogTitle>
-                  <DialogDescription className="max-w-2xl text-xs md:text-sm">
-                    Busque no AniList para preencher automaticamente ou ajuste todos os dados
-                    manualmente.
-                  </DialogDescription>
-                </div>
-                <div className="rounded-xl border border-border/60 bg-card/65 px-3 py-1.5 text-right">
-                  <p className="text-[11px] uppercase tracking-[0.12em] text-muted-foreground">
-                    Projeto
-                  </p>
-                  <p className="max-w-[210px] truncate text-sm font-medium text-foreground">
-                    {editorProjectTitle}
-                  </p>
+                </DialogHeader>
+                <div className="project-editor-status-bar flex flex-wrap items-center gap-2 border-t border-border/60 px-4 py-1.5 md:px-6 lg:px-8">
+                  <Badge variant="outline" className="text-[10px] uppercase tracking-[0.12em]">
+                    ID {editorProjectId}
+                  </Badge>
+                  <Badge variant="secondary" className="text-[10px] uppercase tracking-[0.12em]">
+                    {editorTypeLabel}
+                  </Badge>
+                  <Badge variant="secondary" className="text-[10px] uppercase tracking-[0.12em]">
+                    {editorStatusLabel}
+                  </Badge>
+                  <span className="text-[11px] text-muted-foreground">
+                    {editorEpisodeCount} {isChapterBased ? "capítulos" : "episódios"}
+                  </span>
                 </div>
               </div>
-            </DialogHeader>
-            <div className="project-editor-status-bar flex flex-wrap items-center gap-2 border-t border-border/60 px-4 py-1.5 md:px-6 lg:px-8">
-              <Badge variant="outline" className="text-[10px] uppercase tracking-[0.12em]">
-                ID {editorProjectId}
-              </Badge>
-              <Badge variant="secondary" className="text-[10px] uppercase tracking-[0.12em]">
-                {editorTypeLabel}
-              </Badge>
-              <Badge variant="secondary" className="text-[10px] uppercase tracking-[0.12em]">
-                {editorStatusLabel}
-              </Badge>
-              <span className="text-[11px] text-muted-foreground">
-                {editorEpisodeCount} {isChapterBased ? "capítulos" : "episódios"}
-              </span>
-            </div>
-          </div>
 
-          <div className="project-editor-layout grid gap-3.5 px-4 pb-3 pt-2.5 md:gap-4 md:px-6 md:pb-4 lg:gap-5 lg:px-8">
-            <Accordion
-              type="multiple"
-              value={editorAccordionValue}
-              onValueChange={setEditorAccordionValue}
-              className="project-editor-accordion space-y-2.5"
-            >
-              <AccordionItem value="importacao" className={editorSectionClassName}>
-                <AccordionTrigger className={editorSectionTriggerClassName}>
-                  <div className="flex w-full items-center justify-between gap-4 text-left">
-                    <span>Importação</span>
-                    <span className="text-xs text-muted-foreground">Preenchimento automático</span>
-                  </div>
-                </AccordionTrigger>
-                <AccordionContent className={editorSectionContentClassName}>
-                  <div className="space-y-5">
-                    <div className="grid gap-4 md:grid-cols-[1fr_auto]">
-                      <div className="space-y-2">
-                        <Label htmlFor="anilist-id-input">ID ou URL do AniList</Label>
-                        <Input
-                          id="anilist-id-input"
-                          value={anilistIdInput}
-                          onChange={(event) => setAnilistIdInput(event.target.value)}
-                          placeholder="Ex.: 21366 ou https://anilist.co/manga/97894/..."
-                        />
+              <div className="project-editor-layout grid gap-3.5 px-4 pb-3 pt-2.5 md:gap-4 md:px-6 md:pb-4 lg:gap-5 lg:px-8">
+                <Accordion
+                  type="multiple"
+                  value={editorAccordionValue}
+                  onValueChange={setEditorAccordionValue}
+                  className="project-editor-accordion space-y-2.5"
+                >
+                  <AccordionItem value="importacao" className={editorSectionClassName}>
+                    <AccordionTrigger className={editorSectionTriggerClassName}>
+                      <div className="flex w-full items-center justify-between gap-4 text-left">
+                        <span>Importação</span>
+                        <span className="text-xs text-muted-foreground">
+                          Preenchimento automático
+                        </span>
                       </div>
-                      <Button className="self-end" onClick={handleImportAniList}>
-                        Importar do AniList
-                      </Button>
-                    </div>
-
-                    {isLightNovel ? (
-                      <div className="rounded-2xl border border-border/60 bg-background/35 p-4">
-                        <div className="space-y-1">
-                          <h3 className="text-sm font-semibold text-foreground">Ferramentas EPUB</h3>
-                          <p className="text-xs text-muted-foreground">
-                            Importe capítulos para o editor Lexical e exporte o snapshot atual por volume.
-                          </p>
-                          {epubCapabilityState ? (
-                            <p
-                              className={
-                                epubCapabilityState.variant === "destructive"
-                                  ? "text-xs text-destructive"
-                                  : "text-xs text-amber-700"
-                              }
-                            >
-                              {epubCapabilityState.message}
-                            </p>
-                          ) : null}
-                          {backendBuildLabel ? (
-                            <p className="text-[11px] text-muted-foreground">
-                              Contrato da API: {backendBuildLabel}
-                            </p>
-                          ) : null}
-                          {frontendBuildLabel ? (
-                            <p className="text-[11px] text-muted-foreground">
-                              Frontend: {frontendBuildLabel}
-                            </p>
-                          ) : null}
-                        </div>
-
-                        <div className="mt-4 grid gap-6 xl:grid-cols-2">
-                          <div className="space-y-4 rounded-xl border border-border/60 bg-card/60 p-4">
-                            <div className="space-y-1">
-                              <h4 className="text-sm font-medium text-foreground">Importar EPUB</h4>
-                              <p className="text-xs text-muted-foreground">
-                                O arquivo é convertido para Lexical e mergeado localmente no formulário.
-                              </p>
-                            </div>
-                            <div className="space-y-2">
-                              <Label htmlFor="epub-import-file">Arquivo .epub</Label>
-                              <Input
-                                ref={epubImportInputRef}
-                                id="epub-import-file"
-                                type="file"
-                                accept=".epub,application/epub+zip"
-                                className="sr-only"
-                                onChange={handleEpubImportFileChange}
-                                onCancel={handleEpubImportFileCancel}
-                              />
-                              {epubImportFile ? (
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    openEpubImportPicker({ autoImportAfterSelect: false })
-                                  }
-                                  disabled={isImportingEpub || !backendSupportsEpubImport}
-                                  className="w-full rounded-xl border border-border/60 bg-background/50 px-3 py-3 text-left transition hover:bg-background/70 disabled:cursor-not-allowed disabled:opacity-50"
-                                >
-                                  <span className="block truncate text-sm font-medium text-foreground">
-                                    {epubImportFile.name}
-                                  </span>
-                                </button>
-                              ) : (
-                                <div className="flex flex-wrap items-center gap-3 rounded-xl border border-border/60 bg-background/50 px-3 py-3">
-                                  <Button
-                                    type="button"
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={() =>
-                                      openEpubImportPicker({ autoImportAfterSelect: false })
-                                    }
-                                    disabled={isImportingEpub || !backendSupportsEpubImport}
-                                  >
-                                    Escolher arquivo
-                                  </Button>
-                                  <span className="text-xs text-muted-foreground">
-                                    Nenhum arquivo selecionado
-                                  </span>
-                                </div>
-                              )}
-                            </div>
-                            <div className="space-y-2">
-                              <Label htmlFor="epub-import-volume">Volume de destino</Label>
-                              <Input
-                                id="epub-import-volume"
-                                type="number"
-                                value={epubImportTargetVolume}
-                                onChange={(event) => setEpubImportTargetVolume(event.target.value)}
-                                placeholder="Opcional"
-                              />
-                            </div>
-                            <label className="flex items-start gap-3 rounded-xl border border-border/60 bg-background/50 px-3 py-2 text-sm">
-                              <Checkbox
-                                checked={epubImportAsDraft}
-                                onCheckedChange={(checked) => setEpubImportAsDraft(checked === true)}
-                              />
-                              <span className="space-y-1">
-                                <span className="block font-medium text-foreground">
-                                  Importar como rascunho
-                                </span>
-                                <span className="block text-xs text-muted-foreground">
-                                  Capítulos importados ficam ocultos ao público até a publicação.
-                                </span>
-                              </span>
-                            </label>
-                            <Button
-                              type="button"
-                              onClick={handleImportEpub}
-                              disabled={isImportingEpub || !backendSupportsEpubImport}
-                              className="gap-2"
-                            >
-                              {isImportingEpub ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                              Importar EPUB
-                            </Button>
+                    </AccordionTrigger>
+                    <AccordionContent className={editorSectionContentClassName}>
+                      <div className="space-y-5">
+                        <div className="grid gap-4 md:grid-cols-[1fr_auto]">
+                          <div className="space-y-2">
+                            <Label htmlFor="anilist-id-input">ID ou URL do AniList</Label>
+                            <Input
+                              id="anilist-id-input"
+                              value={anilistIdInput}
+                              onChange={(event) => setAnilistIdInput(event.target.value)}
+                              placeholder="Ex.: 21366 ou https://anilist.co/manga/97894/..."
+                            />
                           </div>
-
-                          <div className="space-y-4 rounded-xl border border-border/60 bg-card/60 p-4">
-                            <div className="space-y-1">
-                              <h4 className="text-sm font-medium text-foreground">Exportar EPUB</h4>
-                              <p className="text-xs text-muted-foreground">
-                                Usa o estado atual do formulário, inclusive alterações ainda não salvas.
-                              </p>
-                            </div>
-                            <div className="space-y-2">
-                              <Label htmlFor="epub-export-volume">Volume para exportação</Label>
-                              <Input
-                                id="epub-export-volume"
-                                type="number"
-                                value={epubExportVolume}
-                                onChange={(event) => setEpubExportVolume(event.target.value)}
-                                placeholder="Deixe vazio para Sem volume"
-                              />
-                            </div>
-                            <label className="flex items-start gap-3 rounded-xl border border-border/60 bg-background/50 px-3 py-2 text-sm">
-                              <Checkbox
-                                checked={epubExportIncludeDrafts}
-                                onCheckedChange={(checked) =>
-                                  setEpubExportIncludeDrafts(checked === true)
-                                }
-                              />
-                              <span className="space-y-1">
-                                <span className="block font-medium text-foreground">
-                                  Incluir rascunhos
-                                </span>
-                                <span className="block text-xs text-muted-foreground">
-                                  Exporta também capítulos em draft que tenham conteúdo.
-                                </span>
-                              </span>
-                            </label>
-                            <Button
-                              type="button"
-                              variant="outline"
-                              onClick={handleExportEpub}
-                              disabled={isExportingEpub || !backendSupportsEpubExport}
-                              className="gap-2"
-                            >
-                              {isExportingEpub ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                              Exportar volume em EPUB
-                            </Button>
-                          </div>
-                        </div>
-                      </div>
-                    ) : null}
-                  </div>
-                </AccordionContent>
-              </AccordionItem>
-
-              <AccordionItem value="dados-principais" className={editorSectionClassName}>
-                <AccordionTrigger className={editorSectionTriggerClassName}>
-                  <div className="flex w-full items-center justify-between gap-4 text-left">
-                    <span>Dados principais</span>
-                    <span className="text-xs text-muted-foreground">
-                      {formState.title || "ID e títulos"}
-                    </span>
-                  </div>
-                </AccordionTrigger>
-                <AccordionContent className={editorSectionContentClassName}>
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <div className="space-y-2">
-                      <Label>ID do projeto</Label>
-                      <Input
-                        value={formState.id}
-                        onChange={(event) => {
-                          const nextValue = event.target.value;
-                          const hasAniList =
-                            Boolean(formState.anilistId) ||
-                            parseAniListMediaId(anilistIdInput) !== null;
-                          const trimmed = nextValue.trim();
-                          if (!hasAniList && trimmed && /^\d+$/.test(trimmed)) {
-                            return;
-                          }
-                          setFormState((prev) => ({ ...prev, id: nextValue }));
-                        }}
-                        placeholder="Mesmo ID do AniList ou slug manual"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Título</Label>
-                      <Input
-                        value={formState.title}
-                        onChange={(event) =>
-                          setFormState((prev) => ({ ...prev, title: event.target.value }))
-                        }
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Título original</Label>
-                      <Input
-                        value={formState.titleOriginal}
-                        onChange={(event) =>
-                          setFormState((prev) => ({ ...prev, titleOriginal: event.target.value }))
-                        }
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Título em inglês</Label>
-                      <Input
-                        value={formState.titleEnglish}
-                        onChange={(event) =>
-                          setFormState((prev) => ({ ...prev, titleEnglish: event.target.value }))
-                        }
-                      />
-                    </div>
-                    <div className="flex items-center justify-between gap-4">
-                      <Label htmlFor="force-hero-switch">Forçar no carrossel</Label>
-                      <Switch
-                        id="force-hero-switch"
-                        checked={Boolean(formState.forceHero)}
-                        onCheckedChange={(checked) =>
-                          setFormState((prev) => ({ ...prev, forceHero: checked }))
-                        }
-                      />
-                    </div>
-                    <div className="space-y-2 md:col-span-2">
-                      <Label>Sinopse</Label>
-                      <Textarea
-                        value={formState.synopsis}
-                        onChange={(event) =>
-                          setFormState((prev) => ({ ...prev, synopsis: event.target.value }))
-                        }
-                        rows={6}
-                      />
-                    </div>
-                  </div>
-                </AccordionContent>
-              </AccordionItem>
-
-              <AccordionItem value="midias" className={editorSectionClassName}>
-                <AccordionTrigger className={editorSectionTriggerClassName}>
-                  <div className="flex w-full items-center justify-between gap-4 text-left">
-                    <span>Mídias</span>
-                    <span className="text-xs text-muted-foreground">
-                      {
-                        [formState.heroImageUrl, formState.cover, formState.banner].filter(Boolean)
-                          .length
-                      }
-                      /3 selecionadas
-                    </span>
-                  </div>
-                </AccordionTrigger>
-                <AccordionContent className={editorSectionContentClassName}>
-                  <div className="space-y-4">
-                    <div className="grid gap-3 md:grid-cols-3">
-                      <div className="space-y-2">
-                        <Label>Imagem do carrossel</Label>
-                        <div className="space-y-2 rounded-2xl border border-border/60 bg-card/60 px-3 py-2">
-                          <div className="flex items-center gap-3">
-                            {formState.heroImageUrl ? (
-                              <img
-                                src={formState.heroImageUrl}
-                                alt="Imagem do carrossel"
-                                className="h-12 w-12 rounded-lg object-cover"
-                              />
-                            ) : (
-                              <div className="flex h-12 w-12 items-center justify-center rounded-lg border border-dashed border-border/60 text-center text-[10px] text-muted-foreground leading-tight">
-                                Sem imagem
-                              </div>
-                            )}
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="sm"
-                              className="ml-auto"
-                              onClick={() => openLibraryForProjectImage("hero")}
-                            >
-                              Biblioteca
-                            </Button>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="space-y-2">
-                        <Label>Capa</Label>
-                        <div className="space-y-2 rounded-2xl border border-border/60 bg-card/60 px-3 py-2">
-                          <div className="flex items-center gap-3">
-                            {formState.cover ? (
-                              <img
-                                src={formState.cover}
-                                alt="Capa"
-                                className="h-12 w-12 rounded-lg object-cover"
-                              />
-                            ) : (
-                              <div className="flex h-12 w-12 items-center justify-center rounded-lg border border-dashed border-border/60 text-center text-[10px] text-muted-foreground leading-tight">
-                                Sem imagem
-                              </div>
-                            )}
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="sm"
-                              className="ml-auto"
-                              onClick={() => openLibraryForProjectImage("cover")}
-                            >
-                              Biblioteca
-                            </Button>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="space-y-2">
-                        <Label>Banner</Label>
-                        <div className="space-y-2 rounded-2xl border border-border/60 bg-card/60 px-3 py-2">
-                          <div className="flex items-center gap-3">
-                            {formState.banner ? (
-                              <img
-                                src={formState.banner}
-                                alt="Banner"
-                                className="h-12 w-12 rounded-lg object-cover"
-                              />
-                            ) : (
-                              <div className="flex h-12 w-12 items-center justify-center rounded-lg border border-dashed border-border/60 text-center text-[10px] text-muted-foreground leading-tight">
-                                Sem imagem
-                              </div>
-                            )}
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="sm"
-                              className="ml-auto"
-                              onClick={() => openLibraryForProjectImage("banner")}
-                            >
-                              Biblioteca
-                            </Button>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </AccordionContent>
-              </AccordionItem>
-
-              <AccordionItem value="metadados" className={editorSectionClassName}>
-                <AccordionTrigger className={editorSectionTriggerClassName}>
-                  <div className="flex w-full items-center justify-between gap-4 text-left">
-                    <span>Metadados</span>
-                    <span className="text-xs text-muted-foreground">
-                      {formState.type || "Formato"} • {formState.status || "Status"}
-                    </span>
-                  </div>
-                </AccordionTrigger>
-                <AccordionContent className={editorSectionContentClassName}>
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <div className="space-y-2">
-                      <Label>Formato</Label>
-                      <Select
-                        value={formState.type}
-                        onValueChange={(value) =>
-                          setFormState((prev) => ({ ...prev, type: value }))
-                        }
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Formato" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {formatSelectOptions.map((option) => (
-                            <SelectItem key={option} value={option}>
-                              {option}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Status</Label>
-                      <Select
-                        value={formState.status}
-                        onValueChange={(value) =>
-                          setFormState((prev) => ({ ...prev, status: value }))
-                        }
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Status" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {statusOptions.map((option) => (
-                            <SelectItem key={option} value={option}>
-                              {option}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Ano</Label>
-                      <Input
-                        value={formState.year}
-                        onChange={(event) =>
-                          setFormState((prev) => ({ ...prev, year: event.target.value }))
-                        }
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Temporada</Label>
-                      <Input
-                        value={formState.season}
-                        onChange={(event) =>
-                          setFormState((prev) => ({ ...prev, season: event.target.value }))
-                        }
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Estúdio</Label>
-                      <Input
-                        value={formState.studio}
-                        onChange={(event) =>
-                          setFormState((prev) => ({ ...prev, studio: event.target.value }))
-                        }
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Episódios/Capítulos</Label>
-                      <Input
-                        value={formState.episodes}
-                        onChange={(event) =>
-                          setFormState((prev) => ({ ...prev, episodes: event.target.value }))
-                        }
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>País de origem</Label>
-                      <Input
-                        value={formState.country}
-                        onChange={(event) =>
-                          setFormState((prev) => ({ ...prev, country: event.target.value }))
-                        }
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Fonte</Label>
-                      <Input
-                        value={formState.source}
-                        onChange={(event) =>
-                          setFormState((prev) => ({ ...prev, source: event.target.value }))
-                        }
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Cargo Discord (ID)</Label>
-                      <Input
-                        value={formState.discordRoleId || ""}
-                        onChange={(event) =>
-                          setFormState((prev) => ({
-                            ...prev,
-                            discordRoleId: event.target.value.replace(/\D/g, ""),
-                          }))
-                        }
-                        placeholder="Opcional: ID numerico do cargo"
-                      />
-                    </div>
-                  </div>
-                </AccordionContent>
-              </AccordionItem>
-
-              <AccordionItem value="classificacao" className={editorSectionClassName}>
-                <AccordionTrigger className={editorSectionTriggerClassName}>
-                  <div className="flex w-full items-center justify-between gap-4 text-left">
-                    <span>Classificação</span>
-                    <span className="text-xs text-muted-foreground">
-                      {formState.tags.length} tags • {formState.genres.length} gêneros
-                    </span>
-                  </div>
-                </AccordionTrigger>
-                <AccordionContent className={editorSectionContentClassName}>
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <div className="space-y-2">
-                      <Label>Tags</Label>
-                      <div className="flex flex-wrap items-center gap-2">
-                        <Input
-                          value={tagInput}
-                          onChange={(event) => setTagInput(event.target.value)}
-                          onKeyDown={(event) => {
-                            if (event.key === "Enter") {
-                              event.preventDefault();
-                              handleAddTag();
-                            }
-                          }}
-                          placeholder="Adicionar tag"
-                        />
-                      </div>
-                      {tagSuggestions.length > 0 ? (
-                        <div className="mt-2 flex flex-wrap gap-2">
-                          {tagSuggestions.map((tag) => (
-                            <Button
-                              key={`tag-suggestion-${tag}`}
-                              type="button"
-                              size="sm"
-                              variant="ghost"
-                              className="h-7 px-2 text-xs"
-                              onClick={() => {
-                                setTagInput(tag);
-                                setFormState((prev) => ({
-                                  ...prev,
-                                  tags: prev.tags.includes(tag) ? prev.tags : [...prev.tags, tag],
-                                }));
-                                setTagInput("");
-                              }}
-                            >
-                              {tag}
-                            </Button>
-                          ))}
-                        </div>
-                      ) : null}
-                      <div className="mt-2 flex flex-wrap gap-2">
-                        {translatedSortedEditorTags.map((tag, index) => (
-                          <Badge
-                            key={`${tag}-${index}`}
-                            variant="secondary"
-                            onClick={() => handleRemoveTag(tag)}
-                            className="cursor-pointer"
-                          >
-                            {translateTag(tag, tagTranslationMap)}
-                          </Badge>
-                        ))}
-                      </div>
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Gêneros</Label>
-                      <div className="flex flex-wrap items-center gap-2">
-                        <Input
-                          value={genreInput}
-                          onChange={(event) => setGenreInput(event.target.value)}
-                          onKeyDown={(event) => {
-                            if (event.key === "Enter") {
-                              event.preventDefault();
-                              handleAddGenre();
-                            }
-                          }}
-                          placeholder="Adicionar gênero"
-                        />
-                      </div>
-                      {genreSuggestions.length > 0 ? (
-                        <div className="mt-2 flex flex-wrap gap-2">
-                          {genreSuggestions.map((genre) => (
-                            <Button
-                              key={`genre-suggestion-${genre}`}
-                              type="button"
-                              size="sm"
-                              variant="ghost"
-                              className="h-7 px-2 text-xs"
-                              onClick={() => {
-                                setGenreInput(genre);
-                                setFormState((prev) => ({
-                                  ...prev,
-                                  genres: prev.genres.includes(genre)
-                                    ? prev.genres
-                                    : [...prev.genres, genre],
-                                }));
-                                setGenreInput("");
-                              }}
-                            >
-                              {genre}
-                            </Button>
-                          ))}
-                        </div>
-                      ) : null}
-                      <div className="mt-2 flex flex-wrap gap-2">
-                        {translatedSortedEditorGenres.map((genre, index) => (
-                          <Badge
-                            key={`${genre}-${index}`}
-                            variant="secondary"
-                            onClick={() => handleRemoveGenre(genre)}
-                            className="cursor-pointer"
-                          >
-                            {translateGenre(genre, genreTranslationMap)}
-                          </Badge>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                </AccordionContent>
-              </AccordionItem>
-
-              <AccordionItem value="relacoes" className={editorSectionClassName}>
-                <AccordionTrigger className={editorSectionTriggerClassName}>
-                  <div className="flex w-full items-center justify-between gap-4 text-left">
-                    <span>Relações</span>
-                    <span className="text-xs text-muted-foreground">
-                      {formState.relations.length} itens
-                    </span>
-                  </div>
-                </AccordionTrigger>
-                <AccordionContent className={editorSectionContentClassName}>
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-end">
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="outline"
-                        onClick={() =>
-                          setFormState((prev) => ({
-                            ...prev,
-                            relations: [
-                              ...prev.relations,
-                              { relation: "", title: "", format: "", status: "", image: "" },
-                            ],
-                          }))
-                        }
-                      >
-                        Adicionar relação
-                      </Button>
-                    </div>
-                    <div className="grid gap-3">
-                      {formState.relations.map((relation, index) => (
-                        <div
-                          key={`${relation.title}-${index}`}
-                          className="grid gap-2 rounded-2xl border border-border/60 bg-card/60 p-3 md:grid-cols-[1.35fr_1fr_1fr_auto_auto]"
-                          draggable
-                          onDragStart={() => setRelationDragIndex(index)}
-                          onDragOver={(event) => event.preventDefault()}
-                          onDrop={() => handleRelationDrop(index)}
-                        >
-                          <Input
-                            value={relation.title}
-                            onChange={(event) =>
-                              setFormState((prev) => {
-                                const next = [...prev.relations];
-                                next[index] = { ...next[index], title: event.target.value };
-                                return { ...prev, relations: next };
-                              })
-                            }
-                            placeholder="Título"
-                          />
-                          <Input
-                            value={relation.relation}
-                            onChange={(event) =>
-                              setFormState((prev) => {
-                                const next = [...prev.relations];
-                                next[index] = { ...next[index], relation: event.target.value };
-                                return { ...prev, relations: next };
-                              })
-                            }
-                            placeholder="Relação"
-                          />
-                          <Input
-                            value={relation.projectId || relation.anilistId || ""}
-                            onChange={(event) =>
-                              setFormState((prev) => {
-                                const next = [...prev.relations];
-                                next[index] = { ...next[index], projectId: event.target.value };
-                                return { ...prev, relations: next };
-                              })
-                            }
-                            placeholder="ID relacionado"
-                          />
-                          <ReorderControls
-                            label={`relação ${index + 1}`}
-                            index={index}
-                            total={formState.relations.length}
-                            onMove={(targetIndex) => moveRelationItem(index, targetIndex)}
-                          />
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            onClick={() =>
-                              setFormState((prev) => ({
-                                ...prev,
-                                relations: prev.relations.filter((_, idx) => idx !== index),
-                              }))
-                            }
-                          >
-                            Remover
+                          <Button className="self-end" onClick={handleImportAniList}>
+                            Importar do AniList
                           </Button>
                         </div>
-                      ))}
-                    </div>
-                  </div>
-                </AccordionContent>
-              </AccordionItem>
 
-              <AccordionItem value="equipe" className={editorSectionClassName}>
-                <AccordionTrigger className={editorSectionTriggerClassName}>
-                  <div className="flex w-full items-center justify-between gap-4 text-left">
-                    <span>Equipe da fansub</span>
-                    <span className="text-xs text-muted-foreground">
-                      {formState.staff.length} funções
-                    </span>
-                  </div>
-                </AccordionTrigger>
-                <AccordionContent className={editorSectionContentClassName}>
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-end">
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="outline"
-                        onClick={() =>
-                          setFormState((prev) => ({
-                            ...prev,
-                            staff: [...prev.staff, { role: "", members: [] }],
-                          }))
-                        }
-                      >
-                        Adicionar função
-                      </Button>
-                    </div>
-                    <div className="grid gap-3">
-                      {formState.staff.map((role, index) => (
-                        <div
-                          key={`${role.role}-${index}`}
-                          className="rounded-2xl border border-border/60 bg-card/60 p-3"
-                          draggable
-                          onDragStart={() => setStaffDragIndex(index)}
-                          onDragOver={(event) => event.preventDefault()}
-                          onDrop={() => handleStaffDrop(index)}
-                        >
-                          <div className="grid gap-3 md:grid-cols-[1fr_auto_auto]">
-                            <Select
-                              value={role.role || ""}
-                              onValueChange={(value) =>
-                                setFormState((prev) => {
-                                  const next = [...prev.staff];
-                                  next[index] = { ...next[index], role: value };
-                                  return { ...prev, staff: next };
-                                })
-                              }
-                            >
-                              <SelectTrigger>
-                                <SelectValue placeholder="Função" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {(role.role && !staffRoleOptions.includes(role.role)
-                                  ? [role.role, ...staffRoleOptions]
-                                  : staffRoleOptions
-                                ).map((option) => (
-                                  <SelectItem key={option} value={option}>
-                                    {option}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                            <ReorderControls
-                              label={`funcao da fansub ${index + 1}`}
-                              index={index}
-                              total={formState.staff.length}
-                              onMove={(targetIndex) => moveStaffItem(index, targetIndex)}
-                            />
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              onClick={() =>
-                                setFormState((prev) => ({
-                                  ...prev,
-                                  staff: prev.staff.filter((_, idx) => idx !== index),
-                                }))
-                              }
-                            >
-                              Remover
-                            </Button>
-                          </div>
-                          <div className="mt-3 flex flex-wrap items-center gap-2">
-                            <Input
-                              list="staff-directory"
-                              value={staffMemberInput[index] || ""}
-                              onChange={(event) =>
-                                setStaffMemberInput((prev) => ({
-                                  ...prev,
-                                  [index]: event.target.value,
-                                }))
-                              }
-                              placeholder="Adicionar membro"
-                            />
-                            <Button
-                              type="button"
-                              variant="outline"
-                              onClick={() =>
-                                setFormState((prev) => {
-                                  const next = [...prev.staff];
-                                  const name = (staffMemberInput[index] || "").trim();
-                                  if (!name) {
-                                    return prev;
-                                  }
-                                  const members = next[index].members || [];
-                                  next[index] = {
-                                    ...next[index],
-                                    members: members.includes(name) ? members : [...members, name],
-                                  };
-                                  return { ...prev, staff: next };
-                                })
-                              }
-                            >
-                              Adicionar
-                            </Button>
-                          </div>
-                          <div className="mt-2 flex flex-wrap gap-2">
-                            {(role.members || []).map((member) => (
-                              <Badge key={member} variant="secondary">
-                                {member}
-                              </Badge>
-                            ))}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </AccordionContent>
-              </AccordionItem>
-
-              <AccordionItem value="staff-anime" className={editorSectionClassName}>
-                <AccordionTrigger className={editorSectionTriggerClassName}>
-                  <div className="flex w-full items-center justify-between gap-4 text-left">
-                    <span>Staff do anime</span>
-                    <span className="text-xs text-muted-foreground">
-                      {formState.animeStaff.length} funções
-                    </span>
-                  </div>
-                </AccordionTrigger>
-                <AccordionContent className={editorSectionContentClassName}>
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-end">
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="outline"
-                        onClick={() =>
-                          setFormState((prev) => ({
-                            ...prev,
-                            animeStaff: [...prev.animeStaff, { role: "", members: [] }],
-                          }))
-                        }
-                      >
-                        Adicionar função
-                      </Button>
-                    </div>
-                    <div className="grid gap-3">
-                      {formState.animeStaff.map((role, index) => (
-                        <div
-                          key={`${role.role}-${index}`}
-                          className="rounded-2xl border border-border/60 bg-card/60 p-3"
-                          draggable
-                          onDragStart={() => setAnimeStaffDragIndex(index)}
-                          onDragOver={(event) => event.preventDefault()}
-                          onDrop={() => handleAnimeStaffDrop(index)}
-                        >
-                          <div className="grid gap-3 md:grid-cols-[1fr_auto_auto]">
+                        {isLightNovel ? (
+                          <div className="rounded-2xl border border-border/60 bg-background/35 p-4">
                             <div className="space-y-1">
-                              <Input
-                                value={role.role || ""}
-                                onChange={(event) =>
-                                  setFormState((prev) => {
-                                    const next = [...prev.animeStaff];
-                                    next[index] = { ...next[index], role: event.target.value };
-                                    return { ...prev, animeStaff: next };
-                                  })
-                                }
-                                placeholder="Função"
-                              />
-                              {String(role.role || "").trim() ? (
+                              <h3 className="text-sm font-semibold text-foreground">
+                                Ferramentas EPUB
+                              </h3>
+                              <p className="text-xs text-muted-foreground">
+                                Importe capítulos para o editor Lexical e exporte o snapshot atual
+                                por volume.
+                              </p>
+                              {epubCapabilityState ? (
+                                <p
+                                  className={
+                                    epubCapabilityState.variant === "destructive"
+                                      ? "text-xs text-destructive"
+                                      : "text-xs text-amber-700"
+                                  }
+                                >
+                                  {epubCapabilityState.message}
+                                </p>
+                              ) : null}
+                              {backendBuildLabel ? (
                                 <p className="text-[11px] text-muted-foreground">
-                                  {translateAnilistRole(role.role, staffRoleTranslationMap)}
+                                  Contrato da API: {backendBuildLabel}
+                                </p>
+                              ) : null}
+                              {frontendBuildLabel ? (
+                                <p className="text-[11px] text-muted-foreground">
+                                  Frontend: {frontendBuildLabel}
                                 </p>
                               ) : null}
                             </div>
-                            <ReorderControls
-                              label={`funcao do anime ${index + 1}`}
-                              index={index}
-                              total={formState.animeStaff.length}
-                              onMove={(targetIndex) => moveAnimeStaffItem(index, targetIndex)}
-                            />
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              onClick={() => {
-                                setFormState((prev) => ({
-                                  ...prev,
-                                  animeStaff: prev.animeStaff.filter((_, idx) => idx !== index),
-                                }));
-                                setAnimeStaffMemberInput((prev) =>
-                                  shiftDraftAfterRemoval(prev, index),
-                                );
-                              }}
-                            >
-                              Remover
-                            </Button>
-                          </div>
-                          <div className="mt-3 flex flex-wrap items-center gap-2">
-                            <Input
-                              list="staff-directory"
-                              value={animeStaffMemberInput[index] || ""}
-                              onChange={(event) =>
-                                setAnimeStaffMemberInput((prev) => ({
-                                  ...prev,
-                                  [index]: event.target.value,
-                                }))
-                              }
-                              placeholder="Adicionar membro"
-                            />
-                            <Button
-                              type="button"
-                              variant="outline"
-                              onClick={() => {
-                                const name = (animeStaffMemberInput[index] || "").trim();
-                                if (!name) {
-                                  return;
-                                }
-                                setFormState((prev) => {
-                                  const next = [...prev.animeStaff];
-                                  const members = next[index].members || [];
-                                  next[index] = {
-                                    ...next[index],
-                                    members: members.includes(name) ? members : [...members, name],
-                                  };
-                                  return { ...prev, animeStaff: next };
-                                });
-                                setAnimeStaffMemberInput((prev) => ({ ...prev, [index]: "" }));
-                              }}
-                            >
-                              Adicionar
-                            </Button>
-                          </div>
-                          <div className="mt-2 flex flex-wrap gap-2">
-                            {(role.members || []).map((member) => (
-                              <Badge
-                                key={member}
-                                variant="secondary"
-                                className="flex items-center gap-1"
-                              >
-                                <span>{member}</span>
-                                <button
-                                  type="button"
-                                  className="rounded-sm p-0.5 text-muted-foreground transition hover:text-foreground"
-                                  onClick={() =>
-                                    setFormState((prev) => {
-                                      const next = [...prev.animeStaff];
-                                      next[index] = {
-                                        ...next[index],
-                                        members: (next[index].members || []).filter(
-                                          (item) => item !== member,
-                                        ),
-                                      };
-                                      return { ...prev, animeStaff: next };
-                                    })
-                                  }
-                                  aria-label={`Remover ${member}`}
-                                >
-                                  x
-                                </button>
-                              </Badge>
-                            ))}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </AccordionContent>
-              </AccordionItem>
 
-              <AccordionItem value="episodios" className={editorSectionClassName}>
-                <AccordionTrigger className={editorSectionTriggerClassName}>
-                  <div className="flex w-full items-center justify-between gap-4 text-left">
-                    <span>{isChapterBased ? "Conteúdo" : "Episódios"}</span>
-                    <span className="text-xs text-muted-foreground">
-                      {formState.episodeDownloads.length}{" "}
-                      {isChapterBased ? "capítulos" : "episódios"}
-                    </span>
-                  </div>
-                </AccordionTrigger>
-                <AccordionContent
-                  className={editorSectionContentClassName}
-                  contentClassName={isChapterBased ? chapterOpenContentClassName : undefined}
-                >
-                  <div ref={contentSectionRef} className="space-y-3">
-                    <div className="flex flex-wrap items-center justify-end gap-2">
-                      {isChapterBased && supportsVolumeEntries ? (
-                        <Button type="button" size="sm" variant="outline" onClick={addVolumeEntry}>
-                          Adicionar volume
-                        </Button>
-                      ) : null}
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="outline"
-                        onClick={handleAddEpisodeDownload}
-                      >
-                        {isChapterBased ? "Adicionar capítulo" : "Adicionar episódio"}
-                      </Button>
-                    </div>
-                    <div className={isChapterBased && supportsVolumeEntries ? "space-y-4" : ""}>
-                      <Accordion
-                        type="multiple"
-                        value={volumeGroupOpenValues}
-                        onValueChange={handleVolumeGroupAccordionChange}
-                        className="space-y-4"
-                      >
-                          {episodeGroupsForRender.map((group, groupIndex) => {
-                            const groupVolumeEntry =
-                              group.volumeEntryIndex !== null
-                                ? formState.volumeEntries[group.volumeEntryIndex] || null
-                                : null;
-                            const groupHasEpisodes = group.episodeItems.length > 0;
-                            const volumeLabel = group.hasNumericVolume
-                              ? `Volume ${group.volume}`
-                              : "Sem volume";
-                            const volumeDescription = group.hasNumericVolume
-                              ? "Configure capa e sinopse para este volume."
-                              : "Capítulos sem volume usam capa e sinopse do próprio projeto.";
-                            return (
-                              <AccordionItem
-                                ref={(node) => {
-                                  if (node) {
-                                    volumeGroupNodeMapRef.current.set(group.key, node);
-                                  } else {
-                                    volumeGroupNodeMapRef.current.delete(group.key);
-                                  }
-                                }}
-                                key={`episode-group-${groupIndex}`}
-                                value={group.key}
-                                className="rounded-2xl border border-border/60 bg-card/40"
-                                data-testid={`volume-group-${group.key}`}
-                              >
-                                {isChapterBased && supportsVolumeEntries ? (
-                                  <div className="flex w-full items-start gap-2 px-4 pb-3 pt-3">
-                                    <AccordionTrigger
-                                      headerClassName="flex-1 min-w-0"
-                                      className="w-full gap-3 py-0 text-left hover:no-underline [&>svg]:mt-0 [&>svg]:self-center"
-                                    >
-                                      <div className="flex min-w-0 flex-1 items-center justify-between gap-3 pr-1">
-                                        <div className="min-w-0 space-y-1">
-                                          <Label className="cursor-pointer">{volumeLabel}</Label>
-                                          <p className="text-xs text-muted-foreground">
-                                            {volumeDescription}
-                                          </p>
-                                        </div>
-                                        <Badge
-                                          variant="outline"
-                                          className="shrink-0 self-center text-[10px] uppercase"
-                                        >
-                                          {group.episodeItems.length} capítulo(s)
-                                        </Badge>
-                                      </div>
-                                    </AccordionTrigger>
-                                    {group.hasNumericVolume && groupVolumeEntry ? (
-                                      <Button
-                                        type="button"
-                                        variant="ghost"
-                                        size="icon"
-                                        data-no-toggle
-                                        onClick={(event) => {
-                                          event.preventDefault();
-                                          event.stopPropagation();
-                                          removeVolumeEntryByVolume(group.volume);
-                                        }}
-                                      >
-                                        <Trash2 className="h-4 w-4" />
-                                      </Button>
-                                    ) : null}
-                                  </div>
-                                ) : null}
-                                <AccordionContent
-                                  className="space-y-3 px-4 pb-3"
-                                  contentClassName={
-                                    isChapterBased ? chapterOpenContentClassName : undefined
-                                  }
-                                >
-                                  {group.hasNumericVolume ? (
-                                    <div className="space-y-3 rounded-xl border border-border/60 bg-background/40 p-3">
-                                      <div className="flex items-center gap-3">
-                                        {groupVolumeEntry?.coverImageUrl ? (
-                                          <img
-                                            src={groupVolumeEntry.coverImageUrl}
-                                            alt={groupVolumeEntry.coverImageAlt || "Capa do volume"}
-                                            className="h-16 w-12 rounded-lg object-cover"
-                                          />
-                                        ) : (
-                                          <div className="flex h-16 w-12 items-center justify-center rounded-lg border border-dashed border-border/60 text-center text-[10px] text-muted-foreground leading-tight">
-                                            Sem capa
-                                          </div>
-                                        )}
-                                        <Button
-                                          type="button"
-                                          variant="outline"
-                                          size="sm"
-                                          onClick={() => openLibraryForVolumeCover(group.volume)}
-                                        >
-                                          Biblioteca
-                                        </Button>
-                                      </div>
-                                      <div className="space-y-2">
-                                        <Label className="text-xs">Alt</Label>
-                                        <Input
-                                          value={groupVolumeEntry?.coverImageAlt || ""}
-                                          onChange={(event) =>
-                                            updateVolumeEntryByVolume(group.volume, (entry) => ({
-                                              ...entry,
-                                              coverImageAlt: event.target.value,
-                                            }))
-                                          }
-                                          placeholder="Texto alternativo da capa"
-                                        />
-                                      </div>
-                                      <div className="space-y-2">
-                                        <Label className="text-xs">Sinopse do volume</Label>
-                                        <Textarea
-                                          value={groupVolumeEntry?.synopsis || ""}
-                                          onChange={(event) =>
-                                            updateVolumeEntryByVolume(group.volume, (entry) => ({
-                                              ...entry,
-                                              synopsis: event.target.value,
-                                            }))
-                                          }
-                                          rows={3}
-                                          placeholder="Resumo exibido nas páginas públicas para este volume"
-                                        />
-                                      </div>
-                                    </div>
-                                  ) : null}
-                                  {!groupHasEpisodes ? (
-                                    <div className="rounded-xl border border-dashed border-border/60 bg-background/40 px-4 py-3 text-sm text-muted-foreground">
-                                      Nenhum capítulo vinculado a este volume.
-                                    </div>
-                                  ) : null}
-                                      <Accordion
-                                        type="multiple"
-                                        value={episodeOpenValues}
-                                        onValueChange={handleEpisodeAccordionChange}
-                                        className="space-y-3"
-                                      >
-                                    {group.episodeItems.map(({ episode, index }) => {
-                        const isEpisodeCollapsed = collapsedEpisodes[index] ?? false;
-                        const entryKind = getEpisodeEntryKind(episode);
-                        const isExtraEntry = entryKind === "extra";
-                        const episodeUnitLabel = isChapterBased ? "Capítulo" : "Episódio";
-                        const episodeNumberLabel = isExtraEntry
-                          ? "Extra"
-                          : `${episodeUnitLabel} ${episode.number || index + 1}`;
-                        const episodeTitleLabel =
-                          String(episode.title || "").trim() || "Sem título";
-                        const episodeKey = buildEpisodeKey(episode.number, episode.volume);
-                        const publicationStatus =
-                          episode.publicationStatus === "draft" ? "draft" : "published";
-                        const hasEpisodeContent = String(episode.content || "").trim().length > 0;
-                        const hasDownloadSource = (episode.sources || []).some((source) => source.url);
-                        const isProgressOnlyEntry =
-                          !hasDownloadSource && !(isLightNovel && hasEpisodeContent);
-                        const currentProgressStageLabel =
-                          stageOptions.find(
-                            (stage) =>
-                              stage.id ===
-                              getProgressStage(formState.type || "", episode.completedStages),
-                          )?.label || "Aguardando Raw";
-                        const statusLabel =
-                          publicationStatus === "draft" ? "Rascunho" : "Publicado";
-                        const availabilityLabel = isLightNovel
-                          ? hasEpisodeContent && hasDownloadSource
-                            ? "Híbrido"
-                            : hasEpisodeContent
-                              ? "Leitura"
-                              : hasDownloadSource
-                                ? "Download"
-                                : "Sem público"
-                          : hasDownloadSource
-                            ? "Download"
-                            : currentProgressStageLabel;
-                        const statusVisibilitySummary = `${statusLabel} • ${availabilityLabel}`;
-
-                        return (
-                          <AccordionItem
-                            key={episode._editorKey || `legacy-episode-${index}`}
-                            value={getEpisodeAccordionValue(index)}
-                            className="border-none"
-                          >
-                            <Card
-                              ref={(node) => {
-                                if (node) {
-                                  episodeCardNodeMapRef.current.set(episode, node);
-                                  if (pendingEpisodeToScrollRef.current === episode) {
-                                    requestAnimationFrame(() => {
-                                      const latestNode = episodeCardNodeMapRef.current.get(episode);
-                                      if (!latestNode || pendingEpisodeToScrollRef.current !== episode) {
-                                        return;
-                                      }
-                                      latestNode.scrollIntoView({
-                                        behavior: "smooth",
-                                        block: "center",
-                                        inline: "nearest",
-                                      });
-                                      pendingEpisodeToScrollRef.current = null;
-                                    });
-                                  }
-                                }
-                              }}
-                              className="project-editor-episode-card border-border/60 bg-card/70 !shadow-none hover:!shadow-none"
-                              data-episode-key={episodeKey}
-                              data-testid={`episode-card-${index}`}
-                              onDragStart={() => setEpisodeDragId(null)}
-                            >
-                              <CardContent
-                                className={`project-editor-episode-content space-y-3 ${isEpisodeCollapsed ? "p-3" : "p-4"}`}
-                              >
-                                <div
-                                  className="project-editor-episode-header flex flex-wrap items-center justify-between gap-2"
-                                  data-testid={`episode-header-${index}`}
-                                  onClick={(event) => handleEpisodeHeaderClick(index, event)}
-                                >
-                                  <div className="min-w-0 flex-1">
-                                    <AccordionTrigger
-                                      data-episode-accordion-trigger
-                                      className="project-editor-episode-trigger gap-3 py-0 text-left text-foreground hover:no-underline [&>svg]:mt-0 [&>svg]:self-center [&>svg]:shrink-0"
-                                    >
-                                      <div className="flex min-w-0 flex-col py-0.5">
-                                        <span className="text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground">
-                                          {episodeNumberLabel}
-                                        </span>
-                                        <span className="line-clamp-1 text-sm font-semibold leading-tight">
-                                          {episodeTitleLabel}
-                                        </span>
-                                        {episode.releaseDate ? (
-                                          <span className="text-[11px] text-muted-foreground">
-                                            {formatEpisodeReleaseDate(
-                                              episode.releaseDate,
-                                              episode.duration,
-                                            )}
-                                          </span>
-                                        ) : null}
-                                      </div>
-                                    </AccordionTrigger>
-                                  </div>
-                                  <div className="flex flex-wrap items-center gap-2">
-                                    <span
-                                      className="text-[11px] text-muted-foreground"
-                                      data-testid={`episode-header-status-visibility-${index}`}
-                                    >
-                                      {statusVisibilitySummary}
-                                    </span>
-                                    <ReorderControls
-                                      label={`item ${isExtraEntry ? "extra" : episode.number || index + 1}`}
-                                      index={index}
-                                      total={sortedEpisodeDownloads.length}
-                                      onMove={(targetIndex) => moveEpisodeItem(index, targetIndex)}
-                                      buttonClassName="h-7 w-7"
-                                    />
-                                    <Button
-                                      type="button"
-                                      size="sm"
-                                      variant="ghost"
-                                      className="h-7 px-2 text-[11px] text-destructive hover:text-destructive"
-                                      data-no-toggle
-                                      onClick={() => {
-                                        setFormState((prev) => ({
-                                          ...prev,
-                                          episodeDownloads: prev.episodeDownloads.filter(
-                                            (_, idx) => idx !== index,
-                                          ),
-                                        }));
-                                        setEpisodeDateDraft((prev) =>
-                                          shiftDraftAfterRemoval(prev, index),
-                                        );
-                                        setEpisodeTimeDraft((prev) =>
-                                          shiftDraftAfterRemoval(prev, index),
-                                        );
-                                        setEpisodeSizeDrafts((prev) =>
-                                          shiftDraftAfterRemoval(prev, index),
-                                        );
-                                        setEpisodeSizeErrors((prev) =>
-                                          shiftDraftAfterRemoval(prev, index),
-                                        );
-                                        setCollapsedEpisodes((prev) =>
-                                          shiftCollapsedEpisodesAfterRemoval(prev, index),
-                                        );
-                                      }}
-                                    >
-                                      {isChapterBased ? "Remover capítulo" : "Remover episódio"}
-                                    </Button>
-                                  </div>
+                            <div className="mt-4 grid gap-6 xl:grid-cols-2">
+                              <div className="space-y-4 rounded-xl border border-border/60 bg-card/60 p-4">
+                                <div className="space-y-1">
+                                  <h4 className="text-sm font-medium text-foreground">
+                                    Importar EPUB
+                                  </h4>
+                                  <p className="text-xs text-muted-foreground">
+                                    O arquivo é convertido para Lexical e mergeado localmente no
+                                    formulário.
+                                  </p>
                                 </div>
-                                <AccordionContent
-                                  className="project-editor-episode-panel pt-3 pb-0 px-1"
-                                  contentClassName={
-                                    isChapterBased ? chapterOpenContentClassName : undefined
-                                  }
-                                >
-                                  <div className="project-editor-episode-group project-editor-episode-basics grid gap-3 md:grid-cols-[minmax(120px,0.9fr)_minmax(84px,0.7fr)_minmax(84px,0.7fr)_minmax(180px,1.4fr)_minmax(150px,1fr)_minmax(110px,0.8fr)_minmax(130px,0.9fr)]">
-                                    <Select
-                                      value={isExtraEntry ? "extra" : "main"}
-                                      onValueChange={(value) =>
-                                        setEpisodeEntryKind(
-                                          index,
-                                          value === "extra" ? "extra" : "main",
-                                        )
+                                <div className="space-y-2">
+                                  <Label htmlFor="epub-import-file">Arquivo .epub</Label>
+                                  <Input
+                                    ref={epubImportInputRef}
+                                    id="epub-import-file"
+                                    type="file"
+                                    accept=".epub,application/epub+zip"
+                                    className="sr-only"
+                                    onChange={handleEpubImportFileChange}
+                                    onCancel={handleEpubImportFileCancel}
+                                  />
+                                  {epubImportFile ? (
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        openEpubImportPicker({ autoImportAfterSelect: false })
                                       }
+                                      disabled={isImportingEpub || !backendSupportsEpubImport}
+                                      className="w-full rounded-xl border border-border/60 bg-background/50 px-3 py-3 text-left transition hover:bg-background/70 disabled:cursor-not-allowed disabled:opacity-50"
                                     >
-                                      <SelectTrigger aria-label="Tipo da entrada">
-                                        <SelectValue placeholder="Tipo" />
-                                      </SelectTrigger>
-                                      <SelectContent>
-                                        <SelectItem value="main">Principal</SelectItem>
-                                        <SelectItem value="extra">Extra</SelectItem>
-                                      </SelectContent>
-                                    </Select>
-                                    <Input
-                                      type="number"
-                                      value={episode.number}
-                                      disabled={isExtraEntry}
-                                      onChange={(event) =>
-                                        setFormState((prev) => {
-                                          const next = [...prev.episodeDownloads];
-                                          next[index] = {
-                                            ...next[index],
-                                            number: Number(event.target.value),
-                                          };
-                                          return { ...prev, episodeDownloads: next };
-                                        })
-                                      }
-                                      placeholder={isExtraEntry ? "Técnico" : "Número"}
-                                    />
-                                    {isChapterBased ? (
-                                      <Input
-                                        type="number"
-                                        value={episode.volume || ""}
-                                        onChange={(event) =>
-                                          setFormState((prev) => {
-                                            const next = [...prev.episodeDownloads];
-                                            next[index] = {
-                                              ...next[index],
-                                              volume: event.target.value
-                                                ? Number(event.target.value)
-                                                : undefined,
-                                            };
-                                            return { ...prev, episodeDownloads: next };
-                                          })
-                                        }
-                                        placeholder="Volume"
-                                      />
-                                    ) : null}
-                                    <Input
-                                      value={episode.title}
-                                      onChange={(event) =>
-                                        setFormState((prev) => {
-                                          const next = [...prev.episodeDownloads];
-                                          next[index] = {
-                                            ...next[index],
-                                            title: event.target.value,
-                                          };
-                                          return { ...prev, episodeDownloads: next };
-                                        })
-                                      }
-                                      placeholder="Título"
-                                    />
-                                    {isLightNovel ? (
-                                      <Select
-                                        value={publicationStatus}
-                                        onValueChange={(value) =>
-                                          setFormState((prev) => {
-                                            const next = [...prev.episodeDownloads];
-                                            next[index] = {
-                                              ...next[index],
-                                              publicationStatus:
-                                                value === "draft" ? "draft" : "published",
-                                            };
-                                            return { ...prev, episodeDownloads: next };
-                                          })
-                                        }
-                                      >
-                                        <SelectTrigger>
-                                          <SelectValue placeholder="Status" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                          <SelectItem value="draft">Rascunho</SelectItem>
-                                          <SelectItem value="published">Publicado</SelectItem>
-                                        </SelectContent>
-                                      </Select>
-                                    ) : null}
-                                    <Input
-                                      type="text"
-                                      inputMode="numeric"
-                                      value={
-                                        episodeDateDraft[index] ??
-                                        isoToDisplayDate(episode.releaseDate)
-                                      }
-                                      onChange={(event) => {
-                                        const masked = formatDateDigitsToDisplay(
-                                          event.target.value,
-                                        );
-                                        const digits = digitsOnly(masked);
-                                        setEpisodeDateDraft((prev) => ({
-                                          ...prev,
-                                          [index]: masked,
-                                        }));
-                                        if (digits.length === 8) {
-                                          const iso = displayDateToIso(masked);
-                                          if (iso) {
-                                            setFormState((prev) => {
-                                              const next = [...prev.episodeDownloads];
-                                              next[index] = { ...next[index], releaseDate: iso };
-                                              return { ...prev, episodeDownloads: next };
-                                            });
-                                          }
-                                        } else if (digits.length === 0) {
-                                          setFormState((prev) => {
-                                            const next = [...prev.episodeDownloads];
-                                            next[index] = { ...next[index], releaseDate: "" };
-                                            return { ...prev, episodeDownloads: next };
-                                          });
-                                        }
-                                      }}
-                                      onBlur={(event) => {
-                                        const masked = formatDateDigitsToDisplay(
-                                          event.target.value,
-                                        );
-                                        const digits = digitsOnly(masked);
-                                        if (digits.length === 8) {
-                                          const iso = displayDateToIso(masked);
-                                          if (iso) {
-                                            setFormState((prev) => {
-                                              const next = [...prev.episodeDownloads];
-                                              next[index] = { ...next[index], releaseDate: iso };
-                                              return { ...prev, episodeDownloads: next };
-                                            });
-                                          }
-                                        } else if (digits.length === 0) {
-                                          setFormState((prev) => {
-                                            const next = [...prev.episodeDownloads];
-                                            next[index] = { ...next[index], releaseDate: "" };
-                                            return { ...prev, episodeDownloads: next };
-                                          });
-                                        }
-                                        setEpisodeDateDraft((prev) => {
-                                          const next = { ...prev };
-                                          delete next[index];
-                                          return next;
-                                        });
-                                      }}
-                                      placeholder="DD/MM/AAAA"
-                                      className="md:min-w-[150px]"
-                                    />
-                                    {!isChapterBased ? (
-                                      <Input
-                                        type="text"
-                                        inputMode="numeric"
-                                        value={
-                                          episodeTimeDraft[index] ??
-                                          canonicalToDisplayTime(episode.duration)
-                                        }
-                                        onChange={(event) => {
-                                          const masked = formatTimeDigitsToDisplay(
-                                            event.target.value,
-                                          );
-                                          const digits = digitsOnly(masked);
-                                          setEpisodeTimeDraft((prev) => ({
-                                            ...prev,
-                                            [index]: masked,
-                                          }));
-                                          const canonical = displayTimeToCanonical(masked);
-                                          if (canonical) {
-                                            setFormState((prev) => {
-                                              const next = [...prev.episodeDownloads];
-                                              next[index] = { ...next[index], duration: canonical };
-                                              return { ...prev, episodeDownloads: next };
-                                            });
-                                          } else if (digits.length === 0) {
-                                            setFormState((prev) => {
-                                              const next = [...prev.episodeDownloads];
-                                              next[index] = { ...next[index], duration: "" };
-                                              return { ...prev, episodeDownloads: next };
-                                            });
-                                          }
-                                        }}
-                                        onBlur={(event) => {
-                                          const masked = formatTimeDigitsToDisplay(
-                                            event.target.value,
-                                          );
-                                          const digits = digitsOnly(masked);
-                                          const canonical = displayTimeToCanonical(masked);
-                                          if (canonical) {
-                                            setFormState((prev) => {
-                                              const next = [...prev.episodeDownloads];
-                                              next[index] = { ...next[index], duration: canonical };
-                                              return { ...prev, episodeDownloads: next };
-                                            });
-                                          } else if (digits.length === 0) {
-                                            setFormState((prev) => {
-                                              const next = [...prev.episodeDownloads];
-                                              next[index] = { ...next[index], duration: "" };
-                                              return { ...prev, episodeDownloads: next };
-                                            });
-                                          }
-                                          setEpisodeTimeDraft((prev) => {
-                                            const next = { ...prev };
-                                            delete next[index];
-                                            return next;
-                                          });
-                                        }}
-                                        placeholder="MM:SS ou H:MM:SS"
-                                        className="md:min-w-[150px]"
-                                      />
-                                    ) : null}
-                                    {!isChapterBased ? (
-                                      <Select
-                                        value={episode.sourceType}
-                                        onValueChange={(value) =>
-                                          setFormState((prev) => {
-                                            const next = [...prev.episodeDownloads];
-                                            next[index] = {
-                                              ...next[index],
-                                              sourceType: value as EditorProjectEpisode["sourceType"],
-                                            };
-                                            return { ...prev, episodeDownloads: next };
-                                          })
-                                        }
-                                      >
-                                        <SelectTrigger>
-                                          <SelectValue placeholder="Origem" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                          <SelectItem value="TV">TV</SelectItem>
-                                          <SelectItem value="Web">Web</SelectItem>
-                                          <SelectItem value="Blu-ray">Blu-ray</SelectItem>
-                                        </SelectContent>
-                                      </Select>
-                                    ) : null}
-                                  </div>
-                                  {isProgressOnlyEntry ? (
-                                    <div className="project-editor-episode-group mt-3 space-y-2">
-                                      <Label className="text-xs">Etapa atual</Label>
-                                      <div className="rounded-md border border-border/60 bg-background/70 px-3 py-2 text-xs text-muted-foreground">
-                                        {currentProgressStageLabel}
-                                      </div>
-                                    </div>
-                                  ) : null}
-                                  <div className="project-editor-episode-group mt-3 space-y-2">
-                                    <Label className="text-xs">
-                                      {isChapterBased ? "Capa do capítulo" : "Capa do episódio"}
-                                    </Label>
-                                    <div className="flex flex-wrap items-center gap-3">
-                                      {episode.coverImageUrl ? (
-                                        <div className="flex items-center gap-3 rounded-2xl border border-border/60 bg-card/60 px-3 py-2">
-                                          <img
-                                            src={episode.coverImageUrl}
-                                            alt={episode.title || "Capa"}
-                                            className="h-12 w-12 rounded-lg object-cover"
-                                          />
-                                        </div>
-                                      ) : (
-                                        <div className="flex h-12 w-12 items-center justify-center rounded-lg border border-dashed border-border/60 text-center text-[10px] text-muted-foreground leading-tight">
-                                          Sem imagem
-                                        </div>
-                                      )}
+                                      <span className="block truncate text-sm font-medium text-foreground">
+                                        {epubImportFile.name}
+                                      </span>
+                                    </button>
+                                  ) : (
+                                    <div className="flex flex-wrap items-center gap-3 rounded-xl border border-border/60 bg-background/50 px-3 py-3">
                                       <Button
                                         type="button"
                                         size="sm"
                                         variant="outline"
-                                        onClick={() => openLibraryForEpisodeCover(index)}
+                                        onClick={() =>
+                                          openEpubImportPicker({ autoImportAfterSelect: false })
+                                        }
+                                        disabled={isImportingEpub || !backendSupportsEpubImport}
                                       >
-                                        Biblioteca
+                                        Escolher arquivo
                                       </Button>
+                                      <span className="text-xs text-muted-foreground">
+                                        Nenhum arquivo selecionado
+                                      </span>
                                     </div>
+                                  )}
+                                </div>
+                                <div className="space-y-2">
+                                  <Label htmlFor="epub-import-volume">Volume de destino</Label>
+                                  <Input
+                                    id="epub-import-volume"
+                                    type="number"
+                                    value={epubImportTargetVolume}
+                                    onChange={(event) =>
+                                      setEpubImportTargetVolume(event.target.value)
+                                    }
+                                    placeholder="Opcional"
+                                  />
+                                </div>
+                                <label className="flex items-start gap-3 rounded-xl border border-border/60 bg-background/50 px-3 py-2 text-sm">
+                                  <Checkbox
+                                    checked={epubImportAsDraft}
+                                    onCheckedChange={(checked) =>
+                                      setEpubImportAsDraft(checked === true)
+                                    }
+                                  />
+                                  <span className="space-y-1">
+                                    <span className="block font-medium text-foreground">
+                                      Importar como rascunho
+                                    </span>
+                                    <span className="block text-xs text-muted-foreground">
+                                      Capítulos importados ficam ocultos ao público até a
+                                      publicação.
+                                    </span>
+                                  </span>
+                                </label>
+                                <Button
+                                  type="button"
+                                  onClick={handleImportEpub}
+                                  disabled={isImportingEpub || !backendSupportsEpubImport}
+                                  className="gap-2"
+                                >
+                                  {isImportingEpub ? (
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                  ) : null}
+                                  Importar EPUB
+                                </Button>
+                              </div>
+
+                              <div className="space-y-4 rounded-xl border border-border/60 bg-card/60 p-4">
+                                <div className="space-y-1">
+                                  <h4 className="text-sm font-medium text-foreground">
+                                    Exportar EPUB
+                                  </h4>
+                                  <p className="text-xs text-muted-foreground">
+                                    Usa o estado atual do formulário, inclusive alterações ainda não
+                                    salvas.
+                                  </p>
+                                </div>
+                                <div className="space-y-2">
+                                  <Label htmlFor="epub-export-volume">Volume para exportação</Label>
+                                  <Input
+                                    id="epub-export-volume"
+                                    type="number"
+                                    value={epubExportVolume}
+                                    onChange={(event) => setEpubExportVolume(event.target.value)}
+                                    placeholder="Deixe vazio para Sem volume"
+                                  />
+                                </div>
+                                <label className="flex items-start gap-3 rounded-xl border border-border/60 bg-background/50 px-3 py-2 text-sm">
+                                  <Checkbox
+                                    checked={epubExportIncludeDrafts}
+                                    onCheckedChange={(checked) =>
+                                      setEpubExportIncludeDrafts(checked === true)
+                                    }
+                                  />
+                                  <span className="space-y-1">
+                                    <span className="block font-medium text-foreground">
+                                      Incluir rascunhos
+                                    </span>
+                                    <span className="block text-xs text-muted-foreground">
+                                      Exporta também capítulos em draft que tenham conteúdo.
+                                    </span>
+                                  </span>
+                                </label>
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  onClick={handleExportEpub}
+                                  disabled={isExportingEpub || !backendSupportsEpubExport}
+                                  className="gap-2"
+                                >
+                                  {isExportingEpub ? (
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                  ) : null}
+                                  Exportar volume em EPUB
+                                </Button>
+                              </div>
+                            </div>
+                          </div>
+                        ) : null}
+                      </div>
+                    </AccordionContent>
+                  </AccordionItem>
+
+                  <AccordionItem value="dados-principais" className={editorSectionClassName}>
+                    <AccordionTrigger className={editorSectionTriggerClassName}>
+                      <div className="flex w-full items-center justify-between gap-4 text-left">
+                        <span>Dados principais</span>
+                        <span className="text-xs text-muted-foreground">
+                          {formState.title || "ID e títulos"}
+                        </span>
+                      </div>
+                    </AccordionTrigger>
+                    <AccordionContent className={editorSectionContentClassName}>
+                      <div className="grid gap-4 md:grid-cols-2">
+                        <div className="space-y-2">
+                          <Label>ID do projeto</Label>
+                          <Input
+                            value={formState.id}
+                            onChange={(event) => {
+                              const nextValue = event.target.value;
+                              const hasAniList =
+                                Boolean(formState.anilistId) ||
+                                parseAniListMediaId(anilistIdInput) !== null;
+                              const trimmed = nextValue.trim();
+                              if (!hasAniList && trimmed && /^\d+$/.test(trimmed)) {
+                                return;
+                              }
+                              setFormState((prev) => ({ ...prev, id: nextValue }));
+                            }}
+                            placeholder="Mesmo ID do AniList ou slug manual"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Título</Label>
+                          <Input
+                            value={formState.title}
+                            onChange={(event) =>
+                              setFormState((prev) => ({ ...prev, title: event.target.value }))
+                            }
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Título original</Label>
+                          <Input
+                            value={formState.titleOriginal}
+                            onChange={(event) =>
+                              setFormState((prev) => ({
+                                ...prev,
+                                titleOriginal: event.target.value,
+                              }))
+                            }
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Título em inglês</Label>
+                          <Input
+                            value={formState.titleEnglish}
+                            onChange={(event) =>
+                              setFormState((prev) => ({
+                                ...prev,
+                                titleEnglish: event.target.value,
+                              }))
+                            }
+                          />
+                        </div>
+                        <div className="flex items-center justify-between gap-4">
+                          <Label htmlFor="force-hero-switch">Forçar no carrossel</Label>
+                          <Switch
+                            id="force-hero-switch"
+                            checked={Boolean(formState.forceHero)}
+                            onCheckedChange={(checked) =>
+                              setFormState((prev) => ({ ...prev, forceHero: checked }))
+                            }
+                          />
+                        </div>
+                        <div className="space-y-2 md:col-span-2">
+                          <Label>Sinopse</Label>
+                          <Textarea
+                            value={formState.synopsis}
+                            onChange={(event) =>
+                              setFormState((prev) => ({ ...prev, synopsis: event.target.value }))
+                            }
+                            rows={6}
+                          />
+                        </div>
+                      </div>
+                    </AccordionContent>
+                  </AccordionItem>
+
+                  <AccordionItem value="midias" className={editorSectionClassName}>
+                    <AccordionTrigger className={editorSectionTriggerClassName}>
+                      <div className="flex w-full items-center justify-between gap-4 text-left">
+                        <span>Mídias</span>
+                        <span className="text-xs text-muted-foreground">
+                          {
+                            [formState.heroImageUrl, formState.cover, formState.banner].filter(
+                              Boolean,
+                            ).length
+                          }
+                          /3 selecionadas
+                        </span>
+                      </div>
+                    </AccordionTrigger>
+                    <AccordionContent className={editorSectionContentClassName}>
+                      <div className="space-y-4">
+                        <div className="grid gap-3 md:grid-cols-3">
+                          <div className="space-y-2">
+                            <Label>Imagem do carrossel</Label>
+                            <div className="space-y-2 rounded-2xl border border-border/60 bg-card/60 px-3 py-2">
+                              <div className="flex items-center gap-3">
+                                {formState.heroImageUrl ? (
+                                  <img
+                                    src={formState.heroImageUrl}
+                                    alt="Imagem do carrossel"
+                                    className="h-12 w-12 rounded-lg object-cover"
+                                  />
+                                ) : (
+                                  <div className="flex h-12 w-12 items-center justify-center rounded-lg border border-dashed border-border/60 text-center text-[10px] text-muted-foreground leading-tight">
+                                    Sem imagem
                                   </div>
-                                  {isLightNovel ? (
-                                    <div className="project-editor-episode-group mt-3">
-                                      <Label className="text-xs">Conteúdo do capítulo</Label>
-                                      <div
-                                        className="mt-3"
-                                        onFocusCapture={(event) => {
-                                          const target = event.target as HTMLElement | null;
-                                          if (target?.closest(".lexical-playground")) {
-                                            return;
-                                          }
-                                          const editor = chapterEditorsRef.current[index];
-                                          editor?.blur?.();
-                                        }}
+                                )}
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  className="ml-auto"
+                                  onClick={() => openLibraryForProjectImage("hero")}
+                                >
+                                  Biblioteca
+                                </Button>
+                              </div>
+                            </div>
+                          </div>
+                          <div className="space-y-2">
+                            <Label>Capa</Label>
+                            <div className="space-y-2 rounded-2xl border border-border/60 bg-card/60 px-3 py-2">
+                              <div className="flex items-center gap-3">
+                                {formState.cover ? (
+                                  <img
+                                    src={formState.cover}
+                                    alt="Capa"
+                                    className="h-12 w-12 rounded-lg object-cover"
+                                  />
+                                ) : (
+                                  <div className="flex h-12 w-12 items-center justify-center rounded-lg border border-dashed border-border/60 text-center text-[10px] text-muted-foreground leading-tight">
+                                    Sem imagem
+                                  </div>
+                                )}
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  className="ml-auto"
+                                  onClick={() => openLibraryForProjectImage("cover")}
+                                >
+                                  Biblioteca
+                                </Button>
+                              </div>
+                            </div>
+                          </div>
+                          <div className="space-y-2">
+                            <Label>Banner</Label>
+                            <div className="space-y-2 rounded-2xl border border-border/60 bg-card/60 px-3 py-2">
+                              <div className="flex items-center gap-3">
+                                {formState.banner ? (
+                                  <img
+                                    src={formState.banner}
+                                    alt="Banner"
+                                    className="h-12 w-12 rounded-lg object-cover"
+                                  />
+                                ) : (
+                                  <div className="flex h-12 w-12 items-center justify-center rounded-lg border border-dashed border-border/60 text-center text-[10px] text-muted-foreground leading-tight">
+                                    Sem imagem
+                                  </div>
+                                )}
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  className="ml-auto"
+                                  onClick={() => openLibraryForProjectImage("banner")}
+                                >
+                                  Biblioteca
+                                </Button>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </AccordionContent>
+                  </AccordionItem>
+
+                  <AccordionItem value="metadados" className={editorSectionClassName}>
+                    <AccordionTrigger className={editorSectionTriggerClassName}>
+                      <div className="flex w-full items-center justify-between gap-4 text-left">
+                        <span>Metadados</span>
+                        <span className="text-xs text-muted-foreground">
+                          {formState.type || "Formato"} • {formState.status || "Status"}
+                        </span>
+                      </div>
+                    </AccordionTrigger>
+                    <AccordionContent className={editorSectionContentClassName}>
+                      <div className="grid gap-4 md:grid-cols-2">
+                        <div className="space-y-2">
+                          <Label>Formato</Label>
+                          <Select
+                            value={formState.type}
+                            onValueChange={(value) =>
+                              setFormState((prev) => ({ ...prev, type: value }))
+                            }
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Formato" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {formatSelectOptions.map((option) => (
+                                <SelectItem key={option} value={option}>
+                                  {option}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Status</Label>
+                          <Select
+                            value={formState.status}
+                            onValueChange={(value) =>
+                              setFormState((prev) => ({ ...prev, status: value }))
+                            }
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Status" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {statusOptions.map((option) => (
+                                <SelectItem key={option} value={option}>
+                                  {option}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Ano</Label>
+                          <Input
+                            value={formState.year}
+                            onChange={(event) =>
+                              setFormState((prev) => ({ ...prev, year: event.target.value }))
+                            }
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Temporada</Label>
+                          <Input
+                            value={formState.season}
+                            onChange={(event) =>
+                              setFormState((prev) => ({ ...prev, season: event.target.value }))
+                            }
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Estúdio</Label>
+                          <Input
+                            value={formState.studio}
+                            onChange={(event) =>
+                              setFormState((prev) => ({ ...prev, studio: event.target.value }))
+                            }
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Episódios/Capítulos</Label>
+                          <Input
+                            value={formState.episodes}
+                            onChange={(event) =>
+                              setFormState((prev) => ({ ...prev, episodes: event.target.value }))
+                            }
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>País de origem</Label>
+                          <Input
+                            value={formState.country}
+                            onChange={(event) =>
+                              setFormState((prev) => ({ ...prev, country: event.target.value }))
+                            }
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Fonte</Label>
+                          <Input
+                            value={formState.source}
+                            onChange={(event) =>
+                              setFormState((prev) => ({ ...prev, source: event.target.value }))
+                            }
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Cargo Discord (ID)</Label>
+                          <Input
+                            value={formState.discordRoleId || ""}
+                            onChange={(event) =>
+                              setFormState((prev) => ({
+                                ...prev,
+                                discordRoleId: event.target.value.replace(/\D/g, ""),
+                              }))
+                            }
+                            placeholder="Opcional: ID numerico do cargo"
+                          />
+                        </div>
+                      </div>
+                    </AccordionContent>
+                  </AccordionItem>
+
+                  <AccordionItem value="classificacao" className={editorSectionClassName}>
+                    <AccordionTrigger className={editorSectionTriggerClassName}>
+                      <div className="flex w-full items-center justify-between gap-4 text-left">
+                        <span>Classificação</span>
+                        <span className="text-xs text-muted-foreground">
+                          {formState.tags.length} tags • {formState.genres.length} gêneros
+                        </span>
+                      </div>
+                    </AccordionTrigger>
+                    <AccordionContent className={editorSectionContentClassName}>
+                      <div className="grid gap-4 md:grid-cols-2">
+                        <div className="space-y-2">
+                          <Label>Tags</Label>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <Input
+                              value={tagInput}
+                              onChange={(event) => setTagInput(event.target.value)}
+                              onKeyDown={(event) => {
+                                if (event.key === "Enter") {
+                                  event.preventDefault();
+                                  handleAddTag();
+                                }
+                              }}
+                              placeholder="Adicionar tag"
+                            />
+                          </div>
+                          {tagSuggestions.length > 0 ? (
+                            <div className="mt-2 flex flex-wrap gap-2">
+                              {tagSuggestions.map((tag) => (
+                                <Button
+                                  key={`tag-suggestion-${tag}`}
+                                  type="button"
+                                  size="sm"
+                                  variant="ghost"
+                                  className="h-7 px-2 text-xs"
+                                  onClick={() => {
+                                    setTagInput(tag);
+                                    setFormState((prev) => ({
+                                      ...prev,
+                                      tags: prev.tags.includes(tag)
+                                        ? prev.tags
+                                        : [...prev.tags, tag],
+                                    }));
+                                    setTagInput("");
+                                  }}
+                                >
+                                  {tag}
+                                </Button>
+                              ))}
+                            </div>
+                          ) : null}
+                          <div className="mt-2 flex flex-wrap gap-2">
+                            {translatedSortedEditorTags.map((tag, index) => (
+                              <Badge
+                                key={`${tag}-${index}`}
+                                variant="secondary"
+                                onClick={() => handleRemoveTag(tag)}
+                                className="cursor-pointer"
+                              >
+                                {translateTag(tag, tagTranslationMap)}
+                              </Badge>
+                            ))}
+                          </div>
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Gêneros</Label>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <Input
+                              value={genreInput}
+                              onChange={(event) => setGenreInput(event.target.value)}
+                              onKeyDown={(event) => {
+                                if (event.key === "Enter") {
+                                  event.preventDefault();
+                                  handleAddGenre();
+                                }
+                              }}
+                              placeholder="Adicionar gênero"
+                            />
+                          </div>
+                          {genreSuggestions.length > 0 ? (
+                            <div className="mt-2 flex flex-wrap gap-2">
+                              {genreSuggestions.map((genre) => (
+                                <Button
+                                  key={`genre-suggestion-${genre}`}
+                                  type="button"
+                                  size="sm"
+                                  variant="ghost"
+                                  className="h-7 px-2 text-xs"
+                                  onClick={() => {
+                                    setGenreInput(genre);
+                                    setFormState((prev) => ({
+                                      ...prev,
+                                      genres: prev.genres.includes(genre)
+                                        ? prev.genres
+                                        : [...prev.genres, genre],
+                                    }));
+                                    setGenreInput("");
+                                  }}
+                                >
+                                  {genre}
+                                </Button>
+                              ))}
+                            </div>
+                          ) : null}
+                          <div className="mt-2 flex flex-wrap gap-2">
+                            {translatedSortedEditorGenres.map((genre, index) => (
+                              <Badge
+                                key={`${genre}-${index}`}
+                                variant="secondary"
+                                onClick={() => handleRemoveGenre(genre)}
+                                className="cursor-pointer"
+                              >
+                                {translateGenre(genre, genreTranslationMap)}
+                              </Badge>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    </AccordionContent>
+                  </AccordionItem>
+
+                  <AccordionItem value="relacoes" className={editorSectionClassName}>
+                    <AccordionTrigger className={editorSectionTriggerClassName}>
+                      <div className="flex w-full items-center justify-between gap-4 text-left">
+                        <span>Relações</span>
+                        <span className="text-xs text-muted-foreground">
+                          {formState.relations.length} itens
+                        </span>
+                      </div>
+                    </AccordionTrigger>
+                    <AccordionContent className={editorSectionContentClassName}>
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-end">
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            onClick={() =>
+                              setFormState((prev) => ({
+                                ...prev,
+                                relations: [
+                                  ...prev.relations,
+                                  { relation: "", title: "", format: "", status: "", image: "" },
+                                ],
+                              }))
+                            }
+                          >
+                            Adicionar relação
+                          </Button>
+                        </div>
+                        <div className="grid gap-3">
+                          {formState.relations.map((relation, index) => (
+                            <div
+                              key={`${relation.title}-${index}`}
+                              className="grid gap-2 rounded-2xl border border-border/60 bg-card/60 p-3 md:grid-cols-[1.35fr_1fr_1fr_auto_auto]"
+                              draggable
+                              onDragStart={() => setRelationDragIndex(index)}
+                              onDragOver={(event) => event.preventDefault()}
+                              onDrop={() => handleRelationDrop(index)}
+                            >
+                              <Input
+                                value={relation.title}
+                                onChange={(event) =>
+                                  setFormState((prev) => {
+                                    const next = [...prev.relations];
+                                    next[index] = { ...next[index], title: event.target.value };
+                                    return { ...prev, relations: next };
+                                  })
+                                }
+                                placeholder="Título"
+                              />
+                              <Input
+                                value={relation.relation}
+                                onChange={(event) =>
+                                  setFormState((prev) => {
+                                    const next = [...prev.relations];
+                                    next[index] = { ...next[index], relation: event.target.value };
+                                    return { ...prev, relations: next };
+                                  })
+                                }
+                                placeholder="Relação"
+                              />
+                              <Input
+                                value={relation.projectId || relation.anilistId || ""}
+                                onChange={(event) =>
+                                  setFormState((prev) => {
+                                    const next = [...prev.relations];
+                                    next[index] = { ...next[index], projectId: event.target.value };
+                                    return { ...prev, relations: next };
+                                  })
+                                }
+                                placeholder="ID relacionado"
+                              />
+                              <ReorderControls
+                                label={`relação ${index + 1}`}
+                                index={index}
+                                total={formState.relations.length}
+                                onMove={(targetIndex) => moveRelationItem(index, targetIndex)}
+                              />
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                onClick={() =>
+                                  setFormState((prev) => ({
+                                    ...prev,
+                                    relations: prev.relations.filter((_, idx) => idx !== index),
+                                  }))
+                                }
+                              >
+                                Remover
+                              </Button>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </AccordionContent>
+                  </AccordionItem>
+
+                  <AccordionItem value="equipe" className={editorSectionClassName}>
+                    <AccordionTrigger className={editorSectionTriggerClassName}>
+                      <div className="flex w-full items-center justify-between gap-4 text-left">
+                        <span>Equipe da fansub</span>
+                        <span className="text-xs text-muted-foreground">
+                          {formState.staff.length} funções
+                        </span>
+                      </div>
+                    </AccordionTrigger>
+                    <AccordionContent className={editorSectionContentClassName}>
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-end">
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            onClick={() =>
+                              setFormState((prev) => ({
+                                ...prev,
+                                staff: [...prev.staff, { role: "", members: [] }],
+                              }))
+                            }
+                          >
+                            Adicionar função
+                          </Button>
+                        </div>
+                        <div className="grid gap-3">
+                          {formState.staff.map((role, index) => (
+                            <div
+                              key={`${role.role}-${index}`}
+                              className="rounded-2xl border border-border/60 bg-card/60 p-3"
+                              draggable
+                              onDragStart={() => setStaffDragIndex(index)}
+                              onDragOver={(event) => event.preventDefault()}
+                              onDrop={() => handleStaffDrop(index)}
+                            >
+                              <div className="grid gap-3 md:grid-cols-[1fr_auto_auto]">
+                                <Select
+                                  value={role.role || ""}
+                                  onValueChange={(value) =>
+                                    setFormState((prev) => {
+                                      const next = [...prev.staff];
+                                      next[index] = { ...next[index], role: value };
+                                      return { ...prev, staff: next };
+                                    })
+                                  }
+                                >
+                                  <SelectTrigger>
+                                    <SelectValue placeholder="Função" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {(role.role && !staffRoleOptions.includes(role.role)
+                                      ? [role.role, ...staffRoleOptions]
+                                      : staffRoleOptions
+                                    ).map((option) => (
+                                      <SelectItem key={option} value={option}>
+                                        {option}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                                <ReorderControls
+                                  label={`funcao da fansub ${index + 1}`}
+                                  index={index}
+                                  total={formState.staff.length}
+                                  onMove={(targetIndex) => moveStaffItem(index, targetIndex)}
+                                />
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  onClick={() =>
+                                    setFormState((prev) => ({
+                                      ...prev,
+                                      staff: prev.staff.filter((_, idx) => idx !== index),
+                                    }))
+                                  }
+                                >
+                                  Remover
+                                </Button>
+                              </div>
+                              <div className="mt-3 flex flex-wrap items-center gap-2">
+                                <Input
+                                  list="staff-directory"
+                                  value={staffMemberInput[index] || ""}
+                                  onChange={(event) =>
+                                    setStaffMemberInput((prev) => ({
+                                      ...prev,
+                                      [index]: event.target.value,
+                                    }))
+                                  }
+                                  placeholder="Adicionar membro"
+                                />
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  onClick={() =>
+                                    setFormState((prev) => {
+                                      const next = [...prev.staff];
+                                      const name = (staffMemberInput[index] || "").trim();
+                                      if (!name) {
+                                        return prev;
+                                      }
+                                      const members = next[index].members || [];
+                                      next[index] = {
+                                        ...next[index],
+                                        members: members.includes(name)
+                                          ? members
+                                          : [...members, name],
+                                      };
+                                      return { ...prev, staff: next };
+                                    })
+                                  }
+                                >
+                                  Adicionar
+                                </Button>
+                              </div>
+                              <div className="mt-2 flex flex-wrap gap-2">
+                                {(role.members || []).map((member) => (
+                                  <Badge key={member} variant="secondary">
+                                    {member}
+                                  </Badge>
+                                ))}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </AccordionContent>
+                  </AccordionItem>
+
+                  <AccordionItem value="staff-anime" className={editorSectionClassName}>
+                    <AccordionTrigger className={editorSectionTriggerClassName}>
+                      <div className="flex w-full items-center justify-between gap-4 text-left">
+                        <span>Staff do anime</span>
+                        <span className="text-xs text-muted-foreground">
+                          {formState.animeStaff.length} funções
+                        </span>
+                      </div>
+                    </AccordionTrigger>
+                    <AccordionContent className={editorSectionContentClassName}>
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-end">
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            onClick={() =>
+                              setFormState((prev) => ({
+                                ...prev,
+                                animeStaff: [...prev.animeStaff, { role: "", members: [] }],
+                              }))
+                            }
+                          >
+                            Adicionar função
+                          </Button>
+                        </div>
+                        <div className="grid gap-3">
+                          {formState.animeStaff.map((role, index) => (
+                            <div
+                              key={`${role.role}-${index}`}
+                              className="rounded-2xl border border-border/60 bg-card/60 p-3"
+                              draggable
+                              onDragStart={() => setAnimeStaffDragIndex(index)}
+                              onDragOver={(event) => event.preventDefault()}
+                              onDrop={() => handleAnimeStaffDrop(index)}
+                            >
+                              <div className="grid gap-3 md:grid-cols-[1fr_auto_auto]">
+                                <div className="space-y-1">
+                                  <Input
+                                    value={role.role || ""}
+                                    onChange={(event) =>
+                                      setFormState((prev) => {
+                                        const next = [...prev.animeStaff];
+                                        next[index] = { ...next[index], role: event.target.value };
+                                        return { ...prev, animeStaff: next };
+                                      })
+                                    }
+                                    placeholder="Função"
+                                  />
+                                  {String(role.role || "").trim() ? (
+                                    <p className="text-[11px] text-muted-foreground">
+                                      {translateAnilistRole(role.role, staffRoleTranslationMap)}
+                                    </p>
+                                  ) : null}
+                                </div>
+                                <ReorderControls
+                                  label={`funcao do anime ${index + 1}`}
+                                  index={index}
+                                  total={formState.animeStaff.length}
+                                  onMove={(targetIndex) => moveAnimeStaffItem(index, targetIndex)}
+                                />
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  onClick={() => {
+                                    setFormState((prev) => ({
+                                      ...prev,
+                                      animeStaff: prev.animeStaff.filter((_, idx) => idx !== index),
+                                    }));
+                                    setAnimeStaffMemberInput((prev) =>
+                                      shiftDraftAfterRemoval(prev, index),
+                                    );
+                                  }}
+                                >
+                                  Remover
+                                </Button>
+                              </div>
+                              <div className="mt-3 flex flex-wrap items-center gap-2">
+                                <Input
+                                  list="staff-directory"
+                                  value={animeStaffMemberInput[index] || ""}
+                                  onChange={(event) =>
+                                    setAnimeStaffMemberInput((prev) => ({
+                                      ...prev,
+                                      [index]: event.target.value,
+                                    }))
+                                  }
+                                  placeholder="Adicionar membro"
+                                />
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  onClick={() => {
+                                    const name = (animeStaffMemberInput[index] || "").trim();
+                                    if (!name) {
+                                      return;
+                                    }
+                                    setFormState((prev) => {
+                                      const next = [...prev.animeStaff];
+                                      const members = next[index].members || [];
+                                      next[index] = {
+                                        ...next[index],
+                                        members: members.includes(name)
+                                          ? members
+                                          : [...members, name],
+                                      };
+                                      return { ...prev, animeStaff: next };
+                                    });
+                                    setAnimeStaffMemberInput((prev) => ({ ...prev, [index]: "" }));
+                                  }}
+                                >
+                                  Adicionar
+                                </Button>
+                              </div>
+                              <div className="mt-2 flex flex-wrap gap-2">
+                                {(role.members || []).map((member) => (
+                                  <Badge
+                                    key={member}
+                                    variant="secondary"
+                                    className="flex items-center gap-1"
+                                  >
+                                    <span>{member}</span>
+                                    <button
+                                      type="button"
+                                      className="rounded-sm p-0.5 text-muted-foreground transition hover:text-foreground"
+                                      onClick={() =>
+                                        setFormState((prev) => {
+                                          const next = [...prev.animeStaff];
+                                          next[index] = {
+                                            ...next[index],
+                                            members: (next[index].members || []).filter(
+                                              (item) => item !== member,
+                                            ),
+                                          };
+                                          return { ...prev, animeStaff: next };
+                                        })
+                                      }
+                                      aria-label={`Remover ${member}`}
+                                    >
+                                      x
+                                    </button>
+                                  </Badge>
+                                ))}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </AccordionContent>
+                  </AccordionItem>
+
+                  <AccordionItem value="episodios" className={editorSectionClassName}>
+                    <AccordionTrigger className={editorSectionTriggerClassName}>
+                      <div className="flex w-full items-center justify-between gap-4 text-left">
+                        <span>{isChapterBased ? "Conteúdo" : "Episódios"}</span>
+                        <span className="text-xs text-muted-foreground">
+                          {formState.episodeDownloads.length}{" "}
+                          {isChapterBased ? "capítulos" : "episódios"}
+                        </span>
+                      </div>
+                    </AccordionTrigger>
+                    <AccordionContent
+                      className={editorSectionContentClassName}
+                      contentClassName={isChapterBased ? chapterOpenContentClassName : undefined}
+                    >
+                      <div ref={contentSectionRef} className="space-y-3">
+                        <div className="flex flex-wrap items-center justify-end gap-2">
+                          {isChapterBased && supportsVolumeEntries ? (
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="outline"
+                              onClick={addVolumeEntry}
+                            >
+                              Adicionar volume
+                            </Button>
+                          ) : null}
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            onClick={handleAddEpisodeDownload}
+                          >
+                            {isChapterBased ? "Adicionar capítulo" : "Adicionar episódio"}
+                          </Button>
+                        </div>
+                        <div className={isChapterBased && supportsVolumeEntries ? "space-y-4" : ""}>
+                          <Accordion
+                            type="multiple"
+                            value={volumeGroupOpenValues}
+                            onValueChange={handleVolumeGroupAccordionChange}
+                            className="space-y-4"
+                          >
+                            {episodeGroupsForRender.map((group, groupIndex) => {
+                              const groupVolumeEntry =
+                                group.volumeEntryIndex !== null
+                                  ? formState.volumeEntries[group.volumeEntryIndex] || null
+                                  : null;
+                              const groupHasEpisodes = group.episodeItems.length > 0;
+                              const volumeLabel = group.hasNumericVolume
+                                ? `Volume ${group.volume}`
+                                : "Sem volume";
+                              const volumeDescription = group.hasNumericVolume
+                                ? "Configure capa e sinopse para este volume."
+                                : "Capítulos sem volume usam capa e sinopse do próprio projeto.";
+                              return (
+                                <AccordionItem
+                                  ref={(node) => {
+                                    if (node) {
+                                      volumeGroupNodeMapRef.current.set(group.key, node);
+                                    } else {
+                                      volumeGroupNodeMapRef.current.delete(group.key);
+                                    }
+                                  }}
+                                  key={`episode-group-${groupIndex}`}
+                                  value={group.key}
+                                  className="rounded-2xl border border-border/60 bg-card/40"
+                                  data-testid={`volume-group-${group.key}`}
+                                >
+                                  {isChapterBased && supportsVolumeEntries ? (
+                                    <div className="flex w-full items-start gap-2 px-4 pb-3 pt-3">
+                                      <AccordionTrigger
+                                        headerClassName="flex-1 min-w-0"
+                                        className="w-full gap-3 py-0 text-left hover:no-underline [&>svg]:mt-0 [&>svg]:self-center"
                                       >
-                                        <EpisodeContentEditor
-                                          value={episode.content || ""}
-                                          imageLibraryOptions={buildEpisodeLibraryOptions(episode, index)}
-                                          onRegister={(handlers) => {
-                                            chapterEditorsRef.current[index] = handlers;
-                                          }}
-                                          onChange={(nextValue) =>
-                                            setFormState((prev) => {
-                                              const next = [...prev.episodeDownloads];
-                                              next[index] = { ...next[index], content: nextValue };
-                                              return { ...prev, episodeDownloads: next };
-                                            })
-                                          }
-                                        />
-                                      </div>
-                                    </div>
-                                  ) : null}
-                                  {isProgressOnlyEntry ? (
-                                    <div className="project-editor-episode-group mt-3">
-                                      <Label className="text-xs">Etapas concluídas</Label>
-                                      <div className="mt-2 flex flex-wrap gap-2">
-                                        {stageOptions.map((stage) => {
-                                          const completed = (
-                                            episode.completedStages || []
-                                          ).includes(stage.id);
-                                          return (
-                                            <Button
-                                              key={stage.id}
-                                              type="button"
-                                              size="sm"
-                                              variant={completed ? "default" : "outline"}
-                                              onClick={() =>
-                                                setFormState((prev) => {
-                                                  const next = [...prev.episodeDownloads];
-                                                  const current = next[index].completedStages || [];
-                                                  next[index] = {
-                                                    ...next[index],
-                                                    completedStages: completed
-                                                      ? current.filter((item) => item !== stage.id)
-                                                      : [...current, stage.id],
-                                                  };
-                                                  return { ...prev, episodeDownloads: next };
-                                                })
-                                              }
-                                            >
-                                              {stage.label}
-                                            </Button>
-                                          );
-                                        })}
-                                      </div>
-                                    </div>
-                                  ) : null}
-                                  <div className="project-editor-episode-group mt-3 space-y-3">
-                                      <div hidden={isLightNovel}>
-                                        <Label className="text-xs">Arquivo do episódio</Label>
-                                        <div className="mt-2 grid gap-2 md:grid-cols-2">
-                                          <div className="space-y-1">
-                                            <Input
-                                              ref={(node) => {
-                                                episodeSizeInputRefs.current[index] = node;
-                                              }}
-                                              value={
-                                                episodeSizeDrafts[index] ??
-                                                (episode.sizeBytes
-                                                  ? formatBytesCompact(episode.sizeBytes)
-                                                  : "")
-                                              }
-                                              onChange={(event) => {
-                                                const nextValue = event.target.value;
-                                                setEpisodeSizeDrafts((prev) => ({
-                                                  ...prev,
-                                                  [index]: nextValue,
-                                                }));
-                                                setEpisodeSizeErrors((prev) => {
-                                                  if (!prev[index]) {
-                                                    return prev;
-                                                  }
-                                                  const next = { ...prev };
-                                                  delete next[index];
-                                                  return next;
-                                                });
-                                              }}
-                                              onBlur={(event) => {
-                                                const rawValue =
-                                                  episodeSizeDrafts[index] ?? event.target.value;
-                                                const trimmedSize = String(rawValue || "").trim();
-                                                if (!trimmedSize) {
-                                                  setFormState((prev) => {
-                                                    const next = [...prev.episodeDownloads];
-                                                    next[index] = {
-                                                      ...next[index],
-                                                      sizeBytes: undefined,
-                                                    };
-                                                    return { ...prev, episodeDownloads: next };
-                                                  });
-                                                  setEpisodeSizeDrafts((prev) => {
-                                                    const next = { ...prev };
-                                                    delete next[index];
-                                                    return next;
-                                                  });
-                                                  setEpisodeSizeErrors((prev) => {
-                                                    const next = { ...prev };
-                                                    delete next[index];
-                                                    return next;
-                                                  });
-                                                  return;
-                                                }
-
-                                                const parsedSize =
-                                                  parseHumanSizeToBytes(trimmedSize);
-                                                if (!parsedSize) {
-                                                  setEpisodeSizeErrors((prev) => ({
-                                                    ...prev,
-                                                    [index]: "Use formatos como 700 MB ou 1.4 GB.",
-                                                  }));
-                                                  setEpisodeSizeDrafts((prev) => ({
-                                                    ...prev,
-                                                    [index]: rawValue,
-                                                  }));
-                                                  return;
-                                                }
-
-                                                setFormState((prev) => {
-                                                  const next = [...prev.episodeDownloads];
-                                                  next[index] = {
-                                                    ...next[index],
-                                                    sizeBytes: parsedSize,
-                                                  };
-                                                  return { ...prev, episodeDownloads: next };
-                                                });
-                                                setEpisodeSizeDrafts((prev) => {
-                                                  const next = { ...prev };
-                                                  delete next[index];
-                                                  return next;
-                                                });
-                                                setEpisodeSizeErrors((prev) => {
-                                                  const next = { ...prev };
-                                                  delete next[index];
-                                                  return next;
-                                                });
-                                              }}
-                                              placeholder="Tamanho (ex.: 700 MB ou 1.4 GB)"
-                                            />
-                                            {episodeSizeErrors[index] ? (
-                                              <p className="text-[11px] text-destructive">
-                                                {episodeSizeErrors[index]}
-                                              </p>
-                                            ) : (
-                                              <p className="text-[11px] text-muted-foreground">
-                                                Campo opcional. Valor salvo em bytes.
-                                              </p>
-                                            )}
+                                        <div className="flex min-w-0 flex-1 items-center justify-between gap-3 pr-1">
+                                          <div className="min-w-0 space-y-1">
+                                            <Label className="cursor-pointer">{volumeLabel}</Label>
+                                            <p className="text-xs text-muted-foreground">
+                                              {volumeDescription}
+                                            </p>
                                           </div>
+                                          <Badge
+                                            variant="outline"
+                                            className="shrink-0 self-center text-[10px] uppercase"
+                                          >
+                                            {group.episodeItems.length} capítulo(s)
+                                          </Badge>
+                                        </div>
+                                      </AccordionTrigger>
+                                      {group.hasNumericVolume && groupVolumeEntry ? (
+                                        <Button
+                                          type="button"
+                                          variant="ghost"
+                                          size="icon"
+                                          data-no-toggle
+                                          onClick={(event) => {
+                                            event.preventDefault();
+                                            event.stopPropagation();
+                                            removeVolumeEntryByVolume(group.volume);
+                                          }}
+                                        >
+                                          <Trash2 className="h-4 w-4" />
+                                        </Button>
+                                      ) : null}
+                                    </div>
+                                  ) : null}
+                                  <AccordionContent
+                                    className="space-y-3 px-4 pb-3"
+                                    contentClassName={
+                                      isChapterBased ? chapterOpenContentClassName : undefined
+                                    }
+                                  >
+                                    {group.hasNumericVolume ? (
+                                      <div className="space-y-3 rounded-xl border border-border/60 bg-background/40 p-3">
+                                        <div className="flex items-center gap-3">
+                                          {groupVolumeEntry?.coverImageUrl ? (
+                                            <img
+                                              src={groupVolumeEntry.coverImageUrl}
+                                              alt={
+                                                groupVolumeEntry.coverImageAlt || "Capa do volume"
+                                              }
+                                              className="h-16 w-12 rounded-lg object-cover"
+                                            />
+                                          ) : (
+                                            <div className="flex h-16 w-12 items-center justify-center rounded-lg border border-dashed border-border/60 text-center text-[10px] text-muted-foreground leading-tight">
+                                              Sem capa
+                                            </div>
+                                          )}
+                                          <Button
+                                            type="button"
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={() => openLibraryForVolumeCover(group.volume)}
+                                          >
+                                            Biblioteca
+                                          </Button>
+                                        </div>
+                                        <div className="space-y-2">
+                                          <Label className="text-xs">Alt</Label>
                                           <Input
-                                            value={episode.hash || ""}
+                                            value={groupVolumeEntry?.coverImageAlt || ""}
                                             onChange={(event) =>
-                                              setFormState((prev) => {
-                                                const next = [...prev.episodeDownloads];
-                                                next[index] = {
-                                                  ...next[index],
-                                                  hash: event.target.value,
-                                                };
-                                                return { ...prev, episodeDownloads: next };
-                                              })
+                                              updateVolumeEntryByVolume(group.volume, (entry) => ({
+                                                ...entry,
+                                                coverImageAlt: event.target.value,
+                                              }))
                                             }
-                                            placeholder="Hash (ex.: SHA-256: ...)"
+                                            placeholder="Texto alternativo da capa"
+                                          />
+                                        </div>
+                                        <div className="space-y-2">
+                                          <Label className="text-xs">Sinopse do volume</Label>
+                                          <Textarea
+                                            value={groupVolumeEntry?.synopsis || ""}
+                                            onChange={(event) =>
+                                              updateVolumeEntryByVolume(group.volume, (entry) => ({
+                                                ...entry,
+                                                synopsis: event.target.value,
+                                              }))
+                                            }
+                                            rows={3}
+                                            placeholder="Resumo exibido nas páginas públicas para este volume"
                                           />
                                         </div>
                                       </div>
-
-                                      <div>
-                                        <Label className="text-xs">Fontes de download</Label>
-                                        <div className="mt-2 grid gap-2">
-                                          {(episode.sources || []).map((source, sourceIndex) => (
-                                            <div
-                                              key={`${source.label}-${sourceIndex}`}
-                                              className="rounded-xl border border-border/60 bg-background/40 p-3"
-                                            >
-                                              <div className="grid items-start gap-2 md:grid-cols-[minmax(180px,1fr)_minmax(240px,2fr)_auto]">
-                                                <Select
-                                                  value={source.label}
-                                                  onValueChange={(value) =>
-                                                    setFormState((prev) => {
-                                                      const next = [...prev.episodeDownloads];
-                                                      const sources = [
-                                                        ...(next[index].sources || []),
-                                                      ];
-                                                      sources[sourceIndex] = {
-                                                        ...sources[sourceIndex],
-                                                        label: value,
-                                                      };
-                                                      next[index] = { ...next[index], sources };
-                                                      return { ...prev, episodeDownloads: next };
-                                                    })
-                                                  }
-                                                >
-                                                  <SelectTrigger>
-                                                    <SelectValue placeholder="Fonte" />
-                                                  </SelectTrigger>
-                                                  <SelectContent>
-                                                    {downloadSourceOptions.map((option) => (
-                                                      <SelectItem
-                                                        key={option.label}
-                                                        value={option.label}
-                                                      >
-                                                        <span className="flex items-center gap-2">
-                                                          {renderDownloadIcon(
-                                                            option.icon,
-                                                            option.color,
-                                                            option.label,
-                                                            option.tintIcon,
-                                                          )}
-                                                          <span>{option.label}</span>
-                                                        </span>
-                                                      </SelectItem>
-                                                    ))}
-                                                  </SelectContent>
-                                                </Select>
-                                                <Input
-                                                  value={source.url}
-                                                  onChange={(event) =>
-                                                    setFormState((prev) => {
-                                                      const next = [...prev.episodeDownloads];
-                                                      const sources = [
-                                                        ...(next[index].sources || []),
-                                                      ];
-                                                      sources[sourceIndex] = {
-                                                        ...sources[sourceIndex],
-                                                        url: event.target.value,
-                                                      };
-                                                      next[index] = { ...next[index], sources };
-                                                      return { ...prev, episodeDownloads: next };
-                                                    })
-                                                  }
-                                                  placeholder="URL"
-                                                />
-                                                <Button
-                                                  type="button"
-                                                  variant="ghost"
-                                                  size="icon"
-                                                  className="h-9 w-9"
-                                                  onClick={() => {
-                                                    setFormState((prev) => {
-                                                      const next = [...prev.episodeDownloads];
-                                                      const sources = (
-                                                        next[index].sources || []
-                                                      ).filter((_, idx) => idx !== sourceIndex);
-                                                      next[index] = { ...next[index], sources };
-                                                      return { ...prev, episodeDownloads: next };
-                                                    });
-                                                  }}
-                                                >
-                                                  <Trash2 className="h-4 w-4" />
-                                                </Button>
-                                              </div>
-                                            </div>
-                                          ))}
-                                          <Button
-                                            type="button"
-                                            size="sm"
-                                            variant="outline"
-                                            onClick={() =>
-                                              setFormState((prev) => {
-                                                const next = [...prev.episodeDownloads];
-                                                const existingSources = next[index].sources || [];
-                                                next[index] = {
-                                                  ...next[index],
-                                                  sources: [
-                                                    ...existingSources,
-                                                    { label: "", url: "" },
-                                                  ],
-                                                };
-                                                return { ...prev, episodeDownloads: next };
-                                              })
-                                            }
-                                          >
-                                            Adicionar fonte
-                                          </Button>
-                                        </div>
+                                    ) : null}
+                                    {!groupHasEpisodes ? (
+                                      <div className="rounded-xl border border-dashed border-border/60 bg-background/40 px-4 py-3 text-sm text-muted-foreground">
+                                        Nenhum capítulo vinculado a este volume.
                                       </div>
-                                    </div>
-                                </AccordionContent>
-                              </CardContent>
-                            </Card>
-                          </AccordionItem>
-                        );
-                                    })}
-                                      </Accordion>
-                                </AccordionContent>
-                              </AccordionItem>
-                            );
-                          })}
-                        </Accordion>
-                    </div>
-                  </div>
-                </AccordionContent>
-                </AccordionItem>
-            </Accordion>
-            <datalist id="staff-directory">
-              {memberDirectory.map((name) => (
-                <option key={name} value={name} />
-              ))}
-            </datalist>
-          </div>
-          </div>
-          <div className="project-editor-footer flex justify-end gap-3 border-t border-border/60 bg-background/95 px-4 py-1.5 backdrop-blur-sm supports-backdrop-filter:bg-background/80 md:px-6 md:py-2 lg:px-8">
-            <Button variant="ghost" onClick={requestCloseEditor}>
-              Cancelar
-            </Button>
-            <Button onClick={handleSave}>Salvar projeto</Button>
-          </div>
+                                    ) : null}
+                                    <Accordion
+                                      type="multiple"
+                                      value={episodeOpenValues}
+                                      onValueChange={handleEpisodeAccordionChange}
+                                      className="space-y-3"
+                                    >
+                                      {group.episodeItems.map(({ episode, index }) => {
+                                        const isEpisodeCollapsed =
+                                          collapsedEpisodes[index] ?? false;
+                                        const entryKind = getEpisodeEntryKind(episode);
+                                        const isExtraEntry = entryKind === "extra";
+                                        const episodeUnitLabel = isChapterBased
+                                          ? "Capítulo"
+                                          : "Episódio";
+                                        const episodeNumberLabel = isExtraEntry
+                                          ? "Extra"
+                                          : `${episodeUnitLabel} ${episode.number || index + 1}`;
+                                        const episodeTitleLabel =
+                                          String(episode.title || "").trim() || "Sem título";
+                                        const episodeKey = buildEpisodeKey(
+                                          episode.number,
+                                          episode.volume,
+                                        );
+                                        const chapterEditorHref =
+                                          isLightNovel &&
+                                          String(formState.id || editingProject?.id || "").trim()
+                                            ? buildDashboardProjectChapterEditorHref(
+                                                String(
+                                                  formState.id || editingProject?.id || "",
+                                                ).trim(),
+                                                episode.number,
+                                                episode.volume,
+                                              )
+                                            : "";
+                                        const publicationStatus =
+                                          episode.publicationStatus === "draft"
+                                            ? "draft"
+                                            : "published";
+                                        const hasEpisodeContent =
+                                          String(episode.content || "").trim().length > 0;
+                                        const hasDownloadSource = (episode.sources || []).some(
+                                          (source) => source.url,
+                                        );
+                                        const isProgressOnlyEntry =
+                                          !hasDownloadSource &&
+                                          !(isLightNovel && hasEpisodeContent);
+                                        const currentProgressStageLabel =
+                                          stageOptions.find(
+                                            (stage) =>
+                                              stage.id ===
+                                              getProgressStage(
+                                                formState.type || "",
+                                                episode.completedStages,
+                                              ),
+                                          )?.label || "Aguardando Raw";
+                                        const statusLabel =
+                                          publicationStatus === "draft" ? "Rascunho" : "Publicado";
+                                        const availabilityLabel = isLightNovel
+                                          ? hasEpisodeContent && hasDownloadSource
+                                            ? "Híbrido"
+                                            : hasEpisodeContent
+                                              ? "Leitura"
+                                              : hasDownloadSource
+                                                ? "Download"
+                                                : "Sem público"
+                                          : hasDownloadSource
+                                            ? "Download"
+                                            : currentProgressStageLabel;
+                                        const statusVisibilitySummary = `${statusLabel} • ${availabilityLabel}`;
+
+                                        return (
+                                          <AccordionItem
+                                            key={episode._editorKey || `legacy-episode-${index}`}
+                                            value={getEpisodeAccordionValue(index)}
+                                            className="border-none"
+                                          >
+                                            <Card
+                                              ref={(node) => {
+                                                if (node) {
+                                                  episodeCardNodeMapRef.current.set(episode, node);
+                                                  if (
+                                                    pendingEpisodeToScrollRef.current === episode
+                                                  ) {
+                                                    requestAnimationFrame(() => {
+                                                      const latestNode =
+                                                        episodeCardNodeMapRef.current.get(episode);
+                                                      if (
+                                                        !latestNode ||
+                                                        pendingEpisodeToScrollRef.current !==
+                                                          episode
+                                                      ) {
+                                                        return;
+                                                      }
+                                                      latestNode.scrollIntoView({
+                                                        behavior: "smooth",
+                                                        block: "center",
+                                                        inline: "nearest",
+                                                      });
+                                                      pendingEpisodeToScrollRef.current = null;
+                                                    });
+                                                  }
+                                                }
+                                              }}
+                                              className="project-editor-episode-card border-border/60 bg-card/70 !shadow-none hover:!shadow-none"
+                                              data-episode-key={episodeKey}
+                                              data-testid={`episode-card-${index}`}
+                                              onDragStart={() => setEpisodeDragId(null)}
+                                            >
+                                              <CardContent
+                                                className={`project-editor-episode-content space-y-3 ${isEpisodeCollapsed ? "p-3" : "p-4"}`}
+                                              >
+                                                <div
+                                                  className="project-editor-episode-header flex flex-wrap items-center justify-between gap-2"
+                                                  data-testid={`episode-header-${index}`}
+                                                  onClick={(event) =>
+                                                    handleEpisodeHeaderClick(index, event)
+                                                  }
+                                                >
+                                                  <div className="min-w-0 flex-1">
+                                                    <AccordionTrigger
+                                                      data-episode-accordion-trigger
+                                                      className="project-editor-episode-trigger gap-3 py-0 text-left text-foreground hover:no-underline [&>svg]:mt-0 [&>svg]:self-center [&>svg]:shrink-0"
+                                                    >
+                                                      <div className="flex min-w-0 flex-col py-0.5">
+                                                        <span className="text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground">
+                                                          {episodeNumberLabel}
+                                                        </span>
+                                                        <span className="line-clamp-1 text-sm font-semibold leading-tight">
+                                                          {episodeTitleLabel}
+                                                        </span>
+                                                        {episode.releaseDate ? (
+                                                          <span className="text-[11px] text-muted-foreground">
+                                                            {formatEpisodeReleaseDate(
+                                                              episode.releaseDate,
+                                                              episode.duration,
+                                                            )}
+                                                          </span>
+                                                        ) : null}
+                                                      </div>
+                                                    </AccordionTrigger>
+                                                  </div>
+                                                  <div className="flex flex-wrap items-center gap-2">
+                                                    <span
+                                                      className="text-[11px] text-muted-foreground"
+                                                      data-testid={`episode-header-status-visibility-${index}`}
+                                                    >
+                                                      {statusVisibilitySummary}
+                                                    </span>
+                                                    <ReorderControls
+                                                      label={`item ${isExtraEntry ? "extra" : episode.number || index + 1}`}
+                                                      index={index}
+                                                      total={sortedEpisodeDownloads.length}
+                                                      onMove={(targetIndex) =>
+                                                        moveEpisodeItem(index, targetIndex)
+                                                      }
+                                                      buttonClassName="h-7 w-7"
+                                                    />
+                                                    <Button
+                                                      type="button"
+                                                      size="sm"
+                                                      variant="ghost"
+                                                      className="h-7 px-2 text-[11px] text-destructive hover:text-destructive"
+                                                      data-no-toggle
+                                                      onClick={() => {
+                                                        setFormState((prev) => ({
+                                                          ...prev,
+                                                          episodeDownloads:
+                                                            prev.episodeDownloads.filter(
+                                                              (_, idx) => idx !== index,
+                                                            ),
+                                                        }));
+                                                        setEpisodeDateDraft((prev) =>
+                                                          shiftDraftAfterRemoval(prev, index),
+                                                        );
+                                                        setEpisodeTimeDraft((prev) =>
+                                                          shiftDraftAfterRemoval(prev, index),
+                                                        );
+                                                        setEpisodeSizeDrafts((prev) =>
+                                                          shiftDraftAfterRemoval(prev, index),
+                                                        );
+                                                        setEpisodeSizeErrors((prev) =>
+                                                          shiftDraftAfterRemoval(prev, index),
+                                                        );
+                                                        setCollapsedEpisodes((prev) =>
+                                                          shiftCollapsedEpisodesAfterRemoval(
+                                                            prev,
+                                                            index,
+                                                          ),
+                                                        );
+                                                      }}
+                                                    >
+                                                      {isChapterBased
+                                                        ? "Remover capítulo"
+                                                        : "Remover episódio"}
+                                                    </Button>
+                                                  </div>
+                                                </div>
+                                                <AccordionContent
+                                                  className="project-editor-episode-panel pt-3 pb-0 px-1"
+                                                  contentClassName={
+                                                    isChapterBased
+                                                      ? chapterOpenContentClassName
+                                                      : undefined
+                                                  }
+                                                >
+                                                  <div className="project-editor-episode-group project-editor-episode-basics grid gap-3 md:grid-cols-[minmax(120px,0.9fr)_minmax(84px,0.7fr)_minmax(84px,0.7fr)_minmax(180px,1.4fr)_minmax(150px,1fr)_minmax(110px,0.8fr)_minmax(130px,0.9fr)]">
+                                                    <Select
+                                                      value={isExtraEntry ? "extra" : "main"}
+                                                      onValueChange={(value) =>
+                                                        setEpisodeEntryKind(
+                                                          index,
+                                                          value === "extra" ? "extra" : "main",
+                                                        )
+                                                      }
+                                                    >
+                                                      <SelectTrigger aria-label="Tipo da entrada">
+                                                        <SelectValue placeholder="Tipo" />
+                                                      </SelectTrigger>
+                                                      <SelectContent>
+                                                        <SelectItem value="main">
+                                                          Principal
+                                                        </SelectItem>
+                                                        <SelectItem value="extra">Extra</SelectItem>
+                                                      </SelectContent>
+                                                    </Select>
+                                                    <Input
+                                                      type="number"
+                                                      value={episode.number}
+                                                      disabled={isExtraEntry}
+                                                      onChange={(event) =>
+                                                        setFormState((prev) => {
+                                                          const next = [...prev.episodeDownloads];
+                                                          next[index] = {
+                                                            ...next[index],
+                                                            number: Number(event.target.value),
+                                                          };
+                                                          return {
+                                                            ...prev,
+                                                            episodeDownloads: next,
+                                                          };
+                                                        })
+                                                      }
+                                                      placeholder={
+                                                        isExtraEntry ? "Técnico" : "Número"
+                                                      }
+                                                    />
+                                                    {isChapterBased ? (
+                                                      <Input
+                                                        type="number"
+                                                        value={episode.volume || ""}
+                                                        onChange={(event) =>
+                                                          setFormState((prev) => {
+                                                            const next = [...prev.episodeDownloads];
+                                                            next[index] = {
+                                                              ...next[index],
+                                                              volume: event.target.value
+                                                                ? Number(event.target.value)
+                                                                : undefined,
+                                                            };
+                                                            return {
+                                                              ...prev,
+                                                              episodeDownloads: next,
+                                                            };
+                                                          })
+                                                        }
+                                                        placeholder="Volume"
+                                                      />
+                                                    ) : null}
+                                                    <Input
+                                                      value={episode.title}
+                                                      onChange={(event) =>
+                                                        setFormState((prev) => {
+                                                          const next = [...prev.episodeDownloads];
+                                                          next[index] = {
+                                                            ...next[index],
+                                                            title: event.target.value,
+                                                          };
+                                                          return {
+                                                            ...prev,
+                                                            episodeDownloads: next,
+                                                          };
+                                                        })
+                                                      }
+                                                      placeholder="Título"
+                                                    />
+                                                    {isLightNovel ? (
+                                                      <Select
+                                                        value={publicationStatus}
+                                                        onValueChange={(value) =>
+                                                          setFormState((prev) => {
+                                                            const next = [...prev.episodeDownloads];
+                                                            next[index] = {
+                                                              ...next[index],
+                                                              publicationStatus:
+                                                                value === "draft"
+                                                                  ? "draft"
+                                                                  : "published",
+                                                            };
+                                                            return {
+                                                              ...prev,
+                                                              episodeDownloads: next,
+                                                            };
+                                                          })
+                                                        }
+                                                      >
+                                                        <SelectTrigger>
+                                                          <SelectValue placeholder="Status" />
+                                                        </SelectTrigger>
+                                                        <SelectContent>
+                                                          <SelectItem value="draft">
+                                                            Rascunho
+                                                          </SelectItem>
+                                                          <SelectItem value="published">
+                                                            Publicado
+                                                          </SelectItem>
+                                                        </SelectContent>
+                                                      </Select>
+                                                    ) : null}
+                                                    <Input
+                                                      type="text"
+                                                      inputMode="numeric"
+                                                      value={
+                                                        episodeDateDraft[index] ??
+                                                        isoToDisplayDate(episode.releaseDate)
+                                                      }
+                                                      onChange={(event) => {
+                                                        const masked = formatDateDigitsToDisplay(
+                                                          event.target.value,
+                                                        );
+                                                        const digits = digitsOnly(masked);
+                                                        setEpisodeDateDraft((prev) => ({
+                                                          ...prev,
+                                                          [index]: masked,
+                                                        }));
+                                                        if (digits.length === 8) {
+                                                          const iso = displayDateToIso(masked);
+                                                          if (iso) {
+                                                            setFormState((prev) => {
+                                                              const next = [
+                                                                ...prev.episodeDownloads,
+                                                              ];
+                                                              next[index] = {
+                                                                ...next[index],
+                                                                releaseDate: iso,
+                                                              };
+                                                              return {
+                                                                ...prev,
+                                                                episodeDownloads: next,
+                                                              };
+                                                            });
+                                                          }
+                                                        } else if (digits.length === 0) {
+                                                          setFormState((prev) => {
+                                                            const next = [...prev.episodeDownloads];
+                                                            next[index] = {
+                                                              ...next[index],
+                                                              releaseDate: "",
+                                                            };
+                                                            return {
+                                                              ...prev,
+                                                              episodeDownloads: next,
+                                                            };
+                                                          });
+                                                        }
+                                                      }}
+                                                      onBlur={(event) => {
+                                                        const masked = formatDateDigitsToDisplay(
+                                                          event.target.value,
+                                                        );
+                                                        const digits = digitsOnly(masked);
+                                                        if (digits.length === 8) {
+                                                          const iso = displayDateToIso(masked);
+                                                          if (iso) {
+                                                            setFormState((prev) => {
+                                                              const next = [
+                                                                ...prev.episodeDownloads,
+                                                              ];
+                                                              next[index] = {
+                                                                ...next[index],
+                                                                releaseDate: iso,
+                                                              };
+                                                              return {
+                                                                ...prev,
+                                                                episodeDownloads: next,
+                                                              };
+                                                            });
+                                                          }
+                                                        } else if (digits.length === 0) {
+                                                          setFormState((prev) => {
+                                                            const next = [...prev.episodeDownloads];
+                                                            next[index] = {
+                                                              ...next[index],
+                                                              releaseDate: "",
+                                                            };
+                                                            return {
+                                                              ...prev,
+                                                              episodeDownloads: next,
+                                                            };
+                                                          });
+                                                        }
+                                                        setEpisodeDateDraft((prev) => {
+                                                          const next = { ...prev };
+                                                          delete next[index];
+                                                          return next;
+                                                        });
+                                                      }}
+                                                      placeholder="DD/MM/AAAA"
+                                                      className="md:min-w-[150px]"
+                                                    />
+                                                    {!isChapterBased ? (
+                                                      <Input
+                                                        type="text"
+                                                        inputMode="numeric"
+                                                        value={
+                                                          episodeTimeDraft[index] ??
+                                                          canonicalToDisplayTime(episode.duration)
+                                                        }
+                                                        onChange={(event) => {
+                                                          const masked = formatTimeDigitsToDisplay(
+                                                            event.target.value,
+                                                          );
+                                                          const digits = digitsOnly(masked);
+                                                          setEpisodeTimeDraft((prev) => ({
+                                                            ...prev,
+                                                            [index]: masked,
+                                                          }));
+                                                          const canonical =
+                                                            displayTimeToCanonical(masked);
+                                                          if (canonical) {
+                                                            setFormState((prev) => {
+                                                              const next = [
+                                                                ...prev.episodeDownloads,
+                                                              ];
+                                                              next[index] = {
+                                                                ...next[index],
+                                                                duration: canonical,
+                                                              };
+                                                              return {
+                                                                ...prev,
+                                                                episodeDownloads: next,
+                                                              };
+                                                            });
+                                                          } else if (digits.length === 0) {
+                                                            setFormState((prev) => {
+                                                              const next = [
+                                                                ...prev.episodeDownloads,
+                                                              ];
+                                                              next[index] = {
+                                                                ...next[index],
+                                                                duration: "",
+                                                              };
+                                                              return {
+                                                                ...prev,
+                                                                episodeDownloads: next,
+                                                              };
+                                                            });
+                                                          }
+                                                        }}
+                                                        onBlur={(event) => {
+                                                          const masked = formatTimeDigitsToDisplay(
+                                                            event.target.value,
+                                                          );
+                                                          const digits = digitsOnly(masked);
+                                                          const canonical =
+                                                            displayTimeToCanonical(masked);
+                                                          if (canonical) {
+                                                            setFormState((prev) => {
+                                                              const next = [
+                                                                ...prev.episodeDownloads,
+                                                              ];
+                                                              next[index] = {
+                                                                ...next[index],
+                                                                duration: canonical,
+                                                              };
+                                                              return {
+                                                                ...prev,
+                                                                episodeDownloads: next,
+                                                              };
+                                                            });
+                                                          } else if (digits.length === 0) {
+                                                            setFormState((prev) => {
+                                                              const next = [
+                                                                ...prev.episodeDownloads,
+                                                              ];
+                                                              next[index] = {
+                                                                ...next[index],
+                                                                duration: "",
+                                                              };
+                                                              return {
+                                                                ...prev,
+                                                                episodeDownloads: next,
+                                                              };
+                                                            });
+                                                          }
+                                                          setEpisodeTimeDraft((prev) => {
+                                                            const next = { ...prev };
+                                                            delete next[index];
+                                                            return next;
+                                                          });
+                                                        }}
+                                                        placeholder="MM:SS ou H:MM:SS"
+                                                        className="md:min-w-[150px]"
+                                                      />
+                                                    ) : null}
+                                                    {!isChapterBased ? (
+                                                      <Select
+                                                        value={episode.sourceType}
+                                                        onValueChange={(value) =>
+                                                          setFormState((prev) => {
+                                                            const next = [...prev.episodeDownloads];
+                                                            next[index] = {
+                                                              ...next[index],
+                                                              sourceType:
+                                                                value as EditorProjectEpisode["sourceType"],
+                                                            };
+                                                            return {
+                                                              ...prev,
+                                                              episodeDownloads: next,
+                                                            };
+                                                          })
+                                                        }
+                                                      >
+                                                        <SelectTrigger>
+                                                          <SelectValue placeholder="Origem" />
+                                                        </SelectTrigger>
+                                                        <SelectContent>
+                                                          <SelectItem value="TV">TV</SelectItem>
+                                                          <SelectItem value="Web">Web</SelectItem>
+                                                          <SelectItem value="Blu-ray">
+                                                            Blu-ray
+                                                          </SelectItem>
+                                                        </SelectContent>
+                                                      </Select>
+                                                    ) : null}
+                                                  </div>
+                                                  {isProgressOnlyEntry ? (
+                                                    <div className="project-editor-episode-group mt-3 space-y-2">
+                                                      <Label className="text-xs">Etapa atual</Label>
+                                                      <div className="rounded-md border border-border/60 bg-background/70 px-3 py-2 text-xs text-muted-foreground">
+                                                        {currentProgressStageLabel}
+                                                      </div>
+                                                    </div>
+                                                  ) : null}
+                                                  <div className="project-editor-episode-group mt-3 space-y-2">
+                                                    <Label className="text-xs">
+                                                      {isChapterBased
+                                                        ? "Capa do capítulo"
+                                                        : "Capa do episódio"}
+                                                    </Label>
+                                                    <div className="flex flex-wrap items-center gap-3">
+                                                      {episode.coverImageUrl ? (
+                                                        <div className="flex items-center gap-3 rounded-2xl border border-border/60 bg-card/60 px-3 py-2">
+                                                          <img
+                                                            src={episode.coverImageUrl}
+                                                            alt={episode.title || "Capa"}
+                                                            className="h-12 w-12 rounded-lg object-cover"
+                                                          />
+                                                        </div>
+                                                      ) : (
+                                                        <div className="flex h-12 w-12 items-center justify-center rounded-lg border border-dashed border-border/60 text-center text-[10px] text-muted-foreground leading-tight">
+                                                          Sem imagem
+                                                        </div>
+                                                      )}
+                                                      <Button
+                                                        type="button"
+                                                        size="sm"
+                                                        variant="outline"
+                                                        onClick={() =>
+                                                          openLibraryForEpisodeCover(index)
+                                                        }
+                                                      >
+                                                        Biblioteca
+                                                      </Button>
+                                                    </div>
+                                                  </div>
+                                                  {isLightNovel ? (
+                                                    <div className="project-editor-episode-group mt-3">
+                                                      <Label className="text-xs">
+                                                        Conteúdo do capítulo
+                                                      </Label>
+                                                      <div className="mt-3 flex flex-wrap items-center gap-2 rounded-xl border border-border/60 bg-background/50 px-4 py-3">
+                                                        {chapterEditorHref ? (
+                                                          <Button type="button" size="sm" asChild>
+                                                            <Link to={chapterEditorHref}>
+                                                              Abrir editor dedicado
+                                                            </Link>
+                                                          </Button>
+                                                        ) : (
+                                                          <Button type="button" size="sm" disabled>
+                                                            Salve o projeto para editar
+                                                          </Button>
+                                                        )}
+                                                        <Badge
+                                                          variant={
+                                                            hasEpisodeContent
+                                                              ? "secondary"
+                                                              : "outline"
+                                                          }
+                                                        >
+                                                          {hasEpisodeContent
+                                                            ? "Com conteÃºdo"
+                                                            : "Sem conteÃºdo"}
+                                                        </Badge>
+                                                      </div>
+                                                      <div
+                                                        className="mt-3"
+                                                        onFocusCapture={(event) => {
+                                                          const target =
+                                                            event.target as HTMLElement | null;
+                                                          if (
+                                                            target?.closest(".lexical-playground")
+                                                          ) {
+                                                            return;
+                                                          }
+                                                          const editor =
+                                                            chapterEditorsRef.current[index];
+                                                          editor?.blur?.();
+                                                        }}
+                                                      >
+                                                        <EpisodeContentEditor
+                                                          value={episode.content || ""}
+                                                          imageLibraryOptions={buildEpisodeLibraryOptions(
+                                                            episode,
+                                                            index,
+                                                          )}
+                                                          onRegister={(handlers) => {
+                                                            chapterEditorsRef.current[index] =
+                                                              handlers;
+                                                          }}
+                                                          onChange={(nextValue) =>
+                                                            setFormState((prev) => {
+                                                              const next = [
+                                                                ...prev.episodeDownloads,
+                                                              ];
+                                                              next[index] = {
+                                                                ...next[index],
+                                                                content: nextValue,
+                                                              };
+                                                              return {
+                                                                ...prev,
+                                                                episodeDownloads: next,
+                                                              };
+                                                            })
+                                                          }
+                                                        />
+                                                      </div>
+                                                    </div>
+                                                  ) : null}
+                                                  {isProgressOnlyEntry ? (
+                                                    <div className="project-editor-episode-group mt-3">
+                                                      <Label className="text-xs">
+                                                        Etapas concluídas
+                                                      </Label>
+                                                      <div className="mt-2 flex flex-wrap gap-2">
+                                                        {stageOptions.map((stage) => {
+                                                          const completed = (
+                                                            episode.completedStages || []
+                                                          ).includes(stage.id);
+                                                          return (
+                                                            <Button
+                                                              key={stage.id}
+                                                              type="button"
+                                                              size="sm"
+                                                              variant={
+                                                                completed ? "default" : "outline"
+                                                              }
+                                                              onClick={() =>
+                                                                setFormState((prev) => {
+                                                                  const next = [
+                                                                    ...prev.episodeDownloads,
+                                                                  ];
+                                                                  const current =
+                                                                    next[index].completedStages ||
+                                                                    [];
+                                                                  next[index] = {
+                                                                    ...next[index],
+                                                                    completedStages: completed
+                                                                      ? current.filter(
+                                                                          (item) =>
+                                                                            item !== stage.id,
+                                                                        )
+                                                                      : [...current, stage.id],
+                                                                  };
+                                                                  return {
+                                                                    ...prev,
+                                                                    episodeDownloads: next,
+                                                                  };
+                                                                })
+                                                              }
+                                                            >
+                                                              {stage.label}
+                                                            </Button>
+                                                          );
+                                                        })}
+                                                      </div>
+                                                    </div>
+                                                  ) : null}
+                                                  <div className="project-editor-episode-group mt-3 space-y-3">
+                                                    <div hidden={isLightNovel}>
+                                                      <Label className="text-xs">
+                                                        Arquivo do episódio
+                                                      </Label>
+                                                      <div className="mt-2 grid gap-2 md:grid-cols-2">
+                                                        <div className="space-y-1">
+                                                          <Input
+                                                            ref={(node) => {
+                                                              episodeSizeInputRefs.current[index] =
+                                                                node;
+                                                            }}
+                                                            value={
+                                                              episodeSizeDrafts[index] ??
+                                                              (episode.sizeBytes
+                                                                ? formatBytesCompact(
+                                                                    episode.sizeBytes,
+                                                                  )
+                                                                : "")
+                                                            }
+                                                            onChange={(event) => {
+                                                              const nextValue = event.target.value;
+                                                              setEpisodeSizeDrafts((prev) => ({
+                                                                ...prev,
+                                                                [index]: nextValue,
+                                                              }));
+                                                              setEpisodeSizeErrors((prev) => {
+                                                                if (!prev[index]) {
+                                                                  return prev;
+                                                                }
+                                                                const next = { ...prev };
+                                                                delete next[index];
+                                                                return next;
+                                                              });
+                                                            }}
+                                                            onBlur={(event) => {
+                                                              const rawValue =
+                                                                episodeSizeDrafts[index] ??
+                                                                event.target.value;
+                                                              const trimmedSize = String(
+                                                                rawValue || "",
+                                                              ).trim();
+                                                              if (!trimmedSize) {
+                                                                setFormState((prev) => {
+                                                                  const next = [
+                                                                    ...prev.episodeDownloads,
+                                                                  ];
+                                                                  next[index] = {
+                                                                    ...next[index],
+                                                                    sizeBytes: undefined,
+                                                                  };
+                                                                  return {
+                                                                    ...prev,
+                                                                    episodeDownloads: next,
+                                                                  };
+                                                                });
+                                                                setEpisodeSizeDrafts((prev) => {
+                                                                  const next = { ...prev };
+                                                                  delete next[index];
+                                                                  return next;
+                                                                });
+                                                                setEpisodeSizeErrors((prev) => {
+                                                                  const next = { ...prev };
+                                                                  delete next[index];
+                                                                  return next;
+                                                                });
+                                                                return;
+                                                              }
+
+                                                              const parsedSize =
+                                                                parseHumanSizeToBytes(trimmedSize);
+                                                              if (!parsedSize) {
+                                                                setEpisodeSizeErrors((prev) => ({
+                                                                  ...prev,
+                                                                  [index]:
+                                                                    "Use formatos como 700 MB ou 1.4 GB.",
+                                                                }));
+                                                                setEpisodeSizeDrafts((prev) => ({
+                                                                  ...prev,
+                                                                  [index]: rawValue,
+                                                                }));
+                                                                return;
+                                                              }
+
+                                                              setFormState((prev) => {
+                                                                const next = [
+                                                                  ...prev.episodeDownloads,
+                                                                ];
+                                                                next[index] = {
+                                                                  ...next[index],
+                                                                  sizeBytes: parsedSize,
+                                                                };
+                                                                return {
+                                                                  ...prev,
+                                                                  episodeDownloads: next,
+                                                                };
+                                                              });
+                                                              setEpisodeSizeDrafts((prev) => {
+                                                                const next = { ...prev };
+                                                                delete next[index];
+                                                                return next;
+                                                              });
+                                                              setEpisodeSizeErrors((prev) => {
+                                                                const next = { ...prev };
+                                                                delete next[index];
+                                                                return next;
+                                                              });
+                                                            }}
+                                                            placeholder="Tamanho (ex.: 700 MB ou 1.4 GB)"
+                                                          />
+                                                          {episodeSizeErrors[index] ? (
+                                                            <p className="text-[11px] text-destructive">
+                                                              {episodeSizeErrors[index]}
+                                                            </p>
+                                                          ) : (
+                                                            <p className="text-[11px] text-muted-foreground">
+                                                              Campo opcional. Valor salvo em bytes.
+                                                            </p>
+                                                          )}
+                                                        </div>
+                                                        <Input
+                                                          value={episode.hash || ""}
+                                                          onChange={(event) =>
+                                                            setFormState((prev) => {
+                                                              const next = [
+                                                                ...prev.episodeDownloads,
+                                                              ];
+                                                              next[index] = {
+                                                                ...next[index],
+                                                                hash: event.target.value,
+                                                              };
+                                                              return {
+                                                                ...prev,
+                                                                episodeDownloads: next,
+                                                              };
+                                                            })
+                                                          }
+                                                          placeholder="Hash (ex.: SHA-256: ...)"
+                                                        />
+                                                      </div>
+                                                    </div>
+
+                                                    <div>
+                                                      <Label className="text-xs">
+                                                        Fontes de download
+                                                      </Label>
+                                                      <div className="mt-2 grid gap-2">
+                                                        {(episode.sources || []).map(
+                                                          (source, sourceIndex) => (
+                                                            <div
+                                                              key={`${source.label}-${sourceIndex}`}
+                                                              className="rounded-xl border border-border/60 bg-background/40 p-3"
+                                                            >
+                                                              <div className="grid items-start gap-2 md:grid-cols-[minmax(180px,1fr)_minmax(240px,2fr)_auto]">
+                                                                <Select
+                                                                  value={source.label}
+                                                                  onValueChange={(value) =>
+                                                                    setFormState((prev) => {
+                                                                      const next = [
+                                                                        ...prev.episodeDownloads,
+                                                                      ];
+                                                                      const sources = [
+                                                                        ...(next[index].sources ||
+                                                                          []),
+                                                                      ];
+                                                                      sources[sourceIndex] = {
+                                                                        ...sources[sourceIndex],
+                                                                        label: value,
+                                                                      };
+                                                                      next[index] = {
+                                                                        ...next[index],
+                                                                        sources,
+                                                                      };
+                                                                      return {
+                                                                        ...prev,
+                                                                        episodeDownloads: next,
+                                                                      };
+                                                                    })
+                                                                  }
+                                                                >
+                                                                  <SelectTrigger>
+                                                                    <SelectValue placeholder="Fonte" />
+                                                                  </SelectTrigger>
+                                                                  <SelectContent>
+                                                                    {downloadSourceOptions.map(
+                                                                      (option) => (
+                                                                        <SelectItem
+                                                                          key={option.label}
+                                                                          value={option.label}
+                                                                        >
+                                                                          <span className="flex items-center gap-2">
+                                                                            {renderDownloadIcon(
+                                                                              option.icon,
+                                                                              option.color,
+                                                                              option.label,
+                                                                              option.tintIcon,
+                                                                            )}
+                                                                            <span>
+                                                                              {option.label}
+                                                                            </span>
+                                                                          </span>
+                                                                        </SelectItem>
+                                                                      ),
+                                                                    )}
+                                                                  </SelectContent>
+                                                                </Select>
+                                                                <Input
+                                                                  value={source.url}
+                                                                  onChange={(event) =>
+                                                                    setFormState((prev) => {
+                                                                      const next = [
+                                                                        ...prev.episodeDownloads,
+                                                                      ];
+                                                                      const sources = [
+                                                                        ...(next[index].sources ||
+                                                                          []),
+                                                                      ];
+                                                                      sources[sourceIndex] = {
+                                                                        ...sources[sourceIndex],
+                                                                        url: event.target.value,
+                                                                      };
+                                                                      next[index] = {
+                                                                        ...next[index],
+                                                                        sources,
+                                                                      };
+                                                                      return {
+                                                                        ...prev,
+                                                                        episodeDownloads: next,
+                                                                      };
+                                                                    })
+                                                                  }
+                                                                  placeholder="URL"
+                                                                />
+                                                                <Button
+                                                                  type="button"
+                                                                  variant="ghost"
+                                                                  size="icon"
+                                                                  className="h-9 w-9"
+                                                                  onClick={() => {
+                                                                    setFormState((prev) => {
+                                                                      const next = [
+                                                                        ...prev.episodeDownloads,
+                                                                      ];
+                                                                      const sources = (
+                                                                        next[index].sources || []
+                                                                      ).filter(
+                                                                        (_, idx) =>
+                                                                          idx !== sourceIndex,
+                                                                      );
+                                                                      next[index] = {
+                                                                        ...next[index],
+                                                                        sources,
+                                                                      };
+                                                                      return {
+                                                                        ...prev,
+                                                                        episodeDownloads: next,
+                                                                      };
+                                                                    });
+                                                                  }}
+                                                                >
+                                                                  <Trash2 className="h-4 w-4" />
+                                                                </Button>
+                                                              </div>
+                                                            </div>
+                                                          ),
+                                                        )}
+                                                        <Button
+                                                          type="button"
+                                                          size="sm"
+                                                          variant="outline"
+                                                          onClick={() =>
+                                                            setFormState((prev) => {
+                                                              const next = [
+                                                                ...prev.episodeDownloads,
+                                                              ];
+                                                              const existingSources =
+                                                                next[index].sources || [];
+                                                              next[index] = {
+                                                                ...next[index],
+                                                                sources: [
+                                                                  ...existingSources,
+                                                                  { label: "", url: "" },
+                                                                ],
+                                                              };
+                                                              return {
+                                                                ...prev,
+                                                                episodeDownloads: next,
+                                                              };
+                                                            })
+                                                          }
+                                                        >
+                                                          Adicionar fonte
+                                                        </Button>
+                                                      </div>
+                                                    </div>
+                                                  </div>
+                                                </AccordionContent>
+                                              </CardContent>
+                                            </Card>
+                                          </AccordionItem>
+                                        );
+                                      })}
+                                    </Accordion>
+                                  </AccordionContent>
+                                </AccordionItem>
+                              );
+                            })}
+                          </Accordion>
+                        </div>
+                      </div>
+                    </AccordionContent>
+                  </AccordionItem>
+                </Accordion>
+                <datalist id="staff-directory">
+                  {memberDirectory.map((name) => (
+                    <option key={name} value={name} />
+                  ))}
+                </datalist>
+              </div>
+            </div>
+            <div className="project-editor-footer flex justify-end gap-3 border-t border-border/60 bg-background/95 px-4 py-1.5 backdrop-blur-sm supports-backdrop-filter:bg-background/80 md:px-6 md:py-2 lg:px-8">
+              <Button variant="ghost" onClick={requestCloseEditor}>
+                Cancelar
+              </Button>
+              <Button onClick={handleSave}>Salvar projeto</Button>
+            </div>
           </div>
         </DialogContent>
       </Dialog>
@@ -6946,4 +7256,3 @@ const DashboardProjectsEditor = () => {
 };
 
 export default DashboardProjectsEditor;
-

@@ -38,6 +38,14 @@ describe("buildApiContractV1", () => {
         }),
         expect.objectContaining({
           method: "GET",
+          path: "/api/projects/:id",
+        }),
+        expect.objectContaining({
+          method: "PUT",
+          path: "/api/projects/:id/chapters/:number",
+        }),
+        expect.objectContaining({
+          method: "GET",
           path: "/api/dashboard/overview",
         }),
       ]),

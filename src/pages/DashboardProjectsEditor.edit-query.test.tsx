@@ -1,5 +1,5 @@
-import type { ReactNode } from "react";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import type { ReactNode } from "react";
 import { MemoryRouter, useLocation } from "react-router-dom";
 import { describe, expect, it, vi } from "vitest";
 
@@ -173,7 +173,7 @@ const setupApiMock = ({
   projects,
 }: {
   canManageProjects: boolean;
-  projects: typeof projectFixture[];
+  projects: (typeof projectFixture)[];
 }) => {
   apiFetchMock.mockReset();
   apiFetchMock.mockImplementation(async (_base: string, path: string, options?: RequestInit) => {
@@ -218,7 +218,12 @@ const setupApiMock = ({
 
 const LocationProbe = () => {
   const location = useLocation();
-  return <div data-testid="location-search">{location.search}</div>;
+  return (
+    <>
+      <div data-testid="location-pathname">{location.pathname}</div>
+      <div data-testid="location-search">{location.search}</div>
+    </>
+  );
 };
 
 describe("DashboardProjectsEditor edit query", () => {
@@ -302,7 +307,7 @@ describe("DashboardProjectsEditor edit query", () => {
     expect(screen.queryByText("Editar projeto")).not.toBeInTheDocument();
   });
 
-  it("abre o card do capítulo correto ao receber deep link com chapter e volume", async () => {
+  it("redireciona para o editor dedicado ao receber deep link unico com chapter e volume", async () => {
     setupApiMock({ canManageProjects: true, projects: [chapterProjectFixture] });
 
     render(
@@ -313,37 +318,14 @@ describe("DashboardProjectsEditor edit query", () => {
     );
 
     await screen.findByRole("heading", { name: "Gerenciar projetos" });
-    await screen.findByText("Editar projeto");
     await waitFor(() => {
-      expect(screen.getByTestId("location-search").textContent).toBe("");
+      expect(screen.getByTestId("location-pathname").textContent).toBe(
+        "/dashboard/projetos/project-ln-1/capitulos/1",
+      );
     });
-
-    const editorDialog = await waitFor(() => {
-      const node = document.querySelector(".project-editor-dialog");
-      expect(node).not.toBeNull();
-      return node as HTMLElement;
-    });
-
-    const chaptersTrigger = within(editorDialog).getByRole("button", {
-      name: /Conte.do.*cap.tulos/i,
-    });
-    expect(chaptersTrigger).toHaveAttribute("aria-expanded", "true");
-
-    const volumeOneGroup = within(editorDialog).getByTestId("volume-group-1");
-    const volumeTwoGroup = within(editorDialog).getByTestId("volume-group-2");
-    const [volumeOneTrigger] = within(volumeOneGroup).getAllByRole("button");
-    const [volumeTwoTrigger] = within(volumeTwoGroup).getAllByRole("button");
-    expect(volumeOneTrigger).toHaveAttribute("aria-expanded", "false");
-    expect(volumeTwoTrigger).toHaveAttribute("aria-expanded", "true");
-
-    const targetCard = await within(editorDialog).findByTestId("episode-card-1", {}, { timeout: 3000 });
-    await waitFor(() => {
-      expect(getEpisodeTrigger(targetCard)).toHaveAttribute("aria-expanded", "true");
-    });
-    expect(within(volumeOneGroup).queryByTestId("episode-card-0")).not.toBeInTheDocument();
-    await waitFor(() => {
-      expect(scrollIntoViewMock).toHaveBeenCalled();
-    });
+    expect(screen.getByTestId("location-search").textContent).toBe("?volume=2");
+    expect(screen.queryByText("Editar projeto")).not.toBeInTheDocument();
+    expect(document.querySelector(".project-editor-dialog")).toBeNull();
   });
 
   it("não foca capítulo quando a query vem ambígua sem volume", async () => {
@@ -362,7 +344,53 @@ describe("DashboardProjectsEditor edit query", () => {
       expect(screen.getByTestId("location-search").textContent).toBe("");
     });
 
+    expect(screen.getByTestId("location-pathname").textContent).toBe("/dashboard/projetos");
     expect(scrollIntoViewMock).not.toHaveBeenCalled();
+  });
+
+  it("abre o card do capítulo correto quando o modal já está aberto", async () => {
+    setupApiMock({ canManageProjects: true, projects: [chapterProjectFixture] });
+
+    render(
+      <MemoryRouter initialEntries={["/dashboard/projetos?edit=project-ln-1"]}>
+        <DashboardProjectsEditor />
+        <LocationProbe />
+      </MemoryRouter>,
+    );
+
+    await screen.findByRole("heading", { name: "Gerenciar projetos" });
+    await screen.findByText("Editar projeto");
+
+    const editorDialog = await waitFor(() => {
+      const node = document.querySelector(".project-editor-dialog");
+      expect(node).not.toBeNull();
+      return node as HTMLElement;
+    });
+    const chaptersTrigger = within(editorDialog).getByRole("button", {
+      name: /Conte.do.*cap.tulos/i,
+    });
+    fireEvent.click(chaptersTrigger);
+
+    const volumeOneGroup = within(editorDialog).getByTestId("volume-group-1");
+    const volumeTwoGroup = within(editorDialog).getByTestId("volume-group-2");
+    const [volumeOneTrigger] = within(volumeOneGroup).getAllByRole("button");
+    const [volumeTwoTrigger] = within(volumeTwoGroup).getAllByRole("button");
+    fireEvent.click(volumeTwoTrigger);
+    expect(volumeOneTrigger).toHaveAttribute("aria-expanded", "false");
+    await waitFor(() => {
+      expect(volumeTwoTrigger).toHaveAttribute("aria-expanded", "true");
+    });
+
+    const targetCard = await within(editorDialog).findByTestId(
+      "episode-card-1",
+      {},
+      { timeout: 3000 },
+    );
+    fireEvent.click(getEpisodeTrigger(targetCard));
+    await waitFor(() => {
+      expect(getEpisodeTrigger(targetCard)).toHaveAttribute("aria-expanded", "true");
+    });
+    expect(within(volumeOneGroup).queryByTestId("episode-card-0")).not.toBeInTheDocument();
   });
 
   it("controla classe editor-modal-scrolled no dialog ao rolar e fechar", async () => {
@@ -382,9 +410,7 @@ describe("DashboardProjectsEditor edit query", () => {
     });
 
     const editorDialog = document.querySelector(".project-editor-dialog") as HTMLElement | null;
-    const editorFrame = document.querySelector(
-      ".project-editor-modal-frame",
-    ) as HTMLElement | null;
+    const editorFrame = document.querySelector(".project-editor-modal-frame") as HTMLElement | null;
     const editorScrollShell = document.querySelector(
       ".project-editor-scroll-shell",
     ) as HTMLElement | null;
@@ -396,7 +422,9 @@ describe("DashboardProjectsEditor edit query", () => {
     const editorSectionContent = document.querySelector(
       ".project-editor-section-content",
     ) as HTMLElement | null;
-    const editorAccordion = document.querySelector(".project-editor-accordion") as HTMLElement | null;
+    const editorAccordion = document.querySelector(
+      ".project-editor-accordion",
+    ) as HTMLElement | null;
     expect(editorDialog).not.toBeNull();
     expect(editorFrame).not.toBeNull();
     expect(editorScrollShell).not.toBeNull();
@@ -454,7 +482,7 @@ describe("DashboardProjectsEditor edit query", () => {
     setupApiMock({ canManageProjects: true, projects: [chapterProjectFixture] });
 
     render(
-      <MemoryRouter initialEntries={["/dashboard/projetos?edit=project-ln-1&chapter=1&volume=2"]}>
+      <MemoryRouter initialEntries={["/dashboard/projetos?edit=project-ln-1"]}>
         <DashboardProjectsEditor />
         <LocationProbe />
       </MemoryRouter>,
@@ -471,8 +499,14 @@ describe("DashboardProjectsEditor edit query", () => {
       expect(node).not.toBeNull();
       return node as HTMLElement;
     });
+    const chaptersTrigger = within(editorDialog).getByRole("button", {
+      name: /Conte.do.*cap.tulos/i,
+    });
+    fireEvent.click(chaptersTrigger);
 
     const volumeTwoGroup = within(editorDialog).getByTestId("volume-group-2");
+    const [volumeTwoTrigger] = within(volumeTwoGroup).getAllByRole("button");
+    fireEvent.click(volumeTwoTrigger);
     const volumeAccordionContent = volumeTwoGroup.querySelector(
       ".space-y-3.px-4",
     ) as HTMLElement | null;
@@ -486,6 +520,7 @@ describe("DashboardProjectsEditor edit query", () => {
     expect(episodeAccordion?.className).toContain("space-y-3");
 
     const episodeCard = await within(editorDialog).findByTestId("episode-card-1");
+    fireEvent.click(getEpisodeTrigger(episodeCard));
     const episodeContent = episodeCard.querySelector(
       ".project-editor-episode-content",
     ) as HTMLElement | null;

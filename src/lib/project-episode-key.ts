@@ -77,3 +77,58 @@ export const findDuplicateEpisodeKey = <
   }
   return null;
 };
+
+export const resolveEpisodeLookup = <
+  Episode extends {
+    number?: unknown;
+    volume?: unknown;
+  },
+>(
+  episodes: Episode[],
+  episodeNumber: unknown,
+  volume?: unknown,
+) => {
+  const safeNumber = getEpisodeNumberValue(episodeNumber);
+  if (safeNumber === null) {
+    return { ok: false as const, code: "invalid_episode_number" as const };
+  }
+
+  const safeVolume =
+    volume === null || volume === undefined || String(volume).trim() === ""
+      ? null
+      : getEpisodeVolumeValue(volume);
+
+  const matches = (Array.isArray(episodes) ? episodes : [])
+    .map((episode, index) => ({ episode, index }))
+    .filter(({ episode }) => getEpisodeNumberValue(episode?.number) === safeNumber);
+
+  if (matches.length === 0) {
+    return { ok: false as const, code: "not_found" as const };
+  }
+
+  if (safeVolume !== null) {
+    const exact = matches.find(
+      ({ episode }) => getEpisodeVolumeValue(episode?.volume) === getEpisodeVolumeValue(safeVolume),
+    );
+    if (!exact) {
+      return { ok: false as const, code: "not_found" as const };
+    }
+    return {
+      ok: true as const,
+      code: "ok" as const,
+      ...exact,
+      key: buildEpisodeKey(exact.episode?.number, exact.episode?.volume),
+    };
+  }
+
+  if (matches.length > 1) {
+    return { ok: false as const, code: "volume_required" as const, matches };
+  }
+
+  return {
+    ok: true as const,
+    code: "ok" as const,
+    ...matches[0],
+    key: buildEpisodeKey(matches[0].episode?.number, matches[0].episode?.volume),
+  };
+};
