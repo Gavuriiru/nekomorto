@@ -8945,6 +8945,152 @@ const canViewAnalytics = (userId) => {
   return canManagePosts(userId) || canManageProjects(userId) || canManageComments(userId);
 };
 
+const buildDashboardOverviewResponsePayload = (userId) => {
+  const canReadProjects = canManageProjects(userId);
+  const canReadPosts = canManagePosts(userId);
+  const canReadComments = canManageComments(userId);
+  const canReadAnalytics = canViewAnalytics(userId);
+
+  const projects = canReadProjects
+    ? normalizeProjects(loadProjects()).sort((a, b) => a.order - b.order)
+    : [];
+  const posts = canReadPosts
+    ? normalizePosts(loadPosts()).sort(
+        (a, b) => new Date(b.publishedAt || 0).getTime() - new Date(a.publishedAt || 0).getTime(),
+      )
+    : [];
+  const comments = canReadComments ? loadComments() : [];
+
+  const totalProjects = projects.length;
+  const totalMedia = projects.reduce(
+    (sum, project) =>
+      sum + (Array.isArray(project.episodeDownloads) ? project.episodeDownloads.length : 0),
+    0,
+  );
+  const activeProjects = projects.filter((project) => {
+    const status = String(project.status || "").toLowerCase();
+    return status.includes("andamento") || status.includes("produ");
+  }).length;
+  const finishedProjects = projects.filter((project) => {
+    const status = String(project.status || "").toLowerCase();
+    return status.includes("complet") || status.includes("lan");
+  }).length;
+  const rankedProjects = projects
+    .map((project) => ({
+      id: project.id,
+      title: String(project.title || ""),
+      status: String(project.status || ""),
+      views: Number(project.views || 0),
+    }))
+    .filter((project) => project.views > 0)
+    .sort((a, b) => b.views - a.views)
+    .slice(0, 3);
+  const quickProjects = projects.slice(0, 3).map((project) => ({
+    id: project.id,
+    title: String(project.title || ""),
+    status: String(project.status || ""),
+  }));
+  const recentPosts = posts
+    .slice()
+    .sort((a, b) => {
+      const aDate = new Date(a.updatedAt || a.publishedAt || 0).getTime();
+      const bDate = new Date(b.updatedAt || b.publishedAt || 0).getTime();
+      return bDate - aDate;
+    })
+    .slice(0, 3)
+    .map((post) => ({
+      id: post.id,
+      slug: String(post.slug || ""),
+      title: String(post.title || ""),
+      status: String(post.status || ""),
+      views: Number(post.views || 0),
+      publishedAt: String(post.publishedAt || ""),
+      updatedAt: String(post.updatedAt || post.publishedAt || ""),
+    }));
+  const pendingCommentsCount = comments.filter((comment) => comment.status === "pending").length;
+  const recentComments = comments
+    .slice()
+    .sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime())
+    .slice(0, 3)
+    .map((comment) => {
+      const target = buildCommentTargetInfo(comment, posts, projects);
+      return {
+        id: comment.id,
+        author: String(comment.name || ""),
+        message: String(comment.content || ""),
+        page: target.label,
+        createdAt: String(comment.createdAt || ""),
+        url: target.url,
+        status: String(comment.status || "approved"),
+      };
+    });
+
+  let totalViewsLast7 = 0;
+  let totalProjectViewsLast7 = 0;
+  let totalPostViewsLast7 = 0;
+  let analyticsSeries7d = [];
+  if (canReadAnalytics) {
+    const range = buildAnalyticsRange(parseAnalyticsRangeDays("7d"));
+    const allEvents = filterAnalyticsEvents(
+      loadAnalyticsEvents(),
+      range.fromTs,
+      range.toTs,
+      normalizeAnalyticsTypeFilter("all"),
+    );
+    const projectEvents = filterAnalyticsEvents(
+      loadAnalyticsEvents(),
+      range.fromTs,
+      range.toTs,
+      normalizeAnalyticsTypeFilter("project"),
+    );
+    const postEvents = filterAnalyticsEvents(
+      loadAnalyticsEvents(),
+      range.fromTs,
+      range.toTs,
+      normalizeAnalyticsTypeFilter("post"),
+    );
+    totalViewsLast7 = allEvents.filter((event) => event.eventType === "view").length;
+    totalProjectViewsLast7 = projectEvents.filter((event) => event.eventType === "view").length;
+    totalPostViewsLast7 = postEvents.filter((event) => event.eventType === "view").length;
+    analyticsSeries7d = range.dayKeys.map((day) => ({
+      date: day,
+      value: allEvents.filter((event) => {
+        if (event.eventType !== "view") {
+          return false;
+        }
+        return new Date(event.ts || event.createdAt || 0).toISOString().slice(0, 10) === day;
+      }).length,
+    }));
+  }
+
+  return {
+    metrics: {
+      totalProjects,
+      totalMedia,
+      activeProjects,
+      finishedProjects,
+      totalViewsLast7,
+      totalProjectViewsLast7,
+      totalPostViewsLast7,
+    },
+    analyticsSeries7d,
+    rankedProjects,
+    recentPosts,
+    recentComments,
+    pendingCommentsCount,
+    quickProjects,
+  };
+};
+
+app.get("/api/dashboard/overview", requireAuth, (req, res) => {
+  res.setHeader("Cache-Control", "no-store");
+  const userId = String(req.session?.user?.id || "").trim();
+  if (!userId) {
+    return res.status(401).json({ error: "unauthorized" });
+  }
+  return res.json(buildDashboardOverviewResponsePayload(userId));
+});
+
 const canViewAuditLog = (userId) => {
   if (!userId) {
     return false;
@@ -11771,6 +11917,29 @@ const injectPublicBootstrapHtml = ({
   return nextHtml;
 };
 
+const injectDashboardBootstrapHtml = ({ html, req, settings }) => {
+  const publicMe = req?.session?.user ? buildUserPayload(req.session.user) : null;
+  let nextHtml = injectBootstrapGlobals({
+    html,
+    publicBootstrap: null,
+    settings,
+    publicMe,
+    skipPublicFetch: true,
+  });
+  const preloads = extractLocalStylesheetHrefs(nextHtml).map((href) => ({
+    href,
+    as: "style",
+    crossorigin: "anonymous",
+  }));
+  if (preloads.length > 0) {
+    nextHtml = injectPreloadLinks({
+      html: nextHtml,
+      preloads,
+    });
+  }
+  return nextHtml;
+};
+
 app.get("/sitemap.xml", (_req, res) => {
   const xml = buildSitemapXml(buildPublicSitemapEntries());
   return sendXmlResponse(res, xml, "application/xml; charset=utf-8");
@@ -11886,13 +12055,37 @@ app.get("/api/public/search/suggest", (req, res) => {
       };
     });
 
+  const loadedTagTranslations = loadTagTranslations();
+  const tagTranslations =
+    loadedTagTranslations?.tags && typeof loadedTagTranslations.tags === "object"
+      ? loadedTagTranslations.tags
+      : {};
   const suggestions = buildPublicSearchSuggestions({
     query: q,
     scope,
     limit,
     projects,
     posts,
-  }).map(({ score: _score, ...item }) => item);
+  }).map(({ score: _score, ...item }) => {
+    const translatedTags = Array.isArray(item.tags)
+      ? item.tags
+          .map((tag) => {
+            const rawTag = String(tag || "").trim();
+            if (!rawTag) {
+              return "";
+            }
+            const exact = tagTranslations[rawTag];
+            const lowered = tagTranslations[rawTag.toLowerCase()];
+            return String(exact || lowered || rawTag).trim();
+          })
+          .filter(Boolean)
+          .slice(0, 4)
+      : [];
+    return {
+      ...item,
+      tags: translatedTags,
+    };
+  });
 
   const payload = {
     q,
@@ -15054,15 +15247,16 @@ app.get("*", async (req, res) => {
       pages,
     });
     const shouldInjectPublicBootstrap = !/^\/dashboard(?:\/|$)/.test(req.path);
+    const renderedHtml = renderMetaHtml({
+      ...meta,
+      title,
+      url: canonicalUrl,
+      structuredData,
+      themeColor: routeThemeColor,
+    });
     const html = shouldInjectPublicBootstrap
       ? injectPublicBootstrapHtml({
-          html: renderMetaHtml({
-            ...meta,
-            title,
-            url: canonicalUrl,
-            structuredData,
-            themeColor: routeThemeColor,
-          }),
+          html: renderedHtml,
           req,
           settings,
           pages,
@@ -15072,12 +15266,10 @@ app.get("*", async (req, res) => {
             req.path === "/" ? PUBLIC_BOOTSTRAP_MODE_CRITICAL_HOME : PUBLIC_BOOTSTRAP_MODE_FULL,
           includeHomeHeroShell: req.path === "/" && isHomeHeroShellEnabled,
         })
-      : renderMetaHtml({
-          ...meta,
-          title,
-          url: canonicalUrl,
-          structuredData,
-          themeColor: routeThemeColor,
+      : injectDashboardBootstrapHtml({
+          html: renderedHtml,
+          req,
+          settings,
         });
     return await sendHtml(req, res, html);
   } catch {

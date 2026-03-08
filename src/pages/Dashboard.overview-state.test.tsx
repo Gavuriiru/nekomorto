@@ -8,7 +8,23 @@ import Dashboard from "@/pages/Dashboard";
 const apiFetchMock = vi.hoisted(() => vi.fn());
 
 vi.mock("@/components/DashboardShell", () => ({
-  default: ({ children }: { children: ReactNode }) => <div>{children}</div>,
+  default: ({
+    children,
+    currentUser,
+    isLoadingUser,
+  }: {
+    children: ReactNode;
+    currentUser?: { username?: string | null } | null;
+    isLoadingUser?: boolean;
+  }) => (
+    <div
+      data-testid="dashboard-shell"
+      data-current-user={String(currentUser?.username || "")}
+      data-loading-user={String(Boolean(isLoadingUser))}
+    >
+      {children}
+    </div>
+  ),
 }));
 
 vi.mock("@/hooks/use-page-meta", () => ({
@@ -30,99 +46,206 @@ const mockJsonResponse = (ok: boolean, payload: unknown, status = ok ? 200 : 500
     json: async () => payload,
   }) as Response;
 
+const createDeferredResponse = () => {
+  let resolve: ((value: Response) => void) | null = null;
+  const promise = new Promise<Response>((res) => {
+    resolve = res;
+  });
+  return {
+    promise,
+    resolve: (value: Response) => {
+      resolve?.(value);
+    },
+  };
+};
+
+const dashboardUser = {
+  id: "u-1",
+  name: "Admin",
+  username: "admin",
+  permissions: ["*"],
+};
+
+const buildOverviewPayload = (overrides: Record<string, unknown> = {}) => ({
+  metrics: {
+    totalProjects: 1,
+    totalMedia: 2,
+    activeProjects: 1,
+    finishedProjects: 0,
+    totalViewsLast7: 20,
+    totalProjectViewsLast7: 12,
+    totalPostViewsLast7: 8,
+  },
+  analyticsSeries7d: [
+    { date: "2026-03-01", value: 2 },
+    { date: "2026-03-02", value: 4 },
+  ],
+  rankedProjects: [
+    {
+      id: "project-1",
+      title: "Projeto Teste",
+      status: "Em andamento",
+      views: 15,
+    },
+  ],
+  recentPosts: [
+    {
+      id: "post-1",
+      slug: "post-1",
+      title: "Post Teste",
+      status: "published",
+      views: 12,
+      publishedAt: "2026-02-20T10:00:00.000Z",
+      updatedAt: "2026-02-20T10:00:00.000Z",
+    },
+  ],
+  recentComments: [
+    {
+      id: "comment-1",
+      author: "Leitor",
+      message: "Otimo projeto",
+      page: "Projeto Teste",
+      createdAt: "2026-02-20T10:00:00.000Z",
+      url: "/projeto/project-1",
+      status: "approved",
+    },
+  ],
+  pendingCommentsCount: 0,
+  quickProjects: [
+    {
+      id: "project-1",
+      title: "Projeto Teste",
+      status: "Em andamento",
+    },
+  ],
+  ...overrides,
+});
+
+const buildOperationalAlertsPayload = (overrides: Record<string, unknown> = {}) => ({
+  ok: true,
+  status: "ok",
+  generatedAt: "2026-02-20T10:00:00.000Z",
+  alerts: [],
+  checkFindings: [],
+  checkSummary: {
+    total: 0,
+    critical: 0,
+    warning: 0,
+  },
+  summary: {
+    total: 0,
+    critical: 0,
+    warning: 0,
+    info: 0,
+  },
+  ...overrides,
+});
+
+const installDashboardApiMock = (options?: {
+  userResponse?: Response | Promise<Response>;
+  preferencesResponse?: Response | Promise<Response>;
+  overviewResponse?: Response | Promise<Response>;
+  operationalAlertsResponse?: Response | Promise<Response>;
+}) => {
+  const {
+    userResponse = mockJsonResponse(true, dashboardUser),
+    preferencesResponse = mockJsonResponse(true, { preferences: {} }),
+    overviewResponse = mockJsonResponse(true, buildOverviewPayload()),
+    operationalAlertsResponse = mockJsonResponse(true, buildOperationalAlertsPayload()),
+  } = options || {};
+
+  apiFetchMock.mockReset();
+  apiFetchMock.mockImplementation(async (_base: string, path: string, options?: RequestInit) => {
+    const method = String(options?.method || "GET").toUpperCase();
+    if (path === "/api/me" && method === "GET") {
+      return userResponse;
+    }
+    if (path === "/api/me/preferences" && method === "GET") {
+      return preferencesResponse;
+    }
+    if (path === "/api/dashboard/overview" && method === "GET") {
+      return overviewResponse;
+    }
+    if (path === "/api/admin/operational-alerts" && method === "GET") {
+      return operationalAlertsResponse;
+    }
+    return mockJsonResponse(false, { error: "not_found" }, 404);
+  });
+};
+
 describe("Dashboard overview async states", () => {
   beforeEach(() => {
     apiFetchMock.mockReset();
+    (window as Window & { __BOOTSTRAP_PUBLIC_ME__?: unknown }).__BOOTSTRAP_PUBLIC_ME__ = undefined;
   });
 
-  it("exibe erro bloqueante e carrega dados após retry", async () => {
-    let projectsRequestCount = 0;
+  it("mantem shell seeded por bootstrap e evita flash de login enquanto /api/me revalida", async () => {
+    const userDeferred = createDeferredResponse();
+    installDashboardApiMock({
+      userResponse: userDeferred.promise,
+      overviewResponse: mockJsonResponse(true, buildOverviewPayload()),
+      preferencesResponse: mockJsonResponse(true, { preferences: {} }),
+      operationalAlertsResponse: mockJsonResponse(true, buildOperationalAlertsPayload()),
+    });
+    (window as Window & { __BOOTSTRAP_PUBLIC_ME__?: unknown }).__BOOTSTRAP_PUBLIC_ME__ = {
+      id: "u-1",
+      name: "Admin",
+      username: "admin",
+      avatarUrl: null,
+      permissions: ["*"],
+      grants: { usuarios_acesso: true },
+    };
+
+    render(
+      <MemoryRouter initialEntries={["/dashboard"]}>
+        <Dashboard />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByTestId("dashboard-shell")).toHaveAttribute("data-current-user", "admin");
+    expect(screen.getByTestId("dashboard-shell")).toHaveAttribute("data-loading-user", "true");
+    expect(screen.getByTestId("dashboard-loading-skeleton")).toBeInTheDocument();
+    expect(screen.getByTestId("dashboard-header-user-action-skeleton")).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Fazer login" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Exportar relatorio" })).not.toBeInTheDocument();
+
+    userDeferred.resolve(mockJsonResponse(true, dashboardUser));
+
+    expect(await screen.findByRole("button", { name: "Exportar relatorio" })).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.queryByTestId("dashboard-loading-skeleton")).not.toBeInTheDocument();
+    });
+  });
+
+  it("exibe erro bloqueante e carrega dados apos retry", async () => {
+    let overviewRequestCount = 0;
+    installDashboardApiMock({
+      overviewResponse: Promise.resolve().then(() => {
+        overviewRequestCount += 1;
+        if (overviewRequestCount === 1) {
+          return mockJsonResponse(false, { error: "load_failed" }, 500);
+        }
+        return mockJsonResponse(true, buildOverviewPayload());
+      }),
+    });
+
     apiFetchMock.mockImplementation(async (_base: string, path: string, options?: RequestInit) => {
       const method = String(options?.method || "GET").toUpperCase();
       if (path === "/api/me" && method === "GET") {
-        return mockJsonResponse(true, {
-          id: "u-1",
-          name: "Admin",
-          username: "admin",
-        });
+        return mockJsonResponse(true, dashboardUser);
       }
-      if (path === "/api/projects" && method === "GET") {
-        projectsRequestCount += 1;
-        if (projectsRequestCount === 1) {
+      if (path === "/api/me/preferences" && method === "GET") {
+        return mockJsonResponse(true, { preferences: {} });
+      }
+      if (path === "/api/dashboard/overview" && method === "GET") {
+        overviewRequestCount += 1;
+        if (overviewRequestCount === 1) {
           return mockJsonResponse(false, { error: "load_failed" }, 500);
         }
-        return mockJsonResponse(true, {
-          projects: [
-            {
-              id: "project-1",
-              title: "Projeto Teste",
-              status: "Em andamento",
-              views: 15,
-              episodeDownloads: [{ episode: "1" }],
-            },
-          ],
-        });
-      }
-      if (path === "/api/posts" && method === "GET") {
-        return mockJsonResponse(true, {
-          posts: [
-            {
-              id: "post-1",
-              slug: "post-1",
-              title: "Post Teste",
-              status: "published",
-              views: 12,
-              publishedAt: "2026-02-20T10:00:00.000Z",
-              updatedAt: "2026-02-20T10:00:00.000Z",
-              commentsCount: 1,
-            },
-          ],
-        });
-      }
-      if (path === "/api/comments/recent?limit=3" && method === "GET") {
-        return mockJsonResponse(true, {
-          comments: [
-            {
-              id: "comment-1",
-              name: "Leitor",
-              content: "Ótimo projeto",
-              targetLabel: "Projeto Teste",
-              createdAt: "2026-02-20T10:00:00.000Z",
-              targetUrl: "/projeto/project-1",
-              status: "approved",
-            },
-          ],
-          pendingCount: 0,
-        });
-      }
-      if (path.startsWith("/api/analytics/overview?") && method === "GET") {
-        return mockJsonResponse(true, {
-          metrics: {
-            views: 20,
-          },
-        });
-      }
-      if (path === "/api/analytics/timeseries?range=7d&type=all&metric=views" && method === "GET") {
-        return mockJsonResponse(true, {
-          series: [
-            { date: "2026-02-20", value: 10 },
-            { date: "2026-02-21", value: 12 },
-          ],
-        });
+        return mockJsonResponse(true, buildOverviewPayload());
       }
       if (path === "/api/admin/operational-alerts" && method === "GET") {
-        return mockJsonResponse(true, {
-          ok: true,
-          status: "ok",
-          generatedAt: "2026-02-20T10:00:00.000Z",
-          alerts: [],
-          summary: {
-            total: 0,
-            critical: 0,
-            warning: 0,
-            info: 0,
-          },
-        });
+        return mockJsonResponse(true, buildOperationalAlertsPayload());
       }
       return mockJsonResponse(false, { error: "not_found" }, 404);
     });
@@ -141,50 +264,16 @@ describe("Dashboard overview async states", () => {
     await waitFor(() => {
       expect(screen.queryByText(/Não foi possível carregar o dashboard/i)).not.toBeInTheDocument();
     });
-    await screen.findByRole("heading", { name: "Projetos cadastrados" });
-    expect(projectsRequestCount).toBeGreaterThanOrEqual(2);
+    expect(await screen.findByText("Projetos cadastrados")).toBeInTheDocument();
+    expect(overviewRequestCount).toBeGreaterThanOrEqual(2);
   });
 
   it("aplica variantes semanticas nas badges operacionais", async () => {
-    apiFetchMock.mockImplementation(async (_base: string, path: string, options?: RequestInit) => {
-      const method = String(options?.method || "GET").toUpperCase();
-      if (path === "/api/me" && method === "GET") {
-        return mockJsonResponse(true, {
-          id: "u-1",
-          name: "Admin",
-          username: "admin",
-          permissions: ["*"],
-        });
-      }
-      if (path === "/api/projects" && method === "GET") {
-        return mockJsonResponse(true, { projects: [] });
-      }
-      if (path === "/api/posts" && method === "GET") {
-        return mockJsonResponse(true, { posts: [] });
-      }
-      if (path === "/api/comments/recent?limit=3" && method === "GET") {
-        return mockJsonResponse(true, { comments: [], pendingCount: 0 });
-      }
-      if (path.startsWith("/api/analytics/overview?") && method === "GET") {
-        return mockJsonResponse(true, {
-          metrics: {
-            views: 20,
-          },
-        });
-      }
-      if (path === "/api/analytics/timeseries?range=7d&type=all&metric=views" && method === "GET") {
-        return mockJsonResponse(true, {
-          series: [
-            { date: "2026-02-20", value: 10 },
-            { date: "2026-02-21", value: 12 },
-          ],
-        });
-      }
-      if (path === "/api/admin/operational-alerts" && method === "GET") {
-        return mockJsonResponse(true, {
-          ok: true,
+    installDashboardApiMock({
+      operationalAlertsResponse: mockJsonResponse(
+        true,
+        buildOperationalAlertsPayload({
           status: "degraded",
-          generatedAt: "2026-02-20T10:00:00.000Z",
           alerts: [
             {
               code: "db-latency",
@@ -199,9 +288,8 @@ describe("Dashboard overview async states", () => {
             warning: 0,
             info: 0,
           },
-        });
-      }
-      return mockJsonResponse(false, { error: "not_found" }, 404);
+        }),
+      ),
     });
 
     render(
@@ -225,46 +313,11 @@ describe("Dashboard overview async states", () => {
   });
 
   it("explica degradado com healthcheck quando nao ha alertas ativos", async () => {
-    apiFetchMock.mockImplementation(async (_base: string, path: string, options?: RequestInit) => {
-      const method = String(options?.method || "GET").toUpperCase();
-      if (path === "/api/me" && method === "GET") {
-        return mockJsonResponse(true, {
-          id: "u-1",
-          name: "Admin",
-          username: "admin",
-          permissions: ["*"],
-        });
-      }
-      if (path === "/api/projects" && method === "GET") {
-        return mockJsonResponse(true, { projects: [] });
-      }
-      if (path === "/api/posts" && method === "GET") {
-        return mockJsonResponse(true, { posts: [] });
-      }
-      if (path === "/api/comments/recent?limit=3" && method === "GET") {
-        return mockJsonResponse(true, { comments: [], pendingCount: 0 });
-      }
-      if (path.startsWith("/api/analytics/overview?") && method === "GET") {
-        return mockJsonResponse(true, {
-          metrics: {
-            views: 20,
-          },
-        });
-      }
-      if (path === "/api/analytics/timeseries?range=7d&type=all&metric=views" && method === "GET") {
-        return mockJsonResponse(true, {
-          series: [
-            { date: "2026-02-20", value: 10 },
-            { date: "2026-02-21", value: 12 },
-          ],
-        });
-      }
-      if (path === "/api/admin/operational-alerts" && method === "GET") {
-        return mockJsonResponse(true, {
-          ok: true,
+    installDashboardApiMock({
+      operationalAlertsResponse: mockJsonResponse(
+        true,
+        buildOperationalAlertsPayload({
           status: "degraded",
-          generatedAt: "2026-02-20T10:00:00.000Z",
-          alerts: [],
           checkFindings: [
             {
               name: "rate_limit_backend",
@@ -278,15 +331,8 @@ describe("Dashboard overview async states", () => {
             critical: 0,
             warning: 1,
           },
-          summary: {
-            total: 0,
-            critical: 0,
-            warning: 0,
-            info: 0,
-          },
-        });
-      }
-      return mockJsonResponse(false, { error: "not_found" }, 404);
+        }),
+      ),
     });
 
     render(
@@ -305,62 +351,7 @@ describe("Dashboard overview async states", () => {
   });
 
   it("mantem mensagem de vazio quando status operacional esta ok", async () => {
-    apiFetchMock.mockImplementation(async (_base: string, path: string, options?: RequestInit) => {
-      const method = String(options?.method || "GET").toUpperCase();
-      if (path === "/api/me" && method === "GET") {
-        return mockJsonResponse(true, {
-          id: "u-1",
-          name: "Admin",
-          username: "admin",
-          permissions: ["*"],
-        });
-      }
-      if (path === "/api/projects" && method === "GET") {
-        return mockJsonResponse(true, { projects: [] });
-      }
-      if (path === "/api/posts" && method === "GET") {
-        return mockJsonResponse(true, { posts: [] });
-      }
-      if (path === "/api/comments/recent?limit=3" && method === "GET") {
-        return mockJsonResponse(true, { comments: [], pendingCount: 0 });
-      }
-      if (path.startsWith("/api/analytics/overview?") && method === "GET") {
-        return mockJsonResponse(true, {
-          metrics: {
-            views: 20,
-          },
-        });
-      }
-      if (path === "/api/analytics/timeseries?range=7d&type=all&metric=views" && method === "GET") {
-        return mockJsonResponse(true, {
-          series: [
-            { date: "2026-02-20", value: 10 },
-            { date: "2026-02-21", value: 12 },
-          ],
-        });
-      }
-      if (path === "/api/admin/operational-alerts" && method === "GET") {
-        return mockJsonResponse(true, {
-          ok: true,
-          status: "ok",
-          generatedAt: "2026-02-20T10:00:00.000Z",
-          alerts: [],
-          checkFindings: [],
-          checkSummary: {
-            total: 0,
-            critical: 0,
-            warning: 0,
-          },
-          summary: {
-            total: 0,
-            critical: 0,
-            warning: 0,
-            info: 0,
-          },
-        });
-      }
-      return mockJsonResponse(false, { error: "not_found" }, 404);
-    });
+    installDashboardApiMock();
 
     render(
       <MemoryRouter initialEntries={["/dashboard"]}>
@@ -373,61 +364,13 @@ describe("Dashboard overview async states", () => {
   });
 
   it("exibe fallback explicito quando status degradado nao traz motivos", async () => {
-    apiFetchMock.mockImplementation(async (_base: string, path: string, options?: RequestInit) => {
-      const method = String(options?.method || "GET").toUpperCase();
-      if (path === "/api/me" && method === "GET") {
-        return mockJsonResponse(true, {
-          id: "u-1",
-          name: "Admin",
-          username: "admin",
-          permissions: ["*"],
-        });
-      }
-      if (path === "/api/projects" && method === "GET") {
-        return mockJsonResponse(true, { projects: [] });
-      }
-      if (path === "/api/posts" && method === "GET") {
-        return mockJsonResponse(true, { posts: [] });
-      }
-      if (path === "/api/comments/recent?limit=3" && method === "GET") {
-        return mockJsonResponse(true, { comments: [], pendingCount: 0 });
-      }
-      if (path.startsWith("/api/analytics/overview?") && method === "GET") {
-        return mockJsonResponse(true, {
-          metrics: {
-            views: 20,
-          },
-        });
-      }
-      if (path === "/api/analytics/timeseries?range=7d&type=all&metric=views" && method === "GET") {
-        return mockJsonResponse(true, {
-          series: [
-            { date: "2026-02-20", value: 10 },
-            { date: "2026-02-21", value: 12 },
-          ],
-        });
-      }
-      if (path === "/api/admin/operational-alerts" && method === "GET") {
-        return mockJsonResponse(true, {
-          ok: true,
+    installDashboardApiMock({
+      operationalAlertsResponse: mockJsonResponse(
+        true,
+        buildOperationalAlertsPayload({
           status: "degraded",
-          generatedAt: "2026-02-20T10:00:00.000Z",
-          alerts: [],
-          checkFindings: [],
-          checkSummary: {
-            total: 0,
-            critical: 0,
-            warning: 0,
-          },
-          summary: {
-            total: 0,
-            critical: 0,
-            warning: 0,
-            info: 0,
-          },
-        });
-      }
-      return mockJsonResponse(false, { error: "not_found" }, 404);
+        }),
+      ),
     });
 
     render(
@@ -443,44 +386,9 @@ describe("Dashboard overview async states", () => {
   });
 
   it("mantem placeholders operacionais sem expor badge OK durante o carregamento", async () => {
-    apiFetchMock.mockImplementation(async (_base: string, path: string, options?: RequestInit) => {
-      const method = String(options?.method || "GET").toUpperCase();
-      if (path === "/api/me" && method === "GET") {
-        return mockJsonResponse(true, {
-          id: "u-1",
-          name: "Admin",
-          username: "admin",
-          permissions: ["*"],
-        });
-      }
-      if (path === "/api/projects" && method === "GET") {
-        return mockJsonResponse(true, { projects: [] });
-      }
-      if (path === "/api/posts" && method === "GET") {
-        return mockJsonResponse(true, { posts: [] });
-      }
-      if (path === "/api/comments/recent?limit=3" && method === "GET") {
-        return mockJsonResponse(true, { comments: [], pendingCount: 0 });
-      }
-      if (path.startsWith("/api/analytics/overview?") && method === "GET") {
-        return mockJsonResponse(true, {
-          metrics: {
-            views: 20,
-          },
-        });
-      }
-      if (path === "/api/analytics/timeseries?range=7d&type=all&metric=views" && method === "GET") {
-        return mockJsonResponse(true, {
-          series: [
-            { date: "2026-02-20", value: 10 },
-            { date: "2026-02-21", value: 12 },
-          ],
-        });
-      }
-      if (path === "/api/admin/operational-alerts" && method === "GET") {
-        return new Promise<Response>(() => undefined);
-      }
-      return mockJsonResponse(false, { error: "not_found" }, 404);
+    const operationalDeferred = createDeferredResponse();
+    installDashboardApiMock({
+      operationalAlertsResponse: operationalDeferred.promise,
     });
 
     render(
@@ -490,8 +398,15 @@ describe("Dashboard overview async states", () => {
     );
 
     await screen.findByRole("heading", { name: /Painel de controle da comunidade/i });
-
+    expect(screen.getByTestId("dashboard-ops-loading-badge")).toBeInTheDocument();
     expect(screen.getByTestId("dashboard-ops-loading")).toBeInTheDocument();
     expect(screen.queryByText("OK")).not.toBeInTheDocument();
+
+    operationalDeferred.resolve(mockJsonResponse(true, buildOperationalAlertsPayload()));
+
+    expect(await screen.findByText("OK")).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.queryByTestId("dashboard-ops-loading")).not.toBeInTheDocument();
+    });
   });
 });

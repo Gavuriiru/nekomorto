@@ -107,18 +107,20 @@ const bootstrap = async () => {
     __BOOTSTRAP_SETTINGS__?: unknown;
     __BOOTSTRAP_PUBLIC__?: unknown;
     __BOOTSTRAP_PUBLIC_PROMISE__?: Promise<unknown>;
+    __BOOTSTRAP_SKIP_PUBLIC_FETCH__?: boolean;
   };
+  const shouldSkipPublicBootstrapFetch = globalWindow.__BOOTSTRAP_SKIP_PUBLIC_FETCH__ === true;
   let initialSettings: unknown = globalWindow.__BOOTSTRAP_SETTINGS__;
   let initialBootstrap = asPublicBootstrapPayload(globalWindow.__BOOTSTRAP_PUBLIC__);
 
   try {
-    if (!initialBootstrap) {
+    if (!initialBootstrap && !shouldSkipPublicBootstrapFetch) {
       const bootstrapPromise = globalWindow.__BOOTSTRAP_PUBLIC_PROMISE__;
       if (bootstrapPromise) {
         initialBootstrap = asPublicBootstrapPayload(await bootstrapPromise);
       }
     }
-    if (!initialBootstrap) {
+    if (!initialBootstrap && !shouldSkipPublicBootstrapFetch) {
       const response = await apiFetch(apiBase, "/api/public/bootstrap");
       if (response.ok) {
         initialBootstrap = asPublicBootstrapPayload(await response.json());

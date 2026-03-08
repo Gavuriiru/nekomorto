@@ -19,11 +19,11 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
-import type { Project } from "@/data/projects";
 import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
 import { formatDateTime } from "@/lib/date";
 import { usePageMeta } from "@/hooks/use-page-meta";
+import { readWindowPublicBootstrapCurrentUser } from "@/lib/public-bootstrap-global";
 import type { OperationalAlertsResponse } from "@/types/operational-alerts";
 import { ArrowDown, ArrowUp, SlidersHorizontal } from "lucide-react";
 import { toast } from "@/components/ui/use-toast";
@@ -49,17 +49,20 @@ type DashboardComment = {
   status: string;
 };
 
-type AnalyticsOverviewResponse = {
-  metrics?: {
-    views?: number;
-  };
+type DashboardQuickProject = {
+  id: string;
+  title: string;
+  status: string;
 };
 
-type AnalyticsTimeseriesResponse = {
-  series?: Array<{
-    date: string;
-    value: number;
-  }>;
+type DashboardOverviewMetrics = {
+  totalProjects: number;
+  totalMedia: number;
+  activeProjects: number;
+  finishedProjects: number;
+  totalViewsLast7: number;
+  totalProjectViewsLast7: number;
+  totalPostViewsLast7: number;
 };
 
 type DashboardHomeRole = "editor" | "moderador" | "admin";
@@ -151,6 +154,207 @@ const normalizeDashboardWidgets = (value: unknown): DashboardWidgetId[] => {
   return Array.from(dedupe);
 };
 
+const EMPTY_DASHBOARD_OVERVIEW = Object.freeze({
+  metrics: {
+    totalProjects: 0,
+    totalMedia: 0,
+    activeProjects: 0,
+    finishedProjects: 0,
+    totalViewsLast7: 0,
+    totalProjectViewsLast7: 0,
+    totalPostViewsLast7: 0,
+  } satisfies DashboardOverviewMetrics,
+  analyticsSeries7d: [] as Array<{ date: string; value: number }>,
+  rankedProjects: [] as DashboardQuickProject[],
+  recentPosts: [] as DashboardPost[],
+  recentComments: [] as DashboardComment[],
+  pendingCommentsCount: 0,
+  quickProjects: [] as DashboardQuickProject[],
+});
+
+const normalizeDashboardOverview = (value: unknown) => {
+  const input = value && typeof value === "object" ? (value as Record<string, unknown>) : {};
+  const metricsInput =
+    input.metrics && typeof input.metrics === "object"
+      ? (input.metrics as Record<string, unknown>)
+      : {};
+  const normalizeQuickProject = (item: unknown): DashboardQuickProject | null => {
+    if (!item || typeof item !== "object") {
+      return null;
+    }
+    const candidate = item as Record<string, unknown>;
+    const id = String(candidate.id || "").trim();
+    if (!id) {
+      return null;
+    }
+    return {
+      id,
+      title: String(candidate.title || ""),
+      status: String(candidate.status || ""),
+    };
+  };
+  const normalizePost = (item: unknown): DashboardPost | null => {
+    if (!item || typeof item !== "object") {
+      return null;
+    }
+    const candidate = item as Record<string, unknown>;
+    const id = String(candidate.id || "").trim();
+    if (!id) {
+      return null;
+    }
+    return {
+      id,
+      slug: String(candidate.slug || ""),
+      title: String(candidate.title || ""),
+      views: Number(candidate.views || 0),
+      status: String(candidate.status || ""),
+      publishedAt: String(candidate.publishedAt || ""),
+      updatedAt: String(candidate.updatedAt || candidate.publishedAt || ""),
+    };
+  };
+  const normalizeComment = (item: unknown): DashboardComment | null => {
+    if (!item || typeof item !== "object") {
+      return null;
+    }
+    const candidate = item as Record<string, unknown>;
+    const id = String(candidate.id || "").trim();
+    if (!id) {
+      return null;
+    }
+    return {
+      id,
+      author: String(candidate.author || ""),
+      message: String(candidate.message || ""),
+      page: String(candidate.page || ""),
+      createdAt: String(candidate.createdAt || ""),
+      url: String(candidate.url || ""),
+      status: String(candidate.status || "approved"),
+    };
+  };
+
+  return {
+    metrics: {
+      totalProjects: Number(metricsInput.totalProjects || 0),
+      totalMedia: Number(metricsInput.totalMedia || 0),
+      activeProjects: Number(metricsInput.activeProjects || 0),
+      finishedProjects: Number(metricsInput.finishedProjects || 0),
+      totalViewsLast7: Number(metricsInput.totalViewsLast7 || 0),
+      totalProjectViewsLast7: Number(metricsInput.totalProjectViewsLast7 || 0),
+      totalPostViewsLast7: Number(metricsInput.totalPostViewsLast7 || 0),
+    } satisfies DashboardOverviewMetrics,
+    analyticsSeries7d: Array.isArray(input.analyticsSeries7d)
+      ? input.analyticsSeries7d
+          .map((item) => {
+            if (!item || typeof item !== "object") {
+              return null;
+            }
+            const candidate = item as Record<string, unknown>;
+            return {
+              date: String(candidate.date || ""),
+              value: Number(candidate.value || 0),
+            };
+          })
+          .filter((item): item is { date: string; value: number } => Boolean(item?.date))
+      : [],
+    rankedProjects: Array.isArray(input.rankedProjects)
+      ? input.rankedProjects
+          .map(normalizeQuickProject)
+          .filter((item): item is DashboardQuickProject => Boolean(item))
+      : [],
+    recentPosts: Array.isArray(input.recentPosts)
+      ? input.recentPosts.map(normalizePost).filter((item): item is DashboardPost => Boolean(item))
+      : [],
+    recentComments: Array.isArray(input.recentComments)
+      ? input.recentComments
+          .map(normalizeComment)
+          .filter((item): item is DashboardComment => Boolean(item))
+      : [],
+    pendingCommentsCount: Number(input.pendingCommentsCount || 0),
+    quickProjects: Array.isArray(input.quickProjects)
+      ? input.quickProjects
+          .map(normalizeQuickProject)
+          .filter((item): item is DashboardQuickProject => Boolean(item))
+      : [],
+  };
+};
+
+const DashboardLoadingSkeleton = () => (
+  <div
+    className="mt-10 space-y-10"
+    data-testid="dashboard-loading-skeleton"
+    role="status"
+    aria-live="polite"
+    aria-busy="true"
+  >
+    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      {Array.from({ length: 4 }).map((_, index) => (
+        <div
+          key={`dashboard-skeleton-metric-${index + 1}`}
+          className="rounded-2xl border border-border/60 bg-linear-to-br from-card/70 to-background/60 p-5"
+        >
+          <Skeleton className="h-4 w-28" />
+          <Skeleton className="mt-4 h-8 w-20" />
+          <Skeleton className="mt-3 h-3 w-36" />
+        </div>
+      ))}
+    </div>
+    <section className="grid gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+      <div className="space-y-6">
+        <div className="rounded-3xl border border-border/60 bg-card/60 p-6">
+          <Skeleton className="h-4 w-32" />
+          <Skeleton className="mt-4 h-9 w-24" />
+          <Skeleton className="mt-3 h-3 w-40" />
+          <Skeleton className="mt-6 h-32 w-full rounded-2xl" />
+        </div>
+        <div className="rounded-3xl border border-border/60 bg-card/60 p-6">
+          <Skeleton className="h-5 w-44" />
+          <Skeleton className="mt-2 h-3 w-32" />
+          <div className="mt-6 space-y-4">
+            {Array.from({ length: 3 }).map((_, index) => (
+              <Skeleton
+                key={`dashboard-skeleton-rank-${index + 1}`}
+                className="h-16 w-full rounded-2xl"
+              />
+            ))}
+          </div>
+        </div>
+        <div className="rounded-3xl border border-border/60 bg-card/60 p-6">
+          <Skeleton className="h-5 w-36" />
+          <Skeleton className="mt-2 h-3 w-40" />
+          <div className="mt-6 space-y-4">
+            {Array.from({ length: 3 }).map((_, index) => (
+              <Skeleton
+                key={`dashboard-skeleton-post-${index + 1}`}
+                className="h-20 w-full rounded-2xl"
+              />
+            ))}
+          </div>
+        </div>
+      </div>
+      <aside className="space-y-6">
+        {Array.from({ length: 3 }).map((_, index) => (
+          <div
+            key={`dashboard-skeleton-side-${index + 1}`}
+            className="rounded-3xl border border-border/60 bg-card/60 p-6"
+          >
+            <Skeleton className="h-5 w-32" />
+            <Skeleton className="mt-2 h-3 w-36" />
+            <div className="mt-5 space-y-3">
+              {Array.from({ length: index === 0 ? 2 : 3 }).map((__, rowIndex) => (
+                <Skeleton
+                  key={`dashboard-skeleton-side-${index + 1}-row-${rowIndex + 1}`}
+                  className="h-16 w-full rounded-2xl"
+                />
+              ))}
+            </div>
+          </div>
+        ))}
+      </aside>
+    </section>
+    <span className="sr-only">Carregando dashboard...</span>
+  </div>
+);
+
 const Dashboard = () => {
   usePageMeta({ title: "Dashboard", noIndex: true });
 
@@ -163,7 +367,19 @@ const Dashboard = () => {
     avatarUrl?: string | null;
     grants?: Partial<Record<string, boolean>>;
     permissions?: string[];
-  } | null>(null);
+  } | null>(() => {
+    const bootstrapUser = readWindowPublicBootstrapCurrentUser();
+    return bootstrapUser
+      ? {
+          id: bootstrapUser.id,
+          name: bootstrapUser.name,
+          username: bootstrapUser.username,
+          avatarUrl: bootstrapUser.avatarUrl,
+          grants: bootstrapUser.grants,
+          permissions: bootstrapUser.permissions,
+        }
+      : null;
+  });
   const [isLoadingUser, setIsLoadingUser] = useState(true);
   const [isCustomizeOpen, setIsCustomizeOpen] = useState(false);
   const [homePreferences, setHomePreferences] = useState<
@@ -172,18 +388,11 @@ const Dashboard = () => {
   const [allPreferences, setAllPreferences] = useState<Record<string, unknown>>({});
   const [customDraftWidgets, setCustomDraftWidgets] = useState<DashboardWidgetId[]>([]);
   const [isSavingPreferences, setIsSavingPreferences] = useState(false);
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [posts, setPosts] = useState<DashboardPost[]>([]);
-  const [recentComments, setRecentComments] = useState<DashboardComment[]>([]);
-  const [pendingCommentsCount, setPendingCommentsCount] = useState(0);
-  const [analyticsSeries7d, setAnalyticsSeries7d] = useState<
-    Array<{ date: string; value: number }>
-  >([]);
-  const [analyticsTotalViews7d, setAnalyticsTotalViews7d] = useState(0);
-  const [analyticsProjectViews7d, setAnalyticsProjectViews7d] = useState(0);
-  const [analyticsPostViews7d, setAnalyticsPostViews7d] = useState(0);
+  const [overview, setOverview] = useState(() => EMPTY_DASHBOARD_OVERVIEW);
   const [isLoadingOverview, setIsLoadingOverview] = useState(true);
+  const [isLoadingPreferences, setIsLoadingPreferences] = useState(true);
   const [hasOverviewError, setHasOverviewError] = useState(false);
+  const [isExportingReport, setIsExportingReport] = useState(false);
   const [reloadTick, setReloadTick] = useState(0);
   const [operationalAlerts, setOperationalAlerts] = useState<OperationalAlertsResponse | null>(
     null,
@@ -220,6 +429,7 @@ const Dashboard = () => {
   useEffect(() => {
     let isActive = true;
     const loadPreferences = async () => {
+      setIsLoadingPreferences(true);
       try {
         const response = await apiFetch(apiBase, "/api/me/preferences", {
           auth: true,
@@ -265,6 +475,10 @@ const Dashboard = () => {
           setHomePreferences({});
           setAllPreferences({});
         }
+      } finally {
+        if (isActive) {
+          setIsLoadingPreferences(false);
+        }
       }
     };
     void loadPreferences();
@@ -279,118 +493,27 @@ const Dashboard = () => {
       setIsLoadingOverview(true);
       setHasOverviewError(false);
       try {
-        const [
-          overviewAllRes,
-          overviewProjectRes,
-          overviewPostRes,
-          seriesRes,
-          projectsRes,
-          postsRes,
-          recentCommentsRes,
-        ] = await Promise.all([
-          apiFetch(apiBase, "/api/analytics/overview?range=7d&type=all", { auth: true }),
-          apiFetch(apiBase, "/api/analytics/overview?range=7d&type=project", { auth: true }),
-          apiFetch(apiBase, "/api/analytics/overview?range=7d&type=post", { auth: true }),
-          apiFetch(apiBase, "/api/analytics/timeseries?range=7d&type=all&metric=views", {
-            auth: true,
-          }),
-          apiFetch(apiBase, "/api/projects", { auth: true }),
-          apiFetch(apiBase, "/api/posts", { auth: true }),
-          apiFetch(apiBase, "/api/comments/recent?limit=3", { auth: true }),
-        ]);
+        const overviewResponse = await apiFetch(apiBase, "/api/dashboard/overview", {
+          auth: true,
+          cache: "no-store",
+        });
         if (!isActive) {
           return;
         }
-        if (
-          !overviewAllRes.ok ||
-          !overviewProjectRes.ok ||
-          !overviewPostRes.ok ||
-          !seriesRes.ok ||
-          !projectsRes.ok ||
-          !postsRes.ok ||
-          !recentCommentsRes.ok
-        ) {
+        if (!overviewResponse.ok) {
           throw new Error("dashboard_overview_load_failed");
         }
-        const [
-          overviewAll,
-          overviewProject,
-          overviewPost,
-          seriesData,
-          projectsData,
-          postsData,
-          commentsData,
-        ] = await Promise.all([
-          overviewAllRes.json(),
-          overviewProjectRes.json(),
-          overviewPostRes.json(),
-          seriesRes.json(),
-          projectsRes.json(),
-          postsRes.json(),
-          recentCommentsRes.json(),
-        ]);
+        const overviewPayload = await overviewResponse.json();
         if (!isActive) {
           return;
         }
-        setAnalyticsTotalViews7d(
-          Number((overviewAll as AnalyticsOverviewResponse)?.metrics?.views || 0),
-        );
-        setAnalyticsProjectViews7d(
-          Number((overviewProject as AnalyticsOverviewResponse)?.metrics?.views || 0),
-        );
-        setAnalyticsPostViews7d(
-          Number((overviewPost as AnalyticsOverviewResponse)?.metrics?.views || 0),
-        );
-        setAnalyticsSeries7d(
-          Array.isArray((seriesData as AnalyticsTimeseriesResponse)?.series)
-            ? (seriesData as AnalyticsTimeseriesResponse).series || []
-            : [],
-        );
-        const projectsPayload = projectsData as { projects?: Project[] };
-        const postsPayload = postsData as { posts?: DashboardPost[] };
-        const commentsPayload = commentsData as {
-          comments?: Array<{
-            id: string;
-            name: string;
-            content: string;
-            targetLabel: string;
-            createdAt: string;
-            targetUrl: string;
-            status?: string;
-          }>;
-          pendingCount?: number;
-        };
-        setProjects(Array.isArray(projectsPayload.projects) ? projectsPayload.projects : []);
-        setPosts(Array.isArray(postsPayload.posts) ? postsPayload.posts : []);
-        setRecentComments(
-          Array.isArray(commentsPayload.comments)
-            ? commentsPayload.comments.map((comment) => ({
-                id: comment.id,
-                author: comment.name,
-                message: comment.content,
-                page: comment.targetLabel,
-                createdAt: comment.createdAt,
-                url: comment.targetUrl,
-                status: comment.status || "approved",
-              }))
-            : [],
-        );
-        setPendingCommentsCount(
-          Number.isFinite(commentsPayload.pendingCount) ? Number(commentsPayload.pendingCount) : 0,
-        );
+        setOverview(normalizeDashboardOverview(overviewPayload));
       } catch {
         if (!isActive) {
           return;
         }
         setHasOverviewError(true);
-        setProjects([]);
-        setPosts([]);
-        setRecentComments([]);
-        setPendingCommentsCount(0);
-        setAnalyticsTotalViews7d(0);
-        setAnalyticsProjectViews7d(0);
-        setAnalyticsPostViews7d(0);
-        setAnalyticsSeries7d([]);
+        setOverview(EMPTY_DASHBOARD_OVERVIEW);
       } finally {
         if (isActive) {
           setIsLoadingOverview(false);
@@ -457,57 +580,31 @@ const Dashboard = () => {
     return days;
   }, []);
 
-  const totalProjects = projects.length;
-  const totalMedia = projects.reduce(
-    (sum, project) => sum + (project.episodeDownloads?.length || 0),
-    0,
-  );
-  const activeProjects = projects.filter((project) => {
-    const status = project.status.toLowerCase();
-    return status.includes("andamento") || status.includes("produ");
-  }).length;
-  const finishedProjects = projects.filter((project) => {
-    const status = project.status.toLowerCase();
-    return status.includes("complet") || status.includes("lan");
-  }).length;
-
-  const totalProjectViews = projects.reduce((sum, project) => sum + (project.views ?? 0), 0);
-  const totalPostViews = posts.reduce((sum, post) => sum + (post.views ?? 0), 0);
-  const totalViews = totalProjectViews + totalPostViews;
-  const totalProjectViewsLast7 = analyticsProjectViews7d;
-  const totalPostViewsLast7 = analyticsPostViews7d;
-  const totalViewsLast7 = analyticsTotalViews7d;
+  const totalProjects = overview.metrics.totalProjects;
+  const totalMedia = overview.metrics.totalMedia;
+  const activeProjects = overview.metrics.activeProjects;
+  const finishedProjects = overview.metrics.finishedProjects;
+  const totalProjectViewsLast7 = overview.metrics.totalProjectViewsLast7;
+  const totalPostViewsLast7 = overview.metrics.totalPostViewsLast7;
+  const totalViewsLast7 = overview.metrics.totalViewsLast7;
   const analyticsAllHref = "/dashboard/analytics?range=30d&type=all";
   const analyticsProjectHref = "/dashboard/analytics?range=30d&type=project";
   const analyticsPostHref = "/dashboard/analytics?range=30d&type=post";
 
-  const rankedProjects = projects
-    .map((project) => ({
-      ...project,
-      views: project.views ?? 0,
-    }))
-    .filter((project) => project.views > 0)
-    .sort((a, b) => b.views - a.views);
+  const rankedProjects = overview.rankedProjects;
   const hasProjectViewData = rankedProjects.length > 0;
   const hasAnalyticsData = totalViewsLast7 > 0;
+  const isDashboardReady = !isLoadingOverview && !isLoadingUser && !isLoadingPreferences;
 
   const dailyTotals = useMemo(
-    () => last7Days.map((day) => analyticsSeries7d.find((item) => item.date === day)?.value ?? 0),
-    [analyticsSeries7d, last7Days],
-  );
-
-  const recentPosts = useMemo(
     () =>
-      posts
-        .slice()
-        .sort((a, b) => {
-          const aDate = new Date(a.updatedAt || a.publishedAt).getTime();
-          const bDate = new Date(b.updatedAt || b.publishedAt).getTime();
-          return bDate - aDate;
-        })
-        .slice(0, 3),
-    [posts],
+      last7Days.map((day) => overview.analyticsSeries7d.find((item) => item.date === day)?.value ?? 0),
+    [last7Days, overview.analyticsSeries7d],
   );
+  const recentPosts = overview.recentPosts;
+  const recentComments = overview.recentComments;
+  const pendingCommentsCount = overview.pendingCommentsCount;
+  const quickProjects = overview.quickProjects;
 
   const chartWidth = 100;
   const chartHeight = 40;
@@ -673,7 +770,11 @@ const Dashboard = () => {
     setCustomDraftWidgets(DASHBOARD_ROLE_PRESETS[homeRole]);
   }, [homeRole, persistHomeWidgetsByRole]);
 
-  const handleExportReport = () => {
+  const handleExportReport = async () => {
+    if (isExportingReport) {
+      return;
+    }
+    setIsExportingReport(true);
     const escapeCsv = (value: string | number | null | undefined) => {
       const text = String(value ?? "");
       if (text.includes('"') || text.includes(",") || text.includes("\n")) {
@@ -682,59 +783,112 @@ const Dashboard = () => {
       return text;
     };
 
-    const rows: string[] = [];
-    rows.push("Resumo");
-    rows.push(`Total de projetos,${totalProjects}`);
-    rows.push(`Total de mídias,${totalMedia}`);
-    rows.push(`Projetos ativos,${activeProjects}`);
-    rows.push(`Projetos finalizados,${finishedProjects}`);
-    rows.push(`Acessos em projetos,${totalProjectViews}`);
-    rows.push(`Acessos em posts,${totalPostViews}`);
-    rows.push(`Acessos totais,${totalViews}`);
-    rows.push("");
-    rows.push("Projetos");
-    rows.push("id,titulo,status,views,comentarios,atualizado_em");
-    projects.forEach((project) => {
-      rows.push(
-        [
-          escapeCsv(project.id),
-          escapeCsv(project.title),
-          escapeCsv(project.status),
-          escapeCsv(project.views ?? 0),
-          escapeCsv(project.commentsCount ?? 0),
-          escapeCsv(project.updatedAt ?? ""),
-        ].join(","),
+    try {
+      const [projectsResponse, postsResponse] = await Promise.all([
+        apiFetch(apiBase, "/api/projects", { auth: true, cache: "no-store" }),
+        apiFetch(apiBase, "/api/posts", { auth: true, cache: "no-store" }),
+      ]);
+      if (!projectsResponse.ok || !postsResponse.ok) {
+        throw new Error("dashboard_export_load_failed");
+      }
+      const [projectsPayload, postsPayload] = (await Promise.all([
+        projectsResponse.json(),
+        postsResponse.json(),
+      ])) as [
+        {
+          projects?: Array<{
+            id: string;
+            title?: string;
+            status?: string;
+            views?: number;
+            commentsCount?: number;
+            updatedAt?: string;
+          }>;
+        },
+        {
+          posts?: Array<{
+            id: string;
+            slug?: string;
+            title?: string;
+            status?: string;
+            views?: number;
+            commentsCount?: number;
+            publishedAt?: string;
+            updatedAt?: string;
+          }>;
+        },
+      ];
+      const exportProjects = Array.isArray(projectsPayload.projects) ? projectsPayload.projects : [];
+      const exportPosts = Array.isArray(postsPayload.posts) ? postsPayload.posts : [];
+      const totalProjectViews = exportProjects.reduce(
+        (sum, project) => sum + Number(project.views || 0),
+        0,
       );
-    });
-    rows.push("");
-    rows.push("Posts");
-    rows.push("id,slug,titulo,status,views,comentarios,publicado_em,atualizado_em");
-    posts.forEach((post) => {
-      rows.push(
-        [
-          escapeCsv(post.id),
-          escapeCsv(post.slug),
-          escapeCsv(post.title),
-          escapeCsv(post.status),
-          escapeCsv(post.views ?? 0),
-          escapeCsv((post as { commentsCount?: number }).commentsCount ?? 0),
-          escapeCsv(post.publishedAt ?? ""),
-          escapeCsv(post.updatedAt ?? ""),
-        ].join(","),
-      );
-    });
+      const totalPostViews = exportPosts.reduce((sum, post) => sum + Number(post.views || 0), 0);
+      const totalViews = totalProjectViews + totalPostViews;
 
-    const csvContent = `\uFEFF${rows.join("\n")}`;
-    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-    const url = window.URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    const dateStamp = new Date().toISOString().slice(0, 10);
-    link.download = `relatorio-dashboard-${dateStamp}.csv`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    window.URL.revokeObjectURL(url);
+      const rows: string[] = [];
+      rows.push("Resumo");
+      rows.push(`Total de projetos,${totalProjects}`);
+      rows.push(`Total de midias,${totalMedia}`);
+      rows.push(`Projetos ativos,${activeProjects}`);
+      rows.push(`Projetos finalizados,${finishedProjects}`);
+      rows.push(`Acessos em projetos,${totalProjectViews}`);
+      rows.push(`Acessos em posts,${totalPostViews}`);
+      rows.push(`Acessos totais,${totalViews}`);
+      rows.push("");
+      rows.push("Projetos");
+      rows.push("id,titulo,status,views,comentarios,atualizado_em");
+      exportProjects.forEach((project) => {
+        rows.push(
+          [
+            escapeCsv(project.id),
+            escapeCsv(project.title),
+            escapeCsv(project.status),
+            escapeCsv(project.views ?? 0),
+            escapeCsv(project.commentsCount ?? 0),
+            escapeCsv(project.updatedAt ?? ""),
+          ].join(","),
+        );
+      });
+      rows.push("");
+      rows.push("Posts");
+      rows.push("id,slug,titulo,status,views,comentarios,publicado_em,atualizado_em");
+      exportPosts.forEach((post) => {
+        rows.push(
+          [
+            escapeCsv(post.id),
+            escapeCsv(post.slug),
+            escapeCsv(post.title),
+            escapeCsv(post.status),
+            escapeCsv(post.views ?? 0),
+            escapeCsv(post.commentsCount ?? 0),
+            escapeCsv(post.publishedAt ?? ""),
+            escapeCsv(post.updatedAt ?? ""),
+          ].join(","),
+        );
+      });
+
+      const csvContent = `\uFEFF${rows.join("\n")}`;
+      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      const dateStamp = new Date().toISOString().slice(0, 10);
+      link.download = `relatorio-dashboard-${dateStamp}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    } catch {
+      toast({
+        title: "Falha ao exportar relatorio",
+        description: "Tente novamente em alguns instantes.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsExportingReport(false);
+    }
   };
 
   return (
@@ -770,13 +924,19 @@ const Dashboard = () => {
               <SlidersHorizontal className="mr-2 h-4 w-4" />
               Personalizar painel
             </Button>
-            {currentUser ? (
+            {isLoadingUser ? (
+              <Skeleton
+                className="h-10 w-40 shrink-0 rounded-md border border-border/70"
+                data-testid="dashboard-header-user-action-skeleton"
+              />
+            ) : currentUser ? (
               <Button
                 variant="outline"
                 className="border-border/70 bg-card/60 px-4 text-muted-foreground hover:text-foreground"
-                onClick={handleExportReport}
+                onClick={() => void handleExportReport()}
+                disabled={isExportingReport}
               >
-                Exportar relatório
+                {isExportingReport ? "Exportando..." : "Exportar relatorio"}
               </Button>
             ) : (
               <Link to="/login">
@@ -791,12 +951,8 @@ const Dashboard = () => {
           </div>
         </header>
 
-        {isLoadingOverview ? (
-          <AsyncState
-            kind="loading"
-            title="Carregando dashboard"
-            description="Buscando analytics, projetos, posts e comentários."
-          />
+        {!isDashboardReady ? (
+          <DashboardLoadingSkeleton />
         ) : hasOverviewError ? (
           <AsyncState
             kind="error"
@@ -1217,7 +1373,7 @@ const Dashboard = () => {
                     <h2 className="text-lg font-semibold">Projetos cadastrados</h2>
                     <p className="text-sm text-muted-foreground">Acesso rápido ao catálogo.</p>
                     <div className="mt-5 space-y-3">
-                      {projects.slice(0, 3).map((project) => (
+                      {quickProjects.map((project) => (
                         <Link
                           key={project.id}
                           to={`/projeto/${project.id}`}
@@ -1229,7 +1385,7 @@ const Dashboard = () => {
                           </Badge>
                         </Link>
                       ))}
-                      {projects.length > 3 && (
+                      {totalProjects > 3 && (
                         <Link
                           to="/projetos"
                           className="block w-full rounded-xl border border-border/60 bg-card/60 px-4 py-3 text-center text-sm text-muted-foreground transition hover:border-primary/40 hover:bg-primary/5 hover:text-foreground"

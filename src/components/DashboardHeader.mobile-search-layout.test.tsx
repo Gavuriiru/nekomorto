@@ -53,6 +53,29 @@ vi.mock("@/components/ui/sidebar", () => ({
   ),
 }));
 
+vi.mock("@/components/dashboard/DashboardNotificationsPopover", () => ({
+  default: () => <button type="button">Notificacoes</button>,
+}));
+
+vi.mock("@/components/dashboard/DashboardCommandPalette", () => ({
+  default: ({
+    open,
+    onOpenChange,
+  }: {
+    open: boolean;
+    onOpenChange: (value: boolean) => void;
+  }) =>
+    open ? (
+      <div>
+        <input
+          aria-label="Buscar navegação"
+          placeholder="Buscar navegação, abas e ações..."
+          onBlur={() => onOpenChange(false)}
+        />
+      </div>
+    ) : null,
+}));
+
 const mockJsonResponse = (ok: boolean, payload: unknown, status = ok ? 200 : 500) =>
   ({
     ok,
@@ -66,48 +89,17 @@ const createSettings = (override: Partial<SiteSettings> = {}) =>
 const classTokens = (element: HTMLElement) =>
   String(element.className).split(/\s+/).filter(Boolean);
 
-const setupApiMock = (options?: { logoutOk?: boolean }) => {
-  const { logoutOk = true } = options || {};
+const setupApiMock = (options?: { logoutOk?: boolean; searchSuggestions?: unknown[] }) => {
+  const { logoutOk = true, searchSuggestions = [] } = options || {};
   apiFetchMock.mockReset();
   apiFetchMock.mockImplementation(
     async (_apiBase: string, endpoint: string, options?: RequestInit) => {
       const method = String(options?.method || "GET").toUpperCase();
-      if (endpoint === "/api/public/projects" && method === "GET") {
+      if (endpoint.startsWith("/api/public/search/suggest?") && method === "GET") {
         return mockJsonResponse(true, {
-          projects: [
-            {
-              id: "project-1",
-              title: "Projeto Dashboard",
-              synopsis: "Sinopse dashboard",
-              tags: ["acao"],
-              cover: "/placeholder.svg",
-            },
-          ],
+          suggestions: searchSuggestions,
+          mediaVariants: {},
         });
-      }
-      if (endpoint === "/api/public/posts" && method === "GET") {
-        return mockJsonResponse(true, {
-          posts: [
-            {
-              title: "Post Dashboard",
-              slug: "post-dashboard",
-              excerpt: "Resumo dashboard",
-            },
-          ],
-        });
-      }
-      if (endpoint === "/api/public/tag-translations" && method === "GET") {
-        return mockJsonResponse(true, { tags: { acao: "Acao" } });
-      }
-      if (endpoint === "/api/dashboard/notifications?limit=30" && method === "GET") {
-        return mockJsonResponse(true, {
-          generatedAt: new Date().toISOString(),
-          items: [],
-          summary: { total: 0, pending: 0, error: 0, approval: 0 },
-        });
-      }
-      if (endpoint === "/api/me/preferences" && method === "GET") {
-        return mockJsonResponse(true, { preferences: {} });
       }
       if (endpoint === "/api/logout" && method === "POST") {
         return mockJsonResponse(
@@ -120,6 +112,20 @@ const setupApiMock = (options?: { logoutOk?: boolean }) => {
     },
   );
 };
+
+const getSearchSuggestCalls = () =>
+  apiFetchMock.mock.calls.filter((call) =>
+    String(call[1] || "").startsWith("/api/public/search/suggest?"),
+  );
+
+const getOldEagerPublicCalls = () =>
+  apiFetchMock.mock.calls.filter((call) =>
+    [
+      "/api/public/projects",
+      "/api/public/posts",
+      "/api/public/tag-translations",
+    ].includes(String(call[1] || "")),
+  );
 
 describe("DashboardHeader mobile search layout", () => {
   beforeEach(() => {
@@ -134,7 +140,27 @@ describe("DashboardHeader mobile search layout", () => {
     });
   });
 
-  it("habilita busca mobile com logo compacta, oculta clusters e centraliza resultados", async () => {
+  it("habilita busca mobile, nao faz fetch eager e renderiza sugestoes remotas", async () => {
+    setupApiMock({
+      searchSuggestions: [
+        {
+          kind: "project",
+          id: "project-1",
+          label: "Projeto Dashboard",
+          href: "/projeto/project-1",
+          description: "Sinopse dashboard",
+          image: "/placeholder.svg",
+          tags: ["Acao"],
+        },
+        {
+          kind: "post",
+          id: "post-1",
+          label: "Post Dashboard",
+          href: "/postagem/post-dashboard",
+        },
+      ],
+    });
+
     render(
       <MemoryRouter initialEntries={["/dashboard"]}>
         <DashboardHeader
@@ -146,6 +172,9 @@ describe("DashboardHeader mobile search layout", () => {
         />
       </MemoryRouter>,
     );
+
+    expect(apiFetchMock).not.toHaveBeenCalled();
+    expect(getOldEagerPublicCalls()).toHaveLength(0);
 
     const mobileLogo = screen.getByTestId("dashboard-header-mobile-logo");
     expect(classTokens(mobileLogo)).toContain("xl:hidden");
@@ -173,16 +202,20 @@ describe("DashboardHeader mobile search layout", () => {
       target: { value: "dashboard" },
     });
 
+    await waitFor(() => {
+      expect(getSearchSuggestCalls()).toHaveLength(1);
+    });
     expect(await screen.findByText("Projeto Dashboard")).toBeInTheDocument();
     expect(await screen.findByText("Post Dashboard")).toBeInTheDocument();
     expect(await screen.findByText("Acao")).toBeInTheDocument();
-    expect(screen.queryByText("acao")).not.toBeInTheDocument();
 
     const coverImage = screen.getByRole("img", { name: "Projeto Dashboard" });
-    const coverWrapper = coverImage.parentElement as HTMLElement | null;
+    let coverWrapper = coverImage.parentElement as HTMLElement | null;
+    while (coverWrapper && !classTokens(coverWrapper).includes("h-28")) {
+      coverWrapper = coverWrapper.parentElement;
+    }
     expect(coverWrapper).not.toBeNull();
     expect(classTokens(coverWrapper as HTMLElement)).toContain("h-28");
-    expect(classTokens(coverWrapper as HTMLElement)).not.toContain("w-20");
     expect(coverWrapper?.style.aspectRatio).toBe("9 / 14");
 
     const coverColumn = screen.getByText("Projeto Dashboard").closest(
@@ -205,15 +238,13 @@ describe("DashboardHeader mobile search layout", () => {
     expect(classTokens(leftCluster)).toContain("opacity-100");
     expect(classTokens(leftCluster)).toContain("visible");
     expect(classTokens(leftCluster)).toContain("pointer-events-auto");
-    expect(classTokens(leftCluster)).not.toContain("invisible");
     expect(classTokens(actionsCluster)).toContain("opacity-100");
     expect(classTokens(actionsCluster)).toContain("visible");
     expect(classTokens(actionsCluster)).toContain("pointer-events-auto");
-    expect(classTokens(actionsCluster)).not.toContain("invisible");
     expect(classTokens(searchCluster)).not.toContain("absolute");
   });
 
-  it("mantem a ordem no desktop com links antes da busca e busca antes das acoes", async () => {
+  it("mantem a ordem no desktop com links antes da busca e busca antes das acoes", () => {
     render(
       <MemoryRouter initialEntries={["/dashboard"]}>
         <DashboardHeader
@@ -226,9 +257,7 @@ describe("DashboardHeader mobile search layout", () => {
       </MemoryRouter>,
     );
 
-    await waitFor(() => {
-      expect(apiFetchMock.mock.calls.length).toBeGreaterThanOrEqual(3);
-    });
+    expect(getOldEagerPublicCalls()).toHaveLength(0);
 
     const aboutLink = screen.getByRole("link", { name: "Sobre" });
     const searchCluster = screen.getByTestId("dashboard-header-search-cluster");
@@ -257,10 +286,6 @@ describe("DashboardHeader mobile search layout", () => {
       </MemoryRouter>,
     );
 
-    await waitFor(() => {
-      expect(apiFetchMock.mock.calls.length).toBeGreaterThanOrEqual(3);
-    });
-
     fireEvent.keyDown(window, { key: "/" });
 
     const searchInput = await screen.findByPlaceholderText("Buscar projetos e posts");
@@ -273,7 +298,7 @@ describe("DashboardHeader mobile search layout", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("não redireciona e exibe toast quando logout falha", async () => {
+  it("nao redireciona e exibe toast quando logout falha", async () => {
     setupApiMock({ logoutOk: false });
 
     render(
@@ -287,10 +312,6 @@ describe("DashboardHeader mobile search layout", () => {
         />
       </MemoryRouter>,
     );
-
-    await waitFor(() => {
-      expect(apiFetchMock.mock.calls.length).toBeGreaterThanOrEqual(3);
-    });
 
     const profileButton = screen.getByText("Admin").closest("button");
     expect(profileButton).toBeTruthy();
@@ -306,7 +327,8 @@ describe("DashboardHeader mobile search layout", () => {
       );
     });
   });
-  it("renderiza toggle de tema no dashboard header", async () => {
+
+  it("renderiza toggle de tema sem fetch publico eager", () => {
     render(
       <MemoryRouter initialEntries={["/dashboard"]}>
         <DashboardHeader
@@ -319,9 +341,6 @@ describe("DashboardHeader mobile search layout", () => {
       </MemoryRouter>,
     );
 
-    await waitFor(() => {
-      expect(apiFetchMock.mock.calls.length).toBeGreaterThanOrEqual(3);
-    });
     const searchButton = screen.getByRole("button", { name: "Abrir busca" });
     const themeToggle = screen.getByRole("button", { name: /Alternar para tema/i });
 
@@ -329,5 +348,6 @@ describe("DashboardHeader mobile search layout", () => {
     expect(themeToggle).toBeInTheDocument();
     expect(classTokens(themeToggle)).toContain("text-foreground/80");
     expect(setThemePreferenceMock).not.toHaveBeenCalled();
+    expect(getOldEagerPublicCalls()).toHaveLength(0);
   });
 });

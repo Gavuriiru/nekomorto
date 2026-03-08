@@ -193,7 +193,7 @@ model AnalyticsEventRecord {
   id              String   @id
   position        Int      @default(0)
   ts              DateTime
-  day             String
+  day             DateTime @db.Date
   eventType       String
   resourceType    String
   resourceId      String
@@ -338,4 +338,352 @@ model UserPreferenceRecord {
   updatedAt DateTime @updatedAt
 
   @@map("user_preferences")
+}
+
+model NormalizedRuntimeStateRecord {
+  domain          String   @id
+  status          String
+  rowCount        Int?
+  quarantineCount Int      @default(0)
+  checksum        String?
+  data            Json?
+  updatedAt       DateTime @updatedAt
+
+  @@index([status], map: "normalized_runtime_state_status_idx")
+  @@map("normalized_runtime_state")
+}
+
+model UserV2Record {
+  id             String                   @id
+  position       Int                      @default(0)
+  name           String
+  phrase         String
+  bio            String
+  avatarUrl      String?
+  avatarDisplayX Float                    @default(0.5)
+  avatarDisplayY Float                    @default(0.5)
+  avatarZoom     Float                    @default(1)
+  avatarRotation Float                    @default(0)
+  status         String
+  accessRole     String?
+  createdAt      DateTime
+  updatedAt      DateTime
+  socials        UserSocialLinkRecord[]
+  roles          UserRoleRecord[]
+  permissions    UserPermissionRecord[]
+  favoriteWorks  UserFavoriteWorkRecord[]
+
+  @@index([position], map: "users_v2_position_idx")
+  @@index([accessRole], map: "users_v2_accessRole_idx")
+  @@index([status], map: "users_v2_status_idx")
+  @@map("users_v2")
+}
+
+model UserSocialLinkRecord {
+  id       String       @id
+  userId   String
+  position Int          @default(0)
+  label    String
+  href     String
+  user     UserV2Record @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, position], map: "user_social_links_userId_position_idx")
+  @@map("user_social_links")
+}
+
+model UserRoleRecord {
+  id       String       @id
+  userId   String
+  position Int          @default(0)
+  role     String
+  user     UserV2Record @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, position], map: "user_roles_userId_position_idx")
+  @@map("user_roles")
+}
+
+model UserPermissionRecord {
+  id         String       @id
+  userId     String
+  position   Int          @default(0)
+  permission String
+  user       UserV2Record @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, position], map: "user_permissions_userId_position_idx")
+  @@map("user_permissions")
+}
+
+model UserFavoriteWorkRecord {
+  id       String       @id
+  userId   String
+  category String
+  position Int          @default(0)
+  title    String
+  user     UserV2Record @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, category, position], map: "user_favorite_works_userId_category_position_idx")
+  @@map("user_favorite_works")
+}
+
+model UploadV2Record {
+  id              String   @id
+  position        Int      @default(0)
+  url             String   @unique
+  fileName        String
+  folder          String
+  area            String
+  mime            String
+  size            Int?
+  width           Int?
+  height          Int?
+  hashSha256      String?
+  altText         String
+  focalCrops      Json?
+  focalPoints     Json?
+  focalPoint      Json?
+  variants        Json?
+  variantsVersion Int      @default(1)
+  variantBytes    Int      @default(0)
+  createdAt       DateTime
+  updatedAt       DateTime
+
+  @@index([position], map: "uploads_v2_position_idx")
+  @@index([folder, createdAt], map: "uploads_v2_folder_createdAt_idx")
+  @@index([area], map: "uploads_v2_area_idx")
+  @@map("uploads_v2")
+}
+
+model ProjectV2Record {
+  id            String                 @id
+  position      Int                    @default(0)
+  anilistId     Int?
+  title         String
+  titleOriginal String
+  titleEnglish  String
+  synopsis      String
+  description   String
+  type          String
+  status        String
+  year          String
+  studio        String
+  episodes      String
+  tags          String[]
+  genres        String[]
+  cover         String
+  coverAlt      String
+  banner        String
+  bannerAlt     String
+  season        String
+  schedule      String
+  rating        String
+  country       String
+  source        String
+  discordRoleId String
+  producers     String[]
+  score         Float?
+  startDate     String
+  endDate       String
+  trailerUrl    String
+  forceHero     Boolean                @default(false)
+  heroImageUrl  String
+  heroImageAlt  String
+  staff         Json?
+  animeStaff    Json?
+  views         Int                    @default(0)
+  viewsDaily    Json?
+  commentsCount Int                    @default(0)
+  order         Int                    @default(0)
+  deletedAt     DateTime?
+  deletedBy     String?
+  createdAt     DateTime
+  updatedAt     DateTime
+  searchText    String
+  posts         PostV2Record[]
+  relations     ProjectRelationRecord[]
+  volumeEntries ProjectVolumeEntryRecord[]
+  episodesList  ProjectEpisodeRecord[]
+  updates       UpdateV2Record[]
+  comments      CommentV2Record[]      @relation("CommentProjectTarget")
+
+  @@index([position], map: "projects_v2_position_idx")
+  @@index([deletedAt, updatedAt], map: "projects_v2_deletedAt_updatedAt_idx")
+  @@map("projects_v2")
+}
+
+model ProjectRelationRecord {
+  id         String          @id
+  projectId  String
+  position   Int             @default(0)
+  relation   String
+  title      String
+  format     String
+  status     String
+  image      String
+  relatedId  String?
+  anilistId  String?
+  project    ProjectV2Record @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId, position], map: "project_relations_projectId_position_idx")
+  @@map("project_relations")
+}
+
+model ProjectVolumeEntryRecord {
+  id            String          @id
+  projectId     String
+  volume        Int
+  position      Int             @default(0)
+  synopsis      String
+  coverImageUrl String
+  coverImageAlt String
+  project       ProjectV2Record @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, volume], map: "project_volume_entries_projectId_volume_key")
+  @@index([projectId, position], map: "project_volume_entries_projectId_position_idx")
+  @@map("project_volume_entries")
+}
+
+model ProjectEpisodeRecord {
+  id                String                     @id
+  projectId         String
+  position          Int                        @default(0)
+  number            Int
+  volume            Int?
+  title             String
+  entryKind         String
+  entrySubtype      String?
+  readingOrder      Int?
+  displayLabel      String?
+  releaseDate       String
+  duration          String
+  coverImageUrl     String?
+  coverImageAlt     String
+  content           String
+  contentFormat     String
+  publicationStatus String
+  hash              String?
+  sizeBytes         Int?
+  chapterUpdatedAt  String
+  project           ProjectV2Record           @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  sources           ProjectEpisodeSourceRecord[]
+  comments          CommentV2Record[]         @relation("CommentEpisodeTarget")
+
+  @@index([projectId, position], map: "project_episodes_projectId_position_idx")
+  @@index([projectId, number, volume], map: "project_episodes_projectId_number_volume_idx")
+  @@map("project_episodes")
+}
+
+model ProjectEpisodeSourceRecord {
+  id        String               @id
+  episodeId String
+  position  Int                  @default(0)
+  label     String
+  url       String
+  episode   ProjectEpisodeRecord @relation(fields: [episodeId], references: [id], onDelete: Cascade)
+
+  @@index([episodeId, position], map: "project_episode_sources_episodeId_position_idx")
+  @@map("project_episode_sources")
+}
+
+model PostV2Record {
+  id            String             @id
+  position      Int                @default(0)
+  title         String
+  slug          String             @unique
+  coverImageUrl String?
+  coverAlt      String
+  excerpt       String
+  content       String
+  contentFormat String
+  author        String
+  publishedAt   DateTime?
+  scheduledAt   DateTime?
+  status        String
+  seoTitle      String
+  seoDescription String
+  projectId     String?
+  tags          String[]
+  views         Int                @default(0)
+  viewsDaily    Json?
+  commentsCount Int                @default(0)
+  deletedAt     DateTime?
+  deletedBy     String?
+  createdAt     DateTime
+  updatedAt     DateTime
+  searchText    String
+  project       ProjectV2Record?   @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  versions      PostVersionV2Record[]
+  comments      CommentV2Record[]  @relation("CommentPostTarget")
+
+  @@index([position], map: "posts_v2_position_idx")
+  @@index([status, publishedAt], map: "posts_v2_status_publishedAt_idx")
+  @@index([projectId], map: "posts_v2_projectId_idx")
+  @@index([deletedAt], map: "posts_v2_deletedAt_idx")
+  @@map("posts_v2")
+}
+
+model PostVersionV2Record {
+  id            String       @id
+  postId        String
+  position      Int          @default(0)
+  versionNumber Int
+  reason        String
+  label         String?
+  actorId       String?
+  actorName     String?
+  slug          String
+  createdAt     DateTime
+  snapshot      Json
+  post          PostV2Record @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@unique([postId, versionNumber], map: "post_versions_v2_postId_versionNumber_key")
+  @@index([position], map: "post_versions_v2_position_idx")
+  @@index([postId, createdAt], map: "post_versions_v2_postId_createdAt_idx")
+  @@map("post_versions_v2")
+}
+
+model UpdateV2Record {
+  id            String          @id
+  position      Int             @default(0)
+  projectId     String
+  projectTitle  String
+  episodeNumber String
+  kind          String
+  reason        String
+  unit          String
+  image         String
+  updatedAt     DateTime?
+  project       ProjectV2Record @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([position], map: "updates_v2_position_idx")
+  @@index([projectId, updatedAt], map: "updates_v2_projectId_updatedAt_idx")
+  @@map("updates_v2")
+}
+
+model CommentV2Record {
+  id          String             @id
+  position    Int                @default(0)
+  status      String
+  targetType  String
+  postId      String?
+  projectId   String?
+  episodeId   String?
+  parentId    String?
+  name        String
+  emailHash   String
+  content     String
+  avatarUrl   String
+  approvedAt  DateTime?
+  createdAt   DateTime?
+  targetMeta  Json?
+  updatedAt   DateTime
+  post        PostV2Record?      @relation("CommentPostTarget", fields: [postId], references: [id], onDelete: Cascade)
+  project     ProjectV2Record?   @relation("CommentProjectTarget", fields: [projectId], references: [id], onDelete: Cascade)
+  episode     ProjectEpisodeRecord? @relation("CommentEpisodeTarget", fields: [episodeId], references: [id], onDelete: Cascade)
+
+  @@index([position], map: "comments_v2_position_idx")
+  @@index([status, createdAt], map: "comments_v2_status_createdAt_idx")
+  @@index([postId], map: "comments_v2_postId_idx")
+  @@index([projectId], map: "comments_v2_projectId_idx")
+  @@index([episodeId], map: "comments_v2_episodeId_idx")
+  @@map("comments_v2")
 }

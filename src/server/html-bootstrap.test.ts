@@ -42,6 +42,7 @@ describe("html bootstrap injection", () => {
     expect(result).toContain("window.__BOOTSTRAP_PUBLIC__ = ");
     expect(result).toContain("window.__BOOTSTRAP_SETTINGS__ = ");
     expect(result).toContain("window.__BOOTSTRAP_PUBLIC_ME__ = ");
+    expect(result).toContain("window.__BOOTSTRAP_SKIP_PUBLIC_FETCH__ = false");
     expect(result).toContain("window.__BOOTSTRAP_PUBLIC_PROMISE__");
     expect(result).toContain("resolveThemeColorSection");
     expect(result).toContain("window.location.pathname");
@@ -109,6 +110,23 @@ describe("html bootstrap injection", () => {
     expect(result).toContain("<script>");
     expect(result).not.toContain('<script src="/bootstrap-init.js"></script>');
     expect(result).toContain("window.__BOOTSTRAP_PUBLIC__ = ");
+  });
+
+  it("permite bootstrap leve sem fetch publico inicial", () => {
+    const result = injectBootstrapGlobals({
+      html: "<!doctype html><html><head><!-- APP_BOOTSTRAP --></head><body></body></html>",
+      publicBootstrap: null,
+      settings: { site: { name: "Nekomata" } },
+      publicMe: { id: "user-1", name: "Admin" },
+      skipPublicFetch: true,
+    });
+
+    expect(result).toContain("window.__BOOTSTRAP_PUBLIC__ = null");
+    expect(result).toContain("window.__BOOTSTRAP_SETTINGS__ = ");
+    expect(result).toContain("window.__BOOTSTRAP_PUBLIC_ME__ = ");
+    expect(result).toContain("window.__BOOTSTRAP_SKIP_PUBLIC_FETCH__ = true");
+    expect(result).toContain("window.__BOOTSTRAP_PUBLIC_PROMISE__");
+    expect(result).toContain("fetch('/api/public/bootstrap'");
   });
 
   it("escapa payload inline para nao quebrar o HTML", () => {

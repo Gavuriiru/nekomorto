@@ -36,6 +36,10 @@ describe("buildApiContractV1", () => {
           method: "POST",
           path: "/api/projects/epub/export",
         }),
+        expect.objectContaining({
+          method: "GET",
+          path: "/api/dashboard/overview",
+        }),
       ]),
     );
     expect(typeof contract.generatedAt).toBe("string");

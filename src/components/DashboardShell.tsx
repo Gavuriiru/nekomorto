@@ -24,6 +24,7 @@ import {
   resolveGrants,
 } from "@/lib/access-control";
 import { buildAvatarRenderUrl } from "@/lib/avatar-render-url";
+import { readWindowPublicBootstrapCurrentUser } from "@/lib/public-bootstrap-global";
 import { uiCopy } from "@/lib/ui-copy";
 
 type DashboardUser = {
@@ -50,7 +51,7 @@ type DashboardShellProps = {
   onMenuItemClick?: (item: DashboardMenuItem, event: MouseEvent<HTMLAnchorElement>) => void;
 };
 
-let lastResolvedDashboardUser: DashboardUser | null = null;
+let lastResolvedDashboardUser: DashboardUser | null = readWindowPublicBootstrapCurrentUser();
 
 const DashboardShell = ({
   children,

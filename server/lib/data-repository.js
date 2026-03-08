@@ -1,5 +1,24 @@
 import crypto from "crypto";
 import { prisma } from "./prisma-client.js";
+import {
+  isNormalizedDomainReady,
+  loadCommentsFromNormalized,
+  loadNormalizedRuntimeStateMap,
+  loadPostVersionsFromNormalized,
+  loadPostsFromNormalized,
+  loadProjectsFromNormalized,
+  loadUpdatesFromNormalized,
+  loadUploadsFromNormalized,
+  loadUsersFromNormalized,
+  syncCommentsToNormalized,
+  syncPostVersionsToNormalized,
+  syncPostsToNormalized,
+  syncProjectsToNormalized,
+  syncUpdatesToNormalized,
+  syncUploadsToNormalized,
+  syncUsersToNormalized,
+  toDateOnlyOrNull,
+} from "./normalized-domain-store.js";
 
 const cloneValue = (value) => {
   try {
@@ -72,7 +91,7 @@ const toAnalyticsEventRow = (event, position) => ({
   id: String(event?.id || crypto.randomUUID()),
   position: Number.isFinite(Number(position)) ? Math.max(0, Math.floor(Number(position))) : 0,
   ts: toDateOrNull(event?.ts) || new Date(),
-  day: String(event?.day || ""),
+  day: toDateOnlyOrNull(event?.day) || toDateOnlyOrNull(event?.ts) || new Date(),
   eventType: String(event?.eventType || "view"),
   resourceType: String(event?.resourceType || "post"),
   resourceId: String(event?.resourceId || ""),
@@ -118,6 +137,8 @@ export class DbDataRepository {
     );
     this.auditLogNextPosition = 0;
     this.analyticsEventNextPosition = 0;
+    this.normalizedSchemaAvailable = false;
+    this.normalizedReadState = new Map();
     this.onBackgroundError = options.onBackgroundError;
     this.persistQueue = Promise.resolve();
     this.health = {
@@ -250,6 +271,18 @@ export class DbDataRepository {
   }
 
   async hydrate() {
+    this.normalizedReadState = await loadNormalizedRuntimeStateMap(prisma);
+    this.normalizedSchemaAvailable = this.normalizedReadState?.available === true;
+    const useNormalizedUsers = isNormalizedDomainReady(this.normalizedReadState, "users");
+    const useNormalizedPosts = isNormalizedDomainReady(this.normalizedReadState, "posts");
+    const useNormalizedPostVersions = isNormalizedDomainReady(
+      this.normalizedReadState,
+      "post_versions",
+    );
+    const useNormalizedProjects = isNormalizedDomainReady(this.normalizedReadState, "projects");
+    const useNormalizedUpdates = isNormalizedDomainReady(this.normalizedReadState, "updates");
+    const useNormalizedComments = isNormalizedDomainReady(this.normalizedReadState, "comments");
+    const useNormalizedUploads = isNormalizedDomainReady(this.normalizedReadState, "uploads");
     const [
       ownerIds,
       auditLogs,
@@ -257,15 +290,15 @@ export class DbDataRepository {
       analyticsDaily,
       analyticsMeta,
       allowedUsers,
-      users,
+      legacyUsers,
       linkTypes,
-      posts,
-      postVersions,
-      projects,
-      updates,
+      legacyPosts,
+      legacyPostVersions,
+      legacyProjects,
+      legacyUpdates,
       tagTranslations,
-      comments,
-      uploads,
+      legacyComments,
+      legacyUploads,
       pages,
       siteSettings,
       integrationSettings,
@@ -275,6 +308,12 @@ export class DbDataRepository {
       securityEvents,
       adminExportJobs,
       secretRotations,
+      normalizedUsers,
+      normalizedPosts,
+      normalizedPostVersions,
+      normalizedProjects,
+      normalizedUpdates,
+      normalizedUploads,
     ] = await Promise.all([
       prisma.ownerIdRecord.findMany({ orderBy: { position: "asc" } }),
       prisma.auditLogRecord.findMany({ orderBy: { position: "asc" } }),
@@ -314,7 +353,48 @@ export class DbDataRepository {
       typeof prisma.secretRotationRecord?.findMany === "function"
         ? prisma.secretRotationRecord.findMany({ orderBy: { rotatedAt: "desc" } })
         : Promise.resolve([]),
+      useNormalizedUsers ? loadUsersFromNormalized(prisma).catch(() => null) : Promise.resolve(null),
+      useNormalizedPosts ? loadPostsFromNormalized(prisma).catch(() => null) : Promise.resolve(null),
+      useNormalizedPostVersions
+        ? loadPostVersionsFromNormalized(prisma).catch(() => null)
+        : Promise.resolve(null),
+      useNormalizedProjects
+        ? loadProjectsFromNormalized(prisma).catch(() => null)
+        : Promise.resolve(null),
+      useNormalizedUpdates
+        ? loadUpdatesFromNormalized(prisma).catch(() => null)
+        : Promise.resolve(null),
+      useNormalizedUploads
+        ? loadUploadsFromNormalized(prisma).catch(() => null)
+        : Promise.resolve(null),
     ]);
+
+    const resolvedUsers = Array.isArray(normalizedUsers)
+      ? normalizedUsers
+      : legacyUsers.map((row) => cloneValue(row.data));
+    const resolvedPosts = Array.isArray(normalizedPosts)
+      ? normalizedPosts
+      : legacyPosts.map((row) => cloneValue(row.data));
+    const resolvedPostVersions = Array.isArray(normalizedPostVersions)
+      ? normalizedPostVersions
+      : legacyPostVersions.map((row) => cloneValue(row.data));
+    const resolvedProjects = Array.isArray(normalizedProjects)
+      ? normalizedProjects
+      : legacyProjects.map((row) => cloneValue(row.data));
+    const resolvedUpdates = Array.isArray(normalizedUpdates)
+      ? normalizedUpdates
+      : legacyUpdates.map((row) => cloneValue(row.data));
+    const resolvedUploads = Array.isArray(normalizedUploads)
+      ? normalizedUploads
+      : legacyUploads.map((row) => cloneValue(row.data));
+
+    const resolvedComments =
+      useNormalizedComments && typeof loadCommentsFromNormalized === "function"
+        ? await loadCommentsFromNormalized(prisma, {
+            posts: resolvedPosts,
+            projects: resolvedProjects,
+          }).catch(() => legacyComments.map((row) => cloneValue(row.data)))
+        : legacyComments.map((row) => cloneValue(row.data));
 
     this.snapshot.ownerIds = Array.from(
       new Set([...this.ownerIdsFallback, ...ownerIds.map((item) => String(item.userId))]),
@@ -328,17 +408,17 @@ export class DbDataRepository {
       ? cloneValue(analyticsMeta.data)
       : buildDefaultAnalyticsMeta(this.analyticsConfig);
     this.snapshot.allowedUsers = allowedUsers.map((item) => String(item.userId));
-    this.snapshot.users = users.map((row) => cloneValue(row.data));
+    this.snapshot.users = resolvedUsers;
     this.snapshot.linkTypes = linkTypes.map((row) => cloneValue(row.data));
-    this.snapshot.posts = posts.map((row) => cloneValue(row.data));
-    this.snapshot.postVersions = postVersions.map((row) => cloneValue(row.data));
-    this.snapshot.projects = projects.map((row) => cloneValue(row.data));
-    this.snapshot.updates = updates.map((row) => cloneValue(row.data));
+    this.snapshot.posts = resolvedPosts;
+    this.snapshot.postVersions = resolvedPostVersions;
+    this.snapshot.projects = resolvedProjects;
+    this.snapshot.updates = resolvedUpdates;
     this.snapshot.tagTranslations = tagTranslations?.data
       ? cloneValue(tagTranslations.data)
       : { tags: {}, genres: {}, staffRoles: {} };
-    this.snapshot.comments = comments.map((row) => cloneValue(row.data));
-    this.snapshot.uploads = uploads.map((row) => cloneValue(row.data));
+    this.snapshot.comments = resolvedComments;
+    this.snapshot.uploads = resolvedUploads;
     this.snapshot.pages = pages?.data ? cloneValue(pages.data) : {};
     this.snapshot.siteSettings = siteSettings?.data ? cloneValue(siteSettings.data) : {};
     this.snapshot.integrationSettings = integrationSettings?.data
@@ -664,9 +744,14 @@ export class DbDataRepository {
   }
 
   writeUsers(users) {
-    this.snapshot.users = cloneValue(ensureArray(users));
+    const previousUsers = cloneValue(this.snapshot.users);
+    const nextUsers = cloneValue(ensureArray(users));
+    this.snapshot.users = nextUsers;
     this.enqueuePersist("users", async () => {
-      const rows = this.snapshot.users.map((user, index) => ({
+      if (this.normalizedSchemaAvailable) {
+        await syncUsersToNormalized(prisma, previousUsers, nextUsers);
+      }
+      const rows = nextUsers.map((user, index) => ({
         id: String(user?.id || crypto.randomUUID()),
         position: index,
         accessRole: user?.accessRole ? String(user.accessRole) : null,
@@ -710,9 +795,14 @@ export class DbDataRepository {
   }
 
   writePosts(posts) {
-    this.snapshot.posts = cloneValue(ensureArray(posts));
+    const previousPosts = cloneValue(this.snapshot.posts);
+    const nextPosts = cloneValue(ensureArray(posts));
+    this.snapshot.posts = nextPosts;
     this.enqueuePersist("posts", async () => {
-      const rows = this.snapshot.posts.map((post, index) => ({
+      if (this.normalizedSchemaAvailable) {
+        await syncPostsToNormalized(prisma, previousPosts, nextPosts);
+      }
+      const rows = nextPosts.map((post, index) => ({
         id: String(post?.id || crypto.randomUUID()),
         position: index,
         slug: String(post?.slug || post?.id || crypto.randomUUID()),
@@ -744,9 +834,14 @@ export class DbDataRepository {
   }
 
   writePostVersions(entries) {
-    this.snapshot.postVersions = cloneValue(ensureArray(entries));
+    const previousEntries = cloneValue(this.snapshot.postVersions);
+    const nextEntries = cloneValue(ensureArray(entries));
+    this.snapshot.postVersions = nextEntries;
     this.enqueuePersist("post_versions", async () => {
-      const rows = this.snapshot.postVersions.map((entry, index) => ({
+      if (this.normalizedSchemaAvailable) {
+        await syncPostVersionsToNormalized(prisma, previousEntries, nextEntries);
+      }
+      const rows = nextEntries.map((entry, index) => ({
         id: String(entry?.id || crypto.randomUUID()),
         postId: String(entry?.postId || ""),
         position: index,
@@ -777,9 +872,14 @@ export class DbDataRepository {
   }
 
   writeProjects(projects) {
-    this.snapshot.projects = cloneValue(ensureArray(projects));
+    const previousProjects = cloneValue(this.snapshot.projects);
+    const nextProjects = cloneValue(ensureArray(projects));
+    this.snapshot.projects = nextProjects;
     this.enqueuePersist("projects", async () => {
-      const rows = this.snapshot.projects.map((project, index) => ({
+      if (this.normalizedSchemaAvailable) {
+        await syncProjectsToNormalized(prisma, previousProjects, nextProjects);
+      }
+      const rows = nextProjects.map((project, index) => ({
         id: String(project?.id || crypto.randomUUID()),
         position: index,
         deletedAt: toDateOrNull(project?.deletedAt),
@@ -799,9 +899,14 @@ export class DbDataRepository {
   }
 
   writeUpdates(updates) {
-    this.snapshot.updates = cloneValue(ensureArray(updates));
+    const previousUpdates = cloneValue(this.snapshot.updates);
+    const nextUpdates = cloneValue(ensureArray(updates));
+    this.snapshot.updates = nextUpdates;
     this.enqueuePersist("updates", async () => {
-      const rows = this.snapshot.updates.map((update, index) => ({
+      if (this.normalizedSchemaAvailable) {
+        await syncUpdatesToNormalized(prisma, previousUpdates, nextUpdates);
+      }
+      const rows = nextUpdates.map((update, index) => ({
         id: String(update?.id || crypto.randomUUID()),
         position: index,
         projectId: String(update?.projectId || ""),
@@ -840,9 +945,32 @@ export class DbDataRepository {
   }
 
   writeComments(comments) {
-    this.snapshot.comments = cloneValue(ensureArray(comments));
+    const previousComments = cloneValue(this.snapshot.comments);
+    const nextComments = cloneValue(ensureArray(comments));
+    const references = {
+      posts: cloneValue(this.snapshot.posts),
+      projects: cloneValue(this.snapshot.projects),
+    };
+    this.snapshot.comments = nextComments;
     this.enqueuePersist("comments", async () => {
-      const rows = this.snapshot.comments.map((comment, index) => ({
+      if (this.normalizedSchemaAvailable) {
+        const normalizedResult = await syncCommentsToNormalized(
+          prisma,
+          previousComments,
+          nextComments,
+          references,
+        );
+        if (
+          Array.isArray(normalizedResult?.quarantined) &&
+          normalizedResult.quarantined.length > 0
+        ) {
+          this.reportError(
+            "comments_v2_quarantine",
+            new Error(`quarantined=${normalizedResult.quarantined.length}`),
+          );
+        }
+      }
+      const rows = nextComments.map((comment, index) => ({
         id: String(comment?.id || crypto.randomUUID()),
         position: index,
         targetType: String(comment?.targetType || ""),
@@ -865,11 +993,16 @@ export class DbDataRepository {
   }
 
   writeUploads(uploads, options = {}) {
-    this.snapshot.uploads = cloneValue(ensureArray(uploads));
+    const previousUploads = cloneValue(this.snapshot.uploads);
+    const nextUploads = cloneValue(ensureArray(uploads));
+    this.snapshot.uploads = nextUploads;
     const persistPromise = this.enqueuePersist(
       "uploads",
       async () => {
-        const rows = this.snapshot.uploads.map((upload, index) => ({
+        if (this.normalizedSchemaAvailable) {
+          await syncUploadsToNormalized(prisma, previousUploads, nextUploads);
+        }
+        const rows = nextUploads.map((upload, index) => ({
           id: String(upload?.id || crypto.randomUUID()),
           position: index,
           url: String(upload?.url || ""),

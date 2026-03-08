@@ -208,6 +208,12 @@ const CONTRACT_BASE = Object.freeze({
       cache: "no-store",
     },
     {
+      method: "GET",
+      path: "/api/dashboard/overview",
+      auth: "session",
+      cache: "no-store",
+    },
+    {
       method: "DELETE",
       path: "/api/me/sessions/:sid",
       auth: "session",

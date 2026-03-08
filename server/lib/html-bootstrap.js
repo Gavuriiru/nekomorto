@@ -294,6 +294,7 @@ const buildInlineBootstrapInitScript = () =>
     "  var existingBootstrap = normalizeBootstrapPayload(window.__BOOTSTRAP_PUBLIC__);",
     "  var existingSettings =",
     "    (existingBootstrap && existingBootstrap.settings) || window.__BOOTSTRAP_SETTINGS__ || null;",
+    "  var shouldSkipPublicFetch = window.__BOOTSTRAP_SKIP_PUBLIC_FETCH__ === true;",
     "  var initialMode =",
     "    localThemePreference === 'light' || localThemePreference === 'dark'",
     "      ? localThemePreference",
@@ -317,6 +318,9 @@ const buildInlineBootstrapInitScript = () =>
     "      });",
     "    return;",
     "  }",
+    "  if (shouldSkipPublicFetch) {",
+    "    return;",
+    "  }",
     "  window.__BOOTSTRAP_PUBLIC_PROMISE__ = fetch('/api/public/bootstrap', {",
     "    credentials: 'same-origin',",
     "    cache: 'no-store',",
@@ -331,12 +335,19 @@ const buildInlineBootstrapInitScript = () =>
     "})();",
   ].join("\n");
 
-export const injectBootstrapGlobals = ({ html, publicBootstrap, settings, publicMe = null }) => {
+export const injectBootstrapGlobals = ({
+  html,
+  publicBootstrap,
+  settings,
+  publicMe = null,
+  skipPublicFetch = false,
+}) => {
   const bootstrapScript = [
     "<script>",
     `window.__BOOTSTRAP_PUBLIC__ = ${serializeInlineJson(publicBootstrap)};`,
     `window.__BOOTSTRAP_SETTINGS__ = ${serializeInlineJson(settings)};`,
     `window.__BOOTSTRAP_PUBLIC_ME__ = ${serializeInlineJson(publicMe)};`,
+    `window.__BOOTSTRAP_SKIP_PUBLIC_FETCH__ = ${skipPublicFetch ? "true" : "false"};`,
     buildInlineBootstrapInitScript(),
     "</script>",
   ].join("\n");

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { LogOut, Menu } from "lucide-react";
 import ThemedSvgLogo from "@/components/ThemedSvgLogo";
@@ -7,7 +7,6 @@ import {
   dashboardMenuItems as defaultMenuItems,
   type DashboardMenuItem,
 } from "@/components/dashboard-menu";
-import DashboardCommandPalette from "@/components/dashboard/DashboardCommandPalette";
 import DashboardNotificationsPopover from "@/components/dashboard/DashboardNotificationsPopover";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -22,26 +21,18 @@ import {
 import { toast } from "@/components/ui/use-toast";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { useSiteSettings } from "@/hooks/use-site-settings";
-import type { Project } from "@/data/projects";
 import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
 import { cn } from "@/lib/utils";
 import { getNavbarIcon } from "@/lib/navbar-icons";
 import { resolveBranding } from "@/lib/branding";
-import {
-  rankPosts,
-  rankProjects,
-  selectVisibleTags,
-  sortAlphabeticallyPtBr,
-} from "@/lib/search-ranking";
-import { PROJECT_COVER_ASPECT_RATIO } from "@/lib/project-card-layout";
-import { buildTranslationMap, translateTag } from "@/lib/project-taxonomy";
-import { useDynamicSynopsisClamp } from "@/hooks/use-dynamic-synopsis-clamp";
 import { useGlobalShortcuts } from "@/hooks/use-global-shortcuts";
 import { isEditableShortcutTarget } from "@/lib/keyboard-shortcuts";
 import { sanitizePublicHref } from "@/lib/url-safety";
 import { buildAvatarRenderUrl } from "@/lib/avatar-render-url";
 import { uiCopy } from "@/lib/ui-copy";
+import type { SearchSuggestion } from "@/types/search-suggestion";
+import type { UploadMediaVariantsMap } from "@/lib/upload-variants";
 
 type DashboardHeaderUser = {
   name?: string;
@@ -56,6 +47,13 @@ type DashboardHeaderProps = {
   menuItems?: DashboardMenuItem[];
   className?: string;
 };
+
+const DashboardCommandPalette = lazy(
+  () => import("@/components/dashboard/DashboardCommandPalette"),
+);
+const DashboardSearchPopover = lazy(
+  () => import("@/components/dashboard/DashboardSearchPopover"),
+);
 
 const DashboardHeader = ({
   currentUser,
@@ -73,16 +71,10 @@ const DashboardHeader = ({
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [query, setQuery] = useState("");
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [posts, setPosts] = useState<
-    Array<{
-      title: string;
-      slug: string;
-      excerpt?: string | null;
-    }>
-  >([]);
-  const [tagTranslations, setTagTranslations] = useState<Record<string, string>>({});
-  const tagTranslationMap = useMemo(() => buildTranslationMap(tagTranslations), [tagTranslations]);
+  const [remoteSuggestions, setRemoteSuggestions] = useState<SearchSuggestion[]>([]);
+  const [remoteMediaVariants, setRemoteMediaVariants] = useState<UploadMediaVariantsMap>({});
+  const [isSearchLoading, setIsSearchLoading] = useState(false);
+  const [hasSearchRequestFailed, setHasSearchRequestFailed] = useState(false);
   const searchRef = useRef<HTMLDivElement | null>(null);
   const searchInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -143,70 +135,9 @@ const DashboardHeader = ({
     .map((chunk) => chunk[0])
     .join("")
     .toUpperCase();
-
-  const projectItems = useMemo(
-    () =>
-      projects.map((project) => ({
-        label: project.title,
-        href: `/projeto/${project.id}`,
-        image: project.cover,
-        synopsis: project.synopsis,
-        tags: selectVisibleTags(
-          sortAlphabeticallyPtBr(project.tags.map((tag) => translateTag(tag, tagTranslationMap))),
-          2,
-          18,
-        ),
-      })),
-    [projects, tagTranslationMap],
-  );
-
-  const postItems = useMemo(
-    () =>
-      posts.map((post) => ({
-        label: post.title,
-        href: `/postagem/${post.slug}`,
-        excerpt: post.excerpt || "",
-      })),
-    [posts],
-  );
-
-  const filteredProjects = useMemo(() => {
-    if (!query.trim()) {
-      return [];
-    }
-    return rankProjects(projectItems, query);
-  }, [projectItems, query]);
-
-  const filteredPosts = useMemo(() => {
-    if (!query.trim()) {
-      return [];
-    }
-    return rankPosts(postItems, query);
-  }, [postItems, query]);
-  const showResults = isSearchOpen && query.trim().length > 0;
-  const hasResults = filteredProjects.length > 0 || filteredPosts.length > 0;
-  const synopsisKeys = useMemo(() => filteredProjects.map((item) => item.href), [filteredProjects]);
-  const { rootRef: synopsisRootRef, lineByKey: synopsisLineByKey } = useDynamicSynopsisClamp({
-    enabled: showResults,
-    keys: synopsisKeys,
-    maxLines: 4,
-  });
-  const getSynopsisClampClass = (key: string) => {
-    const lines = synopsisLineByKey[key] ?? 2;
-    if (lines <= 0) {
-      return "hidden";
-    }
-    if (lines === 1) {
-      return "line-clamp-1";
-    }
-    if (lines === 2) {
-      return "line-clamp-2";
-    }
-    if (lines === 3) {
-      return "line-clamp-3";
-    }
-    return "line-clamp-4";
-  };
+  const queryTrimmed = query.trim();
+  const showResults = isSearchOpen && queryTrimmed.length > 0;
+  const hasMinimumSearchQueryLength = queryTrimmed.length >= 2;
 
   const focusSearchInput = useCallback(() => {
     window.requestAnimationFrame(() => {
@@ -261,57 +192,118 @@ const DashboardHeader = ({
   }, [isSearchOpen]);
 
   useEffect(() => {
-    const loadProjects = async () => {
+    if (!isSearchOpen || !hasMinimumSearchQueryLength) {
+      setRemoteSuggestions([]);
+      setRemoteMediaVariants({});
+      setIsSearchLoading(false);
+      setHasSearchRequestFailed(false);
+      return;
+    }
+
+    let isActive = true;
+    const controller = new AbortController();
+    const timeout = window.setTimeout(async () => {
+      setIsSearchLoading(true);
       try {
-        const response = await apiFetch(apiBase, "/api/public/projects");
-        if (!response.ok) {
-          return;
-        }
-        const data = await response.json();
-        setProjects(Array.isArray(data.projects) ? data.projects : []);
-      } catch {
-        setProjects([]);
-      }
-    };
-
-    loadProjects();
-  }, [apiBase]);
-
-  useEffect(() => {
-    const loadPosts = async () => {
-      try {
-        const response = await apiFetch(apiBase, "/api/public/posts");
-        if (!response.ok) {
-          return;
-        }
-        const data = await response.json();
-        setPosts(Array.isArray(data.posts) ? data.posts : []);
-      } catch {
-        setPosts([]);
-      }
-    };
-
-    loadPosts();
-  }, [apiBase]);
-
-  useEffect(() => {
-    const loadTranslations = async () => {
-      try {
-        const response = await apiFetch(apiBase, "/api/public/tag-translations", {
+        const params = new URLSearchParams({
+          q: queryTrimmed,
+          scope: "all",
+          limit: "8",
+        });
+        const response = await apiFetch(apiBase, `/api/public/search/suggest?${params.toString()}`, {
           cache: "no-store",
+          signal: controller.signal,
         });
         if (!response.ok) {
+          throw new Error(`dashboard_search_suggest_${response.status}`);
+        }
+        const payload = (await response.json()) as {
+          suggestions?: unknown[];
+          mediaVariants?: unknown;
+        };
+        if (!isActive) {
           return;
         }
-        const data = await response.json();
-        setTagTranslations(data.tags || {});
-      } catch {
-        setTagTranslations({});
+        const suggestions = Array.isArray(payload.suggestions)
+          ? payload.suggestions
+              .map((item) => {
+                if (!item || typeof item !== "object") {
+                  return null;
+                }
+                const candidate = item as Partial<SearchSuggestion>;
+                const kind =
+                  candidate.kind === "project" || candidate.kind === "post" ? candidate.kind : null;
+                const id = String(candidate.id || "").trim();
+                const label = String(candidate.label || "").trim();
+                const href = String(candidate.href || "").trim();
+                if (!kind || !id || !label || !href) {
+                  return null;
+                }
+                return {
+                  kind,
+                  id,
+                  label,
+                  href,
+                  description: String(candidate.description || "").trim(),
+                  image: String(candidate.image || "").trim(),
+                  tags: Array.isArray(candidate.tags)
+                    ? candidate.tags
+                        .map((tag) => String(tag || "").trim())
+                        .filter(Boolean)
+                        .slice(0, 4)
+                    : [],
+                  meta: String(candidate.meta || "").trim(),
+                } satisfies SearchSuggestion;
+              })
+              .filter((item): item is SearchSuggestion => Boolean(item))
+          : [];
+        setRemoteSuggestions(suggestions);
+        setRemoteMediaVariants(
+          payload.mediaVariants && typeof payload.mediaVariants === "object"
+            ? (payload.mediaVariants as UploadMediaVariantsMap)
+            : {},
+        );
+        setHasSearchRequestFailed(false);
+      } catch (error) {
+        if (!isActive) {
+          return;
+        }
+        if (
+          error &&
+          typeof error === "object" &&
+          "name" in error &&
+          String((error as { name?: string }).name) === "AbortError"
+        ) {
+          return;
+        }
+        setRemoteSuggestions([]);
+        setRemoteMediaVariants({});
+        setHasSearchRequestFailed(true);
+      } finally {
+        if (isActive) {
+          setIsSearchLoading(false);
+        }
       }
-    };
+    }, 180);
 
-    loadTranslations();
-  }, [apiBase]);
+    return () => {
+      isActive = false;
+      controller.abort();
+      window.clearTimeout(timeout);
+    };
+  }, [apiBase, hasMinimumSearchQueryLength, isSearchOpen, queryTrimmed]);
+
+  useEffect(() => {
+    if (isSearchOpen) {
+      void import("@/components/dashboard/DashboardSearchPopover");
+    }
+  }, [isSearchOpen]);
+
+  useEffect(() => {
+    if (isCommandPaletteOpen) {
+      void import("@/components/dashboard/DashboardCommandPalette");
+    }
+  }, [isCommandPaletteOpen]);
 
   const handleLogout = async () => {
     if (isLoggingOut) {
@@ -493,101 +485,15 @@ const DashboardHeader = ({
             </div>
 
             {showResults && (
-              <div
-                ref={synopsisRootRef}
-                data-testid="dashboard-header-results"
-                className="search-popover-enter absolute top-12 left-0 right-0 mx-auto max-h-[78vh] w-[min(24rem,calc(100vw-1rem))] overflow-hidden rounded-xl border border-border/60 bg-background/95 p-4 shadow-lg backdrop-blur-sm xl:left-auto xl:right-0 xl:mx-0 xl:w-80"
-              >
-                {filteredProjects.length > 0 && (
-                  <div className="mb-4">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                      Projetos
-                    </p>
-                    <ul className="no-scrollbar mt-3 max-h-[44vh] space-y-3 overflow-y-auto overscroll-contain pr-1">
-                      {filteredProjects.map((item) => (
-                        <li key={item.href}>
-                          <Link
-                            to={item.href}
-                            className="group flex h-36 items-start gap-4 overflow-hidden rounded-xl border border-border/60 bg-gradient-card p-4 transition hover:border-primary/40 hover:bg-primary/5"
-                          >
-                            <div
-                              className="h-28 shrink-0 self-start overflow-hidden rounded-lg bg-secondary"
-                              style={{ aspectRatio: PROJECT_COVER_ASPECT_RATIO }}
-                            >
-                              <img
-                                src={item.image}
-                                alt={item.label}
-                                className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
-                              />
-                            </div>
-                            <div
-                              data-synopsis-role="column"
-                              data-synopsis-key={item.href}
-                              className="h-28 min-w-0 flex flex-col"
-                            >
-                              <p
-                                data-synopsis-role="title"
-                                className="line-clamp-1 shrink-0 text-sm font-semibold text-foreground group-hover:text-primary"
-                              >
-                                {item.label}
-                              </p>
-                              <p
-                                className={cn(
-                                  "mt-1 overflow-hidden text-xs leading-snug text-muted-foreground",
-                                  getSynopsisClampClass(item.href),
-                                )}
-                                data-synopsis-role="synopsis"
-                              >
-                                {item.synopsis}
-                              </p>
-                              {item.tags.length > 0 && (
-                                <div
-                                  data-synopsis-role="badges"
-                                  className="mt-auto pt-2 flex min-w-0 flex-wrap gap-1.5"
-                                >
-                                  {item.tags.map((tag) => (
-                                    <Badge
-                                      key={tag}
-                                      variant="secondary"
-                                      className="text-[9px] uppercase whitespace-nowrap"
-                                    >
-                                      {tag}
-                                    </Badge>
-                                  ))}
-                                </div>
-                              )}
-                            </div>
-                          </Link>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-
-                {filteredPosts.length > 0 && (
-                  <div>
-                    <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                      Posts
-                    </p>
-                    <ul className="no-scrollbar mt-2 max-h-[26vh] space-y-2 overflow-y-auto overscroll-contain pr-1">
-                      {filteredPosts.map((item) => (
-                        <li key={item.href}>
-                          <Link
-                            to={item.href}
-                            className="text-sm text-foreground transition-colors hover:text-primary"
-                          >
-                            {item.label}
-                          </Link>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-
-                {!hasResults && (
-                  <p className="text-sm text-muted-foreground">{uiCopy.search.noResults}</p>
-                )}
-              </div>
+              <Suspense fallback={null}>
+                <DashboardSearchPopover
+                  hasMinimumSearchQueryLength={hasMinimumSearchQueryLength}
+                  isSearchLoading={isSearchLoading}
+                  hasSearchRequestFailed={hasSearchRequestFailed}
+                  remoteSuggestions={remoteSuggestions}
+                  remoteMediaVariants={remoteMediaVariants}
+                />
+              </Suspense>
             )}
           </div>
 
@@ -715,17 +621,21 @@ const DashboardHeader = ({
           </div>
         </div>
       </div>
-      <DashboardCommandPalette
-        open={isCommandPaletteOpen}
-        onOpenChange={setIsCommandPaletteOpen}
-        menuItems={menuItems}
-        onNavigate={(href) => {
-          navigate(href);
-        }}
-        onOpenNotifications={() => {
-          setIsNotificationsOpen(true);
-        }}
-      />
+      {isCommandPaletteOpen ? (
+        <Suspense fallback={null}>
+          <DashboardCommandPalette
+            open={isCommandPaletteOpen}
+            onOpenChange={setIsCommandPaletteOpen}
+            menuItems={menuItems}
+            onNavigate={(href) => {
+              navigate(href);
+            }}
+            onOpenNotifications={() => {
+              setIsNotificationsOpen(true);
+            }}
+          />
+        </Suspense>
+      ) : null}
     </header>
   );
 };
