@@ -36,6 +36,10 @@ const DashboardRoutes = () => (
     <Route path="posts" element={withAuth(<DashboardPosts />)} />
     <Route path="projetos" element={withAuth(<DashboardProjectsEditor />)} />
     <Route
+      path="projetos/:projectId/capitulos"
+      element={withAuth(<DashboardProjectChapterEditor />)}
+    />
+    <Route
       path="projetos/:projectId/capitulos/:chapterNumber"
       element={withAuth(<DashboardProjectChapterEditor />)}
     />

@@ -24,6 +24,14 @@ export const buildDashboardProjectEditorHref = (projectId: string) => {
   return `/dashboard/projetos?edit=${encodeURIComponent(normalizedProjectId)}`;
 };
 
+export const buildDashboardProjectChaptersEditorHref = (projectId: string) => {
+  const normalizedProjectId = String(projectId || "").trim();
+  if (!normalizedProjectId) {
+    return buildDashboardProjectEditorHref(projectId);
+  }
+  return `/dashboard/projetos/${encodeURIComponent(normalizedProjectId)}/capitulos`;
+};
+
 export const buildDashboardProjectChapterEditorHref = (
   projectId: string,
   chapterNumber: unknown,

@@ -70,7 +70,10 @@ import {
 } from "@/lib/image-alt";
 import { filterImageLibraryFoldersByAccess } from "@/lib/image-library-scope";
 import { createSlug } from "@/lib/post-content";
-import { buildDashboardProjectChapterEditorHref } from "@/lib/project-editor-routes";
+import {
+  buildDashboardProjectChapterEditorHref,
+  buildDashboardProjectChaptersEditorHref,
+} from "@/lib/project-editor-routes";
 import {
   EXTRA_TECHNICAL_NUMBER_BASE,
   buildEpisodeKey,
@@ -90,11 +93,7 @@ import {
 import { isChapterBasedType, isLightNovelType, isMangaType } from "@/lib/project-utils";
 import { buildVolumeCoverKey, findDuplicateVolumeCover } from "@/lib/project-volume-cover-key";
 import { normalizeProjectVolumeEntries } from "@/lib/project-volume-entries";
-import type {
-  ApiContractBuildMetadata,
-  ApiContractCapabilities,
-  ApiContractV1,
-} from "@/types/api-contract";
+import type { ApiContractBuildMetadata, ApiContractCapabilities, ApiContractV1 } from "@/types/api-contract";
 import {
   Cloud,
   Copy,
@@ -4921,6 +4920,25 @@ const DashboardProjectsEditor = () => {
                       <p className="max-w-[210px] truncate text-sm font-medium text-foreground">
                         {editorProjectTitle}
                       </p>
+                      {isLightNovel ? (
+                        editingProject?.id ? (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="mt-2 w-full"
+                            asChild
+                          >
+                            <Link to={buildDashboardProjectChaptersEditorHref(editingProject.id)}>
+                              Abrir editor dedicado
+                            </Link>
+                          </Button>
+                        ) : (
+                          <Button type="button" variant="outline" size="sm" className="mt-2 w-full" disabled>
+                            Salve o projeto primeiro
+                          </Button>
+                        )
+                      ) : null}
                     </div>
                   </div>
                 </DialogHeader>

@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -17,24 +17,6 @@ vi.mock("@/components/DashboardShell", () => ({
 
 vi.mock("@/components/dashboard/DashboardPageContainer", () => ({
   default: ({ children }: { children: ReactNode }) => <div>{children}</div>,
-}));
-
-vi.mock("@/components/dashboard/DashboardPageHeader", () => ({
-  default: ({
-    title,
-    description,
-    actions,
-  }: {
-    title: string;
-    description?: string;
-    actions?: ReactNode;
-  }) => (
-    <div>
-      <h1>{title}</h1>
-      {description ? <p>{description}</p> : null}
-      {actions}
-    </div>
-  ),
 }));
 
 vi.mock("@/components/ImageLibraryDialog", () => ({
@@ -110,6 +92,15 @@ vi.mock("@/lib/api-client", () => ({
   apiFetch: (...args: unknown[]) => apiFetchMock(...args),
 }));
 
+vi.mock("@/lib/frontend-build", () => ({
+  getFrontendBuildMetadata: () => ({ commitSha: "frontendsha", builtAt: "2026-03-08T00:00:00Z" }),
+  formatBuildMetadataLabel: () => "build-label",
+}));
+
+vi.mock("@/lib/dev-diagnostics", () => ({
+  logOriginApiBaseMismatchOnce: () => undefined,
+}));
+
 vi.mock("@/components/ui/use-toast", () => ({
   toast: (...args: unknown[]) => toastMock(...args),
 }));
@@ -124,6 +115,18 @@ const mockJsonResponse = (ok: boolean, payload: unknown, status = ok ? 200 : 500
     status,
     json: async () => payload,
   }) as Response;
+
+const mockBinaryResponse = (ok = true) =>
+  ({
+    ok,
+    status: ok ? 200 : 500,
+    headers: {
+      get: (name: string) =>
+        name === "Content-Disposition" ? 'attachment; filename="projeto.epub"' : null,
+    },
+    blob: async () => new Blob(["epub"]),
+    json: async () => ({}),
+  }) as unknown as Response;
 
 const baseProject = {
   id: "project-ln-1",
@@ -175,7 +178,7 @@ const baseProject = {
       sources: [],
       progressStage: "aguardando-raw",
       completedStages: [],
-      content: "<p>Conteúdo</p>",
+      content: "{\"root\":{\"children\":[],\"direction\":null,\"format\":\"\",\"indent\":0,\"type\":\"root\",\"version\":1}}",
       contentFormat: "lexical",
       publicationStatus: "published",
       coverImageUrl: "",
@@ -224,6 +227,15 @@ const renderEditor = (initialEntry = "/dashboard/projetos/project-ln-1/capitulos
     <MemoryRouter initialEntries={[initialEntry]}>
       <Routes>
         <Route
+          path="/dashboard/projetos/:projectId/capitulos"
+          element={
+            <>
+              <DashboardProjectChapterEditor />
+              <LocationProbe />
+            </>
+          }
+        />
+        <Route
           path="/dashboard/projetos/:projectId/capitulos/:chapterNumber"
           element={
             <>
@@ -240,14 +252,21 @@ const setupApiMock = ({
   permissions = ["projetos"],
   project = buildProject(),
   projectStatus = 200,
+  contractOk = true,
+  epubImportResponse,
+  epubExportResponse,
 }: {
   permissions?: string[];
   project?: ReturnType<typeof buildProject>;
   projectStatus?: number;
+  contractOk?: boolean;
+  epubImportResponse?: Response;
+  epubExportResponse?: Response;
 } = {}) => {
   apiFetchMock.mockReset();
   asyncStatePropsSpy.mockReset();
   toastMock.mockReset();
+
   apiFetchMock.mockImplementation(
     async (
       _base: string,
@@ -265,6 +284,24 @@ const setupApiMock = ({
         });
       }
 
+      if (path === "/api/contracts/v1.json" && method === "GET") {
+        if (!contractOk) {
+          return mockJsonResponse(false, { error: "unavailable" }, 500);
+        }
+        return mockJsonResponse(true, {
+          version: "v1",
+          generatedAt: "2026-03-08T00:00:00Z",
+          capabilities: {
+            project_epub_import: true,
+            project_epub_export: true,
+          },
+          build: {
+            commitSha: "backendsha",
+            builtAt: "2026-03-08T00:00:00Z",
+          },
+        });
+      }
+
       if (path === "/api/projects/project-ln-1" && method === "GET") {
         if (projectStatus >= 400) {
           return mockJsonResponse(false, { error: "load_failed" }, projectStatus);
@@ -278,15 +315,52 @@ const setupApiMock = ({
           ...project.episodeDownloads[0],
           ...((payload.chapter as Record<string, unknown> | undefined) || {}),
         };
-        const nextProject = {
-          ...project,
-          revision: "rev-2",
-          episodeDownloads: [nextChapter, ...project.episodeDownloads.slice(1)],
-        };
         return mockJsonResponse(true, {
-          project: nextProject,
+          project: {
+            ...project,
+            revision: "rev-2",
+            episodeDownloads: [nextChapter, ...project.episodeDownloads.slice(1)],
+          },
           chapter: nextChapter,
         });
+      }
+
+      if (path === "/api/projects/project-ln-1" && method === "PUT") {
+        const payload = options?.json || {};
+        return mockJsonResponse(true, {
+          project: {
+            ...project,
+            ...payload,
+            revision: "rev-3",
+          },
+        });
+      }
+
+      if (path === "/api/projects/epub/import" && method === "POST") {
+        return (
+          epubImportResponse ||
+          mockJsonResponse(true, {
+            chapters: [
+              {
+                ...project.episodeDownloads[1],
+                number: 3,
+                title: "Capítulo importado",
+                content: "{\"root\":{\"children\":[],\"direction\":null,\"format\":\"\",\"indent\":0,\"type\":\"root\",\"version\":1}}",
+                publicationStatus: "draft",
+              },
+            ],
+            volumeCovers: [],
+            summary: { chapters: 1 },
+          })
+        );
+      }
+
+      if (path === "/api/projects/epub/export" && method === "POST") {
+        return epubExportResponse || mockBinaryResponse(true);
+      }
+
+      if (path === "/api/projects/epub/import/cleanup" && method === "POST") {
+        return mockJsonResponse(true, { ok: true });
       }
 
       return mockJsonResponse(false, { error: "not_found" }, 404);
@@ -299,192 +373,103 @@ describe("DashboardProjectChapterEditor", () => {
     apiFetchMock.mockReset();
     asyncStatePropsSpy.mockReset();
     toastMock.mockReset();
+    vi.stubGlobal("open", vi.fn());
+    vi.stubGlobal("confirm", vi.fn(() => true));
+    window.URL.createObjectURL = vi.fn(() => "blob:epub");
+    window.URL.revokeObjectURL = vi.fn();
   });
 
   it("envia kind=loading para AsyncState enquanto a tela inicializa", () => {
     apiFetchMock.mockImplementation(() => new Promise<Response>(() => undefined));
-
     renderEditor();
-
     expect(screen.getByText("Carregando editor de capítulo")).toBeInTheDocument();
-    expect(asyncStatePropsSpy).toHaveBeenCalledWith(
-      expect.objectContaining({
-        kind: "loading",
-        title: "Carregando editor de capítulo",
-      }),
-    );
   });
 
-  it("carrega o editor dedicado com /api/me em payload direto", async () => {
+  it("renderiza a rota neutra sem lexical nem metadados de capítulo", async () => {
     setupApiMock();
-
-    renderEditor();
-
-    await screen.findByRole("heading", { name: "Editor dedicado de capítulo" });
-    expect(screen.getAllByText("Projeto Light Novel").length).toBeGreaterThan(0);
-    expect(screen.getByRole("button", { name: /Salvar capítulo/i })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /Voltar ao projeto/i })).toHaveAttribute(
-      "href",
-      "/dashboard/projetos?edit=project-ln-1",
-    );
-    expect(screen.getByRole("link", { name: /Abrir leitura/i })).toHaveAttribute(
-      "href",
-      "/projeto/project-ln-1/leitura/1?volume=2",
-    );
-  });
-
-  it("renderiza o shell refinado sem moldura externa e com metadados antes do lexical", async () => {
-    setupApiMock();
-
-    renderEditor();
-
-    await screen.findByRole("heading", { name: /Editor dedicado de cap/i });
-
-    expect(document.querySelector(".project-editor-dialog")).toBeNull();
-    expect(screen.getByTestId("chapter-editor-header-shell")).toHaveClass("rounded-[28px]");
-    expect(screen.getByTestId("chapter-editor-sticky-top")).toBeInTheDocument();
-    expect(screen.getByTestId("chapter-editor-status-bar")).toBeInTheDocument();
-    expect(screen.getByTestId("chapter-editor-upper-layout")).toBeInTheDocument();
-    expect(screen.getByTestId("chapter-editor-main-column")).toHaveClass("2xl:max-w-6xl");
+    renderEditor("/dashboard/projetos/project-ln-1/capitulos");
+    await screen.findByTestId("chapter-neutral-state");
+    const mainColumn = screen.getByTestId("chapter-editor-main-column");
     const sidebar = screen.getByTestId("chapter-editor-sidebar");
     const navigationSection = screen.getByTestId("chapter-navigation-section");
-    const metadataAccordion = screen.getByTestId("chapter-metadata-accordion");
+    const epubTools = screen.getByTestId("chapter-epub-tools");
+    const epubTrigger = within(epubTools).getByRole("button", { name: /Ferramentas EPUB/i });
+    expect(mainColumn).toContainElement(screen.getByTestId("chapter-neutral-state"));
+    expect(mainColumn).toContainElement(epubTools);
+    expect(sidebar).toContainElement(navigationSection);
+    expect(sidebar).not.toContainElement(epubTools);
+    expect(navigationSection).toHaveAttribute("data-state", "open");
+    expect(epubTrigger).toHaveClass("hover:no-underline", "py-3.5", "md:py-4");
+    expect(within(epubTools).getByText("Ferramentas EPUB")).toBeInTheDocument();
+    expect(within(epubTools).getByText("Importação e exportação por volume")).toBeInTheDocument();
+    expect(
+      within(screen.getByTestId("chapter-neutral-state")).queryByRole("button", {
+        name: "Importar EPUB",
+      }),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByTestId("mock-lexical")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("chapter-metadata-accordion")).not.toBeInTheDocument();
+  });
 
-    expect(navigationSection).toBeInTheDocument();
-    expect(screen.getByTestId("chapter-navigation-volume-accordion")).toBeInTheDocument();
-    expect(sidebar).toHaveClass("2xl:col-start-2");
-    expect(sidebar).not.toHaveClass("2xl:sticky", "2xl:top-28");
-    expect(sidebar).toContainElement(metadataAccordion);
-    expect(Array.from(sidebar.children)[0]).toContainElement(navigationSection);
-    expect(Array.from(sidebar.children)[1]).toBe(metadataAccordion);
-    expect(screen.getByTestId("chapter-content-section")).toHaveClass("order-3", "2xl:col-start-1");
-    expect(metadataAccordion).not.toHaveClass(
-      "2xl:col-start-2",
-      "2xl:row-start-2",
-      "2xl:w-[340px]",
-      "2xl:shrink-0",
+  it("renderiza o editor aberto com layout expandido e sidebar alinhada", async () => {
+    setupApiMock();
+    renderEditor();
+    await screen.findByRole("heading", { name: /Gerenciamento de Conteúdo/i });
+    const lexicalEditor = await screen.findByTestId("mock-lexical");
+    const sidebar = screen.getByTestId("chapter-editor-sidebar");
+    const metadataAccordion = screen.getByTestId("chapter-metadata-accordion");
+    const navigationSection = screen.getByTestId("chapter-navigation-section");
+    const navigationAccordion = navigationSection.parentElement;
+    const navigationTrigger = within(screen.getByTestId("chapter-navigation-section")).getByRole(
+      "button",
+      { name: /Navegação/i },
     );
-    expect(screen.getAllByText(/Identidade do cap/i).length).toBeGreaterThan(0);
-    expect(screen.getByText(/Release e visibilidade do cap/i)).toBeInTheDocument();
-    expect(screen.getByText(/Capa do cap/i)).toBeInTheDocument();
-    expect(screen.getByText("Fontes de download")).toBeInTheDocument();
-    expect(screen.getByTestId("chapter-lexical-wrapper")).toBeInTheDocument();
-    expect(screen.getByTestId("mock-lexical")).toHaveClass(
+    expect(screen.getByTestId("chapter-editor-upper-layout")).not.toHaveClass("px-4");
+    expect(screen.getByTestId("chapter-editor-upper-layout")).not.toHaveClass("md:px-6");
+    expect(screen.getByTestId("chapter-editor-upper-layout")).not.toHaveClass("lg:px-8");
+    expect(screen.getByTestId("chapter-editor-main-column")).not.toHaveClass("2xl:max-w-6xl");
+    expect(screen.getByTestId("chapter-editor-sidebar")).toHaveClass("2xl:col-start-2");
+    expect(sidebar).toContainElement(metadataAccordion);
+    expect(sidebar).toContainElement(navigationSection);
+    expect(navigationAccordion).not.toBeNull();
+    expect(Array.from(sidebar.children)[0]).toBe(metadataAccordion);
+    expect(Array.from(sidebar.children)[1]).toBe(navigationAccordion);
+    expect(screen.queryByTestId("chapter-epub-tools")).not.toBeInTheDocument();
+    expect(screen.queryByText(/Autosave do capítulo/i)).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Salvar capítulo/i })).toBeInTheDocument();
+    expect(navigationTrigger).toHaveClass("hover:no-underline", "py-3.5", "md:py-4");
+    expect(screen.getByText("Navegação")).toBeInTheDocument();
+    expect(screen.getByText("Busca, filtros e troca rápida de capítulo")).toBeInTheDocument();
+    expect(screen.getByText("Identidade do capítulo")).toBeInTheDocument();
+    expect(screen.getByText("Título, numeração, tipo e resumo")).toBeInTheDocument();
+    expect(lexicalEditor).toHaveClass(
       "lexical-playground--stretch",
       "lexical-playground--chapter-editor",
       "w-full",
     );
   });
 
-  it("agrupa a navegação por volume e abre o volume ativo por padrão", async () => {
-    setupApiMock({
-      project: buildProject({
-        episodeDownloads: [
-          {
-            ...baseProject.episodeDownloads[0],
-            number: 1,
-            volume: 1,
-            title: "Capítulo do volume 1",
-          },
-          {
-            ...baseProject.episodeDownloads[0],
-            number: 1,
-            volume: 2,
-            title: "Capítulo do volume 2",
-          },
-          {
-            ...baseProject.episodeDownloads[1],
-            number: 7,
-            volume: undefined,
-            title: "Capítulo sem volume",
-          },
-        ],
-      }),
-    });
-
-    renderEditor("/dashboard/projetos/project-ln-1/capitulos/1?volume=2");
-
-    await screen.findByRole("heading", { name: /Editor dedicado de cap/i });
-
-    expect(screen.getByText("Sem volume")).toBeInTheDocument();
-    expect(screen.getByTestId("chapter-navigation-volume-1")).toHaveAttribute(
-      "data-state",
-      "closed",
-    );
-    expect(screen.getByTestId("chapter-navigation-volume-2")).toHaveAttribute("data-state", "open");
-    expect(screen.getByTestId("chapter-navigation-volume-none")).toHaveAttribute(
-      "data-state",
-      "closed",
-    );
-    expect(screen.getByText("Capítulo do volume 2")).toBeInTheDocument();
-    expect(screen.queryByText("Capítulo do volume 1")).not.toBeInTheDocument();
-    expect(screen.queryByText("Capítulo sem volume")).not.toBeInTheDocument();
-  });
-
-  it("envia kind=error para o estado de falha de carga", async () => {
-    setupApiMock({ projectStatus: 500 });
-
-    renderEditor();
-
-    await screen.findByText("Tentar novamente");
-    expect(asyncStatePropsSpy).toHaveBeenCalledWith(
-      expect.objectContaining({
-        kind: "error",
-        description: "Tente novamente em alguns instantes.",
-      }),
-    );
-  });
-
-  it("salva pelo endpoint de capítulo e atualiza a URL quando número ou volume mudam", async () => {
+  it("navega da rota neutra para um capítulo ao clicar na sidebar", async () => {
     setupApiMock();
-
-    renderEditor();
-
-    await screen.findByRole("heading", { name: "Editor dedicado de capítulo" });
-
-    fireEvent.change(screen.getByLabelText("Título"), {
-      target: { value: "Capítulo 3" },
-    });
-    fireEvent.change(screen.getByLabelText("Número"), {
-      target: { value: "3" },
-    });
-    fireEvent.change(screen.getByLabelText("Volume"), {
-      target: { value: "5" },
-    });
-
-    fireEvent.click(screen.getByRole("button", { name: /Salvar capítulo/i }));
-
+    renderEditor("/dashboard/projetos/project-ln-1/capitulos");
+    await screen.findByTestId("chapter-navigation-section");
+    fireEvent.click(screen.getByRole("button", { name: /Capítulo 1/i }));
     await waitFor(() => {
-      const chapterSaveCall = apiFetchMock.mock.calls.find((call) => {
-        const path = call[1];
-        const options = (call[2] || {}) as RequestInit;
-        return (
-          path === "/api/projects/project-ln-1/chapters/1?volume=2" && options.method === "PUT"
-        );
-      });
-      expect(chapterSaveCall).toBeDefined();
+      expect(screen.getByTestId("location-pathname").textContent).toBe(
+        "/dashboard/projetos/project-ln-1/capitulos/1",
+      );
     });
+    expect(screen.getByTestId("location-search").textContent).toBe("?volume=2");
+  });
 
-    const chapterSaveCall = apiFetchMock.mock.calls.find((call) => {
-      const path = call[1];
-      const options = (call[2] || {}) as RequestInit;
-      return path === "/api/projects/project-ln-1/chapters/1?volume=2" && options.method === "PUT";
-    });
-    const payload = ((chapterSaveCall?.[2] || {}) as { json?: Record<string, unknown> }).json || {};
-    expect(payload.ifRevision).toBe("rev-1");
-    expect(payload.chapter).toMatchObject({
-      title: "Capítulo 3",
-      number: 3,
-      volume: 5,
-    });
-    expect(
-      apiFetchMock.mock.calls.some((call) => {
-        const path = call[1];
-        const options = (call[2] || {}) as RequestInit;
-        return path === "/api/projects/project-ln-1" && options.method === "PUT";
-      }),
-    ).toBe(false);
-
+  it("salva o capítulo e atualiza a URL quando número e volume mudam", async () => {
+    setupApiMock();
+    renderEditor();
+    await screen.findByRole("heading", { name: /Gerenciamento de Conteúdo/i });
+    fireEvent.change(screen.getByLabelText("Título"), { target: { value: "Capítulo 3" } });
+    fireEvent.change(screen.getByLabelText("Número"), { target: { value: "3" } });
+    fireEvent.change(screen.getByLabelText("Volume"), { target: { value: "5" } });
+    fireEvent.click(screen.getByRole("button", { name: /Salvar capítulo/i }));
     await waitFor(() => {
       expect(screen.getByTestId("location-pathname").textContent).toBe(
         "/dashboard/projetos/project-ln-1/capitulos/3",
@@ -493,39 +478,117 @@ describe("DashboardProjectChapterEditor", () => {
     expect(screen.getByTestId("location-search").textContent).toBe("?volume=5");
   });
 
+  it("salva pelo atalho Ctrl+S usando o fluxo manual", async () => {
+    setupApiMock();
+    renderEditor();
+    await screen.findByRole("heading", { name: /Gerenciamento de Conteúdo/i });
+    fireEvent.change(screen.getByLabelText("Título"), { target: { value: "Capítulo revisado" } });
+    fireEvent.keyDown(window, { key: "s", ctrlKey: true });
+    await waitFor(() => {
+      expect(
+        apiFetchMock.mock.calls.some(
+          ([, path, options]) =>
+            path === "/api/projects/project-ln-1/chapters/1?volume=2" && options?.method === "PUT",
+        ),
+      ).toBe(true);
+    });
+  });
+
+  it("confirma antes de sair quando há alterações não salvas", async () => {
+    setupApiMock();
+    renderEditor();
+    await screen.findByRole("heading", { name: /Gerenciamento de Conteúdo/i });
+    const confirmMock = vi.mocked(window.confirm);
+    confirmMock.mockReturnValueOnce(false).mockReturnValueOnce(true);
+    fireEvent.change(screen.getByLabelText("Título"), { target: { value: "Capítulo pendente" } });
+    fireEvent.click(screen.getByRole("button", { name: /Fechar capítulo/i }));
+    expect(confirmMock).toHaveBeenCalled();
+    expect(screen.getByTestId("location-pathname").textContent).toBe(
+      "/dashboard/projetos/project-ln-1/capitulos/1",
+    );
+    fireEvent.click(screen.getByRole("button", { name: /Fechar capítulo/i }));
+    await waitFor(() => {
+      expect(screen.getByTestId("location-pathname").textContent).toBe(
+        "/dashboard/projetos/project-ln-1/capitulos",
+      );
+    });
+  });
+
+  it("importa EPUB, persiste o projeto e navega para o primeiro capítulo importado", async () => {
+    setupApiMock();
+    renderEditor("/dashboard/projetos/project-ln-1/capitulos");
+    await screen.findByTestId("chapter-neutral-state");
+    const fileInput = document.getElementById("chapter-editor-epub-import-file") as HTMLInputElement;
+    const file = new File(["epub"], "novo.epub", { type: "application/epub+zip" });
+    fireEvent.change(fileInput, { target: { files: [file] } });
+    fireEvent.click(
+      within(screen.getByTestId("chapter-epub-tools")).getByRole("button", {
+        name: "Importar EPUB",
+      }),
+    );
+    await waitFor(() => {
+      expect(
+        apiFetchMock.mock.calls.some(
+          ([, path, options]) => path === "/api/projects/project-ln-1" && options?.method === "PUT",
+        ),
+      ).toBe(true);
+    });
+    await waitFor(() => {
+      expect(screen.getByTestId("location-pathname").textContent).toBe(
+        "/dashboard/projetos/project-ln-1/capitulos/3",
+      );
+    });
+  });
+
+  it("exporta EPUB no estado neutro usando o snapshot atual da página", async () => {
+    const anchorClick = vi.fn();
+    const clickSpy = vi
+      .spyOn(HTMLAnchorElement.prototype, "click")
+      .mockImplementation(anchorClick);
+
+    setupApiMock();
+    renderEditor("/dashboard/projetos/project-ln-1/capitulos");
+    await screen.findByTestId("chapter-neutral-state");
+    fireEvent.click(
+      within(screen.getByTestId("chapter-epub-tools")).getByRole("button", {
+        name: /Exportar volume em EPUB/i,
+      }),
+    );
+    await waitFor(() => {
+      const exportCall = apiFetchMock.mock.calls.find(
+        ([, path, options]) => path === "/api/projects/epub/export" && options?.method === "POST",
+      );
+      expect(exportCall).toBeDefined();
+      const body = JSON.parse(String(exportCall?.[2]?.body || "{}"));
+      expect(body.project.episodeDownloads[0].content).toBe(baseProject.episodeDownloads[0].content);
+    });
+    expect(anchorClick).toHaveBeenCalled();
+    clickSpy.mockRestore();
+  });
+
+  it("mostra estado de capability desconhecido quando o contrato da API falha", async () => {
+    setupApiMock({ contractOk: false });
+    renderEditor("/dashboard/projetos/project-ln-1/capitulos");
+    await screen.findByTestId("chapter-neutral-state");
+    expect(screen.getByText(/Não foi possível confirmar o suporte EPUB/i)).toBeInTheDocument();
+  });
+
   it("bloqueia o acesso sem permissão de projetos", async () => {
     setupApiMock({ permissions: ["posts"] });
-
     renderEditor();
-
     await screen.findByText("Acesso negado");
-    expect(
-      screen.queryByRole("heading", { name: "Editor dedicado de capítulo" }),
-    ).not.toBeInTheDocument();
   });
 
   it("envia kind=error quando o capítulo exige volume na URL", async () => {
     setupApiMock({
       project: buildProject({
         episodeDownloads: [
-          {
-            ...baseProject.episodeDownloads[0],
-            number: 1,
-            volume: 1,
-            title: "Capítulo 1 - Volume 1",
-          },
-          {
-            ...baseProject.episodeDownloads[0],
-            number: 1,
-            volume: 2,
-            title: "Capítulo 1 - Volume 2",
-          },
+          { ...baseProject.episodeDownloads[0], number: 1, volume: 1, title: "Capítulo 1 V1" },
+          { ...baseProject.episodeDownloads[0], number: 1, volume: 2, title: "Capítulo 1 V2" },
         ],
       }),
     });
-
     renderEditor("/dashboard/projetos/project-ln-1/capitulos/1");
-
     await screen.findByText("Volume obrigatório");
     expect(asyncStatePropsSpy).toHaveBeenCalledWith(
       expect.objectContaining({

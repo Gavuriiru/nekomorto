@@ -542,4 +542,21 @@ describe("DashboardProjectsEditor edit query", () => {
     expect(episodeContent?.className).toContain("p-3");
     expect(episodeContent?.className).not.toContain("p-4");
   });
+
+  it("exibe um CTA de projeto para abrir o editor dedicado no estado neutro", async () => {
+    setupApiMock({ canManageProjects: true, projects: [chapterProjectFixture] });
+
+    render(
+      <MemoryRouter initialEntries={["/dashboard/projetos?edit=project-ln-1"]}>
+        <DashboardProjectsEditor />
+        <LocationProbe />
+      </MemoryRouter>,
+    );
+
+    await screen.findByText("Editar projeto");
+    expect(screen.getByRole("link", { name: "Abrir editor dedicado" })).toHaveAttribute(
+      "href",
+      "/dashboard/projetos/project-ln-1/capitulos",
+    );
+  });
 });
