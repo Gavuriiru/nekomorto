@@ -382,6 +382,9 @@ describe("DashboardProjectsEditor edit query", () => {
     });
 
     const editorDialog = document.querySelector(".project-editor-dialog") as HTMLElement | null;
+    const editorFrame = document.querySelector(
+      ".project-editor-modal-frame",
+    ) as HTMLElement | null;
     const editorScrollShell = document.querySelector(
       ".project-editor-scroll-shell",
     ) as HTMLElement | null;
@@ -395,6 +398,7 @@ describe("DashboardProjectsEditor edit query", () => {
     ) as HTMLElement | null;
     const editorAccordion = document.querySelector(".project-editor-accordion") as HTMLElement | null;
     expect(editorDialog).not.toBeNull();
+    expect(editorFrame).not.toBeNull();
     expect(editorScrollShell).not.toBeNull();
     expect(editorHeader).not.toBeNull();
     expect(editorStatusBar).not.toBeNull();
@@ -402,27 +406,34 @@ describe("DashboardProjectsEditor edit query", () => {
     expect(editorSectionContent).not.toBeNull();
     expect(editorAccordion).not.toBeNull();
     expect(editorTop?.className).toContain("sticky");
-    expect(editorFooter?.className).toContain("sticky");
+    expect(editorFooter?.className).not.toContain("sticky");
     expect(document.querySelector(".project-editor-dialog-surface")).toBeNull();
+    expect(editorFrame?.className).toContain("flex");
+    expect(editorFrame?.className).toContain("flex-col");
+    expect(editorFrame?.className).toContain("min-h-0");
     expect(editorScrollShell?.className).toContain("overflow-y-auto");
+    expect(editorScrollShell?.className).toContain("flex-1");
     expect(editorScrollShell?.className).not.toContain("max-h-[94vh]");
     expect(editorHeader?.className).toContain("pt-3.5");
     expect(editorHeader?.className).toContain("pb-2.5");
     expect(editorStatusBar?.className).toContain("py-1.5");
     expect(editorLayout?.className).toContain("gap-3.5");
     expect(editorLayout?.className).toContain("pt-2.5");
-    expect(editorLayout?.className).toContain("pb-4");
-    expect(editorFooter?.className).toContain("py-2");
-    expect(editorFooter?.className).toContain("md:py-2.5");
+    expect(editorLayout?.className).toContain("pb-3");
+    expect(editorFooter?.className).toContain("py-1.5");
+    expect(editorFooter?.className).toContain("md:py-2");
     expect(editorSectionContent?.className).toContain("pb-2.5");
     expect(editorAccordion?.className).toContain("space-y-2.5");
     expect(editorDialog).not.toHaveClass("editor-modal-scrolled");
 
-    if (!editorDialog || !editorScrollShell) {
+    if (!editorDialog || !editorFrame || !editorScrollShell || !editorFooter) {
       throw new Error("Editor dialog not found");
     }
 
-    expect(editorDialog.contains(editorScrollShell)).toBe(true);
+    expect(editorDialog.contains(editorFrame)).toBe(true);
+    expect(editorFrame.contains(editorScrollShell)).toBe(true);
+    expect(editorFrame.contains(editorFooter)).toBe(true);
+    expect(editorScrollShell.contains(editorFooter)).toBe(false);
 
     editorScrollShell.scrollTop = 24;
     fireEvent.scroll(editorScrollShell);
@@ -437,5 +448,63 @@ describe("DashboardProjectsEditor edit query", () => {
       expect(screen.queryByText("Editar projeto")).not.toBeInTheDocument();
     });
     expect(document.querySelector(".project-editor-dialog.editor-modal-scrolled")).toBeNull();
+  });
+
+  it("compacta o trecho inferior do modal de projetos nas areas de volume e episodio", async () => {
+    setupApiMock({ canManageProjects: true, projects: [chapterProjectFixture] });
+
+    render(
+      <MemoryRouter initialEntries={["/dashboard/projetos?edit=project-ln-1&chapter=1&volume=2"]}>
+        <DashboardProjectsEditor />
+        <LocationProbe />
+      </MemoryRouter>,
+    );
+
+    await screen.findByRole("heading", { name: "Gerenciar projetos" });
+    await screen.findByText("Editar projeto");
+    await waitFor(() => {
+      expect(screen.getByTestId("location-search").textContent).toBe("");
+    });
+
+    const editorDialog = await waitFor(() => {
+      const node = document.querySelector(".project-editor-dialog");
+      expect(node).not.toBeNull();
+      return node as HTMLElement;
+    });
+
+    const volumeTwoGroup = within(editorDialog).getByTestId("volume-group-2");
+    const volumeAccordionContent = volumeTwoGroup.querySelector(
+      ".space-y-3.px-4",
+    ) as HTMLElement | null;
+    expect(volumeAccordionContent).not.toBeNull();
+    expect(volumeAccordionContent?.className).toContain("pb-3");
+
+    const episodeAccordion = volumeAccordionContent?.querySelector(
+      '[data-orientation="vertical"]',
+    ) as HTMLElement | null;
+    expect(episodeAccordion).not.toBeNull();
+    expect(episodeAccordion?.className).toContain("space-y-3");
+
+    const episodeCard = await within(editorDialog).findByTestId("episode-card-1");
+    const episodeContent = episodeCard.querySelector(
+      ".project-editor-episode-content",
+    ) as HTMLElement | null;
+    expect(episodeContent).not.toBeNull();
+    expect(episodeContent?.className).toContain("p-4");
+    expect(episodeContent?.className).not.toContain("p-5");
+
+    const episodeGroups = Array.from(
+      episodeCard.querySelectorAll(".project-editor-episode-group"),
+    ) as HTMLElement[];
+    expect(episodeGroups.some((group) => group.className.includes("mt-3"))).toBe(true);
+
+    const episodeTrigger = getEpisodeTrigger(episodeCard);
+    fireEvent.click(episodeTrigger);
+
+    await waitFor(() => {
+      expect(episodeTrigger).toHaveAttribute("aria-expanded", "false");
+    });
+    expect(episodeContent?.className).toContain("p-3");
+    expect(episodeContent?.className).not.toContain("p-4");
   });
 });

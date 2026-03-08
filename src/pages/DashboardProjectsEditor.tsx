@@ -4876,13 +4876,14 @@ const DashboardProjectsEditor = () => {
             }
           }}
         >
-          <div
-            className="project-editor-scroll-shell overflow-y-auto no-scrollbar"
-            onScroll={(event) => {
-              const nextScrolled = event.currentTarget.scrollTop > 0;
-              setIsEditorDialogScrolled((prev) => (prev === nextScrolled ? prev : nextScrolled));
-            }}
-          >
+          <div className="project-editor-modal-frame flex max-h-[min(90vh,calc(100dvh-1.5rem))] min-h-0 flex-col">
+            <div
+              className="project-editor-scroll-shell flex-1 overflow-y-auto no-scrollbar"
+              onScroll={(event) => {
+                const nextScrolled = event.currentTarget.scrollTop > 0;
+                setIsEditorDialogScrolled((prev) => (prev === nextScrolled ? prev : nextScrolled));
+              }}
+            >
           <div className="project-editor-top sticky top-0 z-20 border-b border-border/60 bg-background/95 backdrop-blur-sm supports-backdrop-filter:bg-background/80">
             <DialogHeader className="space-y-0 px-4 pb-2.5 pt-3.5 text-left md:px-6 lg:px-8">
               <div className="flex flex-wrap items-start justify-between gap-4">
@@ -4931,7 +4932,7 @@ const DashboardProjectsEditor = () => {
             </div>
           </div>
 
-          <div className="project-editor-layout grid gap-3.5 px-4 pb-4 pt-2.5 md:gap-4 md:px-6 md:pb-5 lg:gap-5 lg:px-8">
+          <div className="project-editor-layout grid gap-3.5 px-4 pb-3 pt-2.5 md:gap-4 md:px-6 md:pb-4 lg:gap-5 lg:px-8">
             <Accordion
               type="multiple"
               value={editorAccordionValue}
@@ -6028,7 +6029,7 @@ const DashboardProjectsEditor = () => {
                                   </div>
                                 ) : null}
                                 <AccordionContent
-                                  className="space-y-3 px-4 pb-4"
+                                  className="space-y-3 px-4 pb-3"
                                   contentClassName={
                                     isChapterBased ? chapterOpenContentClassName : undefined
                                   }
@@ -6094,7 +6095,7 @@ const DashboardProjectsEditor = () => {
                                         type="multiple"
                                         value={episodeOpenValues}
                                         onValueChange={handleEpisodeAccordionChange}
-                                        className="space-y-4"
+                                        className="space-y-3"
                                       >
                                     {group.episodeItems.map(({ episode, index }) => {
                         const isEpisodeCollapsed = collapsedEpisodes[index] ?? false;
@@ -6166,7 +6167,7 @@ const DashboardProjectsEditor = () => {
                               onDragStart={() => setEpisodeDragId(null)}
                             >
                               <CardContent
-                                className={`project-editor-episode-content space-y-3 ${isEpisodeCollapsed ? "p-4" : "p-5"}`}
+                                className={`project-editor-episode-content space-y-3 ${isEpisodeCollapsed ? "p-3" : "p-4"}`}
                               >
                                 <div
                                   className="project-editor-episode-header flex flex-wrap items-center justify-between gap-2"
@@ -6527,7 +6528,7 @@ const DashboardProjectsEditor = () => {
                                     </div>
                                   </div>
                                   {isLightNovel ? (
-                                    <div className="project-editor-episode-group mt-4">
+                                    <div className="project-editor-episode-group mt-3">
                                       <Label className="text-xs">Conteúdo do capítulo</Label>
                                       <div
                                         className="mt-3"
@@ -6844,7 +6845,8 @@ const DashboardProjectsEditor = () => {
               ))}
             </datalist>
           </div>
-          <div className="project-editor-footer sticky bottom-0 z-20 flex justify-end gap-3 border-t border-border/60 bg-background/95 px-4 py-2 backdrop-blur-sm supports-backdrop-filter:bg-background/80 md:px-6 md:py-2.5 lg:px-8">
+          </div>
+          <div className="project-editor-footer flex justify-end gap-3 border-t border-border/60 bg-background/95 px-4 py-1.5 backdrop-blur-sm supports-backdrop-filter:bg-background/80 md:px-6 md:py-2 lg:px-8">
             <Button variant="ghost" onClick={requestCloseEditor}>
               Cancelar
             </Button>

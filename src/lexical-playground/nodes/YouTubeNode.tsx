@@ -47,15 +47,21 @@ function YouTubeComponent({
       className={className}
       format={format}
       nodeKey={nodeKey}>
-      <iframe
-        width="560"
-        height="315"
-        src={`https://www.youtube-nocookie.com/embed/${videoID}`}
-        style={{ border: 0 }}
-        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-        allowFullScreen={true}
-        title="Video do YouTube"
-      />
+      <div
+        className="lexical-youtube"
+        data-lexical-youtube-embed="true"
+        style={{display: 'inline-block', width: '100%', maxWidth: '560px'}}>
+        <iframe
+          data-lexical-youtube-iframe="true"
+          width="560"
+          height="315"
+          src={`https://www.youtube-nocookie.com/embed/${videoID}`}
+          style={{border: 0}}
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+          allowFullScreen={true}
+          title="Video do YouTube"
+        />
+      </div>
     </BlockWithAlignableContents>
   );
 }

@@ -119,6 +119,7 @@ function TweetComponent({
       nodeKey={nodeKey}>
       {isTweetLoading ? loadingComponent : null}
       <div
+        className="lexical-tweet"
         style={{display: 'inline-block', width: '100%', maxWidth: '550px'}}
         ref={containerRef}
       />

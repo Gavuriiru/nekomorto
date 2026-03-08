@@ -639,8 +639,18 @@
     @apply border-border/60;
   }
 
-  .post-content iframe {
+  .post-content .lexical-video iframe,
+  .post-content iframe[data-lexical-node="video"] {
     width: 100%;
+    aspect-ratio: 16 / 9;
+    border: 0;
+    border-radius: 0.75rem;
+  }
+
+  .post-content iframe[data-lexical-youtube] {
+    display: block;
+    width: min(100%, 560px);
+    max-width: 100%;
     aspect-ratio: 16 / 9;
     border: 0;
     border-radius: 0.75rem;

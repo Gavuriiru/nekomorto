@@ -98,4 +98,15 @@ describe("LexicalViewer", () => {
 
     expect(screen.getByTestId("lexical-viewer-shell")).toBeInTheDocument();
   });
+
+  it("marca o wrapper com a classe do viewer sem perder classes externas", () => {
+    const { container } = render(
+      <LexicalViewer value={EMPTY_ROOT_STATE} className="reader-content post-content" />,
+    );
+
+    const viewerRoot = container.querySelector(".lexical-playground");
+    expect(viewerRoot).toHaveClass("lexical-playground--viewer");
+    expect(viewerRoot).toHaveClass("reader-content");
+    expect(viewerRoot).toHaveClass("post-content");
+  });
 });

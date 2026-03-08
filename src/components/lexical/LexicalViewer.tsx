@@ -13,7 +13,8 @@ import { FlashMessageContext } from "@/lexical-playground/context/FlashMessageCo
 import { PollProvider, type PollTarget } from "@/lexical-playground/context/PollContext";
 import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
-import { EMPTY_LEXICAL_JSON, normalizeLexicalJson } from "@/lib/lexical/serialize";
+import { EMPTY_LEXICAL_JSON } from "@/lib/lexical/serialize";
+import { normalizeLexicalViewerJson } from "@/lib/lexical/viewer";
 
 import "@/lexical-playground/playground.css";
 import "@/lexical-playground/playground-overrides.css";
@@ -42,7 +43,7 @@ const getOrCreatePollVoterId = () => {
   return generated;
 };
 
-const getNormalizedEditorState = (value: string) => normalizeLexicalJson(value) ?? EMPTY_LEXICAL_JSON;
+const getNormalizedEditorState = (value: string) => normalizeLexicalViewerJson(value) ?? EMPTY_LEXICAL_JSON;
 
 const ValuePlugin = ({ value }: { value: string }) => {
   const [editor] = useLexicalComposerContext();
@@ -161,7 +162,7 @@ const LexicalViewer = ({ value, className, pollTarget }: LexicalViewerProps) => 
               <SharedHistoryContext>
                 <TableContext>
                   <ToolbarContext>
-                    <div className={`lexical-playground ${className || ""}`}>
+                    <div className={`lexical-playground lexical-playground--viewer ${className || ""}`}>
                       <div className="editor-shell editor-shell--read-only">
                         <Editor hideToolbar placeholder="" />
                       </div>

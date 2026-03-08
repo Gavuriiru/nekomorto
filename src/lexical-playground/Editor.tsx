@@ -56,6 +56,7 @@ import TableCellActionMenuPlugin from './plugins/TableActionMenuPlugin';
 import TableCellResizer from './plugins/TableCellResizer';
 import TableHoverActionsV2Plugin from './plugins/TableHoverActionsV2Plugin';
 import TableScrollShadowPlugin from './plugins/TableScrollShadowPlugin';
+import TableThemeSyncPlugin from './plugins/TableThemeSyncPlugin';
 import ToolbarPlugin from './plugins/ToolbarPlugin';
 import TwitterPlugin from './plugins/TwitterPlugin';
 import YouTubePlugin from './plugins/YouTubePlugin';
@@ -208,6 +209,7 @@ export default function Editor({
               hasHorizontalScroll={tableHorizontalScroll}
               hasNestedTables={hasNestedTables}
             />
+            <TableThemeSyncPlugin />
             {showEditingPlugins && <TableCellResizer />}
             <TableScrollShadowPlugin />
             {showEditingPlugins && <ImagesPlugin imageLibraryOptions={imageLibraryOptions} />}
