@@ -80,6 +80,7 @@ import {
   findDuplicateEpisodeKey,
   resolveEpisodeLookup,
   resolveNextExtraTechnicalNumber,
+  resolveNextMainEpisodeNumber,
 } from "@/lib/project-episode-key";
 import { buildChapterFolder, resolveProjectImageFolders } from "@/lib/project-image-folders";
 import {
@@ -996,6 +997,24 @@ const buildProjectEditorSnapshot = (form: ProjectForm, anilistIdInput: string) =
     anilistIdInput: anilistIdInput.trim(),
   });
 
+const projectEditorAccordionHeaderTextClassName = "min-w-0 flex-1 space-y-1 text-left";
+const projectEditorAccordionTitleClassName =
+  "block text-[15px] font-semibold leading-tight md:text-base";
+const projectEditorAccordionSubtitleClassName = "block text-xs leading-5 text-muted-foreground";
+
+const ProjectEditorAccordionHeader = ({
+  title,
+  subtitle,
+}: {
+  title: string;
+  subtitle: string;
+}) => (
+  <div className={projectEditorAccordionHeaderTextClassName}>
+    <span className={projectEditorAccordionTitleClassName}>{title}</span>
+    <span className={projectEditorAccordionSubtitleClassName}>{subtitle}</span>
+  </div>
+);
+
 type EpisodeContentEditorProps = {
   value: string;
   onChange: (value: string) => void;
@@ -1813,41 +1832,6 @@ const DashboardProjectsEditor = () => {
       return (left.volume || 0) - (right.volume || 0);
     },
     [],
-  );
-
-  const resolveNextMainEpisodeNumber = useCallback(
-    (
-      episodes: EditorProjectEpisode[],
-      options?: {
-        excludeIndex?: number;
-        volume?: number;
-      },
-    ) => {
-      const list = Array.isArray(episodes) ? episodes : [];
-      const excludeIndex = Number.isFinite(Number(options?.excludeIndex))
-        ? Number(options?.excludeIndex)
-        : -1;
-      const volume = Number.isFinite(Number(options?.volume)) ? Number(options?.volume) : undefined;
-      const reservedKeys = new Set(
-        list
-          .map((episode, index) => {
-            if (index === excludeIndex) {
-              return "";
-            }
-            if (getEpisodeEntryKind(episode) === "extra") {
-              return "";
-            }
-            return buildEpisodeKey(episode?.number, episode?.volume);
-          })
-          .filter(Boolean),
-      );
-      let current = 1;
-      while (reservedKeys.has(buildEpisodeKey(current, volume))) {
-        current += 1;
-      }
-      return current;
-    },
-    [getEpisodeEntryKind],
   );
 
   const sortedEpisodeDownloads = useMemo<SortedEpisodeItem[]>(() => {
@@ -4336,6 +4320,7 @@ const DashboardProjectsEditor = () => {
             ? resolveNextMainEpisodeNumber(nextEpisodes, {
                 excludeIndex: index,
                 volume: currentEpisode.volume,
+                isExtra: (episode) => getEpisodeEntryKind(episode) === "extra",
               })
             : currentNumber,
         };
@@ -4345,7 +4330,7 @@ const DashboardProjectsEditor = () => {
         };
       });
     },
-    [resolveNextMainEpisodeNumber],
+    [getEpisodeEntryKind],
   );
 
   const handleAddEpisodeDownload = () => {
@@ -4359,7 +4344,9 @@ const DashboardProjectsEditor = () => {
       }));
     }
     setFormState((prev) => {
-      const nextMainNumber = resolveNextMainEpisodeNumber(prev.episodeDownloads);
+      const nextMainNumber = resolveNextMainEpisodeNumber(prev.episodeDownloads, {
+        isExtra: (episode) => getEpisodeEntryKind(episode) === "extra",
+      });
       const newEpisode: EditorProjectEpisode = {
         _editorKey: generateLocalId(),
         number: nextMainNumber,
@@ -4482,7 +4469,7 @@ const DashboardProjectsEditor = () => {
   const editorSectionClassName =
     "project-editor-section rounded-2xl border border-border/60 bg-card/70 px-4";
   const editorSectionTriggerClassName =
-    "project-editor-section-trigger py-2 text-sm font-semibold hover:no-underline";
+    "project-editor-section-trigger flex w-full items-start gap-4 py-3.5 text-left hover:no-underline md:py-4";
   const editorSectionContentClassName = "project-editor-section-content pb-2.5 px-1";
   const chapterOpenContentClassName = "project-editor-open-overflow";
   const editorProjectLabel = editingProject ? "Projeto em edição" : "Novo projeto";
@@ -4491,6 +4478,9 @@ const DashboardProjectsEditor = () => {
   const editorTypeLabel = formState.type || "Formato";
   const editorStatusLabel = formState.status || "Status";
   const editorEpisodeCount = formState.episodeDownloads.length;
+  const lightNovelContentHref = editingProject?.id
+    ? buildDashboardProjectChaptersEditorHref(editingProject.id)
+    : "";
 
   return (
     <>
@@ -4920,25 +4910,6 @@ const DashboardProjectsEditor = () => {
                       <p className="max-w-[210px] truncate text-sm font-medium text-foreground">
                         {editorProjectTitle}
                       </p>
-                      {isLightNovel ? (
-                        editingProject?.id ? (
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            className="mt-2 w-full"
-                            asChild
-                          >
-                            <Link to={buildDashboardProjectChaptersEditorHref(editingProject.id)}>
-                              Abrir editor dedicado
-                            </Link>
-                          </Button>
-                        ) : (
-                          <Button type="button" variant="outline" size="sm" className="mt-2 w-full" disabled>
-                            Salve o projeto primeiro
-                          </Button>
-                        )
-                      ) : null}
                     </div>
                   </div>
                 </DialogHeader>
@@ -4967,12 +4938,10 @@ const DashboardProjectsEditor = () => {
                 >
                   <AccordionItem value="importacao" className={editorSectionClassName}>
                     <AccordionTrigger className={editorSectionTriggerClassName}>
-                      <div className="flex w-full items-center justify-between gap-4 text-left">
-                        <span>Importação</span>
-                        <span className="text-xs text-muted-foreground">
-                          Preenchimento automático
-                        </span>
-                      </div>
+                      <ProjectEditorAccordionHeader
+                        title="Importação"
+                        subtitle="Preenchimento automático"
+                      />
                     </AccordionTrigger>
                     <AccordionContent className={editorSectionContentClassName}>
                       <div className="space-y-5">
@@ -5178,12 +5147,10 @@ const DashboardProjectsEditor = () => {
 
                   <AccordionItem value="dados-principais" className={editorSectionClassName}>
                     <AccordionTrigger className={editorSectionTriggerClassName}>
-                      <div className="flex w-full items-center justify-between gap-4 text-left">
-                        <span>Dados principais</span>
-                        <span className="text-xs text-muted-foreground">
-                          {formState.title || "ID e títulos"}
-                        </span>
-                      </div>
+                      <ProjectEditorAccordionHeader
+                        title="Dados principais"
+                        subtitle={formState.title || "ID e títulos"}
+                      />
                     </AccordionTrigger>
                     <AccordionContent className={editorSectionContentClassName}>
                       <div className="grid gap-4 md:grid-cols-2">
@@ -5262,103 +5229,119 @@ const DashboardProjectsEditor = () => {
                     </AccordionContent>
                   </AccordionItem>
 
-                  <AccordionItem value="midias" className={editorSectionClassName}>
+                  <AccordionItem value="classificacao" className={editorSectionClassName}>
                     <AccordionTrigger className={editorSectionTriggerClassName}>
-                      <div className="flex w-full items-center justify-between gap-4 text-left">
-                        <span>Mídias</span>
-                        <span className="text-xs text-muted-foreground">
-                          {
-                            [formState.heroImageUrl, formState.cover, formState.banner].filter(
-                              Boolean,
-                            ).length
-                          }
-                          /3 selecionadas
-                        </span>
-                      </div>
+                      <ProjectEditorAccordionHeader
+                        title="Classificação"
+                        subtitle={`${formState.tags.length} tags • ${formState.genres.length} gêneros`}
+                      />
                     </AccordionTrigger>
                     <AccordionContent className={editorSectionContentClassName}>
-                      <div className="space-y-4">
-                        <div className="grid gap-3 md:grid-cols-3">
-                          <div className="space-y-2">
-                            <Label>Imagem do carrossel</Label>
-                            <div className="space-y-2 rounded-2xl border border-border/60 bg-card/60 px-3 py-2">
-                              <div className="flex items-center gap-3">
-                                {formState.heroImageUrl ? (
-                                  <img
-                                    src={formState.heroImageUrl}
-                                    alt="Imagem do carrossel"
-                                    className="h-12 w-12 rounded-lg object-cover"
-                                  />
-                                ) : (
-                                  <div className="flex h-12 w-12 items-center justify-center rounded-lg border border-dashed border-border/60 text-center text-[10px] text-muted-foreground leading-tight">
-                                    Sem imagem
-                                  </div>
-                                )}
-                                <Button
-                                  type="button"
-                                  variant="outline"
-                                  size="sm"
-                                  className="ml-auto"
-                                  onClick={() => openLibraryForProjectImage("hero")}
-                                >
-                                  Biblioteca
-                                </Button>
-                              </div>
-                            </div>
+                      <div className="grid gap-4 md:grid-cols-2">
+                        <div className="space-y-2">
+                          <Label>Tags</Label>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <Input
+                              value={tagInput}
+                              onChange={(event) => setTagInput(event.target.value)}
+                              onKeyDown={(event) => {
+                                if (event.key === "Enter") {
+                                  event.preventDefault();
+                                  handleAddTag();
+                                }
+                              }}
+                              placeholder="Adicionar tag"
+                            />
                           </div>
-                          <div className="space-y-2">
-                            <Label>Capa</Label>
-                            <div className="space-y-2 rounded-2xl border border-border/60 bg-card/60 px-3 py-2">
-                              <div className="flex items-center gap-3">
-                                {formState.cover ? (
-                                  <img
-                                    src={formState.cover}
-                                    alt="Capa"
-                                    className="h-12 w-12 rounded-lg object-cover"
-                                  />
-                                ) : (
-                                  <div className="flex h-12 w-12 items-center justify-center rounded-lg border border-dashed border-border/60 text-center text-[10px] text-muted-foreground leading-tight">
-                                    Sem imagem
-                                  </div>
-                                )}
+                          {tagSuggestions.length > 0 ? (
+                            <div className="mt-2 flex flex-wrap gap-2">
+                              {tagSuggestions.map((tag) => (
                                 <Button
+                                  key={`tag-suggestion-${tag}`}
                                   type="button"
-                                  variant="outline"
                                   size="sm"
-                                  className="ml-auto"
-                                  onClick={() => openLibraryForProjectImage("cover")}
+                                  variant="ghost"
+                                  className="h-7 px-2 text-xs"
+                                  onClick={() => {
+                                    setTagInput(tag);
+                                    setFormState((prev) => ({
+                                      ...prev,
+                                      tags: prev.tags.includes(tag)
+                                        ? prev.tags
+                                        : [...prev.tags, tag],
+                                    }));
+                                    setTagInput("");
+                                  }}
                                 >
-                                  Biblioteca
+                                  {tag}
                                 </Button>
-                              </div>
+                              ))}
                             </div>
+                          ) : null}
+                          <div className="mt-2 flex flex-wrap gap-2">
+                            {translatedSortedEditorTags.map((tag, index) => (
+                              <Badge
+                                key={`${tag}-${index}`}
+                                variant="secondary"
+                                onClick={() => handleRemoveTag(tag)}
+                                className="cursor-pointer"
+                              >
+                                {translateTag(tag, tagTranslationMap)}
+                              </Badge>
+                            ))}
                           </div>
-                          <div className="space-y-2">
-                            <Label>Banner</Label>
-                            <div className="space-y-2 rounded-2xl border border-border/60 bg-card/60 px-3 py-2">
-                              <div className="flex items-center gap-3">
-                                {formState.banner ? (
-                                  <img
-                                    src={formState.banner}
-                                    alt="Banner"
-                                    className="h-12 w-12 rounded-lg object-cover"
-                                  />
-                                ) : (
-                                  <div className="flex h-12 w-12 items-center justify-center rounded-lg border border-dashed border-border/60 text-center text-[10px] text-muted-foreground leading-tight">
-                                    Sem imagem
-                                  </div>
-                                )}
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Gêneros</Label>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <Input
+                              value={genreInput}
+                              onChange={(event) => setGenreInput(event.target.value)}
+                              onKeyDown={(event) => {
+                                if (event.key === "Enter") {
+                                  event.preventDefault();
+                                  handleAddGenre();
+                                }
+                              }}
+                              placeholder="Adicionar gênero"
+                            />
+                          </div>
+                          {genreSuggestions.length > 0 ? (
+                            <div className="mt-2 flex flex-wrap gap-2">
+                              {genreSuggestions.map((genre) => (
                                 <Button
+                                  key={`genre-suggestion-${genre}`}
                                   type="button"
-                                  variant="outline"
                                   size="sm"
-                                  className="ml-auto"
-                                  onClick={() => openLibraryForProjectImage("banner")}
+                                  variant="ghost"
+                                  className="h-7 px-2 text-xs"
+                                  onClick={() => {
+                                    setGenreInput(genre);
+                                    setFormState((prev) => ({
+                                      ...prev,
+                                      genres: prev.genres.includes(genre)
+                                        ? prev.genres
+                                        : [...prev.genres, genre],
+                                    }));
+                                    setGenreInput("");
+                                  }}
                                 >
-                                  Biblioteca
+                                  {genre}
                                 </Button>
-                              </div>
+                              ))}
                             </div>
+                          ) : null}
+                          <div className="mt-2 flex flex-wrap gap-2">
+                            {translatedSortedEditorGenres.map((genre, index) => (
+                              <Badge
+                                key={`${genre}-${index}`}
+                                variant="secondary"
+                                onClick={() => handleRemoveGenre(genre)}
+                                className="cursor-pointer"
+                              >
+                                {translateGenre(genre, genreTranslationMap)}
+                              </Badge>
+                            ))}
                           </div>
                         </div>
                       </div>
@@ -5367,12 +5350,10 @@ const DashboardProjectsEditor = () => {
 
                   <AccordionItem value="metadados" className={editorSectionClassName}>
                     <AccordionTrigger className={editorSectionTriggerClassName}>
-                      <div className="flex w-full items-center justify-between gap-4 text-left">
-                        <span>Metadados</span>
-                        <span className="text-xs text-muted-foreground">
-                          {formState.type || "Formato"} • {formState.status || "Status"}
-                        </span>
-                      </div>
+                      <ProjectEditorAccordionHeader
+                        title="Metadados"
+                        subtitle={`${formState.type || "Formato"} • ${formState.status || "Status"}`}
+                      />
                     </AccordionTrigger>
                     <AccordionContent className={editorSectionContentClassName}>
                       <div className="grid gap-4 md:grid-cols-2">
@@ -5487,121 +5468,99 @@ const DashboardProjectsEditor = () => {
                     </AccordionContent>
                   </AccordionItem>
 
-                  <AccordionItem value="classificacao" className={editorSectionClassName}>
+                  <AccordionItem value="midias" className={editorSectionClassName}>
                     <AccordionTrigger className={editorSectionTriggerClassName}>
-                      <div className="flex w-full items-center justify-between gap-4 text-left">
-                        <span>Classificação</span>
-                        <span className="text-xs text-muted-foreground">
-                          {formState.tags.length} tags • {formState.genres.length} gêneros
-                        </span>
-                      </div>
+                      <ProjectEditorAccordionHeader
+                        title="Mídias"
+                        subtitle={`${
+                          [formState.heroImageUrl, formState.cover, formState.banner].filter(Boolean)
+                            .length
+                        }/3 selecionadas`}
+                      />
                     </AccordionTrigger>
                     <AccordionContent className={editorSectionContentClassName}>
-                      <div className="grid gap-4 md:grid-cols-2">
-                        <div className="space-y-2">
-                          <Label>Tags</Label>
-                          <div className="flex flex-wrap items-center gap-2">
-                            <Input
-                              value={tagInput}
-                              onChange={(event) => setTagInput(event.target.value)}
-                              onKeyDown={(event) => {
-                                if (event.key === "Enter") {
-                                  event.preventDefault();
-                                  handleAddTag();
-                                }
-                              }}
-                              placeholder="Adicionar tag"
-                            />
-                          </div>
-                          {tagSuggestions.length > 0 ? (
-                            <div className="mt-2 flex flex-wrap gap-2">
-                              {tagSuggestions.map((tag) => (
+                      <div className="space-y-4">
+                        <div className="grid gap-3 md:grid-cols-3">
+                          <div className="space-y-2">
+                            <Label>Imagem do carrossel</Label>
+                            <div className="space-y-2 rounded-2xl border border-border/60 bg-card/60 px-3 py-2">
+                              <div className="flex items-center gap-3">
+                                {formState.heroImageUrl ? (
+                                  <img
+                                    src={formState.heroImageUrl}
+                                    alt="Imagem do carrossel"
+                                    className="h-12 w-12 rounded-lg object-cover"
+                                  />
+                                ) : (
+                                  <div className="flex h-12 w-12 items-center justify-center rounded-lg border border-dashed border-border/60 text-center text-[10px] text-muted-foreground leading-tight">
+                                    Sem imagem
+                                  </div>
+                                )}
                                 <Button
-                                  key={`tag-suggestion-${tag}`}
                                   type="button"
+                                  variant="outline"
                                   size="sm"
-                                  variant="ghost"
-                                  className="h-7 px-2 text-xs"
-                                  onClick={() => {
-                                    setTagInput(tag);
-                                    setFormState((prev) => ({
-                                      ...prev,
-                                      tags: prev.tags.includes(tag)
-                                        ? prev.tags
-                                        : [...prev.tags, tag],
-                                    }));
-                                    setTagInput("");
-                                  }}
+                                  className="ml-auto"
+                                  onClick={() => openLibraryForProjectImage("hero")}
                                 >
-                                  {tag}
+                                  Biblioteca
                                 </Button>
-                              ))}
+                              </div>
                             </div>
-                          ) : null}
-                          <div className="mt-2 flex flex-wrap gap-2">
-                            {translatedSortedEditorTags.map((tag, index) => (
-                              <Badge
-                                key={`${tag}-${index}`}
-                                variant="secondary"
-                                onClick={() => handleRemoveTag(tag)}
-                                className="cursor-pointer"
-                              >
-                                {translateTag(tag, tagTranslationMap)}
-                              </Badge>
-                            ))}
                           </div>
-                        </div>
-                        <div className="space-y-2">
-                          <Label>Gêneros</Label>
-                          <div className="flex flex-wrap items-center gap-2">
-                            <Input
-                              value={genreInput}
-                              onChange={(event) => setGenreInput(event.target.value)}
-                              onKeyDown={(event) => {
-                                if (event.key === "Enter") {
-                                  event.preventDefault();
-                                  handleAddGenre();
-                                }
-                              }}
-                              placeholder="Adicionar gênero"
-                            />
-                          </div>
-                          {genreSuggestions.length > 0 ? (
-                            <div className="mt-2 flex flex-wrap gap-2">
-                              {genreSuggestions.map((genre) => (
+                          <div className="space-y-2">
+                            <Label>Capa</Label>
+                            <div className="space-y-2 rounded-2xl border border-border/60 bg-card/60 px-3 py-2">
+                              <div className="flex items-center gap-3">
+                                {formState.cover ? (
+                                  <img
+                                    src={formState.cover}
+                                    alt="Capa"
+                                    className="h-12 w-12 rounded-lg object-cover"
+                                  />
+                                ) : (
+                                  <div className="flex h-12 w-12 items-center justify-center rounded-lg border border-dashed border-border/60 text-center text-[10px] text-muted-foreground leading-tight">
+                                    Sem imagem
+                                  </div>
+                                )}
                                 <Button
-                                  key={`genre-suggestion-${genre}`}
                                   type="button"
+                                  variant="outline"
                                   size="sm"
-                                  variant="ghost"
-                                  className="h-7 px-2 text-xs"
-                                  onClick={() => {
-                                    setGenreInput(genre);
-                                    setFormState((prev) => ({
-                                      ...prev,
-                                      genres: prev.genres.includes(genre)
-                                        ? prev.genres
-                                        : [...prev.genres, genre],
-                                    }));
-                                    setGenreInput("");
-                                  }}
+                                  className="ml-auto"
+                                  onClick={() => openLibraryForProjectImage("cover")}
                                 >
-                                  {genre}
+                                  Biblioteca
                                 </Button>
-                              ))}
+                              </div>
                             </div>
-                          ) : null}
-                          <div className="mt-2 flex flex-wrap gap-2">
-                            {translatedSortedEditorGenres.map((genre, index) => (
-                              <Badge
-                                key={`${genre}-${index}`}
-                                variant="secondary"
-                                onClick={() => handleRemoveGenre(genre)}
-                                className="cursor-pointer"
-                              >
-                                {translateGenre(genre, genreTranslationMap)}
-                              </Badge>
-                            ))}
+                          </div>
+                          <div className="space-y-2">
+                            <Label>Banner</Label>
+                            <div className="space-y-2 rounded-2xl border border-border/60 bg-card/60 px-3 py-2">
+                              <div className="flex items-center gap-3">
+                                {formState.banner ? (
+                                  <img
+                                    src={formState.banner}
+                                    alt="Banner"
+                                    className="h-12 w-12 rounded-lg object-cover"
+                                  />
+                                ) : (
+                                  <div className="flex h-12 w-12 items-center justify-center rounded-lg border border-dashed border-border/60 text-center text-[10px] text-muted-foreground leading-tight">
+                                    Sem imagem
+                                  </div>
+                                )}
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  className="ml-auto"
+                                  onClick={() => openLibraryForProjectImage("banner")}
+                                >
+                                  Biblioteca
+                                </Button>
+                              </div>
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -5610,12 +5569,10 @@ const DashboardProjectsEditor = () => {
 
                   <AccordionItem value="relacoes" className={editorSectionClassName}>
                     <AccordionTrigger className={editorSectionTriggerClassName}>
-                      <div className="flex w-full items-center justify-between gap-4 text-left">
-                        <span>Relações</span>
-                        <span className="text-xs text-muted-foreground">
-                          {formState.relations.length} itens
-                        </span>
-                      </div>
+                      <ProjectEditorAccordionHeader
+                        title="Relações"
+                        subtitle={`${formState.relations.length} itens`}
+                      />
                     </AccordionTrigger>
                     <AccordionContent className={editorSectionContentClassName}>
                       <div className="space-y-3">
@@ -5705,301 +5662,20 @@ const DashboardProjectsEditor = () => {
                     </AccordionContent>
                   </AccordionItem>
 
-                  <AccordionItem value="equipe" className={editorSectionClassName}>
-                    <AccordionTrigger className={editorSectionTriggerClassName}>
-                      <div className="flex w-full items-center justify-between gap-4 text-left">
-                        <span>Equipe da fansub</span>
-                        <span className="text-xs text-muted-foreground">
-                          {formState.staff.length} funções
-                        </span>
-                      </div>
-                    </AccordionTrigger>
-                    <AccordionContent className={editorSectionContentClassName}>
-                      <div className="space-y-3">
-                        <div className="flex items-center justify-end">
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant="outline"
-                            onClick={() =>
-                              setFormState((prev) => ({
-                                ...prev,
-                                staff: [...prev.staff, { role: "", members: [] }],
-                              }))
-                            }
-                          >
-                            Adicionar função
-                          </Button>
-                        </div>
-                        <div className="grid gap-3">
-                          {formState.staff.map((role, index) => (
-                            <div
-                              key={`${role.role}-${index}`}
-                              className="rounded-2xl border border-border/60 bg-card/60 p-3"
-                              draggable
-                              onDragStart={() => setStaffDragIndex(index)}
-                              onDragOver={(event) => event.preventDefault()}
-                              onDrop={() => handleStaffDrop(index)}
-                            >
-                              <div className="grid gap-3 md:grid-cols-[1fr_auto_auto]">
-                                <Select
-                                  value={role.role || ""}
-                                  onValueChange={(value) =>
-                                    setFormState((prev) => {
-                                      const next = [...prev.staff];
-                                      next[index] = { ...next[index], role: value };
-                                      return { ...prev, staff: next };
-                                    })
-                                  }
-                                >
-                                  <SelectTrigger>
-                                    <SelectValue placeholder="Função" />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    {(role.role && !staffRoleOptions.includes(role.role)
-                                      ? [role.role, ...staffRoleOptions]
-                                      : staffRoleOptions
-                                    ).map((option) => (
-                                      <SelectItem key={option} value={option}>
-                                        {option}
-                                      </SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
-                                <ReorderControls
-                                  label={`funcao da fansub ${index + 1}`}
-                                  index={index}
-                                  total={formState.staff.length}
-                                  onMove={(targetIndex) => moveStaffItem(index, targetIndex)}
-                                />
-                                <Button
-                                  type="button"
-                                  variant="ghost"
-                                  onClick={() =>
-                                    setFormState((prev) => ({
-                                      ...prev,
-                                      staff: prev.staff.filter((_, idx) => idx !== index),
-                                    }))
-                                  }
-                                >
-                                  Remover
-                                </Button>
-                              </div>
-                              <div className="mt-3 flex flex-wrap items-center gap-2">
-                                <Input
-                                  list="staff-directory"
-                                  value={staffMemberInput[index] || ""}
-                                  onChange={(event) =>
-                                    setStaffMemberInput((prev) => ({
-                                      ...prev,
-                                      [index]: event.target.value,
-                                    }))
-                                  }
-                                  placeholder="Adicionar membro"
-                                />
-                                <Button
-                                  type="button"
-                                  variant="outline"
-                                  onClick={() =>
-                                    setFormState((prev) => {
-                                      const next = [...prev.staff];
-                                      const name = (staffMemberInput[index] || "").trim();
-                                      if (!name) {
-                                        return prev;
-                                      }
-                                      const members = next[index].members || [];
-                                      next[index] = {
-                                        ...next[index],
-                                        members: members.includes(name)
-                                          ? members
-                                          : [...members, name],
-                                      };
-                                      return { ...prev, staff: next };
-                                    })
-                                  }
-                                >
-                                  Adicionar
-                                </Button>
-                              </div>
-                              <div className="mt-2 flex flex-wrap gap-2">
-                                {(role.members || []).map((member) => (
-                                  <Badge key={member} variant="secondary">
-                                    {member}
-                                  </Badge>
-                                ))}
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    </AccordionContent>
-                  </AccordionItem>
-
-                  <AccordionItem value="staff-anime" className={editorSectionClassName}>
-                    <AccordionTrigger className={editorSectionTriggerClassName}>
-                      <div className="flex w-full items-center justify-between gap-4 text-left">
-                        <span>Staff do anime</span>
-                        <span className="text-xs text-muted-foreground">
-                          {formState.animeStaff.length} funções
-                        </span>
-                      </div>
-                    </AccordionTrigger>
-                    <AccordionContent className={editorSectionContentClassName}>
-                      <div className="space-y-3">
-                        <div className="flex items-center justify-end">
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant="outline"
-                            onClick={() =>
-                              setFormState((prev) => ({
-                                ...prev,
-                                animeStaff: [...prev.animeStaff, { role: "", members: [] }],
-                              }))
-                            }
-                          >
-                            Adicionar função
-                          </Button>
-                        </div>
-                        <div className="grid gap-3">
-                          {formState.animeStaff.map((role, index) => (
-                            <div
-                              key={`${role.role}-${index}`}
-                              className="rounded-2xl border border-border/60 bg-card/60 p-3"
-                              draggable
-                              onDragStart={() => setAnimeStaffDragIndex(index)}
-                              onDragOver={(event) => event.preventDefault()}
-                              onDrop={() => handleAnimeStaffDrop(index)}
-                            >
-                              <div className="grid gap-3 md:grid-cols-[1fr_auto_auto]">
-                                <div className="space-y-1">
-                                  <Input
-                                    value={role.role || ""}
-                                    onChange={(event) =>
-                                      setFormState((prev) => {
-                                        const next = [...prev.animeStaff];
-                                        next[index] = { ...next[index], role: event.target.value };
-                                        return { ...prev, animeStaff: next };
-                                      })
-                                    }
-                                    placeholder="Função"
-                                  />
-                                  {String(role.role || "").trim() ? (
-                                    <p className="text-[11px] text-muted-foreground">
-                                      {translateAnilistRole(role.role, staffRoleTranslationMap)}
-                                    </p>
-                                  ) : null}
-                                </div>
-                                <ReorderControls
-                                  label={`funcao do anime ${index + 1}`}
-                                  index={index}
-                                  total={formState.animeStaff.length}
-                                  onMove={(targetIndex) => moveAnimeStaffItem(index, targetIndex)}
-                                />
-                                <Button
-                                  type="button"
-                                  variant="ghost"
-                                  onClick={() => {
-                                    setFormState((prev) => ({
-                                      ...prev,
-                                      animeStaff: prev.animeStaff.filter((_, idx) => idx !== index),
-                                    }));
-                                    setAnimeStaffMemberInput((prev) =>
-                                      shiftDraftAfterRemoval(prev, index),
-                                    );
-                                  }}
-                                >
-                                  Remover
-                                </Button>
-                              </div>
-                              <div className="mt-3 flex flex-wrap items-center gap-2">
-                                <Input
-                                  list="staff-directory"
-                                  value={animeStaffMemberInput[index] || ""}
-                                  onChange={(event) =>
-                                    setAnimeStaffMemberInput((prev) => ({
-                                      ...prev,
-                                      [index]: event.target.value,
-                                    }))
-                                  }
-                                  placeholder="Adicionar membro"
-                                />
-                                <Button
-                                  type="button"
-                                  variant="outline"
-                                  onClick={() => {
-                                    const name = (animeStaffMemberInput[index] || "").trim();
-                                    if (!name) {
-                                      return;
-                                    }
-                                    setFormState((prev) => {
-                                      const next = [...prev.animeStaff];
-                                      const members = next[index].members || [];
-                                      next[index] = {
-                                        ...next[index],
-                                        members: members.includes(name)
-                                          ? members
-                                          : [...members, name],
-                                      };
-                                      return { ...prev, animeStaff: next };
-                                    });
-                                    setAnimeStaffMemberInput((prev) => ({ ...prev, [index]: "" }));
-                                  }}
-                                >
-                                  Adicionar
-                                </Button>
-                              </div>
-                              <div className="mt-2 flex flex-wrap gap-2">
-                                {(role.members || []).map((member) => (
-                                  <Badge
-                                    key={member}
-                                    variant="secondary"
-                                    className="flex items-center gap-1"
-                                  >
-                                    <span>{member}</span>
-                                    <button
-                                      type="button"
-                                      className="rounded-sm p-0.5 text-muted-foreground transition hover:text-foreground"
-                                      onClick={() =>
-                                        setFormState((prev) => {
-                                          const next = [...prev.animeStaff];
-                                          next[index] = {
-                                            ...next[index],
-                                            members: (next[index].members || []).filter(
-                                              (item) => item !== member,
-                                            ),
-                                          };
-                                          return { ...prev, animeStaff: next };
-                                        })
-                                      }
-                                      aria-label={`Remover ${member}`}
-                                    >
-                                      x
-                                    </button>
-                                  </Badge>
-                                ))}
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    </AccordionContent>
-                  </AccordionItem>
-
-                  <AccordionItem value="episodios" className={editorSectionClassName}>
-                    <AccordionTrigger className={editorSectionTriggerClassName}>
-                      <div className="flex w-full items-center justify-between gap-4 text-left">
-                        <span>{isChapterBased ? "Conteúdo" : "Episódios"}</span>
-                        <span className="text-xs text-muted-foreground">
-                          {formState.episodeDownloads.length}{" "}
-                          {isChapterBased ? "capítulos" : "episódios"}
-                        </span>
-                      </div>
-                    </AccordionTrigger>
-                    <AccordionContent
-                      className={editorSectionContentClassName}
-                      contentClassName={isChapterBased ? chapterOpenContentClassName : undefined}
-                    >
+                  {!isLightNovel ? (
+                    <AccordionItem value="episodios" className={editorSectionClassName}>
+                      <AccordionTrigger className={editorSectionTriggerClassName}>
+                        <ProjectEditorAccordionHeader
+                          title={isChapterBased ? "Conteúdo" : "Episódios"}
+                          subtitle={`${formState.episodeDownloads.length} ${
+                            isChapterBased ? "capítulos" : "episódios"
+                          }`}
+                        />
+                      </AccordionTrigger>
+                      <AccordionContent
+                        className={editorSectionContentClassName}
+                        contentClassName={isChapterBased ? chapterOpenContentClassName : undefined}
+                      >
                       <div ref={contentSectionRef} className="space-y-3">
                         <div className="flex flex-wrap items-center justify-end gap-2">
                           {isChapterBased && supportsVolumeEntries ? (
@@ -6180,17 +5856,6 @@ const DashboardProjectsEditor = () => {
                                           episode.number,
                                           episode.volume,
                                         );
-                                        const chapterEditorHref =
-                                          isLightNovel &&
-                                          String(formState.id || editingProject?.id || "").trim()
-                                            ? buildDashboardProjectChapterEditorHref(
-                                                String(
-                                                  formState.id || editingProject?.id || "",
-                                                ).trim(),
-                                                episode.number,
-                                                episode.volume,
-                                              )
-                                            : "";
                                         const publicationStatus =
                                           episode.publicationStatus === "draft"
                                             ? "draft"
@@ -7165,6 +6830,284 @@ const DashboardProjectsEditor = () => {
                         </div>
                       </div>
                     </AccordionContent>
+                    </AccordionItem>
+                  ) : null}
+
+                  <AccordionItem value="equipe" className={editorSectionClassName}>
+                    <AccordionTrigger className={editorSectionTriggerClassName}>
+                      <ProjectEditorAccordionHeader
+                        title="Equipe da fansub"
+                        subtitle={`${formState.staff.length} funções`}
+                      />
+                    </AccordionTrigger>
+                    <AccordionContent className={editorSectionContentClassName}>
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-end">
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            onClick={() =>
+                              setFormState((prev) => ({
+                                ...prev,
+                                staff: [...prev.staff, { role: "", members: [] }],
+                              }))
+                            }
+                          >
+                            Adicionar função
+                          </Button>
+                        </div>
+                        <div className="grid gap-3">
+                          {formState.staff.map((role, index) => (
+                            <div
+                              key={`${role.role}-${index}`}
+                              className="rounded-2xl border border-border/60 bg-card/60 p-3"
+                              draggable
+                              onDragStart={() => setStaffDragIndex(index)}
+                              onDragOver={(event) => event.preventDefault()}
+                              onDrop={() => handleStaffDrop(index)}
+                            >
+                              <div className="grid gap-3 md:grid-cols-[1fr_auto_auto]">
+                                <Select
+                                  value={role.role || ""}
+                                  onValueChange={(value) =>
+                                    setFormState((prev) => {
+                                      const next = [...prev.staff];
+                                      next[index] = { ...next[index], role: value };
+                                      return { ...prev, staff: next };
+                                    })
+                                  }
+                                >
+                                  <SelectTrigger>
+                                    <SelectValue placeholder="Função" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {(role.role && !staffRoleOptions.includes(role.role)
+                                      ? [role.role, ...staffRoleOptions]
+                                      : staffRoleOptions
+                                    ).map((option) => (
+                                      <SelectItem key={option} value={option}>
+                                        {option}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                                <ReorderControls
+                                  label={`funcao da fansub ${index + 1}`}
+                                  index={index}
+                                  total={formState.staff.length}
+                                  onMove={(targetIndex) => moveStaffItem(index, targetIndex)}
+                                />
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  onClick={() =>
+                                    setFormState((prev) => ({
+                                      ...prev,
+                                      staff: prev.staff.filter((_, idx) => idx !== index),
+                                    }))
+                                  }
+                                >
+                                  Remover
+                                </Button>
+                              </div>
+                              <div className="mt-3 flex flex-wrap items-center gap-2">
+                                <Input
+                                  list="staff-directory"
+                                  value={staffMemberInput[index] || ""}
+                                  onChange={(event) =>
+                                    setStaffMemberInput((prev) => ({
+                                      ...prev,
+                                      [index]: event.target.value,
+                                    }))
+                                  }
+                                  placeholder="Adicionar membro"
+                                />
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  onClick={() =>
+                                    setFormState((prev) => {
+                                      const next = [...prev.staff];
+                                      const name = (staffMemberInput[index] || "").trim();
+                                      if (!name) {
+                                        return prev;
+                                      }
+                                      const members = next[index].members || [];
+                                      next[index] = {
+                                        ...next[index],
+                                        members: members.includes(name)
+                                          ? members
+                                          : [...members, name],
+                                      };
+                                      return { ...prev, staff: next };
+                                    })
+                                  }
+                                >
+                                  Adicionar
+                                </Button>
+                              </div>
+                              <div className="mt-2 flex flex-wrap gap-2">
+                                {(role.members || []).map((member) => (
+                                  <Badge key={member} variant="secondary">
+                                    {member}
+                                  </Badge>
+                                ))}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </AccordionContent>
+                  </AccordionItem>
+
+                  <AccordionItem value="staff-anime" className={editorSectionClassName}>
+                    <AccordionTrigger className={editorSectionTriggerClassName}>
+                      <ProjectEditorAccordionHeader
+                        title="Staff do anime"
+                        subtitle={`${formState.animeStaff.length} funções`}
+                      />
+                    </AccordionTrigger>
+                    <AccordionContent className={editorSectionContentClassName}>
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-end">
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            onClick={() =>
+                              setFormState((prev) => ({
+                                ...prev,
+                                animeStaff: [...prev.animeStaff, { role: "", members: [] }],
+                              }))
+                            }
+                          >
+                            Adicionar função
+                          </Button>
+                        </div>
+                        <div className="grid gap-3">
+                          {formState.animeStaff.map((role, index) => (
+                            <div
+                              key={`${role.role}-${index}`}
+                              className="rounded-2xl border border-border/60 bg-card/60 p-3"
+                              draggable
+                              onDragStart={() => setAnimeStaffDragIndex(index)}
+                              onDragOver={(event) => event.preventDefault()}
+                              onDrop={() => handleAnimeStaffDrop(index)}
+                            >
+                              <div className="grid gap-3 md:grid-cols-[1fr_auto_auto]">
+                                <div className="space-y-1">
+                                  <Input
+                                    value={role.role || ""}
+                                    onChange={(event) =>
+                                      setFormState((prev) => {
+                                        const next = [...prev.animeStaff];
+                                        next[index] = { ...next[index], role: event.target.value };
+                                        return { ...prev, animeStaff: next };
+                                      })
+                                    }
+                                    placeholder="Função"
+                                  />
+                                  {String(role.role || "").trim() ? (
+                                    <p className="text-[11px] text-muted-foreground">
+                                      {translateAnilistRole(role.role, staffRoleTranslationMap)}
+                                    </p>
+                                  ) : null}
+                                </div>
+                                <ReorderControls
+                                  label={`funcao do anime ${index + 1}`}
+                                  index={index}
+                                  total={formState.animeStaff.length}
+                                  onMove={(targetIndex) => moveAnimeStaffItem(index, targetIndex)}
+                                />
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  onClick={() => {
+                                    setFormState((prev) => ({
+                                      ...prev,
+                                      animeStaff: prev.animeStaff.filter((_, idx) => idx !== index),
+                                    }));
+                                    setAnimeStaffMemberInput((prev) =>
+                                      shiftDraftAfterRemoval(prev, index),
+                                    );
+                                  }}
+                                >
+                                  Remover
+                                </Button>
+                              </div>
+                              <div className="mt-3 flex flex-wrap items-center gap-2">
+                                <Input
+                                  list="staff-directory"
+                                  value={animeStaffMemberInput[index] || ""}
+                                  onChange={(event) =>
+                                    setAnimeStaffMemberInput((prev) => ({
+                                      ...prev,
+                                      [index]: event.target.value,
+                                    }))
+                                  }
+                                  placeholder="Adicionar membro"
+                                />
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  onClick={() => {
+                                    const name = (animeStaffMemberInput[index] || "").trim();
+                                    if (!name) {
+                                      return;
+                                    }
+                                    setFormState((prev) => {
+                                      const next = [...prev.animeStaff];
+                                      const members = next[index].members || [];
+                                      next[index] = {
+                                        ...next[index],
+                                        members: members.includes(name)
+                                          ? members
+                                          : [...members, name],
+                                      };
+                                      return { ...prev, animeStaff: next };
+                                    });
+                                    setAnimeStaffMemberInput((prev) => ({ ...prev, [index]: "" }));
+                                  }}
+                                >
+                                  Adicionar
+                                </Button>
+                              </div>
+                              <div className="mt-2 flex flex-wrap gap-2">
+                                {(role.members || []).map((member) => (
+                                  <Badge
+                                    key={member}
+                                    variant="secondary"
+                                    className="flex items-center gap-1"
+                                  >
+                                    <span>{member}</span>
+                                    <button
+                                      type="button"
+                                      className="rounded-sm p-0.5 text-muted-foreground transition hover:text-foreground"
+                                      onClick={() =>
+                                        setFormState((prev) => {
+                                          const next = [...prev.animeStaff];
+                                          next[index] = {
+                                            ...next[index],
+                                            members: (next[index].members || []).filter(
+                                              (item) => item !== member,
+                                            ),
+                                          };
+                                          return { ...prev, animeStaff: next };
+                                        })
+                                      }
+                                      aria-label={`Remover ${member}`}
+                                    >
+                                      x
+                                    </button>
+                                  </Badge>
+                                ))}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </AccordionContent>
                   </AccordionItem>
                 </Accordion>
                 <datalist id="staff-directory">
@@ -7174,11 +7117,26 @@ const DashboardProjectsEditor = () => {
                 </datalist>
               </div>
             </div>
-            <div className="project-editor-footer flex justify-end gap-3 border-t border-border/60 bg-background/95 px-4 py-1.5 backdrop-blur-sm supports-backdrop-filter:bg-background/80 md:px-6 md:py-2 lg:px-8">
-              <Button variant="ghost" onClick={requestCloseEditor}>
-                Cancelar
-              </Button>
-              <Button onClick={handleSave}>Salvar projeto</Button>
+            <div className="project-editor-footer flex items-center justify-between gap-3 border-t border-border/60 bg-background/95 px-4 py-1.5 backdrop-blur-sm supports-backdrop-filter:bg-background/80 md:px-6 md:py-2 lg:px-8">
+              <div className="flex items-center gap-3">
+                {isLightNovel ? (
+                  lightNovelContentHref ? (
+                    <Button type="button" variant="outline" asChild>
+                      <Link to={lightNovelContentHref}>Conteúdo</Link>
+                    </Button>
+                  ) : (
+                    <Button type="button" variant="outline" disabled>
+                      Conteúdo
+                    </Button>
+                  )
+                ) : null}
+              </div>
+              <div className="flex items-center gap-3">
+                <Button variant="ghost" onClick={requestCloseEditor}>
+                  Cancelar
+                </Button>
+                <Button onClick={handleSave}>Salvar projeto</Button>
+              </div>
             </div>
           </div>
         </DialogContent>

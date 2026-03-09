@@ -51,6 +51,46 @@ export const resolveNextExtraTechnicalNumber = <
   return current;
 };
 
+export const resolveNextMainEpisodeNumber = <
+  Episode extends {
+    number?: unknown;
+    volume?: unknown;
+    entryKind?: unknown;
+  },
+>(
+  episodes: Episode[],
+  options?: {
+    excludeIndex?: number;
+    volume?: number;
+    isExtra?: (episode: Episode) => boolean;
+  },
+) => {
+  const list = Array.isArray(episodes) ? episodes : [];
+  const excludeIndex = Number.isFinite(Number(options?.excludeIndex))
+    ? Number(options?.excludeIndex)
+    : -1;
+  const volume = Number.isFinite(Number(options?.volume)) ? Number(options?.volume) : undefined;
+  const isExtra =
+    typeof options?.isExtra === "function"
+      ? options.isExtra
+      : (episode: Episode) => String(episode?.entryKind || "").trim().toLowerCase() === "extra";
+  const reservedKeys = new Set(
+    list
+      .map((episode, index) => {
+        if (index === excludeIndex || isExtra(episode)) {
+          return "";
+        }
+        return buildEpisodeKey(episode?.number, episode?.volume);
+      })
+      .filter(Boolean),
+  );
+  let current = 1;
+  while (reservedKeys.has(buildEpisodeKey(current, volume))) {
+    current += 1;
+  }
+  return current;
+};
+
 export const findDuplicateEpisodeKey = <
   Episode extends {
     number?: unknown;

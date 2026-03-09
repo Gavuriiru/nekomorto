@@ -158,16 +158,6 @@ const chapterProjectFixture = {
 };
 
 const scrollIntoViewMock = vi.fn();
-const getEpisodeTrigger = (card: HTMLElement) => {
-  const trigger = within(card)
-    .getAllByRole("button")
-    .find((element) => element.hasAttribute("data-episode-accordion-trigger"));
-  if (!trigger) {
-    throw new Error("Episode trigger not found");
-  }
-  return trigger;
-};
-
 const setupApiMock = ({
   canManageProjects,
   projects,
@@ -348,7 +338,7 @@ describe("DashboardProjectsEditor edit query", () => {
     expect(scrollIntoViewMock).not.toHaveBeenCalled();
   });
 
-  it("abre o card do capítulo correto quando o modal já está aberto", async () => {
+  it("não renderiza a seção Conteúdo no modal de light novel já aberto", async () => {
     setupApiMock({ canManageProjects: true, projects: [chapterProjectFixture] });
 
     render(
@@ -366,31 +356,29 @@ describe("DashboardProjectsEditor edit query", () => {
       expect(node).not.toBeNull();
       return node as HTMLElement;
     });
-    const chaptersTrigger = within(editorDialog).getByRole("button", {
-      name: /Conte.do.*cap.tulos/i,
-    });
-    fireEvent.click(chaptersTrigger);
-
-    const volumeOneGroup = within(editorDialog).getByTestId("volume-group-1");
-    const volumeTwoGroup = within(editorDialog).getByTestId("volume-group-2");
-    const [volumeOneTrigger] = within(volumeOneGroup).getAllByRole("button");
-    const [volumeTwoTrigger] = within(volumeTwoGroup).getAllByRole("button");
-    fireEvent.click(volumeTwoTrigger);
-    expect(volumeOneTrigger).toHaveAttribute("aria-expanded", "false");
-    await waitFor(() => {
-      expect(volumeTwoTrigger).toHaveAttribute("aria-expanded", "true");
-    });
-
-    const targetCard = await within(editorDialog).findByTestId(
-      "episode-card-1",
-      {},
-      { timeout: 3000 },
+    expect(
+      within(editorDialog).queryByRole("button", { name: /Conte.do.*cap.tulos/i }),
+    ).not.toBeInTheDocument();
+    expect(within(editorDialog).queryByText("Abrir editor dedicado")).not.toBeInTheDocument();
+    expect(
+      within(editorDialog).getByRole("link", { name: "Conteúdo" }),
+    ).toHaveAttribute("href", "/dashboard/projetos/project-ln-1/capitulos");
+    const sectionTriggers = Array.from(
+      editorDialog.querySelectorAll(".project-editor-section-trigger"),
+    ) as HTMLElement[];
+    const sectionTitles = sectionTriggers.map((trigger) =>
+      String(trigger.textContent || "").replace(/\s+/g, " ").trim(),
     );
-    fireEvent.click(getEpisodeTrigger(targetCard));
-    await waitFor(() => {
-      expect(getEpisodeTrigger(targetCard)).toHaveAttribute("aria-expanded", "true");
-    });
-    expect(within(volumeOneGroup).queryByTestId("episode-card-0")).not.toBeInTheDocument();
+    expect(sectionTitles).toHaveLength(8);
+    expect(sectionTitles[0]).toContain("Importação");
+    expect(sectionTitles[1]).toContain("Dados principais");
+    expect(sectionTitles[2]).toContain("Classificação");
+    expect(sectionTitles[3]).toContain("Metadados");
+    expect(sectionTitles[4]).toContain("Mídias");
+    expect(sectionTitles[5]).toContain("Relações");
+    expect(sectionTitles[6]).toContain("Equipe da fansub");
+    expect(sectionTitles[7]).toContain("Staff do anime");
+    expect(sectionTriggers[1]).toHaveClass("hover:no-underline", "py-3.5", "md:py-4");
   });
 
   it("controla classe editor-modal-scrolled no dialog ao rolar e fechar", async () => {
@@ -478,7 +466,7 @@ describe("DashboardProjectsEditor edit query", () => {
     expect(document.querySelector(".project-editor-dialog.editor-modal-scrolled")).toBeNull();
   });
 
-  it("compacta o trecho inferior do modal de projetos nas areas de volume e episodio", async () => {
+  it("posiciona o botão Conteúdo à esquerda do rodapé do editor de light novel", async () => {
     setupApiMock({ canManageProjects: true, projects: [chapterProjectFixture] });
 
     render(
@@ -499,51 +487,21 @@ describe("DashboardProjectsEditor edit query", () => {
       expect(node).not.toBeNull();
       return node as HTMLElement;
     });
-    const chaptersTrigger = within(editorDialog).getByRole("button", {
-      name: /Conte.do.*cap.tulos/i,
-    });
-    fireEvent.click(chaptersTrigger);
-
-    const volumeTwoGroup = within(editorDialog).getByTestId("volume-group-2");
-    const [volumeTwoTrigger] = within(volumeTwoGroup).getAllByRole("button");
-    fireEvent.click(volumeTwoTrigger);
-    const volumeAccordionContent = volumeTwoGroup.querySelector(
-      ".space-y-3.px-4",
-    ) as HTMLElement | null;
-    expect(volumeAccordionContent).not.toBeNull();
-    expect(volumeAccordionContent?.className).toContain("pb-3");
-
-    const episodeAccordion = volumeAccordionContent?.querySelector(
-      '[data-orientation="vertical"]',
-    ) as HTMLElement | null;
-    expect(episodeAccordion).not.toBeNull();
-    expect(episodeAccordion?.className).toContain("space-y-3");
-
-    const episodeCard = await within(editorDialog).findByTestId("episode-card-1");
-    fireEvent.click(getEpisodeTrigger(episodeCard));
-    const episodeContent = episodeCard.querySelector(
-      ".project-editor-episode-content",
-    ) as HTMLElement | null;
-    expect(episodeContent).not.toBeNull();
-    expect(episodeContent?.className).toContain("p-4");
-    expect(episodeContent?.className).not.toContain("p-5");
-
-    const episodeGroups = Array.from(
-      episodeCard.querySelectorAll(".project-editor-episode-group"),
-    ) as HTMLElement[];
-    expect(episodeGroups.some((group) => group.className.includes("mt-3"))).toBe(true);
-
-    const episodeTrigger = getEpisodeTrigger(episodeCard);
-    fireEvent.click(episodeTrigger);
-
-    await waitFor(() => {
-      expect(episodeTrigger).toHaveAttribute("aria-expanded", "false");
-    });
-    expect(episodeContent?.className).toContain("p-3");
-    expect(episodeContent?.className).not.toContain("p-4");
+    const footer = editorDialog.querySelector(".project-editor-footer") as HTMLElement | null;
+    expect(footer).not.toBeNull();
+    if (!footer) {
+      throw new Error("Footer do editor não encontrado");
+    }
+    const footerColumns = Array.from(footer.children) as HTMLElement[];
+    expect(footerColumns).toHaveLength(2);
+    expect(within(footerColumns[0]).getByRole("link", { name: "Conteúdo" })).toBeInTheDocument();
+    expect(within(footerColumns[1]).getByRole("button", { name: "Cancelar" })).toBeInTheDocument();
+    expect(
+      within(footerColumns[1]).getByRole("button", { name: "Salvar projeto" }),
+    ).toBeInTheDocument();
   });
 
-  it("exibe um CTA de projeto para abrir o editor dedicado no estado neutro", async () => {
+  it("exibe um CTA de rodapé para abrir o editor dedicado no estado neutro", async () => {
     setupApiMock({ canManageProjects: true, projects: [chapterProjectFixture] });
 
     render(
@@ -554,7 +512,8 @@ describe("DashboardProjectsEditor edit query", () => {
     );
 
     await screen.findByText("Editar projeto");
-    expect(screen.getByRole("link", { name: "Abrir editor dedicado" })).toHaveAttribute(
+    expect(screen.queryByRole("link", { name: "Abrir editor dedicado" })).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Conteúdo" })).toHaveAttribute(
       "href",
       "/dashboard/projetos/project-ln-1/capitulos",
     );
