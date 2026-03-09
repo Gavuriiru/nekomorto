@@ -343,17 +343,33 @@ const setupApiMock = ({
         return mockJsonResponse(true, { project });
       }
 
-      if (path === "/api/projects/project-ln-1/chapters/1?volume=2" && method === "PUT") {
+      const chapterSaveMatch = path.match(
+        /^\/api\/projects\/project-ln-1\/chapters\/(\d+)(?:\?volume=(\d+))?$/,
+      );
+      if (chapterSaveMatch && method === "PUT") {
         const payload = options?.json || {};
+        const chapterNumber = Number(chapterSaveMatch[1]);
+        const chapterVolume = chapterSaveMatch[2] ? Number(chapterSaveMatch[2]) : undefined;
+        const chapterIndex = project.episodeDownloads.findIndex(
+          (episode) =>
+            Number(episode.number) === chapterNumber &&
+            (chapterVolume === undefined
+              ? !Number.isFinite(Number(episode.volume))
+              : Number(episode.volume) === chapterVolume),
+        );
+        const currentChapter =
+          chapterIndex >= 0 ? project.episodeDownloads[chapterIndex] : project.episodeDownloads[0];
         const nextChapter = {
-          ...project.episodeDownloads[0],
+          ...currentChapter,
           ...((payload.chapter as Record<string, unknown> | undefined) || {}),
         };
         return mockJsonResponse(true, {
           project: {
             ...project,
             revision: "rev-2",
-            episodeDownloads: [nextChapter, ...project.episodeDownloads.slice(1)],
+            episodeDownloads: project.episodeDownloads.map((episode, index) =>
+              index === (chapterIndex >= 0 ? chapterIndex : 0) ? nextChapter : episode,
+            ),
           },
           chapter: nextChapter,
         });
@@ -558,12 +574,17 @@ describe("DashboardProjectChapterEditor", () => {
     expect(screen.queryByTestId("chapter-epub-tools")).not.toBeInTheDocument();
     expect(screen.queryByText(/Autosave do capítulo/i)).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Salvar capítulo/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Mover para rascunho/i })).toBeInTheDocument();
     expect(actionRail).toHaveClass("lg:flex-row", "lg:justify-between");
     expect(topStatusGroup).toContainElement(screen.getByText(/Sem alterações pendentes/i));
     expect(topActions).toContainElement(screen.getByRole("button", { name: /Salvar capítulo/i }));
+    expect(topActions).toContainElement(screen.getByRole("button", { name: /Mover para rascunho/i }));
     expect(topActions).toContainElement(screen.getByRole("button", { name: /Excluir capítulo/i }));
     expect(within(statusBar).queryByRole("button", { name: /Salvar capítulo/i })).not.toBeInTheDocument();
     expect(within(statusBar).queryByRole("button", { name: /Excluir capítulo/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("switch")).not.toBeInTheDocument();
+    expect(screen.getByText("Status atual")).toBeInTheDocument();
+    expect(screen.getByText(/Use as ações do topo para publicar este capítulo/i)).toBeInTheDocument();
     expect(structureTrigger).toHaveClass("hover:no-underline", "py-3.5", "md:py-4");
     expect(screen.getByText("Estrutura")).toBeInTheDocument();
     expect(screen.getByText("Volumes, filtros, navegação e criação de capítulos")).toBeInTheDocument();
@@ -586,6 +607,16 @@ describe("DashboardProjectChapterEditor", () => {
       ),
     ).toBe(true);
     expect(lexicalWrapper).toHaveClass("min-h-[420px]", "lg:min-h-[620px]");
+  });
+
+  it("mostra ações contextuais de rascunho no topo para capítulos em draft", async () => {
+    setupApiMock();
+    renderEditor("/dashboard/projetos/project-ln-1/capitulos/2?volume=2");
+    await screen.findByRole("heading", { name: /Gerenciamento de Conteúdo/i });
+
+    expect(screen.getByRole("button", { name: /Salvar como rascunho/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Publicar rascunho/i })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Mover para rascunho/i })).not.toBeInTheDocument();
   });
 
   it("alterna o grupo do volume ao clicar no volume e mantém a seleção", async () => {
@@ -1047,19 +1078,89 @@ describe("DashboardProjectChapterEditor", () => {
     expect(screen.getByTestId("location-search").textContent).toBe("?volume=5");
   });
 
-  it("salva pelo atalho Ctrl+S usando o fluxo manual", async () => {
+  it("salva como rascunho com persistência imediata pelo botão contextual", async () => {
+    setupApiMock();
+    renderEditor("/dashboard/projetos/project-ln-1/capitulos/2?volume=2");
+    await screen.findByRole("heading", { name: /Gerenciamento de Conteúdo/i });
+
+    fireEvent.change(screen.getByLabelText("Título"), { target: { value: "Capítulo 2 revisado" } });
+    fireEvent.click(screen.getByRole("button", { name: /Salvar como rascunho/i }));
+
+    await waitFor(() => {
+      const saveCall = apiFetchMock.mock.calls.find(
+        ([, path, options]) => path === "/api/projects/project-ln-1/chapters/2?volume=2" && options?.method === "PUT",
+      );
+      expect(saveCall).toBeDefined();
+      const payload = (saveCall?.[2] as { json?: Record<string, unknown> } | undefined)?.json;
+      expect(payload?.chapter).toEqual(
+        expect.objectContaining({
+          title: "Capítulo 2 revisado",
+          publicationStatus: "draft",
+        }),
+      );
+    });
+  });
+
+  it("publica um rascunho em um clique", async () => {
+    setupApiMock();
+    renderEditor("/dashboard/projetos/project-ln-1/capitulos/2?volume=2");
+    await screen.findByRole("heading", { name: /Gerenciamento de Conteúdo/i });
+
+    fireEvent.click(screen.getByRole("button", { name: /Publicar rascunho/i }));
+
+    await waitFor(() => {
+      const saveCall = apiFetchMock.mock.calls.find(
+        ([, path, options]) => path === "/api/projects/project-ln-1/chapters/2?volume=2" && options?.method === "PUT",
+      );
+      expect(saveCall).toBeDefined();
+      const payload = (saveCall?.[2] as { json?: Record<string, unknown> } | undefined)?.json;
+      expect(payload?.chapter).toEqual(
+        expect.objectContaining({
+          publicationStatus: "published",
+        }),
+      );
+    });
+  });
+
+  it("move um capítulo publicado para rascunho em um clique", async () => {
     setupApiMock();
     renderEditor();
+    await screen.findByRole("heading", { name: /Gerenciamento de Conteúdo/i });
+
+    fireEvent.click(screen.getByRole("button", { name: /Mover para rascunho/i }));
+
+    await waitFor(() => {
+      const saveCall = apiFetchMock.mock.calls.find(
+        ([, path, options]) => path === "/api/projects/project-ln-1/chapters/1?volume=2" && options?.method === "PUT",
+      );
+      expect(saveCall).toBeDefined();
+      const payload = (saveCall?.[2] as { json?: Record<string, unknown> } | undefined)?.json;
+      expect(payload?.chapter).toEqual(
+        expect.objectContaining({
+          publicationStatus: "draft",
+        }),
+      );
+    });
+  });
+
+  it("salva pelo atalho Ctrl+S usando o fluxo manual", async () => {
+    setupApiMock();
+    renderEditor("/dashboard/projetos/project-ln-1/capitulos/2?volume=2");
     await screen.findByRole("heading", { name: /Gerenciamento de Conteúdo/i });
     fireEvent.change(screen.getByLabelText("Título"), { target: { value: "Capítulo revisado" } });
     fireEvent.keyDown(window, { key: "s", ctrlKey: true });
     await waitFor(() => {
-      expect(
-        apiFetchMock.mock.calls.some(
-          ([, path, options]) =>
-            path === "/api/projects/project-ln-1/chapters/1?volume=2" && options?.method === "PUT",
-        ),
-      ).toBe(true);
+      const saveCall = apiFetchMock.mock.calls.find(
+        ([, path, options]) => path === "/api/projects/project-ln-1/chapters/2?volume=2" && options?.method === "PUT",
+      );
+      expect(saveCall).toBeDefined();
+      const payload = (saveCall?.[2] as { json?: Record<string, unknown> } | undefined)?.json;
+      expect(payload?.chapter).toEqual(
+        expect.objectContaining({
+          title: "Capítulo revisado",
+          publicationStatus: "draft",
+        }),
+      );
     });
   });
 

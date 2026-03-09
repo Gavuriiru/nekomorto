@@ -29,7 +29,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/components/ui/use-toast";
 import type { Project, ProjectEpisode, ProjectVolumeCover, ProjectVolumeEntry } from "@/data/projects";
@@ -737,6 +736,7 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
     const selectedVolumeLabel =
       selectedVolumeNumber !== null ? buildChapterVolumeLabel(selectedVolumeNumber) : "Volumes";
     const showVolumeSaveControls = isVolumeDirty || isSavingVolumes;
+    const isChapterDraft = hasActiveChapter && draft.publicationStatus === "draft";
     const chapterSaveStatusLabel = isSavingChapter
       ? "Salvando..."
       : isDirty
@@ -755,7 +755,7 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
       setIsLibraryOpen(true);
     }, [selectedVolumeNumber]);
 
-    const saveChapter = useCallback(
+    const persistChapter = useCallback(
       async (snapshot: ProjectEpisode) => {
         if (!activeChapter) {
           return snapshot;
@@ -821,20 +821,39 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
       [activeChapter, apiBase, onChapterSaved, project.id, project.revision],
     );
 
+    const handleChapterSave = useCallback(
+      async (nextPublicationStatus?: "draft" | "published") => {
+        if (!hasActiveChapter || isSavingChapter) {
+          return true;
+        }
+        const resolvedPublicationStatus = nextPublicationStatus ?? draft.publicationStatus;
+        const shouldPersist =
+          isDirty || resolvedPublicationStatus !== draft.publicationStatus;
+        if (!shouldPersist) {
+          return true;
+        }
+        setIsSavingChapter(true);
+        try {
+          await persistChapter({
+            ...draft,
+            publicationStatus: resolvedPublicationStatus,
+          });
+          return true;
+        } catch {
+          return false;
+        } finally {
+          setIsSavingChapter(false);
+        }
+      },
+      [draft, hasActiveChapter, isDirty, isSavingChapter, persistChapter],
+    );
+
     const handleManualSave = useCallback(async () => {
-      if (!hasActiveChapter || !isDirty || isSavingChapter) {
+      if (!hasActiveChapter) {
         return true;
       }
-      setIsSavingChapter(true);
-      try {
-        await saveChapter(draft);
-        return true;
-      } catch {
-        return false;
-      } finally {
-        setIsSavingChapter(false);
-      }
-    }, [draft, hasActiveChapter, isDirty, isSavingChapter, saveChapter]);
+      return handleChapterSave(draft.publicationStatus);
+    }, [draft.publicationStatus, handleChapterSave, hasActiveChapter]);
 
     const requestLeave = useCallback(async () => {
       if (!isVolumeDirty && (!hasActiveChapter || !isDirty)) {
@@ -1685,18 +1704,32 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
                   data-testid="chapter-editor-top-actions"
                 >
                   {hasActiveChapter ? (
-                    <Button
-                      type="button"
-                      size="sm"
-                      onClick={() => {
-                        void handleManualSave();
-                      }}
-                      disabled={isSavingChapter || !isDirty}
-                      className="gap-2"
-                    >
-                      {isSavingChapter ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                      Salvar capítulo
-                    </Button>
+                    <>
+                      <Button
+                        type="button"
+                        size="sm"
+                        onClick={() => {
+                          void handleManualSave();
+                        }}
+                        disabled={isSavingChapter || !isDirty}
+                        className="gap-2"
+                      >
+                        {isSavingChapter ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                        {isChapterDraft ? "Salvar como rascunho" : "Salvar capítulo"}
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          void handleChapterSave(isChapterDraft ? "published" : "draft");
+                        }}
+                        disabled={isSavingChapter}
+                        className="gap-2"
+                      >
+                        {isChapterDraft ? "Publicar rascunho" : "Mover para rascunho"}
+                      </Button>
+                    </>
                   ) : null}
                   {showVolumeSaveControls ? (
                     <Button
@@ -2054,23 +2087,18 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
                       <div className="rounded-2xl border border-border/60 bg-background/40 p-4">
                         <div className="flex flex-wrap items-center justify-between gap-3">
                           <div>
-                            <Label className="text-sm">Publicado</Label>
+                            <Label className="text-sm">Status atual</Label>
                             <p className="text-xs text-muted-foreground">
-                              Controle se o capítulo fica visível ao público.
+                              Use as ações do topo para publicar este capítulo ou voltar para
+                              rascunho.
                             </p>
                           </div>
-                          <div className="flex items-center gap-2">
-                            <span className="text-xs text-muted-foreground">Publicado</span>
-                            <Switch
-                              checked={draft.publicationStatus !== "draft"}
-                              onCheckedChange={(checked) =>
-                                updateDraft((current) => ({
-                                  ...current,
-                                  publicationStatus: checked ? "published" : "draft",
-                                }))
-                              }
-                            />
-                          </div>
+                          <Badge
+                            variant={draft.publicationStatus === "draft" ? "outline" : "default"}
+                            className="text-[10px] uppercase tracking-[0.12em]"
+                          >
+                            {chapterStatusLabel(draft)}
+                          </Badge>
                         </div>
                       </div>
                     </div>
