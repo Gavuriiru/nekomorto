@@ -17,7 +17,7 @@ describe("Lexical viewer/editor shared styles", () => {
     expect(cssSource).toContain(".lexical-playground .PlaygroundEditorTheme__tableCellSelected::after");
   });
 
-  it("remove chrome editorial do layout no viewer e limita o youtube", () => {
+  it("remove chrome editorial do layout no viewer e mantem o youtube em largura total", () => {
     const overrideCss = readFileSync(
       resolve(process.cwd(), "src/lexical-playground/playground-overrides.css"),
       "utf8",
@@ -33,12 +33,19 @@ describe("Lexical viewer/editor shared styles", () => {
     expect(overrideCss).toContain(".lexical-playground .lexical-tweet {");
     expect(overrideCss).toContain("overflow: hidden;");
     expect(overrideCss).toContain("background: hsl(var(--card));");
+    expect(overrideCss).toContain(".lexical-playground .lexical-youtube {");
+    expect(overrideCss).toContain(".lexical-playground .lexical-youtube iframe {");
     expect(overrideCss).toContain(".lexical-playground.lexical-playground--viewer .lexical-youtube");
-    expect(overrideCss).toContain("max-width: 560px;");
+    expect(overrideCss).toContain("width: 100%;");
+    expect(overrideCss).toContain("max-width: 100%;");
+    expect(overrideCss).toContain("aspect-ratio: 16 / 9;");
     expect(appCss).toMatch(
       /\.post-content \.lexical-video iframe,\s*\.post-content iframe\[data-lexical-node=\"video\"\]/,
     );
     expect(appCss).toContain('.post-content iframe[data-lexical-youtube]');
+    expect(appCss).toContain("width: 100%;");
+    expect(appCss).toContain("max-width: 100%;");
+    expect(appCss).toContain("aspect-ratio: 16 / 9;");
     expect(appCss).not.toMatch(/\.post-content iframe\s*\{/);
   });
 });

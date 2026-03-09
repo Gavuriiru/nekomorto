@@ -318,6 +318,27 @@ model AdminExportJobRecord {
   @@map("admin_export_jobs")
 }
 
+model EpubImportJobRecord {
+  id          String   @id
+  projectId   String
+  requestedBy String
+  status      String
+  summary     Json
+  resultPath  String?
+  error       String?
+  createdAt   DateTime @default(now())
+  startedAt   DateTime?
+  finishedAt  DateTime?
+  expiresAt   DateTime?
+  updatedAt   DateTime @updatedAt
+
+  @@index([status], map: "epub_import_jobs_status_idx")
+  @@index([createdAt], map: "epub_import_jobs_createdAt_idx")
+  @@index([requestedBy], map: "epub_import_jobs_requestedBy_idx")
+  @@index([projectId], map: "epub_import_jobs_projectId_idx")
+  @@map("epub_import_jobs")
+}
+
 model SecretRotationRecord {
   id           String   @id
   secretFamily String

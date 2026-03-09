@@ -5,13 +5,14 @@ import { describe, expect, it, vi } from "vitest";
 
 import DashboardPosts from "@/pages/DashboardPosts";
 
-const { apiFetchMock, resizeObserverInstances } = vi.hoisted(() => ({
+const { apiFetchMock, resizeObserverInstances, lexicalEditorPropsSpy } = vi.hoisted(() => ({
   apiFetchMock: vi.fn(),
   resizeObserverInstances: [] as Array<{
     callback: ResizeObserverCallback;
     disconnect: ReturnType<typeof vi.fn>;
     observe: ReturnType<typeof vi.fn>;
   }>,
+  lexicalEditorPropsSpy: vi.fn(),
 }));
 
 class ResizeObserverMock {
@@ -43,10 +44,18 @@ vi.mock("@/components/ProjectEmbedCard", () => ({
 
 vi.mock("@/components/lexical/LexicalEditor", async () => {
   const React = await vi.importActual<typeof import("react")>("react");
-  const MockEditor = React.forwardRef((_props: unknown, ref: React.ForwardedRef<{ blur: () => void }>) => {
-    React.useImperativeHandle(ref, () => ({ blur: () => undefined }));
-    return <div data-testid="lexical-editor" />;
-  });
+  const MockEditor = React.forwardRef(
+    (
+      props: {
+        followCaretScroll?: boolean;
+      },
+      ref: React.ForwardedRef<{ blur: () => void }>,
+    ) => {
+      lexicalEditorPropsSpy(props);
+      React.useImperativeHandle(ref, () => ({ blur: () => undefined }));
+      return <div data-testid="lexical-editor" />;
+    },
+  );
   MockEditor.displayName = "MockLexicalEditor";
   return { default: MockEditor };
 });
@@ -127,6 +136,7 @@ const setupApiMock = ({
 }) => {
   apiFetchMock.mockReset();
   resizeObserverInstances.length = 0;
+  lexicalEditorPropsSpy.mockReset();
   apiFetchMock.mockImplementation(async (_base: string, path: string, options?: RequestInit) => {
     const method = String(options?.method || "GET").toUpperCase();
 
@@ -377,6 +387,11 @@ describe("DashboardPosts edit query", () => {
     expect(classTokens(editorFooter as HTMLElement)).toContain("py-2");
     expect(classTokens(editorFooter as HTMLElement)).toContain("md:py-2.5");
     expect(classTokens(editorSectionContent as HTMLElement)).toContain("pb-2.5");
+    expect(
+      lexicalEditorPropsSpy.mock.calls.some(
+        ([props]) => Boolean((props as { followCaretScroll?: boolean }).followCaretScroll),
+      ),
+    ).toBe(true);
     expect(screen.getByText("Postagem em edição")).toBeInTheDocument();
     if (!editorDialog || !editorScrollShell) {
       throw new Error("Editor dialog not found");

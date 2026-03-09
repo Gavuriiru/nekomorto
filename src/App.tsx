@@ -15,15 +15,22 @@ const DeferredSonner = lazy(() =>
 
 const RouteLoadingFallback = () => <div aria-hidden="true" className="min-h-[55vh] w-full" />;
 
-const ScrollToTop = () => {
+export const ScrollToTop = () => {
   const location = useLocation();
 
   useLayoutEffect(() => {
+    const locationState =
+      typeof location.state === "object" && location.state !== null
+        ? (location.state as { preserveScroll?: boolean })
+        : null;
+    const shouldPreserveScroll = locationState?.preserveScroll === true;
     const normalizedHash = String(location.hash || "")
       .replace(/^#/, "")
       .trim();
     if (!normalizedHash) {
-      window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+      if (!shouldPreserveScroll) {
+        window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+      }
       return;
     }
 
@@ -57,7 +64,7 @@ const ScrollToTop = () => {
       }
     });
     return () => window.cancelAnimationFrame(frameId);
-  }, [location.hash, location.pathname, location.search]);
+  }, [location.hash, location.pathname, location.search, location.state]);
 
   return null;
 };

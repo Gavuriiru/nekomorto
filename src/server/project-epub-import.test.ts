@@ -294,6 +294,53 @@ describe("project EPUB import", () => {
     expect(writeUploads).toHaveBeenCalledTimes(1);
   });
 
+  it("reutiliza o upload da mesma imagem interna em ocorrencias repetidas", async () => {
+    const loadUploads = vi.fn(() => []);
+    const writeUploads = vi.fn();
+
+    epubState.toc = [{ id: "chapter-toc", title: "Chapter 1", href: "OEBPS/Text/chapter001.xhtml#Ref_1" }];
+    epubState.flow = [
+      { id: "chapter001", title: "Chapter 1", href: "OEBPS/Text/chapter001.xhtml" },
+      { id: "chapter001_a", href: "OEBPS/Text/chapter001_a.xhtml" },
+    ];
+    epubState.manifest = {
+      chapter001: { id: "chapter001", href: "OEBPS/Text/chapter001.xhtml" },
+      chapter001_a: { id: "chapter001_a", href: "OEBPS/Text/chapter001_a.xhtml" },
+      artP8: {
+        id: "artP8",
+        href: "OEBPS/Images/Art_P8.jpg",
+        "media-type": "image/jpeg",
+      },
+    };
+    epubState.chapters = {
+      chapter001:
+        '<p><img src="../Images/Art_P8.jpg" alt="Art 1"></p><p>Parte 1 do capitulo.</p>',
+      chapter001_a:
+        '<p>Parte 2 do capitulo.</p><p><img src="../Images/Art_P8.jpg" alt="Art 1 repetida"></p>',
+    };
+    epubState.images = {
+      artP8: Buffer.from("fake-image"),
+    };
+
+    const result = await importProjectEpub({
+      buffer: Buffer.from("fake"),
+      targetVolume: 1,
+      defaultStatus: "draft",
+      project: { episodeDownloads: [] },
+      uploadsDir: "D:/dev/nekomorto/public/uploads",
+      loadUploads,
+      writeUploads,
+      uploadUserId: "test-user",
+    });
+
+    const importedHtml = String(htmlToLexicalJsonMock.mock.calls.at(-1)?.[0] || "");
+    expect(result.chapters).toHaveLength(1);
+    expect(result.summary.imagesImported).toBe(2);
+    expect(storeUploadImageBufferMock).toHaveBeenCalledTimes(1);
+    expect(writeUploads).toHaveBeenCalledTimes(1);
+    expect(importedHtml.match(/\/uploads\/tmp\/epub-imports\//g) || []).toHaveLength(2);
+  });
+
   it("preserva o subset editorial de CSS do EPUB no HTML enviado ao bridge", async () => {
     const loadUploads = vi.fn(() => []);
     const writeUploads = vi.fn();

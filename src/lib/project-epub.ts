@@ -11,6 +11,7 @@ import type {
 export const DEFAULT_API_CAPABILITIES: ApiContractCapabilities = {
   project_epub_import: false,
   project_epub_export: false,
+  project_epub_import_async: false,
 };
 
 export const EPUB_CAPABILITY_UNAVAILABLE_MESSAGE =
@@ -68,6 +69,46 @@ export type EpubImportProjectSnapshot = {
   }>;
 };
 
+export type EpubImportPreviewSummary = {
+  chapters?: number;
+  mainImported?: number;
+  extrasImported?: number;
+  created?: number;
+  updated?: number;
+  volume?: number | null;
+  imagesImported?: number;
+  imageImportFailures?: number;
+  boilerplatePromoted?: number;
+  boilerplateDiscarded?: number;
+  unresolvedTocEntries?: number;
+  volumeCoverImported?: boolean;
+  volumeCoverSkipped?: boolean;
+};
+
+export type EpubImportPreviewPayload = {
+  chapters?: ProjectEpisode[];
+  volumeCovers?: ImportedVolumeCover[];
+  warnings?: string[];
+  summary?: EpubImportPreviewSummary;
+};
+
+export type EpubImportJobStatus = "queued" | "processing" | "completed" | "failed" | "expired";
+
+export type EpubImportJob = {
+  id: string;
+  projectId: string;
+  requestedBy: string;
+  status: EpubImportJobStatus;
+  summary?: EpubImportPreviewSummary;
+  error?: string | null;
+  createdAt?: string | null;
+  startedAt?: string | null;
+  finishedAt?: string | null;
+  expiresAt?: string | null;
+  hasResult?: boolean;
+  result?: EpubImportPreviewPayload;
+};
+
 type EpubProjectShape = Pick<
   Project,
   "id" | "title" | "type" | "episodeDownloads" | "volumeEntries" | "volumeCovers"
@@ -82,6 +123,7 @@ export const normalizeApiContractCapabilities = (
 ): ApiContractCapabilities => ({
   project_epub_import: capabilities?.project_epub_import === true,
   project_epub_export: capabilities?.project_epub_export === true,
+  project_epub_import_async: capabilities?.project_epub_import_async === true,
 });
 
 export const normalizeApiContractBuildMetadata = (
@@ -214,6 +256,51 @@ export const extractEpubTempImportIdsFromPayload = (payload: unknown) => {
   const bucket = new Set<string>();
   collectEpubTempImportIds(payload, bucket);
   return Array.from(bucket);
+};
+
+export const normalizeEpubImportJobStatus = (value: unknown): EpubImportJobStatus => {
+  const normalized = String(value || "").trim().toLowerCase();
+  if (
+    normalized === "queued" ||
+    normalized === "processing" ||
+    normalized === "completed" ||
+    normalized === "failed" ||
+    normalized === "expired"
+  ) {
+    return normalized;
+  }
+  return "queued";
+};
+
+export const normalizeEpubImportJob = (value: unknown): EpubImportJob | null => {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return null;
+  }
+  const job = value as Record<string, unknown>;
+  const id = String(job.id || "").trim();
+  if (!id) {
+    return null;
+  }
+  return {
+    id,
+    projectId: String(job.projectId || "").trim(),
+    requestedBy: String(job.requestedBy || "").trim(),
+    status: normalizeEpubImportJobStatus(job.status),
+    summary:
+      job.summary && typeof job.summary === "object" && !Array.isArray(job.summary)
+        ? (job.summary as EpubImportPreviewSummary)
+        : undefined,
+    error: typeof job.error === "string" && job.error.trim().length > 0 ? job.error.trim() : null,
+    createdAt: typeof job.createdAt === "string" ? job.createdAt : null,
+    startedAt: typeof job.startedAt === "string" ? job.startedAt : null,
+    finishedAt: typeof job.finishedAt === "string" ? job.finishedAt : null,
+    expiresAt: typeof job.expiresAt === "string" ? job.expiresAt : null,
+    hasResult: job.hasResult === true,
+    result:
+      job.result && typeof job.result === "object" && !Array.isArray(job.result)
+        ? (job.result as EpubImportPreviewPayload)
+        : undefined,
+  };
 };
 
 export const overlayDraftOnProject = <T extends { episodeDownloads?: ProjectEpisode[] }>(

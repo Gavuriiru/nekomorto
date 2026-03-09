@@ -369,15 +369,13 @@ describe("DashboardProjectsEditor edit query", () => {
     const sectionTitles = sectionTriggers.map((trigger) =>
       String(trigger.textContent || "").replace(/\s+/g, " ").trim(),
     );
-    expect(sectionTitles).toHaveLength(8);
+    expect(sectionTitles).toHaveLength(6);
     expect(sectionTitles[0]).toContain("Importação");
-    expect(sectionTitles[1]).toContain("Dados principais");
-    expect(sectionTitles[2]).toContain("Classificação");
-    expect(sectionTitles[3]).toContain("Metadados");
-    expect(sectionTitles[4]).toContain("Mídias");
-    expect(sectionTitles[5]).toContain("Relações");
-    expect(sectionTitles[6]).toContain("Equipe da fansub");
-    expect(sectionTitles[7]).toContain("Staff do anime");
+    expect(sectionTitles[1]).toContain("Informações do projeto");
+    expect(sectionTitles[2]).toContain("Mídias");
+    expect(sectionTitles[3]).toContain("Relações");
+    expect(sectionTitles[4]).toContain("Equipe da fansub");
+    expect(sectionTitles[5]).toContain("Staff do anime");
     expect(sectionTriggers[1]).toHaveClass("hover:no-underline", "py-3.5", "md:py-4");
   });
 

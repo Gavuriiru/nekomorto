@@ -1127,10 +1127,26 @@ const getManifestMediaType = (item) =>
 
 const isImageManifestItem = (item) => getManifestMediaType(item).startsWith("image/");
 
-const loadManifestBinary = async (epub, manifestItem) => {
+const getManifestBinaryCacheKey = (manifestItem) => {
+  const id = String(manifestItem?.id || "").trim();
+  const href = normalizeEpubHref(manifestItem?.href);
+  if (id && href) {
+    return `${id}::${href}`;
+  }
+  if (id) {
+    return id;
+  }
+  return href || "";
+};
+
+const loadManifestBinary = async (epub, manifestItem, { cache } = {}) => {
   const id = String(manifestItem?.id || "").trim();
   if (!id) {
     return Buffer.from([]);
+  }
+  const cacheKey = getManifestBinaryCacheKey(manifestItem);
+  if (cache instanceof Map && cacheKey && cache.has(cacheKey)) {
+    return cache.get(cacheKey);
   }
 
   const extractBinaryPayload = (value) => {
@@ -1156,6 +1172,9 @@ const loadManifestBinary = async (epub, manifestItem) => {
     const imageBuffer = await epub.getImage(id);
     const payload = extractBinaryPayload(imageBuffer);
     if (payload.length > 0) {
+      if (cache instanceof Map && cacheKey) {
+        cache.set(cacheKey, payload);
+      }
       return payload;
     }
   }
@@ -1164,6 +1183,9 @@ const loadManifestBinary = async (epub, manifestItem) => {
     const fileBuffer = await epub.getFile(id);
     const payload = extractBinaryPayload(fileBuffer);
     if (payload.length > 0) {
+      if (cache instanceof Map && cacheKey) {
+        cache.set(cacheKey, payload);
+      }
       return payload;
     }
   }
@@ -1334,7 +1356,13 @@ const extractEditorialImageAlignment = (element, computed, wrapperComputed) => {
   return null;
 };
 
-const loadEpubDocumentStylesheets = async ({ epub, documentHref, manifestByHref, rawHtml } = {}) => {
+const loadEpubDocumentStylesheets = async ({
+  epub,
+  documentHref,
+  manifestByHref,
+  rawHtml,
+  manifestBinaryCache,
+} = {}) => {
   const sourceDom = new JSDOM(String(rawHtml || ""));
   const stylesheets = [];
   try {
@@ -1353,7 +1381,9 @@ const loadEpubDocumentStylesheets = async ({ epub, documentHref, manifestByHref,
       if (!manifestItem) {
         continue;
       }
-      const stylesheetBuffer = await loadManifestBinary(epub, manifestItem);
+      const stylesheetBuffer = await loadManifestBinary(epub, manifestItem, {
+        cache: manifestBinaryCache,
+      });
       if (!stylesheetBuffer.length) {
         continue;
       }
@@ -1617,7 +1647,19 @@ const rewriteInternalImagesInDocument = async ({
     }
 
     try {
-      const imageBuffer = await loadManifestBinary(epub, manifestItem);
+      const imageCacheKey = String(resolvedAssetHref || manifestItem?.id || currentSrc).trim();
+      const cachedUpload = imageCacheKey ? imageContext.imageUploadCache.get(imageCacheKey) : null;
+      if (cachedUpload) {
+        imageContext.imagesImported += 1;
+        imageElement.setAttribute("src", cachedUpload.url);
+        if (!imageElement.getAttribute("alt") && cachedUpload.altText) {
+          imageElement.setAttribute("alt", cachedUpload.altText);
+        }
+        continue;
+      }
+      const imageBuffer = await loadManifestBinary(epub, manifestItem, {
+        cache: imageContext.manifestBinaryCache,
+      });
       if (!imageBuffer.length) {
         throw new Error("empty_epub_asset");
       }
@@ -1637,6 +1679,9 @@ const rewriteInternalImagesInDocument = async ({
       imageContext.uploads = result.uploads;
       imageContext.uploadsDirty = true;
       imageContext.imagesImported += 1;
+      if (imageCacheKey) {
+        imageContext.imageUploadCache.set(imageCacheKey, result.uploadEntry);
+      }
       imageElement.setAttribute("src", result.uploadEntry.url);
       if (!imageElement.getAttribute("alt") && result.uploadEntry.altText) {
         imageElement.setAttribute("alt", result.uploadEntry.altText);
@@ -1665,6 +1710,7 @@ const prepareNarrativeDocumentHtml = async ({
     documentHref,
     manifestByHref,
     rawHtml,
+    manifestBinaryCache: imageContext?.manifestBinaryCache,
   });
   const dom = buildStyledEpubDocument({
     rawHtml,
@@ -1738,6 +1784,8 @@ const createImageImportContext = ({
     uploadsDirty: false,
     imagesImported: 0,
     imageImportFailures: 0,
+    manifestBinaryCache: new Map(),
+    imageUploadCache: new Map(),
   };
 };
 
@@ -1843,7 +1891,9 @@ const importVolumeCoverFromEpub = async ({
   }
 
   try {
-    const imageBuffer = await loadManifestBinary(epub, coverAsset.manifestItem);
+    const imageBuffer = await loadManifestBinary(epub, coverAsset.manifestItem, {
+      cache: imageContext.manifestBinaryCache,
+    });
     if (!imageBuffer.length) {
       throw new Error("empty_epub_cover");
     }

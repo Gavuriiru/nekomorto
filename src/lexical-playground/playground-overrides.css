@@ -664,20 +664,23 @@
   border-radius: inherit;
 }
 
-.lexical-playground.lexical-playground--viewer .lexical-youtube {
-  display: inline-block;
+.lexical-playground .lexical-youtube {
+  display: block;
   width: 100%;
-  max-width: 560px;
-  vertical-align: top;
+  max-width: 100%;
 }
 
-.lexical-playground.lexical-playground--viewer .lexical-youtube iframe {
+.lexical-playground .lexical-youtube iframe {
   display: block;
   width: 100%;
   max-width: 100%;
   height: auto;
   aspect-ratio: 16 / 9;
   border-radius: 0.75rem;
+}
+
+.lexical-playground.lexical-playground--viewer .lexical-youtube {
+  vertical-align: top;
 }
 
 .lexical-playground .tweet-skeleton {

@@ -232,20 +232,26 @@ const setupApiMock = (
     capabilities = {
       project_epub_import: true,
       project_epub_export: true,
+      project_epub_import_async: false,
     },
     build = {
       commitSha: "abcdef123456",
       builtAt: "2026-03-02T16:00:00Z",
     },
+    epubImportJobCreateResponse,
+    epubImportJobStatusResponse,
   }: {
     capabilities?: {
       project_epub_import: boolean;
       project_epub_export: boolean;
+      project_epub_import_async?: boolean;
     };
     build?: {
       commitSha: string | null;
       builtAt: string | null;
     };
+    epubImportJobCreateResponse?: Response;
+    epubImportJobStatusResponse?: Response | ((jobId: string) => Response);
   } = {},
 ) => {
   apiFetchMock.mockReset();
@@ -273,10 +279,78 @@ const setupApiMock = (
         build,
         endpoints: [
           { method: "POST", path: "/api/projects/epub/import" },
+          { method: "POST", path: "/api/projects/epub/import/jobs" },
+          { method: "GET", path: "/api/projects/epub/import/jobs/:id" },
           { method: "POST", path: "/api/projects/epub/import/cleanup" },
           { method: "POST", path: "/api/projects/epub/export" },
         ],
       });
+    }
+    if (path === "/api/projects/epub/import/jobs" && method === "POST") {
+      return (
+        epubImportJobCreateResponse ||
+        mockJsonResponse(true, {
+          job: {
+            id: "job-1",
+            projectId: "project-ln-1",
+            requestedBy: "1",
+            status: "queued",
+            summary: {},
+            error: null,
+            createdAt: "2026-03-09T00:00:00.000Z",
+            startedAt: null,
+            finishedAt: null,
+            expiresAt: null,
+            hasResult: false,
+          },
+        })
+      );
+    }
+    if (String(path).startsWith("/api/projects/epub/import/jobs/") && method === "GET") {
+      if (typeof epubImportJobStatusResponse === "function") {
+        return epubImportJobStatusResponse(String(path).split("/").at(-1) || "");
+      }
+      return (
+        epubImportJobStatusResponse ||
+        mockJsonResponse(true, {
+          job: {
+            id: String(path).split("/").at(-1) || "job-1",
+            projectId: "project-ln-1",
+            requestedBy: "1",
+            status: "completed",
+            summary: { chapters: 1 },
+            error: null,
+            createdAt: "2026-03-09T00:00:00.000Z",
+            startedAt: "2026-03-09T00:00:01.000Z",
+            finishedAt: "2026-03-09T00:00:02.000Z",
+            expiresAt: "2026-03-12T00:00:02.000Z",
+            hasResult: true,
+            result: {
+              summary: { chapters: 1 },
+              warnings: [],
+              volumeCovers: [],
+              chapters: [
+                {
+                  number: 2,
+                  volume: 2,
+                  title: "Capitulo importado",
+                  releaseDate: "",
+                  duration: "",
+                  sourceType: "Web",
+                  sources: [],
+                  progressStage: "aguardando-raw",
+                  completedStages: [],
+                  content: '{"root":{"children":[{"type":"paragraph"}]}}',
+                  contentFormat: "lexical",
+                  publicationStatus: "draft",
+                  mergeMode: "create",
+                  episodeKey: "2:2",
+                },
+              ],
+            },
+          },
+        })
+      );
     }
     if (path === "/api/projects/epub/import/cleanup" && method === "POST") {
       const importIds =
@@ -635,15 +709,14 @@ describe("DashboardProjectsEditor episode accordion", () => {
     );
 
     expect(sectionTitles[0]).toContain("Importação");
-    expect(sectionTitles[1]).toContain("Dados principais");
-    expect(sectionTitles[2]).toContain("Classificação");
-    expect(sectionTitles[3]).toContain("Metadados");
-    expect(sectionTitles[4]).toContain("Mídias");
-    expect(sectionTitles[5]).toContain("Relações");
-    expect(sectionTitles[6]).toContain("Episódios");
-    expect(sectionTitles[7]).toContain("Equipe da fansub");
-    expect(sectionTitles[8]).toContain("Staff do anime");
-    expect(sectionTriggers[6]).toHaveClass("hover:no-underline", "py-3.5", "md:py-4");
+    expect(sectionTitles).toHaveLength(7);
+    expect(sectionTitles[1]).toContain("Informações do projeto");
+    expect(sectionTitles[2]).toContain("Mídias");
+    expect(sectionTitles[3]).toContain("Relações");
+    expect(sectionTitles[4]).toContain("Episódios");
+    expect(sectionTitles[5]).toContain("Equipe da fansub");
+    expect(sectionTitles[6]).toContain("Staff do anime");
+    expect(sectionTriggers[4]).toHaveClass("hover:no-underline", "py-3.5", "md:py-4");
   });
 
   it.skip("aplica overflow visivel na raiz dos accordions de capitulos abertos", async () => {
@@ -1141,12 +1214,14 @@ describe("DashboardProjectsEditor episode accordion", () => {
   it.skip("seleciona EPUB manualmente sem autoimportar e permite trocar pelo nome do arquivo", async () => {
     setupApiMock([lightNovelProjectFixture]);
 
-    await openEpisodeEditor({
-      projectTitle: "Projeto Light Novel",
-      sectionNamePattern: /Cap/i,
-      removeButtonPattern: /Remover cap/i,
-    });
-
+    render(
+      <MemoryRouter>
+        <DashboardProjectsEditor />
+      </MemoryRouter>,
+    );
+    await screen.findByRole("heading", { name: "Gerenciar projetos" });
+    fireEvent.click(await screen.findByRole("button", { name: "Abrir projeto Projeto Light Novel" }));
+    await screen.findByRole("heading", { name: "Editar projeto" });
     fireEvent.click(screen.getByRole("button", { name: /Importa[^r]/i }));
 
     const fileInput = screen.getByLabelText(/Arquivo \.epub/i) as HTMLInputElement;
@@ -1795,6 +1870,170 @@ describe("DashboardProjectsEditor episode accordion", () => {
       value: originalAnchorClick,
     });
     inputClickSpy.mockRestore();
+  });
+
+  it("importa EPUB via job assíncrono no formulário do projeto", async () => {
+    setupApiMock([lightNovelProjectFixture], {
+      capabilities: {
+        project_epub_import: true,
+        project_epub_export: true,
+        project_epub_import_async: true,
+      },
+      epubImportJobStatusResponse: mockJsonResponse(true, {
+        job: {
+          id: "job-async-1",
+          projectId: "project-ln-1",
+          requestedBy: "1",
+          status: "completed",
+          summary: { chapters: 1 },
+          error: null,
+          createdAt: "2026-03-09T00:00:00.000Z",
+          startedAt: "2026-03-09T00:00:01.000Z",
+          finishedAt: "2026-03-09T00:00:02.000Z",
+          expiresAt: "2026-03-12T00:00:02.000Z",
+          hasResult: true,
+          result: {
+            summary: {
+              chapters: 1,
+              mainImported: 1,
+              extrasImported: 0,
+              volume: 2,
+            },
+            warnings: [],
+            volumeCovers: [],
+            chapters: [
+              {
+                number: 2,
+                volume: 2,
+                title: "Capitulo importado",
+                releaseDate: "",
+                duration: "",
+                sourceType: "Web",
+                sources: [],
+                progressStage: "aguardando-raw",
+                completedStages: [],
+                content: '{"root":{"children":[{"type":"paragraph"}]}}',
+                contentFormat: "lexical",
+                publicationStatus: "draft",
+                mergeMode: "create",
+                episodeKey: "2:2",
+              },
+            ],
+          },
+        },
+      }),
+    });
+
+    render(
+      <MemoryRouter>
+        <DashboardProjectsEditor />
+      </MemoryRouter>,
+    );
+    await screen.findByRole("heading", { name: "Gerenciar projetos" });
+    fireEvent.click(await screen.findByRole("button", { name: "Abrir projeto Projeto Light Novel" }));
+    await screen.findByRole("heading", { name: "Editar projeto" });
+    fireEvent.click(screen.getByRole("button", { name: /Importa[^r]/i }));
+    const importButton = screen.getByRole("button", { name: /Importar EPUB/i });
+    await waitFor(() => {
+      expect(importButton).not.toBeDisabled();
+    });
+
+    const fileInput = screen.getByLabelText(/Arquivo \.epub/i) as HTMLInputElement;
+    fireEvent.change(screen.getByLabelText(/Volume de destino/i), { target: { value: "2" } });
+    fireEvent.click(importButton);
+    fireEvent.change(fileInput, {
+      target: { files: [new File(["epub"], "async.epub", { type: "application/epub+zip" })] },
+    });
+
+    await waitFor(() => {
+      expect(toastMock).toHaveBeenCalledWith(expect.objectContaining({ title: "EPUB importado" }));
+    });
+    expect(apiFetchMock.mock.calls.some((call) => call[1] === "/api/projects/epub/import/jobs")).toBe(
+      true,
+    );
+    expect(
+      apiFetchMock.mock.calls.some((call) =>
+        String(call[1]).startsWith("/api/projects/epub/import/jobs/"),
+      ),
+    ).toBe(true);
+    expect(apiFetchMock.mock.calls.some((call) => call[1] === "/api/projects/epub/import")).toBe(false);
+  });
+
+  it("faz fallback para a rota síncrona quando a criação do job retorna 404", async () => {
+    setupApiMock([lightNovelProjectFixture], {
+      capabilities: {
+        project_epub_import: true,
+        project_epub_export: true,
+        project_epub_import_async: true,
+      },
+      epubImportJobCreateResponse: mockJsonResponse(false, { error: "not_found" }, 404),
+    });
+    const baseImplementation = apiFetchMock.getMockImplementation();
+    apiFetchMock.mockImplementation(async (base, path, options) => {
+      const method = String((options as RequestInit | undefined)?.method || "GET").toUpperCase();
+      if (path === "/api/projects/epub/import" && method === "POST") {
+        return mockJsonResponse(true, {
+          summary: {
+            chapters: 1,
+            mainImported: 1,
+            extrasImported: 0,
+            volume: 2,
+          },
+          warnings: [],
+          volumeCovers: [],
+          chapters: [
+            {
+              number: 2,
+              volume: 2,
+              title: "Capitulo fallback",
+              releaseDate: "",
+              duration: "",
+              sourceType: "Web",
+              sources: [],
+              progressStage: "aguardando-raw",
+              completedStages: [],
+              content: '{"root":{"children":[{"type":"paragraph"}]}}',
+              contentFormat: "lexical",
+              publicationStatus: "draft",
+              mergeMode: "create",
+              episodeKey: "2:2",
+            },
+          ],
+        });
+      }
+      return baseImplementation
+        ? (baseImplementation(base, path, options) as Promise<Response>)
+        : mockJsonResponse(false, { error: "not_found" }, 404);
+    });
+
+    render(
+      <MemoryRouter>
+        <DashboardProjectsEditor />
+      </MemoryRouter>,
+    );
+    await screen.findByRole("heading", { name: "Gerenciar projetos" });
+    fireEvent.click(await screen.findByRole("button", { name: "Abrir projeto Projeto Light Novel" }));
+    await screen.findByRole("heading", { name: "Editar projeto" });
+    fireEvent.click(screen.getByRole("button", { name: /Importa[^r]/i }));
+    const importButton = screen.getByRole("button", { name: /Importar EPUB/i });
+    await waitFor(() => {
+      expect(importButton).not.toBeDisabled();
+    });
+
+    const fileInput = screen.getByLabelText(/Arquivo \.epub/i) as HTMLInputElement;
+    fireEvent.change(screen.getByLabelText(/Volume de destino/i), { target: { value: "2" } });
+    fireEvent.click(importButton);
+    fireEvent.change(fileInput, {
+      target: { files: [new File(["epub"], "fallback.epub", { type: "application/epub+zip" })] },
+    });
+
+    await waitFor(() => {
+      expect(toastMock).toHaveBeenCalledWith(expect.objectContaining({ title: "EPUB importado" }));
+    });
+    expect(apiFetchMock.mock.calls.some((call) => call[1] === "/api/projects/epub/import/jobs")).toBe(
+      true,
+    );
+    expect(apiFetchMock.mock.calls.some((call) => call[1] === "/api/projects/epub/import")).toBe(true);
   });
 
   it.skip("dispara cleanup de importacoes EPUB temporarias ao sair sem salvar", async () => {

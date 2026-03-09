@@ -123,4 +123,14 @@ describe("LexicalEditor", () => {
 
     expect(propsWithDisabledAutoFocus).toBeTruthy();
   });
+
+  it("repassa followCaretScroll para o editor interno", () => {
+    render(<LexicalEditor value={EMPTY_ROOT_STATE} onChange={vi.fn()} followCaretScroll />);
+
+    const propsWithFollowCaretScroll = editorPropsSpy.mock.calls
+      .map((call) => call[0] as { followCaretScroll?: boolean })
+      .find((props) => props.followCaretScroll === true);
+
+    expect(propsWithFollowCaretScroll).toBeTruthy();
+  });
 });

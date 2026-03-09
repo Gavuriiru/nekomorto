@@ -40,6 +40,37 @@ const toDateOrNull = (value) => {
   return Number.isFinite(parsed.getTime()) ? parsed : null;
 };
 
+const normalizeMissingTableName = (value) =>
+  String(value || "")
+    .trim()
+    .replace(/"/g, "")
+    .toLowerCase();
+
+const isPrismaMissingTableError = (error, { modelName = "", tableName = "" } = {}) => {
+  if (!error || typeof error !== "object") {
+    return false;
+  }
+  const errorCode = String(error?.code || "").trim();
+  const driverKind = String(error?.meta?.driverAdapterError?.cause?.kind || "").trim();
+  if (errorCode !== "P2021" && driverKind !== "TableDoesNotExist") {
+    return false;
+  }
+  if (modelName && String(error?.meta?.modelName || "").trim() === modelName) {
+    return true;
+  }
+  const normalizedExpectedTable = normalizeMissingTableName(tableName);
+  const normalizedActualTable = normalizeMissingTableName(
+    error?.meta?.driverAdapterError?.cause?.table,
+  );
+  if (!normalizedExpectedTable || !normalizedActualTable) {
+    return false;
+  }
+  return (
+    normalizedActualTable === normalizedExpectedTable ||
+    normalizedActualTable.endsWith(`.${normalizedExpectedTable}`)
+  );
+};
+
 const DEFAULT_AUDIT_RETENTION_MS = 30 * 24 * 60 * 60 * 1000;
 const DEFAULT_AUDIT_MAX_ENTRIES = 20_000;
 
@@ -139,6 +170,7 @@ export class DbDataRepository {
     this.analyticsEventNextPosition = 0;
     this.normalizedSchemaAvailable = false;
     this.normalizedReadState = new Map();
+    this.epubImportJobStorageAvailable = true;
     this.onBackgroundError = options.onBackgroundError;
     this.persistQueue = Promise.resolve();
     this.health = {
@@ -174,6 +206,7 @@ export class DbDataRepository {
       userSessionIndexRecords: [],
       securityEvents: [],
       adminExportJobs: [],
+      epubImportJobs: [],
       secretRotations: [],
     };
   }
@@ -307,6 +340,7 @@ export class DbDataRepository {
       userSessionIndexRecords,
       securityEvents,
       adminExportJobs,
+      epubImportJobs,
       secretRotations,
       normalizedUsers,
       normalizedPosts,
@@ -350,6 +384,28 @@ export class DbDataRepository {
       typeof prisma.adminExportJobRecord?.findMany === "function"
         ? prisma.adminExportJobRecord.findMany({ orderBy: { createdAt: "desc" } })
         : Promise.resolve([]),
+      typeof prisma.epubImportJobRecord?.findMany === "function"
+        ? prisma.epubImportJobRecord
+            .findMany({ orderBy: { createdAt: "desc" } })
+            .catch((error) => {
+              if (
+                isPrismaMissingTableError(error, {
+                  modelName: "EpubImportJobRecord",
+                  tableName: "epub_import_jobs",
+                })
+              ) {
+                this.epubImportJobStorageAvailable = false;
+                console.warn(
+                  "[data-repository:epub_import_jobs] table missing; async EPUB import disabled until migrations run.",
+                );
+                return [];
+              }
+              throw error;
+            })
+        : (() => {
+            this.epubImportJobStorageAvailable = false;
+            return Promise.resolve([]);
+          })(),
       typeof prisma.secretRotationRecord?.findMany === "function"
         ? prisma.secretRotationRecord.findMany({ orderBy: { rotatedAt: "desc" } })
         : Promise.resolve([]),
@@ -487,6 +543,20 @@ export class DbDataRepository {
       filters: cloneValue(row?.filters || {}),
       filePath: row?.filePath ? String(row.filePath) : null,
       rowCount: Number.isFinite(Number(row?.rowCount)) ? Number(row.rowCount) : null,
+      error: row?.error ? String(row.error) : null,
+      createdAt: row?.createdAt ? new Date(row.createdAt).toISOString() : null,
+      startedAt: row?.startedAt ? new Date(row.startedAt).toISOString() : null,
+      finishedAt: row?.finishedAt ? new Date(row.finishedAt).toISOString() : null,
+      expiresAt: row?.expiresAt ? new Date(row.expiresAt).toISOString() : null,
+      updatedAt: row?.updatedAt ? new Date(row.updatedAt).toISOString() : null,
+    }));
+    this.snapshot.epubImportJobs = epubImportJobs.map((row) => ({
+      id: String(row?.id || ""),
+      projectId: String(row?.projectId || ""),
+      requestedBy: String(row?.requestedBy || ""),
+      status: String(row?.status || "queued"),
+      summary: cloneValue(row?.summary || {}),
+      resultPath: row?.resultPath ? String(row.resultPath) : null,
       error: row?.error ? String(row.error) : null,
       createdAt: row?.createdAt ? new Date(row.createdAt).toISOString() : null,
       startedAt: row?.startedAt ? new Date(row.startedAt).toISOString() : null,
@@ -1470,6 +1540,86 @@ export class DbDataRepository {
           filters: cloneValue(normalized.filters),
           filePath: normalized.filePath,
           rowCount: normalized.rowCount,
+          error: normalized.error,
+          startedAt: toDateOrNull(normalized.startedAt),
+          finishedAt: toDateOrNull(normalized.finishedAt),
+          expiresAt: toDateOrNull(normalized.expiresAt),
+        },
+      });
+    });
+    return cloneValue(normalized);
+  }
+
+  loadEpubImportJobs() {
+    return cloneValue(this.snapshot.epubImportJobs || []);
+  }
+
+  isEpubImportJobStorageAvailable() {
+    return this.epubImportJobStorageAvailable === true;
+  }
+
+  upsertEpubImportJob(job) {
+    if (
+      this.epubImportJobStorageAvailable !== true ||
+      typeof prisma.epubImportJobRecord?.upsert !== "function"
+    ) {
+      return null;
+    }
+    const id = String(job?.id || "").trim();
+    if (!id) {
+      return null;
+    }
+    const normalized = {
+      id,
+      projectId: String(job?.projectId || "").trim(),
+      requestedBy: String(job?.requestedBy || "").trim(),
+      status: String(job?.status || "queued"),
+      summary:
+        job?.summary && typeof job.summary === "object" && !Array.isArray(job.summary)
+          ? cloneValue(job.summary)
+          : {},
+      resultPath: job?.resultPath ? String(job.resultPath) : null,
+      error: job?.error ? String(job.error) : null,
+      createdAt: String(job?.createdAt || new Date().toISOString()),
+      startedAt: job?.startedAt ? String(job.startedAt) : null,
+      finishedAt: job?.finishedAt ? String(job.finishedAt) : null,
+      expiresAt: job?.expiresAt ? String(job.expiresAt) : null,
+      updatedAt: String(job?.updatedAt || new Date().toISOString()),
+    };
+    const list = ensureArray(this.snapshot.epubImportJobs);
+    const index = list.findIndex((item) => String(item?.id || "") === id);
+    if (index >= 0) {
+      list[index] = normalized;
+    } else {
+      list.push(normalized);
+    }
+    this.snapshot.epubImportJobs = list.sort((a, b) => {
+      const aTs = new Date(a.createdAt || 0).getTime();
+      const bTs = new Date(b.createdAt || 0).getTime();
+      return bTs - aTs;
+    });
+    this.enqueuePersist("epub_import_job", async () => {
+      await prisma.epubImportJobRecord.upsert({
+        where: { id },
+        create: {
+          id,
+          projectId: normalized.projectId,
+          requestedBy: normalized.requestedBy,
+          status: normalized.status,
+          summary: cloneValue(normalized.summary),
+          resultPath: normalized.resultPath,
+          error: normalized.error,
+          createdAt: toDateOrNull(normalized.createdAt) || new Date(),
+          startedAt: toDateOrNull(normalized.startedAt),
+          finishedAt: toDateOrNull(normalized.finishedAt),
+          expiresAt: toDateOrNull(normalized.expiresAt),
+        },
+        update: {
+          projectId: normalized.projectId,
+          requestedBy: normalized.requestedBy,
+          status: normalized.status,
+          summary: cloneValue(normalized.summary),
+          resultPath: normalized.resultPath,
           error: normalized.error,
           startedAt: toDateOrNull(normalized.startedAt),
           finishedAt: toDateOrNull(normalized.finishedAt),

@@ -24,7 +24,7 @@ const LexicalViewer = lazy(() => import("@/components/lexical/LexicalViewer"));
 
 const LexicalViewerFallback = () => (
   <div className="min-h-[320px] w-full rounded-xl border border-border/60 bg-background/60 p-6 text-sm text-muted-foreground">
-    Carregando conteÃºdo...
+    Carregando conte?do...
   </div>
 );
 
@@ -263,7 +263,7 @@ const Post = () => {
           <div
             className={`${publicPageLayoutTokens.sectionBase} max-w-6xl rounded-2xl border border-dashed border-border/60 py-10 pt-20 text-sm text-muted-foreground bg-card/60`}
           >
-            Postagem nÃ£o encontrada.
+            Postagem n?o encontrada.
           </div>
         ) : (
           <>

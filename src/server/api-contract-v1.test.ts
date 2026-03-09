@@ -17,6 +17,7 @@ describe("buildApiContractV1", () => {
     expect(contract.capabilities).toEqual({
       project_epub_import: true,
       project_epub_export: true,
+      project_epub_import_async: true,
     });
     expect(contract.build).toEqual({
       commitSha: "abcdef1234567890",
@@ -27,6 +28,14 @@ describe("buildApiContractV1", () => {
         expect.objectContaining({
           method: "POST",
           path: "/api/projects/epub/import",
+        }),
+        expect.objectContaining({
+          method: "POST",
+          path: "/api/projects/epub/import/jobs",
+        }),
+        expect.objectContaining({
+          method: "GET",
+          path: "/api/projects/epub/import/jobs/:id",
         }),
         expect.objectContaining({
           method: "POST",
@@ -64,6 +73,20 @@ describe("buildApiContractV1", () => {
 
     expect(contract.build).toMatchObject({
       commitSha: "1234567890abcdef",
+    });
+  });
+
+  it("permite sobrescrever capabilities dinamicamente", () => {
+    const contract = buildApiContractV1({
+      capabilities: {
+        project_epub_import_async: false,
+      },
+    });
+
+    expect(contract.capabilities).toEqual({
+      project_epub_import: true,
+      project_epub_export: true,
+      project_epub_import_async: false,
     });
   });
 });

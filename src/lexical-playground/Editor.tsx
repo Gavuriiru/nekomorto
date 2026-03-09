@@ -36,6 +36,7 @@ import AutoEmbedPlugin from './plugins/AutoEmbedPlugin';
 import AutoLinkPlugin from './plugins/AutoLinkPlugin';
 import CodeActionMenuPlugin from './plugins/CodeActionMenuPlugin';
 import CodeHighlightPrismPlugin from './plugins/CodeHighlightPrismPlugin';
+import CaretFollowScrollPlugin from './plugins/CaretFollowScrollPlugin';
 import CollapsiblePlugin from './plugins/CollapsiblePlugin';
 import ComponentPickerPlugin from './plugins/ComponentPickerPlugin';
 import DragDropPaste from './plugins/DragDropPastePlugin';
@@ -67,11 +68,13 @@ export default function Editor({
   placeholder: placeholderOverride,
   imageLibraryOptions,
   autoFocus = true,
+  followCaretScroll = false,
 }: {
   hideToolbar?: boolean;
   placeholder?: string;
   imageLibraryOptions?: ImageLibraryOptions;
   autoFocus?: boolean;
+  followCaretScroll?: boolean;
 }): JSX.Element {
   const {historyState} = useSharedHistoryContext();
   const {
@@ -170,6 +173,7 @@ export default function Editor({
         className={`editor-container ${!isRichText ? 'plain-text' : ''}`}>
         {showEditingPlugins && <DragDropPaste />}
         {showEditingPlugins && autoFocus && <AutoFocusPlugin />}
+        {showEditingPlugins && followCaretScroll && <CaretFollowScrollPlugin />}
         {selectionAlwaysOnDisplay && <SelectionAlwaysOnDisplay />}
         {showEditingPlugins && <ClearEditorPlugin />}
         {showEditingPlugins && <ComponentPickerPlugin imageLibraryOptions={imageLibraryOptions} />}

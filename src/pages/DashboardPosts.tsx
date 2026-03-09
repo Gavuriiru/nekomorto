@@ -2076,6 +2076,7 @@ const DashboardPosts = () => {
                                 placeholder="Escreva o conteúdo do post..."
                                 className="lexical-playground--modal lexical-playground--stretch lexical-playground--post-editor min-w-0 w-full"
                                 imageLibraryOptions={postImageLibraryOptions}
+                                followCaretScroll
                                 />
                               </Suspense>
                             </div>

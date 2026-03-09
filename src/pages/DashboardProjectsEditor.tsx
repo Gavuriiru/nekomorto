@@ -70,6 +70,7 @@ import {
 } from "@/lib/image-alt";
 import { filterImageLibraryFoldersByAccess } from "@/lib/image-library-scope";
 import { createSlug } from "@/lib/post-content";
+import { normalizeEpubImportJob, type EpubImportJob } from "@/lib/project-epub";
 import {
   buildDashboardProjectChapterEditorHref,
   buildDashboardProjectChaptersEditorHref,
@@ -155,6 +156,7 @@ const LexicalEditorFallback = () => (
 const DEFAULT_API_CAPABILITIES: ApiContractCapabilities = {
   project_epub_import: false,
   project_epub_export: false,
+  project_epub_import_async: false,
 };
 
 const EPUB_CAPABILITY_UNAVAILABLE_MESSAGE =
@@ -191,6 +193,7 @@ const normalizeApiContractCapabilities = (
 ): ApiContractCapabilities => ({
   project_epub_import: capabilities?.project_epub_import === true,
   project_epub_export: capabilities?.project_epub_export === true,
+  project_epub_import_async: capabilities?.project_epub_import_async === true,
 });
 
 const normalizeApiContractBuildMetadata = (
@@ -1191,7 +1194,7 @@ const DashboardProjectsEditor = () => {
   const [memberDirectory, setMemberDirectory] = useState<string[]>([]);
   const [collapsedEpisodes, setCollapsedEpisodes] = useState<Record<number, boolean>>({});
   const [collapsedVolumeGroups, setCollapsedVolumeGroups] = useState<Record<string, boolean>>({});
-  const [editorAccordionValue, setEditorAccordionValue] = useState<string[]>(["dados-principais"]);
+  const [editorAccordionValue, setEditorAccordionValue] = useState<string[]>(["informacoes"]);
   const [isLibraryOpen, setIsLibraryOpen] = useState(false);
   const [libraryTarget, setLibraryTarget] = useState<
     "cover" | "banner" | "hero" | "episode-cover" | "volume-cover"
@@ -1336,6 +1339,7 @@ const DashboardProjectsEditor = () => {
   );
   const backendSupportsEpubImport = backendCapabilities?.project_epub_import === true;
   const backendSupportsEpubExport = backendCapabilities?.project_epub_export === true;
+  const backendSupportsEpubImportAsync = backendCapabilities?.project_epub_import_async === true;
   const epubCapabilityState = useMemo(() => {
     if (backendCapabilitiesError) {
       return {
@@ -2760,7 +2764,7 @@ const DashboardProjectsEditor = () => {
       setEpubExportVolume("");
       setEpubExportIncludeDrafts(false);
       setEditorAccordionValue(
-        shouldOpenEpisodesSection ? ["dados-principais", "episodios"] : ["dados-principais"],
+        shouldOpenEpisodesSection ? ["informacoes", "episodios"] : ["informacoes"],
       );
       setEpisodeDateDraft({});
       setEpisodeTimeDraft({});
@@ -3125,8 +3129,11 @@ const DashboardProjectsEditor = () => {
     input.click();
   };
 
-  const submitEpubImport = async (file: File) => {
-    if (isImportingEpub) {
+  const submitEpubImportSyncFallback = async (
+    file: File,
+    options: { skipImportingState?: boolean } = {},
+  ) => {
+    if (isImportingEpub && !options.skipImportingState) {
       return;
     }
     if (!backendSupportsEpubImport) {
@@ -3145,7 +3152,9 @@ const DashboardProjectsEditor = () => {
       return;
     }
 
-    setIsImportingEpub(true);
+    if (!options.skipImportingState) {
+      setIsImportingEpub(true);
+    }
     try {
       const formData = new FormData();
       formData.set("file", file);
@@ -3392,9 +3401,372 @@ const DashboardProjectsEditor = () => {
       });
     } finally {
       pendingEpubAutoImportRef.current = false;
-      setIsImportingEpub(false);
+      if (!options.skipImportingState) {
+        setIsImportingEpub(false);
+      }
     }
   };
+
+  const handleEpubImportFailureResponse = useCallback(
+    (response: Response, data: unknown) => {
+      const payload = data && typeof data === "object" ? (data as Record<string, unknown>) : null;
+      if (response.status === 404) {
+        if (payload?.error === "project_not_found") {
+          setEpubRouteStatus("legacy_project_not_found");
+          logEpubParityIssue({
+            path: "/api/projects/epub/import",
+            status: response.status,
+            reason: "legacy_project_not_found",
+          });
+          toast({
+            title: "Falha ao importar EPUB",
+            description: EPUB_IMPORT_LEGACY_PROJECT_MISSING_MESSAGE,
+            variant: "destructive",
+          });
+          return;
+        }
+        setEpubRouteStatus("route_unreachable_for_current_origin");
+        logEpubParityIssue({
+          path: "/api/projects/epub/import",
+          status: response.status,
+          reason: "route_unreachable_for_current_origin",
+        });
+        toast({
+          title: "Falha ao importar EPUB",
+          description: EPUB_IMPORT_ROUTE_MISSING_MESSAGE,
+          variant: "destructive",
+        });
+        return;
+      }
+      if (response.status === 403) {
+        setEpubRouteStatus("forbidden");
+        logEpubParityIssue({
+          path: "/api/projects/epub/import",
+          status: response.status,
+          reason: "forbidden",
+        });
+        toast({
+          title: "Falha ao importar EPUB",
+          description: "Voc? n?o tem permiss?o para importar EPUB.",
+          variant: "destructive",
+        });
+        return;
+      }
+      if (
+        (typeof payload?.error === "string" && payload.error === "project_snapshot_too_large") ||
+        isLegacyMultipartSnapshotTooLargeError(payload?.error, payload?.detail)
+      ) {
+        setEpubRouteStatus("ok");
+        toast({
+          title: "Falha ao importar EPUB",
+          description: EPUB_IMPORT_SNAPSHOT_TOO_LARGE_MESSAGE,
+          variant: "destructive",
+        });
+        return;
+      }
+      if (typeof payload?.error === "string" && payload.error === "invalid_project_snapshot") {
+        setEpubRouteStatus("ok");
+        toast({
+          title: "Falha ao importar EPUB",
+          description: EPUB_IMPORT_INVALID_SNAPSHOT_MESSAGE,
+          variant: "destructive",
+        });
+        return;
+      }
+      if (typeof payload?.error === "string" && payload.error === "duplicate_episode_key") {
+        setEpubRouteStatus("ok");
+        const duplicateKey = String(payload?.key || "");
+        const duplicateIndex = formState.episodeDownloads.findIndex(
+          (episode) => buildEpisodeKey(episode.number, episode.volume) === duplicateKey,
+        );
+        setEditorAccordionValue((prev) => (prev.includes("episodios") ? prev : [...prev, "episodios"]));
+        if (duplicateIndex >= 0) {
+          revealEpisodeAtIndex(duplicateIndex);
+        }
+        toast({
+          title: "Falha ao importar EPUB",
+          description: EPUB_IMPORT_DUPLICATE_EPISODE_MESSAGE,
+          variant: "destructive",
+        });
+        return;
+      }
+      if (
+        typeof payload?.error === "string" &&
+        payload.error === "epub_import_failed" &&
+        (isEpubCssEngineFailureDetail(payload?.detail) ||
+          !(typeof payload?.detail === "string" && payload.detail.trim().length > 0))
+      ) {
+        toast({
+          title: "Falha ao importar EPUB",
+          description: EPUB_IMPORT_PROCESSING_MESSAGE,
+          variant: "destructive",
+        });
+        return;
+      }
+      toast({
+        title: "Falha ao importar EPUB",
+        description:
+          typeof payload?.detail === "string"
+            ? payload.detail
+            : "N?o foi poss?vel processar o arquivo informado.",
+        variant: "destructive",
+      });
+    },
+    [formState.episodeDownloads, logEpubParityIssue, revealEpisodeAtIndex],
+  );
+
+  const applyImportedEpubPayload = useCallback(
+    (payload: unknown) => {
+      setEpubRouteStatus("ok");
+      registerPendingEpubImportIds(payload);
+      const data = payload && typeof payload === "object" ? (payload as Record<string, unknown>) : null;
+      const chapters = Array.isArray(data?.chapters) ? (data.chapters as ProjectEpisode[]) : [];
+      const volumeCovers = Array.isArray(data?.volumeCovers)
+        ? (data.volumeCovers as Array<
+            ProjectVolumeCover & {
+              mergeMode?: "create" | "update" | "preserve_existing";
+            }
+          >)
+        : [];
+      const warnings = Array.isArray(data?.warnings)
+        ? data.warnings
+            .map((warning) => String(warning || "").trim())
+            .filter((warning) => warning.length > 0)
+        : [];
+      const importedChapterCount = Number.isFinite(Number(data?.summary?.chapters))
+        ? Number(data.summary.chapters)
+        : chapters.length;
+      const mainImportedCount = Number.isFinite(Number(data?.summary?.mainImported))
+        ? Number(data.summary.mainImported)
+        : importedChapterCount;
+      const extrasImportedCount = Number.isFinite(Number(data?.summary?.extrasImported))
+        ? Number(data.summary.extrasImported)
+        : 0;
+      const boilerplatePromoted = Number.isFinite(Number(data?.summary?.boilerplatePromoted))
+        ? Number(data.summary.boilerplatePromoted)
+        : 0;
+      const boilerplateDiscarded = Number.isFinite(Number(data?.summary?.boilerplateDiscarded))
+        ? Number(data.summary.boilerplateDiscarded)
+        : 0;
+      const imagesImported = Number.isFinite(Number(data?.summary?.imagesImported))
+        ? Number(data.summary.imagesImported)
+        : 0;
+      const imageImportFailures = Number.isFinite(Number(data?.summary?.imageImportFailures))
+        ? Number(data.summary.imageImportFailures)
+        : 0;
+      const volumeCoverImported = data?.summary?.volumeCoverImported === true;
+      const volumeCoverSkipped = data?.summary?.volumeCoverSkipped === true;
+      const summaryVolume = Number(data?.summary?.volume);
+      const firstChapterVolume = Number(
+        chapters.find((chapter) => Number.isFinite(Number(chapter?.volume)))?.volume,
+      );
+      const firstVolumeCoverVolume = Number(
+        volumeCovers.find((cover) => Number.isFinite(Number(cover?.volume)))?.volume,
+      );
+      const targetVolumeValue = String(epubImportTargetVolume || "").trim();
+      const importTargetVolume = targetVolumeValue === "" ? Number.NaN : Number(targetVolumeValue);
+      const resolvedImportedVolume = [
+        summaryVolume,
+        firstChapterVolume,
+        firstVolumeCoverVolume,
+        importTargetVolume,
+      ].find((value) => Number.isFinite(value));
+      const importedVolumeKey = Number.isFinite(resolvedImportedVolume)
+        ? buildVolumeCoverKey(resolvedImportedVolume)
+        : isChapterBased
+          ? buildVolumeCoverKey(undefined)
+          : null;
+      if (importedVolumeKey) {
+        pendingVolumeGroupToExpandRef.current = importedVolumeKey;
+        pendingVolumeGroupToScrollRef.current = importedVolumeKey;
+      } else {
+        pendingVolumeGroupToScrollRef.current = null;
+      }
+      pendingContentSectionScrollRef.current = true;
+      mergeImportedEpisodesIntoForm(chapters, {
+        collapseAffectedItems: true,
+        revealFirstAffectedItem: false,
+        scrollToFirstAffectedItem: false,
+      });
+      mergeImportedVolumeCoversIntoForm(volumeCovers);
+      setEditorAccordionValue((prev) => (prev.includes("episodios") ? prev : [...prev, "episodios"]));
+      toast({
+        title: "EPUB importado",
+        description: [
+          `${importedChapterCount} cap?tulo(s) incorporados ao formul?rio para revis?o.`,
+          ...(mainImportedCount > 0 ? [`${mainImportedCount} cap?tulo(s) principais detectados.`] : []),
+          ...(extrasImportedCount > 0 ? [`${extrasImportedCount} extra(s) detectados.`] : []),
+          ...(boilerplatePromoted > 0
+            ? [`${boilerplatePromoted} item(ns) de boilerplate foram promovidos para extras.`]
+            : []),
+          ...(boilerplateDiscarded > 0
+            ? [`${boilerplateDiscarded} item(ns) de boilerplate foram descartados.`]
+            : []),
+          ...(imagesImported > 0 ? [`${imagesImported} imagem(ns) interna(s) foram importadas.`] : []),
+          ...(imageImportFailures > 0
+            ? [`${imageImportFailures} imagem(ns) falharam e foram ignoradas.`]
+            : []),
+          ...(volumeCoverImported ? ["A capa do volume foi incorporada ao formul?rio."] : []),
+          ...(volumeCoverSkipped ? ["A capa do volume existente foi preservada."] : []),
+          ...warnings,
+        ].join(" "),
+        intent: "success",
+      });
+    },
+    [
+      epubImportTargetVolume,
+      isChapterBased,
+      mergeImportedEpisodesIntoForm,
+      mergeImportedVolumeCoversIntoForm,
+      registerPendingEpubImportIds,
+    ],
+  );
+
+  const pollEpubImportJob = useCallback(
+    async (jobId: string) => {
+      while (true) {
+        const response = await apiFetch(apiBase, `/api/projects/epub/import/jobs/${jobId}`, {
+          auth: true,
+          cache: "no-store",
+        });
+        if (!response.ok) {
+          const data = await response.json().catch(() => null);
+          handleEpubImportFailureResponse(response, data);
+          return null;
+        }
+        const data = (await response.json().catch(() => null)) as { job?: EpubImportJob } | null;
+        const job = normalizeEpubImportJob(data?.job);
+        if (!job) {
+          toast({
+            title: "Falha ao importar EPUB",
+            description: EPUB_IMPORT_PROCESSING_MESSAGE,
+            variant: "destructive",
+          });
+          return null;
+        }
+        if (job.status === "queued" || job.status === "processing") {
+          await new Promise((resolve) => window.setTimeout(resolve, 2000));
+          continue;
+        }
+        return job;
+      }
+    },
+    [apiBase, handleEpubImportFailureResponse],
+  );
+
+  const submitEpubImport = useCallback(
+    async (file: File) => {
+      if (isImportingEpub) {
+        return;
+      }
+      if (!backendSupportsEpubImport) {
+        logEpubParityIssue({
+          path: "/api/projects/epub/import",
+          status: "blocked",
+          reason: backendCapabilitiesError ? "contract_unreachable" : "capability_missing",
+        });
+        toast({
+          title: "Falha ao importar EPUB",
+          description: backendCapabilitiesError
+            ? EPUB_CAPABILITY_UNKNOWN_MESSAGE
+            : EPUB_CAPABILITY_UNAVAILABLE_MESSAGE,
+          variant: "destructive",
+        });
+        return;
+      }
+
+      setIsImportingEpub(true);
+      try {
+        const formData = new FormData();
+        formData.set("file", file);
+        formData.set("project", JSON.stringify(buildEpubImportProjectSnapshot(formState)));
+        if (epubImportTargetVolume.trim()) {
+          formData.set("targetVolume", epubImportTargetVolume.trim());
+        }
+        formData.set("defaultStatus", epubImportAsDraft ? "draft" : "published");
+        if (backendSupportsEpubImportAsync) {
+          const jobResponse = await apiFetch(apiBase, "/api/projects/epub/import/jobs", {
+            method: "POST",
+            auth: true,
+            body: formData,
+          });
+          if (jobResponse.status === 404) {
+            logEpubParityIssue({
+              path: "/api/projects/epub/import/jobs",
+              status: jobResponse.status,
+              reason: "route_unreachable_for_current_origin",
+            });
+          } else if (!jobResponse.ok) {
+            const data = await jobResponse.json().catch(() => null);
+            handleEpubImportFailureResponse(jobResponse, data);
+            return;
+          } else {
+            const data = (await jobResponse.json().catch(() => null)) as { job?: EpubImportJob } | null;
+            const initialJob = normalizeEpubImportJob(data?.job);
+            if (!initialJob) {
+              toast({
+                title: "Falha ao importar EPUB",
+                description: EPUB_IMPORT_PROCESSING_MESSAGE,
+                variant: "destructive",
+              });
+              return;
+            }
+            const finalJob =
+              initialJob.status === "queued" || initialJob.status === "processing"
+                ? await pollEpubImportJob(initialJob.id)
+                : initialJob;
+            if (!finalJob) {
+              return;
+            }
+            if (finalJob.status === "completed" && finalJob.result) {
+              applyImportedEpubPayload(finalJob.result);
+              return;
+            }
+            toast({
+              title: "Falha ao importar EPUB",
+              description: finalJob.error || EPUB_IMPORT_PROCESSING_MESSAGE,
+              variant: "destructive",
+            });
+            return;
+          }
+        }
+
+        await submitEpubImportSyncFallback(file, { skipImportingState: true });
+      } catch {
+        setEpubRouteStatus("network_unreachable");
+        logEpubParityIssue({
+          path: backendSupportsEpubImportAsync
+            ? "/api/projects/epub/import/jobs"
+            : "/api/projects/epub/import",
+          status: "network",
+          reason: "network_unreachable",
+        });
+        toast({
+          title: "Falha ao importar EPUB",
+          description: EPUB_NETWORK_ERROR_MESSAGE,
+          variant: "destructive",
+        });
+      } finally {
+        pendingEpubAutoImportRef.current = false;
+        setIsImportingEpub(false);
+      }
+    },
+    [
+      apiBase,
+      applyImportedEpubPayload,
+      backendCapabilitiesError,
+      backendSupportsEpubImport,
+      backendSupportsEpubImportAsync,
+      epubImportAsDraft,
+      epubImportTargetVolume,
+      formState,
+      handleEpubImportFailureResponse,
+      isImportingEpub,
+      logEpubParityIssue,
+      pollEpubImportJob,
+      submitEpubImportSyncFallback,
+    ],
+  );
 
   const handleEpubImportFileChange = (event: ChangeEvent<HTMLInputElement>) => {
     const selectedFile = event.target.files?.[0] || null;
@@ -4471,6 +4843,9 @@ const DashboardProjectsEditor = () => {
   const editorSectionTriggerClassName =
     "project-editor-section-trigger flex w-full items-start gap-4 py-3.5 text-left hover:no-underline md:py-4";
   const editorSectionContentClassName = "project-editor-section-content pb-2.5 px-1";
+  const editorSectionBlockClassName = "space-y-4";
+  const editorSectionBlockTitleClassName = "text-sm font-semibold text-foreground";
+  const editorSectionBlockDividerClassName = "border-t border-border/50 pt-5";
   const chapterOpenContentClassName = "project-editor-open-overflow";
   const editorProjectLabel = editingProject ? "Projeto em edição" : "Novo projeto";
   const editorProjectTitle = formState.title.trim() || "Sem título";
@@ -5145,90 +5520,347 @@ const DashboardProjectsEditor = () => {
                     </AccordionContent>
                   </AccordionItem>
 
-                  <AccordionItem value="dados-principais" className={editorSectionClassName}>
+                  <AccordionItem value="informacoes" className={editorSectionClassName}>
                     <AccordionTrigger className={editorSectionTriggerClassName}>
                       <ProjectEditorAccordionHeader
-                        title="Dados principais"
-                        subtitle={formState.title || "ID e títulos"}
+                        title="Informações do projeto"
+                        subtitle={`${
+                          formState.title || "Títulos, classificação e metadados"
+                        } • ${formState.type || "Formato"} • ${formState.status || "Status"} • ${
+                          formState.tags.length
+                        } tags • ${formState.genres.length} gêneros`}
                       />
                     </AccordionTrigger>
                     <AccordionContent className={editorSectionContentClassName}>
-                      <div className="grid gap-4 md:grid-cols-2">
-                        <div className="space-y-2">
-                          <Label>ID do projeto</Label>
-                          <Input
-                            value={formState.id}
-                            onChange={(event) => {
-                              const nextValue = event.target.value;
-                              const hasAniList =
-                                Boolean(formState.anilistId) ||
-                                parseAniListMediaId(anilistIdInput) !== null;
-                              const trimmed = nextValue.trim();
-                              if (!hasAniList && trimmed && /^\d+$/.test(trimmed)) {
-                                return;
-                              }
-                              setFormState((prev) => ({ ...prev, id: nextValue }));
-                            }}
-                            placeholder="Mesmo ID do AniList ou slug manual"
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label>Título</Label>
-                          <Input
-                            value={formState.title}
-                            onChange={(event) =>
-                              setFormState((prev) => ({ ...prev, title: event.target.value }))
-                            }
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label>Título original</Label>
-                          <Input
-                            value={formState.titleOriginal}
-                            onChange={(event) =>
-                              setFormState((prev) => ({
-                                ...prev,
-                                titleOriginal: event.target.value,
-                              }))
-                            }
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label>Título em inglês</Label>
-                          <Input
-                            value={formState.titleEnglish}
-                            onChange={(event) =>
-                              setFormState((prev) => ({
-                                ...prev,
-                                titleEnglish: event.target.value,
-                              }))
-                            }
-                          />
-                        </div>
-                        <div className="flex items-center justify-between gap-4">
-                          <Label htmlFor="force-hero-switch">Forçar no carrossel</Label>
-                          <Switch
-                            id="force-hero-switch"
-                            checked={Boolean(formState.forceHero)}
-                            onCheckedChange={(checked) =>
-                              setFormState((prev) => ({ ...prev, forceHero: checked }))
-                            }
-                          />
-                        </div>
-                        <div className="space-y-2 md:col-span-2">
-                          <Label>Sinopse</Label>
-                          <Textarea
-                            value={formState.synopsis}
-                            onChange={(event) =>
-                              setFormState((prev) => ({ ...prev, synopsis: event.target.value }))
-                            }
-                            rows={6}
-                          />
-                        </div>
+                      <div className="space-y-6">
+                        <section className={editorSectionBlockClassName}>
+                          <div className="space-y-1">
+                            <h3 className={editorSectionBlockTitleClassName}>Dados principais</h3>
+                            <p className="text-xs leading-5 text-muted-foreground">
+                              ID, títulos, sinopse e destaque no carrossel.
+                            </p>
+                          </div>
+                          <div className="grid gap-4 md:grid-cols-2">
+                            <div className="space-y-2">
+                              <Label>ID do projeto</Label>
+                              <Input
+                                value={formState.id}
+                                onChange={(event) => {
+                                  const nextValue = event.target.value;
+                                  const hasAniList =
+                                    Boolean(formState.anilistId) ||
+                                    parseAniListMediaId(anilistIdInput) !== null;
+                                  const trimmed = nextValue.trim();
+                                  if (!hasAniList && trimmed && /^\d+$/.test(trimmed)) {
+                                    return;
+                                  }
+                                  setFormState((prev) => ({ ...prev, id: nextValue }));
+                                }}
+                                placeholder="Mesmo ID do AniList ou slug manual"
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <Label>Título</Label>
+                              <Input
+                                value={formState.title}
+                                onChange={(event) =>
+                                  setFormState((prev) => ({ ...prev, title: event.target.value }))
+                                }
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <Label>Título original</Label>
+                              <Input
+                                value={formState.titleOriginal}
+                                onChange={(event) =>
+                                  setFormState((prev) => ({
+                                    ...prev,
+                                    titleOriginal: event.target.value,
+                                  }))
+                                }
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <Label>Título em inglês</Label>
+                              <Input
+                                value={formState.titleEnglish}
+                                onChange={(event) =>
+                                  setFormState((prev) => ({
+                                    ...prev,
+                                    titleEnglish: event.target.value,
+                                  }))
+                                }
+                              />
+                            </div>
+                            <div className="flex items-center justify-between gap-4">
+                              <Label htmlFor="force-hero-switch">Forçar no carrossel</Label>
+                              <Switch
+                                id="force-hero-switch"
+                                checked={Boolean(formState.forceHero)}
+                                onCheckedChange={(checked) =>
+                                  setFormState((prev) => ({ ...prev, forceHero: checked }))
+                                }
+                              />
+                            </div>
+                            <div className="space-y-2 md:col-span-2">
+                              <Label>Sinopse</Label>
+                              <Textarea
+                                value={formState.synopsis}
+                                onChange={(event) =>
+                                  setFormState((prev) => ({
+                                    ...prev,
+                                    synopsis: event.target.value,
+                                  }))
+                                }
+                                rows={6}
+                              />
+                            </div>
+                          </div>
+                        </section>
+
+                        <section
+                          className={`${editorSectionBlockClassName} ${editorSectionBlockDividerClassName}`}
+                        >
+                          <div className="space-y-1">
+                            <h3 className={editorSectionBlockTitleClassName}>Classificação</h3>
+                            <p className="text-xs leading-5 text-muted-foreground">
+                              Tags editoriais e gêneros usados no projeto.
+                            </p>
+                          </div>
+                          <div className="grid gap-4 md:grid-cols-2">
+                            <div className="space-y-2">
+                              <Label>Tags</Label>
+                              <div className="flex flex-wrap items-center gap-2">
+                                <Input
+                                  value={tagInput}
+                                  onChange={(event) => setTagInput(event.target.value)}
+                                  onKeyDown={(event) => {
+                                    if (event.key === "Enter") {
+                                      event.preventDefault();
+                                      handleAddTag();
+                                    }
+                                  }}
+                                  placeholder="Adicionar tag"
+                                />
+                              </div>
+                              {tagSuggestions.length > 0 ? (
+                                <div className="mt-2 flex flex-wrap gap-2">
+                                  {tagSuggestions.map((tag) => (
+                                    <Button
+                                      key={`tag-suggestion-${tag}`}
+                                      type="button"
+                                      size="sm"
+                                      variant="ghost"
+                                      className="h-7 px-2 text-xs"
+                                      onClick={() => {
+                                        setTagInput(tag);
+                                        setFormState((prev) => ({
+                                          ...prev,
+                                          tags: prev.tags.includes(tag)
+                                            ? prev.tags
+                                            : [...prev.tags, tag],
+                                        }));
+                                        setTagInput("");
+                                      }}
+                                    >
+                                      {tag}
+                                    </Button>
+                                  ))}
+                                </div>
+                              ) : null}
+                              <div className="mt-2 flex flex-wrap gap-2">
+                                {translatedSortedEditorTags.map((tag, index) => (
+                                  <Badge
+                                    key={`${tag}-${index}`}
+                                    variant="secondary"
+                                    onClick={() => handleRemoveTag(tag)}
+                                    className="cursor-pointer"
+                                  >
+                                    {translateTag(tag, tagTranslationMap)}
+                                  </Badge>
+                                ))}
+                              </div>
+                            </div>
+                            <div className="space-y-2">
+                              <Label>Gêneros</Label>
+                              <div className="flex flex-wrap items-center gap-2">
+                                <Input
+                                  value={genreInput}
+                                  onChange={(event) => setGenreInput(event.target.value)}
+                                  onKeyDown={(event) => {
+                                    if (event.key === "Enter") {
+                                      event.preventDefault();
+                                      handleAddGenre();
+                                    }
+                                  }}
+                                  placeholder="Adicionar gênero"
+                                />
+                              </div>
+                              {genreSuggestions.length > 0 ? (
+                                <div className="mt-2 flex flex-wrap gap-2">
+                                  {genreSuggestions.map((genre) => (
+                                    <Button
+                                      key={`genre-suggestion-${genre}`}
+                                      type="button"
+                                      size="sm"
+                                      variant="ghost"
+                                      className="h-7 px-2 text-xs"
+                                      onClick={() => {
+                                        setGenreInput(genre);
+                                        setFormState((prev) => ({
+                                          ...prev,
+                                          genres: prev.genres.includes(genre)
+                                            ? prev.genres
+                                            : [...prev.genres, genre],
+                                        }));
+                                        setGenreInput("");
+                                      }}
+                                    >
+                                      {genre}
+                                    </Button>
+                                  ))}
+                                </div>
+                              ) : null}
+                              <div className="mt-2 flex flex-wrap gap-2">
+                                {translatedSortedEditorGenres.map((genre, index) => (
+                                  <Badge
+                                    key={`${genre}-${index}`}
+                                    variant="secondary"
+                                    onClick={() => handleRemoveGenre(genre)}
+                                    className="cursor-pointer"
+                                  >
+                                    {translateGenre(genre, genreTranslationMap)}
+                                  </Badge>
+                                ))}
+                              </div>
+                            </div>
+                          </div>
+                        </section>
+
+                        <section
+                          className={`${editorSectionBlockClassName} ${editorSectionBlockDividerClassName}`}
+                        >
+                          <div className="space-y-1">
+                            <h3 className={editorSectionBlockTitleClassName}>Metadados</h3>
+                            <p className="text-xs leading-5 text-muted-foreground">
+                              Formato, status e dados editoriais do projeto.
+                            </p>
+                          </div>
+                          <div className="grid gap-4 md:grid-cols-2">
+                            <div className="space-y-2">
+                              <Label>Formato</Label>
+                              <Select
+                                value={formState.type}
+                                onValueChange={(value) =>
+                                  setFormState((prev) => ({ ...prev, type: value }))
+                                }
+                              >
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Formato" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {formatSelectOptions.map((option) => (
+                                    <SelectItem key={option} value={option}>
+                                      {option}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            <div className="space-y-2">
+                              <Label>Status</Label>
+                              <Select
+                                value={formState.status}
+                                onValueChange={(value) =>
+                                  setFormState((prev) => ({ ...prev, status: value }))
+                                }
+                              >
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Status" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {statusOptions.map((option) => (
+                                    <SelectItem key={option} value={option}>
+                                      {option}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            <div className="space-y-2">
+                              <Label>Ano</Label>
+                              <Input
+                                value={formState.year}
+                                onChange={(event) =>
+                                  setFormState((prev) => ({ ...prev, year: event.target.value }))
+                                }
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <Label>Temporada</Label>
+                              <Input
+                                value={formState.season}
+                                onChange={(event) =>
+                                  setFormState((prev) => ({ ...prev, season: event.target.value }))
+                                }
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <Label>Estúdio</Label>
+                              <Input
+                                value={formState.studio}
+                                onChange={(event) =>
+                                  setFormState((prev) => ({ ...prev, studio: event.target.value }))
+                                }
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <Label>Episódios/Capítulos</Label>
+                              <Input
+                                value={formState.episodes}
+                                onChange={(event) =>
+                                  setFormState((prev) => ({ ...prev, episodes: event.target.value }))
+                                }
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <Label>País de origem</Label>
+                              <Input
+                                value={formState.country}
+                                onChange={(event) =>
+                                  setFormState((prev) => ({ ...prev, country: event.target.value }))
+                                }
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <Label>Fonte</Label>
+                              <Input
+                                value={formState.source}
+                                onChange={(event) =>
+                                  setFormState((prev) => ({ ...prev, source: event.target.value }))
+                                }
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <Label>Cargo Discord (ID)</Label>
+                              <Input
+                                value={formState.discordRoleId || ""}
+                                onChange={(event) =>
+                                  setFormState((prev) => ({
+                                    ...prev,
+                                    discordRoleId: event.target.value.replace(/\D/g, ""),
+                                  }))
+                                }
+                                placeholder="Opcional: ID numerico do cargo"
+                              />
+                            </div>
+                          </div>
+                        </section>
                       </div>
                     </AccordionContent>
                   </AccordionItem>
 
+                  {/*
                   <AccordionItem value="classificacao" className={editorSectionClassName}>
                     <AccordionTrigger className={editorSectionTriggerClassName}>
                       <ProjectEditorAccordionHeader
@@ -5344,10 +5976,494 @@ const DashboardProjectsEditor = () => {
                             ))}
                           </div>
                         </div>
+                          </div>
+                        </section>
+
+                        <section
+                          className={`${editorSectionBlockClassName} ${editorSectionBlockDividerClassName}`}
+                        >
+                          <div className="space-y-1">
+                            <h3 className={editorSectionBlockTitleClassName}>Classificação</h3>
+                            <p className="text-xs leading-5 text-muted-foreground">
+                              Tags editoriais e gêneros usados no projeto.
+                            </p>
+                          </div>
+                          <div className="grid gap-4 md:grid-cols-2">
+                            <div className="space-y-2">
+                              <Label>Tags</Label>
+                              <div className="flex flex-wrap items-center gap-2">
+                                <Input
+                                  value={tagInput}
+                                  onChange={(event) => setTagInput(event.target.value)}
+                                  onKeyDown={(event) => {
+                                    if (event.key === "Enter") {
+                                      event.preventDefault();
+                                      handleAddTag();
+                                    }
+                                  }}
+                                  placeholder="Adicionar tag"
+                                />
+                              </div>
+                              {tagSuggestions.length > 0 ? (
+                                <div className="mt-2 flex flex-wrap gap-2">
+                                  {tagSuggestions.map((tag) => (
+                                    <Button
+                                      key={`tag-suggestion-${tag}`}
+                                      type="button"
+                                      size="sm"
+                                      variant="ghost"
+                                      className="h-7 px-2 text-xs"
+                                      onClick={() => {
+                                        setTagInput(tag);
+                                        setFormState((prev) => ({
+                                          ...prev,
+                                          tags: prev.tags.includes(tag)
+                                            ? prev.tags
+                                            : [...prev.tags, tag],
+                                        }));
+                                        setTagInput("");
+                                      }}
+                                    >
+                                      {tag}
+                                    </Button>
+                                  ))}
+                                </div>
+                              ) : null}
+                              <div className="mt-2 flex flex-wrap gap-2">
+                                {translatedSortedEditorTags.map((tag, index) => (
+                                  <Badge
+                                    key={`${tag}-${index}`}
+                                    variant="secondary"
+                                    onClick={() => handleRemoveTag(tag)}
+                                    className="cursor-pointer"
+                                  >
+                                    {translateTag(tag, tagTranslationMap)}
+                                  </Badge>
+                                ))}
+                              </div>
+                            </div>
+                            <div className="space-y-2">
+                              <Label>Gêneros</Label>
+                              <div className="flex flex-wrap items-center gap-2">
+                                <Input
+                                  value={genreInput}
+                                  onChange={(event) => setGenreInput(event.target.value)}
+                                  onKeyDown={(event) => {
+                                    if (event.key === "Enter") {
+                                      event.preventDefault();
+                                      handleAddGenre();
+                                    }
+                                  }}
+                                  placeholder="Adicionar gênero"
+                                />
+                              </div>
+                              {genreSuggestions.length > 0 ? (
+                                <div className="mt-2 flex flex-wrap gap-2">
+                                  {genreSuggestions.map((genre) => (
+                                    <Button
+                                      key={`genre-suggestion-${genre}`}
+                                      type="button"
+                                      size="sm"
+                                      variant="ghost"
+                                      className="h-7 px-2 text-xs"
+                                      onClick={() => {
+                                        setGenreInput(genre);
+                                        setFormState((prev) => ({
+                                          ...prev,
+                                          genres: prev.genres.includes(genre)
+                                            ? prev.genres
+                                            : [...prev.genres, genre],
+                                        }));
+                                        setGenreInput("");
+                                      }}
+                                    >
+                                      {genre}
+                                    </Button>
+                                  ))}
+                                </div>
+                              ) : null}
+                              <div className="mt-2 flex flex-wrap gap-2">
+                                {translatedSortedEditorGenres.map((genre, index) => (
+                                  <Badge
+                                    key={`${genre}-${index}`}
+                                    variant="secondary"
+                                    onClick={() => handleRemoveGenre(genre)}
+                                    className="cursor-pointer"
+                                  >
+                                    {translateGenre(genre, genreTranslationMap)}
+                                  </Badge>
+                                ))}
+                              </div>
+                            </div>
+                          </div>
+                        </section>
+
+                        <section
+                          className={`${editorSectionBlockClassName} ${editorSectionBlockDividerClassName}`}
+                        >
+                          <div className="space-y-1">
+                            <h3 className={editorSectionBlockTitleClassName}>Metadados</h3>
+                            <p className="text-xs leading-5 text-muted-foreground">
+                              Formato, status e dados editoriais do projeto.
+                            </p>
+                          </div>
+                          <div className="grid gap-4 md:grid-cols-2">
+                            <div className="space-y-2">
+                              <Label>Formato</Label>
+                              <Select
+                                value={formState.type}
+                                onValueChange={(value) =>
+                                  setFormState((prev) => ({ ...prev, type: value }))
+                                }
+                              >
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Formato" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {formatSelectOptions.map((option) => (
+                                    <SelectItem key={option} value={option}>
+                                      {option}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            <div className="space-y-2">
+                              <Label>Status</Label>
+                              <Select
+                                value={formState.status}
+                                onValueChange={(value) =>
+                                  setFormState((prev) => ({ ...prev, status: value }))
+                                }
+                              >
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Status" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {statusOptions.map((option) => (
+                                    <SelectItem key={option} value={option}>
+                                      {option}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            <div className="space-y-2">
+                              <Label>Ano</Label>
+                              <Input
+                                value={formState.year}
+                                onChange={(event) =>
+                                  setFormState((prev) => ({ ...prev, year: event.target.value }))
+                                }
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <Label>Temporada</Label>
+                              <Input
+                                value={formState.season}
+                                onChange={(event) =>
+                                  setFormState((prev) => ({ ...prev, season: event.target.value }))
+                                }
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <Label>Estúdio</Label>
+                              <Input
+                                value={formState.studio}
+                                onChange={(event) =>
+                                  setFormState((prev) => ({ ...prev, studio: event.target.value }))
+                                }
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <Label>Episódios/Capítulos</Label>
+                              <Input
+                                value={formState.episodes}
+                                onChange={(event) =>
+                                  setFormState((prev) => ({ ...prev, episodes: event.target.value }))
+                                }
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <Label>País de origem</Label>
+                              <Input
+                                value={formState.country}
+                                onChange={(event) =>
+                                  setFormState((prev) => ({ ...prev, country: event.target.value }))
+                                }
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <Label>Fonte</Label>
+                              <Input
+                                value={formState.source}
+                                onChange={(event) =>
+                                  setFormState((prev) => ({ ...prev, source: event.target.value }))
+                                }
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <Label>Cargo Discord (ID)</Label>
+                              <Input
+                                value={formState.discordRoleId || ""}
+                                onChange={(event) =>
+                                  setFormState((prev) => ({
+                                    ...prev,
+                                    discordRoleId: event.target.value.replace(/\D/g, ""),
+                                  }))
+                                }
+                                placeholder="Opcional: ID numerico do cargo"
+                              />
+                            </div>
+                          </div>
+                        </section>
+                          </div>
+                        </section>
+
+                        <section
+                          className={`${editorSectionBlockClassName} ${editorSectionBlockDividerClassName}`}
+                        >
+                          <div className="space-y-1">
+                            <h3 className={editorSectionBlockTitleClassName}>Classificação</h3>
+                            <p className="text-xs leading-5 text-muted-foreground">
+                              Tags editoriais e gêneros usados no projeto.
+                            </p>
+                          </div>
+                          <div className="grid gap-4 md:grid-cols-2">
+                            <div className="space-y-2">
+                              <Label>Tags</Label>
+                              <div className="flex flex-wrap items-center gap-2">
+                                <Input
+                                  value={tagInput}
+                                  onChange={(event) => setTagInput(event.target.value)}
+                                  onKeyDown={(event) => {
+                                    if (event.key === "Enter") {
+                                      event.preventDefault();
+                                      handleAddTag();
+                                    }
+                                  }}
+                                  placeholder="Adicionar tag"
+                                />
+                              </div>
+                              {tagSuggestions.length > 0 ? (
+                                <div className="mt-2 flex flex-wrap gap-2">
+                                  {tagSuggestions.map((tag) => (
+                                    <Button
+                                      key={`tag-suggestion-${tag}`}
+                                      type="button"
+                                      size="sm"
+                                      variant="ghost"
+                                      className="h-7 px-2 text-xs"
+                                      onClick={() => {
+                                        setTagInput(tag);
+                                        setFormState((prev) => ({
+                                          ...prev,
+                                          tags: prev.tags.includes(tag)
+                                            ? prev.tags
+                                            : [...prev.tags, tag],
+                                        }));
+                                        setTagInput("");
+                                      }}
+                                    >
+                                      {tag}
+                                    </Button>
+                                  ))}
+                                </div>
+                              ) : null}
+                              <div className="mt-2 flex flex-wrap gap-2">
+                                {translatedSortedEditorTags.map((tag, index) => (
+                                  <Badge
+                                    key={`${tag}-${index}`}
+                                    variant="secondary"
+                                    onClick={() => handleRemoveTag(tag)}
+                                    className="cursor-pointer"
+                                  >
+                                    {translateTag(tag, tagTranslationMap)}
+                                  </Badge>
+                                ))}
+                              </div>
+                            </div>
+                            <div className="space-y-2">
+                              <Label>Gêneros</Label>
+                              <div className="flex flex-wrap items-center gap-2">
+                                <Input
+                                  value={genreInput}
+                                  onChange={(event) => setGenreInput(event.target.value)}
+                                  onKeyDown={(event) => {
+                                    if (event.key === "Enter") {
+                                      event.preventDefault();
+                                      handleAddGenre();
+                                    }
+                                  }}
+                                  placeholder="Adicionar gênero"
+                                />
+                              </div>
+                              {genreSuggestions.length > 0 ? (
+                                <div className="mt-2 flex flex-wrap gap-2">
+                                  {genreSuggestions.map((genre) => (
+                                    <Button
+                                      key={`genre-suggestion-${genre}`}
+                                      type="button"
+                                      size="sm"
+                                      variant="ghost"
+                                      className="h-7 px-2 text-xs"
+                                      onClick={() => {
+                                        setGenreInput(genre);
+                                        setFormState((prev) => ({
+                                          ...prev,
+                                          genres: prev.genres.includes(genre)
+                                            ? prev.genres
+                                            : [...prev.genres, genre],
+                                        }));
+                                        setGenreInput("");
+                                      }}
+                                    >
+                                      {genre}
+                                    </Button>
+                                  ))}
+                                </div>
+                              ) : null}
+                              <div className="mt-2 flex flex-wrap gap-2">
+                                {translatedSortedEditorGenres.map((genre, index) => (
+                                  <Badge
+                                    key={`${genre}-${index}`}
+                                    variant="secondary"
+                                    onClick={() => handleRemoveGenre(genre)}
+                                    className="cursor-pointer"
+                                  >
+                                    {translateGenre(genre, genreTranslationMap)}
+                                  </Badge>
+                                ))}
+                              </div>
+                            </div>
+                          </div>
+                        </section>
+
+                        <section
+                          className={`${editorSectionBlockClassName} ${editorSectionBlockDividerClassName}`}
+                        >
+                          <div className="space-y-1">
+                            <h3 className={editorSectionBlockTitleClassName}>Metadados</h3>
+                            <p className="text-xs leading-5 text-muted-foreground">
+                              Formato, status e dados editoriais do projeto.
+                            </p>
+                          </div>
+                          <div className="grid gap-4 md:grid-cols-2">
+                            <div className="space-y-2">
+                              <Label>Formato</Label>
+                              <Select
+                                value={formState.type}
+                                onValueChange={(value) =>
+                                  setFormState((prev) => ({ ...prev, type: value }))
+                                }
+                              >
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Formato" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {formatSelectOptions.map((option) => (
+                                    <SelectItem key={option} value={option}>
+                                      {option}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            <div className="space-y-2">
+                              <Label>Status</Label>
+                              <Select
+                                value={formState.status}
+                                onValueChange={(value) =>
+                                  setFormState((prev) => ({ ...prev, status: value }))
+                                }
+                              >
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Status" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {statusOptions.map((option) => (
+                                    <SelectItem key={option} value={option}>
+                                      {option}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            <div className="space-y-2">
+                              <Label>Ano</Label>
+                              <Input
+                                value={formState.year}
+                                onChange={(event) =>
+                                  setFormState((prev) => ({ ...prev, year: event.target.value }))
+                                }
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <Label>Temporada</Label>
+                              <Input
+                                value={formState.season}
+                                onChange={(event) =>
+                                  setFormState((prev) => ({ ...prev, season: event.target.value }))
+                                }
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <Label>Estúdio</Label>
+                              <Input
+                                value={formState.studio}
+                                onChange={(event) =>
+                                  setFormState((prev) => ({ ...prev, studio: event.target.value }))
+                                }
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <Label>Episódios/Capítulos</Label>
+                              <Input
+                                value={formState.episodes}
+                                onChange={(event) =>
+                                  setFormState((prev) => ({ ...prev, episodes: event.target.value }))
+                                }
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <Label>País de origem</Label>
+                              <Input
+                                value={formState.country}
+                                onChange={(event) =>
+                                  setFormState((prev) => ({ ...prev, country: event.target.value }))
+                                }
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <Label>Fonte</Label>
+                              <Input
+                                value={formState.source}
+                                onChange={(event) =>
+                                  setFormState((prev) => ({ ...prev, source: event.target.value }))
+                                }
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <Label>Cargo Discord (ID)</Label>
+                              <Input
+                                value={formState.discordRoleId || ""}
+                                onChange={(event) =>
+                                  setFormState((prev) => ({
+                                    ...prev,
+                                    discordRoleId: event.target.value.replace(/\D/g, ""),
+                                  }))
+                                }
+                                placeholder="Opcional: ID numerico do cargo"
+                              />
+                            </div>
+                          </div>
+                        </section>
                       </div>
                     </AccordionContent>
                   </AccordionItem>
+                  */}
 
+                  {/*
                   <AccordionItem value="metadados" className={editorSectionClassName}>
                     <AccordionTrigger className={editorSectionTriggerClassName}>
                       <ProjectEditorAccordionHeader
@@ -5467,6 +6583,7 @@ const DashboardProjectsEditor = () => {
                       </div>
                     </AccordionContent>
                   </AccordionItem>
+                  */}
 
                   <AccordionItem value="midias" className={editorSectionClassName}>
                     <AccordionTrigger className={editorSectionTriggerClassName}>
@@ -6422,8 +7539,8 @@ const DashboardProjectsEditor = () => {
                                                           }
                                                         >
                                                           {hasEpisodeContent
-                                                            ? "Com conteÃºdo"
-                                                            : "Sem conteÃºdo"}
+                                                            ? "Com conte?do"
+                                                            : "Sem conte?do"}
                                                         </Badge>
                                                       </div>
                                                       <div

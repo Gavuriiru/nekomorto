@@ -33,6 +33,7 @@ type LexicalEditorProps = {
   readOnly?: boolean;
   imageLibraryOptions?: ImageLibraryOptions;
   autoFocus?: boolean;
+  followCaretScroll?: boolean;
 };
 
 const blurEditorRoot = (editor: ReturnType<typeof useLexicalComposerContext>[0]) => {
@@ -172,7 +173,19 @@ const EditablePlugin = ({ readOnly }: { readOnly?: boolean }) => {
 };
 
 const LexicalEditor = React.forwardRef<LexicalEditorHandle, LexicalEditorProps>(
-  ({ value, onChange, placeholder, className, readOnly, imageLibraryOptions, autoFocus }, ref) => {
+  (
+    {
+      value,
+      onChange,
+      placeholder,
+      className,
+      readOnly,
+      imageLibraryOptions,
+      autoFocus,
+      followCaretScroll = false,
+    },
+    ref,
+  ) => {
     const initialConfig = React.useRef({
       namespace: "RainbowLexicalPlayground",
       theme: PlaygroundEditorTheme,
@@ -199,6 +212,7 @@ const LexicalEditor = React.forwardRef<LexicalEditorHandle, LexicalEditorProps>(
                           placeholder={placeholder}
                           imageLibraryOptions={imageLibraryOptions}
                           autoFocus={autoFocus}
+                          followCaretScroll={followCaretScroll}
                         />
                       </div>
                     </div>

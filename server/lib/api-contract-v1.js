@@ -5,6 +5,7 @@ export const API_CONTRACT_VERSION = "v1";
 const CONTRACT_CAPABILITIES = Object.freeze({
   project_epub_import: true,
   project_epub_export: true,
+  project_epub_import_async: true,
 });
 
 const CONTRACT_BASE = Object.freeze({
@@ -113,6 +114,27 @@ const CONTRACT_BASE = Object.freeze({
       notes: [
         "Receives raw application/epub+zip or application/octet-stream body plus query params projectId, targetVolume and defaultStatus.",
         "Returns preview chapters already converted to Lexical JSON and never persists automatically.",
+      ],
+    },
+    {
+      method: "POST",
+      path: "/api/projects/epub/import/jobs",
+      auth: "session",
+      cache: "no-store",
+      idempotent: "optional_by_header",
+      notes: [
+        "Receives the same multipart payload as POST /api/projects/epub/import and responds 202 with a background job descriptor.",
+        "Preview data is exposed later by GET /api/projects/epub/import/jobs/:id when the job completes.",
+      ],
+    },
+    {
+      method: "GET",
+      path: "/api/projects/epub/import/jobs/:id",
+      auth: "session",
+      cache: "no-store",
+      notes: [
+        "Returns the current EPUB import job status for the current user.",
+        "Completed jobs include the same preview payload shape returned by the synchronous import endpoint.",
       ],
     },
     {
@@ -365,9 +387,12 @@ const CONTRACT_BASE = Object.freeze({
   ],
 });
 
-export const buildApiContractV1 = () => ({
+export const buildApiContractV1 = ({ capabilities } = {}) => ({
   ...CONTRACT_BASE,
-  capabilities: CONTRACT_CAPABILITIES,
+  capabilities: {
+    ...CONTRACT_CAPABILITIES,
+    ...(capabilities && typeof capabilities === "object" ? capabilities : {}),
+  },
   build: getBuildMetadata(),
   generatedAt: new Date().toISOString(),
 });

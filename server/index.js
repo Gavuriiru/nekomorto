@@ -103,6 +103,13 @@ import {
   resolveEpisodeLookup,
 } from "./lib/project-episodes.js";
 import { exportProjectEpub } from "./lib/project-epub-export.js";
+import {
+  EPUB_IMPORT_JOB_RESULT_TTL_MS,
+  deleteEpubImportJobResult,
+  readEpubImportJobResult,
+  toEpubImportJobApiResponse,
+  writeEpubImportJobResult,
+} from "./lib/project-epub-import-jobs.js";
 import { cleanupProjectEpubImportTempUploads } from "./lib/project-epub-import-cleanup.js";
 import {
   EPUB_IMPORT_MULTIPART_LIMITS,
@@ -950,6 +957,7 @@ const adminExportsDir = path.resolve(
   REPO_ROOT_DIR,
   String(ADMIN_EXPORTS_DIR || "").trim() || path.join("backups", "admin-exports"),
 );
+const epubImportJobsDir = path.resolve(REPO_ROOT_DIR, path.join("backups", "epub-import-jobs"));
 const sessionSecretList = resolveSessionSecrets({
   sessionSecretsEnv: SESSION_SECRETS,
   sessionSecretFallback: SESSION_SECRET,
@@ -3098,6 +3106,27 @@ const upsertAdminExportJob = (job) => {
     return null;
   }
   return dataRepository.upsertAdminExportJob(job);
+};
+
+const loadEpubImportJobs = () => {
+  if (!dataRepository || typeof dataRepository.loadEpubImportJobs !== "function") {
+    return [];
+  }
+  return dataRepository.loadEpubImportJobs();
+};
+
+const isEpubImportJobStorageAvailable = () => {
+  if (!dataRepository || typeof dataRepository.isEpubImportJobStorageAvailable !== "function") {
+    return false;
+  }
+  return dataRepository.isEpubImportJobStorageAvailable();
+};
+
+const upsertEpubImportJob = (job) => {
+  if (!dataRepository || typeof dataRepository.upsertEpubImportJob !== "function") {
+    return null;
+  }
+  return dataRepository.upsertEpubImportJob(job);
 };
 
 const loadSecretRotations = () => {
@@ -6844,7 +6873,13 @@ app.get("/api/contracts", (_req, res) => {
 
 app.get(["/api/contracts/v1", "/api/contracts/v1.json"], (_req, res) => {
   res.setHeader("Cache-Control", "no-store");
-  return res.json(buildApiContractV1());
+  return res.json(
+    buildApiContractV1({
+      capabilities: {
+        project_epub_import_async: isEpubImportJobStorageAvailable(),
+      },
+    }),
+  );
 });
 
 const getRepositoryHealthSnapshot = () => {
@@ -7091,6 +7126,45 @@ const parseEpubImportRequestBody = (req, res, next) => {
   }
 
   return parseLegacyEpubImportBody(req, res, next);
+};
+
+const resolveEpubImportRequestInput = (req) => {
+  const isMultipartRequest = String(req.headers["content-type"] || "")
+    .toLowerCase()
+    .includes("multipart/form-data");
+  const rawProjectId = String(req.query.projectId || "").trim();
+  const targetVolumeRaw = isMultipartRequest
+    ? getSingleMultipartValue(req.body?.targetVolume)
+    : req.query.targetVolume;
+  const defaultStatusRaw = isMultipartRequest
+    ? getSingleMultipartValue(req.body?.defaultStatus)
+    : req.query.defaultStatus;
+  const defaultStatus = String(defaultStatusRaw || "draft")
+    .trim()
+    .toLowerCase();
+  const targetVolume =
+    targetVolumeRaw !== undefined &&
+    targetVolumeRaw !== null &&
+    String(targetVolumeRaw).trim() !== "" &&
+    Number.isFinite(Number(targetVolumeRaw))
+      ? Number(targetVolumeRaw)
+      : undefined;
+  const buffer = isMultipartRequest
+    ? Buffer.isBuffer(req.file?.buffer)
+      ? req.file.buffer
+      : Buffer.from([])
+    : Buffer.isBuffer(req.body)
+      ? req.body
+      : Buffer.from([]);
+  const project = normalizeProjectSnapshotForEpubImport(req.body?.project);
+  return {
+    isMultipartRequest,
+    rawProjectId,
+    targetVolume,
+    defaultStatus,
+    buffer,
+    project,
+  };
 };
 
 const buildRuntimeMetadata = () => ({
@@ -8034,6 +8108,132 @@ const enqueueAdminExportJob = (jobId) =>
     payload: { jobId },
     run: async () => runAdminExportJob(jobId),
   });
+
+const findEpubImportJobForUser = (jobId, actorId) =>
+  loadEpubImportJobs().find(
+    (entry) =>
+      String(entry?.id || "") === String(jobId || "") &&
+      String(entry?.requestedBy || "") === String(actorId || ""),
+  ) || null;
+
+const expireEpubImportJob = (
+  job,
+  {
+    error = "O resultado da importacao EPUB expirou. Envie o arquivo novamente.",
+  } = {},
+) => {
+  if (!job) {
+    return null;
+  }
+  deleteEpubImportJobResult(job.resultPath);
+  return upsertEpubImportJob({
+    ...job,
+    status: "expired",
+    resultPath: null,
+    error,
+    finishedAt: job.finishedAt || new Date().toISOString(),
+    expiresAt: job.expiresAt || new Date().toISOString(),
+  });
+};
+
+const runEpubImportJob = async (
+  jobId,
+  {
+    buffer,
+    project,
+    targetVolume,
+    defaultStatus,
+    uploadUserId,
+  } = {},
+) => {
+  const current = loadEpubImportJobs().find(
+    (entry) => String(entry?.id || "") === String(jobId || ""),
+  );
+  if (!current) {
+    return null;
+  }
+  let processing = upsertEpubImportJob({
+    ...current,
+    status: "processing",
+    startedAt: new Date().toISOString(),
+    finishedAt: null,
+    expiresAt: null,
+    error: null,
+  });
+  try {
+    const preview = await importProjectEpub({
+      buffer,
+      project,
+      targetVolume,
+      defaultStatus,
+      uploadsDir: path.join(__dirname, "..", "public", "uploads"),
+      loadUploads,
+      writeUploads,
+      uploadUserId,
+    });
+    const finishedAt = new Date();
+    const resultPath = writeEpubImportJobResult({
+      jobsDir: epubImportJobsDir,
+      jobId: processing.id,
+      result: preview,
+    });
+    processing = upsertEpubImportJob({
+      ...processing,
+      status: "completed",
+      summary:
+        preview?.summary && typeof preview.summary === "object" && !Array.isArray(preview.summary)
+          ? preview.summary
+          : {},
+      resultPath,
+      error: null,
+      finishedAt: finishedAt.toISOString(),
+      expiresAt: new Date(finishedAt.getTime() + EPUB_IMPORT_JOB_RESULT_TTL_MS).toISOString(),
+    });
+    return processing;
+  } catch (error) {
+    deleteEpubImportJobResult(processing?.resultPath);
+    const mappedError = mapEpubImportExecutionError(error);
+    return upsertEpubImportJob({
+      ...processing,
+      status: "failed",
+      resultPath: null,
+      finishedAt: new Date().toISOString(),
+      error: String(mappedError?.body?.detail || error?.message || error || "epub_import_failed"),
+    });
+  }
+};
+
+const enqueueEpubImportJob = (jobId, payload) =>
+  backgroundJobQueue.enqueue({
+    type: "project.epub_import",
+    payload: {
+      jobId,
+      projectId: payload?.project?.id || payload?.rawProjectId || "",
+      targetVolume: payload?.targetVolume ?? null,
+    },
+    run: async () => runEpubImportJob(jobId, payload),
+  });
+
+loadEpubImportJobs().forEach((job) => {
+  const normalizedStatus = String(job?.status || "").trim().toLowerCase();
+  if (normalizedStatus === "completed") {
+    const expiresAtTs = new Date(job?.expiresAt || 0).getTime();
+    if (Number.isFinite(expiresAtTs) && expiresAtTs <= Date.now()) {
+      expireEpubImportJob(job);
+    }
+    return;
+  }
+  if (normalizedStatus !== "queued" && normalizedStatus !== "processing") {
+    return;
+  }
+  upsertEpubImportJob({
+    ...job,
+    status: "failed",
+    resultPath: null,
+    finishedAt: new Date().toISOString(),
+    error: "A importacao EPUB foi interrompida porque o servidor reiniciou antes da conclusao.",
+  });
+});
 
 app.get("/api/admin/security/events", requireAuth, (req, res) => {
   if (!canManageSecurityAdmin(req.session?.user?.id)) {
@@ -10802,51 +11002,18 @@ app.get("/api/project-types", requireAuth, (req, res) => {
   return res.json({ types });
 });
 
-app.post("/api/projects/epub/import", requireAuth, parseEpubImportRequestBody, async (req, res) => {
+app.post("/api/projects/epub/import/jobs", requireAuth, parseEpubImportRequestBody, async (req, res) => {
   const sessionUser = req.session.user;
   if (!canManageProjects(sessionUser?.id)) {
     return res.status(403).json({ error: "forbidden" });
   }
-
-  const isMultipartRequest = String(req.headers["content-type"] || "")
-    .toLowerCase()
-    .includes("multipart/form-data");
-  const rawProjectId = String(req.query.projectId || "").trim();
-  const targetVolumeRaw = isMultipartRequest
-    ? getSingleMultipartValue(req.body?.targetVolume)
-    : req.query.targetVolume;
-  const defaultStatusRaw = isMultipartRequest
-    ? getSingleMultipartValue(req.body?.defaultStatus)
-    : req.query.defaultStatus;
-  const defaultStatus = String(defaultStatusRaw || "draft")
-    .trim()
-    .toLowerCase();
-  const targetVolume =
-    targetVolumeRaw !== undefined &&
-    targetVolumeRaw !== null &&
-    String(targetVolumeRaw).trim() !== "" &&
-    Number.isFinite(Number(targetVolumeRaw))
-      ? Number(targetVolumeRaw)
-      : undefined;
-  const buffer = isMultipartRequest
-    ? Buffer.isBuffer(req.file?.buffer)
-      ? req.file.buffer
-      : Buffer.from([])
-    : Buffer.isBuffer(req.body)
-      ? req.body
-      : Buffer.from([]);
-
-  if (isMultipartRequest && !req.file) {
-    return res.status(400).json({ error: "file_required" });
+  if (!isEpubImportJobStorageAvailable()) {
+    return res.status(404).json({ error: "not_found" });
   }
 
-  if (!buffer.length) {
-    return res.status(400).json({ error: "empty_epub_upload" });
-  }
-
-  let project = null;
+  let requestInput;
   try {
-    project = normalizeProjectSnapshotForEpubImport(req.body?.project);
+    requestInput = resolveEpubImportRequestInput(req);
   } catch (error) {
     if (error?.code === "duplicate_episode_key") {
       return res.status(400).json({ error: "duplicate_episode_key", key: error.key });
@@ -10857,6 +11024,118 @@ app.post("/api/projects/epub/import", requireAuth, parseEpubImportRequestBody, a
     return res.status(400).json({ error: "invalid_project_snapshot" });
   }
 
+  if (requestInput.isMultipartRequest && !req.file) {
+    return res.status(400).json({ error: "file_required" });
+  }
+
+  if (!requestInput.buffer.length) {
+    return res.status(400).json({ error: "empty_epub_upload" });
+  }
+
+  let project = requestInput.project;
+  const rawProjectId = requestInput.rawProjectId;
+  if (!project && rawProjectId) {
+    project =
+      normalizeProjects(loadProjects()).find(
+        (item) => item.id === rawProjectId && !item.deletedAt,
+      ) || null;
+    if (!project) {
+      return res.status(404).json({ error: "project_not_found" });
+    }
+  }
+
+  const job = upsertEpubImportJob({
+    id: crypto.randomUUID(),
+    projectId: String(project?.id || rawProjectId || "").trim(),
+    requestedBy: String(sessionUser?.id || ""),
+    status: "queued",
+    summary: {},
+    resultPath: null,
+    error: null,
+    createdAt: new Date().toISOString(),
+  });
+  if (!job) {
+    return res.status(500).json({ error: "job_create_failed" });
+  }
+  void enqueueEpubImportJob(job.id, {
+    buffer: requestInput.buffer,
+    project,
+    rawProjectId,
+    targetVolume: requestInput.targetVolume,
+    defaultStatus: requestInput.defaultStatus,
+    uploadUserId: sessionUser?.id,
+  }).catch((error) => {
+    console.error(
+      `[epub-import-job] failed to enqueue job ${job.id}: ${String(error?.message || error)}`,
+    );
+  });
+  return res.status(202).json({ job: toEpubImportJobApiResponse(job) });
+});
+
+app.get("/api/projects/epub/import/jobs/:id", requireAuth, (req, res) => {
+  const sessionUser = req.session.user;
+  if (!canManageProjects(sessionUser?.id)) {
+    return res.status(403).json({ error: "forbidden" });
+  }
+  if (!isEpubImportJobStorageAvailable()) {
+    return res.status(404).json({ error: "not_found" });
+  }
+
+  let job = findEpubImportJobForUser(req.params.id, sessionUser?.id);
+  if (!job) {
+    return res.status(404).json({ error: "not_found" });
+  }
+
+  if (String(job.status || "").trim().toLowerCase() === "completed") {
+    const expiresAtTs = new Date(job.expiresAt || 0).getTime();
+    if (Number.isFinite(expiresAtTs) && Date.now() > expiresAtTs) {
+      job = expireEpubImportJob(job) || job;
+      return res.json({ job: toEpubImportJobApiResponse(job) });
+    }
+    const result = readEpubImportJobResult(job.resultPath);
+    if (!result) {
+      job =
+        expireEpubImportJob(job, {
+          error:
+            "O resultado da importacao EPUB nao esta mais disponivel. Envie o arquivo novamente.",
+        }) || job;
+      return res.json({ job: toEpubImportJobApiResponse(job) });
+    }
+    return res.json({ job: toEpubImportJobApiResponse(job, { result }) });
+  }
+
+  return res.json({ job: toEpubImportJobApiResponse(job) });
+});
+
+app.post("/api/projects/epub/import", requireAuth, parseEpubImportRequestBody, async (req, res) => {
+  const sessionUser = req.session.user;
+  if (!canManageProjects(sessionUser?.id)) {
+    return res.status(403).json({ error: "forbidden" });
+  }
+
+  let requestInput;
+  try {
+    requestInput = resolveEpubImportRequestInput(req);
+  } catch (error) {
+    if (error?.code === "duplicate_episode_key") {
+      return res.status(400).json({ error: "duplicate_episode_key", key: error.key });
+    }
+    if (error?.code === "duplicate_volume_cover_key") {
+      return res.status(400).json({ error: "duplicate_volume_cover_key", key: error.key });
+    }
+    return res.status(400).json({ error: "invalid_project_snapshot" });
+  }
+
+  if (requestInput.isMultipartRequest && !req.file) {
+    return res.status(400).json({ error: "file_required" });
+  }
+
+  if (!requestInput.buffer.length) {
+    return res.status(400).json({ error: "empty_epub_upload" });
+  }
+
+  let project = requestInput.project;
+  const rawProjectId = requestInput.rawProjectId;
   if (!project && rawProjectId) {
     project =
       normalizeProjects(loadProjects()).find(
@@ -10869,10 +11148,10 @@ app.post("/api/projects/epub/import", requireAuth, parseEpubImportRequestBody, a
 
   try {
     const preview = await importProjectEpub({
-      buffer,
+      buffer: requestInput.buffer,
       project,
-      targetVolume,
-      defaultStatus,
+      targetVolume: requestInput.targetVolume,
+      defaultStatus: requestInput.defaultStatus,
       uploadsDir: path.join(__dirname, "..", "public", "uploads"),
       loadUploads,
       writeUploads,

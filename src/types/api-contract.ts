@@ -1,6 +1,7 @@
 export type ApiContractCapabilities = {
   project_epub_import: boolean;
   project_epub_export: boolean;
+  project_epub_import_async?: boolean;
 };
 
 export type ApiContractBuildMetadata = {
