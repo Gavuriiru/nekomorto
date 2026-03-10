@@ -8,7 +8,10 @@ import type { Project } from "@/data/projects";
 import { usePageMeta } from "@/hooks/use-page-meta";
 import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
-import { buildDashboardProjectChapterEditorHref } from "@/lib/project-editor-routes";
+import {
+  buildDashboardProjectChapterEditorHref,
+  buildProjectPublicReadingHref,
+} from "@/lib/project-editor-routes";
 import {
   buildEpisodeKey,
   resolveCanonicalEpisodeRouteTarget,
@@ -148,7 +151,10 @@ const ProjectReading = () => {
   }, [apiBase]);
 
   const chapterNumber = Number(chapter);
-  const volumeParam = Number(searchParams.get("volume"));
+  const volumeParamRaw = searchParams.get("volume");
+  const parsedVolumeParam = Number(volumeParamRaw);
+  const volumeParam =
+    volumeParamRaw !== null && Number.isFinite(parsedVolumeParam) ? parsedVolumeParam : undefined;
   const isLightNovel = isLightNovelType(project?.type || "");
 
   const sortedChapters = useMemo(() => {
@@ -191,10 +197,10 @@ const ProjectReading = () => {
     }
     const lookupKey = buildEpisodeKey(
       chapterNumber,
-      Number.isFinite(volumeParam) ? volumeParam : undefined,
+      volumeParam,
     );
     return sortedChapters.find((entry) => {
-      if (!Number.isFinite(volumeParam)) {
+      if (volumeParam === undefined) {
         return entry.number === chapterNumber;
       }
       return buildEpisodeKey(entry.number, entry.volume) === lookupKey;
@@ -210,7 +216,7 @@ const ProjectReading = () => {
     if (Number.isFinite(listVolume)) {
       return listVolume;
     }
-    return Number.isFinite(volumeParam) ? volumeParam : undefined;
+    return volumeParam;
   }, [chapterContent?.volume, chapterData?.volume, volumeParam]);
 
   const normalizedVolumeEntries = useMemo(() => {
@@ -373,7 +379,7 @@ const ProjectReading = () => {
       if (!project || !Number.isFinite(chapterNumber)) {
         return;
       }
-      const volumeQuery = Number.isFinite(volumeParam) ? `?volume=${volumeParam}` : "";
+      const volumeQuery = volumeParam !== undefined ? `?volume=${volumeParam}` : "";
       try {
         const response = await apiFetch(
           apiBase,
@@ -577,7 +583,7 @@ const ProjectReading = () => {
                                 chapterNumber: chapterData?.number ?? chapterNumber,
                                 volume:
                                   chapterData?.volume ??
-                                  (Number.isFinite(volumeParam) ? volumeParam : undefined),
+                                  volumeParam,
                               }
                             : undefined
                         }
@@ -605,9 +611,11 @@ const ProjectReading = () => {
                       className="project-reading-nav-btn project-reading-nav-btn--secondary project-reading-chapter-nav__button"
                     >
                       <Link
-                        to={`/projeto/${project.id}/leitura/${previousChapter.number}${
-                          previousChapter.volume ? `?volume=${previousChapter.volume}` : ""
-                        }`}
+                        to={buildProjectPublicReadingHref(
+                          project.id,
+                          previousChapter.number,
+                          previousChapter.volume,
+                        )}
                       >
                         <ChevronLeft className="h-4 w-4" aria-hidden="true" />
                         <span>Capítulo anterior</span>
@@ -621,9 +629,11 @@ const ProjectReading = () => {
                       className="project-reading-nav-btn project-reading-nav-btn--next project-reading-chapter-nav__button"
                     >
                       <Link
-                        to={`/projeto/${project.id}/leitura/${nextChapter.number}${
-                          nextChapter.volume ? `?volume=${nextChapter.volume}` : ""
-                        }`}
+                        to={buildProjectPublicReadingHref(
+                          project.id,
+                          nextChapter.number,
+                          nextChapter.volume,
+                        )}
                       >
                         <span>Próximo capítulo</span>
                         <ChevronRight className="h-4 w-4" aria-hidden="true" />
@@ -638,7 +648,7 @@ const ProjectReading = () => {
                 targetId={project.id}
                 chapterNumber={chapterData?.number ?? chapterNumber}
                 volume={
-                  chapterData?.volume ?? (Number.isFinite(volumeParam) ? volumeParam : undefined)
+                  chapterData?.volume ?? volumeParam
                 }
               />
             </article>

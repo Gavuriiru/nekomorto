@@ -664,13 +664,24 @@ describe("Header mobile search layout", () => {
     const projectLink = await screen.findByRole("link", { name: /Projeto Remoto Badges/i });
     const projectCard = projectLink.closest("a");
     expect(projectCard).not.toBeNull();
+    expect(classTokens(projectCard as HTMLElement)).toContain("h-36");
 
     const coverColumn = projectCard?.querySelector(
       '[data-synopsis-role="column"]',
     ) as HTMLElement | null;
     expect(coverColumn).not.toBeNull();
-    expect(classTokens(coverColumn as HTMLElement)).toContain("h-28");
-    expect(classTokens(coverColumn as HTMLElement)).toContain("overflow-hidden");
+    expect(classTokens(coverColumn as HTMLElement)).toContain("flex-1");
+    expect(classTokens(coverColumn as HTMLElement)).toContain("self-stretch");
+    expect(classTokens(coverColumn as HTMLElement)).toContain("min-h-0");
+    expect(classTokens(coverColumn as HTMLElement)).not.toContain("h-28");
+    expect(classTokens(coverColumn as HTMLElement)).not.toContain("overflow-hidden");
+
+    const synopsis = projectCard?.querySelector(
+      '[data-synopsis-role="synopsis"]',
+    ) as HTMLElement | null;
+    expect(synopsis).not.toBeNull();
+    expect(classTokens(synopsis as HTMLElement)).toContain("flex-1");
+    expect(classTokens(synopsis as HTMLElement)).toContain("min-h-0");
 
     const coverImage = screen.getByRole("img", { name: "Projeto Remoto Badges" });
     const coverPicture = coverImage.parentElement;
@@ -686,6 +697,8 @@ describe("Header mobile search layout", () => {
     expect(badgesRow).not.toBeNull();
     expect(classTokens(badgesRow as HTMLElement)).toContain("flex-nowrap");
     expect(classTokens(badgesRow as HTMLElement)).toContain("overflow-hidden");
+    expect(classTokens(badgesRow as HTMLElement)).toContain("shrink-0");
+    expect(classTokens(badgesRow as HTMLElement)).toContain("pb-1");
     expect(classTokens(badgesRow as HTMLElement)).not.toContain("flex-wrap");
 
     expect(screen.getByText("Acao")).toBeInTheDocument();

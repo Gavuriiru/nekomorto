@@ -50,6 +50,7 @@ import { useSiteSettings } from "@/hooks/use-site-settings";
 import { usePageMeta } from "@/hooks/use-page-meta";
 import { normalizeAssetUrl } from "@/lib/asset-url";
 import { PROJECT_COVER_ASPECT_RATIO } from "@/lib/project-card-layout";
+import { buildProjectPublicReadingHref } from "@/lib/project-editor-routes";
 import type { UploadMediaVariantsMap } from "@/lib/upload-variants";
 import NotFound from "./NotFound";
 import type { Project } from "@/data/projects";
@@ -651,7 +652,7 @@ const ProjectPage = () => {
     const readAction: EpisodeReadAction | null =
       allowReadAction && hasContent
         ? {
-            href: `/projeto/${project.id}/leitura/${chapter.number}${chapter.volume ? `?volume=${chapter.volume}` : ""}`,
+            href: buildProjectPublicReadingHref(project.id, chapter.number, chapter.volume),
             label: isExtraEntry ? "Ler extra" : "Ler capítulo",
           }
         : null;
@@ -1051,11 +1052,11 @@ const ProjectPage = () => {
                   {isLightNovel && firstReadableChapter ? (
                     <Button asChild variant="outline" className="gap-2">
                       <Link
-                        to={`/projeto/${project.id}/leitura/${firstReadableChapter.number}${
-                          firstReadableChapter.volume
-                            ? `?volume=${firstReadableChapter.volume}`
-                            : ""
-                        }`}
+                        to={buildProjectPublicReadingHref(
+                          project.id,
+                          firstReadableChapter.number,
+                          firstReadableChapter.volume,
+                        )}
                       >
                         Começar leitura
                       </Link>

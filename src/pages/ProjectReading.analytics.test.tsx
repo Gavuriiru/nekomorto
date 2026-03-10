@@ -361,7 +361,7 @@ describe("ProjectReading analytics", () => {
       </MemoryRouter>,
     );
 
-    await screen.findByRole("heading", { name: /Cap.*tulo 1/i });
+    await screen.findByTestId("project-reading-hero");
     expect(screen.queryByRole("link", { name: /Editar cap.tulo/i })).not.toBeInTheDocument();
   });
 

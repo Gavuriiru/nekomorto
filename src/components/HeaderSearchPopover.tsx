@@ -195,7 +195,7 @@ const HeaderSearchPopover = ({
                   <div
                     data-synopsis-role="column"
                     data-synopsis-key={item.href}
-                    className="h-28 min-w-0 flex flex-col overflow-hidden"
+                    className="min-h-0 min-w-0 flex flex-1 self-stretch flex-col"
                   >
                     <p
                       data-synopsis-role="title"
@@ -205,7 +205,7 @@ const HeaderSearchPopover = ({
                     </p>
                     <p
                       className={cn(
-                        "mt-1 overflow-hidden text-xs leading-snug text-muted-foreground",
+                        "mt-1 min-h-0 flex-1 overflow-hidden text-xs leading-snug text-muted-foreground",
                         getSynopsisClampClass(item.href),
                       )}
                       data-synopsis-role="synopsis"
@@ -215,7 +215,7 @@ const HeaderSearchPopover = ({
                     {item.tags.length > 0 && (
                       <div
                         data-synopsis-role="badges"
-                        className="mt-auto flex min-w-0 flex-nowrap gap-1.5 overflow-hidden pt-2"
+                        className="flex min-w-0 shrink-0 flex-nowrap gap-1.5 overflow-hidden pb-1 pt-2"
                       >
                         {item.tags.map((tag) => (
                           <Badge

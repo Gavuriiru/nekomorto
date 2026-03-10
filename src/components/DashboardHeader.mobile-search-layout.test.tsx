@@ -209,6 +209,11 @@ describe("DashboardHeader mobile search layout", () => {
     expect(await screen.findByText("Post Dashboard")).toBeInTheDocument();
     expect(await screen.findByText("Acao")).toBeInTheDocument();
 
+    const projectLink = await screen.findByRole("link", { name: /Projeto Dashboard/i });
+    const projectCard = projectLink.closest("a");
+    expect(projectCard).not.toBeNull();
+    expect(classTokens(projectCard as HTMLElement)).toContain("h-36");
+
     const coverImage = screen.getByRole("img", { name: "Projeto Dashboard" });
     let coverWrapper = coverImage.parentElement as HTMLElement | null;
     while (coverWrapper && !classTokens(coverWrapper).includes("h-28")) {
@@ -222,7 +227,17 @@ describe("DashboardHeader mobile search layout", () => {
       '[data-synopsis-role="column"]',
     ) as HTMLElement | null;
     expect(coverColumn).not.toBeNull();
-    expect(classTokens(coverColumn as HTMLElement)).toContain("h-28");
+    expect(classTokens(coverColumn as HTMLElement)).toContain("flex-1");
+    expect(classTokens(coverColumn as HTMLElement)).toContain("self-stretch");
+    expect(classTokens(coverColumn as HTMLElement)).toContain("min-h-0");
+    expect(classTokens(coverColumn as HTMLElement)).not.toContain("h-28");
+
+    const synopsis = projectCard?.querySelector(
+      '[data-synopsis-role="synopsis"]',
+    ) as HTMLElement | null;
+    expect(synopsis).not.toBeNull();
+    expect(classTokens(synopsis as HTMLElement)).toContain("flex-1");
+    expect(classTokens(synopsis as HTMLElement)).toContain("min-h-0");
 
     const results = screen.getByTestId("dashboard-header-results");
     expect(classTokens(results)).toContain("w-[min(24rem,calc(100vw-1rem))]");
@@ -242,6 +257,76 @@ describe("DashboardHeader mobile search layout", () => {
     expect(classTokens(actionsCluster)).toContain("visible");
     expect(classTokens(actionsCluster)).toContain("pointer-events-auto");
     expect(classTokens(searchCluster)).not.toContain("absolute");
+  });
+
+  it("mantem badges de projetos remotos em uma linha sem cortar o rodape do card", async () => {
+    setupApiMock({
+      searchSuggestions: [
+        {
+          kind: "project",
+          id: "project-88",
+          label: "Projeto Dashboard Badges",
+          href: "/projeto/project-88",
+          description: "Resultado remoto com muitas tags",
+          image: "/placeholder.svg",
+          tags: ["Acao", "TagAlpha", "TagGamma", "TagBeta"],
+        },
+      ],
+    });
+
+    render(
+      <MemoryRouter initialEntries={["/dashboard"]}>
+        <DashboardHeader
+          currentUser={{
+            name: "Admin",
+            username: "admin",
+            avatarUrl: null,
+          }}
+        />
+      </MemoryRouter>,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Abrir busca" }));
+
+    const searchInput = await screen.findByPlaceholderText("Buscar projetos e posts");
+    fireEvent.change(searchInput, {
+      target: { value: "ba" },
+    });
+
+    await waitFor(() => {
+      expect(getSearchSuggestCalls()).toHaveLength(1);
+    });
+
+    const projectLink = await screen.findByRole("link", { name: /Projeto Dashboard Badges/i });
+    const projectCard = projectLink.closest("a");
+    expect(projectCard).not.toBeNull();
+    expect(classTokens(projectCard as HTMLElement)).toContain("h-36");
+
+    const coverColumn = projectCard?.querySelector(
+      '[data-synopsis-role="column"]',
+    ) as HTMLElement | null;
+    expect(coverColumn).not.toBeNull();
+    expect(classTokens(coverColumn as HTMLElement)).toContain("flex-1");
+    expect(classTokens(coverColumn as HTMLElement)).toContain("self-stretch");
+    expect(classTokens(coverColumn as HTMLElement)).toContain("min-h-0");
+    expect(classTokens(coverColumn as HTMLElement)).not.toContain("h-28");
+    expect(classTokens(coverColumn as HTMLElement)).not.toContain("overflow-hidden");
+
+    const badgesRow = projectCard?.querySelector(
+      '[data-synopsis-role="badges"]',
+    ) as HTMLElement | null;
+    expect(badgesRow).not.toBeNull();
+    expect(classTokens(badgesRow as HTMLElement)).toContain("flex-nowrap");
+    expect(classTokens(badgesRow as HTMLElement)).toContain("overflow-hidden");
+    expect(classTokens(badgesRow as HTMLElement)).toContain("shrink-0");
+    expect(classTokens(badgesRow as HTMLElement)).toContain("pb-1");
+    expect(classTokens(badgesRow as HTMLElement)).not.toContain("flex-wrap");
+    expect((badgesRow as HTMLElement).childElementCount).toBe(4);
+
+    expect(screen.getByText("Acao")).toBeInTheDocument();
+    expect(screen.getByText("TagAlpha")).toBeInTheDocument();
+    expect(screen.getByText("TagGamma")).toBeInTheDocument();
+    expect(screen.getByText("TagBeta")).toBeInTheDocument();
   });
 
   it("mantem a ordem no desktop com links antes da busca e busca antes das acoes", () => {
